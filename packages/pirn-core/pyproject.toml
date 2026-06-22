@@ -1,6 +1,6 @@
 # pirn-core — the core package, imports as `pirn` (SCD-05/06, Phase 1).
 #
-# The core source lives here at `src/pirn/` (relocated from the repo root
+# The core source lives here at `pirn/` (relocated from the repo root
 # during the connectors fold). `connectors` is folded in as a top-level core
 # subpackage (`pirn.connectors.*`, ADR-2). The six domains were carved out into
 # their own packages in Phase 3 (SCD-11..16): pirn-signal/-data/-ml/-agents/
@@ -17,7 +17,7 @@ build-backend = "hatchling.build"
 name = "pirn-core"
 version = "0.4.0"                          # lockstep target (ADR-6); stamped by CI
 description = "A pipeline framework where everything is a knot."
-readme = "../../README.md"
+readme = "README.md"  # package-local: the root README escapes the sdist (SCD-28)
 requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
 authors = [{ name = "snoodleboot, LLC" }]
@@ -328,8 +328,71 @@ all = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/pirn"]                    # installs as `pirn-core`, imports as `pirn`
+packages = ["pirn"]                    # installs as `pirn-core`, imports as `pirn`
+
+# --- standalone tooling: pirn-core owns its full config (no shared root) -----
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.0",
+    "pytest-asyncio>=1.4.0",
+    "pytest-cov>=7.1.0",
+    "pytest-timeout>=2.4.0",
+    "pytest-benchmark>=5.2.3",
+    "anyio>=4.0",
+    "ruff>=0.15.17",
+    "pyright>=1.1.410",
+    "mutmut>=3.6.0,<4",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "--strict-markers -ra --ignore=tests/perf -m 'not slow and not mutation and not heavy'"
+markers = [
+    "slow: tests that take meaningful wall-clock time",
+    "mutation: mutation-test-specific assertions",
+    "heavy: requires large ML deps (torch, tensorflow) — excluded from the default suite",
+    "cross_domain: needs >1 package installed — skipped in isolation, run by the unified suite",
+    "anyio: async test driven by the anyio pytest plugin (registered so --strict-markers passes if absent)",
+    "needs_postgres: requires a real Postgres at $PIRN_TEST_POSTGRES_URL",
+    "needs_valkey: requires a real ValKey at $PIRN_TEST_VALKEY_URL",
+    "needs_kafka: requires a real Kafka at $PIRN_TEST_KAFKA_URL",
+    "needs_s3: requires a real S3 (or compatible) endpoint",
+    "needs_dask: requires dask.distributed (uses LocalCluster)",
+    "needs_ray: requires ray (uses a local Ray instance)",
+    "needs_celery: requires celery + Redis broker at $PIRN_TEST_CELERY_BROKER",
+    "benchmark: pytest-benchmark performance test",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "RUF"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**/*.py" = ["F841"]
+"**/pirn/__init__.py" = ["RUF022"]
+"**/pirn/viz/explorer.py" = ["E501"]
+"**/pirn/viz/html.py" = ["E501"]
+
+[tool.coverage.run]
+source = ["pirn"]
+
+[tool.mutmut]
+paths_to_mutate = "pirn/"
+tests_dir = "tests/"
+runner = ".venv/bin/python -m pytest tests -x -q --no-header"
 
 [tool.pyright]
-extends = "../../pyright.base.json"        # shared relaxation rules (SCD-03)
-include = ["src/pirn"]
+include = ["pirn"]
+pythonVersion = "3.12"
+# Backends/dispatchers import optional packages lazily; the Knot.process(**kwargs)
+# override pattern and dynamic registry access are intentional (was SCD-03 base).
+reportMissingImports = "none"
+reportMissingModuleSource = "none"
+reportIncompatibleMethodOverride = "none"
+reportAttributeAccessIssue = "none"

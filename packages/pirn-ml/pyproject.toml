@@ -1,5 +1,5 @@
 # pirn-ml — the ML Engineering / Data Science domain, imports as `pirn_ml`
-# (SCD-14, Phase 3). Source relocated from `pirn/domains/ml` to `src/pirn_ml/`;
+# (SCD-14, Phase 3). Source relocated from `pirn/domains/ml` to `pirn_ml/`;
 # the `ml` extra (numpy/pandas/scikit-learn) moved here from pirn-core. This
 # package carries the one retained domain→domain edge (`pirn-ml → pirn-data`,
 # ADR-3): dataset_loader consumes DataBatch/LakehouseTable/FileSource/SqlSource
@@ -26,8 +26,65 @@ dependencies = [
 ml = ["numpy>=1.26", "pandas>=2.0", "scikit-learn>=1.4"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/pirn_ml"]
+packages = ["pirn_ml"]
+
+# --- standalone tooling: pirn-ml owns its full config (no shared root) ---
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.0",
+    "pytest-asyncio>=1.4.0",
+    "pytest-cov>=7.1.0",
+    "pytest-timeout>=2.4.0",
+    "anyio>=4.0",
+    "ruff>=0.15.17",
+    "pyright>=1.1.410",
+    "mutmut>=3.6.0,<4",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "--strict-markers -ra -m 'not slow and not mutation and not heavy'"
+markers = [
+    "slow: tests that take meaningful wall-clock time",
+    "mutation: mutation-test-specific assertions",
+    "heavy: requires large ML deps (torch, tensorflow) — excluded from the default suite",
+    "cross_domain: needs >1 package installed — skipped in isolation, run by the unified suite",
+    "anyio: async test driven by the anyio pytest plugin (registered so --strict-markers passes if absent)",
+    "needs_postgres: requires a real Postgres at $PIRN_TEST_POSTGRES_URL",
+    "needs_valkey: requires a real ValKey at $PIRN_TEST_VALKEY_URL",
+    "needs_kafka: requires a real Kafka at $PIRN_TEST_KAFKA_URL",
+    "needs_s3: requires a real S3 (or compatible) endpoint",
+    "needs_dask: requires dask.distributed (uses LocalCluster)",
+    "needs_ray: requires ray (uses a local Ray instance)",
+    "needs_celery: requires celery + Redis broker at $PIRN_TEST_CELERY_BROKER",
+    "benchmark: pytest-benchmark performance test",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "RUF"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**/*.py" = ["F841"]
+
+[tool.coverage.run]
+source = ["pirn_ml"]
+
+[tool.mutmut]
+paths_to_mutate = "pirn_ml/"
+tests_dir = "tests/"
+runner = ".venv/bin/python -m pytest tests -x -q --no-header"
 
 [tool.pyright]
-extends = "../../pyright.base.json"        # shared relaxation rules (SCD-03)
-include = ["src/pirn_ml"]
+include = ["pirn_ml"]
+pythonVersion = "3.12"
+reportMissingImports = "none"
+reportMissingModuleSource = "none"
+reportIncompatibleMethodOverride = "none"
+reportAttributeAccessIssue = "none"

@@ -1,15 +1,18 @@
-name: Mutation Testing
+name: Mutation Testing  # SCD-26 (per-package)
 
+# Per-package mutation testing for the uv workspace. Each package mutates its
+# OWN source tree (packages/pirn-<x>/pirn_<x>) and runs its OWN tests
+# (packages/pirn-<x>/tests) — the monolith's single `pirn/` + `tests/unit`
+# target is replaced by a package matrix (SCD-26).
+#
 # CI/CD auto-triggers are FROZEN during the split-core-and-domains migration
-# (#51). The whole pipeline gets rebuilt for the uv workspace — per-package
-# gating + dependency-ordered release trains — once all domains are extracted.
-# Until then every workflow is manual-only; re-enable triggers (pull_request +
-# nightly schedule) at the very end. See planning/current/split-core-and-domains/.
+# (#51) — manual-only. Re-enable pull_request + the nightly schedule at the end
+# of the migration, together with ci.yml / workspace.yml.
 on:
   workflow_dispatch:
     inputs:
-      paths_to_mutate:
-        description: 'Comma-separated packages/pirn-core/src/pirn/ sub-paths to mutate (blank = full codebase)'
+      packages:
+        description: 'JSON array of packages to mutate (blank = all seven)'
         required: false
         default: ''
 
@@ -17,167 +20,147 @@ concurrency:
   group: mutation-${{ github.ref }}
   cancel-in-progress: true
 
-# Least-privilege default token for every job (CodeQL
-# actions/missing-workflow-permissions). Jobs here only check out the repo and
-# read; none write to the repo, so read-only contents is sufficient. A job that
-# later needs more (e.g. posting a comment) must opt in with its own block.
 permissions:
   contents: read
 
 env:
   PYTHON_VERSION: "3.12"
+  ALL_PACKAGES: '["pirn-core","pirn-signal","pirn-data","pirn-ml","pirn-agents","pirn-health","pirn-oilgas"]'
 
 jobs:
   # ─────────────────────────────────────────────────────────────────────────
-  # PR-SCOPED: mutate only the pirn/ files changed in this PR
-  # Fast path — keeps PR feedback loop reasonable.
+  # Resolve the package matrix (manual override or all seven).
+  # ─────────────────────────────────────────────────────────────────────────
+  matrix:
+    name: Resolve package matrix
+    runs-on: ubuntu-latest
+    outputs:
+      packages: ${{ steps.set.outputs.packages }}
+    steps:
+      - id: set
+        run: |
+          set -euo pipefail
+          input='${{ github.event.inputs.packages }}'
+          if [ -n "$input" ]; then echo "packages=$input" >> "$GITHUB_OUTPUT";
+          else echo "packages=${ALL_PACKAGES}" >> "$GITHUB_OUTPUT"; fi
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # PR-SCOPED: per package, mutate only that package's source files changed in
+  # this PR, run that package's tests. Fast PR feedback.
   # ─────────────────────────────────────────────────────────────────────────
   mutation-pr:
-    name: Mutation — Changed Files
+    name: Mutation — Changed Files (${{ matrix.package }})
+    needs: matrix
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
-    # Non-blocking: mutation regressions are reported but never block merge.
-    # Promote to required once the baseline survival rate is established.
-    continue-on-error: true
-
+    continue-on-error: true   # report regressions, never block merge (until a baseline is set)
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJSON(needs.matrix.outputs.packages) }}
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
         with:
           fetch-depth: 0
-
       - name: Install uv
         uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
         with:
           enable-cache: true
           python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Install dependencies
-        run: uv sync --package pirn-core --all-extras --group dev
-
-      - name: Identify changed core source files
+      - name: Resolve import dir
+        id: pkg
+        run: echo "imp=$(p='${{ matrix.package }}'; echo ${p/pirn-/pirn_})" >> "$GITHUB_OUTPUT"
+      - name: Build wheelhouse + install ${{ matrix.package }} (editable + extras)
+        run: |
+          set -euo pipefail
+          for p in pirn-core pirn-signal pirn-data pirn-ml pirn-agents pirn-health pirn-oilgas; do uv build "packages/$p" -o dist/; done
+          extras=$(python3 -c "import tomllib;d=tomllib.load(open('packages/${{ matrix.package }}/pyproject.toml','rb'));print(','.join(k for k in d.get('project',{}).get('optional-dependencies',{}) if k not in {'pytorch','tensorflow','tflite'}))")
+          spec="packages/${{ matrix.package }}"; [ -n "$extras" ] && spec="packages/${{ matrix.package }}[$extras]"
+          uv venv .venv
+          uv pip install --find-links dist/ -e "$spec" pytest pytest-asyncio pytest-timeout mutmut
+      - name: Identify changed source files in this package
         id: changed
         run: |
           BASE=${{ github.event.pull_request.base.sha }}
           HEAD=${{ github.event.pull_request.head.sha }}
           FILES=$(git diff --name-only "$BASE" "$HEAD" \
-            | grep '^packages/pirn-core/src/pirn/.*\.py$' \
-            | grep -v '__init__\.py' \
-            | tr '\n' ',')
+            | grep "^packages/${{ matrix.package }}/${{ steps.pkg.outputs.imp }}/.*\.py$" \
+            | grep -v '__init__\.py' | tr '\n' ',' | sed 's/,$//')
           echo "files=$FILES" >> "$GITHUB_OUTPUT"
-          echo "Changed core files: $FILES"
-
-      - name: Skip if no core changes
-        if: steps.changed.outputs.files == ''
-        run: |
-          echo "No core Python files changed — skipping mutation run."
-          exit 0
-
+          echo "Changed ${{ matrix.package }} files: ${FILES:-<none>}"
       - name: Run mutmut on changed files
         if: steps.changed.outputs.files != ''
         run: |
-          PATHS="${{ steps.changed.outputs.files }}"
-          # Strip trailing comma
-          PATHS="${PATHS%,}"
-          echo "Mutating: $PATHS"
-          uv run mutmut run \
-            --paths-to-mutate "$PATHS" \
-            --runner "python -m pytest tests/unit -x -q --no-header --timeout=30" \
-            --no-progress \
-            || true  # mutmut exits non-zero when mutations survive; capture below
-
-      - name: Generate mutation report
+          uv run --no-sync mutmut run \
+            --paths-to-mutate "${{ steps.changed.outputs.files }}" \
+            --runner "python -m pytest packages/${{ matrix.package }}/tests -c packages/${{ matrix.package }}/pyproject.toml -x -q --no-header --timeout=30" \
+            --no-progress || true
+      - name: Report
         if: steps.changed.outputs.files != ''
         run: |
-          uv run mutmut results || true
-          uv run mutmut junitxml > mutation-results-pr.xml || true
-          {
-            echo "## Mutation Testing — Changed Files"
-            echo ""
-            uv run mutmut results 2>&1 || echo "(no results)"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Upload mutation results
+          uv run --no-sync mutmut junitxml > mutation-${{ matrix.package }}-pr.xml || true
+          { echo "## Mutation — ${{ matrix.package }} (changed files)"; echo;
+            uv run --no-sync mutmut results 2>&1 || echo "(no results)"; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload results
         if: steps.changed.outputs.files != ''
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
-          name: mutation-results-pr-${{ github.sha }}
-          path: mutation-results-pr.xml
+          name: mutation-${{ matrix.package }}-pr-${{ github.sha }}
+          path: mutation-${{ matrix.package }}-pr.xml
           retention-days: 14
 
   # ─────────────────────────────────────────────────────────────────────────
-  # NIGHTLY: full mutation run over the entire pirn/ package
-  # Runs on schedule or on workflow_dispatch.
+  # NIGHTLY: per package, full mutation run over the whole package source.
   # ─────────────────────────────────────────────────────────────────────────
   mutation-nightly:
-    name: Mutation — Full Codebase
+    name: Mutation — Full (${{ matrix.package }})
+    needs: matrix
     runs-on: ubuntu-latest
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    # Full runs take ~30–60 minutes depending on mutation count.
-    # Non-blocking until a baseline kill-rate threshold is codified in policy.
     continue-on-error: true
     timeout-minutes: 90
-
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJSON(needs.matrix.outputs.packages) }}
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
-
       - name: Install uv
         uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
         with:
           enable-cache: true
           python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Install dependencies
-        run: uv sync --package pirn-core --all-extras --group dev
-
-      - name: Resolve paths to mutate
-        id: paths
+      - name: Resolve import dir
+        id: pkg
+        run: echo "imp=$(p='${{ matrix.package }}'; echo ${p/pirn-/pirn_})" >> "$GITHUB_OUTPUT"
+      - name: Build wheelhouse + install ${{ matrix.package }} (editable + extras)
         run: |
-          INPUT="${{ github.event.inputs.paths_to_mutate }}"
-          if [ -n "$INPUT" ]; then
-            echo "paths=$INPUT" >> "$GITHUB_OUTPUT"
-          else
-            echo "paths=packages/pirn-core/src/pirn/" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Run mutmut
+          set -euo pipefail
+          for p in pirn-core pirn-signal pirn-data pirn-ml pirn-agents pirn-health pirn-oilgas; do uv build "packages/$p" -o dist/; done
+          extras=$(python3 -c "import tomllib;d=tomllib.load(open('packages/${{ matrix.package }}/pyproject.toml','rb'));print(','.join(k for k in d.get('project',{}).get('optional-dependencies',{}) if k not in {'pytorch','tensorflow','tflite'}))")
+          spec="packages/${{ matrix.package }}"; [ -n "$extras" ] && spec="packages/${{ matrix.package }}[$extras]"
+          uv venv .venv
+          uv pip install --find-links dist/ -e "$spec" pytest pytest-asyncio pytest-timeout mutmut
+      - name: Run mutmut (full package)
         run: |
-          uv run mutmut run \
-            --paths-to-mutate "${{ steps.paths.outputs.paths }}" \
-            --runner "python -m pytest tests/unit -x -q --no-header --timeout=30" \
-            --no-progress \
-            || true
-
-      - name: Generate mutation report
+          uv run --no-sync mutmut run \
+            --paths-to-mutate "packages/${{ matrix.package }}/${{ steps.pkg.outputs.imp }}/" \
+            --runner "python -m pytest packages/${{ matrix.package }}/tests -c packages/${{ matrix.package }}/pyproject.toml -x -q --no-header --timeout=30" \
+            --no-progress || true
+      - name: Report + kill rate
         run: |
-          uv run mutmut results || true
-          uv run mutmut junitxml > mutation-results-nightly.xml || true
-          {
-            echo "## Nightly Mutation Testing Report"
-            echo ""
-            echo "**Date:** $(date -u +'%Y-%m-%d %H:%M UTC')"
-            echo "**Paths:** ${{ steps.paths.outputs.paths }}"
-            echo ""
-            uv run mutmut results 2>&1 || echo "(no results)"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Upload mutation results
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
-        with:
-          name: mutation-results-nightly-${{ github.run_id }}
-          path: mutation-results-nightly.xml
-          retention-days: 30
-
-      - name: Compute kill rate and annotate
-        run: |
-          # Extract killed/total from mutmut results for a summary annotation.
+          uv run --no-sync mutmut junitxml > mutation-${{ matrix.package }}-nightly.xml || true
           RESULTS=$(uv run mutmut results 2>&1 || true)
           KILLED=$(echo "$RESULTS" | grep -oP 'Killed:\s*\K[0-9]+' | head -1 || echo "0")
           SURVIVED=$(echo "$RESULTS" | grep -oP 'Survived:\s*\K[0-9]+' | head -1 || echo "0")
           TOTAL=$(( KILLED + SURVIVED ))
-          if [ "$TOTAL" -gt 0 ]; then
-            RATE=$(( KILLED * 100 / TOTAL ))
-            echo "Kill rate: ${RATE}% (${KILLED}/${TOTAL})"
-            echo "**Kill rate: ${RATE}% (${KILLED} killed / ${TOTAL} total)**" >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "No mutation data available."
-          fi
+          { echo "## Nightly Mutation — ${{ matrix.package }}"; echo;
+            echo "**Date:** $(date -u +'%Y-%m-%d %H:%M UTC')"; echo;
+            if [ "$TOTAL" -gt 0 ]; then echo "**Kill rate: $(( KILLED * 100 / TOTAL ))% (${KILLED}/${TOTAL})**";
+            else echo "(no mutation data)"; fi; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload results
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: mutation-${{ matrix.package }}-nightly-${{ github.run_id }}
+          path: mutation-${{ matrix.package }}-nightly.xml
+          retention-days: 30

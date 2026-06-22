@@ -2,13 +2,9 @@ ARG PYTHON_VERSION=3.12
 ARG REGISTRY=ghcr.io/snoodleboot-io
 FROM ${REGISTRY}/pirn-ci-base:py${PYTHON_VERSION}
 
-# Add heavy ML deps (torch, nvidia, tensorflow, tflite) on top of the base venv.
-# The base (Dockerfile.ci) already carries all workspace members + all their
-# extras except torch/tensorflow/tflite; this layer re-runs the sync WITHOUT the
-# `--no-extra` exclusions so those heavy wheels land too. tensorflow/tflite are
-# gated to python<3.14 in the manifests — uv handles the marker.
-#
-# Image contents: ci-heavy = the base (all members, all extras) PLUS the
-# torch/tensorflow/tflite ML artefact extras.
-WORKDIR /opt/pirn-deps
-RUN uv sync --all-packages --all-extras --no-install-project && rm -f uv.lock
+# Warm the uv cache with the heavy ML wheels (torch/tensorflow) so the
+# heavy-tests job's fresh per-package install is fast. No workspace/lock — these
+# are plain top-level installs that populate the shared uv cache. tensorflow is
+# gated to python<3.14 upstream; tolerate its absence on 3.14.
+ENV UV_PYTHON_PREFERENCE=only-system
+RUN uv pip install --system torch tensorflow || true

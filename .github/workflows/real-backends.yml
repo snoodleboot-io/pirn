@@ -17,8 +17,12 @@ permissions:
   packages: read
 
 env:
-  UV_PROJECT_ENVIRONMENT: /opt/pirn-deps/.venv
   UV_PYTHON_PREFERENCE: only-system
+
+# Container images are debian-slim (default shell `sh`); force bash.
+defaults:
+  run:
+    shell: bash
 
 jobs:
   approve:
@@ -91,8 +95,13 @@ jobs:
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
 
-      - name: Install pirn
-        run: uv sync --package pirn-core --all-extras
+      - name: Build wheelhouse + install core (+ all extras)
+        run: |
+          set -euo pipefail
+          for p in pirn-core pirn-data; do uv build "packages/$p" -o dist/; done
+          extras=$(python3 -c "import tomllib;d=tomllib.load(open('packages/pirn-core/pyproject.toml','rb'));print(','.join(k for k in d.get('project',{}).get('optional-dependencies',{}) if k not in {'pytorch','tensorflow','tflite'}))")
+          uv venv .venv
+          uv pip install --find-links dist/ -e "packages/pirn-core[$extras]" pytest pytest-timeout anyio
 
       - name: Start MinIO
         run: |
@@ -112,7 +121,8 @@ jobs:
       - name: Run real-backend tests
         run: |
           mkdir -p test-results
-          uv run python -m pytest tests/integration \
+          uv run --no-sync python -m pytest packages/pirn-core/tests/integration \
+            -c packages/pirn-core/pyproject.toml --rootdir packages/pirn-core \
             --real \
             -m "needs_postgres or needs_valkey or needs_kafka or needs_s3 or needs_celery" \
             --junitxml=test-results/real-backends.xml \
