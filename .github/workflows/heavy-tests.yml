@@ -19,6 +19,11 @@ permissions:
 env:
   UV_PYTHON_PREFERENCE: only-system
 
+# Container images are debian-slim (default shell `sh`); force bash.
+defaults:
+  run:
+    shell: bash
+
 jobs:
   approve:
     name: Approve Heavy Tests

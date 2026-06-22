@@ -29,6 +29,13 @@ permissions:
 env:
   ALL_PACKAGES: '["pirn-core","pirn-signal","pirn-data","pirn-ml","pirn-agents","pirn-health","pirn-oilgas"]'
 
+# The container images are debian-slim where GitHub's default container shell is
+# `sh` (dash); force bash so shell substitutions like ${p/pirn-/pirn_} and
+# `set -o pipefail` work consistently across all jobs.
+defaults:
+  run:
+    shell: bash
+
 jobs:
   # ===========================================================================
   # Dependency-aware change detection. Declared edges: domains → core; ml → data.
