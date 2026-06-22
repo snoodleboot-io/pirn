@@ -40,14 +40,23 @@ ENV UV_PYTHON_PREFERENCE=only-system
 ARG PACKAGE=""
 COPY packages/ /opt/src/packages/
 WORKDIR /opt/src
+# Helper: comma-joined non-heavy extras for a package's pyproject.
+RUN printf '%s\n' 'import sys,tomllib' \
+  'd=tomllib.load(open(f"packages/{sys.argv[1]}/pyproject.toml","rb"))' \
+  'h={"pytorch","tensorflow","tflite"}' \
+  'print(",".join(k for k in d.get("project",{}).get("optional-dependencies",{}) if k not in h))' \
+  > /usr/local/bin/_extras.py
 RUN set -eux; \
     if [ -n "${PACKAGE}" ]; then \
       for p in pirn-core pirn-signal pirn-data pirn-ml pirn-agents pirn-health pirn-oilgas; do \
         uv build "packages/$p" -o /tmp/wh; \
       done; \
-      extras=$(python3 -c "import tomllib;d=tomllib.load(open('packages/${PACKAGE}/pyproject.toml','rb'));print(','.join(k for k in d.get('project',{}).get('optional-dependencies',{}) if k not in {'pytorch','tensorflow','tflite'}))"); \
-      spec="${PACKAGE}"; [ -n "${extras}" ] && spec="${PACKAGE}[${extras}]"; \
-      uv pip install --system --find-links /tmp/wh "${spec}"; \
+      core_extras=$(python3 /usr/local/bin/_extras.py pirn-core); \
+      pkg_extras=$(python3 /usr/local/bin/_extras.py "${PACKAGE}"); \
+      pkg_spec="${PACKAGE}"; [ -n "${pkg_extras}" ] && pkg_spec="${PACKAGE}[${pkg_extras}]"; \
+      # Always include the full (non-heavy) core: domain tests exercise core
+      # connectors (sqlite/http/...), so the test env needs core's extras too.
+      uv pip install --system --find-links /tmp/wh "pirn-core[${core_extras}]" "${pkg_spec}"; \
     fi; \
     rm -rf /opt/src /tmp/wh
 WORKDIR /

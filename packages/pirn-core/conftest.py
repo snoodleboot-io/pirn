@@ -13,6 +13,20 @@ os.environ.setdefault("PIRN_ENV", "test")
 os.environ.setdefault("PIRN_ALLOW_UNSIGNED", "1")
 
 
+@pytest.fixture(autouse=True)
+def _pirn_test_env() -> None:
+    """Re-assert the test-env guards before EVERY test.
+
+    The security suite (tests/security/) pops PIRN_ENV / PIRN_ALLOW_UNSIGNED via
+    ``os.environ.pop`` to exercise the production guards and does not restore
+    them, which otherwise leaks into later tests (order-dependent). This runs
+    before unittest ``setUp``, so those negative tests still pop the vars for
+    their own assertions while everyone else gets a clean, guarded env.
+    """
+    os.environ["PIRN_ENV"] = "test"
+    os.environ["PIRN_ALLOW_UNSIGNED"] = "1"
+
+
 def pytest_addoption(parser):
     parser.addoption(
         "--real",
