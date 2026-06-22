@@ -203,11 +203,19 @@ jobs:
             *)         xr="--reinstall-package pirn-core" ;;
           esac
           echo "xr=$xr" >> "$GITHUB_OUTPUT"
+          # Core connector extras some domain test suites exercise (the per-package
+          # image bakes only that domain's own extras, not core's).
+          case "${{ matrix.package }}" in
+            pirn-data)   cte="pirn-core[sqlite]" ;;
+            pirn-agents) cte="pirn-core[http]" ;;
+            *)           cte="" ;;
+          esac
+          echo "cte=$cte" >> "$GITHUB_OUTPUT"
       - name: Install editable (deps pre-baked) + refresh cross-deps + test tooling
         run: |
           set -euo pipefail
           uv pip install --system --find-links dist/ ${{ steps.spec.outputs.xr }} \
-            -e "${{ steps.spec.outputs.spec }}" \
+            -e "${{ steps.spec.outputs.spec }}" ${{ steps.spec.outputs.cte }} \
             pytest pytest-asyncio pytest-cov pytest-timeout anyio
       - name: Run tests (own config) + per-package coverage
         run: |
