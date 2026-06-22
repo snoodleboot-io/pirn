@@ -149,7 +149,10 @@ jobs:
         with: { name: wheelhouse, path: dist/ }
       - name: Resolve import dir
         id: pkg
-        run: echo "imp=$(p='${{ matrix.package }}'; echo ${p/pirn-/pirn_})" >> "$GITHUB_OUTPUT"
+        run: |
+          p='${{ matrix.package }}'
+          if [ "$p" = "pirn-core" ]; then imp=pirn; else imp="${p/pirn-/pirn_}"; fi
+          echo "imp=$imp" >> "$GITHUB_OUTPUT"
       - name: Install package editable (deps pre-baked) + ruff + pyright
         run: |
           set -euo pipefail
@@ -187,7 +190,9 @@ jobs:
         id: spec
         run: |
           set -euo pipefail
-          imp="${{ matrix.package }}"; imp="${imp/pirn-/pirn_}"; echo "imp=$imp" >> "$GITHUB_OUTPUT"
+          p='${{ matrix.package }}'
+          if [ "$p" = "pirn-core" ]; then imp=pirn; else imp="${p/pirn-/pirn_}"; fi
+          echo "imp=$imp" >> "$GITHUB_OUTPUT"
           extras=$(python3 -c "import tomllib;d=tomllib.load(open('packages/${{ matrix.package }}/pyproject.toml','rb'));e=list(d.get('project',{}).get('optional-dependencies',{}));h={'pytorch','tensorflow','tflite'};print(','.join(x for x in e if x not in h))")
           if [ -n "$extras" ]; then echo "spec=packages/${{ matrix.package }}[$extras]" >> "$GITHUB_OUTPUT";
           else echo "spec=packages/${{ matrix.package }}" >> "$GITHUB_OUTPUT"; fi
