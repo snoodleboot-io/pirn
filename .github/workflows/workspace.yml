@@ -338,11 +338,10 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Require no failures/cancellations
+      - name: Fail if any needed job failed or was cancelled
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
         run: |
-          results='${{ join(needs.*.result, ",") }}'
-          echo "needs results: $results"
-          case "$results" in
-            *failure*|*cancelled*) echo "::error::one or more CI jobs failed"; exit 1 ;;
-            *) echo "all required jobs green (or skipped)" ;;
-          esac
+          echo "::error::one or more CI jobs failed"
+          exit 1
+      - name: All green
+        run: echo "all required jobs succeeded (or were skipped by change-detection)"
