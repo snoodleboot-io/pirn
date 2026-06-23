@@ -13,9 +13,14 @@ name: Workspace (independent packages)  # SCD-24..27, standalone
 #   * one unified cross-domain suite proves registry parity with all packages
 #     installed.
 #
-# FROZEN during the migration (#51) — manual-only; re-enable PR + main triggers
-# at the end of the split.
+# Runs on every PR to main (change-detection fans out to only the affected
+# packages) and on push to main (full matrix). Per-package images are built by
+# build-ci-image.yml (main push on dep/Dockerfile change + weekly).
 on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -321,3 +326,22 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
       - name: All packages lockstep-versioned; pins floored + capped (C4)
         run: python scripts/stamp_workspace_version.py --check
+
+  # ===========================================================================
+  # Single aggregator gate — the one stable, required status check for branch
+  # protection (matrix job names are dynamic). Green only if every needed job
+  # succeeded or was legitimately skipped (change-detection found nothing).
+  # ===========================================================================
+  ci-status:
+    name: CI status (all green)
+    needs: [changes, build-wheelhouse, lint, test, install-isolation, unified, import-graph, version-lockstep]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if any needed job failed or was cancelled
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        run: |
+          echo "::error::one or more CI jobs failed"
+          exit 1
+      - name: All green
+        run: echo "all required jobs succeeded (or were skipped by change-detection)"

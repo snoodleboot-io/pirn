@@ -7,14 +7,18 @@ name: Publish workspace (N wheels)  # SCD-28
 # *from the index* (not the local build) and asserting it imports and that
 # `tapestry-check` runs — the registry-parity-from-PyPI proof.
 #
-# FROZEN during the migration (#51) — manual-only. Re-enable PR + main triggers
-# at the very end, together with ci.yml / workspace.yml.
+# HELD as manual-only ON PURPOSE (not migration-frozen). Before enabling PR/main
+# triggers, the publishing prerequisites must be in place:
+#   1. Create the 7 `pirn-*` projects on TestPyPI and PyPI.
+#   2. Configure Trusted Publishing (this repo + this workflow + the
+#      testpypi/pypi GitHub Environments) for each project.
+#   3. Add required reviewers to the `pypi` Environment (P5-B human gate).
+# Once those exist, add `pull_request` (→ TestPyPI) and `push: branches:[main]`
+# (→ PyPI) here. Until then, dispatch manually for a TestPyPI dry-run.
 #
 # ⚠ P5-B (irreversible, outward-facing): the first real PyPI push is gated TWICE —
-#   (1) it only runs after TestPyPI succeeds, and (2) the `pypi` GitHub Environment
-#   must be configured with required reviewers so a human approves the release.
-#   Each `pirn-<x>` is a separate PyPI project and needs its Trusted Publisher
-#   (this repo + this workflow) configured before the first upload.
+#   it only runs after TestPyPI succeeds, AND the `pypi` Environment requires a
+#   human approval.
 on:
   workflow_dispatch:
 

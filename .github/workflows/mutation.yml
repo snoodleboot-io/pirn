@@ -5,10 +5,12 @@ name: Mutation Testing  # SCD-26 (per-package)
 # (packages/pirn-<x>/tests) — the monolith's single `pirn/` + `tests/unit`
 # target is replaced by a package matrix (SCD-26).
 #
-# CI/CD auto-triggers are FROZEN during the split-core-and-domains migration
-# (#51) — manual-only. Re-enable pull_request + the nightly schedule at the end
-# of the migration, together with ci.yml / workspace.yml.
+# PR-scoped (mutate only each package's changed files) + nightly full run.
 on:
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 3 * * *'   # nightly full mutation run
   workflow_dispatch:
     inputs:
       packages:

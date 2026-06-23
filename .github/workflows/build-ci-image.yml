@@ -1,11 +1,19 @@
 name: Build CI Base Images
 
-# CI/CD auto-triggers are FROZEN during the split-core-and-domains migration
-# (#51). The whole pipeline gets rebuilt for the uv workspace — per-package
-# gating + dependency-ordered release trains — once all domains are extracted.
-# Until then every workflow is manual-only; re-enable triggers at the very end.
-# See planning/current/split-core-and-domains/.
+# Rebuilds the per-package CI images when a package's deps or the Dockerfiles
+# change (push to main), refreshes them weekly, and on demand. PRs consume the
+# existing images (and install any dep-delta at job time), so image builds are
+# intentionally NOT triggered per-PR (36-image build is expensive).
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'Dockerfile.ci'
+      - 'Dockerfile.ci-heavy'
+      - 'packages/*/pyproject.toml'
+      - '.github/workflows/build-ci-image.yml'
+  schedule:
+    - cron: '0 6 * * 1'   # weekly Mon 06:00 UTC — refresh base/third-party deps
   workflow_dispatch:
 
 permissions:
