@@ -88,11 +88,12 @@ jobs:
           retention-days: 14
 
   # ---------------------------------------------------------------------------
-  # Publish all wheels to TestPyPI (PR) — trusted publishing, one upload routes
-  # each file to its named project.
+  # Publish to TestPyPI (PR) — ONE job per package. PyPI trusted-publishing mints
+  # a PROJECT-SCOPED token per OIDC exchange, so each package must publish only
+  # its own distributions in its own job (a single all-7 upload 403s).
   # ---------------------------------------------------------------------------
   publish-testpypi:
-    name: Publish → TestPyPI
+    name: Publish ${{ matrix.package }} → TestPyPI
     needs: build
     if: needs.build.outputs.should_publish_testpypi == 'true'
     runs-on: ubuntu-latest
@@ -100,23 +101,36 @@ jobs:
       name: testpypi
     permissions:
       id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [pirn-core, pirn-signal, pirn-data, pirn-ml, pirn-agents, pirn-health, pirn-oilgas]
     steps:
       - name: Download wheelhouse
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8
         with:
           name: wheelhouse-${{ needs.build.outputs.version }}
           path: dist/
-      - name: Publish to TestPyPI
+      - name: Isolate ${{ matrix.package }} distributions
+        run: |
+          set -euo pipefail
+          fn=$(echo "${{ matrix.package }}" | tr - _)
+          mkdir -p pkgdist
+          mv dist/${fn}-* pkgdist/
+          ls -1 pkgdist
+      - name: Publish ${{ matrix.package }} to TestPyPI
         uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b  # release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
+          packages-dir: pkgdist
 
   # ---------------------------------------------------------------------------
-  # Publish all wheels to PyPI (main) — gated on the `pypi` Environment, which
-  # MUST require a human reviewer (P5-B). Irreversible.
+  # Publish to PyPI (main) — ONE job per package (project-scoped tokens, as
+  # above), gated on the `pypi` Environment which MUST require a human reviewer
+  # (P5-B). Irreversible.
   # ---------------------------------------------------------------------------
   publish-pypi:
-    name: Publish → PyPI (human-gated)
+    name: Publish ${{ matrix.package }} → PyPI (human-gated)
     needs: build
     if: needs.build.outputs.should_publish_pypi == 'true'
     runs-on: ubuntu-latest
@@ -124,14 +138,27 @@ jobs:
       name: pypi
     permissions:
       id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [pirn-core, pirn-signal, pirn-data, pirn-ml, pirn-agents, pirn-health, pirn-oilgas]
     steps:
       - name: Download wheelhouse
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8
         with:
           name: wheelhouse-${{ needs.build.outputs.version }}
           path: dist/
-      - name: Publish to PyPI
+      - name: Isolate ${{ matrix.package }} distributions
+        run: |
+          set -euo pipefail
+          fn=$(echo "${{ matrix.package }}" | tr - _)
+          mkdir -p pkgdist
+          mv dist/${fn}-* pkgdist/
+          ls -1 pkgdist
+      - name: Publish ${{ matrix.package }} to PyPI
         uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b  # release/v1
+        with:
+          packages-dir: pkgdist
 
   # ---------------------------------------------------------------------------
   # Verify each package FROM THE INDEX (not the local build): install in a clean
