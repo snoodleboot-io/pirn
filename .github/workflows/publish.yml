@@ -183,15 +183,19 @@ jobs:
         run: |
           set -euo pipefail
           uv venv /tmp/verify
-          # TestPyPI for the pirn-* wheels; PyPI as the extra index for third-party deps.
+          # TestPyPI for the pirn-* wheels; PyPI as the extra index for third-party
+          # deps. --prerelease=allow because dry-run versions are dev pre-releases
+          # (e.g. 0.0.N.devM) that uv otherwise won't resolve.
           uv pip install --python /tmp/verify/bin/python \
+            --prerelease=allow \
             --index-url https://test.pypi.org/simple/ \
             --extra-index-url https://pypi.org/simple/ \
             "${{ matrix.package }}==${{ needs.build.outputs.version }}"
       - name: Import + dependency-tree closure + tapestry-check
         run: |
           set -euo pipefail
-          imp="${{ matrix.package }}"; imp="${imp/pirn-/pirn_}"
-          /tmp/verify/bin/python scripts/check_install_isolation.py --package "${{ matrix.package }}"
+          p='${{ matrix.package }}'
+          if [ "$p" = "pirn-core" ]; then imp=pirn; else imp="${p/pirn-/pirn_}"; fi
+          /tmp/verify/bin/python scripts/check_install_isolation.py --package "$p"
           /tmp/verify/bin/python -c "import $imp; print('import OK:', '$imp')"
           /tmp/verify/bin/tapestry-check --help
