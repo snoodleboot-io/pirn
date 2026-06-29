@@ -20,6 +20,14 @@ name: Publish workspace (N wheels)  # SCD-28
 #   it only runs after TestPyPI succeeds, AND the `pypi` Environment requires a
 #   human approval.
 on:
+  # TestPyPI dry-run on every PR to main (OIDC trusted publishing).
+  pull_request:
+    branches: [main]
+  # TODO(prod): once the 7 PyPI Trusted Publishers + `pypi` Environment reviewer
+  # are confirmed, add:
+  #   push:
+  #     branches: [main]
+  # to publish real releases to PyPI on merge (human-gated by the environment).
   workflow_dispatch:
 
 concurrency:
