@@ -188,7 +188,9 @@ jobs:
           # (e.g. 0.0.N.devM) that uv otherwise won't resolve. Retry to ride out
           # TestPyPI simple-index propagation lag right after publishing.
           for attempt in 1 2 3 4 5 6; do
-            if uv pip install --python /tmp/verify/bin/python --prerelease=allow \
+            # --refresh: don't reuse uv's cached (possibly stale, pre-propagation)
+            # index response between retries.
+            if uv pip install --python /tmp/verify/bin/python --prerelease=allow --refresh \
                  --index-url https://test.pypi.org/simple/ \
                  --extra-index-url https://pypi.org/simple/ \
                  "${{ matrix.package }}==${{ needs.build.outputs.version }}"; then
