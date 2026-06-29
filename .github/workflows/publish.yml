@@ -185,12 +185,18 @@ jobs:
           uv venv /tmp/verify
           # TestPyPI for the pirn-* wheels; PyPI as the extra index for third-party
           # deps. --prerelease=allow because dry-run versions are dev pre-releases
-          # (e.g. 0.0.N.devM) that uv otherwise won't resolve.
-          uv pip install --python /tmp/verify/bin/python \
-            --prerelease=allow \
-            --index-url https://test.pypi.org/simple/ \
-            --extra-index-url https://pypi.org/simple/ \
-            "${{ matrix.package }}==${{ needs.build.outputs.version }}"
+          # (e.g. 0.0.N.devM) that uv otherwise won't resolve. Retry to ride out
+          # TestPyPI simple-index propagation lag right after publishing.
+          for attempt in 1 2 3 4 5 6; do
+            if uv pip install --python /tmp/verify/bin/python --prerelease=allow \
+                 --index-url https://test.pypi.org/simple/ \
+                 --extra-index-url https://pypi.org/simple/ \
+                 "${{ matrix.package }}==${{ needs.build.outputs.version }}"; then
+              echo "installed on attempt $attempt"; break
+            fi
+            if [ "$attempt" = 6 ]; then echo "::error::not resolvable after retries"; exit 1; fi
+            echo "attempt $attempt failed (index propagating?), sleeping 30s..."; sleep 30
+          done
       - name: Import + dependency-tree closure + tapestry-check
         run: |
           set -euo pipefail
