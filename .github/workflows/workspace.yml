@@ -56,7 +56,7 @@ jobs:
       packages: ${{ steps.compute.outputs.packages }}
       any: ${{ steps.compute.outputs.any }}
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           fetch-depth: 0
       - name: Compute affected package set (dependency closure)
@@ -117,7 +117,7 @@ jobs:
     container:
       image: ghcr.io/${{ github.repository_owner }}/pirn-ci-base:py3.12
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
       - name: Build all wheels
         run: |
           set -euo pipefail
@@ -149,7 +149,7 @@ jobs:
       matrix:
         package: ${{ fromJSON(needs.changes.outputs.packages) }}
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8
         with: { name: wheelhouse, path: dist/ }
       - name: Resolve import dir
@@ -188,7 +188,7 @@ jobs:
         package: ${{ fromJSON(needs.changes.outputs.packages) }}
         python-version: ["3.11", "3.12", "3.13", "3.14"]
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8
         with: { name: wheelhouse, path: dist/ }
       - name: Compute install spec (extras minus heavy ML) + cross-dep refresh
@@ -252,7 +252,7 @@ jobs:
       matrix:
         package: ${{ fromJSON(needs.changes.outputs.packages) }}
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8
         with: { name: wheelhouse, path: dist/ }
       - name: Clean-env install + dependency-tree closure gate
@@ -275,7 +275,7 @@ jobs:
     container:
       image: ghcr.io/${{ github.repository_owner }}/pirn-ci-base:py3.12
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8
         with: { name: wheelhouse, path: dist/ }
       - name: Install all packages (from wheelhouse) + test tooling
@@ -302,7 +302,7 @@ jobs:
     container:
       image: ghcr.io/${{ github.repository_owner }}/pirn-ci-base:py3.12
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8
         with: { name: wheelhouse, path: dist/ }
       - name: Install bare pirn-core (from wheelhouse)
@@ -323,7 +323,7 @@ jobs:
     container:
       image: ghcr.io/${{ github.repository_owner }}/pirn-ci-base:py3.12
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
       - name: All packages lockstep-versioned; pins floored + capped (C4)
         run: python scripts/stamp_workspace_version.py --check
 
