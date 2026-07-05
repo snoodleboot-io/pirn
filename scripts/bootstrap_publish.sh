@@ -45,15 +45,54 @@ for p in $PACKAGES; do
 done
 echo ">> Built:"; ls -1 dist/
 
-if [ -n "${PYPI_TOKEN:-}" ]; then
-  echo ">> Uploading to ${INDEX} (${REPO_URL}) using PYPI_TOKEN env var"
-  TWINE_USERNAME=__token__ TWINE_PASSWORD="$PYPI_TOKEN" \
-    uvx twine upload --repository-url "$REPO_URL" --non-interactive --disable-progress-bar dist/*
+# --skip-existing makes every upload idempotent (already-present files/projects
+# are skipped), so this is safe to re-run to finish anything that was 429'd.
+upload() {  # upload <files...>
+  if [ -n "${PYPI_TOKEN:-}" ]; then
+    TWINE_USERNAME=__token__ TWINE_PASSWORD="$PYPI_TOKEN" \
+      uvx twine upload --repository-url "$REPO_URL" --skip-existing --non-interactive --disable-progress-bar "$@"
+  else
+    uvx twine upload --repository "$INDEX" --skip-existing --non-interactive --disable-progress-bar "$@"
+  fi
+}
+
+# Which projects still need creating (skip ones already live).
+JSON_BASE="https://pypi.org/pypi"; [ "$INDEX" = testpypi ] && JSON_BASE="https://test.pypi.org/pypi"
+todo=""
+for p in $PACKAGES; do
+  [ "$(curl -s -o /dev/null -w '%{http_code}' "$JSON_BASE/$p/json")" = "200" ] || todo="$todo $p"
+done
+todo="${todo# }"
+if [ -z "$todo" ]; then echo ">> All 7 already live on ${INDEX}. Nothing to do."; exit 0; fi
+echo ">> Need to upload:${todo:+ }$todo"
+
+# PACE_SECONDS > 0 → upload ONE project at a time with a gap, so each new-project
+# creation fits inside PyPI's rate-limit window (PyPI 429s bursts of new projects).
+# Default 0 = bulk. Recommended for a fresh PyPI bootstrap: PACE_SECONDS=900.
+PACE="${PACE_SECONDS:-0}"
+if [ "$PACE" -gt 0 ] 2>/dev/null; then
+  echo ">> Paced mode: one project every ${PACE}s, ${RETRIES:-4} retries each"
+  first=1
+  for p in $todo; do
+    fn=$(echo "$p" | tr - _)
+    if [ "$first" = 0 ]; then echo ">> sleeping ${PACE}s before ${p}..."; sleep "$PACE"; fi
+    first=0
+    ok=0
+    for a in $(seq 1 "${RETRIES:-4}"); do
+      echo ">> uploading ${p} (attempt ${a})"
+      if upload dist/${fn}-*; then ok=1; break; fi
+      echo "   ${p} 429/error; backing off 180s"; sleep 180
+    done
+    [ "$ok" = 1 ] || echo "::warning:: ${p} still not uploaded (rate-limited) — re-run later"
+  done
 else
-  echo ">> Uploading to ${INDEX} using ~/.pypirc section [${INDEX}]"
-  uvx twine upload --repository "$INDEX" --non-interactive --disable-progress-bar dist/*
+  echo ">> Bulk upload (set PACE_SECONDS=900 to pace one project at a time)"
+  upload dist/*
 fi
 
-echo ">> Done. The 7 projects now exist on ${INDEX}."
-echo ">> Next: add a Trusted Publisher to each project (repo=snoodleboot-io/pirn,"
-echo "   workflow=publish.yml, environment=${INDEX}), then releases use OIDC."
+echo ">> Final ${INDEX} status:"
+for p in $PACKAGES; do
+  echo "   $p: $(curl -s -o /dev/null -w '%{http_code}' "$JSON_BASE/$p/json")"
+done
+echo ">> When all are live: add a Trusted Publisher per project"
+echo "   (repo=snoodleboot-io/pirn, workflow=publish.yml, environment=${INDEX})."
