@@ -11,11 +11,11 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pirn-data"
-version = "0.4.0"                          # lockstep (ADR-6)
+version = "0.9.0"                          # lockstep (ADR-6)
 description = "pirn data domain knots."
 requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
-dependencies = ["pirn-core>=0.4.0,<0.5.0"]  # lockstep floor (ADR-6 / constraint C4)
+dependencies = ["pirn-core>=0.9.0,<0.10.0"]  # lockstep floor (ADR-6 / constraint C4)
 
 [project.optional-dependencies]
 # Tier 1 — DataBatch / dict-based; the domain's foundational extra.

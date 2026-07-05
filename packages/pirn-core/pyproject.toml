@@ -15,7 +15,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pirn-core"
-version = "0.4.0"                          # lockstep target (ADR-6); stamped by CI
+version = "0.9.0"                          # lockstep target (ADR-6); stamped by CI
 description = "A pipeline framework where everything is a knot."
 readme = "README.md"  # package-local: the root README escapes the sdist (SCD-28)
 requires-python = ">=3.11"
@@ -257,12 +257,12 @@ all-observability = [
 # heavy per-domain backends separately (e.g. `pirn-data[polars]`,
 # `pirn-signal[signal]`, `pirn-health[health]`).
 all-domains = [
-    "pirn-signal>=0.4.0,<0.5.0",
-    "pirn-oilgas>=0.4.0,<0.5.0",
-    "pirn-data>=0.4.0,<0.5.0",
-    "pirn-ml>=0.4.0,<0.5.0",
-    "pirn-agents>=0.4.0,<0.5.0",
-    "pirn-health>=0.4.0,<0.5.0",
+    "pirn-signal>=0.9.0,<0.10.0",
+    "pirn-oilgas>=0.9.0,<0.10.0",
+    "pirn-data>=0.9.0,<0.10.0",
+    "pirn-ml>=0.9.0,<0.10.0",
+    "pirn-agents>=0.9.0,<0.10.0",
+    "pirn-health>=0.9.0,<0.10.0",
 ]
 all = [
     # persistence backends
