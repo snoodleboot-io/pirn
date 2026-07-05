@@ -7,27 +7,23 @@ name: Publish workspace (N wheels)  # SCD-28
 # *from the index* (not the local build) and asserting it imports and that
 # `tapestry-check` runs — the registry-parity-from-PyPI proof.
 #
-# HELD as manual-only ON PURPOSE (not migration-frozen). Before enabling PR/main
-# triggers, the publishing prerequisites must be in place:
-#   1. Create the 7 `pirn-*` projects on TestPyPI and PyPI.
-#   2. Configure Trusted Publishing (this repo + this workflow + the
-#      testpypi/pypi GitHub Environments) for each project.
-#   3. Add required reviewers to the `pypi` Environment (P5-B human gate).
-# Once those exist, add `pull_request` (→ TestPyPI) and `push: branches:[main]`
-# (→ PyPI) here. Until then, dispatch manually for a TestPyPI dry-run.
+# LIVE: PR → TestPyPI dry-run, merge to main → PyPI release. All 7 `pirn-*`
+# projects exist on TestPyPI + PyPI with Trusted Publishers (this repo + this
+# workflow + the `testpypi`/`pypi` Environments).
 #
-# ⚠ P5-B (irreversible, outward-facing): the first real PyPI push is gated TWICE —
-#   it only runs after TestPyPI succeeds, AND the `pypi` Environment requires a
-#   human approval.
+# ⚠ P5-B (irreversible, outward-facing): every real PyPI push is human-gated by
+#   the `pypi` Environment (required reviewer, protected-branches only) — the
+#   deployment pauses for approval before any upload.
 on:
   # TestPyPI dry-run on every PR to main (OIDC trusted publishing).
   pull_request:
     branches: [main]
-  # TODO(prod): once the 7 PyPI Trusted Publishers + `pypi` Environment reviewer
-  # are confirmed, add:
-  #   push:
-  #     branches: [main]
-  # to publish real releases to PyPI on merge (human-gated by the environment).
+  # Real PyPI release on merge to main — each package publishes via OIDC and is
+  # human-gated by the `pypi` Environment (required reviewer, protected-branches
+  # only). calculate_version.py derives the next version from pirn-core's PyPI
+  # history and stamps all packages in lockstep.
+  push:
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
