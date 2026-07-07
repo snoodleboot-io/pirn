@@ -30,6 +30,4 @@ class ToolArgumentValidationError(ToolInvocationError):
     ) -> None:
         self.tool_name = tool_name
         self.detail = detail
-        super().__init__(
-            f"Invalid arguments for tool '{tool_name}': {detail}", call_id
-        )
+        super().__init__(f"Invalid arguments for tool '{tool_name}': {detail}", call_id)

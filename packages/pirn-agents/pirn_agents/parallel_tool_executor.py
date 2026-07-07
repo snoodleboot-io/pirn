@@ -145,8 +145,7 @@ class ParallelToolExecutor(Knot):
                 )
         if not isinstance(toolset, Toolset):
             raise TypeError(
-                f"ParallelToolExecutor: toolset must be a Toolset, got "
-                f"{type(toolset).__name__}"
+                f"ParallelToolExecutor: toolset must be a Toolset, got {type(toolset).__name__}"
             )
         if max_concurrency < 1:
             raise ValueError(
@@ -286,9 +285,7 @@ class ParallelToolExecutor(Knot):
                 exc_info=True,
             )
 
-    def _fire_finish(
-        self, hook: ToolInvocationHook, call: ToolCall, result: ToolResult
-    ) -> None:
+    def _fire_finish(self, hook: ToolInvocationHook, call: ToolCall, result: ToolResult) -> None:
         """Fire ``hook.on_finish`` for ``result``, swallowing any hook exception.
 
         Fired for every terminal outcome (ok, error, timeout, not-found). The

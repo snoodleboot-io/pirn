@@ -20,11 +20,7 @@ class ToolTimeoutError(ToolInvocationError):
         Identifier of the originating tool call, or ``None``.
     """
 
-    def __init__(
-        self, tool_name: str, timeout: float, call_id: str | None = None
-    ) -> None:
+    def __init__(self, tool_name: str, timeout: float, call_id: str | None = None) -> None:
         self.tool_name = tool_name
         self.timeout = timeout
-        super().__init__(
-            f"Tool '{tool_name}' timed out after {timeout}s", call_id
-        )
+        super().__init__(f"Tool '{tool_name}' timed out after {timeout}s", call_id)

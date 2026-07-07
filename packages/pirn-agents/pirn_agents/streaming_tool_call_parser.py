@@ -62,9 +62,7 @@ class StreamingToolCallParser:
         """Number of calls dropped because their tail never parsed as JSON."""
         return self._dropped_partial
 
-    async def parse(
-        self, deltas: AsyncIterable[Mapping[str, Any]]
-    ) -> AsyncIterator[ToolCall]:
+    async def parse(self, deltas: AsyncIterable[Mapping[str, Any]]) -> AsyncIterator[ToolCall]:
         """Yield each ``ToolCall`` as soon as its index is complete.
 
         Args:
@@ -129,9 +127,7 @@ class StreamingToolCallParser:
             else:
                 self._dropped_partial += 1
 
-    async def parse_to_list(
-        self, deltas: AsyncIterable[Mapping[str, Any]]
-    ) -> list[ToolCall]:
+    async def parse_to_list(self, deltas: AsyncIterable[Mapping[str, Any]]) -> list[ToolCall]:
         """Drain :meth:`parse` into a list, preserving emission order.
 
         Args:

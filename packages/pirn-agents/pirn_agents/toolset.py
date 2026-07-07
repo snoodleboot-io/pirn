@@ -39,9 +39,7 @@ class Toolset(PirnOpaqueValue):
         by_name: dict[str, Tool] = {}
         for index, tool in enumerate(tools):
             if not isinstance(tool, Tool):
-                raise TypeError(
-                    f"tools[{index}] must be a Tool, got {type(tool).__name__}"
-                )
+                raise TypeError(f"tools[{index}] must be a Tool, got {type(tool).__name__}")
             if tool.name in by_name:
                 raise ValueError(f"duplicate tool name: {tool.name!r}")
             by_name[tool.name] = tool

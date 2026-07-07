@@ -97,7 +97,9 @@ class ToolCallCodec(PirnOpaqueValue):
         native: list[Any] = []
         for result in results:
             content = result.error if result.error is not None else self._jsonable(result.result)
-            native.append(self._adapter.result_to_native({"call_id": result.call_id, "content": content}))
+            native.append(
+                self._adapter.result_to_native({"call_id": result.call_id, "content": content})
+            )
         return native
 
     def _parse_arguments(self, arguments: Any) -> Mapping[str, Any]:
