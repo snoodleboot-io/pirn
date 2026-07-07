@@ -711,3 +711,218 @@ The pre-built specialisations (`ReActLoop`, `OrchestratorAgent`, etc.) are
 `SubTapestry` instances with fixed inner graphs. The `examples/llm_agent/`
 directory shows the dynamic DAG approach for cases where the pipeline shape
 is not known ahead of time.
+
+---
+
+## Tool-call protocol & ParallelToolExecutor
+
+pirn's tool-calling vocabulary is provider-neutral: three small types plus a
+registry, with no LLM provider baked in.
+
+| Type | Role |
+|---|---|
+| `ToolCall` | One decided invocation: `tool_name`, `arguments`, `call_id`, optional `raw`. |
+| `ToolResult` | Its outcome: `call_id`, `result`, `error`, `status`, `latency`, `tokens`. |
+| `ToolStatus` | Terminal disposition — `OK`, `ERROR`, `TIMEOUT`, `CANCELLED`. |
+| `Toolset` | Immutable, ordered, unique-by-name registry of `Tool`s. |
+
+`ParallelToolExecutor` runs a batch of `ToolCall`s concurrently against a
+`Toolset` with **bounded concurrency**, a **per-call timeout**, jittered-backoff
+**retries**, and **failure isolation** — one slow, raising, or timing-out call
+never aborts its siblings. Results come back in input order, each carrying its
+own `status` and `latency`.
+
+```python
+import asyncio
+from collections.abc import Mapping
+from typing import Any
+
+from pirn.core.knot_config import KnotConfig
+from pirn.tapestry import Tapestry
+
+from pirn_agents.parallel_tool_executor import ParallelToolExecutor
+from pirn_agents.tool import Tool
+from pirn_agents.toolset import Toolset
+from pirn_agents.types.tool_call import ToolCall
+from pirn_agents.types.tool_status import ToolStatus
+
+
+class StubTool(Tool):
+    """A provider-neutral tool; a real tool would call an API, DB, etc."""
+
+    def __init__(self, *, name: str, reply: str) -> None:
+        self._name = name
+        self._reply = reply
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def description(self) -> str:
+        return f"echoes for {self._name}"
+
+    @property
+    def parameters_schema(self) -> Mapping[str, Any]:
+        return {"type": "object", "properties": {"q": {"type": "string"}}}
+
+    async def invoke(self, arguments: Mapping[str, Any]) -> Any:
+        return f"{self._reply}:{arguments.get('q', '')}"
+
+
+toolset = Toolset([StubTool(name="search", reply="hit"),
+                   StubTool(name="lookup", reply="doc")])
+calls = [
+    ToolCall(tool_name="search", arguments={"q": "dicom"}, call_id="c1"),
+    ToolCall(tool_name="lookup", arguments={"q": "policy"}, call_id="c2"),
+]
+
+with Tapestry():
+    executor = ParallelToolExecutor(
+        tool_calls=[], toolset=Toolset(),
+        _config=KnotConfig(id="pte", validate_io=False),
+    )
+
+results = await executor.process(
+    tool_calls=calls, toolset=toolset,
+    max_concurrency=8, timeout=5.0, retries=1,
+)
+for r in results:
+    assert r.status is ToolStatus.OK
+    print(r.call_id, r.result, f"{r.latency:.4f}s")
+```
+
+Construction-time knobs `retry_base` / `retry_jitter` tune the backoff *shape*;
+`hook` (below) wires observability. All three are constructor kwargs rather than
+`process` parameters because they configure *how* the executor runs, not *what*
+it executes.
+
+---
+
+## Native tool-calling via ToolCallCodec
+
+`ToolCallCodec` maps pirn's neutral tool-calling types to and from any provider's native JSON. The codec itself is provider-agnostic; all provider shaping lives behind a `ProviderAdapter` you implement once per provider. Swapping providers means swapping adapters — the codec never changes.
+
+```python
+from __future__ import annotations
+from typing import Any
+from pirn_agents.provider_adapter import ProviderAdapter
+from pirn_agents.tool_call_codec import ToolCallCodec
+from pirn_agents.toolset import Toolset
+from pirn_agents.types.tool_result import ToolResult
+
+class MyAdapter(ProviderAdapter):
+    def tool_to_native(self, neutral_tool: dict[str, Any]) -> dict[str, Any]:
+        return {"type": "function", "function": neutral_tool}
+    def extract_tool_calls(self, provider_msg: Any) -> list[dict[str, Any]]:
+        return list(provider_msg["tool_calls"])  # each: {"id","name","arguments"}
+    def result_to_native(self, result_payload: dict[str, Any]) -> Any:
+        return {"role": "tool", "tool_call_id": result_payload["call_id"], "content": result_payload["content"]}
+
+codec = ToolCallCodec(MyAdapter())
+native_tools = codec.encode_tools(toolset)      # declare tools to the provider
+calls = codec.decode_calls(assistant_msg)       # -> list[ToolCall] (single or parallel; args JSON-str or dict)
+tool_msgs = codec.encode_results(results)       # -> native tool-result messages
+```
+
+---
+
+## Streaming tool-call parsing
+
+`StreamingToolCallParser` assembles a provider's streamed argument fragments
+into `ToolCall`s and emits each one *the instant* its index is complete —
+before the stream finishes — so the executor can start dispatching while later
+calls are still arriving. It consumes a **neutral delta shape**
+(`index`, `id`, `name`, `arguments` fragment, optional `done`); translating a
+provider's native streaming events into that shape is an adapter's job, exactly
+as with `ToolCallCodec`. A tail that never parses as valid JSON is dropped
+(counted in `parser.dropped_partial`) rather than raising.
+
+```python
+from collections.abc import AsyncIterator, Mapping
+from typing import Any
+
+from pirn_agents.streaming_tool_call_parser import StreamingToolCallParser
+
+
+async def provider_deltas() -> AsyncIterator[Mapping[str, Any]]:
+    # Neutral deltas an adapter would produce from a native stream.
+    yield {"index": 0, "id": "c1", "name": "search", "arguments": '{"q":"di'}
+    yield {"index": 0, "arguments": 'com"}', "done": True}
+    yield {"index": 1, "id": "c2", "name": "lookup", "arguments": '{"q":"policy"}', "done": True}
+
+
+parser = StreamingToolCallParser()
+
+# Drain eagerly (each call is available as soon as it completes)...
+calls = [call async for call in parser.parse(provider_deltas())]
+# ...or collect them in one shot:
+calls = await parser.parse_to_list(provider_deltas())
+
+results = await executor.process(
+    tool_calls=calls, toolset=toolset,
+    max_concurrency=8, timeout=5.0, retries=0,
+)
+assert parser.dropped_partial == 0
+```
+
+---
+
+## Observability hooks
+
+`ToolInvocationHook` is the seam for observing every tool invocation the
+executor runs — `on_start` just before a tool is invoked and `on_finish` once
+its `ToolResult` is built (for *every* outcome: ok, error, timeout, not-found).
+`on_start` carries a short, stable `args_digest` (a SHA-256 prefix over the
+call's arguments) so you can correlate without recording raw argument values;
+`on_finish` carries the terminal `ToolStatus` and per-call `latency`.
+
+The base class is a genuine **no-op by design**, not a stub: an executor given
+no hook (or the base hook) does zero observability work — the digest is not even
+computed — so the property is **zero-cost when absent**. Subclass it to emit
+spans or metrics (this feeds the metrics and tracing surfaces). Hook exceptions
+are swallowed and logged by the executor, so a misbehaving hook can never abort
+or alter tool execution.
+
+```python
+import time
+
+from pirn.core.knot_config import KnotConfig
+from pirn.tapestry import Tapestry
+
+from pirn_agents.parallel_tool_executor import ParallelToolExecutor
+from pirn_agents.tool_invocation_hook import ToolInvocationHook
+from pirn_agents.toolset import Toolset
+from pirn_agents.types.tool_status import ToolStatus
+
+
+class MetricsHook(ToolInvocationHook):
+    """Emit a counter per invocation and a latency histogram per outcome."""
+
+    def __init__(self, metrics) -> None:  # your provider-neutral metrics sink
+        self._metrics = metrics
+        self._spans: dict[str, float] = {}
+
+    def on_start(self, *, tool_name: str, args_digest: str, call_id: str) -> None:
+        self._metrics.increment("tool.calls", tags={"tool": tool_name})
+        self._spans[call_id] = time.perf_counter()
+
+    def on_finish(self, *, tool_name: str, call_id: str,
+                  status: ToolStatus, latency: float) -> None:
+        self._metrics.observe(
+            "tool.latency", latency,
+            tags={"tool": tool_name, "status": status.value},
+        )
+        self._spans.pop(call_id, None)
+
+
+with Tapestry():
+    executor = ParallelToolExecutor(
+        tool_calls=[], toolset=Toolset(),
+        hook=MetricsHook(my_metrics),          # omit → zero-cost no-op default
+        _config=KnotConfig(id="pte", validate_io=False),
+    )
+```
+
+Leave `hook` unset (or pass the base `ToolInvocationHook()`) for the inert
+default; the result path is byte-for-byte identical either way.
