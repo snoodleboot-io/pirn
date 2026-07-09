@@ -14,6 +14,24 @@ requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
 dependencies = ["pirn-core>=0.9.0,<0.10.0"]  # lockstep floor (ADR-6 / constraint C4)
 
+# --- extras matrix (OD-4): backends are lazily imported, so the base install
+# stays pirn-core-only (small wheel) and users add only what they use. Extras
+# are provider-neutral: per-provider entries are ILLUSTRATIVE, listed as equal
+# siblings, and no vendor is privileged. Bundles group extras by capability.
+[project.optional-dependencies]
+# per-provider (illustrative, equal siblings — none privileged)
+openai = ["openai>=1.0"]
+anthropic = ["anthropic>=0.40"]
+qdrant = ["qdrant-client>=1.7"]
+# capability bundles — flat concrete deps (no self-referential `pirn-agents[...]`
+# composition: a self-reference can re-resolve to an already-published wheel of the
+# same version from PyPI that lacks the extra, so bundles list packages directly)
+llm = ["openai>=1.0", "anthropic>=0.40"]
+vector = ["qdrant-client>=1.7"]
+web = ["httpx>=0.27"]
+mcp = ["mcp>=1.0"]
+all = ["openai>=1.0", "anthropic>=0.40", "qdrant-client>=1.7", "httpx>=0.27", "mcp>=1.0"]
+
 [tool.hatch.build.targets.wheel]
 packages = ["pirn_agents"]
 
