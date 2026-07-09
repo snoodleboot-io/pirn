@@ -38,6 +38,8 @@ from urllib.parse import urlparse
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents._require import _require
+
 
 class _DocumentLoader(Knot):
     """Read text from a local file path or fetch it over HTTP(S)."""
@@ -139,13 +141,7 @@ class _DocumentLoader(Knot):
         request_timeout: float,
         connect_timeout: float,
     ) -> str:
-        try:
-            import httpx
-        except ImportError as exc:
-            raise ImportError(
-                "DocumentIngestionPipeline: http(s) sources require httpx; "
-                "install via `pip install pirn[http]`"
-            ) from exc
+        httpx = _require("web", "httpx")
         parsed = urlparse(url)
         hostname = parsed.hostname
         if not hostname:

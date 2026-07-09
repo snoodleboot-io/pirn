@@ -23,6 +23,7 @@ from __future__ import annotations
 import argparse
 import importlib
 import importlib.metadata
+import pkgutil
 import sys
 
 # Declared dependency closure per package: the COMPLETE set of `pirn-*`
@@ -135,6 +136,65 @@ def _check_no_backend_at_core_import() -> list[str]:
     return []
 
 
+def _backend_denylist_for(package: str) -> frozenset[str]:
+    """Return the backend top-level modules that must NOT be imported for ``package``.
+
+    ``pirn-core`` uses the broad heavy-backend denylist checked at bare-import
+    time (:data:`_BACKEND_DENYLIST`). ``pirn-agents`` ships a small base wheel
+    and lazily imports its optional connector backends, so importing *any*
+    submodule must not eagerly pull one in — those backend top-level modules are
+    forbidden. Packages without a specific entry fall back to the core denylist.
+    """
+    per_package: dict[str, frozenset[str]] = {
+        "pirn-agents": frozenset({"httpx", "openai", "anthropic", "qdrant_client", "mcp"}),
+    }
+    return per_package.get(package, _BACKEND_DENYLIST)
+
+
+def _check_no_backend_after_submodule_walk(import_name: str, denylist: frozenset[str]) -> list[str]:
+    """Import every submodule of ``import_name`` and assert no backend leaked.
+
+    Imports the top-level package, then uses :func:`pkgutil.walk_packages` to
+    import EVERY submodule in its tree. Each import is guarded; a submodule that
+    fails to import is reported as a violation (rather than skipped) so real
+    breakage — including a backend that is eagerly (not lazily) imported and thus
+    unresolvable in the clean base env — surfaces. Finally asserts that none of
+    ``denylist`` ended up in :data:`sys.modules`, i.e. no submodule eagerly
+    imported a backend that is meant to stay behind a lazy guard.
+    """
+
+    violations: list[str] = []
+    try:
+        top = importlib.import_module(import_name)
+    except Exception as exc:  # noqa: BLE001 — surface any import failure as a gate violation
+        return [f"{import_name}: `import {import_name}` failed in the clean env: {exc!r}"]
+
+    paths = getattr(top, "__path__", None)
+    if paths is not None:
+
+        def _onerror(name: str) -> None:
+            violations.append(
+                f"{import_name}: `import {name}` failed during submodule walk: "
+                f"{sys.exc_info()[1]!r}"
+            )
+
+        for mod in pkgutil.walk_packages(paths, prefix=f"{import_name}.", onerror=_onerror):
+            try:
+                importlib.import_module(mod.name)
+            except Exception as exc:  # noqa: BLE001 — real breakage must surface, not be hidden
+                violations.append(
+                    f"{import_name}: `import {mod.name}` failed during submodule walk: {exc!r}"
+                )
+
+    leaked = sorted(denylist & set(sys.modules))
+    if leaked:
+        violations.append(
+            f"{import_name}: importing the full submodule tree pulled in backend "
+            f"package(s) that must stay lazy: {leaked} (C2 / SCD-07)"
+        )
+    return violations
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -152,6 +212,13 @@ def main() -> int:
     # The no-backend check imports `pirn`; only meaningful if the import worked.
     if package == "pirn-core" and not import_violations:
         violations += _check_no_backend_at_core_import()
+    # pirn-agents additionally walks its full submodule tree and asserts no
+    # optional connector backend leaks out of its lazy guard (C2). Additive:
+    # pirn-core and the other domains keep their existing behavior unchanged.
+    if package == "pirn-agents" and not import_violations:
+        violations += _check_no_backend_after_submodule_walk(
+            _IMPORT_NAME[package], _backend_denylist_for(package)
+        )
 
     if violations:
         print(f"install-isolation gate FAILED for {package}:", file=sys.stderr)

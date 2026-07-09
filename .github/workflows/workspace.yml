@@ -263,6 +263,36 @@ jobs:
           /tmp/iso/bin/python scripts/check_install_isolation.py --package "${{ matrix.package }}"
 
   # ===========================================================================
+  # Per-extra clean-venv install+import (PIR-137). For each pirn-agents extra
+  # bundle, create a CLEAN venv, install ONLY `pirn-agents[<extra>]` from the
+  # wheelhouse, then import the package and confirm the extra's backends are now
+  # available. Complements `install-isolation` (which proves the BASE install
+  # stays backend-free) by proving each extra actually pulls its backends in.
+  # ===========================================================================
+  agents-extras-install:
+    name: Install extras (pirn-agents [${{ matrix.extra }}])
+    needs: [changes, build-wheelhouse]
+    if: needs.changes.outputs.any == 'true'
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/${{ github.repository_owner }}/pirn-ci-base:py3.12
+    strategy:
+      fail-fast: false
+      matrix:
+        extra: [llm, vector, web, mcp, all]
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8
+        with: { name: wheelhouse, path: dist/ }
+      - name: Clean-env install of pirn-agents[${{ matrix.extra }}] + import probe
+        run: |
+          set -euo pipefail
+          uv venv /tmp/extra
+          uv pip install --python /tmp/extra/bin/python --find-links dist/ \
+            "pirn-agents[${{ matrix.extra }}]"
+          /tmp/extra/bin/python -c "import pirn_agents; print(pirn_agents.available_extras())"
+
+  # ===========================================================================
   # Unified cross-domain suite (SCD-24 AC#3): install every package from the
   # wheelhouse, run the `cross_domain` registry-parity / shim / extras-isolation
   # tests under core's config.
@@ -334,7 +364,7 @@ jobs:
   # ===========================================================================
   ci-status:
     name: CI status (all green)
-    needs: [changes, build-wheelhouse, lint, test, install-isolation, unified, import-graph, version-lockstep]
+    needs: [changes, build-wheelhouse, lint, test, install-isolation, agents-extras-install, unified, import-graph, version-lockstep]
     if: always()
     runs-on: ubuntu-latest
     steps:
