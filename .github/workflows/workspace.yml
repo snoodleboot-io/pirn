@@ -288,8 +288,12 @@ jobs:
         run: |
           set -euo pipefail
           uv venv /tmp/extra
+          # Install pirn-agents from the SOURCE tree (not by name) so this PR's
+          # code + extras are exercised: installing `pirn-agents[<extra>]` by name
+          # can resolve to an already-published same-version wheel on PyPI that
+          # lacks the extra. pirn-core comes from the wheelhouse; backends from PyPI.
           uv pip install --python /tmp/extra/bin/python --find-links dist/ \
-            "pirn-agents[${{ matrix.extra }}]"
+            "packages/pirn-agents[${{ matrix.extra }}]"
           /tmp/extra/bin/python -c "import pirn_agents; print(pirn_agents.available_extras())"
 
   # ===========================================================================
