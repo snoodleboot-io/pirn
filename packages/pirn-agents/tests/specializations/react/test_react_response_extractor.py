@@ -5,12 +5,13 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
+from pirn.tapestry import Tapestry
+
 from pirn_agents.specializations.react.react_response_extractor import (
     ReActResponseExtractor,
 )
 from pirn_agents.types.agent_message import AgentMessage
 from pirn_agents.types.agent_response import AgentResponse
-from pirn.tapestry import Tapestry
 
 
 class TestReActResponseExtractorProcess(unittest.IsolatedAsyncioTestCase):
@@ -21,6 +22,7 @@ class TestReActResponseExtractorProcess(unittest.IsolatedAsyncioTestCase):
             from pirn_agents.specializations.react.messages_passthrough import (
                 MessagesPassthrough,
             )
+
             seed = MessagesPassthrough(messages=[], _config=KnotConfig(id="seed"))
             return ReActResponseExtractor(messages=seed, _config=KnotConfig(id="rre"))
 

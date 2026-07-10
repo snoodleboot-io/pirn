@@ -28,6 +28,4 @@ class TestToolArgumentValidationError(unittest.TestCase):
         assert str(err).endswith("(call_id=c1)")
 
     def test_is_tool_invocation_error(self) -> None:
-        assert isinstance(
-            ToolArgumentValidationError("x", detail={}), ToolInvocationError
-        )
+        assert isinstance(ToolArgumentValidationError("x", detail={}), ToolInvocationError)

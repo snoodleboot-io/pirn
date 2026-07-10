@@ -5,11 +5,11 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
+from pirn.tapestry import Tapestry
+
 from pirn_agents.specializations.memory_patterns.episodic_memory_retriever import (
     EpisodicMemoryRetriever,
 )
-from pirn.tapestry import Tapestry
-
 from tests.specializations.conftest import StubMemoryStore
 
 

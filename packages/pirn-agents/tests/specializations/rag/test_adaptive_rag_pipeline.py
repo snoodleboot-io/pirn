@@ -6,12 +6,12 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
+
 from pirn_agents.specializations.rag.adaptive_rag_pipeline import (
     AdaptiveRAGPipeline,
 )
 from pirn_agents.types.agent_response import AgentResponse
-from pirn.tapestry import Tapestry
-
 from tests.specializations.conftest import (
     StubLLMProvider,
     StubMemoryStore,
@@ -60,9 +60,7 @@ class TestAdaptiveRAGPipelineModerate(unittest.IsolatedAsyncioTestCase):
 class TestAdaptiveRAGPipelineComplex(unittest.IsolatedAsyncioTestCase):
     async def test_routes_complex_to_multi_hop(self) -> None:
         memory = StubMemoryStore([{"text": "hop context"}])
-        llm = StubLLMProvider(
-            ["COMPLEX", "sub-q1\nsub-q2\nsub-q3", "multi-hop answer"]
-        )
+        llm = StubLLMProvider(["COMPLEX", "sub-q1\nsub-q2\nsub-q3", "multi-hop answer"])
         with Tapestry() as t:
             AdaptiveRAGPipeline(
                 query="Complex multi-part question",

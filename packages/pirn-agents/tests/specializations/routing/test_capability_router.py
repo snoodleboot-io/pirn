@@ -5,11 +5,11 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
+from pirn.tapestry import Tapestry
+
 from pirn_agents.specializations.routing.capability_router import (
     CapabilityRouter,
 )
-from pirn.tapestry import Tapestry
-
 from tests.specializations.conftest import StubLLMProvider
 
 
@@ -36,7 +36,10 @@ class TestCapabilityRouterProcess(unittest.IsolatedAsyncioTestCase):
         result = await knot.process(
             task="analyse sales data",
             llm=llm,
-            capabilities={"data_agent": "handles data analysis tasks", "text_agent": "handles text summarisation"},
+            capabilities={
+                "data_agent": "handles data analysis tasks",
+                "text_agent": "handles text summarisation",
+            },
         )
         assert result == "data_agent"
 

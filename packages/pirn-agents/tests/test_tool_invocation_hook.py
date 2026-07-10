@@ -61,9 +61,7 @@ class RecordingHook(ToolInvocationHook):
         self, *, tool_name: str, call_id: str, status: ToolStatus, latency: float
     ) -> None:
         self.events.append(
-            FinishEvent(
-                tool_name=tool_name, call_id=call_id, status=status, latency=latency
-            )
+            FinishEvent(tool_name=tool_name, call_id=call_id, status=status, latency=latency)
         )
 
     def starts(self) -> list[StartEvent]:

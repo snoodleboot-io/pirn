@@ -6,12 +6,12 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn_agents.specializations.structured_output.pydantic_validator_pipeline import (
-    PydanticValidatorPipeline,
-)
 from pirn.tapestry import Tapestry
 from pydantic import BaseModel
 
+from pirn_agents.specializations.structured_output.pydantic_validator_pipeline import (
+    PydanticValidatorPipeline,
+)
 from tests.specializations.conftest import (
     StubLLMProvider,
 )

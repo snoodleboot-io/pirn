@@ -14,7 +14,17 @@ from unittest.mock import patch
 
 from pirn_agents.capability_probe import available_extras
 
-_LEAF_EXTRAS = {"openai", "anthropic", "qdrant", "web", "mcp"}
+_LEAF_EXTRAS = {
+    "openai",
+    "anthropic",
+    "qdrant",
+    "pgvector",
+    "chroma",
+    "local-embed",
+    "cross-encoder",
+    "web",
+    "mcp",
+}
 _BUNDLE_EXTRAS = {"llm", "vector", "all"}
 _EXPECTED_EXTRAS = _LEAF_EXTRAS | _BUNDLE_EXTRAS
 

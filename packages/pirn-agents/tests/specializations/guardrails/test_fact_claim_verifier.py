@@ -7,12 +7,13 @@ from collections.abc import AsyncIterator, Mapping
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
+from pirn.tapestry import Tapestry
+
 from pirn_agents.memory_store import MemoryStore
 from pirn_agents.specializations.guardrails.fact_claim_verifier import (
     FactClaimVerifier,
 )
 from pirn_agents.types.agent_response import AgentResponse
-from pirn.tapestry import Tapestry
 
 
 class _HitStore(MemoryStore):

@@ -9,12 +9,12 @@ from pathlib import Path
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
+from pirn.tapestry import Tapestry
+
 from pirn_agents.memory_store import MemoryStore
 from pirn_agents.specializations.document_processing.document_ingestion_pipeline import (
     DocumentIngestionPipeline,
 )
-from pirn.tapestry import Tapestry
-
 from tests.specializations.conftest import (
     StubEmbeddingProvider,
 )
@@ -46,7 +46,9 @@ class _RecordingMemoryStore(MemoryStore):
         return None
 
 
-def _make_knot(embedder: StubEmbeddingProvider, store: _RecordingMemoryStore) -> DocumentIngestionPipeline:
+def _make_knot(
+    embedder: StubEmbeddingProvider, store: _RecordingMemoryStore
+) -> DocumentIngestionPipeline:
     with Tapestry():
         return DocumentIngestionPipeline(
             source="/tmp/placeholder.txt",

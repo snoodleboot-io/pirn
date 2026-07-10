@@ -146,7 +146,19 @@ def _backend_denylist_for(package: str) -> frozenset[str]:
     forbidden. Packages without a specific entry fall back to the core denylist.
     """
     per_package: dict[str, frozenset[str]] = {
-        "pirn-agents": frozenset({"httpx", "openai", "anthropic", "qdrant_client", "mcp"}),
+        "pirn-agents": frozenset(
+            {
+                "httpx",
+                "openai",
+                "anthropic",
+                "qdrant_client",
+                "mcp",
+                "sentence_transformers",
+                "asyncpg",
+                "pgvector",
+                "chromadb",
+            }
+        ),
     }
     return per_package.get(package, _BACKEND_DENYLIST)
 
