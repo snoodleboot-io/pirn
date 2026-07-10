@@ -62,7 +62,9 @@ class BackendDenylistSelectionTests(unittest.TestCase):
 
     def test_pirn_agents_forbids_connector_backends(self) -> None:
         result = _ISO._backend_denylist_for("pirn-agents")
-        assert result == frozenset({"httpx", "openai", "anthropic", "qdrant_client", "mcp"})
+        assert result == frozenset(
+            {"httpx", "openai", "anthropic", "qdrant_client", "mcp", "opentelemetry"}
+        )
 
 
 class SubmoduleWalkLeakDetectionTests(unittest.TestCase):

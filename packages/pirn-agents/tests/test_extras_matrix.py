@@ -19,8 +19,10 @@ _SELF_REF = re.compile(r"^pirn-agents\[(?P<extra>[a-z0-9_-]+)\]$")
 
 # expected per-provider extras and capability bundles
 _PROVIDER_EXTRAS = {"openai", "anthropic", "qdrant"}
+# observability backend extra (F10 OTel-style sink)
+_BACKEND_EXTRAS = {"otel"}
 _BUNDLE_EXTRAS = {"llm", "vector", "web", "mcp", "all"}
-_EXPECTED_EXTRAS = _PROVIDER_EXTRAS | _BUNDLE_EXTRAS
+_EXPECTED_EXTRAS = _PROVIDER_EXTRAS | _BACKEND_EXTRAS | _BUNDLE_EXTRAS
 
 
 def _load() -> dict[str, object]:
@@ -73,6 +75,9 @@ class TestExtrasMatrix(unittest.TestCase):
 
     def test_mcp_includes_mcp(self) -> None:
         assert "mcp" in _resolve(self.extras, "mcp")
+
+    def test_otel_extra_provides_opentelemetry(self) -> None:
+        assert _resolve(self.extras, "otel") == {"opentelemetry-api"}
 
     def test_all_transitively_covers_every_extra(self) -> None:
         all_concrete = _resolve(self.extras, "all")

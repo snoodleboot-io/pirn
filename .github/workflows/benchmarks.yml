@@ -1,0 +1,80 @@
+name: Benchmarks
+
+# F10 (PIR-23) performance harness: run the `benchmark`-marked suite nightly and
+# on demand, capture the `[benchmark]` lines into a machine-readable report, and
+# — when a stored baseline exists — emit a delta so a PR can surface regressions.
+# The suite uses only stub doubles and time.perf_counter (no pytest-benchmark
+# plugin, no backends), so it stays fast and provider-neutral.
+on:
+  schedule:
+    - cron: '0 3 * * *'   # nightly benchmark run
+  workflow_dispatch:
+
+concurrency:
+  group: benchmarks-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  benchmarks:
+    name: pirn-agents benchmark suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+
+      - name: Build + install pirn-core & pirn-agents
+        run: |
+          set -euo pipefail
+          for p in pirn-core pirn-agents; do uv build "packages/$p" -o dist/; done
+          uv venv .venv
+          uv pip install --find-links dist/ -e packages/pirn-core -e packages/pirn-agents \
+            pytest pytest-asyncio pytest-timeout anyio
+
+      - name: Run benchmark suite and capture report
+        working-directory: packages/pirn-agents
+        run: |
+          set -euo pipefail
+          mkdir -p ../../benchmark-results
+          # -m benchmark selects only the benchmark-marked cases; -s streams the
+          # `[benchmark]` lines the harness prints so we can harvest them.
+          uv run --no-sync python -m pytest tests -m benchmark -s -o addopts="" \
+            | tee ../../benchmark-results/output.txt
+
+      - name: Emit machine-readable report + delta vs baseline
+        working-directory: packages/pirn-agents
+        run: |
+          set -euo pipefail
+          uv run --no-sync python - <<'PY'
+          from pathlib import Path
+          from pirn_agents.benchmarks.benchmark_report import BenchmarkReport
+          from pirn_agents.benchmarks.benchmark_delta import BenchmarkDelta
+
+          out = Path("../../benchmark-results")
+          report = BenchmarkReport.from_output((out / "output.txt").read_text())
+          (out / "report.json").write_text(report.to_json())
+          print(f"captured {len(report.samples)} benchmark sample(s)")
+
+          baseline_path = out / "baseline.json"
+          if baseline_path.exists():
+              baseline = BenchmarkReport.from_json(baseline_path.read_text())
+              delta = BenchmarkDelta(baseline, report)
+              (out / "delta.json").write_text(delta.to_json())
+              (out / "delta.md").write_text(delta.to_markdown())
+              print(delta.to_markdown())
+          else:
+              print("no baseline.json — skipping delta (store report.json as the baseline)")
+          PY
+
+      - name: Upload benchmark artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        if: always()
+        with:
+          name: benchmark-results
+          path: benchmark-results/
+          retention-days: 30
