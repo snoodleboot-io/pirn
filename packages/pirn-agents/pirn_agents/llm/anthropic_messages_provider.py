@@ -31,6 +31,9 @@ from pirn_agents.llm.anthropic_messages_tool_adapter import AnthropicMessagesToo
 from pirn_agents.llm.base_llm_provider import BaseLLMProvider
 from pirn_agents.llm.stream_delta import StreamDelta
 from pirn_agents.provider_adapter import ProviderAdapter
+from pirn_agents.specializations.structured_output.structured_output_capability import (
+    StructuredOutputCapability,
+)
 from pirn_agents.toolset import Toolset
 
 
@@ -39,6 +42,22 @@ class AnthropicMessagesProvider(BaseLLMProvider):
 
     def _tool_adapter(self) -> ProviderAdapter:
         return AnthropicMessagesToolAdapter()
+
+    # -- structured output (F20) ----------------------------------------
+
+    def structured_output_capability(self) -> StructuredOutputCapability:
+        """Advertise forced tool-choice only.
+
+        The Messages API guarantees structured output by forcing a single named
+        tool call rather than a ``response_format`` schema, and does not expose
+        grammar/regex-constrained decoding — so only ``forced_tool_choice`` is
+        advertised, and the unified decoder routes extraction through S2.
+        """
+        return StructuredOutputCapability(forced_tool_choice=True)
+
+    def forced_tool_choice_option(self, tool_name: str) -> Mapping[str, Any]:
+        """Shape a Messages-API ``tool_choice`` fragment forcing ``tool_name``."""
+        return {"tool_choice": {"type": "tool", "name": tool_name}}
 
     def _completions_path(self) -> str:
         return "/messages"
