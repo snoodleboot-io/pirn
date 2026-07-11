@@ -27,8 +27,8 @@ _PROVIDER_EXTRAS = {
     "local-embed",
     "cross-encoder",
 }
-# observability backend extra (F10 OTel-style sink) + async SQL driver (F6 base tools)
-_BACKEND_EXTRAS = {"otel", "sql"}
+# backend extras: F10 OTel sink + F6 async SQL driver + F20-S3 grammar backend
+_BACKEND_EXTRAS = {"otel", "sql", "grammar"}
 _BUNDLE_EXTRAS = {"llm", "vector", "web", "mcp", "all"}
 _EXPECTED_EXTRAS = _PROVIDER_EXTRAS | _BACKEND_EXTRAS | _BUNDLE_EXTRAS
 

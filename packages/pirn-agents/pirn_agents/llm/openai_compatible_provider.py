@@ -22,6 +22,9 @@ from pirn_agents.llm.base_llm_provider import BaseLLMProvider
 from pirn_agents.llm.openai_compatible_tool_adapter import OpenAICompatibleToolAdapter
 from pirn_agents.llm.stream_delta import StreamDelta
 from pirn_agents.provider_adapter import ProviderAdapter
+from pirn_agents.specializations.structured_output.structured_output_capability import (
+    StructuredOutputCapability,
+)
 from pirn_agents.toolset import Toolset
 
 
@@ -30,6 +33,48 @@ class OpenAICompatibleProvider(BaseLLMProvider):
 
     def _tool_adapter(self) -> ProviderAdapter:
         return OpenAICompatibleToolAdapter()
+
+    # -- structured output (F20) ----------------------------------------
+
+    def structured_output_capability(self) -> StructuredOutputCapability:
+        """Advertise native schema, forced tool-choice, and constrained decoding.
+
+        The ``chat/completions`` wire format carries ``response_format`` (JSON
+        schema) and ``tool_choice``; the self-hosted engines this adapter also
+        serves (vLLM/Ollama) accept guided-decoding constraints via
+        ``extra_body``. All three native single-pass paths are therefore
+        available.
+        """
+        return StructuredOutputCapability(
+            native_schema=True, forced_tool_choice=True, constrained_decoding=True
+        )
+
+    def native_schema_option(self, schema: Mapping[str, Any], *, name: str) -> Mapping[str, Any]:
+        """Shape a ``response_format`` JSON-schema fragment for the request."""
+        return {
+            "response_format": {
+                "type": "json_schema",
+                "json_schema": {"name": name, "schema": dict(schema), "strict": True},
+            }
+        }
+
+    def forced_tool_choice_option(self, tool_name: str) -> Mapping[str, Any]:
+        """Shape a ``tool_choice`` fragment forcing ``tool_name``."""
+        return {"tool_choice": {"type": "function", "function": {"name": tool_name}}}
+
+    def constrained_decoding_option(self, constraint: Mapping[str, Any]) -> Mapping[str, Any]:
+        """Shape guided-decoding fields under ``extra_body`` from a constraint."""
+        extra_body: dict[str, Any] = {}
+        json_schema = constraint.get("json_schema")
+        if isinstance(json_schema, Mapping):
+            extra_body["guided_json"] = dict(json_schema)
+        regex = constraint.get("regex")
+        if isinstance(regex, str):
+            extra_body["guided_regex"] = regex
+        grammar = constraint.get("grammar")
+        if isinstance(grammar, str):
+            extra_body["guided_grammar"] = grammar
+        return {"extra_body": extra_body}
 
     def _completions_path(self) -> str:
         return "/chat/completions"

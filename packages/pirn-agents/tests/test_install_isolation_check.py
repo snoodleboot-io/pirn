@@ -75,6 +75,7 @@ class BackendDenylistSelectionTests(unittest.TestCase):
                 "chromadb",
                 "aiosqlite",
                 "opentelemetry",
+                "outlines",
             }
         )
 

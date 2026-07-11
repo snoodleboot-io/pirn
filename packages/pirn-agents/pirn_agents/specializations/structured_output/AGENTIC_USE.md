@@ -26,6 +26,14 @@ pirn_agents/specializations/structured_output/
 ├── format_coercer.py                FormatCoercer               — coerce LLM output to target format before parsing
 ├── schema_enforcer.py               SchemaEnforcer              — validate parsed dict against a JSON schema
 │
+│  ── Native single-pass (F20) ──
+├── structured_decoder.py            StructuredDecoder / structured_decode — unified, capability-gated entry point
+├── native_schema_mapper.py          NativeSchemaMapper          — S1: schema → native response_format request
+├── forced_tool_choice_extractor.py  ForcedToolChoiceExtractor   — S2: force one synthetic extraction tool
+├── constrained_decoding_mapper.py   ConstrainedDecodingMapper   — S3: schema → grammar/regex decode options
+├── structured_output_capability.py  StructuredOutputCapability  — provider capability flags value object
+├── structured_output_provider.py    StructuredOutputProvider    — provider protocol the native paths use
+│
 │  ── Internal attempt knots ──
 ├── _json_extractor_attempt.py       (internal — single JSON parse attempt)
 ├── _yaml_extractor_attempt.py       (internal — single YAML parse attempt)
@@ -94,6 +102,52 @@ with Tapestry() as t:
 
 ---
 
+## Native single-pass decoding (F20)
+
+Beyond the retry pipelines above, `structured_decode` / `StructuredDecoder` add a
+**unified, capability-gated** entry point that guarantees valid output in one
+pass where the provider supports it, and otherwise falls back to the same
+extract-validate-retry pipelines. Every route returns the *same* validated
+Pydantic instance.
+
+**Selection order** (each step is used only if the provider advertises it via
+`structured_output_capability()`, else the next is tried; if none apply — or a
+native attempt yields invalid output — it falls back to the retry pipeline):
+
+1. **Native schema** (S1) — maps the target schema to the provider's native
+   `response_format`/schema request (`NativeSchemaMapper`).
+2. **Forced tool-choice** (S2) — forces a single synthetic extraction tool and
+   validates its decoded arguments (`ForcedToolChoiceExtractor`, via F1's
+   `ToolCallCodec`).
+3. **Constrained decoding** (S3) — passes a generated grammar/regex constraint
+   through a local engine's decode options (`ConstrainedDecodingMapper`;
+   optional grammar compilation needs `pip install "pirn-agents[grammar]"`).
+4. **Fallback** — the existing `PydanticValidatorPipeline` retry loop.
+
+```python
+from pydantic import BaseModel
+from pirn_agents.specializations.structured_output import structured_decode
+
+class Invoice(BaseModel):
+    vendor: str
+    amount: float
+
+# `my_llm` is any LLMProvider. If it implements the StructuredOutputProvider
+# surface (the shipped OpenAI-compatible / Messages providers do), the best
+# native path is used; a plain provider transparently routes to the retry
+# pipeline. Provider-neutral — no vendor is named or privileged.
+invoice = await structured_decode(prompt="Extract the invoice", llm=my_llm,
+                                  model_class=Invoice, max_retries=3)
+```
+
+**Capability gating is provider-owned**: a provider advertises flags
+(`native_schema` / `forced_tool_choice` / `constrained_decoding`) and shapes each
+native request behind its own boundary, so the decoder stays provider-neutral.
+The shipped chat-completions provider advertises all three; the Messages
+provider advertises forced tool-choice only.
+
+---
+
 ## Anti-patterns
 
 **Setting `max_retries=0`** — without retries, any format error produces an immediate `Err`. LLMs frequently mis-format on the first attempt; set at least `max_retries=2`.
@@ -120,6 +174,7 @@ with Tapestry() as t:
 | YAML dict | `YamlExtractorPipeline(...)` |
 | Enum value | `EnumClassifierPipeline(target_enum=MyEnum, ...)` |
 | Custom format + retry | `RetryOnParseFailure(extractor=..., max_retries=N)` |
+| Native single-pass (auto-fallback) | `await structured_decode(prompt=..., llm=..., model_class=MyModel)` |
 
 ---
 

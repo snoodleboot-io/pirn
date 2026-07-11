@@ -159,6 +159,7 @@ def _backend_denylist_for(package: str) -> frozenset[str]:
                 "chromadb",
                 "aiosqlite",
                 "opentelemetry",
+                "outlines",
             }
         ),
     }
