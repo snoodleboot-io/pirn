@@ -20,6 +20,9 @@ import warnings
 from sweet_tea.registry import Registry
 from sweet_tea.sweet_tea_warning import SweetTeaWarning
 
+from pirn_agents.agent_as_tool_mixin import AgentAsToolMixin
+from pirn_agents.agent_tool import AgentTool
+from pirn_agents.as_tool import as_tool
 from pirn_agents.capability_probe import available_extras
 from pirn_agents.tool_decorator import FunctionTool, tool
 
@@ -27,4 +30,11 @@ with warnings.catch_warnings():
     warnings.simplefilter("ignore", SweetTeaWarning)
     Registry.fill_registry(module=__name__, library="pirn")
 
-__all__ = ["FunctionTool", "available_extras", "tool"]
+__all__ = [
+    "AgentAsToolMixin",
+    "AgentTool",
+    "FunctionTool",
+    "as_tool",
+    "available_extras",
+    "tool",
+]

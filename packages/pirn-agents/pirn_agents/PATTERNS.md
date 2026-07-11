@@ -563,41 +563,71 @@ code_response: AgentResponse = await agent.run()
 ## Pattern 16 — Agent as Tool
 
 **When to use:** You want to expose an agent's capability as a `Tool` so that
-another agent can call it as part of its ReAct loop.
+another agent can call it as part of its ReAct loop — a handoff to a specialist,
+or a "swarm" of agents each callable by name.
 
-Implement `Tool` and delegate to a `SubTapestry` internally:
+**Agent-as-tool is first-class** (F7): any `SubTapestry` agent that mixes in
+`AgentAsToolMixin` (the shipped specialist agents do) becomes a `Tool` in one
+call via `agent.as_tool()`, or wrap any agent with the `as_tool(agent)` free
+function. No hand-written adapter, no manual schema:
+
+- `name`/`description` default from the agent and are overridable.
+- `parameters_schema` is derived from the agent's `process` inputs (falling back
+  to `{task: str}`).
+- `invoke()` runs the inner agent and maps its `AgentResponse` into the F1
+  `ToolResult` shape (structured passthrough — `content`, `tool_calls`, `usage`,
+  `cost` — not just `.content`); an inner failure surfaces as a tool error.
+
+Safety and performance come built in and are shared with the handoff/swarm path
+(both funnel through the same `invoke_agent` machinery): a **max nesting depth**
+plus **cycle detection** reject a self-referential graph before it recurses
+forever; the parent's **budget/deadline/token** limits are *inherited* by nested
+agents (a nested loop can't outrun the caller); and the parent's **pooled
+`LLMProvider`** is reused by identity rather than reconstructed per call.
 
 ```python
-from pirn_agents.tool import Tool
+from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 
-class ResearchAgentTool(Tool):
-    name = "research"
-    description = "Perform deep research on a topic and return a summary."
-
-    def __init__(self, llm):
-        self._llm = llm
-
-    async def invoke(self, *, topic: str, **_) -> str:
-        from pirn_agents.specializations.specialized_agents.research_agent import (
-            ResearchAgent,
-        )
-        agent = ResearchAgent(
-            task=topic, llm=self._llm,
-            tools=[search_tool],
-            _config=KnotConfig(id=f"research_{hash(topic)}"),
-        )
-        resp: AgentResponse = await agent.run()
-        return resp.content
-
-# Now plug it into a ReActLoop or ToolRouter
-outer_react = ReActLoop(
-    messages=[{"role": "user", "content": "Research CRISPR advances in 2025."}],
-    llm=llm,
-    tools=[ResearchAgentTool(llm)],
-    max_iterations=3,
-    _config=KnotConfig(id="outer"),
+from pirn_agents import as_tool  # or: agent.as_tool()
+from pirn_agents.performance.run_budget import RunBudget
+from pirn_agents.specializations.react.react_loop import ReActLoop
+from pirn_agents.specializations.specialized_agents.research_agent import (
+    ResearchAgent,
 )
+from pirn_agents.types.agent_message import AgentMessage
+
+with Tapestry() as tapestry:
+    researcher = ResearchAgent(
+        topic="seed",
+        llm=llm,
+        search_tool=search_tool,
+        max_searches=3,
+        _config=KnotConfig(id="researcher"),
+    )
+    # One line: the agent is now a Tool. Nested runs reuse `llm` (by identity)
+    # and inherit the budget; a self-call is rejected before it recurses.
+    research_tool = researcher.as_tool(
+        name="research",
+        provider=llm,
+        budget=RunBudget(max_iterations=8, deadline_seconds=30.0),
+    )
+
+    ReActLoop(
+        messages=(AgentMessage(role="user", content="Research CRISPR advances."),),
+        llm=llm,
+        tools=(research_tool,),
+        max_iterations=3,
+        _config=KnotConfig(id="outer"),
+    )
+
+result = await tapestry.run(RunRequest())
 ```
+
+Equivalently, `as_tool(researcher, name="research")` returns the same
+`AgentTool`. A swarm is just a `ReActLoop` whose `tools` are several
+`agent.as_tool()` wrappers — the loop hands off to whichever the planner names.
 
 ---
 
