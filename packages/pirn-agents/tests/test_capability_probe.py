@@ -24,6 +24,7 @@ _LEAF_EXTRAS = {
     "cross-encoder",
     "web",
     "mcp",
+    "otel",
 }
 _BUNDLE_EXTRAS = {"llm", "vector", "all"}
 _EXPECTED_EXTRAS = _LEAF_EXTRAS | _BUNDLE_EXTRAS

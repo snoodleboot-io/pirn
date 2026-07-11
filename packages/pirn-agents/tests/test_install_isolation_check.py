@@ -73,6 +73,7 @@ class BackendDenylistSelectionTests(unittest.TestCase):
                 "asyncpg",
                 "pgvector",
                 "chromadb",
+                "opentelemetry",
             }
         )
 

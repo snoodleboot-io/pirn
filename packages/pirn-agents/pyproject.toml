@@ -28,6 +28,8 @@ chroma = ["chromadb>=0.4"]
 # local ML capabilities (illustrative, equal siblings — none privileged)
 local-embed = ["sentence-transformers>=2.2"]
 cross-encoder = ["sentence-transformers>=2.2"]
+# observability backend for the F10 OTel-style span sink (lazily imported)
+otel = ["opentelemetry-api>=1.20"]
 # capability bundles — flat concrete deps (no self-referential `pirn-agents[...]`
 # composition: a self-reference can re-resolve to an already-published wheel of the
 # same version from PyPI that lacks the extra, so bundles list packages directly)
@@ -45,6 +47,7 @@ all = [
     "sentence-transformers>=2.2",
     "httpx>=0.27",
     "mcp>=1.0",
+    "opentelemetry-api>=1.20",
 ]
 
 [tool.hatch.build.targets.wheel]

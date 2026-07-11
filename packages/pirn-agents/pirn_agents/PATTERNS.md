@@ -951,3 +951,124 @@ with Tapestry():
 
 Leave `hook` unset (or pass the base `ToolInvocationHook()`) for the inert
 default; the result path is byte-for-byte identical either way.
+
+---
+
+## Performance, observability & benchmark harness (F10)
+
+F10 provides the cross-cutting perf levers (budgets, caching, concurrency) and
+the measurement harness the rest of the project is held to. Everything here is
+pure-python and provider-neutral; the one optional backend (OTel) is lazily
+imported behind the `otel` extra.
+
+### RunBudget — iteration / token / deadline caps + cooperative cancellation
+
+`RunBudget` is a frozen value holding the *limits*; `RunBudgetMeter` is the
+mutable accountant threaded through a loop that spends against them. On the
+first breach the meter cancels a shared `CancellationToken` **and** raises the
+typed `BudgetBreachError`, so the loop unwinds cleanly (no partial state) and
+can return a typed terminal result rather than leaking an exception.
+
+```python
+from pirn_agents.performance.run_budget import RunBudget
+from pirn_agents.performance.run_budget_meter import RunBudgetMeter
+from pirn_agents.performance.budget_breach_error import BudgetBreachError
+
+meter = RunBudgetMeter(RunBudget(max_iterations=6, max_tokens=8000, deadline_seconds=30.0))
+
+async def agent_loop(meter: RunBudgetMeter) -> str:
+    while True:
+        try:
+            meter.spend_iteration()          # raises BudgetBreachError past the cap
+        except BudgetBreachError as exc:
+            return f"stopped: {exc.limit.value}"   # clean, typed terminal result
+        reply = await call_llm(...)
+        meter.spend_tokens(reply.token_count)
+        # A shared token lets in-flight tool legs cancel cooperatively:
+        # pass `meter.token` to leg coroutines and have them call
+        # `token.raise_if_cancelled()` at their own checkpoints.
+```
+
+This is the single shared enforcement path an F7/F8/F9 loop consumes: each loop
+accepts an optional `RunBudgetMeter` (or builds one from a `RunBudget`) and
+calls the same `spend_*` / `checkpoint` methods, so budget semantics never
+diverge between patterns.
+
+### ConcurrencyConfig + BackpressureSemaphore — shared bounded concurrency
+
+`ConcurrencyConfig` is the one knob object (max concurrency, optional queue
+depth, acquire timeout) executors and provider call sites consume instead of
+hard-coding an `asyncio.Semaphore(8)`. `BackpressureSemaphore` turns it into a
+limiter whose `slot()` context manager queues by default (never fails) and
+sheds load with a typed `asyncio.QueueFull` only when an explicit
+`max_queue_depth` is set. `ParallelToolExecutor`'s internal
+`asyncio.Semaphore(max_concurrency)` is exactly `ConcurrencyConfig.max_concurrency`
+— a wiring would replace that line with `BackpressureSemaphore(config).slot()`
+around each dispatch, no other change.
+
+```python
+from pirn_agents.performance.concurrency_config import ConcurrencyConfig
+from pirn_agents.performance.backpressure_semaphore import BackpressureSemaphore
+
+limiter = BackpressureSemaphore(ConcurrencyConfig(max_concurrency=4, max_queue_depth=32))
+async with limiter.slot():        # queues under load; QueueFull past the depth bound
+    await call_provider(...)
+```
+
+### Caching — content-addressed result cache + semantic + prompt-cache passthrough
+
+`ResultCache.get_or_compute(payload, compute)` memoises idempotent tool calls
+and embedding lookups keyed off a `content_address` of the inputs (mirrors the
+DAG's content addressing). `SemanticResultCache.get_or_compute_semantic(text,
+compute)` matches on embedding similarity using a caller-injected embedding fn
+(no backend). `PromptCachePassthrough` defers to a provider's native prompt
+cache when it exposes one, else signals the caller to cache locally.
+
+```python
+from pirn_agents.caching.in_memory_result_cache import InMemoryResultCache
+
+cache = InMemoryResultCache(max_entries=1024)
+result = await cache.get_or_compute({"tool": "search", "args": {"q": "dicom"}}, run_search)
+```
+
+### Observability — span/callback interface + pluggable sink (generalises F1)
+
+`Tracer` opens `Span`s around LLM, tool, and retrieval calls and reports them to
+a pluggable `ObservabilitySink` that is a genuine no-op by default (zero
+required backend), exactly like F1's `ToolInvocationHook`. F1's tool hook
+re-enters this interface via `SpanEmittingToolInvocationHook`, so tool spans
+land in the same sink as LLM/retrieval spans without duplicate instrumentation.
+Concrete sinks: `LoggingSink` (stdlib logging) and `OtelSink` (behind the lazy
+`otel` extra).
+
+```python
+from pirn_agents.observability.tracer import Tracer
+from pirn_agents.observability.span_emitting_tool_invocation_hook import (
+    SpanEmittingToolInvocationHook,
+)
+
+tracer = Tracer(LoggingSink())                     # or Tracer() for the no-op default
+async with tracer.llm_span(name="llm.chat") as span:
+    span.set_attribute("model", "…")
+    ...
+# same tracer/sink for tool spans, via the F1 hook seam:
+executor = ParallelToolExecutor(..., hook=SpanEmittingToolInvocationHook(tracer))
+```
+
+### Benchmark harness — `[benchmark]` lines → report → delta
+
+`@pytest.mark.benchmark` cases measure with `time.perf_counter` (no
+pytest-benchmark plugin) and print `[benchmark] <name> k=v …` lines — the format
+F1/F2 micro-benchmarks already emit. `BenchmarkReport.from_output(text)` parses
+a run into a JSON document; `BenchmarkDelta(baseline, current)` diffs it against
+a stored baseline and renders `to_json()` (machine-readable) or `to_markdown()`
+(a PR comment), so perf deltas are captured consistently across features.
+
+```python
+from pirn_agents.benchmarks.benchmark_report import BenchmarkReport
+from pirn_agents.benchmarks.benchmark_delta import BenchmarkDelta
+
+current = BenchmarkReport.from_output(captured_pytest_output)
+baseline = BenchmarkReport.from_json(open("baseline.json").read())
+print(BenchmarkDelta(baseline, current).to_markdown())
+```
