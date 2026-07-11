@@ -12,6 +12,7 @@ import sys
 import time
 import types
 from typing import Any
+from unittest import mock
 
 import pytest
 
@@ -22,12 +23,13 @@ from pirn_agents.observability.span_status import SpanStatus
 
 class TestLazyBackendGuard:
     def test_missing_backend_raises_friendly(self) -> None:
-        # Ensure the real/absent backend path is taken (no fake injected).
-        assert "opentelemetry" not in sys.modules
+        # opentelemetry may be installed (CI installs the [otel] extra); force it
+        # absent so the friendly install-error path is deterministic.
         from pirn_agents.observability.otel_sink import OtelSink
 
-        with pytest.raises(ImportError, match=r"pirn-agents\[otel\]"):
-            OtelSink()
+        with mock.patch.dict(sys.modules, {"opentelemetry.trace": None}):
+            with pytest.raises(ImportError, match=r"pirn-agents\[otel\]"):
+                OtelSink()
 
 
 class _FakeOtelSpan:
