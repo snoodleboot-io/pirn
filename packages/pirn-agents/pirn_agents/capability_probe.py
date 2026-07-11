@@ -39,7 +39,7 @@ def available_extras() -> dict[str, bool]:
     Returns:
         A dict keyed by every extra name (leaves ``openai``, ``anthropic``,
         ``qdrant``, ``pgvector``, ``chroma``, ``local-embed``, ``cross-encoder``,
-        ``web``, ``mcp``, ``otel``, ``grammar`` and bundles ``llm``, ``vector``,
+        ``web``, ``mcp``, ``sql``, ``otel``, ``grammar`` and bundles ``llm``, ``vector``,
         ``all``) whose values report whether that extra is importable here.
     """
     leaf_modules: dict[str, str] = {
@@ -52,6 +52,7 @@ def available_extras() -> dict[str, bool]:
         "cross-encoder": "sentence_transformers",
         "web": "httpx",
         "mcp": "mcp",
+        "sql": "aiosqlite",
         "otel": "opentelemetry",
         "grammar": "outlines",
     }

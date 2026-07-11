@@ -157,6 +157,7 @@ def _backend_denylist_for(package: str) -> frozenset[str]:
                 "asyncpg",
                 "pgvector",
                 "chromadb",
+                "aiosqlite",
                 "opentelemetry",
                 "outlines",
             }

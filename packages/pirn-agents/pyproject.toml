@@ -37,6 +37,8 @@ llm = ["openai>=1.0", "anthropic>=0.40"]
 vector = ["qdrant-client>=1.7", "asyncpg>=0.29", "pgvector>=0.2", "chromadb>=0.4"]
 web = ["httpx>=0.27"]
 mcp = ["mcp>=1.0"]
+# async SQL driver for the base sql_query tool (stdlib sqlite is the zero-extra default)
+sql = ["aiosqlite>=0.19"]
 # grammar/regex-constrained decoding backend (F20-S3, lazily imported)
 grammar = ["outlines>=0.1"]
 all = [
@@ -49,6 +51,7 @@ all = [
     "sentence-transformers>=2.2",
     "httpx>=0.27",
     "mcp>=1.0",
+    "aiosqlite>=0.19",
     "opentelemetry-api>=1.20",
     "outlines>=0.1",
 ]

@@ -27,9 +27,8 @@ _PROVIDER_EXTRAS = {
     "local-embed",
     "cross-encoder",
 }
-# observability backend extra (F10 OTel-style sink) + constrained-decoding
-# grammar backend (F20-S3)
-_BACKEND_EXTRAS = {"otel", "grammar"}
+# backend extras: F10 OTel sink + F6 async SQL driver + F20-S3 grammar backend
+_BACKEND_EXTRAS = {"otel", "sql", "grammar"}
 _BUNDLE_EXTRAS = {"llm", "vector", "web", "mcp", "all"}
 _EXPECTED_EXTRAS = _PROVIDER_EXTRAS | _BACKEND_EXTRAS | _BUNDLE_EXTRAS
 
@@ -87,6 +86,9 @@ class TestExtrasMatrix(unittest.TestCase):
 
     def test_otel_extra_provides_opentelemetry(self) -> None:
         assert _resolve(self.extras, "otel") == {"opentelemetry-api"}
+
+    def test_sql_extra_provides_aiosqlite(self) -> None:
+        assert _resolve(self.extras, "sql") == {"aiosqlite"}
 
     def test_all_transitively_covers_every_extra(self) -> None:
         all_concrete = _resolve(self.extras, "all")
