@@ -73,6 +73,8 @@ class BackendDenylistSelectionTests(unittest.TestCase):
                 "asyncpg",
                 "pgvector",
                 "chromadb",
+                "neo4j",
+                "kuzu",
                 "aiosqlite",
                 "opentelemetry",
                 "outlines",

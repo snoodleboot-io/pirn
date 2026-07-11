@@ -25,6 +25,23 @@ from pirn_agents.agent_tool import AgentTool
 from pirn_agents.approval_hook import ApprovalHook, authorize_tool_call
 from pirn_agents.as_tool import as_tool
 from pirn_agents.capability_probe import available_extras
+from pirn_agents.graph_rag.entity_relation_extractor import EntityRelationExtractor
+from pirn_agents.graph_rag.extracted_entity import ExtractedEntity
+from pirn_agents.graph_rag.extracted_relation import ExtractedRelation
+from pirn_agents.graph_rag.extraction_result import ExtractionResult
+from pirn_agents.graph_rag.extraction_schema import ExtractionSchema
+from pirn_agents.graph_rag.graph_embedding_index import GraphEmbeddingIndex
+from pirn_agents.graph_rag.graph_traversal import GraphTraversal
+from pirn_agents.graph_rag.hybrid_graph_retriever import HybridGraphRetriever
+from pirn_agents.graph_rag.node_embedding_index import NodeEmbeddingIndex
+from pirn_agents.graph_rag.subgraph import Subgraph
+from pirn_agents.graph_rag.subgraph_context_builder import SubGraphContextBuilder
+from pirn_agents.graph_rag.traversal_budget import TraversalBudget
+from pirn_agents.graph_stores.graph_edge import GraphEdge
+from pirn_agents.graph_stores.graph_neighbor import GraphNeighbor
+from pirn_agents.graph_stores.graph_node import GraphNode
+from pirn_agents.graph_stores.graph_store import GraphStore
+from pirn_agents.graph_stores.in_memory_graph_store import InMemoryGraphStore
 from pirn_agents.mcp.mcp_tool import McpTool
 from pirn_agents.permissioned_tool import PermissionedTool, requires_approval
 from pirn_agents.stateful_tool import StatefulTool, supports_state
@@ -76,12 +93,26 @@ __all__ = [
     "AiosqliteConnector",
     "ApprovalHook",
     "CalculatorTool",
+    "EntityRelationExtractor",
+    "ExtractedEntity",
+    "ExtractedRelation",
+    "ExtractionResult",
+    "ExtractionSchema",
     "FunctionTool",
     "GlobTool",
+    "GraphEdge",
+    "GraphEmbeddingIndex",
+    "GraphNeighbor",
+    "GraphNode",
+    "GraphStore",
+    "GraphTraversal",
     "HtmlToTextTool",
     "HttpRequestTool",
+    "HybridGraphRetriever",
+    "InMemoryGraphStore",
     "ListDirTool",
     "McpTool",
+    "NodeEmbeddingIndex",
     "PermissionedTool",
     "PythonExecTool",
     "RagTool",
@@ -98,12 +129,15 @@ __all__ = [
     "StatefulTool",
     "StreamingTool",
     "StubTool",
+    "SubGraphContextBuilder",
+    "Subgraph",
     "SubprocessSandboxBackend",
     "Tool",
     "ToolPermissions",
     "ToolRegistry",
     "ToolTestHarness",
     "Toolset",
+    "TraversalBudget",
     "WebSearchTool",
     "WriteFileTool",
     "as_tool",

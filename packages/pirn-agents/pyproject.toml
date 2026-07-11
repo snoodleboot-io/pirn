@@ -25,6 +25,9 @@ anthropic = ["anthropic>=0.40"]
 qdrant = ["qdrant-client>=1.7"]
 pgvector = ["asyncpg>=0.29", "pgvector>=0.2"]
 chroma = ["chromadb>=0.4"]
+# graph stores (illustrative, equal siblings — none privileged)
+neo4j = ["neo4j>=5.0"]
+kuzu = ["kuzu>=0.4"]
 # local ML capabilities (illustrative, equal siblings — none privileged)
 local-embed = ["sentence-transformers>=2.2"]
 cross-encoder = ["sentence-transformers>=2.2"]
@@ -48,6 +51,8 @@ all = [
     "asyncpg>=0.29",
     "pgvector>=0.2",
     "chromadb>=0.4",
+    "neo4j>=5.0",
+    "kuzu>=0.4",
     "sentence-transformers>=2.2",
     "httpx>=0.27",
     "mcp>=1.0",
@@ -87,6 +92,8 @@ markers = [
     "needs_pgvector: requires a real pgvector-enabled Postgres at $PIRN_TEST_PGVECTOR_URL",
     "needs_qdrant: requires a real Qdrant at $PIRN_TEST_QDRANT_URL",
     "needs_chroma: requires a real Chroma (chromadb installed / running)",
+    "needs_neo4j: requires a real Neo4j at $PIRN_TEST_NEO4J_URL",
+    "needs_kuzu: requires a real embedded Kuzu (kuzu installed)",
     "needs_valkey: requires a real ValKey at $PIRN_TEST_VALKEY_URL",
     "needs_kafka: requires a real Kafka at $PIRN_TEST_KAFKA_URL",
     "needs_s3: requires a real S3 (or compatible) endpoint",

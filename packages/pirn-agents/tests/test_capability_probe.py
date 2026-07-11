@@ -20,6 +20,8 @@ _LEAF_EXTRAS = {
     "qdrant",
     "pgvector",
     "chroma",
+    "neo4j",
+    "kuzu",
     "local-embed",
     "cross-encoder",
     "web",
