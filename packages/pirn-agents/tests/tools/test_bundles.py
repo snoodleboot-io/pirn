@@ -7,6 +7,7 @@ its toggles, and that constructing bundles imports no optional backend.
 from __future__ import annotations
 
 import sqlite3
+import subprocess
 import sys
 
 from pirn_agents.tools.bundles import (
@@ -78,7 +79,17 @@ def test_sandbox_toolset() -> None:
 
 
 def test_bundles_import_is_backend_free() -> None:
-    # Building bundles must not eagerly import optional backends.
-    web_toolset()
-    assert "httpx" not in sys.modules
-    assert "aiosqlite" not in sys.modules
+    # Building bundles must not eagerly import optional backends. Check in a
+    # FRESH subprocess: the in-process sys.modules is polluted by other tests
+    # (CI installs the extras, so earlier tests import httpx/aiosqlite), which
+    # would make an in-process assertion flaky. A clean interpreter isolates
+    # exactly what building the bundles imports.
+    code = (
+        "import sys\n"
+        "from pirn_agents.tools.bundles import web_toolset\n"
+        "web_toolset()\n"
+        "bad = [m for m in ('httpx', 'aiosqlite') if m in sys.modules]\n"
+        "raise SystemExit('bundles eagerly imported: ' + repr(bad) if bad else 0)\n"
+    )
+    result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr or result.stdout
