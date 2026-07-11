@@ -8,6 +8,9 @@ validation. No subprocess or socket is ever spawned.
 
 from __future__ import annotations
 
+import sys
+from unittest import mock
+
 import pytest
 
 from pirn_agents.mcp.stdio_transport import StdioTransport
@@ -15,17 +18,21 @@ from pirn_agents.mcp.streamable_http_transport import StreamableHttpTransport
 
 
 async def test_stdio_open_raises_friendly_error_without_backend() -> None:
+    # mcp may be installed (CI installs the [mcp] extra); force it absent so the
+    # friendly install-error path is exercised deterministically.
     transport = StdioTransport(command="python", args=["-m", "server"])
-    with pytest.raises(ImportError) as ctx:
-        await transport.open()
+    with mock.patch.dict(sys.modules, {"mcp": None}):
+        with pytest.raises(ImportError) as ctx:
+            await transport.open()
     assert 'pip install "pirn-agents[mcp]"' in str(ctx.value)
     assert transport.is_open is False
 
 
 async def test_streamable_http_open_raises_friendly_error_without_backend() -> None:
     transport = StreamableHttpTransport(url="https://example.test/mcp")
-    with pytest.raises(ImportError) as ctx:
-        await transport.open()
+    with mock.patch.dict(sys.modules, {"mcp": None}):
+        with pytest.raises(ImportError) as ctx:
+            await transport.open()
     assert 'pip install "pirn-agents[mcp]"' in str(ctx.value)
     assert transport.is_open is False
 
