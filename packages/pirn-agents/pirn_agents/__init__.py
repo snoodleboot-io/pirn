@@ -20,7 +20,10 @@ import warnings
 from sweet_tea.registry import Registry
 from sweet_tea.sweet_tea_warning import SweetTeaWarning
 
+from pirn_agents.agent_as_tool_mixin import AgentAsToolMixin
+from pirn_agents.agent_tool import AgentTool
 from pirn_agents.approval_hook import ApprovalHook, authorize_tool_call
+from pirn_agents.as_tool import as_tool
 from pirn_agents.capability_probe import available_extras
 from pirn_agents.permissioned_tool import PermissionedTool, requires_approval
 from pirn_agents.stateful_tool import StatefulTool, supports_state
@@ -37,6 +40,8 @@ with warnings.catch_warnings():
     Registry.fill_registry(module=__name__, library="pirn")
 
 __all__ = [
+    "AgentAsToolMixin",
+    "AgentTool",
     "ApprovalHook",
     "FunctionTool",
     "PermissionedTool",
@@ -47,6 +52,7 @@ __all__ = [
     "ToolRegistry",
     "ToolTestHarness",
     "Toolset",
+    "as_tool",
     "authorize_tool_call",
     "available_extras",
     "collect_stream",
