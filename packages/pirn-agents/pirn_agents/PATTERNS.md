@@ -606,37 +606,62 @@ outer_react = ReActLoop(
 **When to use:** You need to connect to an external MCP server — a remote tool
 provider exposing resources, prompts, and tools via the standard protocol.
 
-pirn wraps MCP tools behind the `Tool` interface. Implement an `McpTool`
-adapter and hand it to any knot that accepts `tools`:
+The `pirn_agents.mcp` subpackage (behind the `[mcp]` extra) ships a first-class
+async client and adapters, so you no longer hand-roll an `McpTool`. The design is
+a **thin JSON-RPC core** (`McpClient`) driving a pluggable **transport**
+(`StdioTransport`, `StreamableHttpTransport`, or your own `McpTransport`); the
+`mcp` SDK is imported lazily and used only for real transport plumbing, so
+`import pirn_agents` stays backend-free. Adapters map the server's surface onto
+F1 primitives:
+
+* `McpTool` / `McpToolset` → an F1 `Toolset` (discovery);
+* `McpResourceAdapter` → context injection (`ContextBuilder` / `MemoryStore`);
+* `McpPromptAdapter` / `McpPromptTemplate` → reusable message templates;
+* `McpConnector` / `McpSessionPool` → one long-lived session per server, vended
+  through F2's `ToolClientKnot`, with reconnect + jittered backoff.
 
 ```python
-import asyncio
-from pirn_agents.tool import Tool
+from pirn.core.knot_config import KnotConfig
+from pirn_agents.mcp import McpConnector, McpToolset, StdioTransport
 
-class McpTool(Tool):
-    """Thin adapter that calls a remote MCP server tool."""
+# One pooled, self-healing session per server (built once, reused for the run).
+connector = McpConnector(
+    transport_factory=lambda: StdioTransport(command="python", args=["-m", "my_server"]),
+)
+session = await connector.session()          # opens transport + initialize handshake
 
-    def __init__(self, name: str, description: str, mcp_client):
-        self.name = name
-        self.description = description
-        self._client = mcp_client
+# Discover the server's tools as a native Toolset and wire into any knot.
+toolset = await McpToolset(client=session).discover()
 
-    async def invoke(self, **kwargs) -> str:
-        result = await self._client.call_tool(self.name, kwargs)
-        return str(result.content)
-
-# Wire into ReActLoop exactly like any other tool
 react = ReActLoop(
     messages=[{"role": "user", "content": task}],
     llm=llm,
-    tools=[McpTool("read_file", "Read a file from the MCP server", mcp_client)],
+    tools=list(toolset),                     # each entry is an McpTool(Tool)
     max_iterations=8,
     _config=KnotConfig(id="mcp_react"),
 )
 ```
 
-MCP resources (read-only context) map naturally to `MemoryRetriever` — fetch
-the resource content at context-build time and inject it into `ContextBuilder`.
+Schemas and results **round-trip through F1's protocol**: `toolset.schema()` is
+the provider-neutral tool schema, and a `ToolCall` dispatched through
+`ParallelToolExecutor` invokes `McpTool.invoke` → `tools/call` and wraps the
+result into a `ToolResult` (a server `isError` becomes `ToolStatus.ERROR`). For
+executor-free use, `McpTool.as_tool_result(call)` returns the `ToolResult`
+directly.
+
+**Resources** map to context injection: `McpResourceAdapter(client=session)`
+lists/reads resources and yields either system-role `AgentMessage`s
+(`as_context_messages()`, prepend at `ContextBuilder` time) or writes them into a
+`MemoryStore` (`inject_into_store(store)`) for a `MemoryRetriever`.
+
+**Prompts** map to reusable templates: `McpPromptAdapter(client=session)
+.build_template(name)` captures a prompt once, and `template.render({...})`
+substitutes arguments (validated via `isinstance`) into a list of `AgentMessage`s
+without another round-trip.
+
+For several servers, register per-server connector factories on an
+`McpSessionPool` and call `await pool.session(key)` — each key's session is
+constructed once and reused.
 
 ---
 
