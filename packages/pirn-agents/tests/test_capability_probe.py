@@ -24,6 +24,7 @@ _LEAF_EXTRAS = {
     "cross-encoder",
     "web",
     "mcp",
+    "sql",
     "otel",
 }
 _BUNDLE_EXTRAS = {"llm", "vector", "all"}
