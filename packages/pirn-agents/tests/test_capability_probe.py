@@ -25,6 +25,7 @@ _LEAF_EXTRAS = {
     "web",
     "mcp",
     "otel",
+    "grammar",
 }
 _BUNDLE_EXTRAS = {"llm", "vector", "all"}
 _EXPECTED_EXTRAS = _LEAF_EXTRAS | _BUNDLE_EXTRAS

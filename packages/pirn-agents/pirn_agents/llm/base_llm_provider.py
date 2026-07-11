@@ -46,6 +46,9 @@ from pirn_agents.llm.retry_policy import RetryPolicy
 from pirn_agents.llm.stream_delta import StreamDelta
 from pirn_agents.llm.transient_llm_error import TransientLLMError
 from pirn_agents.provider_adapter import ProviderAdapter
+from pirn_agents.specializations.structured_output.structured_output_capability import (
+    StructuredOutputCapability,
+)
 from pirn_agents.streaming_tool_call_parser import StreamingToolCallParser
 from pirn_agents.tool_call_codec import ToolCallCodec
 from pirn_agents.toolset import Toolset
@@ -183,6 +186,105 @@ class BaseLLMProvider(ConnectorBase, LLMProvider):
         self._apply_prompt_cache(payload)
         data = await self._request_with_retries(payload)
         return self._parse_completion(data)
+
+    # -- structured output (F20) capability surface ---------------------
+
+    def structured_output_capability(self) -> StructuredOutputCapability:
+        """Return this provider's native structured-output capability flags.
+
+        The base advertises no native support, so a bare provider routes the
+        unified structured decoder straight to the extract-validate-retry
+        fallback. Providers whose wire format supports native schema decoding,
+        forced tool-choice, or constrained decoding override this to opt in.
+        """
+        return StructuredOutputCapability()
+
+    async def structured_chat(
+        self,
+        messages: Sequence[Mapping[str, Any]],
+        *,
+        model: str | None = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        tools: Toolset | None = None,
+        request_options: Mapping[str, Any] | None = None,
+    ) -> AgentResponse:
+        """Send a chat completion merging ``request_options`` into the request.
+
+        Identical to :meth:`chat_response` but for the extra ``request_options``
+        (a native ``response_format`` / ``tool_choice`` / constrained-decoding
+        fragment produced by an F20 strategy), which are merged into the shaped
+        request body. When ``request_options`` is empty the request is byte-for-
+        byte the same as :meth:`chat_response`, so existing behavior is
+        unchanged.
+        """
+        payload = self._build_request(
+            messages,
+            model=model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            stream=False,
+            tools=tools,
+        )
+        self._apply_prompt_cache(payload)
+        if request_options:
+            payload = self._merge_request_options(payload, request_options)
+        data = await self._request_with_retries(payload)
+        return self._parse_completion(data)
+
+    @staticmethod
+    def _merge_request_options(
+        payload: dict[str, Any], request_options: Mapping[str, Any]
+    ) -> dict[str, Any]:
+        """Merge ``request_options`` into ``payload``, deep-merging ``extra_body``.
+
+        Top-level keys are overlaid onto the payload; ``extra_body`` (used by
+        local engines for guided-decoding fields) is merged one level deep so a
+        strategy's constraint keys join, rather than clobber, any existing ones.
+        """
+        merged = dict(payload)
+        for key, value in request_options.items():
+            if key == "extra_body" and isinstance(value, Mapping):
+                existing = merged.get("extra_body")
+                base = dict(existing) if isinstance(existing, Mapping) else {}
+                merged["extra_body"] = {**base, **dict(value)}
+            else:
+                merged[key] = value
+        return merged
+
+    def native_schema_option(self, schema: Mapping[str, Any], *, name: str) -> Mapping[str, Any]:
+        """Return native request options carrying ``schema`` (provider-specific).
+
+        Only invoked when :meth:`structured_output_capability` advertises
+        ``native_schema``; the base raises so a misconfigured provider fails
+        loudly rather than silently.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} advertises native_schema but does not "
+            "implement native_schema_option()"
+        )
+
+    def forced_tool_choice_option(self, tool_name: str) -> Mapping[str, Any]:
+        """Return request options forcing tool-choice to ``tool_name``.
+
+        Only invoked when :meth:`structured_output_capability` advertises
+        ``forced_tool_choice``; the base raises otherwise.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} advertises forced_tool_choice but does not "
+            "implement forced_tool_choice_option()"
+        )
+
+    def constrained_decoding_option(self, constraint: Mapping[str, Any]) -> Mapping[str, Any]:
+        """Return request options passing a grammar/regex decoding ``constraint``.
+
+        Only invoked when :meth:`structured_output_capability` advertises
+        ``constrained_decoding``; the base raises otherwise.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} advertises constrained_decoding but does not "
+            "implement constrained_decoding_option()"
+        )
 
     async def stream_chat(
         self,

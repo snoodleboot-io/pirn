@@ -74,6 +74,7 @@ class BackendDenylistSelectionTests(unittest.TestCase):
                 "pgvector",
                 "chromadb",
                 "opentelemetry",
+                "outlines",
             }
         )
 

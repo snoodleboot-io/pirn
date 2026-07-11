@@ -27,8 +27,9 @@ _PROVIDER_EXTRAS = {
     "local-embed",
     "cross-encoder",
 }
-# observability backend extra (F10 OTel-style sink)
-_BACKEND_EXTRAS = {"otel"}
+# observability backend extra (F10 OTel-style sink) + constrained-decoding
+# grammar backend (F20-S3)
+_BACKEND_EXTRAS = {"otel", "grammar"}
 _BUNDLE_EXTRAS = {"llm", "vector", "web", "mcp", "all"}
 _EXPECTED_EXTRAS = _PROVIDER_EXTRAS | _BACKEND_EXTRAS | _BUNDLE_EXTRAS
 

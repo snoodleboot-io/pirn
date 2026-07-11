@@ -39,8 +39,8 @@ def available_extras() -> dict[str, bool]:
     Returns:
         A dict keyed by every extra name (leaves ``openai``, ``anthropic``,
         ``qdrant``, ``pgvector``, ``chroma``, ``local-embed``, ``cross-encoder``,
-        ``web``, ``mcp``, ``otel`` and bundles ``llm``, ``vector``, ``all``) whose
-        values report whether that extra is importable here.
+        ``web``, ``mcp``, ``otel``, ``grammar`` and bundles ``llm``, ``vector``,
+        ``all``) whose values report whether that extra is importable here.
     """
     leaf_modules: dict[str, str] = {
         "openai": "openai",
@@ -53,6 +53,7 @@ def available_extras() -> dict[str, bool]:
         "web": "httpx",
         "mcp": "mcp",
         "otel": "opentelemetry",
+        "grammar": "outlines",
     }
     leaves: dict[str, bool] = {
         extra: _is_importable(module) for extra, module in leaf_modules.items()
