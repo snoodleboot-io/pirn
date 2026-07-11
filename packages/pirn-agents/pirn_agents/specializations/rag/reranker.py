@@ -36,17 +36,27 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.providers.llm_provider import LLMProvider
 
+from pirn_agents.rerank.reranker_backend import RerankerBackend
+
 
 class Reranker(Knot):
-    """Score retrieved documents by relevance and return top-K reranked."""
+    """Score retrieved documents by relevance and return top-K reranked.
+
+    Two interchangeable scoring backings are supported: the default LLM path
+    (score each document with an :class:`LLMProvider`) and a provider-neutral
+    :class:`~pirn_agents.rerank.reranker_backend.RerankerBackend` (e.g. the
+    cross-encoder adapter) injected via ``reranker``. Exactly one of ``llm`` or
+    ``reranker`` must be supplied.
+    """
 
     def __init__(
         self,
         *,
         query: Knot | str,
         documents: Knot | list[Mapping[str, Any]],
-        llm: Knot | LLMProvider,
         _config: KnotConfig,
+        llm: Knot | LLMProvider | None = None,
+        reranker: Knot | Any | None = None,
         top_k: Knot | int = 5,
         **kwargs: Any,
     ) -> None:
@@ -54,6 +64,7 @@ class Reranker(Knot):
             query=query,
             documents=documents,
             llm=llm,
+            reranker=reranker,
             top_k=top_k,
             _config=_config,
             **kwargs,
@@ -63,7 +74,8 @@ class Reranker(Knot):
         self,
         query: str,
         documents: list[Mapping[str, Any]],
-        llm: LLMProvider,
+        llm: LLMProvider | None = None,
+        reranker: Any = None,
         top_k: int = 5,
         **_: Any,
     ) -> list[Mapping[str, Any]]:
@@ -72,25 +84,40 @@ class Reranker(Knot):
         Args:
             query: The query string used as the relevance reference.
             documents: The list of retrieved document Mappings to score.
-            llm: The LLMProvider used to score each document.
+            llm: The LLMProvider used to score each document (LLM path).
+            reranker: A provider-neutral scoring backend used instead of the
+                LLM when supplied.
             top_k: The maximum number of documents to return.
 
         Returns:
-            A list of up to top_k documents reranked by LLM-assessed relevance.
+            A list of up to top_k documents reranked by the chosen backend.
 
         Raises:
-            TypeError: If query is not a string or llm is not an LLMProvider.
-            ValueError: If top_k is not a positive integer.
+            TypeError: If query is not a string, llm is not an LLMProvider, or
+                reranker is not a RerankerBackend.
+            ValueError: If top_k is not a positive integer, or neither llm nor
+                reranker is provided.
         """
         if not isinstance(query, str):
             raise TypeError(f"Reranker: query must be a string, got {type(query).__name__}")
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(f"Reranker: llm must be an LLMProvider, got {type(llm).__name__}")
+        if reranker is not None and not isinstance(reranker, RerankerBackend):
+            raise TypeError(
+                f"Reranker: reranker must be a RerankerBackend, got {type(reranker).__name__}"
+            )
+        if reranker is None:
+            if llm is None:
+                raise ValueError("Reranker: either llm or reranker must be provided")
+            if not isinstance(llm, LLMProvider):
+                raise TypeError(f"Reranker: llm must be an LLMProvider, got {type(llm).__name__}")
         if not isinstance(top_k, int) or top_k <= 0:
             raise ValueError(f"Reranker: top_k must be a positive int, got {top_k!r}")
         if not documents:
             return []
 
+        if reranker is not None:
+            return await self._rerank_with_backend(query, documents, reranker, top_k)
+
+        assert llm is not None  # narrowed: reranker is None implies llm was validated above
         scored: list[tuple[float, Mapping[str, Any]]] = []
         for doc in documents:
             text = self._doc_text(doc)
@@ -110,6 +137,32 @@ class Reranker(Knot):
 
         scored.sort(key=lambda pair: pair[0], reverse=True)
         return [doc for _, doc in scored[:top_k]]
+
+    @staticmethod
+    async def _rerank_with_backend(
+        query: str,
+        documents: list[Mapping[str, Any]],
+        reranker: RerankerBackend,
+        top_k: int,
+    ) -> list[Mapping[str, Any]]:
+        """Rank ``documents`` by a backend's relevance scores and return the top-K.
+
+        Args:
+            query: The relevance reference query.
+            documents: The documents to score and rank.
+            reranker: The scoring backend.
+            top_k: The maximum number of documents to return.
+
+        Returns:
+            Up to ``top_k`` documents ordered by descending backend score.
+        """
+        scores = await reranker.score(query, documents)
+        ranked = sorted(
+            zip(scores, range(len(documents)), documents, strict=True),
+            key=lambda triple: (triple[0], -triple[1]),
+            reverse=True,
+        )
+        return [doc for _, _, doc in ranked[:top_k]]
 
     @staticmethod
     def _doc_text(doc: Mapping[str, Any]) -> str:

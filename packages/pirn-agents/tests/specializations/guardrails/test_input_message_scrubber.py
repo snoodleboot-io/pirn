@@ -6,11 +6,12 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
+
 from pirn_agents.specializations.guardrails.input_message_scrubber import (
     InputMessageScrubber,
 )
 from pirn_agents.types.agent_message import AgentMessage
-from pirn.tapestry import Tapestry
 
 
 def _msg(content: str, role: str = "user") -> AgentMessage:

@@ -10,13 +10,14 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Callable, Mapping, Sequence
 from typing import Any
 
-from pirn.core.providers.llm_provider import LLMProvider
-from pirn_agents.memory_store import MemoryStore
-from pirn_agents.tool import Tool
 from pirn.connectors.database_connection_pool import (
     DatabaseConnectionPool,
 )
 from pirn.core.providers.embedding_provider import EmbeddingProvider
+from pirn.core.providers.llm_provider import LLMProvider
+
+from pirn_agents.memory_store import MemoryStore
+from pirn_agents.tool import Tool
 
 
 class StubLLMProvider(LLMProvider):
@@ -171,10 +172,7 @@ class StubEmbeddingProvider(EmbeddingProvider):
 
     def _derive(self, text: str) -> list[float]:
         seed = sum(ord(ch) for ch in text)
-        return [
-            float(((seed + offset) % 17) + 1)
-            for offset in range(self._dimension)
-        ]
+        return [float(((seed + offset) % 17) + 1) for offset in range(self._dimension)]
 
 
 class StubDatabaseConnectionPool(DatabaseConnectionPool):

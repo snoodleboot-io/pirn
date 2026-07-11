@@ -58,9 +58,7 @@ class TestStatusFields(unittest.TestCase):
         assert result.tokens == 17
 
     def test_audit_dict_includes_new_fields(self) -> None:
-        result = ToolResult(
-            call_id="c1", result="x", error="e", latency=1.5, tokens=3
-        )
+        result = ToolResult(call_id="c1", result="x", error="e", latency=1.5, tokens=3)
         d = result._pirn_audit_dict()
         assert d == {
             "call_id": "c1",

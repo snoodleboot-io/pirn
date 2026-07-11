@@ -6,12 +6,13 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
+
 from pirn_agents.specializations.guardrails.output_response_validator import (
     OutputResponseValidator,
 )
 from pirn_agents.types.agent_response import AgentResponse
 from pirn_agents.types.tool_call import ToolCall
-from pirn.tapestry import Tapestry
 
 
 def _make_knot() -> OutputResponseValidator:
@@ -48,7 +49,9 @@ class TestOutputResponseValidatorProcess(unittest.IsolatedAsyncioTestCase):
         k = _make_knot()
         tc = ToolCall(call_id="tc1", tool_name="safe_tool", arguments={})
         response = AgentResponse(content="ok", tool_calls=(tc,), finish_reason="tool_use")
-        result = await k.process(response=response, deny_patterns=[], allowed_tool_names=["safe_tool"])
+        result = await k.process(
+            response=response, deny_patterns=[], allowed_tool_names=["safe_tool"]
+        )
         assert result is response
 
     async def test_rejects_non_agent_response(self) -> None:

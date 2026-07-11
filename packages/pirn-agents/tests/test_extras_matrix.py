@@ -17,8 +17,16 @@ _PYPROJECT = Path(__file__).parents[1] / "pyproject.toml"
 # self-reference form: "pirn-agents[<extra>]"
 _SELF_REF = re.compile(r"^pirn-agents\[(?P<extra>[a-z0-9_-]+)\]$")
 
-# expected per-provider extras and capability bundles
-_PROVIDER_EXTRAS = {"openai", "anthropic", "qdrant"}
+# expected per-provider / per-capability extras and capability bundles
+_PROVIDER_EXTRAS = {
+    "openai",
+    "anthropic",
+    "qdrant",
+    "pgvector",
+    "chroma",
+    "local-embed",
+    "cross-encoder",
+}
 _BUNDLE_EXTRAS = {"llm", "vector", "web", "mcp", "all"}
 _EXPECTED_EXTRAS = _PROVIDER_EXTRAS | _BUNDLE_EXTRAS
 
@@ -86,6 +94,20 @@ class TestExtrasMatrix(unittest.TestCase):
         assert "openai" in self.extras
         assert "anthropic" in self.extras
         assert _resolve(self.extras, "llm") == {"openai", "anthropic"}
+
+    def test_vector_bundle_covers_every_store_as_equal_siblings(self) -> None:
+        # qdrant / pgvector / chroma are equal siblings under the vector bundle
+        vector = _resolve(self.extras, "vector")
+        assert _resolve(self.extras, "qdrant") <= vector
+        assert _resolve(self.extras, "pgvector") <= vector
+        assert _resolve(self.extras, "chroma") <= vector
+
+    def test_local_embed_and_cross_encoder_resolve_to_sentence_transformers(self) -> None:
+        assert _resolve(self.extras, "local-embed") == {"sentence-transformers"}
+        assert _resolve(self.extras, "cross-encoder") == {"sentence-transformers"}
+
+    def test_pgvector_uses_async_driver(self) -> None:
+        assert "asyncpg" in _resolve(self.extras, "pgvector")
 
 
 if __name__ == "__main__":

@@ -8,10 +8,11 @@ import unittest
 from pathlib import Path
 
 from pirn.core.knot_config import KnotConfig
+from pirn.tapestry import Tapestry
+
 from pirn_agents.specializations.document_processing._load_and_chunk import (
     _LoadAndChunk,
 )
-from pirn.tapestry import Tapestry
 
 
 def _make_knot(source: str, chunk_size: int) -> _LoadAndChunk:

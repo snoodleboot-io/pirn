@@ -5,11 +5,11 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
+from pirn.tapestry import Tapestry
+
 from pirn_agents.specializations.document_processing.metadata_extractor import (
     MetadataExtractor,
 )
-from pirn.tapestry import Tapestry
-
 from tests.specializations.conftest import StubLLMProvider
 
 
@@ -24,7 +24,9 @@ def _make_knot(llm: StubLLMProvider) -> MetadataExtractor:
 
 class TestMetadataExtractorProcess(unittest.IsolatedAsyncioTestCase):
     async def test_extracts_json_metadata(self) -> None:
-        json_reply = '{"title": "My Doc", "author": "Alice", "date": "2024-01-01", "summary": "Good"}'
+        json_reply = (
+            '{"title": "My Doc", "author": "Alice", "date": "2024-01-01", "summary": "Good"}'
+        )
         llm = StubLLMProvider([json_reply])
         k = _make_knot(llm)
         meta = await k.process(document="sample document content", llm=llm)

@@ -5,10 +5,10 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn_agents.memory_store import MemoryStore
-from pirn_agents.memory_store_knot import MemoryStoreKnot
 from pirn.tapestry import Tapestry
 
+from pirn_agents.memory_store import MemoryStore
+from pirn_agents.memory_store_knot import MemoryStoreKnot
 from tests.specializations.conftest import StubMemoryStore
 
 
