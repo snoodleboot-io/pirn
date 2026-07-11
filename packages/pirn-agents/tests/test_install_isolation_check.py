@@ -76,6 +76,8 @@ class BackendDenylistSelectionTests(unittest.TestCase):
                 "neo4j",
                 "kuzu",
                 "aiosqlite",
+                "aioboto3",
+                "boto3",
                 "opentelemetry",
                 "outlines",
             }

@@ -39,7 +39,8 @@ def available_extras() -> dict[str, bool]:
     Returns:
         A dict keyed by every extra name (leaves ``openai``, ``anthropic``,
         ``qdrant``, ``pgvector``, ``chroma``, ``neo4j``, ``kuzu``, ``local-embed``,
-        ``cross-encoder``, ``web``, ``mcp``, ``sql``, ``otel``, ``grammar`` and
+        ``cross-encoder``, ``web``, ``mcp``, ``sql``, ``postgres``, ``s3``, ``otel``,
+        ``grammar`` and
         bundles ``llm``, ``vector``, ``all``) whose values report whether that
         extra is importable here.
     """
@@ -56,6 +57,8 @@ def available_extras() -> dict[str, bool]:
         "web": "httpx",
         "mcp": "mcp",
         "sql": "aiosqlite",
+        "postgres": "asyncpg",
+        "s3": "aioboto3",
         "otel": "opentelemetry",
         "grammar": "outlines",
     }

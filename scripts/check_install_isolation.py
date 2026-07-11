@@ -160,6 +160,8 @@ def _backend_denylist_for(package: str) -> frozenset[str]:
                 "neo4j",
                 "kuzu",
                 "aiosqlite",
+                "aioboto3",
+                "boto3",
                 "opentelemetry",
                 "outlines",
             }
