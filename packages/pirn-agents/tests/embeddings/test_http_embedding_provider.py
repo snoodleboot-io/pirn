@@ -10,6 +10,7 @@ from __future__ import annotations
 import sys
 import unittest
 from typing import Any
+from unittest import mock
 
 from pirn_agents.embeddings.http_embedding_provider import HttpEmbeddingProvider
 
@@ -107,11 +108,13 @@ class TestHttpEmbeddingProvider(unittest.IsolatedAsyncioTestCase):
         assert client.aclosed is True
 
     async def test_missing_httpx_raises_actionable_error(self) -> None:
-        # No injected client and httpx absent -> friendly install error.
-        assert "httpx" not in sys.modules
+        # httpx may or may not be installed (CI installs the [web] extra), so
+        # force it to appear absent to deterministically exercise the friendly
+        # install-error path rather than relying on the environment.
         provider = HttpEmbeddingProvider(base_url="http://svc", model="m")
-        with self.assertRaises(ImportError) as ctx:
-            await provider.embed(["a"])
+        with mock.patch.dict(sys.modules, {"httpx": None}):
+            with self.assertRaises(ImportError) as ctx:
+                await provider.embed(["a"])
         assert 'pip install "pirn-agents[web]"' in str(ctx.exception)
 
 
