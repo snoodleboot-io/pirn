@@ -24,9 +24,20 @@ from pirn_agents.agent_as_tool_mixin import AgentAsToolMixin
 from pirn_agents.agent_tool import AgentTool
 from pirn_agents.approval_hook import ApprovalHook, authorize_tool_call
 from pirn_agents.as_tool import as_tool
+from pirn_agents.blob_store_knot import BlobStoreKnot
 from pirn_agents.capability_probe import available_extras
+from pirn_agents.connector_lifespan import connector_lifespan
+from pirn_agents.connectors.blob_store import BlobStore
+from pirn_agents.connectors.http_connector import HttpConnector
+from pirn_agents.connectors.http_search_connector import HttpSearchConnector
+from pirn_agents.connectors.local_blob_store import LocalBlobStore
+from pirn_agents.connectors.s3_blob_store import S3BlobStore
+from pirn_agents.connectors.sql_service_connector import SqlServiceConnector
+from pirn_agents.http_connector_knot import HttpConnectorKnot
 from pirn_agents.mcp.mcp_tool import McpTool
 from pirn_agents.permissioned_tool import PermissionedTool, requires_approval
+from pirn_agents.search_connector_knot import SearchConnectorKnot
+from pirn_agents.sql_connector_knot import SqlConnectorKnot
 from pirn_agents.stateful_tool import StatefulTool, supports_state
 from pirn_agents.streaming_tool import StreamingTool, collect_stream, supports_streaming
 from pirn_agents.testing.stub_tool import StubTool
@@ -75,25 +86,35 @@ __all__ = [
     "AgentTool",
     "AiosqliteConnector",
     "ApprovalHook",
+    "BlobStore",
+    "BlobStoreKnot",
     "CalculatorTool",
     "FunctionTool",
     "GlobTool",
     "HtmlToTextTool",
+    "HttpConnector",
+    "HttpConnectorKnot",
     "HttpRequestTool",
+    "HttpSearchConnector",
     "ListDirTool",
+    "LocalBlobStore",
     "McpTool",
     "PermissionedTool",
     "PythonExecTool",
     "RagTool",
     "ReadFileTool",
     "RetrieverTool",
+    "S3BlobStore",
     "SandboxBackend",
     "SandboxExecutor",
     "SandboxResult",
     "SearchBackend",
+    "SearchConnectorKnot",
     "ShellTool",
     "SqlConnector",
+    "SqlConnectorKnot",
     "SqlQueryTool",
+    "SqlServiceConnector",
     "SqliteConnector",
     "StatefulTool",
     "StreamingTool",
@@ -111,6 +132,7 @@ __all__ = [
     "available_extras",
     "calculator_toolset",
     "collect_stream",
+    "connector_lifespan",
     "data_toolset",
     "filesystem_toolset",
     "make_stub_tool",

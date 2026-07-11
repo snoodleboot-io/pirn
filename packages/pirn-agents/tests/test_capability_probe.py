@@ -25,6 +25,8 @@ _LEAF_EXTRAS = {
     "web",
     "mcp",
     "sql",
+    "postgres",
+    "s3",
     "otel",
     "grammar",
 }
