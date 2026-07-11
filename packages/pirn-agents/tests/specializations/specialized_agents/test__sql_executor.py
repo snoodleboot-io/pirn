@@ -8,11 +8,11 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
+
 from pirn_agents.specializations.specialized_agents._sql_executor import (
     _SQLExecutor,
 )
-from pirn.tapestry import Tapestry
-
 from tests.specializations.conftest import (
     StubDatabaseConnectionPool,
 )

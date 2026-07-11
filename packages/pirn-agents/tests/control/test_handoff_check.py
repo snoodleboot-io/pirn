@@ -6,9 +6,10 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
+from pirn.tapestry import Tapestry
+
 from pirn_agents.control.handoff_check import HandoffCheck
 from pirn_agents.types.agent_response import AgentResponse
-from pirn.tapestry import Tapestry
 
 
 def _make_knot() -> HandoffCheck:

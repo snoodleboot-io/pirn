@@ -147,7 +147,18 @@ def _backend_denylist_for(package: str) -> frozenset[str]:
     """
     per_package: dict[str, frozenset[str]] = {
         "pirn-agents": frozenset(
-            {"httpx", "openai", "anthropic", "qdrant_client", "mcp", "opentelemetry"}
+            {
+                "httpx",
+                "openai",
+                "anthropic",
+                "qdrant_client",
+                "mcp",
+                "sentence_transformers",
+                "asyncpg",
+                "pgvector",
+                "chromadb",
+                "opentelemetry",
+            }
         ),
     }
     return per_package.get(package, _BACKEND_DENYLIST)

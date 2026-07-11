@@ -6,10 +6,11 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
+from pirn.tapestry import Tapestry
+
 from pirn_agents.input.context_builder import ContextBuilder
 from pirn_agents.types.agent_context import AgentContext
 from pirn_agents.types.agent_message import AgentMessage
-from pirn.tapestry import Tapestry
 
 
 def _make_knot() -> ContextBuilder:

@@ -6,13 +6,13 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
+
 from pirn_agents.specializations.tool_use.parallel_tool_caller import (
     ParallelToolCaller,
 )
 from pirn_agents.types.tool_call import ToolCall
 from pirn_agents.types.tool_result import ToolResult
-from pirn.tapestry import Tapestry
-
 from tests.specializations.conftest import StubTool
 
 

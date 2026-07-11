@@ -6,11 +6,12 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
+
 from pirn_agents.specializations.guardrails.pii_response_redactor import (
     PIIResponseRedactor,
 )
 from pirn_agents.types.agent_response import AgentResponse
-from pirn.tapestry import Tapestry
 
 
 def _make_knot() -> PIIResponseRedactor:

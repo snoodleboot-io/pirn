@@ -38,13 +38,18 @@ def available_extras() -> dict[str, bool]:
 
     Returns:
         A dict keyed by every extra name (leaves ``openai``, ``anthropic``,
-        ``qdrant``, ``web``, ``mcp``, ``otel`` and bundles ``llm``, ``vector``,
-        ``all``) whose values report whether that extra is importable here.
+        ``qdrant``, ``pgvector``, ``chroma``, ``local-embed``, ``cross-encoder``,
+        ``web``, ``mcp``, ``otel`` and bundles ``llm``, ``vector``, ``all``) whose
+        values report whether that extra is importable here.
     """
     leaf_modules: dict[str, str] = {
         "openai": "openai",
         "anthropic": "anthropic",
         "qdrant": "qdrant_client",
+        "pgvector": "asyncpg",
+        "chroma": "chromadb",
+        "local-embed": "sentence_transformers",
+        "cross-encoder": "sentence_transformers",
         "web": "httpx",
         "mcp": "mcp",
         "otel": "opentelemetry",
@@ -55,7 +60,7 @@ def available_extras() -> dict[str, bool]:
 
     bundles: dict[str, bool] = {
         "llm": leaves["openai"] and leaves["anthropic"],
-        "vector": leaves["qdrant"],
+        "vector": leaves["qdrant"] and leaves["pgvector"] and leaves["chroma"],
         "all": all(leaves.values()),
     }
 

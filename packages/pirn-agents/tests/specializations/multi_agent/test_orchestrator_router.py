@@ -6,11 +6,11 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
+
 from pirn_agents.specializations.multi_agent.orchestrator_router import (
     OrchestratorRouter,
 )
-from pirn.tapestry import Tapestry
-
 from tests.specializations.conftest import StubLLMProvider
 
 
@@ -28,7 +28,9 @@ class TestOrchestratorRouterProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_matched_specialist_name(self) -> None:
         k = _make_knot()
         llm = StubLLMProvider(["sql_expert"])
-        result = await k.process(task="write a SQL query", llm=llm, specialist_names=["sql_expert", "code_writer"])
+        result = await k.process(
+            task="write a SQL query", llm=llm, specialist_names=["sql_expert", "code_writer"]
+        )
         assert result == "sql_expert"
 
     async def test_falls_back_to_first_on_unknown_name(self) -> None:

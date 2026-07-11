@@ -63,7 +63,18 @@ class BackendDenylistSelectionTests(unittest.TestCase):
     def test_pirn_agents_forbids_connector_backends(self) -> None:
         result = _ISO._backend_denylist_for("pirn-agents")
         assert result == frozenset(
-            {"httpx", "openai", "anthropic", "qdrant_client", "mcp", "opentelemetry"}
+            {
+                "httpx",
+                "openai",
+                "anthropic",
+                "qdrant_client",
+                "mcp",
+                "sentence_transformers",
+                "asyncpg",
+                "pgvector",
+                "chromadb",
+                "opentelemetry",
+            }
         )
 
 

@@ -8,8 +8,9 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn_agents.specializations.rag.relevance_gate import RelevanceCheck
 from pirn.tapestry import Tapestry
+
+from pirn_agents.specializations.rag.relevance_gate import RelevanceCheck
 
 
 class _DocsSource(Knot):

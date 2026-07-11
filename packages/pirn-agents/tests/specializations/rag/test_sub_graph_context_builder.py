@@ -8,10 +8,11 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
+
 from pirn_agents.specializations.rag.sub_graph_context_builder import (
     SubGraphContextBuilder,
 )
-from pirn.tapestry import Tapestry
 
 
 class _GraphSource(Knot):

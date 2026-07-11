@@ -6,12 +6,12 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
+
 from pirn_agents.specializations.multi_agent.consensus_synthesis_caller import (
     ConsensusSynthesisCaller,
 )
 from pirn_agents.types.agent_response import AgentResponse
-from pirn.tapestry import Tapestry
-
 from tests.specializations.conftest import StubLLMProvider
 
 
@@ -57,7 +57,9 @@ class TestConsensusSynthesisCallerProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
         k = _make_knot()
         with self.assertRaises(TypeError):
-            await k.process(responses={"a": AgentResponse(content="x", finish_reason="stop")}, llm="bad")  # type: ignore[arg-type]
+            await k.process(
+                responses={"a": AgentResponse(content="x", finish_reason="stop")}, llm="bad"
+            )  # type: ignore[arg-type]
 
     async def test_tapestry_run_integration(self) -> None:
         llm = StubLLMProvider(["the synthesis"])
