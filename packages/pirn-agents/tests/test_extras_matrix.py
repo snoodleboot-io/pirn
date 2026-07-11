@@ -28,7 +28,8 @@ _PROVIDER_EXTRAS = {
     "cross-encoder",
 }
 # backend extras: F10 OTel sink + F6 async SQL driver + F20-S3 grammar backend
-_BACKEND_EXTRAS = {"otel", "sql", "grammar"}
+# + F16 service/data connector backends (Postgres, S3)
+_BACKEND_EXTRAS = {"otel", "sql", "grammar", "postgres", "s3"}
 _BUNDLE_EXTRAS = {"llm", "vector", "web", "mcp", "all"}
 _EXPECTED_EXTRAS = _PROVIDER_EXTRAS | _BACKEND_EXTRAS | _BUNDLE_EXTRAS
 
@@ -89,6 +90,12 @@ class TestExtrasMatrix(unittest.TestCase):
 
     def test_sql_extra_provides_aiosqlite(self) -> None:
         assert _resolve(self.extras, "sql") == {"aiosqlite"}
+
+    def test_postgres_extra_provides_asyncpg(self) -> None:
+        assert _resolve(self.extras, "postgres") == {"asyncpg"}
+
+    def test_s3_extra_provides_aioboto3(self) -> None:
+        assert _resolve(self.extras, "s3") == {"aioboto3"}
 
     def test_all_transitively_covers_every_extra(self) -> None:
         all_concrete = _resolve(self.extras, "all")
