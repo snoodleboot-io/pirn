@@ -158,6 +158,7 @@ def _backend_denylist_for(package: str) -> frozenset[str]:
                 "pgvector",
                 "chromadb",
                 "opentelemetry",
+                "outlines",
             }
         ),
     }

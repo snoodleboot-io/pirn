@@ -22,9 +22,18 @@ from sweet_tea.sweet_tea_warning import SweetTeaWarning
 
 from pirn_agents.agent_as_tool_mixin import AgentAsToolMixin
 from pirn_agents.agent_tool import AgentTool
+from pirn_agents.approval_hook import ApprovalHook, authorize_tool_call
 from pirn_agents.as_tool import as_tool
 from pirn_agents.capability_probe import available_extras
+from pirn_agents.permissioned_tool import PermissionedTool, requires_approval
+from pirn_agents.stateful_tool import StatefulTool, supports_state
+from pirn_agents.streaming_tool import StreamingTool, collect_stream, supports_streaming
+from pirn_agents.testing.stub_tool import StubTool
+from pirn_agents.testing.tool_test_harness import ToolTestHarness, make_stub_tool
 from pirn_agents.tool_decorator import FunctionTool, tool
+from pirn_agents.tool_permissions import ToolPermissions
+from pirn_agents.tool_registry import ToolRegistry
+from pirn_agents.toolset import Toolset
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore", SweetTeaWarning)
@@ -33,8 +42,23 @@ with warnings.catch_warnings():
 __all__ = [
     "AgentAsToolMixin",
     "AgentTool",
+    "ApprovalHook",
     "FunctionTool",
+    "PermissionedTool",
+    "StatefulTool",
+    "StreamingTool",
+    "StubTool",
+    "ToolPermissions",
+    "ToolRegistry",
+    "ToolTestHarness",
+    "Toolset",
     "as_tool",
+    "authorize_tool_call",
     "available_extras",
+    "collect_stream",
+    "make_stub_tool",
+    "requires_approval",
+    "supports_state",
+    "supports_streaming",
     "tool",
 ]
