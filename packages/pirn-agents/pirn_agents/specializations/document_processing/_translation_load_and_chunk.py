@@ -26,6 +26,8 @@ from urllib.parse import urlparse
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents._require import _require
+
 
 class _TranslationLoadAndChunk(Knot):
     """Read the source text and split into fixed-size chunks."""
@@ -76,13 +78,7 @@ class _TranslationLoadAndChunk(Knot):
     async def _load_text(source: str) -> str:
         parsed = urlparse(source)
         if parsed.scheme in ("http", "https"):
-            try:
-                import httpx
-            except ImportError as exc:
-                raise ImportError(
-                    "DocumentTranslationPipeline: http(s) sources require httpx; "
-                    "install via `pip install pirn[http]`"
-                ) from exc
+            httpx = _require("web", "httpx")
             async with httpx.AsyncClient() as client:
                 response = await client.get(source)
                 response.raise_for_status()
