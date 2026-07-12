@@ -80,6 +80,9 @@ class BackendDenylistSelectionTests(unittest.TestCase):
                 "boto3",
                 "opentelemetry",
                 "outlines",
+                "pypdf",
+                "docx",
+                "bs4",
             }
         )
 

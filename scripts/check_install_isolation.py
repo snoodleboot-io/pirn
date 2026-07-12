@@ -164,6 +164,9 @@ def _backend_denylist_for(package: str) -> frozenset[str]:
                 "boto3",
                 "opentelemetry",
                 "outlines",
+                "pypdf",
+                "docx",
+                "bs4",
             }
         ),
     }

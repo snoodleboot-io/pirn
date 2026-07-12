@@ -31,6 +31,9 @@ _LEAF_EXTRAS = {
     "s3",
     "otel",
     "grammar",
+    "pdf",
+    "docx",
+    "html",
 }
 _BUNDLE_EXTRAS = {"llm", "vector", "all"}
 _EXPECTED_EXTRAS = _LEAF_EXTRAS | _BUNDLE_EXTRAS
