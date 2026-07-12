@@ -1,4 +1,4 @@
-"""``SubGraphContextBuilder`` — render a :class:`Subgraph` into RAG context.
+"""``GraphContextBuilder`` — render a :class:`Subgraph` into RAG context.
 
 A :class:`Knot` that turns a selected subgraph (produced by
 :class:`~pirn_agents.graph_rag.graph_traversal.GraphTraversal` or the hybrid
@@ -21,7 +21,7 @@ from pirn_agents.graph_stores.graph_node import GraphNode
 from pirn_agents.types.agent_message import AgentMessage
 
 
-class SubGraphContextBuilder(Knot):
+class GraphContextBuilder(Knot):
     """Render a :class:`Subgraph` into a list of context :class:`AgentMessage`."""
 
     def __init__(
@@ -57,8 +57,7 @@ class SubGraphContextBuilder(Knot):
         """
         if not isinstance(subgraph, Subgraph):
             raise TypeError(
-                f"SubGraphContextBuilder: subgraph must be a Subgraph, "
-                f"got {type(subgraph).__name__}"
+                f"GraphContextBuilder: subgraph must be a Subgraph, got {type(subgraph).__name__}"
             )
         content = self._render(subgraph)
         return [AgentMessage(role=role, content=content, name=name)]
@@ -71,7 +70,7 @@ class SubGraphContextBuilder(Knot):
         lines: list[str] = ["Knowledge graph context:", "Entities:"]
         if nodes:
             for node in nodes:
-                lines.append(f"- {node.id} ({node.type}){SubGraphContextBuilder._props(node)}")
+                lines.append(f"- {node.id} ({node.type}){GraphContextBuilder._props(node)}")
         else:
             lines.append("- (none)")
         lines.append("Relations:")

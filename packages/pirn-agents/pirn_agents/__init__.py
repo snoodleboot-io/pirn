@@ -38,12 +38,12 @@ from pirn_agents.graph_rag.extracted_entity import ExtractedEntity
 from pirn_agents.graph_rag.extracted_relation import ExtractedRelation
 from pirn_agents.graph_rag.extraction_result import ExtractionResult
 from pirn_agents.graph_rag.extraction_schema import ExtractionSchema
+from pirn_agents.graph_rag.graph_context_builder import GraphContextBuilder
 from pirn_agents.graph_rag.graph_embedding_index import GraphEmbeddingIndex
 from pirn_agents.graph_rag.graph_traversal import GraphTraversal
 from pirn_agents.graph_rag.hybrid_graph_retriever import HybridGraphRetriever
 from pirn_agents.graph_rag.node_embedding_index import NodeEmbeddingIndex
 from pirn_agents.graph_rag.subgraph import Subgraph
-from pirn_agents.graph_rag.subgraph_context_builder import SubGraphContextBuilder
 from pirn_agents.graph_rag.traversal_budget import TraversalBudget
 from pirn_agents.graph_stores.graph_edge import GraphEdge
 from pirn_agents.graph_stores.graph_neighbor import GraphNeighbor
@@ -113,6 +113,7 @@ __all__ = [
     "ExtractionSchema",
     "FunctionTool",
     "GlobTool",
+    "GraphContextBuilder",
     "GraphEdge",
     "GraphEmbeddingIndex",
     "GraphNeighbor",
@@ -150,7 +151,6 @@ __all__ = [
     "StatefulTool",
     "StreamingTool",
     "StubTool",
-    "SubGraphContextBuilder",
     "Subgraph",
     "SubprocessSandboxBackend",
     "Tool",

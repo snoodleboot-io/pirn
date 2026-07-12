@@ -1,4 +1,4 @@
-"""Tests for the :class:`SubGraphContextBuilder` knot (S4)."""
+"""Tests for the :class:`GraphContextBuilder` knot (S4)."""
 
 from __future__ import annotations
 
@@ -8,15 +8,15 @@ from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
 from pirn_agents.graph_rag.subgraph import Subgraph
-from pirn_agents.graph_rag.subgraph_context_builder import SubGraphContextBuilder
+from pirn_agents.graph_rag.graph_context_builder import GraphContextBuilder
 from pirn_agents.graph_stores.graph_edge import GraphEdge
 from pirn_agents.graph_stores.graph_node import GraphNode
 from pirn_agents.types.agent_message import AgentMessage
 
 
-def _make_builder() -> SubGraphContextBuilder:
+def _make_builder() -> GraphContextBuilder:
     with Tapestry():
-        knot = SubGraphContextBuilder.__new__(SubGraphContextBuilder)
+        knot = GraphContextBuilder.__new__(GraphContextBuilder)
         object.__setattr__(knot, "_config", KnotConfig(id="ctx"))
     return knot
 
@@ -31,7 +31,7 @@ def _subgraph() -> Subgraph:
     )
 
 
-class TestSubGraphContextBuilder(unittest.IsolatedAsyncioTestCase):
+class TestGraphContextBuilder(unittest.IsolatedAsyncioTestCase):
     async def test_builds_agent_message(self) -> None:
         builder = _make_builder()
         messages = await builder.process(subgraph=_subgraph())
