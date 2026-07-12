@@ -24,6 +24,8 @@ from urllib.parse import urlparse
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents._require import _require
+
 
 class _QALoadAndChunk(Knot):
     """Read the source text and return fixed-size chunks (default ~1000 chars)."""
@@ -67,13 +69,7 @@ class _QALoadAndChunk(Knot):
     async def _load_text(source: str) -> str:
         parsed = urlparse(source)
         if parsed.scheme in ("http", "https"):
-            try:
-                import httpx
-            except ImportError as exc:
-                raise ImportError(
-                    "DocumentQAPipeline: http(s) sources require httpx; "
-                    "install via `pip install pirn[http]`"
-                ) from exc
+            httpx = _require("web", "httpx")
             async with httpx.AsyncClient() as client:
                 response = await client.get(source)
                 response.raise_for_status()
