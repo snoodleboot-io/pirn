@@ -1,4 +1,4 @@
-`pirn_agents.specializations` provides 15 pre-built agent pattern families built on top of the agent tier knots — it does not provide LLM clients, vector stores, or tool implementations; those are user-supplied through the agent tier interfaces.
+`pirn_agents.specializations` provides 24 pre-built agent pattern families built on top of the agent tier knots — it does not provide LLM clients, vector stores, or tool implementations; those are user-supplied through the agent tier interfaces.
 
 ---
 
@@ -139,6 +139,39 @@ result = await t.run(RunRequest(parameters={"request": "What is the population o
 | Route by intent | `IntentRouter(request=..., llm=..., routes={...})` |
 | Parallel tool calls | `ParallelToolCaller(request=..., tools=[...])` |
 | Multi-turn context | `MultiTurnContextAssembler(history=..., new_message=...)` |
+
+---
+
+## F8 — Agentic Design Patterns expansion (PIR-21)
+
+Nine additional pattern families (see `PATTERNS_TAXONOMY_F8.md` for the net-new vs.
+compositional classification and citations, and `PATTERNS.md` Patterns 19-27 for full
+wiring code). All are provider-neutral `SubTapestry`s that reuse F1 (parallel executor),
+F4 (memory), F7 (agents-as-tools), and F10 (run budgets).
+
+| Sub-package | Pattern | Entry point | Typed result |
+|-------------|---------|-------------|--------------|
+| `rewoo/` | ReWOO: plan-all → parallel-exec → synthesise (2 LLM round-trips) | `ReWooPipeline(goal=..., llm=..., tools=[...])` | `ReWooResult` |
+| `reflexion/` | Reflexion: actor/evaluator/reflection with F4 memory read-back | `ReflexionPipeline(task=..., llm=..., memory=...)` | `ReflexionResult` |
+| `evaluator_optimizer/` | Generator + LLM-judge + scored accept gate (generalises `ReflectionCheck`) | `EvaluatorOptimizerPipeline(task=..., llm=..., threshold=8.0)` | `EvaluatorOptimizerResult` |
+| `routing/` (extended) | Confidence router + typed fallback chain | `RouterFallbackPipeline(candidates=[...], confidences={...}, arguments={...})` | `FallbackResult` |
+| `multi_agent/` (extended) | Orchestrator-Workers: dynamic fan-out via F7 `AgentTool` | `OrchestratorWorkers(tasks=[...], worker=AgentTool(...), max_concurrency=N)` | `OrchestratorWorkersResult` |
+| `lats/` | LATS: budgeted best-first tree search, pluggable value model (F10 budget) | `LatsSearch(task=..., llm=..., value_model=..., budget=RunBudget(...))` | `LatsResult` |
+| `self_ask/` | Self-Ask: sub-question decomposition | `SelfAskPipeline(task=..., llm=...)` | `SelfAskResult` |
+| `plan_react/` | Plan-ReAct: `TaskPlanner` then `ReActLoop` per step | `PlanReActPipeline(task=..., llm=..., tools=[...])` | `PlanReActResult` |
+| `prompt_chaining/` | Prompt-chaining: sequential LLM calls, each output feeds the next | `PromptChainPipeline(task=..., llm=..., steps=[...])` | `PromptChainResult` |
+
+### Constraints and gotchas (F8)
+
+- **Bounded by construction.** ReWOO is a fixed two round-trips; Reflexion / Evaluator-Optimizer
+  are capped by `max_iterations`; LATS is capped by a `RunBudget` (node count and/or deadline) and
+  refuses an unbounded budget; Orchestrator-Workers is capped by `max_concurrency`.
+- **Provider-neutral.** All patterns take an `LLMProvider`, `Tool`, `MemoryStore`, or
+  `TrajectoryValueModel` you supply; nothing favours a specific vendor. Stub doubles drive every test.
+- **ReWOO parallelism** flows through the F1 `ParallelToolExecutor`; independent tool calls run
+  concurrently under `max_concurrency`.
+- **Reflexion memory** is any `MemoryStore` — reflections are written under `"<namespace>:<i>"` keys
+  and read back on the next attempt.
 
 ---
 

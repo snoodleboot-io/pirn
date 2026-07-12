@@ -734,6 +734,192 @@ a central controller.
 
 ---
 
+# Agentic Design Patterns — F8 expansion (PIR-21)
+
+Patterns 19–27 add the standard agentic shapes not covered above. Each is a
+provider-neutral `SubTapestry` reusing F1 (parallel executor), F4 (memory),
+F7 (agents-as-tools), and F10 (run budgets). See
+`specializations/PATTERNS_TAXONOMY_F8.md` for the net-new/compositional
+classification and citations.
+
+## Pattern 19 — ReWOO (Reasoning WithOut Observation)
+
+Plan every tool call up front, execute them in parallel through the F1 executor,
+then synthesise once — a fixed **two** LLM round-trips regardless of tool count,
+versus one-per-step for ReAct. Knots: `ReWooPlanner` → `ParallelToolExecutor`
+(F1) → `ReWooSynthesizer`, wired by `ReWooPipeline` into a `ReWooResult`.
+
+```python
+from pirn_agents.specializations.rewoo.rewoo_pipeline import ReWooPipeline
+
+with Tapestry() as t:
+    ReWooPipeline(
+        goal="Compare the populations of France and Spain.",
+        llm=my_provider,
+        tools=(population_tool,),      # each a Tool
+        max_concurrency=8,
+        _config=KnotConfig(id="rewoo"),
+    )
+result = (await t.run(RunRequest())).outputs["rewoo"]   # ReWooResult(answer, plan, results)
+```
+
+## Pattern 20 — Reflexion (actor / evaluator / self-reflection + memory)
+
+Actor drafts, evaluator scores, reflector writes a verbal lesson to F4 memory that
+is **read back** on the next attempt; bounded by `max_iterations`. Knots:
+`ReflexionActor`, `ReflexionEvaluator`, `ReflexionReflector`, orchestrated by
+`ReflexionPipeline` into a `ReflexionResult`.
+
+```python
+from pirn_agents.specializations.reflexion.reflexion_pipeline import ReflexionPipeline
+
+with Tapestry() as t:
+    ReflexionPipeline(
+        task="Write a correct binary-search implementation.",
+        llm=my_provider,
+        memory=my_memory_store,        # a MemoryStore (F4)
+        max_iterations=3,
+        _config=KnotConfig(id="rx"),
+    )
+result = (await t.run(RunRequest())).outputs["rx"]   # ReflexionResult(answer, succeeded, attempts)
+```
+
+## Pattern 21 — Evaluator-Optimizer (LLM-as-judge accept loop)
+
+Generator produces a candidate, an `LlmJudge` returns a numeric `JudgeVerdict`, and
+`AcceptGate` — the scored generalisation of `control.reflection_check.ReflectionCheck`
+— stops on threshold. An optional `ReflectionCheck` can be injected as an early-stop
+gate (reuse, not duplication).
+
+```python
+from pirn_agents.specializations.evaluator_optimizer.evaluator_optimizer_pipeline import (
+    EvaluatorOptimizerPipeline,
+)
+
+with Tapestry() as t:
+    EvaluatorOptimizerPipeline(
+        task="Draft a crisp product tagline.",
+        llm=my_provider,
+        threshold=8.0,                 # 0-10 judge scale
+        max_iterations=3,
+        _config=KnotConfig(id="eo"),
+    )
+result = (await t.run(RunRequest())).outputs["eo"]   # EvaluatorOptimizerResult(answer, score, accepted)
+```
+
+## Pattern 22 — Router + typed Fallback chain
+
+`CandidateRouter` orders typed `RouteCandidate`s best-first by confidence; `FallbackChain`
+invokes them in order, skipping sub-threshold candidates and stopping on first success —
+avoiding the wasted retries of a naive "try everything" baseline. Wired by
+`RouterFallbackPipeline` into a `FallbackResult`.
+
+```python
+from pirn_agents.specializations.routing.route_candidate import RouteCandidate
+from pirn_agents.specializations.routing.router_fallback_pipeline import RouterFallbackPipeline
+
+candidates = (
+    RouteCandidate(name="fast", tool=fast_tool, min_confidence=0.6),
+    RouteCandidate(name="strong", tool=strong_tool),
+)
+with Tapestry() as t:
+    RouterFallbackPipeline(
+        candidates=candidates,
+        confidences={"fast": 0.9, "strong": 0.4},   # from an intent router / heuristic
+        arguments={"input": "the query"},
+        _config=KnotConfig(id="rf"),
+    )
+result = (await t.run(RunRequest())).outputs["rf"]   # FallbackResult(succeeded, chosen, attempted, skipped)
+```
+
+## Pattern 23 — Orchestrator-Workers (dynamic, via F7)
+
+`OrchestratorWorkers` spawns one worker (an F7 `AgentTool`) per task-list item, bounded by
+a max-concurrency semaphore, and aggregates an `OrchestratorWorkersResult`. Worker count
+scales with the task list; wall-clock stays bounded by the cap.
+
+```python
+from pirn_agents.agent_tool import AgentTool
+from pirn_agents.specializations.multi_agent.orchestrator_workers import OrchestratorWorkers
+
+worker = AgentTool(my_specialist_agent)      # F7 agent-as-tool
+with Tapestry() as t:
+    OrchestratorWorkers(
+        tasks=("summarise doc A", "summarise doc B", "summarise doc C"),
+        worker=worker,
+        max_concurrency=4,
+        _config=KnotConfig(id="ow"),
+    )
+result = (await t.run(RunRequest())).outputs["ow"]   # OrchestratorWorkersResult(results, succeeded, total)
+```
+
+## Pattern 24 — LATS / tree-search act (budgeted)
+
+`LatsSearch` runs a best-first (MCTS-style) search over action trajectories proposed by
+`LatsActionProposer` and scored by a pluggable `TrajectoryValueModel`, **strictly bounded**
+by an F10 `RunBudget` (node count and/or wall-clock). Returns a `LatsResult`.
+
+```python
+from pirn_agents.performance.run_budget import RunBudget
+from pirn_agents.specializations.lats.lats_search import LatsSearch
+
+with Tapestry() as t:
+    LatsSearch(
+        task="Plan a route through the maze.",
+        llm=my_provider,
+        value_model=my_value_model,           # a TrajectoryValueModel (stubbable)
+        budget=RunBudget(max_iterations=64, deadline_seconds=5.0),
+        max_depth=4,
+        _config=KnotConfig(id="lats"),
+    )
+result = (await t.run(RunRequest())).outputs["lats"]   # LatsResult(best_trajectory, best_value, nodes_expanded)
+```
+
+## Pattern 25 — Self-Ask
+
+`SelfAskPipeline` decomposes a question into follow-up sub-questions, answers each, then
+composes the final answer into a `SelfAskResult`.
+
+```python
+from pirn_agents.specializations.self_ask.self_ask_pipeline import SelfAskPipeline
+
+with Tapestry() as t:
+    SelfAskPipeline(task="Who directed the highest-grossing film of 1997?", llm=my_provider,
+                    _config=KnotConfig(id="sa"))
+result = (await t.run(RunRequest())).outputs["sa"]   # SelfAskResult(final_answer, subquestions, subanswers)
+```
+
+## Pattern 26 — Plan-ReAct
+
+`PlanReActPipeline` plans first with `TaskPlanner`, then runs a `ReActLoop` per step — pure
+composition of existing knots — into a `PlanReActResult`.
+
+```python
+from pirn_agents.specializations.plan_react.plan_react_pipeline import PlanReActPipeline
+
+with Tapestry() as t:
+    PlanReActPipeline(task="Research and summarise X.", llm=my_provider, tools=(search_tool,),
+                      max_iterations=4, max_steps=5, _config=KnotConfig(id="pr"))
+result = (await t.run(RunRequest())).outputs["pr"]   # PlanReActResult(plan, step_responses, final)
+```
+
+## Pattern 27 — Prompt-chaining
+
+`PromptChainPipeline` runs a fixed sequence of LLM calls where each output feeds the next,
+into a `PromptChainResult`.
+
+```python
+from pirn_agents.specializations.prompt_chaining.prompt_chain_pipeline import PromptChainPipeline
+
+with Tapestry() as t:
+    PromptChainPipeline(task=long_document, llm=my_provider,
+                        steps=("Summarise in 3 bullets.", "Translate the summary to French."),
+                        _config=KnotConfig(id="pc"))
+result = (await t.run(RunRequest())).outputs["pc"]   # PromptChainResult(outputs, final)
+```
+
+---
+
 ## Composing Patterns
 
 Patterns compose — pick the pieces you need:
