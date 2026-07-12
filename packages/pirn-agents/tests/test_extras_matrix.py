@@ -27,11 +27,13 @@ _PROVIDER_EXTRAS = {
     "local-embed",
     "cross-encoder",
 }
+# graph-store extras (F24): Neo4j + Kuzu, equal siblings (none privileged)
+_GRAPH_EXTRAS = {"neo4j", "kuzu"}
 # backend extras: F10 OTel sink + F6 async SQL driver + F20-S3 grammar backend
 # + F16 service/data connector backends (Postgres, S3)
 _BACKEND_EXTRAS = {"otel", "sql", "grammar", "postgres", "s3"}
 _BUNDLE_EXTRAS = {"llm", "vector", "web", "mcp", "all"}
-_EXPECTED_EXTRAS = _PROVIDER_EXTRAS | _BACKEND_EXTRAS | _BUNDLE_EXTRAS
+_EXPECTED_EXTRAS = _PROVIDER_EXTRAS | _GRAPH_EXTRAS | _BACKEND_EXTRAS | _BUNDLE_EXTRAS
 
 
 def _load() -> dict[str, object]:
@@ -123,6 +125,11 @@ class TestExtrasMatrix(unittest.TestCase):
 
     def test_pgvector_uses_async_driver(self) -> None:
         assert "asyncpg" in _resolve(self.extras, "pgvector")
+
+    def test_graph_stores_resolve_as_equal_siblings(self) -> None:
+        # neo4j / kuzu are flat, self-reference-free graph-store extras
+        assert _resolve(self.extras, "neo4j") == {"neo4j"}
+        assert _resolve(self.extras, "kuzu") == {"kuzu"}
 
 
 if __name__ == "__main__":
