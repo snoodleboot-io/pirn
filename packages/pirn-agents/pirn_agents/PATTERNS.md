@@ -1288,3 +1288,47 @@ current = BenchmarkReport.from_output(captured_pytest_output)
 baseline = BenchmarkReport.from_json(open("baseline.json").read())
 print(BenchmarkDelta(baseline, current).to_markdown())
 ```
+
+---
+
+## Agentic RAG Patterns (F9)
+
+Completes the RAG taxonomy on top of the seven baseline pipelines. Patterns are
+organised along four axes — query transformation, retrieval strategy,
+post-retrieval, and indexing structure. The full mapping, F4 dependency notes,
+and citations live in
+[`specializations/rag/RETRIEVAL_TAXONOMY.md`](specializations/rag/RETRIEVAL_TAXONOMY.md).
+
+### Query transformation
+- **RAG-Fusion** — `RagFusionPipeline`: `MultiQueryExpander` fans out N query
+  reformulations, `FusionRetriever` searches them concurrently and merges with
+  Reciprocal Rank Fusion (`retrieval.reciprocal_rank_fusion`).
+- **Sub-question decomposition** — `SubQuestionRagPipeline`:
+  `SubQuestionDecomposer` splits a compound query, `SubQuestionRetriever`
+  retrieves per sub-question concurrently.
+- **Self-query** — `SelfQueryRagPipeline`: `SelfQueryFilterExtractor` extracts a
+  metadata filter applied via `VectorMemoryStore.query(metadata_filter=...)`.
+
+### Retrieval strategy
+- **Router RAG** — `RouterRagPipeline`: `QueryRouteClassifier` picks a route,
+  `RoutedRetriever` dispatches to the store named in a `RouteTable`.
+- **Agentic RAG** — `AgenticRagPipeline`: drives the F6 `RagTool` in a bounded
+  loop; `IterativeRetriever` implements recursive refine-and-retrieve.
+- **Speculative RAG** — `SpeculativeRagPipeline`: `SpeculativeDraftGenerator`
+  drafts from the query while retrieval runs, `DraftVerifier` revises against
+  evidence.
+
+### Post-retrieval
+- **Contextual retrieval** — `ContextualRetrievalPipeline`:
+  `ContextualChunkEnricher` → `Reranker` (F4 rerank backend, top-k budget) →
+  `ContextualCompressor` → synthesize.
+
+### Indexing structure
+- **Parent-doc / sentence-window / auto-merging / RAPTOR** under
+  `specializations/rag/indexing/` — ingest + retrieve knot pairs reusing the
+  existing `_DocumentChunker`; RAPTOR builds a content-addressed tree once at
+  ingest.
+
+### FLARE
+- **Active retrieval** — `FlareActiveRagPipeline`: monitors per-sentence
+  confidence and retrieves mid-generation under a max-retrieval-calls budget.
