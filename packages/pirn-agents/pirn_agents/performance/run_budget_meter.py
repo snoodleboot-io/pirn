@@ -59,6 +59,7 @@ class RunBudgetMeter:
         self._start = monotonic()
         self._iterations = 0
         self._tokens = 0
+        self._cost = 0.0
 
     @property
     def budget(self) -> RunBudget:
@@ -81,9 +82,30 @@ class RunBudgetMeter:
         return self._tokens
 
     @property
+    def cost(self) -> float:
+        """Estimated spend accrued so far."""
+        return self._cost
+
+    @property
     def elapsed(self) -> float:
         """Wall-clock seconds since the meter was created."""
         return self._monotonic() - self._start
+
+    @property
+    def remaining_cost(self) -> float | None:
+        """Spend headroom before the cost cap, or ``None`` when uncapped."""
+        cap = self._budget.max_cost
+        return None if cap is None else cap - self._cost
+
+    def would_exceed_cost(self, estimate: float) -> bool:
+        """Return whether accruing ``estimate`` more would breach the cost cap.
+
+        The non-raising counterpart to :meth:`spend_cost`: a caller consults this
+        to *downshift* (pick a cheaper path) before committing spend, instead of
+        accruing the cost and catching a breach.
+        """
+        cap = self._budget.max_cost
+        return cap is not None and self._cost + estimate > cap
 
     def spend_iteration(self, count: int = 1) -> None:
         """Record ``count`` iterations, then re-check every budget dimension."""
@@ -93,6 +115,11 @@ class RunBudgetMeter:
     def spend_tokens(self, count: int) -> None:
         """Record ``count`` tokens, then re-check every budget dimension."""
         self._tokens += count
+        self._checkpoint()
+
+    def spend_cost(self, amount: float) -> None:
+        """Accrue ``amount`` of estimated spend, then re-check every budget dimension."""
+        self._cost += amount
         self._checkpoint()
 
     def checkpoint(self) -> None:
@@ -113,6 +140,7 @@ class RunBudgetMeter:
             self._budget.check_iterations(self._iterations)
             self._budget.check_tokens(self._tokens)
             self._budget.check_deadline(self.elapsed)
+            self._budget.check_cost(self._cost)
         except BudgetBreachError as exc:
             self._token.cancel(reason=str(exc))
             raise
