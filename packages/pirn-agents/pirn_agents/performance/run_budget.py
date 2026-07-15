@@ -34,11 +34,16 @@ class RunBudget(PirnOpaqueValue):
         Maximum cumulative token usage, or ``None`` for unbounded.
     deadline_seconds:
         Maximum wall-clock elapsed time in seconds, or ``None`` for unbounded.
+    max_cost:
+        Maximum cumulative estimated spend (in the caller's currency unit), or
+        ``None`` for unbounded. The cost analogue of ``max_tokens``: additive to
+        the existing dimensions so callers that never set it are unaffected.
     """
 
     max_iterations: int | None = None
     max_tokens: int | None = None
     deadline_seconds: float | None = None
+    max_cost: float | None = None
 
     def __post_init__(self) -> None:
         """Validate every supplied dimension is a non-negative number.
@@ -64,6 +69,13 @@ class RunBudget(PirnOpaqueValue):
                 f"RunBudget: deadline_seconds must be a non-negative number or None, "
                 f"got {deadline!r}"
             )
+        cost = self.max_cost
+        if cost is not None and (
+            isinstance(cost, bool) or not isinstance(cost, (int, float)) or cost < 0
+        ):
+            raise ValueError(
+                f"RunBudget: max_cost must be a non-negative number or None, got {cost!r}"
+            )
 
     def check_iterations(self, spent: int) -> None:
         """Raise :class:`BudgetBreachError` if ``spent`` exceeds ``max_iterations``."""
@@ -84,9 +96,15 @@ class RunBudget(PirnOpaqueValue):
                 BudgetLimit.DEADLINE, spent=elapsed, allowed=self.deadline_seconds
             )
 
+    def check_cost(self, spent: float) -> None:
+        """Raise :class:`BudgetBreachError` if ``spent`` exceeds ``max_cost``."""
+        if self.max_cost is not None and spent > self.max_cost:
+            raise BudgetBreachError(BudgetLimit.COST, spent=spent, allowed=self.max_cost)
+
     def _pirn_audit_dict(self) -> dict[str, Any]:
         return {
             "max_iterations": self.max_iterations,
             "max_tokens": self.max_tokens,
             "deadline_seconds": self.deadline_seconds,
+            "max_cost": self.max_cost,
         }

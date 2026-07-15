@@ -64,11 +64,12 @@ class TestChecks:
         assert excinfo.value.limit is BudgetLimit.DEADLINE
 
     def test_audit_dict_is_flat_primitives(self) -> None:
-        budget = RunBudget(max_iterations=1, max_tokens=2, deadline_seconds=3.0)
+        budget = RunBudget(max_iterations=1, max_tokens=2, deadline_seconds=3.0, max_cost=4.0)
         assert budget._pirn_audit_dict() == {
             "max_iterations": 1,
             "max_tokens": 2,
             "deadline_seconds": 3.0,
+            "max_cost": 4.0,
         }
 
     def test_equal_budgets_hash_equal(self) -> None:
