@@ -32,7 +32,8 @@ _GRAPH_EXTRAS = {"neo4j", "kuzu"}
 # backend extras: F10 OTel sink + F6 async SQL driver + F20-S3 grammar backend
 # + F16 service/data connector backends (Postgres, S3)
 # + F25-S1 document-loader parser backends (pdf, docx, html)
-_BACKEND_EXTRAS = {"otel", "sql", "grammar", "postgres", "s3", "pdf", "docx", "html"}
+# + F12-S2 optional RAGAS evaluation backend (ragas)
+_BACKEND_EXTRAS = {"otel", "sql", "grammar", "postgres", "s3", "pdf", "docx", "html", "ragas"}
 _BUNDLE_EXTRAS = {"llm", "vector", "web", "mcp", "all"}
 _EXPECTED_EXTRAS = _PROVIDER_EXTRAS | _GRAPH_EXTRAS | _BACKEND_EXTRAS | _BUNDLE_EXTRAS
 
@@ -108,6 +109,9 @@ class TestExtrasMatrix(unittest.TestCase):
 
     def test_html_extra_provides_beautifulsoup4(self) -> None:
         assert _resolve(self.extras, "html") == {"beautifulsoup4"}
+
+    def test_ragas_extra_provides_ragas(self) -> None:
+        assert _resolve(self.extras, "ragas") == {"ragas"}
 
     def test_all_transitively_covers_every_extra(self) -> None:
         all_concrete = _resolve(self.extras, "all")

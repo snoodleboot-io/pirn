@@ -34,6 +34,7 @@ _LEAF_EXTRAS = {
     "pdf",
     "docx",
     "html",
+    "ragas",
 }
 _BUNDLE_EXTRAS = {"llm", "vector", "all"}
 _EXPECTED_EXTRAS = _LEAF_EXTRAS | _BUNDLE_EXTRAS
