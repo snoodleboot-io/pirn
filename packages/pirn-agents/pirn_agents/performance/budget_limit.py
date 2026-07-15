@@ -20,8 +20,11 @@ class BudgetLimit(str, Enum):  # noqa: UP042 - str-mixin form for stable seriali
         Cumulative token usage exceeded ``max_tokens``.
     DEADLINE:
         Wall-clock elapsed time passed ``deadline_seconds``.
+    COST:
+        Accrued estimated spend exceeded ``max_cost``.
     """
 
     ITERATIONS = "iterations"
     TOKENS = "tokens"
     DEADLINE = "deadline"
+    COST = "cost"
