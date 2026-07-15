@@ -70,7 +70,10 @@ async def test_url_is_quarantined_not_followed() -> None:
     out = ToolOutputSanitizer().sanitize(raw)
     assert "https://evil.example" not in out.text
     urls = [item for item in out.quarantined if item.kind == "url"]
-    assert urls and urls[0].value.startswith("https://evil.example")
+    # Exact-match the quarantined URL (a prefix/substring check would be an
+    # incomplete-URL-sanitization anti-pattern, flagged by CodeQL, and is
+    # bypassable — e.g. https://evil.example.attacker.com).
+    assert urls and urls[0].value == "https://evil.example/leak?token=abc"
 
 
 def test_javascript_and_data_uris_quarantined() -> None:
