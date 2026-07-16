@@ -83,6 +83,7 @@ class BackendDenylistSelectionTests(unittest.TestCase):
                 "pypdf",
                 "docx",
                 "bs4",
+                "ragas",
             }
         )
 
