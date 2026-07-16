@@ -1,4 +1,4 @@
-"""``LLMJudge`` — pairwise + rubric LLM-as-judge with bias controls."""
+"""``EvaluationJudge`` — pairwise + rubric LLM-as-judge with bias controls."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from pirn_agents.evaluation.rubric_criterion import RubricCriterion
 from pirn_agents.evaluation.rubric_score import RubricScore
 
 
-class LLMJudge:
+class EvaluationJudge:
     """An LLM-as-judge harness supporting rubric and pairwise scoring modes.
 
     Constructed (``init``) with a provider-neutral judge
@@ -53,16 +53,20 @@ class LLMJudge:
             ValueError: If ``self_consistency`` is not a positive int.
         """
         if not isinstance(judge, LLMProvider):
-            raise TypeError(f"LLMJudge: judge must be an LLMProvider, got {type(judge).__name__}")
+            raise TypeError(
+                f"EvaluationJudge: judge must be an LLMProvider, got {type(judge).__name__}"
+            )
         if isinstance(self_consistency, bool) or not isinstance(self_consistency, int):
             raise TypeError(
-                f"LLMJudge: self_consistency must be an int, got {type(self_consistency).__name__}"
+                f"EvaluationJudge: self_consistency must be an int, got {type(self_consistency).__name__}"
             )
         if self_consistency < 1:
-            raise ValueError(f"LLMJudge: self_consistency must be >= 1, got {self_consistency}")
+            raise ValueError(
+                f"EvaluationJudge: self_consistency must be >= 1, got {self_consistency}"
+            )
         if not isinstance(position_swap, bool):
             raise TypeError(
-                f"LLMJudge: position_swap must be a bool, got {type(position_swap).__name__}"
+                f"EvaluationJudge: position_swap must be a bool, got {type(position_swap).__name__}"
             )
         self._judge = judge
         self._self_consistency = self_consistency
@@ -87,11 +91,11 @@ class LLMJudge:
         """
         criteria_list = list(criteria)
         if not criteria_list:
-            raise ValueError("LLMJudge.score_rubric: at least one criterion is required")
+            raise ValueError("EvaluationJudge.score_rubric: at least one criterion is required")
         for index, criterion in enumerate(criteria_list):
             if not isinstance(criterion, RubricCriterion):
                 raise TypeError(
-                    f"LLMJudge.score_rubric: criteria[{index}] must be a RubricCriterion, "
+                    f"EvaluationJudge.score_rubric: criteria[{index}] must be a RubricCriterion, "
                     f"got {type(criterion).__name__}"
                 )
         per_criterion: dict[str, float] = {}

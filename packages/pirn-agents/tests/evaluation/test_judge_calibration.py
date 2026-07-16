@@ -5,9 +5,9 @@ from __future__ import annotations
 import unittest
 
 from pirn_agents.evaluation.calibration_report import CalibrationReport
+from pirn_agents.evaluation.evaluation_judge import EvaluationJudge
 from pirn_agents.evaluation.gold_label import GoldLabel
 from pirn_agents.evaluation.judge_calibration import JudgeCalibration
-from pirn_agents.evaluation.llm_judge import LLMJudge
 from pirn_agents.evaluation.rubric_criterion import RubricCriterion
 from tests.evaluation.evaluation_doubles import ScriptedJudgeProvider
 
@@ -39,7 +39,7 @@ class JudgeCalibrationTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_perfect_agreement_when_judge_matches_gold(self) -> None:
         # judge returns 1.0 for both items; expected 1.0 => zero error, full agreement
-        judge = LLMJudge(judge=ScriptedJudgeProvider(["1.0", "1.0"]))
+        judge = EvaluationJudge(judge=ScriptedJudgeProvider(["1.0", "1.0"]))
         report = await JudgeCalibration(judge=judge).calibrate([self._gold(1.0), self._gold(1.0)])
         assert isinstance(report, CalibrationReport)
         assert report.agreement == 1.0
@@ -48,24 +48,24 @@ class JudgeCalibrationTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_disagreement_lowers_agreement_and_raises_error(self) -> None:
         # judge says 0.0 but gold expects 1.0 => error 1.0, outside default tolerance
-        judge = LLMJudge(judge=ScriptedJudgeProvider(["0.0"]))
+        judge = EvaluationJudge(judge=ScriptedJudgeProvider(["0.0"]))
         report = await JudgeCalibration(judge=judge, tolerance=0.1).calibrate([self._gold(1.0)])
         assert report.agreement == 0.0
         assert report.mean_abs_error == 1.0
 
     async def test_tolerance_controls_agreement(self) -> None:
-        judge = LLMJudge(judge=ScriptedJudgeProvider(["0.85"]))
+        judge = EvaluationJudge(judge=ScriptedJudgeProvider(["0.85"]))
         report = await JudgeCalibration(judge=judge, tolerance=0.2).calibrate([self._gold(1.0)])
         assert report.agreement == 1.0
 
     async def test_empty_gold_set_is_vacuously_calibrated(self) -> None:
-        judge = LLMJudge(judge=ScriptedJudgeProvider(["1.0"]))
+        judge = EvaluationJudge(judge=ScriptedJudgeProvider(["1.0"]))
         report = await JudgeCalibration(judge=judge).calibrate([])
         assert report.agreement == 1.0
         assert report.n == 0
 
     async def test_report_to_json_roundtrips_fields(self) -> None:
-        judge = LLMJudge(judge=ScriptedJudgeProvider(["1.0"]))
+        judge = EvaluationJudge(judge=ScriptedJudgeProvider(["1.0"]))
         report = await JudgeCalibration(judge=judge).calibrate([self._gold(1.0)])
         import json
 

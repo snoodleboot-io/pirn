@@ -12,7 +12,7 @@ from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 @dataclass(frozen=True)
 class CalibrationReport(PirnOpaqueValue):
-    """How closely an :class:`LLMJudge` tracks a human gold set.
+    """How closely an :class:`EvaluationJudge` tracks a human gold set.
 
     Attributes
     ----------

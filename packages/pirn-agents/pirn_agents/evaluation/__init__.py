@@ -13,7 +13,7 @@ capabilities, each provider-neutral and backend-free at import time:
 * **Trajectory metrics** — tool-choice accuracy, step efficiency, and
   redundant-call rate over a recorded agent
   :class:`~pirn_agents.evaluation.trajectory.Trajectory`.
-* **LLM-as-judge** — :class:`~pirn_agents.evaluation.llm_judge.LLMJudge` with
+* **LLM-as-judge** — :class:`~pirn_agents.evaluation.evaluation_judge.EvaluationJudge` with
   pairwise + rubric modes, position-swap and self-consistency bias controls, and
   gold-set calibration.
 * **Datasets, runner, and gates** — an

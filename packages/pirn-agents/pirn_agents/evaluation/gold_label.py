@@ -13,7 +13,7 @@ from pirn_agents.evaluation.rubric_criterion import RubricCriterion
 
 @dataclass(frozen=True)
 class GoldLabel(PirnOpaqueValue):
-    """One gold-standard rubric judgement to calibrate an :class:`LLMJudge` against.
+    """One gold-standard rubric judgement to calibrate an :class:`EvaluationJudge` against.
 
     Attributes
     ----------
