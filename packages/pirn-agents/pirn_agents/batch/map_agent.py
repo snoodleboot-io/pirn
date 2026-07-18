@@ -25,7 +25,7 @@ The per-item agent is injected as a plain ``run_item`` coroutine callable
 (``async (item) -> output``) rather than a concrete agent type, keeping the
 engine provider-neutral and trivially testable with a stub double. Wrap a real
 nested agent with a thin adapter over
-:func:`pirn_agents.agent_invocation.invoke_agent` at the call site.
+:meth:`pirn_agents.agent_invoker.AgentInvoker.invoke` at the call site.
 """
 
 from __future__ import annotations

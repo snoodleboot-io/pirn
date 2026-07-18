@@ -1,7 +1,7 @@
 """Handoff/swarm integration + Pattern 16 doc example (F7-S6).
 
 Asserts that tool-style agent calls and handoff-style calls share the same
-underlying :func:`~pirn_agents.agent_invocation.invoke_agent` machinery, that a
+underlying :class:`~pirn_agents.agent_invoker.AgentInvoker` machinery, that a
 swarm of agents-as-tools works inside a single ReAct loop, and that the rewritten
 Pattern 16 example runs end-to-end (so the doc cannot silently drift).
 """
@@ -14,7 +14,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
-from pirn_agents.agent_invocation import invoke_agent
+from pirn_agents.agent_invoker import AgentInvoker
 from pirn_agents.specializations.react.react_loop import ReActLoop
 from pirn_agents.specializations.specialized_agents.research_agent import (
     ResearchAgent,
@@ -37,7 +37,7 @@ class TestSharedMachinery(unittest.IsolatedAsyncioTestCase):
         tool_style = await tool.invoke({"topic": "same"})
 
         # Handoff-style: the same shared runner a transfer/swarm path would use.
-        handoff_style = await invoke_agent(
+        handoff_style = await AgentInvoker().invoke(
             agent,
             {"topic": "same"},
             name=tool.name,

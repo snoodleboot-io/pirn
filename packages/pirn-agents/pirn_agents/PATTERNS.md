@@ -579,7 +579,7 @@ function. No hand-written adapter, no manual schema:
   `cost` — not just `.content`); an inner failure surfaces as a tool error.
 
 Safety and performance come built in and are shared with the handoff/swarm path
-(both funnel through the same `invoke_agent` machinery): a **max nesting depth**
+(both funnel through the same `AgentInvoker` machinery): a **max nesting depth**
 plus **cycle detection** reject a self-referential graph before it recurses
 forever; the parent's **budget/deadline/token** limits are *inherited* by nested
 agents (a nested loop can't outrun the caller); and the parent's **pooled
