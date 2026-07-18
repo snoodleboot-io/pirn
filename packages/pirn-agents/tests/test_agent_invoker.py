@@ -1,4 +1,4 @@
-"""Tests for :func:`pirn_agents.agent_invocation.invoke_agent`.
+"""Tests for :class:`pirn_agents.agent_invoker.AgentInvoker`.
 
 Covers the recursion/cycle guard (F7-S3), budget propagation (F7-S4), and
 shared provider reuse (F7-S5) that the shared machinery enforces.
@@ -11,7 +11,7 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.agent_invocation import invoke_agent
+from pirn_agents.agent_invoker import AgentInvoker
 from pirn_agents.agent_tool_context import (
     AgentToolContext,
     bind_agent_tool_context,
@@ -53,7 +53,7 @@ class TestRecursionGuard(unittest.IsolatedAsyncioTestCase):
 
         with bind_agent_tool_context(at_cap):
             with self.assertRaises(AgentDepthExceededError):
-                await invoke_agent(agent, {"topic": "t"}, name="a", schema=_schema())
+                await AgentInvoker().invoke(agent, {"topic": "t"}, name="a", schema=_schema())
 
     async def test_raises_cycle_error_when_agent_already_active(self) -> None:
         agent = self._agent()
@@ -61,12 +61,12 @@ class TestRecursionGuard(unittest.IsolatedAsyncioTestCase):
 
         with bind_agent_tool_context(active):
             with self.assertRaises(AgentCycleError):
-                await invoke_agent(agent, {"topic": "t"}, name="a", schema=_schema())
+                await AgentInvoker().invoke(agent, {"topic": "t"}, name="a", schema=_schema())
 
     async def test_depth_state_not_leaked_after_invocation(self) -> None:
         agent = self._agent()
 
-        await invoke_agent(agent, {"topic": "t"}, name="a", schema=_schema())
+        await AgentInvoker().invoke(agent, {"topic": "t"}, name="a", schema=_schema())
 
         self.assertIsNone(current_agent_tool_context())
 
@@ -113,7 +113,7 @@ class TestBudgetPropagation(unittest.IsolatedAsyncioTestCase):
 
         with bind_agent_tool_context(AgentToolContext(max_depth=8, meter=meter)):
             with self.assertRaises(BudgetBreachError):
-                await invoke_agent(agent, {"topic": "t"}, name="a", schema=_schema())
+                await AgentInvoker().invoke(agent, {"topic": "t"}, name="a", schema=_schema())
         # Cancellation token was flipped by the breach.
         self.assertTrue(meter.token.cancelled)
 
@@ -124,24 +124,22 @@ class TestBudgetPropagation(unittest.IsolatedAsyncioTestCase):
             agent = StubAgent(usage={"total_tokens": 50}, _config=KnotConfig(id="agent"))
 
         with self.assertRaises(BudgetBreachError):
-            await invoke_agent(
+            await AgentInvoker(budget=RunBudget(max_tokens=10)).invoke(
                 agent,
                 {"topic": "t"},
                 name="a",
                 schema=_schema(),
-                budget=RunBudget(max_tokens=10),
             )
 
     async def test_budget_within_limit_succeeds(self) -> None:
         with Tapestry():
             agent = StubAgent(usage={"total_tokens": 5}, _config=KnotConfig(id="agent"))
 
-        result = await invoke_agent(
+        result = await AgentInvoker(budget=RunBudget(max_tokens=100, max_iterations=10)).invoke(
             agent,
             {"topic": "t"},
             name="a",
             schema=_schema(),
-            budget=RunBudget(max_tokens=100, max_iterations=10),
         )
 
         self.assertEqual(result.status, ToolStatus.OK)
@@ -156,7 +154,9 @@ class TestSharedProviderReuse(unittest.IsolatedAsyncioTestCase):
         with Tapestry():
             agent = StubAgent(llm=StubLLMProvider(["other"]), _config=KnotConfig(id="agent"))
 
-        await invoke_agent(agent, {"topic": "t"}, name="a", schema=_schema(), provider=pooled)
+        await AgentInvoker(provider=pooled).invoke(
+            agent, {"topic": "t"}, name="a", schema=_schema()
+        )
 
         # The nested run reused the pooled provider by identity, not its own.
         self.assertIs(AGENT_CALLS["agent"][0]["llm"], pooled)
@@ -171,7 +171,7 @@ class TestSharedProviderReuse(unittest.IsolatedAsyncioTestCase):
         # with a different provider.
         context = AgentToolContext(max_depth=8, provider=pooled)
         with bind_agent_tool_context(context):
-            await invoke_agent(inner, {"topic": "deep"}, name="inner", schema=_schema())
+            await AgentInvoker().invoke(inner, {"topic": "deep"}, name="inner", schema=_schema())
 
         self.assertIs(AGENT_CALLS["inner"][0]["llm"], pooled)
 
@@ -181,7 +181,9 @@ class TestSharedProviderReuse(unittest.IsolatedAsyncioTestCase):
             agent = StubAgent(_config=KnotConfig(id="agent"))
 
         for _ in range(3):
-            await invoke_agent(agent, {"topic": "t"}, name="a", schema=_schema(), provider=pooled)
+            await AgentInvoker(provider=pooled).invoke(
+                agent, {"topic": "t"}, name="a", schema=_schema()
+            )
 
         used = {id(call["llm"]) for call in AGENT_CALLS["agent"]}
         self.assertEqual(used, {id(pooled)})
