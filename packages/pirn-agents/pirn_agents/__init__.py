@@ -25,6 +25,12 @@ from pirn_agents.agent_tool import AgentTool
 from pirn_agents.approval_hook import ApprovalHook, authorize_tool_call
 from pirn_agents.as_tool import as_tool
 from pirn_agents.blob_store_knot import BlobStoreKnot
+from pirn_agents.builder.agent import Agent
+from pirn_agents.builder.agent_builder import AgentBuilder
+from pirn_agents.builder.agent_pattern_registry import AgentPatternRegistry
+from pirn_agents.builder.agent_presets import AgentPresets
+from pirn_agents.builder.agent_spec import AgentSpec
+from pirn_agents.builder.agent_spec_loader import AgentSpecLoader
 from pirn_agents.capability_probe import available_extras
 from pirn_agents.connector_lifespan import connector_lifespan
 from pirn_agents.connectors.blob_store import BlobStore
@@ -99,7 +105,13 @@ with warnings.catch_warnings():
     Registry.fill_registry(module=__name__, library="pirn")
 
 __all__ = [
+    "Agent",
     "AgentAsToolMixin",
+    "AgentBuilder",
+    "AgentPatternRegistry",
+    "AgentPresets",
+    "AgentSpec",
+    "AgentSpecLoader",
     "AgentTool",
     "AiosqliteConnector",
     "ApprovalHook",

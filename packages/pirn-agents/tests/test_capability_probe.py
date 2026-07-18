@@ -35,6 +35,7 @@ _LEAF_EXTRAS = {
     "docx",
     "html",
     "ragas",
+    "yaml",
 }
 _BUNDLE_EXTRAS = {"llm", "vector", "all"}
 _EXPECTED_EXTRAS = _LEAF_EXTRAS | _BUNDLE_EXTRAS

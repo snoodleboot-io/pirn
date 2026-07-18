@@ -56,6 +56,8 @@ html = ["beautifulsoup4>=4.12"]
 # optional RAGAS reference backend for the F12 evaluation harness (lazily imported;
 # the built-in RAG metrics need no extra — only a pluggable judge/embedding provider)
 ragas = ["ragas>=0.2"]
+# YAML parsing for the F19 AgentSpec loader (lazily imported; JSON needs no extra)
+yaml = ["pyyaml>=6.0"]
 all = [
     "openai>=1.0",
     "anthropic>=0.40",
@@ -76,6 +78,7 @@ all = [
     "python-docx>=1.1",
     "beautifulsoup4>=4.12",
     "ragas>=0.2",
+    "pyyaml>=6.0",
 ]
 
 [tool.hatch.build.targets.wheel]

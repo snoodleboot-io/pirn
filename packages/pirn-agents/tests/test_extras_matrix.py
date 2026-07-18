@@ -33,7 +33,19 @@ _GRAPH_EXTRAS = {"neo4j", "kuzu"}
 # + F16 service/data connector backends (Postgres, S3)
 # + F25-S1 document-loader parser backends (pdf, docx, html)
 # + F12-S2 optional RAGAS evaluation backend (ragas)
-_BACKEND_EXTRAS = {"otel", "sql", "grammar", "postgres", "s3", "pdf", "docx", "html", "ragas"}
+# + F19-S1 optional PyYAML backend for the AgentSpec loader (yaml)
+_BACKEND_EXTRAS = {
+    "otel",
+    "sql",
+    "grammar",
+    "postgres",
+    "s3",
+    "pdf",
+    "docx",
+    "html",
+    "ragas",
+    "yaml",
+}
 _BUNDLE_EXTRAS = {"llm", "vector", "web", "mcp", "all"}
 _EXPECTED_EXTRAS = _PROVIDER_EXTRAS | _GRAPH_EXTRAS | _BACKEND_EXTRAS | _BUNDLE_EXTRAS
 

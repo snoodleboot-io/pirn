@@ -40,7 +40,7 @@ def available_extras() -> dict[str, bool]:
         A dict keyed by every extra name (leaves ``openai``, ``anthropic``,
         ``qdrant``, ``pgvector``, ``chroma``, ``neo4j``, ``kuzu``, ``local-embed``,
         ``cross-encoder``, ``web``, ``mcp``, ``sql``, ``postgres``, ``s3``, ``otel``,
-        ``grammar``, ``pdf``, ``docx``, ``html``, ``ragas`` and
+        ``grammar``, ``pdf``, ``docx``, ``html``, ``ragas``, ``yaml`` and
         bundles ``llm``, ``vector``, ``all``) whose values report whether that
         extra is importable here.
     """
@@ -65,6 +65,7 @@ def available_extras() -> dict[str, bool]:
         "docx": "docx",
         "html": "bs4",
         "ragas": "ragas",
+        "yaml": "yaml",
     }
     leaves: dict[str, bool] = {
         extra: _is_importable(module) for extra, module in leaf_modules.items()
