@@ -10,6 +10,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
+from pirn_agents.rerank.reranker_backend import RerankerBackend
 from pirn_agents.specializations.rag.contextual_retrieval_pipeline import (
     ContextualRetrievalPipeline,
 )
@@ -17,7 +18,7 @@ from pirn_agents.types.agent_response import AgentResponse
 from tests.specializations.conftest import StubLLMProvider, StubMemoryStore
 
 
-class _RelevantFirstReranker:
+class _RelevantFirstReranker(RerankerBackend):
     """Scores a document higher when it contains the ``target`` marker."""
 
     def __init__(self, target: str) -> None:

@@ -28,6 +28,7 @@ from pirn.core.providers.llm_provider import LLMProvider
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.memory_store import MemoryStore
+from pirn_agents.rerank.reranker_backend import RerankerBackend
 from pirn_agents.specializations.rag.contextual_compressor import ContextualCompressor
 from pirn_agents.specializations.rag.memory_search_retriever import MemorySearchRetriever
 from pirn_agents.specializations.rag.rag_synthesizer import RAGSynthesizer
@@ -44,7 +45,7 @@ class ContextualRetrievalPipeline(SubTapestry):
         memory: Knot | MemoryStore,
         llm: Knot | LLMProvider,
         _config: KnotConfig,
-        reranker: Knot | Any | None = None,
+        reranker: Knot | RerankerBackend | None = None,
         fetch_k: Knot | int = 10,
         rerank_k: Knot | int = 5,
         **kwargs: Any,
@@ -65,7 +66,7 @@ class ContextualRetrievalPipeline(SubTapestry):
         query: str,
         memory: MemoryStore,
         llm: LLMProvider,
-        reranker: Any = None,
+        reranker: RerankerBackend | None = None,
         fetch_k: int = 10,
         rerank_k: int = 5,
         **_: Any,

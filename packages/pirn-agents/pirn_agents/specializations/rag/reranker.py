@@ -56,7 +56,7 @@ class Reranker(Knot):
         documents: Knot | list[Mapping[str, Any]],
         _config: KnotConfig,
         llm: Knot | LLMProvider | None = None,
-        reranker: Knot | Any | None = None,
+        reranker: Knot | RerankerBackend | None = None,
         top_k: Knot | int = 5,
         **kwargs: Any,
     ) -> None:
@@ -75,7 +75,7 @@ class Reranker(Knot):
         query: str,
         documents: list[Mapping[str, Any]],
         llm: LLMProvider | None = None,
-        reranker: Any = None,
+        reranker: RerankerBackend | None = None,
         top_k: int = 5,
         **_: Any,
     ) -> list[Mapping[str, Any]]:
