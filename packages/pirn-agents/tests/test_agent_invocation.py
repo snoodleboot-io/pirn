@@ -12,7 +12,6 @@ from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
 from pirn_agents.agent_invocation import invoke_agent
-from pirn_agents.agent_schema import default_agent_schema
 from pirn_agents.agent_tool_context import (
     AgentToolContext,
     bind_agent_tool_context,

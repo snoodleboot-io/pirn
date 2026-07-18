@@ -39,8 +39,11 @@ from pirn.core.providers.llm_provider import LLMProvider
 
 from pirn_agents.connector_base import ConnectorBase
 from pirn_agents.credential_ref import CredentialRef
+from pirn_agents.exceptions.unsupported_modality_error import UnsupportedModalityError
 from pirn_agents.llm.llm_http_status_error import LLMHTTPStatusError
+from pirn_agents.llm.modality_capability import ModalityCapability
 from pirn_agents.llm.model_pricing import ModelPricing
+from pirn_agents.llm.multimodal_adapter import MultimodalAdapter
 from pirn_agents.llm.rate_limit_error import RateLimitError
 from pirn_agents.llm.retry_policy import RetryPolicy
 from pirn_agents.llm.stream_delta import StreamDelta
@@ -53,6 +56,7 @@ from pirn_agents.streaming_tool_call_parser import StreamingToolCallParser
 from pirn_agents.tool_call_codec import ToolCallCodec
 from pirn_agents.toolset import Toolset
 from pirn_agents.types.agent_response import AgentResponse
+from pirn_agents.types.content_block import ContentBlock
 
 
 class BaseLLMProvider(ConnectorBase, LLMProvider):
@@ -285,6 +289,69 @@ class BaseLLMProvider(ConnectorBase, LLMProvider):
             f"{type(self).__name__} advertises constrained_decoding but does not "
             "implement constrained_decoding_option()"
         )
+
+    # -- multimodal (F15-S2) capability surface -------------------------
+
+    def modality_capability(self) -> ModalityCapability:
+        """Return which content-block modalities this provider can encode.
+
+        Delegates to the provider's multimodal adapter; a bare base provider
+        that supplies no adapter is text-only, so an empty capability (text
+        implicit, no image/audio/file) is returned.
+        """
+        adapter = self._multimodal_adapter()
+        return adapter.capability() if adapter is not None else ModalityCapability()
+
+    def encode_content(
+        self, blocks: Sequence[ContentBlock], *, degrade: bool = False
+    ) -> list[dict[str, Any]]:
+        """Encode neutral content ``blocks`` into this provider's native parts.
+
+        Providers with a multimodal adapter delegate to it (capability-gated,
+        per-format shaping). A text-only base provider accepts text blocks and,
+        with ``degrade=True``, projects any non-text block to a text part; else
+        an unsupported block raises.
+
+        Raises:
+            UnsupportedModalityError: If a non-text block is present, this is a
+                text-only provider, and ``degrade`` is ``False``.
+        """
+        adapter = self._multimodal_adapter()
+        if adapter is not None:
+            return adapter.encode_blocks(blocks, degrade=degrade)
+        parts: list[dict[str, Any]] = []
+        for block in blocks:
+            if block.modality == "text":
+                parts.append({"type": "text", "text": block.as_text})
+            elif degrade:
+                text = block.as_text or f"[{block.modality} content omitted]"
+                parts.append({"type": "text", "text": text})
+            else:
+                raise UnsupportedModalityError(block.modality, type(self).__name__)
+        return parts
+
+    def decode_content(self, native_content: Any) -> tuple[ContentBlock, ...]:
+        """Decode a provider-native content value back into neutral blocks.
+
+        Providers with a multimodal adapter delegate to it; a text-only base
+        provider returns a single text block (string input) or nothing.
+        """
+        adapter = self._multimodal_adapter()
+        if adapter is not None:
+            return adapter.decode_blocks(native_content)
+        if isinstance(native_content, str):
+            from pirn_agents.types.text_block import TextBlock
+
+            return (TextBlock(text=native_content),)
+        return ()
+
+    def _multimodal_adapter(self) -> MultimodalAdapter | None:
+        """Return this provider's multimodal adapter, or ``None`` if text-only.
+
+        The base is text-only and returns ``None``; providers whose wire format
+        carries media override this to return their adapter.
+        """
+        return None
 
     async def stream_chat(
         self,

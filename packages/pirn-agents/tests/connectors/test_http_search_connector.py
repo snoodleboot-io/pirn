@@ -8,7 +8,7 @@ result cap, provider-neutral key configuration, consumption through the
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import AsyncIterator
 from typing import Any
 
 import pytest

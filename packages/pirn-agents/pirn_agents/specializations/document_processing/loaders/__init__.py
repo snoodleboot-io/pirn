@@ -27,6 +27,7 @@ from pirn_agents.specializations.document_processing.loaders.loader import Loade
 from pirn_agents.specializations.document_processing.loaders.markdown_loader import (
     MarkdownLoader,
 )
+from pirn_agents.specializations.document_processing.loaders.media_loader import MediaLoader
 from pirn_agents.specializations.document_processing.loaders.pdf_loader import PdfLoader
 
 __all__: list[str] = [
@@ -38,5 +39,6 @@ __all__: list[str] = [
     "LoadedDocument",
     "Loader",
     "MarkdownLoader",
+    "MediaLoader",
     "PdfLoader",
 ]
