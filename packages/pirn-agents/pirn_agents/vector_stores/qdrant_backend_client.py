@@ -18,9 +18,10 @@ from typing import Any
 
 from pirn_agents._require import _require
 from pirn_agents.credential_ref import CredentialRef
+from pirn_agents.vector_stores.vector_backend_client import VectorBackendClient
 
 
-class QdrantBackendClient:
+class QdrantBackendClient(VectorBackendClient):
     """Neutral-client wrapper over an ``AsyncQdrantClient``."""
 
     def __init__(

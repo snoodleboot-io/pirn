@@ -20,6 +20,7 @@ import numpy as np
 from pirn.core.providers.embedding_provider import EmbeddingProvider
 
 from pirn_agents.vector_stores.metadata_match import matches_metadata_filter
+from pirn_agents.vector_stores.vector_backend_client import VectorBackendClient
 from pirn_agents.vector_stores.vector_memory_store import VectorMemoryStore
 from pirn_agents.vector_stores.vector_record import VectorRecord
 
@@ -37,7 +38,7 @@ class FixedEmbedder(EmbeddingProvider):
         return None
 
 
-class FakeVectorBackendClient:
+class FakeVectorBackendClient(VectorBackendClient):
     """In-memory neutral backend client: cosine search + metadata filtering.
 
     Faithful enough to run the whole conformance suite against the Qdrant and
