@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -10,30 +9,33 @@ from pirn_agents.caching.cache_entry import CacheEntry
 from pirn_agents.caching.content_address import content_address
 
 
-class ResultCache(ABC):
+class ResultCache:
     """The seam every cache backend implements: exact get/put/invalidate by key.
 
-    The three abstract methods are the whole storage contract. The concrete
-    :meth:`get_or_compute` layered on top is the ergonomic entry point callers
-    actually use: it derives a content-address key from the *inputs*, returns a
-    hit when present, and otherwise computes, stores, and returns — the opt-in
-    caching of an idempotent tool call or embedding lookup in one call.
+    The three storage methods are the whole contract and follow the house
+    interface style — methods raise :class:`NotImplementedError`, not
+    ``abc``/``@abstractmethod`` (as on ``Knot``). It stays a *plain* base (no
+    :class:`~pirn.core.pirn_opaque_value.PirnOpaqueValue`) because the in-memory
+    caches wrap no live backend and no knot holds a cache as a config value; a
+    future story that wires a cache into a ``KnotConfig`` would flip it to the
+    opaque base. The concrete :meth:`get_or_compute` layered on top is the
+    ergonomic entry point callers actually use: it derives a content-address key
+    from the *inputs*, returns a hit when present, and otherwise computes, stores,
+    and returns — the opt-in caching of an idempotent tool call or embedding
+    lookup in one call.
     """
 
-    @abstractmethod
     async def get(self, key: str) -> CacheEntry | None:
         """Return the entry stored under ``key``, or ``None`` on a miss."""
-        raise NotImplementedError
+        raise NotImplementedError(f"{type(self).__name__} must implement get()")
 
-    @abstractmethod
     async def put(self, entry: CacheEntry) -> None:
         """Store ``entry`` under its :attr:`CacheEntry.key`."""
-        raise NotImplementedError
+        raise NotImplementedError(f"{type(self).__name__} must implement put()")
 
-    @abstractmethod
     async def invalidate(self, key: str) -> None:
         """Drop any entry stored under ``key`` (a no-op if absent)."""
-        raise NotImplementedError
+        raise NotImplementedError(f"{type(self).__name__} must implement invalidate()")
 
     async def get_or_compute(
         self,
