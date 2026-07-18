@@ -14,14 +14,15 @@ from pirn.tapestry import Tapestry
 
 from pirn_agents.graph_rag.graph_traversal import GraphTraversal
 from pirn_agents.graph_rag.hybrid_graph_retriever import HybridGraphRetriever
+from pirn_agents.graph_rag.node_embedding_index import NodeEmbeddingIndex
 from pirn_agents.graph_rag.traversal_budget import TraversalBudget
 from pirn_agents.graph_stores.graph_edge import GraphEdge
 from pirn_agents.graph_stores.graph_node import GraphNode
 from pirn_agents.graph_stores.in_memory_graph_store import InMemoryGraphStore
 
 
-class StubNodeEmbeddingIndex:
-    """Scripted vector arm returning a fixed ranking (implements the protocol)."""
+class StubNodeEmbeddingIndex(NodeEmbeddingIndex):
+    """Scripted vector arm returning a fixed ranking (implements the base)."""
 
     def __init__(self, ranked: list[str], *, empty: bool = False) -> None:
         self._ranked = ranked
