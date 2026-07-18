@@ -12,9 +12,16 @@ double.
 
 The client is transport-agnostic: it drives any
 :class:`~pirn_agents.mcp.mcp_transport.McpTransport`. It holds live connection
-state, so it is a plain object (not a pirn opaque value); it is wrapped by
-:class:`~pirn_agents.mcp.mcp_connector.McpConnector` when it must travel through
-the graph.
+state and is intended to stay **internal** — the values that travel through the
+graph are the already-opaque :class:`~pirn_agents.mcp.mcp_connector.McpConnector`
+(a :class:`~pirn_agents.connector_base.ConnectorBase`) and
+:class:`~pirn_agents.mcp.mcp_tool.McpTool` (a :class:`~pirn_agents.tool.Tool`)
+that wrap it. As a defensive measure it nonetheless inherits
+:class:`~pirn.core.pirn_opaque_value.PirnOpaqueValue`: should a live client ever
+be injected directly as a config value, it crosses the content-addressed Knot IO
+boundary opaquely by ``isinstance`` (the default identity-token
+``_pirn_audit_dict``) instead of pydantic descending into its live transport
+state.
 """
 
 from __future__ import annotations
@@ -23,11 +30,13 @@ import asyncio
 from collections.abc import Mapping
 from typing import Any
 
+from pirn.core.pirn_opaque_value import PirnOpaqueValue
+
 from pirn_agents.mcp.mcp_error import McpError
 from pirn_agents.mcp.mcp_transport import McpTransport
 
 
-class McpClient:
+class McpClient(PirnOpaqueValue):
     """Drive an MCP server over a JSON-RPC transport with lifecycle management."""
 
     def __init__(
