@@ -35,8 +35,6 @@ import asyncio
 from collections.abc import AsyncIterable, AsyncIterator, Awaitable, Callable, Mapping, Sequence
 from typing import Any
 
-from pirn.core.providers.llm_provider import LLMProvider
-
 from pirn_agents.connector_base import ConnectorBase
 from pirn_agents.credential_ref import CredentialRef
 from pirn_agents.exceptions.unsupported_modality_error import UnsupportedModalityError
@@ -52,6 +50,9 @@ from pirn_agents.provider_adapter import ProviderAdapter
 from pirn_agents.specializations.structured_output.structured_output_capability import (
     StructuredOutputCapability,
 )
+from pirn_agents.specializations.structured_output.structured_output_provider import (
+    StructuredOutputProvider,
+)
 from pirn_agents.streaming_tool_call_parser import StreamingToolCallParser
 from pirn_agents.tool_call_codec import ToolCallCodec
 from pirn_agents.toolset import Toolset
@@ -59,7 +60,7 @@ from pirn_agents.types.agent_response import AgentResponse
 from pirn_agents.types.content_block import ContentBlock
 
 
-class BaseLLMProvider(ConnectorBase, LLMProvider):
+class BaseLLMProvider(ConnectorBase, StructuredOutputProvider):
     """Base HTTP LLM provider: retries, mapping, streaming, cost accounting."""
 
     def __init__(
