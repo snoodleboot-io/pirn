@@ -7,8 +7,8 @@ the resulting vectors alongside the graph in a
 zero-dep :class:`InMemoryVectorStore` by default). Nodes and edges are tagged
 with a ``kind`` metadata flag so the vector arm of hybrid retrieval can rank
 *nodes* by similarity to a query while keeping edge vectors out of the node
-ranking. Implements the
-:class:`~pirn_agents.graph_rag.node_embedding_index.NodeEmbeddingIndex` protocol.
+ranking. Subclasses the
+:class:`~pirn_agents.graph_rag.node_embedding_index.NodeEmbeddingIndex` base.
 """
 
 from __future__ import annotations
@@ -17,6 +17,7 @@ from collections.abc import Sequence
 
 from pirn.core.providers.embedding_provider import EmbeddingProvider
 
+from pirn_agents.graph_rag.node_embedding_index import NodeEmbeddingIndex
 from pirn_agents.graph_stores.graph_edge import GraphEdge
 from pirn_agents.graph_stores.graph_node import GraphNode
 from pirn_agents.vector_stores.in_memory_vector_store import InMemoryVectorStore
@@ -24,7 +25,7 @@ from pirn_agents.vector_stores.vector_memory_store import VectorMemoryStore
 from pirn_agents.vector_stores.vector_record import VectorRecord
 
 
-class GraphEmbeddingIndex:
+class GraphEmbeddingIndex(NodeEmbeddingIndex):
     """Embed graph nodes/edges via F4 and rank nodes by query similarity."""
 
     def __init__(
