@@ -17,6 +17,7 @@ from pirn_agents.memory_management.memory_kind import MemoryKind
 from pirn_agents.memory_management.memory_provenance import MemoryProvenance
 from pirn_agents.memory_management.memory_record import MemoryRecord
 from pirn_agents.memory_store import MemoryStore
+from pirn_agents.rerank.reranker_backend import RerankerBackend
 
 
 class RecordingMemoryStore(MemoryStore):
@@ -61,7 +62,7 @@ class StubSummarizer(Summarizer):
         return "SUMMARY(" + " | ".join(contents) + ")"
 
 
-class StubReranker:
+class StubReranker(RerankerBackend):
     """Scores documents by a scripted map from record id to score."""
 
     def __init__(self, scores_by_id: Mapping[str, float]) -> None:
