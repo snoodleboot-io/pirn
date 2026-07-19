@@ -13,9 +13,9 @@ import time
 
 import pytest
 
-from pirn_agents.evaluation.redundant_call_rate import redundant_call_rate
-from pirn_agents.evaluation.step_efficiency import step_efficiency
-from pirn_agents.evaluation.tool_choice_accuracy import tool_choice_accuracy
+from pirn_agents.evaluation.redundant_call_rate import RedundantCallRate
+from pirn_agents.evaluation.step_efficiency import StepEfficiency
+from pirn_agents.evaluation.tool_choice_accuracy import ToolChoiceAccuracy
 from pirn_agents.evaluation.trajectory import Trajectory
 from pirn_agents.evaluation.trajectory_step import TrajectoryStep
 
@@ -29,9 +29,9 @@ def test_trajectory_metrics_scale_on_long_trajectory() -> None:
     expected = Trajectory(steps=[TrajectoryStep(tool_name=f"t{i % 50}") for i in range(n)])
 
     start = time.perf_counter()
-    eff = step_efficiency(actual=actual, expected=expected)
-    acc = tool_choice_accuracy(actual=actual, expected=expected)
-    red = redundant_call_rate(actual)
+    eff = StepEfficiency().score(actual, expected)
+    acc = ToolChoiceAccuracy().score(actual, expected)
+    red = RedundantCallRate().score(actual)
     elapsed = time.perf_counter() - start
 
     assert eff.score == 1.0

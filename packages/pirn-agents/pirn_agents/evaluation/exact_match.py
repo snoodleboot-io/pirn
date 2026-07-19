@@ -1,41 +1,62 @@
-"""``exact_match`` — normalised string-equality metric."""
+"""``ExactMatch`` — normalised string-equality metric."""
 
 from __future__ import annotations
 
+from typing import Any
+
+from pirn_agents.evaluation.metric import Metric
 from pirn_agents.evaluation.metric_result import MetricResult
-from pirn_agents.evaluation.text_normalization import normalize_text
+from pirn_agents.evaluation.text_normalizer import TextNormalizer
 
 
-def exact_match(prediction: str, reference: str, *, normalize: bool = True) -> MetricResult:
-    """Score 1.0 when ``prediction`` equals ``reference``, else 0.0.
+class ExactMatch(Metric):
+    """Score 1.0 when the prediction equals the reference, else 0.0.
 
     With ``normalize`` (the default) both sides pass through
-    :func:`~pirn_agents.evaluation.text_normalization.normalize_text`, so case
-    and surrounding/collapsed whitespace do not cause a spurious mismatch. Two
-    empty strings match (score 1.0); an empty prediction against a non-empty
-    reference does not.
-
-    Args:
-        prediction: The produced output string.
-        reference: The gold reference string.
-        normalize: Apply case/whitespace normalisation before comparing.
-
-    Returns:
-        A :class:`MetricResult` named ``"exact_match"`` with score ``1.0``/``0.0``
-        and the compared (post-normalisation) strings in ``detail``.
-
-    Raises:
-        TypeError: If either argument is not a ``str``.
+    :class:`~pirn_agents.evaluation.text_normalizer.TextNormalizer`, so case and
+    surrounding/collapsed whitespace do not cause a spurious mismatch. Two empty
+    strings match (score 1.0); an empty prediction against a non-empty reference
+    does not.
     """
-    if not isinstance(prediction, str):
-        raise TypeError(f"exact_match: prediction must be a str, got {type(prediction).__name__}")
-    if not isinstance(reference, str):
-        raise TypeError(f"exact_match: reference must be a str, got {type(reference).__name__}")
-    left = normalize_text(prediction) if normalize else prediction
-    right = normalize_text(reference) if normalize else reference
-    matched = left == right
-    return MetricResult(
-        name="exact_match",
-        score=1.0 if matched else 0.0,
-        detail={"prediction": left, "reference": right, "normalized": normalize},
-    )
+
+    def __init__(self, *, normalize: bool = True) -> None:
+        """Configure whether comparison applies case/whitespace normalisation.
+
+        Args:
+            normalize: Apply case/whitespace normalisation before comparing.
+        """
+        self._normalize = normalize
+        self._normalizer = TextNormalizer()
+
+    @property
+    def name(self) -> str:
+        """The metric's stable identifier."""
+        return "exact_match"
+
+    def score(self, actual: Any, expected: Any = None) -> MetricResult:
+        """Score ``actual`` (the prediction) against ``expected`` (the reference).
+
+        Args:
+            actual: The produced output string.
+            expected: The gold reference string.
+
+        Returns:
+            A :class:`MetricResult` named ``"exact_match"`` with score
+            ``1.0``/``0.0`` and the compared (post-normalisation) strings in
+            ``detail``.
+
+        Raises:
+            TypeError: If either argument is not a ``str``.
+        """
+        if not isinstance(actual, str):
+            raise TypeError(f"ExactMatch: prediction must be a str, got {type(actual).__name__}")
+        if not isinstance(expected, str):
+            raise TypeError(f"ExactMatch: reference must be a str, got {type(expected).__name__}")
+        left = self._normalizer.normalize(actual) if self._normalize else actual
+        right = self._normalizer.normalize(expected) if self._normalize else expected
+        matched = left == right
+        return MetricResult(
+            name="exact_match",
+            score=1.0 if matched else 0.0,
+            detail={"prediction": left, "reference": right, "normalized": self._normalize},
+        )

@@ -13,7 +13,7 @@ from typing import Any
 
 from pirn_agents.evaluation.eval_dataset import EvalDataset
 from pirn_agents.evaluation.eval_item import EvalItem
-from pirn_agents.evaluation.exact_match import exact_match
+from pirn_agents.evaluation.exact_match import ExactMatch
 from pirn_agents.evaluation.metric_result import MetricResult
 from pirn_agents.evaluation.metric_threshold import MetricThreshold
 from pirn_agents.evaluation.null_run_recorder import NullRunRecorder
@@ -43,7 +43,7 @@ class RunEvalTests(unittest.IsolatedAsyncioTestCase):
             return {"answer": str(reply.get("content", ""))}
 
         def em(item: EvalItem, output: Mapping[str, Any]) -> MetricResult:
-            return exact_match(str(output["answer"]), str(item.expected["answer"]))
+            return ExactMatch().score(str(output["answer"]), str(item.expected["answer"]))
 
         report = await run_eval(dataset=_dataset(), target=target, metrics={"exact_match": em})
 
@@ -61,7 +61,7 @@ class RunEvalTests(unittest.IsolatedAsyncioTestCase):
             return {"answer": str(reply.get("content", ""))}
 
         def em(item: EvalItem, output: Mapping[str, Any]) -> MetricResult:
-            return exact_match(str(output["answer"]), str(item.expected["answer"]))
+            return ExactMatch().score(str(output["answer"]), str(item.expected["answer"]))
 
         thresholds = ThresholdConfig(
             thresholds=[MetricThreshold(metric="exact_match", min_score=1.0)]

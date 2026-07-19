@@ -6,9 +6,9 @@ from collections.abc import Sequence
 
 from pirn.core.providers.llm_provider import LLMProvider
 
+from pirn_agents.evaluation.judge_score_parser import JudgeScoreParser
+from pirn_agents.evaluation.pairwise_choice_parser import PairwiseChoiceParser
 from pirn_agents.evaluation.pairwise_outcome import PairwiseOutcome
-from pirn_agents.evaluation.parse_judge_score import parse_judge_score
-from pirn_agents.evaluation.parse_pairwise_choice import parse_pairwise_choice
 from pirn_agents.evaluation.rubric_criterion import RubricCriterion
 from pirn_agents.evaluation.rubric_score import RubricScore
 
@@ -71,6 +71,8 @@ class EvaluationJudge:
         self._judge = judge
         self._self_consistency = self_consistency
         self._position_swap = position_swap
+        self._score_parser = JudgeScoreParser()
+        self._choice_parser = PairwiseChoiceParser()
 
     async def score_rubric(
         self,
@@ -116,7 +118,7 @@ class EvaluationJudge:
                         }
                     ]
                 )
-                samples.append(parse_judge_score(str(reply.get("content", ""))))
+                samples.append(self._score_parser.parse(str(reply.get("content", ""))))
             per_criterion[criterion.name] = sum(samples) / len(samples)
             samples_detail[criterion.name] = samples
         total_weight = sum(c.weight for c in criteria_list)
@@ -166,7 +168,7 @@ class EvaluationJudge:
                         }
                     ]
                 )
-                presented = parse_pairwise_choice(str(reply.get("content", "")))
+                presented = self._choice_parser.parse(str(reply.get("content", "")))
                 if presented == "tie":
                     ties += 1
                     continue

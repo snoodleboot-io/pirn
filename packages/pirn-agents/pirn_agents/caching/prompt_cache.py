@@ -25,7 +25,7 @@ from typing import Any
 
 from pirn_agents.caching.cache_entry import CacheEntry
 from pirn_agents.caching.content_address import content_address
-from pirn_agents.caching.cosine_similarity import cosine_similarity
+from pirn_agents.evaluation.cosine_similarity import CosineSimilarity
 
 
 class PromptCache:
@@ -67,6 +67,7 @@ class PromptCache:
         self._ttl_seconds = ttl_seconds
         self._max_entries = max_entries
         self._clock = clock
+        self._cosine = CosineSimilarity()
         self._entries: dict[str, CacheEntry] = {}
         self.hits = 0
         self.semantic_hits = 0
@@ -145,7 +146,11 @@ class PromptCache:
         for entry in self._entries.values():
             if entry.embedding is None or self._is_expired(entry, now):
                 continue
-            similarity = cosine_similarity(query, entry.embedding)
+            similarity = (
+                0.0
+                if len(query) != len(entry.embedding)
+                else self._cosine.compute(query, entry.embedding)
+            )
             if similarity >= best_similarity:
                 best = entry
                 best_similarity = similarity

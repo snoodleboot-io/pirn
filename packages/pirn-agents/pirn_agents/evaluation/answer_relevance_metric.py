@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pirn.core.providers.embedding_provider import EmbeddingProvider
 
-from pirn_agents.evaluation.cosine_similarity import cosine_similarity
+from pirn_agents.evaluation.cosine_similarity import CosineSimilarity
 from pirn_agents.evaluation.metric_result import MetricResult
 from pirn_agents.evaluation.rag_sample import RagSample
 
@@ -38,6 +38,7 @@ class AnswerRelevanceMetric:
                 f"got {type(embedder).__name__}"
             )
         self._embedder = embedder
+        self._cosine = CosineSimilarity()
 
     async def evaluate(self, sample: RagSample) -> MetricResult:
         """Score how relevant ``sample.answer`` is to ``sample.query``.
@@ -51,7 +52,7 @@ class AnswerRelevanceMetric:
                 f"got {type(sample).__name__}"
             )
         vectors = await self._embedder.embed([sample.query, sample.answer])
-        similarity = cosine_similarity(vectors[0], vectors[1])
+        similarity = self._cosine.compute(vectors[0], vectors[1])
         clamped = max(0.0, min(1.0, similarity))
         return MetricResult(
             name="answer_relevance",

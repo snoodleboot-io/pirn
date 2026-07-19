@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from pirn.core.providers.llm_provider import LLMProvider
 
-from pirn_agents.evaluation.binary_verdict import parse_binary_verdict
+from pirn_agents.evaluation.binary_verdict_parser import BinaryVerdictParser
 from pirn_agents.evaluation.metric_result import MetricResult
 from pirn_agents.evaluation.rag_sample import RagSample
-from pirn_agents.evaluation.sentence_split import split_sentences
+from pirn_agents.evaluation.sentence_splitter import SentenceSplitter
 
 
 class ContextRecallMetric:
@@ -38,6 +38,8 @@ class ContextRecallMetric:
                 f"ContextRecallMetric: judge must be an LLMProvider, got {type(judge).__name__}"
             )
         self._judge = judge
+        self._splitter = SentenceSplitter()
+        self._verdict_parser = BinaryVerdictParser()
 
     async def evaluate(self, sample: RagSample) -> MetricResult:
         """Score how much of ``sample.ground_truth`` the contexts support.
@@ -53,7 +55,7 @@ class ContextRecallMetric:
             )
         if sample.ground_truth is None:
             raise ValueError("ContextRecallMetric.evaluate: sample.ground_truth is required")
-        sentences = split_sentences(sample.ground_truth)
+        sentences = self._splitter.split(sample.ground_truth)
         if not sentences:
             return MetricResult(name="context_recall", score=1.0, detail={"sentences": 0})
         context = "\n".join(sample.contexts)
@@ -72,7 +74,7 @@ class ContextRecallMetric:
                     }
                 ]
             )
-            verdict = parse_binary_verdict(str(reply.get("content", "")))
+            verdict = self._verdict_parser.parse(str(reply.get("content", "")))
             verdicts.append(verdict)
             if verdict:
                 attributed += 1
