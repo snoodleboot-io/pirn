@@ -59,11 +59,8 @@ from pirn_agents.graph_stores.graph_store import GraphStore
 from pirn_agents.graph_stores.in_memory_graph_store import InMemoryGraphStore
 from pirn_agents.http_connector_knot import HttpConnectorKnot
 from pirn_agents.mcp.mcp_tool import McpTool
-from pirn_agents.permissioned_tool import PermissionedTool, requires_approval
 from pirn_agents.search_connector_knot import SearchConnectorKnot
 from pirn_agents.sql_connector_knot import SqlConnectorKnot
-from pirn_agents.stateful_tool import StatefulTool, supports_state
-from pirn_agents.streaming_tool import StreamingTool, collect_stream, supports_streaming
 from pirn_agents.testing.stub_tool import StubTool
 from pirn_agents.testing.tool_test_harness import ToolTestHarness, make_stub_tool
 from pirn_agents.tool import Tool
@@ -144,7 +141,6 @@ __all__ = [
     "LocalBlobStore",
     "McpTool",
     "NodeEmbeddingIndex",
-    "PermissionedTool",
     "PythonExecTool",
     "RagTool",
     "ReadFileTool",
@@ -161,8 +157,6 @@ __all__ = [
     "SqlQueryTool",
     "SqlServiceConnector",
     "SqliteConnector",
-    "StatefulTool",
-    "StreamingTool",
     "StubTool",
     "Subgraph",
     "SubprocessSandboxBackend",
@@ -178,16 +172,12 @@ __all__ = [
     "authorize_tool_call",
     "available_extras",
     "calculator_toolset",
-    "collect_stream",
     "connector_lifespan",
     "data_toolset",
     "filesystem_toolset",
     "make_stub_tool",
-    "requires_approval",
     "retrieval_toolset",
     "sandbox_toolset",
-    "supports_state",
-    "supports_streaming",
     "tool",
     "web_toolset",
 ]

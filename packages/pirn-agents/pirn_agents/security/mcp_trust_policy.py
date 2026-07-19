@@ -25,7 +25,6 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 from pirn_agents.approval_hook import ApprovalHook, authorize_tool_call
-from pirn_agents.permissioned_tool import permissions_of
 from pirn_agents.security.mcp_trust_decision import McpTrustDecision
 from pirn_agents.security.mcp_trust_error import McpTrustError
 from pirn_agents.tool import Tool
@@ -151,8 +150,8 @@ class McpTrustPolicy:
         """Fully authorize an MCP tool call: allow-list, scope, then approval.
 
         Args:
-            tool: The tool to be invoked (its ``permissions`` are read via F26's
-                :func:`~pirn_agents.permissioned_tool.permissions_of`).
+            tool: The tool to be invoked (its ``permissions`` facet is read
+                directly off the :class:`~pirn_agents.tool.Tool` base).
             arguments: The arguments the tool would run with.
             server: The MCP server the tool came from.
 
@@ -162,7 +161,7 @@ class McpTrustPolicy:
         Raises:
             McpTrustError: If the allow-list or scope check fails.
         """
-        perms = permissions_of(tool)
+        perms = tool.permissions
         self.enforce(server, tool.name, permissions=perms)
         return await authorize_tool_call(tool, arguments, self._approval_hook)
 
