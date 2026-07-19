@@ -1,10 +1,9 @@
-"""Unit tests for stateful tool support (S2)."""
+"""Unit tests for the stateful capability facet on the :class:`Tool` base (S2)."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn_agents.stateful_tool import StatefulTool, supports_state
 from pirn_agents.testing.stub_tool import StubTool
 from pirn_agents.tool_decorator import tool
 
@@ -20,8 +19,7 @@ class TestFunctionToolStateful(unittest.IsolatedAsyncioTestCase):
             return state["count"]
 
         assert counter.stateful is True
-        assert supports_state(counter) is True
-        assert isinstance(counter, StatefulTool)
+        assert counter.state is scratch
         assert await counter.invoke({"amount": 5}) == 5
         assert await counter.invoke({"amount": 3}) == 8
         assert scratch["count"] == 8
@@ -44,6 +42,7 @@ class TestFunctionToolStateful(unittest.IsolatedAsyncioTestCase):
             """Holds a resource."""
             return x
 
+        assert holds.stateful is True
         assert holds.state is resource
 
     def test_non_stateful_tool_reports_false(self) -> None:
@@ -54,7 +53,6 @@ class TestFunctionToolStateful(unittest.IsolatedAsyncioTestCase):
 
         assert plain.stateful is False
         assert plain.state is None
-        assert supports_state(plain) is False
 
 
 class TestStubToolStateful(unittest.IsolatedAsyncioTestCase):
@@ -62,7 +60,6 @@ class TestStubToolStateful(unittest.IsolatedAsyncioTestCase):
         state = {"seen": 0}
         stub = StubTool(name="s", state=state)
         assert stub.stateful is True
-        assert supports_state(stub) is True
         assert stub.state is state
 
     async def test_stub_handler_mutates_shared_state(self) -> None:
