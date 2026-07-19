@@ -16,7 +16,7 @@ from pirn_agents.determinism.recording_mode import RecordingMode
 from pirn_agents.evaluation.cassette_run_recorder import CassetteRunRecorder
 from pirn_agents.evaluation.eval_dataset import EvalDataset
 from pirn_agents.evaluation.eval_item import EvalItem
-from pirn_agents.evaluation.exact_match import exact_match
+from pirn_agents.evaluation.exact_match import ExactMatch
 from pirn_agents.evaluation.metric_result import MetricResult
 from pirn_agents.evaluation.run_eval import run_eval
 from pirn_agents.evaluation.run_recorder import RunRecorder
@@ -44,7 +44,7 @@ class _CountingTarget:
 
 
 def _em(item: EvalItem, output: Mapping[str, Any]) -> MetricResult:
-    return exact_match(str(output["answer"]), str(item.expected["answer"]))
+    return ExactMatch().score(str(output["answer"]), str(item.expected["answer"]))
 
 
 class CassetteRunRecorderSeamTests(unittest.IsolatedAsyncioTestCase):

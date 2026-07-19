@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pirn.core.providers.llm_provider import LLMProvider
 
-from pirn_agents.evaluation.binary_verdict import parse_binary_verdict
+from pirn_agents.evaluation.binary_verdict_parser import BinaryVerdictParser
 from pirn_agents.evaluation.metric_result import MetricResult
 from pirn_agents.evaluation.rag_sample import RagSample
 
@@ -37,6 +37,7 @@ class ContextPrecisionMetric:
                 f"ContextPrecisionMetric: judge must be an LLMProvider, got {type(judge).__name__}"
             )
         self._judge = judge
+        self._verdict_parser = BinaryVerdictParser()
 
     async def evaluate(self, sample: RagSample) -> MetricResult:
         """Score ``sample``'s retrieved contexts for rank-weighted precision.
@@ -65,7 +66,7 @@ class ContextPrecisionMetric:
                     }
                 ]
             )
-            relevances.append(parse_binary_verdict(str(reply.get("content", ""))))
+            relevances.append(self._verdict_parser.parse(str(reply.get("content", ""))))
         hits = 0
         precision_sum = 0.0
         for rank, relevant in enumerate(relevances, start=1):

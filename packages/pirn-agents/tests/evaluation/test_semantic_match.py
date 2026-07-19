@@ -1,11 +1,11 @@
-"""Tests for :func:`semantic_match` with a stub embedder."""
+"""Tests for :class:`SemanticMatch` with a stub embedder."""
 
 from __future__ import annotations
 
 import unittest
 from collections.abc import Sequence
 
-from pirn_agents.evaluation.semantic_match import semantic_match
+from pirn_agents.evaluation.semantic_match import SemanticMatch
 
 
 def _bag_of_words_embedder(vocab: Sequence[str]):
@@ -27,33 +27,35 @@ class SemanticMatchTests(unittest.TestCase):
         self.embed = _bag_of_words_embedder(["paris", "france", "capital", "city", "of"])
 
     def test_identical_text_scores_one_and_passes(self) -> None:
-        result = semantic_match("Paris France", "Paris France", embedder=self.embed)
+        result = SemanticMatch(embedder=self.embed).score("Paris France", "Paris France")
         assert result.name == "semantic_match"
         assert round(result.score, 9) == 1.0
         assert result.detail["passed"] is True
 
     def test_partial_overlap_scores_between_zero_and_one(self) -> None:
-        result = semantic_match(
-            "capital city of France", "France", embedder=self.embed, threshold=0.9
+        result = SemanticMatch(embedder=self.embed, threshold=0.9).score(
+            "capital city of France", "France"
         )
         assert 0.0 < result.score < 1.0
         assert result.detail["passed"] is False
 
     def test_no_overlap_scores_zero(self) -> None:
-        result = semantic_match("paris", "capital", embedder=self.embed)
+        result = SemanticMatch(embedder=self.embed).score("paris", "capital")
         assert result.score == 0.0
 
     def test_threshold_controls_pass_flag(self) -> None:
-        low = semantic_match("France", "capital city of France", embedder=self.embed, threshold=0.1)
+        low = SemanticMatch(embedder=self.embed, threshold=0.1).score(
+            "France", "capital city of France"
+        )
         assert low.detail["passed"] is True
 
     def test_non_callable_embedder_raises(self) -> None:
         with self.assertRaises(TypeError):
-            semantic_match("a", "b", embedder="not-callable")  # type: ignore[arg-type]
+            SemanticMatch(embedder="not-callable")  # type: ignore[arg-type]
 
     def test_non_str_prediction_raises(self) -> None:
         with self.assertRaises(TypeError):
-            semantic_match(1, "b", embedder=self.embed)  # type: ignore[arg-type]
+            SemanticMatch(embedder=self.embed).score(1, "b")  # type: ignore[arg-type]
 
 
 if __name__ == "__main__":

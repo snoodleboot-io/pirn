@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from pirn.core.providers.llm_provider import LLMProvider
 
-from pirn_agents.evaluation.binary_verdict import parse_binary_verdict
+from pirn_agents.evaluation.binary_verdict_parser import BinaryVerdictParser
 from pirn_agents.evaluation.metric_result import MetricResult
 from pirn_agents.evaluation.rag_sample import RagSample
-from pirn_agents.evaluation.sentence_split import split_sentences
+from pirn_agents.evaluation.sentence_splitter import SentenceSplitter
 
 
 class FaithfulnessMetric:
@@ -40,6 +40,8 @@ class FaithfulnessMetric:
                 f"FaithfulnessMetric: judge must be an LLMProvider, got {type(judge).__name__}"
             )
         self._judge = judge
+        self._splitter = SentenceSplitter()
+        self._verdict_parser = BinaryVerdictParser()
 
     async def evaluate(self, sample: RagSample) -> MetricResult:
         """Score ``sample``'s answer for faithfulness to its contexts.
@@ -52,7 +54,7 @@ class FaithfulnessMetric:
                 f"FaithfulnessMetric.evaluate: sample must be a RagSample, "
                 f"got {type(sample).__name__}"
             )
-        claims = split_sentences(sample.answer)
+        claims = self._splitter.split(sample.answer)
         if not claims:
             return MetricResult(
                 name="faithfulness", score=1.0, detail={"claims": 0, "supported": 0}
@@ -73,7 +75,7 @@ class FaithfulnessMetric:
                     }
                 ]
             )
-            verdict = parse_binary_verdict(str(reply.get("content", "")))
+            verdict = self._verdict_parser.parse(str(reply.get("content", "")))
             verdicts.append(verdict)
             if verdict:
                 supported += 1

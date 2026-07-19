@@ -33,14 +33,14 @@ from pirn_agents.performance.backpressure_semaphore import BackpressureSemaphore
 from pirn_agents.performance.concurrency_config import ConcurrencyConfig
 
 Target = Callable[[Mapping[str, Any]], Awaitable[Mapping[str, Any]]]
-Metric = Callable[[EvalItem, Mapping[str, Any]], "MetricResult | Awaitable[MetricResult]"]
+EvalMetric = Callable[[EvalItem, Mapping[str, Any]], "MetricResult | Awaitable[MetricResult]"]
 
 
 async def run_eval(
     *,
     dataset: EvalDataset,
     target: Target,
-    metrics: Mapping[str, Metric],
+    metrics: Mapping[str, EvalMetric],
     thresholds: ThresholdConfig | None = None,
     concurrency: ConcurrencyConfig | None = None,
     recorder: RunRecorder | None = None,

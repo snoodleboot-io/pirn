@@ -1,35 +1,35 @@
-"""Tests for :func:`task_success`."""
+"""Tests for :class:`TaskSuccess`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn_agents.evaluation.task_success import task_success
+from pirn_agents.evaluation.task_success import TaskSuccess
 
 
 class TaskSuccessTests(unittest.TestCase):
     def test_true_flag_scores_one(self) -> None:
-        result = task_success(True)
+        result = TaskSuccess().score(True)
         assert result.name == "task_success"
         assert result.score == 1.0
 
     def test_false_flag_scores_zero(self) -> None:
-        assert task_success(False).score == 0.0
+        assert TaskSuccess().score(False).score == 0.0
 
     def test_structured_end_state_equality(self) -> None:
-        result = task_success({"status": "done"}, expected={"status": "done"})
+        result = TaskSuccess().score({"status": "done"}, {"status": "done"})
         assert result.score == 1.0
 
     def test_structured_end_state_mismatch(self) -> None:
-        result = task_success({"status": "error"}, expected={"status": "done"})
+        result = TaskSuccess().score({"status": "error"}, {"status": "done"})
         assert result.score == 0.0
 
     def test_empty_output_against_default_expected_fails(self) -> None:
         # An empty string is not equal to the default expected `True`.
-        assert task_success("").score == 0.0
+        assert TaskSuccess().score("").score == 0.0
 
     def test_detail_records_both_outcomes(self) -> None:
-        result = task_success("a", expected="b")
+        result = TaskSuccess().score("a", "b")
         assert result.detail == {"actual": "'a'", "expected": "'b'"}
 
 
