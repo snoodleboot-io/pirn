@@ -62,7 +62,9 @@ class LLMProvider(PirnOpaqueValue):
         """
         return False
 
-    def mark_prompt_cache(self, messages: Sequence[Mapping[str, Any]]) -> Sequence[Mapping[str, Any]]:
+    def mark_prompt_cache(
+        self, messages: Sequence[Mapping[str, Any]]
+    ) -> Sequence[Mapping[str, Any]]:
         """Annotate ``messages`` for the provider's native prompt cache.
 
         Only meaningful when :attr:`prompt_cache_enabled` is ``True``; the default
