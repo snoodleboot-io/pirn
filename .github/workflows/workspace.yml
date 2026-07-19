@@ -316,8 +316,17 @@ jobs:
         run: |
           set -euo pipefail
           uv venv .venv
+          # Install the pirn packages by explicit local wheel PATH, not by name.
+          # Lockstep versioning stamps published wheels to a higher version than
+          # the unstamped source build here, so installing by name lets uv pick
+          # the stale published version off the index over the fresh wheelhouse
+          # wheel (SCD-24 latent bug: a PR that adds/renames a module then fails
+          # to import it). By-path pins the fresh local build; --find-links + the
+          # index still resolve their third-party deps and the test tooling.
           uv pip install --find-links dist/ \
-            pirn-core pirn-signal pirn-data pirn-ml pirn-agents pirn-health pirn-oilgas \
+            dist/pirn_core-*.whl dist/pirn_signal-*.whl dist/pirn_data-*.whl \
+            dist/pirn_ml-*.whl dist/pirn_agents-*.whl dist/pirn_health-*.whl \
+            dist/pirn_oilgas-*.whl \
             pytest pytest-asyncio pytest-timeout anyio
       - name: Cross-domain registry-parity / shim / extras-isolation
         run: |
