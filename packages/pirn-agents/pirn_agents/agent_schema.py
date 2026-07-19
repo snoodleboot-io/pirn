@@ -21,7 +21,7 @@ from pirn.core.providers.llm_provider import LLMProvider
 
 from pirn_agents.memory_store import MemoryStore
 from pirn_agents.tool import Tool
-from pirn_agents.tool_decorator import _annotation_to_schema
+from pirn_agents.tool_schema_compiler import ToolSchemaCompiler
 
 
 def _is_dependency(name: str, annotation: Any) -> bool:
@@ -87,6 +87,7 @@ def derive_agent_schema(agent: object) -> Mapping[str, Any]:
     except (TypeError, ValueError, NameError):
         return default_agent_schema()
 
+    compiler = ToolSchemaCompiler()
     properties: dict[str, dict[str, Any]] = {}
     required: list[str] = []
     for name, parameter in signature.parameters.items():
@@ -100,7 +101,7 @@ def derive_agent_schema(agent: object) -> Mapping[str, Any]:
         annotation = hints.get(name, parameter.annotation)
         if _is_dependency(name, annotation):
             continue
-        properties[name] = dict(_annotation_to_schema(annotation))
+        properties[name] = dict(compiler.annotation_to_schema(annotation))
         if parameter.default is inspect.Parameter.empty:
             required.append(name)
 

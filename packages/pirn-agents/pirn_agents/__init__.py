@@ -39,6 +39,7 @@ from pirn_agents.connectors.http_search_connector import HttpSearchConnector
 from pirn_agents.connectors.local_blob_store import LocalBlobStore
 from pirn_agents.connectors.s3_blob_store import S3BlobStore
 from pirn_agents.connectors.sql_service_connector import SqlServiceConnector
+from pirn_agents.function_tool import FunctionTool
 from pirn_agents.graph_rag.entity_relation_extractor import EntityRelationExtractor
 from pirn_agents.graph_rag.extracted_entity import ExtractedEntity
 from pirn_agents.graph_rag.extracted_relation import ExtractedRelation
@@ -66,7 +67,7 @@ from pirn_agents.streaming_tool import StreamingTool, collect_stream, supports_s
 from pirn_agents.testing.stub_tool import StubTool
 from pirn_agents.testing.tool_test_harness import ToolTestHarness, make_stub_tool
 from pirn_agents.tool import Tool
-from pirn_agents.tool_decorator import FunctionTool, tool
+from pirn_agents.tool_decorator import tool
 from pirn_agents.tool_permissions import ToolPermissions
 from pirn_agents.tool_registry import ToolRegistry
 from pirn_agents.tools.bundles import (

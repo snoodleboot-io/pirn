@@ -8,8 +8,9 @@ from dataclasses import dataclass
 
 from pydantic import BaseModel, Field, ValidationError
 
+from pirn_agents.function_tool import FunctionTool
 from pirn_agents.tool import Tool
-from pirn_agents.tool_decorator import FunctionTool, tool
+from pirn_agents.tool_decorator import tool
 from pirn_agents.tool_permissions import ToolPermissions
 
 # ----------------------------------------------------------------- fixtures
