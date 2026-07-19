@@ -12,7 +12,7 @@ whole run (the pooling lever, AD-3). On top of the F2 lifecycle it adds:
 
 Egress seam (F11). The egress check is an injectable ``egress_policy`` callable
 ``(url) -> None`` that raises on a disallowed target. It defaults to the F6
-SSRF/egress guard (:func:`~pirn_agents.tools.web._ssrf_guard.assert_public_host`,
+SSRF/egress guard (:meth:`~pirn_agents.tools.web._ssrf_guard.SsrfGuard.assert_public_host`,
 which blocks private/loopback/link-local/reserved/multicast IPs and the cloud
 metadata endpoint, with an optional host allow-list). F11's richer egress
 *policy* slots in here later by passing ``egress_policy`` — no API change needed.
@@ -28,7 +28,7 @@ from typing import Any
 
 from pirn_agents.connector_base import ConnectorBase
 from pirn_agents.credential_ref import CredentialRef
-from pirn_agents.tools.web._ssrf_guard import assert_public_host
+from pirn_agents.tools.web._ssrf_guard import SsrfGuard
 
 
 class HttpConnector(ConnectorBase):
@@ -105,9 +105,9 @@ class HttpConnector(ConnectorBase):
         self._backoff_base = backoff_base
         self._backoff_cap = backoff_cap
         self._retry_statuses = retry_statuses
-        self._allowed_hosts = allowed_hosts
-        self._allow_private = allow_private
-        self._resolver = resolver
+        self._ssrf = SsrfGuard(
+            allowed_hosts=allowed_hosts, allow_private=allow_private, resolver=resolver
+        )
         self._egress_policy = egress_policy if egress_policy is not None else self._ssrf_egress
         self._is_retryable_exception = (
             is_retryable_exception if is_retryable_exception is not None else self._always_retry
@@ -220,12 +220,7 @@ class HttpConnector(ConnectorBase):
 
     def _ssrf_egress(self, url: str) -> None:
         """Default egress policy: the F6 SSRF/egress guard (the F11 seam)."""
-        assert_public_host(
-            url,
-            allowed_hosts=self._allowed_hosts,
-            allow_private=self._allow_private,
-            resolver=self._resolver,
-        )
+        self._ssrf.assert_public_host(url)
 
     def _always_retry(self, _exc: BaseException) -> bool:
         """Default retry predicate: every raised exception is retryable."""

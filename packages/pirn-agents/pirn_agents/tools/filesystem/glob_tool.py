@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from pirn_agents.tools.base_tool import BaseTool
-from pirn_agents.tools.filesystem._path_guard import resolve_root
+from pirn_agents.tools.filesystem._path_guard import PathGuard
 
 
 class GlobTool(BaseTool):
@@ -28,7 +28,7 @@ class GlobTool(BaseTool):
         """
         if max_results <= 0:
             raise ValueError(f"glob: max_results must be positive, got {max_results}")
-        self._root = resolve_root(str(root))
+        self._guard = PathGuard(root=str(root))
         self._max_results = max_results
 
     @property
@@ -84,8 +84,8 @@ class GlobTool(BaseTool):
     def _glob(self, pattern: str) -> list[str]:
         """Return sorted, in-root, root-relative matches for ``pattern``."""
         results: list[str] = []
-        for match in self._root.glob(pattern):
+        for match in self._guard.root.glob(pattern):
             resolved = match.resolve()
-            if resolved.is_relative_to(self._root) and not match.is_symlink():
-                results.append(match.relative_to(self._root).as_posix())
+            if resolved.is_relative_to(self._guard.root) and not match.is_symlink():
+                results.append(match.relative_to(self._guard.root).as_posix())
         return sorted(results)

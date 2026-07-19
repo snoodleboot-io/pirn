@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from pirn_agents.tools.base_tool import BaseTool
-from pirn_agents.tools.filesystem._path_guard import resolve_in_root, resolve_root
+from pirn_agents.tools.filesystem._path_guard import PathGuard
 
 
 class WriteFileTool(BaseTool):
@@ -27,7 +27,7 @@ class WriteFileTool(BaseTool):
         """
         if max_bytes <= 0:
             raise ValueError(f"write_file: max_bytes must be positive, got {max_bytes}")
-        self._root = resolve_root(str(root))
+        self._guard = PathGuard(root=str(root))
         self._max_bytes = max_bytes
 
     @property
@@ -81,7 +81,7 @@ class WriteFileTool(BaseTool):
             raise ValueError(
                 f"write_file: content of {len(encoded)} bytes exceeds max_bytes {self._max_bytes}"
             )
-        resolved = resolve_in_root(self._root, relative, must_exist=False)
+        resolved = self._guard.resolve(relative, must_exist=False)
         await asyncio.to_thread(self._write, resolved, encoded)
         return {"path": relative, "bytes_written": len(encoded)}
 
