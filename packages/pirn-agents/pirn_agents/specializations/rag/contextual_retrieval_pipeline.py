@@ -24,9 +24,9 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.providers.llm_provider import LLMProvider
 from pirn.nodes.sub_tapestry import SubTapestry
 
+from pirn_agents.llm_provider import LLMProvider
 from pirn_agents.memory_store import MemoryStore
 from pirn_agents.rerank.reranker_backend import RerankerBackend
 from pirn_agents.specializations.rag.contextual_compressor import ContextualCompressor

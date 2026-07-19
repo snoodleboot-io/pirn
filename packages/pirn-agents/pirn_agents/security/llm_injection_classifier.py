@@ -3,7 +3,7 @@
 When the cheap heuristics in
 :class:`~pirn_agents.security.injection_screen.InjectionScreen` land in the grey
 zone, the screen may consult this classifier, which asks an *injected*
-:class:`~pirn.core.providers.llm_provider.LLMProvider` a single yes/no question:
+:class:`~pirn_agents.llm_provider.LLMProvider` a single yes/no question:
 does this untrusted content attempt to inject instructions? The provider is
 supplied by the caller (a real vendor adapter, or a stub in tests), so the
 classifier stays provider-neutral and imports no backend — the LLM path only
@@ -12,8 +12,7 @@ runs when a provider is wired *and* the screen's budget allows it.
 
 from __future__ import annotations
 
-from pirn.core.providers.llm_provider import LLMProvider
-
+from pirn_agents.llm_provider import LLMProvider
 from pirn_agents.security.injection_verdict import InjectionVerdict
 
 

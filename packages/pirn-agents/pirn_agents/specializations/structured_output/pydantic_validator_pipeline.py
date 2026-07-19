@@ -32,12 +32,12 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.providers.llm_provider import LLMProvider
 from pirn.nodes.source import Source
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 from pydantic import BaseModel, ValidationError
 
+from pirn_agents.llm_provider import LLMProvider
 from pirn_agents.specializations.structured_output._json_extractor_attempt import (
     _JsonExtractorAttempt,
 )

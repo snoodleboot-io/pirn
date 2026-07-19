@@ -31,11 +31,11 @@ from pirn.connectors.database_connection_pool import (
 )
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.providers.embedding_provider import EmbeddingProvider
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_ml.data_prep.dataset_loader import DatasetLoader
 from pirn_ml.data_prep.train_test_split import TrainTestSplit
+from pirn_ml.embedding_provider import EmbeddingProvider
 from pirn_ml.evaluation.evaluator import Evaluator
 from pirn_ml.features.embedding_extractor import EmbeddingExtractor
 from pirn_ml.training.trainer import Trainer

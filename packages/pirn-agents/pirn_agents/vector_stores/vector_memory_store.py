@@ -24,8 +24,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Mapping, Sequence
 from typing import Any
 
-from pirn.core.providers.embedding_provider import EmbeddingProvider
-
+from pirn_agents.embedding_provider import EmbeddingProvider
 from pirn_agents.memory_store import MemoryStore
 from pirn_agents.vector_stores.vector_match import VectorMatch
 from pirn_agents.vector_stores.vector_record import VectorRecord

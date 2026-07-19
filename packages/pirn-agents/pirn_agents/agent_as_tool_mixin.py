@@ -11,10 +11,10 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, cast
 
-from pirn.core.providers.llm_provider import LLMProvider
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.as_tool import as_tool
+from pirn_agents.llm_provider import LLMProvider
 from pirn_agents.performance.run_budget import RunBudget
 
 if TYPE_CHECKING:

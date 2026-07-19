@@ -19,9 +19,9 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.providers.embedding_provider import EmbeddingProvider
 from pirn.nodes.sub_tapestry import SubTapestry
 
+from pirn_agents.embedding_provider import EmbeddingProvider
 from pirn_agents.specializations.document_processing._document_chunker import _DocumentChunker
 from pirn_agents.specializations.rag.indexing._parent_child_indexer import _ParentChildIndexer
 from pirn_agents.vector_stores.vector_memory_store import VectorMemoryStore

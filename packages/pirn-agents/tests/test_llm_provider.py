@@ -1,10 +1,10 @@
-"""Unit tests for :class:`LLMProvider`."""
+"""Unit tests for pirn-agents' :class:`LLMProvider` (PIR-735: domain-owned)."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.core.providers.llm_provider import LLMProvider
+from pirn_agents.llm_provider import LLMProvider
 
 
 class _ConcreteLLM(LLMProvider):
@@ -14,6 +14,7 @@ class _ConcreteLLM(LLMProvider):
     async def stream_chat(self, messages, *, model=None, max_tokens=None, temperature=None):
         async def _aiter():
             yield {"content": "hello"}
+
         return _aiter()
 
     async def close(self) -> None:

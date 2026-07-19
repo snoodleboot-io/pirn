@@ -19,11 +19,11 @@ import re
 from collections.abc import Mapping
 from typing import Any
 
-from pirn.core.providers.llm_provider import LLMProvider
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.agent_invoker import AgentInvoker
 from pirn_agents.agent_schema_deriver import AgentSchemaDeriver
+from pirn_agents.llm_provider import LLMProvider
 from pirn_agents.performance.run_budget import RunBudget
 from pirn_agents.tool import Tool
 from pirn_agents.types.tool_result import ToolResult

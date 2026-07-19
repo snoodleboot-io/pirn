@@ -4,20 +4,19 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from pirn.core.providers.llm_provider import LLMProvider
-
 from pirn_agents.evaluation.judge_score_parser import JudgeScoreParser
 from pirn_agents.evaluation.pairwise_choice_parser import PairwiseChoiceParser
 from pirn_agents.evaluation.pairwise_outcome import PairwiseOutcome
 from pirn_agents.evaluation.rubric_criterion import RubricCriterion
 from pirn_agents.evaluation.rubric_score import RubricScore
+from pirn_agents.llm_provider import LLMProvider
 
 
 class EvaluationJudge:
     """An LLM-as-judge harness supporting rubric and pairwise scoring modes.
 
     Constructed (``init``) with a provider-neutral judge
-    :class:`~pirn.core.providers.llm_provider.LLMProvider` (a stub in tests, any
+    :class:`~pirn_agents.llm_provider.LLMProvider` (a stub in tests, any
     model in production) and two bias controls, then invoked (``process``) per
     evaluation:
 

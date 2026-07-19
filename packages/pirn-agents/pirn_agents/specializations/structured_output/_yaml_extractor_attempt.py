@@ -18,7 +18,7 @@ Algorithm:
 References:
     - PyYAML :func:`yaml.safe_load`:
       https://pyyaml.org/wiki/PyYAMLDocumentation
-    - :class:`pirn.core.providers.llm_provider.LLMProvider`
+    - :class:`pirn_agents.llm_provider.LLMProvider`
 """
 
 from __future__ import annotations
@@ -30,7 +30,8 @@ from typing import Any
 import yaml
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.providers.llm_provider import LLMProvider
+
+from pirn_agents.llm_provider import LLMProvider
 
 
 class _YamlExtractorAttempt(Knot):

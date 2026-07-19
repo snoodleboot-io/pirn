@@ -11,7 +11,7 @@ from collections.abc import AsyncIterator, Mapping, Sequence
 from datetime import UTC, datetime
 from typing import Any
 
-from pirn.core.providers.llm_provider import LLMProvider
+from pirn_health.llm_provider import LLMProvider
 from pirn_health.protocols.fhir_client import FHIRClient
 from pirn_health.protocols.lab_instrument_connection import (
     LabInstrumentConnection,

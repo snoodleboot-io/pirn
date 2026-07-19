@@ -54,6 +54,8 @@ class LLMProvider(PirnOpaqueValue):
         raise NotImplementedError(f"{type(self).__name__} must implement chat()")
 ```
 
+> **Note:** `LLMProvider`/`EmbeddingProvider` are shown here only as exemplars of this convention — the contracts themselves no longer live in core. They are owned by each consuming domain (`pirn_agents`; `pirn_health` for the LLM wire, `pirn_ml` for the embedding wire), which still inherit `PirnOpaqueValue` from core and follow this exact `NotImplementedError`-base style. Core keeps in-tree interface bases such as `Trigger`, `DataTransport`, and `DataStore`.
+
 - **No `typing.Protocol`.** Core has zero. Structural typing gives no `is_instance_schema` (breaks opaque values), and `@runtime_checkable` + `isinstance` is signature-blind (matches any object with the attribute *names*).
 - **No `abc.ABC`/`@abstractmethod`.** The house style is the `NotImplementedError` base class. (ABC is tolerated but not used in core.)
 - Docstrings sometimes say "protocol" informally (e.g. `triggers/base.py`) — the *code* is always a `NotImplementedError` base class.
@@ -238,8 +240,8 @@ Tracked in Linear project **"pirn-agents: OOP/SOLID Standards Remediation"** (PI
 **Principle.** The agents layer adds LLM-interaction concepts core deliberately lacks — tools, tool-calling, agent patterns, prompt composition — but **composes them from core primitives** rather than re-implementing execution, outcomes, schema, or persistence.
 
 **What belongs where:**
-- **Core** — the dataflow engine: `Knot`, `Result` (`Ok\|Err\|Skipped`), `Tapestry`, transports, triggers, nodes, dispatchers, connectors + capabilities, backend stores, emitters, and `LLMProvider`/`EmbeddingProvider` (the wire to a model). Provider-neutral; no LLM-orchestration semantics.
-- **Agents** — the LLM-interaction layer: `Tool`/`ToolCall`/`ToolResult`, agent patterns (RAG/ReAct/plan-execute/…), prompt composition, the tool-calling loop, agent-as-tool.
+- **Core** — the dataflow engine: `Knot`, `Result` (`Ok\|Err\|Skipped`), `Tapestry`, transports, triggers, nodes, dispatchers, connectors + capabilities, backend stores, and emitters. Provider-neutral; no LLM-orchestration semantics — core does not even own the model-wire provider contracts.
+- **Agents (and sibling domains)** — the LLM-interaction layer: the `LLMProvider`/`EmbeddingProvider` model-wire contracts (each consuming domain owns its own copy — `pirn_agents.llm_provider`/`pirn_agents.embedding_provider`, `pirn_health.llm_provider`, `pirn_ml.embedding_provider`), `Tool`/`ToolCall`/`ToolResult`, agent patterns (RAG/ReAct/plan-execute/…), prompt composition, the tool-calling loop, agent-as-tool.
 
 **Canonical case — the Tool.** A `Tool` is correctly agents-layer (core has no notion of a name + NL description + JSON schema *for a model*). But it must be **composed from** core, and today it is not:
 - `Tool.invoke(arguments)` is a **second execution primitive parallel to `Knot.process()`**, called directly by hand-rolled executors (`ParallelToolExecutor`, `planning/tool_executor`) → tool calls run **outside the engine** (no `Result`, lineage, determinism, or caching per call).

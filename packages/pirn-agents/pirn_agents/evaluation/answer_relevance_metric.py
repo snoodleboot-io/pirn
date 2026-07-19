@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from pirn.core.providers.embedding_provider import EmbeddingProvider
-
+from pirn_agents.embedding_provider import EmbeddingProvider
 from pirn_agents.evaluation.cosine_similarity import CosineSimilarity
 from pirn_agents.evaluation.metric_result import MetricResult
 from pirn_agents.evaluation.rag_sample import RagSample
@@ -15,7 +14,7 @@ class AnswerRelevanceMetric:
     Formula
     -------
     The query and the answer are embedded with a pluggable
-    :class:`pirn.core.providers.embedding_provider.EmbeddingProvider` and scored
+    :class:`pirn_agents.embedding_provider.EmbeddingProvider` and scored
     by cosine similarity (clamped to ``[0.0, 1.0]``)::
 
         answer_relevance = clamp01( cos( embed(query), embed(answer) ) )

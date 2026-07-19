@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from pirn.core.providers.embedding_provider import EmbeddingProvider
+from pirn_ml.embedding_provider import EmbeddingProvider
 
 
 class RecordingEmbeddingProvider(EmbeddingProvider):

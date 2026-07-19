@@ -2,7 +2,7 @@
 
 A base class describing the small surface a provider must expose for the F20
 native structured-output paths. It is a **strict superset of the plain**
-:class:`pirn.core.providers.llm_provider.LLMProvider` contract, so it subclasses
+:class:`pirn_agents.llm_provider.LLMProvider` contract, so it subclasses
 ``LLMProvider`` directly: capability advertisement plus a single structured chat
 call and three request-option shapers, one per native mechanism. Inheriting
 ``LLMProvider`` also carries the :class:`~pirn.core.pirn_opaque_value.PirnOpaqueValue`
@@ -24,8 +24,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from pirn.core.providers.llm_provider import LLMProvider
-
+from pirn_agents.llm_provider import LLMProvider
 from pirn_agents.specializations.structured_output.structured_output_capability import (
     StructuredOutputCapability,
 )

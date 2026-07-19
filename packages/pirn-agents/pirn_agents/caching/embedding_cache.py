@@ -10,7 +10,7 @@ collapses to embedding just the *new* texts — the counters
 measurable.
 
 The wrapped embed function is the sole backend seam — any
-:class:`pirn.core.providers.embedding_provider.EmbeddingProvider` ``embed`` (or a
+:class:`pirn_agents.embedding_provider.EmbeddingProvider` ``embed`` (or a
 plain async callable) fits — so the cache is provider-neutral and no vendor SDK
 is imported here.
 """
