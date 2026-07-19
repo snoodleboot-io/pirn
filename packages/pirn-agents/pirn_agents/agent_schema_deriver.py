@@ -86,12 +86,11 @@ class AgentSchemaDeriver:
         Returns:
             A JSON-Schema object describing the agent's task inputs.
         """
-        process = getattr(type(agent), "process", None)
-        if process is None:
+        if not isinstance(agent, Knot):
             return self.default_schema()
         try:
-            signature = inspect.signature(process)
-            hints = inspect.get_annotations(process, eval_str=True)
+            signature = inspect.signature(type(agent).process)
+            hints = inspect.get_annotations(type(agent).process, eval_str=True)
         except (TypeError, ValueError, NameError):
             return self.default_schema()
 

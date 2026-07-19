@@ -58,6 +58,9 @@ class RetrySafetyClassifier:
         configured safe code → SAFE, any other → UNSAFE); otherwise the
         exception type is matched against the transient set.
         """
+        # getattr: dynamic probe over heterogeneous third-party exception attrs (no
+        # shared declared type) — any HTTP-client error exposing an int status_code,
+        # not just pirn's own LLMHTTPStatusError, participates in this taxonomy.
         status = getattr(error, "status_code", None)
         if isinstance(status, int) and not isinstance(status, bool):
             if 500 <= status <= 599 or status in self._safe_status_codes:

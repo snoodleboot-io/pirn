@@ -28,3 +28,7 @@ class NodeEmbeddingIndex(PirnOpaqueValue):
     async def ranked_node_ids(self, query_text: str, *, top_k: int) -> list[str]:
         """Return up to ``top_k`` node ids ranked by similarity to ``query_text``."""
         raise NotImplementedError(f"{type(self).__name__} must implement ranked_node_ids()")
+
+    def is_empty(self) -> bool:
+        """Whether the index currently holds no vectors (default ``False``)."""
+        return False

@@ -157,7 +157,6 @@ class HybridGraphRetriever(Knot):
         """Return whether the vector arm should run (present and non-empty)."""
         if embedding_index is None:
             return False
-        is_empty = getattr(embedding_index, "is_empty", None)
-        if callable(is_empty) and is_empty():
+        if embedding_index.is_empty():
             return False
         return True
