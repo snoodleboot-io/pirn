@@ -1,47 +1,56 @@
-"""Security tests: H-4 — ReDoS guard on guardrail and control regex patterns."""
+"""ReDoS guard on guardrail and control regex patterns (H-4).
+
+Native pirn-agents test for :class:`SafePatternCompiler` and the guard's use by
+the ``SafetyCheck`` / ``HandoffCheck`` control knots. (Previously lived under
+``pirn-core/tests`` as a cross-domain test; relocated here since it exercises
+pirn-agents code only — pirn-core is imported, never tested.)
+"""
 
 from __future__ import annotations
 
-# cross-domain: skipped in per-package isolation, run by the unified suite (SCD-24)
-import pytest as _pytest
-
-_pytest.importorskip("pirn_agents")
-pytestmark = _pytest.mark.cross_domain
-
 import unittest
 
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.tapestry import Tapestry
+
 from pirn_agents._safe_pattern_compiler import SafePatternCompiler
+from pirn_agents.control.handoff_check import HandoffCheck
+from pirn_agents.control.safety_check import SafetyCheck
+from pirn_agents.types.agent_message import AgentMessage
+from pirn_agents.types.agent_response import AgentResponse
 
 _COMPILER = SafePatternCompiler()
-_max_pattern_length = _COMPILER.max_pattern_length
-compile_safe_pattern = _COMPILER.compile_safe_pattern
+_MAX = _COMPILER.max_pattern_length
 
 
 class TestCompileSafePattern(unittest.TestCase):
     def test_valid_short_pattern_compiles(self) -> None:
-        p = compile_safe_pattern(r"\bpassword\b", index=0, owner="Test", field="patterns")
+        p = _COMPILER.compile_safe_pattern(r"\bpassword\b", index=0, owner="Test", field="patterns")
         assert p.pattern == r"\bpassword\b"
 
     def test_pattern_exceeding_max_length_rejected(self) -> None:
-        long_pattern = "a" * (_max_pattern_length + 1)
+        long_pattern = "a" * (_MAX + 1)
         with self.assertRaises(ValueError) as ctx:
-            compile_safe_pattern(long_pattern, index=0, owner="Test", field="patterns")
+            _COMPILER.compile_safe_pattern(long_pattern, index=0, owner="Test", field="patterns")
         assert "maximum pattern length" in str(ctx.exception)
 
     def test_pattern_at_exact_max_length_accepted(self) -> None:
-        pattern = "a" * _max_pattern_length
-        p = compile_safe_pattern(pattern, index=0, owner="Test", field="patterns")
-        assert len(p.pattern) == _max_pattern_length
+        pattern = "a" * _MAX
+        p = _COMPILER.compile_safe_pattern(pattern, index=0, owner="Test", field="patterns")
+        assert len(p.pattern) == _MAX
 
     def test_invalid_regex_rejected(self) -> None:
         with self.assertRaises(ValueError) as ctx:
-            compile_safe_pattern("(unclosed", index=0, owner="Test", field="patterns")
+            _COMPILER.compile_safe_pattern("(unclosed", index=0, owner="Test", field="patterns")
         assert "valid regex" in str(ctx.exception)
 
     def test_error_message_includes_owner_and_field(self) -> None:
-        long_pattern = "x" * (_max_pattern_length + 1)
+        long_pattern = "x" * (_MAX + 1)
         with self.assertRaises(ValueError) as ctx:
-            compile_safe_pattern(long_pattern, index=2, owner="SafetyCheck", field="deny_patterns")
+            _COMPILER.compile_safe_pattern(
+                long_pattern, index=2, owner="SafetyCheck", field="deny_patterns"
+            )
         msg = str(ctx.exception)
         assert "SafetyCheck" in msg
         assert "deny_patterns[2]" in msg
@@ -49,14 +58,7 @@ class TestCompileSafePattern(unittest.TestCase):
 
 class TestSafetyCheckReDoSGuard(unittest.TestCase):
     def test_long_pattern_rejected_at_construction(self) -> None:
-        from pirn_agents.control.safety_check import SafetyCheck
-        from pirn_agents.types.agent_message import AgentMessage
-
-        from pirn.core.knot_config import KnotConfig
-        from pirn.core.knot_factory import knot
-        from pirn.tapestry import Tapestry
-
-        long_pattern = "a" * (_max_pattern_length + 1)
+        long_pattern = "a" * (_MAX + 1)
 
         @knot
         async def m() -> AgentMessage:
@@ -72,13 +74,6 @@ class TestSafetyCheckReDoSGuard(unittest.TestCase):
                 )
 
     def test_empty_deny_patterns_rejected(self) -> None:
-        from pirn_agents.control.safety_check import SafetyCheck
-        from pirn_agents.types.agent_message import AgentMessage
-
-        from pirn.core.knot_config import KnotConfig
-        from pirn.core.knot_factory import knot
-        from pirn.tapestry import Tapestry
-
         @knot
         async def m() -> AgentMessage:
             return AgentMessage(role="user", content="hello")
@@ -91,14 +86,7 @@ class TestSafetyCheckReDoSGuard(unittest.TestCase):
 
 class TestHandoffCheckReDoSGuard(unittest.TestCase):
     def test_long_pattern_rejected_at_construction(self) -> None:
-        from pirn_agents.control.handoff_check import HandoffCheck
-        from pirn_agents.types.agent_response import AgentResponse
-
-        from pirn.core.knot_config import KnotConfig
-        from pirn.core.knot_factory import knot
-        from pirn.tapestry import Tapestry
-
-        long_pattern = "b" * (_max_pattern_length + 1)
+        long_pattern = "b" * (_MAX + 1)
 
         @knot
         async def r() -> AgentResponse:
