@@ -5,8 +5,9 @@ from __future__ import annotations
 import asyncio
 import unittest
 
+from pirn_agents.function_tool import FunctionTool
 from pirn_agents.tool import Tool
-from pirn_agents.tool_decorator import FunctionTool, tool
+from pirn_agents.tool_decorator import tool
 
 # ----------------------------------------------------------------- fixtures
 
