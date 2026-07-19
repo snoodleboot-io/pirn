@@ -18,7 +18,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.providers.llm_provider import LLMProvider
 
-from pirn_agents.specializations.llm_response_text import extract_response_text
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.specializations.reflexion.reflexion_evaluation import ReflexionEvaluation
 
 
@@ -78,7 +78,7 @@ class ReflexionEvaluator(Knot):
                 {"role": "user", "content": user},
             ]
         )
-        text = extract_response_text(raw).strip()
+        text = LlmResponseText().extract(raw).strip()
         if text.lower().startswith("pass"):
             return ReflexionEvaluation(success=True, feedback="")
         feedback = (

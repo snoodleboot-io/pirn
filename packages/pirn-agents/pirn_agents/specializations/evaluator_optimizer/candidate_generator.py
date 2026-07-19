@@ -18,7 +18,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.providers.llm_provider import LLMProvider
 
-from pirn_agents.specializations.llm_response_text import extract_response_text
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 
 
 class CandidateGenerator(Knot):
@@ -74,4 +74,4 @@ class CandidateGenerator(Knot):
                 {"role": "user", "content": user},
             ]
         )
-        return extract_response_text(raw)
+        return LlmResponseText().extract(raw)

@@ -62,53 +62,50 @@ class McpPromptAdapter:
         spec = next((d for d in descriptors if d.get("name") == name), None)
         if spec is None:
             raise McpError(f"MCP server does not advertise a prompt named {name!r}")
-        required = _required_arguments(spec.get("arguments"))
+        required = self._required_arguments(spec.get("arguments"))
         raw = await self._client.get_prompt(name)
         return McpPromptTemplate(
             name=name,
             description=spec.get("description", ""),
             required_arguments=required,
-            message_templates=_message_templates(raw),
+            message_templates=self._message_templates(raw),
         )
 
+    def _required_arguments(self, arguments: Any) -> frozenset[str]:
+        """Collect the names of arguments the prompt descriptor marks required."""
+        if not isinstance(arguments, list):
+            return frozenset()
+        names = {
+            argument["name"]
+            for argument in arguments
+            if isinstance(argument, Mapping) and argument.get("required") and argument.get("name")
+        }
+        return frozenset(names)
 
-def _required_arguments(arguments: Any) -> frozenset[str]:
-    """Collect the names of arguments the prompt descriptor marks required."""
-    if not isinstance(arguments, list):
-        return frozenset()
-    names = {
-        argument["name"]
-        for argument in arguments
-        if isinstance(argument, Mapping) and argument.get("required") and argument.get("name")
-    }
-    return frozenset(names)
+    def _message_templates(self, raw: Mapping[str, Any]) -> list[tuple[str, str]]:
+        """Extract ordered ``(role, body)`` pairs from a ``prompts/get`` payload."""
+        messages = raw.get("messages")
+        if not isinstance(messages, list):
+            return []
+        templates: list[tuple[str, str]] = []
+        for message in messages:
+            if not isinstance(message, Mapping):
+                continue
+            role = message.get("role", "user")
+            templates.append((role, self._content_text(message.get("content"))))
+        return templates
 
-
-def _message_templates(raw: Mapping[str, Any]) -> list[tuple[str, str]]:
-    """Extract ordered ``(role, body)`` pairs from a ``prompts/get`` payload."""
-    messages = raw.get("messages")
-    if not isinstance(messages, list):
-        return []
-    templates: list[tuple[str, str]] = []
-    for message in messages:
-        if not isinstance(message, Mapping):
-            continue
-        role = message.get("role", "user")
-        templates.append((role, _content_text(message.get("content"))))
-    return templates
-
-
-def _content_text(content: Any) -> str:
-    """Return the text of an MCP message content block (dict, string, or list)."""
-    if isinstance(content, str):
-        return content
-    if isinstance(content, Mapping):
-        text = content.get("text")
-        return text if isinstance(text, str) else ""
-    if isinstance(content, list):
-        return "".join(
-            block.get("text", "")
-            for block in content
-            if isinstance(block, Mapping) and isinstance(block.get("text"), str)
-        )
-    return ""
+    def _content_text(self, content: Any) -> str:
+        """Return the text of an MCP message content block (dict, string, or list)."""
+        if isinstance(content, str):
+            return content
+        if isinstance(content, Mapping):
+            text = content.get("text")
+            return text if isinstance(text, str) else ""
+        if isinstance(content, list):
+            return "".join(
+                block.get("text", "")
+                for block in content
+                if isinstance(block, Mapping) and isinstance(block.get("text"), str)
+            )
+        return ""

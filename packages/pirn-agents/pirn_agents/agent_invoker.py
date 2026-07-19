@@ -33,10 +33,7 @@ from typing import Any
 from pirn.core.providers.llm_provider import LLMProvider
 
 from pirn_agents.agent_introspector import AgentIntrospector
-from pirn_agents.agent_response_mapper import (
-    agent_response_to_tool_result,
-    summarise_tokens,
-)
+from pirn_agents.agent_response_mapper import AgentResponseMapper
 from pirn_agents.agent_tool_context import (
     AgentToolContext,
     bind_agent_tool_context,
@@ -73,6 +70,7 @@ class AgentInvoker:
         self._budget: RunBudget | None = budget
         self._provider: LLMProvider | None = provider
         self._introspector: AgentIntrospector = AgentIntrospector()
+        self._response_mapper = AgentResponseMapper()
 
     async def invoke(
         self,
@@ -137,10 +135,10 @@ class AgentInvoker:
         value = result.value
         response = value if isinstance(value, AgentResponse) else AgentResponse(content=str(value))
         if meter is not None:
-            tokens = summarise_tokens(response.usage)
+            tokens = self._response_mapper.summarise_tokens(response.usage)
             if tokens is not None:
                 meter.spend_tokens(tokens)
-        return agent_response_to_tool_result(response, call_id=call_id, latency=latency)
+        return self._response_mapper.to_tool_result(response, call_id=call_id, latency=latency)
 
     def _map_arguments(
         self,

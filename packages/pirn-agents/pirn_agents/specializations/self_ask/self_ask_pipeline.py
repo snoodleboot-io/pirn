@@ -26,7 +26,7 @@ from pirn.core.providers.llm_provider import LLMProvider
 from pirn.nodes.source import Source
 from pirn.nodes.sub_tapestry import SubTapestry
 
-from pirn_agents.specializations.llm_response_text import extract_response_text
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.specializations.self_ask.self_ask_result import SelfAskResult
 
 
@@ -96,7 +96,7 @@ class SelfAskPipeline(SubTapestry):
                 {"role": "user", "content": task},
             ]
         )
-        subquestions = self._parse_subquestions(extract_response_text(decompose_raw))[
+        subquestions = self._parse_subquestions(LlmResponseText().extract(decompose_raw))[
             :max_subquestions
         ]
         if not subquestions:
@@ -110,7 +110,7 @@ class SelfAskPipeline(SubTapestry):
                     {"role": "user", "content": subquestion},
                 ]
             )
-            subanswers.append(extract_response_text(answer_raw))
+            subanswers.append(LlmResponseText().extract(answer_raw))
 
         pairs = "\n".join(f"Q: {q}\nA: {a}" for q, a in zip(subquestions, subanswers, strict=True))
         final_raw = await llm.chat(
@@ -123,7 +123,7 @@ class SelfAskPipeline(SubTapestry):
             ]
         )
         result = SelfAskResult(
-            final_answer=extract_response_text(final_raw),
+            final_answer=LlmResponseText().extract(final_raw),
             subquestions=tuple(subquestions),
             subanswers=tuple(subanswers),
         )

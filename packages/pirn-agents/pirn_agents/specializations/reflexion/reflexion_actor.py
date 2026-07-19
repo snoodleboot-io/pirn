@@ -21,7 +21,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.providers.llm_provider import LLMProvider
 
-from pirn_agents.specializations.llm_response_text import extract_response_text
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 
 
 class ReflexionActor(Knot):
@@ -80,4 +80,4 @@ class ReflexionActor(Knot):
                 {"role": "user", "content": task},
             ]
         )
-        return extract_response_text(raw)
+        return LlmResponseText().extract(raw)

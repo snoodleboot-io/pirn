@@ -25,7 +25,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.providers.llm_provider import LLMProvider
 
-from pirn_agents.specializations.llm_response_text import extract_response_text
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.specializations.rewoo.rewoo_result import ReWooResult
 from pirn_agents.types.tool_call import ToolCall
 from pirn_agents.types.tool_result import ToolResult
@@ -106,7 +106,7 @@ class ReWooSynthesizer(Knot):
                 {"role": "user", "content": user},
             ]
         )
-        answer = extract_response_text(raw)
+        answer = LlmResponseText().extract(raw)
         return ReWooResult(answer=answer, plan=plan_tuple, results=results_tuple)
 
     @staticmethod

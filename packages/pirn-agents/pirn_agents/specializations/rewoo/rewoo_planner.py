@@ -28,7 +28,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.providers.llm_provider import LLMProvider
 
-from pirn_agents.specializations.llm_response_text import extract_response_text
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.types.tool_call import ToolCall
 
 
@@ -95,7 +95,7 @@ class ReWooPlanner(Knot):
                 {"role": "user", "content": user},
             ]
         )
-        return self._parse_calls(extract_response_text(raw))
+        return self._parse_calls(LlmResponseText().extract(raw))
 
     @staticmethod
     def _parse_calls(text: str) -> tuple[ToolCall, ...]:

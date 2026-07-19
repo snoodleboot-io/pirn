@@ -25,7 +25,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from re import Pattern
 
-from pirn_agents._regex_utils import compile_safe_pattern
+from pirn_agents._safe_pattern_compiler import SafePatternCompiler
 from pirn_agents.security.injection_detected_error import InjectionDetectedError
 from pirn_agents.security.injection_verdict import InjectionVerdict
 from pirn_agents.security.llm_injection_classifier import LlmInjectionClassifier
@@ -77,9 +77,12 @@ class InjectionScreen:
                 raise ValueError(f"InjectionScreen: {label} must be in [0, 1]")
         if ambiguous_threshold > flag_threshold:
             raise ValueError("InjectionScreen: ambiguous_threshold must be <= flag_threshold")
+        self._pattern_compiler = SafePatternCompiler()
         raw = list(patterns) if patterns is not None else self._defaults()
         self._patterns: tuple[Pattern[str], ...] = tuple(
-            compile_safe_pattern(p, index=i, owner="InjectionScreen", field="patterns")
+            self._pattern_compiler.compile_safe_pattern(
+                p, index=i, owner="InjectionScreen", field="patterns"
+            )
             for i, p in enumerate(raw)
         )
         self._classifier = classifier

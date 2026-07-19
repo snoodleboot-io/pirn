@@ -20,7 +20,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.providers.llm_provider import LLMProvider
 
-from pirn_agents.specializations.llm_response_text import extract_response_text
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 
 
 class LatsActionProposer(Knot):
@@ -76,7 +76,7 @@ class LatsActionProposer(Knot):
                 {"role": "user", "content": user},
             ]
         )
-        return self._parse_actions(extract_response_text(raw))
+        return self._parse_actions(LlmResponseText().extract(raw))
 
     @staticmethod
     def _parse_actions(text: str) -> tuple[str, ...]:

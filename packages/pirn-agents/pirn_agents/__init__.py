@@ -31,7 +31,7 @@ from pirn_agents.builder.agent_pattern_registry import AgentPatternRegistry
 from pirn_agents.builder.agent_presets import AgentPresets
 from pirn_agents.builder.agent_spec import AgentSpec
 from pirn_agents.builder.agent_spec_loader import AgentSpecLoader
-from pirn_agents.capability_probe import available_extras
+from pirn_agents.capability_probe import CapabilityProbe
 from pirn_agents.connector_lifespan import connector_lifespan
 from pirn_agents.connectors.blob_store import BlobStore
 from pirn_agents.connectors.http_connector import HttpConnector
@@ -101,6 +101,8 @@ from pirn_agents.toolset import Toolset
 with warnings.catch_warnings():
     warnings.simplefilter("ignore", SweetTeaWarning)
     Registry.fill_registry(module=__name__, library="pirn")
+
+available_extras = CapabilityProbe().available_extras
 
 __all__ = [
     "Agent",

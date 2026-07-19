@@ -8,7 +8,7 @@ cleaned tuple of messages.
 
 Algorithm:
     1. Compile all ``deny_patterns`` and ``pii_patterns`` strings via
-       :func:`compile_safe_pattern`.
+       :meth:`SafePatternCompiler.compile_safe_pattern`.
     2. Iterate over ``messages`` in order:
        a. Raise :class:`TypeError` if an element is not an :class:`AgentMessage`.
        b. Run deny-pattern matching in a thread (``asyncio.to_thread``) and
@@ -37,7 +37,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents._regex_utils import compile_safe_pattern
+from pirn_agents._safe_pattern_compiler import SafePatternCompiler
 from pirn_agents.types.agent_message import AgentMessage
 
 
@@ -53,6 +53,7 @@ class InputMessageScrubber(Knot):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        self._pattern_compiler = SafePatternCompiler()
         super().__init__(
             messages=messages,
             deny_patterns=deny_patterns,
@@ -81,11 +82,15 @@ class InputMessageScrubber(Knot):
             ValueError: If any message content matches a deny pattern.
         """
         deny_compiled = tuple(
-            compile_safe_pattern(raw, index=i, owner="InputMessageScrubber", field="deny_patterns")
+            self._pattern_compiler.compile_safe_pattern(
+                raw, index=i, owner="InputMessageScrubber", field="deny_patterns"
+            )
             for i, raw in enumerate(deny_patterns)
         )
         pii_compiled = tuple(
-            compile_safe_pattern(raw, index=i, owner="InputMessageScrubber", field="pii_patterns")
+            self._pattern_compiler.compile_safe_pattern(
+                raw, index=i, owner="InputMessageScrubber", field="pii_patterns"
+            )
             for i, raw in enumerate(pii_patterns)
         )
         cleaned: list[AgentMessage] = []

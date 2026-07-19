@@ -7,13 +7,13 @@ On success the response is returned unchanged.
 
 Algorithm:
     1. Compile each raw string in ``deny_patterns`` into a regex via
-       :func:`compile_safe_pattern`; raise :class:`ValueError` on invalid
+       :meth:`~pirn_agents._safe_pattern_compiler.SafePatternCompiler.compile_safe_pattern`; raise :class:`ValueError` on invalid
        patterns.
     2. Build a frozen set from ``allowed_tool_names`` for O(1) membership
        tests.
     3. Validate that ``response`` is an :class:`AgentResponse`; raise
        :class:`TypeError` otherwise.
-    4. Run :func:`search_any` over the compiled deny patterns against
+    4. Run :meth:`~pirn_agents._safe_pattern_compiler.SafePatternCompiler.search_any` over the compiled deny patterns against
        ``response.content``; raise :class:`ValueError` on the first match.
     5. Iterate ``response.tool_calls``; raise :class:`ValueError` for any
        ``tool_name`` absent from the allowed set.
@@ -22,8 +22,8 @@ Algorithm:
 
 References:
     - pirn-native: :class:`pirn_agents.types.agent_response.AgentResponse`
-    - pirn-native: :func:`pirn_agents._regex_utils.compile_safe_pattern`
-    - pirn-native: :func:`pirn_agents._regex_utils.search_any`
+    - pirn-native: :meth:`pirn_agents._safe_pattern_compiler.SafePatternCompiler.compile_safe_pattern`
+    - pirn-native: :meth:`pirn_agents._safe_pattern_compiler.SafePatternCompiler.search_any`
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents._regex_utils import compile_safe_pattern, search_any
+from pirn_agents._safe_pattern_compiler import SafePatternCompiler
 from pirn_agents.types.agent_response import AgentResponse
 
 
@@ -50,6 +50,7 @@ class OutputResponseValidator(Knot):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        self._pattern_compiler = SafePatternCompiler()
         super().__init__(
             response=response,
             deny_patterns=deny_patterns,
@@ -78,7 +79,7 @@ class OutputResponseValidator(Knot):
             ValueError: If the response content matches a deny pattern or a tool call references a disallowed tool.
         """
         deny_compiled = tuple(
-            compile_safe_pattern(
+            self._pattern_compiler.compile_safe_pattern(
                 raw, index=i, owner="OutputResponseValidator", field="deny_patterns"
             )
             for i, raw in enumerate(deny_patterns)
@@ -89,7 +90,7 @@ class OutputResponseValidator(Knot):
                 "OutputResponseValidator: response must be an AgentResponse, "
                 f"got {type(response).__name__}"
             )
-        match = await search_any(deny_compiled, response.content)
+        match = await self._pattern_compiler.search_any(deny_compiled, response.content)
         if match is not None:
             raise ValueError(
                 "OutputResponseValidator: response content matched deny "

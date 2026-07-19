@@ -19,7 +19,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from re import DOTALL, IGNORECASE, Match, Pattern
 
-from pirn_agents._regex_utils import compile_safe_pattern
+from pirn_agents._safe_pattern_compiler import SafePatternCompiler
 from pirn_agents.security.quarantined_item import QuarantinedItem
 
 
@@ -36,13 +36,14 @@ class ActiveContentQuarantine:
         Raises:
             ValueError: If any supplied regex is invalid.
         """
+        self._pattern_compiler = SafePatternCompiler()
         specs = self._defaults()
         if extra_patterns is not None:
             specs = [*specs, *extra_patterns]
         self._patterns: tuple[tuple[str, Pattern[str]], ...] = tuple(
             (
                 kind,
-                compile_safe_pattern(
+                self._pattern_compiler.compile_safe_pattern(
                     regex,
                     index=index,
                     owner="ActiveContentQuarantine",
