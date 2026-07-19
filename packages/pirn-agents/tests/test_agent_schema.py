@@ -1,4 +1,4 @@
-"""Tests for :mod:`pirn_agents.agent_schema` (F7-S2 schema derivation)."""
+"""Tests for :mod:`pirn_agents.agent_schema_deriver` (F7-S2 schema derivation)."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.agent_schema import default_agent_schema, derive_agent_schema
+from pirn_agents.agent_schema_deriver import AgentSchemaDeriver
 from tests.agent_tool_doubles import NoInputAgent, TopicMaxAgent, reset_doubles
 
 
@@ -19,7 +19,7 @@ class TestDeriveAgentSchema(unittest.TestCase):
         with Tapestry():
             agent = TopicMaxAgent(topic="seed", _config=KnotConfig(id="a"))
 
-        schema = dict(derive_agent_schema(agent))
+        schema = dict(AgentSchemaDeriver().derive(agent))
 
         self.assertEqual(schema["type"], "object")
         self.assertEqual(
@@ -33,7 +33,7 @@ class TestDeriveAgentSchema(unittest.TestCase):
         with Tapestry():
             agent = TopicMaxAgent(topic="seed", _config=KnotConfig(id="a"))
 
-        schema = dict(derive_agent_schema(agent))
+        schema = dict(AgentSchemaDeriver().derive(agent))
 
         self.assertNotIn("llm", schema["properties"])
         self.assertNotIn("tools", schema["properties"])
@@ -42,7 +42,7 @@ class TestDeriveAgentSchema(unittest.TestCase):
         with Tapestry():
             agent = NoInputAgent(_config=KnotConfig(id="a"))
 
-        schema = dict(derive_agent_schema(agent))
+        schema = dict(AgentSchemaDeriver().derive(agent))
 
-        self.assertEqual(schema, default_agent_schema())
+        self.assertEqual(schema, AgentSchemaDeriver().default_schema())
         self.assertEqual(schema["properties"], {"task": {"type": "string"}})

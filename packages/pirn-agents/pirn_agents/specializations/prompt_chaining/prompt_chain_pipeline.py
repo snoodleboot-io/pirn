@@ -21,7 +21,7 @@ from pirn.core.providers.llm_provider import LLMProvider
 from pirn.nodes.source import Source
 from pirn.nodes.sub_tapestry import SubTapestry
 
-from pirn_agents.specializations.llm_response_text import extract_response_text
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.specializations.prompt_chaining.prompt_chain_result import PromptChainResult
 
 
@@ -88,7 +88,7 @@ class PromptChainPipeline(SubTapestry):
                     {"role": "user", "content": current},
                 ]
             )
-            current = extract_response_text(raw)
+            current = LlmResponseText().extract(raw)
             outputs.append(current)
 
         result = PromptChainResult(outputs=tuple(outputs), final=outputs[-1])

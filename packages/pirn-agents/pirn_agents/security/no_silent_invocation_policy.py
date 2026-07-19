@@ -18,7 +18,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from re import Pattern
 
-from pirn_agents._regex_utils import compile_safe_pattern
+from pirn_agents._safe_pattern_compiler import SafePatternCompiler
 from pirn_agents.security.untrusted_content import UntrustedContent
 from pirn_agents.security.untrusted_directive_error import UntrustedDirectiveError
 
@@ -32,14 +32,15 @@ class NoSilentInvocationPolicy:
         Args:
             directive_patterns: Optional override for the default regex set. Each
                 entry is compiled case-insensitively via
-                :func:`~pirn_agents._regex_utils.compile_safe_pattern`.
+                :meth:`~pirn_agents._safe_pattern_compiler.SafePatternCompiler.compile_safe_pattern`.
 
         Raises:
             ValueError: If any supplied pattern is not valid regex.
         """
+        self._pattern_compiler = SafePatternCompiler()
         raw = list(directive_patterns) if directive_patterns is not None else self._defaults()
         self._patterns: tuple[Pattern[str], ...] = tuple(
-            compile_safe_pattern(
+            self._pattern_compiler.compile_safe_pattern(
                 pattern,
                 index=index,
                 owner="NoSilentInvocationPolicy",

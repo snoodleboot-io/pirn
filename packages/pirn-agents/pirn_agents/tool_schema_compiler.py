@@ -2,7 +2,7 @@
 
 The single home for the annotation→JSON-Schema mapping used both by the
 ``@tool`` decorator (for a plain function's signature) and by
-:func:`~pirn_agents.agent_schema.derive_agent_schema` (for a ``SubTapestry``
+:meth:`~pirn_agents.agent_schema_deriver.AgentSchemaDeriver.derive` (for a ``SubTapestry``
 agent's ``process`` signature). Grouping the mapping, the signature/return
 derivation, and the pydantic-model bridging into one collaborator keeps the
 Python-type → schema logic in one place instead of scattered free functions, and

@@ -13,7 +13,8 @@ SubTapestry's ``process`` without being wrapped in
 redaction stage.
 
 Algorithm:
-    1. Compile each deny pattern string using :func:`compile_safe_pattern`;
+    1. Compile each deny pattern string using
+       :meth:`SafePatternCompiler.compile_safe_pattern`;
        raise :class:`ValueError` on invalid regex.
     2. Iterate over ``messages`` in order:
        a. Raise :class:`TypeError` if an element is not an :class:`AgentMessage`.
@@ -40,7 +41,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.sub_tapestry import SubTapestry
 
-from pirn_agents._regex_utils import compile_safe_pattern
+from pirn_agents._safe_pattern_compiler import SafePatternCompiler
 from pirn_agents.specializations.guardrails.input_message_scrubber import (
     InputMessageScrubber,
 )
@@ -59,6 +60,7 @@ class InputGuardrailGate(SubTapestry):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        self._pattern_compiler = SafePatternCompiler()
         super().__init__(
             messages=messages,
             deny_patterns=deny_patterns,
@@ -87,7 +89,9 @@ class InputGuardrailGate(SubTapestry):
             ValueError: If any message content matches a deny pattern.
         """
         deny_compiled = [
-            compile_safe_pattern(raw, index=i, owner="InputGuardrailGate", field="deny_patterns")
+            self._pattern_compiler.compile_safe_pattern(
+                raw, index=i, owner="InputGuardrailGate", field="deny_patterns"
+            )
             for i, raw in enumerate(deny_patterns)
         ]
         message_tuple = tuple(messages)

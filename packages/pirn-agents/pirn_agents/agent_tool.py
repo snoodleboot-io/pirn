@@ -23,7 +23,7 @@ from pirn.core.providers.llm_provider import LLMProvider
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.agent_invoker import AgentInvoker
-from pirn_agents.agent_schema import derive_agent_schema
+from pirn_agents.agent_schema_deriver import AgentSchemaDeriver
 from pirn_agents.performance.run_budget import RunBudget
 from pirn_agents.tool import Tool
 from pirn_agents.types.tool_result import ToolResult
@@ -83,7 +83,9 @@ class AgentTool(Tool):
             description if description is not None else _default_description(agent, self._name)
         )
         self._schema: dict[str, Any] = (
-            dict(input_schema) if input_schema is not None else dict(derive_agent_schema(agent))
+            dict(input_schema)
+            if input_schema is not None
+            else dict(AgentSchemaDeriver().derive(agent))
         )
         self._provider = provider
         self._budget = budget

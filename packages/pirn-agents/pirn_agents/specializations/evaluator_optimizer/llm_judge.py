@@ -25,7 +25,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.providers.llm_provider import LLMProvider
 
 from pirn_agents.specializations.evaluator_optimizer.judge_verdict import JudgeVerdict
-from pirn_agents.specializations.llm_response_text import extract_response_text
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 
 
 class LlmJudge(Knot):
@@ -81,7 +81,7 @@ class LlmJudge(Knot):
                 {"role": "user", "content": user},
             ]
         )
-        text = extract_response_text(raw)
+        text = LlmResponseText().extract(raw)
         return JudgeVerdict(score=self._parse_score(text), feedback=text.strip())
 
     @staticmethod

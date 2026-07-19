@@ -9,7 +9,7 @@ Algorithm:
 
 
 References:
-    - :mod:`pirn_agents._regex_utils` — ``compile_safe_pattern``, ``search_any``
+    - :mod:`pirn_agents._safe_pattern_compiler` — ``SafePatternCompiler``
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents._regex_utils import compile_patterns, search_any
+from pirn_agents._safe_pattern_compiler import SafePatternCompiler
 from pirn_agents.types.agent_message import AgentMessage
 from pirn_agents.types.agent_response import AgentResponse
 
@@ -44,6 +44,7 @@ class SafetyCheck(Knot):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        self._pattern_compiler = SafePatternCompiler()
         super().__init__(
             message=message,
             deny_patterns=deny_patterns,
@@ -54,7 +55,7 @@ class SafetyCheck(Knot):
         # build time. A ``Knot`` reference resolves later, so it is validated
         # at process time instead.
         if not isinstance(deny_patterns, Knot):
-            compile_patterns(
+            self._pattern_compiler.compile_patterns(
                 deny_patterns,
                 owner="SafetyCheck",
                 field="deny_patterns",
@@ -85,12 +86,12 @@ class SafetyCheck(Knot):
                 "SafetyCheck: message must be an AgentMessage or AgentResponse, "
                 f"got {type(message).__name__}"
             )
-        compiled = compile_patterns(
+        compiled = self._pattern_compiler.compile_patterns(
             deny_patterns,
             owner="SafetyCheck",
             field="deny_patterns",
             flags=re.IGNORECASE,
         )
         content = message.content
-        match = await search_any(tuple(compiled), content)
+        match = await self._pattern_compiler.search_any(tuple(compiled), content)
         return match is None
