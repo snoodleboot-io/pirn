@@ -43,10 +43,7 @@ class ToolChoiceAccuracyTests(unittest.TestCase):
         actual = Trajectory(steps=[TrajectoryStep(tool_name="s", arguments={"q": "wrong"})])
         expected = Trajectory(steps=[TrajectoryStep(tool_name="s", arguments={"q": "right"})])
         assert ToolChoiceAccuracy().score(actual, expected).score == 1.0
-        assert (
-            ToolChoiceAccuracy(match_arguments=True).score(actual, expected).score
-            == 0.0
-        )
+        assert ToolChoiceAccuracy(match_arguments=True).score(actual, expected).score == 0.0
 
     def test_non_trajectory_raises(self) -> None:
         with self.assertRaises(TypeError):
@@ -62,9 +59,7 @@ class StepEfficiencyTests(unittest.TestCase):
 
     def test_extra_steps_scores_below_one(self) -> None:
         # 2 expected / 4 actual = 0.5
-        assert StepEfficiency().score(
-            _traj("a", "b", "c", "d"), _traj("a", "b")
-        ).score == (0.5)
+        assert StepEfficiency().score(_traj("a", "b", "c", "d"), _traj("a", "b")).score == (0.5)
 
     def test_no_steps_taken_when_some_expected_scores_zero(self) -> None:
         assert StepEfficiency().score(_traj(), _traj("a")).score == 0.0

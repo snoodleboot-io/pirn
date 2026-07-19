@@ -69,9 +69,7 @@ class SemanticMatch(Metric):
             TypeError: If either string argument is not a ``str``.
         """
         if not isinstance(actual, str):
-            raise TypeError(
-                f"SemanticMatch: prediction must be a str, got {type(actual).__name__}"
-            )
+            raise TypeError(f"SemanticMatch: prediction must be a str, got {type(actual).__name__}")
         if not isinstance(expected, str):
             raise TypeError(
                 f"SemanticMatch: reference must be a str, got {type(expected).__name__}"
