@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from pirn_agents.tools.base_tool import BaseTool
-from pirn_agents.tools.filesystem._path_guard import resolve_in_root, resolve_root
+from pirn_agents.tools.filesystem._path_guard import PathGuard
 
 
 class ReadFileTool(BaseTool):
@@ -28,7 +28,7 @@ class ReadFileTool(BaseTool):
         """
         if max_bytes <= 0:
             raise ValueError(f"read_file: max_bytes must be positive, got {max_bytes}")
-        self._root = resolve_root(str(root))
+        self._guard = PathGuard(root=str(root))
         self._max_bytes = max_bytes
 
     @property
@@ -68,7 +68,7 @@ class ReadFileTool(BaseTool):
         """
         self._require_mapping(self.name, arguments)
         relative = self._string_argument(self.name, arguments, "path")
-        resolved = resolve_in_root(self._root, relative, must_exist=True)
+        resolved = self._guard.resolve(relative, must_exist=True)
         if not resolved.is_file():
             raise ValueError(f"read_file: not a regular file: {relative!r}")
         data = await asyncio.to_thread(self._read_capped, resolved)

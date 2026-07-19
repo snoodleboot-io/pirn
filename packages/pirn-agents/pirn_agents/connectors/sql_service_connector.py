@@ -11,7 +11,7 @@ imported so importing this module stays backend-free:
 Safety levers mirror the F6 ``sql_query`` tool:
 
 * **read-only mode** (default) rejects any non-``SELECT``/``WITH`` statement via
-  :func:`~pirn_agents.tools.sql._read_only_guard.assert_read_only`;
+  :meth:`~pirn_agents.tools.sql._read_only_sql_guard.ReadOnlySqlGuard.assert_read_only`;
 * **parameterized queries** — bound parameters are passed to the driver, never
   interpolated into the SQL text;
 * **row cap** — the materialised result set is truncated to ``max_rows``.
@@ -25,7 +25,7 @@ from typing import Any
 
 from pirn_agents.connector_base import ConnectorBase
 from pirn_agents.credential_ref import CredentialRef
-from pirn_agents.tools.sql._read_only_guard import assert_read_only
+from pirn_agents.tools.sql._read_only_sql_guard import ReadOnlySqlGuard
 
 
 class SqlServiceConnector(ConnectorBase):
@@ -71,6 +71,7 @@ class SqlServiceConnector(ConnectorBase):
         self._dsn = dsn
         self._read_only = read_only
         self._max_rows = max_rows
+        self._guard = ReadOnlySqlGuard()
         if connection is not None:
             self._client = connection
 
@@ -94,7 +95,7 @@ class SqlServiceConnector(ConnectorBase):
             ValueError: In read-only mode, if ``query`` is not a single read.
         """
         if self._read_only:
-            assert_read_only(query)
+            self._guard.assert_read_only(query)
         client = await self._get_client()
         if self._driver == "aiosqlite":
             return await self._execute_aiosqlite(client, query, parameters)

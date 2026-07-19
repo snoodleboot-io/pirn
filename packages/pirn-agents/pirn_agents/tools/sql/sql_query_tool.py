@@ -6,7 +6,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 from pirn_agents.tools.base_tool import BaseTool
-from pirn_agents.tools.sql._read_only_guard import assert_read_only
+from pirn_agents.tools.sql._read_only_sql_guard import ReadOnlySqlGuard
 from pirn_agents.tools.sql.sql_connector import SqlConnector
 
 
@@ -41,6 +41,7 @@ class SqlQueryTool(BaseTool):
         self._connector = connector
         self._read_only = read_only
         self._max_rows = max_rows
+        self._guard = ReadOnlySqlGuard()
 
     @property
     def name(self) -> str:
@@ -81,7 +82,7 @@ class SqlQueryTool(BaseTool):
         self._require_mapping(self.name, arguments)
         query = self._string_argument(self.name, arguments, "query")
         if self._read_only:
-            assert_read_only(query)
+            self._guard.assert_read_only(query)
         parameters = self._coerce_parameters(arguments.get("parameters"))
         columns, rows = await self._connector.execute(query, parameters)
         row_list = list(rows)

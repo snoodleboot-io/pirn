@@ -3,7 +3,7 @@
 The tool lazily imports ``httpx`` (the ``web`` extra) only when no client is
 injected, so importing the module stays backend-free. An injectable client and
 DNS resolver keep unit tests fully offline. Every request is vetted by
-:func:`~pirn_agents.tools.web._ssrf_guard.assert_public_host`, restricted to
+:meth:`~pirn_agents.tools.web._ssrf_guard.SsrfGuard.assert_public_host`, restricted to
 ``GET``/``HEAD``, and the response body is streamed and truncated at
 ``max_bytes`` to protect the context window.
 """
@@ -15,7 +15,7 @@ from typing import Any
 
 from pirn_agents._require import _require
 from pirn_agents.tools.base_tool import BaseTool
-from pirn_agents.tools.web._ssrf_guard import assert_public_host
+from pirn_agents.tools.web._ssrf_guard import SsrfGuard
 
 
 class HttpRequestTool(BaseTool):
@@ -50,13 +50,13 @@ class HttpRequestTool(BaseTool):
         """
         if max_bytes <= 0:
             raise ValueError(f"http_request: max_bytes must be positive, got {max_bytes}")
-        self._allowed_hosts = allowed_hosts
+        self._guard = SsrfGuard(
+            allowed_hosts=allowed_hosts, allow_private=allow_private, resolver=resolver
+        )
         self._max_bytes = max_bytes
         self._timeout = timeout
         self._connect_timeout = connect_timeout
-        self._allow_private = allow_private
         self._client = client
-        self._resolver = resolver
 
     @property
     def name(self) -> str:
@@ -101,12 +101,7 @@ class HttpRequestTool(BaseTool):
         method = str(arguments.get("method", "GET")).upper()
         if method not in ("GET", "HEAD"):
             raise ValueError(f"http_request: unsupported method {method!r} (use GET or HEAD)")
-        assert_public_host(
-            url,
-            allowed_hosts=self._allowed_hosts,
-            allow_private=self._allow_private,
-            resolver=self._resolver,
-        )
+        self._guard.assert_public_host(url)
         if self._client is not None:
             return await self._request(self._client, method, url)
         httpx = _require("web", "httpx")

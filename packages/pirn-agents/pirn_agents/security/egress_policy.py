@@ -11,7 +11,7 @@ On each call it applies, in order:
 1. **Deny-list** — an explicit block-list of hosts, checked first so a denied
    host can never be re-allowed.
 2. **Allow-list + SSRF guard** — delegated to the F6
-   :func:`~pirn_agents.tools.web._ssrf_guard.assert_public_host`, which enforces
+   :meth:`~pirn_agents.tools.web._ssrf_guard.SsrfGuard.assert_public_host`, which enforces
    an http(s) scheme, an optional host allow-list, and (unless ``allow_private``)
    rejects private / loopback / link-local / reserved / multicast IPs — including
    the cloud metadata endpoint ``169.254.169.254``.
@@ -26,7 +26,7 @@ from collections.abc import Callable, Sequence
 from urllib.parse import urlparse
 
 from pirn_agents.security.egress_error import EgressError
-from pirn_agents.tools.web._ssrf_guard import assert_public_host
+from pirn_agents.tools.web._ssrf_guard import SsrfGuard
 
 
 class EgressPolicy:
@@ -55,11 +55,14 @@ class EgressPolicy:
             TypeError: If ``allowed_hosts`` / ``denied_hosts`` are not sequences
                 of strings.
         """
-        self._allowed_hosts = self._freeze_hosts("allowed_hosts", allowed_hosts, optional=True)
+        allowed = self._freeze_hosts("allowed_hosts", allowed_hosts, optional=True)
         denied = self._freeze_hosts("denied_hosts", denied_hosts, optional=False)
         self._denied_hosts: frozenset[str] = denied if denied is not None else frozenset()
-        self._allow_private = allow_private
-        self._resolver = resolver
+        self._ssrf = SsrfGuard(
+            allowed_hosts=tuple(allowed) if allowed is not None else None,
+            allow_private=allow_private,
+            resolver=resolver,
+        )
 
     @staticmethod
     def _freeze_hosts(
@@ -87,14 +90,8 @@ class EgressPolicy:
         host = urlparse(url).hostname
         if host is not None and host in self._denied_hosts:
             raise EgressError(f"EgressPolicy: host {host!r} is deny-listed", host=host)
-        allowed = tuple(self._allowed_hosts) if self._allowed_hosts is not None else None
         try:
-            assert_public_host(
-                url,
-                allowed_hosts=allowed,
-                allow_private=self._allow_private,
-                resolver=self._resolver,
-            )
+            self._ssrf.assert_public_host(url)
         except ValueError as exc:
             raise EgressError(str(exc), host=host) from exc
 
