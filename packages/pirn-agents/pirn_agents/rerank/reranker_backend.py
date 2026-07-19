@@ -11,7 +11,7 @@ interface style — never :class:`typing.Protocol`) and is opaque
 backend holds live model state: it drops into the pirn graph as a config value
 by ``isinstance`` — the very check the knot uses to validate an injected
 backend — without descending into the content-addressed hash. Model on the
-sibling :class:`~pirn.core.providers.llm_provider.LLMProvider`.
+sibling :class:`~pirn_agents.llm_provider.LLMProvider`.
 """
 
 from __future__ import annotations

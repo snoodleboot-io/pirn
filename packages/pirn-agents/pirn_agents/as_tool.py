@@ -10,10 +10,10 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from pirn.core.providers.llm_provider import LLMProvider
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.agent_tool import AgentTool
+from pirn_agents.llm_provider import LLMProvider
 from pirn_agents.performance.run_budget import RunBudget
 
 

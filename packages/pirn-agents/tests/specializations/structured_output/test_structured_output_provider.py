@@ -11,9 +11,9 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
-from pirn.core.providers.llm_provider import LLMProvider
 
 from pirn_agents.llm.base_llm_provider import BaseLLMProvider
+from pirn_agents.llm_provider import LLMProvider
 from pirn_agents.specializations.structured_output.structured_output_capability import (
     StructuredOutputCapability,
 )

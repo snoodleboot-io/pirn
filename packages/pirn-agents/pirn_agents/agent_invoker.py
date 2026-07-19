@@ -12,7 +12,7 @@ funnels through :meth:`AgentInvoker.invoke` so the guarantees never diverge:
   (never re-created) and spent per nested call, so a nested loop cannot outrun
   the caller's deadline/token/iteration limits.
 * **Shared provider reuse** (F7-S5): the parent's pooled
-  :class:`~pirn.core.providers.llm_provider.LLMProvider` is threaded into the
+  :class:`~pirn_agents.llm_provider.LLMProvider` is threaded into the
   nested run rather than reconstructed on the hot path.
 * **Result mapping** (F7-S1): the inner :class:`AgentResponse` is mapped to the
   F1 :class:`ToolResult` shape; an inner failure surfaces as a tool error, not
@@ -30,8 +30,6 @@ import time
 from collections.abc import Mapping
 from typing import Any
 
-from pirn.core.providers.llm_provider import LLMProvider
-
 from pirn_agents.agent_introspector import AgentIntrospector
 from pirn_agents.agent_response_mapper import AgentResponseMapper
 from pirn_agents.agent_tool_context import (
@@ -39,6 +37,7 @@ from pirn_agents.agent_tool_context import (
     bind_agent_tool_context,
     current_agent_tool_context,
 )
+from pirn_agents.llm_provider import LLMProvider
 from pirn_agents.performance.run_budget import RunBudget
 from pirn_agents.performance.run_budget_meter import RunBudgetMeter
 from pirn_agents.types.agent_response import AgentResponse

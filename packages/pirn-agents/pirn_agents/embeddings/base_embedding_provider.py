@@ -17,7 +17,7 @@ The base then layers three cross-cutting behaviours every adapter shares:
   optional exponential backoff.
 
 It aligns with
-:class:`pirn.core.providers.embedding_provider.EmbeddingProvider`: the public
+:class:`pirn_agents.embedding_provider.EmbeddingProvider`: the public
 surface is :meth:`embed` and :meth:`close`.
 """
 
@@ -27,7 +27,7 @@ import asyncio
 from collections.abc import Iterator, Sequence
 from typing import Any
 
-from pirn.core.providers.embedding_provider import EmbeddingProvider
+from pirn_agents.embedding_provider import EmbeddingProvider
 
 
 class BaseEmbeddingProvider(EmbeddingProvider):

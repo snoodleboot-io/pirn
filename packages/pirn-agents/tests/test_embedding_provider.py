@@ -1,10 +1,10 @@
-"""Unit tests for :class:`EmbeddingProvider`."""
+"""Unit tests for pirn-agents' :class:`EmbeddingProvider` (PIR-735: domain-owned)."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn.core.providers.embedding_provider import EmbeddingProvider
+from pirn_agents.embedding_provider import EmbeddingProvider
 
 
 class _StubProvider(EmbeddingProvider):

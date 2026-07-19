@@ -6,7 +6,8 @@ import unittest
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.core.knot_config import KnotConfig
-from pirn.core.providers.embedding_provider import EmbeddingProvider
+
+from pirn_ml.ml_embedding_provider import MLEmbeddingProvider
 from pirn_ml.specializations.task_pipelines.nlp_pipeline import NLPPipeline
 
 
@@ -14,7 +15,7 @@ class _StubPool(DatabaseConnectionPool):
     pass
 
 
-class _StubProvider(EmbeddingProvider):
+class _StubProvider(MLEmbeddingProvider):
     async def embed(self, texts, *, model=None):
         return [[0.1, 0.2] for _ in texts]
 

@@ -18,8 +18,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from pirn.core.providers.llm_provider import LLMProvider
-
+from pirn_agents.llm_provider import LLMProvider
 from pirn_agents.memory_store import MemoryStore
 from pirn_agents.tool import Tool
 from pirn_agents.tools.calculator.calculator_tool import CalculatorTool

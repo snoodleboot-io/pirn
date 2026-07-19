@@ -10,8 +10,8 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Callable, Mapping, Sequence
 from typing import Any
 
-from pirn.core.providers.embedding_provider import EmbeddingProvider
-from pirn.core.providers.llm_provider import LLMProvider
+from pirn_agents.embedding_provider import EmbeddingProvider
+from pirn_agents.llm_provider import LLMProvider
 
 
 class ScriptedJudgeProvider(LLMProvider):

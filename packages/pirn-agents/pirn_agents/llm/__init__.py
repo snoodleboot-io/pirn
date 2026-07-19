@@ -1,6 +1,6 @@
 """LLM provider connectors (PAE-F3 / PIR-16).
 
-Concrete :class:`pirn.core.providers.llm_provider.LLMProvider` implementations
+Concrete :class:`pirn_agents.llm_provider.LLMProvider` implementations
 built on the shared :class:`pirn_agents.llm.base_llm_provider.BaseLLMProvider`.
 Every provider is a peer plugin behind an optional extra; importing this
 package pulls in **no** backend (the HTTP client is imported lazily via

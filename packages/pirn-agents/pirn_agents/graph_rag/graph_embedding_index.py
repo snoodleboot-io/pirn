@@ -1,7 +1,7 @@
 """``GraphEmbeddingIndex`` — node/edge embeddings over the F4 vector stack.
 
 Generates embeddings for graph elements provider-neutrally through the existing
-F4 :class:`~pirn.core.providers.embedding_provider.EmbeddingProvider` and stores
+F4 :class:`~pirn_agents.embedding_provider.EmbeddingProvider` and stores
 the resulting vectors alongside the graph in a
 :class:`~pirn_agents.vector_stores.vector_memory_store.VectorMemoryStore` (the
 zero-dep :class:`InMemoryVectorStore` by default). Nodes and edges are tagged
@@ -15,8 +15,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from pirn.core.providers.embedding_provider import EmbeddingProvider
-
+from pirn_agents.embedding_provider import EmbeddingProvider
 from pirn_agents.graph_rag.node_embedding_index import NodeEmbeddingIndex
 from pirn_agents.graph_stores.graph_edge import GraphEdge
 from pirn_agents.graph_stores.graph_node import GraphNode

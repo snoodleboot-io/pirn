@@ -25,8 +25,8 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.providers.embedding_provider import EmbeddingProvider
 
+from pirn_agents.embedding_provider import EmbeddingProvider
 from pirn_agents.retrieval.bm25_index import Bm25Index
 from pirn_agents.retrieval.reciprocal_rank_fusion import reciprocal_rank_fusion
 from pirn_agents.vector_stores.vector_memory_store import VectorMemoryStore

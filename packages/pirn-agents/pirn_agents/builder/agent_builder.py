@@ -21,12 +21,12 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from pirn.core.providers.llm_provider import LLMProvider
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.builder.agent_knot_id_factory import AgentKnotIdFactory
 from pirn_agents.builder.agent_pattern_registry import AgentPatternRegistry
 from pirn_agents.builder.agent_spec import AgentSpec
+from pirn_agents.llm_provider import LLMProvider
 from pirn_agents.memory_store import MemoryStore
 from pirn_agents.tool import Tool
 from pirn_agents.toolset import Toolset

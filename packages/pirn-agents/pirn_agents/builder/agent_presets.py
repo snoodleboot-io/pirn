@@ -16,10 +16,10 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from pirn.core.providers.llm_provider import LLMProvider
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.builder.agent import Agent
+from pirn_agents.llm_provider import LLMProvider
 from pirn_agents.memory_store import MemoryStore
 from pirn_agents.tool import Tool
 from pirn_agents.tools.bundles import (

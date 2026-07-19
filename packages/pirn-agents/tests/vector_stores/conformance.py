@@ -17,8 +17,8 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 import numpy as np
-from pirn.core.providers.embedding_provider import EmbeddingProvider
 
+from pirn_agents.embedding_provider import EmbeddingProvider
 from pirn_agents.vector_stores.metadata_match import matches_metadata_filter
 from pirn_agents.vector_stores.vector_backend_client import VectorBackendClient
 from pirn_agents.vector_stores.vector_memory_store import VectorMemoryStore
