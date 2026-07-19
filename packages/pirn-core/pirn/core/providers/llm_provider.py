@@ -53,25 +53,6 @@ class LLMProvider(PirnOpaqueValue):
         """Release any underlying connections / resources."""
         raise NotImplementedError(f"{type(self).__name__} must implement close()")
 
-    @property
-    def prompt_cache_enabled(self) -> bool:
-        """Whether this provider caches large, stable prompt prefixes server-side.
-
-        Default ``False``. A provider with native prompt caching overrides this to
-        ``True`` and implements :meth:`mark_prompt_cache`.
-        """
-        return False
-
-    def mark_prompt_cache(
-        self, messages: Sequence[Mapping[str, Any]]
-    ) -> Sequence[Mapping[str, Any]]:
-        """Annotate ``messages`` for the provider's native prompt cache.
-
-        Only meaningful when :attr:`prompt_cache_enabled` is ``True``; the default
-        raises since a base provider has no native cache to mark.
-        """
-        raise NotImplementedError(f"{type(self).__name__} does not support prompt caching")
-
     def _clear_credentials(self) -> None:
         """Drop the in-memory credential reference held by the provider.
 
