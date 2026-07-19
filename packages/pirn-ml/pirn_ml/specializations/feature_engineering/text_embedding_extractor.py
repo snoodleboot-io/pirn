@@ -26,8 +26,8 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.nodes.sub_tapestry import SubTapestry
 
-from pirn_ml.embedding_provider import EmbeddingProvider
 from pirn_ml.features.embedding_extractor import EmbeddingExtractor
+from pirn_ml.ml_embedding_provider import MLEmbeddingProvider
 from pirn_ml.types.split_manifest import SplitManifest
 
 
@@ -44,7 +44,7 @@ class TextEmbeddingExtractor(SubTapestry):
         *,
         split: Knot,
         text_column: Knot | str,
-        embedding_provider: Knot | EmbeddingProvider,
+        embedding_provider: Knot | MLEmbeddingProvider,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
@@ -60,7 +60,7 @@ class TextEmbeddingExtractor(SubTapestry):
         self,
         split: SplitManifest,
         text_column: str = "",
-        embedding_provider: EmbeddingProvider | None = None,
+        embedding_provider: MLEmbeddingProvider | None = None,
         **_: Any,
     ) -> Any:
         """Embed the text column via the embedding provider, append the feature to each partition, and return the updated SplitManifest.
@@ -68,20 +68,20 @@ class TextEmbeddingExtractor(SubTapestry):
         Args:
             split: SplitManifest whose partitions receive the new text embedding feature.
             text_column: Non-empty name of the text column to embed.
-            embedding_provider: EmbeddingProvider instance to use for embedding.
+            embedding_provider: MLEmbeddingProvider instance to use for embedding.
 
         Returns:
             SplitManifest with ``<text_column>_embedding`` appended to every partition's feature list.
 
         Raises:
             ValueError: If text_column is empty.
-            TypeError: If embedding_provider is not an EmbeddingProvider or the inner extractor does not return a SplitManifest.
+            TypeError: If embedding_provider is not an MLEmbeddingProvider or the inner extractor does not return a SplitManifest.
         """
         if not isinstance(text_column, str) or not text_column:
             raise ValueError("TextEmbeddingExtractor: text_column must be a non-empty string")
-        if not isinstance(embedding_provider, EmbeddingProvider):
+        if not isinstance(embedding_provider, MLEmbeddingProvider):
             raise TypeError(
-                "TextEmbeddingExtractor: embedding_provider must be an EmbeddingProvider"
+                "TextEmbeddingExtractor: embedding_provider must be an MLEmbeddingProvider"
             )
         split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
         return EmbeddingExtractor(

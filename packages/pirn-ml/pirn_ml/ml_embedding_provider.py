@@ -1,7 +1,7 @@
 """Interface for text embedding providers.
 
 Concrete implementations (OpenAI, Cohere, sentence-transformers, ...)
-inherit from :class:`EmbeddingProvider` and override every method.
+inherit from :class:`MLEmbeddingProvider` and override every method.
 Pirn treats providers as opaque (see
 :class:`pirn.core.pirn_opaque_value.PirnOpaqueValue`).
 """
@@ -13,7 +13,7 @@ from collections.abc import Sequence
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 
-class EmbeddingProvider(PirnOpaqueValue):
+class MLEmbeddingProvider(PirnOpaqueValue):
     """Interface every text-embedding implementation must satisfy."""
 
     async def embed(self, texts: Sequence[str], *, model: str | None = None) -> list[list[float]]:

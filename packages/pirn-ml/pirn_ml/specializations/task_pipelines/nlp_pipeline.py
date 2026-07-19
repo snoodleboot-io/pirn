@@ -2,7 +2,7 @@
 
 Composes data load → split → embedding extraction → train → evaluate.
 The :class:`EmbeddingExtractor` knot fans the configured
-:class:`EmbeddingProvider` over the named text column so the downstream
+:class:`MLEmbeddingProvider` over the named text column so the downstream
 trainer sees an :class:`DatasetManifest` whose ``feature_names`` carry the
 augmented embedding feature.
 
@@ -35,9 +35,9 @@ from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_ml.data_prep.dataset_loader import DatasetLoader
 from pirn_ml.data_prep.train_test_split import TrainTestSplit
-from pirn_ml.embedding_provider import EmbeddingProvider
 from pirn_ml.evaluation.evaluator import Evaluator
 from pirn_ml.features.embedding_extractor import EmbeddingExtractor
+from pirn_ml.ml_embedding_provider import MLEmbeddingProvider
 from pirn_ml.training.trainer import Trainer
 
 
@@ -58,7 +58,7 @@ class NLPPipeline(SubTapestry):
         query: Knot | str,
         text_column: Knot | str,
         target_column: Knot | str,
-        embedding_provider: Knot | EmbeddingProvider,
+        embedding_provider: Knot | MLEmbeddingProvider,
         algorithm: Knot | str = "logistic",
         _config: KnotConfig,
         **kwargs: Any,
@@ -80,7 +80,7 @@ class NLPPipeline(SubTapestry):
         query: str = "",
         text_column: str = "",
         target_column: str = "",
-        embedding_provider: EmbeddingProvider | None = None,
+        embedding_provider: MLEmbeddingProvider | None = None,
         algorithm: str = "logistic",
         **_: Any,
     ) -> Any:
@@ -91,7 +91,7 @@ class NLPPipeline(SubTapestry):
             query: Non-empty SQL query string.
             text_column: Non-empty name of the text column.
             target_column: Non-empty name of the target column.
-            embedding_provider: EmbeddingProvider for text embedding.
+            embedding_provider: MLEmbeddingProvider for text embedding.
             algorithm: Non-empty algorithm identifier.
 
         Returns:
@@ -110,8 +110,8 @@ class NLPPipeline(SubTapestry):
             raise ValueError("NLPPipeline: text_column must be a non-empty string")
         if not isinstance(target_column, str) or not target_column:
             raise ValueError("NLPPipeline: target_column must be a non-empty string")
-        if not isinstance(embedding_provider, EmbeddingProvider):
-            raise TypeError("NLPPipeline: embedding_provider must be an EmbeddingProvider")
+        if not isinstance(embedding_provider, MLEmbeddingProvider):
+            raise TypeError("NLPPipeline: embedding_provider must be an MLEmbeddingProvider")
         if not isinstance(algorithm, str) or not algorithm:
             raise ValueError("NLPPipeline: algorithm must be a non-empty string")
         dataset = DatasetLoader(

@@ -11,7 +11,7 @@ from collections.abc import AsyncIterator, Mapping, Sequence
 from datetime import UTC, datetime
 from typing import Any
 
-from pirn_health.llm_provider import LLMProvider
+from pirn_health.health_llm_provider import HealthLLMProvider
 from pirn_health.protocols.fhir_client import FHIRClient
 from pirn_health.protocols.lab_instrument_connection import (
     LabInstrumentConnection,
@@ -21,11 +21,12 @@ from pirn_health.protocols.pacs_client import PACSClient
 from pirn_health.types.dicom_series import DICOMSeries
 
 
-class StubLLMProvider(LLMProvider):
-    """Scripted :class:`LLMProvider` double for clinical-NLP tests.
+class StubLLMProvider(HealthLLMProvider):
+    """Scripted :class:`HealthLLMProvider` double for clinical-NLP tests.
 
     Local to the health package so its tests stay isolated from
-    ``pirn-agents`` (``LLMProvider`` is a core abstraction, SCD-09).
+    ``pirn-agents`` (``HealthLLMProvider`` is health's own domain-owned
+    interface, PIR-735 — no cross-domain dependency).
     """
 
     def __init__(self, responses: Sequence[str]) -> None:
@@ -77,9 +78,7 @@ class StubFHIRClient(FHIRClient):
         self.searched: list[tuple[str, Mapping[str, Any]]] = []
         self.closed: int = 0
 
-    async def fetch_resource(
-        self, resource_type: str, id: str
-    ) -> Mapping[str, Any]:
+    async def fetch_resource(self, resource_type: str, id: str) -> Mapping[str, Any]:
         self.fetched.append((resource_type, id))
         return {"resourceType": resource_type, "id": id}
 
@@ -104,9 +103,7 @@ class StubPACSClient(PACSClient):
         self.fetched: list[tuple[str, str]] = []
         self.closed: int = 0
 
-    async def fetch_series(
-        self, study_uid: str, series_uid: str
-    ) -> DICOMSeries:
+    async def fetch_series(self, study_uid: str, series_uid: str) -> DICOMSeries:
         self.fetched.append((study_uid, series_uid))
         return DICOMSeries(
             study_uid=study_uid,

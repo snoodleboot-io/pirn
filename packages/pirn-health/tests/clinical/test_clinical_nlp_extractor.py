@@ -19,7 +19,7 @@ _PROVIDER = StubLLMProvider(["ok"])
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_provider(self) -> None:
         knot = ClinicalNLPExtractor(provider=_PROVIDER, note_text="note", _config=_CFG)
-        with self.assertRaisesRegex(TypeError, "LLMProvider"):
+        with self.assertRaisesRegex(TypeError, "HealthLLMProvider"):
             await knot.process(provider="x", note_text="note")  # type: ignore[arg-type]
 
     async def test_rejects_non_string_note(self) -> None:

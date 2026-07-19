@@ -1,7 +1,7 @@
 """Interface for asynchronous LLM chat backends.
 
 Concrete providers (Anthropic, OpenAI, local engines, stub doubles)
-inherit from :class:`LLMProvider` and implement :meth:`chat`,
+inherit from :class:`HealthLLMProvider` and implement :meth:`chat`,
 :meth:`stream_chat`, and :meth:`close`. Pirn agent knots depend only on
 this interface; the provider is constructed by the user and passed in
 as a config value.
@@ -20,7 +20,7 @@ from typing import Any
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 
-class LLMProvider(PirnOpaqueValue):
+class HealthLLMProvider(PirnOpaqueValue):
     """Interface every async LLM provider must satisfy."""
 
     async def chat(

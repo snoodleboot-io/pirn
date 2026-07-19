@@ -1,13 +1,13 @@
-"""Unit tests for pirn-health's :class:`LLMProvider` (PIR-735: domain-owned)."""
+"""Unit tests for pirn-health's :class:`HealthLLMProvider` (PIR-735: domain-owned)."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn_health.llm_provider import LLMProvider
+from pirn_health.health_llm_provider import HealthLLMProvider
 
 
-class _ConcreteLLM(LLMProvider):
+class _ConcreteLLM(HealthLLMProvider):
     async def chat(self, messages, *, model=None, max_tokens=None, temperature=None):
         return {"role": "assistant", "content": "hello"}
 
@@ -23,17 +23,17 @@ class _ConcreteLLM(LLMProvider):
 
 class TestLLMProviderInterface(unittest.IsolatedAsyncioTestCase):
     async def test_chat_raises_not_implemented(self) -> None:
-        provider = LLMProvider()
+        provider = HealthLLMProvider()
         with self.assertRaises(NotImplementedError):
             await provider.chat([])
 
     async def test_stream_chat_raises_not_implemented(self) -> None:
-        provider = LLMProvider()
+        provider = HealthLLMProvider()
         with self.assertRaises(NotImplementedError):
             await provider.stream_chat([])
 
     async def test_close_raises_not_implemented(self) -> None:
-        provider = LLMProvider()
+        provider = HealthLLMProvider()
         with self.assertRaises(NotImplementedError):
             await provider.close()
 

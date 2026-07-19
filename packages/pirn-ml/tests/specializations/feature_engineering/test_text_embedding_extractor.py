@@ -9,7 +9,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_ml.embedding_provider import EmbeddingProvider
+from pirn_ml.ml_embedding_provider import MLEmbeddingProvider
 from pirn_ml.specializations.feature_engineering.text_embedding_extractor import (
     TextEmbeddingExtractor,
 )
@@ -17,7 +17,7 @@ from pirn_ml.types.dataset_manifest import DatasetManifest
 from pirn_ml.types.split_manifest import SplitManifest
 
 
-class _StubProvider(EmbeddingProvider):
+class _StubProvider(MLEmbeddingProvider):
     async def embed(self, texts, *, model=None):
         return [[0.1, 0.2] for _ in texts]
 
