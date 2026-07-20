@@ -64,6 +64,7 @@ class TestDocumentQAPipelineProcess(unittest.IsolatedAsyncioTestCase):
                 llm=llm,
                 embedder=embedder,
                 top_k=2,
+                allowed_root=str(tmp_path),
                 _config=KnotConfig(id="qa"),
             )
         result = await t.run(RunRequest())

@@ -18,14 +18,14 @@ Internal API.
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents._require import _require
+from pirn_agents.specializations.document_processing._document_source_reader import (
+    _DocumentSourceReader,
+)
 
 
 class _LoadAndChunk(Knot):
@@ -37,11 +37,21 @@ class _LoadAndChunk(Knot):
         source: Knot | str,
         chunk_size: Knot | int,
         _config: KnotConfig,
+        allowed_root: Knot | str | None = None,
+        allowed_hosts: Knot | tuple[str, ...] | None = None,
+        max_bytes: Knot | int = _DocumentSourceReader.max_bytes,
+        request_timeout: Knot | float = _DocumentSourceReader.request_timeout,
+        connect_timeout: Knot | float = _DocumentSourceReader.connect_timeout,
         **kwargs: Any,
     ) -> None:
         super().__init__(
             source=source,
             chunk_size=chunk_size,
+            allowed_root=allowed_root,
+            allowed_hosts=allowed_hosts,
+            max_bytes=max_bytes,
+            request_timeout=request_timeout,
+            connect_timeout=connect_timeout,
             _config=_config,
             **kwargs,
         )
@@ -50,6 +60,11 @@ class _LoadAndChunk(Knot):
         self,
         source: str,
         chunk_size: int,
+        allowed_root: str | None = None,
+        allowed_hosts: tuple[str, ...] | None = None,
+        max_bytes: int = _DocumentSourceReader.max_bytes,
+        request_timeout: float = _DocumentSourceReader.request_timeout,
+        connect_timeout: float = _DocumentSourceReader.connect_timeout,
         **_: Any,
     ) -> list[str]:
         """Load text from source and split it into fixed-size chunks.
@@ -57,13 +72,19 @@ class _LoadAndChunk(Knot):
         Args:
             source: A local file path or http(s):// URL to read text from.
             chunk_size: The maximum character length of each chunk.
+            allowed_root: Directory root that local file reads must stay within.
+            allowed_hosts: Optional allow-list of hostnames for URL fetches.
+            max_bytes: Maximum file size in bytes (default 100 MiB).
+            request_timeout: HTTP request timeout in seconds.
+            connect_timeout: HTTP connection timeout in seconds.
 
         Returns:
             A list of fixed-size text chunk strings; empty if the source yields no text.
 
         Raises:
             TypeError: If source is not a non-empty string.
-            ValueError: If chunk_size is not a positive integer.
+            ValueError: If chunk_size is not a positive integer, or the source is
+                rejected by the SSRF / path-traversal guard.
         """
         if not isinstance(source, str) or not source:
             raise TypeError(
@@ -73,18 +94,14 @@ class _LoadAndChunk(Knot):
             raise ValueError(
                 f"DocumentSummarizerPipeline: chunk_size must be positive, got {chunk_size!r}"
             )
-        text = await _LoadAndChunk._load_text(source)
+        reader = _DocumentSourceReader(
+            allowed_root=allowed_root,
+            allowed_hosts=allowed_hosts,
+            max_bytes=max_bytes,
+            request_timeout=request_timeout,
+            connect_timeout=connect_timeout,
+        )
+        text = await reader.read(source)
         if not text:
             return []
         return [text[i : i + chunk_size] for i in range(0, len(text), chunk_size)]
-
-    @staticmethod
-    async def _load_text(source: str) -> str:
-        parsed = urlparse(source)
-        if parsed.scheme in ("http", "https"):
-            httpx = _require("web", "httpx")
-            async with httpx.AsyncClient() as client:
-                response = await client.get(source)
-                response.raise_for_status()
-                return response.text
-        return Path(source).read_text(encoding="utf-8")
