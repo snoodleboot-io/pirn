@@ -141,7 +141,6 @@ class _DocumentLoader(Knot):
         request_timeout: float,
         connect_timeout: float,
     ) -> str:
-        httpx = _require("web", "httpx")
         parsed = urlparse(url)
         hostname = parsed.hostname
         if not hostname:
@@ -159,6 +158,9 @@ class _DocumentLoader(Knot):
             )
         if allowed_hosts is not None and hostname not in allowed_hosts:
             raise ValueError(f"_DocumentLoader: host {hostname!r} not in allowed_hosts")
+        # Resolved only after the SSRF and allow-list checks pass: the guard must reject a
+        # hostile URL identically whether or not the optional ``web`` extra is installed.
+        httpx = _require("web", "httpx")
         timeout = httpx.Timeout(request_timeout, connect=connect_timeout)
         async with httpx.AsyncClient(
             timeout=timeout,

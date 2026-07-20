@@ -7,8 +7,9 @@ import tempfile
 import unittest
 import unittest.mock
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
+import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
@@ -150,7 +151,42 @@ class TestSSRFGuards(unittest.IsolatedAsyncioTestCase):
             with self.assertRaisesRegex(ValueError, "not in allowed_hosts"):
                 await loader.process("http://other.example/", allowed_hosts=("example.com",))
 
+    async def test_guard_rejects_before_optional_extra_is_resolved(self) -> None:
+        """The SSRF guard must fire even when the ``web`` extra is absent.
+
+        Regression test for the ordering bug where ``_require("web", "httpx")`` ran
+        ahead of the guard, so a hostile URL raised ImportError instead of ValueError
+        on an install without the extra. Forces the missing-extra path regardless of
+        whether httpx happens to be installed, so CI pins the ordering too.
+        """
+        loader = _build_loader()
+
+        def _no_extra(extra: str, module: str) -> NoReturn:
+            raise ImportError(f"{module!r} is required for this feature")
+
+        require_path = "pirn_agents.specializations.document_processing._document_loader._require"
+        # Both rejection paths, so _require cannot be relocated between them.
+        with unittest.mock.patch(
+            "pirn_agents.specializations.document_processing._document_loader.socket.gethostbyname",
+            lambda host: "169.254.169.254",
+        ):
+            with unittest.mock.patch(require_path, _no_extra):
+                with self.assertRaisesRegex(ValueError, "private/loopback/link-local"):
+                    await loader.process("http://169.254.169.254/latest/meta-data/")
+
+        with unittest.mock.patch(
+            "pirn_agents.specializations.document_processing._document_loader.socket.gethostbyname",
+            lambda host: "93.184.216.34",
+        ):
+            with unittest.mock.patch(require_path, _no_extra):
+                with self.assertRaisesRegex(ValueError, "not in allowed_hosts"):
+                    await loader.process("http://other.example/", allowed_hosts=("example.com",))
+
     async def test_allowed_host_passes(self) -> None:
+        # The only test here that needs the optional ``web`` extra: it stubs
+        # ``httpx.AsyncClient`` to exercise the post-guard fetch path. The SSRF
+        # rejection tests above deliberately require no extra.
+        httpx = pytest.importorskip("httpx")
         loader = _build_loader()
 
         class _StubResponse:
@@ -171,8 +207,6 @@ class TestSSRFGuards(unittest.IsolatedAsyncioTestCase):
 
             async def get(self, url: str) -> _StubResponse:
                 return _StubResponse()
-
-        import httpx
 
         with unittest.mock.patch(
             "pirn_agents.specializations.document_processing._document_loader.socket.gethostbyname",
