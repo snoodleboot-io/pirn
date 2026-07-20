@@ -103,7 +103,7 @@ jobs:
         package: [pirn-core, pirn-signal, pirn-data, pirn-ml, pirn-agents, pirn-health, pirn-oilgas]
     steps:
       - name: Download wheelhouse
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0 (match upload-artifact v7; v8 digest-verify mismatched v7 uploads -> stale wheelhouse)
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v7.0.0 (match upload-artifact v7; v8 digest-verify mismatched v7 uploads -> stale wheelhouse)
         with:
           name: wheelhouse-${{ needs.build.outputs.version }}
           path: dist/
@@ -140,7 +140,7 @@ jobs:
         package: [pirn-core, pirn-signal, pirn-data, pirn-ml, pirn-agents, pirn-health, pirn-oilgas]
     steps:
       - name: Download wheelhouse
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0 (match upload-artifact v7; v8 digest-verify mismatched v7 uploads -> stale wheelhouse)
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v7.0.0 (match upload-artifact v7; v8 digest-verify mismatched v7 uploads -> stale wheelhouse)
         with:
           name: wheelhouse-${{ needs.build.outputs.version }}
           path: dist/
