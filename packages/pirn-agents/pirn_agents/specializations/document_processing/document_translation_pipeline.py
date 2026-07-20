@@ -36,6 +36,9 @@ from pirn_agents.llm_provider import LLMProvider
 from pirn_agents.specializations.document_processing._chunk_translator import (
     _ChunkTranslator,
 )
+from pirn_agents.specializations.document_processing._document_source_reader import (
+    _DocumentSourceReader,
+)
 from pirn_agents.specializations.document_processing._translation_load_and_chunk import (
     _TranslationLoadAndChunk,
 )
@@ -52,6 +55,11 @@ class DocumentTranslationPipeline(SubTapestry):
         llm: Knot | LLMProvider,
         _config: KnotConfig,
         chunk_size: Knot | int = 2000,
+        allowed_root: Knot | str | None = None,
+        allowed_hosts: Knot | tuple[str, ...] | None = None,
+        max_bytes: Knot | int = _DocumentSourceReader.max_bytes,
+        request_timeout: Knot | float = _DocumentSourceReader.request_timeout,
+        connect_timeout: Knot | float = _DocumentSourceReader.connect_timeout,
         **kwargs: Any,
     ) -> None:
         super().__init__(
@@ -59,6 +67,11 @@ class DocumentTranslationPipeline(SubTapestry):
             target_language=target_language,
             llm=llm,
             chunk_size=chunk_size,
+            allowed_root=allowed_root,
+            allowed_hosts=allowed_hosts,
+            max_bytes=max_bytes,
+            request_timeout=request_timeout,
+            connect_timeout=connect_timeout,
             _config=_config,
             **kwargs,
         )
@@ -69,6 +82,11 @@ class DocumentTranslationPipeline(SubTapestry):
         target_language: str,
         llm: LLMProvider,
         chunk_size: int = 2000,
+        allowed_root: str | None = None,
+        allowed_hosts: tuple[str, ...] | None = None,
+        max_bytes: int = _DocumentSourceReader.max_bytes,
+        request_timeout: float = _DocumentSourceReader.request_timeout,
+        connect_timeout: float = _DocumentSourceReader.connect_timeout,
         **_: Any,
     ) -> Any:
         """Load, chunk, and translate each chunk into the target language, returning the joined text.
@@ -78,13 +96,22 @@ class DocumentTranslationPipeline(SubTapestry):
             target_language: The language to translate each chunk into.
             llm: The LLM provider to use for translation.
             chunk_size: Maximum character length of each chunk.
+            allowed_root: Directory root that local file reads must stay within.
+                Required for local reads — the guard is fail-closed and rejects a
+                bare path when this is unset.
+            allowed_hosts: Optional allow-list of hostnames for URL fetches.
+            max_bytes: Maximum source size in bytes, for both files and URL
+                responses (default 100 MiB).
+            request_timeout: HTTP request timeout in seconds.
+            connect_timeout: HTTP connection timeout in seconds.
 
         Returns:
             The concatenated translation of all chunks as a single string.
 
         Raises:
             TypeError: If source or target_language is not a non-empty string.
-            ValueError: If chunk_size is not a positive int.
+            ValueError: If chunk_size is not a positive int, or the source is
+                rejected by the SSRF / path-traversal guard.
         """
         if not isinstance(target_language, str) or not target_language:
             raise TypeError(
@@ -103,6 +130,11 @@ class DocumentTranslationPipeline(SubTapestry):
         chunks = _TranslationLoadAndChunk(
             source=source,
             chunk_size=chunk_size,
+            allowed_root=allowed_root,
+            allowed_hosts=allowed_hosts,
+            max_bytes=max_bytes,
+            request_timeout=request_timeout,
+            connect_timeout=connect_timeout,
             _config=KnotConfig(id="chunk"),
         )
         return _ChunkTranslator(

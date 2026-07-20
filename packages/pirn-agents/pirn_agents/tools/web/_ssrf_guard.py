@@ -1,8 +1,9 @@
 """SSRF guard shared by the HTTP fetch tool and connectors.
 
-Mirrors the hardening in
-:class:`pirn_agents.specializations.document_processing._document_loader._DocumentLoader`:
-a URL's hostname is resolved to an IP and rejected when it lands on a private,
+The single implementation of the host-egress policy: the HTTP fetch tool, the
+connectors, and
+:class:`pirn_agents.specializations.document_processing._document_source_reader._DocumentSourceReader`
+all compose it. A URL's hostname is resolved to an IP and rejected when it lands on a private,
 loopback, link-local, reserved, or multicast range (this also blocks the cloud
 metadata endpoint ``169.254.169.254``, which is link-local). An optional host
 allow-list narrows further. The policy (allow-list, private-range opt-out, DNS
