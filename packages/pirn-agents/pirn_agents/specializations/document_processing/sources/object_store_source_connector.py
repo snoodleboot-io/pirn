@@ -1,6 +1,6 @@
 """``ObjectStoreSourceConnector`` — pull documents from object storage (F25-S3 / PIR-609).
 
-Built on the F16 :class:`~pirn_agents.connectors.blob_store.BlobStore` interface
+Built on the core :class:`~pirn.connectors.object_store.ObjectStore` interface
 (local filesystem or S3-compatible), it lists the keys under a prefix, streams
 each object's bytes, dedups by content hash, and yields a
 :class:`~pirn_agents.specializations.document_processing.sources.source_document.SourceDocument`.
@@ -13,7 +13,8 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 
-from pirn_agents.connectors.blob_store import BlobStore
+from pirn.connectors.object_store import ObjectStore
+
 from pirn_agents.specializations.document_processing.sources.content_hash_deduplicator import (
     ContentHashDeduplicator,
 )
@@ -26,29 +27,29 @@ from pirn_agents.specializations.document_processing.sources.source_document imp
 
 
 class ObjectStoreSourceConnector(SourceConnector):
-    """Stream objects under a prefix from a :class:`BlobStore`, deduped by hash."""
+    """Stream objects under a prefix from an :class:`ObjectStore`, deduped by hash."""
 
     def __init__(
         self,
         *,
-        blob_store: BlobStore,
+        blob_store: ObjectStore,
         prefix: str = "",
         deduplicator: ContentHashDeduplicator | None = None,
     ) -> None:
         """Bind the connector to a blob store and prefix.
 
         Args:
-            blob_store: The F16 object-storage backend to read from.
+            blob_store: The core object-storage backend to read from.
             prefix: Key prefix limiting which objects are ingested.
             deduplicator: Optional shared content-hash deduplicator; when
                 ``None`` a fresh one is created.
 
         Raises:
-            TypeError: If ``blob_store`` is not a :class:`BlobStore`.
+            TypeError: If ``blob_store`` is not an :class:`ObjectStore`.
         """
-        if not isinstance(blob_store, BlobStore):
+        if not isinstance(blob_store, ObjectStore):
             raise TypeError(
-                f"ObjectStoreSourceConnector: blob_store must be a BlobStore, "
+                f"ObjectStoreSourceConnector: blob_store must be an ObjectStore, "
                 f"got {type(blob_store).__name__}"
             )
         self._blob_store = blob_store
@@ -65,10 +66,9 @@ class ObjectStoreSourceConnector(SourceConnector):
             :attr:`errors`).
         """
         self._errors = []
-        keys = await self._blob_store.list(self._prefix)
-        for key in keys:
+        async for key in await self._blob_store.list(self._prefix):
             try:
-                data = b"".join([chunk async for chunk in self._blob_store.get(key)])
+                data = b"".join([chunk async for chunk in await self._blob_store.get(key)])
             except Exception as exc:
                 self._errors.append((key, str(exc)))
                 continue

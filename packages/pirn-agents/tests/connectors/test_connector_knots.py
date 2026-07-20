@@ -14,10 +14,8 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
-from pirn_agents.blob_store_knot import BlobStoreKnot
 from pirn_agents.connectors.http_connector import HttpConnector
 from pirn_agents.connectors.http_search_connector import HttpSearchConnector
-from pirn_agents.connectors.local_blob_store import LocalBlobStore
 from pirn_agents.connectors.sql_service_connector import SqlServiceConnector
 from pirn_agents.http_connector_knot import HttpConnectorKnot
 from pirn_agents.search_connector_knot import SearchConnectorKnot
@@ -77,15 +75,3 @@ class TestSearchConnectorKnot:
         knot = _make_knot(SearchConnectorKnot, "search")
         with pytest.raises(TypeError, match="SearchBackend"):
             await knot.process(connector=object())  # type: ignore[arg-type]
-
-
-class TestBlobStoreKnot:
-    async def test_vends_unchanged(self, tmp_path: Any) -> None:
-        store = LocalBlobStore(root=tmp_path)
-        knot = _make_knot(BlobStoreKnot, "blob")
-        assert await knot.process(store=store) is store
-
-    async def test_rejects_wrong_type(self) -> None:
-        knot = _make_knot(BlobStoreKnot, "blob")
-        with pytest.raises(TypeError, match="BlobStore"):
-            await knot.process(store=object())  # type: ignore[arg-type]

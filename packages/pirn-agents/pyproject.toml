@@ -44,7 +44,7 @@ mcp = ["mcp>=1.0"]
 sql = ["aiosqlite>=0.19"]
 # async Postgres driver for the F16-S2 SQL service connector (lazily imported)
 postgres = ["asyncpg>=0.29"]
-# S3-compatible object storage backend for the F16-S4 blob connector (lazily imported)
+# S3-compatible object storage backend for StreamingS3Store (lazily imported)
 s3 = ["aioboto3>=12.0"]
 # grammar/regex-constrained decoding backend (F20-S3, lazily imported)
 grammar = ["outlines>=0.1"]

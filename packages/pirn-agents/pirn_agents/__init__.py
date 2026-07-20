@@ -24,7 +24,6 @@ from pirn_agents.agent_as_tool_mixin import AgentAsToolMixin
 from pirn_agents.agent_tool import AgentTool
 from pirn_agents.approval_hook import ApprovalHook, authorize_tool_call
 from pirn_agents.as_tool import as_tool
-from pirn_agents.blob_store_knot import BlobStoreKnot
 from pirn_agents.builder.agent import Agent
 from pirn_agents.builder.agent_builder import AgentBuilder
 from pirn_agents.builder.agent_pattern_registry import AgentPatternRegistry
@@ -33,12 +32,10 @@ from pirn_agents.builder.agent_spec import AgentSpec
 from pirn_agents.builder.agent_spec_loader import AgentSpecLoader
 from pirn_agents.capability_probe import CapabilityProbe
 from pirn_agents.connector_lifespan import connector_lifespan
-from pirn_agents.connectors.blob_store import BlobStore
 from pirn_agents.connectors.http_connector import HttpConnector
 from pirn_agents.connectors.http_search_connector import HttpSearchConnector
-from pirn_agents.connectors.local_blob_store import LocalBlobStore
-from pirn_agents.connectors.s3_blob_store import S3BlobStore
 from pirn_agents.connectors.sql_service_connector import SqlServiceConnector
+from pirn_agents.connectors.streaming_s3_store import StreamingS3Store
 from pirn_agents.function_tool import FunctionTool
 from pirn_agents.graph_rag.entity_relation_extractor import EntityRelationExtractor
 from pirn_agents.graph_rag.extracted_entity import ExtractedEntity
@@ -115,8 +112,6 @@ __all__ = [
     "AgentTool",
     "AiosqliteConnector",
     "ApprovalHook",
-    "BlobStore",
-    "BlobStoreKnot",
     "CalculatorTool",
     "EntityRelationExtractor",
     "ExtractedEntity",
@@ -140,14 +135,12 @@ __all__ = [
     "HybridGraphRetriever",
     "InMemoryGraphStore",
     "ListDirTool",
-    "LocalBlobStore",
     "McpTool",
     "NodeEmbeddingIndex",
     "PythonExecTool",
     "RagTool",
     "ReadFileTool",
     "RetrieverTool",
-    "S3BlobStore",
     "SandboxBackend",
     "SandboxExecutor",
     "SandboxResult",
@@ -159,6 +152,7 @@ __all__ = [
     "SqlQueryTool",
     "SqlServiceConnector",
     "SqliteConnector",
+    "StreamingS3Store",
     "StubTool",
     "Subgraph",
     "SubprocessSandboxBackend",
