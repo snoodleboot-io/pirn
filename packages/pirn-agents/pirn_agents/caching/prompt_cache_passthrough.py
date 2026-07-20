@@ -30,8 +30,9 @@ class PromptCachePassthrough:
         """
         return provider.prompt_cache_enabled
 
+    @staticmethod
     def passthrough(
-        self, provider: LLMProvider, messages: Sequence[Mapping[str, Any]]
+        provider: LLMProvider, messages: Sequence[Mapping[str, Any]]
     ) -> tuple[Sequence[Mapping[str, Any]], bool]:
         """Prepare ``messages`` for ``provider``, deferring to native caching if any.
 
