@@ -6,6 +6,7 @@ import os
 import tempfile
 import unittest
 import unittest.mock
+from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any, NoReturn
 
@@ -192,9 +193,22 @@ class TestSSRFGuards(unittest.IsolatedAsyncioTestCase):
         loader = _build_loader()
 
         class _StubResponse:
-            text = "ok"
+            """Mirrors the streamed-response surface the reader consumes."""
+
+            is_redirect = False
+            encoding = "utf-8"
+            headers: dict[str, str] = {}
 
             def raise_for_status(self) -> None:
+                return None
+
+            async def aiter_bytes(self) -> AsyncIterator[bytes]:
+                yield b"ok"
+
+            async def __aenter__(self) -> _StubResponse:
+                return self
+
+            async def __aexit__(self, *args: Any) -> None:
                 return None
 
         class _StubAsyncClient:
@@ -207,7 +221,7 @@ class TestSSRFGuards(unittest.IsolatedAsyncioTestCase):
             async def __aexit__(self, *args: Any) -> None:
                 return None
 
-            async def get(self, url: str) -> _StubResponse:
+            def stream(self, method: str, url: str) -> _StubResponse:
                 return _StubResponse()
 
         with unittest.mock.patch(
