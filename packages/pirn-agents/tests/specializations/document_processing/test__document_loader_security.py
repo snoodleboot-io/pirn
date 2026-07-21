@@ -6,8 +6,9 @@ import os
 import tempfile
 import unittest
 import unittest.mock
+from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import Any, NoReturn
+from typing import Any, ClassVar, NoReturn
 
 import pytest
 from pirn.core.knot_config import KnotConfig
@@ -103,7 +104,7 @@ class TestSSRFGuards(unittest.IsolatedAsyncioTestCase):
     async def test_loopback_url_raises(self) -> None:
         loader = _build_loader()
         with unittest.mock.patch(
-            "pirn_agents.specializations.document_processing._document_loader.socket.gethostbyname",
+            "pirn_agents.tools.web._ssrf_guard.socket.gethostbyname",
             lambda host: "127.0.0.1",
         ):
             with self.assertRaisesRegex(ValueError, "private/loopback/link-local"):
@@ -112,7 +113,7 @@ class TestSSRFGuards(unittest.IsolatedAsyncioTestCase):
     async def test_private_ip_raises(self) -> None:
         loader = _build_loader()
         with unittest.mock.patch(
-            "pirn_agents.specializations.document_processing._document_loader.socket.gethostbyname",
+            "pirn_agents.tools.web._ssrf_guard.socket.gethostbyname",
             lambda host: "10.0.0.1",
         ):
             with self.assertRaisesRegex(ValueError, "private/loopback/link-local"):
@@ -121,7 +122,7 @@ class TestSSRFGuards(unittest.IsolatedAsyncioTestCase):
     async def test_imds_metadata_raises(self) -> None:
         loader = _build_loader()
         with unittest.mock.patch(
-            "pirn_agents.specializations.document_processing._document_loader.socket.gethostbyname",
+            "pirn_agents.tools.web._ssrf_guard.socket.gethostbyname",
             lambda host: "169.254.169.254",
         ):
             with self.assertRaisesRegex(ValueError, "private/loopback/link-local"):
@@ -136,7 +137,7 @@ class TestSSRFGuards(unittest.IsolatedAsyncioTestCase):
             raise _socket.gaierror("dns failure")
 
         with unittest.mock.patch(
-            "pirn_agents.specializations.document_processing._document_loader.socket.gethostbyname",
+            "pirn_agents.tools.web._ssrf_guard.socket.gethostbyname",
             _boom,
         ):
             with self.assertRaisesRegex(ValueError, "unresolvable host"):
@@ -145,7 +146,7 @@ class TestSSRFGuards(unittest.IsolatedAsyncioTestCase):
     async def test_host_not_in_allowlist_raises(self) -> None:
         loader = _build_loader()
         with unittest.mock.patch(
-            "pirn_agents.specializations.document_processing._document_loader.socket.gethostbyname",
+            "pirn_agents.tools.web._ssrf_guard.socket.gethostbyname",
             lambda host: "93.184.216.34",
         ):
             with self.assertRaisesRegex(ValueError, "not in allowed_hosts"):
@@ -164,10 +165,12 @@ class TestSSRFGuards(unittest.IsolatedAsyncioTestCase):
         def _no_extra(extra: str, module: str) -> NoReturn:
             raise ImportError(f"{module!r} is required for this feature")
 
-        require_path = "pirn_agents.specializations.document_processing._document_loader._require"
+        require_path = (
+            "pirn_agents.specializations.document_processing._document_source_reader._require"
+        )
         # Both rejection paths, so _require cannot be relocated between them.
         with unittest.mock.patch(
-            "pirn_agents.specializations.document_processing._document_loader.socket.gethostbyname",
+            "pirn_agents.tools.web._ssrf_guard.socket.gethostbyname",
             lambda host: "169.254.169.254",
         ):
             with unittest.mock.patch(require_path, _no_extra):
@@ -175,7 +178,7 @@ class TestSSRFGuards(unittest.IsolatedAsyncioTestCase):
                     await loader.process("http://169.254.169.254/latest/meta-data/")
 
         with unittest.mock.patch(
-            "pirn_agents.specializations.document_processing._document_loader.socket.gethostbyname",
+            "pirn_agents.tools.web._ssrf_guard.socket.gethostbyname",
             lambda host: "93.184.216.34",
         ):
             with unittest.mock.patch(require_path, _no_extra):
@@ -190,9 +193,22 @@ class TestSSRFGuards(unittest.IsolatedAsyncioTestCase):
         loader = _build_loader()
 
         class _StubResponse:
-            text = "ok"
+            """Mirrors the streamed-response surface the reader consumes."""
+
+            is_redirect = False
+            encoding = "utf-8"
+            headers: ClassVar[dict[str, str]] = {}
 
             def raise_for_status(self) -> None:
+                return None
+
+            async def aiter_bytes(self) -> AsyncIterator[bytes]:
+                yield b"ok"
+
+            async def __aenter__(self) -> _StubResponse:
+                return self
+
+            async def __aexit__(self, *args: Any) -> None:
                 return None
 
         class _StubAsyncClient:
@@ -205,11 +221,11 @@ class TestSSRFGuards(unittest.IsolatedAsyncioTestCase):
             async def __aexit__(self, *args: Any) -> None:
                 return None
 
-            async def get(self, url: str) -> _StubResponse:
+            def stream(self, method: str, url: str) -> _StubResponse:
                 return _StubResponse()
 
         with unittest.mock.patch(
-            "pirn_agents.specializations.document_processing._document_loader.socket.gethostbyname",
+            "pirn_agents.tools.web._ssrf_guard.socket.gethostbyname",
             lambda host: "93.184.216.34",
         ):
             with unittest.mock.patch.object(httpx, "AsyncClient", _StubAsyncClient):
