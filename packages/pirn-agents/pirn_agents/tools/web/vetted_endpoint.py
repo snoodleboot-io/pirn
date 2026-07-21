@@ -12,6 +12,15 @@ through the ``Host`` header and the TLS ``sni_hostname`` extension, so virtual
 hosting and certificate verification still see the real name — only the address
 resolution is bypassed.
 
+**Proxies.** Pinning is applied whether or not a proxy is configured, and stays
+correct either way: a plain-HTTP proxy fetches the vetted address with the real
+``Host``, and an HTTPS proxy issues ``CONNECT`` to that address before a TLS
+handshake carrying the true SNI. The one consequence worth knowing is that a proxy
+performing its own **hostname-based** egress filtering now sees an IP literal in
+the request line or ``CONNECT`` target. Operators who rely on proxy-side hostname
+allow-lists should express that policy here instead, via the guard's
+``allowed_hosts`` — which is enforced before resolution and so is unaffected.
+
 Internal API.
 """
 
@@ -35,6 +44,11 @@ class VettedEndpoint(PirnOpaqueValue):
     address:
         One address that passed classification. Every address the resolver
         returned was checked; this is the one to connect to.
+
+        Note the availability trade-off: pinning to a single address gives up the
+        client's per-connection failover across a multi-record host, so a retry
+        after a connection failure retries the *same* address rather than the next
+        one. Rebinding protection is not achievable without it.
     port:
         The explicit port from the URL, or ``None`` when the scheme default applies.
     """
@@ -76,8 +90,14 @@ class VettedEndpoint(PirnOpaqueValue):
         return urlunparse(parsed._replace(netloc=netloc))
 
     def request_headers(self, headers: dict[str, str] | None = None) -> dict[str, str]:
-        """Merge ``Host`` into ``headers`` so the origin still sees the real name."""
-        merged = dict(headers) if headers else {}
+        """Merge ``Host`` into ``headers`` so the origin still sees the real name.
+
+        Any caller-supplied host header is dropped first, case-insensitively: HTTP
+        header names are case-insensitive but dict keys are not, so keeping both
+        ``host`` and ``Host`` would put two Host headers on the wire — an
+        origin-confusion and request-smuggling ambiguity.
+        """
+        merged = {k: v for k, v in (headers or {}).items() if k.lower() != "host"}
         merged["Host"] = self.host_header
         return merged
 

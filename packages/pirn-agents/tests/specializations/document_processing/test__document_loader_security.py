@@ -6,7 +6,7 @@ import os
 import tempfile
 import unittest
 import unittest.mock
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Mapping
 from pathlib import Path
 from typing import Any, ClassVar, NoReturn
 
@@ -211,7 +211,11 @@ class TestSSRFGuards(unittest.IsolatedAsyncioTestCase):
             async def __aexit__(self, *args: Any) -> None:
                 return None
 
+        # The client is constructed inside the reader, so record the pinned request
+        # on the class to make it observable from the test.
         class _StubAsyncClient:
+            seen: ClassVar[dict[str, Any]] = {}
+
             def __init__(self, *args: Any, **kwargs: Any) -> None:
                 self.kwargs = kwargs
 
@@ -221,7 +225,21 @@ class TestSSRFGuards(unittest.IsolatedAsyncioTestCase):
             async def __aexit__(self, *args: Any) -> None:
                 return None
 
-            def stream(self, method: str, url: str) -> _StubResponse:
+            def stream(
+                self,
+                method: str,
+                url: str,
+                *,
+                headers: Mapping[str, str] | None = None,
+                extensions: Mapping[str, Any] | None = None,
+            ) -> _StubResponse:
+                # Pinned request (PIR-746): url is the vetted IP, hostname rides in
+                # Host and sni_hostname.
+                _StubAsyncClient.seen = {
+                    "url": url,
+                    "headers": dict(headers) if headers else {},
+                    "extensions": dict(extensions) if extensions else {},
+                }
                 return _StubResponse()
 
         with unittest.mock.patch(
@@ -234,3 +252,8 @@ class TestSSRFGuards(unittest.IsolatedAsyncioTestCase):
                     allowed_hosts=("example.com",),
                 )
         assert result == "ok"
+        # Pinned to the vetted address (PIR-746): this is the one call site whose
+        # pinning would otherwise ship unverified.
+        assert _StubAsyncClient.seen["url"] == "http://93.184.216.34/"
+        assert _StubAsyncClient.seen["headers"]["Host"] == "example.com"
+        assert _StubAsyncClient.seen["extensions"] == {"sni_hostname": "example.com"}

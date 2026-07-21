@@ -39,7 +39,13 @@ class _FakeClient:
         self.aclosed = False
 
     async def request(
-        self, method: str, url: str, *, headers: Any = None, params: Any = None
+        self,
+        method: str,
+        url: str,
+        *,
+        headers: Any = None,
+        params: Any = None,
+        extensions: Any = None,
     ) -> _FakeResponse:
         self.calls.append((method, url, params))
         return _FakeResponse(self._payload)

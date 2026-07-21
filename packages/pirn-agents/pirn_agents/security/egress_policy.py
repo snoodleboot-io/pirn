@@ -27,6 +27,7 @@ from urllib.parse import urlparse
 
 from pirn_agents.security.egress_error import EgressError
 from pirn_agents.tools.web._ssrf_guard import SsrfGuard
+from pirn_agents.tools.web.vetted_endpoint import VettedEndpoint
 
 
 class EgressPolicy:
@@ -38,7 +39,7 @@ class EgressPolicy:
         allowed_hosts: Sequence[str] | None = None,
         denied_hosts: Sequence[str] = (),
         allow_private: bool = False,
-        resolver: Callable[[str], str] | None = None,
+        resolver: Callable[[str], str | Sequence[str]] | None = None,
     ) -> None:
         """Configure the egress lists and SSRF behaviour.
 
@@ -77,11 +78,16 @@ class EgressPolicy:
             raise TypeError(f"EgressPolicy: {label} must be a sequence of hostnames or None")
         return frozenset(str(host) for host in hosts)
 
-    def __call__(self, url: str) -> None:
+    def __call__(self, url: str) -> VettedEndpoint:
         """Vet ``url`` for egress, raising :class:`EgressError` when blocked.
 
         Args:
             url: The absolute http(s) URL about to be requested.
+
+        Returns:
+            The :class:`VettedEndpoint` for the approved host. Callers should pin
+            their request to it rather than re-resolving the original URL, which
+            would reopen the DNS-rebinding window (PIR-746).
 
         Raises:
             EgressError: If the host is deny-listed, not allow-listed, uses a
@@ -91,7 +97,7 @@ class EgressPolicy:
         if host is not None and host in self._denied_hosts:
             raise EgressError(f"EgressPolicy: host {host!r} is deny-listed", host=host)
         try:
-            self._ssrf.assert_public_host(url)
+            return self._ssrf.assert_public_host(url)
         except ValueError as exc:
             raise EgressError(str(exc), host=host) from exc
 

@@ -55,7 +55,13 @@ class _FakeClient:
         self.aclosed = False
 
     async def request(
-        self, method: str, url: str, *, headers: Mapping[str, str] | None = None, params: Any = None
+        self,
+        method: str,
+        url: str,
+        *,
+        headers: Mapping[str, str] | None = None,
+        params: Any = None,
+        extensions: Any = None,
     ) -> _FakeResponse:
         self.calls.append((method, url, headers))
         item = self._responses.pop(0)
@@ -64,7 +70,13 @@ class _FakeClient:
         return item
 
     def stream(
-        self, method: str, url: str, *, headers: Any = None, params: Any = None
+        self,
+        method: str,
+        url: str,
+        *,
+        headers: Any = None,
+        params: Any = None,
+        extensions: Any = None,
     ) -> _FakeStream:
         self.calls.append((method, url, headers))
         item = self._responses.pop(0)
@@ -140,6 +152,34 @@ class TestHttpConnectorBasics:
         )
         # Relative path must resolve to an absolute URL for the egress guard.
         await connector.request("GET", "/search")
+        # The wire target is the *joined* URL, pinned to the vetted address. Before
+        # PIR-746 the guard vetted the joined URL but the raw "/search" was sent —
+        # checking one URL and requesting another.
+        _method, url, headers = client.calls[0]
+        assert url == "https://93.184.216.34/v1/search"
+        assert headers is not None and headers["Host"] == "api.example.com"
+
+    async def test_request_is_pinned_so_a_rebinding_resolver_cannot_win(self) -> None:
+        """A resolver that flips to a private address must not be re-consulted.
+
+        The guard resolves once and the request goes to that address, so there is
+        no second lookup for a short-TTL attacker record to poison.
+        """
+        calls = 0
+
+        def _rebinding(_host: str) -> str:
+            nonlocal calls
+            calls += 1
+            return "93.184.216.34" if calls == 1 else "169.254.169.254"
+
+        client = _FakeClient([_FakeResponse(200)])
+        connector = HttpConnector(client=client, resolver=_rebinding)
+        await connector.request("GET", "https://example.com/x")
+        _method, url, headers = client.calls[0]
+        assert url == "https://93.184.216.34/x"
+        assert headers is not None and headers["Host"] == "example.com"
+        # Exactly one lookup, so the flipped second answer is unreachable.
+        assert calls == 1
 
 
 class TestHttpConnectorRetries:
