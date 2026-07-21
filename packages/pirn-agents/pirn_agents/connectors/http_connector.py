@@ -11,24 +11,40 @@ whole run (the pooling lever, AD-3). On top of the F2 lifecycle it adds:
 * an **egress guard** applied to every request URL.
 
 Egress seam (F11). The egress check is an injectable ``egress_policy`` callable
-``(url) -> None`` that raises on a disallowed target. It defaults to the F6
-SSRF/egress guard (:meth:`~pirn_agents.tools.web._ssrf_guard.SsrfGuard.assert_public_host`,
-which blocks private/loopback/link-local/reserved/multicast IPs and the cloud
-metadata endpoint, with an optional host allow-list). F11's richer egress
-*policy* slots in here later by passing ``egress_policy`` — no API change needed.
+``(url) -> VettedEndpoint | None`` that raises on a disallowed target. It defaults
+to the F6 SSRF/egress guard
+(:meth:`~pirn_agents.tools.web._ssrf_guard.SsrfGuard.assert_public_host`, which
+blocks private/loopback/link-local/reserved/multicast IPs and the cloud metadata
+endpoint, with an optional host allow-list).
+
+**Returning a** ``VettedEndpoint`` **is what keeps DNS rebinding closed**: the
+request is pinned to the address the policy vetted, so the HTTP client never
+re-resolves the hostname and there is no second lookup for a short-TTL attacker
+record to poison. A policy returning ``None`` opts out of pinning and accepts that
+risk — the URL is sent unpinned and the client resolves it itself. Note that a
+legacy ``(url) -> None`` policy stays type-valid, because ``None`` inhabits the
+union, so it degrades silently rather than failing to type-check; a warning is
+logged once per connector the first time a policy declines to supply an endpoint.
+Prefer composing :class:`~pirn_agents.security.egress_policy.EgressPolicy`, which
+returns the endpoint.
 
 ``httpx`` is imported lazily inside :meth:`_create_client`; an injected
-``client`` keeps unit tests fully offline.
+``client`` keeps unit tests fully offline. Note that ``follow_redirects=False`` is
+a **security invariant**, not hygiene: a followed redirect would have the client
+resolve the ``Location`` host itself, defeating the pin. Clients this module
+constructs set it; an injected client must too.
 """
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Callable, Mapping
+import logging
+from collections.abc import AsyncIterator, Callable, Mapping, Sequence
 from typing import Any
 
 from pirn_agents.connector_base import ConnectorBase
 from pirn_agents.credential_ref import CredentialRef
 from pirn_agents.tools.web._ssrf_guard import SsrfGuard
+from pirn_agents.tools.web.vetted_endpoint import VettedEndpoint
 
 
 class HttpConnector(ConnectorBase):
@@ -49,8 +65,8 @@ class HttpConnector(ConnectorBase):
         retry_statuses: tuple[int, ...] = (429, 500, 502, 503, 504),
         allowed_hosts: tuple[str, ...] | None = None,
         allow_private: bool = False,
-        resolver: Callable[[str], str] | None = None,
-        egress_policy: Callable[[str], None] | None = None,
+        resolver: Callable[[str], str | Sequence[str]] | None = None,
+        egress_policy: Callable[[str], VettedEndpoint | None] | None = None,
         is_retryable_exception: Callable[[BaseException], bool] | None = None,
         sleep: Callable[[float], Any] | None = None,
         client: Any | None = None,
@@ -71,9 +87,13 @@ class HttpConnector(ConnectorBase):
             allowed_hosts: Optional host allow-list forwarded to the default guard.
             allow_private: When ``True``, the default guard skips the private-IP check.
             resolver: Optional hostname->IP resolver forwarded to the default guard.
-            egress_policy: Optional ``(url) -> None`` egress check that raises on a
-                disallowed target. Defaults to the F6 SSRF/egress guard; this is
-                the seam where F11's richer egress policy slots in.
+            egress_policy: Optional ``(url) -> VettedEndpoint | None`` egress check
+                that raises on a disallowed target and returns the vetted endpoint
+                so the request can be pinned to it. Returning ``None`` opts out of
+                pinning and accepts the DNS-rebinding risk; a warning is logged
+                once per connector when that happens. Defaults to the F6
+                SSRF/egress guard; this is the seam where F11's richer egress
+                policy slots in.
             is_retryable_exception: Predicate deciding whether a raised exception
                 is retryable; defaults to retrying every exception.
             sleep: Awaitable sleep between attempts; defaults to ``asyncio.sleep``.
@@ -109,6 +129,7 @@ class HttpConnector(ConnectorBase):
             allowed_hosts=allowed_hosts, allow_private=allow_private, resolver=resolver
         )
         self._egress_policy = egress_policy if egress_policy is not None else self._ssrf_egress
+        self._warned_unpinned = False
         self._is_retryable_exception = (
             is_retryable_exception if is_retryable_exception is not None else self._always_retry
         )
@@ -138,7 +159,8 @@ class HttpConnector(ConnectorBase):
             method: HTTP method (e.g. ``"GET"``).
             url: Absolute URL, or a path resolved against ``base_url``.
             headers: Optional headers merged over the auth headers.
-            params: Optional query parameters.
+            params: Optional query parameters. Note httpx replaces any query
+                already present in the URL rather than merging with it.
 
         Returns:
             The backend response object (e.g. an ``httpx.Response``).
@@ -147,15 +169,24 @@ class HttpConnector(ConnectorBase):
             ValueError: If the egress guard rejects the resolved URL.
         """
         target = self._absolute_url(url)
-        self._egress_policy(target)
+        endpoint = self._egress_policy(target)
         client = await self._get_client()
         merged = self._auth_headers()
         if headers:
             merged.update(headers)
+        # Fetch `target`, not the raw `url` argument: the guard vetted `target`, and
+        # sending anything else would mean checking one URL and requesting another.
+        request_url, pinned_headers, extensions = self._pin(target, endpoint, merged)
         attempt = 0
         while True:
             try:
-                response = await client.request(method, url, headers=merged, params=params)
+                response = await client.request(
+                    method,
+                    request_url,
+                    headers=pinned_headers,
+                    params=params,
+                    extensions=extensions,
+                )
             except Exception as exc:
                 if attempt >= self._max_retries or not self._is_retryable_exception(exc):
                     raise
@@ -181,7 +212,8 @@ class HttpConnector(ConnectorBase):
             method: HTTP method.
             url: Absolute URL, or a path resolved against ``base_url``.
             headers: Optional headers merged over the auth headers.
-            params: Optional query parameters.
+            params: Optional query parameters. Note httpx replaces any query
+                already present in the URL rather than merging with it.
 
         Yields:
             Successive body byte chunks from the streamed response.
@@ -190,12 +222,15 @@ class HttpConnector(ConnectorBase):
             ValueError: If the egress guard rejects the resolved URL.
         """
         target = self._absolute_url(url)
-        self._egress_policy(target)
+        endpoint = self._egress_policy(target)
         client = await self._get_client()
         merged = self._auth_headers()
         if headers:
             merged.update(headers)
-        async with client.stream(method, url, headers=merged, params=params) as response:
+        request_url, pinned_headers, extensions = self._pin(target, endpoint, merged)
+        async with client.stream(
+            method, request_url, headers=pinned_headers, params=params, extensions=extensions
+        ) as response:
             async for chunk in response.aiter_bytes():
                 yield chunk
 
@@ -218,9 +253,41 @@ class HttpConnector(ConnectorBase):
         """Return the exponential backoff delay for a zero-based ``attempt``."""
         return min(self._backoff_cap, self._backoff_base * (2**attempt))
 
-    def _ssrf_egress(self, url: str) -> None:
+    def _ssrf_egress(self, url: str) -> VettedEndpoint:
         """Default egress policy: the F6 SSRF/egress guard (the F11 seam)."""
-        self._ssrf.assert_public_host(url)
+        return self._ssrf.assert_public_host(url)
+
+    def _pin(
+        self, target: str, endpoint: VettedEndpoint | None, headers: dict[str, str]
+    ) -> tuple[str, dict[str, str], dict[str, Any]]:
+        """Rewrite the request to the vetted address, when the policy supplied one.
+
+        Re-resolving at connect time is what makes DNS rebinding possible, so the
+        request goes to the address the guard actually checked, with the original
+        hostname restored via ``Host`` and TLS SNI (PIR-746).
+
+        A custom ``egress_policy`` returning ``None`` opts out: it vetted the URL its
+        own way and did not tell us an address, so there is nothing to pin to.
+        """
+        if endpoint is None:
+            if not self._warned_unpinned:
+                self._warned_unpinned = True
+                logging.getLogger(__name__).warning(
+                    "http_connector.egress_policy_returned_no_endpoint",
+                    extra={
+                        "detail": (
+                            "egress_policy returned None, so this request is not pinned to a "
+                            "vetted address and remains open to DNS rebinding. Return a "
+                            "VettedEndpoint (e.g. compose EgressPolicy) to close it."
+                        )
+                    },
+                )
+            return target, headers, {}
+        return (
+            endpoint.pinned_url(target),
+            endpoint.request_headers(headers),
+            dict(endpoint.request_extensions),
+        )
 
     def _always_retry(self, _exc: BaseException) -> bool:
         """Default retry predicate: every raised exception is retryable."""

@@ -23,13 +23,11 @@ Three properties this guard deliberately has (PIR-741):
 * It returns a :class:`VettedEndpoint` rather than a bare hostname, carrying the
   address that was actually checked.
 
-**DNS rebinding is not yet closed.** Callers still hand the original URL to their
-HTTP client, which re-resolves independently, so a short-TTL attacker record can
-answer public here and private at connect time. ``VettedEndpoint`` supplies
-everything needed to pin (address, ``Host``, TLS SNI), but wiring it through the
-four call sites changes the shape of every outbound request and is tracked
-separately. Until then this guard narrows rebinding — an attacker must now keep
-*every* published record public at check time — rather than eliminating it.
+Callers pin their request to the returned endpoint (PIR-746), so the address the
+client connects to is the one that was checked and there is no second lookup for a
+short-TTL attacker record to poison. The one exception is a custom
+``HttpConnector`` egress policy that returns ``None`` instead of an endpoint, which
+opts out of pinning and logs a warning.
 """
 
 from __future__ import annotations

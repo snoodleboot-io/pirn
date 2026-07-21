@@ -44,7 +44,7 @@ Internal API.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -84,7 +84,7 @@ class _DocumentSourceReader(PirnOpaqueValue):
     max_bytes: int = 100 * 1024 * 1024
     request_timeout: float = 10.0
     connect_timeout: float = 5.0
-    resolver: Callable[[str], str] | None = field(default=None, compare=False)
+    resolver: Callable[[str], str | Sequence[str]] | None = field(default=None, compare=False)
 
     def __post_init__(self) -> None:
         if not isinstance(self.max_bytes, int) or isinstance(self.max_bytes, bool):
@@ -149,7 +149,7 @@ class _DocumentSourceReader(PirnOpaqueValue):
         # Composes the shared SsrfGuard rather than re-deriving the IP predicate: it is
         # the one implementation of this policy, and its resolver is injectable so tests
         # need not monkeypatch socket.
-        SsrfGuard(
+        endpoint = SsrfGuard(
             allowed_hosts=self.allowed_hosts,
             resolver=self.resolver,
         ).assert_public_host(url)
@@ -158,7 +158,14 @@ class _DocumentSourceReader(PirnOpaqueValue):
         httpx = _require("web", "httpx")
         timeout = httpx.Timeout(self.request_timeout, connect=self.connect_timeout)
         async with httpx.AsyncClient(timeout=timeout, follow_redirects=False) as client:
-            async with client.stream("GET", url) as response:
+            # Pinned to the vetted address: handing the original URL back to httpx
+            # would let it re-resolve and defeat the check just performed (PIR-746).
+            async with client.stream(
+                "GET",
+                endpoint.pinned_url(url),
+                headers=endpoint.request_headers(),
+                extensions=endpoint.request_extensions,
+            ) as response:
                 response.raise_for_status()
                 if response.is_redirect:
                     raise ValueError(

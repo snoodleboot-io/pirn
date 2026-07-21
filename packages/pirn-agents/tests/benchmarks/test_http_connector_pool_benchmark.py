@@ -38,7 +38,13 @@ class _SlowToBuildClient:
         time.sleep(latency)
 
     async def request(
-        self, method: str, url: str, *, headers: object = None, params: object = None
+        self,
+        method: str,
+        url: str,
+        *,
+        headers: object = None,
+        params: object = None,
+        extensions: object = None,
     ) -> _FakeResponse:
         return _FakeResponse()
 

@@ -161,6 +161,28 @@ class TestResolverBinding(unittest.TestCase):
                 guard.assert_public_host("http://late.example/")
 
 
+class TestRebinding(unittest.TestCase):
+    def test_guard_resolves_once_so_a_flipping_resolver_cannot_be_re_consulted(self) -> None:
+        """The vetted address is captured, so there is no second lookup to poison.
+
+        A short-TTL attacker record answers public to the guard and private to the
+        client. Pinning removes the client's lookup entirely.
+        """
+        calls = 0
+
+        def _rebinding(_host: str) -> str:
+            nonlocal calls
+            calls += 1
+            return "93.184.216.34" if calls == 1 else "169.254.169.254"
+
+        endpoint = SsrfGuard(resolver=_rebinding).assert_public_host("https://example.com/x")
+        assert endpoint.address == "93.184.216.34"
+        assert endpoint.pinned_url("https://example.com/x") == "https://93.184.216.34/x"
+        # The point of the test: exactly one lookup happened, so the flipped answer
+        # is unreachable. Without pinning the client would perform a second one.
+        assert calls == 1
+
+
 class TestPinning(unittest.TestCase):
     def test_refuses_to_pin_a_url_for_a_different_host(self) -> None:
         endpoint = VettedEndpoint(hostname="example.com", address="93.184.216.34")

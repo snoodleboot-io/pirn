@@ -58,11 +58,27 @@ class _FakeClient:
     def __init__(self) -> None:
         self.calls: list[tuple[str, str]] = []
 
-    async def request(self, method: str, url: str, *, headers: Any = None, params: Any = None):
+    async def request(
+        self,
+        method: str,
+        url: str,
+        *,
+        headers: Any = None,
+        params: Any = None,
+        extensions: Any = None,
+    ):
         self.calls.append((method, url))
         return _FakeResponse(200)
 
-    def stream(self, method: str, url: str, *, headers: Any = None, params: Any = None):
+    def stream(
+        self,
+        method: str,
+        url: str,
+        *,
+        headers: Any = None,
+        params: Any = None,
+        extensions: Any = None,
+    ):
         self.calls.append((method, url))
         return _FakeStream(_FakeResponse(200))
 
@@ -146,7 +162,8 @@ async def test_egress_policy_wires_into_http_connector() -> None:
     # Act / Assert — allowed public host flows through to the pooled client.
     response = await connector.request("GET", "https://api.example.com/data")
     assert response.status_code == 200
-    assert client.calls == [("GET", "https://api.example.com/data")]
+    # Pinned to the vetted address (PIR-746); the hostname rides in the Host header.
+    assert client.calls == [("GET", "https://93.184.216.34/data")]
 
     # A deny-listed host is refused by the policy before any request is made.
     with pytest.raises(EgressError):
@@ -155,7 +172,7 @@ async def test_egress_policy_wires_into_http_connector() -> None:
     with pytest.raises(EgressError):
         await connector.request("GET", "http://internal/admin")
     # No further client calls were recorded for the blocked requests.
-    assert client.calls == [("GET", "https://api.example.com/data")]
+    assert client.calls == [("GET", "https://93.184.216.34/data")]
 
 
 # --- SEAM CLOSURE: guard the F6 http_request tool with the same policy ----------
