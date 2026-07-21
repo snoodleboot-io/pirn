@@ -8,7 +8,7 @@ import unittest
 import unittest.mock
 from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import Any, NoReturn
+from typing import Any, ClassVar, NoReturn
 
 import pytest
 from pirn.core.knot_config import KnotConfig
@@ -197,7 +197,7 @@ class TestSSRFGuards(unittest.IsolatedAsyncioTestCase):
 
             is_redirect = False
             encoding = "utf-8"
-            headers: dict[str, str] = {}
+            headers: ClassVar[dict[str, str]] = {}
 
             def raise_for_status(self) -> None:
                 return None
