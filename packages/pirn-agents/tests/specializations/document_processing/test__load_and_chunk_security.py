@@ -30,7 +30,7 @@ from pirn_agents.specializations.document_processing._translation_load_and_chunk
 )
 
 _READER = "pirn_agents.specializations.document_processing._document_source_reader"
-_GETHOSTBYNAME = "pirn_agents.tools.web._ssrf_guard.socket.gethostbyname"
+_RESOLVE = "pirn_agents.tools.web._ssrf_guard.SsrfGuard._resolve_all"
 _REQUIRE = f"{_READER}._require"
 
 _LOADERS: tuple[type[Knot], ...] = (
@@ -55,7 +55,9 @@ class TestChunkingLoaderSsrfGuards(unittest.IsolatedAsyncioTestCase):
             for host_ip in ("127.0.0.1", "10.0.0.1", "169.254.169.254", "172.16.0.1"):
                 with self.subTest(loader=loader_cls.__name__, ip=host_ip):
                     loader = _build(loader_cls)
-                    with unittest.mock.patch(_GETHOSTBYNAME, lambda host, _ip=host_ip: _ip):
+                    with unittest.mock.patch(
+                        _RESOLVE, staticmethod(lambda host, _ip=host_ip: (_ip,))
+                    ):
                         with self.assertRaisesRegex(ValueError, "private/loopback/link-local"):
                             await loader.process(source="http://internal.example/", chunk_size=10)
 
@@ -63,7 +65,7 @@ class TestChunkingLoaderSsrfGuards(unittest.IsolatedAsyncioTestCase):
         for loader_cls in _LOADERS:
             with self.subTest(loader=loader_cls.__name__):
                 loader = _build(loader_cls)
-                with unittest.mock.patch(_GETHOSTBYNAME, lambda host: "93.184.216.34"):
+                with unittest.mock.patch(_RESOLVE, staticmethod(lambda host: ("93.184.216.34",))):
                     with self.assertRaisesRegex(ValueError, "not in allowed_hosts"):
                         await loader.process(
                             source="http://other.example/",
@@ -80,7 +82,7 @@ class TestChunkingLoaderSsrfGuards(unittest.IsolatedAsyncioTestCase):
         for loader_cls in _LOADERS:
             with self.subTest(loader=loader_cls.__name__):
                 loader = _build(loader_cls)
-                with unittest.mock.patch(_GETHOSTBYNAME, lambda host: "169.254.169.254"):
+                with unittest.mock.patch(_RESOLVE, staticmethod(lambda host: ("169.254.169.254",))):
                     with unittest.mock.patch(_REQUIRE, _no_extra):
                         with self.assertRaisesRegex(ValueError, "private/loopback/link-local"):
                             await loader.process(

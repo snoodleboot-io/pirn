@@ -34,9 +34,9 @@ Security:
 
     Known limits, shared with every resolve-then-fetch guard in the codebase: the
     hostname is vetted by resolving it, then httpx re-resolves independently, so a
-    short-TTL rebinding attacker can differ the two answers; ``socket.gethostbyname``
-    checks only one A record; and IPv6 destinations fail closed as "unresolvable"
-    rather than being classified.
+    short-TTL rebinding attacker can differ the two answers. ``SsrfGuard`` now
+    classifies every resolved address across both families (PIR-741); pinning the
+    request to the vetted address is tracked in PIR-746.
 
 Internal API.
 """
