@@ -147,7 +147,7 @@ class AnthropicProvider(LLMProvider):
 
 ```python
 # @tool form — name, description, and schema derived automatically
-from pirn_agents import tool
+from pirn_agents.tool_decorator import tool
 
 @tool
 async def web_search(query: str, max_results: int = 5) -> str:

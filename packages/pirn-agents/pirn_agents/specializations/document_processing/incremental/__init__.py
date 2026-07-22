@@ -11,19 +11,3 @@ neutral ``MemoryStore`` interface.
 """
 
 from __future__ import annotations
-
-from pirn_agents.specializations.document_processing.incremental.freshness_policy import (
-    FreshnessPolicy,
-)
-from pirn_agents.specializations.document_processing.incremental.incremental_upserter import (
-    IncrementalUpserter,
-)
-from pirn_agents.specializations.document_processing.incremental.upsert_plan import (
-    UpsertPlan,
-)
-
-__all__: list[str] = [
-    "FreshnessPolicy",
-    "IncrementalUpserter",
-    "UpsertPlan",
-]

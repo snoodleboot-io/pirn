@@ -69,7 +69,7 @@ For plain functions, use `@tool` instead of subclassing `Tool`. Name, descriptio
 and JSON Schema are derived from the function signature automatically.
 
 ```python
-from pirn_agents import tool
+from pirn_agents.tool_decorator import tool
 
 @tool
 async def web_search(query: str, max_results: int = 5) -> str:
@@ -590,7 +590,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
-from pirn_agents import as_tool  # or: agent.as_tool()
+from pirn_agents.as_tool import as_tool  # or: agent.as_tool()
 from pirn_agents.performance.run_budget import RunBudget
 from pirn_agents.specializations.react.react_loop import ReActLoop
 from pirn_agents.specializations.specialized_agents.research_agent import (

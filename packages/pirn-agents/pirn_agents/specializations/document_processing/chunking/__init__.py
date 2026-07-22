@@ -12,37 +12,3 @@ closure) for its vector math — no optional backend is imported here.
 """
 
 from __future__ import annotations
-
-from pirn_agents.specializations.document_processing.chunking.chunk import Chunk
-from pirn_agents.specializations.document_processing.chunking.chunking_strategy import (
-    ChunkingStrategy,
-)
-from pirn_agents.specializations.document_processing.chunking.code_aware_chunking_strategy import (
-    CodeAwareChunkingStrategy,
-)
-from pirn_agents.specializations.document_processing.chunking.fixed_size_chunking_strategy import (
-    FixedSizeChunkingStrategy,
-)
-from pirn_agents.specializations.document_processing.chunking.parent_child_chunking_strategy import (
-    ParentChildChunkingStrategy,
-)
-from pirn_agents.specializations.document_processing.chunking.recursive_character_chunking_strategy import (
-    RecursiveCharacterChunkingStrategy,
-)
-from pirn_agents.specializations.document_processing.chunking.semantic_chunking_strategy import (
-    SemanticChunkingStrategy,
-)
-from pirn_agents.specializations.document_processing.chunking.sentence_window_chunking_strategy import (
-    SentenceWindowChunkingStrategy,
-)
-
-__all__: list[str] = [
-    "Chunk",
-    "ChunkingStrategy",
-    "CodeAwareChunkingStrategy",
-    "FixedSizeChunkingStrategy",
-    "ParentChildChunkingStrategy",
-    "RecursiveCharacterChunkingStrategy",
-    "SemanticChunkingStrategy",
-    "SentenceWindowChunkingStrategy",
-]
