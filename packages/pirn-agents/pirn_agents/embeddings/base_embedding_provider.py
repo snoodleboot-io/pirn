@@ -16,22 +16,33 @@ The base then layers three cross-cutting behaviours every adapter shares:
 * **retries** — each batch is retried on failure up to ``max_retries`` with
   optional exponential backoff.
 
-It aligns with
-:class:`pirn_agents.embedding_provider.EmbeddingProvider`: the public
-surface is :meth:`embed` and :meth:`close`.
+Client pooling, teardown, and credential scrubbing come from
+:class:`pirn_agents.connector_base.ConnectorBase` — the same base
+:class:`~pirn_agents.llm.base_llm_provider.BaseLLMProvider` inherits, so an
+embedding adapter and an LLM adapter share one pooling lifecycle rather than two
+copies of it. The public surface aligns with
+:class:`pirn_agents.embedding_provider.EmbeddingProvider`: :meth:`embed` and
+:meth:`close`.
 """
 
 from __future__ import annotations
 
 import asyncio
 from collections.abc import Iterator, Sequence
-from typing import Any
 
+from pirn_agents.connector_base import ConnectorBase
+from pirn_agents.credential_ref import CredentialRef
 from pirn_agents.embedding_provider import EmbeddingProvider
 
 
-class BaseEmbeddingProvider(EmbeddingProvider):
-    """Batching, retrying, client-reusing base for embedding adapters."""
+class BaseEmbeddingProvider(ConnectorBase, EmbeddingProvider):
+    """Batching, retrying, client-reusing base for embedding adapters.
+
+    Mirrors :class:`~pirn_agents.llm.base_llm_provider.BaseLLMProvider`: the
+    ``ConnectorBase`` pooling lifecycle (``_get_client`` / ``_create_client`` /
+    ``close`` / ``_clear_credentials``) is inherited, not re-implemented, and only
+    the embedding-specific batching layers on top.
+    """
 
     def __init__(
         self,
@@ -40,6 +51,7 @@ class BaseEmbeddingProvider(EmbeddingProvider):
         max_retries: int = 2,
         retry_base_delay: float = 0.0,
         model: str | None = None,
+        credential: CredentialRef | None = None,
     ) -> None:
         """Initialise the batching base.
 
@@ -52,11 +64,16 @@ class BaseEmbeddingProvider(EmbeddingProvider):
                 retries; ``0.0`` retries immediately. Must be non-negative.
             model: Default model identifier used when :meth:`embed` is called
                 without an explicit ``model``.
+            credential: Optional :class:`CredentialRef` for the backend client,
+                stored and scrubbed by :class:`ConnectorBase`.
 
         Raises:
             ValueError: If ``batch_size`` is not a positive int, ``max_retries``
                 is negative, or ``retry_base_delay`` is negative.
+            TypeError: If ``credential`` is neither a ``CredentialRef`` nor
+                ``None`` (raised by :class:`ConnectorBase`).
         """
+        super().__init__(credential=credential)
         if not isinstance(batch_size, int) or batch_size <= 0:
             raise ValueError(f"batch_size must be a positive int, got {batch_size!r}")
         if not isinstance(max_retries, int) or max_retries < 0:
@@ -67,21 +84,6 @@ class BaseEmbeddingProvider(EmbeddingProvider):
         self._max_retries: int = max_retries
         self._retry_base_delay: float = retry_base_delay
         self._default_model: str | None = model
-        self._client: Any | None = None
-
-    async def _get_client(self) -> Any:
-        """Return the backend client, constructing it once and caching it."""
-        if self._client is None:
-            self._client = await self._create_client()
-        return self._client
-
-    async def _create_client(self) -> Any:
-        """Build and return the backend client. Overridden by concrete adapters.
-
-        Raises:
-            NotImplementedError: Always, in the base class.
-        """
-        raise NotImplementedError(f"{type(self).__name__} must implement _create_client()")
 
     async def _embed_batch(self, texts: Sequence[str], model: str | None) -> list[list[float]]:
         """Embed one already-sized batch. Overridden by concrete adapters.
@@ -136,23 +138,3 @@ class BaseEmbeddingProvider(EmbeddingProvider):
         """Yield ``items`` in contiguous chunks of at most ``size``."""
         for start in range(0, len(items), size):
             yield items[start : start + size]
-
-    async def close(self) -> None:
-        """Release the reused backend client and scrub credentials.
-
-        The client's async ``aclose`` is awaited when present, else its sync
-        ``close`` is called; the reference is dropped and credentials cleared.
-        Calling ``close`` again is a safe no-op.
-        """
-        client: Any = self._client
-        if client is not None:
-            if callable(getattr(client, "aclose", None)):
-                await client.aclose()
-            elif callable(getattr(client, "close", None)):
-                client.close()
-            self._client = None
-        self._clear_credentials()
-
-    def _clear_credentials(self) -> None:
-        """Drop any in-memory credential so the secret becomes GC-able."""
-        self._config = None
