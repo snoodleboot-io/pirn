@@ -80,7 +80,7 @@ class TestHttpConnectorKnot:
 
 class TestSqlConnectorKnot:
     async def test_vends_unchanged(self) -> None:
-        connector = SqlServiceConnector(connection=object())
+        connector = SqlServiceConnector()
         knot = _make_knot(SqlConnectorKnot, "sql")
         assert await knot.process(connector=connector) is connector
 
