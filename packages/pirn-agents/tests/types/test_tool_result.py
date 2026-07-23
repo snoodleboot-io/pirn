@@ -48,9 +48,9 @@ class TestStatusFields(unittest.TestCase):
         )
         assert result.status is ToolStatus.TIMEOUT
 
-    def test_explicit_cancelled_status_without_error(self) -> None:
-        result = ToolResult(call_id="c1", result=None, status=ToolStatus.CANCELLED)
-        assert result.status is ToolStatus.CANCELLED
+    def test_explicit_nonok_status_without_error_is_untouched(self) -> None:
+        result = ToolResult(call_id="c1", result=None, status=ToolStatus.TIMEOUT)
+        assert result.status is ToolStatus.TIMEOUT
 
     def test_latency_and_tokens_round_trip(self) -> None:
         result = ToolResult(call_id="c1", result=1, latency=0.25, tokens=17)
