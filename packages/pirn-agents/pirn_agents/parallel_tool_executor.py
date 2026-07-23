@@ -46,6 +46,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents.async_fanout_engine import AsyncFanoutEngine
 from pirn_agents.exceptions.tool_not_found_error import ToolNotFoundError
 from pirn_agents.exceptions.tool_timeout_error import ToolTimeoutError
 from pirn_agents.llm.retry_policy import RetryPolicy
@@ -57,7 +58,7 @@ from pirn_agents.types.tool_result import ToolResult
 from pirn_agents.types.tool_status import ToolStatus
 
 
-class ParallelToolExecutor(Knot):
+class ParallelToolExecutor(AsyncFanoutEngine[ToolResult], Knot):
     """Execute a batch of :class:`ToolCall`s concurrently with isolation.
 
     The retry backoff shape is configured at construction time via a
@@ -168,9 +169,7 @@ class ParallelToolExecutor(Knot):
         try:
             gathered = await asyncio.gather(*tasks)
         except asyncio.CancelledError:
-            for task in tasks:
-                task.cancel()
-            await asyncio.gather(*tasks, return_exceptions=True)
+            await self._drain_on_cancel(tasks)
             raise
         return tuple(gathered)
 
@@ -233,42 +232,36 @@ class ParallelToolExecutor(Knot):
                 error=str(ToolNotFoundError(call.tool_name, call.call_id)),
                 latency=time.perf_counter() - start,
             )
-        attempt = 0
-        while True:
-            try:
-                if timeout is not None:
-                    async with asyncio.timeout(timeout):
-                        value = await tool.invoke(call.arguments)
-                else:
-                    value = await tool.invoke(call.arguments)
-            except Exception as exc:
-                # A timeout is terminal (never retried) when a per-call
-                # budget is configured; anything else is retryable.
-                if timeout is not None and isinstance(exc, TimeoutError):
-                    return ToolResult(
-                        call_id=call.call_id,
-                        result=None,
-                        status=ToolStatus.TIMEOUT,
-                        error=str(ToolTimeoutError(call.tool_name, timeout, call.call_id)),
-                        latency=time.perf_counter() - start,
-                    )
-                if attempt >= retries:
-                    return ToolResult(
-                        call_id=call.call_id,
-                        result=None,
-                        status=ToolStatus.ERROR,
-                        error=str(exc),
-                        latency=time.perf_counter() - start,
-                    )
-                await self._sleep(self._retry_policy.backoff_delay(attempt, rng=self._rng))
-                attempt += 1
-                continue
-            return ToolResult(
+        # Precomputed under the guard so the on_timeout builder (which fires only
+        # when ``timeout`` is set) has a narrowed float; its message is static.
+        timeout_error = (
+            ToolTimeoutError(call.tool_name, timeout, call.call_id) if timeout is not None else None
+        )
+        return await self._run_with_retries(
+            lambda: tool.invoke(call.arguments),
+            timeout=timeout,
+            retries=retries,
+            on_ok=lambda value, _attempts: ToolResult(
                 call_id=call.call_id,
                 result=value,
                 status=ToolStatus.OK,
                 latency=time.perf_counter() - start,
-            )
+            ),
+            on_timeout=lambda _attempts: ToolResult(
+                call_id=call.call_id,
+                result=None,
+                status=ToolStatus.TIMEOUT,
+                error=str(timeout_error),
+                latency=time.perf_counter() - start,
+            ),
+            on_error=lambda exc, _attempts: ToolResult(
+                call_id=call.call_id,
+                result=None,
+                status=ToolStatus.ERROR,
+                error=str(exc),
+                latency=time.perf_counter() - start,
+            ),
+        )
 
     def _fire_start(self, hook: ToolInvocationHook, call: ToolCall) -> None:
         """Fire ``hook.on_start`` for ``call``, swallowing any hook exception.
