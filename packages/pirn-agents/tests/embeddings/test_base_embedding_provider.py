@@ -10,6 +10,7 @@ import unittest
 from collections.abc import Sequence
 from typing import Any
 
+from pirn_agents.credential_ref import CredentialRef
 from pirn_agents.embeddings.base_embedding_provider import BaseEmbeddingProvider
 
 
@@ -103,6 +104,16 @@ class TestBaseEmbeddingProvider(unittest.IsolatedAsyncioTestCase):
         await provider.close()
 
         assert provider._client is None
+
+    async def test_close_scrubs_the_credential(self) -> None:
+        # Regression for PIR-691: the base previously nulled a throwaway
+        # ``self._config`` and left the real credential in memory. Inheriting
+        # ConnectorBase makes ``close`` scrub ``self._credential``.
+        provider = RecordingProvider(batch_size=2, credential=CredentialRef("s3cr3t"))
+        assert provider._credential is not None
+        await provider.close()
+        assert provider._credential is None
+        assert provider._pirn_audit_dict()["has_credential"] is False
 
 
 if __name__ == "__main__":

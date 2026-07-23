@@ -56,21 +56,17 @@ class HttpEmbeddingProvider(BaseEmbeddingProvider):
 
         Raises:
             TypeError: If ``credential`` is neither a ``CredentialRef`` nor
-                ``None``.
+                ``None`` (validated by :class:`ConnectorBase`).
         """
         super().__init__(
             batch_size=batch_size,
             max_retries=max_retries,
             retry_base_delay=retry_base_delay,
             model=model,
+            credential=credential,
         )
-        if credential is not None and not isinstance(credential, CredentialRef):
-            raise TypeError(
-                f"credential must be a CredentialRef or None, got {type(credential).__name__}"
-            )
         self._base_url: str = base_url.rstrip("/")
         self._path: str = path if path.startswith("/") else f"/{path}"
-        self._credential: CredentialRef | None = credential
         self._timeout: float = timeout
         self._injected_client: Any | None = client
 
@@ -103,7 +99,3 @@ class HttpEmbeddingProvider(BaseEmbeddingProvider):
         rows: list[dict[str, Any]] = list(body["data"])
         ordered = sorted(rows, key=lambda item: item.get("index", 0))
         return [[float(x) for x in item["embedding"]] for item in ordered]
-
-    def _clear_credentials(self) -> None:
-        """Drop the bearer credential so the secret becomes GC-able."""
-        self._credential = None
