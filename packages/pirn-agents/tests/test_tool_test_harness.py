@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn_agents.testing import (
+from pirn_agents.testing.tool_test_harness import (
     ToolTestHarness,
     assert_schema_shape,
     assert_tool_schema,

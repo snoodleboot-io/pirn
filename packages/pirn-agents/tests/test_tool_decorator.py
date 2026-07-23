@@ -123,10 +123,3 @@ class _StandaloneTests(unittest.TestCase):
     def test_non_callable_raises(self):
         with self.assertRaisesRegex(TypeError, "callable"):
             tool("not a function")  # type: ignore[arg-type]
-
-    def test_top_level_import(self):
-        from pirn_agents import FunctionTool as ImportedFunctionTool
-        from pirn_agents import tool as imported_tool
-
-        assert imported_tool is tool
-        assert ImportedFunctionTool is FunctionTool

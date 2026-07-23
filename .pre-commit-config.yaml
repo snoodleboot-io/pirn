@@ -29,6 +29,13 @@ repos:
         files: ^pirn/
         exclude: ^(tests|examples)/
 
+      - id: no-import-forwarding
+        name: no import forwarding in __init__.py
+        entry: python scripts/check_no_import_forwarding.py
+        language: system
+        files: (^|/)__init__\.py$
+        exclude: ^(tests|examples)/
+
       - id: stamp-agentic-use-version
         name: stamp AGENTIC_USE.md major version
         entry: python scripts/stamp_agentic_use_version.py

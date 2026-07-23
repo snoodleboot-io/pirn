@@ -10,7 +10,7 @@ caching and lineage. Drop to raw knots whenever you want.
 ```python
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
-from pirn_agents import Agent
+from pirn_agents.builder.agent import Agent
 
 with Tapestry() as t:
     agent = (
@@ -44,7 +44,8 @@ stores provider/tool **references** (plain strings) plus the pattern and its
 options, and round-trips losslessly through dict/JSON/YAML.
 
 ```python
-from pirn_agents import AgentSpec, AgentSpecLoader
+from pirn_agents.builder.agent_spec import AgentSpec
+from pirn_agents.builder.agent_spec_loader import AgentSpecLoader
 
 spec = AgentSpecLoader.from_yaml("""
 pattern: react
@@ -67,7 +68,7 @@ Each takes a caller-supplied `llm` (and `memory` where relevant) and accepts a
 `tools=` override, so no preset hard-codes a vendor.
 
 ```python
-from pirn_agents import AgentPresets
+from pirn_agents.builder.agent_presets import AgentPresets
 
 with Tapestry() as t:
     research = AgentPresets.research(llm=my_llm, input="...")          # web tools
