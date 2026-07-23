@@ -40,6 +40,7 @@ from pirn_agents.batch.batch_item_result import BatchItemResult
 from pirn_agents.batch.batch_item_status import BatchItemStatus
 from pirn_agents.batch.batch_progress import BatchProgress
 from pirn_agents.batch.rate_limit_signal import RateLimitSignal
+from pirn_agents.llm.retry_policy import RetryPolicy
 from pirn_agents.resilience.token_bucket_rate_limiter import TokenBucketRateLimiter
 
 
@@ -58,8 +59,8 @@ class MapAgent:
         concurrency_controller: AdaptiveConcurrencyController | None = None,
         checkpointer: BatchCheckpointer | None = None,
         checkpoint_every: int = 1,
-        retry_base: float = 0.0,
-        retry_jitter: float = 0.0,
+        retry_policy: RetryPolicy | None = None,
+        rng: Callable[[], float] | None = None,
         sleep: Callable[[float], Awaitable[None]] | None = None,
     ) -> None:
         """Build the batch runner.
@@ -91,8 +92,12 @@ class MapAgent:
                 each newly-completed key so a killed batch resumes mid-way.
             checkpoint_every: Persist a checkpoint after this many newly-completed
                 items (a final flush always runs). Must be >= 1.
-            retry_base: Base seconds for the exponential retry backoff.
-            retry_jitter: Additive jitter ceiling for the retry backoff.
+            retry_policy: The single backoff-schedule source for retry delays;
+                defaults to a stock :class:`~pirn_agents.llm.retry_policy.RetryPolicy`.
+                Only its delay schedule is consumed here — the retry *count* is the
+                separate ``retries`` budget above.
+            rng: Zero-arg ``[0, 1)`` source for the policy's jitter draw; injected
+                in tests for deterministic delays. Defaults to the policy's own.
             sleep: Async sleep used for retry backoff; injected in tests so
                 backoff advances deterministically. Defaults to
                 :func:`asyncio.sleep`.
@@ -142,8 +147,8 @@ class MapAgent:
         self._controller = concurrency_controller
         self._checkpointer = checkpointer
         self._checkpoint_every = checkpoint_every
-        self._retry_base = retry_base
-        self._retry_jitter = retry_jitter
+        self._retry_policy = retry_policy if retry_policy is not None else RetryPolicy()
+        self._rng = rng
         self._sleep = sleep if sleep is not None else asyncio.sleep
         self._completed_keys: frozenset[str] = frozenset()
 
@@ -333,6 +338,6 @@ class MapAgent:
         )
 
     async def _backoff(self, attempt: int) -> None:
-        delay = self._retry_base * 2**attempt + self._retry_jitter
+        delay = self._retry_policy.backoff_delay(attempt, rng=self._rng)
         if delay > 0:
             await self._sleep(delay)

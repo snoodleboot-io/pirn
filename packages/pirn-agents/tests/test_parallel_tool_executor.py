@@ -18,6 +18,7 @@ import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
+from pirn_agents.llm.retry_policy import RetryPolicy
 from pirn_agents.parallel_tool_executor import ParallelToolExecutor
 from pirn_agents.tool import Tool
 from pirn_agents.toolset import Toolset
@@ -166,7 +167,7 @@ async def test_retry_then_success() -> None:
     flaky = StubTool(name="flaky", fail_times=2, result="recovered")
     toolset = Toolset([flaky])
     calls = [ToolCall(tool_name="flaky", arguments={}, call_id="c1")]
-    executor = _make_executor(retry_base=0.0, retry_jitter=0.0)
+    executor = _make_executor(retry_policy=RetryPolicy(base_delay=0.0))
 
     results = await executor.process(
         tool_calls=calls, toolset=toolset, max_concurrency=8, timeout=None, retries=2
@@ -181,7 +182,7 @@ async def test_retry_exhausted_returns_error() -> None:
     flaky = StubTool(name="flaky", fail_times=5)
     toolset = Toolset([flaky])
     calls = [ToolCall(tool_name="flaky", arguments={}, call_id="c1")]
-    executor = _make_executor(retry_base=0.0, retry_jitter=0.0)
+    executor = _make_executor(retry_policy=RetryPolicy(base_delay=0.0))
 
     results = await executor.process(
         tool_calls=calls, toolset=toolset, max_concurrency=8, timeout=None, retries=1
@@ -189,6 +190,31 @@ async def test_retry_exhausted_returns_error() -> None:
 
     assert flaky.calls == 2  # initial attempt + 1 retry
     assert results[0].status is ToolStatus.ERROR
+
+
+async def test_retry_delay_comes_from_the_composed_retry_policy() -> None:
+    # The inter-attempt delay is RetryPolicy.backoff_delay, not a hand-rolled
+    # formula. Capture the delays with an injected sleep + deterministic rng and
+    # match them against the policy computed independently.
+    slept: list[float] = []
+
+    async def _record(delay: float) -> None:
+        slept.append(delay)
+
+    policy = RetryPolicy(base_delay=0.1, multiplier=2.0, max_delay=1.0, jitter=True)
+    flaky = StubTool(name="flaky", fail_times=2, result="ok")
+    toolset = Toolset([flaky])
+    calls = [ToolCall(tool_name="flaky", arguments={}, call_id="c1")]
+    executor = _make_executor(retry_policy=policy, rng=lambda: 0.5, sleep=_record)
+
+    await executor.process(
+        tool_calls=calls, toolset=toolset, max_concurrency=8, timeout=None, retries=2
+    )
+
+    assert slept == [
+        policy.backoff_delay(0, rng=lambda: 0.5),
+        policy.backoff_delay(1, rng=lambda: 0.5),
+    ]
 
 
 async def test_unknown_tool_yields_error_and_batch_completes() -> None:

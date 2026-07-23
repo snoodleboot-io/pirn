@@ -16,6 +16,7 @@ from pirn_agents.batch.adaptive_concurrency_controller import AdaptiveConcurrenc
 from pirn_agents.batch.batch_item_status import BatchItemStatus
 from pirn_agents.batch.map_agent import MapAgent
 from pirn_agents.batch.rate_limit_signal import RateLimitSignal
+from pirn_agents.llm.retry_policy import RetryPolicy
 from pirn_agents.resilience.rate_limiter_config import RateLimiterConfig
 from pirn_agents.resilience.token_bucket_rate_limiter import TokenBucketRateLimiter
 from tests.batch.batch_doubles import InFlightCounter, StubAgent, gated_agent
@@ -83,6 +84,7 @@ async def test_throttle_scales_down_and_pauses_bucket() -> None:
         agent,
         concurrency=4,
         retries=1,
+        retry_policy=RetryPolicy(base_delay=0.0),
         rate_limiter=limiter,
         concurrency_controller=controller,
     )
