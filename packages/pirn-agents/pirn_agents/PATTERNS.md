@@ -964,7 +964,7 @@ registry, with no LLM provider baked in.
 |---|---|
 | `ToolCall` | One decided invocation: `tool_name`, `arguments`, `call_id`, optional `raw`. |
 | `ToolResult` | Its outcome: `call_id`, `result`, `error`, `status`, `latency`, `tokens`. |
-| `ToolStatus` | Terminal disposition — `OK`, `ERROR`, `TIMEOUT`, `CANCELLED`. |
+| `ToolStatus` | Terminal disposition — `OK`, `ERROR`, `TIMEOUT`. |
 | `Toolset` | Immutable, ordered, unique-by-name registry of `Tool`s. |
 
 `ParallelToolExecutor` runs a batch of `ToolCall`s concurrently against a

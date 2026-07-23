@@ -20,11 +20,8 @@ class ToolStatus(str, Enum):  # noqa: UP042 - str-mixin form is required for sta
         The tool raised or otherwise failed; ``error`` carries the detail.
     TIMEOUT:
         The invocation exceeded its allotted time budget.
-    CANCELLED:
-        The invocation was cancelled before completing.
     """
 
     OK = "ok"
     ERROR = "error"
     TIMEOUT = "timeout"
-    CANCELLED = "cancelled"
