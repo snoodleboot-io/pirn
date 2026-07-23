@@ -1033,9 +1033,9 @@ for r in results:
     print(r.call_id, r.result, f"{r.latency:.4f}s")
 ```
 
-Construction-time knobs `retry_base` / `retry_jitter` tune the backoff *shape*;
-`hook` (below) wires observability. All three are constructor kwargs rather than
-`process` parameters because they configure *how* the executor runs, not *what*
+The construction-time `retry_policy` (a `RetryPolicy`) is the single source of the
+backoff *schedule*; `hook` (below) wires observability. Both are constructor kwargs
+rather than `process` parameters because they configure *how* the executor runs, not *what*
 it executes.
 
 ---

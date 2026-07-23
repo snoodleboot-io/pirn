@@ -14,6 +14,7 @@ import pytest
 
 from pirn_agents.batch.batch_item_status import BatchItemStatus
 from pirn_agents.batch.map_agent import MapAgent
+from pirn_agents.llm.retry_policy import RetryPolicy
 from tests.batch.batch_doubles import (
     InFlightCounter,
     StubAgent,
@@ -115,7 +116,7 @@ async def test_timeout_isolated_from_siblings() -> None:
 
 async def test_retry_then_success() -> None:
     agent = StubAgent(fail_times={"flaky": 2})
-    runner = MapAgent(agent, concurrency=2, retries=2)
+    runner = MapAgent(agent, concurrency=2, retries=2, retry_policy=RetryPolicy(base_delay=0.0))
 
     results = await _drain(runner, ["flaky"])
 
@@ -125,12 +126,33 @@ async def test_retry_then_success() -> None:
 
 async def test_retry_exhausted_returns_error() -> None:
     agent = StubAgent(fail_times={"flaky": 5})
-    runner = MapAgent(agent, concurrency=2, retries=1)
+    runner = MapAgent(agent, concurrency=2, retries=1, retry_policy=RetryPolicy(base_delay=0.0))
 
     results = await _drain(runner, ["flaky"])
 
     assert results[0].status is BatchItemStatus.ERROR
     assert results[0].attempts == 2
+
+
+async def test_retry_delay_comes_from_the_composed_retry_policy() -> None:
+    # The backoff delay is RetryPolicy.backoff_delay, not a hand-rolled formula.
+    slept: list[float] = []
+
+    async def _record(delay: float) -> None:
+        slept.append(delay)
+
+    policy = RetryPolicy(base_delay=0.1, multiplier=2.0, max_delay=1.0, jitter=True)
+    agent = StubAgent(fail_times={"flaky": 2})
+    runner = MapAgent(
+        agent, concurrency=2, retries=2, retry_policy=policy, rng=lambda: 0.5, sleep=_record
+    )
+
+    await _drain(runner, ["flaky"])
+
+    assert slept == [
+        policy.backoff_delay(0, rng=lambda: 0.5),
+        policy.backoff_delay(1, rng=lambda: 0.5),
+    ]
 
 
 async def test_custom_key_fn_used_for_result_key() -> None:
