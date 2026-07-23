@@ -3,8 +3,12 @@
 Vends the F16-S1 HTTP/REST connector once per run (AD-3): the connector is
 constructed once by the caller and passed through the graph unchanged, so its
 pooled ``httpx`` client is built a single time and reused for the whole run (the
-pooling lever). ``process`` validates the vended value with an ``isinstance``
-check so a mis-wired pipeline fails loudly at the vend site.
+pooling lever).
+
+A wrongly-typed value is rejected by the framework's ``validate_io`` at the IO
+boundary (``HttpConnector`` is a ``PirnOpaqueValue`` and supplies the pydantic
+``is_instance`` schema), so no per-knot ``isinstance`` guard is needed — matching
+core's canonical vending knots.
 """
 
 from __future__ import annotations
@@ -26,13 +30,12 @@ class HttpConnectorKnot(Knot):
         super().__init__(connector=connector, _config=_config, **kwargs)
 
     async def process(self, connector: HttpConnector, **_: Any) -> HttpConnector:
-        """Return the HTTP connector unchanged after validating its type.
+        """Return the HTTP connector unchanged.
 
-        Raises:
-            TypeError: If ``connector`` is not an :class:`HttpConnector`.
+        Args:
+            connector: The HTTP connector instance to pass through.
+
+        Returns:
+            The connector instance unchanged.
         """
-        if not isinstance(connector, HttpConnector):
-            raise TypeError(
-                f"HttpConnectorKnot: expected an HttpConnector, got {type(connector).__name__}"
-            )
         return connector

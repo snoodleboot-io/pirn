@@ -4,8 +4,12 @@ Vends the F16-S3 search connector once per run (AD-3): the provider-neutral
 :class:`~pirn_agents.tools.web.search_backend.SearchBackend` (e.g. the generic
 :class:`~pirn_agents.connectors.http_search_connector.HttpSearchConnector`) is
 constructed once and passed through the graph unchanged, so any pooled client it
-holds is reused for the whole run. ``process`` validates the vended value with an
-``isinstance`` check so a mis-wired pipeline fails loudly at the vend site.
+holds is reused for the whole run.
+
+A wrongly-typed value is rejected by the framework's ``validate_io`` at the IO
+boundary (``SearchBackend`` is a ``PirnOpaqueValue`` and supplies the pydantic
+``is_instance`` schema), so no per-knot ``isinstance`` guard is needed — matching
+core's canonical vending knots.
 """
 
 from __future__ import annotations
@@ -27,13 +31,12 @@ class SearchConnectorKnot(Knot):
         super().__init__(connector=connector, _config=_config, **kwargs)
 
     async def process(self, connector: SearchBackend, **_: Any) -> SearchBackend:
-        """Return the search connector unchanged after validating its type.
+        """Return the search connector unchanged.
 
-        Raises:
-            TypeError: If ``connector`` is not a :class:`SearchBackend`.
+        Args:
+            connector: The search backend instance to pass through.
+
+        Returns:
+            The connector instance unchanged.
         """
-        if not isinstance(connector, SearchBackend):
-            raise TypeError(
-                f"SearchConnectorKnot: expected a SearchBackend, got {type(connector).__name__}"
-            )
         return connector

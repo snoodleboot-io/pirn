@@ -2,8 +2,12 @@
 
 Vends the F16-S2 SQL connector once per run (AD-3): the connector holds a single
 pooled connection/pool that is built once and reused for the whole run (the
-pooling lever). ``process`` validates the vended value with an ``isinstance``
-check so a mis-wired pipeline fails loudly at the vend site.
+pooling lever).
+
+A wrongly-typed value is rejected by the framework's ``validate_io`` at the IO
+boundary (``SqlServiceConnector`` is a ``PirnOpaqueValue`` and supplies the
+pydantic ``is_instance`` schema), so no per-knot ``isinstance`` guard is needed —
+matching core's canonical vending knots.
 """
 
 from __future__ import annotations
@@ -25,13 +29,12 @@ class SqlConnectorKnot(Knot):
         super().__init__(connector=connector, _config=_config, **kwargs)
 
     async def process(self, connector: SqlServiceConnector, **_: Any) -> SqlServiceConnector:
-        """Return the SQL connector unchanged after validating its type.
+        """Return the SQL connector unchanged.
 
-        Raises:
-            TypeError: If ``connector`` is not a :class:`SqlServiceConnector`.
+        Args:
+            connector: The SQL service connector instance to pass through.
+
+        Returns:
+            The connector instance unchanged.
         """
-        if not isinstance(connector, SqlServiceConnector):
-            raise TypeError(
-                f"SqlConnectorKnot: expected a SqlServiceConnector, got {type(connector).__name__}"
-            )
         return connector
