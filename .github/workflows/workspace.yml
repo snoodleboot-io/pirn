@@ -161,7 +161,12 @@ jobs:
       - name: Install package editable (deps pre-baked) + ruff + pyright
         run: |
           set -euo pipefail
-          uv pip install --system --find-links dist/ -e "packages/${{ matrix.package }}" ruff pyright
+          # Pin ruff: an unpinned install silently rolled to 0.16.0, whose new
+          # markdown code-block formatting reformatted 15 docs and turned the
+          # format --check red with no source change. Keep CI deterministic and
+          # aligned with the pre-commit hook / local floor; adopt 0.16.0 (and its
+          # doc reformatting) deliberately under its own ticket (PIR-750).
+          uv pip install --system --find-links dist/ -e "packages/${{ matrix.package }}" 'ruff==0.15.22' pyright
       - name: Ruff lint + format (package's own config)
         run: |
           ruff check --config packages/${{ matrix.package }}/pyproject.toml packages/${{ matrix.package }}/${{ steps.pkg.outputs.imp }}
