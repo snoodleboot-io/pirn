@@ -11,22 +11,19 @@ whole run (the pooling lever, AD-3). On top of the F2 lifecycle it adds:
 * an **egress guard** applied to every request URL.
 
 Egress seam (F11). The egress check is an injectable ``egress_policy`` callable
-``(url) -> VettedEndpoint | None`` that raises on a disallowed target. It defaults
-to the F6 SSRF/egress guard
+``(url) -> VettedEndpoint`` that raises on a disallowed target. It defaults to the
+F6 SSRF/egress guard
 (:meth:`~pirn_agents.tools.web._ssrf_guard.SsrfGuard.assert_public_host`, which
 blocks private/loopback/link-local/reserved/multicast IPs and the cloud metadata
 endpoint, with an optional host allow-list).
 
-**Returning a** ``VettedEndpoint`` **is what keeps DNS rebinding closed**: the
-request is pinned to the address the policy vetted, so the HTTP client never
-re-resolves the hostname and there is no second lookup for a short-TTL attacker
-record to poison. A policy returning ``None`` opts out of pinning and accepts that
-risk — the URL is sent unpinned and the client resolves it itself. Note that a
-legacy ``(url) -> None`` policy stays type-valid, because ``None`` inhabits the
-union, so it degrades silently rather than failing to type-check; a warning is
-logged once per connector the first time a policy declines to supply an endpoint.
-Prefer composing :class:`~pirn_agents.security.egress_policy.EgressPolicy`, which
-returns the endpoint.
+**The policy must return a** ``VettedEndpoint``, and that is what keeps DNS
+rebinding closed: the request is pinned to the address the policy vetted, so the
+HTTP client never re-resolves the hostname and there is no second lookup for a
+short-TTL attacker record to poison. The type forbids returning nothing, so a
+request can never silently skip pinning. Compose
+:class:`~pirn_agents.security.egress_policy.EgressPolicy`, which returns the
+endpoint.
 
 ``httpx`` is imported lazily inside :meth:`_create_client`; an injected
 ``client`` keeps unit tests fully offline. Note that ``follow_redirects=False`` is
@@ -37,7 +34,6 @@ constructs set it; an injected client must too.
 
 from __future__ import annotations
 
-import logging
 from collections.abc import AsyncIterator, Callable, Mapping, Sequence
 from typing import Any
 
@@ -66,7 +62,7 @@ class HttpConnector(ConnectorBase):
         allowed_hosts: tuple[str, ...] | None = None,
         allow_private: bool = False,
         resolver: Callable[[str], str | Sequence[str]] | None = None,
-        egress_policy: Callable[[str], VettedEndpoint | None] | None = None,
+        egress_policy: Callable[[str], VettedEndpoint] | None = None,
         is_retryable_exception: Callable[[BaseException], bool] | None = None,
         sleep: Callable[[float], Any] | None = None,
         client: Any | None = None,
@@ -87,13 +83,11 @@ class HttpConnector(ConnectorBase):
             allowed_hosts: Optional host allow-list forwarded to the default guard.
             allow_private: When ``True``, the default guard skips the private-IP check.
             resolver: Optional hostname->IP resolver forwarded to the default guard.
-            egress_policy: Optional ``(url) -> VettedEndpoint | None`` egress check
-                that raises on a disallowed target and returns the vetted endpoint
-                so the request can be pinned to it. Returning ``None`` opts out of
-                pinning and accepts the DNS-rebinding risk; a warning is logged
-                once per connector when that happens. Defaults to the F6
-                SSRF/egress guard; this is the seam where F11's richer egress
-                policy slots in.
+            egress_policy: Optional ``(url) -> VettedEndpoint`` egress check that
+                raises on a disallowed target and returns the vetted endpoint the
+                request is pinned to (returning nothing is a type error, so pinning
+                can never be silently skipped). Defaults to the F6 SSRF/egress
+                guard; this is the seam where F11's richer egress policy slots in.
             is_retryable_exception: Predicate deciding whether a raised exception
                 is retryable; defaults to retrying every exception.
             sleep: Awaitable sleep between attempts; defaults to ``asyncio.sleep``.
@@ -129,7 +123,6 @@ class HttpConnector(ConnectorBase):
             allowed_hosts=allowed_hosts, allow_private=allow_private, resolver=resolver
         )
         self._egress_policy = egress_policy if egress_policy is not None else self._ssrf_egress
-        self._warned_unpinned = False
         self._is_retryable_exception = (
             is_retryable_exception if is_retryable_exception is not None else self._always_retry
         )
@@ -258,31 +251,16 @@ class HttpConnector(ConnectorBase):
         return self._ssrf.assert_public_host(url)
 
     def _pin(
-        self, target: str, endpoint: VettedEndpoint | None, headers: dict[str, str]
+        self, target: str, endpoint: VettedEndpoint, headers: dict[str, str]
     ) -> tuple[str, dict[str, str], dict[str, Any]]:
-        """Rewrite the request to the vetted address, when the policy supplied one.
+        """Rewrite the request to the vetted address the egress policy returned.
 
         Re-resolving at connect time is what makes DNS rebinding possible, so the
         request goes to the address the guard actually checked, with the original
-        hostname restored via ``Host`` and TLS SNI (PIR-746).
-
-        A custom ``egress_policy`` returning ``None`` opts out: it vetted the URL its
-        own way and did not tell us an address, so there is nothing to pin to.
+        hostname restored via ``Host`` and TLS SNI (PIR-746). The egress policy must
+        return a :class:`VettedEndpoint` — not returning one is a type error, so a
+        request can never silently skip pinning.
         """
-        if endpoint is None:
-            if not self._warned_unpinned:
-                self._warned_unpinned = True
-                logging.getLogger(__name__).warning(
-                    "http_connector.egress_policy_returned_no_endpoint",
-                    extra={
-                        "detail": (
-                            "egress_policy returned None, so this request is not pinned to a "
-                            "vetted address and remains open to DNS rebinding. Return a "
-                            "VettedEndpoint (e.g. compose EgressPolicy) to close it."
-                        )
-                    },
-                )
-            return target, headers, {}
         return (
             endpoint.pinned_url(target),
             endpoint.request_headers(headers),

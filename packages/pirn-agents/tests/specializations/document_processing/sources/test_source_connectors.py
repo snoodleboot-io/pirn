@@ -11,6 +11,7 @@ from __future__ import annotations
 import unittest
 from collections.abc import AsyncIterator, Sequence
 from typing import Any
+from urllib.parse import urlparse
 
 from pirn.connectors.object_store import ObjectStore
 
@@ -24,6 +25,7 @@ from pirn_agents.specializations.document_processing.sources.object_store_source
 from pirn_agents.specializations.document_processing.sources.web_crawl_source_connector import (
     WebCrawlSourceConnector,
 )
+from pirn_agents.tools.web.vetted_endpoint import VettedEndpoint
 
 
 async def _iter_bytes(chunk: bytes) -> AsyncIterator[bytes]:
@@ -99,8 +101,16 @@ class _FakeHttpClient:
         return None
 
 
+def _approve(url: str) -> VettedEndpoint:
+    # Approve the URL without rewriting it: address == hostname, so the pinned URL
+    # is unchanged and the fake client's URL-keyed responses still match. This test
+    # is about crawling, not pinning; it just needs the egress policy to pass.
+    host = urlparse(url).hostname or ""
+    return VettedEndpoint(hostname=host, address=host)
+
+
 def _http_connector(responses: dict[str, bytes | Exception]) -> HttpConnector:
-    return HttpConnector(client=_FakeHttpClient(responses), egress_policy=lambda _url: None)
+    return HttpConnector(client=_FakeHttpClient(responses), egress_policy=_approve)
 
 
 class TestContentHashDeduplicator(unittest.TestCase):

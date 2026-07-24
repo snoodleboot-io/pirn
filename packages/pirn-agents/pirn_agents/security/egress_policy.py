@@ -1,7 +1,7 @@
 """``EgressPolicy`` — per-tool egress allow/deny-list + SSRF guard.
 
 ``EgressPolicy`` is F11's richer network-egress control. It is a callable
-``(url) -> None`` — exactly the shape of the ``egress_policy`` seam already
+``(url) -> VettedEndpoint`` — exactly the shape of the ``egress_policy`` seam
 exposed by the F16
 :class:`~pirn_agents.connectors.http_connector.HttpConnector` — so it drops in
 with **no change to the connector**: ``HttpConnector(egress_policy=EgressPolicy(...))``.
