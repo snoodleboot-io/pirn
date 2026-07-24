@@ -150,7 +150,7 @@ jobs:
         package: ${{ fromJSON(needs.changes.outputs.packages) }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
-      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0 (match upload-artifact v7; v8 digest-verify mismatched v7 uploads -> stale wheelhouse)
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v7.0.0 (match upload-artifact v7; v8 digest-verify mismatched v7 uploads -> stale wheelhouse)
         with: { name: wheelhouse, path: dist/ }
       - name: Resolve import dir
         id: pkg
@@ -194,7 +194,7 @@ jobs:
         python-version: ["3.11", "3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
-      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0 (match upload-artifact v7; v8 digest-verify mismatched v7 uploads -> stale wheelhouse)
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v7.0.0 (match upload-artifact v7; v8 digest-verify mismatched v7 uploads -> stale wheelhouse)
         with: { name: wheelhouse, path: dist/ }
       - name: Compute install spec (extras minus heavy ML) + cross-dep refresh
         id: spec
@@ -258,7 +258,7 @@ jobs:
         package: ${{ fromJSON(needs.changes.outputs.packages) }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
-      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0 (match upload-artifact v7; v8 digest-verify mismatched v7 uploads -> stale wheelhouse)
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v7.0.0 (match upload-artifact v7; v8 digest-verify mismatched v7 uploads -> stale wheelhouse)
         with: { name: wheelhouse, path: dist/ }
       - name: Clean-env install + dependency-tree closure gate
         run: |
@@ -287,7 +287,7 @@ jobs:
         extra: [llm, vector, web, mcp, all]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
-      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0 (match upload-artifact v7; v8 digest-verify mismatched v7 uploads -> stale wheelhouse)
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v7.0.0 (match upload-artifact v7; v8 digest-verify mismatched v7 uploads -> stale wheelhouse)
         with: { name: wheelhouse, path: dist/ }
       - name: Clean-env install of pirn-agents[${{ matrix.extra }}] + import probe
         run: |
@@ -315,7 +315,7 @@ jobs:
       image: ghcr.io/${{ github.repository_owner }}/pirn-ci-base:py3.12
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
-      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0 (match upload-artifact v7; v8 digest-verify mismatched v7 uploads -> stale wheelhouse)
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v7.0.0 (match upload-artifact v7; v8 digest-verify mismatched v7 uploads -> stale wheelhouse)
         with: { name: wheelhouse, path: dist/ }
       - name: Install all packages (from wheelhouse) + test tooling
         run: |
@@ -351,7 +351,7 @@ jobs:
       image: ghcr.io/${{ github.repository_owner }}/pirn-ci-base:py3.12
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
-      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0 (match upload-artifact v7; v8 digest-verify mismatched v7 uploads -> stale wheelhouse)
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v7.0.0 (match upload-artifact v7; v8 digest-verify mismatched v7 uploads -> stale wheelhouse)
         with: { name: wheelhouse, path: dist/ }
       - name: Install bare pirn-core (from wheelhouse)
         run: |
