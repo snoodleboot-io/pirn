@@ -18,7 +18,7 @@ from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
-from pirn_agents.connectors.http_connector import HttpConnector
+from pirn.connectors.http_connector import HttpConnector
 from pirn_agents.connectors.http_search_connector import HttpSearchConnector
 from pirn_agents.connectors.sql_service_connector import SqlServiceConnector
 from pirn_agents.http_connector_knot import HttpConnectorKnot

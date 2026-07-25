@@ -15,7 +15,7 @@ from urllib.parse import urlparse
 
 from pirn.connectors.object_store import ObjectStore
 
-from pirn_agents.connectors.http_connector import HttpConnector
+from pirn.connectors.http_connector import HttpConnector
 from pirn_agents.specializations.document_processing.sources.content_hash_deduplicator import (
     ContentHashDeduplicator,
 )

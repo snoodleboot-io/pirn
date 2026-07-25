@@ -15,8 +15,8 @@ from unittest import mock
 
 import pytest
 
-from pirn_agents.connector_base import ConnectorBase
-from pirn_agents.connectors.http_connector import HttpConnector
+from pirn.connectors.connector_base import ConnectorBase
+from pirn.connectors.http_connector import HttpConnector
 from pirn.security.credential_ref import CredentialRef
 
 
@@ -291,7 +291,7 @@ class TestHttpConnectorLifecycleAndErrors:
     async def test_missing_httpx_raises_friendly_error(self) -> None:
         connector = HttpConnector(resolver=_public_resolver)
         with mock.patch.dict(sys.modules, {"httpx": None}):
-            with pytest.raises(ImportError, match=r'pip install "pirn-agents\[web\]"'):
+            with pytest.raises(ImportError, match=r'pip install "pirn-core\[http\]"'):
                 await connector.request("GET", "https://example.com")
 
     def test_rejects_unknown_auth_scheme(self) -> None:

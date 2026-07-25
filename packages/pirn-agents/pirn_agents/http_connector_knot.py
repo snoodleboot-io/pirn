@@ -15,10 +15,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from pirn.connectors.http_connector import HttpConnector
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-
-from pirn_agents.connectors.http_connector import HttpConnector
 
 
 class HttpConnectorKnot(Knot):

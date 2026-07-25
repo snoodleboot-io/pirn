@@ -13,17 +13,23 @@ the base provides deterministic, idempotent lifecycle management:
 
 from __future__ import annotations
 
+import importlib
 from types import ModuleType
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 from pirn.security.credential_ref import CredentialRef
 
-from pirn_agents._require import _require as _require_backend
-
 
 class ConnectorBase(PirnOpaqueValue):
     """Base class for connectors that hold a lazily-pooled backend client."""
+
+    #: Distribution whose extras provide this connector's optional backends. It is
+    #: named in the friendly ``ImportError`` raised by :meth:`_require`. Connectors
+    #: shipped in another distribution override it (e.g. pirn-agents connectors set
+    #: ``_install_dist = "pirn-agents"``) so the install hint points at the right
+    #: package.
+    _install_dist: ClassVar[str] = "pirn-core"
 
     def __init__(self, *, credential: CredentialRef | None = None) -> None:
         """Initialise the connector.
@@ -44,12 +50,22 @@ class ConnectorBase(PirnOpaqueValue):
         self._client: Any | None = None
 
     def _require(self, extra: str, module: str) -> ModuleType:
-        """Import ``module`` lazily, delegating to the shared ``_require`` helper.
+        """Import ``module`` lazily, raising a friendly error if it is missing.
 
-        Every connector routes optional-backend imports through the one shared
-        helper so a missing backend raises the same actionable install error.
+        Turns a missing optional backend into an ``ImportError`` naming the exact
+        ``pip install`` command — using :attr:`_install_dist` so the hint points at
+        the distribution that ships this connector.
+
+        Raises:
+            ImportError: If ``module`` cannot be imported.
         """
-        return _require_backend(extra, module)
+        try:
+            return importlib.import_module(module)
+        except ImportError as exc:
+            raise ImportError(
+                f"{module!r} is required for this feature; install it with: "
+                f'pip install "{self._install_dist}[{extra}]"'
+            ) from exc
 
     async def _get_client(self) -> Any:
         """Return the pooled client, constructing it once and caching it.

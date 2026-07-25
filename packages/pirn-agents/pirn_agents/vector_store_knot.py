@@ -3,7 +3,7 @@
 Wraps an externally-constructed vector-store client so it participates in the
 pirn graph with full lineage. pirn-core exposes no dedicated ``VectorStore``
 interface, so this knot vends the general pooled-client abstraction
-:class:`pirn_agents.connector_base.ConnectorBase` — the natural type for a
+:class:`pirn.connectors.connector_base.ConnectorBase` — the natural type for a
 vector-store backend whose live client (an HTTP session or database pool) must
 be constructed once and reused. Passing the connector through the graph means
 its backend client is built a single time and shared for the whole run (the
@@ -16,7 +16,7 @@ Algorithm:
        instance.
 
 References:
-    - :class:`pirn_agents.connector_base.ConnectorBase`
+    - :class:`pirn.connectors.connector_base.ConnectorBase`
     - :class:`pirn_agents.llm_provider_knot.LLMProviderKnot` (the template).
 """
 
@@ -24,10 +24,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from pirn.connectors.connector_base import ConnectorBase
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-
-from pirn_agents.connector_base import ConnectorBase
 
 
 class VectorStoreKnot(Knot):

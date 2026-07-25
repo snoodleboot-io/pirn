@@ -15,7 +15,7 @@ from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
-from pirn_agents.connector_base import ConnectorBase
+from pirn.connectors.connector_base import ConnectorBase
 from pirn_agents.mcp.mcp_client import McpClient
 from pirn_agents.mcp.mcp_connector import McpConnector
 from pirn_agents.mcp.mcp_tool import McpTool

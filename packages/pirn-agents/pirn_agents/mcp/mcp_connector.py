@@ -1,7 +1,7 @@
 """``McpConnector`` — a pooled, self-healing MCP session for the pirn graph.
 
 Wrapping an :class:`~pirn_agents.mcp.mcp_client.McpClient` in
-:class:`~pirn_agents.connector_base.ConnectorBase` gives the F2 lifecycle for
+:class:`~pirn.connectors.connector_base.ConnectorBase` gives the F2 lifecycle for
 free: the session is built once on first use and reused for the whole run (the
 pooling lever), and :meth:`close` tears it down deterministically. On top of that
 this connector adds *self-healing*: :meth:`session` returns the live client, and
@@ -21,9 +21,9 @@ import asyncio
 import random
 from collections.abc import Awaitable, Callable
 
+from pirn.connectors.connector_base import ConnectorBase
 from pirn.security.credential_ref import CredentialRef
 
-from pirn_agents.connector_base import ConnectorBase
 from pirn_agents.mcp.mcp_client import McpClient
 from pirn_agents.mcp.mcp_error import McpError
 from pirn_agents.mcp.mcp_transport import McpTransport

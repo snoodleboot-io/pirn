@@ -16,7 +16,7 @@ from unittest import mock
 
 import pytest
 
-from pirn_agents.connector_base import ConnectorBase
+from pirn.connectors.connector_base import ConnectorBase
 from pirn_agents.connectors.column_aware_pool import ColumnAwarePool
 from pirn_agents.connectors.sql_service_connector import SqlServiceConnector
 from pirn.security.credential_ref import CredentialRef

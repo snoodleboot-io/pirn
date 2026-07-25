@@ -26,7 +26,7 @@ import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.connector_base import ConnectorBase
+from pirn.connectors.connector_base import ConnectorBase
 from pirn_agents.tool_client_knot import ToolClientKnot
 
 
