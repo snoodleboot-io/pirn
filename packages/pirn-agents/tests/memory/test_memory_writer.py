@@ -6,9 +6,9 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
-from pirn_agents.memory.memory_writer import MemoryWriter
 from pirn.tapestry import Tapestry
 
+from pirn_agents.memory.memory_writer import MemoryWriter
 from tests.conftest import StubMemoryStore
 
 

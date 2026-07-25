@@ -8,13 +8,13 @@ from collections.abc import AsyncIterator, Mapping
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
+from pirn.tapestry import Tapestry
+
 from pirn_agents.memory_store import MemoryStore
 from pirn_agents.specializations.memory_patterns.semantic_memory_upsert import (
     SemanticMemoryUpsert,
 )
 from pirn_agents.types.agent_response import AgentResponse
-from pirn.tapestry import Tapestry
-
 from tests.specializations.conftest import StubLLMProvider
 
 

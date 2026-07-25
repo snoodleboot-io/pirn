@@ -1,4 +1,7 @@
-from pirn.backends.sqlite.sqlite_history import SQLiteHistory
-from pirn.backends.sqlite.sqlite_store import SQLiteStore
+"""SQLite history/store backends.
 
-__all__ = ["SQLiteHistory", "SQLiteStore"]
+Import each backend from its own concrete module; this package does not
+re-export them (house convention forbids import forwarding, enforced by
+``scripts/check_no_import_forwarding.py``). For example:
+``from pirn.backends.sqlite.sqlite_store import SQLiteStore``.
+"""

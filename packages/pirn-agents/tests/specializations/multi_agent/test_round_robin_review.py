@@ -7,12 +7,13 @@ from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
+from pirn.nodes.sub_tapestry import SubTapestry
+from pirn.tapestry import Tapestry
+
 from pirn_agents.specializations.multi_agent.round_robin_review import (
     RoundRobinReview,
 )
 from pirn_agents.types.agent_response import AgentResponse
-from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
 
 _REVIEWER_REGISTRY: dict[str, str] = {}
 

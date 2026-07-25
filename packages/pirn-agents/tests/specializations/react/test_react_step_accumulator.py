@@ -5,11 +5,12 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
+from pirn.tapestry import Tapestry
+
 from pirn_agents.specializations.react.react_step_accumulator import (
     ReActStepAccumulator,
 )
 from pirn_agents.types.agent_message import AgentMessage
-from pirn.tapestry import Tapestry
 
 
 def _msg(content: str) -> AgentMessage:

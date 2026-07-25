@@ -150,7 +150,7 @@ jobs:
         package: ${{ fromJSON(needs.changes.outputs.packages) }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0 (match upload-artifact v7; v8 digest-verify mismatched v7 uploads -> stale wheelhouse)
         with: { name: wheelhouse, path: dist/ }
       - name: Resolve import dir
         id: pkg
@@ -161,7 +161,14 @@ jobs:
       - name: Install package editable (deps pre-baked) + ruff + pyright
         run: |
           set -euo pipefail
-          uv pip install --system --find-links dist/ -e "packages/${{ matrix.package }}" ruff pyright
+          # Pin BOTH linters (PIR-750): an unpinned install silently rolled ruff to
+          # 0.16.0, whose new markdown code-block formatting reddened `format --check`
+          # with no source change. pyright is pinned for the same determinism reason —
+          # a new release can add checks and redden an unrelated PR. Staying on ruff
+          # 0.15.x is deliberate: adopting 0.16.0's markdown formatting is a ~571-file
+          # workspace-wide reformat of questionable value, not bundled here. Keep these
+          # aligned with .pre-commit-config.yaml.
+          uv pip install --system --find-links dist/ -e "packages/${{ matrix.package }}" 'ruff==0.15.22' 'pyright==1.1.411'
       - name: Ruff lint + format (package's own config)
         run: |
           ruff check --config packages/${{ matrix.package }}/pyproject.toml packages/${{ matrix.package }}/${{ steps.pkg.outputs.imp }}
@@ -189,7 +196,7 @@ jobs:
         python-version: ["3.11", "3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0 (match upload-artifact v7; v8 digest-verify mismatched v7 uploads -> stale wheelhouse)
         with: { name: wheelhouse, path: dist/ }
       - name: Compute install spec (extras minus heavy ML) + cross-dep refresh
         id: spec
@@ -253,7 +260,7 @@ jobs:
         package: ${{ fromJSON(needs.changes.outputs.packages) }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0 (match upload-artifact v7; v8 digest-verify mismatched v7 uploads -> stale wheelhouse)
         with: { name: wheelhouse, path: dist/ }
       - name: Clean-env install + dependency-tree closure gate
         run: |
@@ -261,6 +268,40 @@ jobs:
           uv venv /tmp/iso
           uv pip install --python /tmp/iso/bin/python --find-links dist/ "${{ matrix.package }}"
           /tmp/iso/bin/python scripts/check_install_isolation.py --package "${{ matrix.package }}"
+
+  # ===========================================================================
+  # Per-extra clean-venv install+import (PIR-137). For each pirn-agents extra
+  # bundle, create a CLEAN venv, install ONLY `pirn-agents[<extra>]` from the
+  # wheelhouse, then import the package and confirm the extra's backends are now
+  # available. Complements `install-isolation` (which proves the BASE install
+  # stays backend-free) by proving each extra actually pulls its backends in.
+  # ===========================================================================
+  agents-extras-install:
+    name: Install extras (pirn-agents [${{ matrix.extra }}])
+    needs: [changes, build-wheelhouse]
+    if: needs.changes.outputs.any == 'true'
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/${{ github.repository_owner }}/pirn-ci-base:py3.12
+    strategy:
+      fail-fast: false
+      matrix:
+        extra: [llm, vector, web, mcp, all]
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0 (match upload-artifact v7; v8 digest-verify mismatched v7 uploads -> stale wheelhouse)
+        with: { name: wheelhouse, path: dist/ }
+      - name: Clean-env install of pirn-agents[${{ matrix.extra }}] + import probe
+        run: |
+          set -euo pipefail
+          uv venv /tmp/extra
+          # Install pirn-agents from the SOURCE tree (not by name) so this PR's
+          # code + extras are exercised: installing `pirn-agents[<extra>]` by name
+          # can resolve to an already-published same-version wheel on PyPI that
+          # lacks the extra. pirn-core comes from the wheelhouse; backends from PyPI.
+          uv pip install --python /tmp/extra/bin/python --find-links dist/ \
+            "packages/pirn-agents[${{ matrix.extra }}]"
+          /tmp/extra/bin/python -c "import pirn_agents; print(pirn_agents.available_extras())"
 
   # ===========================================================================
   # Unified cross-domain suite (SCD-24 AC#3): install every package from the
@@ -276,14 +317,23 @@ jobs:
       image: ghcr.io/${{ github.repository_owner }}/pirn-ci-base:py3.12
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0 (match upload-artifact v7; v8 digest-verify mismatched v7 uploads -> stale wheelhouse)
         with: { name: wheelhouse, path: dist/ }
       - name: Install all packages (from wheelhouse) + test tooling
         run: |
           set -euo pipefail
           uv venv .venv
+          # Install the pirn packages by explicit local wheel PATH, not by name.
+          # Lockstep versioning stamps published wheels to a higher version than
+          # the unstamped source build here, so installing by name lets uv pick
+          # the stale published version off the index over the fresh wheelhouse
+          # wheel (SCD-24 latent bug: a PR that adds/renames a module then fails
+          # to import it). By-path pins the fresh local build; --find-links + the
+          # index still resolve their third-party deps and the test tooling.
           uv pip install --find-links dist/ \
-            pirn-core pirn-signal pirn-data pirn-ml pirn-agents pirn-health pirn-oilgas \
+            dist/pirn_core-*.whl dist/pirn_signal-*.whl dist/pirn_data-*.whl \
+            dist/pirn_ml-*.whl dist/pirn_agents-*.whl dist/pirn_health-*.whl \
+            dist/pirn_oilgas-*.whl \
             pytest pytest-asyncio pytest-timeout anyio
       - name: Cross-domain registry-parity / shim / extras-isolation
         run: |
@@ -303,7 +353,7 @@ jobs:
       image: ghcr.io/${{ github.repository_owner }}/pirn-ci-base:py3.12
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0 (match upload-artifact v7; v8 digest-verify mismatched v7 uploads -> stale wheelhouse)
         with: { name: wheelhouse, path: dist/ }
       - name: Install bare pirn-core (from wheelhouse)
         run: |
@@ -334,7 +384,7 @@ jobs:
   # ===========================================================================
   ci-status:
     name: CI status (all green)
-    needs: [changes, build-wheelhouse, lint, test, install-isolation, unified, import-graph, version-lockstep]
+    needs: [changes, build-wheelhouse, lint, test, install-isolation, agents-extras-install, unified, import-graph, version-lockstep]
     if: always()
     runs-on: ubuntu-latest
     steps:

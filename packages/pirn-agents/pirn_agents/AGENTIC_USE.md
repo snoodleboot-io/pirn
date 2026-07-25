@@ -147,7 +147,7 @@ class AnthropicProvider(LLMProvider):
 
 ```python
 # @tool form — name, description, and schema derived automatically
-from pirn_agents import tool
+from pirn_agents.tool_decorator import tool
 
 @tool
 async def web_search(query: str, max_results: int = 5) -> str:
@@ -236,7 +236,10 @@ Safety and tool execution are inserted between `LLMCall` and `OutputParser`.
 
 ```python
 import asyncio
-from pirn import Tapestry, Parameter, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 from pirn_agents.input.message_parser import MessageParser
 from pirn_agents.input.context_builder import ContextBuilder
 from pirn_agents.generation.llm_call import LLMCall
@@ -351,7 +354,10 @@ Three knots in `specializations/human_in_the_loop/` handle points in a pipeline 
 - `EscalationRouter` reads `response.usage["confidence"]`; providers that do not populate this field will always escalate (confidence is treated as 0).
 
 ```python
-from pirn import Tapestry, Parameter, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 from pirn.nodes.gate.gate import Gate
 from pirn_agents.generation.llm_call import LLMCall
 from pirn_agents.generation.output_parser import OutputParser
@@ -414,7 +420,10 @@ Three knots in `specializations/plan_and_execute/` decompose a high-level goal i
 - `TaskPlanner` parses numbered lines (`1. step one`) from the LLM response. Lines starting with `#` are treated as rationale and excluded from `Plan.steps`.
 
 ```python
-from pirn import Tapestry, Parameter, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 from pirn_agents.specializations.plan_and_execute.task_planner import TaskPlanner
 from pirn_agents.specializations.plan_and_execute.plan_executor import PlanExecutor
 
@@ -571,3 +580,43 @@ Call `self._clear_credentials()` inside `close()` for every provider, tool, or s
 ---
 
 *See also: [pirn AGENTIC_USE.md](../../../AGENTIC_USE.md)*
+
+---
+
+## Agentic RAG patterns (F9)
+
+The full agentic-RAG taxonomy — see
+[`specializations/rag/RETRIEVAL_TAXONOMY.md`](specializations/rag/RETRIEVAL_TAXONOMY.md)
+for the axes, knot map, and F4 dependency notes. Each pattern runs on
+`InMemoryVectorStore` with no external service.
+
+### Query transformation
+| Task | Wiring |
+| ---- | ------ |
+| Multi-query + RRF fusion | `RagFusionPipeline(query=..., memory=store, llm=llm, num_queries=4, _config=...)` |
+| Decompose into sub-questions | `SubQuestionRagPipeline(query=..., memory=store, llm=llm, max_sub_questions=4, _config=...)` |
+| Self-query metadata filter | `SelfQueryRagPipeline(query=..., store=vector_store, llm=llm, _config=...)` |
+| FLARE active retrieval | `FlareActiveRagPipeline(query=..., memory=store, llm=llm, confidence_threshold=0.5, _config=...)` |
+
+### Retrieval strategy
+| Task | Wiring |
+| ---- | ------ |
+| Route to best index | `RouterRagPipeline(query=..., routes=RouteTable({...}), llm=llm, _config=...)` |
+| Agentic RAG (retrieval-as-tool) | `AgenticRagPipeline(query=..., rag_tool=RagTool(...), llm=llm, max_iterations=3, _config=...)` |
+| Iterative / recursive retrieve | `IterativeRetriever(query=..., memory=store, llm=llm, max_iterations=3, _config=...)` |
+| Speculative draft-then-verify | `SpeculativeRagPipeline(query=..., memory=store, llm=llm, _config=...)` |
+
+### Post-retrieval
+| Task | Wiring |
+| ---- | ------ |
+| Contextual retrieval + rerank + compress | `ContextualRetrievalPipeline(query=..., memory=store, llm=llm, reranker=backend, _config=...)` |
+| Enrich chunk with context | `ContextualChunkEnricher(documents=..., document_text=..., llm=llm, _config=...)` |
+| Compress retrieved context | `ContextualCompressor(query=..., documents=..., llm=llm, _config=...)` |
+
+### Indexing structure (extends `document_processing/`)
+| Task | Wiring |
+| ---- | ------ |
+| Parent-doc / small-to-big | `ParentDocumentIngestor(...)` + `ParentDocumentRetriever(...)` |
+| Sentence-window | `SentenceWindowIngestor(...)` + `SentenceWindowRetriever(...)` |
+| Auto-merging | `AutoMergingIngestor(...)` + `AutoMergingRetriever(...)` |
+| RAPTOR hierarchical tree | `RaptorTreeBuilder(...)` + `RaptorRetriever(...)` |

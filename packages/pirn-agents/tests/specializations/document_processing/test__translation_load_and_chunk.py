@@ -9,10 +9,11 @@ from pathlib import Path
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
+
 from pirn_agents.specializations.document_processing._translation_load_and_chunk import (
     _TranslationLoadAndChunk,
 )
-from pirn.tapestry import Tapestry
 
 
 class TestTranslationLoadAndChunkProcess(unittest.IsolatedAsyncioTestCase):
@@ -24,6 +25,7 @@ class TestTranslationLoadAndChunkProcess(unittest.IsolatedAsyncioTestCase):
                 _TranslationLoadAndChunk(
                     source=fpath,
                     chunk_size=5,
+                    allowed_root=tmpdir,
                     _config=KnotConfig(id="tlac"),
                 )
             result = await t.run(RunRequest())
@@ -37,6 +39,7 @@ class TestTranslationLoadAndChunkProcess(unittest.IsolatedAsyncioTestCase):
                 _TranslationLoadAndChunk(
                     source=fpath,
                     chunk_size=10,
+                    allowed_root=tmpdir,
                     _config=KnotConfig(id="tlac"),
                 )
             result = await t.run(RunRequest())
@@ -68,5 +71,5 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             with Tapestry():
                 k = _TranslationLoadAndChunk.__new__(_TranslationLoadAndChunk)
                 object.__setattr__(k, "_config", KnotConfig(id="x"))
-            chunks = await k.process(source=fpath, chunk_size=5)
+            chunks = await k.process(source=fpath, chunk_size=5, allowed_root=tmpdir)
         assert chunks == ["hellw", "orld"]

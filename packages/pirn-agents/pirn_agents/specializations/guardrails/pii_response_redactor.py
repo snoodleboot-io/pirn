@@ -10,7 +10,7 @@ Algorithm:
     1. Validate that ``response`` is an :class:`AgentResponse`; raise
        :class:`TypeError` otherwise.
     2. Compile each raw string in ``patterns`` into a regex via
-       :func:`compile_safe_pattern`.
+       :meth:`SafePatternCompiler.compile_safe_pattern`.
     3. Apply each compiled pattern sequentially to ``response.content``
        using :meth:`re.Pattern.sub`, replacing matches with
        ``"<redacted>"``.
@@ -22,7 +22,7 @@ Algorithm:
 
 References:
     - pirn-native: :class:`pirn_agents.types.agent_response.AgentResponse`
-    - pirn-native: :func:`pirn_agents._regex_utils.compile_safe_pattern`
+    - pirn-native: :meth:`pirn_agents._safe_pattern_compiler.SafePatternCompiler.compile_safe_pattern`
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents._regex_utils import compile_safe_pattern
+from pirn_agents._safe_pattern_compiler import SafePatternCompiler
 from pirn_agents.types.agent_response import AgentResponse
 
 
@@ -49,6 +49,7 @@ class PIIResponseRedactor(Knot):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
+        self._pattern_compiler = SafePatternCompiler()
         super().__init__(response=response, patterns=patterns, _config=_config, **kwargs)
 
     async def process(
@@ -74,7 +75,9 @@ class PIIResponseRedactor(Knot):
                 f"got {type(response).__name__}"
             )
         compiled = tuple(
-            compile_safe_pattern(raw, index=i, owner="PIIResponseRedactor", field="patterns")
+            self._pattern_compiler.compile_safe_pattern(
+                raw, index=i, owner="PIIResponseRedactor", field="patterns"
+            )
             for i, raw in enumerate(patterns)
         )
         content = response.content

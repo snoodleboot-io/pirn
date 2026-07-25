@@ -8,11 +8,11 @@ from pathlib import Path
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
+
 from pirn_agents.specializations.document_processing.document_translation_pipeline import (
     DocumentTranslationPipeline,
 )
-from pirn.tapestry import Tapestry
-
 from tests.specializations.conftest import (
     StubLLMProvider,
 )
@@ -53,6 +53,7 @@ class TestDocumentTranslationPipelineProcess(unittest.IsolatedAsyncioTestCase):
                 target_language="French",
                 llm=llm,
                 chunk_size=11,
+                allowed_root=str(tmp_path),
                 _config=KnotConfig(id="translate"),
             )
         result = await t.run(RunRequest())

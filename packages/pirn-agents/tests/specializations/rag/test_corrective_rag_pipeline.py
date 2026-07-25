@@ -6,12 +6,12 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
+
 from pirn_agents.specializations.rag.corrective_rag_pipeline import (
     CorrectiveRAGPipeline,
 )
 from pirn_agents.types.agent_response import AgentResponse
-from pirn.tapestry import Tapestry
-
 from tests.specializations.conftest import (
     StubLLMProvider,
     StubMemoryStore,
@@ -44,9 +44,7 @@ class TestCorrectiveRAGPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
         assert tool.invocations == []
 
     async def test_falls_back_to_tool_when_no_docs_relevant(self) -> None:
-        memory = StubMemoryStore(
-            [{"id": 1, "text": "completely off-topic content"}]
-        )
+        memory = StubMemoryStore([{"id": 1, "text": "completely off-topic content"}])
         llm = StubLLMProvider(["from-fallback"])
         tool = StubTool(name="web", handler="web search hit")
         with Tapestry() as t:

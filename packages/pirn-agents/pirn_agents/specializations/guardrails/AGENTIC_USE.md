@@ -44,7 +44,10 @@ pirn_agents/specializations/guardrails/
 ```python
 from pirn_agents.specializations.guardrails.input_guardrail_gate import InputGuardrailGate
 from pirn_agents.specializations.guardrails.output_guardrail_gate import OutputGuardrailGate
-from pirn import Tapestry, Parameter, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 
 with Tapestry() as t:
     request   = Parameter("request", str)

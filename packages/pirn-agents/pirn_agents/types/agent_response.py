@@ -30,12 +30,17 @@ class AgentResponse(PirnOpaqueValue):
         Mapping of token-usage fields (e.g. ``input_tokens``,
         ``output_tokens``) returned by the provider. Defaults to an
         empty dict.
+    cost:
+        Estimated cost of the turn in the pricing sheet's currency, or
+        ``None`` when no pricing was configured. Populated by LLM provider
+        connectors from :attr:`usage` and a per-model price sheet.
     """
 
     content: str
     tool_calls: tuple[ToolCall, ...] = ()
     finish_reason: str = "stop"
     usage: Mapping[str, int] = field(default_factory=dict)
+    cost: float | None = None
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
         return {
@@ -43,4 +48,5 @@ class AgentResponse(PirnOpaqueValue):
             "tool_calls": [t._pirn_audit_dict() for t in self.tool_calls],
             "finish_reason": self.finish_reason,
             "usage": dict(self.usage),
+            "cost": self.cost,
         }

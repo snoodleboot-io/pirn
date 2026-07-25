@@ -40,7 +40,9 @@ pirn/domains/connectors/streaming/
 from pirn.connectors.streaming.kafka_config import KafkaConfig
 from pirn.connectors.streaming.kafka_broker import KafkaBroker
 from pirn.connectors.knots.message_broker_publish_sink import MessageBrokerPublishSink
-from pirn import Tapestry, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 
 broker = KafkaBroker(config=KafkaConfig(
     bootstrap_servers="broker:9092",

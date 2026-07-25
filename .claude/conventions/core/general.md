@@ -233,6 +233,26 @@ When a task can be broken down into smaller, specialized components:
 - Coordinate between agents using orchestrator mode for complex workflows
 - Ensure proper session management when switching between agents
 
+#### Subagent progress heartbeats (REQUIRED for background / worktree agents)
+
+When you delegate to a background or git-worktree subagent, its brief MUST tell it to
+append one timestamped progress line **after each unit of work (story/task)** to its own
+per-agent file:
+
+```
+/home/snoodleboot/Documents/software/pirn/.prompticorn/sessions/phase<N>-<feature>.md
+```
+
+Rules:
+- Use the **absolute path in the MAIN repo**, NOT the agent's worktree `.prompticorn/`
+  (worktree session files are gitignored and never appear in the main checkout the human is
+  watching).
+- **One file per agent** (e.g. `phase2-f24.md`) — several agents sharing one file clobber it.
+- Line format: `- <UTC time> <Feature>-S<k> done: <one-line summary>`. Keep it non-blocking —
+  it is a heartbeat for human visibility, not a substitute for the final report.
+- The orchestrator additionally keeps a `session_<date>_<phase>_progress.md` table updated at
+  each launch / gate / PR / merge checkpoint.
+
 ### Questions
 
 - Ask one focused question at a time — never a list of blockers

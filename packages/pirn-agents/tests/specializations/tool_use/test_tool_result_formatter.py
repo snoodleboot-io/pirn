@@ -5,11 +5,12 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
+from pirn.tapestry import Tapestry
+
 from pirn_agents.specializations.tool_use.tool_result_formatter import (
     ToolResultFormatter,
 )
 from pirn_agents.types.tool_result import ToolResult
-from pirn.tapestry import Tapestry
 
 
 def _make_formatter(tool_result: ToolResult) -> ToolResultFormatter:

@@ -6,7 +6,7 @@ by output hash.
 
 Typical workflow::
 
-    from pirn import replay_run, compare_runs
+    from pirn.replay import compare_runs, replay_run
     from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 
     history = SQLiteHistory("pirn.db")

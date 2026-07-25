@@ -5,6 +5,8 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
+from pirn.tapestry import Tapestry
+
 from pirn_agents.input.context_builder import ContextBuilder
 from pirn_agents.specializations.react.messages_passthrough import (
     MessagesPassthrough,
@@ -13,8 +15,6 @@ from pirn_agents.specializations.react.react_step_executor import (
     ReActStepExecutor,
 )
 from pirn_agents.types.agent_message import AgentMessage
-from pirn.tapestry import Tapestry
-
 from tests.specializations.conftest import (
     StubLLMProvider,
     StubTool,
