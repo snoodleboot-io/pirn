@@ -1,17 +1,16 @@
 """``EgressPolicy`` — per-tool egress allow/deny-list + SSRF guard.
 
-``EgressPolicy`` is F11's richer network-egress control. It is a callable
-``(url) -> VettedEndpoint`` — exactly the shape of the ``egress_policy`` seam
-exposed by the F16
-:class:`~pirn_agents.connectors.http_connector.HttpConnector` — so it drops in
-with **no change to the connector**: ``HttpConnector(egress_policy=EgressPolicy(...))``.
+``EgressPolicy`` is a richer network-egress control. It is a callable
+``(url) -> VettedEndpoint`` — exactly the shape of the ``egress_policy`` seam a
+pooled HTTP connector exposes — so it drops in with **no change to the
+connector**: ``HttpConnector(egress_policy=EgressPolicy(...))``.
 
 On each call it applies, in order:
 
 1. **Deny-list** — an explicit block-list of hosts, checked first so a denied
    host can never be re-allowed.
 2. **Allow-list + SSRF guard** — delegated to the F6
-   :meth:`~pirn_agents.tools.web._ssrf_guard.SsrfGuard.assert_public_host`, which enforces
+   :meth:`~pirn.security.ssrf_guard.SsrfGuard.assert_public_host`, which enforces
    an http(s) scheme, an optional host allow-list, and (unless ``allow_private``)
    rejects private / loopback / link-local / reserved / multicast IPs — including
    the cloud metadata endpoint ``169.254.169.254``.
@@ -25,10 +24,9 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from urllib.parse import urlparse
 
+from pirn.security.egress_error import EgressError
+from pirn.security.ssrf_guard import SsrfGuard
 from pirn.security.vetted_endpoint import VettedEndpoint
-
-from pirn_agents.security.egress_error import EgressError
-from pirn_agents.tools.web._ssrf_guard import SsrfGuard
 
 
 class EgressPolicy:

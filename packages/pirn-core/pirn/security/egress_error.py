@@ -1,8 +1,7 @@
 """``EgressError`` — an outbound request was refused by the egress policy.
 
-Subclasses :class:`ValueError` so it drops straight into the F16
-:class:`~pirn_agents.connectors.http_connector.HttpConnector` and the F6
-``http_request`` tool, whose egress seams already document raising
+Subclasses :class:`ValueError` so it drops straight into a pooled HTTP connector
+and the ``http_request`` tool, whose egress seams already document raising
 :class:`ValueError` on a disallowed target — existing ``except ValueError``
 handlers keep working unchanged.
 """

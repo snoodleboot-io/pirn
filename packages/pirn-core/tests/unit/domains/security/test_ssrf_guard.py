@@ -13,7 +13,7 @@ from __future__ import annotations
 import unittest
 import unittest.mock
 
-from pirn_agents.tools.web._ssrf_guard import SsrfGuard
+from pirn.security.ssrf_guard import SsrfGuard
 from pirn.security.vetted_endpoint import VettedEndpoint
 
 
