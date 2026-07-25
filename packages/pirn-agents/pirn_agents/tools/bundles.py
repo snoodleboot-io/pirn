@@ -16,10 +16,9 @@ Example::
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 
-from pirn.core.providers.llm_provider import LLMProvider
-
+from pirn_agents.llm_provider import LLMProvider
 from pirn_agents.memory_store import MemoryStore
 from pirn_agents.tool import Tool
 from pirn_agents.tools.calculator.calculator_tool import CalculatorTool
@@ -53,7 +52,7 @@ def web_toolset(
     allow_private: bool = False,
     max_bytes: int = 1_000_000,
     max_chars: int = 20_000,
-    resolver: Callable[[str], str] | None = None,
+    resolver: Callable[[str], str | Sequence[str]] | None = None,
 ) -> Toolset:
     """Return a web toolset: HTTP fetch, HTML-to-text, and optional web search.
 

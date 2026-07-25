@@ -53,6 +53,7 @@ class TestDocumentTranslationPipelineProcess(unittest.IsolatedAsyncioTestCase):
                 target_language="French",
                 llm=llm,
                 chunk_size=11,
+                allowed_root=str(tmp_path),
                 _config=KnotConfig(id="translate"),
             )
         result = await t.run(RunRequest())

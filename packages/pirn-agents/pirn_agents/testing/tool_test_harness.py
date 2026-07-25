@@ -29,7 +29,6 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from typing import Any
 
-from pirn_agents.streaming_tool import StreamingTool, collect_stream
 from pirn_agents.testing.stub_tool import StubTool
 from pirn_agents.tool import Tool
 
@@ -99,9 +98,9 @@ async def collect_tool_stream(tool: Tool, arguments: Mapping[str, Any]) -> list[
     TypeError
         If ``tool`` is not a streaming tool.
     """
-    if not isinstance(tool, StreamingTool) or not tool.streaming:
+    if not tool.streaming:
         raise TypeError(f"tool {tool.name!r} is not a streaming tool")
-    return await collect_stream(tool, arguments)
+    return await tool.collect_stream(arguments)
 
 
 class ToolTestHarness:

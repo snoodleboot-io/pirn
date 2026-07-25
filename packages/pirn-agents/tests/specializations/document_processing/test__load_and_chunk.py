@@ -30,7 +30,7 @@ class TestLoadAndChunkProcess(unittest.IsolatedAsyncioTestCase):
             fpath = os.path.join(tmpdir, "doc.txt")
             Path(fpath).write_text("abcdefghij", encoding="utf-8")
             k = _make_knot(source=fpath, chunk_size=5)
-            result = await k.process(source=fpath, chunk_size=5)
+            result = await k.process(source=fpath, chunk_size=5, allowed_root=tmpdir)
             assert result == ["abcde", "fghij"]
 
     async def test_empty_file_returns_empty_list(self) -> None:
@@ -38,7 +38,7 @@ class TestLoadAndChunkProcess(unittest.IsolatedAsyncioTestCase):
             fpath = os.path.join(tmpdir, "empty.txt")
             Path(fpath).write_text("", encoding="utf-8")
             k = _make_knot(source=fpath, chunk_size=100)
-            result = await k.process(source=fpath, chunk_size=100)
+            result = await k.process(source=fpath, chunk_size=100, allowed_root=tmpdir)
             assert result == []
 
     async def test_rejects_empty_source(self) -> None:

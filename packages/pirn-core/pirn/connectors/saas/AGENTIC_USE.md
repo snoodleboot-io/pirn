@@ -45,7 +45,9 @@ pirn/domains/connectors/saas/
 ```python
 from pirn.connectors.saas.stripe_config import StripeConfig
 from pirn.connectors.saas.stripe_client import StripeClient
-from pirn import Tapestry, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 
 stripe = StripeClient(config=StripeConfig(api_key=os.environ["STRIPE_KEY"]))
 

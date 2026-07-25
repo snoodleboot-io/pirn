@@ -19,6 +19,10 @@ from collections.abc import AsyncIterator, Mapping, Sequence
 from typing import Any
 
 from pirn_agents.llm.base_llm_provider import BaseLLMProvider
+from pirn_agents.llm.multimodal_adapter import MultimodalAdapter
+from pirn_agents.llm.openai_compatible_multimodal_adapter import (
+    OpenAICompatibleMultimodalAdapter,
+)
 from pirn_agents.llm.openai_compatible_tool_adapter import OpenAICompatibleToolAdapter
 from pirn_agents.llm.stream_delta import StreamDelta
 from pirn_agents.provider_adapter import ProviderAdapter
@@ -33,6 +37,9 @@ class OpenAICompatibleProvider(BaseLLMProvider):
 
     def _tool_adapter(self) -> ProviderAdapter:
         return OpenAICompatibleToolAdapter()
+
+    def _multimodal_adapter(self) -> MultimodalAdapter:
+        return OpenAICompatibleMultimodalAdapter()
 
     # -- structured output (F20) ----------------------------------------
 

@@ -25,7 +25,10 @@ Knots here consume a signal at one `fs` and emit it at another. They are rate-ch
 ## Canonical pattern
 
 ```python
-from pirn import Tapestry, Parameter, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 from pirn_signal.resampling.rational_resampler_pipeline import RationalResamplerPipeline
 
 tapestry = Tapestry()

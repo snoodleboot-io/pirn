@@ -22,8 +22,8 @@ import time
 from collections.abc import Callable, Sequence
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
-from pirn.core.providers.embedding_provider import EmbeddingProvider
 
+from pirn_agents.embedding_provider import EmbeddingProvider
 from pirn_agents.memory_store import MemoryStore
 from pirn_agents.specializations.document_processing.chunking.chunk import Chunk
 from pirn_agents.specializations.document_processing.incremental.freshness_policy import (

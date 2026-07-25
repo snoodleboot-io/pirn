@@ -8,12 +8,12 @@ result cap, provider-neutral key configuration, consumption through the
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import AsyncIterator
 from typing import Any
 
 import pytest
 
-from pirn_agents.connectors.http_connector import HttpConnector
+from pirn.connectors.http_connector import HttpConnector
 from pirn_agents.connectors.http_search_connector import HttpSearchConnector
 from pirn_agents.tools.web.search_backend import SearchBackend
 from pirn_agents.tools.web.web_search_tool import WebSearchTool
@@ -39,7 +39,13 @@ class _FakeClient:
         self.aclosed = False
 
     async def request(
-        self, method: str, url: str, *, headers: Any = None, params: Any = None
+        self,
+        method: str,
+        url: str,
+        *,
+        headers: Any = None,
+        params: Any = None,
+        extensions: Any = None,
     ) -> _FakeResponse:
         self.calls.append((method, url, params))
         return _FakeResponse(self._payload)

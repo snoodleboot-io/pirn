@@ -18,6 +18,7 @@ from typing import Any
 
 from pirn_agents._require import _require
 from pirn_agents.embeddings.base_embedding_provider import BaseEmbeddingProvider
+from pirn_agents.llm.retry_policy import RetryPolicy
 
 
 class LocalEmbeddingProvider(BaseEmbeddingProvider):
@@ -28,7 +29,7 @@ class LocalEmbeddingProvider(BaseEmbeddingProvider):
         *,
         model_name: str,
         batch_size: int = 32,
-        max_retries: int = 0,
+        retry_policy: RetryPolicy | None = None,
         model_factory: Callable[[], Any] | None = None,
     ) -> None:
         """Initialise the local embedding adapter.
@@ -36,14 +37,19 @@ class LocalEmbeddingProvider(BaseEmbeddingProvider):
         Args:
             model_name: Name/path of the sentence-transformer model to load.
             batch_size: Texts per ``encode`` call (see the base provider).
-            max_retries: Per-batch retry count; defaults to ``0`` since local
-                inference is deterministic and non-transient.
+            retry_policy: Per-batch retry/backoff schedule (see the base
+                provider); defaults to ``RetryPolicy(max_retries=0)`` since
+                local inference is deterministic and non-transient.
             model_factory: Optional zero-arg factory returning a pre-built model
                 object exposing ``encode``. When supplied it replaces the lazy
                 ``sentence_transformers`` load — the seam mirrored tests use to
                 run offline without the extra installed.
         """
-        super().__init__(batch_size=batch_size, max_retries=max_retries, model=model_name)
+        super().__init__(
+            batch_size=batch_size,
+            retry_policy=retry_policy if retry_policy is not None else RetryPolicy(max_retries=0),
+            model=model_name,
+        )
         self._model_name: str = model_name
         self._model_factory: Callable[[], Any] | None = model_factory
 

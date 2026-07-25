@@ -34,8 +34,8 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.providers.llm_provider import LLMProvider
 
+from pirn_agents.llm_provider import LLMProvider
 from pirn_agents.rerank.reranker_backend import RerankerBackend
 
 
@@ -56,7 +56,7 @@ class Reranker(Knot):
         documents: Knot | list[Mapping[str, Any]],
         _config: KnotConfig,
         llm: Knot | LLMProvider | None = None,
-        reranker: Knot | Any | None = None,
+        reranker: Knot | RerankerBackend | None = None,
         top_k: Knot | int = 5,
         **kwargs: Any,
     ) -> None:
@@ -75,7 +75,7 @@ class Reranker(Knot):
         query: str,
         documents: list[Mapping[str, Any]],
         llm: LLMProvider | None = None,
-        reranker: Any = None,
+        reranker: RerankerBackend | None = None,
         top_k: int = 5,
         **_: Any,
     ) -> list[Mapping[str, Any]]:

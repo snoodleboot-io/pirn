@@ -13,9 +13,9 @@ from typing import Any
 from pirn.connectors.database_connection_pool import (
     DatabaseConnectionPool,
 )
-from pirn.core.providers.embedding_provider import EmbeddingProvider
-from pirn.core.providers.llm_provider import LLMProvider
 
+from pirn_agents.embedding_provider import EmbeddingProvider
+from pirn_agents.llm_provider import LLMProvider
 from pirn_agents.memory_store import MemoryStore
 from pirn_agents.tool import Tool
 

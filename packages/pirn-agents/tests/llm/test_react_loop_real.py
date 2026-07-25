@@ -31,7 +31,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
-from pirn_agents.credential_ref import CredentialRef
+from pirn.security.credential_ref import CredentialRef
 from pirn_agents.llm.openai_compatible_provider import OpenAICompatibleProvider
 from pirn_agents.specializations.react.react_loop import ReActLoop
 from pirn_agents.types.agent_message import AgentMessage

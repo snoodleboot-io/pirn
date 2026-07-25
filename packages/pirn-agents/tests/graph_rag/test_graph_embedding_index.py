@@ -5,8 +5,7 @@ from __future__ import annotations
 import unittest
 from collections.abc import Sequence
 
-from pirn.core.providers.embedding_provider import EmbeddingProvider
-
+from pirn_agents.embedding_provider import EmbeddingProvider
 from pirn_agents.graph_rag.graph_embedding_index import GraphEmbeddingIndex
 from pirn_agents.graph_stores.graph_edge import GraphEdge
 from pirn_agents.graph_stores.graph_node import GraphNode

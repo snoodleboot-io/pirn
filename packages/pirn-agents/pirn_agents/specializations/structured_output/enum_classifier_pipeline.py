@@ -16,7 +16,7 @@ Algorithm:
 
 
 References:
-    - :class:`pirn.core.providers.llm_provider.LLMProvider`
+    - :class:`pirn_agents.llm_provider.LLMProvider`
     - :class:`pirn_agents.specializations.structured_output._enum_classifier_attempt._EnumClassifierAttempt`
 """
 
@@ -27,9 +27,9 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.providers.llm_provider import LLMProvider
 from pirn.nodes.sub_tapestry import SubTapestry
 
+from pirn_agents.llm_provider import LLMProvider
 from pirn_agents.specializations.structured_output._enum_classifier_attempt import (
     _EnumClassifierAttempt,
 )

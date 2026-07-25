@@ -21,7 +21,10 @@ Knots here split into two families. Parametric spectral estimators (`ArModelEsti
 ## Canonical pattern
 
 ```python
-from pirn import Tapestry, Parameter, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 from pirn_signal.statistical.music_estimator import MusicEstimator
 
 tapestry = Tapestry()

@@ -1,7 +1,7 @@
 """Unit tests for :class:`VectorStoreKnot`.
 
 pirn-core exposes no dedicated ``VectorStore`` interface, so the knot vends the
-pooled-client abstraction :class:`pirn_agents.connector_base.ConnectorBase`
+pooled-client abstraction :class:`pirn.connectors.connector_base.ConnectorBase`
 (the S3 pooled-client base). The tests prove one-construction-per-run: a single
 stub connector is built, then the knot's ``process`` is exercised many times and
 the same instance is vended each time without any re-construction of its backend
@@ -16,7 +16,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
-from pirn_agents.connector_base import ConnectorBase
+from pirn.connectors.connector_base import ConnectorBase
 from pirn_agents.vector_store_knot import VectorStoreKnot
 
 

@@ -56,7 +56,9 @@ pirn_data/frames/
 ```python
 from pirn_data.frames.polars.polars_filter import PolarsFilter
 from pirn_data.frames.polars.polars_aggregate import PolarsAggregate
-from pirn import Tapestry, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 
 with Tapestry() as t:
     rows     = SourceKnot(_config=KnotConfig(id="source"))

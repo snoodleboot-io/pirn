@@ -41,7 +41,8 @@ pirn/engine/dispatchers/
 ### Thread pool for blocking I/O knots
 
 ```python
-from pirn import Tapestry, RunRequest
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 from pirn.engine.dispatchers.thread_dispatcher import ThreadDispatcher
 
 with Tapestry(dispatcher=ThreadDispatcher(max_workers=16)) as t:

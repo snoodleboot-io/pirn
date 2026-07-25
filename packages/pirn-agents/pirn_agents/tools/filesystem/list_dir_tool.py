@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from pirn_agents.tools.base_tool import BaseTool
-from pirn_agents.tools.filesystem._path_guard import resolve_in_root, resolve_root
+from pirn_agents.tools.filesystem._path_guard import PathGuard
 
 
 class ListDirTool(BaseTool):
@@ -28,7 +28,7 @@ class ListDirTool(BaseTool):
         """
         if max_entries <= 0:
             raise ValueError(f"list_dir: max_entries must be positive, got {max_entries}")
-        self._root = resolve_root(str(root))
+        self._guard = PathGuard(root=str(root))
         self._max_entries = max_entries
 
     @property
@@ -67,7 +67,7 @@ class ListDirTool(BaseTool):
         self._require_mapping(self.name, arguments)
         raw = arguments.get("path", arguments.get("input", ""))
         relative = raw if isinstance(raw, str) else ""
-        resolved = resolve_in_root(self._root, relative, must_exist=True)
+        resolved = self._guard.resolve(relative, must_exist=True)
         if not resolved.is_dir():
             raise ValueError(f"list_dir: not a directory: {relative!r}")
         entries = await asyncio.to_thread(self._list, resolved)

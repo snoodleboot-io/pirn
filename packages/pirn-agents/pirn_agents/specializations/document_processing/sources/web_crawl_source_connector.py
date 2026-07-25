@@ -1,6 +1,6 @@
 """``WebCrawlSourceConnector`` — pull documents by crawling URLs (F25-S3 / PIR-613).
 
-Built on the F16 :class:`~pirn_agents.connectors.http_connector.HttpConnector`
+Built on the F16 :class:`~pirn.connectors.http_connector.HttpConnector`
 (pooled, SSRF-guarded, retrying), it streams each seed URL's bytes, dedups by
 content hash, and yields a
 :class:`~pirn_agents.specializations.document_processing.sources.source_document.SourceDocument`.
@@ -13,7 +13,8 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator, Sequence
 
-from pirn_agents.connectors.http_connector import HttpConnector
+from pirn.connectors.http_connector import HttpConnector
+
 from pirn_agents.specializations.document_processing.sources.content_hash_deduplicator import (
     ContentHashDeduplicator,
 )

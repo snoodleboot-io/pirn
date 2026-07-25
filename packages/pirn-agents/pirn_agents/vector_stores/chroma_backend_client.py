@@ -16,9 +16,10 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 from pirn_agents._require import _require
+from pirn_agents.vector_stores.vector_backend_client import VectorBackendClient
 
 
-class ChromaBackendClient:
+class ChromaBackendClient(VectorBackendClient):
     """Neutral-client wrapper over a Chroma collection (cosine space)."""
 
     def __init__(self, *, collection: str, persist_path: str | None = None) -> None:

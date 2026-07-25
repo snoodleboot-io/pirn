@@ -22,9 +22,10 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 from pirn_agents._require import _require
+from pirn_agents.graph_stores.graph_backend_client import GraphBackendClient
 
 
-class KuzuBackendClient:
+class KuzuBackendClient(GraphBackendClient):
     """Neutral-client wrapper over an embedded Kuzu connection."""
 
     def __init__(self, *, db_path: str = ":memory:") -> None:

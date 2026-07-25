@@ -13,6 +13,7 @@ from typing import Any
 from unittest import mock
 
 from pirn_agents.embeddings.http_embedding_provider import HttpEmbeddingProvider
+from pirn_agents.llm.retry_policy import RetryPolicy
 
 
 class StubResponse:
@@ -91,7 +92,11 @@ class TestHttpEmbeddingProvider(unittest.IsolatedAsyncioTestCase):
     async def test_retries_failed_post(self) -> None:
         client = StubHttpClient(fail_times=1)
         provider = HttpEmbeddingProvider(
-            base_url="http://svc", model="m", client=client, batch_size=5, max_retries=2
+            base_url="http://svc",
+            model="m",
+            client=client,
+            batch_size=5,
+            retry_policy=RetryPolicy(max_retries=2, base_delay=0.0),
         )
 
         vectors = await provider.embed(["a", "b"])

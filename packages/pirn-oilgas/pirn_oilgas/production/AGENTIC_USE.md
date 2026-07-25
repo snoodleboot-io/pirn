@@ -27,7 +27,10 @@ Production analytics operates on time-series streams of rate, pressure, and equi
 ## Canonical pattern
 
 ```python
-from pirn import Tapestry, Parameter, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 from pirn_oilgas.production import (
     ProductionDataQcGate,
     ProductionAllocationEngine,

@@ -35,9 +35,9 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.providers.embedding_provider import EmbeddingProvider
 from pirn.nodes.sub_tapestry import SubTapestry
 
+from pirn_agents.embedding_provider import EmbeddingProvider
 from pirn_agents.memory_store import MemoryStore
 from pirn_agents.specializations.document_processing._chunk_embedder_store import (
     _ChunkEmbedderStore,
@@ -47,6 +47,9 @@ from pirn_agents.specializations.document_processing._document_chunker import (
 )
 from pirn_agents.specializations.document_processing._document_loader import (
     _DocumentLoader,
+)
+from pirn_agents.specializations.document_processing._document_source_reader import (
+    _DocumentSourceReader,
 )
 
 
@@ -64,7 +67,7 @@ class DocumentIngestionPipeline(SubTapestry):
         chunk_overlap: Knot | int = 100,
         allowed_root: Knot | str | None = None,
         allowed_hosts: Knot | tuple[str, ...] | None = None,
-        max_bytes: Knot | int = 100 * 1024 * 1024,
+        max_bytes: Knot | int = _DocumentSourceReader.max_bytes,
         **kwargs: Any,
     ) -> None:
         super().__init__(
@@ -89,7 +92,7 @@ class DocumentIngestionPipeline(SubTapestry):
         chunk_overlap: int = 100,
         allowed_root: str | None = None,
         allowed_hosts: tuple[str, ...] | None = None,
-        max_bytes: int = 100 * 1024 * 1024,
+        max_bytes: int = _DocumentSourceReader.max_bytes,
         **_: Any,
     ) -> Any:
         """Load, chunk, embed, and store a document; return the number of chunks stored.

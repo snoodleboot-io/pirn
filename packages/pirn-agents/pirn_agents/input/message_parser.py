@@ -25,6 +25,8 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.types.agent_message import AgentMessage
+from pirn_agents.types.content_block import ContentBlock
+from pirn_agents.types.message_content import MessageContent
 
 
 class MessageParser(Knot):
@@ -96,16 +98,25 @@ class MessageParser(Knot):
                     f"MessageParser: item[{index}].role must be a non-empty string, got {role!r}"
                 )
             content = item.get("content")
-            if not isinstance(content, str):
-                raise ValueError(
-                    f"MessageParser: item[{index}].content must be a string, "
-                    f"got {type(content).__name__}"
+            if isinstance(content, str):
+                return AgentMessage(
+                    role=role,
+                    content=content,
+                    name=item.get("name"),
+                    tool_call_id=item.get("tool_call_id"),
                 )
-            return AgentMessage(
-                role=role,
-                content=content,
-                name=item.get("name"),
-                tool_call_id=item.get("tool_call_id"),
+            if isinstance(content, (MessageContent, ContentBlock)) or (
+                isinstance(content, Sequence) and not isinstance(content, (str, bytes))
+            ):
+                return AgentMessage.from_blocks(
+                    role=role,
+                    blocks=MessageContent.coerce(content).blocks,
+                    name=item.get("name"),
+                    tool_call_id=item.get("tool_call_id"),
+                )
+            raise ValueError(
+                f"MessageParser: item[{index}].content must be a string, content block(s), "
+                f"or MessageContent, got {type(content).__name__}"
             )
         raise TypeError(
             f"MessageParser: item[{index}] must be a str, Mapping, or "

@@ -27,8 +27,8 @@ class ToolResult(PirnOpaqueValue):
         Terminal disposition of the invocation. Defaults to
         :attr:`ToolStatus.OK`; when left at the default and ``error`` is
         set, it is promoted to :attr:`ToolStatus.ERROR` in
-        ``__post_init__``. An explicit non-OK status (``TIMEOUT`` /
-        ``CANCELLED``) is always preserved.
+        ``__post_init__``. An explicit non-OK status (``TIMEOUT``) is
+        always preserved.
     latency:
         Wall-clock duration of the invocation in seconds, or ``None`` when
         not measured.
@@ -49,7 +49,7 @@ class ToolResult(PirnOpaqueValue):
 
         Frozen-safe: uses ``object.__setattr__`` to mutate the field. Only
         promotes the default ``OK`` to ``ERROR`` so an explicitly supplied
-        ``TIMEOUT``/``CANCELLED`` status is never overwritten.
+        ``TIMEOUT`` status is never overwritten.
         """
         if self.error is not None and self.status == ToolStatus.OK:
             object.__setattr__(self, "status", ToolStatus.ERROR)

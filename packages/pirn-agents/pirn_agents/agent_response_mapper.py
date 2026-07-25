@@ -18,50 +18,53 @@ from pirn_agents.types.tool_result import ToolResult
 from pirn_agents.types.tool_status import ToolStatus
 
 
-def summarise_tokens(usage: Mapping[str, int]) -> int | None:
-    """Collapse a provider ``usage`` mapping to a single token count.
+class AgentResponseMapper:
+    """Translate :class:`AgentResponse` values into the F1 :class:`ToolResult` shape."""
 
-    Prefers an explicit ``total_tokens`` field; otherwise sums the
-    ``input_tokens``/``output_tokens`` pair. Returns ``None`` when the mapping
-    carries no recognised token fields so ``tokens`` stays unset rather than
-    reporting a misleading zero.
-    """
-    if not usage:
+    def summarise_tokens(self, usage: Mapping[str, int]) -> int | None:
+        """Collapse a provider ``usage`` mapping to a single token count.
+
+        Prefers an explicit ``total_tokens`` field; otherwise sums the
+        ``input_tokens``/``output_tokens`` pair. Returns ``None`` when the mapping
+        carries no recognised token fields so ``tokens`` stays unset rather than
+        reporting a misleading zero.
+        """
+        if not usage:
+            return None
+        total = usage.get("total_tokens")
+        if total is not None:
+            return int(total)
+        parts = [usage[key] for key in ("input_tokens", "output_tokens") if key in usage]
+        if parts:
+            return int(sum(parts))
         return None
-    total = usage.get("total_tokens")
-    if total is not None:
-        return int(total)
-    parts = [usage[key] for key in ("input_tokens", "output_tokens") if key in usage]
-    if parts:
-        return int(sum(parts))
-    return None
 
+    def to_tool_result(
+        self,
+        response: AgentResponse,
+        *,
+        call_id: str,
+        latency: float | None = None,
+    ) -> ToolResult:
+        """Convert a successful :class:`AgentResponse` into a :class:`ToolResult`.
 
-def agent_response_to_tool_result(
-    response: AgentResponse,
-    *,
-    call_id: str,
-    latency: float | None = None,
-) -> ToolResult:
-    """Convert a successful :class:`AgentResponse` into a :class:`ToolResult`.
+        The full ``response`` is passed through as :attr:`ToolResult.result` so a
+        caller retains access to ``content``, ``tool_calls``, ``usage`` and
+        ``cost`` — structured passthrough rather than a lossy ``.content`` string.
+        ``tokens`` is derived from :attr:`AgentResponse.usage`.
 
-    The full ``response`` is passed through as :attr:`ToolResult.result` so a
-    caller retains access to ``content``, ``tool_calls``, ``usage`` and
-    ``cost`` — structured passthrough rather than a lossy ``.content`` string.
-    ``tokens`` is derived from :attr:`AgentResponse.usage`.
+        Args:
+            response: The outcome of the nested agent turn.
+            call_id: Identifier the originating tool call will reference back.
+            latency: Wall-clock seconds the nested run took, when measured.
 
-    Args:
-        response: The outcome of the nested agent turn.
-        call_id: Identifier the originating tool call will reference back.
-        latency: Wall-clock seconds the nested run took, when measured.
-
-    Returns:
-        An ``OK`` :class:`ToolResult` wrapping the structured response.
-    """
-    return ToolResult(
-        call_id=call_id,
-        result=response,
-        status=ToolStatus.OK,
-        latency=latency,
-        tokens=summarise_tokens(response.usage),
-    )
+        Returns:
+            An ``OK`` :class:`ToolResult` wrapping the structured response.
+        """
+        return ToolResult(
+            call_id=call_id,
+            result=response,
+            status=ToolStatus.OK,
+            latency=latency,
+            tokens=self.summarise_tokens(response.usage),
+        )
