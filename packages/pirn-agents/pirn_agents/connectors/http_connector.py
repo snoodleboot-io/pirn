@@ -37,10 +37,11 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Callable, Mapping, Sequence
 from typing import Any
 
+from pirn.security.credential_ref import CredentialRef
+from pirn.security.vetted_endpoint import VettedEndpoint
+
 from pirn_agents.connector_base import ConnectorBase
-from pirn_agents.credential_ref import CredentialRef
 from pirn_agents.tools.web._ssrf_guard import SsrfGuard
-from pirn_agents.tools.web.vetted_endpoint import VettedEndpoint
 
 
 class HttpConnector(ConnectorBase):

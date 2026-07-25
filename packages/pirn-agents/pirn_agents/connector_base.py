@@ -17,9 +17,9 @@ from types import ModuleType
 from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
+from pirn.security.credential_ref import CredentialRef
 
 from pirn_agents._require import _require as _require_backend
-from pirn_agents.credential_ref import CredentialRef
 
 
 class ConnectorBase(PirnOpaqueValue):

@@ -14,7 +14,7 @@ import unittest
 import unittest.mock
 
 from pirn_agents.tools.web._ssrf_guard import SsrfGuard
-from pirn_agents.tools.web.vetted_endpoint import VettedEndpoint
+from pirn.security.vetted_endpoint import VettedEndpoint
 
 
 class TestAllRecordsClassified(unittest.TestCase):

@@ -19,7 +19,7 @@ import pytest
 from pirn_agents.connector_base import ConnectorBase
 from pirn_agents.connectors.column_aware_pool import ColumnAwarePool
 from pirn_agents.connectors.sql_service_connector import SqlServiceConnector
-from pirn_agents.credential_ref import CredentialRef
+from pirn.security.credential_ref import CredentialRef
 
 
 class _FakePool(ColumnAwarePool):

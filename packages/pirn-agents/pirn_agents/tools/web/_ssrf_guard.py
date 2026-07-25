@@ -37,8 +37,8 @@ import socket
 from collections.abc import Callable, Sequence
 from urllib.parse import urlparse
 
-from pirn_agents.security.security_guard import SecurityGuard
-from pirn_agents.tools.web.vetted_endpoint import VettedEndpoint
+from pirn.security.security_guard import SecurityGuard
+from pirn.security.vetted_endpoint import VettedEndpoint
 
 
 class SsrfGuard(SecurityGuard):

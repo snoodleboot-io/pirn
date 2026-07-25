@@ -1,7 +1,7 @@
 """``VettedEndpoint`` — a host that passed the SSRF guard, pinned to its address.
 
-:class:`~pirn_agents.tools.web._ssrf_guard.SsrfGuard` resolves a hostname and
-classifies every address it returns. Handing the *original URL* to an HTTP client
+An SSRF guard resolves a hostname and classifies every address it returns.
+Handing the *original URL* to an HTTP client
 afterwards throws that work away: the client re-resolves independently, so a
 short-TTL attacker record can answer public at check time and private at connect
 time (DNS rebinding). ``VettedEndpoint`` carries the address that was actually

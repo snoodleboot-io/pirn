@@ -23,12 +23,12 @@ from typing import Any
 
 from pirn.connectors.databases.postgres_config import PostgresConfig
 from pirn.connectors.databases.sqlite_config import SqliteConfig
+from pirn.security.credential_ref import CredentialRef
 
 from pirn_agents.connector_base import ConnectorBase
 from pirn_agents.connectors.column_aware_pool import ColumnAwarePool
 from pirn_agents.connectors.column_aware_postgres_pool import ColumnAwarePostgresPool
 from pirn_agents.connectors.column_aware_sqlite_pool import ColumnAwareSqlitePool
-from pirn_agents.credential_ref import CredentialRef
 from pirn_agents.tools.sql._read_only_sql_guard import ReadOnlySqlGuard
 
 

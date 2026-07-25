@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import unittest
 
-from pirn_agents.credential_ref import CredentialRef
+from pirn.security.credential_ref import CredentialRef
 from pirn_agents.llm.anthropic_messages_provider import AnthropicMessagesProvider
 from pirn_agents.llm.model_pricing import ModelPricing
 from pirn_agents.toolset import Toolset

@@ -16,8 +16,9 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable, Sequence
 from typing import Any
 
+from pirn.security.credential_ref import CredentialRef
+
 from pirn_agents._require import _require
-from pirn_agents.credential_ref import CredentialRef
 from pirn_agents.embeddings.base_embedding_provider import BaseEmbeddingProvider
 from pirn_agents.llm.retry_policy import RetryPolicy
 

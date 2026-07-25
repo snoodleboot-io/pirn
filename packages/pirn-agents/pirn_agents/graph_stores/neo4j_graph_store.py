@@ -11,7 +11,8 @@ backend installed. Importing this module pulls in no backend.
 
 from __future__ import annotations
 
-from pirn_agents.credential_ref import CredentialRef
+from pirn.security.credential_ref import CredentialRef
+
 from pirn_agents.graph_stores.backend_graph_store import BackendGraphStore
 from pirn_agents.graph_stores.graph_backend_client import GraphBackendClient
 

@@ -21,8 +21,9 @@ import asyncio
 import random
 from collections.abc import Awaitable, Callable
 
+from pirn.security.credential_ref import CredentialRef
+
 from pirn_agents.connector_base import ConnectorBase
-from pirn_agents.credential_ref import CredentialRef
 from pirn_agents.mcp.mcp_client import McpClient
 from pirn_agents.mcp.mcp_error import McpError
 from pirn_agents.mcp.mcp_transport import McpTransport

@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import re
 
-from pirn_agents.security.security_guard import SecurityGuard
+from pirn.security.security_guard import SecurityGuard
 
 
 class ReadOnlySqlGuard(SecurityGuard):
