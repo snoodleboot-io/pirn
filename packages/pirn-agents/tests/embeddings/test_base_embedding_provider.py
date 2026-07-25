@@ -12,6 +12,7 @@ from typing import Any
 
 from pirn_agents.credential_ref import CredentialRef
 from pirn_agents.embeddings.base_embedding_provider import BaseEmbeddingProvider
+from pirn_agents.llm.retry_policy import RetryPolicy
 
 
 class RecordingProvider(BaseEmbeddingProvider):
@@ -42,9 +43,9 @@ class TestBaseEmbeddingProvider(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(ValueError):
             RecordingProvider(batch_size=0)
 
-    def test_rejects_negative_max_retries(self) -> None:
-        with self.assertRaises(ValueError):
-            RecordingProvider(max_retries=-1)
+    def test_rejects_non_retrypolicy(self) -> None:
+        with self.assertRaises(TypeError):
+            RecordingProvider(retry_policy=object())  # type: ignore[arg-type]
 
     async def test_rejects_bare_str_input(self) -> None:
         provider = RecordingProvider(batch_size=2)
@@ -77,7 +78,9 @@ class TestBaseEmbeddingProvider(unittest.IsolatedAsyncioTestCase):
         assert vectors[0][1] == 1.0
 
     async def test_retries_until_success(self) -> None:
-        provider = RecordingProvider(batch_size=2, max_retries=2, fail_times=2)
+        provider = RecordingProvider(
+            batch_size=2, retry_policy=RetryPolicy(max_retries=2, base_delay=0.0), fail_times=2
+        )
 
         vectors = await provider.embed(["a", "b"])
 
@@ -85,10 +88,32 @@ class TestBaseEmbeddingProvider(unittest.IsolatedAsyncioTestCase):
         assert provider.batches == [["a", "b"]]
 
     async def test_raises_after_exhausting_retries(self) -> None:
-        provider = RecordingProvider(batch_size=2, max_retries=1, fail_times=5)
+        provider = RecordingProvider(
+            batch_size=2, retry_policy=RetryPolicy(max_retries=1, base_delay=0.0), fail_times=5
+        )
 
         with self.assertRaises(RuntimeError):
             await provider.embed(["a", "b"])
+
+    async def test_backoff_uses_retry_policy_schedule(self) -> None:
+        # The between-retry sleeps come straight from RetryPolicy.backoff_delay,
+        # not a hand-rolled formula: with jitter off the two backoffs are the
+        # capped exponential terms 0.1 and 0.2.
+        slept: list[float] = []
+
+        async def _record_sleep(delay: float) -> None:
+            slept.append(delay)
+
+        provider = RecordingProvider(
+            batch_size=2,
+            retry_policy=RetryPolicy(max_retries=3, base_delay=0.1, multiplier=2.0, jitter=False),
+            sleep=_record_sleep,
+            fail_times=2,
+        )
+
+        await provider.embed(["a", "b"])
+
+        assert slept == [0.1, 0.2]
 
     async def test_empty_input_returns_empty(self) -> None:
         provider = RecordingProvider(batch_size=2)

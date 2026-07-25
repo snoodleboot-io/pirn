@@ -13,12 +13,13 @@ Batching, client reuse, and retries come from
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from typing import Any
 
 from pirn_agents._require import _require
 from pirn_agents.credential_ref import CredentialRef
 from pirn_agents.embeddings.base_embedding_provider import BaseEmbeddingProvider
+from pirn_agents.llm.retry_policy import RetryPolicy
 
 
 class HttpEmbeddingProvider(BaseEmbeddingProvider):
@@ -32,8 +33,9 @@ class HttpEmbeddingProvider(BaseEmbeddingProvider):
         credential: CredentialRef | None = None,
         path: str = "/embeddings",
         batch_size: int = 32,
-        max_retries: int = 2,
-        retry_base_delay: float = 0.0,
+        retry_policy: RetryPolicy | None = None,
+        rng: Callable[[], float] | None = None,
+        sleep: Callable[[float], Awaitable[None]] | None = None,
         timeout: float = 30.0,
         client: Any | None = None,
     ) -> None:
@@ -47,8 +49,10 @@ class HttpEmbeddingProvider(BaseEmbeddingProvider):
             path: Request path appended to ``base_url`` (default
                 ``"/embeddings"``).
             batch_size: Texts per HTTP round-trip (see the base provider).
-            max_retries: Per-batch retry count (see the base provider).
-            retry_base_delay: Backoff base seconds (see the base provider).
+            retry_policy: Per-batch retry/backoff schedule (see the base
+                provider); defaults to :class:`RetryPolicy`.
+            rng: Optional jitter source forwarded to the base provider.
+            sleep: Optional inter-attempt sleep forwarded to the base provider.
             timeout: Per-request timeout in seconds for the built client.
             client: Optional pre-built async HTTP client (an ``httpx.AsyncClient``
                 or a compatible stub). When supplied it is reused and no backend
@@ -60,8 +64,9 @@ class HttpEmbeddingProvider(BaseEmbeddingProvider):
         """
         super().__init__(
             batch_size=batch_size,
-            max_retries=max_retries,
-            retry_base_delay=retry_base_delay,
+            retry_policy=retry_policy,
+            rng=rng,
+            sleep=sleep,
             model=model,
             credential=credential,
         )

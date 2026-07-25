@@ -13,8 +13,10 @@ The base then layers three cross-cutting behaviours every adapter shares:
   round-trips;
 * **async client reuse** — the backend client is constructed once via
   :meth:`_get_client` and reused for every batch and every call;
-* **retries** — each batch is retried on failure up to ``max_retries`` with
-  optional exponential backoff.
+* **retries** — each batch is retried on failure per a composed
+  :class:`~pirn_agents.llm.retry_policy.RetryPolicy` (the same jittered,
+  capped exponential schedule the fan-out engines use), not a hand-rolled
+  ``2**attempt`` formula.
 
 Client pooling, teardown, and credential scrubbing come from
 :class:`pirn_agents.connector_base.ConnectorBase` — the same base
@@ -28,11 +30,12 @@ copies of it. The public surface aligns with
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Iterator, Sequence
+from collections.abc import Awaitable, Callable, Iterator, Sequence
 
 from pirn_agents.connector_base import ConnectorBase
 from pirn_agents.credential_ref import CredentialRef
 from pirn_agents.embedding_provider import EmbeddingProvider
+from pirn_agents.llm.retry_policy import RetryPolicy
 
 
 class BaseEmbeddingProvider(ConnectorBase, EmbeddingProvider):
@@ -48,8 +51,9 @@ class BaseEmbeddingProvider(ConnectorBase, EmbeddingProvider):
         self,
         *,
         batch_size: int = 32,
-        max_retries: int = 2,
-        retry_base_delay: float = 0.0,
+        retry_policy: RetryPolicy | None = None,
+        rng: Callable[[], float] | None = None,
+        sleep: Callable[[float], Awaitable[None]] | None = None,
         model: str | None = None,
         credential: CredentialRef | None = None,
     ) -> None:
@@ -58,31 +62,42 @@ class BaseEmbeddingProvider(ConnectorBase, EmbeddingProvider):
         Args:
             batch_size: Maximum number of texts sent to the backend per
                 round-trip. Must be a positive integer.
-            max_retries: Number of retries attempted per batch after the first
-                failure. Must be a non-negative integer.
-            retry_base_delay: Base seconds for exponential backoff between
-                retries; ``0.0`` retries immediately. Must be non-negative.
+            retry_policy: How many times, and how long, to back off between
+                per-batch retries. Defaults to :class:`RetryPolicy` — the same
+                jittered, capped exponential schedule the fan-out engines use
+                (2 retries, 0.05s base, full jitter). Pass
+                ``RetryPolicy(max_retries=0)`` to disable retrying, or
+                ``RetryPolicy(base_delay=0.0)`` to retry instantly.
+            rng: Optional zero-arg ``() -> float in [0, 1)`` used for the jitter
+                draw; defaults to :func:`random.random`. Injected in tests for
+                deterministic delays.
+            sleep: Optional awaitable inter-attempt sleep; defaults to
+                :func:`asyncio.sleep`. Injected in tests to stay instant.
             model: Default model identifier used when :meth:`embed` is called
                 without an explicit ``model``.
             credential: Optional :class:`CredentialRef` for the backend client,
                 stored and scrubbed by :class:`ConnectorBase`.
 
         Raises:
-            ValueError: If ``batch_size`` is not a positive int, ``max_retries``
-                is negative, or ``retry_base_delay`` is negative.
-            TypeError: If ``credential`` is neither a ``CredentialRef`` nor
-                ``None`` (raised by :class:`ConnectorBase`).
+            ValueError: If ``batch_size`` is not a positive int.
+            TypeError: If ``retry_policy`` is not a :class:`RetryPolicy`, or if
+                ``credential`` is neither a ``CredentialRef`` nor ``None``
+                (the latter raised by :class:`ConnectorBase`).
         """
         super().__init__(credential=credential)
         if not isinstance(batch_size, int) or batch_size <= 0:
             raise ValueError(f"batch_size must be a positive int, got {batch_size!r}")
-        if not isinstance(max_retries, int) or max_retries < 0:
-            raise ValueError(f"max_retries must be a non-negative int, got {max_retries!r}")
-        if retry_base_delay < 0:
-            raise ValueError(f"retry_base_delay must be non-negative, got {retry_base_delay!r}")
+        resolved_policy = retry_policy if retry_policy is not None else RetryPolicy()
+        if not isinstance(resolved_policy, RetryPolicy):
+            raise TypeError(
+                f"retry_policy must be a RetryPolicy, got {type(retry_policy).__name__}"
+            )
         self._batch_size: int = batch_size
-        self._max_retries: int = max_retries
-        self._retry_base_delay: float = retry_base_delay
+        self._retry_policy: RetryPolicy = resolved_policy
+        self._rng: Callable[[], float] | None = rng
+        self._sleep: Callable[[float], Awaitable[None]] = (
+            sleep if sleep is not None else asyncio.sleep
+        )
         self._default_model: str | None = model
 
     async def _embed_batch(self, texts: Sequence[str], model: str | None) -> list[list[float]]:
@@ -121,17 +136,22 @@ class BaseEmbeddingProvider(ConnectorBase, EmbeddingProvider):
         return out
 
     async def _embed_with_retry(self, batch: Sequence[str], model: str | None) -> list[list[float]]:
-        """Embed one batch, retrying on failure up to ``max_retries`` times."""
+        """Embed one batch, retrying on failure per the composed ``RetryPolicy``."""
         attempt = 0
         while True:
             try:
                 return await self._embed_batch(batch, model)
             except Exception:
-                if attempt >= self._max_retries:
+                if attempt >= self._retry_policy.max_retries:
                     raise
+                await self._backoff(attempt)
                 attempt += 1
-                if self._retry_base_delay > 0:
-                    await asyncio.sleep(self._retry_base_delay * (2 ** (attempt - 1)))
+
+    async def _backoff(self, attempt: int) -> None:
+        """Sleep for the policy's delay before retry ``attempt`` (0-based)."""
+        delay = self._retry_policy.backoff_delay(attempt, rng=self._rng)
+        if delay > 0:
+            await self._sleep(delay)
 
     @staticmethod
     def _iter_batches(items: list[str], size: int) -> Iterator[list[str]]:
