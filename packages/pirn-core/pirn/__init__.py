@@ -54,39 +54,8 @@ try:
 except PackageNotFoundError:
     __version__ = "unknown"
 
-# Public API re-exports — users may import from pirn directly.
-# Registry.fill_registry() above must run first; noqa: E402 suppresses the
-# "import not at top of file" warnings that follow from that ordering.
-from pirn._domain_discovery import discover_installed_domains
-from pirn.core.assembler import Assembler
-from pirn.core.disassembler import Disassembler
-from pirn.core.error_policy import ErrorPolicy
-from pirn.core.knot import Knot
-from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
-from pirn.core.parameter import Parameter
-from pirn.core.run_request import RunRequest
-from pirn.core.run_result import RunResult
-from pirn.nodes.loop_sub_tapestry import LoopSubTapestry
-from pirn.nodes.sink import Sink
-from pirn.nodes.source import Source
-from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
-
-__all__ = [
-    "Tapestry",
-    "Knot",
-    "KnotConfig",
-    "knot",
-    "Parameter",
-    "RunRequest",
-    "RunResult",
-    "ErrorPolicy",
-    "Assembler",
-    "Disassembler",
-    "Sink",
-    "Source",
-    "SubTapestry",
-    "LoopSubTapestry",
-    "discover_installed_domains",
-]
+# No public-API re-exports here (PIR-744). The house convention forbids import
+# forwarding (``.claude/conventions/languages/python.md``), enforced workspace-wide
+# by ``scripts/check_no_import_forwarding.py``. Import framework primitives from the
+# module that owns them, e.g. ``from pirn.tapestry import Tapestry``,
+# ``from pirn.core.knot import Knot``, ``from pirn.core.run_request import RunRequest``.

@@ -33,7 +33,9 @@ pirn/domains/connectors/messaging/
 ```python
 from pirn.connectors.messaging.slack_config import SlackConfig
 from pirn.connectors.messaging.slack_client import SlackClient
-from pirn import Tapestry, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 
 slack = SlackClient(config=SlackConfig(bot_token=os.environ["SLACK_TOKEN"], channel="#alerts"))
 

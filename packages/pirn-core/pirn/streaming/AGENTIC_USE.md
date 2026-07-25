@@ -30,7 +30,9 @@ pirn/streaming/
 
 ```python
 import asyncio
-from pirn import Tapestry, Parameter, KnotConfig
+from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
+from pirn.tapestry import Tapestry
 from pirn.streaming.kafka import KafkaStreamingSource
 from pirn.streaming.base import run_stream
 

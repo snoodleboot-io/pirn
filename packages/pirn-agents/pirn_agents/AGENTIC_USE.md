@@ -236,7 +236,10 @@ Safety and tool execution are inserted between `LLMCall` and `OutputParser`.
 
 ```python
 import asyncio
-from pirn import Tapestry, Parameter, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 from pirn_agents.input.message_parser import MessageParser
 from pirn_agents.input.context_builder import ContextBuilder
 from pirn_agents.generation.llm_call import LLMCall
@@ -351,7 +354,10 @@ Three knots in `specializations/human_in_the_loop/` handle points in a pipeline 
 - `EscalationRouter` reads `response.usage["confidence"]`; providers that do not populate this field will always escalate (confidence is treated as 0).
 
 ```python
-from pirn import Tapestry, Parameter, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 from pirn.nodes.gate.gate import Gate
 from pirn_agents.generation.llm_call import LLMCall
 from pirn_agents.generation.output_parser import OutputParser
@@ -414,7 +420,10 @@ Three knots in `specializations/plan_and_execute/` decompose a high-level goal i
 - `TaskPlanner` parses numbered lines (`1. step one`) from the LLM response. Lines starting with `#` are treated as rationale and excluded from `Plan.steps`.
 
 ```python
-from pirn import Tapestry, Parameter, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 from pirn_agents.specializations.plan_and_execute.task_planner import TaskPlanner
 from pirn_agents.specializations.plan_and_execute.plan_executor import PlanExecutor
 

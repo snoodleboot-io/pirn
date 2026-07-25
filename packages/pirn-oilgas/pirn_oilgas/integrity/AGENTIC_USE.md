@@ -21,7 +21,10 @@ Asset integrity analytics is a risk-reduction pipeline: measurement knots (pig r
 ## Canonical pattern
 
 ```python
-from pirn import Tapestry, Parameter, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 from pirn_oilgas.integrity import (
     PigRunDataProcessor,
     WallThicknessLossEstimator,
