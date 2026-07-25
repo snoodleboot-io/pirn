@@ -59,8 +59,19 @@ class _FakeClient:
         self._response = response
         self.calls: list[tuple[str, str]] = []
 
-    def stream(self, method: str, url: str) -> _FakeStream:
+    def stream(
+        self,
+        method: str,
+        url: str,
+        *,
+        headers: Mapping[str, str] | None = None,
+        extensions: Mapping[str, Any] | None = None,
+    ) -> _FakeStream:
+        # url is the PINNED url (an IP literal); headers carries the original Host
+        # and extensions the TLS sni_hostname (PIR-746).
         self.calls.append((method, url))
+        self.headers = dict(headers) if headers else {}
+        self.extensions = dict(extensions) if extensions else {}
         return _FakeStream(self._response)
 
 
@@ -133,7 +144,11 @@ class TestHttpRequest:
         assert result["text"] == "hello world"
         assert result["truncated"] is False
         assert result["headers"]["content-type"] == "text/plain"
-        assert client.calls == [("GET", "https://example.com/page")]
+        # Pinned: the wire target is the vetted address, with the real hostname
+        # restored via Host and TLS SNI so vhosts and cert verification still work.
+        assert client.calls == [("GET", "https://93.184.216.34/page")]
+        assert client.headers["Host"] == "example.com"
+        assert client.extensions == {"sni_hostname": "example.com"}
 
     async def test_truncates_body_at_cap(self) -> None:
         response = _FakeResponse(200, {}, [b"a" * 50, b"b" * 50])

@@ -38,7 +38,9 @@ pirn/domains/connectors/document/
 from pirn.connectors.document.mongodb_config import MongodbConfig
 from pirn.connectors.document.mongodb_pool import MongodbPool
 from pirn.connectors.knots.database_query_source import DatabaseQuerySource
-from pirn import Tapestry, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 
 pool = MongodbPool(config=MongodbConfig(
     uri="mongodb://user:pass@mongo:27017",

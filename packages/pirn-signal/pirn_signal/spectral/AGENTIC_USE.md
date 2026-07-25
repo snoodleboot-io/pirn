@@ -27,7 +27,10 @@ Knots here consume a time-domain `signal` (and `fs`) and produce frequency-domai
 ## Canonical pattern
 
 ```python
-from pirn import Tapestry, Parameter, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 from pirn_signal.spectral.welch_estimator import WelchEstimator
 from pirn_signal.spectral.stft_decomposer import StftDecomposer
 

@@ -14,7 +14,7 @@ The client is transport-agnostic: it drives any
 :class:`~pirn_agents.mcp.mcp_transport.McpTransport`. It holds live connection
 state and is intended to stay **internal** — the values that travel through the
 graph are the already-opaque :class:`~pirn_agents.mcp.mcp_connector.McpConnector`
-(a :class:`~pirn_agents.connector_base.ConnectorBase`) and
+(a :class:`~pirn.connectors.connector_base.ConnectorBase`) and
 :class:`~pirn_agents.mcp.mcp_tool.McpTool` (a :class:`~pirn_agents.tool.Tool`)
 that wrap it. As a defensive measure it nonetheless inherits
 :class:`~pirn.core.pirn_opaque_value.PirnOpaqueValue`: should a live client ever
@@ -122,7 +122,7 @@ class McpClient(PirnOpaqueValue):
     async def aclose(self) -> None:
         """Close the transport and reset lifecycle state, idempotently.
 
-        Named ``aclose`` so :class:`~pirn_agents.connector_base.ConnectorBase`
+        Named ``aclose`` so :class:`~pirn.connectors.connector_base.ConnectorBase`
         awaits it during pooled teardown rather than calling a sync ``close``.
         """
         self._initialized = False

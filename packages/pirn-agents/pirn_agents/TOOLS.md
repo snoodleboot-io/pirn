@@ -28,7 +28,7 @@ defaults. They only *construct* tools, so importing them triggers no backend
 imports:
 
 ```python
-from pirn_agents import (
+from pirn_agents.tools.bundles import (
     calculator_toolset, web_toolset, filesystem_toolset,
     data_toolset, retrieval_toolset, sandbox_toolset,
 )
@@ -46,7 +46,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
-from pirn_agents import calculator_toolset, retrieval_toolset
+from pirn_agents.tools.bundles import calculator_toolset, retrieval_toolset
 from pirn_agents.specializations.react.react_loop import ReActLoop
 from pirn_agents.types.agent_message import AgentMessage
 
@@ -88,7 +88,8 @@ Configure it with a `SqlConnector` and its policy:
 
 ```python
 import sqlite3
-from pirn_agents import SqlQueryTool, SqliteConnector
+from pirn_agents.tools.sql.sql_query_tool import SqlQueryTool
+from pirn_agents.tools.sql.sqlite_connector import SqliteConnector
 
 conn = sqlite3.connect("app.db", check_same_thread=False)   # runs on a worker thread
 tool = SqlQueryTool(connector=SqliteConnector(connection=conn), read_only=True, max_rows=500)
@@ -112,7 +113,8 @@ Code/command execution is **opt-in and disabled by default**. Tools backed by a
 `enabled=True`:
 
 ```python
-from pirn_agents import SandboxExecutor, sandbox_toolset
+from pirn_agents.tools.bundles import sandbox_toolset
+from pirn_agents.tools.sandbox.sandbox_executor import SandboxExecutor
 
 executor = SandboxExecutor(enabled=True, timeout=5.0, max_output_bytes=65536)
 tools = sandbox_toolset(executor=executor)

@@ -5,7 +5,7 @@ The provider-neutral search interface is
 backend the :class:`~pirn_agents.tools.web.web_search_tool.WebSearchTool`
 already consumes through the *interface*, never a concrete class). This module
 ships **one** reference adapter over that interface: a generic JSON HTTP search
-API driven by the pooled :class:`~pirn_agents.connectors.http_connector.HttpConnector`.
+API driven by the pooled :class:`~pirn.connectors.http_connector.HttpConnector`.
 
 No vendor is hard-wired: the request query-parameter name and the JSON keys for
 the results array and each result's title/url/snippet are all configuration, so
@@ -18,7 +18,8 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from pirn_agents.connectors.http_connector import HttpConnector
+from pirn.connectors.http_connector import HttpConnector
+
 from pirn_agents.tools.web.search_backend import SearchBackend
 
 

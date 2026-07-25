@@ -17,6 +17,7 @@ from typing import Any
 
 from pirn_agents._require import _require
 from pirn_agents.builder.agent_spec import AgentSpec
+from pirn_agents.tools.filesystem._path_guard import PathGuard
 
 
 class AgentSpecLoader:
@@ -68,15 +69,38 @@ class AgentSpecLoader:
         return AgentSpec.from_dict(parsed)
 
     @classmethod
-    def from_path(cls, path: str | Path) -> AgentSpec:
+    def from_path(cls, path: str | Path, *, allowed_root: str | Path | None = None) -> AgentSpec:
         """Load an :class:`AgentSpec` from a file, dispatching on its suffix.
 
         ``.json`` uses the JSON parser; ``.yaml``/``.yml`` use the YAML parser.
 
+        Trust boundary. By default ``path`` is read as given — an
+        operator-trusted file location, exactly like opening any other config
+        file, and the caller owns whatever it points at. When ``path`` may come
+        from an untrusted or multi-tenant source (templated from a request,
+        derived from user config), pass ``allowed_root``: ``path`` is then
+        treated as *relative to* that root and vetted by
+        :class:`~pirn_agents.tools.filesystem._path_guard.PathGuard` — which
+        rejects absolute paths, ``..`` traversal, symlink stepping-stones, and
+        any escape from the root — before the file is read. This reuses the F-series
+        path guard rather than re-deriving a containment check here.
+
+        Args:
+            path: The spec file to load. Absolute or operator-relative when
+                ``allowed_root`` is ``None``; a root-relative path otherwise.
+            allowed_root: Optional containment root. When set, ``path`` must
+                resolve to an existing file inside it or a :class:`ValueError`
+                is raised.
+
         Raises:
-            ValueError: If the suffix is not one of ``.json``, ``.yaml``, ``.yml``.
+            ValueError: If the suffix is not one of ``.json``, ``.yaml``, ``.yml``,
+                or (when ``allowed_root`` is set) if ``path`` escapes the root,
+                traverses a symlink, is absolute, or does not exist.
         """
-        file_path = Path(path)
+        if allowed_root is not None:
+            file_path = PathGuard(root=str(allowed_root)).resolve(str(path), must_exist=True)
+        else:
+            file_path = Path(path)
         text = file_path.read_text(encoding="utf-8")
         suffix = file_path.suffix.lower()
         if suffix == ".json":

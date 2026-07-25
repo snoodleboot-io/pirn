@@ -38,7 +38,10 @@ pirn_agents/specializations/specialized_agents/
 
 ```python
 from pirn_agents.specializations.specialized_agents.sql_agent import SqlAgent
-from pirn import Tapestry, Parameter, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 
 with Tapestry() as t:
     question = Parameter("question", str)

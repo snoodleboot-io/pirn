@@ -45,7 +45,9 @@ class _SlowClient:
     def __init__(self, delay: float) -> None:
         self._delay = delay
 
-    def stream(self, method: str, url: str) -> _SlowStream:
+    def stream(
+        self, method: str, url: str, *, headers: object = None, extensions: object = None
+    ) -> _SlowStream:
         return _SlowStream(self._delay)
 
 

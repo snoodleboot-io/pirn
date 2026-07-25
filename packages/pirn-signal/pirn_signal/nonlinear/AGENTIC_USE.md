@@ -20,7 +20,10 @@ Knots here treat a signal as a realization of a nonlinear dynamical system and c
 ## Canonical pattern
 
 ```python
-from pirn import Tapestry, Parameter, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 from pirn_signal.nonlinear.permutation_entropy_calculator import PermutationEntropyCalculator
 from pirn_signal.nonlinear.hurst_exponent_estimator import HurstExponentEstimator
 

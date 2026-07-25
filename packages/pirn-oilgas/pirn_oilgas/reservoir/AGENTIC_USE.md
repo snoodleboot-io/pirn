@@ -25,7 +25,10 @@ Reservoir engineering in pirn is a calculation layer that sits downstream of sim
 ## Canonical pattern
 
 ```python
-from pirn import Tapestry, Parameter, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 from pirn_oilgas.reservoir import (
     EclipseSmspecParser,
     PvtTableProcessor,

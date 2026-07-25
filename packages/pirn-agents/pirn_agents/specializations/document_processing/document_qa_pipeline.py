@@ -41,6 +41,9 @@ from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.embedding_provider import EmbeddingProvider
 from pirn_agents.llm_provider import LLMProvider
+from pirn_agents.specializations.document_processing._document_source_reader import (
+    _DocumentSourceReader,
+)
 from pirn_agents.specializations.document_processing._qa_load_and_chunk import (
     _QALoadAndChunk,
 )
@@ -63,6 +66,11 @@ class DocumentQAPipeline(SubTapestry):
         embedder: Knot | EmbeddingProvider,
         _config: KnotConfig,
         top_k: Knot | int = 3,
+        allowed_root: Knot | str | None = None,
+        allowed_hosts: Knot | tuple[str, ...] | None = None,
+        max_bytes: Knot | int = _DocumentSourceReader.max_bytes,
+        request_timeout: Knot | float = _DocumentSourceReader.request_timeout,
+        connect_timeout: Knot | float = _DocumentSourceReader.connect_timeout,
         **kwargs: Any,
     ) -> None:
         super().__init__(
@@ -71,6 +79,11 @@ class DocumentQAPipeline(SubTapestry):
             llm=llm,
             embedder=embedder,
             top_k=top_k,
+            allowed_root=allowed_root,
+            allowed_hosts=allowed_hosts,
+            max_bytes=max_bytes,
+            request_timeout=request_timeout,
+            connect_timeout=connect_timeout,
             _config=_config,
             **kwargs,
         )
@@ -82,6 +95,11 @@ class DocumentQAPipeline(SubTapestry):
         llm: LLMProvider,
         embedder: EmbeddingProvider,
         top_k: int = 3,
+        allowed_root: str | None = None,
+        allowed_hosts: tuple[str, ...] | None = None,
+        max_bytes: int = _DocumentSourceReader.max_bytes,
+        request_timeout: float = _DocumentSourceReader.request_timeout,
+        connect_timeout: float = _DocumentSourceReader.connect_timeout,
         **_: Any,
     ) -> Any:
         """Retrieve the top-k relevant chunks from source and answer the question via the LLM.
@@ -92,13 +110,22 @@ class DocumentQAPipeline(SubTapestry):
             llm: The LLM provider to use for answering.
             embedder: The embedding provider for semantic retrieval.
             top_k: Number of top chunks to include as context.
+            allowed_root: Directory root that local file reads must stay within.
+                Required for local reads — the guard is fail-closed and rejects a
+                bare path when this is unset.
+            allowed_hosts: Optional allow-list of hostnames for URL fetches.
+            max_bytes: Maximum source size in bytes, for both files and URL
+                responses (default 100 MiB).
+            request_timeout: HTTP request timeout in seconds.
+            connect_timeout: HTTP connection timeout in seconds.
 
         Returns:
             An AgentResponse containing the LLM's answer grounded in the retrieved chunks.
 
         Raises:
             TypeError: If source or question is not a non-empty string.
-            ValueError: If top_k is not a positive int.
+            ValueError: If top_k is not a positive int, or the source is
+                rejected by the SSRF / path-traversal guard.
         """
         if not isinstance(top_k, int) or top_k <= 0:
             raise ValueError(f"DocumentQAPipeline: top_k must be a positive int, got {top_k!r}")
@@ -113,6 +140,11 @@ class DocumentQAPipeline(SubTapestry):
         chunks = _QALoadAndChunk(
             source=source,
             chunk_size=self._default_chunk_size,
+            allowed_root=allowed_root,
+            allowed_hosts=allowed_hosts,
+            max_bytes=max_bytes,
+            request_timeout=request_timeout,
+            connect_timeout=connect_timeout,
             _config=KnotConfig(id="chunk"),
         )
         return _QARetrieveAndAnswer(

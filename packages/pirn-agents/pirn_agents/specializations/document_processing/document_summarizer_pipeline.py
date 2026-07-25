@@ -36,6 +36,9 @@ from pirn.core.knot_config import KnotConfig
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.llm_provider import LLMProvider
+from pirn_agents.specializations.document_processing._document_source_reader import (
+    _DocumentSourceReader,
+)
 from pirn_agents.specializations.document_processing._load_and_chunk import (
     _LoadAndChunk,
 )
@@ -54,24 +57,60 @@ class DocumentSummarizerPipeline(SubTapestry):
         llm: Knot | LLMProvider,
         _config: KnotConfig,
         chunk_size: Knot | int = 2000,
+        allowed_root: Knot | str | None = None,
+        allowed_hosts: Knot | tuple[str, ...] | None = None,
+        max_bytes: Knot | int = _DocumentSourceReader.max_bytes,
+        request_timeout: Knot | float = _DocumentSourceReader.request_timeout,
+        connect_timeout: Knot | float = _DocumentSourceReader.connect_timeout,
         **kwargs: Any,
     ) -> None:
-        super().__init__(source=source, llm=llm, chunk_size=chunk_size, _config=_config, **kwargs)
+        super().__init__(
+            source=source,
+            llm=llm,
+            chunk_size=chunk_size,
+            allowed_root=allowed_root,
+            allowed_hosts=allowed_hosts,
+            max_bytes=max_bytes,
+            request_timeout=request_timeout,
+            connect_timeout=connect_timeout,
+            _config=_config,
+            **kwargs,
+        )
 
-    async def process(self, source: str, llm: LLMProvider, chunk_size: int = 2000, **_: Any) -> Any:
+    async def process(
+        self,
+        source: str,
+        llm: LLMProvider,
+        chunk_size: int = 2000,
+        allowed_root: str | None = None,
+        allowed_hosts: tuple[str, ...] | None = None,
+        max_bytes: int = _DocumentSourceReader.max_bytes,
+        request_timeout: float = _DocumentSourceReader.request_timeout,
+        connect_timeout: float = _DocumentSourceReader.connect_timeout,
+        **_: Any,
+    ) -> Any:
         """Load the document, map-reduce summarise each chunk, and return the combined summary.
 
         Args:
             source: A local file path or http(s):// URL identifying the document to summarise.
             llm: The LLM provider to use for chunk summarisation and reduction.
             chunk_size: Maximum character length of each chunk.
+            allowed_root: Directory root that local file reads must stay within.
+                Required for local reads — the guard is fail-closed and rejects a
+                bare path when this is unset.
+            allowed_hosts: Optional allow-list of hostnames for URL fetches.
+            max_bytes: Maximum source size in bytes, for both files and URL
+                responses (default 100 MiB).
+            request_timeout: HTTP request timeout in seconds.
+            connect_timeout: HTTP connection timeout in seconds.
 
         Returns:
             A single coherent summary string combining all per-chunk summaries.
 
         Raises:
             TypeError: If source is not a non-empty string.
-            ValueError: If chunk_size is not a positive int.
+            ValueError: If chunk_size is not a positive int, or the source is
+                rejected by the SSRF / path-traversal guard.
         """
         if not isinstance(chunk_size, int) or chunk_size <= 0:
             raise ValueError(
@@ -84,6 +123,11 @@ class DocumentSummarizerPipeline(SubTapestry):
         chunks = _LoadAndChunk(
             source=source,
             chunk_size=chunk_size,
+            allowed_root=allowed_root,
+            allowed_hosts=allowed_hosts,
+            max_bytes=max_bytes,
+            request_timeout=request_timeout,
+            connect_timeout=connect_timeout,
             _config=KnotConfig(id="chunk"),
         )
         return _MapReduceSummariser(

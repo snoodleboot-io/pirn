@@ -9,7 +9,7 @@ everything cross-cutting lives here:
   distinctly (honouring a server ``Retry-After``) from transient 5xx/network
   errors, and non-retryable 4xx propagated immediately.
 * **Lifecycle** — a pooled async HTTP client vended once by
-  :class:`pirn_agents.connector_base.ConnectorBase` and imported lazily via
+  :class:`pirn.connectors.connector_base.ConnectorBase` and imported lazily via
   :func:`pirn_agents._require._require` so ``import pirn_agents`` stays
   backend-free.
 * **Response mapping** — raw provider JSON is mapped to
@@ -35,8 +35,9 @@ import asyncio
 from collections.abc import AsyncIterable, AsyncIterator, Awaitable, Callable, Mapping, Sequence
 from typing import Any
 
-from pirn_agents.connector_base import ConnectorBase
-from pirn_agents.credential_ref import CredentialRef
+from pirn.connectors.connector_base import ConnectorBase
+from pirn.security.credential_ref import CredentialRef
+
 from pirn_agents.exceptions.unsupported_modality_error import UnsupportedModalityError
 from pirn_agents.llm.llm_http_status_error import LLMHTTPStatusError
 from pirn_agents.llm.modality_capability import ModalityCapability
@@ -62,6 +63,10 @@ from pirn_agents.types.content_block import ContentBlock
 
 class BaseLLMProvider(ConnectorBase, StructuredOutputProvider):
     """Base HTTP LLM provider: retries, mapping, streaming, cost accounting."""
+
+    # The httpx backend ships with pirn-agents, so the missing-dependency install
+    # hint must name this distribution, not core's.
+    _install_dist = "pirn-agents"
 
     def __init__(
         self,

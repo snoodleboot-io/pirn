@@ -35,7 +35,9 @@ pirn_data/lakehouse/
 ```python
 from pirn_data.lakehouse.lakehouse_table import LakehouseTable
 from pirn_data.lakehouse.lakehouse_table_source import LakehouseTableSource
-from pirn import Tapestry, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 
 table = LakehouseTable(format="delta", path="s3://my-bucket/tables/events")
 

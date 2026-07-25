@@ -44,7 +44,7 @@ mcp = ["mcp>=1.0"]
 sql = ["aiosqlite>=0.19"]
 # async Postgres driver for the F16-S2 SQL service connector (lazily imported)
 postgres = ["asyncpg>=0.29"]
-# S3-compatible object storage backend for the F16-S4 blob connector (lazily imported)
+# S3-compatible object storage backend for StreamingS3Store (lazily imported)
 s3 = ["aioboto3>=12.0"]
 # grammar/regex-constrained decoding backend (F20-S3, lazily imported)
 grammar = ["outlines>=0.1"]
@@ -147,5 +147,20 @@ include = ["pirn_agents"]
 pythonVersion = "3.12"
 reportMissingImports = "none"
 reportMissingModuleSource = "none"
+# reportIncompatibleMethodOverride stays off deliberately (PIR-742): enabling it
+# surfaces 224 diagnostics, every one a framework idiom pyright cannot model, and
+# zero real LSP breaks —
+#   * ~220 Knot.process(self, <named inputs>) overrides. Core's Knot declares a
+#     bare process(); concrete knots take named inputs the engine binds via
+#     validate_io. The "positional parameter count mismatch" is by design.
+#   * 3 diamond-inheritance pool signatures (ColumnAwareSqlitePool = SqlitePool +
+#     ColumnAwarePool) where the two core bases type fetch_all/execute slightly
+#     differently — runtime-identical.
+#   * 1 async-generator-vs-coroutine mismatch on BaseLLMProvider.stream_chat vs
+#     core LLMProvider (a core-owned contract shape, not ours to change).
+# The StubTool contract break this ticket was filed for is already gone — every
+# shipped Tool.invoke uses Mapping[str, Any] and name/description are properties.
+# Re-audit shipped Tool subclasses by hand when adding one, rather than eating the
+# false-positive tail; revisit if core types Knot.process to absorb named inputs.
 reportIncompatibleMethodOverride = "none"
 reportAttributeAccessIssue = "none"

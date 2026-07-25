@@ -6,9 +6,11 @@ import os
 import tempfile
 import unittest
 import unittest.mock
+from collections.abc import AsyncIterator, Mapping
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar, NoReturn
 
+import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
@@ -102,8 +104,8 @@ class TestSSRFGuards(unittest.IsolatedAsyncioTestCase):
     async def test_loopback_url_raises(self) -> None:
         loader = _build_loader()
         with unittest.mock.patch(
-            "pirn_agents.specializations.document_processing._document_loader.socket.gethostbyname",
-            lambda host: "127.0.0.1",
+            "pirn.security.ssrf_guard.SsrfGuard._resolve_all",
+            staticmethod(lambda host: ("127.0.0.1",)),
         ):
             with self.assertRaisesRegex(ValueError, "private/loopback/link-local"):
                 await loader.process("http://localhost/")
@@ -111,8 +113,8 @@ class TestSSRFGuards(unittest.IsolatedAsyncioTestCase):
     async def test_private_ip_raises(self) -> None:
         loader = _build_loader()
         with unittest.mock.patch(
-            "pirn_agents.specializations.document_processing._document_loader.socket.gethostbyname",
-            lambda host: "10.0.0.1",
+            "pirn.security.ssrf_guard.SsrfGuard._resolve_all",
+            staticmethod(lambda host: ("10.0.0.1",)),
         ):
             with self.assertRaisesRegex(ValueError, "private/loopback/link-local"):
                 await loader.process("http://internal.example/")
@@ -120,8 +122,8 @@ class TestSSRFGuards(unittest.IsolatedAsyncioTestCase):
     async def test_imds_metadata_raises(self) -> None:
         loader = _build_loader()
         with unittest.mock.patch(
-            "pirn_agents.specializations.document_processing._document_loader.socket.gethostbyname",
-            lambda host: "169.254.169.254",
+            "pirn.security.ssrf_guard.SsrfGuard._resolve_all",
+            staticmethod(lambda host: ("169.254.169.254",)),
         ):
             with self.assertRaisesRegex(ValueError, "private/loopback/link-local"):
                 await loader.process("http://169.254.169.254/latest/meta-data/")
@@ -135,8 +137,8 @@ class TestSSRFGuards(unittest.IsolatedAsyncioTestCase):
             raise _socket.gaierror("dns failure")
 
         with unittest.mock.patch(
-            "pirn_agents.specializations.document_processing._document_loader.socket.gethostbyname",
-            _boom,
+            "pirn.security.ssrf_guard.SsrfGuard._resolve_all",
+            staticmethod(_boom),
         ):
             with self.assertRaisesRegex(ValueError, "unresolvable host"):
                 await loader.process("http://nope.invalid/")
@@ -144,22 +146,76 @@ class TestSSRFGuards(unittest.IsolatedAsyncioTestCase):
     async def test_host_not_in_allowlist_raises(self) -> None:
         loader = _build_loader()
         with unittest.mock.patch(
-            "pirn_agents.specializations.document_processing._document_loader.socket.gethostbyname",
-            lambda host: "93.184.216.34",
+            "pirn.security.ssrf_guard.SsrfGuard._resolve_all",
+            staticmethod(lambda host: ("93.184.216.34",)),
         ):
             with self.assertRaisesRegex(ValueError, "not in allowed_hosts"):
                 await loader.process("http://other.example/", allowed_hosts=("example.com",))
 
+    async def test_guard_rejects_before_optional_extra_is_resolved(self) -> None:
+        """The SSRF guard must fire even when the ``web`` extra is absent.
+
+        Regression test for the ordering bug where ``_require("web", "httpx")`` ran
+        ahead of the guard, so a hostile URL raised ImportError instead of ValueError
+        on an install without the extra. Forces the missing-extra path regardless of
+        whether httpx happens to be installed, so CI pins the ordering too.
+        """
+        loader = _build_loader()
+
+        def _no_extra(extra: str, module: str) -> NoReturn:
+            raise ImportError(f"{module!r} is required for this feature")
+
+        require_path = (
+            "pirn_agents.specializations.document_processing._document_source_reader._require"
+        )
+        # Both rejection paths, so _require cannot be relocated between them.
+        with unittest.mock.patch(
+            "pirn.security.ssrf_guard.SsrfGuard._resolve_all",
+            staticmethod(lambda host: ("169.254.169.254",)),
+        ):
+            with unittest.mock.patch(require_path, _no_extra):
+                with self.assertRaisesRegex(ValueError, "private/loopback/link-local"):
+                    await loader.process("http://169.254.169.254/latest/meta-data/")
+
+        with unittest.mock.patch(
+            "pirn.security.ssrf_guard.SsrfGuard._resolve_all",
+            staticmethod(lambda host: ("93.184.216.34",)),
+        ):
+            with unittest.mock.patch(require_path, _no_extra):
+                with self.assertRaisesRegex(ValueError, "not in allowed_hosts"):
+                    await loader.process("http://other.example/", allowed_hosts=("example.com",))
+
     async def test_allowed_host_passes(self) -> None:
+        # The only test here that needs the optional ``web`` extra: it stubs
+        # ``httpx.AsyncClient`` to exercise the post-guard fetch path. The SSRF
+        # rejection tests above deliberately require no extra.
+        httpx = pytest.importorskip("httpx")
         loader = _build_loader()
 
         class _StubResponse:
-            text = "ok"
+            """Mirrors the streamed-response surface the reader consumes."""
+
+            is_redirect = False
+            encoding = "utf-8"
+            headers: ClassVar[dict[str, str]] = {}
 
             def raise_for_status(self) -> None:
                 return None
 
+            async def aiter_bytes(self) -> AsyncIterator[bytes]:
+                yield b"ok"
+
+            async def __aenter__(self) -> _StubResponse:
+                return self
+
+            async def __aexit__(self, *args: Any) -> None:
+                return None
+
+        # The client is constructed inside the reader, so record the pinned request
+        # on the class to make it observable from the test.
         class _StubAsyncClient:
+            seen: ClassVar[dict[str, Any]] = {}
+
             def __init__(self, *args: Any, **kwargs: Any) -> None:
                 self.kwargs = kwargs
 
@@ -169,14 +225,26 @@ class TestSSRFGuards(unittest.IsolatedAsyncioTestCase):
             async def __aexit__(self, *args: Any) -> None:
                 return None
 
-            async def get(self, url: str) -> _StubResponse:
+            def stream(
+                self,
+                method: str,
+                url: str,
+                *,
+                headers: Mapping[str, str] | None = None,
+                extensions: Mapping[str, Any] | None = None,
+            ) -> _StubResponse:
+                # Pinned request (PIR-746): url is the vetted IP, hostname rides in
+                # Host and sni_hostname.
+                _StubAsyncClient.seen = {
+                    "url": url,
+                    "headers": dict(headers) if headers else {},
+                    "extensions": dict(extensions) if extensions else {},
+                }
                 return _StubResponse()
 
-        import httpx
-
         with unittest.mock.patch(
-            "pirn_agents.specializations.document_processing._document_loader.socket.gethostbyname",
-            lambda host: "93.184.216.34",
+            "pirn.security.ssrf_guard.SsrfGuard._resolve_all",
+            staticmethod(lambda host: ("93.184.216.34",)),
         ):
             with unittest.mock.patch.object(httpx, "AsyncClient", _StubAsyncClient):
                 result = await loader.process(
@@ -184,3 +252,8 @@ class TestSSRFGuards(unittest.IsolatedAsyncioTestCase):
                     allowed_hosts=("example.com",),
                 )
         assert result == "ok"
+        # Pinned to the vetted address (PIR-746): this is the one call site whose
+        # pinning would otherwise ship unverified.
+        assert _StubAsyncClient.seen["url"] == "http://93.184.216.34/"
+        assert _StubAsyncClient.seen["headers"]["Host"] == "example.com"
+        assert _StubAsyncClient.seen["extensions"] == {"sni_hostname": "example.com"}

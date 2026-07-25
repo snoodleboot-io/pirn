@@ -1,6 +1,17 @@
+# Version note (PIR-750): ruff is pinned to v0.15.22 to match the CI pin in
+# .github/workflows/workspace.yml. Staying on 0.15.x is deliberate — 0.16.0 formats
+# markdown code blocks, a ~571-file workspace-wide reformat we have not adopted.
+#
+# Layout note: the ruff/ruff-format/pyright/no-caps hooks below use `files: ^pirn/`,
+# which does NOT match this monorepo's `packages/<dist>/<import_pkg>/…` layout, so
+# they are effectively inert locally. That is intentional for now: running ruff from
+# the repo root without each package's own `--config` reformats across package
+# boundaries (it once touched 560 files incl. pirn-core). CI runs ruff/pyright
+# per-package with the right config and is the enforcement point. The
+# no-import-forwarding hook uses a layout-independent pattern and DOES run.
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.12
+    rev: v0.15.22
     hooks:
       - id: ruff
         args: [--fix]
@@ -27,6 +38,13 @@ repos:
         language: system
         types: [python]
         files: ^pirn/
+        exclude: ^(tests|examples)/
+
+      - id: no-import-forwarding
+        name: no import forwarding in __init__.py
+        entry: python scripts/check_no_import_forwarding.py
+        language: system
+        files: (^|/)__init__\.py$
         exclude: ^(tests|examples)/
 
       - id: stamp-agentic-use-version
