@@ -161,12 +161,14 @@ jobs:
       - name: Install package editable (deps pre-baked) + ruff + pyright
         run: |
           set -euo pipefail
-          # Pin ruff: an unpinned install silently rolled to 0.16.0, whose new
-          # markdown code-block formatting reformatted 15 docs and turned the
-          # format --check red with no source change. Keep CI deterministic and
-          # aligned with the pre-commit hook / local floor; adopt 0.16.0 (and its
-          # doc reformatting) deliberately under its own ticket (PIR-750).
-          uv pip install --system --find-links dist/ -e "packages/${{ matrix.package }}" 'ruff==0.15.22' pyright
+          # Pin BOTH linters (PIR-750): an unpinned install silently rolled ruff to
+          # 0.16.0, whose new markdown code-block formatting reddened `format --check`
+          # with no source change. pyright is pinned for the same determinism reason —
+          # a new release can add checks and redden an unrelated PR. Staying on ruff
+          # 0.15.x is deliberate: adopting 0.16.0's markdown formatting is a ~571-file
+          # workspace-wide reformat of questionable value, not bundled here. Keep these
+          # aligned with .pre-commit-config.yaml.
+          uv pip install --system --find-links dist/ -e "packages/${{ matrix.package }}" 'ruff==0.15.22' 'pyright==1.1.411'
       - name: Ruff lint + format (package's own config)
         run: |
           ruff check --config packages/${{ matrix.package }}/pyproject.toml packages/${{ matrix.package }}/${{ steps.pkg.outputs.imp }}
