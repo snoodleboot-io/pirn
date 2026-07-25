@@ -35,8 +35,9 @@ import asyncio
 from collections.abc import AsyncIterable, AsyncIterator, Awaitable, Callable, Mapping, Sequence
 from typing import Any
 
+from pirn.security.credential_ref import CredentialRef
+
 from pirn_agents.connector_base import ConnectorBase
-from pirn_agents.credential_ref import CredentialRef
 from pirn_agents.exceptions.unsupported_modality_error import UnsupportedModalityError
 from pirn_agents.llm.llm_http_status_error import LLMHTTPStatusError
 from pirn_agents.llm.modality_capability import ModalityCapability

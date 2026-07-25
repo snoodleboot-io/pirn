@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn_agents.credential_ref import CredentialRef
+from pirn.security.credential_ref import CredentialRef
 
 
 class TestCredentialRef(unittest.TestCase):

@@ -6,7 +6,7 @@ import unittest
 from typing import Any
 
 from pirn_agents.connector_base import ConnectorBase
-from pirn_agents.credential_ref import CredentialRef
+from pirn.security.credential_ref import CredentialRef
 
 
 class StubClient:

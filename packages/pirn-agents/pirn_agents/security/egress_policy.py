@@ -25,9 +25,10 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from urllib.parse import urlparse
 
+from pirn.security.vetted_endpoint import VettedEndpoint
+
 from pirn_agents.security.egress_error import EgressError
 from pirn_agents.tools.web._ssrf_guard import SsrfGuard
-from pirn_agents.tools.web.vetted_endpoint import VettedEndpoint
 
 
 class EgressPolicy:

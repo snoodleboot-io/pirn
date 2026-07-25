@@ -17,7 +17,7 @@ import pytest
 
 from pirn_agents.connector_base import ConnectorBase
 from pirn_agents.connectors.http_connector import HttpConnector
-from pirn_agents.credential_ref import CredentialRef
+from pirn.security.credential_ref import CredentialRef
 
 
 class _FakeResponse:

@@ -32,8 +32,9 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Awaitable, Callable, Iterator, Sequence
 
+from pirn.security.credential_ref import CredentialRef
+
 from pirn_agents.connector_base import ConnectorBase
-from pirn_agents.credential_ref import CredentialRef
 from pirn_agents.embedding_provider import EmbeddingProvider
 from pirn_agents.llm.retry_policy import RetryPolicy
 

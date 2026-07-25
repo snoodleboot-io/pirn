@@ -13,10 +13,11 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
+from pirn.security.vetted_endpoint import VettedEndpoint
+
 from pirn_agents._require import _require
 from pirn_agents.tools.base_tool import BaseTool
 from pirn_agents.tools.web._ssrf_guard import SsrfGuard
-from pirn_agents.tools.web.vetted_endpoint import VettedEndpoint
 
 
 class HttpRequestTool(BaseTool):

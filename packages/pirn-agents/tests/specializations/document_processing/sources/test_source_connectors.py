@@ -25,7 +25,7 @@ from pirn_agents.specializations.document_processing.sources.object_store_source
 from pirn_agents.specializations.document_processing.sources.web_crawl_source_connector import (
     WebCrawlSourceConnector,
 )
-from pirn_agents.tools.web.vetted_endpoint import VettedEndpoint
+from pirn.security.vetted_endpoint import VettedEndpoint
 
 
 async def _iter_bytes(chunk: bytes) -> AsyncIterator[bytes]:

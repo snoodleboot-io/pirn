@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pirn_agents.security.security_guard import SecurityGuard
+from pirn.security.security_guard import SecurityGuard
 
 
 class PathGuard(SecurityGuard):
