@@ -19,10 +19,10 @@ score (ties broken by record id for determinism).
 Rerank hook (provider-neutral)
 ------------------------------
 ``reranker`` is an optional
-:class:`~pirn_agents.rerank.reranker_backend.RerankerBackend` — the F4 protocol.
+:class:`~pirn_agents.rerank.reranker_backend.RerankerBackend` — the F4 rerank base.
 When ``None`` (the default) recall uses the candidates' own relevance, so no
 vendor is favoured and no backend is imported; when supplied, any cross-encoder,
-LLM scorer, or stub is interchangeable behind the protocol.
+LLM scorer, or stub is interchangeable behind the base class.
 """
 
 from __future__ import annotations
@@ -52,7 +52,7 @@ class RankedRecall(Knot):
         candidates: Knot | Sequence[RecallCandidate],
         now: Knot | datetime,
         weights: Knot | RecallWeights | None = None,
-        reranker: Knot | Any | None = None,
+        reranker: Knot | RerankerBackend | None = None,
         half_life_seconds: Knot | float = 86400.0,
         _config: KnotConfig,
         **kwargs: Any,
@@ -74,7 +74,7 @@ class RankedRecall(Knot):
         candidates: Sequence[RecallCandidate],
         now: datetime,
         weights: RecallWeights | None = None,
-        reranker: Any = None,
+        reranker: RerankerBackend | None = None,
         half_life_seconds: float = 86400.0,
         **_: Any,
     ) -> list[RankedMemory]:

@@ -15,7 +15,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
-from pirn_agents.credential_ref import CredentialRef
+from pirn.security.credential_ref import CredentialRef
 from pirn_agents.llm.llm_http_status_error import LLMHTTPStatusError
 from pirn_agents.llm.model_pricing import ModelPricing
 from pirn_agents.llm.openai_compatible_provider import OpenAICompatibleProvider

@@ -69,7 +69,10 @@ pirn_ml/specializations/
 
 ```python
 from pirn_ml.specializations.production.batch_inference_pipeline import BatchInferencePipeline
-from pirn import Tapestry, Parameter, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 
 with Tapestry() as t:
     features   = Parameter("features", DataBatch)

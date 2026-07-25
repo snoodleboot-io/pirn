@@ -14,9 +14,10 @@ from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
 from pirn_agents._require import _require
+from pirn_agents.rerank.reranker_backend import RerankerBackend
 
 
-class CrossEncoderReranker:
+class CrossEncoderReranker(RerankerBackend):
     """A cross-encoder relevance scorer implementing :class:`RerankerBackend`."""
 
     def __init__(

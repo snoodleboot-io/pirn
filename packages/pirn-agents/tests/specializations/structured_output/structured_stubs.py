@@ -12,17 +12,18 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Mapping, Sequence
 from typing import Any
 
-from pirn.core.providers.llm_provider import LLMProvider
-
 from pirn_agents.specializations.structured_output.structured_output_capability import (
     StructuredOutputCapability,
+)
+from pirn_agents.specializations.structured_output.structured_output_provider import (
+    StructuredOutputProvider,
 )
 from pirn_agents.toolset import Toolset
 from pirn_agents.types.agent_response import AgentResponse
 from pirn_agents.types.tool_call import ToolCall
 
 
-class StubStructuredProvider(LLMProvider):
+class StubStructuredProvider(StructuredOutputProvider):
     """A capability-gated structured-output provider with a recording transport."""
 
     def __init__(

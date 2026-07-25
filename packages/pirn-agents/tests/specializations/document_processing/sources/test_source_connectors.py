@@ -1,6 +1,6 @@
 """Tests for the source connectors (F25-S3): object store, web crawl, dedup.
 
-Uses in-memory stub doubles for the F16 backends — a stub ``BlobStore`` and an
+Uses in-memory stub doubles for the backends — a stub ``ObjectStore`` and an
 ``HttpConnector`` wrapping a fake streaming client — so no real service or
 network is touched. Covers happy path, content-hash dedup, and isolated
 per-object failures (auth / rate limit).
@@ -11,9 +11,11 @@ from __future__ import annotations
 import unittest
 from collections.abc import AsyncIterator, Sequence
 from typing import Any
+from urllib.parse import urlparse
 
-from pirn_agents.connectors.blob_store import BlobStore
-from pirn_agents.connectors.http_connector import HttpConnector
+from pirn.connectors.object_store import ObjectStore
+
+from pirn.connectors.http_connector import HttpConnector
 from pirn_agents.specializations.document_processing.sources.content_hash_deduplicator import (
     ContentHashDeduplicator,
 )
@@ -23,25 +25,48 @@ from pirn_agents.specializations.document_processing.sources.object_store_source
 from pirn_agents.specializations.document_processing.sources.web_crawl_source_connector import (
     WebCrawlSourceConnector,
 )
+from pirn.security.vetted_endpoint import VettedEndpoint
 
 
-class _StubBlobStore(BlobStore):
-    """In-memory blob store; raises on keys listed in ``fail_keys``."""
+async def _iter_bytes(chunk: bytes) -> AsyncIterator[bytes]:
+    yield chunk
+
+
+async def _iter_keys(keys: Sequence[str]) -> AsyncIterator[str]:
+    for key in keys:
+        yield key
+
+
+class _StubBlobStore(ObjectStore):
+    """In-memory object store; raises on keys listed in ``fail_keys``.
+
+    Follows core's ObjectStore contract: ``get``/``list`` are awaited and return
+    an async iterator, rather than being async generators themselves.
+    """
 
     def __init__(self, objects: dict[str, bytes], *, fail_keys: Sequence[str] = ()) -> None:
         self._objects = dict(objects)
         self._fail = set(fail_keys)
 
     async def get(self, key: str) -> AsyncIterator[bytes]:
+        self._validate_key(key)
         if key in self._fail:
             raise RuntimeError("auth denied")
-        yield self._objects[key]
+        return _iter_bytes(self._objects[key])
 
-    async def put(self, key: str, data: AsyncIterator[bytes]) -> None:
-        self._objects[key] = b"".join([chunk async for chunk in data])
+    async def put(self, key: str, body: AsyncIterator[bytes] | bytes) -> None:
+        self._validate_key(key)
+        if isinstance(body, (bytes, bytearray)):
+            self._objects[key] = bytes(body)
+            return
+        self._objects[key] = b"".join([chunk async for chunk in body])
 
-    async def list(self, prefix: str = "") -> Sequence[str]:
-        return sorted(k for k in self._objects if k.startswith(prefix))
+    async def delete(self, key: str) -> None:
+        self._validate_key(key)
+        self._objects.pop(key, None)
+
+    async def list(self, prefix: str = "") -> AsyncIterator[str]:
+        return _iter_keys(sorted(k for k in self._objects if k.startswith(prefix)))
 
 
 class _FakeStreamCtx:
@@ -76,8 +101,16 @@ class _FakeHttpClient:
         return None
 
 
+def _approve(url: str) -> VettedEndpoint:
+    # Approve the URL without rewriting it: address == hostname, so the pinned URL
+    # is unchanged and the fake client's URL-keyed responses still match. This test
+    # is about crawling, not pinning; it just needs the egress policy to pass.
+    host = urlparse(url).hostname or ""
+    return VettedEndpoint(hostname=host, address=host)
+
+
 def _http_connector(responses: dict[str, bytes | Exception]) -> HttpConnector:
-    return HttpConnector(client=_FakeHttpClient(responses), egress_policy=lambda _url: None)
+    return HttpConnector(client=_FakeHttpClient(responses), egress_policy=_approve)
 
 
 class TestContentHashDeduplicator(unittest.TestCase):
@@ -117,7 +150,7 @@ class TestObjectStoreSourceConnector(unittest.IsolatedAsyncioTestCase):
         assert connector.errors == (("bad", "auth denied"),)
 
     def test_wrong_blob_store_type_rejected(self) -> None:
-        with self.assertRaisesRegex(TypeError, "must be a BlobStore"):
+        with self.assertRaisesRegex(TypeError, "must be an ObjectStore"):
             ObjectStoreSourceConnector(blob_store=object())  # type: ignore[arg-type]
 
 

@@ -3,19 +3,21 @@
 The tool lazily imports ``httpx`` (the ``web`` extra) only when no client is
 injected, so importing the module stays backend-free. An injectable client and
 DNS resolver keep unit tests fully offline. Every request is vetted by
-:func:`~pirn_agents.tools.web._ssrf_guard.assert_public_host`, restricted to
+:meth:`~pirn.security.ssrf_guard.SsrfGuard.assert_public_host`, restricted to
 ``GET``/``HEAD``, and the response body is streamed and truncated at
 ``max_bytes`` to protect the context window.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from typing import Any
+
+from pirn.security.ssrf_guard import SsrfGuard
+from pirn.security.vetted_endpoint import VettedEndpoint
 
 from pirn_agents._require import _require
 from pirn_agents.tools.base_tool import BaseTool
-from pirn_agents.tools.web._ssrf_guard import assert_public_host
 
 
 class HttpRequestTool(BaseTool):
@@ -30,7 +32,7 @@ class HttpRequestTool(BaseTool):
         connect_timeout: float = 5.0,
         allow_private: bool = False,
         client: Any | None = None,
-        resolver: Callable[[str], str] | None = None,
+        resolver: Callable[[str], str | Sequence[str]] | None = None,
     ) -> None:
         """Configure the fetch policy and optional injected client/resolver.
 
@@ -50,13 +52,13 @@ class HttpRequestTool(BaseTool):
         """
         if max_bytes <= 0:
             raise ValueError(f"http_request: max_bytes must be positive, got {max_bytes}")
-        self._allowed_hosts = allowed_hosts
+        self._guard = SsrfGuard(
+            allowed_hosts=allowed_hosts, allow_private=allow_private, resolver=resolver
+        )
         self._max_bytes = max_bytes
         self._timeout = timeout
         self._connect_timeout = connect_timeout
-        self._allow_private = allow_private
         self._client = client
-        self._resolver = resolver
 
     @property
     def name(self) -> str:
@@ -101,25 +103,31 @@ class HttpRequestTool(BaseTool):
         method = str(arguments.get("method", "GET")).upper()
         if method not in ("GET", "HEAD"):
             raise ValueError(f"http_request: unsupported method {method!r} (use GET or HEAD)")
-        assert_public_host(
-            url,
-            allowed_hosts=self._allowed_hosts,
-            allow_private=self._allow_private,
-            resolver=self._resolver,
-        )
+        endpoint = self._guard.assert_public_host(url)
         if self._client is not None:
-            return await self._request(self._client, method, url)
+            return await self._request(self._client, method, url, endpoint)
         httpx = _require("web", "httpx")
         timeout = httpx.Timeout(self._timeout, connect=self._connect_timeout)
         async with httpx.AsyncClient(timeout=timeout, follow_redirects=False) as client:
-            return await self._request(client, method, url)
+            return await self._request(client, method, url, endpoint)
 
-    async def _request(self, client: Any, method: str, url: str) -> dict[str, Any]:
-        """Stream the response through ``client`` and cap the body at ``max_bytes``."""
+    async def _request(
+        self, client: Any, method: str, url: str, endpoint: VettedEndpoint
+    ) -> dict[str, Any]:
+        """Stream the response through ``client`` and cap the body at ``max_bytes``.
+
+        The request is pinned to ``endpoint``: handing the original URL back to the
+        client would let it re-resolve and defeat the guard just performed (PIR-746).
+        """
         chunks: list[bytes] = []
         total = 0
         truncated = False
-        async with client.stream(method, url) as response:
+        async with client.stream(
+            method,
+            endpoint.pinned_url(url),
+            headers=endpoint.request_headers(),
+            extensions=endpoint.request_extensions,
+        ) as response:
             status = int(response.status_code)
             headers = {str(k).lower(): str(v) for k, v in dict(response.headers).items()}
             async for chunk in response.aiter_bytes():

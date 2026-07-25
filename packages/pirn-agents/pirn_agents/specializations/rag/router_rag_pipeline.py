@@ -20,9 +20,9 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.providers.llm_provider import LLMProvider
 from pirn.nodes.sub_tapestry import SubTapestry
 
+from pirn_agents.llm_provider import LLMProvider
 from pirn_agents.specializations.rag.query_route_classifier import QueryRouteClassifier
 from pirn_agents.specializations.rag.rag_synthesizer import RAGSynthesizer
 from pirn_agents.specializations.rag.route_table import RouteTable

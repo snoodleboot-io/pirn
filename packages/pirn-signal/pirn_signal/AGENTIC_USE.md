@@ -150,7 +150,8 @@ frame = SignalFrame(
 Filter a 1 kHz signal with a Butterworth low-pass, then estimate its power spectral density.
 
 ```python
-from pirn import Parameter, KnotConfig
+from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
 from pirn_signal.filters.butterworth_filter import ButterworthFilter
 from pirn_signal.spectral.welch_estimator import WelchEstimator
 

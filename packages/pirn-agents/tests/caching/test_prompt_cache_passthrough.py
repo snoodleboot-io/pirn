@@ -2,25 +2,42 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from typing import Any
 
+import pytest
+
 from pirn_agents.caching.prompt_cache_passthrough import PromptCachePassthrough
+from pirn_agents.llm_provider import LLMProvider
 
 
-class _PlainProvider:
-    """A provider with no native prompt caching."""
+class _PlainProvider(LLMProvider):
+    """A provider with no native prompt caching (inherits the default)."""
 
 
-class _FlagProvider:
-    """A provider that advertises native caching via a truthy attribute."""
+class _FlagProvider(LLMProvider):
+    """A provider whose native cache needs no per-message annotation."""
 
-    prompt_cache_enabled = True
+    @property
+    def prompt_cache_enabled(self) -> bool:
+        return True
+
+    def mark_prompt_cache(
+        self, messages: Sequence[Mapping[str, Any]]
+    ) -> Sequence[Mapping[str, Any]]:
+        return messages
 
 
-class _MarkerProvider:
+class _MarkerProvider(LLMProvider):
     """A provider that annotates messages for native caching."""
 
-    def mark_prompt_cache(self, messages: Any) -> list[dict[str, Any]]:
+    @property
+    def prompt_cache_enabled(self) -> bool:
+        return True
+
+    def mark_prompt_cache(
+        self, messages: Sequence[Mapping[str, Any]]
+    ) -> Sequence[Mapping[str, Any]]:
         return [{**m, "cache": True} for m in messages]
 
 
@@ -33,6 +50,11 @@ class TestSupportsNative:
 
     def test_marker_provider_supported(self) -> None:
         assert PromptCachePassthrough.supports_native(_MarkerProvider()) is True
+
+    def test_base_mark_prompt_cache_raises(self) -> None:
+        # An enabled provider must implement the hook; the base refuses silently.
+        with pytest.raises(NotImplementedError):
+            LLMProvider().mark_prompt_cache([{"role": "user", "content": "hi"}])
 
 
 class TestPassthrough:

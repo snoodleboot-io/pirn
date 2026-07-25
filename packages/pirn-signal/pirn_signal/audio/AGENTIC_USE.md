@@ -25,7 +25,10 @@ Knots here operate on audio waveforms (1-D float arrays, mono or stereo) at a kn
 ## Canonical pattern
 
 ```python
-from pirn import Tapestry, Parameter, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 from pirn_signal.audio.audio_denoiser import AudioDenoiser
 from pirn_signal.audio.mfcc_extractor import MfccExtractor
 

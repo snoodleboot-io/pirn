@@ -37,7 +37,10 @@ Every knot here receives a `signal` array and `fs` (Hz) and returns a filtered s
 ## Canonical pattern
 
 ```python
-from pirn import Tapestry, Parameter, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 from pirn_signal.filters.butterworth_filter import ButterworthFilter
 from pirn_signal.filters.zero_phase_filter import ZeroPhaseFilter
 

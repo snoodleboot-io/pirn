@@ -22,15 +22,21 @@ class CacheEntry(PirnOpaqueValue):
     embedding:
         The vector used for semantic matching, or ``None`` for exact-key-only
         entries. Held as a tuple so the frozen entry stays hashable.
+    expires_at:
+        The clock reading (in the owning cache's clock domain) at which the
+        entry expires, or ``None`` for an entry that never expires. Additive and
+        defaulted so existing exact-key entries are unaffected.
     """
 
     key: str
     value: Any
     embedding: tuple[float, ...] | None = None
+    expires_at: float | None = None
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
         return {
             "key": self.key,
             "value": repr(self.value),
             "embedding": None if self.embedding is None else list(self.embedding),
+            "expires_at": self.expires_at,
         }

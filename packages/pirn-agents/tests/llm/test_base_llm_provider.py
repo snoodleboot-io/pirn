@@ -13,7 +13,7 @@ import unittest
 from collections.abc import AsyncIterator, Mapping, Sequence
 from typing import Any
 
-from pirn_agents.credential_ref import CredentialRef
+from pirn.security.credential_ref import CredentialRef
 from pirn_agents.llm.base_llm_provider import BaseLLMProvider
 from pirn_agents.llm.llm_http_status_error import LLMHTTPStatusError
 from pirn_agents.llm.model_pricing import ModelPricing

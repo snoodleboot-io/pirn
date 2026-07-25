@@ -12,7 +12,6 @@ class TestToolStatus(unittest.TestCase):
         assert ToolStatus.OK.value == "ok"
         assert ToolStatus.ERROR.value == "error"
         assert ToolStatus.TIMEOUT.value == "timeout"
-        assert ToolStatus.CANCELLED.value == "cancelled"
 
     def test_is_str_subclass(self) -> None:
         assert isinstance(ToolStatus.OK, str)

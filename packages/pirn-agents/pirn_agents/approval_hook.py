@@ -19,7 +19,6 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from pirn_agents.permissioned_tool import requires_approval
 from pirn_agents.tool import Tool
 
 
@@ -56,7 +55,7 @@ async def authorize_tool_call(
     without invoking ``hook``. Tools that require approval are routed through
     ``hook`` (or an auto-approving default when ``hook`` is ``None``).
     """
-    if not requires_approval(tool):
+    if not tool.requires_approval():
         return True
     resolved = hook if hook is not None else ApprovalHook()
     return await resolved.request_approval(tool_name=tool.name, arguments=arguments)

@@ -49,7 +49,9 @@ pirn/domains/connectors/
 ### Query a database
 
 ```python
-from pirn import Tapestry, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 from pirn.connectors.databases.postgres_config import PostgresConfig
 from pirn.connectors.databases.postgres_pool import PostgresPool
 from pirn.connectors.knots.database_query_source import DatabaseQuerySource

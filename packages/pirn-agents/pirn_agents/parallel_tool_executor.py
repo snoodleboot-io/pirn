@@ -16,8 +16,10 @@ Semantics
   inside ``async with asyncio.timeout(timeout)``; overrunning it yields a
   :attr:`~pirn_agents.types.tool_status.ToolStatus.TIMEOUT` result. Timeouts
   are *not* retried.
-* **Retry** — non-timeout exceptions are retried up to ``retries`` extra times
-  with a jittered exponential backoff (``base * 2**attempt + random*jitter``).
+* **Retry** — non-timeout exceptions are retried up to ``retries`` extra times.
+  The inter-attempt delay comes from a composed
+  :class:`~pirn_agents.llm.retry_policy.RetryPolicy` (the single backoff-schedule
+  source), not a hand-rolled formula.
 * **Failure isolation** — every task converts its own outcome into a
   :class:`ToolResult`; :func:`asyncio.gather` therefore never observes a raw
   exception and no failing call cancels a sibling.
@@ -37,16 +39,17 @@ import asyncio
 import hashlib
 import json
 import logging
-import random
 import time
-from collections.abc import Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents.async_fanout_engine import AsyncFanoutEngine
 from pirn_agents.exceptions.tool_not_found_error import ToolNotFoundError
 from pirn_agents.exceptions.tool_timeout_error import ToolTimeoutError
+from pirn_agents.llm.retry_policy import RetryPolicy
 from pirn_agents.tool import Tool
 from pirn_agents.tool_invocation_hook import ToolInvocationHook
 from pirn_agents.toolset import Toolset
@@ -55,12 +58,14 @@ from pirn_agents.types.tool_result import ToolResult
 from pirn_agents.types.tool_status import ToolStatus
 
 
-class ParallelToolExecutor(Knot):
+class ParallelToolExecutor(AsyncFanoutEngine[ToolResult], Knot):
     """Execute a batch of :class:`ToolCall`s concurrently with isolation.
 
-    The retry backoff shape is configured at construction time via
-    ``retry_base`` and ``retry_jitter`` (kept off the ``process`` signature
-    because they tune *how* a retry sleeps rather than *what* is executed).
+    The retry backoff shape is configured at construction time via a
+    ``retry_policy`` (kept off the ``process`` signature because it tunes *how* a
+    retry sleeps rather than *what* is executed). The policy is the single source
+    of the backoff *schedule*; the retry *count* remains the separate ``retries``
+    budget, which is a per-invocation concern.
 
     Observability is opt-in via ``hook``: an optional
     :class:`~pirn_agents.tool_invocation_hook.ToolInvocationHook` fired once
@@ -80,18 +85,22 @@ class ParallelToolExecutor(Knot):
         max_concurrency: int = 8,
         timeout: float | None = None,
         retries: int = 0,
-        retry_base: float = 0.01,
-        retry_jitter: float = 0.01,
+        retry_policy: RetryPolicy | None = None,
+        rng: Callable[[], float] | None = None,
+        sleep: Callable[[float], Awaitable[None]] | None = None,
         hook: ToolInvocationHook | None = None,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        # Set backoff tuning and the observability hook before super().__init__
-        # freezes the instance. Like ``retry_base``/``retry_jitter`` these are
-        # not ``process`` parameters, so they must not be forwarded to the base
+        # Set backoff policy, jitter/sleep seams, and the observability hook before
+        # super().__init__ freezes the instance. Like the retry policy these are not
+        # ``process`` parameters, so they must not be forwarded to the base
         # constructor (which validates kwargs against process).
-        self._retry_base = retry_base
-        self._retry_jitter = retry_jitter
+        self._retry_policy = retry_policy if retry_policy is not None else RetryPolicy()
+        self._rng = rng
+        self._sleep: Callable[[float], Awaitable[None]] = (
+            sleep if sleep is not None else asyncio.sleep
+        )
         self._hook = hook
         super().__init__(
             tool_calls=tool_calls,
@@ -160,9 +169,7 @@ class ParallelToolExecutor(Knot):
         try:
             gathered = await asyncio.gather(*tasks)
         except asyncio.CancelledError:
-            for task in tasks:
-                task.cancel()
-            await asyncio.gather(*tasks, return_exceptions=True)
+            await self._drain_on_cancel(tasks)
             raise
         return tuple(gathered)
 
@@ -225,43 +232,36 @@ class ParallelToolExecutor(Knot):
                 error=str(ToolNotFoundError(call.tool_name, call.call_id)),
                 latency=time.perf_counter() - start,
             )
-        attempt = 0
-        while True:
-            try:
-                if timeout is not None:
-                    async with asyncio.timeout(timeout):
-                        value = await tool.invoke(call.arguments)
-                else:
-                    value = await tool.invoke(call.arguments)
-            except Exception as exc:
-                # A timeout is terminal (never retried) when a per-call
-                # budget is configured; anything else is retryable.
-                if timeout is not None and isinstance(exc, TimeoutError):
-                    return ToolResult(
-                        call_id=call.call_id,
-                        result=None,
-                        status=ToolStatus.TIMEOUT,
-                        error=str(ToolTimeoutError(call.tool_name, timeout, call.call_id)),
-                        latency=time.perf_counter() - start,
-                    )
-                if attempt >= retries:
-                    return ToolResult(
-                        call_id=call.call_id,
-                        result=None,
-                        status=ToolStatus.ERROR,
-                        error=str(exc),
-                        latency=time.perf_counter() - start,
-                    )
-                backoff = self._retry_base * 2**attempt + random.random() * self._retry_jitter
-                await asyncio.sleep(backoff)
-                attempt += 1
-                continue
-            return ToolResult(
+        # Precomputed under the guard so the on_timeout builder (which fires only
+        # when ``timeout`` is set) has a narrowed float; its message is static.
+        timeout_error = (
+            ToolTimeoutError(call.tool_name, timeout, call.call_id) if timeout is not None else None
+        )
+        return await self._run_with_retries(
+            lambda: tool.invoke(call.arguments),
+            timeout=timeout,
+            retries=retries,
+            on_ok=lambda value, _attempts: ToolResult(
                 call_id=call.call_id,
                 result=value,
                 status=ToolStatus.OK,
                 latency=time.perf_counter() - start,
-            )
+            ),
+            on_timeout=lambda _attempts: ToolResult(
+                call_id=call.call_id,
+                result=None,
+                status=ToolStatus.TIMEOUT,
+                error=str(timeout_error),
+                latency=time.perf_counter() - start,
+            ),
+            on_error=lambda exc, _attempts: ToolResult(
+                call_id=call.call_id,
+                result=None,
+                status=ToolStatus.ERROR,
+                error=str(exc),
+                latency=time.perf_counter() - start,
+            ),
+        )
 
     def _fire_start(self, hook: ToolInvocationHook, call: ToolCall) -> None:
         """Fire ``hook.on_start`` for ``call``, swallowing any hook exception.

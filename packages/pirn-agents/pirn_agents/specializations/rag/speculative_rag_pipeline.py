@@ -22,9 +22,9 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.providers.llm_provider import LLMProvider
 from pirn.nodes.sub_tapestry import SubTapestry
 
+from pirn_agents.llm_provider import LLMProvider
 from pirn_agents.memory_store import MemoryStore
 from pirn_agents.specializations.rag.draft_verifier import DraftVerifier
 from pirn_agents.specializations.rag.memory_search_retriever import MemorySearchRetriever

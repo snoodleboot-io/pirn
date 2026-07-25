@@ -167,6 +167,7 @@ def _backend_denylist_for(package: str) -> frozenset[str]:
                 "pypdf",
                 "docx",
                 "bs4",
+                "ragas",
             }
         ),
     }

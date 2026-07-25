@@ -21,12 +21,13 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from pirn_agents.graph_stores.graph_backend_client import GraphBackendClient
 from pirn_agents.graph_stores.graph_edge import GraphEdge
 from pirn_agents.graph_stores.graph_node import GraphNode
 from pirn_agents.graph_stores.graph_store import GraphStore
 
 
-class FakeGraphBackendClient:
+class FakeGraphBackendClient(GraphBackendClient):
     """In-memory neutral graph backend client: adjacency + neutral mappings.
 
     Faithful enough to run the whole conformance suite against the Neo4j and

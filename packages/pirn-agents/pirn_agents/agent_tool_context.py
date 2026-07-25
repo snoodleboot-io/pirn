@@ -7,7 +7,7 @@ is dispatched deep inside another agent's ReAct loop — through code paths that
 not forward any explicit state — a context var is the only way to propagate the
 recursion depth, the active call stack (for cycle detection), the shared
 :class:`~pirn_agents.performance.run_budget_meter.RunBudgetMeter`, and the shared
-pooled :class:`~pirn.core.providers.llm_provider.LLMProvider` down the tree.
+pooled :class:`~pirn_agents.llm_provider.LLMProvider` down the tree.
 
 The value is immutable: entering a nested agent produces a *new* child context
 via :meth:`AgentToolContext.child`, which enforces the depth cap and cycle
@@ -22,12 +22,11 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 
-from pirn.core.providers.llm_provider import LLMProvider
-
 from pirn_agents.exceptions.agent_cycle_error import AgentCycleError
 from pirn_agents.exceptions.agent_depth_exceeded_error import (
     AgentDepthExceededError,
 )
+from pirn_agents.llm_provider import LLMProvider
 from pirn_agents.performance.run_budget_meter import RunBudgetMeter
 
 

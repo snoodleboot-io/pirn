@@ -3,7 +3,7 @@
 Wraps an externally-constructed tool client (an outbound API / SaaS connector)
 so it participates in the pirn graph with full lineage. A tool client holds
 live backend state — an HTTP session or connection pool — so it is modelled as
-:class:`pirn_agents.connector_base.ConnectorBase`, the pooled-client
+:class:`pirn.connectors.connector_base.ConnectorBase`, the pooled-client
 abstraction. Passing the connector through the graph means its backend client
 is constructed once and reused for the whole run (the pooling lever, AD-3).
 
@@ -14,7 +14,7 @@ Algorithm:
        instance.
 
 References:
-    - :class:`pirn_agents.connector_base.ConnectorBase`
+    - :class:`pirn.connectors.connector_base.ConnectorBase`
     - :class:`pirn_agents.llm_provider_knot.LLMProviderKnot` (the template).
 """
 
@@ -22,10 +22,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from pirn.connectors.connector_base import ConnectorBase
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-
-from pirn_agents.connector_base import ConnectorBase
 
 
 class ToolClientKnot(Knot):

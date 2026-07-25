@@ -46,10 +46,10 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.providers.llm_provider import LLMProvider
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.input.context_builder import ContextBuilder
+from pirn_agents.llm_provider import LLMProvider
 from pirn_agents.specializations.react.messages_passthrough import (
     MessagesPassthrough,
 )

@@ -19,7 +19,7 @@ from collections.abc import AsyncIterator
 
 import pytest
 
-from pirn_agents.connectors.http_connector import HttpConnector
+from pirn.connectors.http_connector import HttpConnector
 
 
 class _FakeResponse:
@@ -38,7 +38,13 @@ class _SlowToBuildClient:
         time.sleep(latency)
 
     async def request(
-        self, method: str, url: str, *, headers: object = None, params: object = None
+        self,
+        method: str,
+        url: str,
+        *,
+        headers: object = None,
+        params: object = None,
+        extensions: object = None,
     ) -> _FakeResponse:
         return _FakeResponse()
 

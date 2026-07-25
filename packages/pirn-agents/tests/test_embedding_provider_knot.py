@@ -1,6 +1,6 @@
 """Unit tests for :class:`EmbeddingProviderKnot`.
 
-The vended type is :class:`pirn.core.providers.embedding_provider.EmbeddingProvider`
+The vended type is :class:`pirn_agents.embedding_provider.EmbeddingProvider`
 (the existing provider interface in pirn-core), mirroring how
 :class:`LLMProviderKnot` vends :class:`LLMProvider`. The tests prove
 one-construction-per-run: a single stub provider is built, then the knot's
@@ -14,10 +14,10 @@ from collections.abc import Sequence
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.providers.embedding_provider import EmbeddingProvider
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
+from pirn_agents.embedding_provider import EmbeddingProvider
 from pirn_agents.embedding_provider_knot import EmbeddingProviderKnot
 
 
