@@ -55,7 +55,8 @@ pirn/backends/
 ### Development — all in memory (default)
 
 ```python
-from pirn import Tapestry, RunRequest
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 
 # No backends passed — all three slots use in-memory defaults.
 with Tapestry() as t:
@@ -67,7 +68,8 @@ result = await t.run(RunRequest())
 ### Production — durable lineage, in-memory values
 
 ```python
-from pirn import Tapestry, RunRequest
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 
 history = SQLiteHistory(path="pirn.db")

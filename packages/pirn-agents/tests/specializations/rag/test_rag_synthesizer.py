@@ -6,10 +6,10 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn_agents.specializations.rag.rag_synthesizer import RAGSynthesizer
-from pirn_agents.types.agent_response import AgentResponse
 from pirn.tapestry import Tapestry
 
+from pirn_agents.specializations.rag.rag_synthesizer import RAGSynthesizer
+from pirn_agents.types.agent_response import AgentResponse
 from tests.specializations.conftest import StubLLMProvider
 
 

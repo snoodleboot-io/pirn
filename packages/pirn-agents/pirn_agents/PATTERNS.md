@@ -69,7 +69,7 @@ For plain functions, use `@tool` instead of subclassing `Tool`. Name, descriptio
 and JSON Schema are derived from the function signature automatically.
 
 ```python
-from pirn_agents import tool
+from pirn_agents.tool_decorator import tool
 
 @tool
 async def web_search(query: str, max_results: int = 5) -> str:
@@ -563,41 +563,71 @@ code_response: AgentResponse = await agent.run()
 ## Pattern 16 — Agent as Tool
 
 **When to use:** You want to expose an agent's capability as a `Tool` so that
-another agent can call it as part of its ReAct loop.
+another agent can call it as part of its ReAct loop — a handoff to a specialist,
+or a "swarm" of agents each callable by name.
 
-Implement `Tool` and delegate to a `SubTapestry` internally:
+**Agent-as-tool is first-class** (F7): any `SubTapestry` agent that mixes in
+`AgentAsToolMixin` (the shipped specialist agents do) becomes a `Tool` in one
+call via `agent.as_tool()`, or wrap any agent with the `as_tool(agent)` free
+function. No hand-written adapter, no manual schema:
+
+- `name`/`description` default from the agent and are overridable.
+- `parameters_schema` is derived from the agent's `process` inputs (falling back
+  to `{task: str}`).
+- `invoke()` runs the inner agent and maps its `AgentResponse` into the F1
+  `ToolResult` shape (structured passthrough — `content`, `tool_calls`, `usage`,
+  `cost` — not just `.content`); an inner failure surfaces as a tool error.
+
+Safety and performance come built in and are shared with the handoff/swarm path
+(both funnel through the same `AgentInvoker` machinery): a **max nesting depth**
+plus **cycle detection** reject a self-referential graph before it recurses
+forever; the parent's **budget/deadline/token** limits are *inherited* by nested
+agents (a nested loop can't outrun the caller); and the parent's **pooled
+`LLMProvider`** is reused by identity rather than reconstructed per call.
 
 ```python
-from pirn_agents.tool import Tool
+from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 
-class ResearchAgentTool(Tool):
-    name = "research"
-    description = "Perform deep research on a topic and return a summary."
-
-    def __init__(self, llm):
-        self._llm = llm
-
-    async def invoke(self, *, topic: str, **_) -> str:
-        from pirn_agents.specializations.specialized_agents.research_agent import (
-            ResearchAgent,
-        )
-        agent = ResearchAgent(
-            task=topic, llm=self._llm,
-            tools=[search_tool],
-            _config=KnotConfig(id=f"research_{hash(topic)}"),
-        )
-        resp: AgentResponse = await agent.run()
-        return resp.content
-
-# Now plug it into a ReActLoop or ToolRouter
-outer_react = ReActLoop(
-    messages=[{"role": "user", "content": "Research CRISPR advances in 2025."}],
-    llm=llm,
-    tools=[ResearchAgentTool(llm)],
-    max_iterations=3,
-    _config=KnotConfig(id="outer"),
+from pirn_agents.as_tool import as_tool  # or: agent.as_tool()
+from pirn_agents.performance.run_budget import RunBudget
+from pirn_agents.specializations.react.react_loop import ReActLoop
+from pirn_agents.specializations.specialized_agents.research_agent import (
+    ResearchAgent,
 )
+from pirn_agents.types.agent_message import AgentMessage
+
+with Tapestry() as tapestry:
+    researcher = ResearchAgent(
+        topic="seed",
+        llm=llm,
+        search_tool=search_tool,
+        max_searches=3,
+        _config=KnotConfig(id="researcher"),
+    )
+    # One line: the agent is now a Tool. Nested runs reuse `llm` (by identity)
+    # and inherit the budget; a self-call is rejected before it recurses.
+    research_tool = researcher.as_tool(
+        name="research",
+        provider=llm,
+        budget=RunBudget(max_iterations=8, deadline_seconds=30.0),
+    )
+
+    ReActLoop(
+        messages=(AgentMessage(role="user", content="Research CRISPR advances."),),
+        llm=llm,
+        tools=(research_tool,),
+        max_iterations=3,
+        _config=KnotConfig(id="outer"),
+    )
+
+result = await tapestry.run(RunRequest())
 ```
+
+Equivalently, `as_tool(researcher, name="research")` returns the same
+`AgentTool`. A swarm is just a `ReActLoop` whose `tools` are several
+`agent.as_tool()` wrappers — the loop hands off to whichever the planner names.
 
 ---
 
@@ -606,37 +636,62 @@ outer_react = ReActLoop(
 **When to use:** You need to connect to an external MCP server — a remote tool
 provider exposing resources, prompts, and tools via the standard protocol.
 
-pirn wraps MCP tools behind the `Tool` interface. Implement an `McpTool`
-adapter and hand it to any knot that accepts `tools`:
+The `pirn_agents.mcp` subpackage (behind the `[mcp]` extra) ships a first-class
+async client and adapters, so you no longer hand-roll an `McpTool`. The design is
+a **thin JSON-RPC core** (`McpClient`) driving a pluggable **transport**
+(`StdioTransport`, `StreamableHttpTransport`, or your own `McpTransport`); the
+`mcp` SDK is imported lazily and used only for real transport plumbing, so
+`import pirn_agents` stays backend-free. Adapters map the server's surface onto
+F1 primitives:
+
+* `McpTool` / `McpToolset` → an F1 `Toolset` (discovery);
+* `McpResourceAdapter` → context injection (`ContextBuilder` / `MemoryStore`);
+* `McpPromptAdapter` / `McpPromptTemplate` → reusable message templates;
+* `McpConnector` / `McpSessionPool` → one long-lived session per server, vended
+  through F2's `ToolClientKnot`, with reconnect + jittered backoff.
 
 ```python
-import asyncio
-from pirn_agents.tool import Tool
+from pirn.core.knot_config import KnotConfig
+from pirn_agents.mcp import McpConnector, McpToolset, StdioTransport
 
-class McpTool(Tool):
-    """Thin adapter that calls a remote MCP server tool."""
+# One pooled, self-healing session per server (built once, reused for the run).
+connector = McpConnector(
+    transport_factory=lambda: StdioTransport(command="python", args=["-m", "my_server"]),
+)
+session = await connector.session()          # opens transport + initialize handshake
 
-    def __init__(self, name: str, description: str, mcp_client):
-        self.name = name
-        self.description = description
-        self._client = mcp_client
+# Discover the server's tools as a native Toolset and wire into any knot.
+toolset = await McpToolset(client=session).discover()
 
-    async def invoke(self, **kwargs) -> str:
-        result = await self._client.call_tool(self.name, kwargs)
-        return str(result.content)
-
-# Wire into ReActLoop exactly like any other tool
 react = ReActLoop(
     messages=[{"role": "user", "content": task}],
     llm=llm,
-    tools=[McpTool("read_file", "Read a file from the MCP server", mcp_client)],
+    tools=list(toolset),                     # each entry is an McpTool(Tool)
     max_iterations=8,
     _config=KnotConfig(id="mcp_react"),
 )
 ```
 
-MCP resources (read-only context) map naturally to `MemoryRetriever` — fetch
-the resource content at context-build time and inject it into `ContextBuilder`.
+Schemas and results **round-trip through F1's protocol**: `toolset.schema()` is
+the provider-neutral tool schema, and a `ToolCall` dispatched through
+`ParallelToolExecutor` invokes `McpTool.invoke` → `tools/call` and wraps the
+result into a `ToolResult` (a server `isError` becomes `ToolStatus.ERROR`). For
+executor-free use, `McpTool.as_tool_result(call)` returns the `ToolResult`
+directly.
+
+**Resources** map to context injection: `McpResourceAdapter(client=session)`
+lists/reads resources and yields either system-role `AgentMessage`s
+(`as_context_messages()`, prepend at `ContextBuilder` time) or writes them into a
+`MemoryStore` (`inject_into_store(store)`) for a `MemoryRetriever`.
+
+**Prompts** map to reusable templates: `McpPromptAdapter(client=session)
+.build_template(name)` captures a prompt once, and `template.render({...})`
+substitutes arguments (validated via `isinstance`) into a list of `AgentMessage`s
+without another round-trip.
+
+For several servers, register per-server connector factories on an
+`McpSessionPool` and call `await pool.session(key)` — each key's session is
+constructed once and reused.
 
 ---
 
@@ -679,6 +734,192 @@ a central controller.
 
 ---
 
+# Agentic Design Patterns — F8 expansion (PIR-21)
+
+Patterns 19–27 add the standard agentic shapes not covered above. Each is a
+provider-neutral `SubTapestry` reusing F1 (parallel executor), F4 (memory),
+F7 (agents-as-tools), and F10 (run budgets). See
+`specializations/PATTERNS_TAXONOMY_F8.md` for the net-new/compositional
+classification and citations.
+
+## Pattern 19 — ReWOO (Reasoning WithOut Observation)
+
+Plan every tool call up front, execute them in parallel through the F1 executor,
+then synthesise once — a fixed **two** LLM round-trips regardless of tool count,
+versus one-per-step for ReAct. Knots: `ReWooPlanner` → `ParallelToolExecutor`
+(F1) → `ReWooSynthesizer`, wired by `ReWooPipeline` into a `ReWooResult`.
+
+```python
+from pirn_agents.specializations.rewoo.rewoo_pipeline import ReWooPipeline
+
+with Tapestry() as t:
+    ReWooPipeline(
+        goal="Compare the populations of France and Spain.",
+        llm=my_provider,
+        tools=(population_tool,),      # each a Tool
+        max_concurrency=8,
+        _config=KnotConfig(id="rewoo"),
+    )
+result = (await t.run(RunRequest())).outputs["rewoo"]   # ReWooResult(answer, plan, results)
+```
+
+## Pattern 20 — Reflexion (actor / evaluator / self-reflection + memory)
+
+Actor drafts, evaluator scores, reflector writes a verbal lesson to F4 memory that
+is **read back** on the next attempt; bounded by `max_iterations`. Knots:
+`ReflexionActor`, `ReflexionEvaluator`, `ReflexionReflector`, orchestrated by
+`ReflexionPipeline` into a `ReflexionResult`.
+
+```python
+from pirn_agents.specializations.reflexion.reflexion_pipeline import ReflexionPipeline
+
+with Tapestry() as t:
+    ReflexionPipeline(
+        task="Write a correct binary-search implementation.",
+        llm=my_provider,
+        memory=my_memory_store,        # a MemoryStore (F4)
+        max_iterations=3,
+        _config=KnotConfig(id="rx"),
+    )
+result = (await t.run(RunRequest())).outputs["rx"]   # ReflexionResult(answer, succeeded, attempts)
+```
+
+## Pattern 21 — Evaluator-Optimizer (LLM-as-judge accept loop)
+
+Generator produces a candidate, an `LlmJudge` returns a numeric `JudgeVerdict`, and
+`AcceptGate` — the scored generalisation of `control.reflection_check.ReflectionCheck`
+— stops on threshold. An optional `ReflectionCheck` can be injected as an early-stop
+gate (reuse, not duplication).
+
+```python
+from pirn_agents.specializations.evaluator_optimizer.evaluator_optimizer_pipeline import (
+    EvaluatorOptimizerPipeline,
+)
+
+with Tapestry() as t:
+    EvaluatorOptimizerPipeline(
+        task="Draft a crisp product tagline.",
+        llm=my_provider,
+        threshold=8.0,                 # 0-10 judge scale
+        max_iterations=3,
+        _config=KnotConfig(id="eo"),
+    )
+result = (await t.run(RunRequest())).outputs["eo"]   # EvaluatorOptimizerResult(answer, score, accepted)
+```
+
+## Pattern 22 — Router + typed Fallback chain
+
+`CandidateRouter` orders typed `RouteCandidate`s best-first by confidence; `FallbackChain`
+invokes them in order, skipping sub-threshold candidates and stopping on first success —
+avoiding the wasted retries of a naive "try everything" baseline. Wired by
+`RouterFallbackPipeline` into a `FallbackResult`.
+
+```python
+from pirn_agents.specializations.routing.route_candidate import RouteCandidate
+from pirn_agents.specializations.routing.router_fallback_pipeline import RouterFallbackPipeline
+
+candidates = (
+    RouteCandidate(name="fast", tool=fast_tool, min_confidence=0.6),
+    RouteCandidate(name="strong", tool=strong_tool),
+)
+with Tapestry() as t:
+    RouterFallbackPipeline(
+        candidates=candidates,
+        confidences={"fast": 0.9, "strong": 0.4},   # from an intent router / heuristic
+        arguments={"input": "the query"},
+        _config=KnotConfig(id="rf"),
+    )
+result = (await t.run(RunRequest())).outputs["rf"]   # FallbackResult(succeeded, chosen, attempted, skipped)
+```
+
+## Pattern 23 — Orchestrator-Workers (dynamic, via F7)
+
+`OrchestratorWorkers` spawns one worker (an F7 `AgentTool`) per task-list item, bounded by
+a max-concurrency semaphore, and aggregates an `OrchestratorWorkersResult`. Worker count
+scales with the task list; wall-clock stays bounded by the cap.
+
+```python
+from pirn_agents.agent_tool import AgentTool
+from pirn_agents.specializations.multi_agent.orchestrator_workers import OrchestratorWorkers
+
+worker = AgentTool(my_specialist_agent)      # F7 agent-as-tool
+with Tapestry() as t:
+    OrchestratorWorkers(
+        tasks=("summarise doc A", "summarise doc B", "summarise doc C"),
+        worker=worker,
+        max_concurrency=4,
+        _config=KnotConfig(id="ow"),
+    )
+result = (await t.run(RunRequest())).outputs["ow"]   # OrchestratorWorkersResult(results, succeeded, total)
+```
+
+## Pattern 24 — LATS / tree-search act (budgeted)
+
+`LatsSearch` runs a best-first (MCTS-style) search over action trajectories proposed by
+`LatsActionProposer` and scored by a pluggable `TrajectoryValueModel`, **strictly bounded**
+by an F10 `RunBudget` (node count and/or wall-clock). Returns a `LatsResult`.
+
+```python
+from pirn_agents.performance.run_budget import RunBudget
+from pirn_agents.specializations.lats.lats_search import LatsSearch
+
+with Tapestry() as t:
+    LatsSearch(
+        task="Plan a route through the maze.",
+        llm=my_provider,
+        value_model=my_value_model,           # a TrajectoryValueModel (stubbable)
+        budget=RunBudget(max_iterations=64, deadline_seconds=5.0),
+        max_depth=4,
+        _config=KnotConfig(id="lats"),
+    )
+result = (await t.run(RunRequest())).outputs["lats"]   # LatsResult(best_trajectory, best_value, nodes_expanded)
+```
+
+## Pattern 25 — Self-Ask
+
+`SelfAskPipeline` decomposes a question into follow-up sub-questions, answers each, then
+composes the final answer into a `SelfAskResult`.
+
+```python
+from pirn_agents.specializations.self_ask.self_ask_pipeline import SelfAskPipeline
+
+with Tapestry() as t:
+    SelfAskPipeline(task="Who directed the highest-grossing film of 1997?", llm=my_provider,
+                    _config=KnotConfig(id="sa"))
+result = (await t.run(RunRequest())).outputs["sa"]   # SelfAskResult(final_answer, subquestions, subanswers)
+```
+
+## Pattern 26 — Plan-ReAct
+
+`PlanReActPipeline` plans first with `TaskPlanner`, then runs a `ReActLoop` per step — pure
+composition of existing knots — into a `PlanReActResult`.
+
+```python
+from pirn_agents.specializations.plan_react.plan_react_pipeline import PlanReActPipeline
+
+with Tapestry() as t:
+    PlanReActPipeline(task="Research and summarise X.", llm=my_provider, tools=(search_tool,),
+                      max_iterations=4, max_steps=5, _config=KnotConfig(id="pr"))
+result = (await t.run(RunRequest())).outputs["pr"]   # PlanReActResult(plan, step_responses, final)
+```
+
+## Pattern 27 — Prompt-chaining
+
+`PromptChainPipeline` runs a fixed sequence of LLM calls where each output feeds the next,
+into a `PromptChainResult`.
+
+```python
+from pirn_agents.specializations.prompt_chaining.prompt_chain_pipeline import PromptChainPipeline
+
+with Tapestry() as t:
+    PromptChainPipeline(task=long_document, llm=my_provider,
+                        steps=("Summarise in 3 bullets.", "Translate the summary to French."),
+                        _config=KnotConfig(id="pc"))
+result = (await t.run(RunRequest())).outputs["pc"]   # PromptChainResult(outputs, final)
+```
+
+---
+
 ## Composing Patterns
 
 Patterns compose — pick the pieces you need:
@@ -711,3 +952,383 @@ The pre-built specialisations (`ReActLoop`, `OrchestratorAgent`, etc.) are
 `SubTapestry` instances with fixed inner graphs. The `examples/llm_agent/`
 directory shows the dynamic DAG approach for cases where the pipeline shape
 is not known ahead of time.
+
+---
+
+## Tool-call protocol & ParallelToolExecutor
+
+pirn's tool-calling vocabulary is provider-neutral: three small types plus a
+registry, with no LLM provider baked in.
+
+| Type | Role |
+|---|---|
+| `ToolCall` | One decided invocation: `tool_name`, `arguments`, `call_id`, optional `raw`. |
+| `ToolResult` | Its outcome: `call_id`, `result`, `error`, `status`, `latency`, `tokens`. |
+| `ToolStatus` | Terminal disposition — `OK`, `ERROR`, `TIMEOUT`. |
+| `Toolset` | Immutable, ordered, unique-by-name registry of `Tool`s. |
+
+`ParallelToolExecutor` runs a batch of `ToolCall`s concurrently against a
+`Toolset` with **bounded concurrency**, a **per-call timeout**, jittered-backoff
+**retries**, and **failure isolation** — one slow, raising, or timing-out call
+never aborts its siblings. Results come back in input order, each carrying its
+own `status` and `latency`.
+
+```python
+import asyncio
+from collections.abc import Mapping
+from typing import Any
+
+from pirn.core.knot_config import KnotConfig
+from pirn.tapestry import Tapestry
+
+from pirn_agents.parallel_tool_executor import ParallelToolExecutor
+from pirn_agents.tool import Tool
+from pirn_agents.toolset import Toolset
+from pirn_agents.types.tool_call import ToolCall
+from pirn_agents.types.tool_status import ToolStatus
+
+
+class StubTool(Tool):
+    """A provider-neutral tool; a real tool would call an API, DB, etc."""
+
+    def __init__(self, *, name: str, reply: str) -> None:
+        self._name = name
+        self._reply = reply
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def description(self) -> str:
+        return f"echoes for {self._name}"
+
+    @property
+    def parameters_schema(self) -> Mapping[str, Any]:
+        return {"type": "object", "properties": {"q": {"type": "string"}}}
+
+    async def invoke(self, arguments: Mapping[str, Any]) -> Any:
+        return f"{self._reply}:{arguments.get('q', '')}"
+
+
+toolset = Toolset([StubTool(name="search", reply="hit"),
+                   StubTool(name="lookup", reply="doc")])
+calls = [
+    ToolCall(tool_name="search", arguments={"q": "dicom"}, call_id="c1"),
+    ToolCall(tool_name="lookup", arguments={"q": "policy"}, call_id="c2"),
+]
+
+with Tapestry():
+    executor = ParallelToolExecutor(
+        tool_calls=[], toolset=Toolset(),
+        _config=KnotConfig(id="pte", validate_io=False),
+    )
+
+results = await executor.process(
+    tool_calls=calls, toolset=toolset,
+    max_concurrency=8, timeout=5.0, retries=1,
+)
+for r in results:
+    assert r.status is ToolStatus.OK
+    print(r.call_id, r.result, f"{r.latency:.4f}s")
+```
+
+The construction-time `retry_policy` (a `RetryPolicy`) is the single source of the
+backoff *schedule*; `hook` (below) wires observability. Both are constructor kwargs
+rather than `process` parameters because they configure *how* the executor runs, not *what*
+it executes.
+
+---
+
+## Native tool-calling via ToolCallCodec
+
+`ToolCallCodec` maps pirn's neutral tool-calling types to and from any provider's native JSON. The codec itself is provider-agnostic; all provider shaping lives behind a `ProviderAdapter` you implement once per provider. Swapping providers means swapping adapters — the codec never changes.
+
+```python
+from __future__ import annotations
+from typing import Any
+from pirn_agents.provider_adapter import ProviderAdapter
+from pirn_agents.tool_call_codec import ToolCallCodec
+from pirn_agents.toolset import Toolset
+from pirn_agents.types.tool_result import ToolResult
+
+class MyAdapter(ProviderAdapter):
+    def tool_to_native(self, neutral_tool: dict[str, Any]) -> dict[str, Any]:
+        return {"type": "function", "function": neutral_tool}
+    def extract_tool_calls(self, provider_msg: Any) -> list[dict[str, Any]]:
+        return list(provider_msg["tool_calls"])  # each: {"id","name","arguments"}
+    def result_to_native(self, result_payload: dict[str, Any]) -> Any:
+        return {"role": "tool", "tool_call_id": result_payload["call_id"], "content": result_payload["content"]}
+
+codec = ToolCallCodec(MyAdapter())
+native_tools = codec.encode_tools(toolset)      # declare tools to the provider
+calls = codec.decode_calls(assistant_msg)       # -> list[ToolCall] (single or parallel; args JSON-str or dict)
+tool_msgs = codec.encode_results(results)       # -> native tool-result messages
+```
+
+---
+
+## Streaming tool-call parsing
+
+`StreamingToolCallParser` assembles a provider's streamed argument fragments
+into `ToolCall`s and emits each one *the instant* its index is complete —
+before the stream finishes — so the executor can start dispatching while later
+calls are still arriving. It consumes a **neutral delta shape**
+(`index`, `id`, `name`, `arguments` fragment, optional `done`); translating a
+provider's native streaming events into that shape is an adapter's job, exactly
+as with `ToolCallCodec`. A tail that never parses as valid JSON is dropped
+(counted in `parser.dropped_partial`) rather than raising.
+
+```python
+from collections.abc import AsyncIterator, Mapping
+from typing import Any
+
+from pirn_agents.streaming_tool_call_parser import StreamingToolCallParser
+
+
+async def provider_deltas() -> AsyncIterator[Mapping[str, Any]]:
+    # Neutral deltas an adapter would produce from a native stream.
+    yield {"index": 0, "id": "c1", "name": "search", "arguments": '{"q":"di'}
+    yield {"index": 0, "arguments": 'com"}', "done": True}
+    yield {"index": 1, "id": "c2", "name": "lookup", "arguments": '{"q":"policy"}', "done": True}
+
+
+parser = StreamingToolCallParser()
+
+# Drain eagerly (each call is available as soon as it completes)...
+calls = [call async for call in parser.parse(provider_deltas())]
+# ...or collect them in one shot:
+calls = await parser.parse_to_list(provider_deltas())
+
+results = await executor.process(
+    tool_calls=calls, toolset=toolset,
+    max_concurrency=8, timeout=5.0, retries=0,
+)
+assert parser.dropped_partial == 0
+```
+
+---
+
+## Observability hooks
+
+`ToolInvocationHook` is the seam for observing every tool invocation the
+executor runs — `on_start` just before a tool is invoked and `on_finish` once
+its `ToolResult` is built (for *every* outcome: ok, error, timeout, not-found).
+`on_start` carries a short, stable `args_digest` (a SHA-256 prefix over the
+call's arguments) so you can correlate without recording raw argument values;
+`on_finish` carries the terminal `ToolStatus` and per-call `latency`.
+
+The base class is a genuine **no-op by design**, not a stub: an executor given
+no hook (or the base hook) does zero observability work — the digest is not even
+computed — so the property is **zero-cost when absent**. Subclass it to emit
+spans or metrics (this feeds the metrics and tracing surfaces). Hook exceptions
+are swallowed and logged by the executor, so a misbehaving hook can never abort
+or alter tool execution.
+
+```python
+import time
+
+from pirn.core.knot_config import KnotConfig
+from pirn.tapestry import Tapestry
+
+from pirn_agents.parallel_tool_executor import ParallelToolExecutor
+from pirn_agents.tool_invocation_hook import ToolInvocationHook
+from pirn_agents.toolset import Toolset
+from pirn_agents.types.tool_status import ToolStatus
+
+
+class MetricsHook(ToolInvocationHook):
+    """Emit a counter per invocation and a latency histogram per outcome."""
+
+    def __init__(self, metrics) -> None:  # your provider-neutral metrics sink
+        self._metrics = metrics
+        self._spans: dict[str, float] = {}
+
+    def on_start(self, *, tool_name: str, args_digest: str, call_id: str) -> None:
+        self._metrics.increment("tool.calls", tags={"tool": tool_name})
+        self._spans[call_id] = time.perf_counter()
+
+    def on_finish(self, *, tool_name: str, call_id: str,
+                  status: ToolStatus, latency: float) -> None:
+        self._metrics.observe(
+            "tool.latency", latency,
+            tags={"tool": tool_name, "status": status.value},
+        )
+        self._spans.pop(call_id, None)
+
+
+with Tapestry():
+    executor = ParallelToolExecutor(
+        tool_calls=[], toolset=Toolset(),
+        hook=MetricsHook(my_metrics),          # omit → zero-cost no-op default
+        _config=KnotConfig(id="pte", validate_io=False),
+    )
+```
+
+Leave `hook` unset (or pass the base `ToolInvocationHook()`) for the inert
+default; the result path is byte-for-byte identical either way.
+
+---
+
+## Performance, observability & benchmark harness (F10)
+
+F10 provides the cross-cutting perf levers (budgets, caching, concurrency) and
+the measurement harness the rest of the project is held to. Everything here is
+pure-python and provider-neutral; the one optional backend (OTel) is lazily
+imported behind the `otel` extra.
+
+### RunBudget — iteration / token / deadline caps + cooperative cancellation
+
+`RunBudget` is a frozen value holding the *limits*; `RunBudgetMeter` is the
+mutable accountant threaded through a loop that spends against them. On the
+first breach the meter cancels a shared `CancellationToken` **and** raises the
+typed `BudgetBreachError`, so the loop unwinds cleanly (no partial state) and
+can return a typed terminal result rather than leaking an exception.
+
+```python
+from pirn_agents.performance.run_budget import RunBudget
+from pirn_agents.performance.run_budget_meter import RunBudgetMeter
+from pirn_agents.performance.budget_breach_error import BudgetBreachError
+
+meter = RunBudgetMeter(RunBudget(max_iterations=6, max_tokens=8000, deadline_seconds=30.0))
+
+async def agent_loop(meter: RunBudgetMeter) -> str:
+    while True:
+        try:
+            meter.spend_iteration()          # raises BudgetBreachError past the cap
+        except BudgetBreachError as exc:
+            return f"stopped: {exc.limit.value}"   # clean, typed terminal result
+        reply = await call_llm(...)
+        meter.spend_tokens(reply.token_count)
+        # A shared token lets in-flight tool legs cancel cooperatively:
+        # pass `meter.token` to leg coroutines and have them call
+        # `token.raise_if_cancelled()` at their own checkpoints.
+```
+
+This is the single shared enforcement path an F7/F8/F9 loop consumes: each loop
+accepts an optional `RunBudgetMeter` (or builds one from a `RunBudget`) and
+calls the same `spend_*` / `checkpoint` methods, so budget semantics never
+diverge between patterns.
+
+### ConcurrencyConfig + BackpressureSemaphore — shared bounded concurrency
+
+`ConcurrencyConfig` is the one knob object (max concurrency, optional queue
+depth, acquire timeout) executors and provider call sites consume instead of
+hard-coding an `asyncio.Semaphore(8)`. `BackpressureSemaphore` turns it into a
+limiter whose `slot()` context manager queues by default (never fails) and
+sheds load with a typed `asyncio.QueueFull` only when an explicit
+`max_queue_depth` is set. `ParallelToolExecutor`'s internal
+`asyncio.Semaphore(max_concurrency)` is exactly `ConcurrencyConfig.max_concurrency`
+— a wiring would replace that line with `BackpressureSemaphore(config).slot()`
+around each dispatch, no other change.
+
+```python
+from pirn_agents.performance.concurrency_config import ConcurrencyConfig
+from pirn_agents.performance.backpressure_semaphore import BackpressureSemaphore
+
+limiter = BackpressureSemaphore(ConcurrencyConfig(max_concurrency=4, max_queue_depth=32))
+async with limiter.slot():        # queues under load; QueueFull past the depth bound
+    await call_provider(...)
+```
+
+### Caching — content-addressed result cache + semantic + prompt-cache passthrough
+
+`ResultCache.get_or_compute(payload, compute)` memoises idempotent tool calls
+and embedding lookups keyed off a `content_address` of the inputs (mirrors the
+DAG's content addressing). `SemanticResultCache.get_or_compute_semantic(text,
+compute)` matches on embedding similarity using a caller-injected embedding fn
+(no backend). `PromptCachePassthrough` defers to a provider's native prompt
+cache when it exposes one, else signals the caller to cache locally.
+
+```python
+from pirn_agents.caching.in_memory_result_cache import InMemoryResultCache
+
+cache = InMemoryResultCache(max_entries=1024)
+result = await cache.get_or_compute({"tool": "search", "args": {"q": "dicom"}}, run_search)
+```
+
+### Observability — span/callback interface + pluggable sink (generalises F1)
+
+`Tracer` opens `Span`s around LLM, tool, and retrieval calls and reports them to
+a pluggable `ObservabilitySink` that is a genuine no-op by default (zero
+required backend), exactly like F1's `ToolInvocationHook`. F1's tool hook
+re-enters this interface via `SpanEmittingToolInvocationHook`, so tool spans
+land in the same sink as LLM/retrieval spans without duplicate instrumentation.
+Concrete sinks: `LoggingSink` (stdlib logging) and `OtelSink` (behind the lazy
+`otel` extra).
+
+```python
+from pirn_agents.observability.tracer import Tracer
+from pirn_agents.observability.span_emitting_tool_invocation_hook import (
+    SpanEmittingToolInvocationHook,
+)
+
+tracer = Tracer(LoggingSink())                     # or Tracer() for the no-op default
+async with tracer.llm_span(name="llm.chat") as span:
+    span.set_attribute("model", "…")
+    ...
+# same tracer/sink for tool spans, via the F1 hook seam:
+executor = ParallelToolExecutor(..., hook=SpanEmittingToolInvocationHook(tracer))
+```
+
+### Benchmark harness — `[benchmark]` lines → report → delta
+
+`@pytest.mark.benchmark` cases measure with `time.perf_counter` (no
+pytest-benchmark plugin) and print `[benchmark] <name> k=v …` lines — the format
+F1/F2 micro-benchmarks already emit. `BenchmarkReport.from_output(text)` parses
+a run into a JSON document; `BenchmarkDelta(baseline, current)` diffs it against
+a stored baseline and renders `to_json()` (machine-readable) or `to_markdown()`
+(a PR comment), so perf deltas are captured consistently across features.
+
+```python
+from pirn_agents.benchmarks.benchmark_report import BenchmarkReport
+from pirn_agents.benchmarks.benchmark_delta import BenchmarkDelta
+
+current = BenchmarkReport.from_output(captured_pytest_output)
+baseline = BenchmarkReport.from_json(open("baseline.json").read())
+print(BenchmarkDelta(baseline, current).to_markdown())
+```
+
+---
+
+## Agentic RAG Patterns (F9)
+
+Completes the RAG taxonomy on top of the seven baseline pipelines. Patterns are
+organised along four axes — query transformation, retrieval strategy,
+post-retrieval, and indexing structure. The full mapping, F4 dependency notes,
+and citations live in
+[`specializations/rag/RETRIEVAL_TAXONOMY.md`](specializations/rag/RETRIEVAL_TAXONOMY.md).
+
+### Query transformation
+- **RAG-Fusion** — `RagFusionPipeline`: `MultiQueryExpander` fans out N query
+  reformulations, `FusionRetriever` searches them concurrently and merges with
+  Reciprocal Rank Fusion (`retrieval.reciprocal_rank_fusion`).
+- **Sub-question decomposition** — `SubQuestionRagPipeline`:
+  `SubQuestionDecomposer` splits a compound query, `SubQuestionRetriever`
+  retrieves per sub-question concurrently.
+- **Self-query** — `SelfQueryRagPipeline`: `SelfQueryFilterExtractor` extracts a
+  metadata filter applied via `VectorMemoryStore.query(metadata_filter=...)`.
+
+### Retrieval strategy
+- **Router RAG** — `RouterRagPipeline`: `QueryRouteClassifier` picks a route,
+  `RoutedRetriever` dispatches to the store named in a `RouteTable`.
+- **Agentic RAG** — `AgenticRagPipeline`: drives the F6 `RagTool` in a bounded
+  loop; `IterativeRetriever` implements recursive refine-and-retrieve.
+- **Speculative RAG** — `SpeculativeRagPipeline`: `SpeculativeDraftGenerator`
+  drafts from the query while retrieval runs, `DraftVerifier` revises against
+  evidence.
+
+### Post-retrieval
+- **Contextual retrieval** — `ContextualRetrievalPipeline`:
+  `ContextualChunkEnricher` → `Reranker` (F4 rerank backend, top-k budget) →
+  `ContextualCompressor` → synthesize.
+
+### Indexing structure
+- **Parent-doc / sentence-window / auto-merging / RAPTOR** under
+  `specializations/rag/indexing/` — ingest + retrieve knot pairs reusing the
+  existing `_DocumentChunker`; RAPTOR builds a content-addressed tree once at
+  ingest.
+
+### FLARE
+- **Active retrieval** — `FlareActiveRagPipeline`: monitors per-sentence
+  confidence and retrieves mid-generation under a max-retrieval-calls budget.

@@ -8,13 +8,13 @@ from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
+
 from pirn_agents.memory_store import MemoryStore
 from pirn_agents.specializations.guardrails.fact_check_gate import (
     FactCheckGate,
 )
 from pirn_agents.types.agent_response import AgentResponse
-from pirn.tapestry import Tapestry
-
 from tests.specializations.conftest import StubLLMProvider
 
 
@@ -91,9 +91,7 @@ class TestFactCheckGateProcess(unittest.IsolatedAsyncioTestCase):
 class TestFactCheckGateHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_appends_warning_for_unverified_claims(self) -> None:
         # Two claims: only "earth orbits sun" has support in the store.
-        llm = StubLLMProvider(
-            ["- earth orbits sun\n- moon is made of cheese"]
-        )
+        llm = StubLLMProvider(["- earth orbits sun\n- moon is made of cheese"])
         store = ScriptedSearchStore(
             supported_substrings=("earth orbits sun",),
         )
@@ -114,6 +112,4 @@ class TestFactCheckGateHappyPath(unittest.IsolatedAsyncioTestCase):
         assert isinstance(verified, AgentResponse)
         assert "Unverified claims" in verified.content
         assert "moon is made of cheese" in verified.content
-        assert "earth orbits sun" not in verified.content.split(
-            "Unverified claims:"
-        )[1]
+        assert "earth orbits sun" not in verified.content.split("Unverified claims:")[1]

@@ -6,11 +6,12 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
+
 from pirn_agents.specializations.guardrails.input_guardrail_gate import (
     InputGuardrailGate,
 )
 from pirn_agents.types.agent_message import AgentMessage
-from pirn.tapestry import Tapestry
 
 
 def _make_knot() -> InputGuardrailGate:
@@ -32,9 +33,7 @@ class TestInputGuardrailGateProcess(unittest.IsolatedAsyncioTestCase):
             InputGuardrailGate(
                 messages=messages,
                 deny_patterns=(r"DROP TABLE",),
-                pii_patterns=(
-                    r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}",
-                ),
+                pii_patterns=(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}",),
                 _config=KnotConfig(id="gate"),
             )
         result = await t.run(RunRequest())
@@ -45,9 +44,7 @@ class TestInputGuardrailGateProcess(unittest.IsolatedAsyncioTestCase):
         assert cleaned[1].content == "hello world"
 
     async def test_deny_pattern_match_fails_run(self) -> None:
-        messages = (
-            AgentMessage(role="user", content="please DROP TABLE users"),
-        )
+        messages = (AgentMessage(role="user", content="please DROP TABLE users"),)
         with Tapestry() as t:
             InputGuardrailGate(
                 messages=messages,

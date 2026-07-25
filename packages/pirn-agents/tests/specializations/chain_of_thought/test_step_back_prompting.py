@@ -5,12 +5,12 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
+from pirn.tapestry import Tapestry
+
 from pirn_agents.specializations.chain_of_thought.step_back_prompting import (
     StepBackPrompting,
 )
 from pirn_agents.types.agent_response import AgentResponse
-from pirn.tapestry import Tapestry
-
 from tests.specializations.conftest import StubLLMProvider
 
 

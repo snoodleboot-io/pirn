@@ -35,6 +35,8 @@ def pytest_collection_modifyitems(config, items):
         "needs_dask": "pass --real to run Dask tests",
         "needs_ray": "pass --real to run Ray tests",
         "needs_celery": "pass --real to run Celery tests",
+        "needs_neo4j": "pass --real to run Neo4j tests",
+        "needs_kuzu": "pass --real to run Kuzu tests",
     }
     for item in items:
         for marker, reason in real_markers.items():

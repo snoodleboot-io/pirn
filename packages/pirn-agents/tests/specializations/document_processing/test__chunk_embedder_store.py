@@ -5,11 +5,11 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
+from pirn.tapestry import Tapestry
+
 from pirn_agents.specializations.document_processing._chunk_embedder_store import (
     _ChunkEmbedderStore,
 )
-from pirn.tapestry import Tapestry
-
 from tests.specializations.conftest import (
     StubEmbeddingProvider,
     StubMemoryStore,
@@ -39,7 +39,9 @@ class TestChunkEmbedderStoreProcess(unittest.IsolatedAsyncioTestCase):
         embedder = StubEmbeddingProvider(dimension=4)
         store = StubMemoryStore(hits=[])
         k = _make_knot(embedder, store)
-        result = await k.process(chunks=["alpha", "beta"], source="doc.txt", embedder=embedder, store=store)
+        result = await k.process(
+            chunks=["alpha", "beta"], source="doc.txt", embedder=embedder, store=store
+        )
         assert result == 2
 
     async def test_keys_follow_doc_id_pattern(self) -> None:

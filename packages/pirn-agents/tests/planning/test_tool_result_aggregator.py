@@ -6,9 +6,10 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
+from pirn.tapestry import Tapestry
+
 from pirn_agents.planning.tool_result_aggregator import ToolResultAggregator
 from pirn_agents.types.tool_result import ToolResult
-from pirn.tapestry import Tapestry
 
 
 def _make_knot() -> ToolResultAggregator:

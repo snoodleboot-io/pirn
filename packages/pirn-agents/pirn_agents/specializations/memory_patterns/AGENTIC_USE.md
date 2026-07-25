@@ -51,7 +51,10 @@ pirn_agents/specializations/memory_patterns/
 ```python
 from pirn_agents.specializations.memory_patterns.working_memory_pipeline import WorkingMemoryPipeline
 from pirn_agents.specializations.memory_patterns.episodic_memory_pipeline import EpisodicMemoryPipeline
-from pirn import Tapestry, Parameter, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 
 with Tapestry() as t:
     user_message  = Parameter("user_message", str)

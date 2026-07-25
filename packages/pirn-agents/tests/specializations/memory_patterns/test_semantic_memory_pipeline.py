@@ -8,13 +8,13 @@ from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
+
 from pirn_agents.memory_store import MemoryStore
 from pirn_agents.specializations.memory_patterns.semantic_memory_pipeline import (
     SemanticMemoryPipeline,
 )
 from pirn_agents.types.agent_message import AgentMessage
-from pirn.tapestry import Tapestry
-
 from tests.specializations.conftest import StubLLMProvider
 
 
@@ -55,16 +55,10 @@ def _make_knot(store: RecordingMemoryStore, llm: StubLLMProvider) -> SemanticMem
 class TestSemanticMemoryPipelineProcess(unittest.IsolatedAsyncioTestCase):
     async def test_extracts_facts_and_returns_count(self) -> None:
         store = RecordingMemoryStore()
-        llm = StubLLMProvider(
-            [
-                "- water freezes at 0C\n- water boils at 100C\n- ice floats"
-            ]
-        )
+        llm = StubLLMProvider(["- water freezes at 0C\n- water boils at 100C\n- ice floats"])
         with Tapestry() as t:
             SemanticMemoryPipeline(
-                messages=(
-                    AgentMessage(role="user", content="give physics facts"),
-                ),
+                messages=(AgentMessage(role="user", content="give physics facts"),),
                 llm=llm,
                 store=store,
                 _config=KnotConfig(id="sem"),

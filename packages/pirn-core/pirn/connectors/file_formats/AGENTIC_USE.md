@@ -137,7 +137,9 @@ from pirn.connectors.file_formats.parquet_format import ParquetFormat
 from pirn.connectors.object_storage.s3_store import S3Store
 from pirn.connectors.knots.object_store_read_source import ObjectStoreReadSource
 from pirn.connectors.knots.object_store_write_sink import ObjectStoreWriteSink
-from pirn import Tapestry, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 
 fmt   = ParquetFormat()
 store = S3Store(bucket="my-data", prefix="processed/")

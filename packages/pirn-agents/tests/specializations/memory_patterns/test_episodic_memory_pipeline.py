@@ -8,12 +8,13 @@ from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
+
 from pirn_agents.memory_store import MemoryStore
 from pirn_agents.specializations.memory_patterns.episodic_memory_pipeline import (
     EpisodicMemoryPipeline,
 )
 from pirn_agents.types.agent_message import AgentMessage
-from pirn.tapestry import Tapestry
 
 
 class RecordingMemoryStore(MemoryStore):

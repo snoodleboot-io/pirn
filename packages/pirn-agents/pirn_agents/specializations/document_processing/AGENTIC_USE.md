@@ -48,7 +48,10 @@ pirn_agents/specializations/document_processing/
 ```python
 from pirn_agents.specializations.document_processing.document_ingestion_pipeline import DocumentIngestionPipeline
 from pirn.connectors.file_formats.pdf_format import PdfFormat
-from pirn import Tapestry, Parameter, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 
 with Tapestry() as t:
     doc_bytes = Parameter("doc_bytes", bytes)

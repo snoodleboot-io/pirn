@@ -8,12 +8,12 @@ from pathlib import Path
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
+
 from pirn_agents.specializations.document_processing.document_qa_pipeline import (
     DocumentQAPipeline,
 )
 from pirn_agents.types.agent_response import AgentResponse
-from pirn.tapestry import Tapestry
-
 from tests.specializations.conftest import (
     StubEmbeddingProvider,
     StubLLMProvider,
@@ -64,6 +64,7 @@ class TestDocumentQAPipelineProcess(unittest.IsolatedAsyncioTestCase):
                 llm=llm,
                 embedder=embedder,
                 top_k=2,
+                allowed_root=str(tmp_path),
                 _config=KnotConfig(id="qa"),
             )
         result = await t.run(RunRequest())
