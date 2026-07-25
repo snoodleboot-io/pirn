@@ -14,8 +14,18 @@ class FileCassetteStore(CassetteStore):
     """Persist each cassette as one ``<root>/<name>.json`` file using the stdlib.
 
     No heavy backend is required — cassettes are canonical JSON on disk, so a
-    recorded suite is committable and replays identically across machines. Names
-    are sanitised to a safe filename stem to keep the store self-contained.
+    recorded suite is committable and replays identically across machines.
+
+    Trust boundary (PIR-743). ``root`` is operator configuration — a directory
+    of committed determinism fixtures, not pipeline data from an upstream Knot or
+    an end user — so reads here are operator-trusted, like any test fixture the
+    process already chose to run. Containment does not depend on that trust
+    though: :meth:`_path_for` sanitises ``name`` so every character outside
+    ``[A-Za-z0-9._-]`` (path separators included) becomes ``_``, so the result is
+    always a single filename stem inside ``root`` and a caller-supplied ``name``
+    cannot traverse out of it. That is why this store needs no ``PathGuard`` —
+    which in any case could not bind here, since ``root`` is created lazily on
+    first :meth:`save` and need not exist when the guard would resolve it.
     """
 
     def __init__(self, root: str | Path) -> None:
