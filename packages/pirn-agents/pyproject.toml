@@ -14,6 +14,73 @@ requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
 dependencies = ["pirn-core>=0.9.0,<0.10.0"]  # lockstep floor (ADR-6 / constraint C4)
 
+# --- extras matrix (OD-4): backends are lazily imported, so the base install
+# stays pirn-core-only (small wheel) and users add only what they use. Extras
+# are provider-neutral: per-provider entries are ILLUSTRATIVE, listed as equal
+# siblings, and no vendor is privileged. Bundles group extras by capability.
+[project.optional-dependencies]
+# per-provider (illustrative, equal siblings — none privileged)
+openai = ["openai>=1.0"]
+anthropic = ["anthropic>=0.40"]
+qdrant = ["qdrant-client>=1.7"]
+pgvector = ["asyncpg>=0.29", "pgvector>=0.2"]
+chroma = ["chromadb>=0.4"]
+# graph stores (illustrative, equal siblings — none privileged)
+neo4j = ["neo4j>=5.0"]
+kuzu = ["kuzu>=0.4"]
+# local ML capabilities (illustrative, equal siblings — none privileged)
+local-embed = ["sentence-transformers>=2.2"]
+cross-encoder = ["sentence-transformers>=2.2"]
+# observability backend for the F10 OTel-style span sink (lazily imported)
+otel = ["opentelemetry-api>=1.20"]
+# capability bundles — flat concrete deps (no self-referential `pirn-agents[...]`
+# composition: a self-reference can re-resolve to an already-published wheel of the
+# same version from PyPI that lacks the extra, so bundles list packages directly)
+llm = ["openai>=1.0", "anthropic>=0.40"]
+vector = ["qdrant-client>=1.7", "asyncpg>=0.29", "pgvector>=0.2", "chromadb>=0.4"]
+web = ["httpx>=0.27"]
+mcp = ["mcp>=1.0"]
+# async SQL driver for the base sql_query tool (stdlib sqlite is the zero-extra default)
+sql = ["aiosqlite>=0.19"]
+# async Postgres driver for the F16-S2 SQL service connector (lazily imported)
+postgres = ["asyncpg>=0.29"]
+# S3-compatible object storage backend for StreamingS3Store (lazily imported)
+s3 = ["aioboto3>=12.0"]
+# grammar/regex-constrained decoding backend (F20-S3, lazily imported)
+grammar = ["outlines>=0.1"]
+# document-loader parser backends for the F25-S1 loader set (lazily imported).
+# Markdown/code/CSV/JSON loaders use only the stdlib and need no extra.
+pdf = ["pypdf>=4.0"]
+docx = ["python-docx>=1.1"]
+html = ["beautifulsoup4>=4.12"]
+# optional RAGAS reference backend for the F12 evaluation harness (lazily imported;
+# the built-in RAG metrics need no extra — only a pluggable judge/embedding provider)
+ragas = ["ragas>=0.2"]
+# YAML parsing for the F19 AgentSpec loader (lazily imported; JSON needs no extra)
+yaml = ["pyyaml>=6.0"]
+all = [
+    "openai>=1.0",
+    "anthropic>=0.40",
+    "qdrant-client>=1.7",
+    "asyncpg>=0.29",
+    "pgvector>=0.2",
+    "chromadb>=0.4",
+    "neo4j>=5.0",
+    "kuzu>=0.4",
+    "sentence-transformers>=2.2",
+    "httpx>=0.27",
+    "mcp>=1.0",
+    "aiosqlite>=0.19",
+    "aioboto3>=12.0",
+    "opentelemetry-api>=1.20",
+    "outlines>=0.1",
+    "pypdf>=4.0",
+    "python-docx>=1.1",
+    "beautifulsoup4>=4.12",
+    "ragas>=0.2",
+    "pyyaml>=6.0",
+]
+
 [tool.hatch.build.targets.wheel]
 packages = ["pirn_agents"]
 
@@ -42,6 +109,11 @@ markers = [
     "cross_domain: needs >1 package installed — skipped in isolation, run by the unified suite",
     "anyio: async test driven by the anyio pytest plugin (registered so --strict-markers passes if absent)",
     "needs_postgres: requires a real Postgres at $PIRN_TEST_POSTGRES_URL",
+    "needs_pgvector: requires a real pgvector-enabled Postgres at $PIRN_TEST_PGVECTOR_URL",
+    "needs_qdrant: requires a real Qdrant at $PIRN_TEST_QDRANT_URL",
+    "needs_chroma: requires a real Chroma (chromadb installed / running)",
+    "needs_neo4j: requires a real Neo4j at $PIRN_TEST_NEO4J_URL",
+    "needs_kuzu: requires a real embedded Kuzu (kuzu installed)",
     "needs_valkey: requires a real ValKey at $PIRN_TEST_VALKEY_URL",
     "needs_kafka: requires a real Kafka at $PIRN_TEST_KAFKA_URL",
     "needs_s3: requires a real S3 (or compatible) endpoint",
@@ -75,5 +147,20 @@ include = ["pirn_agents"]
 pythonVersion = "3.12"
 reportMissingImports = "none"
 reportMissingModuleSource = "none"
+# reportIncompatibleMethodOverride stays off deliberately (PIR-742): enabling it
+# surfaces 224 diagnostics, every one a framework idiom pyright cannot model, and
+# zero real LSP breaks —
+#   * ~220 Knot.process(self, <named inputs>) overrides. Core's Knot declares a
+#     bare process(); concrete knots take named inputs the engine binds via
+#     validate_io. The "positional parameter count mismatch" is by design.
+#   * 3 diamond-inheritance pool signatures (ColumnAwareSqlitePool = SqlitePool +
+#     ColumnAwarePool) where the two core bases type fetch_all/execute slightly
+#     differently — runtime-identical.
+#   * 1 async-generator-vs-coroutine mismatch on BaseLLMProvider.stream_chat vs
+#     core LLMProvider (a core-owned contract shape, not ours to change).
+# The StubTool contract break this ticket was filed for is already gone — every
+# shipped Tool.invoke uses Mapping[str, Any] and name/description are properties.
+# Re-audit shipped Tool subclasses by hand when adding one, rather than eating the
+# false-positive tail; revisit if core types Knot.process to absorb named inputs.
 reportIncompatibleMethodOverride = "none"
 reportAttributeAccessIssue = "none"

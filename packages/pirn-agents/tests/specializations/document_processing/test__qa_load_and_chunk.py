@@ -8,10 +8,11 @@ import unittest
 from pathlib import Path
 
 from pirn.core.knot_config import KnotConfig
+from pirn.tapestry import Tapestry
+
 from pirn_agents.specializations.document_processing._qa_load_and_chunk import (
     _QALoadAndChunk,
 )
-from pirn.tapestry import Tapestry
 
 
 def _make_knot(source: str, chunk_size: int) -> _QALoadAndChunk:
@@ -29,7 +30,7 @@ class TestQALoadAndChunkProcess(unittest.IsolatedAsyncioTestCase):
             fpath = os.path.join(tmpdir, "doc.txt")
             Path(fpath).write_text("hello world!", encoding="utf-8")
             k = _make_knot(source=fpath, chunk_size=6)
-            chunks = await k.process(source=fpath, chunk_size=6)
+            chunks = await k.process(source=fpath, chunk_size=6, allowed_root=tmpdir)
             assert isinstance(chunks, list)
             assert "".join(chunks) == "hello world!"
 
@@ -38,5 +39,5 @@ class TestQALoadAndChunkProcess(unittest.IsolatedAsyncioTestCase):
             fpath = os.path.join(tmpdir, "empty.txt")
             Path(fpath).write_text("", encoding="utf-8")
             k = _make_knot(source=fpath, chunk_size=100)
-            result = await k.process(source=fpath, chunk_size=100)
+            result = await k.process(source=fpath, chunk_size=100, allowed_root=tmpdir)
             assert result == []

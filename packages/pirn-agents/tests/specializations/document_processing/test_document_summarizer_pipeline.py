@@ -8,11 +8,11 @@ from pathlib import Path
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
+
 from pirn_agents.specializations.document_processing.document_summarizer_pipeline import (
     DocumentSummarizerPipeline,
 )
-from pirn.tapestry import Tapestry
-
 from tests.specializations.conftest import (
     StubLLMProvider,
 )
@@ -52,6 +52,7 @@ class TestDocumentSummarizerPipelineProcess(unittest.IsolatedAsyncioTestCase):
                 source=str(document),
                 llm=llm,
                 chunk_size=15,
+                allowed_root=str(tmp_path),
                 _config=KnotConfig(id="summ"),
             )
         result = await t.run(RunRequest())

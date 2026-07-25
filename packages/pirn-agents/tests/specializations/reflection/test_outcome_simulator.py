@@ -6,14 +6,14 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
+
 from pirn_agents.specializations.reflection.outcome_simulator import (
     OutcomeSimulator,
 )
 from pirn_agents.specializations.reflection.simulation_result import (
     SimulationResult,
 )
-from pirn.tapestry import Tapestry
-
 from tests.specializations.conftest import StubLLMProvider
 
 _SIMULATION_RESPONSE = (

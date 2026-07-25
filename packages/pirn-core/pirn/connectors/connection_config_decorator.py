@@ -7,13 +7,25 @@ the redacting ``__repr__`` defined on
 Use in place of ``@dataclass`` when declaring connector configs. Forgetting
 ``repr=False`` on a manual ``@dataclass`` would silently regenerate a
 credential-leaking ``__repr__`` — this decorator removes that foot-gun.
+
+Annotated with :func:`typing.dataclass_transform` (PEP 681, ``frozen_default=True``)
+so type checkers model the synthesised ``__init__``: without it a caller writing
+``SqliteConfig(database=...)`` gets a spurious ``reportCallIssue`` even though the
+construction is runtime-correct (PIR-749).
+
+Scope note: this is honoured for **first-party** analysis (a checker whose project
+includes ``pirn`` — e.g. pirn-core's own pyright). Pyright does *not* currently
+apply a library's ``dataclass_transform`` to construction sites in a *downstream*
+package that merely imports these configs, so consumers such as pirn-agents still
+suppress the resulting ``reportCallIssue`` at the call site. Shipping typed stubs
+for pirn-core would be the way to extend this across the package boundary.
 """
 
 from __future__ import annotations
 
 import dataclasses
 from collections.abc import Callable
-from typing import Any, TypeVar, overload
+from typing import Any, TypeVar, dataclass_transform, overload
 
 _T = TypeVar("_T")
 
@@ -26,6 +38,7 @@ def connection_config(
 ) -> Callable[[type[_T]], type[_T]]: ...
 
 
+@dataclass_transform(frozen_default=True)
 def connection_config(
     cls: type[_T] | None = None,
     /,

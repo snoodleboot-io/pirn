@@ -30,7 +30,9 @@ pirn/domains/connectors/graph/
 from pirn.connectors.graph.neo4j_config import Neo4jConfig
 from pirn.connectors.graph.neo4j_pool import Neo4jPool
 from pirn.connectors.knots.database_query_source import DatabaseQuerySource
-from pirn import Tapestry, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 
 pool = Neo4jPool(config=Neo4jConfig(
     uri="bolt://neo4j:7687", user="neo4j", password=os.environ["NEO4J_PASS"]

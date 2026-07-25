@@ -31,7 +31,10 @@ A seismic processing pipeline is a directed graph of transform knots, each consu
 ## Canonical pattern
 
 ```python
-from pirn import Tapestry, Parameter, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 from pirn_oilgas.seismic import (
     CmpGatherExtractor,
     NormalMoveoutCorrector,

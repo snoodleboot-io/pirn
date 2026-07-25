@@ -6,11 +6,11 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
+from pirn.tapestry import Tapestry
+
 from pirn_agents.generation.streaming_llm_call import StreamingLLMCall
 from pirn_agents.types.agent_context import AgentContext
 from pirn_agents.types.agent_message import AgentMessage
-from pirn.tapestry import Tapestry
-
 from tests.conftest import StubLLMProvider
 
 
@@ -32,9 +32,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_async_iterator(self) -> None:
         llm = StubLLMProvider(responses=["a", "b", "c"])
         k = _make_knot(llm)
-        context = AgentContext(
-            messages=(AgentMessage(role="user", content="stream"),)
-        )
+        context = AgentContext(messages=(AgentMessage(role="user", content="stream"),))
         stream = await k.process(context=context, llm=llm, model=None)
         chunks: list[str] = []
         async for chunk in stream:

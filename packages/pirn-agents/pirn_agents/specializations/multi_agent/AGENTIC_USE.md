@@ -35,7 +35,10 @@ pirn_agents/specializations/multi_agent/
 ```python
 from pirn_agents.specializations.multi_agent.parallel_specialist_fan_out import ParallelSpecialistFanOut
 from pirn_agents.specializations.multi_agent.consensus_aggregator import ConsensusAggregator
-from pirn import Tapestry, Parameter, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 
 with Tapestry() as t:
     question  = Parameter("question", str)

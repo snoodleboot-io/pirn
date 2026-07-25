@@ -1,13 +1,13 @@
 """``ClinicalNLPExtractor`` — extract structured fields from clinical notes.
 
-Wraps an :class:`LLMProvider`; the production path crafts a clinical-
+Wraps an :class:`HealthLLMProvider`; the production path crafts a clinical-
 extraction prompt and parses the JSON response. The stub returns an
 empty mapping so downstream knots see the right shape without a live
 LLM call.
 
 Algorithm:
-    1. Receive the LLMProvider and a note_text string.
-    2. Validate that provider is an LLMProvider and note_text is non-empty.
+    1. Receive the HealthLLMProvider and a note_text string.
+    2. Validate that provider is an HealthLLMProvider and note_text is non-empty.
     3. Send a structured-output prompt to the LLM.
     4. Parse the JSON response into diagnoses / medications / vitals.
     5. Return the extracted structured fields as a mapping.
@@ -27,7 +27,8 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.providers.llm_provider import LLMProvider
+
+from pirn_health.health_llm_provider import HealthLLMProvider
 
 
 class ClinicalNLPExtractor(Knot):
@@ -36,7 +37,7 @@ class ClinicalNLPExtractor(Knot):
     def __init__(
         self,
         *,
-        provider: Knot | LLMProvider,
+        provider: Knot | HealthLLMProvider,
         note_text: Knot | str,
         _config: KnotConfig,
         **kwargs: Any,
@@ -50,7 +51,7 @@ class ClinicalNLPExtractor(Knot):
 
     async def process(
         self,
-        provider: LLMProvider,
+        provider: HealthLLMProvider,
         note_text: str,
         **_: Any,
     ) -> Mapping[str, Any]:
@@ -65,11 +66,11 @@ class ClinicalNLPExtractor(Knot):
             the structured fields extracted from the clinical note.
 
         Raises:
-            TypeError: If provider is not an LLMProvider or note_text is not a string.
+            TypeError: If provider is not an HealthLLMProvider or note_text is not a string.
             ValueError: If note_text is empty.
         """
-        if not isinstance(provider, LLMProvider):
-            raise TypeError("ClinicalNLPExtractor: provider must be an LLMProvider")
+        if not isinstance(provider, HealthLLMProvider):
+            raise TypeError("ClinicalNLPExtractor: provider must be an HealthLLMProvider")
         if not isinstance(note_text, str):
             raise TypeError("ClinicalNLPExtractor: note_text must be a string")
         if not note_text:

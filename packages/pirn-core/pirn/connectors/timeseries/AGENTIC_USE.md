@@ -36,7 +36,9 @@ pirn/domains/connectors/timeseries/
 from pirn.connectors.timeseries.influxdb_config import InfluxdbConfig
 from pirn.connectors.timeseries.influxdb_pool import InfluxdbPool
 from pirn.connectors.knots.database_execute_sink import DatabaseExecuteSink
-from pirn import Tapestry, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 
 pool = InfluxdbPool(config=InfluxdbConfig(
     url="http://influx:8086",

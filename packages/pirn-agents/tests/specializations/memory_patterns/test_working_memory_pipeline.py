@@ -8,12 +8,13 @@ from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
+
 from pirn_agents.memory_store import MemoryStore
 from pirn_agents.specializations.memory_patterns.working_memory_pipeline import (
     WorkingMemoryPipeline,
 )
 from pirn_agents.types.agent_message import AgentMessage
-from pirn.tapestry import Tapestry
 
 
 class WindowMemoryStore(MemoryStore):
@@ -57,10 +58,7 @@ class TestWorkingMemoryPipelineProcess(unittest.IsolatedAsyncioTestCase):
         store = WindowMemoryStore()
         store.entries["working:s1"] = {
             "session_id": "s1",
-            "messages": [
-                AgentMessage(role="user", content=f"msg-{i}")
-                for i in range(3)
-            ],
+            "messages": [AgentMessage(role="user", content=f"msg-{i}") for i in range(3)],
         }
         with Tapestry() as t:
             WorkingMemoryPipeline(

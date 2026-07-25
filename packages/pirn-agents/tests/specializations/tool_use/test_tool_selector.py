@@ -5,9 +5,9 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn_agents.specializations.tool_use.tool_selector import ToolSelector
 from pirn.tapestry import Tapestry
 
+from pirn_agents.specializations.tool_use.tool_selector import ToolSelector
 from tests.specializations.conftest import (
     StubLLMProvider,
     StubTool,
@@ -56,9 +56,7 @@ class TestToolSelectorHappyPath(unittest.IsolatedAsyncioTestCase):
         tools = [StubTool(name="web_search"), StubTool(name="calculator")]
         llm = StubLLMProvider(["web_search"])
         sel = _make_selector("search the web for news", tools, llm)
-        selected = await sel.process(
-            message="search the web for news", tools=tools, llm=llm
-        )
+        selected = await sel.process(message="search the web for news", tools=tools, llm=llm)
         assert selected == ["web_search"]
 
     async def test_returns_empty_when_none_selected(self) -> None:

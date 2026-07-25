@@ -28,7 +28,8 @@ pirn/emitters/
 ### Add structured logging to every run
 
 ```python
-from pirn import Tapestry, RunRequest
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 from pirn.emitters.log import LogEmitter
 
 with Tapestry(emitters=[LogEmitter()]) as t:

@@ -8,10 +8,11 @@ import unittest
 from pathlib import Path
 
 from pirn.core.knot_config import KnotConfig
+from pirn.tapestry import Tapestry
+
 from pirn_agents.specializations.document_processing._load_and_chunk import (
     _LoadAndChunk,
 )
-from pirn.tapestry import Tapestry
 
 
 def _make_knot(source: str, chunk_size: int) -> _LoadAndChunk:
@@ -29,7 +30,7 @@ class TestLoadAndChunkProcess(unittest.IsolatedAsyncioTestCase):
             fpath = os.path.join(tmpdir, "doc.txt")
             Path(fpath).write_text("abcdefghij", encoding="utf-8")
             k = _make_knot(source=fpath, chunk_size=5)
-            result = await k.process(source=fpath, chunk_size=5)
+            result = await k.process(source=fpath, chunk_size=5, allowed_root=tmpdir)
             assert result == ["abcde", "fghij"]
 
     async def test_empty_file_returns_empty_list(self) -> None:
@@ -37,7 +38,7 @@ class TestLoadAndChunkProcess(unittest.IsolatedAsyncioTestCase):
             fpath = os.path.join(tmpdir, "empty.txt")
             Path(fpath).write_text("", encoding="utf-8")
             k = _make_knot(source=fpath, chunk_size=100)
-            result = await k.process(source=fpath, chunk_size=100)
+            result = await k.process(source=fpath, chunk_size=100, allowed_root=tmpdir)
             assert result == []
 
     async def test_rejects_empty_source(self) -> None:

@@ -6,11 +6,11 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
+
 from pirn_agents.specializations.rag.corrective_router import (
     CorrectiveRouter,
 )
-from pirn.tapestry import Tapestry
-
 from tests.specializations.conftest import StubTool
 
 
