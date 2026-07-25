@@ -1,34 +1,39 @@
-"""Security tests: M-5 — ToolExecutor scrubs DSN credentials from error strings."""
+"""ToolExecutor scrubs DSN credentials from error strings (M-5).
+
+Native pirn-agents test for :class:`ToolExecutor`'s error handling. (Previously
+lived under ``pirn-core/tests`` as a cross-domain test; relocated here since it
+exercises pirn-agents code only — pirn-core is imported as the run harness,
+never tested.)
+"""
 
 from __future__ import annotations
 
-# cross-domain: skipped in per-package isolation, run by the unified suite (SCD-24)
-import pytest as _pytest
-_pytest.importorskip("pirn_agents")
-pytestmark = _pytest.mark.cross_domain
-
 import unittest
+from collections.abc import Mapping
+from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
+
+from pirn_agents.planning.tool_executor import ToolExecutor
 from pirn_agents.tool import Tool
 from pirn_agents.types.tool_call import ToolCall
 from pirn_agents.types.tool_result import ToolResult
-from pirn_agents.planning.tool_executor import ToolExecutor
-from pirn.tapestry import Tapestry
 
 
 class _RaisingTool(Tool):
-    name = "raise_tool"
-    description = "always raises with a DSN-containing message"
+    @property
+    def name(self) -> str:
+        return "raise_tool"
 
-    async def invoke(self, arguments: dict) -> object:
+    @property
+    def description(self) -> str:
+        return "always raises with a DSN-containing message"
+
+    async def invoke(self, arguments: Mapping[str, Any]) -> Any:
         raise RuntimeError("failed: postgres://user:s3cr3tp4ssw0rd@host/db")
-
-
-class _CallSource:
-    pass
 
 
 class TestToolExecutorDsnScrubbing(unittest.IsolatedAsyncioTestCase):

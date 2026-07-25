@@ -37,7 +37,9 @@ Choose a sub-package by the data management pattern you need, not the underlying
 from pirn_data.specializations.medallion.bronze_raw_ingest import BronzeRawIngest
 from pirn_data.specializations.medallion.silver_clean_transform import SilverCleanTransform
 from pirn_data.specializations.medallion.gold_aggregation import GoldAggregation
-from pirn import Tapestry, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 
 with Tapestry() as t:
     raw    = BronzeRawIngest(source=my_source_knot, _config=KnotConfig(id="bronze"))

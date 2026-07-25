@@ -96,5 +96,48 @@ class TestAgentSpecLoaderPath(unittest.TestCase):
                 AgentSpecLoader.from_path(path)
 
 
+class TestAgentSpecLoaderPathContainment(unittest.TestCase):
+    """PIR-743: ``allowed_root`` vets an untrusted path via ``PathGuard``."""
+
+    def test_relative_path_inside_root_loads(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "spec.json").write_text(json.dumps({"pattern": "react"}), encoding="utf-8")
+            spec = AgentSpecLoader.from_path("spec.json", allowed_root=tmp)
+        assert spec.pattern == "react"
+
+    def test_parent_traversal_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "specs"
+            root.mkdir()
+            (Path(tmp) / "secret.json").write_text(
+                json.dumps({"pattern": "react"}), encoding="utf-8"
+            )
+            with self.assertRaisesRegex(ValueError, "traversal"):
+                AgentSpecLoader.from_path("../secret.json", allowed_root=root)
+
+    def test_absolute_path_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "spec.json"
+            target.write_text(json.dumps({"pattern": "react"}), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "absolute path"):
+                AgentSpecLoader.from_path(str(target), allowed_root=tmp)
+
+    def test_symlink_stepping_stone_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "root"
+            root.mkdir()
+            outside = Path(tmp) / "outside.json"
+            outside.write_text(json.dumps({"pattern": "react"}), encoding="utf-8")
+            link = root / "link.json"
+            link.symlink_to(outside)
+            with self.assertRaisesRegex(ValueError, "symlink"):
+                AgentSpecLoader.from_path("link.json", allowed_root=root)
+
+    def test_missing_file_under_root_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(ValueError, "does not exist"):
+                AgentSpecLoader.from_path("absent.json", allowed_root=tmp)
+
+
 if __name__ == "__main__":
     unittest.main()

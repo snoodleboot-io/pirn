@@ -17,8 +17,9 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from pirn.security.credential_ref import CredentialRef
+
 from pirn_agents._require import _require
-from pirn_agents.credential_ref import CredentialRef
 from pirn_agents.graph_stores.graph_backend_client import GraphBackendClient
 
 

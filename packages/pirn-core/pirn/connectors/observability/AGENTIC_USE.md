@@ -33,7 +33,9 @@ pirn/domains/connectors/observability/
 ```python
 from pirn.connectors.observability.datadog_config import DatadogConfig
 from pirn.connectors.observability.datadog_client import DatadogClient
-from pirn import Tapestry, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 
 dd = DatadogClient(config=DatadogConfig(
     api_key=os.environ["DD_API_KEY"], site="datadoghq.com"

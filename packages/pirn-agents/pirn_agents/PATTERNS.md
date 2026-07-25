@@ -69,7 +69,7 @@ For plain functions, use `@tool` instead of subclassing `Tool`. Name, descriptio
 and JSON Schema are derived from the function signature automatically.
 
 ```python
-from pirn_agents import tool
+from pirn_agents.tool_decorator import tool
 
 @tool
 async def web_search(query: str, max_results: int = 5) -> str:
@@ -590,7 +590,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
-from pirn_agents import as_tool  # or: agent.as_tool()
+from pirn_agents.as_tool import as_tool  # or: agent.as_tool()
 from pirn_agents.performance.run_budget import RunBudget
 from pirn_agents.specializations.react.react_loop import ReActLoop
 from pirn_agents.specializations.specialized_agents.research_agent import (
@@ -964,7 +964,7 @@ registry, with no LLM provider baked in.
 |---|---|
 | `ToolCall` | One decided invocation: `tool_name`, `arguments`, `call_id`, optional `raw`. |
 | `ToolResult` | Its outcome: `call_id`, `result`, `error`, `status`, `latency`, `tokens`. |
-| `ToolStatus` | Terminal disposition — `OK`, `ERROR`, `TIMEOUT`, `CANCELLED`. |
+| `ToolStatus` | Terminal disposition — `OK`, `ERROR`, `TIMEOUT`. |
 | `Toolset` | Immutable, ordered, unique-by-name registry of `Tool`s. |
 
 `ParallelToolExecutor` runs a batch of `ToolCall`s concurrently against a
@@ -1033,9 +1033,9 @@ for r in results:
     print(r.call_id, r.result, f"{r.latency:.4f}s")
 ```
 
-Construction-time knobs `retry_base` / `retry_jitter` tune the backoff *shape*;
-`hook` (below) wires observability. All three are constructor kwargs rather than
-`process` parameters because they configure *how* the executor runs, not *what*
+The construction-time `retry_policy` (a `RetryPolicy`) is the single source of the
+backoff *schedule*; `hook` (below) wires observability. Both are constructor kwargs
+rather than `process` parameters because they configure *how* the executor runs, not *what*
 it executes.
 
 ---

@@ -126,7 +126,7 @@ class WebSearchTool(Tool):
 For plain functions, use the `@tool` decorator instead of subclassing. It derives `name` from the function name, `description` from the docstring's first paragraph, and `parameters_schema` from type annotations. Both sync and async functions are accepted.
 
 ```python
-from pirn_agents import tool
+from pirn_agents.tool_decorator import tool
 
 @tool
 async def web_search(query: str, max_results: int = 5) -> str:

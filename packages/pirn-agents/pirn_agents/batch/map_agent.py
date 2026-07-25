@@ -34,16 +34,18 @@ import asyncio
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterable
 
+from pirn_agents.async_fanout_engine import AsyncFanoutEngine
 from pirn_agents.batch.adaptive_concurrency_controller import AdaptiveConcurrencyController
 from pirn_agents.batch.batch_checkpointer import BatchCheckpointer
 from pirn_agents.batch.batch_item_result import BatchItemResult
 from pirn_agents.batch.batch_item_status import BatchItemStatus
 from pirn_agents.batch.batch_progress import BatchProgress
 from pirn_agents.batch.rate_limit_signal import RateLimitSignal
+from pirn_agents.llm.retry_policy import RetryPolicy
 from pirn_agents.resilience.token_bucket_rate_limiter import TokenBucketRateLimiter
 
 
-class MapAgent:
+class MapAgent(AsyncFanoutEngine[BatchItemResult]):
     """Stream an agent's outputs over a dataset with bounded, isolated fan-out."""
 
     def __init__(
@@ -58,8 +60,8 @@ class MapAgent:
         concurrency_controller: AdaptiveConcurrencyController | None = None,
         checkpointer: BatchCheckpointer | None = None,
         checkpoint_every: int = 1,
-        retry_base: float = 0.0,
-        retry_jitter: float = 0.0,
+        retry_policy: RetryPolicy | None = None,
+        rng: Callable[[], float] | None = None,
         sleep: Callable[[float], Awaitable[None]] | None = None,
     ) -> None:
         """Build the batch runner.
@@ -91,8 +93,12 @@ class MapAgent:
                 each newly-completed key so a killed batch resumes mid-way.
             checkpoint_every: Persist a checkpoint after this many newly-completed
                 items (a final flush always runs). Must be >= 1.
-            retry_base: Base seconds for the exponential retry backoff.
-            retry_jitter: Additive jitter ceiling for the retry backoff.
+            retry_policy: The single backoff-schedule source for retry delays;
+                defaults to a stock :class:`~pirn_agents.llm.retry_policy.RetryPolicy`.
+                Only its delay schedule is consumed here — the retry *count* is the
+                separate ``retries`` budget above.
+            rng: Zero-arg ``[0, 1)`` source for the policy's jitter draw; injected
+                in tests for deterministic delays. Defaults to the policy's own.
             sleep: Async sleep used for retry backoff; injected in tests so
                 backoff advances deterministically. Defaults to
                 :func:`asyncio.sleep`.
@@ -142,8 +148,8 @@ class MapAgent:
         self._controller = concurrency_controller
         self._checkpointer = checkpointer
         self._checkpoint_every = checkpoint_every
-        self._retry_base = retry_base
-        self._retry_jitter = retry_jitter
+        self._retry_policy = retry_policy if retry_policy is not None else RetryPolicy()
+        self._rng = rng
         self._sleep = sleep if sleep is not None else asyncio.sleep
         self._completed_keys: frozenset[str] = frozenset()
 
@@ -202,9 +208,7 @@ class MapAgent:
                             since_checkpoint = 0
                     yield result
         except asyncio.CancelledError:
-            for task in pending:
-                task.cancel()
-            await asyncio.gather(*pending, return_exceptions=True)
+            await self._drain_on_cancel(pending)
             raise
         if self._checkpointer is not None and since_checkpoint > 0:
             await self._checkpointer.save(progress)
@@ -252,52 +256,46 @@ class MapAgent:
         if key in self._completed_keys:
             return BatchItemResult(index=index, key=key, status=BatchItemStatus.SKIPPED, attempts=0)
         start = time.perf_counter()
-        attempt = 0
-        while True:
-            if self._rate_limiter is not None:
-                await self._rate_limiter.acquire()
-            try:
-                output = await self._invoke(item)
-            except asyncio.CancelledError:
-                raise
-            except RateLimitSignal as exc:
-                self._on_throttle(exc)
-                if attempt >= self._retries:
-                    return self._error_result(index, key, exc, attempt + 1, start)
-                await self._backoff(attempt)
-                attempt += 1
-                continue
-            except TimeoutError as exc:
-                if self._timeout is not None:
-                    return BatchItemResult(
-                        index=index,
-                        key=key,
-                        status=BatchItemStatus.TIMEOUT,
-                        error=f"item timed out after {self._timeout}s",
-                        attempts=attempt + 1,
-                        latency=time.perf_counter() - start,
-                    )
-                if attempt >= self._retries:
-                    return self._error_result(index, key, exc, attempt + 1, start)
-                await self._backoff(attempt)
-                attempt += 1
-                continue
-            except Exception as exc:
-                if attempt >= self._retries:
-                    return self._error_result(index, key, exc, attempt + 1, start)
-                await self._backoff(attempt)
-                attempt += 1
-                continue
-            if self._controller is not None:
-                self._controller.on_success()
-            return BatchItemResult(
+        return await self._run_with_retries(
+            lambda: self._run_item(item),
+            timeout=self._timeout,
+            retries=self._retries,
+            before_attempt=self._acquire_token,
+            on_exception=self._react_to_exception,
+            on_success=self._on_success,
+            on_ok=lambda output, attempts: BatchItemResult(
                 index=index,
                 key=key,
                 status=BatchItemStatus.OK,
                 output=output,
-                attempts=attempt + 1,
+                attempts=attempts,
                 latency=time.perf_counter() - start,
-            )
+            ),
+            on_timeout=lambda attempts: BatchItemResult(
+                index=index,
+                key=key,
+                status=BatchItemStatus.TIMEOUT,
+                error=f"item timed out after {self._timeout}s",
+                attempts=attempts,
+                latency=time.perf_counter() - start,
+            ),
+            on_error=lambda exc, attempts: self._error_result(index, key, exc, attempts, start),
+        )
+
+    async def _acquire_token(self) -> None:
+        """Per-attempt hook: acquire one rate-limiter token when a limiter is set."""
+        if self._rate_limiter is not None:
+            await self._rate_limiter.acquire()
+
+    def _react_to_exception(self, exc: BaseException) -> None:
+        """Per-exception hook: react to an upstream throttle before retrying."""
+        if isinstance(exc, RateLimitSignal):
+            self._on_throttle(exc)
+
+    def _on_success(self) -> None:
+        """Per-success hook: nudge the adaptive concurrency controller up."""
+        if self._controller is not None:
+            self._controller.on_success()
 
     def _on_throttle(self, signal: RateLimitSignal) -> None:
         """React to an upstream throttle: scale concurrency down, pause the bucket.
@@ -312,13 +310,6 @@ class MapAgent:
         if self._rate_limiter is not None and signal.retry_after is not None:
             self._rate_limiter.pause_for(signal.retry_after)
 
-    async def _invoke(self, item: object) -> object:
-        """Invoke the per-item agent, applying the per-item timeout if set."""
-        if self._timeout is not None:
-            async with asyncio.timeout(self._timeout):
-                return await self._run_item(item)
-        return await self._run_item(item)
-
     @staticmethod
     def _error_result(
         index: int, key: str, exc: BaseException, attempts: int, start: float
@@ -331,8 +322,3 @@ class MapAgent:
             attempts=attempts,
             latency=time.perf_counter() - start,
         )
-
-    async def _backoff(self, attempt: int) -> None:
-        delay = self._retry_base * 2**attempt + self._retry_jitter
-        if delay > 0:
-            await self._sleep(delay)
