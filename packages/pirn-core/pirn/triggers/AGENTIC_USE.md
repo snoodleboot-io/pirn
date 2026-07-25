@@ -30,7 +30,8 @@ pirn/triggers/
 
 ```python
 import asyncio
-from pirn import Tapestry, KnotConfig
+from pirn.core.knot_config import KnotConfig
+from pirn.tapestry import Tapestry
 from pirn.triggers.cron import CronTrigger
 from pirn.triggers.base import run_forever
 

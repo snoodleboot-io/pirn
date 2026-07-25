@@ -23,14 +23,13 @@ What is allowed
 * A ``__getattr__``-based lazy/deprecation shim (PEP 562) — flagged only if the
   file also has bare forwarding imports.
 
-Core allowlist
---------------
-``packages/pirn-core/pirn/__init__.py`` deliberately re-exports its framework
-primitives behind a documented "users may import from pirn directly" contract.
-That contradiction between the convention and core's public API is a core-owner
-decision tracked in PIR-744, not something this gate resolves unilaterally. The
-allowlist below names that exemption explicitly rather than scoping the gate to
-skip core silently. Remove entries here only when PIR-744 is resolved.
+Allowlist
+---------
+Empty. pirn-core's ``__init__.py`` façade previously re-exported its framework
+primitives behind a "users may import from pirn directly" contract; PIR-744
+resolved that contradiction by stripping the façade, so the convention now applies
+uniformly across every package with no exemptions. Add an entry only with a named,
+reviewed justification.
 """
 
 from __future__ import annotations
@@ -39,17 +38,10 @@ import ast
 import sys
 from pathlib import Path
 
-# Paths (POSIX, repo-relative) exempted pending PIR-744. Keep this list minimal and
-# named — every entry is a known convention violation awaiting a core-owner ruling.
-_ALLOWLIST: frozenset[str] = frozenset(
-    {
-        "packages/pirn-core/pirn/__init__.py",
-        "packages/pirn-core/pirn/core/identity/__init__.py",
-        "packages/pirn-core/pirn/backends/postgres/__init__.py",
-        "packages/pirn-core/pirn/backends/sqlite/__init__.py",
-        "packages/pirn-core/pirn/backends/valkey/__init__.py",
-    }
-)
+# No exemptions. The former pirn-core entries were resolved in PIR-744 — the core
+# façade was stripped so the convention now applies uniformly. Keep this empty:
+# add an entry only with a named, reviewed justification.
+_ALLOWLIST: frozenset[str] = frozenset()
 
 
 def _own_top_package(path: Path) -> str | None:

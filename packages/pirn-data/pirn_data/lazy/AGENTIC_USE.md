@@ -52,7 +52,9 @@ from pirn_data.lazy.ibis.ibis_connection import IbisConnection
 from pirn_data.lazy.ibis.ibis_source import IbisSource
 from pirn_data.lazy.ibis.ibis_group_by_aggregate import IbisGroupByAggregate
 from pirn_data.lazy.ibis.ibis_to_table import IbisToTable
-from pirn import Tapestry, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 
 conn = IbisConnection(pool=my_postgres_pool)
 

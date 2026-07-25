@@ -197,7 +197,10 @@ Training pipeline: data prep → feature engineering → train → gate → seri
 
 ```python
 import asyncio
-from pirn import Tapestry, Parameter, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 from pirn_ml.data_prep.dataset_loader import DatasetLoader
 from pirn_ml.data_prep.train_test_split import TrainTestSplit
 from pirn_ml.features.scaler import Scaler
