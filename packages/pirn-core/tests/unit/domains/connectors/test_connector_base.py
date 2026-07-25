@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
-from pirn_agents.connector_base import ConnectorBase
+from pirn.connectors.connector_base import ConnectorBase
 from pirn.security.credential_ref import CredentialRef
 
 
@@ -138,7 +138,7 @@ class TestConnectorBase(unittest.IsolatedAsyncioTestCase):
         # Act / Assert
         with self.assertRaises(ImportError) as ctx:
             connector._require("vector", "nope_missing_xyz")
-        assert 'pip install "pirn-agents[vector]"' in str(ctx.exception)
+        assert 'pip install "pirn-core[vector]"' in str(ctx.exception)
 
 
 if __name__ == "__main__":

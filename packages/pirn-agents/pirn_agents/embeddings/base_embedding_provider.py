@@ -19,7 +19,7 @@ The base then layers three cross-cutting behaviours every adapter shares:
   ``2**attempt`` formula.
 
 Client pooling, teardown, and credential scrubbing come from
-:class:`pirn_agents.connector_base.ConnectorBase` — the same base
+:class:`pirn.connectors.connector_base.ConnectorBase` — the same base
 :class:`~pirn_agents.llm.base_llm_provider.BaseLLMProvider` inherits, so an
 embedding adapter and an LLM adapter share one pooling lifecycle rather than two
 copies of it. The public surface aligns with
@@ -32,9 +32,9 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Awaitable, Callable, Iterator, Sequence
 
+from pirn.connectors.connector_base import ConnectorBase
 from pirn.security.credential_ref import CredentialRef
 
-from pirn_agents.connector_base import ConnectorBase
 from pirn_agents.embedding_provider import EmbeddingProvider
 from pirn_agents.llm.retry_policy import RetryPolicy
 
@@ -47,6 +47,10 @@ class BaseEmbeddingProvider(ConnectorBase, EmbeddingProvider):
     ``close`` / ``_clear_credentials``) is inherited, not re-implemented, and only
     the embedding-specific batching layers on top.
     """
+
+    # Optional backends (httpx, sentence-transformers) ship with pirn-agents, so
+    # the missing-dependency install hint must name this distribution, not core's.
+    _install_dist = "pirn-agents"
 
     def __init__(
         self,

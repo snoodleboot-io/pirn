@@ -19,7 +19,7 @@ from collections.abc import AsyncIterator
 
 import pytest
 
-from pirn_agents.connectors.http_connector import HttpConnector
+from pirn.connectors.http_connector import HttpConnector
 
 
 class _FakeResponse:

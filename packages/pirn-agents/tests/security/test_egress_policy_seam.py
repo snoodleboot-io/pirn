@@ -2,7 +2,7 @@
 
 The pure ``EgressPolicy`` behaviour is covered in pirn-core's suite. These tests
 prove the same policy instance is a drop-in for the F16
-:class:`~pirn_agents.connectors.http_connector.HttpConnector` egress seam and for
+:class:`~pirn.connectors.http_connector.HttpConnector` egress seam and for
 the F6 ``http_request`` tool. The DNS resolver is injected so every check is offline.
 """
 
@@ -15,7 +15,7 @@ import pytest
 from pirn.security.egress_error import EgressError
 from pirn.security.egress_policy import EgressPolicy
 
-from pirn_agents.connectors.http_connector import HttpConnector
+from pirn.connectors.http_connector import HttpConnector
 from pirn_agents.tools.web.http_request_tool import HttpRequestTool
 
 

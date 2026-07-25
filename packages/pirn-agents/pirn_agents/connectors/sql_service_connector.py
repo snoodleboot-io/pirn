@@ -1,6 +1,6 @@
 """``SqlServiceConnector`` — read-only, row-capped SQL over a core pool (F16-S2).
 
-A thin :class:`~pirn_agents.connector_base.ConnectorBase` over a core
+A thin :class:`~pirn.connectors.connector_base.ConnectorBase` over a core
 :class:`~pirn.connectors.database_connection_pool.DatabaseConnectionPool`. The
 connection pooling, credential scrubbing, and inline-interpolation guard come from
 core's ``SqlitePool`` / ``PostgresPool`` (via the column-aware subclasses); this
@@ -21,11 +21,11 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
+from pirn.connectors.connector_base import ConnectorBase
 from pirn.connectors.databases.postgres_config import PostgresConfig
 from pirn.connectors.databases.sqlite_config import SqliteConfig
 from pirn.security.credential_ref import CredentialRef
 
-from pirn_agents.connector_base import ConnectorBase
 from pirn_agents.connectors.column_aware_pool import ColumnAwarePool
 from pirn_agents.connectors.column_aware_postgres_pool import ColumnAwarePostgresPool
 from pirn_agents.connectors.column_aware_sqlite_pool import ColumnAwareSqlitePool

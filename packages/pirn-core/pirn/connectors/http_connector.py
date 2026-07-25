@@ -1,6 +1,6 @@
 """``HttpConnector`` — a pooled async HTTP/REST connector (F16-S1 / PIR-352).
 
-A :class:`~pirn_agents.connector_base.ConnectorBase` subclass that wraps a
+A :class:`~pirn.connectors.connector_base.ConnectorBase` subclass that wraps a
 single pooled ``httpx.AsyncClient`` and reuses it across every request for the
 whole run (the pooling lever, AD-3). On top of the F2 lifecycle it adds:
 
@@ -37,11 +37,10 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Callable, Mapping, Sequence
 from typing import Any
 
+from pirn.connectors.connector_base import ConnectorBase
 from pirn.security.credential_ref import CredentialRef
 from pirn.security.ssrf_guard import SsrfGuard
 from pirn.security.vetted_endpoint import VettedEndpoint
-
-from pirn_agents.connector_base import ConnectorBase
 
 
 class HttpConnector(ConnectorBase):
@@ -132,8 +131,8 @@ class HttpConnector(ConnectorBase):
             self._client = client
 
     async def _create_client(self) -> Any:
-        """Build the pooled ``httpx.AsyncClient`` lazily (the ``web`` extra)."""
-        httpx = self._require("web", "httpx")
+        """Build the pooled ``httpx.AsyncClient`` lazily (core's ``http`` extra)."""
+        httpx = self._require("http", "httpx")
         timeout = httpx.Timeout(self._timeout, connect=self._connect_timeout)
         return httpx.AsyncClient(
             base_url=self._base_url or "", timeout=timeout, follow_redirects=False
