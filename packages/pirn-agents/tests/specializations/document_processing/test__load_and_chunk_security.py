@@ -30,7 +30,7 @@ from pirn_agents.specializations.document_processing._translation_load_and_chunk
 )
 
 _READER = "pirn_agents.specializations.document_processing._document_source_reader"
-_RESOLVE = "pirn_agents.tools.web._ssrf_guard.SsrfGuard._resolve_all"
+_RESOLVE = "pirn.security.ssrf_guard.SsrfGuard._resolve_all"
 _REQUIRE = f"{_READER}._require"
 
 _LOADERS: tuple[type[Knot], ...] = (

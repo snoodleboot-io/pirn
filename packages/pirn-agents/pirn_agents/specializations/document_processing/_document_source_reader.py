@@ -24,7 +24,7 @@ Security:
     Fail-closed. Local reads require ``allowed_root``; reads resolving outside it
     (via ``..`` segments or symlinks) are rejected. ``max_bytes`` caps both a local
     file and a streamed URL response. URL host vetting is delegated to the shared
-    :class:`~pirn_agents.tools.web._ssrf_guard.SsrfGuard` — the one implementation
+    :class:`~pirn.security.ssrf_guard.SsrfGuard` — the one implementation
     of that policy — and redirects are neither followed nor returned, so an
     allow-listed host cannot bounce the fetch to a private address.
 
@@ -51,9 +51,9 @@ from typing import Any
 from urllib.parse import urlparse
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
+from pirn.security.ssrf_guard import SsrfGuard
 
 from pirn_agents._require import _require
-from pirn_agents.tools.web._ssrf_guard import SsrfGuard
 
 
 @dataclass(frozen=True)

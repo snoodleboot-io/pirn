@@ -1,9 +1,8 @@
 """SSRF guard shared by the HTTP fetch tool and connectors.
 
 The single implementation of the host-egress policy: the HTTP fetch tool, the
-connectors, :class:`~pirn_agents.security.egress_policy.EgressPolicy`, and
-:class:`pirn_agents.specializations.document_processing._document_source_reader._DocumentSourceReader`
-all compose it. A URL's hostname is resolved and rejected when **any** returned
+connectors, :class:`~pirn.security.egress_policy.EgressPolicy`, and the
+document-source readers all compose it. A URL's hostname is resolved and rejected when **any** returned
 address lands on a private, loopback, link-local, reserved, or multicast range
 (this also blocks the cloud metadata endpoint ``169.254.169.254``, which is
 link-local). An optional host allow-list narrows further. The policy (allow-list,

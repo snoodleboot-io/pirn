@@ -3,7 +3,7 @@
 The tool lazily imports ``httpx`` (the ``web`` extra) only when no client is
 injected, so importing the module stays backend-free. An injectable client and
 DNS resolver keep unit tests fully offline. Every request is vetted by
-:meth:`~pirn_agents.tools.web._ssrf_guard.SsrfGuard.assert_public_host`, restricted to
+:meth:`~pirn.security.ssrf_guard.SsrfGuard.assert_public_host`, restricted to
 ``GET``/``HEAD``, and the response body is streamed and truncated at
 ``max_bytes`` to protect the context window.
 """
@@ -13,11 +13,11 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
+from pirn.security.ssrf_guard import SsrfGuard
 from pirn.security.vetted_endpoint import VettedEndpoint
 
 from pirn_agents._require import _require
 from pirn_agents.tools.base_tool import BaseTool
-from pirn_agents.tools.web._ssrf_guard import SsrfGuard
 
 
 class HttpRequestTool(BaseTool):

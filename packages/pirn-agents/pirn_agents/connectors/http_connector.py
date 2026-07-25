@@ -13,7 +13,7 @@ whole run (the pooling lever, AD-3). On top of the F2 lifecycle it adds:
 Egress seam (F11). The egress check is an injectable ``egress_policy`` callable
 ``(url) -> VettedEndpoint`` that raises on a disallowed target. It defaults to the
 F6 SSRF/egress guard
-(:meth:`~pirn_agents.tools.web._ssrf_guard.SsrfGuard.assert_public_host`, which
+(:meth:`~pirn.security.ssrf_guard.SsrfGuard.assert_public_host`, which
 blocks private/loopback/link-local/reserved/multicast IPs and the cloud metadata
 endpoint, with an optional host allow-list).
 
@@ -22,7 +22,7 @@ rebinding closed: the request is pinned to the address the policy vetted, so the
 HTTP client never re-resolves the hostname and there is no second lookup for a
 short-TTL attacker record to poison. The type forbids returning nothing, so a
 request can never silently skip pinning. Compose
-:class:`~pirn_agents.security.egress_policy.EgressPolicy`, which returns the
+:class:`~pirn.security.egress_policy.EgressPolicy`, which returns the
 endpoint.
 
 ``httpx`` is imported lazily inside :meth:`_create_client`; an injected
@@ -38,10 +38,10 @@ from collections.abc import AsyncIterator, Callable, Mapping, Sequence
 from typing import Any
 
 from pirn.security.credential_ref import CredentialRef
+from pirn.security.ssrf_guard import SsrfGuard
 from pirn.security.vetted_endpoint import VettedEndpoint
 
 from pirn_agents.connector_base import ConnectorBase
-from pirn_agents.tools.web._ssrf_guard import SsrfGuard
 
 
 class HttpConnector(ConnectorBase):
