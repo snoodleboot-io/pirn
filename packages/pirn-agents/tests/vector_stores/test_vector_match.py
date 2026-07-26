@@ -21,21 +21,31 @@ class TestVectorMatch(unittest.TestCase):
         # A self-match cosine similarity may round just past 1.0.
         assert VectorMatch(id="c", score=1.0 + 1e-9).score == 1.0 + 1e-9
 
+    def test_accepts_unbounded_positive_score(self) -> None:
+        # Range is metric-specific (dot-product stores are unbounded); the neutral
+        # value object accepts any finite score above the cosine range.
+        assert VectorMatch(id="a", score=1.5).score == 1.5
+        assert VectorMatch(id="b", score=42.0).score == 42.0
+
+    def test_accepts_unbounded_negative_score(self) -> None:
+        # Negative similarities below the cosine floor are valid for other metrics.
+        assert VectorMatch(id="a", score=-5.0).score == -5.0
+
     def test_rejects_empty_id(self) -> None:
         with self.assertRaises(TypeError):
             VectorMatch(id="", score=0.5)
 
-    def test_rejects_score_above_bounds(self) -> None:
-        with self.assertRaises(ValueError):
-            VectorMatch(id="a", score=2.0)
-
-    def test_rejects_score_below_bounds(self) -> None:
-        with self.assertRaises(ValueError):
-            VectorMatch(id="a", score=-5.0)
-
     def test_rejects_nan_score(self) -> None:
         with self.assertRaises(ValueError):
             VectorMatch(id="a", score=math.nan)
+
+    def test_rejects_positive_inf_score(self) -> None:
+        with self.assertRaises(ValueError):
+            VectorMatch(id="a", score=math.inf)
+
+    def test_rejects_negative_inf_score(self) -> None:
+        with self.assertRaises(ValueError):
+            VectorMatch(id="a", score=-math.inf)
 
     def test_rejects_bool_score(self) -> None:
         with self.assertRaises(TypeError):

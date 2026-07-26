@@ -8,6 +8,7 @@ larger is more similar (cosine similarity for the in-memory reference).
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
@@ -24,7 +25,10 @@ class VectorMatch(PirnOpaqueValue):
     id:
         The matched record's primary key.
     score:
-        Similarity score; larger means more similar.
+        A similarity where larger means more similar; finite but otherwise
+        unbounded (its range is metric-specific — cosine stores yield
+        ``[-1, 1]``, dot-product stores are unbounded), so range is enforced
+        by the store, not this neutral value object.
     metadata:
         The matched record's metadata.
     document:
@@ -41,12 +45,12 @@ class VectorMatch(PirnOpaqueValue):
             raise TypeError(f"VectorMatch: id must be a non-empty str, got {self.id!r}")
         if not isinstance(self.score, (int, float)) or isinstance(self.score, bool):
             raise TypeError(f"VectorMatch: score must be a real number, got {self.score!r}")
-        # Scores are similarities in the cosine range; a small tolerance absorbs
-        # floating-point drift at the boundary (e.g. a self-match rounding to
-        # 1.0000000002) while still rejecting gross errors, NaN, and infinities.
-        tolerance = 1e-6
-        if not (-1.0 - tolerance <= self.score <= 1.0 + tolerance):
-            raise ValueError(f"VectorMatch: score must be within [-1.0, 1.0], got {self.score!r}")
+        # ``score`` is a metric-specific similarity: cosine stores yield [-1, 1],
+        # dot-product stores are unbounded. Range therefore belongs to the store,
+        # not this neutral value object; enforce only universal well-formedness by
+        # rejecting the genuinely malformed values NaN and +/-inf.
+        if not math.isfinite(self.score):
+            raise ValueError(f"VectorMatch: score must be finite, got {self.score!r}")
         if not isinstance(self.metadata, Mapping):
             raise TypeError(
                 f"VectorMatch: metadata must be a mapping, got {type(self.metadata).__name__}"
