@@ -69,7 +69,7 @@ For plain functions, use `@tool` instead of subclassing `Tool`. Name, descriptio
 and JSON Schema are derived from the function signature automatically.
 
 ```python
-from pirn_agents.tool_decorator import tool
+from pirn_agents.tools.tool_decorator import tool
 
 @tool
 async def web_search(query: str, max_results: int = 5) -> str:
@@ -590,7 +590,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
-from pirn_agents.as_tool import as_tool  # or: agent.as_tool()
+from pirn_agents.tools.as_tool import as_tool  # or: agent.as_tool()
 from pirn_agents.performance.run_budget import RunBudget
 from pirn_agents.specializations.react.react_loop import ReActLoop
 from pirn_agents.specializations.specialized_agents.research_agent import (
@@ -839,7 +839,7 @@ a max-concurrency semaphore, and aggregates an `OrchestratorWorkersResult`. Work
 scales with the task list; wall-clock stays bounded by the cap.
 
 ```python
-from pirn_agents.agent_tool import AgentTool
+from pirn_agents.tools.agent_tool import AgentTool
 from pirn_agents.specializations.multi_agent.orchestrator_workers import OrchestratorWorkers
 
 worker = AgentTool(my_specialist_agent)      # F7 agent-as-tool
@@ -981,9 +981,9 @@ from typing import Any
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.parallel_tool_executor import ParallelToolExecutor
-from pirn_agents.tool import Tool
-from pirn_agents.toolset import Toolset
+from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
+from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.toolset import Toolset
 from pirn_agents.types.tool_call import ToolCall
 from pirn_agents.types.tool_status import ToolStatus
 
@@ -1047,9 +1047,9 @@ it executes.
 ```python
 from __future__ import annotations
 from typing import Any
-from pirn_agents.provider_adapter import ProviderAdapter
-from pirn_agents.tool_call_codec import ToolCallCodec
-from pirn_agents.toolset import Toolset
+from pirn_agents.llm.provider_adapter import ProviderAdapter
+from pirn_agents.tools.tool_call_codec import ToolCallCodec
+from pirn_agents.tools.toolset import Toolset
 from pirn_agents.types.tool_result import ToolResult
 
 class MyAdapter(ProviderAdapter):
@@ -1083,7 +1083,7 @@ as with `ToolCallCodec`. A tail that never parses as valid JSON is dropped
 from collections.abc import AsyncIterator, Mapping
 from typing import Any
 
-from pirn_agents.streaming_tool_call_parser import StreamingToolCallParser
+from pirn_agents.tools.streaming_tool_call_parser import StreamingToolCallParser
 
 
 async def provider_deltas() -> AsyncIterator[Mapping[str, Any]]:
@@ -1131,9 +1131,9 @@ import time
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.parallel_tool_executor import ParallelToolExecutor
-from pirn_agents.tool_invocation_hook import ToolInvocationHook
-from pirn_agents.toolset import Toolset
+from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
+from pirn_agents.tools.tool_invocation_hook import ToolInvocationHook
+from pirn_agents.tools.toolset import Toolset
 from pirn_agents.types.tool_status import ToolStatus
 
 

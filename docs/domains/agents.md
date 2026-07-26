@@ -93,7 +93,7 @@ class AnthropicProvider(LLMProvider):
 Tools are passed as config values to knots that use them (e.g. `ToolRouter`, `ToolExecutor`). Like providers, tools are treated as opaque by pirn's content-addressing.
 
 ```python
-from pirn_agents.tool import Tool
+from pirn_agents.tools.tool import Tool
 
 class WebSearchTool(Tool):
     def __init__(self, api_key: str) -> None:
@@ -126,7 +126,7 @@ class WebSearchTool(Tool):
 For plain functions, use the `@tool` decorator instead of subclassing. It derives `name` from the function name, `description` from the docstring's first paragraph, and `parameters_schema` from type annotations. Both sync and async functions are accepted.
 
 ```python
-from pirn_agents.tool_decorator import tool
+from pirn_agents.tools.tool_decorator import tool
 
 @tool
 async def web_search(query: str, max_results: int = 5) -> str:

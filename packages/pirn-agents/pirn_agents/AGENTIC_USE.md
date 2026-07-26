@@ -147,7 +147,7 @@ class AnthropicProvider(LLMProvider):
 
 ```python
 # @tool form — name, description, and schema derived automatically
-from pirn_agents.tool_decorator import tool
+from pirn_agents.tools.tool_decorator import tool
 
 @tool
 async def web_search(query: str, max_results: int = 5) -> str:
@@ -160,7 +160,7 @@ def lookup_policy(topic: str) -> str:
     return POLICIES.get(topic, "No policy found.")
 
 # Subclass form — use when constructor injection is needed
-from pirn_agents.tool import Tool
+from pirn_agents.tools.tool import Tool
 
 class WebSearchTool(Tool):
     def __init__(self, api_key: str) -> None:
@@ -196,7 +196,7 @@ class WebSearchTool(Tool):
 **Contract:** Implement five async methods. `store(key, value)` persists a mapping. `retrieve(key)` returns the mapping or `None`. `search(query, *, top_k)` async-iterates the `top_k` most similar entries. `forget(key)` removes an entry. `close()` releases connections and calls `_clear_credentials()`.
 
 ```python
-from pirn_agents.memory_store import MemoryStore
+from pirn_agents.memory.memory_store import MemoryStore
 from collections.abc import AsyncIterator, Mapping
 from typing import Any
 
