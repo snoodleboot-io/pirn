@@ -36,6 +36,9 @@ class RetryPolicy(PirnOpaqueValue):
     jitter:
         When ``True``, full jitter is applied: the returned delay is a
         uniform draw in ``[0, capped_delay)``.
+    max_retry_after:
+        Ceiling (seconds) on a server-supplied Retry-After hint, so a
+        hostile/misconfigured value cannot block the caller unboundedly.
     """
 
     max_retries: int = 2
@@ -43,6 +46,7 @@ class RetryPolicy(PirnOpaqueValue):
     max_delay: float = 2.0
     multiplier: float = 2.0
     jitter: bool = True
+    max_retry_after: float = 60.0
 
     def backoff_delay(self, attempt: int, *, rng: Callable[[], float] | None = None) -> float:
         """Return the delay before retry ``attempt`` (0-based), in seconds.
@@ -71,4 +75,5 @@ class RetryPolicy(PirnOpaqueValue):
             "max_delay": self.max_delay,
             "multiplier": self.multiplier,
             "jitter": self.jitter,
+            "max_retry_after": self.max_retry_after,
         }

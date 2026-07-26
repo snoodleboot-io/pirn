@@ -115,6 +115,24 @@ class TestRetryLoop(unittest.IsolatedAsyncioTestCase):
         assert data == {"ok": True}
         assert sleeper.delays == [1.5]
 
+    async def test_429_retry_after_is_clamped_to_max_retry_after(self) -> None:
+        # Arrange: a hostile Retry-After far exceeding the ceiling.
+        sleeper = RecordingSleeper()
+        client = FakeAsyncClient(
+            post_results=[
+                FakeResponse(status_code=429, headers={"retry-after": "999999"}),
+                FakeResponse(json_body={"ok": True}),
+            ]
+        )
+        transport = _make_transport(sleeper, max_retry_after=60.0)
+
+        # Act
+        data = await _request(transport, client)
+
+        # Assert: the honoured delay is clamped to max_retry_after, not 999999.
+        assert data == {"ok": True}
+        assert sleeper.delays == [60.0]
+
     async def test_429_without_retry_after_uses_backoff(self) -> None:
         # Arrange
         sleeper = RecordingSleeper()

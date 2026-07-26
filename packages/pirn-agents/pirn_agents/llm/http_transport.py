@@ -70,11 +70,10 @@ class HttpTransport:
             except RateLimitError as exc:
                 if attempt >= self._retry_policy.max_retries:
                     raise
-                delay = (
-                    exc.retry_after
-                    if exc.retry_after is not None
-                    else self._retry_policy.backoff_delay(attempt, rng=self._rng)
-                )
+                if exc.retry_after is not None:
+                    delay = min(exc.retry_after, self._retry_policy.max_retry_after)
+                else:
+                    delay = self._retry_policy.backoff_delay(attempt, rng=self._rng)
                 await self._sleep(delay)
             except TransientLLMError:
                 if attempt >= self._retry_policy.max_retries:
@@ -118,8 +117,7 @@ class HttpTransport:
     @staticmethod
     def _retry_after(response: Any) -> float | None:
         """Parse a ``Retry-After`` header (seconds) from ``response``, if any."""
-        headers = getattr(response, "headers", None) or {}
-        raw = headers.get("retry-after") if hasattr(headers, "get") else None
+        raw = response.headers.get("retry-after", None)
         if raw is None:
             return None
         try:
