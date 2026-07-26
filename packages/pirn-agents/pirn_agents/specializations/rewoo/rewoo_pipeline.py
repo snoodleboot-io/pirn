@@ -29,17 +29,17 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.rewoo.rewoo_planner import ReWooPlanner
 from pirn_agents.specializations.rewoo.rewoo_synthesizer import ReWooSynthesizer
 from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.toolset import Toolset
 
 
-class ReWooPipeline(SubTapestry):
+class ReWooPipeline(AgentPipeline):
     """Decoupled plan → parallel-execute → synthesise ReWOO agent."""
 
     def __init__(

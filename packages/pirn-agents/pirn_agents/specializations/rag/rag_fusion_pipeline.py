@@ -22,16 +22,16 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
+from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.rag.fusion_retriever import FusionRetriever
 from pirn_agents.specializations.rag.multi_query_expander import MultiQueryExpander
 from pirn_agents.specializations.rag.rag_synthesizer import RAGSynthesizer
 
 
-class RagFusionPipeline(SubTapestry):
+class RagFusionPipeline(AgentPipeline):
     """Expand the query, fuse concurrent retrievals with RRF, then synthesize."""
 
     def __init__(

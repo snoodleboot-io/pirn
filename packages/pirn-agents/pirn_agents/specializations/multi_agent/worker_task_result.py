@@ -5,13 +5,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from pirn.core.pirn_opaque_value import PirnOpaqueValue
-
+from pirn_agents.specializations.base.agent_result import AgentResult
 from pirn_agents.tools.tool_result import ToolResult
 
 
 @dataclass(frozen=True)
-class WorkerTaskResult(PirnOpaqueValue):
+class WorkerTaskResult(AgentResult):
     """The result of dispatching one task-list item to a worker.
 
     Attributes

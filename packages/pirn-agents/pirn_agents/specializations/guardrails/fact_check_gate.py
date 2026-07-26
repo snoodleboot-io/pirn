@@ -36,10 +36,10 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
+from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.guardrails.fact_claim_extractor import (
     FactClaimExtractor,
 )
@@ -49,7 +49,7 @@ from pirn_agents.specializations.guardrails.fact_claim_verifier import (
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
-class FactCheckGate(SubTapestry):
+class FactCheckGate(AgentPipeline):
     """LLM-assisted claim extraction + memory-store verification."""
 
     def __init__(

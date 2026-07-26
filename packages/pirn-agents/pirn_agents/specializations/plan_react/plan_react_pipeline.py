@@ -24,10 +24,10 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.source import Source
-from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.plan_and_execute.task_planner import TaskPlanner
 from pirn_agents.specializations.plan_react.plan_react_result import PlanReActResult
 from pirn_agents.specializations.react.react_loop import ReActLoop
@@ -36,7 +36,7 @@ from pirn_agents.types.messaging.agent_message import AgentMessage
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
-class PlanReActPipeline(SubTapestry):
+class PlanReActPipeline(AgentPipeline):
     """Plan with :class:`TaskPlanner`, then run a :class:`ReActLoop` per step."""
 
     def __init__(

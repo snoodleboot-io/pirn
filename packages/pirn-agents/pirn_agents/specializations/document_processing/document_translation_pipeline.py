@@ -30,9 +30,9 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.document_processing._chunk_translator import (
     _ChunkTranslator,
 )
@@ -44,7 +44,7 @@ from pirn_agents.specializations.document_processing._translation_load_and_chunk
 )
 
 
-class DocumentTranslationPipeline(SubTapestry):
+class DocumentTranslationPipeline(AgentPipeline):
     """Translate a document chunk-by-chunk; returns the concatenated text."""
 
     def __init__(

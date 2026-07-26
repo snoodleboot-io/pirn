@@ -5,13 +5,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from pirn.core.pirn_opaque_value import PirnOpaqueValue
-
+from pirn_agents.specializations.base.agent_result import AgentResult
 from pirn_agents.specializations.reflexion.reflexion_attempt import ReflexionAttempt
 
 
 @dataclass(frozen=True)
-class ReflexionResult(PirnOpaqueValue):
+class ReflexionResult(AgentResult):
     """Outcome of a bounded Reflexion loop.
 
     Attributes

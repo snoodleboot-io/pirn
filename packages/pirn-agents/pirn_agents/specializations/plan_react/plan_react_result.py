@@ -5,13 +5,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from pirn.core.pirn_opaque_value import PirnOpaqueValue
-
+from pirn_agents.specializations.base.agent_result import AgentResult
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 @dataclass(frozen=True)
-class PlanReActResult(PirnOpaqueValue):
+class PlanReActResult(AgentResult):
     """Outcome of a plan-then-ReAct-per-step run.
 
     Attributes

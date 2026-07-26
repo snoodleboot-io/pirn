@@ -5,13 +5,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from pirn.core.pirn_opaque_value import PirnOpaqueValue
-
+from pirn_agents.specializations.base.agent_result import AgentResult
 from pirn_agents.specializations.multi_agent.worker_task_result import WorkerTaskResult
 
 
 @dataclass(frozen=True)
-class OrchestratorWorkersResult(PirnOpaqueValue):
+class OrchestratorWorkersResult(AgentResult):
     """Aggregate outcome of an orchestrator-workers run.
 
     Attributes

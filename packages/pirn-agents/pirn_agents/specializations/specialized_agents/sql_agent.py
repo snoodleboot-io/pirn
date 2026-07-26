@@ -34,9 +34,9 @@ from pirn.connectors.database_connection_pool import (
 )
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.specialized_agents._sql_executor import (
     _SQLExecutor,
 )
@@ -48,7 +48,7 @@ from pirn_agents.specializations.specialized_agents._sql_response_formatter impo
 )
 
 
-class SQLAgent(SubTapestry):
+class SQLAgent(AgentPipeline):
     """Translate natural language to SQL, execute, return :class:`AgentResponse`."""
 
     def __init__(

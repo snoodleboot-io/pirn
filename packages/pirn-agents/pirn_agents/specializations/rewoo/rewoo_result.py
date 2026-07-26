@@ -5,14 +5,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from pirn.core.pirn_opaque_value import PirnOpaqueValue
-
+from pirn_agents.specializations.base.agent_result import AgentResult
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_result import ToolResult
 
 
 @dataclass(frozen=True)
-class ReWooResult(PirnOpaqueValue):
+class ReWooResult(AgentResult):
     """Outcome of a ReWOO plan-execute-synthesise run.
 
     Attributes

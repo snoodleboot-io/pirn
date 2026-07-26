@@ -37,13 +37,14 @@ from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.multi_agent.orchestrator_router import (
     OrchestratorRouter,
 )
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
-class OrchestratorAgent(SubTapestry):
+class OrchestratorAgent(AgentPipeline):
     """Routes a task to one of a registered specialist :class:`SubTapestry`."""
 
     def __init__(

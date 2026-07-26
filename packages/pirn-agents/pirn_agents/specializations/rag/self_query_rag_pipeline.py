@@ -21,17 +21,17 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
 from pirn_agents.retrieval.vector_stores.vector_memory_store import VectorMemoryStore
+from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.rag.rag_synthesizer import RAGSynthesizer
 from pirn_agents.specializations.rag.self_query_filter_extractor import SelfQueryFilterExtractor
 from pirn_agents.specializations.rag.self_query_retriever import SelfQueryRetriever
 
 
-class SelfQueryRagPipeline(SubTapestry):
+class SelfQueryRagPipeline(AgentPipeline):
     """Extract a metadata filter, retrieve under it, then synthesize an answer."""
 
     def __init__(

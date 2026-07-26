@@ -27,11 +27,11 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.source import Source
-from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
 from pirn_agents.control.reflection_check import ReflectionCheck
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.evaluator_optimizer.accept_gate import AcceptGate
 from pirn_agents.specializations.evaluator_optimizer.candidate_generator import CandidateGenerator
 from pirn_agents.specializations.evaluator_optimizer.evaluator_optimizer_result import (
@@ -42,7 +42,7 @@ from pirn_agents.specializations.evaluator_optimizer.llm_judge import LlmJudge
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
-class EvaluatorOptimizerPipeline(SubTapestry):
+class EvaluatorOptimizerPipeline(AgentPipeline):
     """Generate → judge → accept loop with a scored gate."""
 
     def __init__(

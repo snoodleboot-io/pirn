@@ -31,16 +31,16 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.source import Source
-from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.structured_output._yaml_extractor_attempt import (
     _YamlExtractorAttempt,
 )
 
 
-class YamlExtractorPipeline(SubTapestry):
+class YamlExtractorPipeline(AgentPipeline):
     """LLM-driven structured YAML extraction with self-correcting retries."""
 
     def __init__(

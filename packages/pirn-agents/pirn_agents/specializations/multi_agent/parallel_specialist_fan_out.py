@@ -28,13 +28,14 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.sub_tapestry import SubTapestry
 
+from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.multi_agent.specialist_fan_out_collector import (
     SpecialistFanOutCollector,
 )
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
-class ParallelSpecialistFanOut(SubTapestry):
+class ParallelSpecialistFanOut(AgentPipeline):
     """Runs every registered specialist concurrently on the same task."""
 
     def __init__(

@@ -35,10 +35,10 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
+from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.rag.corrective_router import (
     CorrectiveRouter,
 )
@@ -58,7 +58,7 @@ from pirn_agents.specializations.rag.relevance_check import (
 from pirn_agents.tools.tool import Tool
 
 
-class CorrectiveRAGPipeline(SubTapestry):
+class CorrectiveRAGPipeline(AgentPipeline):
     """RAG variant that falls back to a web-search tool on weak retrieval."""
 
     def __init__(

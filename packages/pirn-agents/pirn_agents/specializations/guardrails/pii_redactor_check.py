@@ -30,15 +30,15 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.sub_tapestry import SubTapestry
 
+from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.guardrails.pii_response_redactor import (
     PIIResponseRedactor,
 )
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
-class PiiRedactorCheck(SubTapestry):
+class PiiRedactorCheck(AgentPipeline):
     """Standalone PII redactor for use after the LLM call."""
 
     _default_patterns: tuple[str, ...] = (

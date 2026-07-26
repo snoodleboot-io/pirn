@@ -39,16 +39,16 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.security._safe_pattern_compiler import SafePatternCompiler
+from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.guardrails.input_message_scrubber import (
     InputMessageScrubber,
 )
 from pirn_agents.types.messaging.agent_message import AgentMessage
 
 
-class InputGuardrailGate(SubTapestry):
+class InputGuardrailGate(AgentPipeline):
     """Pre-prompt deny + PII redaction gate over agent messages."""
 
     def __init__(

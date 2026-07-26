@@ -29,13 +29,13 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.sub_tapestry import SubTapestry
 
+from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.multi_agent._response_echo import _ResponseEcho
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
-class RoundRobinReview(SubTapestry):
+class RoundRobinReview(AgentPipeline):
     """Pass a draft response sequentially through N reviewer agents."""
 
     def __init__(

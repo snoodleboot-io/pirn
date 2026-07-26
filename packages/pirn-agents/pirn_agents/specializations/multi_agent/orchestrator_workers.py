@@ -33,8 +33,8 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.source import Source
-from pirn.nodes.sub_tapestry import SubTapestry
 
+from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.multi_agent.orchestrator_workers_result import (
     OrchestratorWorkersResult,
 )
@@ -44,7 +44,7 @@ from pirn_agents.tools.tool_result import ToolResult
 from pirn_agents.tools.tool_status import ToolStatus
 
 
-class OrchestratorWorkers(SubTapestry):
+class OrchestratorWorkers(AgentPipeline):
     """Dynamically spawn one bounded worker per task, via F7 agents-as-tools."""
 
     def __init__(
