@@ -34,10 +34,10 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
+from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.rag.llm_chat_call import LLMChatCall
 from pirn_agents.specializations.rag.memory_search_retriever import (
     MemorySearchRetriever,
@@ -53,7 +53,7 @@ from pirn_agents.specializations.rag.sub_graph_context_builder import (
 )
 
 
-class GraphRAGPipeline(SubTapestry):
+class GraphRAGPipeline(AgentPipeline):
     """Graph-shaped RAG pipeline returning an :class:`AgentResponse`."""
 
     _retrieval_top_k: int = 25

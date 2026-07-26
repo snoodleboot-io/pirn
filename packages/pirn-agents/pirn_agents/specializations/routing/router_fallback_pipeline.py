@@ -27,14 +27,14 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.sub_tapestry import SubTapestry
 
+from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.routing.candidate_router import CandidateRouter
 from pirn_agents.specializations.routing.fallback_chain import FallbackChain
 from pirn_agents.specializations.routing.route_candidate import RouteCandidate
 
 
-class RouterFallbackPipeline(SubTapestry):
+class RouterFallbackPipeline(AgentPipeline):
     """Confidence router + typed fallback chain over :class:`RouteCandidate`s."""
 
     def __init__(

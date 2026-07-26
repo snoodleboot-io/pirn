@@ -5,11 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from pirn.core.pirn_opaque_value import PirnOpaqueValue
+from pirn_agents.specializations.base.agent_result import AgentResult
 
 
 @dataclass(frozen=True)
-class LatsResult(PirnOpaqueValue):
+class LatsResult(AgentResult):
     """Outcome of a budget-bounded LATS search.
 
     Attributes

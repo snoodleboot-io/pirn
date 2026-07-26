@@ -37,10 +37,10 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
+from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.document_processing._document_source_reader import (
     _DocumentSourceReader,
 )
@@ -52,7 +52,7 @@ from pirn_agents.specializations.document_processing._qa_retrieve_and_answer imp
 )
 
 
-class DocumentQAPipeline(SubTapestry):
+class DocumentQAPipeline(AgentPipeline):
     """Question-answer over a single document; returns :class:`AgentResponse`."""
 
     _default_chunk_size: int = 1000

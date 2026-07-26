@@ -5,13 +5,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from pirn.core.pirn_opaque_value import PirnOpaqueValue
-
+from pirn_agents.specializations.base.agent_result import AgentResult
 from pirn_agents.tools.tool_result import ToolResult
 
 
 @dataclass(frozen=True)
-class FallbackResult(PirnOpaqueValue):
+class FallbackResult(AgentResult):
     """Outcome of dispatching through a confidence-ordered fallback chain.
 
     Attributes

@@ -30,9 +30,9 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.specialized_agents._code_generator import (
     _CodeGenerator,
 )
@@ -44,7 +44,7 @@ from pirn_agents.specializations.specialized_agents._code_response_formatter imp
 )
 
 
-class CodeAgent(SubTapestry):
+class CodeAgent(AgentPipeline):
     """LLM code generation with lint pass; test execution is stubbed."""
 
     def __init__(

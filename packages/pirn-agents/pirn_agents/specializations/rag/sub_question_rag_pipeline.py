@@ -23,16 +23,16 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
+from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.rag.rag_synthesizer import RAGSynthesizer
 from pirn_agents.specializations.rag.sub_question_decomposer import SubQuestionDecomposer
 from pirn_agents.specializations.rag.sub_question_retriever import SubQuestionRetriever
 
 
-class SubQuestionRagPipeline(SubTapestry):
+class SubQuestionRagPipeline(AgentPipeline):
     """Decompose the query, retrieve per sub-question, then synthesize one answer."""
 
     def __init__(

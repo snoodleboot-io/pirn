@@ -26,11 +26,11 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.source import Source
-from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
+from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.reflexion.reflexion_actor import ReflexionActor
 from pirn_agents.specializations.reflexion.reflexion_attempt import ReflexionAttempt
 from pirn_agents.specializations.reflexion.reflexion_evaluator import ReflexionEvaluator
@@ -38,7 +38,7 @@ from pirn_agents.specializations.reflexion.reflexion_reflector import ReflexionR
 from pirn_agents.specializations.reflexion.reflexion_result import ReflexionResult
 
 
-class ReflexionPipeline(SubTapestry):
+class ReflexionPipeline(AgentPipeline):
     """Memory-backed actor/evaluator/reflection retry loop."""
 
     def __init__(

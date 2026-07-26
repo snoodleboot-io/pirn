@@ -30,9 +30,9 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.multi_agent.consensus_strategy import ConsensusStrategy
 from pirn_agents.specializations.multi_agent.llm_synthesis_strategy import (
     LlmSynthesisStrategy,
@@ -43,7 +43,7 @@ from pirn_agents.specializations.multi_agent.majority_vote_strategy import (
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
-class ConsensusAggregator(SubTapestry):
+class ConsensusAggregator(AgentPipeline):
     """Reduces specialist responses to one :class:`AgentResponse`."""
 
     def __init__(

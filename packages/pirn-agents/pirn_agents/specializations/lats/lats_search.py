@@ -31,20 +31,20 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.source import Source
-from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.performance.budget_breach_error import BudgetBreachError
 from pirn_agents.performance.run_budget import RunBudget
 from pirn_agents.performance.run_budget_meter import RunBudgetMeter
+from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.lats.lats_action_proposer import LatsActionProposer
 from pirn_agents.specializations.lats.lats_node import LatsNode
 from pirn_agents.specializations.lats.lats_result import LatsResult
 from pirn_agents.specializations.lats.trajectory_value_model import TrajectoryValueModel
 
 
-class LatsSearch(SubTapestry):
+class LatsSearch(AgentPipeline):
     """Budget-bounded best-first search over LLM-proposed action trajectories."""
 
     def __init__(

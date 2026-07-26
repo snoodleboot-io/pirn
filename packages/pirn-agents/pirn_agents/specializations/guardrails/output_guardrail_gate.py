@@ -30,15 +30,15 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.sub_tapestry import SubTapestry
 
+from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.guardrails.output_response_validator import (
     OutputResponseValidator,
 )
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
-class OutputGuardrailGate(SubTapestry):
+class OutputGuardrailGate(AgentPipeline):
     """Post-LLM deny + tool-allowlist gate over an :class:`AgentResponse`."""
 
     def __init__(

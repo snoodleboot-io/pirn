@@ -35,10 +35,10 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
+from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.document_processing._chunk_embedder_store import (
     _ChunkEmbedderStore,
 )
@@ -53,7 +53,7 @@ from pirn_agents.specializations.document_processing._document_source_reader imp
 )
 
 
-class DocumentIngestionPipeline(SubTapestry):
+class DocumentIngestionPipeline(AgentPipeline):
     """Load → chunk → embed → store; returns the number of chunks stored."""
 
     def __init__(

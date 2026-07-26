@@ -34,11 +34,11 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.source import Source
-from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
+from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.rag.llm_chat_call import LLMChatCall
 from pirn_agents.specializations.rag.memory_search_retriever import (
     MemorySearchRetriever,
@@ -52,7 +52,7 @@ from pirn_agents.specializations.rag.rag_response_builder import (
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
-class AdaptiveRAGPipeline(SubTapestry):
+class AdaptiveRAGPipeline(AgentPipeline):
     """Classify query complexity, then route to naive RAG, multi-hop RAG, or direct LLM."""
 
     def __init__(

@@ -29,8 +29,8 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.sub_tapestry import SubTapestry
 
+from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.document_processing._ingestion_runner import _IngestionRunner
 from pirn_agents.specializations.document_processing.chunking.chunking_strategy import (
     ChunkingStrategy,
@@ -44,7 +44,7 @@ from pirn_agents.specializations.document_processing.sources.source_connector im
 )
 
 
-class IngestionPipeline(SubTapestry):
+class IngestionPipeline(AgentPipeline):
     """Compose source → load → chunk → incremental upsert; return an :class:`IngestionReport`."""
 
     def __init__(

@@ -23,14 +23,14 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.source import Source
-from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.specializations.self_ask.self_ask_result import SelfAskResult
 
 
-class SelfAskPipeline(SubTapestry):
+class SelfAskPipeline(AgentPipeline):
     """Decompose a task into sub-questions, answer each, then compose."""
 
     def __init__(
