@@ -36,7 +36,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
-from pirn_agents.rerank.reranker_backend import RerankerBackend
+from pirn_agents.retrieval.rerank.reranker_backend import RerankerBackend
 
 
 class Reranker(Knot):
@@ -44,7 +44,7 @@ class Reranker(Knot):
 
     Two interchangeable scoring backings are supported: the default LLM path
     (score each document with an :class:`LLMProvider`) and a provider-neutral
-    :class:`~pirn_agents.rerank.reranker_backend.RerankerBackend` (e.g. the
+    :class:`~pirn_agents.retrieval.rerank.reranker_backend.RerankerBackend` (e.g. the
     cross-encoder adapter) injected via ``reranker``. Exactly one of ``llm`` or
     ``reranker`` must be supplied.
     """

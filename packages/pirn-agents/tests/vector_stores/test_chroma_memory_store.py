@@ -13,8 +13,8 @@ import unittest
 
 import pytest
 
-from pirn_agents.vector_stores.chroma_memory_store import ChromaMemoryStore
-from pirn_agents.vector_stores.vector_memory_store import VectorMemoryStore
+from pirn_agents.retrieval.vector_stores.chroma_memory_store import ChromaMemoryStore
+from pirn_agents.retrieval.vector_stores.vector_memory_store import VectorMemoryStore
 from tests.vector_stores.conformance import (
     FakeVectorBackendClient,
     FixedEmbedder,
@@ -50,7 +50,7 @@ class TestChromaStoreSpecifics(unittest.IsolatedAsyncioTestCase):
 class TestChromaRealBackend(unittest.IsolatedAsyncioTestCase):
     async def test_conformance_against_real_chroma(self) -> None:
         pytest.importorskip("chromadb")
-        from pirn_agents.vector_stores.vector_record import VectorRecord
+        from pirn_agents.retrieval.vector_stores.vector_record import VectorRecord
 
         store = ChromaMemoryStore(collection="pirn_conf")
         await store.upsert([VectorRecord.create(id="a", vector=[1.0, 0.0, 0.0])])

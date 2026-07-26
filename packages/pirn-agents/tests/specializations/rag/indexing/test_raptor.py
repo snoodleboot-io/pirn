@@ -8,10 +8,10 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
+from pirn_agents.retrieval.vector_stores.in_memory_vector_store import InMemoryVectorStore
 from pirn_agents.specializations.rag.indexing.raptor_retriever import RaptorRetriever
 from pirn_agents.specializations.rag.indexing.raptor_tree import RaptorTree
 from pirn_agents.specializations.rag.indexing.raptor_tree_builder import RaptorTreeBuilder
-from pirn_agents.vector_stores.in_memory_vector_store import InMemoryVectorStore
 from tests.specializations.conftest import StubEmbeddingProvider, StubLLMProvider
 
 _DOC = "aaaaaaaaaa bbbbbbbbbb cccccccccc dddddddddd"

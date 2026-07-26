@@ -16,8 +16,8 @@ from unittest.mock import patch
 
 import pytest
 
-from pirn_agents.graph_stores.graph_store import GraphStore
-from pirn_agents.graph_stores.neo4j_graph_store import Neo4jGraphStore
+from pirn_agents.retrieval.graph_stores.graph_store import GraphStore
+from pirn_agents.retrieval.graph_stores.neo4j_graph_store import Neo4jGraphStore
 from tests.graph_stores.conformance import FakeGraphBackendClient, GraphStoreConformance
 
 
@@ -56,7 +56,7 @@ class TestNeo4jRealBackend(unittest.IsolatedAsyncioTestCase):
         uri = os.environ.get("PIRN_TEST_NEO4J_URL")
         if not uri:
             self.skipTest("PIRN_TEST_NEO4J_URL not set")
-        from pirn_agents.graph_stores.graph_node import GraphNode
+        from pirn_agents.retrieval.graph_stores.graph_node import GraphNode
 
         store = Neo4jGraphStore(uri=uri)
         await store.upsert_nodes([GraphNode.create(id="a", type="Person")])

@@ -11,9 +11,9 @@ import unittest
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
-from pirn_agents.vector_stores.chroma_backend_client import ChromaBackendClient
-from pirn_agents.vector_stores.qdrant_backend_client import QdrantBackendClient
-from pirn_agents.vector_stores.vector_backend_client import VectorBackendClient
+from pirn_agents.retrieval.vector_stores.chroma_backend_client import ChromaBackendClient
+from pirn_agents.retrieval.vector_stores.qdrant_backend_client import QdrantBackendClient
+from pirn_agents.retrieval.vector_stores.vector_backend_client import VectorBackendClient
 
 
 class TestVectorBackendClientContract(unittest.IsolatedAsyncioTestCase):

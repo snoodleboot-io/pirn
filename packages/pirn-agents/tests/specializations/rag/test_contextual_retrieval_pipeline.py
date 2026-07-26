@@ -10,7 +10,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
-from pirn_agents.rerank.reranker_backend import RerankerBackend
+from pirn_agents.retrieval.rerank.reranker_backend import RerankerBackend
 from pirn_agents.specializations.rag.contextual_retrieval_pipeline import (
     ContextualRetrievalPipeline,
 )

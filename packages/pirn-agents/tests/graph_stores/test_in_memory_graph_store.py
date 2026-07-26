@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import unittest
 
-from pirn_agents.graph_stores.graph_edge import GraphEdge
-from pirn_agents.graph_stores.graph_node import GraphNode
-from pirn_agents.graph_stores.graph_store import GraphStore
-from pirn_agents.graph_stores.in_memory_graph_store import InMemoryGraphStore
+from pirn_agents.retrieval.graph_stores.graph_edge import GraphEdge
+from pirn_agents.retrieval.graph_stores.graph_node import GraphNode
+from pirn_agents.retrieval.graph_stores.graph_store import GraphStore
+from pirn_agents.retrieval.graph_stores.in_memory_graph_store import InMemoryGraphStore
 from tests.graph_stores.conformance import GraphStoreConformance
 
 

@@ -25,9 +25,9 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents.embeddings.embedding_provider import EmbeddingProvider
-from pirn_agents.vector_stores.vector_memory_store import VectorMemoryStore
-from pirn_agents.vector_stores.vector_record import VectorRecord
+from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
+from pirn_agents.retrieval.vector_stores.vector_memory_store import VectorMemoryStore
+from pirn_agents.retrieval.vector_stores.vector_record import VectorRecord
 
 
 class _ParentChildIndexer(Knot):

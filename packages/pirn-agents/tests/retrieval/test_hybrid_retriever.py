@@ -10,8 +10,8 @@ from pirn.tapestry import Tapestry
 
 from pirn_agents.retrieval.bm25_index import Bm25Index
 from pirn_agents.retrieval.hybrid_retriever import HybridRetriever
-from pirn_agents.vector_stores.in_memory_vector_store import InMemoryVectorStore
-from pirn_agents.vector_stores.vector_record import VectorRecord
+from pirn_agents.retrieval.vector_stores.in_memory_vector_store import InMemoryVectorStore
+from pirn_agents.retrieval.vector_stores.vector_record import VectorRecord
 from tests.vector_stores.conformance import FixedEmbedder
 
 

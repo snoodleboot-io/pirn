@@ -12,7 +12,7 @@ import unittest
 
 import pytest
 
-from pirn_agents.rerank.cross_encoder_reranker import CrossEncoderReranker
+from pirn_agents.retrieval.rerank.cross_encoder_reranker import CrossEncoderReranker
 
 
 class StubCrossEncoder:

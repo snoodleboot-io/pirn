@@ -14,7 +14,7 @@ from typing import Any
 
 import pytest
 
-from pirn_agents.embeddings.base_embedding_provider import BaseEmbeddingProvider
+from pirn_agents.retrieval.embeddings.base_embedding_provider import BaseEmbeddingProvider
 
 
 class CountingProvider(BaseEmbeddingProvider):

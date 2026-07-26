@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import unittest
 
-from pirn_agents.graph_stores.graph_edge import GraphEdge
-from pirn_agents.graph_stores.graph_neighbor import GraphNeighbor
-from pirn_agents.graph_stores.graph_node import GraphNode
+from pirn_agents.retrieval.graph_stores.graph_edge import GraphEdge
+from pirn_agents.retrieval.graph_stores.graph_neighbor import GraphNeighbor
+from pirn_agents.retrieval.graph_stores.graph_node import GraphNode
 
 
 class TestGraphNeighbor(unittest.TestCase):

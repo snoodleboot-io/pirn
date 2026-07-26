@@ -14,8 +14,8 @@ import time
 import numpy as np
 import pytest
 
-from pirn_agents.vector_stores.in_memory_vector_store import InMemoryVectorStore
-from pirn_agents.vector_stores.vector_record import VectorRecord
+from pirn_agents.retrieval.vector_stores.in_memory_vector_store import InMemoryVectorStore
+from pirn_agents.retrieval.vector_stores.vector_record import VectorRecord
 
 
 async def _seed(store: InMemoryVectorStore, n: int, dim: int) -> None:

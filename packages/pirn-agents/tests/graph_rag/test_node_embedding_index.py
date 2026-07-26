@@ -11,8 +11,8 @@ import unittest
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
-from pirn_agents.graph_rag.graph_embedding_index import GraphEmbeddingIndex
-from pirn_agents.graph_rag.node_embedding_index import NodeEmbeddingIndex
+from pirn_agents.retrieval.graph_rag.graph_embedding_index import GraphEmbeddingIndex
+from pirn_agents.retrieval.graph_rag.node_embedding_index import NodeEmbeddingIndex
 
 
 class TestNodeEmbeddingIndexContract(unittest.IsolatedAsyncioTestCase):

@@ -14,8 +14,8 @@ import unittest
 
 import pytest
 
-from pirn_agents.vector_stores.qdrant_memory_store import QdrantMemoryStore
-from pirn_agents.vector_stores.vector_memory_store import VectorMemoryStore
+from pirn_agents.retrieval.vector_stores.qdrant_memory_store import QdrantMemoryStore
+from pirn_agents.retrieval.vector_stores.vector_memory_store import VectorMemoryStore
 from tests.vector_stores.conformance import (
     FakeVectorBackendClient,
     FixedEmbedder,
@@ -54,7 +54,7 @@ class TestQdrantRealBackend(unittest.IsolatedAsyncioTestCase):
         url = os.environ.get("PIRN_TEST_QDRANT_URL")
         if not url:
             self.skipTest("PIRN_TEST_QDRANT_URL not set")
-        from pirn_agents.vector_stores.vector_record import VectorRecord
+        from pirn_agents.retrieval.vector_stores.vector_record import VectorRecord
 
         store = QdrantMemoryStore(collection="pirn_conf", dimension=3, url=url)
         await store.upsert([VectorRecord.create(id="a", vector=[1.0, 0.0, 0.0])])

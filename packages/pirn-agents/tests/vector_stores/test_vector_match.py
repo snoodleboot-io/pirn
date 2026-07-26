@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 import unittest
 
-from pirn_agents.vector_stores.vector_match import VectorMatch
+from pirn_agents.retrieval.vector_stores.vector_match import VectorMatch
 
 
 class TestVectorMatch(unittest.TestCase):

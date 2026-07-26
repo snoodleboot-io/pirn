@@ -13,9 +13,9 @@ import time
 
 import pytest
 
-from pirn_agents.graph_stores.graph_edge import GraphEdge
-from pirn_agents.graph_stores.graph_node import GraphNode
-from pirn_agents.graph_stores.in_memory_graph_store import InMemoryGraphStore
+from pirn_agents.retrieval.graph_stores.graph_edge import GraphEdge
+from pirn_agents.retrieval.graph_stores.graph_node import GraphNode
+from pirn_agents.retrieval.graph_stores.in_memory_graph_store import InMemoryGraphStore
 
 
 @pytest.mark.benchmark

@@ -18,8 +18,8 @@ import unittest
 import numpy as np
 import pytest
 
-from pirn_agents.vector_stores.pgvector_memory_store import PgvectorMemoryStore
-from pirn_agents.vector_stores.vector_memory_store import VectorMemoryStore
+from pirn_agents.retrieval.vector_stores.pgvector_memory_store import PgvectorMemoryStore
+from pirn_agents.retrieval.vector_stores.vector_memory_store import VectorMemoryStore
 from tests.vector_stores.conformance import FixedEmbedder, VectorStoreConformance
 
 
@@ -146,7 +146,7 @@ class TestPgvectorSqlBuilders(unittest.TestCase):
 
 class TestPgvectorBatching(unittest.IsolatedAsyncioTestCase):
     async def test_upsert_batches_use_executemany(self) -> None:
-        from pirn_agents.vector_stores.vector_record import VectorRecord
+        from pirn_agents.retrieval.vector_stores.vector_record import VectorRecord
 
         pool = FakePgPool()
         store = PgvectorMemoryStore(dsn="postgresql://x", dimension=2, batch_size=2, pool=pool)
@@ -169,7 +169,7 @@ class TestPgvectorRealBackend(unittest.IsolatedAsyncioTestCase):
         if not dsn:
             self.skipTest("PIRN_TEST_PGVECTOR_URL not set")
         store = PgvectorMemoryStore(dsn=dsn, dimension=3, embedder=FixedEmbedder([1.0, 0.0, 0.0]))
-        from pirn_agents.vector_stores.vector_record import VectorRecord
+        from pirn_agents.retrieval.vector_stores.vector_record import VectorRecord
 
         await store.upsert([VectorRecord.create(id="a", vector=[1.0, 0.0, 0.0])])
         matches = await store.query([1.0, 0.0, 0.0], top_k=1)
