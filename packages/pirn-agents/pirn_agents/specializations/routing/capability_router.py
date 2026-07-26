@@ -28,10 +28,11 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents.interfaces.router import Router
 from pirn_agents.llm.llm_provider import LLMProvider
 
 
-class CapabilityRouter(Knot):
+class CapabilityRouter(Router):
     """Use LLM to select the best-fit agent from a capability description map."""
 
     def __init__(

@@ -20,10 +20,11 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents.interfaces.retriever import Retriever
 from pirn_agents.memory.stores.memory_store import MemoryStore
 
 
-class MemoryRetriever(Knot):
+class MemoryRetriever(Retriever):
     """Retrieves the value previously stored under ``key``.
 
     Raises :class:`KeyError` when the key is not present so callers

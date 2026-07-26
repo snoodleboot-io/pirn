@@ -24,10 +24,11 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents.interfaces.router import Router
 from pirn_agents.specializations.routing.route_candidate import RouteCandidate
 
 
-class CandidateRouter(Knot):
+class CandidateRouter(Router):
     """Order typed :class:`RouteCandidate`s best-first by confidence."""
 
     def __init__(

@@ -19,11 +19,12 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents.interfaces.retriever import Retriever
 from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
 from pirn_agents.retrieval.vector_stores.vector_memory_store import VectorMemoryStore
 
 
-class SentenceWindowRetriever(Knot):
+class SentenceWindowRetriever(Retriever):
     """Match precise sentences and return their surrounding windows."""
 
     def __init__(

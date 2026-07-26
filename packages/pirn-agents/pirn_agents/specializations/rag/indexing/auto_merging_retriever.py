@@ -25,12 +25,13 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents.interfaces.retriever import Retriever
 from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
 from pirn_agents.retrieval.vector_stores.vector_match import VectorMatch
 from pirn_agents.retrieval.vector_stores.vector_memory_store import VectorMemoryStore
 
 
-class AutoMergingRetriever(Knot):
+class AutoMergingRetriever(Retriever):
     """Retrieve leaves and merge them up to their parent past a threshold."""
 
     def __init__(

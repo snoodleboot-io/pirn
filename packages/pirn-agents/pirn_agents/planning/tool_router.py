@@ -22,11 +22,12 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents.interfaces.router import Router
 from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_call import ToolCall
 
 
-class ToolRouter(Knot):
+class ToolRouter(Router):
     """Routes a single plan step to one of the registered :class:`Tool`s.
 
     A tool is selected when its ``name`` (case-insensitive) appears as

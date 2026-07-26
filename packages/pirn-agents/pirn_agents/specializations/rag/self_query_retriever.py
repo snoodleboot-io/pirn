@@ -22,11 +22,12 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents.interfaces.retriever import Retriever
 from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
 from pirn_agents.retrieval.vector_stores.vector_memory_store import VectorMemoryStore
 
 
-class SelfQueryRetriever(Knot):
+class SelfQueryRetriever(Retriever):
     """Embed the semantic query and search under the extracted metadata filter."""
 
     def __init__(

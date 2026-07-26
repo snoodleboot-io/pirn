@@ -29,10 +29,11 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents.interfaces.router import Router
 from pirn_agents.tools.tool import Tool
 
 
-class CorrectiveRouter(Knot):
+class CorrectiveRouter(Router):
     """Forward relevant docs, or invoke ``fallback_tool`` when none qualify."""
 
     def __init__(

@@ -23,10 +23,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from pirn.core.knot import Knot
+from pirn_agents.interfaces.writer import Writer
 
 
-class MemoryWriterBase(Knot):
+class MemoryWriterBase(Writer):
     """Abstract base for knots that persist state into a ``MemoryStore``.
 
     Concrete writers subclass this and override :meth:`process` with their own
