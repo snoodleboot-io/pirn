@@ -33,22 +33,18 @@ from pirn.core.knot_config import KnotConfig
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.llm_provider import LLMProvider
-from pirn_agents.specializations.multi_agent.consensus_majority_vote_picker import (
-    ConsensusMajorityVotePicker,
+from pirn_agents.specializations.multi_agent.consensus_strategy import ConsensusStrategy
+from pirn_agents.specializations.multi_agent.llm_synthesis_strategy import (
+    LlmSynthesisStrategy,
 )
-from pirn_agents.specializations.multi_agent.consensus_synthesis_caller import (
-    ConsensusSynthesisCaller,
+from pirn_agents.specializations.multi_agent.majority_vote_strategy import (
+    MajorityVoteStrategy,
 )
 from pirn_agents.types.agent_response import AgentResponse
 
 
 class ConsensusAggregator(SubTapestry):
     """Reduces specialist responses to one :class:`AgentResponse`."""
-
-    _supported_strategies: tuple[str, ...] = (
-        "majority_vote",
-        "llm_synthesis",
-    )
 
     def __init__(
         self,
@@ -83,23 +79,28 @@ class ConsensusAggregator(SubTapestry):
             raise TypeError(
                 f"ConsensusAggregator: llm must be an LLMProvider, got {type(llm).__name__}"
             )
-        if strategy not in self._supported_strategies:
+        strategies = self._consensus_strategies()
+        supported = tuple(candidate.name() for candidate in strategies)
+        if strategy not in supported:
             raise ValueError(
-                "ConsensusAggregator: strategy must be one of "
-                f"{self._supported_strategies!r}, got {strategy!r}"
+                f"ConsensusAggregator: strategy must be one of {supported!r}, got {strategy!r}"
             )
         if not isinstance(responses, Mapping) or not responses:
             raise ValueError("ConsensusAggregator: responses must be a non-empty mapping")
-        if strategy == "majority_vote":
-            return ConsensusMajorityVotePicker(
-                responses=dict(responses),
-                _config=KnotConfig(id="consensus"),
-            )
-        return ConsensusSynthesisCaller(
-            responses=dict(responses),
-            llm=llm,
-            _config=KnotConfig(id="consensus"),
-        )
+        for candidate in strategies:
+            if candidate.matches(strategy):
+                return candidate.build(responses=responses, llm=llm)
+        # Unreachable — strategy was validated against the same tuple above.
+        raise ValueError(f"ConsensusAggregator: no strategy matched {strategy!r}")
+
+    @staticmethod
+    def _consensus_strategies() -> tuple[ConsensusStrategy, ...]:
+        """Return the ordered consensus mechanisms.
+
+        A new mechanism is a new :class:`ConsensusStrategy` subclass appended
+        here — the dispatch loop in :meth:`process` never changes (OCP).
+        """
+        return (MajorityVoteStrategy(), LlmSynthesisStrategy())
 
     @staticmethod
     def _fallback(

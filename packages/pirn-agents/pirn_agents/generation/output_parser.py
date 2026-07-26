@@ -22,6 +22,9 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents.generation.content_block_handler import ContentBlockHandler
+from pirn_agents.generation.text_block_handler import TextBlockHandler
+from pirn_agents.generation.tool_use_block_handler import ToolUseBlockHandler
 from pirn_agents.types.agent_response import AgentResponse
 from pirn_agents.types.tool_call import ToolCall
 
@@ -105,27 +108,32 @@ class OutputParser(Knot):
         self,
         blocks: list[Any],
     ) -> tuple[str, tuple[ToolCall, ...]]:
+        handlers = self._block_handlers()
         text_parts: list[str] = []
         tool_calls: list[ToolCall] = []
         for block in blocks:
             if not isinstance(block, Mapping):
                 continue
-            block_type = block.get("type")
-            if block_type == "text" and isinstance(block.get("text"), str):
-                text_parts.append(block["text"])
-            elif block_type == "tool_use":
-                call_id = block.get("id") or block.get("call_id") or ""
-                tool_name = block.get("name") or ""
-                arguments = block.get("input") or block.get("arguments") or {}
-                if isinstance(arguments, Mapping):
-                    tool_calls.append(
-                        ToolCall(
-                            tool_name=str(tool_name),
-                            arguments=dict(arguments),
-                            call_id=str(call_id),
-                        )
-                    )
+            for handler in handlers:
+                contribution = handler.try_handle(block)
+                if contribution is None:
+                    continue
+                if contribution.text is not None:
+                    text_parts.append(contribution.text)
+                if contribution.tool_call is not None:
+                    tool_calls.append(contribution.tool_call)
+                break
         return "".join(text_parts), tuple(tool_calls)
+
+    @staticmethod
+    def _block_handlers() -> tuple[ContentBlockHandler, ...]:
+        """Return the ordered content-block handlers.
+
+        Support for a new block ``type`` is a new :class:`ContentBlockHandler`
+        subclass appended here — the loop in :meth:`_coerce_blocks` never
+        changes (OCP).
+        """
+        return (TextBlockHandler(), ToolUseBlockHandler())
 
     def _extract_finish_reason(self, response: Mapping[str, Any]) -> str:
         for key in ("stop_reason", "finish_reason"):

@@ -18,26 +18,29 @@ fallback. The convenience :func:`structured_decode` wraps a one-shot decode.
 
 from __future__ import annotations
 
-import json
-from typing import Any
-
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
 
 from pirn_agents.llm_provider import LLMProvider
-from pirn_agents.specializations.structured_output.constrained_decoding_mapper import (
-    ConstrainedDecodingMapper,
+from pirn_agents.specializations.structured_output.constrained_decoding_strategy import (
+    ConstrainedDecodingStrategy,
 )
-from pirn_agents.specializations.structured_output.forced_tool_choice_extractor import (
-    ForcedToolChoiceExtractor,
+from pirn_agents.specializations.structured_output.forced_tool_choice_strategy import (
+    ForcedToolChoiceStrategy,
 )
-from pirn_agents.specializations.structured_output.native_schema_mapper import (
-    NativeSchemaMapper,
+from pirn_agents.specializations.structured_output.native_decode_strategy import (
+    NativeDecodeStrategy,
+)
+from pirn_agents.specializations.structured_output.native_schema_strategy import (
+    NativeSchemaStrategy,
 )
 from pirn_agents.specializations.structured_output.pydantic_validator_pipeline import (
     PydanticValidatorPipeline,
+)
+from pirn_agents.specializations.structured_output.structured_content_validator import (
+    StructuredContentValidator,
 )
 from pirn_agents.specializations.structured_output.structured_decode_error import (
     StructuredDecodeError,
@@ -84,6 +87,15 @@ class StructuredDecoder:
         self._model_class = model_class
         self._max_retries = max_retries
         self._tool_name = tool_name
+        validator = StructuredContentValidator(model_class=model_class)
+        # Ordered by capability precedence: native_schema → forced_tool_choice →
+        # constrained_decoding. A new mechanism is a new NativeDecodeStrategy
+        # subclass appended here — the selection loop never changes (OCP).
+        self._native_paths: tuple[NativeDecodeStrategy, ...] = (
+            NativeSchemaStrategy(model_class=model_class, validator=validator),
+            ForcedToolChoiceStrategy(model_class=model_class, tool_name=tool_name),
+            ConstrainedDecodingStrategy(model_class=model_class, validator=validator),
+        )
 
     async def decode(self, *, prompt: str, llm: LLMProvider) -> BaseModel:
         """Decode ``prompt`` into a validated model instance.
@@ -121,58 +133,14 @@ class StructuredDecoder:
         self, prompt: str, provider: StructuredOutputProvider
     ) -> BaseModel | None:
         capability = provider.structured_output_capability()
-        if capability.native_schema:
+        for strategy in self._native_paths:
+            if not strategy.is_advertised(capability):
+                continue
             try:
-                return await self._decode_native(prompt, provider)
+                return await strategy.try_decode(prompt=prompt, provider=provider)
             except StructuredDecodeError:
-                pass
-        if capability.forced_tool_choice:
-            try:
-                return await ForcedToolChoiceExtractor(
-                    model_class=self._model_class, tool_name=self._tool_name
-                ).extract(prompt=prompt, provider=provider)
-            except StructuredDecodeError:
-                pass
-        if capability.constrained_decoding:
-            try:
-                return await self._decode_constrained(prompt, provider)
-            except StructuredDecodeError:
-                pass
+                continue
         return None
-
-    async def _decode_native(self, prompt: str, provider: StructuredOutputProvider) -> BaseModel:
-        options = NativeSchemaMapper(schema=self._model_class).map_request(provider)
-        if options is None:
-            raise StructuredDecodeError("StructuredDecoder: native schema mapping unsupported")
-        response = await provider.structured_chat(
-            [{"role": "user", "content": prompt}], request_options=options
-        )
-        return self._validate_content(response.content)
-
-    async def _decode_constrained(
-        self, prompt: str, provider: StructuredOutputProvider
-    ) -> BaseModel:
-        options = ConstrainedDecodingMapper(schema=self._model_class).map_request(provider)
-        if options is None:
-            raise StructuredDecodeError("StructuredDecoder: constrained decoding unsupported")
-        response = await provider.structured_chat(
-            [{"role": "user", "content": prompt}], request_options=options
-        )
-        return self._validate_content(response.content)
-
-    def _validate_content(self, content: str) -> BaseModel:
-        try:
-            data: Any = json.loads(content)
-        except (json.JSONDecodeError, ValueError) as exc:
-            raise StructuredDecodeError(
-                f"StructuredDecoder: native content was not valid JSON: {exc}"
-            ) from exc
-        try:
-            return self._model_class.model_validate(data)
-        except ValidationError as exc:
-            raise StructuredDecodeError(
-                f"StructuredDecoder: native content failed model validation: {exc}"
-            ) from exc
 
     async def _fallback(self, prompt: str, llm: LLMProvider) -> BaseModel:
         with Tapestry() as tapestry:
