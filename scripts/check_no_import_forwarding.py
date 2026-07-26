@@ -30,6 +30,22 @@ primitives behind a "users may import from pirn directly" contract; PIR-744
 resolved that contradiction by stripping the façade, so the convention now applies
 uniformly across every package with no exemptions. Add an entry only with a named,
 reviewed justification.
+
+CLI contract
+------------
+Arguments may be individual files (how pre-commit invokes this, one path per
+changed file) or directories, which are walked for ``__init__.py`` (how CI
+invokes it, e.g. ``packages/``). Exit codes:
+
+* ``0`` — files were scanned and no forwarding was found.
+* ``1`` — forwarding violations found (listed on stdout).
+* ``2`` — the invocation itself was unusable: a path that does not exist, a
+  non-Python file, no arguments, or a set of paths matching zero ``__init__.py``.
+
+The last case matters: an earlier version silently dropped any argument not
+ending in ``.py``, so ``check_no_import_forwarding.py packages/`` scanned nothing
+and exited ``0``. A gate that passes vacuously is worse than no gate, so a scan
+that checked nothing is now an error.
 """
 
 from __future__ import annotations
@@ -130,8 +146,60 @@ def check_file(path: Path) -> list[str]:
     return violations
 
 
+def resolve_paths(args: list[str]) -> tuple[list[Path], list[str]]:
+    """Expand CLI arguments into ``__init__.py`` files, reporting unusable paths.
+
+    Directories are walked; individual Python files are taken as given. Anything
+    else — a missing path, a non-Python file — is an error rather than a silent
+    skip, so a miswired invocation fails loudly instead of scanning nothing.
+    """
+    skip = {".git", ".venv", "venv", "__pycache__", "node_modules", ".tox", ".ruff_cache"}
+    files: list[Path] = []
+    errors: list[str] = []
+    seen: set[Path] = set()
+
+    def _add(path: Path) -> None:
+        if path not in seen:
+            seen.add(path)
+            files.append(path)
+
+    for arg in args:
+        path = Path(arg)
+        if not path.exists():
+            errors.append(f"{arg}: no such file or directory")
+        elif path.is_dir():
+            for found in sorted(path.rglob("__init__.py")):
+                if not any(part in skip for part in found.parts):
+                    _add(found)
+        elif path.suffix != ".py":
+            errors.append(f"{arg}: not a Python file")
+        else:
+            _add(path)
+    return files, errors
+
+
 def main() -> int:
-    files = [Path(p) for p in sys.argv[1:] if p.endswith(".py")]
+    args = sys.argv[1:]
+    if not args:
+        print(
+            "usage: check_no_import_forwarding.py <file-or-directory>...",
+            file=sys.stderr,
+        )
+        return 2
+
+    files, errors = resolve_paths(args)
+    for err in errors:
+        print(err, file=sys.stderr)
+    if errors:
+        return 2
+    if not files:
+        print(
+            "no __init__.py matched the given paths — refusing to report success "
+            "for a scan that checked nothing",
+            file=sys.stderr,
+        )
+        return 2
+
     violations: list[str] = []
     for path in files:
         violations.extend(check_file(path))

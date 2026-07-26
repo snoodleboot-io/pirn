@@ -363,6 +363,40 @@ jobs:
         run: uv run --no-sync python scripts/check_import_graph.py
 
   # ===========================================================================
+  # No-import-forwarding gate (python.md:42). Pure stdlib AST over every
+  # __init__.py — no install, so it does not wait on the wheelhouse.
+  #
+  # Repo-wide rather than per-package on purpose: the `test`/`lint` matrix only
+  # runs for packages the change-detection marked affected, so a re-export
+  # reintroduced in an untouched package would be skipped. This gate is a
+  # millisecond AST scan, so sharding it across the 7-way matrix would buy
+  # nothing and cost 7 container starts. It was pre-commit-only until now, which
+  # is how PIR-737's cleanup was silently regressed twice in one day by anyone
+  # committing with --no-verify or without hooks installed.
+  # ===========================================================================
+  import-forwarding:
+    name: No-import-forwarding gate
+    needs: changes
+    if: needs.changes.outputs.any == 'true'
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/${{ github.repository_owner }}/pirn-ci-base:py3.12
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - name: No __init__.py re-exports an unused symbol
+        # Directory args are walked for __init__.py. The script exits 2 if a path
+        # is missing or matches nothing, so a future miswiring fails loudly
+        # instead of passing vacuously. Stdlib-only — no install needed.
+        run: python scripts/check_no_import_forwarding.py packages/ examples/ scripts/
+      - name: Install pytest (base image ships python + uv only)
+        # Floor matches every package's own pytest requirement.
+        run: uv pip install --system 'pytest>=9.1.0'
+      - name: Gate's own unit tests
+        # scripts/tests/ ran in no workflow before this job existed — the checker
+        # that guards the convention had no CI coverage of its own.
+        run: python -m pytest scripts/tests/ -q
+
+  # ===========================================================================
   # Lockstep / C4 version gate (SCD-27). Pure stdlib over the package pyprojects.
   # ===========================================================================
   version-lockstep:
@@ -384,7 +418,7 @@ jobs:
   # ===========================================================================
   ci-status:
     name: CI status (all green)
-    needs: [changes, build-wheelhouse, lint, test, install-isolation, agents-extras-install, unified, import-graph, version-lockstep]
+    needs: [changes, build-wheelhouse, lint, test, install-isolation, agents-extras-install, unified, import-graph, import-forwarding, version-lockstep]
     if: always()
     runs-on: ubuntu-latest
     steps:
