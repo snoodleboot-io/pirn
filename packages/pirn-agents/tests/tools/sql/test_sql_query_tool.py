@@ -20,8 +20,8 @@ from pirn_agents.tools.sql.aiosqlite_connector import AiosqliteConnector
 from pirn_agents.tools.sql.sql_connector import SqlConnector
 from pirn_agents.tools.sql.sql_query_tool import SqlQueryTool
 from pirn_agents.tools.sql.sqlite_connector import SqliteConnector
-from pirn_agents.types.tool_call import ToolCall
-from pirn_agents.types.tool_status import ToolStatus
+from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_status import ToolStatus
 
 
 class _StubSqlConnector(SqlConnector):

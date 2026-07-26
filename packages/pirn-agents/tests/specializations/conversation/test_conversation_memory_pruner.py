@@ -10,7 +10,7 @@ from pirn.tapestry import Tapestry
 from pirn_agents.specializations.conversation.conversation_memory_pruner import (
     ConversationMemoryPruner,
 )
-from pirn_agents.types.agent_message import AgentMessage
+from pirn_agents.types.messaging.agent_message import AgentMessage
 
 
 def _make_message(role: str, content: str) -> AgentMessage:

@@ -8,7 +8,7 @@ Algorithm:
 
 
 References:
-    - :class:`pirn_agents.types.agent_response.AgentResponse`
+    - :class:`pirn_agents.types.messaging.agent_response.AgentResponse`
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ from typing import Any, ClassVar
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents.types.agent_response import AgentResponse
+from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class ResponseFormatter(Knot):

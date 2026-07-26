@@ -24,7 +24,7 @@ from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
-from pirn_agents.types.content_block import ContentBlock
+from pirn_agents.types.content.content_block import ContentBlock
 
 
 @dataclass(frozen=True)
@@ -62,7 +62,7 @@ class LoadedDocument(PirnOpaqueValue):
 
         Raises:
             TypeError: If ``blocks`` is set but is not a tuple of
-                :class:`~pirn_agents.types.content_block.ContentBlock`.
+                :class:`~pirn_agents.types.content.content_block.ContentBlock`.
         """
         if self.blocks is None:
             return

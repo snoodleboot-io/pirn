@@ -14,7 +14,7 @@ from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.memory.patterns.semantic_memory_pipeline import (
     SemanticMemoryPipeline,
 )
-from pirn_agents.types.agent_message import AgentMessage
+from pirn_agents.types.messaging.agent_message import AgentMessage
 from tests.specializations.conftest import StubLLMProvider
 
 

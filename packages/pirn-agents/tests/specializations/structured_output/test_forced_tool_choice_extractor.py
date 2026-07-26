@@ -15,7 +15,7 @@ from pirn_agents.specializations.structured_output.structured_decode_error impor
 from pirn_agents.specializations.structured_output.structured_output_capability import (
     StructuredOutputCapability,
 )
-from pirn_agents.types.agent_response import AgentResponse
+from pirn_agents.types.messaging.agent_response import AgentResponse
 from tests.specializations.structured_output.structured_stubs import (
     StubStructuredProvider,
     tool_call_response,

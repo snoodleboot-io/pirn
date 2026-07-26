@@ -32,8 +32,8 @@ from pirn_agents.specializations.plan_and_execute.task_planner import TaskPlanne
 from pirn_agents.specializations.plan_react.plan_react_result import PlanReActResult
 from pirn_agents.specializations.react.react_loop import ReActLoop
 from pirn_agents.tools.tool import Tool
-from pirn_agents.types.agent_message import AgentMessage
-from pirn_agents.types.agent_response import AgentResponse
+from pirn_agents.types.messaging.agent_message import AgentMessage
+from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class PlanReActPipeline(SubTapestry):

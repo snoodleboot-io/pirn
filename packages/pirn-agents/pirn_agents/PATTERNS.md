@@ -596,7 +596,7 @@ from pirn_agents.specializations.react.react_loop import ReActLoop
 from pirn_agents.specializations.specialized_agents.research_agent import (
     ResearchAgent,
 )
-from pirn_agents.types.agent_message import AgentMessage
+from pirn_agents.types.messaging.agent_message import AgentMessage
 
 with Tapestry() as tapestry:
     researcher = ResearchAgent(
@@ -984,8 +984,8 @@ from pirn.tapestry import Tapestry
 from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
 from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.toolset import Toolset
-from pirn_agents.types.tool_call import ToolCall
-from pirn_agents.types.tool_status import ToolStatus
+from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_status import ToolStatus
 
 
 class StubTool(Tool):
@@ -1050,7 +1050,7 @@ from typing import Any
 from pirn_agents.llm.provider_adapter import ProviderAdapter
 from pirn_agents.tools.tool_call_codec import ToolCallCodec
 from pirn_agents.tools.toolset import Toolset
-from pirn_agents.types.tool_result import ToolResult
+from pirn_agents.tools.tool_result import ToolResult
 
 class MyAdapter(ProviderAdapter):
     def tool_to_native(self, neutral_tool: dict[str, Any]) -> dict[str, Any]:
@@ -1134,7 +1134,7 @@ from pirn.tapestry import Tapestry
 from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
 from pirn_agents.tools.tool_invocation_hook import ToolInvocationHook
 from pirn_agents.tools.toolset import Toolset
-from pirn_agents.types.tool_status import ToolStatus
+from pirn_agents.tools.tool_status import ToolStatus
 
 
 class MetricsHook(ToolInvocationHook):

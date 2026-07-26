@@ -13,7 +13,7 @@ from pirn.core.pirn_opaque_value import PirnOpaqueValue
 class SessionToolResult(PirnOpaqueValue):
     """A JSON-serialisable record of one tool call's result.
 
-    Distinct from :class:`pirn_agents.types.tool_result.ToolResult` (whose
+    Distinct from :class:`pirn_agents.tools.tool_result.ToolResult` (whose
     ``result`` is any python object): a checkpoint must round-trip through a
     JSON payload, so this value keeps only a serialisable ``output``.
 

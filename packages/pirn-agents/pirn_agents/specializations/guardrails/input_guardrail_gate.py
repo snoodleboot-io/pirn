@@ -29,7 +29,7 @@ Algorithm:
 
 References:
     - pirn-native: :class:`pirn_agents.specializations.guardrails.input_message_scrubber.InputMessageScrubber`
-    - pirn-native: :class:`pirn_agents.types.agent_message.AgentMessage`
+    - pirn-native: :class:`pirn_agents.types.messaging.agent_message.AgentMessage`
 """
 
 from __future__ import annotations
@@ -45,7 +45,7 @@ from pirn_agents.security._safe_pattern_compiler import SafePatternCompiler
 from pirn_agents.specializations.guardrails.input_message_scrubber import (
     InputMessageScrubber,
 )
-from pirn_agents.types.agent_message import AgentMessage
+from pirn_agents.types.messaging.agent_message import AgentMessage
 
 
 class InputGuardrailGate(SubTapestry):

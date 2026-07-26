@@ -9,8 +9,8 @@ from pirn.core.knot_factory import knot
 from pirn.tapestry import Tapestry
 
 from pirn_agents.input.context_builder import ContextBuilder
-from pirn_agents.types.agent_context import AgentContext
-from pirn_agents.types.agent_message import AgentMessage
+from pirn_agents.types.messaging.agent_context import AgentContext
+from pirn_agents.types.messaging.agent_message import AgentMessage
 
 
 def _make_knot() -> ContextBuilder:

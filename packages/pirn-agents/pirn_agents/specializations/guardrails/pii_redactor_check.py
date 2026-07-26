@@ -20,7 +20,7 @@ Algorithm:
 
 References:
     - pirn-native: :class:`pirn_agents.specializations.guardrails.pii_response_redactor.PIIResponseRedactor`
-    - pirn-native: :class:`pirn_agents.types.agent_response.AgentResponse`
+    - pirn-native: :class:`pirn_agents.types.messaging.agent_response.AgentResponse`
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ from pirn.nodes.sub_tapestry import SubTapestry
 from pirn_agents.specializations.guardrails.pii_response_redactor import (
     PIIResponseRedactor,
 )
-from pirn_agents.types.agent_response import AgentResponse
+from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class PiiRedactorCheck(SubTapestry):

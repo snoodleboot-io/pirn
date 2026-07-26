@@ -15,15 +15,15 @@ from __future__ import annotations
 import unittest
 from dataclasses import FrozenInstanceError
 
-from pirn_agents.types.agent_message import AgentMessage
-from pirn_agents.types.audio_block import AudioBlock
-from pirn_agents.types.content_block import ContentBlock
-from pirn_agents.types.file_block import FileBlock
-from pirn_agents.types.image_block import ImageBlock
-from pirn_agents.types.media_handle import MediaHandle
-from pirn_agents.types.message_content import MessageContent
-from pirn_agents.types.text_block import TextBlock
-from pirn_agents.types.tool_result_block import ToolResultBlock
+from pirn_agents.types.messaging.agent_message import AgentMessage
+from pirn_agents.types.content.audio_block import AudioBlock
+from pirn_agents.types.content.content_block import ContentBlock
+from pirn_agents.types.content.file_block import FileBlock
+from pirn_agents.types.content.image_block import ImageBlock
+from pirn_agents.types.content.media_handle import MediaHandle
+from pirn_agents.types.content.message_content import MessageContent
+from pirn_agents.types.content.text_block import TextBlock
+from pirn_agents.types.content.tool_result_block import ToolResultBlock
 
 
 class TestMediaHandle(unittest.TestCase):

@@ -12,7 +12,7 @@ a lean orchestrator (DIP):
 * **Response mapping** — a :class:`pirn_agents.llm.response_mapper.ResponseMapper`
   folds the primitives this base pulls from the raw provider JSON (content, tool
   message, finish reason, usage) into a
-  :class:`pirn_agents.types.agent_response.AgentResponse`, decoding native tool
+  :class:`pirn_agents.types.messaging.agent_response.AgentResponse`, decoding native tool
   calls through F1's :class:`pirn_agents.tools.tool_call_codec.ToolCallCodec` and
   estimating cost from a :class:`pirn_agents.llm.model_pricing.ModelPricing`.
 * **Lifecycle** — a pooled async HTTP client vended once by
@@ -58,8 +58,8 @@ from pirn_agents.llm.stream_delta import StreamDelta
 from pirn_agents.tools.streaming_tool_call_parser import StreamingToolCallParser
 from pirn_agents.tools.tool_call_codec import ToolCallCodec
 from pirn_agents.tools.toolset import Toolset
-from pirn_agents.types.agent_response import AgentResponse
-from pirn_agents.types.content_block import ContentBlock
+from pirn_agents.types.content.content_block import ContentBlock
+from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class BaseLLMProvider(ConnectorBase, LLMProvider):
@@ -251,7 +251,7 @@ class BaseLLMProvider(ConnectorBase, LLMProvider):
         if adapter is not None:
             return adapter.decode_blocks(native_content)
         if isinstance(native_content, str):
-            from pirn_agents.types.text_block import TextBlock
+            from pirn_agents.types.content.text_block import TextBlock
 
             return (TextBlock(text=native_content),)
         return ()
@@ -323,7 +323,7 @@ class BaseLLMProvider(ConnectorBase, LLMProvider):
         """Fold a stream of :class:`StreamDelta` into one :class:`AgentResponse`.
 
         Content fragments are concatenated; tool-call fragments are assembled
-        into decodable :class:`~pirn_agents.types.tool_call.ToolCall`s via
+        into decodable :class:`~pirn_agents.tools.tool_call.ToolCall`s via
         :class:`StreamingToolCallParser`; the last non-``None`` finish reason
         and usage win; cost is estimated when pricing is configured.
         """

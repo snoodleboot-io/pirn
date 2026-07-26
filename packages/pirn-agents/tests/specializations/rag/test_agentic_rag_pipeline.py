@@ -12,7 +12,7 @@ from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.rag.agentic_rag_pipeline import AgenticRagPipeline
 from pirn_agents.tools.tool import Tool
-from pirn_agents.types.agent_response import AgentResponse
+from pirn_agents.types.messaging.agent_response import AgentResponse
 from tests.specializations.conftest import StubLLMProvider, StubTool
 
 

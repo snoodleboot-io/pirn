@@ -18,7 +18,7 @@ from pirn_agents.specializations.multi_agent.consensus_strategy import Consensus
 from pirn_agents.specializations.multi_agent.consensus_synthesis_caller import (
     ConsensusSynthesisCaller,
 )
-from pirn_agents.types.agent_response import AgentResponse
+from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class LlmSynthesisStrategy(ConsensusStrategy):

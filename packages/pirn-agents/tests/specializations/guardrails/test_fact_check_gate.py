@@ -14,7 +14,7 @@ from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.specializations.guardrails.fact_check_gate import (
     FactCheckGate,
 )
-from pirn_agents.types.agent_response import AgentResponse
+from pirn_agents.types.messaging.agent_response import AgentResponse
 from tests.specializations.conftest import StubLLMProvider
 
 

@@ -9,7 +9,7 @@ from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.rewoo.rewoo_planner import ReWooPlanner
-from pirn_agents.types.tool_call import ToolCall
+from pirn_agents.tools.tool_call import ToolCall
 from tests.specializations.conftest import StubLLMProvider
 
 

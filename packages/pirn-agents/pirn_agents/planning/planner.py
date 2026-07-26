@@ -13,7 +13,7 @@ Algorithm:
 
 References:
     - :class:`pirn_agents.llm.llm_provider.LLMProvider`
-    - :class:`pirn_agents.types.plan.Plan`
+    - :class:`pirn_agents.planning.plan.Plan`
 """
 
 from __future__ import annotations
@@ -24,8 +24,8 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
-from pirn_agents.types.agent_context import AgentContext
-from pirn_agents.types.plan import Plan
+from pirn_agents.planning.plan import Plan
+from pirn_agents.types.messaging.agent_context import AgentContext
 
 
 class Planner(Knot):

@@ -11,7 +11,7 @@ from pirn_agents.retrieval.graph_rag.graph_context_builder import GraphContextBu
 from pirn_agents.retrieval.graph_rag.subgraph import Subgraph
 from pirn_agents.retrieval.graph_stores.graph_edge import GraphEdge
 from pirn_agents.retrieval.graph_stores.graph_node import GraphNode
-from pirn_agents.types.agent_message import AgentMessage
+from pirn_agents.types.messaging.agent_message import AgentMessage
 
 
 def _make_builder() -> GraphContextBuilder:

@@ -11,7 +11,7 @@ from pirn.tapestry import Tapestry
 from pirn_agents.specializations.multi_agent.specialist_fan_out_collector import (
     SpecialistFanOutCollector,
 )
-from pirn_agents.types.agent_response import AgentResponse
+from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 def _resp(content: str) -> AgentResponse:

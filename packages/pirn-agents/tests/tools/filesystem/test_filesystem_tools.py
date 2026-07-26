@@ -16,8 +16,8 @@ from pirn_agents.tools.filesystem.glob_tool import GlobTool
 from pirn_agents.tools.filesystem.list_dir_tool import ListDirTool
 from pirn_agents.tools.filesystem.read_file_tool import ReadFileTool
 from pirn_agents.tools.filesystem.write_file_tool import WriteFileTool
-from pirn_agents.types.tool_call import ToolCall
-from pirn_agents.types.tool_status import ToolStatus
+from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_status import ToolStatus
 
 
 class TestReadFile:

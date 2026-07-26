@@ -10,7 +10,7 @@ from pirn.tapestry import Tapestry
 from pirn_agents.specializations.react.messages_passthrough import (
     MessagesPassthrough,
 )
-from pirn_agents.types.agent_message import AgentMessage
+from pirn_agents.types.messaging.agent_message import AgentMessage
 
 
 class TestMessagesPassthroughProcess(unittest.IsolatedAsyncioTestCase):

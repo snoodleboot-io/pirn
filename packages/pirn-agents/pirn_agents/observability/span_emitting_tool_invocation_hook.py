@@ -16,7 +16,7 @@ from pirn_agents.observability.span_kind import SpanKind
 from pirn_agents.observability.span_status import SpanStatus
 from pirn_agents.observability.tracer import Tracer
 from pirn_agents.tools.tool_invocation_hook import ToolInvocationHook
-from pirn_agents.types.tool_status import ToolStatus
+from pirn_agents.tools.tool_status import ToolStatus
 
 
 class SpanEmittingToolInvocationHook(ToolInvocationHook):

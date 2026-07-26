@@ -24,7 +24,7 @@ from pirn_agents.exceptions.agent_depth_exceeded_error import (
 from pirn_agents.performance.budget_breach_error import BudgetBreachError
 from pirn_agents.performance.run_budget import RunBudget
 from pirn_agents.performance.run_budget_meter import RunBudgetMeter
-from pirn_agents.types.tool_status import ToolStatus
+from pirn_agents.tools.tool_status import ToolStatus
 from tests.agent_tool_doubles import (
     AGENT_CALLS,
     ROUTE_REGISTRY,

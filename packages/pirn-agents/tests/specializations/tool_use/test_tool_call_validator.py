@@ -14,7 +14,7 @@ from pirn_agents.specializations.tool_use.tool_call_validator import (
     ToolCallValidator,
 )
 from pirn_agents.tools.tool import Tool
-from pirn_agents.types.tool_call import ToolCall
+from pirn_agents.tools.tool_call import ToolCall
 from tests.specializations.conftest import StubTool
 
 

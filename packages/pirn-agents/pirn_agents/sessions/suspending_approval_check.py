@@ -28,7 +28,7 @@ from pirn_agents.sessions.run_state import RunState
 from pirn_agents.sessions.session_message import SessionMessage
 from pirn_agents.sessions.session_store import SessionStore
 from pirn_agents.sessions.suspend_signal import SuspendSignal
-from pirn_agents.types.agent_response import AgentResponse
+from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class SuspendingApprovalCheck(Knot):

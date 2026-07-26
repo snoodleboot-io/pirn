@@ -25,8 +25,8 @@ from pirn.core.knot_config import KnotConfig
 from pirn_agents.generation.content_block_handler import ContentBlockHandler
 from pirn_agents.generation.text_block_handler import TextBlockHandler
 from pirn_agents.generation.tool_use_block_handler import ToolUseBlockHandler
-from pirn_agents.types.agent_response import AgentResponse
-from pirn_agents.types.tool_call import ToolCall
+from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class OutputParser(Knot):

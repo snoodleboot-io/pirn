@@ -9,7 +9,7 @@ from pirn.core.knot_factory import knot
 from pirn.tapestry import Tapestry
 
 from pirn_agents.memory.conversation_buffer import ConversationBuffer
-from pirn_agents.types.agent_message import AgentMessage
+from pirn_agents.types.messaging.agent_message import AgentMessage
 
 
 def _make_knot() -> ConversationBuffer:

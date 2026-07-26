@@ -13,7 +13,7 @@ from pirn.tapestry import Tapestry
 from pirn_agents.specializations.multi_agent.orchestrator_agent import (
     OrchestratorAgent,
 )
-from pirn_agents.types.agent_response import AgentResponse
+from pirn_agents.types.messaging.agent_response import AgentResponse
 from tests.specializations.conftest import StubLLMProvider
 
 _SPEC_REGISTRY: dict[str, str] = {}

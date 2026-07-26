@@ -37,7 +37,7 @@ from pirn.nodes.sub_tapestry import SubTapestry
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.specializations.rag.sentence_confidence_monitor import SentenceConfidenceMonitor
-from pirn_agents.types.agent_response import AgentResponse
+from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class FlareActiveRagPipeline(SubTapestry):

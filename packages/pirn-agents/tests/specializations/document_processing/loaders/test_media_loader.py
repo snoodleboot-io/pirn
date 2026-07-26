@@ -15,10 +15,10 @@ from pirn_agents.specializations.document_processing.loaders.loaded_document imp
     LoadedDocument,
 )
 from pirn_agents.specializations.document_processing.loaders.media_loader import MediaLoader
-from pirn_agents.types.audio_block import AudioBlock
-from pirn_agents.types.file_block import FileBlock
-from pirn_agents.types.image_block import ImageBlock
-from pirn_agents.types.text_block import TextBlock
+from pirn_agents.types.content.audio_block import AudioBlock
+from pirn_agents.types.content.file_block import FileBlock
+from pirn_agents.types.content.image_block import ImageBlock
+from pirn_agents.types.content.text_block import TextBlock
 
 
 class TestMediaLoader(unittest.IsolatedAsyncioTestCase):

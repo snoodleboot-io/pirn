@@ -23,7 +23,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
-from pirn_agents.types.plan import Plan
+from pirn_agents.planning.plan import Plan
 
 
 class PlanRevisor(Knot):

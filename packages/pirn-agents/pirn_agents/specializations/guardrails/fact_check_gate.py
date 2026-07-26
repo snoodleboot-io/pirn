@@ -46,7 +46,7 @@ from pirn_agents.specializations.guardrails.fact_claim_extractor import (
 from pirn_agents.specializations.guardrails.fact_claim_verifier import (
     FactClaimVerifier,
 )
-from pirn_agents.types.agent_response import AgentResponse
+from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class FactCheckGate(SubTapestry):

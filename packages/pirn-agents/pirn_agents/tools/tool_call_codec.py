@@ -3,8 +3,8 @@
 :class:`ToolCallCodec` orchestrates the round-trip of native tool calling
 without embedding any provider-specific knowledge. It converts a
 :class:`pirn_agents.tools.toolset.Toolset` into native tool declarations, decodes
-a provider's assistant message into :class:`pirn_agents.types.tool_call.ToolCall`
-values, and encodes :class:`pirn_agents.types.tool_result.ToolResult` values
+a provider's assistant message into :class:`pirn_agents.tools.tool_call.ToolCall`
+values, and encodes :class:`pirn_agents.tools.tool_result.ToolResult` values
 back into native tool-result messages.
 
 Every provider-specific decision — the exact JSON shape of a tool
@@ -30,9 +30,9 @@ from typing import Any
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 from pirn_agents.llm.provider_adapter import ProviderAdapter
+from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_result import ToolResult
 from pirn_agents.tools.toolset import Toolset
-from pirn_agents.types.tool_call import ToolCall
-from pirn_agents.types.tool_result import ToolResult
 
 
 class ToolCallCodec(PirnOpaqueValue):

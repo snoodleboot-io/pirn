@@ -14,7 +14,7 @@ from pirn_agents.sessions.session_store import SessionStore
 from pirn_agents.sessions.suspend_signal import SuspendSignal
 from pirn_agents.sessions.suspending_approval_check import SuspendingApprovalCheck
 from pirn_agents.specializations.human_in_the_loop.approval_check import ApprovalCheck
-from pirn_agents.types.agent_response import AgentResponse
+from pirn_agents.types.messaging.agent_response import AgentResponse
 from tests.sessions.conftest import make_run_state
 
 

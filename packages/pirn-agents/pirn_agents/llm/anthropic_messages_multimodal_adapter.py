@@ -8,7 +8,7 @@ demonstrating the base's provider-neutrality: the same neutral blocks map onto a
 this wire format carries no audio part — so an audio block trips the
 capability-gated unsupported-modality path.
 
-Per-format paths: a referenced :class:`~pirn_agents.types.media_handle.MediaHandle`
+Per-format paths: a referenced :class:`~pirn_agents.types.content.media_handle.MediaHandle`
 becomes a ``{"type": "url", "url": ...}`` source; an inline payload becomes a
 ``{"type": "base64", "media_type": ..., "data": ...}`` source. Native shapes:
 
@@ -24,12 +24,12 @@ from typing import Any
 
 from pirn_agents.llm.modality_capability import ModalityCapability
 from pirn_agents.llm.multimodal_adapter import MultimodalAdapter
-from pirn_agents.types.audio_block import AudioBlock
-from pirn_agents.types.content_block import ContentBlock
-from pirn_agents.types.file_block import FileBlock
-from pirn_agents.types.image_block import ImageBlock
-from pirn_agents.types.media_handle import MediaHandle
-from pirn_agents.types.text_block import TextBlock
+from pirn_agents.types.content.audio_block import AudioBlock
+from pirn_agents.types.content.content_block import ContentBlock
+from pirn_agents.types.content.file_block import FileBlock
+from pirn_agents.types.content.image_block import ImageBlock
+from pirn_agents.types.content.media_handle import MediaHandle
+from pirn_agents.types.content.text_block import TextBlock
 
 
 class AnthropicMessagesMultimodalAdapter(MultimodalAdapter):

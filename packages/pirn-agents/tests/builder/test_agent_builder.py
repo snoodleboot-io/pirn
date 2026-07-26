@@ -14,7 +14,7 @@ from pirn_agents.builder.agent_builder import AgentBuilder
 from pirn_agents.builder.agent_spec import AgentSpec
 from pirn_agents.specializations.react.react_loop import ReActLoop
 from pirn_agents.tools.toolset import Toolset
-from pirn_agents.types.agent_response import AgentResponse
+from pirn_agents.types.messaging.agent_response import AgentResponse
 from tests.specializations.conftest import (
     StubLLMProvider,
     StubMemoryStore,
@@ -169,7 +169,7 @@ class TestBuilderBuildEndToEnd(unittest.IsolatedAsyncioTestCase):
         built_run = await built_t.run(RunRequest())
 
         with Tapestry() as hand_t:
-            from pirn_agents.types.agent_message import AgentMessage
+            from pirn_agents.types.messaging.agent_message import AgentMessage
 
             hand = ReActLoop(
                 messages=(AgentMessage(role="user", content="hi"),),

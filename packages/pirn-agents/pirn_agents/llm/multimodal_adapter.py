@@ -2,7 +2,7 @@
 
 The multimodal counterpart to
 :class:`pirn_agents.llm.provider_adapter.ProviderAdapter`: it translates a sequence
-of neutral :class:`~pirn_agents.types.content_block.ContentBlock` into one
+of neutral :class:`~pirn_agents.types.content.content_block.ContentBlock` into one
 provider's native message-content wire shape (and back), gated by a
 :class:`~pirn_agents.llm.modality_capability.ModalityCapability` probe.
 
@@ -30,10 +30,10 @@ from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 from pirn_agents.exceptions.unsupported_modality_error import UnsupportedModalityError
 from pirn_agents.llm.modality_capability import ModalityCapability
-from pirn_agents.types.audio_block import AudioBlock
-from pirn_agents.types.content_block import ContentBlock
-from pirn_agents.types.file_block import FileBlock
-from pirn_agents.types.image_block import ImageBlock
+from pirn_agents.types.content.audio_block import AudioBlock
+from pirn_agents.types.content.content_block import ContentBlock
+from pirn_agents.types.content.file_block import FileBlock
+from pirn_agents.types.content.image_block import ImageBlock
 
 
 class MultimodalAdapter(PirnOpaqueValue):
@@ -90,10 +90,10 @@ class MultimodalAdapter(PirnOpaqueValue):
         """Decode a provider-native content value back into neutral blocks.
 
         A bare string decodes to a single
-        :class:`~pirn_agents.types.text_block.TextBlock`; a list of native parts
+        :class:`~pirn_agents.types.content.text_block.TextBlock`; a list of native parts
         is decoded item-by-item, skipping parts a subclass does not recognise.
         """
-        from pirn_agents.types.text_block import TextBlock
+        from pirn_agents.types.content.text_block import TextBlock
 
         if isinstance(native_content, str):
             return (TextBlock(text=native_content),)

@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from dataclasses import FrozenInstanceError
 
-from pirn_agents.types.tool_call import ToolCall
+from pirn_agents.tools.tool_call import ToolCall
 
 
 class TestRoundtrip(unittest.TestCase):

@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from pirn_agents.tools.retrieval.rag_tool import RagTool
 from pirn_agents.tools.retrieval.retriever_tool import RetrieverTool
-from pirn_agents.types.tool_call import ToolCall
-from pirn_agents.types.tool_status import ToolStatus
+from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_status import ToolStatus
 from tests.conftest import StubLLMProvider, StubMemoryStore
 
 

@@ -4,7 +4,7 @@ Providers stream a tool call as a series of *deltas*: small fragments that
 each carry a slice of the arguments-JSON string plus, on the first fragment
 for a call, its id and name. :class:`StreamingToolCallParser` accumulates
 those fragments per call index and emits a
-:class:`pirn_agents.types.tool_call.ToolCall` *the instant* a call is
+:class:`pirn_agents.tools.tool_call.ToolCall` *the instant* a call is
 complete — before the underlying stream finishes — so a downstream executor
 (e.g. :class:`pirn_agents.agent.parallel_tool_executor.ParallelToolExecutor`) can
 begin dispatching while later calls are still arriving.
@@ -47,7 +47,7 @@ import json
 from collections.abc import AsyncIterable, AsyncIterator, Mapping
 from typing import Any
 
-from pirn_agents.types.tool_call import ToolCall
+from pirn_agents.tools.tool_call import ToolCall
 
 
 class StreamingToolCallParser:

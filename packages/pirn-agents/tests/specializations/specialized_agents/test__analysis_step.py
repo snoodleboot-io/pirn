@@ -11,7 +11,7 @@ from pirn.tapestry import Tapestry
 from pirn_agents.specializations.specialized_agents._analysis_step import (
     _AnalysisStep,
 )
-from pirn_agents.types.agent_response import AgentResponse
+from pirn_agents.types.messaging.agent_response import AgentResponse
 from tests.specializations.conftest import StubLLMProvider
 
 

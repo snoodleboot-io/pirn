@@ -11,7 +11,7 @@ from pydantic import BaseModel, ValidationError
 from pirn_agents.specializations.structured_output.schema_enforcer import (
     SchemaEnforcer,
 )
-from pirn_agents.types.agent_response import AgentResponse
+from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class _PersonModel(BaseModel):

@@ -8,7 +8,7 @@ Algorithm:
 
 
 References:
-    - :class:`pirn_agents.types.tool_result.ToolResult`
+    - :class:`pirn_agents.tools.tool_result.ToolResult`
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents.types.tool_result import ToolResult
+from pirn_agents.tools.tool_result import ToolResult
 
 
 class ToolResultAggregator(Knot):

@@ -14,7 +14,7 @@ from pirn_agents.specializations.react.messages_passthrough import (
 from pirn_agents.specializations.react.react_step_executor import (
     ReActStepExecutor,
 )
-from pirn_agents.types.agent_message import AgentMessage
+from pirn_agents.types.messaging.agent_message import AgentMessage
 from tests.specializations.conftest import (
     StubLLMProvider,
     StubTool,

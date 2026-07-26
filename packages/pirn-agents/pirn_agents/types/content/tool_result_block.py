@@ -3,7 +3,7 @@
 A tool result can appear *inline* in a message body (correlated to the call it
 answers) and can itself carry multimodal payload — e.g. a data tool returning a
 chart image. This block wraps the answering :attr:`call_id` and the nested
-sequence of :class:`~pirn_agents.types.content_block.ContentBlock` it produced.
+sequence of :class:`~pirn_agents.types.content.content_block.ContentBlock` it produced.
 """
 
 from __future__ import annotations
@@ -12,10 +12,10 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from pirn_agents.types.content_block import ContentBlock
-from pirn_agents.types.message_content import MessageContent
-from pirn_agents.types.text_block import TextBlock
-from pirn_agents.types.tool_result import ToolResult
+from pirn_agents.tools.tool_result import ToolResult
+from pirn_agents.types.content.content_block import ContentBlock
+from pirn_agents.types.content.message_content import MessageContent
+from pirn_agents.types.content.text_block import TextBlock
 
 
 @dataclass(frozen=True)
@@ -57,12 +57,12 @@ class ToolResultBlock(ContentBlock):
     def from_tool_result(cls, result: ToolResult) -> ToolResultBlock:
         """Project an F1 :class:`ToolResult` into a tool-result content block.
 
-        The tool's raw :attr:`~pirn_agents.types.tool_result.ToolResult.result`
+        The tool's raw :attr:`~pirn_agents.tools.tool_result.ToolResult.result`
         is normalized into nested content blocks: an existing
         :class:`MessageContent` contributes its blocks, a lone
         :class:`ContentBlock` (or a sequence of them) is carried through, and any
         other value degrades to a single
-        :class:`~pirn_agents.types.text_block.TextBlock` of its string form (an
+        :class:`~pirn_agents.types.content.text_block.TextBlock` of its string form (an
         errored result uses its error text). This is the multimodal path for
         tool outputs — a tool returning an image block surfaces it inline.
 

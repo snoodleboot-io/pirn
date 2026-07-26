@@ -5,8 +5,8 @@ from __future__ import annotations
 import unittest
 from dataclasses import FrozenInstanceError
 
-from pirn_agents.types.tool_result import ToolResult
-from pirn_agents.types.tool_status import ToolStatus
+from pirn_agents.tools.tool_result import ToolResult
+from pirn_agents.tools.tool_status import ToolStatus
 
 
 class TestRoundtrip(unittest.TestCase):

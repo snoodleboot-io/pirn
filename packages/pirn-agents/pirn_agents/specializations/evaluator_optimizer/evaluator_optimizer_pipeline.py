@@ -39,7 +39,7 @@ from pirn_agents.specializations.evaluator_optimizer.evaluator_optimizer_result 
 )
 from pirn_agents.specializations.evaluator_optimizer.judge_verdict import JudgeVerdict
 from pirn_agents.specializations.evaluator_optimizer.llm_judge import LlmJudge
-from pirn_agents.types.agent_response import AgentResponse
+from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class EvaluatorOptimizerPipeline(SubTapestry):

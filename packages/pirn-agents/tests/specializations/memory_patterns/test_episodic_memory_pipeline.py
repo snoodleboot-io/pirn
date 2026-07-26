@@ -14,7 +14,7 @@ from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.memory.patterns.episodic_memory_pipeline import (
     EpisodicMemoryPipeline,
 )
-from pirn_agents.types.agent_message import AgentMessage
+from pirn_agents.types.messaging.agent_message import AgentMessage
 
 
 class RecordingMemoryStore(MemoryStore):

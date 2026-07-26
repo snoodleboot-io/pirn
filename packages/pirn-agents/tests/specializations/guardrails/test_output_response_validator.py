@@ -11,8 +11,8 @@ from pirn.tapestry import Tapestry
 from pirn_agents.specializations.guardrails.output_response_validator import (
     OutputResponseValidator,
 )
-from pirn_agents.types.agent_response import AgentResponse
-from pirn_agents.types.tool_call import ToolCall
+from pirn_agents.types.messaging.agent_response import AgentResponse
+from pirn_agents.tools.tool_call import ToolCall
 
 
 def _make_knot() -> OutputResponseValidator:

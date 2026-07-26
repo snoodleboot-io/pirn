@@ -24,7 +24,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
-from pirn_agents.types.agent_context import AgentContext
+from pirn_agents.types.messaging.agent_context import AgentContext
 
 
 class IntentClassifier(Knot):

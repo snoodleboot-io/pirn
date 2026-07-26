@@ -14,7 +14,7 @@ from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.memory.patterns.procedural_memory_pipeline import (
     ProceduralMemoryPipeline,
 )
-from pirn_agents.types.agent_response import AgentResponse
+from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class RecordingMemoryStore(MemoryStore):

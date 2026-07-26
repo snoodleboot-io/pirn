@@ -12,7 +12,7 @@ from pirn.tapestry import Tapestry
 from pirn_agents.specializations.plan_and_execute.plan_revisor import (
     PlanRevisor,
 )
-from pirn_agents.types.plan import Plan
+from pirn_agents.planning.plan import Plan
 from tests.specializations.conftest import StubLLMProvider
 
 

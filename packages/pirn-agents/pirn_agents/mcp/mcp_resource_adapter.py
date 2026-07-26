@@ -5,7 +5,7 @@ and reads them through the client and shapes their content two ways for the F1
 context path:
 
 * :meth:`as_context_messages` yields system-role
-  :class:`~pirn_agents.types.agent_message.AgentMessage`\\ s ready to prepend at
+  :class:`~pirn_agents.types.messaging.agent_message.AgentMessage`\\ s ready to prepend at
   :class:`~pirn_agents.input.context_builder.ContextBuilder` time; and
 * :meth:`inject_into_store` writes each resource into a
   :class:`~pirn_agents.memory.stores.memory_store.MemoryStore` so a
@@ -23,7 +23,7 @@ from typing import Any
 from pirn_agents.mcp.mcp_client import McpClient
 from pirn_agents.mcp.mcp_error import McpError
 from pirn_agents.memory.stores.memory_store import MemoryStore
-from pirn_agents.types.agent_message import AgentMessage
+from pirn_agents.types.messaging.agent_message import AgentMessage
 
 
 class McpResourceAdapter:

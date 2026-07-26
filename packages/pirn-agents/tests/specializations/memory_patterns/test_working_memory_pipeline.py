@@ -14,7 +14,7 @@ from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.memory.patterns.working_memory_pipeline import (
     WorkingMemoryPipeline,
 )
-from pirn_agents.types.agent_message import AgentMessage
+from pirn_agents.types.messaging.agent_message import AgentMessage
 
 
 class WindowMemoryStore(MemoryStore):

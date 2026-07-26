@@ -11,7 +11,7 @@ from pirn.tapestry import Tapestry
 from pirn_agents.specializations.guardrails.pii_redactor_check import (
     PiiRedactorCheck,
 )
-from pirn_agents.types.agent_response import AgentResponse
+from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 def _make_knot() -> PiiRedactorCheck:

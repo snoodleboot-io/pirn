@@ -18,9 +18,9 @@ from pirn_agents.llm.provider_adapter import ProviderAdapter
 from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_call_codec import ToolCallCodec
 from pirn_agents.tools.toolset import Toolset
-from pirn_agents.types.tool_call import ToolCall
-from pirn_agents.types.tool_result import ToolResult
-from pirn_agents.types.tool_status import ToolStatus
+from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_result import ToolResult
+from pirn_agents.tools.tool_status import ToolStatus
 
 
 class StubTool(Tool):

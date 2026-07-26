@@ -12,7 +12,7 @@ from pirn.tapestry import Tapestry
 from pirn_agents.memory.patterns.procedural_memory_writer import (
     ProceduralMemoryWriter,
 )
-from pirn_agents.types.agent_response import AgentResponse
+from pirn_agents.types.messaging.agent_response import AgentResponse
 from tests.specializations.conftest import StubMemoryStore
 
 

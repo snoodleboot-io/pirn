@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from pirn_agents.types.content_block import ContentBlock
+from pirn_agents.types.content.content_block import ContentBlock
 
 
 @dataclass(frozen=True)

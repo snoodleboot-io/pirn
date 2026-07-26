@@ -19,8 +19,8 @@ from pirn_agents.tools.sandbox.sandbox_executor import SandboxExecutor
 from pirn_agents.tools.sandbox.sandbox_result import SandboxResult
 from pirn_agents.tools.sandbox.shell_tool import ShellTool
 from pirn_agents.tools.sandbox.subprocess_sandbox_backend import SubprocessSandboxBackend
-from pirn_agents.types.tool_call import ToolCall
-from pirn_agents.types.tool_status import ToolStatus
+from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_status import ToolStatus
 
 
 class _StubSandboxBackend(SandboxBackend):
