@@ -20,10 +20,11 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents.interfaces.retriever import Retriever
 from pirn_agents.specializations.rag.route_table import RouteTable
 
 
-class RoutedRetriever(Knot):
+class RoutedRetriever(Retriever):
     """Retrieve from the single store named by ``route`` in a :class:`RouteTable`."""
 
     def __init__(

@@ -19,10 +19,10 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from pirn.core.knot import Knot
+from pirn_agents.interfaces.retriever import Retriever
 
 
-class HybridRetrieverBase(Knot):
+class HybridRetrieverBase(Retriever):
     """Shared base for hybrid retrievers that fuse two rankings via RRF."""
 
     async def process(self, **kwargs: Any) -> list[Mapping[str, Any]]:

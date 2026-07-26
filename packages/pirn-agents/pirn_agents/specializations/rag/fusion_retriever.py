@@ -30,11 +30,12 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents.interfaces.retriever import Retriever
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.retrieval.reciprocal_rank_fusion import reciprocal_rank_fusion
 
 
-class FusionRetriever(Knot):
+class FusionRetriever(Retriever):
     """Search each query variant concurrently and fuse the rankings with RRF."""
 
     def __init__(

@@ -25,10 +25,11 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents.interfaces.router import Router
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
-class EscalationRouter(Knot):
+class EscalationRouter(Router):
     """Route below-threshold AgentResponses to human escalation."""
 
     def __init__(

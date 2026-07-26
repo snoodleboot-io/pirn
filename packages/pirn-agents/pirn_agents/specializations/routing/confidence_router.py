@@ -25,8 +25,10 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents.interfaces.router import Router
 
-class ConfidenceRouter(Knot):
+
+class ConfidenceRouter(Router):
     """Return routing decision based on confidence score vs threshold."""
 
     def __init__(

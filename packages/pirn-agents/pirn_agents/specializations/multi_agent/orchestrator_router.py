@@ -25,10 +25,11 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents.interfaces.router import Router
 from pirn_agents.llm.llm_provider import LLMProvider
 
 
-class OrchestratorRouter(Knot):
+class OrchestratorRouter(Router):
     """Asks an :class:`LLMProvider` to choose a specialist name."""
 
     def __init__(

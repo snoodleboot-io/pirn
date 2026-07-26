@@ -25,10 +25,11 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents.interfaces.retriever import Retriever
 from pirn_agents.memory.stores.memory_store import MemoryStore
 
 
-class MemorySearchRetriever(Knot):
+class MemorySearchRetriever(Retriever):
     """Searches a :class:`MemoryStore` and materialises ``top_k`` hits."""
 
     def __init__(
