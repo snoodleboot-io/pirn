@@ -18,9 +18,9 @@ from pirn_agents.specializations.structured_output.structured_output_capability 
 from pirn_agents.specializations.structured_output.structured_output_provider import (
     StructuredOutputProvider,
 )
+from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.toolset import Toolset
 from pirn_agents.types.messaging.agent_response import AgentResponse
-from pirn_agents.tools.tool_call import ToolCall
 
 
 class StubStructuredProvider(StructuredOutputProvider):

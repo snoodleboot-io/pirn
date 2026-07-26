@@ -11,11 +11,11 @@ from __future__ import annotations
 
 import unittest
 
+from pirn_agents.tools.tool_result import ToolResult
 from pirn_agents.types.content.image_block import ImageBlock
 from pirn_agents.types.content.media_handle import MediaHandle
 from pirn_agents.types.content.message_content import MessageContent
 from pirn_agents.types.content.text_block import TextBlock
-from pirn_agents.tools.tool_result import ToolResult
 from pirn_agents.types.content.tool_result_block import ToolResultBlock
 
 

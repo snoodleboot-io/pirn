@@ -10,8 +10,8 @@ from pirn.core.knot_factory import knot
 from pirn.tapestry import Tapestry
 
 from pirn_agents.generation.response_formatter import ResponseFormatter
-from pirn_agents.types.messaging.agent_response import AgentResponse
 from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 def _make_knot() -> ResponseFormatter:

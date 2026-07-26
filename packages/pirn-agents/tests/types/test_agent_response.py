@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import unittest
 
-from pirn_agents.types.messaging.agent_response import AgentResponse
 from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class TestRoundtrip(unittest.TestCase):

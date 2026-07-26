@@ -21,9 +21,9 @@ from pirn_agents.observability.span_kind import SpanKind
 from pirn_agents.observability.span_status import SpanStatus
 from pirn_agents.observability.tracer import Tracer
 from pirn_agents.tools.tool import Tool
-from pirn_agents.tools.toolset import Toolset
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_status import ToolStatus
+from pirn_agents.tools.toolset import Toolset
 from tests.observability._recording_sink import RecordingSink
 
 

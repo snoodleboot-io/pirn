@@ -3,8 +3,8 @@
 A provider-neutral map of the agentic-RAG patterns shipped by `pirn_agents`,
 organised along four axes. Every pattern is a knot (or a small set of knots)
 that composes the existing retrieval / embedding / rerank building blocks from
-**F4** (`pirn_agents.vector_stores`, `pirn_agents.embeddings`,
-`pirn_agents.retrieval`, `pirn_agents.rerank`) and the provider interfaces from
+**F4** (`pirn_agents.retrieval.vector_stores`, `pirn_agents.retrieval.embeddings`,
+`pirn_agents.retrieval`, `pirn_agents.retrieval.rerank`) and the provider interfaces from
 **F3** (`LLMProvider`, `EmbeddingProvider`). No vendor SDK is imported at module
 load; every pattern runs on `InMemoryVectorStore` in CI with stub doubles.
 
@@ -54,7 +54,7 @@ pre-filter on the vector search.
 
 * Knots: `SelfQueryFilterExtractor` (LLM → `{query, metadata_filter}`),
   `SelfQueryRetriever`, `SelfQueryRagPipeline`.
-* **F4 dependency: metadata-filter support** — `VectorMemoryStore.query(..., metadata_filter=...)` and `pirn_agents.vector_stores.metadata_match`.
+* **F4 dependency: metadata-filter support** — `VectorMemoryStore.query(..., metadata_filter=...)` and `pirn_agents.retrieval.vector_stores.metadata_match`.
 * Reference: LangChain SelfQueryRetriever design notes.
 
 ### FLARE — active retrieval — S9
@@ -108,7 +108,7 @@ then compress away irrelevant spans while preserving citations.
 * Knots: `ContextualChunkEnricher`, `ContextualCompressor`,
   `ContextualRetrievalPipeline`; reranking reuses the existing
   `pirn_agents.specializations.rag.reranker.Reranker`.
-* **F4 dependency: rerank support** — `pirn_agents.rerank.reranker_backend.RerankerBackend` (e.g. the cross-encoder adapter), applied under a top-k budget.
+* **F4 dependency: rerank support** — `pirn_agents.retrieval.rerank.reranker_backend.RerankerBackend` (e.g. the cross-encoder adapter), applied under a top-k budget.
 * Reference: Anthropic, "Contextual Retrieval" (2024); Nogueira & Cho, BERT re-ranking (2019).
 
 ---

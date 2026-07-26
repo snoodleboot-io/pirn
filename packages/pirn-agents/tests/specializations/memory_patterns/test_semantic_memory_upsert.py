@@ -10,10 +10,10 @@ from typing import Any
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.memory.patterns.semantic_memory_upsert import (
     SemanticMemoryUpsert,
 )
+from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.types.messaging.agent_response import AgentResponse
 from tests.specializations.conftest import StubLLMProvider
 
