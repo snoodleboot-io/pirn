@@ -13,7 +13,7 @@ import pytest
 from pirn_agents.mcp.mcp_client import McpClient
 from pirn_agents.mcp.mcp_error import McpError
 from pirn_agents.mcp.mcp_tool import McpTool
-from pirn_agents.tool import Tool
+from pirn_agents.tools.tool import Tool
 from pirn_agents.types.tool_call import ToolCall
 from pirn_agents.types.tool_status import ToolStatus
 from tests.mcp.stub_mcp import StubMcpTransport

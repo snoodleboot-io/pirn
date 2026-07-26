@@ -55,7 +55,7 @@ from pirn_agents.planning.planner import Planner
 from pirn_agents.planning.tool_executor import ToolExecutor
 from pirn_agents.planning.tool_router import ToolRouter
 from pirn_agents.specializations.react.react_loop import ReActLoop
-from pirn_agents.tool import Tool
+from pirn_agents.tools.tool import Tool
 from pirn_agents.types.agent_message import AgentMessage
 from pirn_agents.types.agent_response import AgentResponse
 

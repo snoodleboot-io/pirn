@@ -22,7 +22,7 @@ Algorithm:
 
 
 References:
-    - pirn-native: :class:`pirn_agents.llm_provider.LLMProvider`
+    - pirn-native: :class:`pirn_agents.llm.llm_provider.LLMProvider`
     - pirn-native: :class:`pirn_agents.types.agent_response.AgentResponse`
 """
 
@@ -34,7 +34,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents.llm_provider import LLMProvider
+from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.types.agent_response import AgentResponse
 
 

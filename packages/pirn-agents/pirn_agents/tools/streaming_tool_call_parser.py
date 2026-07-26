@@ -6,13 +6,13 @@ for a call, its id and name. :class:`StreamingToolCallParser` accumulates
 those fragments per call index and emits a
 :class:`pirn_agents.types.tool_call.ToolCall` *the instant* a call is
 complete — before the underlying stream finishes — so a downstream executor
-(e.g. :class:`pirn_agents.parallel_tool_executor.ParallelToolExecutor`) can
+(e.g. :class:`pirn_agents.agent.parallel_tool_executor.ParallelToolExecutor`) can
 begin dispatching while later calls are still arriving.
 
 The parser is deliberately provider-agnostic: it consumes a NEUTRAL delta
 shape, never a provider-specific payload. Translating a provider's native
 streaming events into this neutral shape is the job of an adapter, mirroring
-the philosophy of :mod:`pirn_agents.tool_call_codec`.
+the philosophy of :mod:`pirn_agents.tools.tool_call_codec`.
 
 Neutral delta shape
 --------------------

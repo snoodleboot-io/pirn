@@ -22,7 +22,7 @@ Algorithm:
 
 References:
     - pirn-native: :class:`pirn_agents.types.agent_response.AgentResponse`
-    - pirn-native: :meth:`pirn_agents._safe_pattern_compiler.SafePatternCompiler.compile_safe_pattern`
+    - pirn-native: :meth:`pirn_agents.security._safe_pattern_compiler.SafePatternCompiler.compile_safe_pattern`
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents._safe_pattern_compiler import SafePatternCompiler
+from pirn_agents.security._safe_pattern_compiler import SafePatternCompiler
 from pirn_agents.types.agent_response import AgentResponse
 
 

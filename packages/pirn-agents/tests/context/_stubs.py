@@ -7,7 +7,7 @@ from typing import Any
 
 from pirn_agents.context.summarizer import Summarizer
 from pirn_agents.context.token_estimator import TokenEstimator
-from pirn_agents.memory_store import MemoryStore
+from pirn_agents.memory.memory_store import MemoryStore
 
 
 class StubWordTokenEstimator(TokenEstimator):

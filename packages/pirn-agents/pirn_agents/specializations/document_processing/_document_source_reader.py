@@ -53,7 +53,7 @@ from urllib.parse import urlparse
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 from pirn.security.ssrf_guard import SsrfGuard
 
-from pirn_agents._require import _require
+from pirn_agents._internal._require import _require
 
 
 @dataclass(frozen=True)

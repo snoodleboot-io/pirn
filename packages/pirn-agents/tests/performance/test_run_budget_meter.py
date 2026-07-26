@@ -19,7 +19,7 @@ from pirn_agents.performance.budget_limit import BudgetLimit
 from pirn_agents.performance.cancellation_token import CancellationToken
 from pirn_agents.performance.run_budget import RunBudget
 from pirn_agents.performance.run_budget_meter import RunBudgetMeter
-from pirn_agents.tool import Tool
+from pirn_agents.tools.tool import Tool
 
 
 class _FakeClock:

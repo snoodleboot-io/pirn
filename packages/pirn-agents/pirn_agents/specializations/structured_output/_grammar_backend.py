@@ -3,7 +3,7 @@
 Grammar/regex *generation* from a schema is pure and backend-free (it lives in
 :class:`ConstrainedDecodingMapper`). Optionally *compiling* — i.e. validating —
 that grammar against a real constrained-decoding engine needs an optional
-backend, imported here lazily through :func:`pirn_agents._require._require` so
+backend, imported here lazily through :func:`pirn_agents._internal._require._require` so
 ``import pirn_agents`` (and every eager submodule import) stays backend-free.
 
 The backend is provisioned by the ``grammar`` extra
@@ -17,7 +17,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from pirn_agents._require import _require
+from pirn_agents._internal._require import _require
 
 
 def compile_constraint(constraint: Mapping[str, Any]) -> dict[str, Any]:

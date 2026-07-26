@@ -2,7 +2,7 @@
 
 Mix this into a ``SubTapestry`` subclass to expose the ergonomic
 ``agent.as_tool(...)`` API. The method simply delegates to the
-:func:`~pirn_agents.as_tool.as_tool` free function, so the mixin adds no state
+:func:`~pirn_agents.tools.as_tool.as_tool` free function, so the mixin adds no state
 and stays compatible with the agent's existing construction.
 """
 
@@ -13,12 +13,12 @@ from typing import TYPE_CHECKING, Any, cast
 
 from pirn.nodes.sub_tapestry import SubTapestry
 
-from pirn_agents.as_tool import as_tool
-from pirn_agents.llm_provider import LLMProvider
+from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.performance.run_budget import RunBudget
+from pirn_agents.tools.as_tool import as_tool
 
 if TYPE_CHECKING:
-    from pirn_agents.agent_tool import AgentTool
+    from pirn_agents.tools.agent_tool import AgentTool
 
 
 class AgentAsToolMixin:
@@ -36,7 +36,7 @@ class AgentAsToolMixin:
     ) -> AgentTool:
         """Return an :class:`AgentTool` wrapping this agent.
 
-        See :func:`~pirn_agents.as_tool.as_tool` for the argument semantics.
+        See :func:`~pirn_agents.tools.as_tool.as_tool` for the argument semantics.
         """
         return as_tool(
             cast(SubTapestry, self),

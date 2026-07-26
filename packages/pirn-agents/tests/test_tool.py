@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn_agents.tool import Tool
+from pirn_agents.tools.tool import Tool
 
 
 class TestToolInterface(unittest.IsolatedAsyncioTestCase):

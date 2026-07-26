@@ -18,8 +18,8 @@ from pirn.core.pirn_opaque_value import PirnOpaqueValue
 from pirn_agents.llm.anthropic_messages_provider import AnthropicMessagesProvider
 from pirn_agents.llm.base_llm_provider import BaseLLMProvider
 from pirn_agents.llm.http_structured_output_provider import HttpStructuredOutputProvider
+from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.llm.openai_compatible_provider import OpenAICompatibleProvider
-from pirn_agents.llm_provider import LLMProvider
 from pirn_agents.specializations.structured_output.structured_output_capability import (
     StructuredOutputCapability,
 )

@@ -11,7 +11,7 @@ This subpackage is imported explicitly (``pirn_agents.batch.<module>``) rather
 than re-exported through :mod:`pirn_agents` — mirroring the ``sessions`` and
 ``resilience`` subpackages — so a bare ``import pirn_agents`` stays free of any
 batch machinery. Every optional backend (e.g. the cron trigger) is imported
-lazily through :func:`pirn_agents._require._require`, keeping the import path
+lazily through :func:`pirn_agents._internal._require._require`, keeping the import path
 backend-free.
 """
 

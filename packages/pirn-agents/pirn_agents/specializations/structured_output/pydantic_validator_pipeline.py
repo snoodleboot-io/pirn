@@ -37,7 +37,7 @@ from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 from pydantic import BaseModel, ValidationError
 
-from pirn_agents.llm_provider import LLMProvider
+from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.structured_output._json_extractor_attempt import (
     _JsonExtractorAttempt,
 )

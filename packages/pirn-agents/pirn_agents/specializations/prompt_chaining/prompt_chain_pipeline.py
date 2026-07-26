@@ -20,7 +20,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.nodes.source import Source
 from pirn.nodes.sub_tapestry import SubTapestry
 
-from pirn_agents.llm_provider import LLMProvider
+from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.specializations.prompt_chaining.prompt_chain_result import PromptChainResult
 

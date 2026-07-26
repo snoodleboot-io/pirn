@@ -19,15 +19,15 @@ from collections.abc import Sequence
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.builder.agent import Agent
-from pirn_agents.llm_provider import LLMProvider
-from pirn_agents.memory_store import MemoryStore
-from pirn_agents.tool import Tool
+from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.memory.memory_store import MemoryStore
 from pirn_agents.tools.bundles import (
     calculator_toolset,
     filesystem_toolset,
     web_toolset,
 )
-from pirn_agents.toolset import Toolset
+from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.toolset import Toolset
 
 
 class AgentPresets:

@@ -13,11 +13,11 @@ a lean orchestrator (DIP):
   folds the primitives this base pulls from the raw provider JSON (content, tool
   message, finish reason, usage) into a
   :class:`pirn_agents.types.agent_response.AgentResponse`, decoding native tool
-  calls through F1's :class:`pirn_agents.tool_call_codec.ToolCallCodec` and
+  calls through F1's :class:`pirn_agents.tools.tool_call_codec.ToolCallCodec` and
   estimating cost from a :class:`pirn_agents.llm.model_pricing.ModelPricing`.
 * **Lifecycle** — a pooled async HTTP client vended once by
   :class:`pirn.connectors.connector_base.ConnectorBase` and imported lazily via
-  :func:`pirn_agents._require._require` so ``import pirn_agents`` stays
+  :func:`pirn_agents._internal._require._require` so ``import pirn_agents`` stays
   backend-free.
 * **Streaming** — :meth:`stream_chat` yields a unified
   :class:`pirn_agents.llm.stream_delta.StreamDelta` (token + incremental
@@ -26,7 +26,7 @@ a lean orchestrator (DIP):
 * **Caching** — an opt-in prompt/context-caching hook (:meth:`_apply_prompt_cache`,
   a no-op unless a subclass overrides it).
 
-This base is a plain :class:`pirn_agents.llm_provider.LLMProvider`: it carries no
+This base is a plain :class:`pirn_agents.llm.llm_provider.LLMProvider`: it carries no
 structured-output surface, so plain-chat clients never depend on the F20 seam
 (ISP). HTTP providers that support native structured output subclass
 :class:`pirn_agents.llm.http_structured_output_provider.HttpStructuredOutputProvider`
@@ -47,17 +47,17 @@ from pirn.security.credential_ref import CredentialRef
 from pirn_agents.exceptions.unsupported_modality_error import UnsupportedModalityError
 from pirn_agents.llm.http_transport import HttpTransport
 from pirn_agents.llm.llm_http_status_error import LLMHTTPStatusError
+from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.llm.modality_capability import ModalityCapability
 from pirn_agents.llm.model_pricing import ModelPricing
 from pirn_agents.llm.multimodal_adapter import MultimodalAdapter
+from pirn_agents.llm.provider_adapter import ProviderAdapter
 from pirn_agents.llm.response_mapper import ResponseMapper
 from pirn_agents.llm.retry_policy import RetryPolicy
 from pirn_agents.llm.stream_delta import StreamDelta
-from pirn_agents.llm_provider import LLMProvider
-from pirn_agents.provider_adapter import ProviderAdapter
-from pirn_agents.streaming_tool_call_parser import StreamingToolCallParser
-from pirn_agents.tool_call_codec import ToolCallCodec
-from pirn_agents.toolset import Toolset
+from pirn_agents.tools.streaming_tool_call_parser import StreamingToolCallParser
+from pirn_agents.tools.tool_call_codec import ToolCallCodec
+from pirn_agents.tools.toolset import Toolset
 from pirn_agents.types.agent_response import AgentResponse
 from pirn_agents.types.content_block import ContentBlock
 

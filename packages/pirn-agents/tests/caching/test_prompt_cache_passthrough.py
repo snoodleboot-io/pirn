@@ -8,7 +8,7 @@ from typing import Any
 import pytest
 
 from pirn_agents.caching.prompt_cache_passthrough import PromptCachePassthrough
-from pirn_agents.llm_provider import LLMProvider
+from pirn_agents.llm.llm_provider import LLMProvider
 
 
 class _PlainProvider(LLMProvider):

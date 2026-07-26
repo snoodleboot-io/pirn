@@ -1,7 +1,7 @@
 """Map an :class:`AgentResponse` into the F1 :class:`ToolResult` shape.
 
 A nested agent invoked as a tool produces an :class:`AgentResponse` (content,
-tool_calls, usage, cost). Callers of a :class:`~pirn_agents.tool.Tool` expect
+tool_calls, usage, cost). Callers of a :class:`~pirn_agents.tools.tool.Tool` expect
 the F1 :class:`~pirn_agents.types.tool_result.ToolResult` shape instead. This
 module holds the single, shared translation so every agent-as-tool path maps
 identically: the whole structured response is carried through as

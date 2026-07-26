@@ -11,9 +11,10 @@ import json
 import unittest
 
 from pirn.security.credential_ref import CredentialRef
+
 from pirn_agents.llm.anthropic_messages_provider import AnthropicMessagesProvider
 from pirn_agents.llm.model_pricing import ModelPricing
-from pirn_agents.toolset import Toolset
+from pirn_agents.tools.toolset import Toolset
 from tests.llm.conftest import FakeAsyncClient, FakeResponse, FakeStream, RecordingSleeper
 from tests.specializations.conftest import StubTool
 

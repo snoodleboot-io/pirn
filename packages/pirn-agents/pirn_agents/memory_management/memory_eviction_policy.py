@@ -3,7 +3,7 @@
 Eviction bounds store growth so search stays fast. A policy inspects a batch of
 :class:`~pirn_agents.memory_management.memory_record.MemoryRecord` (the candidate
 set the caller lists out of the store — the
-:class:`~pirn_agents.memory_store.MemoryStore` interface itself is left unchanged)
+:class:`~pirn_agents.memory.memory_store.MemoryStore` interface itself is left unchanged)
 and returns the subset to forget. Concrete policies override only
 :meth:`select`: TTL-based expiry, low-value decay eviction, or a composite. This
 mirrors the context-layer ``EvictionPolicy`` seam but operates over durable

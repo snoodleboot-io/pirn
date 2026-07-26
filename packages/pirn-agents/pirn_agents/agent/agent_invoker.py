@@ -1,18 +1,18 @@
 """``AgentInvoker`` — the single machinery that runs a nested agent as a tool.
 
 Every agent-as-tool call — whether dispatched as a plain
-:class:`~pirn_agents.agent_tool.AgentTool` or as a handoff/swarm transfer —
+:class:`~pirn_agents.tools.agent_tool.AgentTool` or as a handoff/swarm transfer —
 funnels through :meth:`AgentInvoker.invoke` so the guarantees never diverge:
 
 * **Recursion + cycle guard** (F7-S3): a child
-  :class:`~pirn_agents.agent_tool_context.AgentToolContext` is entered before
+  :class:`~pirn_agents.agent.agent_tool_context.AgentToolContext` is entered before
   the nested agent runs, raising before over-deep or self-referential recursion.
 * **Budget propagation** (F7-S4): the parent's shared
   :class:`~pirn_agents.performance.run_budget_meter.RunBudgetMeter` is inherited
   (never re-created) and spent per nested call, so a nested loop cannot outrun
   the caller's deadline/token/iteration limits.
 * **Shared provider reuse** (F7-S5): the parent's pooled
-  :class:`~pirn_agents.llm_provider.LLMProvider` is threaded into the
+  :class:`~pirn_agents.llm.llm_provider.LLMProvider` is threaded into the
   nested run rather than reconstructed on the hot path.
 * **Result mapping** (F7-S1): the inner :class:`AgentResponse` is mapped to the
   F1 :class:`ToolResult` shape; an inner failure surfaces as a tool error, not
@@ -30,14 +30,14 @@ import time
 from collections.abc import Mapping
 from typing import Any
 
-from pirn_agents.agent_introspector import AgentIntrospector
-from pirn_agents.agent_response_mapper import AgentResponseMapper
-from pirn_agents.agent_tool_context import (
+from pirn_agents.agent.agent_introspector import AgentIntrospector
+from pirn_agents.agent.agent_response_mapper import AgentResponseMapper
+from pirn_agents.agent.agent_tool_context import (
     AgentToolContext,
     bind_agent_tool_context,
     current_agent_tool_context,
 )
-from pirn_agents.llm_provider import LLMProvider
+from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.performance.run_budget import RunBudget
 from pirn_agents.performance.run_budget_meter import RunBudgetMeter
 from pirn_agents.types.agent_response import AgentResponse

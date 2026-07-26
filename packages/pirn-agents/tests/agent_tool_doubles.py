@@ -16,8 +16,8 @@ from pirn.core.knot_config import KnotConfig
 from pirn.nodes.source import Source
 from pirn.nodes.sub_tapestry import SubTapestry
 
-from pirn_agents.agent_as_tool_mixin import AgentAsToolMixin
-from pirn_agents.agent_tool_context import current_agent_tool_context
+from pirn_agents.agent.agent_tool_context import current_agent_tool_context
+from pirn_agents.tools.agent_as_tool_mixin import AgentAsToolMixin
 from pirn_agents.types.agent_response import AgentResponse
 
 # knot_id -> list of {"topic": str, "llm": object, "depth": int}

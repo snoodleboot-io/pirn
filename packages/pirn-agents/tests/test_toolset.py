@@ -1,4 +1,4 @@
-"""Tests for :class:`pirn_agents.toolset.Toolset`."""
+"""Tests for :class:`pirn_agents.tools.toolset.Toolset`."""
 
 from __future__ import annotations
 
@@ -6,8 +6,8 @@ import unittest
 from collections.abc import Mapping
 from typing import Any
 
-from pirn_agents.tool import Tool
-from pirn_agents.toolset import Toolset
+from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.toolset import Toolset
 
 
 class StubTool(Tool):

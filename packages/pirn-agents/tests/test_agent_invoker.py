@@ -1,4 +1,4 @@
-"""Tests for :class:`pirn_agents.agent_invoker.AgentInvoker`.
+"""Tests for :class:`pirn_agents.agent.agent_invoker.AgentInvoker`.
 
 Covers the recursion/cycle guard (F7-S3), budget propagation (F7-S4), and
 shared provider reuse (F7-S5) that the shared machinery enforces.
@@ -11,8 +11,8 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.agent_invoker import AgentInvoker
-from pirn_agents.agent_tool_context import (
+from pirn_agents.agent.agent_invoker import AgentInvoker
+from pirn_agents.agent.agent_tool_context import (
     AgentToolContext,
     bind_agent_tool_context,
     current_agent_tool_context,

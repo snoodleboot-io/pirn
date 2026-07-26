@@ -15,7 +15,7 @@ The client is transport-agnostic: it drives any
 state and is intended to stay **internal** — the values that travel through the
 graph are the already-opaque :class:`~pirn_agents.mcp.mcp_connector.McpConnector`
 (a :class:`~pirn.connectors.connector_base.ConnectorBase`) and
-:class:`~pirn_agents.mcp.mcp_tool.McpTool` (a :class:`~pirn_agents.tool.Tool`)
+:class:`~pirn_agents.mcp.mcp_tool.McpTool` (a :class:`~pirn_agents.tools.tool.Tool`)
 that wrap it. As a defensive measure it nonetheless inherits
 :class:`~pirn.core.pirn_opaque_value.PirnOpaqueValue`: should a live client ever
 be injected directly as a config value, it crosses the content-addressed Knot IO

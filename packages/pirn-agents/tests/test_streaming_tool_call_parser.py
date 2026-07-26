@@ -14,7 +14,7 @@ import asyncio
 from collections.abc import AsyncIterator, Mapping, Sequence
 from typing import Any
 
-from pirn_agents.streaming_tool_call_parser import StreamingToolCallParser
+from pirn_agents.tools.streaming_tool_call_parser import StreamingToolCallParser
 
 
 async def _stream(deltas: Sequence[Mapping[str, Any]]) -> AsyncIterator[Mapping[str, Any]]:

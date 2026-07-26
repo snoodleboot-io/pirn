@@ -15,7 +15,7 @@ import asyncio
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from pirn_agents._require import _require
+from pirn_agents._internal._require import _require
 from pirn_agents.vector_stores.vector_backend_client import VectorBackendClient
 
 

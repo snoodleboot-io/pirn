@@ -3,7 +3,7 @@
 The S1 consolidation job. It runs off the hot path (batch/background) over a
 supplied batch of episodic
 :class:`~pirn_agents.memory_management.memory_record.MemoryRecord`, leaving the
-:class:`~pirn_agents.memory_store.MemoryStore` interface unchanged: it only reads
+:class:`~pirn_agents.memory.memory_store.MemoryStore` interface unchanged: it only reads
 the batch it is given and, optionally, ``store``\\ s the consolidated results.
 
 Pipeline
@@ -38,12 +38,12 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.context.summarizer import Summarizer
+from pirn_agents.memory.memory_store import MemoryStore
 from pirn_agents.memory_management.conflict_resolution_policy import ConflictResolutionPolicy
 from pirn_agents.memory_management.memory_provenance import MemoryProvenance
 from pirn_agents.memory_management.memory_record import MemoryRecord
 from pirn_agents.memory_management.near_duplicate_grouper import NearDuplicateGrouper
 from pirn_agents.memory_management.recency_trust_conflict_policy import RecencyTrustConflictPolicy
-from pirn_agents.memory_store import MemoryStore
 
 
 class MemoryConsolidator(Knot):

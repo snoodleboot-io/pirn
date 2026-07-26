@@ -19,8 +19,8 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
-from pirn_agents.llm_provider import LLMProvider
-from pirn_agents.memory_store import MemoryStore
+from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.memory.memory_store import MemoryStore
 from pirn_agents.specializations.rag.speculative_rag_pipeline import SpeculativeRagPipeline
 from pirn_agents.types.agent_response import AgentResponse
 

@@ -11,7 +11,7 @@ import asyncio
 
 import pytest
 
-from pirn_agents.async_fanout_engine import AsyncFanoutEngine
+from pirn_agents.agent.async_fanout_engine import AsyncFanoutEngine
 from pirn_agents.llm.retry_policy import RetryPolicy
 
 

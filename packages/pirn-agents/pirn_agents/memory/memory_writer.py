@@ -8,7 +8,7 @@ Algorithm:
 
 
 References:
-    - :class:`pirn_agents.memory_store.MemoryStore`
+    - :class:`pirn_agents.memory.memory_store.MemoryStore`
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents.memory_store import MemoryStore
+from pirn_agents.memory.memory_store import MemoryStore
 
 
 class MemoryWriter(Knot):

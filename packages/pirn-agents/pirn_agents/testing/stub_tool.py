@@ -1,7 +1,7 @@
 """``StubTool`` — a configurable, deterministic tool double for tests.
 
 :class:`StubTool` generalises the ad-hoc stubs the agent tests grow locally: a
-single :class:`~pirn_agents.tool.Tool` implementation that can act as a plain
+single :class:`~pirn_agents.tools.tool.Tool` implementation that can act as a plain
 sync/async tool, a streaming tool, or a stateful tool, records every
 invocation, and lets a test pin its schema, return schema, and permissions. It
 ships in the package (not just the test tree) so external tool authors can reuse
@@ -14,8 +14,8 @@ from collections.abc import AsyncIterator, Awaitable, Callable, Mapping, Sequenc
 from inspect import isawaitable
 from typing import Any
 
-from pirn_agents.tool import Tool
-from pirn_agents.tool_permissions import ToolPermissions
+from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.tool_permissions import ToolPermissions
 
 
 class StubTool(Tool):

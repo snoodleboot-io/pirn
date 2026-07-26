@@ -1,4 +1,4 @@
-"""Curated :class:`~pirn_agents.toolset.Toolset` bundles for the base tools.
+"""Curated :class:`~pirn_agents.tools.toolset.Toolset` bundles for the base tools.
 
 Factory functions that group related base tools with sane defaults so callers can
 register a whole capability with one line. Every factory only *constructs* tools —
@@ -18,9 +18,8 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 
-from pirn_agents.llm_provider import LLMProvider
-from pirn_agents.memory_store import MemoryStore
-from pirn_agents.tool import Tool
+from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.memory.memory_store import MemoryStore
 from pirn_agents.tools.calculator.calculator_tool import CalculatorTool
 from pirn_agents.tools.filesystem.glob_tool import GlobTool
 from pirn_agents.tools.filesystem.list_dir_tool import ListDirTool
@@ -33,11 +32,12 @@ from pirn_agents.tools.sandbox.sandbox_executor import SandboxExecutor
 from pirn_agents.tools.sandbox.shell_tool import ShellTool
 from pirn_agents.tools.sql.sql_connector import SqlConnector
 from pirn_agents.tools.sql.sql_query_tool import SqlQueryTool
+from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.toolset import Toolset
 from pirn_agents.tools.web.html_to_text_tool import HtmlToTextTool
 from pirn_agents.tools.web.http_request_tool import HttpRequestTool
 from pirn_agents.tools.web.search_backend import SearchBackend
 from pirn_agents.tools.web.web_search_tool import WebSearchTool
-from pirn_agents.toolset import Toolset
 
 
 def calculator_toolset() -> Toolset:

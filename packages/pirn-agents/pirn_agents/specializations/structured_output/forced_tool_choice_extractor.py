@@ -2,7 +2,7 @@
 
 The S2 building block. It synthesises a single :class:`_ExtractionTool` whose
 parameters are the target model's JSON schema, declares it to the provider
-through F1's :class:`pirn_agents.tool_call_codec.ToolCallCodec` (the codec the
+through F1's :class:`pirn_agents.tools.tool_call_codec.ToolCallCodec` (the codec the
 provider already drives), and forces tool-choice to that one tool. The provider
 returns a single tool call whose arguments — decoded by the codec — are
 validated against the model in one pass, with no retry round-trip.
@@ -25,7 +25,7 @@ from pirn_agents.specializations.structured_output.structured_decode_error impor
 from pirn_agents.specializations.structured_output.structured_output_provider import (
     StructuredOutputProvider,
 )
-from pirn_agents.toolset import Toolset
+from pirn_agents.tools.toolset import Toolset
 
 
 class ForcedToolChoiceExtractor:

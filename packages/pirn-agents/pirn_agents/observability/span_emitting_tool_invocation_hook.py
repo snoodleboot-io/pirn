@@ -1,7 +1,7 @@
 """``SpanEmittingToolInvocationHook`` — bridge F1's tool hook onto the span interface.
 
 This is the seam that makes F1 and F10 observability *one* system rather than
-two. F1's :class:`~pirn_agents.tool_invocation_hook.ToolInvocationHook` already
+two. F1's :class:`~pirn_agents.tools.tool_invocation_hook.ToolInvocationHook` already
 fires ``on_start``/``on_finish`` around every tool call an executor runs; this
 subclass turns those callbacks into :class:`Span`\\ s opened on the shared
 :class:`~pirn_agents.observability.tracer.Tracer`, so tool spans land in the
@@ -15,7 +15,7 @@ from pirn_agents.observability.span import Span
 from pirn_agents.observability.span_kind import SpanKind
 from pirn_agents.observability.span_status import SpanStatus
 from pirn_agents.observability.tracer import Tracer
-from pirn_agents.tool_invocation_hook import ToolInvocationHook
+from pirn_agents.tools.tool_invocation_hook import ToolInvocationHook
 from pirn_agents.types.tool_status import ToolStatus
 
 

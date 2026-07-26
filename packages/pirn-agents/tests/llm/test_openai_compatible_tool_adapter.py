@@ -6,8 +6,8 @@ import json
 import unittest
 
 from pirn_agents.llm.openai_compatible_tool_adapter import OpenAICompatibleToolAdapter
-from pirn_agents.tool_call_codec import ToolCallCodec
-from pirn_agents.toolset import Toolset
+from pirn_agents.tools.tool_call_codec import ToolCallCodec
+from pirn_agents.tools.toolset import Toolset
 from pirn_agents.types.tool_result import ToolResult
 from tests.specializations.conftest import StubTool
 

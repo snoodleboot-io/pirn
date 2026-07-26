@@ -15,7 +15,7 @@ import time
 import pytest
 
 from pirn_agents.testing.stub_tool import StubTool
-from pirn_agents.tool_registry import ToolRegistry
+from pirn_agents.tools.tool_registry import ToolRegistry
 
 
 def _mean_lookup_seconds(registry: ToolRegistry, name: str, iterations: int) -> float:

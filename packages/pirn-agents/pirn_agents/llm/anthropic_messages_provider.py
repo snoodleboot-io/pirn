@@ -33,12 +33,12 @@ from pirn_agents.llm.anthropic_messages_multimodal_adapter import (
 from pirn_agents.llm.anthropic_messages_tool_adapter import AnthropicMessagesToolAdapter
 from pirn_agents.llm.http_structured_output_provider import HttpStructuredOutputProvider
 from pirn_agents.llm.multimodal_adapter import MultimodalAdapter
+from pirn_agents.llm.provider_adapter import ProviderAdapter
 from pirn_agents.llm.stream_delta import StreamDelta
-from pirn_agents.provider_adapter import ProviderAdapter
 from pirn_agents.specializations.structured_output.structured_output_capability import (
     StructuredOutputCapability,
 )
-from pirn_agents.toolset import Toolset
+from pirn_agents.tools.toolset import Toolset
 
 
 class AnthropicMessagesProvider(HttpStructuredOutputProvider):

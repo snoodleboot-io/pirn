@@ -12,9 +12,9 @@ import unittest
 from typing import Any
 
 from pirn_agents.llm.model_pricing import ModelPricing
+from pirn_agents.llm.provider_adapter import ProviderAdapter
 from pirn_agents.llm.response_mapper import ResponseMapper
-from pirn_agents.provider_adapter import ProviderAdapter
-from pirn_agents.tool_call_codec import ToolCallCodec
+from pirn_agents.tools.tool_call_codec import ToolCallCodec
 from pirn_agents.types.agent_response import AgentResponse
 from pirn_agents.types.tool_call import ToolCall
 

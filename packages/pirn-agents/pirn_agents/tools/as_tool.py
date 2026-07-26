@@ -1,7 +1,7 @@
 """``as_tool`` — free-function helper wrapping a ``SubTapestry`` as an ``AgentTool``.
 
 This is the functional form of the agent-as-tool API. The
-:class:`~pirn_agents.agent_as_tool_mixin.AgentAsToolMixin` delegates its
+:class:`~pirn_agents.tools.agent_as_tool_mixin.AgentAsToolMixin` delegates its
 ``agent.as_tool(...)`` method here so both spellings share one implementation.
 """
 
@@ -12,9 +12,9 @@ from typing import Any
 
 from pirn.nodes.sub_tapestry import SubTapestry
 
-from pirn_agents.agent_tool import AgentTool
-from pirn_agents.llm_provider import LLMProvider
+from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.performance.run_budget import RunBudget
+from pirn_agents.tools.agent_tool import AgentTool
 
 
 def as_tool(

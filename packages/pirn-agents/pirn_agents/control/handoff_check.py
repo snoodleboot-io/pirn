@@ -9,7 +9,7 @@ Algorithm:
 
 
 References:
-    - :mod:`pirn_agents._safe_pattern_compiler` — ``SafePatternCompiler``
+    - :mod:`pirn_agents.security._safe_pattern_compiler` — ``SafePatternCompiler``
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents._safe_pattern_compiler import SafePatternCompiler
+from pirn_agents.security._safe_pattern_compiler import SafePatternCompiler
 from pirn_agents.types.agent_response import AgentResponse
 
 

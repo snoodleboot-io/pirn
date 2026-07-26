@@ -29,7 +29,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents.tool import Tool
+from pirn_agents.tools.tool import Tool
 
 
 class CorrectiveRouter(Knot):

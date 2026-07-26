@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from pirn_agents.connector_lifespan import connector_lifespan
+from pirn_agents.connectors.connector_lifespan import connector_lifespan
 
 
 class _AsyncClosable:

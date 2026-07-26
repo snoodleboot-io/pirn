@@ -23,7 +23,7 @@ Client pooling, teardown, and credential scrubbing come from
 :class:`~pirn_agents.llm.base_llm_provider.BaseLLMProvider` inherits, so an
 embedding adapter and an LLM adapter share one pooling lifecycle rather than two
 copies of it. The public surface aligns with
-:class:`pirn_agents.embedding_provider.EmbeddingProvider`: :meth:`embed` and
+:class:`pirn_agents.embeddings.embedding_provider.EmbeddingProvider`: :meth:`embed` and
 :meth:`close`.
 """
 
@@ -35,7 +35,7 @@ from collections.abc import Awaitable, Callable, Iterator, Sequence
 from pirn.connectors.connector_base import ConnectorBase
 from pirn.security.credential_ref import CredentialRef
 
-from pirn_agents.embedding_provider import EmbeddingProvider
+from pirn_agents.embeddings.embedding_provider import EmbeddingProvider
 from pirn_agents.llm.retry_policy import RetryPolicy
 
 

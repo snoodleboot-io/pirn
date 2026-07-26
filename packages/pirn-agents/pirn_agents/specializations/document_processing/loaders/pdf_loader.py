@@ -1,7 +1,7 @@
 """``PdfLoader`` — extract text from a PDF via the lazy ``pdf`` extra (F25-S1).
 
 Wraps ``pypdf`` (imported lazily through
-:func:`~pirn_agents._require._require`, so importing this module never pulls the
+:func:`~pirn_agents._internal._require._require`, so importing this module never pulls the
 backend). Concatenates the extracted text of every page into one normalized
 :class:`LoadedDocument`, recording the page count in metadata. Multimodal PDF
 content (embedded images) is out of scope until F15 (see :class:`Loader`).
@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import io
 
-from pirn_agents._require import _require
+from pirn_agents._internal._require import _require
 from pirn_agents.specializations.document_processing.loaders.loaded_document import (
     LoadedDocument,
 )

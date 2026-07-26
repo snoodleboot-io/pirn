@@ -2,7 +2,7 @@
 
 The S3 profile knot. In one ``process`` pass it reads the existing profile for a
 :class:`~pirn_agents.memory_management.profile_key.ProfileKey` through the standard
-:meth:`~pirn_agents.memory_store.MemoryStore.retrieve` interface, folds in the new
+:meth:`~pirn_agents.memory.memory_store.MemoryStore.retrieve` interface, folds in the new
 session's fields with
 :func:`~pirn_agents.memory_management.profile_merge.merge_profile_fields` (so
 unrelated existing fields are never clobbered), records the contributing session
@@ -22,11 +22,11 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents.memory.memory_store import MemoryStore
 from pirn_agents.memory_management.entity_profile import EntityProfile
 from pirn_agents.memory_management.memory_provenance import MemoryProvenance
 from pirn_agents.memory_management.profile_key import ProfileKey
 from pirn_agents.memory_management.profile_merge import merge_profile_fields
-from pirn_agents.memory_store import MemoryStore
 
 
 class CrossSessionProfileUpdater(Knot):

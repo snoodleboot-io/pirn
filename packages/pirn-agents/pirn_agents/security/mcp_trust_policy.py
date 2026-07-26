@@ -7,11 +7,11 @@ sourced from an MCP server. It composes three checks, cheapest first:
    servers are rejected by default. Each server maps to the set of tool names it
    may expose (``None`` allow-lists *every* tool on that server).
 2. **Permission scope.** The tool's
-   :class:`~pirn_agents.tool_permissions.ToolPermissions` ``scope`` (F26 metadata)
+   :class:`~pirn_agents.tools.tool_permissions.ToolPermissions` ``scope`` (F26 metadata)
    must be one the caller has been granted.
 3. **Human approval.** Allowed calls whose permissions set ``approval_required``
    are routed through the F14
-   :func:`~pirn_agents.approval_hook.authorize_tool_call` seam so a human (or a
+   :func:`~pirn_agents.agent.approval_hook.authorize_tool_call` seam so a human (or a
    policy engine) can veto them.
 
 :meth:`decide` is the pure, synchronous evaluation (allow-list + scope);
@@ -24,11 +24,11 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from pirn_agents.approval_hook import ApprovalHook, authorize_tool_call
+from pirn_agents.agent.approval_hook import ApprovalHook, authorize_tool_call
 from pirn_agents.security.mcp_trust_decision import McpTrustDecision
 from pirn_agents.security.mcp_trust_error import McpTrustError
-from pirn_agents.tool import Tool
-from pirn_agents.tool_permissions import ToolPermissions
+from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.tool_permissions import ToolPermissions
 
 
 class McpTrustPolicy:
@@ -151,7 +151,7 @@ class McpTrustPolicy:
 
         Args:
             tool: The tool to be invoked (its ``permissions`` facet is read
-                directly off the :class:`~pirn_agents.tool.Tool` base).
+                directly off the :class:`~pirn_agents.tools.tool.Tool` base).
             arguments: The arguments the tool would run with.
             server: The MCP server the tool came from.
 

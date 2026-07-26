@@ -21,8 +21,8 @@ from typing import Any
 
 from pirn.security.credential_ref import CredentialRef
 
-from pirn_agents._require import _require
-from pirn_agents.embedding_provider import EmbeddingProvider
+from pirn_agents._internal._require import _require
+from pirn_agents.embeddings.embedding_provider import EmbeddingProvider
 from pirn_agents.vector_stores.vector_match import VectorMatch
 from pirn_agents.vector_stores.vector_memory_store import VectorMemoryStore
 from pirn_agents.vector_stores.vector_record import VectorRecord

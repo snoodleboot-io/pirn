@@ -7,13 +7,13 @@ On success the response is returned unchanged.
 
 Algorithm:
     1. Compile each raw string in ``deny_patterns`` into a regex via
-       :meth:`~pirn_agents._safe_pattern_compiler.SafePatternCompiler.compile_safe_pattern`; raise :class:`ValueError` on invalid
+       :meth:`~pirn_agents.security._safe_pattern_compiler.SafePatternCompiler.compile_safe_pattern`; raise :class:`ValueError` on invalid
        patterns.
     2. Build a frozen set from ``allowed_tool_names`` for O(1) membership
        tests.
     3. Validate that ``response`` is an :class:`AgentResponse`; raise
        :class:`TypeError` otherwise.
-    4. Run :meth:`~pirn_agents._safe_pattern_compiler.SafePatternCompiler.search_any` over the compiled deny patterns against
+    4. Run :meth:`~pirn_agents.security._safe_pattern_compiler.SafePatternCompiler.search_any` over the compiled deny patterns against
        ``response.content``; raise :class:`ValueError` on the first match.
     5. Iterate ``response.tool_calls``; raise :class:`ValueError` for any
        ``tool_name`` absent from the allowed set.
@@ -22,8 +22,8 @@ Algorithm:
 
 References:
     - pirn-native: :class:`pirn_agents.types.agent_response.AgentResponse`
-    - pirn-native: :meth:`pirn_agents._safe_pattern_compiler.SafePatternCompiler.compile_safe_pattern`
-    - pirn-native: :meth:`pirn_agents._safe_pattern_compiler.SafePatternCompiler.search_any`
+    - pirn-native: :meth:`pirn_agents.security._safe_pattern_compiler.SafePatternCompiler.compile_safe_pattern`
+    - pirn-native: :meth:`pirn_agents.security._safe_pattern_compiler.SafePatternCompiler.search_any`
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents._safe_pattern_compiler import SafePatternCompiler
+from pirn_agents.security._safe_pattern_compiler import SafePatternCompiler
 from pirn_agents.types.agent_response import AgentResponse
 
 

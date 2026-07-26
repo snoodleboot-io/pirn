@@ -13,7 +13,7 @@ from collections.abc import Mapping
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents.llm_provider import LLMProvider
+from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.multi_agent.consensus_majority_vote_picker import (
     ConsensusMajorityVotePicker,
 )

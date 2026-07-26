@@ -19,7 +19,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from re import DOTALL, IGNORECASE, Match, Pattern
 
-from pirn_agents._safe_pattern_compiler import SafePatternCompiler
+from pirn_agents.security._safe_pattern_compiler import SafePatternCompiler
 from pirn_agents.security.quarantined_item import QuarantinedItem
 
 

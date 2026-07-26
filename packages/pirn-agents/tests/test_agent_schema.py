@@ -1,4 +1,4 @@
-"""Tests for :mod:`pirn_agents.agent_schema_deriver` (F7-S2 schema derivation)."""
+"""Tests for :mod:`pirn_agents.agent.agent_schema_deriver` (F7-S2 schema derivation)."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.agent_schema_deriver import AgentSchemaDeriver
+from pirn_agents.agent.agent_schema_deriver import AgentSchemaDeriver
 from tests.agent_tool_doubles import NoInputAgent, TopicMaxAgent, reset_doubles
 
 

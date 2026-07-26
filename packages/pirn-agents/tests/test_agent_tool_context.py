@@ -1,10 +1,10 @@
-"""Tests for :mod:`pirn_agents.agent_tool_context` (F7-S3 state)."""
+"""Tests for :mod:`pirn_agents.agent.agent_tool_context` (F7-S3 state)."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn_agents.agent_tool_context import (
+from pirn_agents.agent.agent_tool_context import (
     AgentToolContext,
     bind_agent_tool_context,
     current_agent_tool_context,

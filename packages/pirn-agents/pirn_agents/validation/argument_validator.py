@@ -44,7 +44,7 @@ from pirn.core.pirn_opaque_value import PirnOpaqueValue
 from pirn_agents.exceptions.tool_argument_validation_error import (
     ToolArgumentValidationError,
 )
-from pirn_agents.tool import Tool
+from pirn_agents.tools.tool import Tool
 from pirn_agents.types.tool_call import ToolCall
 from pirn_agents.types.tool_result import ToolResult
 from pirn_agents.types.tool_status import ToolStatus

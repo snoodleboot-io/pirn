@@ -2,7 +2,7 @@
 
 Discovery calls ``tools/list`` through the client, wraps each descriptor in an
 :class:`~pirn_agents.mcp.mcp_tool.McpTool`, and assembles them into an F1
-:class:`~pirn_agents.toolset.Toolset` — the same ordered, uniquely-named registry
+:class:`~pirn_agents.tools.toolset.Toolset` — the same ordered, uniquely-named registry
 any knot accepts. :meth:`refresh` re-runs discovery so a long-lived agent can
 pick up tools a server adds mid-run.
 """
@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from pirn_agents.mcp.mcp_client import McpClient
 from pirn_agents.mcp.mcp_tool import McpTool
-from pirn_agents.toolset import Toolset
+from pirn_agents.tools.toolset import Toolset
 
 
 class McpToolset:

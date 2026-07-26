@@ -1,6 +1,6 @@
 """Interface every provider-specific tool-calling adapter must satisfy.
 
-The provider-neutral :class:`pirn_agents.tool_call_codec.ToolCallCodec`
+The provider-neutral :class:`pirn_agents.tools.tool_call_codec.ToolCallCodec`
 delegates all provider-specific shaping to a :class:`ProviderAdapter`.
 Concrete adapters translate between pirn's neutral vocabulary and one
 LLM provider's native tool-calling JSON in three places:
@@ -31,7 +31,7 @@ class ProviderAdapter(PirnOpaqueValue):
 
         Args:
             neutral_tool: A ``{"name", "description", "parameters"}`` entry
-                as produced by :meth:`pirn_agents.toolset.Toolset.schema`.
+                as produced by :meth:`pirn_agents.tools.toolset.Toolset.schema`.
 
         Returns:
             The provider-native tool / function-declaration JSON.

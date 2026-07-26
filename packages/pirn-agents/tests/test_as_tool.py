@@ -8,9 +8,9 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
-from pirn_agents.agent_tool import AgentTool
-from pirn_agents.as_tool import as_tool
 from pirn_agents.specializations.react.react_loop import ReActLoop
+from pirn_agents.tools.agent_tool import AgentTool
+from pirn_agents.tools.as_tool import as_tool
 from pirn_agents.types.agent_message import AgentMessage
 from pirn_agents.types.agent_response import AgentResponse
 from tests.agent_tool_doubles import AGENT_CALLS, StubAgent, reset_doubles

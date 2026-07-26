@@ -14,7 +14,7 @@ import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.memory_store import MemoryStore
+from pirn_agents.memory.memory_store import MemoryStore
 from pirn_agents.rerank.reranker_backend import RerankerBackend
 from pirn_agents.specializations.rag.reranker import Reranker
 from tests.specializations.conftest import StubMemoryStore

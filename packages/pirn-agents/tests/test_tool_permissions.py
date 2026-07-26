@@ -1,10 +1,10 @@
-"""Unit tests for :class:`pirn_agents.tool_permissions.ToolPermissions`."""
+"""Unit tests for :class:`pirn_agents.tools.tool_permissions.ToolPermissions`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn_agents.tool_permissions import ToolPermissions
+from pirn_agents.tools.tool_permissions import ToolPermissions
 
 
 class TestToolPermissionsDefaults(unittest.TestCase):

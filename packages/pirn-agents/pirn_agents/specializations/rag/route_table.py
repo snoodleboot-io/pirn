@@ -13,7 +13,7 @@ from collections.abc import Mapping
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
-from pirn_agents.memory_store import MemoryStore
+from pirn_agents.memory.memory_store import MemoryStore
 
 
 class RouteTable(PirnOpaqueValue):

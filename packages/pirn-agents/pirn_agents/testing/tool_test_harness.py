@@ -30,7 +30,7 @@ from collections.abc import Iterable, Mapping
 from typing import Any
 
 from pirn_agents.testing.stub_tool import StubTool
-from pirn_agents.tool import Tool
+from pirn_agents.tools.tool import Tool
 
 
 def make_stub_tool(**kwargs: Any) -> StubTool:

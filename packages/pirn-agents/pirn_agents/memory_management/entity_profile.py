@@ -5,7 +5,7 @@ sessions: a free-form ``fields`` mapping (preferences, attributes, …), the
 :class:`~pirn_agents.memory_management.memory_provenance.MemoryProvenance` of its
 last update, and the set of ``session_ids`` that have contributed. It is a frozen
 value object that round-trips through the untyped
-:class:`~pirn_agents.memory_store.MemoryStore` mapping interface via
+:class:`~pirn_agents.memory.memory_store.MemoryStore` mapping interface via
 :meth:`to_payload` / :meth:`from_payload`, so a profile persists and is re-read
 with no store-side schema.
 """

@@ -1,7 +1,7 @@
 """``HtmlLoader`` — extract visible text from HTML via the lazy ``html`` extra (F25-S1).
 
 Wraps ``beautifulsoup4`` (imported lazily through
-:func:`~pirn_agents._require._require`) with the stdlib ``html.parser`` backend
+:func:`~pirn_agents._internal._require._require`) with the stdlib ``html.parser`` backend
 so no compiled parser (lxml) is required. Strips ``<script>`` and ``<style>``
 subtrees, collapses the remaining text, and records the document title in
 metadata.
@@ -9,7 +9,7 @@ metadata.
 
 from __future__ import annotations
 
-from pirn_agents._require import _require
+from pirn_agents._internal._require import _require
 from pirn_agents.specializations.document_processing.loaders.loaded_document import (
     LoadedDocument,
 )

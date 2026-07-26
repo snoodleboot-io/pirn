@@ -37,8 +37,8 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents.embedding_provider import EmbeddingProvider
-from pirn_agents.llm_provider import LLMProvider
+from pirn_agents.embeddings.embedding_provider import EmbeddingProvider
+from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.types.agent_response import AgentResponse
 
 

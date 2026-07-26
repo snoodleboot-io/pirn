@@ -1,6 +1,6 @@
 """``_ExtractionTool`` — a synthetic single-purpose tool for forced extraction.
 
-An internal :class:`pirn_agents.tool.Tool` whose ``parameters_schema`` is the
+An internal :class:`pirn_agents.tools.tool.Tool` whose ``parameters_schema`` is the
 target model's JSON schema. Forcing tool-choice to this one tool (S2) makes the
 provider emit exactly the structured arguments the schema demands; the codec
 decodes those arguments and they are validated in a single pass. ``invoke`` is
@@ -13,7 +13,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from pirn_agents.tool import Tool
+from pirn_agents.tools.tool import Tool
 
 
 class _ExtractionTool(Tool):

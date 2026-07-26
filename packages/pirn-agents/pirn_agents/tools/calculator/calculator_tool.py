@@ -2,7 +2,7 @@
 
 Wraps :func:`~pirn_agents.tools.calculator._safe_evaluator.evaluate_expression`
 (a zero-dependency, ``ast``-based evaluator that never calls ``eval``/``exec``)
-in the F1 :class:`~pirn_agents.tool.Tool` protocol. Invalid or malicious input
+in the F1 :class:`~pirn_agents.tools.tool.Tool` protocol. Invalid or malicious input
 raises :class:`ValueError`, which :meth:`~pirn_agents.tools.base_tool.BaseTool.as_tool_result`
 surfaces as a structured :attr:`ToolStatus.ERROR` result.
 """

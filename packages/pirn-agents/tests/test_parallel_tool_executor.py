@@ -18,10 +18,10 @@ import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
+from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
 from pirn_agents.llm.retry_policy import RetryPolicy
-from pirn_agents.parallel_tool_executor import ParallelToolExecutor
-from pirn_agents.tool import Tool
-from pirn_agents.toolset import Toolset
+from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.toolset import Toolset
 from pirn_agents.types.tool_call import ToolCall
 from pirn_agents.types.tool_status import ToolStatus
 

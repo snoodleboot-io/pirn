@@ -12,7 +12,7 @@ get typed results end-to-end regardless of how they were produced.
 
 A provider opts into the native paths by subclassing the
 :class:`StructuredOutputProvider` base; a plain
-:class:`pirn_agents.llm_provider.LLMProvider` simply routes to the
+:class:`pirn_agents.llm.llm_provider.LLMProvider` simply routes to the
 fallback. The convenience :func:`structured_decode` wraps a one-shot decode.
 """
 
@@ -23,7 +23,7 @@ from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 from pydantic import BaseModel
 
-from pirn_agents.llm_provider import LLMProvider
+from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.structured_output.constrained_decoding_strategy import (
     ConstrainedDecodingStrategy,
 )

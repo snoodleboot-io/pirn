@@ -13,9 +13,10 @@ from collections.abc import AsyncIterator, Sequence
 from typing import Any
 from urllib.parse import urlparse
 
-from pirn.connectors.object_store import ObjectStore
-
 from pirn.connectors.http_connector import HttpConnector
+from pirn.connectors.object_store import ObjectStore
+from pirn.security.vetted_endpoint import VettedEndpoint
+
 from pirn_agents.specializations.document_processing.sources.content_hash_deduplicator import (
     ContentHashDeduplicator,
 )
@@ -25,7 +26,6 @@ from pirn_agents.specializations.document_processing.sources.object_store_source
 from pirn_agents.specializations.document_processing.sources.web_crawl_source_connector import (
     WebCrawlSourceConnector,
 )
-from pirn.security.vetted_endpoint import VettedEndpoint
 
 
 async def _iter_bytes(chunk: bytes) -> AsyncIterator[bytes]:

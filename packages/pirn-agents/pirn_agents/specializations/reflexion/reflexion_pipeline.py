@@ -29,8 +29,8 @@ from pirn.nodes.source import Source
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
-from pirn_agents.llm_provider import LLMProvider
-from pirn_agents.memory_store import MemoryStore
+from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.memory.memory_store import MemoryStore
 from pirn_agents.specializations.reflexion.reflexion_actor import ReflexionActor
 from pirn_agents.specializations.reflexion.reflexion_attempt import ReflexionAttempt
 from pirn_agents.specializations.reflexion.reflexion_evaluator import ReflexionEvaluator

@@ -3,7 +3,7 @@
 Wraps a plain Python function (sync, async, or async-generator) with a
 pre-compiled name / description / parameters schema and optional argument
 validator, streaming flag, and injected state. It is constructed by the
-:func:`~pirn_agents.tool_decorator.tool` decorator — not instantiated directly.
+:func:`~pirn_agents.tools.tool_decorator.tool` decorator — not instantiated directly.
 """
 
 from __future__ import annotations
@@ -12,14 +12,14 @@ import asyncio
 from collections.abc import AsyncIterator, Callable, Mapping
 from typing import Any
 
-from pirn_agents.tool import Tool
-from pirn_agents.tool_permissions import ToolPermissions
+from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.tool_permissions import ToolPermissions
 
 
 class FunctionTool(Tool):
     """A :class:`Tool` backed by a plain Python function.
 
-    Produced by the :func:`~pirn_agents.tool_decorator.tool` decorator. Do not
+    Produced by the :func:`~pirn_agents.tools.tool_decorator.tool` decorator. Do not
     instantiate directly.
     """
 
@@ -142,7 +142,7 @@ class FunctionTool(Tool):
         ``returns`` is present only when the return type is annotated;
         ``permissions`` only when non-default. The neutral
         ``{name, description, parameters}`` core matches
-        :meth:`pirn_agents.toolset.Toolset.schema` entries.
+        :meth:`pirn_agents.tools.toolset.Toolset.schema` entries.
         """
         descriptor: dict[str, Any] = {
             "name": self._name,

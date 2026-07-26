@@ -32,7 +32,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.sub_tapestry import SubTapestry
 
-from pirn_agents.llm_provider import LLMProvider
+from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.multi_agent.consensus_strategy import ConsensusStrategy
 from pirn_agents.specializations.multi_agent.llm_synthesis_strategy import (
     LlmSynthesisStrategy,

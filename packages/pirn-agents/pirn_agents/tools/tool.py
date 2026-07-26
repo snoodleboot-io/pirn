@@ -29,7 +29,7 @@ from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
-from pirn_agents.tool_permissions import ToolPermissions
+from pirn_agents.tools.tool_permissions import ToolPermissions
 
 
 class Tool(PirnOpaqueValue):

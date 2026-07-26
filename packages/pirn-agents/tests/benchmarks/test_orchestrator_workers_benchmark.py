@@ -18,7 +18,7 @@ from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.multi_agent.orchestrator_workers import OrchestratorWorkers
-from pirn_agents.tool import Tool
+from pirn_agents.tools.tool import Tool
 from tests.benchmarks.conftest import BenchmarkRecorder
 
 

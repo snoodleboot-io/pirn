@@ -28,7 +28,7 @@ pass-through :class:`~pirn_agents.evaluation.null_run_recorder.NullRunRecorder`
 over live I/O) that F29 will back with a cassette recorder.
 
 Importing this subpackage pulls in no backend; the optional RAGAS/embedding-judge
-backend is imported lazily through :func:`pirn_agents._require._require` behind
+backend is imported lazily through :func:`pirn_agents._internal._require._require` behind
 the flat ``ragas`` extra.
 """
 
