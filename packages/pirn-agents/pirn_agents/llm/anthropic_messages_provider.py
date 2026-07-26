@@ -31,7 +31,7 @@ from pirn_agents.llm.anthropic_messages_multimodal_adapter import (
     AnthropicMessagesMultimodalAdapter,
 )
 from pirn_agents.llm.anthropic_messages_tool_adapter import AnthropicMessagesToolAdapter
-from pirn_agents.llm.base_llm_provider import BaseLLMProvider
+from pirn_agents.llm.http_structured_output_provider import HttpStructuredOutputProvider
 from pirn_agents.llm.multimodal_adapter import MultimodalAdapter
 from pirn_agents.llm.stream_delta import StreamDelta
 from pirn_agents.provider_adapter import ProviderAdapter
@@ -41,7 +41,7 @@ from pirn_agents.specializations.structured_output.structured_output_capability 
 from pirn_agents.toolset import Toolset
 
 
-class AnthropicMessagesProvider(BaseLLMProvider):
+class AnthropicMessagesProvider(HttpStructuredOutputProvider):
     """Provider speaking the Messages API HTTP wire format."""
 
     def _tool_adapter(self) -> ProviderAdapter:

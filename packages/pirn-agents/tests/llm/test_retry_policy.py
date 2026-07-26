@@ -34,7 +34,14 @@ class TestRetryPolicy(unittest.TestCase):
         policy = RetryPolicy(max_retries=3)
         audit = policy._pirn_audit_dict()
         assert audit["max_retries"] == 3
-        assert set(audit) == {"max_retries", "base_delay", "max_delay", "multiplier", "jitter"}
+        assert set(audit) == {
+            "max_retries",
+            "base_delay",
+            "max_delay",
+            "multiplier",
+            "jitter",
+            "max_retry_after",
+        }
 
 
 if __name__ == "__main__":

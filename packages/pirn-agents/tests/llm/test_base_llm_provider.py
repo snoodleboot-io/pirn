@@ -15,6 +15,7 @@ from typing import Any
 
 from pirn.security.credential_ref import CredentialRef
 from pirn_agents.llm.base_llm_provider import BaseLLMProvider
+from pirn_agents.llm.http_transport import HttpTransport
 from pirn_agents.llm.llm_http_status_error import LLMHTTPStatusError
 from pirn_agents.llm.model_pricing import ModelPricing
 from pirn_agents.llm.rate_limit_error import RateLimitError
@@ -260,8 +261,8 @@ class TestRetryAndRateLimit(unittest.IsolatedAsyncioTestCase):
 
         ValueErrorLike.__module__ = "builtins"
 
-        assert BaseLLMProvider._is_transient_transport_error(ReadTimeout()) is True
-        assert BaseLLMProvider._is_transient_transport_error(ValueErrorLike()) is False
+        assert HttpTransport._is_transient_transport_error(ReadTimeout()) is True
+        assert HttpTransport._is_transient_transport_error(ValueErrorLike()) is False
 
 
 class TestStreamingCleanup(unittest.IsolatedAsyncioTestCase):
