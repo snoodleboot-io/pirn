@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn_agents.memory_management.profile_key import ProfileKey
+from pirn_agents.memory.management.profile_key import ProfileKey
 
 
 class TestProfileKey(unittest.TestCase):

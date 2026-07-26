@@ -20,7 +20,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
-from pirn_agents.memory.memory_store import MemoryStore
+from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.specializations.rag.naive_rag_pipeline import NaiveRAGPipeline
 from pirn_agents.specializations.react.react_loop import ReActLoop
 from pirn_agents.tools.tool import Tool

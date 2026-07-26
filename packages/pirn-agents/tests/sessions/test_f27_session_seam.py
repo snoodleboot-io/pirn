@@ -16,10 +16,10 @@ from datetime import UTC, datetime
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.memory_management.cross_session_profile_updater import (
+from pirn_agents.memory.management.cross_session_profile_updater import (
     CrossSessionProfileUpdater,
 )
-from pirn_agents.memory_management.profile_key import ProfileKey
+from pirn_agents.memory.management.profile_key import ProfileKey
 from pirn_agents.sessions.in_memory_session_store import InMemorySessionStore
 from pirn_agents.sessions.run_checkpointer import RunCheckpointer
 from pirn_agents.sessions.session_identity import SessionIdentity

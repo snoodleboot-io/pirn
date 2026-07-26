@@ -7,8 +7,8 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.memory.memory_store import MemoryStore
-from pirn_agents.memory_store_knot import MemoryStoreKnot
+from pirn_agents.memory.stores.memory_store import MemoryStore
+from pirn_agents.memory.stores.knots.memory_store_knot import MemoryStoreKnot
 from tests.specializations.conftest import StubMemoryStore
 
 

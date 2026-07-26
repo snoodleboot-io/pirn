@@ -27,7 +27,7 @@ Algorithm:
 References:
     - pirn-native: :class:`pirn_agents.specializations.guardrails.fact_claim_extractor.FactClaimExtractor`
     - pirn-native: :class:`pirn_agents.specializations.guardrails.fact_claim_verifier.FactClaimVerifier`
-    - pirn-native: :class:`pirn_agents.memory.memory_store.MemoryStore`
+    - pirn-native: :class:`pirn_agents.memory.stores.memory_store.MemoryStore`
 """
 
 from __future__ import annotations
@@ -39,7 +39,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
-from pirn_agents.memory.memory_store import MemoryStore
+from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.specializations.guardrails.fact_claim_extractor import (
     FactClaimExtractor,
 )

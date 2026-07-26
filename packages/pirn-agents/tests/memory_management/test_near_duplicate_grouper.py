@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn_agents.memory_management.near_duplicate_grouper import NearDuplicateGrouper
+from pirn_agents.memory.management.near_duplicate_grouper import NearDuplicateGrouper
 from tests.memory_management.conftest import make_record
 
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn_agents.memory_management.recall_candidate import RecallCandidate
+from pirn_agents.memory.management.recall_candidate import RecallCandidate
 from tests.memory_management.conftest import make_record
 
 

@@ -8,9 +8,9 @@ from datetime import UTC, datetime
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.memory_management.ranked_recall import RankedRecall
-from pirn_agents.memory_management.recall_candidate import RecallCandidate
-from pirn_agents.memory_management.recall_weights import RecallWeights
+from pirn_agents.memory.management.ranked_recall import RankedRecall
+from pirn_agents.memory.management.recall_candidate import RecallCandidate
+from pirn_agents.memory.management.recall_weights import RecallWeights
 from tests.memory_management.conftest import StubReranker, make_record
 
 _NOW = datetime(2026, 2, 1, tzinfo=UTC)

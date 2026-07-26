@@ -33,7 +33,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents.memory.memory_store import MemoryStore
+from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
 
 

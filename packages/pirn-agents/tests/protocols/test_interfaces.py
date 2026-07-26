@@ -9,7 +9,7 @@ from __future__ import annotations
 import unittest
 
 from pirn_agents.llm.llm_provider import LLMProvider
-from pirn_agents.memory.memory_store import MemoryStore
+from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.tools.tool import Tool
 
 

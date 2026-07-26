@@ -10,8 +10,8 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
-from pirn_agents.memory.memory_store import MemoryStore
-from pirn_agents.specializations.memory_patterns.working_memory_pipeline import (
+from pirn_agents.memory.stores.memory_store import MemoryStore
+from pirn_agents.memory.patterns.working_memory_pipeline import (
     WorkingMemoryPipeline,
 )
 from pirn_agents.types.agent_message import AgentMessage

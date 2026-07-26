@@ -19,7 +19,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 
 from pirn_agents.llm.llm_provider import LLMProvider
-from pirn_agents.memory.memory_store import MemoryStore
+from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.tools.calculator.calculator_tool import CalculatorTool
 from pirn_agents.tools.filesystem.glob_tool import GlobTool
 from pirn_agents.tools.filesystem.list_dir_tool import ListDirTool

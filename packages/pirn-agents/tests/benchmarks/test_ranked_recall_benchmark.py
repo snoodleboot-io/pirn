@@ -16,8 +16,8 @@ import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.memory_management.ranked_recall import RankedRecall
-from pirn_agents.memory_management.recall_candidate import RecallCandidate
+from pirn_agents.memory.management.ranked_recall import RankedRecall
+from pirn_agents.memory.management.recall_candidate import RecallCandidate
 from tests.benchmarks.conftest import BenchmarkRecorder
 from tests.memory_management.conftest import make_record
 

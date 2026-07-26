@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn_agents.memory_management.memory_kind import is_memory_kind
+from pirn_agents.memory.management.memory_kind import is_memory_kind
 
 
 class TestIsMemoryKind(unittest.TestCase):

@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.memory_management.memory_consolidator import MemoryConsolidator
+from pirn_agents.memory.management.memory_consolidator import MemoryConsolidator
 from tests.memory_management.conftest import (
     RecordingMemoryStore,
     StubSummarizer,

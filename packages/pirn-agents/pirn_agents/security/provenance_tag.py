@@ -7,7 +7,7 @@ the ``source_kind`` (``"tool"``, ``"rag"``, ``"mcp"``, …), the ``source_name``
 ``trust_signal`` in ``[0, 1]``.
 
 It is the F11 counterpart of F27's
-:class:`~pirn_agents.memory_management.memory_provenance.MemoryProvenance`; the
+:class:`~pirn_agents.memory.management.memory_provenance.MemoryProvenance`; the
 :meth:`from_memory_provenance` bridge lets a memory record's provenance flow
 straight into an untrusted-content wrap without either package depending on the
 other by value.
@@ -96,7 +96,7 @@ class ProvenanceTag(PirnOpaqueValue):
 
         Args:
             provenance: A
-                :class:`~pirn_agents.memory_management.memory_provenance.MemoryProvenance`
+                :class:`~pirn_agents.memory.management.memory_provenance.MemoryProvenance`
                 (duck-typed on ``source``/``timestamp``/``trust_signal``).
             source_kind: The ``source_kind`` to record; defaults to ``"memory"``.
 

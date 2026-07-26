@@ -10,7 +10,7 @@ import unittest
 from collections.abc import AsyncIterator, Mapping, Sequence
 from typing import Any
 
-from pirn_agents.memory.memory_store import MemoryStore
+from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
 from pirn_agents.specializations.document_processing.chunking.chunk import Chunk
 from pirn_agents.specializations.document_processing.incremental.freshness_policy import (

@@ -20,7 +20,7 @@ from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.builder.agent import Agent
 from pirn_agents.llm.llm_provider import LLMProvider
-from pirn_agents.memory.memory_store import MemoryStore
+from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.tools.bundles import (
     calculator_toolset,
     filesystem_toolset,

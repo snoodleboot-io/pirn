@@ -8,7 +8,7 @@ from datetime import UTC, datetime, timedelta
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.memory_management.decay_scorer import DecayScorer
+from pirn_agents.memory.management.decay_scorer import DecayScorer
 from tests.memory_management.conftest import make_record
 
 

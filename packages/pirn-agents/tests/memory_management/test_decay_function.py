@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn_agents.memory_management.decay_function import decay_score
+from pirn_agents.memory.management.decay_function import decay_score
 
 
 class TestDecayScore(unittest.TestCase):

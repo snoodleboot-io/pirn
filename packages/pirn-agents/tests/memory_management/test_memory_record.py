@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime
 
-from pirn_agents.memory_management.memory_record import MemoryRecord
+from pirn_agents.memory.management.memory_record import MemoryRecord
 from tests.memory_management.conftest import make_provenance, make_record
 
 

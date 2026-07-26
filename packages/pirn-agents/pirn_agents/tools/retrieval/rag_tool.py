@@ -1,6 +1,6 @@
 """``RagTool`` — retrieval-augmented generation behind a single tool call.
 
-Composes an injected :class:`~pirn_agents.memory.memory_store.MemoryStore` (retrieval)
+Composes an injected :class:`~pirn_agents.memory.stores.memory_store.MemoryStore` (retrieval)
 and an injected :class:`~pirn_agents.llm.llm_provider.LLMProvider` (generation)
 so an agent can call RAG as one explicit tool — the seed for F9's agentic RAG.
 Provider-neutral for both the store and the LLM; no vendor SDK is imported at
@@ -13,7 +13,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from pirn_agents.llm.llm_provider import LLMProvider
-from pirn_agents.memory.memory_store import MemoryStore
+from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.tools.base_tool import BaseTool
 
 

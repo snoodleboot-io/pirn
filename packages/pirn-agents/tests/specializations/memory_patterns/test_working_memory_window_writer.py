@@ -9,7 +9,7 @@ from typing import Any
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.specializations.memory_patterns.working_memory_window_writer import (
+from pirn_agents.memory.patterns.working_memory_window_writer import (
     WorkingMemoryWindowWriter,
 )
 from pirn_agents.types.agent_message import AgentMessage

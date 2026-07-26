@@ -8,10 +8,10 @@ from datetime import UTC, datetime
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.memory_management.cross_session_profile_updater import (
+from pirn_agents.memory.management.cross_session_profile_updater import (
     CrossSessionProfileUpdater,
 )
-from pirn_agents.memory_management.profile_key import ProfileKey
+from pirn_agents.memory.management.profile_key import ProfileKey
 from tests.memory_management.conftest import RecordingMemoryStore
 
 

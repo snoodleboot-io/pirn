@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime
 
-from pirn_agents.memory_management.recency_trust_conflict_policy import RecencyTrustConflictPolicy
+from pirn_agents.memory.management.recency_trust_conflict_policy import RecencyTrustConflictPolicy
 from tests.memory_management.conftest import make_record
 
 

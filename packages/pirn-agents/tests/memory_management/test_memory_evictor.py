@@ -8,8 +8,8 @@ from datetime import UTC, datetime, timedelta
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.memory_management.memory_evictor import MemoryEvictor
-from pirn_agents.memory_management.ttl_eviction_policy import TtlEvictionPolicy
+from pirn_agents.memory.management.memory_evictor import MemoryEvictor
+from pirn_agents.memory.management.ttl_eviction_policy import TtlEvictionPolicy
 from tests.memory_management.conftest import RecordingMemoryStore, make_record
 
 

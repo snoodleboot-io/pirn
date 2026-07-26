@@ -1,7 +1,7 @@
 """``ThreadRepository`` — durable, session-keyed persistence for conversation threads.
 
 Persists a :class:`ConversationThread` through an injected F4
-:class:`~pirn_agents.memory.memory_store.MemoryStore`, keyed by the thread's stable
+:class:`~pirn_agents.memory.stores.memory_store.MemoryStore`, keyed by the thread's stable
 ``session_id``. Because the thread round-trips through the store's untyped mapping
 payload, a thread survives process restarts: a fresh repository over the same
 durable backend re-reads a prior thread. The repository names no vendor and imports
@@ -10,7 +10,7 @@ no driver — any lazy backend import lives in the concrete ``MemoryStore``.
 
 from __future__ import annotations
 
-from pirn_agents.memory.memory_store import MemoryStore
+from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.sessions.conversation_thread import ConversationThread
 
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime
 
-from pirn_agents.memory_management.low_value_eviction_policy import LowValueEvictionPolicy
+from pirn_agents.memory.management.low_value_eviction_policy import LowValueEvictionPolicy
 from tests.memory_management.conftest import make_record
 
 
