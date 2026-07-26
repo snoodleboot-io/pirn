@@ -7,8 +7,11 @@ from collections.abc import Sequence
 from pirn_agents.evaluation.judge_score_parser import JudgeScoreParser
 from pirn_agents.evaluation.pairwise_choice_parser import PairwiseChoiceParser
 from pirn_agents.evaluation.pairwise_outcome import PairwiseOutcome
+from pirn_agents.evaluation.pairwise_prompt_builder import PairwisePromptBuilder
 from pirn_agents.evaluation.rubric_criterion import RubricCriterion
+from pirn_agents.evaluation.rubric_prompt_builder import RubricPromptBuilder
 from pirn_agents.evaluation.rubric_score import RubricScore
+from pirn_agents.evaluation.score_aggregator import ScoreAggregator
 from pirn_agents.llm_provider import LLMProvider
 
 
@@ -27,6 +30,13 @@ class EvaluationJudge:
       that does not hold across both orders is downgraded to a tie with
       ``consistent=False``, exposing position bias rather than trusting it.
 
+    The judge itself is a thin orchestrator: prompt construction, reply parsing,
+    and score aggregation are delegated to injected collaborators
+    (:class:`RubricPromptBuilder`, :class:`PairwisePromptBuilder`,
+    :class:`JudgeScoreParser`, :class:`PairwiseChoiceParser`,
+    :class:`ScoreAggregator`), leaving this class to sequence judge calls and
+    apply the bias controls.
+
     No vendor is privileged: the judge is an injected interface, and every
     prompt is provider-agnostic plain text.
     """
@@ -37,14 +47,24 @@ class EvaluationJudge:
         judge: LLMProvider,
         self_consistency: int = 1,
         position_swap: bool = False,
+        rubric_prompt_builder: RubricPromptBuilder | None = None,
+        pairwise_prompt_builder: PairwisePromptBuilder | None = None,
+        score_parser: JudgeScoreParser | None = None,
+        choice_parser: PairwiseChoiceParser | None = None,
+        aggregator: ScoreAggregator | None = None,
     ) -> None:
-        """Configure the judge provider and bias controls.
+        """Configure the judge provider, bias controls, and collaborators.
 
         Args:
             judge: The provider that returns a textual verdict for each prompt.
             self_consistency: Number of samples drawn per judgement (>= 1).
             position_swap: Run pairwise judging in both orders and require
                 agreement.
+            rubric_prompt_builder: Builds rubric scoring prompts (defaulted).
+            pairwise_prompt_builder: Builds pairwise comparison prompts (defaulted).
+            score_parser: Parses a numeric score from a judge reply (defaulted).
+            choice_parser: Parses an A/B/tie verdict from a judge reply (defaulted).
+            aggregator: Combines samples into scores and winners (defaulted).
 
         Raises:
             TypeError: If ``judge`` is not an :class:`LLMProvider` or
@@ -70,8 +90,11 @@ class EvaluationJudge:
         self._judge = judge
         self._self_consistency = self_consistency
         self._position_swap = position_swap
-        self._score_parser = JudgeScoreParser()
-        self._choice_parser = PairwiseChoiceParser()
+        self._rubric_prompt_builder = rubric_prompt_builder or RubricPromptBuilder()
+        self._pairwise_prompt_builder = pairwise_prompt_builder or PairwisePromptBuilder()
+        self._score_parser = score_parser or JudgeScoreParser()
+        self._choice_parser = choice_parser or PairwiseChoiceParser()
+        self._aggregator = aggregator or ScoreAggregator()
 
     async def score_rubric(
         self,
@@ -105,23 +128,17 @@ class EvaluationJudge:
             samples: list[float] = []
             for _ in range(self._self_consistency):
                 reply = await self._judge.chat(
-                    [
-                        {
-                            "role": "user",
-                            "content": (
-                                "Score the response for the criterion on a 0.0-1.0 scale. "
-                                "Reply with just the number.\n"
-                                f"Criterion: {criterion.name} — {criterion.description}\n"
-                                f"Prompt: {prompt}\n\nResponse: {response}"
-                            ),
-                        }
-                    ]
+                    self._rubric_prompt_builder.build(
+                        prompt=prompt, response=response, criterion=criterion
+                    )
                 )
                 samples.append(self._score_parser.parse(str(reply.get("content", ""))))
-            per_criterion[criterion.name] = sum(samples) / len(samples)
+            per_criterion[criterion.name] = self._aggregator.mean(samples)
             samples_detail[criterion.name] = samples
-        total_weight = sum(c.weight for c in criteria_list)
-        overall = sum(per_criterion[c.name] * c.weight for c in criteria_list) / total_weight
+        overall = self._aggregator.weighted_mean(
+            [per_criterion[c.name] for c in criteria_list],
+            [c.weight for c in criteria_list],
+        )
         return RubricScore(
             overall=overall,
             per_criterion=per_criterion,
@@ -155,17 +172,9 @@ class EvaluationJudge:
             order_b = 0
             for _ in range(self._self_consistency):
                 reply = await self._judge.chat(
-                    [
-                        {
-                            "role": "user",
-                            "content": (
-                                "Which response better answers the prompt? "
-                                "Reply with 'A', 'B', or 'tie'.\n"
-                                f"Prompt: {prompt}\n\n"
-                                f"Response A: {first_text}\n\nResponse B: {second_text}"
-                            ),
-                        }
-                    ]
+                    self._pairwise_prompt_builder.build(
+                        prompt=prompt, first_text=first_text, second_text=second_text
+                    )
                 )
                 presented = self._choice_parser.parse(str(reply.get("content", "")))
                 if presented == "tie":
@@ -178,15 +187,19 @@ class EvaluationJudge:
                 else:
                     votes_b += 1
                     order_b += 1
-            order_winners.append("a" if order_a > order_b else "b" if order_b > order_a else "tie")
+            order_winners.append(self._aggregator.majority(order_a, order_b))
         total = votes_a + votes_b + ties
-        score_a = votes_a / total if total else 0.0
-        score_b = votes_b / total if total else 0.0
-        consistent = len(set(order_winners)) == 1 if self._position_swap else True
-        if self._position_swap and not consistent:
-            winner = "tie"
-        else:
-            winner = "a" if votes_a > votes_b else "b" if votes_b > votes_a else "tie"
+        score_a = self._aggregator.fraction(votes_a, total)
+        score_b = self._aggregator.fraction(votes_b, total)
+        consistent = (
+            self._aggregator.orders_consistent(order_winners) if self._position_swap else True
+        )
+        winner = self._aggregator.resolve_winner(
+            votes_a=votes_a,
+            votes_b=votes_b,
+            position_swap=self._position_swap,
+            consistent=consistent,
+        )
         return PairwiseOutcome(
             winner=winner,
             score_a=score_a,
