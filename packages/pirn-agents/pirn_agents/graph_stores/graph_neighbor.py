@@ -30,3 +30,13 @@ class GraphNeighbor(PirnOpaqueValue):
 
     edge: GraphEdge
     node: GraphNode
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.edge, GraphEdge):
+            raise TypeError(
+                f"GraphNeighbor: edge must be a GraphEdge, got {type(self.edge).__name__}"
+            )
+        if not isinstance(self.node, GraphNode):
+            raise TypeError(
+                f"GraphNeighbor: node must be a GraphNode, got {type(self.node).__name__}"
+            )
