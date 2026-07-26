@@ -9,6 +9,7 @@ from typing import Any
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.types.messaging.finish_reason import FinishReason
 
 
 @dataclass(frozen=True)
@@ -24,8 +25,10 @@ class AgentResponse(PirnOpaqueValue):
         producing a final answer. Empty when the agent has nothing to
         defer.
     finish_reason:
-        Reason the model stopped generating (``"stop"``, ``"length"``,
-        ``"tool_use"``, etc.). Defaults to ``"stop"``.
+        Reason the model stopped generating, from the neutral
+        :class:`~pirn_agents.types.messaging.finish_reason.FinishReason`
+        vocabulary — or a provider wire value the adapter did not recognise.
+        Defaults to ``"stop"``.
     usage:
         Mapping of token-usage fields (e.g. ``input_tokens``,
         ``output_tokens``) returned by the provider. Defaults to an
@@ -38,7 +41,7 @@ class AgentResponse(PirnOpaqueValue):
 
     content: str
     tool_calls: tuple[ToolCall, ...] = ()
-    finish_reason: str = "stop"
+    finish_reason: str = FinishReason.STOP.value
     usage: Mapping[str, int] = field(default_factory=dict)
     cost: float | None = None
 

@@ -26,6 +26,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn_agents.retrieval.graph_rag.graph_traversal import GraphTraversal
 from pirn_agents.retrieval.graph_rag.node_embedding_index import NodeEmbeddingIndex
 from pirn_agents.retrieval.graph_rag.traversal_budget import TraversalBudget
+from pirn_agents.retrieval.graph_stores.graph_direction import GraphDirection
 from pirn_agents.retrieval.graph_stores.graph_store import GraphStore
 from pirn_agents.retrieval.hybrid_retriever_base import HybridRetrieverBase
 from pirn_agents.retrieval.reciprocal_rank_fusion import reciprocal_rank_fusion
@@ -45,7 +46,7 @@ class HybridGraphRetriever(HybridRetrieverBase):
         top_k: Knot | int = 5,
         candidate_multiplier: Knot | int = 4,
         rrf_k: Knot | int = 60,
-        direction: Knot | str = "both",
+        direction: Knot | str = GraphDirection.BOTH.value,
         **kwargs: Any,
     ) -> None:
         super().__init__(
@@ -72,7 +73,7 @@ class HybridGraphRetriever(HybridRetrieverBase):
         top_k: int = 5,
         candidate_multiplier: int = 4,
         rrf_k: int = 60,
-        direction: str = "both",
+        direction: str = GraphDirection.BOTH.value,
         edge_types: Sequence[str] | None = None,
         **_: Any,
     ) -> list[Mapping[str, Any]]:

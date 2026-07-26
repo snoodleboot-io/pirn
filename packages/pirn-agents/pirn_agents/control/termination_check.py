@@ -3,13 +3,15 @@
 Algorithm:
     1. Receive the resolved ``AgentResponse``, ``max_iterations``, and ``current_iteration``.
     2. Validate input types at process time.
-    3. Return ``True`` immediately if the response finish reason is ``"stop"``.
+    3. Return ``True`` immediately if the response finish reason is
+       :attr:`~pirn_agents.types.messaging.finish_reason.FinishReason.STOP`.
     4. Return ``True`` if ``current_iteration >= max_iterations``.
     5. Otherwise return ``False``.
 
 
 References:
     - :class:`pirn_agents.types.messaging.agent_response.AgentResponse`
+    - :class:`pirn_agents.types.messaging.finish_reason.FinishReason`
 """
 
 from __future__ import annotations
@@ -20,6 +22,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.types.messaging.agent_response import AgentResponse
+from pirn_agents.types.messaging.finish_reason import FinishReason
 
 
 class TerminationCheck(Knot):
@@ -82,6 +85,6 @@ class TerminationCheck(Knot):
                 "TerminationCheck: current_iteration must be an int, "
                 f"got {type(current_iteration).__name__}"
             )
-        if response.finish_reason == "stop":
+        if response.finish_reason == FinishReason.STOP.value:
             return True
         return current_iteration >= max_iterations

@@ -39,6 +39,7 @@ from pirn_agents.specializations.structured_output.structured_output_capability 
     StructuredOutputCapability,
 )
 from pirn_agents.tools.toolset import Toolset
+from pirn_agents.types.messaging.finish_reason import FinishReason
 
 
 class AnthropicMessagesProvider(HttpStructuredOutputProvider):
@@ -210,10 +211,22 @@ class AnthropicMessagesProvider(HttpStructuredOutputProvider):
 
     @staticmethod
     def _map_stop_reason(stop_reason: Any) -> str:
-        mapping = {"end_turn": "stop", "max_tokens": "length", "tool_use": "tool_use"}
-        if isinstance(stop_reason, str):
-            return mapping.get(stop_reason, stop_reason)
-        return "stop"
+        """Map a Messages-API ``stop_reason`` onto the neutral vocabulary.
+
+        The wire spellings belong to this adapter, not to
+        :class:`FinishReason` — an unmapped value is surfaced verbatim so an
+        unrecognised terminal stays visible rather than masquerading as a
+        normal stop. A missing/non-string value defaults to ``STOP``.
+        """
+        if not isinstance(stop_reason, str):
+            return FinishReason.STOP.value
+        if stop_reason == "end_turn":
+            return FinishReason.STOP.value
+        if stop_reason == "max_tokens":
+            return FinishReason.LENGTH.value
+        if stop_reason == "tool_use":
+            return FinishReason.TOOL_USE.value
+        return stop_reason
 
     @staticmethod
     def _normalise_usage(usage_raw: Any) -> dict[str, int]:

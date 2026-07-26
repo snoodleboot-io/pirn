@@ -20,6 +20,11 @@ Nodes, edges, and neighbors are plain mappings:
 * node     — ``{"id", "type", "properties"}``;
 * edge     — ``{"id", "source_id", "target_id", "type", "properties"}``;
 * neighbor — ``{"edge": <edge>, "node": <node>}``.
+
+``neighbors`` takes its ``direction`` from the shared
+:class:`~pirn_agents.retrieval.graph_stores.graph_direction.GraphDirection`
+vocabulary; how a direction is *rendered* is backend-specific and stays in
+each concrete wrapper.
 """
 
 from __future__ import annotations

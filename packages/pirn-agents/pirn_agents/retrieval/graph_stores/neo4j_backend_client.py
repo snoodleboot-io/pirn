@@ -21,6 +21,7 @@ from pirn.security.credential_ref import CredentialRef
 
 from pirn_agents._internal._require import _require
 from pirn_agents.retrieval.graph_stores.graph_backend_client import GraphBackendClient
+from pirn_agents.retrieval.graph_stores.graph_direction import GraphDirection
 
 
 class Neo4jBackendClient(GraphBackendClient):
@@ -114,7 +115,7 @@ class Neo4jBackendClient(GraphBackendClient):
         limit: int | None,
     ) -> list[Mapping[str, Any]]:
         """Return the one-hop neighbor mappings of ``node_id``."""
-        arrow = {"out": "-[r:REL]->", "in": "<-[r:REL]-", "both": "-[r:REL]-"}[direction]
+        arrow = self._arrow(GraphDirection.parse(direction, owner=type(self).__name__))
         where = "" if edge_types is None else "WHERE r.type IN $types "
         tail = "" if limit is None else "LIMIT $limit"
         cypher = (
@@ -189,6 +190,20 @@ class Neo4jBackendClient(GraphBackendClient):
             await self._driver.close()
             self._driver = None
         self._credential = None
+
+    @staticmethod
+    def _arrow(direction: GraphDirection) -> str:
+        """Render ``direction`` as a Neo4j relationship pattern.
+
+        Backend-specific: the single ``:REL`` relationship type this adapter
+        stores under is Neo4j's, so the translation stays here rather than on
+        the shared :class:`GraphDirection` vocabulary.
+        """
+        if direction is GraphDirection.OUT:
+            return "-[r:REL]->"
+        if direction is GraphDirection.IN:
+            return "<-[r:REL]-"
+        return "-[r:REL]-"
 
     @staticmethod
     def _node_from_props(props: Mapping[str, Any]) -> Mapping[str, Any]:

@@ -439,7 +439,12 @@ class BaseLLMProvider(ConnectorBase, LLMProvider):
         raise NotImplementedError(f"{type(self).__name__} must implement _tool_message()")
 
     def _finish_reason(self, data: Mapping[str, Any]) -> str:
-        """Extract the neutral finish reason from a raw response."""
+        """Extract the finish reason from a raw response.
+
+        Implementations map their own wire values onto the neutral
+        :class:`~pirn_agents.types.messaging.finish_reason.FinishReason`
+        vocabulary, surfacing unrecognised values verbatim.
+        """
         raise NotImplementedError(f"{type(self).__name__} must implement _finish_reason()")
 
     def _usage_tokens(self, data: Mapping[str, Any]) -> dict[str, int]:

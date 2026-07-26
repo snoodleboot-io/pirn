@@ -23,6 +23,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.retrieval.graph_rag.subgraph import Subgraph
 from pirn_agents.retrieval.graph_rag.traversal_budget import TraversalBudget
+from pirn_agents.retrieval.graph_stores.graph_direction import GraphDirection
 from pirn_agents.retrieval.graph_stores.graph_edge import GraphEdge
 from pirn_agents.retrieval.graph_stores.graph_node import GraphNode
 from pirn_agents.retrieval.graph_stores.graph_store import GraphStore
@@ -37,7 +38,7 @@ class GraphTraversal(Knot):
         store: Knot | GraphStore,
         budget: Knot | TraversalBudget,
         _config: KnotConfig,
-        direction: Knot | str = "both",
+        direction: Knot | str = GraphDirection.BOTH.value,
         **kwargs: Any,
     ) -> None:
         super().__init__(
@@ -53,7 +54,7 @@ class GraphTraversal(Knot):
         start_ids: Sequence[str],
         store: GraphStore,
         budget: TraversalBudget,
-        direction: str = "both",
+        direction: str = GraphDirection.BOTH.value,
         edge_types: Sequence[str] | None = None,
         **_: Any,
     ) -> Subgraph:
@@ -63,7 +64,8 @@ class GraphTraversal(Knot):
             start_ids: The seed node ids to expand from.
             store: The graph store traversed.
             budget: The depth / fanout / size bounds.
-            direction: Neighbor direction to follow (``"out"``/``"in"``/``"both"``).
+            direction: Neighbor direction to follow (see
+                :class:`~pirn_agents.retrieval.graph_stores.graph_direction.GraphDirection`).
             edge_types: Optional whitelist of edge types to traverse.
 
         Returns:
@@ -121,7 +123,7 @@ class GraphTraversal(Knot):
         target_id: str,
         store: GraphStore,
         budget: TraversalBudget,
-        direction: str = "both",
+        direction: str = GraphDirection.BOTH.value,
         edge_types: Sequence[str] | None = None,
     ) -> list[str] | None:
         """Return the shortest node-id path from ``source_id`` to ``target_id``.

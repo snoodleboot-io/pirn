@@ -23,6 +23,7 @@ from typing import Any
 
 from pirn_agents._internal._require import _require
 from pirn_agents.retrieval.graph_stores.graph_backend_client import GraphBackendClient
+from pirn_agents.retrieval.graph_stores.graph_direction import GraphDirection
 
 
 class KuzuBackendClient(GraphBackendClient):
@@ -122,7 +123,7 @@ class KuzuBackendClient(GraphBackendClient):
         limit: int | None,
     ) -> list[Mapping[str, Any]]:
         """Return the one-hop neighbor mappings of ``node_id``."""
-        arrow = {"out": "-[r:Rel]->", "in": "<-[r:Rel]-", "both": "-[r:Rel]-"}[direction]
+        arrow = self._arrow(GraphDirection.parse(direction, owner=type(self).__name__))
         where = "" if edge_types is None else "WHERE r.type IN $types "
         tail = "" if limit is None else "LIMIT $limit"
         cypher = (
@@ -193,6 +194,20 @@ class KuzuBackendClient(GraphBackendClient):
     async def close(self) -> None:
         """Drop the connection reference (Kuzu closes with the process)."""
         self._connection = None
+
+    @staticmethod
+    def _arrow(direction: GraphDirection) -> str:
+        """Render ``direction`` as a Kuzu relationship pattern.
+
+        Backend-specific: this adapter provisions its own ``Rel`` table, so the
+        translation stays here rather than on the shared :class:`GraphDirection`
+        vocabulary.
+        """
+        if direction is GraphDirection.OUT:
+            return "-[r:Rel]->"
+        if direction is GraphDirection.IN:
+            return "<-[r:Rel]-"
+        return "-[r:Rel]-"
 
     @staticmethod
     def _node_from_row(row: Mapping[str, Any]) -> Mapping[str, Any]:

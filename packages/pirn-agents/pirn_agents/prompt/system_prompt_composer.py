@@ -4,14 +4,15 @@ Algorithm:
     1. Receive the resolved ``layers`` sequence and the ``separator``.
     2. Validate input types at process time.
     3. Drop empty/missing layers.
-    4. Order layers by canonical kind rank (persona, policy, tools, memory),
-       then by first-seen index so custom layers and equal-rank layers keep a
-       stable, documented order.
+    4. Order layers by canonical kind rank (see :class:`SystemPromptKind`), then
+       by first-seen index so custom layers and equal-rank layers keep a stable,
+       documented order.
     5. Render each surviving layer (optional title + content) and join with the
        separator.
 
 
 References:
+    - :class:`pirn_agents.prompt.system_prompt_kind.SystemPromptKind`
     - :class:`pirn_agents.prompt.system_prompt_layer.SystemPromptLayer`
 """
 
@@ -23,24 +24,15 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents.prompt.system_prompt_kind import SystemPromptKind
 from pirn_agents.prompt.system_prompt_layer import SystemPromptLayer
-
-
-def _canonical_rank(kind: str) -> int:
-    """Return the canonical composition rank for a layer ``kind``.
-
-    The four canonical kinds order deterministically; every other (custom) kind
-    shares the trailing rank and falls back to first-seen ordering.
-    """
-    order = {"persona": 0, "policy": 1, "tools": 2, "memory": 3}
-    return order.get(kind, 4)
 
 
 class SystemPromptComposer(Knot):
     """Composes an ordered system prompt from layered parts.
 
-    The canonical order — persona, then policy, then tools, then memory,
-    then any custom layers — is fixed and documented so composition is
+    The canonical order is owned by :class:`SystemPromptKind` — persona, then
+    policy, then tools, then memory, then any custom layers — so composition is
     reproducible regardless of the order layers are supplied in. Empty or
     missing layers are skipped without leaving blank sections.
     """
@@ -97,7 +89,7 @@ class SystemPromptComposer(Knot):
                 )
             if layer.is_empty():
                 continue
-            indexed.append((_canonical_rank(layer.kind), index, layer))
+            indexed.append((SystemPromptKind.rank_of(layer.kind), index, layer))
         indexed.sort(key=lambda entry: (entry[0], entry[1]))
         return separator.join(self._render_layer(layer) for _, _, layer in indexed)
 
