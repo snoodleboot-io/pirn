@@ -38,7 +38,7 @@ from pirn.nodes.source import Source
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
-from pirn_agents.llm_provider import LLMProvider
+from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.structured_output._llm_call_knot import _LLMCallKnot
 
 

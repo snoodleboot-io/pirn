@@ -3,7 +3,7 @@
 A :class:`SubTapestry` that wires, as a static inner tapestry:
 
 1. :class:`ReWooPlanner` — one LLM call emitting the complete tool-call plan.
-2. :class:`~pirn_agents.parallel_tool_executor.ParallelToolExecutor` (F1) — runs
+2. :class:`~pirn_agents.agent.parallel_tool_executor.ParallelToolExecutor` (F1) — runs
    every planned call concurrently under a bounded-concurrency semaphore.
 3. :class:`ReWooSynthesizer` — one LLM call folding the gathered evidence into the
    final :class:`ReWooResult`.
@@ -31,12 +31,12 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.sub_tapestry import SubTapestry
 
-from pirn_agents.llm_provider import LLMProvider
-from pirn_agents.parallel_tool_executor import ParallelToolExecutor
+from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
+from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.rewoo.rewoo_planner import ReWooPlanner
 from pirn_agents.specializations.rewoo.rewoo_synthesizer import ReWooSynthesizer
-from pirn_agents.tool import Tool
-from pirn_agents.toolset import Toolset
+from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.toolset import Toolset
 
 
 class ReWooPipeline(SubTapestry):

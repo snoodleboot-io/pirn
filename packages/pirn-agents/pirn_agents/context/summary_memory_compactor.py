@@ -16,7 +16,7 @@ from pirn_agents.context.compaction_result import CompactionResult
 from pirn_agents.context.compaction_strategy import CompactionStrategy
 from pirn_agents.context.context_item import ContextItem
 from pirn_agents.context.summarizer import Summarizer
-from pirn_agents.memory_store import MemoryStore
+from pirn_agents.memory.memory_store import MemoryStore
 
 
 class SummaryMemoryCompactor(CompactionStrategy):

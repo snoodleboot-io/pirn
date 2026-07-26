@@ -5,8 +5,8 @@ from __future__ import annotations
 import unittest
 
 from pirn_agents.llm.anthropic_messages_tool_adapter import AnthropicMessagesToolAdapter
-from pirn_agents.tool_call_codec import ToolCallCodec
-from pirn_agents.toolset import Toolset
+from pirn_agents.tools.tool_call_codec import ToolCallCodec
+from pirn_agents.tools.toolset import Toolset
 from pirn_agents.types.tool_result import ToolResult
 from tests.specializations.conftest import StubTool
 

@@ -3,7 +3,7 @@
 Some providers cache large, stable prompt prefixes server-side. When a provider
 exposes that capability there is nothing to gain (and correctness to lose) from
 re-caching the same prompt locally, so this helper *asks* the provider — via the
-declared :attr:`~pirn_agents.llm_provider.LLMProvider.prompt_cache_enabled`
+declared :attr:`~pirn_agents.llm.llm_provider.LLMProvider.prompt_cache_enabled`
 capability, provider-neutral with no vendor import — and passes the prompt
 through untouched, reporting that the provider owns caching. When the provider
 has no native support the helper reports so, and the caller falls back to a
@@ -15,7 +15,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from pirn_agents.llm_provider import LLMProvider
+from pirn_agents.llm.llm_provider import LLMProvider
 
 
 class PromptCachePassthrough:

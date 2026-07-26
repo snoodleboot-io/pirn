@@ -12,7 +12,7 @@ from typing import Any
 
 import pytest
 
-from pirn_agents.llm_provider import LLMProvider
+from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.security.injection_detected_error import InjectionDetectedError
 from pirn_agents.security.injection_screen import InjectionScreen
 from pirn_agents.security.injection_verdict import InjectionVerdict

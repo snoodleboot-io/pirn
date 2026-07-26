@@ -13,7 +13,7 @@ class ObservabilitySink:
     """Receives span lifecycle callbacks; the base class is a genuine no-op.
 
     Mirrors the design of F1's
-    :class:`~pirn_agents.tool_invocation_hook.ToolInvocationHook`: the three
+    :class:`~pirn_agents.tools.tool_invocation_hook.ToolInvocationHook`: the three
     methods return ``None`` and do nothing, so a :class:`Tracer` wired with the
     base sink (or none at all) does zero observability work — the default is
     *behaviour*, not a placeholder. Subclasses override the callbacks to log,

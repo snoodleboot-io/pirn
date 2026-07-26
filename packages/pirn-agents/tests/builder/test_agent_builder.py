@@ -13,7 +13,7 @@ from pirn_agents.builder.agent import Agent
 from pirn_agents.builder.agent_builder import AgentBuilder
 from pirn_agents.builder.agent_spec import AgentSpec
 from pirn_agents.specializations.react.react_loop import ReActLoop
-from pirn_agents.toolset import Toolset
+from pirn_agents.tools.toolset import Toolset
 from pirn_agents.types.agent_response import AgentResponse
 from tests.specializations.conftest import (
     StubLLMProvider,

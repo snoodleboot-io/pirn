@@ -14,9 +14,9 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.tapestry import Tapestry
 
-from pirn_agents._safe_pattern_compiler import SafePatternCompiler
 from pirn_agents.control.handoff_check import HandoffCheck
 from pirn_agents.control.safety_check import SafetyCheck
+from pirn_agents.security._safe_pattern_compiler import SafePatternCompiler
 from pirn_agents.types.agent_message import AgentMessage
 from pirn_agents.types.agent_response import AgentResponse
 

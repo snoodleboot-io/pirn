@@ -49,7 +49,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.input.context_builder import ContextBuilder
-from pirn_agents.llm_provider import LLMProvider
+from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.react.messages_passthrough import (
     MessagesPassthrough,
 )
@@ -65,7 +65,7 @@ from pirn_agents.specializations.react.react_step_executor import (
 from pirn_agents.specializations.react.react_termination_check import (
     ReActTerminationCheck,
 )
-from pirn_agents.tool import Tool
+from pirn_agents.tools.tool import Tool
 from pirn_agents.types.agent_message import AgentMessage
 
 

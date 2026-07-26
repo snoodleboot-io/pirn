@@ -1,4 +1,4 @@
-"""Tests for :class:`pirn_agents.tool_call_codec.ToolCallCodec`.
+"""Tests for :class:`pirn_agents.tools.tool_call_codec.ToolCallCodec`.
 
 The codec is exercised against a hand-written ``StubAdapter`` that
 invents a plausible provider-native shape, plus a ``StubLLMProvider``
@@ -14,10 +14,10 @@ import unittest
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from pirn_agents.provider_adapter import ProviderAdapter
-from pirn_agents.tool import Tool
-from pirn_agents.tool_call_codec import ToolCallCodec
-from pirn_agents.toolset import Toolset
+from pirn_agents.llm.provider_adapter import ProviderAdapter
+from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.tool_call_codec import ToolCallCodec
+from pirn_agents.tools.toolset import Toolset
 from pirn_agents.types.tool_call import ToolCall
 from pirn_agents.types.tool_result import ToolResult
 from pirn_agents.types.tool_status import ToolStatus
@@ -271,7 +271,7 @@ class TestProviderNeutrality(unittest.TestCase):
         assert native_results == [{"toolResult": {"ref": "u1", "body": "done"}}]
 
     def test_codec_module_has_no_provider_imports(self) -> None:
-        from pirn_agents import tool_call_codec
+        from pirn_agents.tools import tool_call_codec
 
         source = tool_call_codec.__doc__ or ""
         # By design the module imports only stdlib + neutral pirn types.

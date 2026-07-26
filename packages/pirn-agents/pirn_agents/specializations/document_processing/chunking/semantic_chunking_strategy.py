@@ -16,7 +16,7 @@ import re
 import numpy as np
 from numpy.typing import NDArray
 
-from pirn_agents.embedding_provider import EmbeddingProvider
+from pirn_agents.embeddings.embedding_provider import EmbeddingProvider
 from pirn_agents.specializations.document_processing.chunking.chunk import Chunk
 from pirn_agents.specializations.document_processing.chunking.chunking_strategy import (
     ChunkingStrategy,

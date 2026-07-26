@@ -34,8 +34,8 @@ from pirn.core.knot_config import KnotConfig
 from pirn.nodes.source import Source
 from pirn.nodes.sub_tapestry import SubTapestry
 
-from pirn_agents.llm_provider import LLMProvider
-from pirn_agents.memory_store import MemoryStore
+from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.memory.memory_store import MemoryStore
 from pirn_agents.specializations.rag.sentence_confidence_monitor import SentenceConfidenceMonitor
 from pirn_agents.types.agent_response import AgentResponse
 

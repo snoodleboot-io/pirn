@@ -18,7 +18,6 @@ import time
 from collections.abc import AsyncIterator
 
 import pytest
-
 from pirn.connectors.http_connector import HttpConnector
 
 

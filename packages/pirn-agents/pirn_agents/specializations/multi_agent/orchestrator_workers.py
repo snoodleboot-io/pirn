@@ -5,11 +5,11 @@ bounded by a configurable ``max_concurrency`` semaphore, and aggregates the
 per-task outcomes into a typed :class:`OrchestratorWorkersResult`.
 
 The worker is any :class:`Tool` — in practice an F7
-:class:`~pirn_agents.agent_tool.AgentTool` wrapping a specialist agent — so the
+:class:`~pirn_agents.tools.agent_tool.AgentTool` wrapping a specialist agent — so the
 orchestrator reuses agents-as-tools rather than a bespoke worker abstraction. The
 worker count therefore scales with the task list while wall-clock stays bounded by
 the concurrency cap, exactly like the F1
-:class:`~pirn_agents.parallel_tool_executor.ParallelToolExecutor`.
+:class:`~pirn_agents.agent.parallel_tool_executor.ParallelToolExecutor`.
 
 Algorithm:
     1. Validate ``worker`` (a Tool), ``tasks`` (each a str), and
@@ -21,7 +21,7 @@ Algorithm:
 
 References:
     - Anthropic (2024) "Building effective agents" — orchestrator-workers
-    - :class:`pirn_agents.agent_tool.AgentTool` (F7 agents-as-tools)
+    - :class:`pirn_agents.tools.agent_tool.AgentTool` (F7 agents-as-tools)
 """
 
 from __future__ import annotations
@@ -39,7 +39,7 @@ from pirn_agents.specializations.multi_agent.orchestrator_workers_result import 
     OrchestratorWorkersResult,
 )
 from pirn_agents.specializations.multi_agent.worker_task_result import WorkerTaskResult
-from pirn_agents.tool import Tool
+from pirn_agents.tools.tool import Tool
 from pirn_agents.types.tool_result import ToolResult
 from pirn_agents.types.tool_status import ToolStatus
 

@@ -3,7 +3,7 @@
 The registry is the lookup layer of the tool SDK: tools register under a
 ``(namespace, name, version)`` key and are retrieved in **O(1)** by that key, or
 by ``(namespace, name)`` with automatic resolution to the latest version. From
-the registry a :class:`~pirn_agents.toolset.Toolset` can be *composed* by
+the registry a :class:`~pirn_agents.tools.toolset.Toolset` can be *composed* by
 querying a namespace and/or tags, so an agent's available tools are assembled
 dynamically rather than hand-listed.
 
@@ -23,8 +23,8 @@ from collections.abc import Iterable
 
 from sweet_tea.registry import Registry as SweetTeaRegistry
 
-from pirn_agents.tool import Tool
-from pirn_agents.toolset import Toolset
+from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.toolset import Toolset
 
 
 def _version_key(version: str) -> tuple[tuple[int, str], ...]:

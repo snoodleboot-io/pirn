@@ -6,7 +6,7 @@ from pirn_agents.evaluation.binary_verdict_parser import BinaryVerdictParser
 from pirn_agents.evaluation.metric_result import MetricResult
 from pirn_agents.evaluation.rag_sample import RagSample
 from pirn_agents.evaluation.sentence_splitter import SentenceSplitter
-from pirn_agents.llm_provider import LLMProvider
+from pirn_agents.llm.llm_provider import LLMProvider
 
 
 class ContextRecallMetric:

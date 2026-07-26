@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn_agents.embedding_provider import EmbeddingProvider
+from pirn_agents.embeddings.embedding_provider import EmbeddingProvider
 
 
 class _StubProvider(EmbeddingProvider):

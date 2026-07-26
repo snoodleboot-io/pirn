@@ -28,7 +28,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents.memory_store import MemoryStore
+from pirn_agents.memory.memory_store import MemoryStore
 from pirn_agents.types.agent_message import AgentMessage
 
 

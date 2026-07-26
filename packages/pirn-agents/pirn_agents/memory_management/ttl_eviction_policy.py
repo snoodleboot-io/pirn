@@ -5,7 +5,7 @@ recency anchor (``last_accessed`` when set, else ``created_at``) — exceeds
 ``ttl_seconds`` is selected for eviction. TTL is orthogonal to F17 compaction:
 compaction summarises live context, while this expires stale durable memory, and
 the two compose without either touching the
-:class:`~pirn_agents.memory_store.MemoryStore` read/write contract.
+:class:`~pirn_agents.memory.memory_store.MemoryStore` read/write contract.
 """
 
 from __future__ import annotations

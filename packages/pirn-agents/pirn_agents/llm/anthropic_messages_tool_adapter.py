@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pirn_agents.provider_adapter import ProviderAdapter
+from pirn_agents.llm.provider_adapter import ProviderAdapter
 
 
 class AnthropicMessagesToolAdapter(ProviderAdapter):

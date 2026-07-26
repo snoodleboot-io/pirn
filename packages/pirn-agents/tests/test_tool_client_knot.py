@@ -12,11 +12,11 @@ from __future__ import annotations
 
 from typing import Any
 
+from pirn.connectors.connector_base import ConnectorBase
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
-from pirn.connectors.connector_base import ConnectorBase
 from pirn_agents.tool_client_knot import ToolClientKnot
 
 

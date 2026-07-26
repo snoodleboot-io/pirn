@@ -6,9 +6,9 @@ import unittest
 from collections.abc import Mapping
 from typing import Any
 
-from pirn_agents.approval_hook import ApprovalHook, authorize_tool_call
+from pirn_agents.agent.approval_hook import ApprovalHook, authorize_tool_call
 from pirn_agents.testing.stub_tool import StubTool
-from pirn_agents.tool_permissions import ToolPermissions
+from pirn_agents.tools.tool_permissions import ToolPermissions
 
 
 class _RecordingHook(ApprovalHook):

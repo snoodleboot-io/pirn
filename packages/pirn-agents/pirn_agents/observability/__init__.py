@@ -1,7 +1,7 @@
 """Structured span/callback observability with a pluggable, no-op-default sink.
 
 Generalises F1's per-tool-call
-:class:`~pirn_agents.tool_invocation_hook.ToolInvocationHook` into a broader
+:class:`~pirn_agents.tools.tool_invocation_hook.ToolInvocationHook` into a broader
 span interface that wraps LLM calls, tool invocations, and retrievals alike. A
 :class:`~pirn_agents.observability.tracer.Tracer` starts and finishes
 :class:`~pirn_agents.observability.span.Span`\\ s and reports them to a

@@ -14,10 +14,10 @@ from pirn.connectors.database_connection_pool import (
     DatabaseConnectionPool,
 )
 
-from pirn_agents.embedding_provider import EmbeddingProvider
-from pirn_agents.llm_provider import LLMProvider
-from pirn_agents.memory_store import MemoryStore
-from pirn_agents.tool import Tool
+from pirn_agents.embeddings.embedding_provider import EmbeddingProvider
+from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.memory.memory_store import MemoryStore
+from pirn_agents.tools.tool import Tool
 
 
 class StubLLMProvider(LLMProvider):

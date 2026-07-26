@@ -10,7 +10,7 @@ vector-native contract expressed by four abstract coroutines:
 * :meth:`delete` — remove records by id.
 
 On top of that core this base implements the keyed
-:class:`pirn_agents.memory_store.MemoryStore` surface (``store``/``retrieve``/
+:class:`pirn_agents.memory.memory_store.MemoryStore` surface (``store``/``retrieve``/
 ``search``/``forget``) so a vector store drops into the existing memory + RAG
 pipelines unchanged. ``search`` takes a text query, so the store optionally
 holds an :class:`EmbeddingProvider` to turn that text into a query vector.
@@ -24,8 +24,8 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Mapping, Sequence
 from typing import Any
 
-from pirn_agents.embedding_provider import EmbeddingProvider
-from pirn_agents.memory_store import MemoryStore
+from pirn_agents.embeddings.embedding_provider import EmbeddingProvider
+from pirn_agents.memory.memory_store import MemoryStore
 from pirn_agents.vector_stores.vector_match import VectorMatch
 from pirn_agents.vector_stores.vector_record import VectorRecord
 

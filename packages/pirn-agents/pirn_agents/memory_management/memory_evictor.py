@@ -2,7 +2,7 @@
 
 The S2 write-side knot. Given the candidate records the caller listed from a
 store, an eviction policy, and a store, it asks the policy which records to drop
-and calls :meth:`~pirn_agents.memory_store.MemoryStore.forget` for each,
+and calls :meth:`~pirn_agents.memory.memory_store.MemoryStore.forget` for each,
 returning the evicted ids. It reads only the batch it is handed and writes only
 through ``forget`` — the ``MemoryStore`` read/write contract is untouched, so
 eviction composes with F17 compaction and any concrete store backend.
@@ -17,9 +17,9 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents.memory.memory_store import MemoryStore
 from pirn_agents.memory_management.memory_eviction_policy import MemoryEvictionPolicy
 from pirn_agents.memory_management.memory_record import MemoryRecord
-from pirn_agents.memory_store import MemoryStore
 
 
 class MemoryEvictor(Knot):

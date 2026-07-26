@@ -9,7 +9,7 @@ the F1 :class:`~pirn_agents.types.tool_result.ToolResult` shape.
 
 All safety and performance behaviour — recursion/cycle guards, inherited
 budgets, and pooled-provider reuse — lives in the shared
-:class:`~pirn_agents.agent_invoker.AgentInvoker` machinery, so a tool-style
+:class:`~pirn_agents.agent.agent_invoker.AgentInvoker` machinery, so a tool-style
 call and a handoff/swarm transfer behave identically.
 """
 
@@ -21,11 +21,11 @@ from typing import Any
 
 from pirn.nodes.sub_tapestry import SubTapestry
 
-from pirn_agents.agent_invoker import AgentInvoker
-from pirn_agents.agent_schema_deriver import AgentSchemaDeriver
-from pirn_agents.llm_provider import LLMProvider
+from pirn_agents.agent.agent_invoker import AgentInvoker
+from pirn_agents.agent.agent_schema_deriver import AgentSchemaDeriver
+from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.performance.run_budget import RunBudget
-from pirn_agents.tool import Tool
+from pirn_agents.tools.tool import Tool
 from pirn_agents.types.tool_result import ToolResult
 
 
@@ -114,7 +114,7 @@ class AgentTool(Tool):
     async def invoke(self, arguments: Mapping[str, Any]) -> ToolResult:
         """Run the wrapped agent and return its F1 :class:`ToolResult`.
 
-        Delegates to the shared :class:`~pirn_agents.agent_invoker.AgentInvoker`
+        Delegates to the shared :class:`~pirn_agents.agent.agent_invoker.AgentInvoker`
         machinery so recursion guards, budget inheritance, and provider reuse
         apply uniformly. An inner-agent failure surfaces as a tool error result
         rather than an unhandled exception.

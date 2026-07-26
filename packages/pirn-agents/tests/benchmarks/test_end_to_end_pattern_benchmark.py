@@ -15,10 +15,10 @@ import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.parallel_tool_executor import ParallelToolExecutor
+from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
 from pirn_agents.performance.run_budget import RunBudget
 from pirn_agents.performance.run_budget_meter import RunBudgetMeter
-from pirn_agents.toolset import Toolset
+from pirn_agents.tools.toolset import Toolset
 from pirn_agents.types.tool_call import ToolCall
 from pirn_agents.types.tool_status import ToolStatus
 from tests.benchmarks.conftest import BenchmarkRecorder

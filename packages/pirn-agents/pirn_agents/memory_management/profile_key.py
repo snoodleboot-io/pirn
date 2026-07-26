@@ -4,7 +4,7 @@ A profile is durable state keyed to a *subject* (a user or an entity), not to an
 single conversation. :class:`ProfileKey` is that key: a ``namespace``
 (``"user"`` / ``"entity"``) plus a ``subject_id``, yielding a deterministic
 :attr:`storage_key` under which the profile is stored/read through the standard
-:class:`~pirn_agents.memory_store.MemoryStore` interface.
+:class:`~pirn_agents.memory.memory_store.MemoryStore` interface.
 
 F14 SEAM
 --------

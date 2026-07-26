@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn_agents.llm_provider import LLMProvider
+from pirn_agents.llm.llm_provider import LLMProvider
 
 
 class _ConcreteLLM(LLMProvider):

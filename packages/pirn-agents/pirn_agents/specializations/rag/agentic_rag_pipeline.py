@@ -4,7 +4,7 @@ Agentic RAG treats retrieval as an explicit, agent-callable action rather than a
 fixed pipeline stage: the F6 :class:`~pirn_agents.tools.retrieval.rag_tool.RagTool`
 is invoked, its answer is inspected, and — while a budget remains — the LLM may
 issue a follow-up question that drives another tool call. The ``rag_tool`` is
-validated as a standard :class:`~pirn_agents.tool.Tool` (isinstance) and called
+validated as a standard :class:`~pirn_agents.tools.tool.Tool` (isinstance) and called
 exactly like any other tool in the loop.
 
 Algorithm:
@@ -32,8 +32,8 @@ from pirn.core.knot_config import KnotConfig
 from pirn.nodes.source import Source
 from pirn.nodes.sub_tapestry import SubTapestry
 
-from pirn_agents.llm_provider import LLMProvider
-from pirn_agents.tool import Tool
+from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.tools.tool import Tool
 from pirn_agents.types.agent_response import AgentResponse
 
 

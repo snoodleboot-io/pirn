@@ -23,8 +23,8 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.sub_tapestry import SubTapestry
 
-from pirn_agents.embedding_provider import EmbeddingProvider
-from pirn_agents.llm_provider import LLMProvider
+from pirn_agents.embeddings.embedding_provider import EmbeddingProvider
+from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.rag.rag_synthesizer import RAGSynthesizer
 from pirn_agents.specializations.rag.self_query_filter_extractor import SelfQueryFilterExtractor
 from pirn_agents.specializations.rag.self_query_retriever import SelfQueryRetriever

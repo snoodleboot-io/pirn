@@ -1,6 +1,6 @@
 """``BaseTool`` — shared base for the concrete base-library tools.
 
-A :class:`BaseTool` is a thin :class:`~pirn_agents.tool.Tool` subclass that adds
+A :class:`BaseTool` is a thin :class:`~pirn_agents.tools.tool.Tool` subclass that adds
 two conveniences every concrete base tool reuses:
 
 * :meth:`as_tool_result` — invoke for a given :class:`~pirn_agents.types.tool_call.ToolCall`
@@ -25,7 +25,7 @@ import time
 from collections.abc import Mapping
 from typing import Any
 
-from pirn_agents.tool import Tool
+from pirn_agents.tools.tool import Tool
 from pirn_agents.types.tool_call import ToolCall
 from pirn_agents.types.tool_result import ToolResult
 from pirn_agents.types.tool_status import ToolStatus

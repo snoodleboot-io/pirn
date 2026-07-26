@@ -1,10 +1,10 @@
-"""Tests for :mod:`pirn_agents.agent_response_mapper`."""
+"""Tests for :mod:`pirn_agents.agent.agent_response_mapper`."""
 
 from __future__ import annotations
 
 import unittest
 
-from pirn_agents.agent_response_mapper import AgentResponseMapper
+from pirn_agents.agent.agent_response_mapper import AgentResponseMapper
 from pirn_agents.types.agent_response import AgentResponse
 from pirn_agents.types.tool_status import ToolStatus
 

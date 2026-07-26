@@ -9,7 +9,7 @@ Algorithm:
 
 
 References:
-    - :class:`pirn_agents.tool.Tool`
+    - :class:`pirn_agents.tools.tool.Tool`
     - :class:`pirn_agents.types.tool_call.ToolCall`
 """
 
@@ -22,7 +22,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents.tool import Tool
+from pirn_agents.tools.tool import Tool
 from pirn_agents.types.tool_call import ToolCall
 
 

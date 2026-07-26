@@ -8,7 +8,7 @@ context path:
   :class:`~pirn_agents.types.agent_message.AgentMessage`\\ s ready to prepend at
   :class:`~pirn_agents.input.context_builder.ContextBuilder` time; and
 * :meth:`inject_into_store` writes each resource into a
-  :class:`~pirn_agents.memory_store.MemoryStore` so a
+  :class:`~pirn_agents.memory.memory_store.MemoryStore` so a
   :class:`~pirn_agents.memory.memory_retriever.MemoryRetriever` can fetch it.
 
 Resource payloads are validated with ``isinstance`` so a malformed server
@@ -22,7 +22,7 @@ from typing import Any
 
 from pirn_agents.mcp.mcp_client import McpClient
 from pirn_agents.mcp.mcp_error import McpError
-from pirn_agents.memory_store import MemoryStore
+from pirn_agents.memory.memory_store import MemoryStore
 from pirn_agents.types.agent_message import AgentMessage
 
 

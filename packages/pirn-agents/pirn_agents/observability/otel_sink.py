@@ -1,7 +1,7 @@
 """``OtelSink`` — an OpenTelemetry-backed :class:`ObservabilitySink` behind a lazy extra.
 
 The one sink that needs a real backend. ``opentelemetry`` is imported lazily
-via :func:`pirn_agents._require._require` at construction time, so ``import
+via :func:`pirn_agents._internal._require._require` at construction time, so ``import
 pirn_agents`` — and importing this very module — stays backend-free; only
 *constructing* an :class:`OtelSink` requires the ``otel`` extra. Each pirn
 :class:`Span` is mapped onto an OTel span on finish, carrying its kind, status,
@@ -13,7 +13,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from pirn_agents._require import _require
+from pirn_agents._internal._require import _require
 from pirn_agents.observability.observability_sink import ObservabilitySink
 from pirn_agents.observability.span import Span
 from pirn_agents.observability.span_status import SpanStatus

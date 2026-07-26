@@ -1,7 +1,7 @@
 """Advanced memory *management* on top of the F4 stores and ``memory_patterns/``.
 
 This package adds memory lifecycle — not new memory *types* — over the existing
-:class:`~pirn_agents.memory_store.MemoryStore` interface and the
+:class:`~pirn_agents.memory.memory_store.MemoryStore` interface and the
 ``specializations/memory_patterns/`` pipelines:
 
 * **Typed records + provenance** (S5) — :class:`MemoryRecord` /

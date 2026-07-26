@@ -32,7 +32,7 @@ from pirn_agents.graph_rag.extraction_schema import ExtractionSchema
 from pirn_agents.graph_stores.graph_edge import GraphEdge
 from pirn_agents.graph_stores.graph_node import GraphNode
 from pirn_agents.graph_stores.graph_store import GraphStore
-from pirn_agents.llm_provider import LLMProvider
+from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.structured_output.structured_decoder import structured_decode
 
 

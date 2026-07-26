@@ -2,7 +2,7 @@
 
 Basic usage stays a one-liner::
 
-    from pirn_agents.tool_decorator import tool
+    from pirn_agents.tools.tool_decorator import tool
 
     @tool
     async def web_search(query: str, max_results: int = 5) -> str:
@@ -12,7 +12,7 @@ Basic usage stays a one-liner::
     # web_search is now a Tool: name="web_search", description from the
     # docstring, parameters_schema derived from the type hints.
 
-Sync functions are accepted too — :meth:`~pirn_agents.function_tool.FunctionTool.invoke`
+Sync functions are accepted too — :meth:`~pirn_agents.tools.function_tool.FunctionTool.invoke`
 wraps them in ``asyncio.to_thread`` automatically.
 
 The decorator also has a **rich, parametrised form** that stays fully backward
@@ -37,14 +37,14 @@ compatible with the bare ``@tool`` above::
 * Per-argument descriptions/examples (pydantic ``Field(description=...)`` or the
   ``arg_docs``/``examples`` kwargs) surface in ``parameters_schema``.
 * ``scope`` / ``mutating`` / ``approval_required`` / ``cost_hint`` attach a
-  :class:`~pirn_agents.tool_permissions.ToolPermissions` (S3, inert by default).
+  :class:`~pirn_agents.tools.tool_permissions.ToolPermissions` (S3, inert by default).
 * An async-generator function becomes a *streaming* tool (S2).
 * ``state`` injects a resource that persists across calls into a reserved
   ``state`` keyword parameter (S2).
 
 The schema derivation itself lives in
-:class:`~pirn_agents.tool_schema_compiler.ToolSchemaCompiler`; the concrete tool
-type is :class:`~pirn_agents.function_tool.FunctionTool`. For tools that need
+:class:`~pirn_agents.tools.tool_schema_compiler.ToolSchemaCompiler`; the concrete tool
+type is :class:`~pirn_agents.tools.function_tool.FunctionTool`. For tools that need
 constructor dependencies (API keys, HTTP clients) subclass :class:`Tool` directly.
 """
 
@@ -55,9 +55,9 @@ from collections.abc import Callable, Mapping
 from inspect import isasyncgenfunction, iscoroutinefunction
 from typing import Any
 
-from pirn_agents.function_tool import FunctionTool
-from pirn_agents.tool_permissions import ToolPermissions
-from pirn_agents.tool_schema_compiler import ToolSchemaCompiler
+from pirn_agents.tools.function_tool import FunctionTool
+from pirn_agents.tools.tool_permissions import ToolPermissions
+from pirn_agents.tools.tool_schema_compiler import ToolSchemaCompiler
 
 
 def _build_tool(
@@ -138,7 +138,7 @@ def tool(
     * ``arg_docs`` / ``examples`` — per-argument descriptions/examples for the
       signature-derived schema.
     * ``scope`` / ``mutating`` / ``approval_required`` / ``cost_hint`` — the
-      tool's :class:`~pirn_agents.tool_permissions.ToolPermissions`.
+      tool's :class:`~pirn_agents.tools.tool_permissions.ToolPermissions`.
     * ``state`` — a resource injected into a reserved ``state`` keyword that
       persists across invocations.
     * ``name`` / ``description`` — explicit overrides.

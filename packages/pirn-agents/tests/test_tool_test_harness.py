@@ -17,7 +17,7 @@ from pirn_agents.testing.tool_test_harness import (
     invoke_tool,
     make_stub_tool,
 )
-from pirn_agents.tool_decorator import tool
+from pirn_agents.tools.tool_decorator import tool
 
 
 class TestSchemaAssertions(unittest.TestCase):

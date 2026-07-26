@@ -1,6 +1,6 @@
 """Derive a JSON-Schema ``parameters`` object from a ``SubTapestry`` agent.
 
-An :class:`~pirn_agents.agent_tool.AgentTool` needs a ``parameters_schema`` so a
+An :class:`~pirn_agents.tools.agent_tool.AgentTool` needs a ``parameters_schema`` so a
 planner knows what to pass. This module derives one from the agent's
 ``process`` signature, reusing the same annotation→JSON-Schema mapping the
 ``@tool`` decorator uses for plain functions. Dependency parameters (the LLM
@@ -17,11 +17,11 @@ from typing import Any
 
 from pirn.core.knot import Knot
 
-from pirn_agents.embedding_provider import EmbeddingProvider
-from pirn_agents.llm_provider import LLMProvider
-from pirn_agents.memory_store import MemoryStore
-from pirn_agents.tool import Tool
-from pirn_agents.tool_schema_compiler import ToolSchemaCompiler
+from pirn_agents.embeddings.embedding_provider import EmbeddingProvider
+from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.memory.memory_store import MemoryStore
+from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.tool_schema_compiler import ToolSchemaCompiler
 
 
 class AgentSchemaDeriver:

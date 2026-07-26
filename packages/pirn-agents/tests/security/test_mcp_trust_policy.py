@@ -13,11 +13,11 @@ from typing import Any
 
 import pytest
 
-from pirn_agents.approval_hook import ApprovalHook
+from pirn_agents.agent.approval_hook import ApprovalHook
 from pirn_agents.security.mcp_trust_error import McpTrustError
 from pirn_agents.security.mcp_trust_policy import McpTrustPolicy
 from pirn_agents.testing.stub_tool import StubTool
-from pirn_agents.tool_permissions import ToolPermissions
+from pirn_agents.tools.tool_permissions import ToolPermissions
 
 
 class _DenyingHook(ApprovalHook):

@@ -7,7 +7,7 @@ pairs the record's :data:`~pirn_agents.memory_management.memory_kind.MemoryKind`
 lifecycle signals used by decay and ranking: ``importance`` and ``last_accessed``.
 
 It round-trips through the untyped
-:class:`~pirn_agents.memory_store.MemoryStore` mapping interface via
+:class:`~pirn_agents.memory.memory_store.MemoryStore` mapping interface via
 :meth:`to_payload` / :meth:`from_payload`, so existing ``memory_patterns/`` stores
 keep reading and writing plain mappings while callers gain a typed, validated
 view — the S5 migration path that leaves the store interface unchanged.

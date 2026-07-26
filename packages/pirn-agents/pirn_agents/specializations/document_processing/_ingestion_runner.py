@@ -4,7 +4,7 @@ Internal terminal :class:`Knot` for :class:`IngestionPipeline`. It pulls every
 :class:`SourceDocument` from the source connector, then for each document runs
 load → chunk → incremental upsert. Documents are processed concurrently under a
 bounded :class:`asyncio.Semaphore` (the same bounded-concurrency lever
-:class:`~pirn_agents.parallel_tool_executor.ParallelToolExecutor` uses), and
+:class:`~pirn_agents.agent.parallel_tool_executor.ParallelToolExecutor` uses), and
 each document's chunks are embedded in one batched call by the F4 embedding
 provider held inside the upserter. A failure on any one source is isolated and
 recorded on the returned :class:`IngestionReport` rather than aborting the run.

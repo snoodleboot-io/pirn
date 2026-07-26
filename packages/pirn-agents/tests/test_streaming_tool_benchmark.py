@@ -14,7 +14,7 @@ import time
 
 import pytest
 
-from pirn_agents.tool_decorator import tool
+from pirn_agents.tools.tool_decorator import tool
 
 
 @pytest.mark.benchmark

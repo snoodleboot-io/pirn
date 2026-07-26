@@ -1,12 +1,12 @@
-"""Unit tests for :class:`pirn_agents.tool_registry.ToolRegistry` (S4)."""
+"""Unit tests for :class:`pirn_agents.tools.tool_registry.ToolRegistry` (S4)."""
 
 from __future__ import annotations
 
 import unittest
 
 from pirn_agents.testing.stub_tool import StubTool
-from pirn_agents.tool_registry import ToolRegistry
-from pirn_agents.toolset import Toolset
+from pirn_agents.tools.tool_registry import ToolRegistry
+from pirn_agents.tools.toolset import Toolset
 
 
 def _registry() -> ToolRegistry:

@@ -7,7 +7,7 @@ so downstream code never sees a vendor payload:
 * a slice of assistant *content* (``content``),
 * and/or an incremental *tool-call* fragment (``tool_call``) in the neutral
   shape consumed by
-  :class:`pirn_agents.streaming_tool_call_parser.StreamingToolCallParser`,
+  :class:`pirn_agents.tools.streaming_tool_call_parser.StreamingToolCallParser`,
 * plus terminal metadata when known (``finish_reason``, ``usage``).
 
 Any field may be empty/``None`` on a given delta; a consumer folds the stream

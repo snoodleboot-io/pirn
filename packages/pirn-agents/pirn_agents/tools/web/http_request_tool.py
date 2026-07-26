@@ -16,7 +16,7 @@ from typing import Any
 from pirn.security.ssrf_guard import SsrfGuard
 from pirn.security.vetted_endpoint import VettedEndpoint
 
-from pirn_agents._require import _require
+from pirn_agents._internal._require import _require
 from pirn_agents.tools.base_tool import BaseTool
 
 

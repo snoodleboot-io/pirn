@@ -17,15 +17,15 @@ from typing import Any
 
 from pirn_agents.llm.base_llm_provider import BaseLLMProvider
 from pirn_agents.llm.http_structured_output_provider import HttpStructuredOutputProvider
+from pirn_agents.llm.provider_adapter import ProviderAdapter
 from pirn_agents.llm.stream_delta import StreamDelta
-from pirn_agents.provider_adapter import ProviderAdapter
 from pirn_agents.specializations.structured_output.structured_output_capability import (
     StructuredOutputCapability,
 )
 from pirn_agents.specializations.structured_output.structured_output_provider import (
     StructuredOutputProvider,
 )
-from pirn_agents.toolset import Toolset
+from pirn_agents.tools.toolset import Toolset
 from tests.llm.conftest import FakeAsyncClient, FakeResponse
 
 

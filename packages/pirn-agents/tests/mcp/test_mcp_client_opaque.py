@@ -13,14 +13,14 @@ import unittest
 from collections.abc import Mapping
 from typing import Any
 
+from pirn.connectors.connector_base import ConnectorBase
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
-from pirn.connectors.connector_base import ConnectorBase
 from pirn_agents.mcp.mcp_client import McpClient
 from pirn_agents.mcp.mcp_connector import McpConnector
 from pirn_agents.mcp.mcp_tool import McpTool
 from pirn_agents.mcp.mcp_transport import McpTransport
-from pirn_agents.tool import Tool
+from pirn_agents.tools.tool import Tool
 
 
 class TestMcpClientOpaqueBoundary(unittest.TestCase):

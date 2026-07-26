@@ -1,7 +1,7 @@
 """``MultimodalAdapter`` — provider-neutral multimodal encode/decode base (F15-S2).
 
 The multimodal counterpart to
-:class:`pirn_agents.provider_adapter.ProviderAdapter`: it translates a sequence
+:class:`pirn_agents.llm.provider_adapter.ProviderAdapter`: it translates a sequence
 of neutral :class:`~pirn_agents.types.content_block.ContentBlock` into one
 provider's native message-content wire shape (and back), gated by a
 :class:`~pirn_agents.llm.modality_capability.ModalityCapability` probe.

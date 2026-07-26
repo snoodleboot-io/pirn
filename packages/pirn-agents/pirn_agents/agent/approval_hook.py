@@ -19,7 +19,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from pirn_agents.tool import Tool
+from pirn_agents.tools.tool import Tool
 
 
 class ApprovalHook:

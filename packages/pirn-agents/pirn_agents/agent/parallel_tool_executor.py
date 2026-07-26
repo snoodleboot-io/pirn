@@ -2,7 +2,7 @@
 
 Extends the single-call :class:`pirn_agents.planning.tool_executor.ToolExecutor`
 idea to a batch: it dispatches an ordered sequence of :class:`ToolCall`s
-against a :class:`~pirn_agents.toolset.Toolset`, running them concurrently up
+against a :class:`~pirn_agents.tools.toolset.Toolset`, running them concurrently up
 to a caller-supplied ``max_concurrency`` bound. Each call carries its own
 per-call timeout, jittered-backoff retry budget, and failure isolation, so one
 slow, timing-out, or raising call never aborts its siblings.
@@ -46,13 +46,13 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents.async_fanout_engine import AsyncFanoutEngine
+from pirn_agents.agent.async_fanout_engine import AsyncFanoutEngine
 from pirn_agents.exceptions.tool_not_found_error import ToolNotFoundError
 from pirn_agents.exceptions.tool_timeout_error import ToolTimeoutError
 from pirn_agents.llm.retry_policy import RetryPolicy
-from pirn_agents.tool import Tool
-from pirn_agents.tool_invocation_hook import ToolInvocationHook
-from pirn_agents.toolset import Toolset
+from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.tool_invocation_hook import ToolInvocationHook
+from pirn_agents.tools.toolset import Toolset
 from pirn_agents.types.tool_call import ToolCall
 from pirn_agents.types.tool_result import ToolResult
 from pirn_agents.types.tool_status import ToolStatus
@@ -68,7 +68,7 @@ class ParallelToolExecutor(AsyncFanoutEngine[ToolResult], Knot):
     budget, which is a per-invocation concern.
 
     Observability is opt-in via ``hook``: an optional
-    :class:`~pirn_agents.tool_invocation_hook.ToolInvocationHook` fired once
+    :class:`~pirn_agents.tools.tool_invocation_hook.ToolInvocationHook` fired once
     before and once after every per-call invocation. It defaults to ``None`` —
     when absent the per-call path does zero extra work (no digest is computed,
     no hook is called), keeping the hot path allocation-free. Because

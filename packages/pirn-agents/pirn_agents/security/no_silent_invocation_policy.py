@@ -18,7 +18,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from re import Pattern
 
-from pirn_agents._safe_pattern_compiler import SafePatternCompiler
+from pirn_agents.security._safe_pattern_compiler import SafePatternCompiler
 from pirn_agents.security.untrusted_content import UntrustedContent
 from pirn_agents.security.untrusted_directive_error import UntrustedDirectiveError
 
@@ -32,7 +32,7 @@ class NoSilentInvocationPolicy:
         Args:
             directive_patterns: Optional override for the default regex set. Each
                 entry is compiled case-insensitively via
-                :meth:`~pirn_agents._safe_pattern_compiler.SafePatternCompiler.compile_safe_pattern`.
+                :meth:`~pirn_agents.security._safe_pattern_compiler.SafePatternCompiler.compile_safe_pattern`.
 
         Raises:
             ValueError: If any supplied pattern is not valid regex.

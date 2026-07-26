@@ -4,7 +4,7 @@ An :class:`McpTool` wraps a single tool descriptor discovered from an MCP server
 (its ``name``, ``description``, and JSON-Schema ``inputSchema``) and delegates
 :meth:`invoke` to the server's ``tools/call``. The raw MCP ``CallToolResult`` is
 mapped to a plain Python value so the tool composes with F1's
-:class:`~pirn_agents.parallel_tool_executor.ParallelToolExecutor`, which wraps
+:class:`~pirn_agents.agent.parallel_tool_executor.ParallelToolExecutor`, which wraps
 the return in a :class:`~pirn_agents.types.tool_result.ToolResult`. For direct
 (executor-free) use, :meth:`as_tool_result` produces the ``ToolResult`` itself so
 schema *and* result round-trip through F1's protocol either way.
@@ -18,7 +18,7 @@ from typing import Any
 
 from pirn_agents.mcp.mcp_client import McpClient
 from pirn_agents.mcp.mcp_error import McpError
-from pirn_agents.tool import Tool
+from pirn_agents.tools.tool import Tool
 from pirn_agents.types.tool_call import ToolCall
 from pirn_agents.types.tool_result import ToolResult
 from pirn_agents.types.tool_status import ToolStatus

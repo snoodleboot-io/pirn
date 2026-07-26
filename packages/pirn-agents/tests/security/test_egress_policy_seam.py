@@ -12,10 +12,10 @@ from collections.abc import AsyncIterator, Mapping
 from typing import Any
 
 import pytest
+from pirn.connectors.http_connector import HttpConnector
 from pirn.security.egress_error import EgressError
 from pirn.security.egress_policy import EgressPolicy
 
-from pirn.connectors.http_connector import HttpConnector
 from pirn_agents.tools.web.http_request_tool import HttpRequestTool
 
 

@@ -4,7 +4,7 @@ The S5 migration bridge: it serialises a validated
 :class:`~pirn_agents.memory_management.memory_record.MemoryRecord` with
 :meth:`MemoryRecord.to_payload` and writes the resulting mapping under the
 record's ``id`` via the untyped
-:meth:`~pirn_agents.memory_store.MemoryStore.store` interface. Existing
+:meth:`~pirn_agents.memory.memory_store.MemoryStore.store` interface. Existing
 ``memory_patterns/`` stores therefore keep reading and writing plain mappings
 while producers move to typed+provenance records — no store change required. The
 stored key is returned so callers can read the record back and rebuild it with
@@ -18,8 +18,8 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents.memory.memory_store import MemoryStore
 from pirn_agents.memory_management.memory_record import MemoryRecord
-from pirn_agents.memory_store import MemoryStore
 
 
 class TypedMemoryWriter(Knot):

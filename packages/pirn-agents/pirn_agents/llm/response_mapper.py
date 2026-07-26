@@ -5,7 +5,7 @@ in one focused collaborator (SRP). It takes the provider-neutral primitives a
 provider has already pulled out of its raw JSON (content text, the codec's
 tool-message object, finish reason, token usage) and folds them into an
 :class:`~pirn_agents.types.agent_response.AgentResponse`: decoding native tool
-calls through the injected :class:`~pirn_agents.tool_call_codec.ToolCallCodec`
+calls through the injected :class:`~pirn_agents.tools.tool_call_codec.ToolCallCodec`
 and estimating cost from the optional
 :class:`~pirn_agents.llm.model_pricing.ModelPricing`. It also renders an
 ``AgentResponse`` back into a plain mapping for the ``dict``-returning chat API.
@@ -20,7 +20,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from pirn_agents.llm.model_pricing import ModelPricing
-from pirn_agents.tool_call_codec import ToolCallCodec
+from pirn_agents.tools.tool_call_codec import ToolCallCodec
 from pirn_agents.types.agent_response import AgentResponse
 
 

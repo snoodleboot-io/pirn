@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import unittest
 
-from pirn_agents._require import _require
+from pirn_agents._internal._require import _require
 
 
 class TestRequire(unittest.TestCase):

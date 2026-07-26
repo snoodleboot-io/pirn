@@ -26,10 +26,10 @@ from pirn.nodes.sub_tapestry import SubTapestry
 from pirn_agents.builder.agent_knot_id_factory import AgentKnotIdFactory
 from pirn_agents.builder.agent_pattern_registry import AgentPatternRegistry
 from pirn_agents.builder.agent_spec import AgentSpec
-from pirn_agents.llm_provider import LLMProvider
-from pirn_agents.memory_store import MemoryStore
-from pirn_agents.tool import Tool
-from pirn_agents.toolset import Toolset
+from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.memory.memory_store import MemoryStore
+from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.toolset import Toolset
 
 
 class AgentBuilder:

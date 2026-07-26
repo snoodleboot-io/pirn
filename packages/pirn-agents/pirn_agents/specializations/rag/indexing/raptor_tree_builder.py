@@ -19,8 +19,8 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.sub_tapestry import SubTapestry
 
-from pirn_agents.embedding_provider import EmbeddingProvider
-from pirn_agents.llm_provider import LLMProvider
+from pirn_agents.embeddings.embedding_provider import EmbeddingProvider
+from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.document_processing._document_chunker import _DocumentChunker
 from pirn_agents.specializations.rag.indexing._raptor_assembler import _RaptorAssembler
 from pirn_agents.vector_stores.vector_memory_store import VectorMemoryStore

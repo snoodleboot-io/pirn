@@ -1,6 +1,6 @@
 """``AsyncFanoutEngine`` — shared per-item mechanics for bounded async fan-out.
 
-Both :class:`~pirn_agents.parallel_tool_executor.ParallelToolExecutor` and
+Both :class:`~pirn_agents.agent.parallel_tool_executor.ParallelToolExecutor` and
 :class:`~pirn_agents.batch.map_agent.MapAgent` fan a workload out across bounded
 concurrency, run each item to a terminal *result value* (never raising, so one
 failing item cannot poison a sibling), and drain in-flight work on cancellation.

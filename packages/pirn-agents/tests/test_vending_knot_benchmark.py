@@ -23,10 +23,10 @@ import time
 from typing import Any
 
 import pytest
+from pirn.connectors.connector_base import ConnectorBase
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn.connectors.connector_base import ConnectorBase
 from pirn_agents.tool_client_knot import ToolClientKnot
 
 

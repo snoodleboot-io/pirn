@@ -27,7 +27,7 @@ from pirn_agents.llm.base_llm_provider import BaseLLMProvider
 from pirn_agents.specializations.structured_output.structured_output_provider import (
     StructuredOutputProvider,
 )
-from pirn_agents.toolset import Toolset
+from pirn_agents.tools.toolset import Toolset
 from pirn_agents.types.agent_response import AgentResponse
 
 

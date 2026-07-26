@@ -1,4 +1,4 @@
-"""Tests for :class:`pirn_agents.agent_tool.AgentTool` (F7-S1)."""
+"""Tests for :class:`pirn_agents.tools.agent_tool.AgentTool` (F7-S1)."""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.agent_tool import AgentTool
-from pirn_agents.tool import Tool
+from pirn_agents.tools.agent_tool import AgentTool
+from pirn_agents.tools.tool import Tool
 from pirn_agents.types.agent_response import AgentResponse
 from pirn_agents.types.tool_status import ToolStatus
 from tests.agent_tool_doubles import StubAgent, reset_doubles

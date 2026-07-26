@@ -15,7 +15,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-from pirn_agents._require import _require
+from pirn_agents._internal._require import _require
 from pirn_agents.builder.agent_spec import AgentSpec
 from pirn_agents.tools.filesystem._path_guard import PathGuard
 

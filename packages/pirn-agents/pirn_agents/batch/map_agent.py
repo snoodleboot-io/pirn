@@ -1,7 +1,7 @@
 """``MapAgent`` — map an agent over a dataset with per-item isolation.
 
 The batch/fleet counterpart to F1's single-run concurrency: where
-:class:`~pirn_agents.parallel_tool_executor.ParallelToolExecutor` fans a handful
+:class:`~pirn_agents.agent.parallel_tool_executor.ParallelToolExecutor` fans a handful
 of tool calls out for one agent turn, :class:`MapAgent` runs *one* agent over an
 arbitrarily large stream of inputs. It is a streaming engine, not a
 single-return :class:`~pirn.core.knot.Knot`: :meth:`run` is an async generator
@@ -25,7 +25,7 @@ The per-item agent is injected as a plain ``run_item`` coroutine callable
 (``async (item) -> output``) rather than a concrete agent type, keeping the
 engine provider-neutral and trivially testable with a stub double. Wrap a real
 nested agent with a thin adapter over
-:meth:`pirn_agents.agent_invoker.AgentInvoker.invoke` at the call site.
+:meth:`pirn_agents.agent.agent_invoker.AgentInvoker.invoke` at the call site.
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ import asyncio
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterable
 
-from pirn_agents.async_fanout_engine import AsyncFanoutEngine
+from pirn_agents.agent.async_fanout_engine import AsyncFanoutEngine
 from pirn_agents.batch.adaptive_concurrency_controller import AdaptiveConcurrencyController
 from pirn_agents.batch.batch_checkpointer import BatchCheckpointer
 from pirn_agents.batch.batch_item_result import BatchItemResult

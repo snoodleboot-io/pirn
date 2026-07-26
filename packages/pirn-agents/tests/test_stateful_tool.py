@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn_agents.testing.stub_tool import StubTool
-from pirn_agents.tool_decorator import tool
+from pirn_agents.tools.tool_decorator import tool
 
 
 class TestFunctionToolStateful(unittest.IsolatedAsyncioTestCase):

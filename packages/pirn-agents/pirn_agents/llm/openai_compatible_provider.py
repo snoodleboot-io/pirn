@@ -24,12 +24,12 @@ from pirn_agents.llm.openai_compatible_multimodal_adapter import (
     OpenAICompatibleMultimodalAdapter,
 )
 from pirn_agents.llm.openai_compatible_tool_adapter import OpenAICompatibleToolAdapter
+from pirn_agents.llm.provider_adapter import ProviderAdapter
 from pirn_agents.llm.stream_delta import StreamDelta
-from pirn_agents.provider_adapter import ProviderAdapter
 from pirn_agents.specializations.structured_output.structured_output_capability import (
     StructuredOutputCapability,
 )
-from pirn_agents.toolset import Toolset
+from pirn_agents.tools.toolset import Toolset
 
 
 class OpenAICompatibleProvider(HttpStructuredOutputProvider):

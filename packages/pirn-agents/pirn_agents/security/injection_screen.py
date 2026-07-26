@@ -25,7 +25,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from re import Pattern
 
-from pirn_agents._safe_pattern_compiler import SafePatternCompiler
+from pirn_agents.security._safe_pattern_compiler import SafePatternCompiler
 from pirn_agents.security.injection_detected_error import InjectionDetectedError
 from pirn_agents.security.injection_verdict import InjectionVerdict
 from pirn_agents.security.llm_injection_classifier import LlmInjectionClassifier

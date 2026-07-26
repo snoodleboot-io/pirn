@@ -15,7 +15,7 @@ from collections.abc import Mapping, Sequence
 from contextlib import AsyncExitStack
 from typing import Any
 
-from pirn_agents._require import _require
+from pirn_agents._internal._require import _require
 from pirn_agents.mcp.mcp_transport import McpTransport
 
 

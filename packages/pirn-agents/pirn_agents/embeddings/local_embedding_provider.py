@@ -16,7 +16,7 @@ import asyncio
 from collections.abc import Callable, Sequence
 from typing import Any
 
-from pirn_agents._require import _require
+from pirn_agents._internal._require import _require
 from pirn_agents.embeddings.base_embedding_provider import BaseEmbeddingProvider
 from pirn_agents.llm.retry_policy import RetryPolicy
 
