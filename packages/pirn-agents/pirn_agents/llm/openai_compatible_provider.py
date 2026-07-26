@@ -18,7 +18,7 @@ import json
 from collections.abc import AsyncIterator, Mapping, Sequence
 from typing import Any
 
-from pirn_agents.llm.base_llm_provider import BaseLLMProvider
+from pirn_agents.llm.http_structured_output_provider import HttpStructuredOutputProvider
 from pirn_agents.llm.multimodal_adapter import MultimodalAdapter
 from pirn_agents.llm.openai_compatible_multimodal_adapter import (
     OpenAICompatibleMultimodalAdapter,
@@ -32,7 +32,7 @@ from pirn_agents.specializations.structured_output.structured_output_capability 
 from pirn_agents.toolset import Toolset
 
 
-class OpenAICompatibleProvider(BaseLLMProvider):
+class OpenAICompatibleProvider(HttpStructuredOutputProvider):
     """Provider speaking the ``chat/completions`` HTTP wire format."""
 
     def _tool_adapter(self) -> ProviderAdapter:
