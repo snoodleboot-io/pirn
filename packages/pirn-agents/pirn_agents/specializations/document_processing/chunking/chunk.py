@@ -33,3 +33,17 @@ class Chunk(PirnOpaqueValue):
     text: str
     index: int
     metadata: Mapping[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.text, str):
+            raise TypeError(f"Chunk: text must be a str, got {type(self.text).__name__}")
+        if not self.text:
+            raise ValueError("Chunk: text must be non-empty")
+        if not isinstance(self.index, int) or isinstance(self.index, bool):
+            raise TypeError(f"Chunk: index must be an int, got {type(self.index).__name__}")
+        if self.index < 0:
+            raise ValueError(f"Chunk: index must be >= 0, got {self.index!r}")
+        if not isinstance(self.metadata, Mapping):
+            raise TypeError(
+                f"Chunk: metadata must be a mapping, got {type(self.metadata).__name__}"
+            )
