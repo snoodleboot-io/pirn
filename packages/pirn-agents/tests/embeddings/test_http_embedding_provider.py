@@ -12,8 +12,8 @@ import unittest
 from typing import Any
 from unittest import mock
 
-from pirn_agents.embeddings.http_embedding_provider import HttpEmbeddingProvider
 from pirn_agents.llm.retry_policy import RetryPolicy
+from pirn_agents.retrieval.embeddings.http_embedding_provider import HttpEmbeddingProvider
 
 
 class StubResponse:

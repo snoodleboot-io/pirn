@@ -17,7 +17,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
-from pirn_agents.vector_store_knot import VectorStoreKnot
+from pirn_agents.retrieval.vector_stores.knots.vector_store_knot import VectorStoreKnot
 
 
 class CountingVectorStore(ConnectorBase):

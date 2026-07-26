@@ -7,10 +7,10 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.graph_rag.graph_context_builder import GraphContextBuilder
-from pirn_agents.graph_rag.subgraph import Subgraph
-from pirn_agents.graph_stores.graph_edge import GraphEdge
-from pirn_agents.graph_stores.graph_node import GraphNode
+from pirn_agents.retrieval.graph_rag.graph_context_builder import GraphContextBuilder
+from pirn_agents.retrieval.graph_rag.subgraph import Subgraph
+from pirn_agents.retrieval.graph_stores.graph_edge import GraphEdge
+from pirn_agents.retrieval.graph_stores.graph_node import GraphNode
 from pirn_agents.types.agent_message import AgentMessage
 
 

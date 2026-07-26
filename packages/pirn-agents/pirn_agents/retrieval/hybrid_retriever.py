@@ -1,7 +1,7 @@
 """``HybridRetriever`` — concurrent dense + lexical retrieval fused with RRF.
 
 A :class:`Knot` that retrieves from a dense
-:class:`~pirn_agents.vector_stores.vector_memory_store.VectorMemoryStore` and a
+:class:`~pirn_agents.retrieval.vector_stores.vector_memory_store.VectorMemoryStore` and a
 lexical :class:`~pirn_agents.retrieval.bm25_index.Bm25Index` **concurrently**,
 then fuses the two rankings with Reciprocal Rank Fusion. Dense retrieval is
 async I/O and BM25 scoring is CPU-bound, so the CPU arm is offloaded to a thread
@@ -26,13 +26,14 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents.embeddings.embedding_provider import EmbeddingProvider
 from pirn_agents.retrieval.bm25_index import Bm25Index
+from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
+from pirn_agents.retrieval.hybrid_retriever_base import HybridRetrieverBase
 from pirn_agents.retrieval.reciprocal_rank_fusion import reciprocal_rank_fusion
-from pirn_agents.vector_stores.vector_memory_store import VectorMemoryStore
+from pirn_agents.retrieval.vector_stores.vector_memory_store import VectorMemoryStore
 
 
-class HybridRetriever(Knot):
+class HybridRetriever(HybridRetrieverBase):
     """Fuse dense and lexical retrieval concurrently via Reciprocal Rank Fusion."""
 
     def __init__(

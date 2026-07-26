@@ -14,7 +14,7 @@ import unittest
 
 import pytest
 
-from pirn_agents.embeddings.local_embedding_provider import LocalEmbeddingProvider
+from pirn_agents.retrieval.embeddings.local_embedding_provider import LocalEmbeddingProvider
 
 
 class StubSentenceModel:

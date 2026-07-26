@@ -18,11 +18,11 @@ from typing import Any
 
 import numpy as np
 
-from pirn_agents.embeddings.embedding_provider import EmbeddingProvider
-from pirn_agents.vector_stores.metadata_match import matches_metadata_filter
-from pirn_agents.vector_stores.vector_backend_client import VectorBackendClient
-from pirn_agents.vector_stores.vector_memory_store import VectorMemoryStore
-from pirn_agents.vector_stores.vector_record import VectorRecord
+from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
+from pirn_agents.retrieval.vector_stores.metadata_match import matches_metadata_filter
+from pirn_agents.retrieval.vector_stores.vector_backend_client import VectorBackendClient
+from pirn_agents.retrieval.vector_stores.vector_memory_store import VectorMemoryStore
+from pirn_agents.retrieval.vector_stores.vector_record import VectorRecord
 
 
 class FixedEmbedder(EmbeddingProvider):

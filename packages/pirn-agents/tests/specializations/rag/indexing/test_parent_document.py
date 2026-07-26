@@ -8,11 +8,11 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
+from pirn_agents.retrieval.vector_stores.in_memory_vector_store import InMemoryVectorStore
 from pirn_agents.specializations.rag.indexing.parent_document_ingestor import ParentDocumentIngestor
 from pirn_agents.specializations.rag.indexing.parent_document_retriever import (
     ParentDocumentRetriever,
 )
-from pirn_agents.vector_stores.in_memory_vector_store import InMemoryVectorStore
 from tests.specializations.conftest import StubEmbeddingProvider
 
 _DOC = "alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu nu xi"

@@ -17,9 +17,9 @@ from typing import Any
 
 from pirn.core.knot import Knot
 
-from pirn_agents.embeddings.embedding_provider import EmbeddingProvider
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.memory_store import MemoryStore
+from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
 from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_schema_compiler import ToolSchemaCompiler
 

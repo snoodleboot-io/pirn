@@ -19,7 +19,7 @@ score (ties broken by record id for determinism).
 Rerank hook (provider-neutral)
 ------------------------------
 ``reranker`` is an optional
-:class:`~pirn_agents.rerank.reranker_backend.RerankerBackend` — the F4 rerank base.
+:class:`~pirn_agents.retrieval.rerank.reranker_backend.RerankerBackend` — the F4 rerank base.
 When ``None`` (the default) recall uses the candidates' own relevance, so no
 vendor is favoured and no backend is imported; when supplied, any cross-encoder,
 LLM scorer, or stub is interchangeable behind the base class.
@@ -39,7 +39,7 @@ from pirn_agents.memory_management.memory_record import MemoryRecord
 from pirn_agents.memory_management.ranked_memory import RankedMemory
 from pirn_agents.memory_management.recall_candidate import RecallCandidate
 from pirn_agents.memory_management.recall_weights import RecallWeights
-from pirn_agents.rerank.reranker_backend import RerankerBackend
+from pirn_agents.retrieval.rerank.reranker_backend import RerankerBackend
 
 
 class RankedRecall(Knot):

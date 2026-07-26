@@ -8,8 +8,8 @@ from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
-from pirn_agents.rerank.cross_encoder_reranker import CrossEncoderReranker
-from pirn_agents.rerank.reranker_backend import RerankerBackend
+from pirn_agents.retrieval.rerank.cross_encoder_reranker import CrossEncoderReranker
+from pirn_agents.retrieval.rerank.reranker_backend import RerankerBackend
 
 
 class StubReranker(RerankerBackend):

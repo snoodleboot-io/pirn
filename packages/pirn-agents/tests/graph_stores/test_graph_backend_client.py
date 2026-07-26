@@ -11,9 +11,9 @@ import unittest
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
-from pirn_agents.graph_stores.graph_backend_client import GraphBackendClient
-from pirn_agents.graph_stores.kuzu_backend_client import KuzuBackendClient
-from pirn_agents.graph_stores.neo4j_backend_client import Neo4jBackendClient
+from pirn_agents.retrieval.graph_stores.graph_backend_client import GraphBackendClient
+from pirn_agents.retrieval.graph_stores.kuzu_backend_client import KuzuBackendClient
+from pirn_agents.retrieval.graph_stores.neo4j_backend_client import Neo4jBackendClient
 
 
 class TestGraphBackendClientContract(unittest.IsolatedAsyncioTestCase):

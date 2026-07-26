@@ -28,7 +28,7 @@ from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.memory_store import MemoryStore
-from pirn_agents.rerank.reranker_backend import RerankerBackend
+from pirn_agents.retrieval.rerank.reranker_backend import RerankerBackend
 from pirn_agents.specializations.rag.contextual_compressor import ContextualCompressor
 from pirn_agents.specializations.rag.memory_search_retriever import MemorySearchRetriever
 from pirn_agents.specializations.rag.rag_synthesizer import RAGSynthesizer

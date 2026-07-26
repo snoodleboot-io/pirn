@@ -14,10 +14,10 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.graph_rag.entity_relation_extractor import EntityRelationExtractor
-from pirn_agents.graph_rag.extraction_result import ExtractionResult
-from pirn_agents.graph_rag.extraction_schema import ExtractionSchema
-from pirn_agents.graph_stores.in_memory_graph_store import InMemoryGraphStore
+from pirn_agents.retrieval.graph_rag.entity_relation_extractor import EntityRelationExtractor
+from pirn_agents.retrieval.graph_rag.extraction_result import ExtractionResult
+from pirn_agents.retrieval.graph_rag.extraction_schema import ExtractionSchema
+from pirn_agents.retrieval.graph_stores.in_memory_graph_store import InMemoryGraphStore
 from pirn_agents.specializations.structured_output.structured_output_capability import (
     StructuredOutputCapability,
 )

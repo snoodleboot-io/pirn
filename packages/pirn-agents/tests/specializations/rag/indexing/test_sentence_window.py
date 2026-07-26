@@ -7,11 +7,11 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
+from pirn_agents.retrieval.vector_stores.in_memory_vector_store import InMemoryVectorStore
 from pirn_agents.specializations.rag.indexing.sentence_window_ingestor import SentenceWindowIngestor
 from pirn_agents.specializations.rag.indexing.sentence_window_retriever import (
     SentenceWindowRetriever,
 )
-from pirn_agents.vector_stores.in_memory_vector_store import InMemoryVectorStore
 from tests.specializations.conftest import StubEmbeddingProvider
 
 _DOC = "First sentence here. Second sentence here. Third sentence here. Fourth sentence here."

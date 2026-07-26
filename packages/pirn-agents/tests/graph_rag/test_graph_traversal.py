@@ -7,11 +7,11 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.graph_rag.graph_traversal import GraphTraversal
-from pirn_agents.graph_rag.traversal_budget import TraversalBudget
-from pirn_agents.graph_stores.graph_edge import GraphEdge
-from pirn_agents.graph_stores.graph_node import GraphNode
-from pirn_agents.graph_stores.in_memory_graph_store import InMemoryGraphStore
+from pirn_agents.retrieval.graph_rag.graph_traversal import GraphTraversal
+from pirn_agents.retrieval.graph_rag.traversal_budget import TraversalBudget
+from pirn_agents.retrieval.graph_stores.graph_edge import GraphEdge
+from pirn_agents.retrieval.graph_stores.graph_node import GraphNode
+from pirn_agents.retrieval.graph_stores.in_memory_graph_store import InMemoryGraphStore
 
 
 def _make_traversal() -> GraphTraversal:

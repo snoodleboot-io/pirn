@@ -8,10 +8,10 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
+from pirn_agents.retrieval.vector_stores.in_memory_vector_store import InMemoryVectorStore
+from pirn_agents.retrieval.vector_stores.vector_record import VectorRecord
 from pirn_agents.specializations.rag.self_query_rag_pipeline import SelfQueryRagPipeline
 from pirn_agents.types.agent_response import AgentResponse
-from pirn_agents.vector_stores.in_memory_vector_store import InMemoryVectorStore
-from pirn_agents.vector_stores.vector_record import VectorRecord
 from tests.specializations.conftest import StubEmbeddingProvider, StubLLMProvider
 
 

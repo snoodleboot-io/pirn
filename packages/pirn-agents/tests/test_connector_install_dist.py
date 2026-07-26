@@ -13,8 +13,8 @@ from typing import Any
 
 from pirn.connectors.connector_base import ConnectorBase
 
-from pirn_agents.embeddings.base_embedding_provider import BaseEmbeddingProvider
 from pirn_agents.llm.base_llm_provider import BaseLLMProvider
+from pirn_agents.retrieval.embeddings.base_embedding_provider import BaseEmbeddingProvider
 
 
 class _AgentsConnector(ConnectorBase):

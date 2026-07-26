@@ -15,8 +15,8 @@ from unittest.mock import patch
 
 import pytest
 
-from pirn_agents.graph_stores.graph_store import GraphStore
-from pirn_agents.graph_stores.kuzu_graph_store import KuzuGraphStore
+from pirn_agents.retrieval.graph_stores.graph_store import GraphStore
+from pirn_agents.retrieval.graph_stores.kuzu_graph_store import KuzuGraphStore
 from tests.graph_stores.conformance import FakeGraphBackendClient, GraphStoreConformance
 
 
@@ -47,7 +47,7 @@ class TestKuzuStoreSpecifics(unittest.IsolatedAsyncioTestCase):
 @pytest.mark.needs_kuzu
 class TestKuzuRealBackend(unittest.IsolatedAsyncioTestCase):
     async def test_conformance_against_real_kuzu(self) -> None:
-        from pirn_agents.graph_stores.graph_node import GraphNode
+        from pirn_agents.retrieval.graph_stores.graph_node import GraphNode
 
         store = KuzuGraphStore(db_path=":memory:")
         await store.upsert_nodes([GraphNode.create(id="a", type="Person")])
