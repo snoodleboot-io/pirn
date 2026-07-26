@@ -10,7 +10,7 @@ from pirn.tapestry import Tapestry
 from pirn_agents.specializations.document_processing._qa_retrieve_and_answer import (
     _QARetrieveAndAnswer,
 )
-from pirn_agents.types.agent_response import AgentResponse
+from pirn_agents.types.messaging.agent_response import AgentResponse
 from tests.specializations.conftest import (
     StubEmbeddingProvider,
     StubLLMProvider,

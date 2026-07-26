@@ -10,7 +10,7 @@ from pirn.tapestry import Tapestry
 from pirn_agents.memory.patterns.session_summarizer import (
     SessionSummarizer,
 )
-from pirn_agents.types.agent_message import AgentMessage
+from pirn_agents.types.messaging.agent_message import AgentMessage
 from tests.specializations.conftest import StubLLMProvider
 
 

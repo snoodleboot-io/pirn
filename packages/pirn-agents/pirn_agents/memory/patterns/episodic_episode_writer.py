@@ -35,7 +35,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.memory.memory_writer_base import MemoryWriterBase
 from pirn_agents.memory.stores.memory_store import MemoryStore
-from pirn_agents.types.agent_message import AgentMessage
+from pirn_agents.types.messaging.agent_message import AgentMessage
 
 
 class EpisodicEpisodeWriter(MemoryWriterBase):

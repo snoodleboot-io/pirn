@@ -9,11 +9,11 @@ from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
+from pirn_agents.planning.plan import Plan
 from pirn_agents.specializations.plan_and_execute.plan_executor import (
     PlanExecutor,
 )
-from pirn_agents.types.agent_response import AgentResponse
-from pirn_agents.types.plan import Plan
+from pirn_agents.types.messaging.agent_response import AgentResponse
 from tests.specializations.conftest import StubLLMProvider
 
 

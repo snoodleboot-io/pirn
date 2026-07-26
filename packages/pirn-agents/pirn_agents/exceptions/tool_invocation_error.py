@@ -7,7 +7,7 @@ class ToolInvocationError(Exception):
     """Base class for every failure raised while invoking a tool.
 
     Carries a human-readable ``message`` and, optionally, the ``call_id``
-    of the originating :class:`~pirn_agents.types.tool_call.ToolCall` so a
+    of the originating :class:`~pirn_agents.tools.tool_call.ToolCall` so a
     failure can be correlated back to the call that produced it.
 
     Parameters

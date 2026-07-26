@@ -28,7 +28,7 @@ from pirn_agents.specializations.structured_output.structured_output_provider im
     StructuredOutputProvider,
 )
 from pirn_agents.tools.toolset import Toolset
-from pirn_agents.types.agent_response import AgentResponse
+from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class HttpStructuredOutputProvider(BaseLLMProvider, StructuredOutputProvider):

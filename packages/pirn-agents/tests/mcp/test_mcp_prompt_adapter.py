@@ -13,7 +13,7 @@ from pirn_agents.mcp.mcp_client import McpClient
 from pirn_agents.mcp.mcp_error import McpError
 from pirn_agents.mcp.mcp_prompt_adapter import McpPromptAdapter
 from pirn_agents.mcp.mcp_prompt_template import McpPromptTemplate
-from pirn_agents.types.agent_message import AgentMessage
+from pirn_agents.types.messaging.agent_message import AgentMessage
 from tests.mcp.stub_mcp import StubMcpTransport
 
 

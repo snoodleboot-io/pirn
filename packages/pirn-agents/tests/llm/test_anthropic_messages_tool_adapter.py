@@ -6,8 +6,8 @@ import unittest
 
 from pirn_agents.llm.anthropic_messages_tool_adapter import AnthropicMessagesToolAdapter
 from pirn_agents.tools.tool_call_codec import ToolCallCodec
+from pirn_agents.tools.tool_result import ToolResult
 from pirn_agents.tools.toolset import Toolset
-from pirn_agents.types.tool_result import ToolResult
 from tests.specializations.conftest import StubTool
 
 

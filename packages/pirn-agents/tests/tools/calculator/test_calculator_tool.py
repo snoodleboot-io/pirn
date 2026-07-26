@@ -13,8 +13,8 @@ import pytest
 
 from pirn_agents.tools.calculator._safe_evaluator import evaluate_expression
 from pirn_agents.tools.calculator.calculator_tool import CalculatorTool
-from pirn_agents.types.tool_call import ToolCall
-from pirn_agents.types.tool_status import ToolStatus
+from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_status import ToolStatus
 
 
 class TestSafeEvaluator:

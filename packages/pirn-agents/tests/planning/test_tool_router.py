@@ -9,7 +9,7 @@ from pirn.core.knot_factory import knot
 from pirn.tapestry import Tapestry
 
 from pirn_agents.planning.tool_router import ToolRouter
-from pirn_agents.types.tool_call import ToolCall
+from pirn_agents.tools.tool_call import ToolCall
 from tests.conftest import StubTool
 
 

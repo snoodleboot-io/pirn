@@ -10,7 +10,7 @@ Algorithm:
 
 References:
     - :class:`pirn_agents.tools.tool.Tool`
-    - :class:`pirn_agents.types.tool_call.ToolCall`
+    - :class:`pirn_agents.tools.tool_call.ToolCall`
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.tools.tool import Tool
-from pirn_agents.types.tool_call import ToolCall
+from pirn_agents.tools.tool_call import ToolCall
 
 
 class ToolRouter(Knot):

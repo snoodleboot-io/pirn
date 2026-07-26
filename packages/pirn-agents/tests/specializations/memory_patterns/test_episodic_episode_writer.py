@@ -12,7 +12,7 @@ from pirn.tapestry import Tapestry
 from pirn_agents.memory.patterns.episodic_episode_writer import (
     EpisodicEpisodeWriter,
 )
-from pirn_agents.types.agent_message import AgentMessage
+from pirn_agents.types.messaging.agent_message import AgentMessage
 from tests.specializations.conftest import StubMemoryStore
 
 

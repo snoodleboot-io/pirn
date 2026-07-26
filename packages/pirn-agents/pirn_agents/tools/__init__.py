@@ -7,7 +7,7 @@ bundles that group them with sane defaults.
 
 Every tool derives from :class:`~pirn_agents.tools.base_tool.BaseTool` (a thin
 :class:`~pirn_agents.tools.tool.Tool` subclass) so it exposes a provider-neutral JSON
-schema and returns a typed F1 :class:`~pirn_agents.types.tool_result.ToolResult`
+schema and returns a typed F1 :class:`~pirn_agents.tools.tool_result.ToolResult`
 via :meth:`~pirn_agents.tools.base_tool.BaseTool.as_tool_result`. Optional
 backends (``httpx`` for web, ``aiosqlite`` for async SQL) are imported lazily at
 call time, so importing this package stays backend-free.

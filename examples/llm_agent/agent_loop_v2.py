@@ -56,8 +56,8 @@ from pirn_agents.planning.tool_executor import ToolExecutor
 from pirn_agents.planning.tool_router import ToolRouter
 from pirn_agents.specializations.react.react_loop import ReActLoop
 from pirn_agents.tools.tool import Tool
-from pirn_agents.types.agent_message import AgentMessage
-from pirn_agents.types.agent_response import AgentResponse
+from pirn_agents.types.messaging.agent_message import AgentMessage
+from pirn_agents.types.messaging.agent_response import AgentResponse
 
 MAX_ITERATIONS_PER_MSG = 4
 MAX_TOTAL_ITERATIONS = 20
@@ -357,7 +357,7 @@ class _PlanFirstStep(Knot):
     """Extract the first step string from a ``Plan`` for ``ToolRouter``."""
 
     async def process(self, plan: Any, **_: Any) -> str:
-        from pirn_agents.types.plan import Plan as _Plan
+        from pirn_agents.planning.plan import Plan as _Plan
 
         if isinstance(plan, _Plan) and plan.steps:
             return plan.steps[0]

@@ -22,7 +22,7 @@ Algorithm:
 
 
 References:
-    - pirn-native: :class:`pirn_agents.types.agent_message.AgentMessage`
+    - pirn-native: :class:`pirn_agents.types.messaging.agent_message.AgentMessage`
     - Python stdlib: :mod:`asyncio` (``to_thread``)
     - Python stdlib: :mod:`re`
 """
@@ -38,7 +38,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.security._safe_pattern_compiler import SafePatternCompiler
-from pirn_agents.types.agent_message import AgentMessage
+from pirn_agents.types.messaging.agent_message import AgentMessage
 
 
 class InputMessageScrubber(Knot):

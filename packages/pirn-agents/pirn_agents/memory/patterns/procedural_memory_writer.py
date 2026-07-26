@@ -31,7 +31,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.memory.memory_writer_base import MemoryWriterBase
 from pirn_agents.memory.stores.memory_store import MemoryStore
-from pirn_agents.types.agent_response import AgentResponse
+from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class ProceduralMemoryWriter(MemoryWriterBase):

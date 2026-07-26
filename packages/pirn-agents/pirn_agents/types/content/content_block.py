@@ -5,7 +5,7 @@ an embedded tool result — rather than a single string. Every concrete block is
 frozen :class:`pirn.core.pirn_opaque_value.PirnOpaqueValue`, so blocks travel the
 pirn graph opaquely and content-address by their audit form (never by raw media
 bytes, which stay out of lineage — see
-:class:`pirn_agents.types.media_handle.MediaHandle`).
+:class:`pirn_agents.types.content.media_handle.MediaHandle`).
 
 This base declares only the two projections every block shares:
 
@@ -40,7 +40,7 @@ class ContentBlock(PirnOpaqueValue):
         """Return the plain-text projection of this block.
 
         The base returns ``""`` so non-text blocks contribute nothing to a
-        text-only rendering; :class:`~pirn_agents.types.text_block.TextBlock`
+        text-only rendering; :class:`~pirn_agents.types.content.text_block.TextBlock`
         returns its text and media blocks return any caption they carry.
         """
         return ""

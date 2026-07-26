@@ -9,8 +9,8 @@ from pirn.tapestry import Tapestry
 
 from pirn_agents.tools.agent_tool import AgentTool
 from pirn_agents.tools.tool import Tool
-from pirn_agents.types.agent_response import AgentResponse
-from pirn_agents.types.tool_status import ToolStatus
+from pirn_agents.tools.tool_status import ToolStatus
+from pirn_agents.types.messaging.agent_response import AgentResponse
 from tests.agent_tool_doubles import StubAgent, reset_doubles
 
 

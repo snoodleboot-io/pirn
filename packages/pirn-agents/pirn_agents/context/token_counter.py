@@ -15,7 +15,7 @@ from collections.abc import Sequence
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 from pirn_agents.context.token_estimator import TokenEstimator
-from pirn_agents.types.agent_message import AgentMessage
+from pirn_agents.types.messaging.agent_message import AgentMessage
 
 
 class TokenCounter(PirnOpaqueValue):

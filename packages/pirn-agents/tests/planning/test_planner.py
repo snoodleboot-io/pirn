@@ -8,10 +8,10 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.tapestry import Tapestry
 
+from pirn_agents.planning.plan import Plan
 from pirn_agents.planning.planner import Planner
-from pirn_agents.types.agent_context import AgentContext
-from pirn_agents.types.agent_message import AgentMessage
-from pirn_agents.types.plan import Plan
+from pirn_agents.types.messaging.agent_context import AgentContext
+from pirn_agents.types.messaging.agent_message import AgentMessage
 from tests.conftest import StubLLMProvider
 
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn_agents.generation.block_contribution import BlockContribution
-from pirn_agents.types.tool_call import ToolCall
+from pirn_agents.tools.tool_call import ToolCall
 
 
 class TestBlockContribution(unittest.TestCase):

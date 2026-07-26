@@ -2,13 +2,13 @@
 
 The multimodal counterpart to the text loaders: it wraps the raw bytes of one
 non-text source object into a :class:`LoadedDocument` carrying a single typed
-content block (:class:`~pirn_agents.types.image_block.ImageBlock`,
-:class:`~pirn_agents.types.audio_block.AudioBlock`, or
-:class:`~pirn_agents.types.file_block.FileBlock`) rather than plain text — closing
+content block (:class:`~pirn_agents.types.content.image_block.ImageBlock`,
+:class:`~pirn_agents.types.content.audio_block.AudioBlock`, or
+:class:`~pirn_agents.types.content.file_block.FileBlock`) rather than plain text — closing
 the F15 multimodal seam the ``Loader`` interface documented. The block modality
 is chosen from the IANA ``media_type`` prefix (``image/…`` → image, ``audio/…`` →
 audio, anything else → file). Bytes ride inline on a
-:class:`~pirn_agents.types.media_handle.MediaHandle`, so they never enter lineage;
+:class:`~pirn_agents.types.content.media_handle.MediaHandle`, so they never enter lineage;
 any caption is mirrored into :attr:`LoadedDocument.text` so a text-only consumer
 still degrades gracefully. Needs no optional backend — it only frames bytes.
 """
@@ -19,11 +19,11 @@ from pirn_agents.specializations.document_processing.loaders.loaded_document imp
     LoadedDocument,
 )
 from pirn_agents.specializations.document_processing.loaders.loader import Loader
-from pirn_agents.types.audio_block import AudioBlock
-from pirn_agents.types.content_block import ContentBlock
-from pirn_agents.types.file_block import FileBlock
-from pirn_agents.types.image_block import ImageBlock
-from pirn_agents.types.media_handle import MediaHandle
+from pirn_agents.types.content.audio_block import AudioBlock
+from pirn_agents.types.content.content_block import ContentBlock
+from pirn_agents.types.content.file_block import FileBlock
+from pirn_agents.types.content.image_block import ImageBlock
+from pirn_agents.types.content.media_handle import MediaHandle
 
 
 class MediaLoader(Loader):

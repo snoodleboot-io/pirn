@@ -9,8 +9,8 @@ from pirn.core.knot_factory import knot
 from pirn.tapestry import Tapestry
 
 from pirn_agents.planning.tool_executor import ToolExecutor
-from pirn_agents.types.tool_call import ToolCall
-from pirn_agents.types.tool_result import ToolResult
+from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_result import ToolResult
 from tests.conftest import StubTool
 
 

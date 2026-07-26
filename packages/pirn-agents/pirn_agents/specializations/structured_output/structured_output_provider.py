@@ -29,7 +29,7 @@ from pirn_agents.specializations.structured_output.structured_output_capability 
     StructuredOutputCapability,
 )
 from pirn_agents.tools.toolset import Toolset
-from pirn_agents.types.agent_response import AgentResponse
+from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class StructuredOutputProvider(LLMProvider):

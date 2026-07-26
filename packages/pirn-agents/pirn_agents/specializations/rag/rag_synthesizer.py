@@ -32,7 +32,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
-from pirn_agents.types.agent_response import AgentResponse
+from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class RAGSynthesizer(Knot):

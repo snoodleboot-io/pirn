@@ -2,7 +2,7 @@
 
 A nested agent invoked as a tool produces an :class:`AgentResponse` (content,
 tool_calls, usage, cost). Callers of a :class:`~pirn_agents.tools.tool.Tool` expect
-the F1 :class:`~pirn_agents.types.tool_result.ToolResult` shape instead. This
+the F1 :class:`~pirn_agents.tools.tool_result.ToolResult` shape instead. This
 module holds the single, shared translation so every agent-as-tool path maps
 identically: the whole structured response is carried through as
 ``result`` (not just ``.content``), token usage is summarised onto ``tokens``,
@@ -13,9 +13,9 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from pirn_agents.types.agent_response import AgentResponse
-from pirn_agents.types.tool_result import ToolResult
-from pirn_agents.types.tool_status import ToolStatus
+from pirn_agents.tools.tool_result import ToolResult
+from pirn_agents.tools.tool_status import ToolStatus
+from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class AgentResponseMapper:

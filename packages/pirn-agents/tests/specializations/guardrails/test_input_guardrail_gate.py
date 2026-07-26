@@ -11,7 +11,7 @@ from pirn.tapestry import Tapestry
 from pirn_agents.specializations.guardrails.input_guardrail_gate import (
     InputGuardrailGate,
 )
-from pirn_agents.types.agent_message import AgentMessage
+from pirn_agents.types.messaging.agent_message import AgentMessage
 
 
 def _make_knot() -> InputGuardrailGate:

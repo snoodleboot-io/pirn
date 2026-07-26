@@ -10,7 +10,7 @@ from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.plan_react.plan_react_pipeline import PlanReActPipeline
 from pirn_agents.specializations.plan_react.plan_react_result import PlanReActResult
-from pirn_agents.types.agent_response import AgentResponse
+from pirn_agents.types.messaging.agent_response import AgentResponse
 from tests.specializations.conftest import StubLLMProvider
 
 

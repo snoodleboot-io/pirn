@@ -10,8 +10,8 @@ from pirn.tapestry import Tapestry
 from pirn_agents.specializations.react.react_response_extractor import (
     ReActResponseExtractor,
 )
-from pirn_agents.types.agent_message import AgentMessage
-from pirn_agents.types.agent_response import AgentResponse
+from pirn_agents.types.messaging.agent_message import AgentMessage
+from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class TestReActResponseExtractorProcess(unittest.IsolatedAsyncioTestCase):

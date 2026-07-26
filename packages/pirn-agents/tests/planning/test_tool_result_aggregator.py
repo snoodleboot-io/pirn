@@ -9,7 +9,7 @@ from pirn.core.knot_factory import knot
 from pirn.tapestry import Tapestry
 
 from pirn_agents.planning.tool_result_aggregator import ToolResultAggregator
-from pirn_agents.types.tool_result import ToolResult
+from pirn_agents.tools.tool_result import ToolResult
 
 
 def _make_knot() -> ToolResultAggregator:

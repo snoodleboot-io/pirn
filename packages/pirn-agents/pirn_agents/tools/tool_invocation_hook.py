@@ -2,7 +2,7 @@
 
 :class:`ToolInvocationHook` is the seam that lets an application observe every
 tool call an executor runs — one ``on_start`` before the tool is invoked and
-one ``on_finish`` after its :class:`~pirn_agents.types.tool_result.ToolResult`
+one ``on_finish`` after its :class:`~pirn_agents.tools.tool_result.ToolResult`
 is built — without the executor knowing anything about spans, metrics, or logs.
 
 The base class is a genuine, intentional **no-op**: its methods return ``None``
@@ -25,7 +25,7 @@ Contract for subclasses
 
 from __future__ import annotations
 
-from pirn_agents.types.tool_status import ToolStatus
+from pirn_agents.tools.tool_status import ToolStatus
 
 
 class ToolInvocationHook:

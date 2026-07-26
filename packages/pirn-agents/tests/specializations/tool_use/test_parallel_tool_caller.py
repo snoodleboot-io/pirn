@@ -11,8 +11,8 @@ from pirn.tapestry import Tapestry
 from pirn_agents.specializations.tool_use.parallel_tool_caller import (
     ParallelToolCaller,
 )
-from pirn_agents.types.tool_call import ToolCall
-from pirn_agents.types.tool_result import ToolResult
+from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_result import ToolResult
 from tests.specializations.conftest import StubTool
 
 

@@ -13,7 +13,7 @@ Algorithm:
 
 
 References:
-    - :class:`pirn_agents.types.agent_message.AgentMessage`
+    - :class:`pirn_agents.types.messaging.agent_message.AgentMessage`
 """
 
 from __future__ import annotations
@@ -24,9 +24,9 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents.types.agent_message import AgentMessage
-from pirn_agents.types.content_block import ContentBlock
-from pirn_agents.types.message_content import MessageContent
+from pirn_agents.types.content.content_block import ContentBlock
+from pirn_agents.types.content.message_content import MessageContent
+from pirn_agents.types.messaging.agent_message import AgentMessage
 
 
 class MessageParser(Knot):

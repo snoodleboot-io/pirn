@@ -14,7 +14,7 @@ from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.react.react_loop import ReActLoop
 from pirn_agents.specializations.rewoo.rewoo_pipeline import ReWooPipeline
-from pirn_agents.types.agent_message import AgentMessage
+from pirn_agents.types.messaging.agent_message import AgentMessage
 from tests.benchmarks.conftest import BenchmarkRecorder
 from tests.specializations.conftest import StubLLMProvider, StubTool
 

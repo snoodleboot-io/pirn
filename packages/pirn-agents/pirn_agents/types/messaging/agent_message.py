@@ -9,8 +9,8 @@ from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
-from pirn_agents.types.content_block import ContentBlock
-from pirn_agents.types.text_block import TextBlock
+from pirn_agents.types.content.content_block import ContentBlock
+from pirn_agents.types.content.text_block import TextBlock
 
 
 @dataclass(frozen=True)
@@ -22,7 +22,7 @@ class AgentMessage(PirnOpaqueValue):
     keeps working) and :attr:`blocks` is the optional typed multimodal sequence.
     When ``blocks`` is ``None`` the message is text-only and
     :attr:`content_blocks` synthesises a single
-    :class:`~pirn_agents.types.text_block.TextBlock` from :attr:`content`; when
+    :class:`~pirn_agents.types.content.text_block.TextBlock` from :attr:`content`; when
     ``blocks`` is set it is the authoritative body and :attr:`content` holds its
     text projection. Build a multimodal message with :meth:`from_blocks`.
 

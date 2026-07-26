@@ -11,7 +11,7 @@ Math:
 
 References:
     - :class:`AgentResponse` dataclass in
-      ``pirn_agents.types.agent_response``.
+      ``pirn_agents.types.messaging.agent_response``.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents.types.agent_response import AgentResponse
+from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class RAGResponseBuilder(Knot):

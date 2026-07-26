@@ -3,7 +3,7 @@
 An MCP prompt definition (a name, an argument spec, and one or more message
 bodies containing ``{argument}`` placeholders) is captured here once and rendered
 many times via :meth:`render`, which substitutes arguments and returns F1
-:class:`~pirn_agents.types.agent_message.AgentMessage`\\ s. Arguments are
+:class:`~pirn_agents.types.messaging.agent_message.AgentMessage`\\ s. Arguments are
 validated with ``isinstance`` (every value must be a string) and required
 arguments must be supplied, so a bad call fails loudly instead of emitting a
 half-substituted prompt.
@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 
-from pirn_agents.types.agent_message import AgentMessage
+from pirn_agents.types.messaging.agent_message import AgentMessage
 
 
 class McpPromptTemplate:

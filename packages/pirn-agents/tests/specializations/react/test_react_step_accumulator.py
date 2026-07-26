@@ -10,7 +10,7 @@ from pirn.tapestry import Tapestry
 from pirn_agents.specializations.react.react_step_accumulator import (
     ReActStepAccumulator,
 )
-from pirn_agents.types.agent_message import AgentMessage
+from pirn_agents.types.messaging.agent_message import AgentMessage
 
 
 def _msg(content: str) -> AgentMessage:

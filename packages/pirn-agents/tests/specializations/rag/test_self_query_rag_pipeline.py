@@ -11,7 +11,7 @@ from pirn.tapestry import Tapestry
 from pirn_agents.retrieval.vector_stores.in_memory_vector_store import InMemoryVectorStore
 from pirn_agents.retrieval.vector_stores.vector_record import VectorRecord
 from pirn_agents.specializations.rag.self_query_rag_pipeline import SelfQueryRagPipeline
-from pirn_agents.types.agent_response import AgentResponse
+from pirn_agents.types.messaging.agent_response import AgentResponse
 from tests.specializations.conftest import StubEmbeddingProvider, StubLLMProvider
 
 

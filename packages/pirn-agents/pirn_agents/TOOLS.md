@@ -48,7 +48,7 @@ from pirn.tapestry import Tapestry
 
 from pirn_agents.tools.bundles import calculator_toolset, retrieval_toolset
 from pirn_agents.specializations.react.react_loop import ReActLoop
-from pirn_agents.types.agent_message import AgentMessage
+from pirn_agents.types.messaging.agent_message import AgentMessage
 
 toolset = calculator_toolset() + retrieval_toolset(store=my_store)
 

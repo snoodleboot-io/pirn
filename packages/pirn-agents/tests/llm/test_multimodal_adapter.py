@@ -23,12 +23,12 @@ from pirn_agents.llm.multimodal_adapter import MultimodalAdapter
 from pirn_agents.llm.openai_compatible_multimodal_adapter import (
     OpenAICompatibleMultimodalAdapter,
 )
-from pirn_agents.types.audio_block import AudioBlock
-from pirn_agents.types.content_block import ContentBlock
-from pirn_agents.types.file_block import FileBlock
-from pirn_agents.types.image_block import ImageBlock
-from pirn_agents.types.media_handle import MediaHandle
-from pirn_agents.types.text_block import TextBlock
+from pirn_agents.types.content.audio_block import AudioBlock
+from pirn_agents.types.content.content_block import ContentBlock
+from pirn_agents.types.content.file_block import FileBlock
+from pirn_agents.types.content.image_block import ImageBlock
+from pirn_agents.types.content.media_handle import MediaHandle
+from pirn_agents.types.content.text_block import TextBlock
 
 
 class _ImageOnlyAdapter(MultimodalAdapter):

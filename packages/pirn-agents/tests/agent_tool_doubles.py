@@ -18,7 +18,7 @@ from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.agent.agent_tool_context import current_agent_tool_context
 from pirn_agents.tools.agent_as_tool_mixin import AgentAsToolMixin
-from pirn_agents.types.agent_response import AgentResponse
+from pirn_agents.types.messaging.agent_response import AgentResponse
 
 # knot_id -> list of {"topic": str, "llm": object, "depth": int}
 AGENT_CALLS: dict[str, list[dict[str, Any]]] = {}

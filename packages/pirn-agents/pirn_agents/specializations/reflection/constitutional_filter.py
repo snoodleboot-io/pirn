@@ -25,7 +25,7 @@ from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.reflection.constitutional_violation_error import (
     ConstitutionalViolationError,
 )
-from pirn_agents.types.agent_response import AgentResponse
+from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class ConstitutionalFilter(Knot):

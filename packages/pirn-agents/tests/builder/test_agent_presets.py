@@ -10,7 +10,7 @@ from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
 from pirn_agents.builder.agent_presets import AgentPresets
-from pirn_agents.types.agent_response import AgentResponse
+from pirn_agents.types.messaging.agent_response import AgentResponse
 from tests.specializations.conftest import (
     StubLLMProvider,
     StubMemoryStore,

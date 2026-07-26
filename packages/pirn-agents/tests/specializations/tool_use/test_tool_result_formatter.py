@@ -10,7 +10,7 @@ from pirn.tapestry import Tapestry
 from pirn_agents.specializations.tool_use.tool_result_formatter import (
     ToolResultFormatter,
 )
-from pirn_agents.types.tool_result import ToolResult
+from pirn_agents.tools.tool_result import ToolResult
 
 
 def _make_formatter(tool_result: ToolResult) -> ToolResultFormatter:

@@ -5,8 +5,8 @@ from __future__ import annotations
 import unittest
 
 from pirn_agents.agent.agent_response_mapper import AgentResponseMapper
-from pirn_agents.types.agent_response import AgentResponse
-from pirn_agents.types.tool_status import ToolStatus
+from pirn_agents.tools.tool_status import ToolStatus
+from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class TestSummariseTokens(unittest.TestCase):

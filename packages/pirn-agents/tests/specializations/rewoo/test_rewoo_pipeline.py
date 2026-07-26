@@ -10,7 +10,7 @@ from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.rewoo.rewoo_pipeline import ReWooPipeline
 from pirn_agents.specializations.rewoo.rewoo_result import ReWooResult
-from pirn_agents.types.tool_status import ToolStatus
+from pirn_agents.tools.tool_status import ToolStatus
 from tests.specializations.conftest import StubLLMProvider, StubTool
 
 

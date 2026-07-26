@@ -21,8 +21,8 @@ from pirn_agents.llm.model_pricing import ModelPricing
 from pirn_agents.llm.openai_compatible_provider import OpenAICompatibleProvider
 from pirn_agents.specializations.react.react_loop import ReActLoop
 from pirn_agents.tools.toolset import Toolset
-from pirn_agents.types.agent_message import AgentMessage
-from pirn_agents.types.agent_response import AgentResponse
+from pirn_agents.types.messaging.agent_message import AgentMessage
+from pirn_agents.types.messaging.agent_response import AgentResponse
 from tests.llm.conftest import FakeAsyncClient, FakeResponse, FakeStream, RecordingSleeper
 from tests.specializations.conftest import StubTool
 

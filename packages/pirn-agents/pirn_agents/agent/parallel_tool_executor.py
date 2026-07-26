@@ -14,7 +14,7 @@ Semantics
   slowest call rather than the sum.
 * **Per-call timeout** — when ``timeout`` is not ``None`` each invocation runs
   inside ``async with asyncio.timeout(timeout)``; overrunning it yields a
-  :attr:`~pirn_agents.types.tool_status.ToolStatus.TIMEOUT` result. Timeouts
+  :attr:`~pirn_agents.tools.tool_status.ToolStatus.TIMEOUT` result. Timeouts
   are *not* retried.
 * **Retry** — non-timeout exceptions are retried up to ``retries`` extra times.
   The inter-attempt delay comes from a composed
@@ -51,11 +51,11 @@ from pirn_agents.exceptions.tool_not_found_error import ToolNotFoundError
 from pirn_agents.exceptions.tool_timeout_error import ToolTimeoutError
 from pirn_agents.llm.retry_policy import RetryPolicy
 from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_invocation_hook import ToolInvocationHook
+from pirn_agents.tools.tool_result import ToolResult
+from pirn_agents.tools.tool_status import ToolStatus
 from pirn_agents.tools.toolset import Toolset
-from pirn_agents.types.tool_call import ToolCall
-from pirn_agents.types.tool_result import ToolResult
-from pirn_agents.types.tool_status import ToolStatus
 
 
 class ParallelToolExecutor(AsyncFanoutEngine[ToolResult], Knot):

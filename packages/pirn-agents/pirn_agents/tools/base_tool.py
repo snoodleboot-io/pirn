@@ -3,8 +3,8 @@
 A :class:`BaseTool` is a thin :class:`~pirn_agents.tools.tool.Tool` subclass that adds
 two conveniences every concrete base tool reuses:
 
-* :meth:`as_tool_result` — invoke for a given :class:`~pirn_agents.types.tool_call.ToolCall`
-  and wrap the outcome in a typed F1 :class:`~pirn_agents.types.tool_result.ToolResult`
+* :meth:`as_tool_result` — invoke for a given :class:`~pirn_agents.tools.tool_call.ToolCall`
+  and wrap the outcome in a typed F1 :class:`~pirn_agents.tools.tool_result.ToolResult`
   (timing the call, mapping a raised exception to :attr:`ToolStatus.ERROR`). This
   mirrors the established :class:`~pirn_agents.mcp.mcp_tool.McpTool` pattern so a
   tool round-trips through F1's protocol both under the executor (which wraps the
@@ -26,9 +26,9 @@ from collections.abc import Mapping
 from typing import Any
 
 from pirn_agents.tools.tool import Tool
-from pirn_agents.types.tool_call import ToolCall
-from pirn_agents.types.tool_result import ToolResult
-from pirn_agents.types.tool_status import ToolStatus
+from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_result import ToolResult
+from pirn_agents.tools.tool_status import ToolStatus
 
 
 class BaseTool(Tool):

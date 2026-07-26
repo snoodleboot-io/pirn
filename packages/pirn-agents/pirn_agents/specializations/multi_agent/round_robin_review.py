@@ -31,23 +31,8 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.sub_tapestry import SubTapestry
 
-from pirn_agents.types.agent_response import AgentResponse
-
-
-class _ResponseEcho(Knot):
-    """Pass-through knot that returns the supplied AgentResponse unchanged."""
-
-    def __init__(
-        self,
-        *,
-        response: Knot | AgentResponse,
-        _config: KnotConfig,
-        **kwargs: Any,
-    ) -> None:
-        super().__init__(response=response, _config=_config, **kwargs)
-
-    async def process(self, response: AgentResponse, **_: Any) -> AgentResponse:
-        return response
+from pirn_agents.specializations.multi_agent._response_echo import _ResponseEcho
+from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class RoundRobinReview(SubTapestry):

@@ -52,7 +52,7 @@ from pirn_agents.specializations.rag.rag_prompt_builder import (
 from pirn_agents.specializations.rag.rag_response_builder import (
     RAGResponseBuilder,
 )
-from pirn_agents.specializations.rag.relevance_gate import (
+from pirn_agents.specializations.rag.relevance_check import (
     RelevanceCheck,
 )
 from pirn_agents.tools.tool import Tool

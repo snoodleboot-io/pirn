@@ -9,8 +9,8 @@ from pirn.core.knot_factory import knot
 from pirn.tapestry import Tapestry
 
 from pirn_agents.generation.llm_call import LLMCall
-from pirn_agents.types.agent_context import AgentContext
-from pirn_agents.types.agent_message import AgentMessage
+from pirn_agents.types.messaging.agent_context import AgentContext
+from pirn_agents.types.messaging.agent_message import AgentMessage
 from tests.conftest import StubLLMProvider
 
 

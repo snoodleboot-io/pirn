@@ -21,7 +21,7 @@ pirn_agents/specializations/rag/
 ├── rag_synthesizer.py            RagSynthesizer           — call LLM with assembled prompt; return answer
 ├── rag_response_builder.py       RagResponseBuilder       — format answer with citations
 ├── reranker.py                   Reranker                 — re-rank retrieved chunks by relevance score
-├── relevance_gate.py             RelevanceGate            — pass chunks above threshold; Skipped below
+├── relevance_check.py            RelevanceCheck           — pass chunks above threshold; Skipped below
 │
 │  ── Corrective RAG helpers ──
 ├── corrective_router.py          CorrectiveRouter         — route to web search if retrieval score is low

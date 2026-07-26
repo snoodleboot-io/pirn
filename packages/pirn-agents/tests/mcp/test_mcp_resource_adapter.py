@@ -12,7 +12,7 @@ import pytest
 from pirn_agents.mcp.mcp_client import McpClient
 from pirn_agents.mcp.mcp_error import McpError
 from pirn_agents.mcp.mcp_resource_adapter import McpResourceAdapter
-from pirn_agents.types.agent_message import AgentMessage
+from pirn_agents.types.messaging.agent_message import AgentMessage
 from tests.conftest import StubMemoryStore
 from tests.mcp.stub_mcp import StubMcpTransport
 

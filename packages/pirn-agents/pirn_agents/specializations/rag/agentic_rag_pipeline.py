@@ -34,7 +34,7 @@ from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.tools.tool import Tool
-from pirn_agents.types.agent_response import AgentResponse
+from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class AgenticRagPipeline(SubTapestry):

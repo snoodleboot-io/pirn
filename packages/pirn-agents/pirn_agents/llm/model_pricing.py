@@ -44,7 +44,7 @@ class ModelPricing(PirnOpaqueValue):
 
         Args:
             usage: A token-usage mapping as populated on
-                :class:`pirn_agents.types.agent_response.AgentResponse`.
+                :class:`pirn_agents.types.messaging.agent_response.AgentResponse`.
 
         Returns:
             The estimated cost as a float.

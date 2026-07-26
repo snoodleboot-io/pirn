@@ -9,7 +9,7 @@ from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.rag.flare_active_rag_pipeline import FlareActiveRagPipeline
-from pirn_agents.types.agent_response import AgentResponse
+from pirn_agents.types.messaging.agent_response import AgentResponse
 from tests.specializations.conftest import StubLLMProvider, StubMemoryStore
 
 

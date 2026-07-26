@@ -103,7 +103,7 @@ with Tapestry() as t:
 # hand-wired equivalent (the raw-knot form the builder emits)
 from pirn.core.knot_config import KnotConfig
 from pirn_agents.specializations.react.react_loop import ReActLoop
-from pirn_agents.types.agent_message import AgentMessage
+from pirn_agents.types.messaging.agent_message import AgentMessage
 
 with Tapestry() as t:
     agent = ReActLoop(

@@ -19,8 +19,8 @@ from pirn.tapestry import Tapestry
 
 from pirn_agents.planning.tool_executor import ToolExecutor
 from pirn_agents.tools.tool import Tool
-from pirn_agents.types.tool_call import ToolCall
-from pirn_agents.types.tool_result import ToolResult
+from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_result import ToolResult
 
 
 class _RaisingTool(Tool):

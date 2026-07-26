@@ -10,7 +10,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
-from pirn_agents.specializations.rag.relevance_gate import RelevanceCheck
+from pirn_agents.specializations.rag.relevance_check import RelevanceCheck
 
 
 class _DocsSource(Knot):

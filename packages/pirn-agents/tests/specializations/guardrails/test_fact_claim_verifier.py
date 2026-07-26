@@ -13,7 +13,7 @@ from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.specializations.guardrails.fact_claim_verifier import (
     FactClaimVerifier,
 )
-from pirn_agents.types.agent_response import AgentResponse
+from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class _HitStore(MemoryStore):

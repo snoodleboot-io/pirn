@@ -1,9 +1,9 @@
 """``MessageContent`` — a normalized, typed sequence of content blocks (F15-S1).
 
 The typed replacement for a message's plain-string body: an ordered tuple of
-:class:`~pirn_agents.types.content_block.ContentBlock`. Backward compatibility is
+:class:`~pirn_agents.types.content.content_block.ContentBlock`. Backward compatibility is
 the whole point of :meth:`coerce` — a plain ``str`` normalizes to a single
-:class:`~pirn_agents.types.text_block.TextBlock`, so every existing text-only
+:class:`~pirn_agents.types.content.text_block.TextBlock`, so every existing text-only
 caller keeps working while multimodal callers pass real blocks. :attr:`text`
 gives the flat text projection so any consumer can still read a message as a
 string.
@@ -17,8 +17,8 @@ from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
-from pirn_agents.types.content_block import ContentBlock
-from pirn_agents.types.text_block import TextBlock
+from pirn_agents.types.content.content_block import ContentBlock
+from pirn_agents.types.content.text_block import TextBlock
 
 
 @dataclass(frozen=True)

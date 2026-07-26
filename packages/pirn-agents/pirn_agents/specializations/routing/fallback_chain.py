@@ -29,8 +29,8 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.specializations.routing.fallback_result import FallbackResult
 from pirn_agents.specializations.routing.route_candidate import RouteCandidate
-from pirn_agents.types.tool_result import ToolResult
-from pirn_agents.types.tool_status import ToolStatus
+from pirn_agents.tools.tool_result import ToolResult
+from pirn_agents.tools.tool_status import ToolStatus
 
 
 class FallbackChain(Knot):

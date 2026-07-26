@@ -4,7 +4,7 @@ A :class:`Knot` that turns a selected subgraph (produced by
 :class:`~pirn_agents.retrieval.graph_rag.graph_traversal.GraphTraversal` or the hybrid
 retriever) into agent-consumable context: a deterministic, human-readable
 listing of the entities and their relations, wrapped in an
-:class:`~pirn_agents.types.agent_message.AgentMessage` so it drops straight into
+:class:`~pirn_agents.types.messaging.agent_message.AgentMessage` so it drops straight into
 a prompt as grounding for GraphRAG. Nodes and edges are sorted by id so the
 rendered context is stable across runs (cache-friendly).
 """
@@ -18,7 +18,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.retrieval.graph_rag.subgraph import Subgraph
 from pirn_agents.retrieval.graph_stores.graph_node import GraphNode
-from pirn_agents.types.agent_message import AgentMessage
+from pirn_agents.types.messaging.agent_message import AgentMessage
 
 
 class GraphContextBuilder(Knot):

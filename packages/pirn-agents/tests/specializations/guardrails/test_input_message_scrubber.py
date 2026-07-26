@@ -11,7 +11,7 @@ from pirn.tapestry import Tapestry
 from pirn_agents.specializations.guardrails.input_message_scrubber import (
     InputMessageScrubber,
 )
-from pirn_agents.types.agent_message import AgentMessage
+from pirn_agents.types.messaging.agent_message import AgentMessage
 
 
 def _msg(content: str, role: str = "user") -> AgentMessage:

@@ -8,10 +8,10 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
+from pirn_agents.planning.plan import Plan
 from pirn_agents.specializations.plan_and_execute.task_planner import (
     TaskPlanner,
 )
-from pirn_agents.types.plan import Plan
 from tests.specializations.conftest import StubLLMProvider
 
 

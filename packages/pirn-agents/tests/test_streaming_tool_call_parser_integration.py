@@ -21,9 +21,9 @@ from pirn.tapestry import Tapestry
 from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
 from pirn_agents.tools.streaming_tool_call_parser import StreamingToolCallParser
 from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_status import ToolStatus
 from pirn_agents.tools.toolset import Toolset
-from pirn_agents.types.tool_call import ToolCall
-from pirn_agents.types.tool_status import ToolStatus
 
 
 class StubTool(Tool):

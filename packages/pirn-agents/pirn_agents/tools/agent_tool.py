@@ -5,7 +5,7 @@ hand-written adapter (see PATTERNS.md Pattern 16) into a one-liner. ``name`` and
 ``description`` default from the agent but are overridable; ``parameters_schema``
 is derived from the agent's declared inputs (falling back to ``{task: str}``);
 and :meth:`invoke` runs the inner agent and maps its :class:`AgentResponse` into
-the F1 :class:`~pirn_agents.types.tool_result.ToolResult` shape.
+the F1 :class:`~pirn_agents.tools.tool_result.ToolResult` shape.
 
 All safety and performance behaviour — recursion/cycle guards, inherited
 budgets, and pooled-provider reuse — lives in the shared
@@ -26,7 +26,7 @@ from pirn_agents.agent.agent_schema_deriver import AgentSchemaDeriver
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.performance.run_budget import RunBudget
 from pirn_agents.tools.tool import Tool
-from pirn_agents.types.tool_result import ToolResult
+from pirn_agents.tools.tool_result import ToolResult
 
 
 def _default_name(agent: SubTapestry) -> str:

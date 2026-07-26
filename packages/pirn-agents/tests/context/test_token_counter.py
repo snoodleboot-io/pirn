@@ -6,7 +6,7 @@ import unittest
 
 from pirn_agents.context.heuristic_token_estimator import HeuristicTokenEstimator
 from pirn_agents.context.token_counter import TokenCounter
-from pirn_agents.types.agent_message import AgentMessage
+from pirn_agents.types.messaging.agent_message import AgentMessage
 from tests.context._stubs import StubWordTokenEstimator
 
 

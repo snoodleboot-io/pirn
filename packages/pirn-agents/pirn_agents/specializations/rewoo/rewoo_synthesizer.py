@@ -27,8 +27,8 @@ from pirn.core.knot_config import KnotConfig
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.specializations.rewoo.rewoo_result import ReWooResult
-from pirn_agents.types.tool_call import ToolCall
-from pirn_agents.types.tool_result import ToolResult
+from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_result import ToolResult
 
 
 class ReWooSynthesizer(Knot):

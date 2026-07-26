@@ -10,7 +10,7 @@ from pirn.tapestry import Tapestry
 
 from pirn_agents.context.token_count_knot import TokenCountKnot
 from pirn_agents.context.token_counter import TokenCounter
-from pirn_agents.types.agent_message import AgentMessage
+from pirn_agents.types.messaging.agent_message import AgentMessage
 from tests.context._stubs import StubWordTokenEstimator
 
 

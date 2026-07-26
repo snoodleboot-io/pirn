@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn_agents.types.plan import Plan
+from pirn_agents.planning.plan import Plan
 
 
 class TestRoundtrip(unittest.TestCase):

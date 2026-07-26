@@ -22,7 +22,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents.types.tool_result import ToolResult
+from pirn_agents.tools.tool_result import ToolResult
 
 
 class ToolResultFormatter(Knot):
