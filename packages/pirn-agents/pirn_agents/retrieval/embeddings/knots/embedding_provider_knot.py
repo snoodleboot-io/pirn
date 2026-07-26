@@ -13,7 +13,7 @@ Algorithm:
 
 References:
     - :class:`pirn_agents.retrieval.embeddings.embedding_provider.EmbeddingProvider`
-    - :class:`pirn_agents.llm_provider_knot.LLMProviderKnot` (the template).
+    - :class:`pirn_agents.llm.knots.llm_provider_knot.LLMProviderKnot` (the template).
 """
 
 from __future__ import annotations
