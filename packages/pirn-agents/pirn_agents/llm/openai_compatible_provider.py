@@ -30,6 +30,7 @@ from pirn_agents.specializations.structured_output.structured_output_capability 
     StructuredOutputCapability,
 )
 from pirn_agents.tools.toolset import Toolset
+from pirn_agents.types.messaging.finish_reason import FinishReason
 
 
 class OpenAICompatibleProvider(HttpStructuredOutputProvider):
@@ -128,8 +129,8 @@ class OpenAICompatibleProvider(HttpStructuredOutputProvider):
     def _finish_reason(self, data: Mapping[str, Any]) -> str:
         choices = data.get("choices") or []
         if not choices:
-            return "stop"
-        return choices[0].get("finish_reason") or "stop"
+            return FinishReason.STOP.value
+        return self._map_finish_reason(choices[0].get("finish_reason"))
 
     def _usage_tokens(self, data: Mapping[str, Any]) -> dict[str, int]:
         return self._normalise_usage(data.get("usage"))
@@ -144,7 +145,10 @@ class OpenAICompatibleProvider(HttpStructuredOutputProvider):
             chunk = json.loads(body)
             choices = chunk.get("choices") or []
             delta_obj = choices[0].get("delta") or {} if choices else {}
-            finish = choices[0].get("finish_reason") if choices else None
+            finish_raw = choices[0].get("finish_reason") if choices else None
+            # Normalise identically to the buffered path — a streamed run must
+            # not surface a different finish reason than a non-streamed one.
+            finish = None if finish_raw is None else self._map_finish_reason(finish_raw)
             usage_raw = chunk.get("usage")
             usage = self._normalise_usage(usage_raw) if usage_raw else None
             for tool_delta in delta_obj.get("tool_calls") or []:
@@ -164,6 +168,32 @@ class OpenAICompatibleProvider(HttpStructuredOutputProvider):
                     finish_reason=finish,
                     usage=usage,
                 )
+
+    @staticmethod
+    def _map_finish_reason(finish_reason: Any) -> str:
+        """Map a chat-completions ``finish_reason`` onto the neutral vocabulary.
+
+        The wire spellings belong to this adapter, not to
+        :class:`FinishReason`. ``tool_calls`` (and its legacy ``function_call``
+        spelling) is this format's "the model wants tools" terminal and is the
+        counterpart of the Messages API's ``tool_use``; without this mapping it
+        leaked out raw and matched nothing downstream. An unmapped value is
+        surfaced verbatim so an unrecognised terminal stays visible, and a
+        missing/empty value defaults to ``STOP``.
+        """
+        if not isinstance(finish_reason, str) or not finish_reason:
+            return FinishReason.STOP.value
+        if finish_reason == "stop":
+            return FinishReason.STOP.value
+        if finish_reason == "length":
+            return FinishReason.LENGTH.value
+        if finish_reason == "tool_calls":
+            return FinishReason.TOOL_USE.value
+        if finish_reason == "function_call":
+            return FinishReason.TOOL_USE.value
+        if finish_reason == "content_filter":
+            return FinishReason.CONTENT_FILTER.value
+        return finish_reason
 
     @staticmethod
     def _first_message(data: Mapping[str, Any]) -> Mapping[str, Any]:

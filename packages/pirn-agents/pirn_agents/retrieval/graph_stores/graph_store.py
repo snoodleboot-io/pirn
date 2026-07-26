@@ -26,6 +26,7 @@ from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
+from pirn_agents.retrieval.graph_stores.graph_direction import GraphDirection
 from pirn_agents.retrieval.graph_stores.graph_edge import GraphEdge
 from pirn_agents.retrieval.graph_stores.graph_neighbor import GraphNeighbor
 from pirn_agents.retrieval.graph_stores.graph_node import GraphNode
@@ -54,7 +55,7 @@ class GraphStore(PirnOpaqueValue):
         self,
         node_id: str,
         *,
-        direction: str = "out",
+        direction: str = GraphDirection.OUT.value,
         edge_types: Sequence[str] | None = None,
         limit: int | None = None,
     ) -> list[GraphNeighbor]:
@@ -62,8 +63,9 @@ class GraphStore(PirnOpaqueValue):
 
         Args:
             node_id: The node whose neighborhood is expanded.
-            direction: ``"out"`` (edges leaving ``node_id``), ``"in"`` (edges
-                arriving at ``node_id``), or ``"both"``.
+            direction: A :class:`~pirn_agents.retrieval.graph_stores.graph_direction.GraphDirection`
+                value (or its plain-string equivalent) selecting which edge
+                orientations to follow.
             edge_types: Optional whitelist of edge types to traverse; ``None``
                 traverses every type.
             limit: Optional cap on the number of neighbors returned.

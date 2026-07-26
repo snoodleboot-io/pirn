@@ -27,6 +27,7 @@ from pirn_agents.generation.text_block_handler import TextBlockHandler
 from pirn_agents.generation.tool_use_block_handler import ToolUseBlockHandler
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.types.messaging.agent_response import AgentResponse
+from pirn_agents.types.messaging.finish_reason import FinishReason
 
 
 class OutputParser(Knot):
@@ -136,6 +137,14 @@ class OutputParser(Knot):
         return (TextBlockHandler(), ToolUseBlockHandler())
 
     def _extract_finish_reason(self, response: Mapping[str, Any]) -> str:
+        """Read the finish reason out of whichever key the shape carries.
+
+        Deliberately no *value* mapping: this parser is handed an already
+        provider-neutral mapping (each provider maps its own wire values onto
+        :class:`FinishReason` before this point), and it cannot tell which
+        vendor a raw mapping came from, so guessing a translation here would
+        just be wrong for one of them. Only the fallback is neutral.
+        """
         for key in ("stop_reason", "finish_reason"):
             value = response.get(key)
             if isinstance(value, str) and value:
@@ -147,7 +156,7 @@ class OutputParser(Knot):
                 value = first.get("finish_reason")
                 if isinstance(value, str) and value:
                     return value
-        return "stop"
+        return FinishReason.STOP.value
 
     def _extract_usage(self, response: Mapping[str, Any]) -> Mapping[str, int]:
         usage = response.get("usage")

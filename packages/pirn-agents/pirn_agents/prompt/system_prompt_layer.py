@@ -15,10 +15,12 @@ class SystemPromptLayer(PirnOpaqueValue):
     Attributes
     ----------
     kind:
-        The layer's role. The four canonical kinds — ``"persona"``,
-        ``"policy"``, ``"tools"``, ``"memory"`` — compose in that fixed order;
-        any other kind is a *custom* layer that composes after the canonical
-        ones in first-seen order.
+        The layer's role. The canonical kinds and their fixed composition order
+        are owned by
+        :class:`~pirn_agents.prompt.system_prompt_kind.SystemPromptKind`; any
+        other kind is a *custom* layer that composes after the canonical ones in
+        first-seen order. Kept a plain ``str`` so custom kinds stay free-form —
+        only non-emptiness is validated.
     content:
         The layer body. Empty/whitespace-only content is skipped by the
         composer rather than emitting a blank section.

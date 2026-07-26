@@ -18,6 +18,7 @@ from typing import Any
 from pirn.security.credential_ref import CredentialRef
 
 from pirn_agents.retrieval.graph_stores.graph_backend_client import GraphBackendClient
+from pirn_agents.retrieval.graph_stores.graph_direction import GraphDirection
 from pirn_agents.retrieval.graph_stores.graph_edge import GraphEdge
 from pirn_agents.retrieval.graph_stores.graph_neighbor import GraphNeighbor
 from pirn_agents.retrieval.graph_stores.graph_node import GraphNode
@@ -101,15 +102,12 @@ class BackendGraphStore(GraphStore):
         self,
         node_id: str,
         *,
-        direction: str = "out",
+        direction: str = GraphDirection.OUT.value,
         edge_types: Sequence[str] | None = None,
         limit: int | None = None,
     ) -> list[GraphNeighbor]:
         """Return the one-hop neighbors of ``node_id`` (see :class:`GraphStore`)."""
-        if direction not in ("out", "in", "both"):
-            raise ValueError(
-                f"{type(self).__name__}: direction must be 'out'|'in'|'both', got {direction!r}"
-            )
+        GraphDirection.parse(direction, owner=type(self).__name__)
         if limit is not None and (not isinstance(limit, int) or limit <= 0):
             raise ValueError(f"{type(self).__name__}: limit must be a positive int, got {limit!r}")
         client = await self._get_client()

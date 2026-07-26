@@ -13,6 +13,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from pirn_agents.retrieval.graph_stores.graph_direction import GraphDirection
 from pirn_agents.retrieval.graph_stores.graph_edge import GraphEdge
 from pirn_agents.retrieval.graph_stores.graph_neighbor import GraphNeighbor
 from pirn_agents.retrieval.graph_stores.graph_node import GraphNode
@@ -63,20 +64,17 @@ class InMemoryGraphStore(GraphStore):
         self,
         node_id: str,
         *,
-        direction: str = "out",
+        direction: str = GraphDirection.OUT.value,
         edge_types: Sequence[str] | None = None,
         limit: int | None = None,
     ) -> list[GraphNeighbor]:
         """Return the one-hop neighbors of ``node_id`` (see :class:`GraphStore`)."""
-        if direction not in ("out", "in", "both"):
-            raise ValueError(
-                f"InMemoryGraphStore: direction must be 'out'|'in'|'both', got {direction!r}"
-            )
+        resolved = GraphDirection.parse(direction, owner="InMemoryGraphStore")
         if limit is not None and (not isinstance(limit, int) or limit <= 0):
             raise ValueError(f"InMemoryGraphStore: limit must be a positive int, got {limit!r}")
         allowed = set(edge_types) if edge_types is not None else None
         out: list[GraphNeighbor] = []
-        for edge_id in self._incident_edge_ids(node_id, direction):
+        for edge_id in self._incident_edge_ids(node_id, resolved):
             edge = self._edges[edge_id]
             if allowed is not None and edge.type not in allowed:
                 continue
@@ -136,11 +134,11 @@ class InMemoryGraphStore(GraphStore):
         self._out.clear()
         self._in.clear()
 
-    def _incident_edge_ids(self, node_id: str, direction: str) -> list[str]:
+    def _incident_edge_ids(self, node_id: str, direction: GraphDirection) -> list[str]:
         """Return the incident edge ids for ``node_id`` in ``direction``."""
-        if direction == "out":
+        if direction is GraphDirection.OUT:
             return list(self._out.get(node_id, []))
-        if direction == "in":
+        if direction is GraphDirection.IN:
             return list(self._in.get(node_id, []))
         return list(self._out.get(node_id, [])) + list(self._in.get(node_id, []))
 

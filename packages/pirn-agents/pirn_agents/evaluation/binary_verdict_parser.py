@@ -2,9 +2,24 @@
 
 from __future__ import annotations
 
+from pirn_agents.evaluation.affirmative_verdict_word import AffirmativeVerdictWord
+from pirn_agents.evaluation.negative_verdict_word import NegativeVerdictWord
+
 
 class BinaryVerdictParser:
     """Interpret a judge's free-text reply as a boolean yes/no verdict."""
+
+    def __init__(self) -> None:
+        """Resolve both verdict vocabularies once, as instance state.
+
+        The two roles are held separately because they are matched differently:
+        the token sets are compared against the reply's leading word, the marker
+        tuples are scanned as substrings anywhere in the reply.
+        """
+        self._negative_tokens: frozenset[str] = NegativeVerdictWord.leading_tokens()
+        self._affirmative_tokens: frozenset[str] = AffirmativeVerdictWord.leading_tokens()
+        self._negative_markers: tuple[str, ...] = NegativeVerdictWord.scan_markers()
+        self._affirmative_markers: tuple[str, ...] = AffirmativeVerdictWord.scan_markers()
 
     def parse(self, text: str) -> bool:
         """Interpret a judge's free-text reply as a boolean yes/no verdict.
@@ -30,31 +45,11 @@ class BinaryVerdictParser:
         lowered = text.strip().lower()
         if not lowered:
             return False
-        negatives = {
-            "no",
-            "not",
-            "false",
-            "0",
-            "unsupported",
-            "irrelevant",
-            "unfaithful",
-            "incorrect",
-        }
-        positives = {
-            "yes",
-            "true",
-            "1",
-            "supported",
-            "relevant",
-            "faithful",
-            "correct",
-            "attributed",
-        }
         first = lowered.split()[0].strip(".,!:;\"'")
-        if first in negatives:
+        if first in self._negative_tokens:
             return False
-        if first in positives:
+        if first in self._affirmative_tokens:
             return True
-        if any(marker in lowered for marker in ("not supported", "unsupported", "irrelevant")):
+        if any(marker in lowered for marker in self._negative_markers):
             return False
-        return any(marker in lowered for marker in ("supported", "relevant", "faithful", "yes"))
+        return any(marker in lowered for marker in self._affirmative_markers)
