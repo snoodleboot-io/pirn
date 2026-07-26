@@ -3,11 +3,10 @@
 ``AgentResult`` is the DIP/LSP base for the frozen ``*Result`` value objects;
 ``AgentPipeline`` is the base for the ``SubTapestry`` pattern knots. Both follow
 the house NotImplementedError style (never :class:`typing.Protocol`).
+
+Import each base from its concrete module
+(``pirn_agents.specializations.base.agent_pipeline``, ``...agent_result``) —
+this package does not re-export them.
 """
 
-from __future__ import annotations
-
-from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.base.agent_result import AgentResult
-
-__all__ = ["AgentPipeline", "AgentResult"]
+__all__: list[str] = []
