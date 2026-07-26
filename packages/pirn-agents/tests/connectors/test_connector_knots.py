@@ -20,10 +20,10 @@ from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.connectors.http_search_connector import HttpSearchConnector
+from pirn_agents.connectors.knots.http_connector_knot import HttpConnectorKnot
+from pirn_agents.connectors.knots.search_connector_knot import SearchConnectorKnot
+from pirn_agents.connectors.knots.sql_connector_knot import SqlConnectorKnot
 from pirn_agents.connectors.sql_service_connector import SqlServiceConnector
-from pirn_agents.http_connector_knot import HttpConnectorKnot
-from pirn_agents.search_connector_knot import SearchConnectorKnot
-from pirn_agents.sql_connector_knot import SqlConnectorKnot
 
 
 def _resolver(_host: str) -> str:

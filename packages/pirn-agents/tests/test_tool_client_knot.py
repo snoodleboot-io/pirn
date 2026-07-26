@@ -17,7 +17,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
-from pirn_agents.tool_client_knot import ToolClientKnot
+from pirn_agents.tools.knots.tool_client_knot import ToolClientKnot
 
 
 class CountingToolClient(ConnectorBase):
