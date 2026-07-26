@@ -13,7 +13,7 @@ from typing import Any
 
 import pytest
 
-from pirn_agents.memory.memory_store import MemoryStore
+from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
 from pirn_agents.specializations.document_processing.chunking.chunk import Chunk
 from pirn_agents.specializations.document_processing.incremental.incremental_upserter import (

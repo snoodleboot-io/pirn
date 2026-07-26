@@ -58,7 +58,7 @@ _S1_IMPORT_SURFACE: list[tuple[str, str]] = [
     # embeddings domain subpackage
     ("pirn_agents.retrieval.embeddings.embedding_provider", "EmbeddingProvider"),
     # memory domain subpackage
-    ("pirn_agents.memory.memory_store", "MemoryStore"),
+    ("pirn_agents.memory.stores.memory_store", "MemoryStore"),
     # security domain subpackage (intentionally underscored module)
     ("pirn_agents.security._safe_pattern_compiler", "SafePatternCompiler"),
     # internal helper subpackage (intentionally underscored module + symbol)

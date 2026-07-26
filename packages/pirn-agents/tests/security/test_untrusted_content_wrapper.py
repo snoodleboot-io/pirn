@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from pirn_agents.memory_management.memory_provenance import MemoryProvenance
+from pirn_agents.memory.management.memory_provenance import MemoryProvenance
 from pirn_agents.security.provenance_tag import ProvenanceTag
 from pirn_agents.security.untrusted_content import UntrustedContent
 from pirn_agents.security.untrusted_content_wrapper import UntrustedContentWrapper

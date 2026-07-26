@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime, timedelta
 
-from pirn_agents.memory_management.ttl_eviction_policy import TtlEvictionPolicy
+from pirn_agents.memory.management.ttl_eviction_policy import TtlEvictionPolicy
 from tests.memory_management.conftest import make_record
 
 

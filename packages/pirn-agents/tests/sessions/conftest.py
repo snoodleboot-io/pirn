@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Mapping
 from typing import Any
 
-from pirn_agents.memory.memory_store import MemoryStore
+from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.sessions.conversation_thread import ConversationThread
 from pirn_agents.sessions.conversation_turn import ConversationTurn
 from pirn_agents.sessions.execution_cursor import ExecutionCursor

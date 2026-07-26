@@ -92,7 +92,7 @@ result = await compactor.compact(request)
 
 ### F27 memory integration
 
-When a `memory_store` (any `pirn_agents.memory.memory_store.MemoryStore`) and a
+When a `memory_store` (any `pirn_agents.memory.stores.memory_store.MemoryStore`) and a
 `persist_key` are both present, the produced summary is written via
 `store.store(persist_key, {"summary": ..., "evicted_count": ...})`. F27 summary
 memory reads these back and/or supplies richer `CompactionStrategy`

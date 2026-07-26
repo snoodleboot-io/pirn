@@ -9,7 +9,7 @@ from typing import Any
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.specializations.memory_patterns.semantic_fact_writer import (
+from pirn_agents.memory.patterns.semantic_fact_writer import (
     SemanticFactWriter,
 )
 from tests.specializations.conftest import StubMemoryStore

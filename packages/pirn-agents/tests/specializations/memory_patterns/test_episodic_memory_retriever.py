@@ -7,7 +7,7 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.specializations.memory_patterns.episodic_memory_retriever import (
+from pirn_agents.memory.patterns.episodic_memory_retriever import (
     EpisodicMemoryRetriever,
 )
 from tests.specializations.conftest import StubMemoryStore

@@ -38,7 +38,7 @@ from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
-from pirn_agents.memory.memory_store import MemoryStore
+from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.specializations.rag.llm_chat_call import LLMChatCall
 from pirn_agents.specializations.rag.memory_search_retriever import (
     MemorySearchRetriever,

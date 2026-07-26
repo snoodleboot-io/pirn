@@ -3,7 +3,7 @@
 This is the durable-session identity F14 owns and the plug point the F27 memory
 seam consumes: the same :attr:`session_id` that keys a run's checkpoints and
 threads can be passed to
-:class:`~pirn_agents.memory_management.profile_key.ProfileKey` so a session's
+:class:`~pirn_agents.memory.management.profile_key.ProfileKey` so a session's
 lifecycle drives profile keying — without F14 importing F27 or F27 inventing
 session machinery.
 """

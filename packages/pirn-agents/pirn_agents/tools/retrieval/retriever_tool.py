@@ -1,6 +1,6 @@
 """``RetrieverTool`` — expose a :class:`MemoryStore` similarity search as a tool.
 
-Wraps an injected F4 :class:`~pirn_agents.memory.memory_store.MemoryStore` so an agent
+Wraps an injected F4 :class:`~pirn_agents.memory.stores.memory_store.MemoryStore` so an agent
 can explicitly decide to retrieve ranked context. Provider-neutral: any store
 implementation (vector DB, in-memory, hybrid) works, and nothing vendor-specific
 is imported at module load.
@@ -11,7 +11,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from pirn_agents.memory.memory_store import MemoryStore
+from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.tools.base_tool import BaseTool
 
 

@@ -7,8 +7,8 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.memory_management.memory_record import MemoryRecord
-from pirn_agents.memory_management.typed_memory_writer import TypedMemoryWriter
+from pirn_agents.memory.management.memory_record import MemoryRecord
+from pirn_agents.memory.management.typed_memory_writer import TypedMemoryWriter
 from tests.memory_management.conftest import RecordingMemoryStore, make_record
 
 

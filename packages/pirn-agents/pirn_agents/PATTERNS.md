@@ -454,7 +454,7 @@ Four memory pipelines are available; each is a `SubTapestry`:
 | `ProceduralMemoryPipeline` | Remember how-to sequences (skills) |
 
 ```python
-from pirn_agents.specializations.memory_patterns.semantic_memory_pipeline import (
+from pirn_agents.memory.patterns.semantic_memory_pipeline import (
     SemanticMemoryPipeline,
 )
 

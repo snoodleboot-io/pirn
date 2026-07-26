@@ -25,7 +25,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
-from pirn_agents.memory.memory_store import MemoryStore
+from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.specializations.rag.draft_verifier import DraftVerifier
 from pirn_agents.specializations.rag.memory_search_retriever import MemorySearchRetriever
 from pirn_agents.specializations.rag.speculative_draft_generator import SpeculativeDraftGenerator

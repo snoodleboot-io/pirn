@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn_agents.memory_management.ranked_memory import RankedMemory
+from pirn_agents.memory.management.ranked_memory import RankedMemory
 from tests.memory_management.conftest import make_record
 
 

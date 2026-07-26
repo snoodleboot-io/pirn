@@ -5,8 +5,8 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime
 
-from pirn_agents.memory_management.entity_profile import EntityProfile
-from pirn_agents.memory_management.profile_key import ProfileKey
+from pirn_agents.memory.management.entity_profile import EntityProfile
+from pirn_agents.memory.management.profile_key import ProfileKey
 from tests.memory_management.conftest import make_provenance
 
 

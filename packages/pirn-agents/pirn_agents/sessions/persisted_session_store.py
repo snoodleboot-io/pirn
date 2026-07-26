@@ -1,7 +1,7 @@
 """``PersistedSessionStore`` — a :class:`SessionStore` over an F4 ``MemoryStore``.
 
 The persisted adapter delegates every operation to an injected
-:class:`~pirn_agents.memory.memory_store.MemoryStore`, so it is inherently
+:class:`~pirn_agents.memory.stores.memory_store.MemoryStore`, so it is inherently
 backend-neutral: no vendor is named here and no driver is imported. The optional
 backend (chroma / pgvector / qdrant, …) is lazily imported *inside the concrete
 ``MemoryStore``*, so ``import pirn_agents`` — and importing this adapter — stays
@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from pirn_agents.memory.memory_store import MemoryStore
+from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.sessions.run_checkpoint import RunCheckpoint
 from pirn_agents.sessions.session_store import SessionStore
 

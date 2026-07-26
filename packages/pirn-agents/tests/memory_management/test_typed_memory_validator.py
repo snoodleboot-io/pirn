@@ -7,7 +7,7 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.memory_management.typed_memory_validator import TypedMemoryValidator
+from pirn_agents.memory.management.typed_memory_validator import TypedMemoryValidator
 from tests.memory_management.conftest import make_record
 
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime
 
-from pirn_agents.memory_management.memory_provenance import MemoryProvenance
+from pirn_agents.memory.management.memory_provenance import MemoryProvenance
 
 
 class TestMemoryProvenanceValidation(unittest.TestCase):

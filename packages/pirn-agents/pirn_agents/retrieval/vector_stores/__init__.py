@@ -1,4 +1,4 @@
-"""Concrete :class:`pirn_agents.memory.memory_store.MemoryStore` vector-store adapters.
+"""Concrete :class:`pirn_agents.memory.stores.memory_store.MemoryStore` vector-store adapters.
 
 Ships the vector-native record/match value types, an abstract
 :class:`~pirn_agents.retrieval.vector_stores.vector_memory_store.VectorMemoryStore` that

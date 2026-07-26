@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn_agents.memory_management.recall_weights import RecallWeights
+from pirn_agents.memory.management.recall_weights import RecallWeights
 
 
 class TestRecallWeights(unittest.TestCase):

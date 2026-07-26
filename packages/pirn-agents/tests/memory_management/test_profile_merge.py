@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn_agents.memory_management.profile_merge import merge_profile_fields
+from pirn_agents.memory.management.profile_merge import merge_profile_fields
 
 
 class TestMergeProfileFields(unittest.TestCase):
