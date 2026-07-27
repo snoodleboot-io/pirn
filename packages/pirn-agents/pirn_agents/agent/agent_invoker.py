@@ -31,6 +31,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from pirn_agents.agent.agent_introspector import AgentIntrospector
+from pirn_agents.agent.agent_nesting_config import AgentNestingConfig
 from pirn_agents.agent.agent_response_mapper import AgentResponseMapper
 from pirn_agents.agent.agent_tool_context import (
     AgentToolContext,
@@ -51,7 +52,7 @@ class AgentInvoker:
     def __init__(
         self,
         *,
-        max_depth: int = 8,
+        max_depth: int = AgentNestingConfig.max_depth,
         budget: RunBudget | None = None,
         provider: LLMProvider | None = None,
     ) -> None:
@@ -59,7 +60,9 @@ class AgentInvoker:
 
         Args:
             max_depth: Maximum nesting depth for a *root* invocation; nested
-                calls inherit the root's cap.
+                calls inherit the root's cap. Defaults to the shared
+                :class:`~pirn_agents.agent.agent_nesting_config.AgentNestingConfig`
+                cap.
             budget: A budget to enforce when no ambient meter is active; ignored
                 once a parent meter is being inherited.
             provider: An explicit pooled provider to reuse; inherits the ambient

@@ -51,6 +51,9 @@ from pirn_agents.specializations.document_processing._document_loader import (
 from pirn_agents.specializations.document_processing._document_source_reader import (
     _DocumentSourceReader,
 )
+from pirn_agents.specializations.document_processing.chunking.chunking_config import (
+    ChunkingConfig,
+)
 
 
 class DocumentIngestionPipeline(AgentPipeline):
@@ -63,8 +66,8 @@ class DocumentIngestionPipeline(AgentPipeline):
         embedder: Knot | EmbeddingProvider,
         store: Knot | MemoryStore,
         _config: KnotConfig,
-        chunk_size: Knot | int = 1000,
-        chunk_overlap: Knot | int = 100,
+        chunk_size: Knot | int = ChunkingConfig.chunk_size,
+        chunk_overlap: Knot | int = ChunkingConfig.chunk_overlap,
         allowed_root: Knot | str | None = None,
         allowed_hosts: Knot | tuple[str, ...] | None = None,
         max_bytes: Knot | int = _DocumentSourceReader.max_bytes,
@@ -88,8 +91,8 @@ class DocumentIngestionPipeline(AgentPipeline):
         source: str,
         embedder: EmbeddingProvider,
         store: MemoryStore,
-        chunk_size: int = 1000,
-        chunk_overlap: int = 100,
+        chunk_size: int = ChunkingConfig.chunk_size,
+        chunk_overlap: int = ChunkingConfig.chunk_overlap,
         allowed_root: str | None = None,
         allowed_hosts: tuple[str, ...] | None = None,
         max_bytes: int = _DocumentSourceReader.max_bytes,

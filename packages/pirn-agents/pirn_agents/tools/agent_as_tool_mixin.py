@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any
 
 from pirn.nodes.sub_tapestry import SubTapestry
 
+from pirn_agents.agent.agent_nesting_config import AgentNestingConfig
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.performance.run_budget import RunBudget
 from pirn_agents.tools.as_tool import as_tool
@@ -52,7 +53,7 @@ class AgentAsToolMixin(SubTapestry):
         input_schema: Mapping[str, Any] | None = None,
         provider: LLMProvider | None = None,
         budget: RunBudget | None = None,
-        max_depth: int = 8,
+        max_depth: int = AgentNestingConfig.max_depth,
     ) -> AgentTool:
         """Return an :class:`AgentTool` wrapping this agent.
 

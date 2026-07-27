@@ -50,12 +50,15 @@ from pirn_agents.specializations.document_processing._qa_load_and_chunk import (
 from pirn_agents.specializations.document_processing._qa_retrieve_and_answer import (
     _QARetrieveAndAnswer,
 )
+from pirn_agents.specializations.document_processing.chunking.chunking_config import (
+    ChunkingConfig,
+)
 
 
 class DocumentQAPipeline(AgentPipeline):
     """Question-answer over a single document; returns :class:`AgentResponse`."""
 
-    _default_chunk_size: int = 1000
+    _default_chunk_size: int = ChunkingConfig.chunk_size
 
     def __init__(
         self,

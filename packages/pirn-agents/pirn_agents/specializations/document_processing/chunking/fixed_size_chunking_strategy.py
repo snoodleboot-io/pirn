@@ -9,6 +9,9 @@ character offsets recorded in metadata.
 from __future__ import annotations
 
 from pirn_agents.specializations.document_processing.chunking.chunk import Chunk
+from pirn_agents.specializations.document_processing.chunking.chunking_config import (
+    ChunkingConfig,
+)
 from pirn_agents.specializations.document_processing.chunking.chunking_strategy import (
     ChunkingStrategy,
 )
@@ -17,7 +20,12 @@ from pirn_agents.specializations.document_processing.chunking.chunking_strategy 
 class FixedSizeChunkingStrategy(ChunkingStrategy):
     """Split text into overlapping fixed-size character windows."""
 
-    def __init__(self, *, chunk_size: int = 1000, chunk_overlap: int = 100) -> None:
+    def __init__(
+        self,
+        *,
+        chunk_size: int = ChunkingConfig.chunk_size,
+        chunk_overlap: int = ChunkingConfig.chunk_overlap,
+    ) -> None:
         """Configure the window size and overlap.
 
         Args:

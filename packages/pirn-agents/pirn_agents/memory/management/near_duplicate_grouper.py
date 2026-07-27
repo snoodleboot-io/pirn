@@ -22,6 +22,7 @@ from __future__ import annotations
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
@@ -38,6 +39,8 @@ class NearDuplicateGrouper(PirnOpaqueValue):
     ----------
     threshold:
         Minimum Jaccard overlap in ``(0, 1]`` for two records to be linked.
+        This frozen field is the one declaration of the consolidation
+        similarity floor — no caller re-states the number.
     """
 
     threshold: float = 0.6
@@ -80,6 +83,9 @@ class NearDuplicateGrouper(PirnOpaqueValue):
         for index, record in enumerate(items):
             groups.setdefault(self._find(parent, index), []).append(record)
         return [groups[root] for root in sorted(groups)]
+
+    def _pirn_audit_dict(self) -> dict[str, Any]:
+        return {"threshold": self.threshold}
 
     @staticmethod
     def _tokenize(text: str) -> frozenset[str]:
