@@ -15,12 +15,13 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
@@ -32,8 +33,9 @@ class ChainOfThought(Knot):
     chain) is returned as an :class:`AgentResponse`.
     """
 
-    _system_prompt: str = (
-        "Think step-by-step. Show your reasoning before stating your final answer."
+    _system_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.chain_of_thought.chain_of_thought.system_prompt",
+        default="Think step-by-step. Show your reasoning before stating your final answer.",
     )
 
     def __init__(
@@ -64,7 +66,7 @@ class ChainOfThought(Knot):
         if not isinstance(llm, LLMProvider):
             raise TypeError(f"ChainOfThought: llm must be an LLMProvider, got {type(llm).__name__}")
         messages = [
-            {"role": "system", "content": type(self)._system_prompt},
+            {"role": "system", "content": type(self)._system_prompt.resolve()},
             {"role": "user", "content": prompt},
         ]
         raw = await llm.chat(messages=messages)

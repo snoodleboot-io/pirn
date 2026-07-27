@@ -21,6 +21,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
@@ -33,14 +34,21 @@ class ReflectionCheck(Knot):
     returns ``False``.
     """
 
-    #: System prompt sent to the LLM. Override on a subclass to customise the
-    #: reflection instruction without changing any other behaviour.
-    reflection_prompt: ClassVar[str] = (
-        "You are an agent reflection assistant. Given the response "
-        "below, decide whether the agent should iterate again to "
-        "improve it. Answer 'yes' to iterate or 'no' to stop. Reply "
-        "with the single word only."
+    #: Registry binding backing :attr:`reflection_prompt`; see ``prompt/PROMPTS.md``.
+    _reflection_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="control.reflection_check.reflection_prompt",
+        default=(
+            "You are an agent reflection assistant. Given the response "
+            "below, decide whether the agent should iterate again to "
+            "improve it. Answer 'yes' to iterate or 'no' to stop. Reply "
+            "with the single word only."
+        ),
     )
+
+    #: System prompt sent to the LLM. Override on a subclass to customise the
+    #: reflection instruction without changing any other behaviour; a subclass
+    #: value takes precedence over any registered/loaded template.
+    reflection_prompt: ClassVar[str] = _reflection_prompt.default
 
     def __init__(
         self,
@@ -84,7 +92,10 @@ class ReflectionCheck(Knot):
                 f"ReflectionCheck: llm must be an LLMProvider, got {type(llm).__name__}"
             )
         wire_messages = (
-            {"role": "system", "content": type(self).reflection_prompt},
+            {
+                "role": "system",
+                "content": type(self)._reflection_prompt.resolve(type(self).reflection_prompt),
+            },
             {"role": "user", "content": response.content},
         )
         raw = await llm.chat(messages=wire_messages)

@@ -16,12 +16,13 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.reflection.constitutional_violation_error import (
     ConstitutionalViolationError,
 )
@@ -38,11 +39,14 @@ class ConstitutionalFilter(Knot):
     :class:`ConstitutionalViolationError` is raised.
     """
 
-    _evaluation_system: str = (
-        "You are a constitutional AI reviewer. Evaluate the response against "
-        "the principles listed below. If the response violates any principle, "
-        "describe the violation and provide a revised response that is compliant. "
-        "If the response is fully compliant, reply with exactly: COMPLIANT"
+    _evaluation_system: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.reflection.constitutional_filter.evaluation_system",
+        default=(
+            "You are a constitutional AI reviewer. Evaluate the response against "
+            "the principles listed below. If the response violates any principle, "
+            "describe the violation and provide a revised response that is compliant. "
+            "If the response is fully compliant, reply with exactly: COMPLIANT"
+        ),
     )
 
     def __init__(
@@ -106,7 +110,7 @@ class ConstitutionalFilter(Knot):
 
         for _i in range(max_revisions):
             messages = [
-                {"role": "system", "content": type(self)._evaluation_system},
+                {"role": "system", "content": type(self)._evaluation_system.resolve()},
                 {
                     "role": "user",
                     "content": (f"Principles:\n{principles_text}\n\nResponse:\n{current_content}"),

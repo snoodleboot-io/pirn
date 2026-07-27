@@ -16,13 +16,14 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.planning.plan import Plan
+from pirn_agents.prompt.prompt_binding import PromptBinding
 
 
 class TaskPlanner(Knot):
@@ -34,10 +35,13 @@ class TaskPlanner(Knot):
     stored as the plan's rationale.
     """
 
-    _planning_system: str = (
-        "You are an expert planner. Decompose the goal below into a numbered "
-        "list of clear, actionable steps. Use the format:\n"
-        "1. <first step>\n2. <second step>\n..."
+    _planning_system: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.plan_and_execute.task_planner.planning_system",
+        default=(
+            "You are an expert planner. Decompose the goal below into a numbered "
+            "list of clear, actionable steps. Use the format:\n"
+            "1. <first step>\n2. <second step>\n..."
+        ),
     )
 
     def __init__(
@@ -67,7 +71,7 @@ class TaskPlanner(Knot):
         if not isinstance(goal, str):
             raise TypeError(f"TaskPlanner: goal must be a string, got {type(goal).__name__}")
         messages = [
-            {"role": "system", "content": type(self)._planning_system},
+            {"role": "system", "content": type(self)._planning_system.resolve()},
             {"role": "user", "content": goal},
         ]
         raw = await llm.chat(messages=messages)

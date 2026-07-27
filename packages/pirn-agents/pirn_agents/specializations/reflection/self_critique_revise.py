@@ -18,12 +18,13 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
@@ -39,17 +40,27 @@ class SelfCritiqueRevise(Knot):
     The final revised answer is returned as an :class:`AgentResponse`.
     """
 
-    _generation_system: str = (
-        "You are a helpful assistant. Answer the question as accurately and completely as you can."
+    _generation_system: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.reflection.self_critique_revise.generation_system",
+        default=(
+            "You are a helpful assistant. Answer the question as accurately "
+            "and completely as you can."
+        ),
     )
-    _critique_system: str = (
-        "You are a critical reviewer. Identify the main weaknesses, errors, "
-        "or gaps in the following answer. Be concise and specific."
+    _critique_system: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.reflection.self_critique_revise.critique_system",
+        default=(
+            "You are a critical reviewer. Identify the main weaknesses, errors, "
+            "or gaps in the following answer. Be concise and specific."
+        ),
     )
-    _revision_system: str = (
-        "You are a helpful assistant. Given the original question, the initial "
-        "answer, and a critique of that answer, produce an improved final answer "
-        "that addresses the critique."
+    _revision_system: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.reflection.self_critique_revise.revision_system",
+        default=(
+            "You are a helpful assistant. Given the original question, the initial "
+            "answer, and a critique of that answer, produce an improved final answer "
+            "that addresses the critique."
+        ),
     )
 
     def __init__(
@@ -85,7 +96,7 @@ class SelfCritiqueRevise(Knot):
             )
         initial_raw = await llm.chat(
             messages=[
-                {"role": "system", "content": type(self)._generation_system},
+                {"role": "system", "content": type(self)._generation_system.resolve()},
                 {"role": "user", "content": prompt},
             ]
         )
@@ -93,7 +104,7 @@ class SelfCritiqueRevise(Knot):
 
         critique_raw = await llm.chat(
             messages=[
-                {"role": "system", "content": type(self)._critique_system},
+                {"role": "system", "content": type(self)._critique_system.resolve()},
                 {"role": "user", "content": initial},
             ]
         )
@@ -101,7 +112,7 @@ class SelfCritiqueRevise(Knot):
 
         revision_raw = await llm.chat(
             messages=[
-                {"role": "system", "content": type(self)._revision_system},
+                {"role": "system", "content": type(self)._revision_system.resolve()},
                 {
                     "role": "user",
                     "content": (

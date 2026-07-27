@@ -18,12 +18,13 @@ References:
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
@@ -41,13 +42,19 @@ class TreeOfThought(Knot):
     :class:`AgentResponse`.
     """
 
-    _expansion_system: str = (
-        "You are a reasoning assistant. Generate the next reasoning step "
-        "that continues the following thought chain."
+    _expansion_system: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.chain_of_thought.tree_of_thought.expansion_system",
+        default=(
+            "You are a reasoning assistant. Generate the next reasoning step "
+            "that continues the following thought chain."
+        ),
     )
-    _scoring_system: str = (
-        "You are a reasoning evaluator. Rate the quality of the following "
-        "reasoning step on a scale from 1 to 10. Reply with a single integer only."
+    _scoring_system: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.chain_of_thought.tree_of_thought.scoring_system",
+        default=(
+            "You are a reasoning evaluator. Rate the quality of the following "
+            "reasoning step on a scale from 1 to 10. Reply with a single integer only."
+        ),
     )
 
     def __init__(
@@ -132,7 +139,7 @@ class TreeOfThought(Knot):
 
     async def _expand(self, path: str, llm: LLMProvider, num_candidates: int) -> list[str]:
         messages = [
-            {"role": "system", "content": type(self)._expansion_system},
+            {"role": "system", "content": type(self)._expansion_system.resolve()},
             {"role": "user", "content": path},
         ]
         tasks = [llm.chat(messages=messages) for _ in range(num_candidates)]
@@ -141,7 +148,7 @@ class TreeOfThought(Knot):
 
     async def _score(self, path: str, llm: LLMProvider) -> float:
         messages = [
-            {"role": "system", "content": type(self)._scoring_system},
+            {"role": "system", "content": type(self)._scoring_system.resolve()},
             {"role": "user", "content": path},
         ]
         raw = await llm.chat(messages=messages)

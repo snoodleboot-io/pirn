@@ -17,13 +17,14 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.planning.plan import Plan
+from pirn_agents.prompt.prompt_binding import PromptBinding
 
 
 class PlanRevisor(Knot):
@@ -35,12 +36,15 @@ class PlanRevisor(Knot):
     to extract the revised steps.
     """
 
-    _revision_system: str = (
-        "You are an expert planner. A task plan has partially failed. "
-        "Given the original plan, the completed results so far, and the "
-        "failure reason, produce a revised numbered list of remaining steps "
-        "to recover and complete the goal. Use the format:\n"
-        "1. <first remaining step>\n2. <second remaining step>\n..."
+    _revision_system: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.plan_and_execute.plan_revisor.revision_system",
+        default=(
+            "You are an expert planner. A task plan has partially failed. "
+            "Given the original plan, the completed results so far, and the "
+            "failure reason, produce a revised numbered list of remaining steps "
+            "to recover and complete the goal. Use the format:\n"
+            "1. <first remaining step>\n2. <second remaining step>\n..."
+        ),
     )
 
     def __init__(
@@ -98,7 +102,7 @@ class PlanRevisor(Knot):
             f"Failure reason:\n{failure_reason}"
         )
         messages = [
-            {"role": "system", "content": type(self)._revision_system},
+            {"role": "system", "content": type(self)._revision_system.resolve()},
             {"role": "user", "content": user_content},
         ]
         raw = await llm.chat(messages=messages)
