@@ -1,7 +1,8 @@
 # Skeleton only (Phase 0 / SCD-02). NO source yet — `pirn/domains/agents`
 # moves to `pirn_agents/` during extraction (Phase 3 / R5). The `agents`
 # extra is empty by design (LLM/memory/tool providers are user-supplied); the
-# `agents→ml` edge is broken in Phase 2 (ADR-3), so this depends on core only.
+# `agents→ml` edge is broken in Phase 2 (ADR-3), so this depends on core plus the
+# one library it imports directly (pydantic) — and no provider backends.
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
@@ -12,7 +13,16 @@ version = "0.9.0"                          # lockstep (ADR-6)
 description = "pirn agents domain knots."
 requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
-dependencies = ["pirn-core>=0.9.0,<0.10.0"]  # lockstep floor (ADR-6 / constraint C4)
+# `pydantic` is a DIRECT dependency, not merely a transitive one via pirn-core:
+# `pirn_agents` imports it itself in ~16 modules (tool_schema_compiler, the
+# structured_output strategies, the graph_rag value models). Declaring it keeps
+# the install honest if pirn-core ever stops requiring it. It is a runtime
+# library, not a provider backend, so it does not belong in the extras matrix
+# (OD-4) and the base install stays backend-free.
+dependencies = [
+    "pirn-core>=0.9.0,<0.10.0", # lockstep floor (ADR-6 / constraint C4)
+    "pydantic>=2",
+]
 
 # --- extras matrix (OD-4): backends are lazily imported, so the base install
 # stays pirn-core-only (small wheel) and users add only what they use. Extras
