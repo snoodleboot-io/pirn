@@ -22,6 +22,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 
+from pirn_agents.agent.agent_nesting_config import AgentNestingConfig
 from pirn_agents.exceptions.agent_cycle_error import AgentCycleError
 from pirn_agents.exceptions.agent_depth_exceeded_error import (
     AgentDepthExceededError,
@@ -42,7 +43,9 @@ class AgentToolContext:
         Agent identity keys active from outermost to innermost, used for cycle
         detection.
     max_depth:
-        The maximum permitted nesting depth for this subtree.
+        The maximum permitted nesting depth for this subtree, defaulting to the
+        shared :class:`~pirn_agents.agent.agent_nesting_config.AgentNestingConfig`
+        cap.
     meter:
         Shared budget accountant threaded through every nested call, or ``None``
         when the caller configured no budget.
@@ -53,7 +56,7 @@ class AgentToolContext:
 
     depth: int = 0
     stack: tuple[str, ...] = ()
-    max_depth: int = 8
+    max_depth: int = AgentNestingConfig.max_depth
     meter: RunBudgetMeter | None = None
     provider: LLMProvider | None = field(default=None)
 

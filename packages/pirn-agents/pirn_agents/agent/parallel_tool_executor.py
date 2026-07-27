@@ -50,6 +50,7 @@ from pirn_agents.agent.async_fanout_engine import AsyncFanoutEngine
 from pirn_agents.exceptions.tool_not_found_error import ToolNotFoundError
 from pirn_agents.exceptions.tool_timeout_error import ToolTimeoutError
 from pirn_agents.llm.retry_policy import RetryPolicy
+from pirn_agents.performance.concurrency_config import ConcurrencyConfig
 from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_invocation_hook import ToolInvocationHook
@@ -82,7 +83,7 @@ class ParallelToolExecutor(AsyncFanoutEngine[ToolResult], Knot):
         *,
         tool_calls: Knot | Sequence[ToolCall],
         toolset: Knot | Toolset,
-        max_concurrency: int = 8,
+        max_concurrency: int = ConcurrencyConfig.max_concurrency,
         timeout: float | None = None,
         retries: int = 0,
         retry_policy: RetryPolicy | None = None,

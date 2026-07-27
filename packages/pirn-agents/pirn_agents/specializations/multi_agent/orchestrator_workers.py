@@ -34,6 +34,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.source import Source
 
+from pirn_agents.performance.concurrency_config import ConcurrencyConfig
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.multi_agent.orchestrator_workers_result import (
     OrchestratorWorkersResult,
@@ -52,7 +53,7 @@ class OrchestratorWorkers(AgentPipeline):
         *,
         tasks: Knot | Sequence[str],
         worker: Knot | Tool,
-        max_concurrency: Knot | int = 8,
+        max_concurrency: Knot | int = ConcurrencyConfig.max_concurrency,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
@@ -68,7 +69,7 @@ class OrchestratorWorkers(AgentPipeline):
         self,
         tasks: Sequence[str],
         worker: Tool,
-        max_concurrency: int = 8,
+        max_concurrency: int = ConcurrencyConfig.max_concurrency,
         **_: Any,
     ) -> Any:
         """Fan out workers over ``tasks`` and surface an aggregate result.
@@ -76,7 +77,9 @@ class OrchestratorWorkers(AgentPipeline):
         Args:
             tasks: The task-list items; worker count scales with its length.
             worker: The F7 agent-as-tool (or any :class:`Tool`) each task runs on.
-            max_concurrency: Upper bound on simultaneously running workers.
+            max_concurrency: Upper bound on simultaneously running workers;
+                defaults to the shared :class:`~pirn_agents.performance.concurrency_config.ConcurrencyConfig`
+                posture.
 
         Returns:
             A terminal :class:`Source` whose output is an

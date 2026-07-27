@@ -67,3 +67,6 @@ class TestNearDuplicateGrouperGrouping(unittest.TestCase):
         ]
         groups = grouper.group(records)
         assert groups[0][0].id == "a"
+
+    def test_audit_dict_emits_the_threshold(self) -> None:
+        assert NearDuplicateGrouper()._pirn_audit_dict() == {"threshold": 0.6}

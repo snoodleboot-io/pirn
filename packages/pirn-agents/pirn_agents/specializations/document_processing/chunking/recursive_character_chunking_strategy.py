@@ -12,6 +12,9 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from pirn_agents.specializations.document_processing.chunking.chunk import Chunk
+from pirn_agents.specializations.document_processing.chunking.chunking_config import (
+    ChunkingConfig,
+)
 from pirn_agents.specializations.document_processing.chunking.chunking_strategy import (
     ChunkingStrategy,
 )
@@ -23,8 +26,8 @@ class RecursiveCharacterChunkingStrategy(ChunkingStrategy):
     def __init__(
         self,
         *,
-        chunk_size: int = 1000,
-        chunk_overlap: int = 100,
+        chunk_size: int = ChunkingConfig.chunk_size,
+        chunk_overlap: int = ChunkingConfig.chunk_overlap,
         separators: Sequence[str] = ("\n\n", "\n", " ", ""),
     ) -> None:
         """Configure the size cap, overlap, and separator hierarchy.

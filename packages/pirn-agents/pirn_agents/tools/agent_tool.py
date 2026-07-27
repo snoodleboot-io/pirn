@@ -22,6 +22,7 @@ from typing import Any
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.agent.agent_invoker import AgentInvoker
+from pirn_agents.agent.agent_nesting_config import AgentNestingConfig
 from pirn_agents.agent.agent_schema_deriver import AgentSchemaDeriver
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.performance.run_budget import RunBudget
@@ -55,7 +56,7 @@ class AgentTool(Tool):
         input_schema: Mapping[str, Any] | None = None,
         provider: LLMProvider | None = None,
         budget: RunBudget | None = None,
-        max_depth: int = 8,
+        max_depth: int = AgentNestingConfig.max_depth,
     ) -> None:
         """Wrap ``agent`` as a tool.
 
@@ -67,7 +68,10 @@ class AgentTool(Tool):
                 from the agent's ``process`` signature when omitted.
             provider: A pooled provider nested agents should reuse.
             budget: A budget enforced across this tool's (possibly nested) run.
-            max_depth: Maximum agent-as-tool nesting depth.
+            max_depth: Maximum agent-as-tool nesting depth; defaults to the
+                shared
+                :class:`~pirn_agents.agent.agent_nesting_config.AgentNestingConfig`
+                cap.
 
         Raises:
             TypeError: If ``agent`` is not a ``SubTapestry`` or ``max_depth`` is
