@@ -28,7 +28,7 @@ None.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -42,11 +42,17 @@ from pirn_agents.memory.patterns.semantic_fact_writer import (
     SemanticFactWriter,
 )
 from pirn_agents.memory.stores.memory_store import MemoryStore
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.types.messaging.agent_message import AgentMessage
 
 
 class SemanticMemoryPipeline(SubTapestry):
     """Extract facts from messages and store them as semantic memories."""
+
+    _fact_extraction_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="memory.patterns.semantic_memory_pipeline.fact_extraction_prompt",
+        default="Extract key facts from the following conversation.",
+    )
 
     def __init__(
         self,
@@ -54,7 +60,7 @@ class SemanticMemoryPipeline(SubTapestry):
         messages: Knot | Sequence[AgentMessage],
         llm: Knot | LLMProvider,
         store: Knot | MemoryStore,
-        fact_extraction_prompt: Knot | str = ("Extract key facts from the following conversation."),
+        fact_extraction_prompt: Knot | str = _fact_extraction_prompt.default,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
@@ -72,7 +78,7 @@ class SemanticMemoryPipeline(SubTapestry):
         messages: Sequence[AgentMessage],
         llm: LLMProvider,
         store: MemoryStore,
-        fact_extraction_prompt: str = "Extract key facts from the following conversation.",
+        fact_extraction_prompt: str = _fact_extraction_prompt.default,
         **_: Any,
     ) -> Any:
         """Extract factual claims from messages via the LLM and persist them, returning the count written.
@@ -107,7 +113,9 @@ class SemanticMemoryPipeline(SubTapestry):
         facts = SemanticFactExtractor(
             messages=seed_messages,
             llm=llm,
-            fact_extraction_prompt=fact_extraction_prompt,
+            fact_extraction_prompt=type(self)._fact_extraction_prompt.resolve(
+                fact_extraction_prompt
+            ),
             _config=KnotConfig(id="extract"),
         )
         return SemanticFactWriter(

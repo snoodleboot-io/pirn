@@ -22,18 +22,29 @@ References:
 from __future__ import annotations
 
 import re
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.tools.tool_call import ToolCall
 
 
 class ReWooPlanner(Knot):
     """Emit the full ordered :class:`ToolCall` plan in a single LLM round-trip."""
+
+    _planning_system: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.rewoo.rewoo_planner.planning_system",
+        default=(
+            "You are a planner. Decompose the goal into a numbered list of "
+            "independent tool calls that can all run in parallel. Emit each on "
+            "its own line as '<n>. <tool_name>: <input>' using only the listed "
+            "tools. Do not execute them; only plan."
+        ),
+    )
 
     def __init__(
         self,
@@ -82,12 +93,7 @@ class ReWooPlanner(Knot):
                 "ReWooPlanner: tool_descriptions must be a string, got "
                 f"{type(tool_descriptions).__name__}"
             )
-        planning_system = (
-            "You are a planner. Decompose the goal into a numbered list of "
-            "independent tool calls that can all run in parallel. Emit each on "
-            "its own line as '<n>. <tool_name>: <input>' using only the listed "
-            "tools. Do not execute them; only plan."
-        )
+        planning_system = type(self)._planning_system.resolve()
         user = f"Goal:\n{goal}\n\nAvailable tools:\n{tool_descriptions}"
         raw = await llm.chat(
             messages=[

@@ -25,13 +25,14 @@ References:
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.source import Source
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.tools.tool import Tool
 from pirn_agents.types.messaging.agent_response import AgentResponse
@@ -39,6 +40,17 @@ from pirn_agents.types.messaging.agent_response import AgentResponse
 
 class AgenticRagPipeline(AgentPipeline):
     """Drive the RAG tool in a bounded agent loop, refining the question."""
+
+    _next_question_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.rag.agentic_rag_pipeline.next_question_prompt",
+        default=(
+            "You are an agent answering a question with a retrieval tool. Given the "
+            "original question and the tool's latest answer, reply with exactly 'DONE' if "
+            "the answer fully resolves the question, or 'FOLLOWUP: <a more specific "
+            "question>' otherwise.\n\nOriginal question: {{ query }}\n\n"
+            "Latest answer: {{ answer }}"
+        ),
+    )
 
     def __init__(
         self,
@@ -120,12 +132,7 @@ class AgenticRagPipeline(AgentPipeline):
     @staticmethod
     async def _next_question(llm: LLMProvider, query: str, answer: str) -> str | None:
         """Ask the LLM for a follow-up question, or ``None`` when the answer suffices."""
-        prompt = (
-            "You are an agent answering a question with a retrieval tool. Given the "
-            "original question and the tool's latest answer, reply with exactly 'DONE' if "
-            "the answer fully resolves the question, or 'FOLLOWUP: <a more specific "
-            f"question>' otherwise.\n\nOriginal question: {query}\n\nLatest answer: {answer}"
-        )
+        prompt = AgenticRagPipeline._next_question_prompt.render({"query": query, "answer": answer})
         raw = await llm.chat([{"role": "user", "content": prompt}])
         reply = AgenticRagPipeline._extract_text(raw).strip()
         if reply.upper().startswith("FOLLOWUP:"):

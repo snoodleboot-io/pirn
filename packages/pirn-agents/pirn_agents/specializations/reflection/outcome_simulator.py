@@ -16,12 +16,13 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.reflection.simulation_result import SimulationResult
 
 
@@ -35,11 +36,14 @@ class OutcomeSimulator(Knot):
     response, an empty string is used for that field.
     """
 
-    _simulation_system: str = (
-        "You are a strategic advisor. Given the proposed action below, "
-        "simulate three plausible outcomes. Use exactly these section headers "
-        "on their own lines:\nBest case:\nNeutral case:\nWorst case:\n"
-        "Provide a concise description under each header."
+    _simulation_system: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.reflection.outcome_simulator.simulation_system",
+        default=(
+            "You are a strategic advisor. Given the proposed action below, "
+            "simulate three plausible outcomes. Use exactly these section headers "
+            "on their own lines:\nBest case:\nNeutral case:\nWorst case:\n"
+            "Provide a concise description under each header."
+        ),
     )
 
     def __init__(
@@ -74,7 +78,7 @@ class OutcomeSimulator(Knot):
                 f"OutcomeSimulator: action must be a string, got {type(action).__name__}"
             )
         messages = [
-            {"role": "system", "content": type(self)._simulation_system},
+            {"role": "system", "content": type(self)._simulation_system.resolve()},
             {"role": "user", "content": action},
         ]
         raw = await llm.chat(messages=messages)

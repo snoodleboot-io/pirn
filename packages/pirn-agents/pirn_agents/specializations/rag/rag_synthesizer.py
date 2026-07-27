@@ -26,17 +26,30 @@ References:
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class RAGSynthesizer(Knot):
     """Synthesize a grounded answer from retrieved documents + query."""
+
+    _synthesis_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.rag.rag_synthesizer.synthesis_prompt",
+        default=(
+            "Answer the following question using only the provided source "
+            "passages. Cite each passage you draw on using its bracketed "
+            "number (e.g. [1]).\n\n"
+            "Question: {{ query }}\n\n"
+            "Sources:\n{{ context }}\n\n"
+            "Answer:"
+        ),
+    )
 
     def __init__(
         self,
@@ -84,14 +97,7 @@ class RAGSynthesizer(Knot):
             text = self._doc_text(doc)
             doc_blocks.append(f"[{index + 1}] {text}")
         context = "\n\n".join(doc_blocks) if doc_blocks else "(no documents retrieved)"
-        prompt = (
-            "Answer the following question using only the provided source "
-            "passages. Cite each passage you draw on using its bracketed "
-            "number (e.g. [1]).\n\n"
-            f"Question: {query}\n\n"
-            f"Sources:\n{context}\n\n"
-            "Answer:"
-        )
+        prompt = type(self)._synthesis_prompt.render({"query": query, "context": context})
         raw = await llm.chat([{"role": "user", "content": prompt}])
         content = self._extract_text(raw)
         return AgentResponse(content=content, finish_reason="stop")

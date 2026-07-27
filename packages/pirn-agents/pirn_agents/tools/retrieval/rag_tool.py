@@ -10,15 +10,24 @@ module load.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.tools.base_tool import BaseTool
 
 
 class RagTool(BaseTool):
     """Answer a question by retrieving context and prompting an LLM with it."""
+
+    _system_prompt_binding: ClassVar[PromptBinding] = PromptBinding(
+        name="tools.retrieval.rag_tool.system_prompt",
+        default=(
+            "Answer the question using only the provided context. "
+            "If the context is insufficient, say so."
+        ),
+    )
 
     def __init__(
         self,
@@ -52,10 +61,7 @@ class RagTool(BaseTool):
         self._llm: LLMProvider = llm
         self._top_k = top_k
         self._model = model
-        self._system_prompt = system_prompt or (
-            "Answer the question using only the provided context. "
-            "If the context is insufficient, say so."
-        )
+        self._system_prompt: str | None = system_prompt or None
 
     @property
     def name(self) -> str:
@@ -93,7 +99,10 @@ class RagTool(BaseTool):
         sources = await self._collect(question)
         context = self._format_context(sources)
         messages = [
-            {"role": "system", "content": self._system_prompt},
+            {
+                "role": "system",
+                "content": type(self)._system_prompt_binding.resolve(self._system_prompt),
+            },
             {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {question}"},
         ]
         response = await self._llm.chat(messages, model=self._model)

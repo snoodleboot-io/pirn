@@ -15,16 +15,26 @@ Internal API.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 
 
 class _ChunkTranslator(Knot):
     """Translate each chunk via the LLM and concatenate."""
+
+    _system_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.document_processing._chunk_translator.system_prompt",
+        default=(
+            "Translate the supplied text into {{ target_language }}. "
+            "Preserve formatting and named entities. Reply with the "
+            "translation only — no commentary."
+        ),
+    )
 
     def __init__(
         self,
@@ -63,10 +73,8 @@ class _ChunkTranslator(Knot):
             chat_messages = [
                 {
                     "role": "system",
-                    "content": (
-                        f"Translate the supplied text into {target_language}. "
-                        "Preserve formatting and named entities. Reply with the "
-                        "translation only — no commentary."
+                    "content": type(self)._system_prompt.render(
+                        {"target_language": target_language},
                     ),
                 },
                 {"role": "user", "content": chunk},

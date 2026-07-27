@@ -23,17 +23,28 @@ References:
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.interfaces.router import Router
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 
 
 class IntentRouter(Router):
     """LLM-based intent classifier; returns a category label string."""
+
+    _classification_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.routing.intent_router.classification_prompt",
+        default=(
+            "Classify the following message into exactly one of these "
+            "categories: {{ categories }}.\n"
+            "Reply with the category name only.\n\n"
+            "Message: {{ message }}"
+        ),
+    )
 
     def __init__(
         self,
@@ -80,11 +91,8 @@ class IntentRouter(Router):
         if not isinstance(message, str):
             raise TypeError(f"IntentRouter: message must be a string, got {type(message).__name__}")
         category_list = ", ".join(categories_tuple)
-        prompt = (
-            f"Classify the following message into exactly one of these "
-            f"categories: {category_list}.\n"
-            "Reply with the category name only.\n\n"
-            f"Message: {message}"
+        prompt = type(self)._classification_prompt.render(
+            {"categories": category_list, "message": message},
         )
         raw = await llm.chat([{"role": "user", "content": prompt}])
         label = self._extract_text(raw).strip()

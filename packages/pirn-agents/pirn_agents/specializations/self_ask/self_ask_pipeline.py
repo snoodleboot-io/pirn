@@ -18,13 +18,14 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.source import Source
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.specializations.self_ask.self_ask_result import SelfAskResult
@@ -32,6 +33,24 @@ from pirn_agents.specializations.self_ask.self_ask_result import SelfAskResult
 
 class SelfAskPipeline(AgentPipeline):
     """Decompose a task into sub-questions, answer each, then compose."""
+
+    _decompose_system: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.self_ask.self_ask_pipeline.decompose_system",
+        default=(
+            "Break the question into the follow-up sub-questions needed to "
+            "answer it. List each on its own line prefixed with '- '."
+        ),
+    )
+
+    _subanswer_system: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.self_ask.self_ask_pipeline.subanswer_system",
+        default="Answer the sub-question concisely.",
+    )
+
+    _compose_system: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.self_ask.self_ask_pipeline.compose_system",
+        default="Using the sub-answers, give the final answer to the question.",
+    )
 
     def __init__(
         self,
@@ -88,10 +107,7 @@ class SelfAskPipeline(AgentPipeline):
             messages=[
                 {
                     "role": "system",
-                    "content": (
-                        "Break the question into the follow-up sub-questions needed to "
-                        "answer it. List each on its own line prefixed with '- '."
-                    ),
+                    "content": type(self)._decompose_system.resolve(),
                 },
                 {"role": "user", "content": task},
             ]
@@ -106,7 +122,10 @@ class SelfAskPipeline(AgentPipeline):
         for subquestion in subquestions:
             answer_raw = await llm.chat(
                 messages=[
-                    {"role": "system", "content": "Answer the sub-question concisely."},
+                    {
+                        "role": "system",
+                        "content": type(self)._subanswer_system.resolve(),
+                    },
                     {"role": "user", "content": subquestion},
                 ]
             )
@@ -117,7 +136,7 @@ class SelfAskPipeline(AgentPipeline):
             messages=[
                 {
                     "role": "system",
-                    "content": "Using the sub-answers, give the final answer to the question.",
+                    "content": type(self)._compose_system.resolve(),
                 },
                 {"role": "user", "content": f"Question:\n{task}\n\n{pairs}"},
             ]

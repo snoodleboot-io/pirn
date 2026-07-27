@@ -12,17 +12,23 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.llm_response_text import LlmResponseText
 
 
 class CandidateGenerator(Knot):
     """Generate a candidate answer for the task, refining on prior feedback."""
+
+    _system_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.evaluator_optimizer.candidate_generator.system_prompt",
+        default="You are a careful writer. Produce the best answer you can to the task.",
+    )
 
     def __init__(
         self,
@@ -66,7 +72,7 @@ class CandidateGenerator(Knot):
             raise TypeError(
                 f"CandidateGenerator: feedback must be a string, got {type(feedback).__name__}"
             )
-        system = "You are a careful writer. Produce the best answer you can to the task."
+        system = type(self)._system_prompt.resolve()
         user = task if not feedback else f"{task}\n\nImprove on this feedback:\n{feedback}"
         raw = await llm.chat(
             messages=[

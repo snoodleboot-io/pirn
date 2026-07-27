@@ -23,16 +23,29 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 
 
 class SelfQueryFilterExtractor(Knot):
     """Split a query into a semantic query and a whitelisted metadata filter."""
+
+    _extraction_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.rag.self_query_filter_extractor.extraction_prompt",
+        default=(
+            "Split the query into a semantic search string and structured metadata "
+            "filters. Only use these filter fields: "
+            "{{ fields }}. Respond with a JSON object of the form "
+            '{"query": "<semantic text>", "filter": {"field": value}}. '
+            "Use an empty filter object when no structured constraint applies.\n\n"
+            "Query: {{ query }}"
+        ),
+    )
 
     def __init__(
         self,
@@ -81,14 +94,7 @@ class SelfQueryFilterExtractor(Knot):
                 f"SelfQueryFilterExtractor: llm must be an LLMProvider, got {type(llm).__name__}"
             )
         fields = ", ".join(filterable_fields) if filterable_fields else "(none)"
-        prompt = (
-            "Split the query into a semantic search string and structured metadata "
-            "filters. Only use these filter fields: "
-            f"{fields}. Respond with a JSON object of the form "
-            '{"query": "<semantic text>", "filter": {"field": value}}. '
-            "Use an empty filter object when no structured constraint applies.\n\n"
-            f"Query: {query}"
-        )
+        prompt = type(self)._extraction_prompt.render({"fields": fields, "query": query})
         raw = await llm.chat([{"role": "user", "content": prompt}])
         semantic_query, metadata_filter = self._parse(self._extract_text(raw), query)
         allowed = set(filterable_fields)

@@ -32,18 +32,27 @@ References:
 from __future__ import annotations
 
 import math
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class _QARetrieveAndAnswer(Knot):
     """Embed chunks + question, pick top-k by cosine, ask the LLM."""
+
+    _answer_system: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.document_processing._qa_retrieve_and_answer.answer_system",
+        default=(
+            "Answer the user's question using the supplied document "
+            "excerpts. If the excerpts are insufficient, say so."
+        ),
+    )
 
     def __init__(
         self,
@@ -115,10 +124,7 @@ class _QARetrieveAndAnswer(Knot):
         chat_messages = [
             {
                 "role": "system",
-                "content": (
-                    "Answer the user's question using the supplied document "
-                    "excerpts. If the excerpts are insufficient, say so."
-                ),
+                "content": type(self)._answer_system.resolve(),
             },
             {
                 "role": "user",

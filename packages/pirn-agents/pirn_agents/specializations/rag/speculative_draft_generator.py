@@ -16,16 +16,26 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 
 
 class SpeculativeDraftGenerator(Knot):
     """Produce a fast, retrieval-free draft answer from the query alone."""
+
+    _draft_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.rag.speculative_draft_generator.draft_prompt",
+        default=(
+            "Give a concise best-effort answer to the question from your own knowledge. "
+            "This is a fast draft that will be verified against sources afterwards.\n\n"
+            "Question: {{ query }}\nDraft answer:"
+        ),
+    )
 
     def __init__(
         self,
@@ -63,11 +73,7 @@ class SpeculativeDraftGenerator(Knot):
             raise TypeError(
                 f"SpeculativeDraftGenerator: llm must be an LLMProvider, got {type(llm).__name__}"
             )
-        prompt = (
-            "Give a concise best-effort answer to the question from your own knowledge. "
-            "This is a fast draft that will be verified against sources afterwards.\n\n"
-            f"Question: {query}\nDraft answer:"
-        )
+        prompt = type(self)._draft_prompt.render({"query": query})
         raw = await llm.chat([{"role": "user", "content": prompt}])
         return self._extract_text(raw)
 

@@ -19,16 +19,25 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 
 
 class QueryRouteClassifier(Knot):
     """Classify a query to one of ``route_names`` using the LLM."""
+
+    _route_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.rag.query_route_classifier.route_prompt",
+        default=(
+            "Choose the single most appropriate route for the query from this list: "
+            "{{ options }}. Reply with only the route name.\n\nQuery: {{ query }}"
+        ),
+    )
 
     def __init__(
         self,
@@ -80,10 +89,7 @@ class QueryRouteClassifier(Knot):
         if not route_names:
             raise ValueError("QueryRouteClassifier: route_names must be non-empty")
         options = ", ".join(route_names)
-        prompt = (
-            "Choose the single most appropriate route for the query from this list: "
-            f"{options}. Reply with only the route name.\n\nQuery: {query}"
-        )
+        prompt = type(self)._route_prompt.render({"options": options, "query": query})
         raw = await llm.chat([{"role": "user", "content": prompt}])
         reply = self._extract_text(raw).strip().lower()
         for name in route_names:

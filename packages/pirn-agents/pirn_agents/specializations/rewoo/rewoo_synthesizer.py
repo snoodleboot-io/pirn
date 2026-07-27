@@ -19,12 +19,13 @@ References:
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.specializations.rewoo.rewoo_result import ReWooResult
 from pirn_agents.tools.tool_call import ToolCall
@@ -33,6 +34,14 @@ from pirn_agents.tools.tool_result import ToolResult
 
 class ReWooSynthesizer(Knot):
     """Synthesise the final :class:`ReWooResult` from the parallel evidence."""
+
+    _synthesis_system: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.rewoo.rewoo_synthesizer.synthesis_system",
+        default=(
+            "You are a solver. Using only the tool evidence below, write the "
+            "final answer to the goal. Be concise and do not call any more tools."
+        ),
+    )
 
     def __init__(
         self,
@@ -95,10 +104,7 @@ class ReWooSynthesizer(Knot):
                     f"{type(result).__name__}"
                 )
         evidence = self._render_evidence(plan_tuple, results_tuple)
-        synthesis_system = (
-            "You are a solver. Using only the tool evidence below, write the "
-            "final answer to the goal. Be concise and do not call any more tools."
-        )
+        synthesis_system = type(self)._synthesis_system.resolve()
         user = f"Goal:\n{goal}\n\nEvidence:\n{evidence}"
         raw = await llm.chat(
             messages=[

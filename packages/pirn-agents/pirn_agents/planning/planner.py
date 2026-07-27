@@ -25,6 +25,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.planning.plan import Plan
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.types.messaging.agent_context import AgentContext
 
 
@@ -36,12 +37,21 @@ class Planner(Knot):
     rationale; everything else becomes a step.
     """
 
-    planning_instruction: ClassVar[str] = (
-        "You are a planning assistant. Given the conversation so far, "
-        "produce a numbered list of concrete steps the agent should "
-        "take next. One step per line. Lines starting with '#' are "
-        "treated as rationale and may explain your reasoning."
+    #: Registry binding backing :attr:`planning_instruction`; see ``prompt/PROMPTS.md``.
+    _planning_instruction: ClassVar[PromptBinding] = PromptBinding(
+        name="planning.planner.planning_instruction",
+        default=(
+            "You are a planning assistant. Given the conversation so far, "
+            "produce a numbered list of concrete steps the agent should "
+            "take next. One step per line. Lines starting with '#' are "
+            "treated as rationale and may explain your reasoning."
+        ),
     )
+
+    #: System prompt sent to the LLM. Override on a subclass to customise the
+    #: planning instruction; a subclass value takes precedence over any
+    #: registered/loaded template.
+    planning_instruction: ClassVar[str] = _planning_instruction.default
 
     def __init__(
         self,
@@ -84,7 +94,12 @@ class Planner(Knot):
         if not isinstance(llm, LLMProvider):
             raise TypeError(f"Planner: llm must be an LLMProvider, got {type(llm).__name__}")
         wire_messages: list[dict[str, str]] = [
-            {"role": "system", "content": type(self).planning_instruction}
+            {
+                "role": "system",
+                "content": type(self)._planning_instruction.resolve(
+                    type(self).planning_instruction
+                ),
+            }
         ]
         for message in context.messages:
             wire_messages.append({"role": message.role, "content": message.content})

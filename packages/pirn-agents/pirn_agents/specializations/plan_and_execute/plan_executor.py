@@ -16,13 +16,14 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.planning.plan import Plan
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
@@ -34,9 +35,12 @@ class PlanExecutor(Knot):
     All step outputs are concatenated into the final :class:`AgentResponse`.
     """
 
-    _step_system: str = (
-        "You are a task executor. Complete the given step accurately and concisely. "
-        "Use the previous step results as context where relevant."
+    _step_system: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.plan_and_execute.plan_executor.step_system",
+        default=(
+            "You are a task executor. Complete the given step accurately and concisely. "
+            "Use the previous step results as context where relevant."
+        ),
     )
 
     def __init__(
@@ -76,7 +80,7 @@ class PlanExecutor(Knot):
                 else f"{prior_context}\n\nStep {index + 1}: {step}"
             )
             messages = [
-                {"role": "system", "content": type(self)._step_system},
+                {"role": "system", "content": type(self)._step_system.resolve()},
                 {"role": "user", "content": user_content},
             ]
             raw = await llm.chat(messages=messages)

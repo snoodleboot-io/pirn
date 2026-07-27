@@ -16,12 +16,13 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
@@ -36,15 +37,21 @@ class StepBackPrompting(Knot):
        original question to elicit a grounded final response.
     """
 
-    _step_back_system: str = (
-        "You are an expert at identifying the underlying principles and "
-        "concepts relevant to a question. Given the question below, first "
-        "ask and answer a more abstract, high-level question whose answer "
-        "would be useful context for answering the original question."
+    _step_back_system: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.chain_of_thought.step_back_prompting.step_back_system",
+        default=(
+            "You are an expert at identifying the underlying principles and "
+            "concepts relevant to a question. Given the question below, first "
+            "ask and answer a more abstract, high-level question whose answer "
+            "would be useful context for answering the original question."
+        ),
     )
-    _forward_system: str = (
-        "You are a helpful assistant. Use the provided background principles "
-        "to answer the original question accurately."
+    _forward_system: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.chain_of_thought.step_back_prompting.forward_system",
+        default=(
+            "You are a helpful assistant. Use the provided background principles "
+            "to answer the original question accurately."
+        ),
     )
 
     def __init__(
@@ -79,14 +86,14 @@ class StepBackPrompting(Knot):
                 f"StepBackPrompting: llm must be an LLMProvider, got {type(llm).__name__}"
             )
         step_back_messages = [
-            {"role": "system", "content": type(self)._step_back_system},
+            {"role": "system", "content": type(self)._step_back_system.resolve()},
             {"role": "user", "content": prompt},
         ]
         step_back_raw = await llm.chat(messages=step_back_messages)
         step_back_answer = self._extract_text(step_back_raw)
 
         forward_messages = [
-            {"role": "system", "content": type(self)._forward_system},
+            {"role": "system", "content": type(self)._forward_system.resolve()},
             {
                 "role": "user",
                 "content": (

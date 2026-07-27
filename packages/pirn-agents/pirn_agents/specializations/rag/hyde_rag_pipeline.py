@@ -32,13 +32,14 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.rag.llm_chat_call import LLMChatCall
 from pirn_agents.specializations.rag.memory_search_retriever import (
@@ -54,6 +55,15 @@ from pirn_agents.specializations.rag.rag_response_builder import (
 
 class HyDERAGPipeline(AgentPipeline):
     """Hypothesis-first RAG: draft answer → retrieve → final answer."""
+
+    _hypothesis_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.rag.hyde_rag_pipeline.hypothesis_prompt",
+        default=(
+            "Sketch a concise hypothetical answer to the following question. "
+            "Use plausible terminology even if uncertain.\n\n"
+            "Question: {{ query }}\nHypothetical answer:"
+        ),
+    )
 
     def __init__(
         self,
@@ -83,11 +93,7 @@ class HyDERAGPipeline(AgentPipeline):
         Raises:
             TypeError: If query is not a string.
         """
-        hypothesis_prompt = (
-            "Sketch a concise hypothetical answer to the following question. "
-            "Use plausible terminology even if uncertain.\n\n"
-            f"Question: {query}\nHypothetical answer:"
-        )
+        hypothesis_prompt = type(self)._hypothesis_prompt.render({"query": query})
         hypothesis = LLMChatCall(
             prompt=hypothesis_prompt,
             llm=llm,

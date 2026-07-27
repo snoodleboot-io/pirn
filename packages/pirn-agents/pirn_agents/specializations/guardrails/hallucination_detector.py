@@ -29,17 +29,30 @@ References:
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class HallucinationDetector(Knot):
     """LLM-based hallucination detector against provided source documents."""
+
+    _detection_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.guardrails.hallucination_detector.detection_prompt",
+        default=(
+            "You are a hallucination detector. Given the sources and a response, "
+            "list any claims in the response that are NOT supported by the sources.\n"
+            "Return one unsupported claim per line. If all claims are supported, "
+            "reply with exactly: NONE\n\n"
+            "Sources:\n{{ sources }}\n\n"
+            "Response:\n{{ response }}"
+        ),
+    )
 
     def __init__(
         self,
@@ -77,13 +90,8 @@ class HallucinationDetector(Knot):
                 f"got {type(response).__name__}"
             )
         sources_text = "\n\n".join(f"[Source {i + 1}]: {src}" for i, src in enumerate(sources))
-        prompt = (
-            "You are a hallucination detector. Given the sources and a response, "
-            "list any claims in the response that are NOT supported by the sources.\n"
-            "Return one unsupported claim per line. If all claims are supported, "
-            "reply with exactly: NONE\n\n"
-            f"Sources:\n{sources_text}\n\n"
-            f"Response:\n{response.content}"
+        prompt = type(self)._detection_prompt.render(
+            {"sources": sources_text, "response": response.content},
         )
         raw = await llm.chat([{"role": "user", "content": prompt}])
         text = self._extract_text(raw).strip()

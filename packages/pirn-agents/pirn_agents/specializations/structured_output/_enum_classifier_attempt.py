@@ -20,16 +20,26 @@ References:
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 
 
 class _EnumClassifierAttempt(Knot):
     """Single LLM call: prompt, parse the reply, return the matched label."""
+
+    _system_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.structured_output._enum_classifier_attempt.system_prompt",
+        default=(
+            "You are a classifier. Choose exactly one label from the list "
+            "{{ labels }}. Reply with the label only — no "
+            "punctuation, prose, or quoting."
+        ),
+    )
 
     def __init__(
         self,
@@ -63,10 +73,8 @@ class _EnumClassifierAttempt(Knot):
             )
         labels_tuple = tuple(labels)
         lower_index = {label.lower(): label for label in labels_tuple}
-        system_message = (
-            "You are a classifier. Choose exactly one label from the list "
-            f"{list(labels_tuple)!r}. Reply with the label only — no "
-            "punctuation, prose, or quoting."
+        system_message = type(self)._system_prompt.render(
+            {"labels": repr(list(labels_tuple))},
         )
         chat_messages = [
             {"role": "system", "content": system_message},

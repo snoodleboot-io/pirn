@@ -29,14 +29,28 @@ References:
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents.prompt.prompt_binding import PromptBinding
+
 
 class RAGPromptBuilder(Knot):
     """Build a context-augmented prompt for a RAG pipeline."""
+
+    _instruction: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.rag.rag_prompt_builder.instruction",
+        default="Answer the question using the retrieved context.",
+    )
+
+    _prompt_layout: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.rag.rag_prompt_builder.prompt_layout",
+        default=(
+            "{{ instruction }}\n\nContext:\n{{ context_block }}\n\nQuestion: {{ query }}\nAnswer:"
+        ),
+    )
 
     def __init__(
         self,
@@ -44,13 +58,27 @@ class RAGPromptBuilder(Knot):
         query: Knot | str,
         retrieved: Knot | list[Any],
         _config: KnotConfig,
-        instruction: Knot | str = ("Answer the question using the retrieved context."),
+        instruction: Knot | str | None = None,
         **kwargs: Any,
     ) -> None:
+        """Wire the builder, defaulting ``instruction`` to the bound built-in.
+
+        Args:
+            query: The user query, or a knot producing it.
+            retrieved: The retrieved memory entries, or a knot producing them.
+            _config: The knot configuration.
+            instruction: The instruction line prepended to the context block.
+                ``None`` (the default) resolves :attr:`_instruction` *here*, at
+                construction time, rather than when this signature is evaluated
+                at import — so a prompt pack loaded during application start-up
+                still takes effect, and no ``PromptBinding`` ever escapes as a
+                parameter default where a ``str`` is expected.
+            **kwargs: Forwarded to :class:`Knot`.
+        """
         super().__init__(
             query=query,
             retrieved=retrieved,
-            instruction=instruction,
+            instruction=(type(self)._instruction.resolve() if instruction is None else instruction),
             _config=_config,
             **kwargs,
         )
@@ -93,4 +121,6 @@ class RAGPromptBuilder(Knot):
             context_block = "\n".join(rendered_hits)
         else:
             context_block = "(no context retrieved)"
-        return f"{instruction}\n\nContext:\n{context_block}\n\nQuestion: {query}\nAnswer:"
+        return type(self)._prompt_layout.render(
+            {"instruction": instruction, "context_block": context_block, "query": query}
+        )

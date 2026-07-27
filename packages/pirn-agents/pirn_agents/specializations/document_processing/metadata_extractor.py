@@ -29,16 +29,28 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 
 
 class MetadataExtractor(Knot):
     """Extract title, author, date, and summary from a document via LLM."""
+
+    _extraction_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.document_processing.metadata_extractor.extraction_prompt",
+        default=(
+            "Extract metadata from the document below.\n"
+            "Return a JSON object with these keys: "
+            "title, author, date, summary.\n"
+            "Use null for any field that cannot be determined.\n\n"
+            "Document:\n{{ document }}"
+        ),
+    )
 
     def __init__(
         self,
@@ -73,12 +85,8 @@ class MetadataExtractor(Knot):
             raise TypeError(
                 f"MetadataExtractor: document must be a string, got {type(document).__name__}"
             )
-        prompt = (
-            "Extract metadata from the document below.\n"
-            "Return a JSON object with these keys: "
-            "title, author, date, summary.\n"
-            "Use null for any field that cannot be determined.\n\n"
-            f"Document:\n{document}"
+        prompt = type(self)._extraction_prompt.render(
+            {"document": document},
         )
         raw = await llm.chat([{"role": "user", "content": prompt}])
         text = self._extract_text(raw).strip()

@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -35,6 +35,7 @@ from pirn.nodes.source import Source
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.rag.sentence_confidence_monitor import SentenceConfidenceMonitor
 from pirn_agents.types.messaging.agent_response import AgentResponse
@@ -42,6 +43,25 @@ from pirn_agents.types.messaging.agent_response import AgentResponse
 
 class FlareActiveRagPipeline(AgentPipeline):
     """Generate sentence-by-sentence, retrieving forward on low confidence."""
+
+    _generation_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.rag.flare_active_rag_pipeline.generation_prompt",
+        default=(
+            "Answer the question one sentence at a time. Reply with 'DONE' if the answer is "
+            "complete, otherwise reply exactly 'CONF=<0-1>: <the next sentence>' where the number "
+            "is your confidence.\n\nQuestion: {{ query }}\n\nAnswer so far: {{ so_far }}"
+        ),
+    )
+
+    _regeneration_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.rag.flare_active_rag_pipeline.regeneration_prompt",
+        default=(
+            "Rewrite the tentative sentence so it is fully supported by the evidence. Reply with "
+            "only the corrected sentence.\n\nQuestion: {{ query }}\n\n"
+            "Tentative sentence: {{ sentence }}\n\n"
+            "Evidence:\n{{ context }}"
+        ),
+    )
 
     def __init__(
         self,
@@ -161,20 +181,14 @@ class FlareActiveRagPipeline(AgentPipeline):
     def _generate_prompt(query: str, parts: list[str]) -> str:
         """Prompt the LLM for the next sentence with a confidence tag."""
         so_far = " ".join(parts) if parts else "(nothing yet)"
-        return (
-            "Answer the question one sentence at a time. Reply with 'DONE' if the answer is "
-            "complete, otherwise reply exactly 'CONF=<0-1>: <the next sentence>' where the number "
-            f"is your confidence.\n\nQuestion: {query}\n\nAnswer so far: {so_far}"
-        )
+        return FlareActiveRagPipeline._generation_prompt.render({"query": query, "so_far": so_far})
 
     @staticmethod
     def _regenerate_prompt(query: str, sentence: str, docs: list[Mapping[str, Any]]) -> str:
         """Prompt the LLM to rewrite a tentative sentence grounded in evidence."""
         context = "\n".join(str(doc) for doc in docs) or "(no evidence retrieved)"
-        return (
-            "Rewrite the tentative sentence so it is fully supported by the evidence. Reply with "
-            f"only the corrected sentence.\n\nQuestion: {query}\n\nTentative sentence: {sentence}\n\n"
-            f"Evidence:\n{context}"
+        return FlareActiveRagPipeline._regeneration_prompt.render(
+            {"query": query, "sentence": sentence, "context": context}
         )
 
     @staticmethod

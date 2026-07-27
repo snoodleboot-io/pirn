@@ -7,7 +7,6 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.tapestry import Tapestry
-
 from pirn_agents.prompt.prompt_render_error import PromptRenderError
 from pirn_agents.prompt.prompt_render_knot import PromptRenderKnot
 from pirn_agents.prompt.prompt_template import PromptTemplate

@@ -25,12 +25,13 @@ References:
 from __future__ import annotations
 
 import hashlib
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
 from pirn_agents.retrieval.vector_stores.vector_memory_store import VectorMemoryStore
 from pirn_agents.retrieval.vector_stores.vector_record import VectorRecord
@@ -40,6 +41,14 @@ from pirn_agents.specializations.rag.indexing.raptor_tree import RaptorTree
 
 class _RaptorAssembler(Knot):
     """Recursively cluster + summarize leaves into a stored RAPTOR tree."""
+
+    _summary_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.rag.indexing.raptor_assembler.summary_prompt",
+        default=(
+            "Summarize the following passages into one concise summary that preserves the "
+            "key facts.\n\n{{ joined }}\n\nSummary:"
+        ),
+    )
 
     def __init__(
         self,
@@ -194,10 +203,7 @@ class _RaptorAssembler(Knot):
     async def _summarize(llm: LLMProvider, texts: list[str]) -> str:
         """Summarize a cluster of node texts into one concise summary."""
         joined = "\n\n".join(texts)
-        prompt = (
-            "Summarize the following passages into one concise summary that preserves the "
-            f"key facts.\n\n{joined}\n\nSummary:"
-        )
+        prompt = _RaptorAssembler._summary_prompt.render({"joined": joined})
         raw = await llm.chat([{"role": "user", "content": prompt}])
         if isinstance(raw, str):
             return raw

@@ -23,17 +23,29 @@ References:
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class CitationGrounder(Knot):
     """Rewrite an AgentResponse to include inline citations to source passages."""
+
+    _grounding_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.guardrails.citation_grounder.grounding_prompt",
+        default=(
+            "Rewrite the following response to include inline citations "
+            "referencing the numbered source passages below. "
+            "Use the format [N] after each supported claim.\n\n"
+            "Sources:\n{{ sources }}\n\n"
+            "Response:\n{{ response }}"
+        ),
+    )
 
     def __init__(
         self,
@@ -71,12 +83,8 @@ class CitationGrounder(Knot):
                 f"got {type(response).__name__}"
             )
         sources_text = "\n\n".join(f"[{i + 1}]: {src}" for i, src in enumerate(sources))
-        prompt = (
-            "Rewrite the following response to include inline citations "
-            "referencing the numbered source passages below. "
-            "Use the format [N] after each supported claim.\n\n"
-            f"Sources:\n{sources_text}\n\n"
-            f"Response:\n{response.content}"
+        prompt = type(self)._grounding_prompt.render(
+            {"sources": sources_text, "response": response.content},
         )
         raw = await llm.chat([{"role": "user", "content": prompt}])
         new_content = self._extract_text(raw).strip()

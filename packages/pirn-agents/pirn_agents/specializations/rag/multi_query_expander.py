@@ -21,16 +21,27 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 
 
 class MultiQueryExpander(Knot):
     """Expand a query into up to ``num_queries`` reformulations via the LLM."""
+
+    _expansion_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.rag.multi_query_expander.expansion_prompt",
+        default=(
+            "Rewrite the following search query into {{ alternative_count }} alternative "
+            "phrasings that would retrieve relevant but differently-worded documents. "
+            "Return one phrasing per line with no numbering or commentary.\n\n"
+            "Query: {{ query }}"
+        ),
+    )
 
     def __init__(
         self,
@@ -84,11 +95,8 @@ class MultiQueryExpander(Knot):
             )
         variants: list[str] = [query]
         if num_queries > 1:
-            prompt = (
-                f"Rewrite the following search query into {num_queries - 1} alternative "
-                "phrasings that would retrieve relevant but differently-worded documents. "
-                "Return one phrasing per line with no numbering or commentary.\n\n"
-                f"Query: {query}"
+            prompt = type(self)._expansion_prompt.render(
+                {"alternative_count": num_queries - 1, "query": query}
             )
             raw = await llm.chat([{"role": "user", "content": prompt}])
             for line in self._extract_text(raw).splitlines():

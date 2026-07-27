@@ -18,12 +18,13 @@ References:
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.types.messaging.agent_context import AgentContext
 
 
@@ -36,6 +37,16 @@ class IntentClassifier(Knot):
     to the first intent that appears as a substring of the response. If
     nothing matches, raises ``ValueError``.
     """
+
+    _classification_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="input.intent_classifier.classification_prompt",
+        default=(
+            "Classify the following message into exactly one of these "
+            "intents: {{ intents }}.\n\n"
+            "Message: {{ message }}\n\n"
+            "Respond with the chosen intent label only."
+        ),
+    )
 
     def __init__(
         self,
@@ -96,11 +107,8 @@ class IntentClassifier(Knot):
                     f"non-empty string, got {intent!r}"
                 )
         last = self._last_user_content(context)
-        prompt = (
-            "Classify the following message into exactly one of these "
-            f"intents: {', '.join(intent_categories)}.\n\n"
-            f"Message: {last}\n\n"
-            "Respond with the chosen intent label only."
+        prompt = type(self)._classification_prompt.render(
+            {"intents": ", ".join(intent_categories), "message": last},
         )
         response = await llm.chat(
             messages=({"role": "user", "content": prompt},),

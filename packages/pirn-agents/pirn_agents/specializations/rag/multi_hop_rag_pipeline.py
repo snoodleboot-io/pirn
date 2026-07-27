@@ -31,7 +31,7 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -40,6 +40,7 @@ from pirn.tapestry import Tapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.rag.llm_chat_call import LLMChatCall
 from pirn_agents.specializations.rag.memory_search_retriever import (
@@ -56,6 +57,15 @@ from pirn_agents.types.messaging.agent_response import AgentResponse
 
 class MultiHopRAGPipeline(AgentPipeline):
     """Decompose question, retrieve per sub-question, synthesize final answer."""
+
+    _decompose_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.rag.multi_hop_rag_pipeline.decompose_prompt",
+        default=(
+            "Decompose the following question into exactly {{ num_hops }} "
+            "concise sub-questions, one per line, with no numbering or bullets.\n\n"
+            "Question: {{ query }}"
+        ),
+    )
 
     def __init__(
         self,
@@ -92,10 +102,8 @@ class MultiHopRAGPipeline(AgentPipeline):
         Raises:
             TypeError: If query is not a string.
         """
-        decompose_prompt = (
-            f"Decompose the following question into exactly {num_hops} "
-            "concise sub-questions, one per line, with no numbering or bullets.\n\n"
-            f"Question: {query}"
+        decompose_prompt = type(self)._decompose_prompt.render(
+            {"num_hops": num_hops, "query": query}
         )
         with Tapestry() as inner_decompose:
             LLMChatCall(

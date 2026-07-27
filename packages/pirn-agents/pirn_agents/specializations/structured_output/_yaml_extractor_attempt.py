@@ -25,17 +25,38 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, ClassVar
 
 import yaml
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 
 
 class _YamlExtractorAttempt(Knot):
     """Single LLM attempt: build the YAML prompt, call the LLM, parse YAML."""
+
+    _system_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.structured_output._yaml_extractor_attempt.system_prompt",
+        default=(
+            "You are a structured-output assistant.\n"
+            "Reply with a single valid YAML document only — no prose, no fences."
+        ),
+    )
+
+    _schema_instruction: ClassVar[PromptBinding] = PromptBinding(
+        name=("specializations.structured_output._yaml_extractor_attempt.schema_instruction"),
+        default="The YAML mapping must conform to this schema: {{ schema }}",
+    )
+
+    _retry_instruction: ClassVar[PromptBinding] = PromptBinding(
+        name=("specializations.structured_output._yaml_extractor_attempt.retry_instruction"),
+        default=(
+            "The previous attempt failed: {{ prior_error }}. Correct the error and respond again."
+        ),
+    )
 
     def __init__(
         self,
@@ -83,18 +104,18 @@ class _YamlExtractorAttempt(Knot):
                 f"YamlExtractorPipeline: prompt must be a string, got {type(prompt).__name__}"
             )
         schema_dict: dict[str, Any] | None = dict(schema) if schema is not None else None
-        system_lines = [
-            "You are a structured-output assistant.",
-            "Reply with a single valid YAML document only — no prose, no fences.",
-        ]
+        system_lines = [type(self)._system_prompt.resolve()]
         if schema_dict is not None:
             system_lines.append(
-                "The YAML mapping must conform to this schema: "
-                f"{json.dumps(schema_dict, sort_keys=True)}"
+                type(self)._schema_instruction.render(
+                    {"schema": json.dumps(schema_dict, sort_keys=True)},
+                )
             )
         if prior_error:
             system_lines.append(
-                f"The previous attempt failed: {prior_error}. Correct the error and respond again."
+                type(self)._retry_instruction.render(
+                    {"prior_error": prior_error},
+                )
             )
         chat_messages = [
             {"role": "system", "content": "\n".join(system_lines)},

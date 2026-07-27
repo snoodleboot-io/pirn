@@ -12,18 +12,27 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.specializations.reflexion.reflexion_evaluation import ReflexionEvaluation
 
 
 class ReflexionEvaluator(Knot):
     """Judge an attempt, returning a typed :class:`ReflexionEvaluation`."""
+
+    _system_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.reflexion.reflexion_evaluator.system_prompt",
+        default=(
+            "You are a strict evaluator. If the answer fully satisfies the task, "
+            "reply with exactly 'PASS'. Otherwise reply 'FAIL: <what to improve>'."
+        ),
+    )
 
     def __init__(
         self,
@@ -67,10 +76,7 @@ class ReflexionEvaluator(Knot):
             raise TypeError(
                 f"ReflexionEvaluator: answer must be a string, got {type(answer).__name__}"
             )
-        system = (
-            "You are a strict evaluator. If the answer fully satisfies the task, "
-            "reply with exactly 'PASS'. Otherwise reply 'FAIL: <what to improve>'."
-        )
+        system = type(self)._system_prompt.resolve()
         user = f"Task:\n{task}\n\nAnswer:\n{answer}"
         raw = await llm.chat(
             messages=[

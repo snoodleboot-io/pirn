@@ -43,18 +43,32 @@ References:
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.tools.tool import Tool
 from pirn_agents.types.messaging.agent_message import AgentMessage
 
 
 class ReActStepExecutor(Knot):
     """One ReAct iteration: thought → optional tool-call → observation."""
+
+    _react_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.react.react_step_executor.react_prompt",
+        default=(
+            "You are a ReAct agent. Available tools:\n"
+            "{{ tools }}\n\n"
+            "Conversation so far:\n"
+            "{{ conversation }}\n\n"
+            "Reason step-by-step. To act, emit:\n"
+            "Action: <tool_name>\nAction Input: <input>\n"
+            "Otherwise emit a Final Answer."
+        ),
+    )
 
     _final_answer_marker: str = "Final Answer:"
     _action_marker: str = "Action:"
@@ -138,14 +152,8 @@ class ReActStepExecutor(Knot):
             messages = tuple(context) if context else ()
         rendered = "\n".join(f"{m.role}: {m.content}" for m in messages)
         tool_lines = "\n".join(f"- {tool.name}: {tool.description}" for tool in tools)
-        return (
-            "You are a ReAct agent. Available tools:\n"
-            f"{tool_lines}\n\n"
-            "Conversation so far:\n"
-            f"{rendered}\n\n"
-            "Reason step-by-step. To act, emit:\n"
-            "Action: <tool_name>\nAction Input: <input>\n"
-            "Otherwise emit a Final Answer."
+        return type(self)._react_prompt.render(
+            {"tools": tool_lines, "conversation": rendered},
         )
 
     def _parse_action(self, text: str) -> tuple[str | None, str]:

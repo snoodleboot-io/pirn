@@ -21,16 +21,26 @@ References:
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 
 
 class ContextualChunkEnricher(Knot):
     """Prefix each chunk with an LLM-generated situating context sentence."""
+
+    _enrichment_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.rag.contextual_chunk_enricher.enrichment_prompt",
+        default=(
+            "Give a single short sentence that situates the following chunk within the "
+            "document, so it can be understood in isolation. Reply with only the sentence.\n\n"
+            "Document:\n{{ document_text }}\n\nChunk:\n{{ chunk_text }}"
+        ),
+    )
 
     def __init__(
         self,
@@ -83,10 +93,8 @@ class ContextualChunkEnricher(Knot):
         enriched: list[Mapping[str, Any]] = []
         for doc in documents:
             chunk_text = self._doc_text(doc)
-            prompt = (
-                "Give a single short sentence that situates the following chunk within the "
-                "document, so it can be understood in isolation. Reply with only the sentence.\n\n"
-                f"Document:\n{document_text}\n\nChunk:\n{chunk_text}"
+            prompt = type(self)._enrichment_prompt.render(
+                {"document_text": document_text, "chunk_text": chunk_text}
             )
             raw = await llm.chat([{"role": "user", "content": prompt}])
             context = self._extract_text(raw).strip()

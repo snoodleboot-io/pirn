@@ -20,16 +20,26 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 
 
 class _CodeGenerator(Knot):
     """Ask the LLM to emit code for the supplied task."""
+
+    _system_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.specialized_agents._code_generator.system_prompt",
+        default=(
+            "You are a senior {{ language }} engineer. Reply with "
+            "working {{ language }} code only — no prose, no "
+            "markdown fences, no explanation."
+        ),
+    )
 
     def __init__(
         self,
@@ -61,10 +71,8 @@ class _CodeGenerator(Knot):
         chat_messages = [
             {
                 "role": "system",
-                "content": (
-                    f"You are a senior {language} engineer. Reply with "
-                    f"working {language} code only — no prose, no "
-                    "markdown fences, no explanation."
+                "content": type(self)._system_prompt.render(
+                    {"language": language},
                 ),
             },
             {"role": "user", "content": task},

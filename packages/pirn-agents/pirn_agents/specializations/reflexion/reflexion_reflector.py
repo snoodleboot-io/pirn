@@ -12,17 +12,26 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.llm_response_text import LlmResponseText
 
 
 class ReflexionReflector(Knot):
     """Produce a verbal self-reflection from a failed attempt."""
+
+    _system_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.reflexion.reflexion_reflector.system_prompt",
+        default=(
+            "You are reflecting on a failed attempt. Write one short, concrete "
+            "lesson (a single sentence) to do better next time."
+        ),
+    )
 
     def __init__(
         self,
@@ -75,10 +84,7 @@ class ReflexionReflector(Knot):
                 raise TypeError(
                     f"ReflexionReflector: {name} must be a string, got {type(value).__name__}"
                 )
-        system = (
-            "You are reflecting on a failed attempt. Write one short, concrete "
-            "lesson (a single sentence) to do better next time."
-        )
+        system = type(self)._system_prompt.resolve()
         user = f"Task:\n{task}\n\nFailed answer:\n{answer}\n\nFeedback:\n{feedback}"
         raw = await llm.chat(
             messages=[

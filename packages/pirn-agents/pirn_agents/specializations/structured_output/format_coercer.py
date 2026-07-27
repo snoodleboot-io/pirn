@@ -21,17 +21,27 @@ References:
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class FormatCoercer(Knot):
     """Rewrite AgentResponse content to a target format via LLM if needed."""
+
+    _coercion_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.structured_output.format_coercer.coercion_prompt",
+        default=(
+            "Rewrite the following content in {{ target_format }} format. "
+            "Return only the reformatted content with no additional commentary.\n\n"
+            "Content:\n{{ content }}"
+        ),
+    )
 
     _supported_formats: frozenset[str] = frozenset({"json", "yaml", "markdown"})
 
@@ -83,10 +93,11 @@ class FormatCoercer(Knot):
             )
         if self._already_matches(response.content, target_format):
             return response
-        prompt = (
-            f"Rewrite the following content in {target_format} format. "
-            "Return only the reformatted content with no additional commentary.\n\n"
-            f"Content:\n{response.content}"
+        prompt = type(self)._coercion_prompt.render(
+            {
+                "target_format": target_format,
+                "content": response.content,
+            },
         )
         raw = await llm.chat([{"role": "user", "content": prompt}])
         new_content = self._extract_text(raw).strip()
