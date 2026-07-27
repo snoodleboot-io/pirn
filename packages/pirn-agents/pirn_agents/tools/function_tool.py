@@ -140,15 +140,12 @@ class FunctionTool(Tool):
         """Return the full tool descriptor: name, description, params, returns, perms.
 
         ``returns`` is present only when the return type is annotated;
-        ``permissions`` only when non-default. The neutral
-        ``{name, description, parameters}`` core matches
-        :meth:`pirn_agents.tools.toolset.Toolset.schema` entries.
+        ``permissions`` only when non-default. The neutral core is this tool's
+        :class:`~pirn_agents.tools.tool_declaration.ToolDeclaration`, so it is
+        the same triple — same keys, same order — that
+        :meth:`pirn_agents.tools.toolset.Toolset.schema` emits.
         """
-        descriptor: dict[str, Any] = {
-            "name": self._name,
-            "description": self._description,
-            "parameters": dict(self._parameters_schema),
-        }
+        descriptor: dict[str, Any] = self.declaration().to_payload()
         if self._return_schema is not None:
             descriptor["returns"] = dict(self._return_schema)
         fragment = self._permissions.as_schema_fragment()

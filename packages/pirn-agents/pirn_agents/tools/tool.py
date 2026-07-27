@@ -29,11 +29,25 @@ from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
+from pirn_agents.tools.tool_declaration import ToolDeclaration
 from pirn_agents.tools.tool_permissions import ToolPermissions
 
 
 class Tool(PirnOpaqueValue):
     """Interface every tool must satisfy."""
+
+    def declaration(self) -> ToolDeclaration:
+        """Return the provider-neutral declaration envelope for this tool.
+
+        Derived from the three required members, so every concrete tool —
+        including MCP-discovered and agent-backed ones — gets a typed
+        declaration without restating the neutral key names.
+        """
+        return ToolDeclaration(
+            name=self.name,
+            description=self.description,
+            parameters=self.parameters_schema,
+        )
 
     @property
     def name(self) -> str:

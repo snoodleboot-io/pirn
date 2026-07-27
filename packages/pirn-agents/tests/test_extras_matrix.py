@@ -2,7 +2,7 @@
 
 Real clean-venv resolution is a CI concern (F2-S5). Here we assert the
 ``[project.optional-dependencies]`` DECLARATION in ``pyproject.toml`` is correct,
-provider-neutral, and keeps the base install pirn-core-only.
+provider-neutral, and keeps every provider backend OUT of the base install.
 """
 
 from __future__ import annotations
@@ -90,10 +90,14 @@ class TestExtrasMatrix(unittest.TestCase):
         assert set(self.extras) == _EXPECTED_EXTRAS
 
     def test_base_dependencies_are_pirn_core_only(self) -> None:
+        # The invariant this guards is "no provider BACKEND is a base dependency"
+        # -- backends must stay opt-in extras (OD-4). `pydantic` is not a backend:
+        # `pirn_agents` imports it directly in ~16 modules, so it is declared
+        # explicitly (PIR-706) rather than borrowed transitively from pirn-core.
         deps = self.project["dependencies"]
         assert isinstance(deps, list)
         names = {_req_name(d) for d in deps}
-        assert names == {"pirn-core"}, f"base install leaked backends: {names}"
+        assert names == {"pirn-core", "pydantic"}, f"base install leaked backends: {names}"
 
     def test_web_includes_httpx(self) -> None:
         assert "httpx" in _resolve(self.extras, "web")

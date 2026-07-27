@@ -18,6 +18,7 @@ from typing import Any
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.tool_declaration import ToolDeclaration
 
 
 class Toolset(PirnOpaqueValue):
@@ -75,22 +76,25 @@ class Toolset(PirnOpaqueValue):
         """Alias for :meth:`merge` supporting the ``+`` operator."""
         return self.merge(other)
 
+    def declarations(self) -> tuple[ToolDeclaration, ...]:
+        """Return one :class:`ToolDeclaration` per tool, in registration order.
+
+        The typed counterpart of :meth:`schema` for in-process callers, who
+        can read ``declaration.name`` instead of indexing a dict.
+        """
+        return tuple(tool.declaration() for tool in self._tools)
+
     def schema(self) -> list[dict[str, Any]]:
         """Return a provider-neutral tool-schema list, one dict per tool.
 
         Each entry has the stable, provider-agnostic shape
         ``{"name": ..., "description": ..., "parameters": {...}}``. No
         provider-specific wrapping is applied; that is the job of the
-        per-provider codec (F1-S5).
+        per-provider codec (F1-S5). This is the serialised form of
+        :meth:`declarations`, and is what a
+        :class:`pirn_agents.llm.provider_adapter.ProviderAdapter` consumes.
         """
-        return [
-            {
-                "name": tool.name,
-                "description": tool.description,
-                "parameters": dict(tool.parameters_schema),
-            }
-            for tool in self._tools
-        ]
+        return [declaration.to_payload() for declaration in self.declarations()]
 
     def _pirn_audit_dict(self) -> Any:
         """Return the ordered list of registered tool names."""
