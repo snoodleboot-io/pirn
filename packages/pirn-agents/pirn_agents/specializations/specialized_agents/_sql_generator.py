@@ -23,16 +23,34 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 
 
 class _SQLGenerator(Knot):
     """Ask the LLM to emit a single SQL statement for the question."""
+
+    _system_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.specialized_agents._sql_generator.system_prompt",
+        default=(
+            "You are a SQL writing assistant.\n"
+            "Reply with a single SQL statement only — no commentary, no "
+            "fences, no semicolons after the statement.\n"
+            "Use only standard SQL bind syntax (named or positional "
+            "parameters); never inline values via Python string "
+            "formatting like {value} or %s."
+        ),
+    )
+
+    _schema_reference: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.specialized_agents._sql_generator.schema_reference",
+        default="Schema reference:\n{{ schema_description }}",
+    )
 
     def __init__(
         self,
@@ -73,16 +91,13 @@ class _SQLGenerator(Knot):
         """
         if not isinstance(question, str) or not question:
             raise TypeError(f"SQLAgent: question must be a non-empty string, got {question!r}")
-        system_lines = [
-            "You are a SQL writing assistant.",
-            "Reply with a single SQL statement only — no commentary, no "
-            "fences, no semicolons after the statement.",
-            "Use only standard SQL bind syntax (named or positional "
-            "parameters); never inline values via Python string "
-            "formatting like {value} or %s.",
-        ]
+        system_lines = [type(self)._system_prompt.resolve()]
         if schema_description:
-            system_lines.append(f"Schema reference:\n{schema_description}")
+            system_lines.append(
+                type(self)._schema_reference.render(
+                    {"schema_description": schema_description},
+                )
+            )
         chat_messages = [
             {"role": "system", "content": "\n".join(system_lines)},
             {"role": "user", "content": question},

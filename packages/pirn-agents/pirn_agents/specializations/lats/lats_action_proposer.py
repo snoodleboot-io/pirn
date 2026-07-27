@@ -14,17 +14,26 @@ References:
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.llm_response_text import LlmResponseText
 
 
 class LatsActionProposer(Knot):
     """Propose candidate next actions to expand a search node."""
+
+    _system_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.lats.lats_action_proposer.system_prompt",
+        default=(
+            "You are exploring possible next actions. List a few distinct candidate "
+            "next actions, one per line, each prefixed with '- '."
+        ),
+    )
 
     def __init__(
         self,
@@ -65,10 +74,7 @@ class LatsActionProposer(Knot):
         if not isinstance(task, str):
             raise TypeError(f"LatsActionProposer: task must be a string, got {type(task).__name__}")
         taken = " -> ".join(trajectory) if trajectory else "(none yet)"
-        system = (
-            "You are exploring possible next actions. List a few distinct candidate "
-            "next actions, one per line, each prefixed with '- '."
-        )
+        system = type(self)._system_prompt.resolve()
         user = f"Task:\n{task}\n\nActions taken so far: {taken}"
         raw = await llm.chat(
             messages=[

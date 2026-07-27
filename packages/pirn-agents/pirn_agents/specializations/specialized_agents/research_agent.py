@@ -27,12 +27,13 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.react.react_loop import ReActLoop
 from pirn_agents.tools.agent_as_tool_mixin import AgentAsToolMixin
@@ -47,6 +48,16 @@ class ResearchAgent(AgentAsToolMixin, AgentPipeline):
     so the agent drops directly into any :class:`~pirn_agents.tools.tool.Tool` slot,
     e.g. ``ReActLoop(tools=[research_agent.as_tool()])``.
     """
+
+    _system_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.specialized_agents.research_agent.system_prompt",
+        default=(
+            "You are a research assistant. Investigate the user's "
+            "topic by emitting Action: {{ tool_name }} "
+            "calls. After gathering enough material, emit a "
+            "Final Answer: line summarising your findings."
+        ),
+    )
 
     def __init__(
         self,
@@ -105,11 +116,8 @@ class ResearchAgent(AgentAsToolMixin, AgentPipeline):
         seed_messages = (
             AgentMessage(
                 role="system",
-                content=(
-                    "You are a research assistant. Investigate the user's "
-                    f"topic by emitting Action: {search_tool.name} "
-                    "calls. After gathering enough material, emit a "
-                    "Final Answer: line summarising your findings."
+                content=type(self)._system_prompt.render(
+                    {"tool_name": search_tool.name},
                 ),
             ),
             AgentMessage(role="user", content=f"Research topic: {topic}"),

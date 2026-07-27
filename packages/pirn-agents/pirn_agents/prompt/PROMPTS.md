@@ -170,6 +170,78 @@ The binding must be declared **before** the public attribute that reads its
 indistinguishable from not overriding, so a loaded pack still wins there —
 overriding means changing the text.
 
+### Converting a site — a prompt that embeds runtime data
+
+Most prompts interleave instruction text with runtime values — a target
+language, a tool name, a rendered evidence block. Bind the **whole** prompt as a
+`{{ slot }}` template and read it through `resolve`'s sibling, `render`:
+
+```python
+class _CodeGenerator(Knot):
+    _system_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.specialized_agents._code_generator.system_prompt",
+        default=(
+            "You are a senior {{ language }} engineer. Reply with "
+            "working {{ language }} code only — no prose, no "
+            "markdown fences, no explanation."
+        ),
+    )
+
+    async def process(self, task: str, llm: LLMProvider, language: str, **_: Any) -> str:
+        chat_messages = [
+            {
+                "role": "system",
+                "content": type(self)._system_prompt.render({"language": language}),
+            },
+            {"role": "user", "content": task},
+        ]
+```
+
+`render` runs `resolve` and then **one** non-strict substitution pass. That
+single pass is what makes the built-in default and a loaded pack behave
+identically: `resolve` consults the catalog with no variables, so a registered
+body arrives with its markers still literal, exactly like the shipped default.
+An operator may therefore move, repeat, or drop a slot; the call site only
+supplies values.
+
+* Values are stringified by `PromptTemplate`. Pre-format anything whose text
+  must be exact — `repr(list(labels))`, `json.dumps(schema, sort_keys=True)` —
+  at the call site rather than relying on `str()`.
+* A slot the call site does not supply stays literal instead of raising
+  mid-turn, and a substituted *value* containing `{{ ... }}` is inert.
+* Binding only the *static run* around an interpolation was the alternative and
+  was rejected: several defaults would have been sentence fragments, leaving an
+  operator nothing coherent to override.
+
+Use plain `resolve()` for the static sites; it returns the default byte for byte
+and costs nothing.
+
+### Converting a site — a prompt supplied as a parameter default
+
+A few sites let the caller pass the prompt, defaulting to the built-in
+(`SemanticMemoryUpsert.fact_extraction_prompt`, `RagTool(system_prompt=...)`,
+`LlmInjectionClassifier(system_prompt=...)`). Keep the parameter a `str` — a
+`PromptBinding` must never leak where a `str` is expected — and resolve **in the
+method that builds the messages**, not in `__init__`, so a pack loaded after
+construction still applies:
+
+```python
+async def classify(self, text: str) -> InjectionVerdict:
+    messages = [
+        {
+            "role": "system",
+            "content": type(self)._system_prompt_binding.resolve(self._system_prompt),
+        },
+        ...
+    ]
+```
+
+Passing the stored value as `declared` reuses the documented precedence exactly:
+an explicit caller value wins, otherwise a pack, otherwise the built-in. For a
+knot input whose signature default must stay a readable `str`, declare it as
+`_binding.default` (a plain attribute read at class-body time) and pass the
+received value back through `resolve` in `process()`.
+
 ### Binding names
 
 The name is the owning module's dotted path under `pirn_agents`, plus the
@@ -183,7 +255,9 @@ attribute name with any leading underscore stripped:
 This is mechanically derivable and collision-free (three different classes ship
 a `_revision_system`; their module paths keep them apart). Built-ins resolve in
 the `pirn_agents` namespace, so an operator pack cannot collide with an
-application's own templates.
+application's own templates. A private module keeps its leading underscore in
+the path (`specializations.structured_output._json_extractor_attempt.system_prompt`)
+— the rule strips the underscore from the *attribute*, not from the module.
 
 ### Prompt packs — the operator side
 

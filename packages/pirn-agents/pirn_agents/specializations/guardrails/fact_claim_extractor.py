@@ -24,17 +24,27 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class FactClaimExtractor(Knot):
     """Asks an LLM to enumerate the factual claims in a response."""
+
+    _extraction_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.guardrails.fact_claim_extractor.extraction_prompt",
+        default=(
+            "Extract every factual claim from the answer below. Return one "
+            "claim per line; do not editorialise.\n\n"
+            "Answer:\n{{ answer }}"
+        ),
+    )
 
     def __init__(
         self,
@@ -68,10 +78,8 @@ class FactClaimExtractor(Knot):
                 "FactClaimExtractor: response must be an AgentResponse, "
                 f"got {type(response).__name__}"
             )
-        prompt = (
-            "Extract every factual claim from the answer below. Return one "
-            "claim per line; do not editorialise.\n\n"
-            f"Answer:\n{response.content}"
+        prompt = type(self)._extraction_prompt.render(
+            {"answer": response.content},
         )
         raw = await llm.chat([{"role": "user", "content": prompt}])
         text = self._extract_text(raw)

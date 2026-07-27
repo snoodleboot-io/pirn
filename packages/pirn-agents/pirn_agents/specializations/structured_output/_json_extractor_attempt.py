@@ -23,16 +23,34 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 
 
 class _JsonExtractorAttempt(Knot):
     """Single LLM attempt: build the prompt, call the LLM, parse JSON."""
+
+    _system_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.structured_output._json_extractor_attempt.system_prompt",
+        default=(
+            "You are a structured-output assistant.\n"
+            "Reply with a single valid JSON object only — no prose, no fences.\n"
+            "The JSON object must conform to this schema:\n"
+            "{{ schema }}"
+        ),
+    )
+
+    _retry_instruction: ClassVar[PromptBinding] = PromptBinding(
+        name=("specializations.structured_output._json_extractor_attempt.retry_instruction"),
+        default=(
+            "The previous attempt failed: {{ prior_error }}. Correct the error and respond again."
+        ),
+    )
 
     def __init__(
         self,
@@ -81,14 +99,15 @@ class _JsonExtractorAttempt(Knot):
             )
         schema_dict = dict(schema)
         system_lines = [
-            "You are a structured-output assistant.",
-            "Reply with a single valid JSON object only — no prose, no fences.",
-            "The JSON object must conform to this schema:",
-            json.dumps(schema_dict, sort_keys=True),
+            type(self)._system_prompt.render(
+                {"schema": json.dumps(schema_dict, sort_keys=True)},
+            )
         ]
         if prior_error:
             system_lines.append(
-                f"The previous attempt failed: {prior_error}. Correct the error and respond again."
+                type(self)._retry_instruction.render(
+                    {"prior_error": prior_error},
+                )
             )
         chat_messages = [
             {"role": "system", "content": "\n".join(system_lines)},

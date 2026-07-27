@@ -20,17 +20,29 @@ References:
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.interfaces.router import Router
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 
 
 class OrchestratorRouter(Router):
     """Asks an :class:`LLMProvider` to choose a specialist name."""
+
+    _routing_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.multi_agent.orchestrator_router.routing_prompt",
+        default=(
+            "You are an orchestrator. Choose exactly one specialist to "
+            "handle the task. Reply with the specialist name only.\n\n"
+            "Available specialists:\n"
+            "{{ specialists }}"
+            "\n\nTask: {{ task }}\n\nSpecialist:"
+        ),
+    )
 
     def __init__(
         self,
@@ -72,12 +84,11 @@ class OrchestratorRouter(Router):
             raise ValueError("OrchestratorRouter: specialist_names must be non-empty")
         if not isinstance(task, str):
             raise TypeError(f"OrchestratorRouter: task must be a string, got {type(task).__name__}")
-        prompt = (
-            "You are an orchestrator. Choose exactly one specialist to "
-            "handle the task. Reply with the specialist name only.\n\n"
-            "Available specialists:\n"
-            + "\n".join(f"- {name}" for name in names)
-            + f"\n\nTask: {task}\n\nSpecialist:"
+        prompt = type(self)._routing_prompt.render(
+            {
+                "specialists": "\n".join(f"- {name}" for name in names),
+                "task": task,
+            },
         )
         chat_messages = [{"role": "user", "content": prompt}]
         raw = await llm.chat(chat_messages)

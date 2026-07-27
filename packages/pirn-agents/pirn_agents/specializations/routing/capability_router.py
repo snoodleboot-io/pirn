@@ -23,17 +23,28 @@ References:
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.interfaces.router import Router
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 
 
 class CapabilityRouter(Router):
     """Use LLM to select the best-fit agent from a capability description map."""
+
+    _routing_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.routing.capability_router.routing_prompt",
+        default=(
+            "Select the single best agent for the task below.\n"
+            "Reply with the agent name only.\n\n"
+            "Agents:\n{{ agents }}\n\n"
+            "Task: {{ task }}"
+        ),
+    )
 
     def __init__(
         self,
@@ -86,11 +97,8 @@ class CapabilityRouter(Router):
         if not isinstance(task, str):
             raise TypeError(f"CapabilityRouter: task must be a string, got {type(task).__name__}")
         agent_lines = "\n".join(f"- {name}: {desc}" for name, desc in capabilities.items())
-        prompt = (
-            "Select the single best agent for the task below.\n"
-            "Reply with the agent name only.\n\n"
-            f"Agents:\n{agent_lines}\n\n"
-            f"Task: {task}"
+        prompt = type(self)._routing_prompt.render(
+            {"agents": agent_lines, "task": task},
         )
         raw = await llm.chat([{"role": "user", "content": prompt}])
         label = self._extract_text(raw).strip()

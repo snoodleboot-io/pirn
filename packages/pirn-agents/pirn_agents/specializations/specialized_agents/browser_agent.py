@@ -35,12 +35,13 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.react.react_loop import ReActLoop
 from pirn_agents.tools.tool import Tool
@@ -49,6 +50,17 @@ from pirn_agents.types.messaging.agent_message import AgentMessage
 
 class BrowserAgent(AgentPipeline):
     """ReAct-driven browser automation agent."""
+
+    _system_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.specialized_agents.browser_agent.system_prompt",
+        default=(
+            "You are a browser-automation agent. Drive the browser "
+            "by emitting Action: {{ tool_name }} calls "
+            "with Action Input describing the action and arguments "
+            "(e.g. 'navigate https://example.com'). When the goal "
+            "is achieved, emit Final Answer: <result>."
+        ),
+    )
 
     def __init__(
         self,
@@ -107,12 +119,8 @@ class BrowserAgent(AgentPipeline):
         seed_messages = (
             AgentMessage(
                 role="system",
-                content=(
-                    "You are a browser-automation agent. Drive the browser "
-                    f"by emitting Action: {browser_tool.name} calls "
-                    "with Action Input describing the action and arguments "
-                    "(e.g. 'navigate https://example.com'). When the goal "
-                    "is achieved, emit Final Answer: <result>."
+                content=type(self)._system_prompt.render(
+                    {"tool_name": browser_tool.name},
                 ),
             ),
             AgentMessage(role="user", content=f"Goal: {goal}"),

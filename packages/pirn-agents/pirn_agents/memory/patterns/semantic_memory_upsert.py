@@ -25,18 +25,24 @@ None.
 from __future__ import annotations
 
 import hashlib
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class SemanticMemoryUpsert(Knot):
     """Extract facts from an AgentResponse, deduplicate, and upsert to semantic memory."""
+
+    _fact_extraction_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="memory.patterns.semantic_memory_upsert.fact_extraction_prompt",
+        default="Extract key facts from the following text.",
+    )
 
     def __init__(
         self,
@@ -44,7 +50,7 @@ class SemanticMemoryUpsert(Knot):
         response: Knot | AgentResponse,
         llm: Knot | LLMProvider,
         store: Knot | MemoryStore,
-        fact_extraction_prompt: Knot | str = ("Extract key facts from the following text."),
+        fact_extraction_prompt: Knot | str = _fact_extraction_prompt.default,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
@@ -62,7 +68,7 @@ class SemanticMemoryUpsert(Knot):
         response: AgentResponse,
         llm: LLMProvider,
         store: MemoryStore,
-        fact_extraction_prompt: str = "Extract key facts from the following text.",
+        fact_extraction_prompt: str = _fact_extraction_prompt.default,
         **_: Any,
     ) -> int:
         """Extract facts from the response, deduplicate against memory, and upsert new facts.
@@ -98,9 +104,8 @@ class SemanticMemoryUpsert(Knot):
                 "SemanticMemoryUpsert: response must be an AgentResponse, "
                 f"got {type(response).__name__}"
             )
-        prompt = (
-            f"{fact_extraction_prompt}\n\nText: {response.content}\n\nReturn one fact per line."
-        )
+        instruction = type(self)._fact_extraction_prompt.resolve(fact_extraction_prompt)
+        prompt = f"{instruction}\n\nText: {response.content}\n\nReturn one fact per line."
         raw = await llm.chat([{"role": "user", "content": prompt}])
         text = self._extract_text(raw)
         facts: list[str] = []

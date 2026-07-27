@@ -15,16 +15,27 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 
 
 class ClarificationRequester(Knot):
     """Detect ambiguity via LLM and return a clarifying question or the original message."""
+
+    _ambiguity_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.human_in_the_loop.clarification_requester.ambiguity_prompt",
+        default=(
+            "You are evaluating whether a user message is ambiguous.\n"
+            "If the message is clear and unambiguous, reply with exactly: CLEAR\n"
+            "If the message is ambiguous, reply with a single clarifying question.\n\n"
+            "Message: {{ message }}"
+        ),
+    )
 
     def __init__(
         self,
@@ -57,11 +68,8 @@ class ClarificationRequester(Knot):
             raise TypeError(
                 f"ClarificationRequester: message must be a string, got {type(message).__name__}"
             )
-        prompt = (
-            "You are evaluating whether a user message is ambiguous.\n"
-            "If the message is clear and unambiguous, reply with exactly: CLEAR\n"
-            "If the message is ambiguous, reply with a single clarifying question.\n\n"
-            f"Message: {message}"
+        prompt = type(self)._ambiguity_prompt.render(
+            {"message": message},
         )
         raw = await llm.chat([{"role": "user", "content": prompt}])
         response_text = self._extract_text(raw).strip()

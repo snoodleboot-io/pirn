@@ -19,17 +19,27 @@ References:
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class ConsensusSynthesisCaller(Knot):
     """Asks an LLM to synthesise a consensus answer from the inputs."""
+
+    _synthesis_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.multi_agent.consensus_synthesis_caller.synthesis_prompt",
+        default=(
+            "You are a consensus synthesiser. Reconcile the following "
+            "specialist replies into one coherent answer.\n\n"
+            "Replies:\n{{ replies }}\n\nConsensus:"
+        ),
+    )
 
     def __init__(
         self,
@@ -65,10 +75,8 @@ class ConsensusSynthesisCaller(Knot):
         if not isinstance(responses, Mapping) or not responses:
             raise ValueError("ConsensusSynthesisCaller: responses must be a non-empty mapping")
         rendered = "\n".join(f"[{name}] {response.content}" for name, response in responses.items())
-        prompt = (
-            "You are a consensus synthesiser. Reconcile the following "
-            "specialist replies into one coherent answer.\n\n"
-            f"Replies:\n{rendered}\n\nConsensus:"
+        prompt = type(self)._synthesis_prompt.render(
+            {"replies": rendered},
         )
         chat_messages = [{"role": "user", "content": prompt}]
         raw = await llm.chat(chat_messages)

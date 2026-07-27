@@ -18,16 +18,34 @@ Internal API.
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 
 
 class _MapReduceSummariser(Knot):
     """Per-chunk summary fan-out plus a single reduce LLM call."""
+
+    _chunk_summary_system: ClassVar[PromptBinding] = PromptBinding(
+        name=("specializations.document_processing._map_reduce_summariser.chunk_summary_system"),
+        default=(
+            "Summarise the supplied document chunk in 3-5 sentences. "
+            "Preserve key facts and named entities."
+        ),
+    )
+
+    _reduce_system: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.document_processing._map_reduce_summariser.reduce_system",
+        default=(
+            "Combine the following per-chunk summaries into one "
+            "coherent summary of the entire document. Avoid "
+            "repetition and preserve chronological order."
+        ),
+    )
 
     def __init__(
         self,
@@ -73,10 +91,7 @@ class _MapReduceSummariser(Knot):
         chat_messages = [
             {
                 "role": "system",
-                "content": (
-                    "Summarise the supplied document chunk in 3-5 sentences. "
-                    "Preserve key facts and named entities."
-                ),
+                "content": type(self)._chunk_summary_system.resolve(),
             },
             {
                 "role": "user",
@@ -91,11 +106,7 @@ class _MapReduceSummariser(Knot):
         chat_messages = [
             {
                 "role": "system",
-                "content": (
-                    "Combine the following per-chunk summaries into one "
-                    "coherent summary of the entire document. Avoid "
-                    "repetition and preserve chronological order."
-                ),
+                "content": type(self)._reduce_system.resolve(),
             },
             {"role": "user", "content": joined},
         ]

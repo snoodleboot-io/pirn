@@ -15,17 +15,28 @@ References:
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.llm_response_text import LlmResponseText
 
 
 class ReflexionActor(Knot):
     """Generate an answer for the task, informed by prior reflections."""
+
+    _system_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.reflexion.reflexion_actor.system_prompt",
+        default="You are a diligent problem solver. Answer the task as well as you can.",
+    )
+
+    _lessons_instruction: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.reflexion.reflexion_actor.lessons_instruction",
+        default="Apply these lessons from earlier attempts:\n{{ lessons }}",
+    )
 
     def __init__(
         self,
@@ -70,10 +81,13 @@ class ReflexionActor(Knot):
         if not isinstance(task, str):
             raise TypeError(f"ReflexionActor: task must be a string, got {type(task).__name__}")
         reflection_tuple = tuple(reflections)
-        system = "You are a diligent problem solver. Answer the task as well as you can."
+        system = type(self)._system_prompt.resolve()
         if reflection_tuple:
             lessons = "\n".join(f"- {text}" for text in reflection_tuple)
-            system = f"{system}\nApply these lessons from earlier attempts:\n{lessons}"
+            applied = type(self)._lessons_instruction.render(
+                {"lessons": lessons},
+            )
+            system = f"{system}\n{applied}"
         raw = await llm.chat(
             messages=[
                 {"role": "system", "content": system},

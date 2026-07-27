@@ -18,18 +18,28 @@ References:
 from __future__ import annotations
 
 import re
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.evaluator_optimizer.judge_verdict import JudgeVerdict
 from pirn_agents.specializations.llm_response_text import LlmResponseText
 
 
 class LlmJudge(Knot):
     """Score a candidate answer, returning a typed :class:`JudgeVerdict`."""
+
+    _system_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.evaluator_optimizer.llm_judge.system_prompt",
+        default=(
+            "You are an impartial judge. Rate how well the candidate answers the "
+            "task on a 0-10 scale. Reply 'SCORE: <n>' on the first line, then a "
+            "short justification."
+        ),
+    )
 
     def __init__(
         self,
@@ -69,11 +79,7 @@ class LlmJudge(Knot):
             raise TypeError(f"LlmJudge: task must be a string, got {type(task).__name__}")
         if not isinstance(candidate, str):
             raise TypeError(f"LlmJudge: candidate must be a string, got {type(candidate).__name__}")
-        system = (
-            "You are an impartial judge. Rate how well the candidate answers the "
-            "task on a 0-10 scale. Reply 'SCORE: <n>' on the first line, then a "
-            "short justification."
-        )
+        system = type(self)._system_prompt.resolve()
         user = f"Task:\n{task}\n\nCandidate:\n{candidate}"
         raw = await llm.chat(
             messages=[

@@ -20,6 +20,17 @@ precedence at call time:
 Because step 3 is a plain attribute read, converting a site costs nothing at
 runtime when no pack is loaded and cannot change delivered text.
 
+Prompts whose text *interleaves* runtime data — a target language, a tool name,
+a rendered evidence block — are bound as whole ``{{ slot }}`` templates and read
+through :meth:`render` instead. :meth:`render` runs :meth:`resolve` and then one
+non-strict substitution pass, which is what makes the built-in default and a
+loaded pack behave identically: :meth:`resolve` never fills slots (the catalog
+is consulted with no variables, so a registered body comes back with its markers
+still literal), and the single pass afterwards fills them for either source.
+Binding only the static run around an interpolation was the alternative, and it
+was rejected: several defaults would have been sentence fragments, and there is
+nothing coherent for an operator to override.
+
 ``PromptBinding`` is a plain frozen dataclass rather than a
 :class:`~pirn.core.pirn_opaque_value.PirnOpaqueValue`: it is class-level
 configuration read inside ``process()``, never a value that crosses a knot IO
@@ -30,9 +41,10 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn_agents.prompt.prompt_catalog import PromptCatalog
+from pirn_agents.prompt.prompt_template import PromptTemplate
 
 
 @dataclass(frozen=True)
@@ -57,6 +69,10 @@ class PromptBinding:
         An exact version to pin to, or ``None`` (default) to take whichever
         version is newest in the catalog.
     """
+
+    #: Version stamped on the throwaway :class:`PromptTemplate` :meth:`render`
+    #: builds to perform its substitution pass. Never registered anywhere.
+    _render_version: ClassVar[str] = "1.0.0"
 
     name: str
     default: str
@@ -91,8 +107,8 @@ class PromptBinding:
                 subclass has customised it and that text is returned unchanged.
                 Pass ``None`` (the default) for private, non-overridable sites.
             variables: Optional slot values for a registered template that
-                declares ``{{ slots }}``. Built-in defaults are plain text and
-                ignore this.
+                declares ``{{ slots }}``. Built-in defaults are returned
+                untouched, so a site with slots wants :meth:`render`, not this.
             catalog: The catalog to consult. Defaults to
                 :meth:`PromptCatalog.shared`; pass an explicit catalog for tests
                 or for embedding several tenants in one process.
@@ -117,3 +133,45 @@ class PromptBinding:
         if registered is not None:
             return registered
         return self.default
+
+    def render(
+        self,
+        variables: Mapping[str, Any] | None = None,
+        declared: str | None = None,
+        *,
+        catalog: PromptCatalog | None = None,
+    ) -> str:
+        """Resolve the prompt text, then substitute ``{{ slots }}`` into it once.
+
+        This is :meth:`resolve` for the sites whose prompt embeds runtime data.
+        The binding holds the *whole* prompt as a template body, so an operator
+        overrides one coherent unit and may move, repeat, or drop a slot; the
+        call site just supplies the values.
+
+        Both sources go through the same single pass. :meth:`resolve` consults
+        the catalog with no variables, so a registered body arrives with its
+        markers still literal, exactly like the built-in default — and one
+        substitution afterwards fills either of them identically.
+
+        Args:
+            variables: Slot values keyed by name. Values are stringified by
+                :class:`PromptTemplate`; pre-format anything whose text must be
+                exact (``repr(...)``, ``json.dumps(...)``) at the call site.
+            declared: As :meth:`resolve` — the current value of a public
+                ``ClassVar[str]`` this binding backs, or ``None``.
+            catalog: As :meth:`resolve`.
+
+        Returns:
+            The rendered prompt text, never ``None``.
+
+        Notes:
+            Substitution is non-strict and single-pass: a slot the caller did
+            not supply stays literal rather than raising mid-turn inside an
+            agent, and a substituted *value* containing ``{{ ... }}`` is inert
+            because the pass never re-scans what it inserted.
+        """
+        return PromptTemplate(
+            name=self.name,
+            version=type(self)._render_version,
+            template=self.resolve(declared, catalog=catalog),
+        ).render(variables, strict=False)

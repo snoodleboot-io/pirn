@@ -25,17 +25,28 @@ None.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.types.messaging.agent_message import AgentMessage
 
 
 class SessionSummarizer(Knot):
     """Compress messages via LLM when they exceed the token threshold."""
+
+    _summary_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="memory.patterns.session_summarizer.summary_prompt",
+        default=(
+            "Summarize the following conversation concisely, preserving "
+            "all key facts, decisions, and context needed for the agent "
+            "to continue.\n\n"
+            "{{ conversation }}"
+        ),
+    )
 
     def __init__(
         self,
@@ -97,11 +108,8 @@ class SessionSummarizer(Knot):
             return message_list
 
         rendered = "\n".join(f"{m.role}: {m.content}" for m in message_list)
-        summary_prompt = (
-            "Summarize the following conversation concisely, preserving "
-            "all key facts, decisions, and context needed for the agent "
-            "to continue.\n\n"
-            f"{rendered}"
+        summary_prompt = type(self)._summary_prompt.render(
+            {"conversation": rendered},
         )
         raw = await llm.chat([{"role": "user", "content": summary_prompt}])
         summary_text = self._extract_text(raw)

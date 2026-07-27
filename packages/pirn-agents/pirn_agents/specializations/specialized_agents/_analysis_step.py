@@ -24,17 +24,27 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class _AnalysisStep(Knot):
     """Send the SQL result to the LLM for narrative analysis."""
+
+    _system_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.specialized_agents._analysis_step.system_prompt",
+        default=(
+            "You are a data analyst. Given a SQL result block, "
+            "write a concise analysis (3-5 sentences) that answers "
+            "the user's question and highlights notable trends."
+        ),
+    )
 
     def __init__(
         self,
@@ -81,11 +91,7 @@ class _AnalysisStep(Knot):
         chat_messages = [
             {
                 "role": "system",
-                "content": (
-                    "You are a data analyst. Given a SQL result block, "
-                    "write a concise analysis (3-5 sentences) that answers "
-                    "the user's question and highlights notable trends."
-                ),
+                "content": type(self)._system_prompt.resolve(),
             },
             {
                 "role": "user",

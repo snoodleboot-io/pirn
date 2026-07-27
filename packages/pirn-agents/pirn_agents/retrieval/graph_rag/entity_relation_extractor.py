@@ -22,12 +22,13 @@ re-use the typed extraction independently of the graph write.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.retrieval.graph_rag.extraction_result import ExtractionResult
 from pirn_agents.retrieval.graph_rag.extraction_schema import ExtractionSchema
 from pirn_agents.retrieval.graph_stores.graph_edge import GraphEdge
@@ -38,6 +39,18 @@ from pirn_agents.specializations.structured_output.structured_decoder import str
 
 class EntityRelationExtractor(Knot):
     """Extract typed entities/relations from text and upsert them into a graph."""
+
+    _extraction_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="retrieval.graph_rag.entity_relation_extractor.extraction_prompt",
+        default=(
+            "Extract the entities and relations from the text below.\n"
+            "Allowed entity types: {{ entity_types }}.\n"
+            "Allowed relation types: {{ relation_types }}.\n"
+            "Give every entity a stable id and reference those ids from relations. "
+            "Only use the allowed types.\n\n"
+            "Text:\n{{ text }}"
+        ),
+    )
 
     def __init__(
         self,
@@ -131,18 +144,15 @@ class EntityRelationExtractor(Knot):
         await store.upsert_edges(edges)
         return decoded
 
-    @staticmethod
-    def _build_prompt(text: str, schema: ExtractionSchema) -> str:
+    @classmethod
+    def _build_prompt(cls, text: str, schema: ExtractionSchema) -> str:
         """Render the closed-vocabulary extraction prompt for ``text``."""
-        entity_types = ", ".join(schema.entity_types)
-        relation_types = ", ".join(schema.relation_types) or "(none)"
-        return (
-            "Extract the entities and relations from the text below.\n"
-            f"Allowed entity types: {entity_types}.\n"
-            f"Allowed relation types: {relation_types}.\n"
-            "Give every entity a stable id and reference those ids from relations. "
-            "Only use the allowed types.\n\n"
-            f"Text:\n{text}"
+        return cls._extraction_prompt.render(
+            {
+                "entity_types": ", ".join(schema.entity_types),
+                "relation_types": ", ".join(schema.relation_types) or "(none)",
+                "text": text,
+            },
         )
 
     @staticmethod

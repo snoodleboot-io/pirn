@@ -24,17 +24,32 @@ References:
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.tools.tool import Tool
 
 
 class ToolSelector(Knot):
     """Call the LLM to select appropriate tools for a user message."""
+
+    _selection_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.tool_use.tool_selector.selection_prompt",
+        default=(
+            "Given the following user message and available tools, select "
+            "the tool name(s) most appropriate for this task. "
+            "Available tools: {{ available_names }}. "
+            "Reply with only the tool name(s), one per line, using the "
+            "exact names from the list. If no tool is appropriate, reply "
+            "with NONE.\n\n"
+            "Tools:\n{{ tool_descriptions }}\n\n"
+            "User message: {{ message }}"
+        ),
+    )
 
     def __init__(
         self,
@@ -83,15 +98,12 @@ class ToolSelector(Knot):
             raise TypeError(f"ToolSelector: message must be a string, got {type(message).__name__}")
         tool_descriptions = "\n".join(f"- {tool.name}: {tool.description}" for tool in tool_list)
         available_names = ", ".join(tool.name for tool in tool_list)
-        prompt = (
-            "Given the following user message and available tools, select "
-            "the tool name(s) most appropriate for this task. "
-            f"Available tools: {available_names}. "
-            "Reply with only the tool name(s), one per line, using the "
-            "exact names from the list. If no tool is appropriate, reply "
-            "with NONE.\n\n"
-            f"Tools:\n{tool_descriptions}\n\n"
-            f"User message: {message}"
+        prompt = type(self)._selection_prompt.render(
+            {
+                "available_names": available_names,
+                "tool_descriptions": tool_descriptions,
+                "message": message,
+            },
         )
         raw = await llm.chat([{"role": "user", "content": prompt}])
         text = self._extract_text(raw).strip()

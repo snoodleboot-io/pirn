@@ -21,17 +21,28 @@ References:
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class DebateJudge(Knot):
     """Picks the winning :class:`AgentResponse` from a debate round."""
+
+    _judging_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.multi_agent.debate_judge.judging_prompt",
+        default=(
+            "You are a debate judge. Pick the strongest argument by index.\n"
+            "Topic: {{ topic }}\n\n"
+            "Arguments:\n{{ arguments }}\n\n"
+            "Reply with the winning index only."
+        ),
+    )
 
     def __init__(
         self,
@@ -79,11 +90,8 @@ class DebateJudge(Knot):
         rendered = "\n".join(
             f"[{index}] {response.content}" for index, response in enumerate(responses)
         )
-        prompt = (
-            "You are a debate judge. Pick the strongest argument by index.\n"
-            f"Topic: {topic}\n\n"
-            f"Arguments:\n{rendered}\n\n"
-            "Reply with the winning index only."
+        prompt = type(self)._judging_prompt.render(
+            {"topic": topic, "arguments": rendered},
         )
         raw = await judge_llm.chat([{"role": "user", "content": prompt}])
         text = self._extract_text(raw).strip()
