@@ -34,7 +34,6 @@ from pirn.nodes.source import Source
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.rag.rag_prompt import RagPrompt
 from pirn_agents.tools.tool import Tool
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
@@ -133,9 +132,7 @@ class AgenticRagPipeline(AgentPipeline):
     @staticmethod
     async def _next_question(llm: LLMProvider, query: str, answer: str) -> str | None:
         """Ask the LLM for a follow-up question, or ``None`` when the answer suffices."""
-        prompt = RagPrompt.render(
-            AgenticRagPipeline._next_question_prompt, {"query": query, "answer": answer}
-        )
+        prompt = AgenticRagPipeline._next_question_prompt.render({"query": query, "answer": answer})
         raw = await llm.chat([{"role": "user", "content": prompt}])
         reply = AgenticRagPipeline._extract_text(raw).strip()
         if reply.upper().startswith("FOLLOWUP:"):

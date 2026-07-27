@@ -37,7 +37,6 @@ from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.rag.rag_prompt import RagPrompt
 from pirn_agents.specializations.rag.sentence_confidence_monitor import SentenceConfidenceMonitor
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
@@ -182,17 +181,14 @@ class FlareActiveRagPipeline(AgentPipeline):
     def _generate_prompt(query: str, parts: list[str]) -> str:
         """Prompt the LLM for the next sentence with a confidence tag."""
         so_far = " ".join(parts) if parts else "(nothing yet)"
-        return RagPrompt.render(
-            FlareActiveRagPipeline._generation_prompt, {"query": query, "so_far": so_far}
-        )
+        return FlareActiveRagPipeline._generation_prompt.render({"query": query, "so_far": so_far})
 
     @staticmethod
     def _regenerate_prompt(query: str, sentence: str, docs: list[Mapping[str, Any]]) -> str:
         """Prompt the LLM to rewrite a tentative sentence grounded in evidence."""
         context = "\n".join(str(doc) for doc in docs) or "(no evidence retrieved)"
-        return RagPrompt.render(
-            FlareActiveRagPipeline._regeneration_prompt,
-            {"query": query, "sentence": sentence, "context": context},
+        return FlareActiveRagPipeline._regeneration_prompt.render(
+            {"query": query, "sentence": sentence, "context": context}
         )
 
     @staticmethod

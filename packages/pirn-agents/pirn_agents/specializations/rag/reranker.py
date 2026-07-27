@@ -38,7 +38,6 @@ from pirn.core.knot_config import KnotConfig
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.retrieval.rerank.reranker_backend import RerankerBackend
-from pirn_agents.specializations.rag.rag_prompt import RagPrompt
 
 
 class Reranker(Knot):
@@ -133,9 +132,7 @@ class Reranker(Knot):
         scored: list[tuple[float, Mapping[str, Any]]] = []
         for doc in documents:
             text = self._doc_text(doc)
-            score_prompt = RagPrompt.render(
-                type(self)._score_prompt, {"query": query, "text": text}
-            )
+            score_prompt = type(self)._score_prompt.render({"query": query, "text": text})
             raw = await llm.chat([{"role": "user", "content": score_prompt}])
             score_text = self._extract_text(raw).strip()
             try:

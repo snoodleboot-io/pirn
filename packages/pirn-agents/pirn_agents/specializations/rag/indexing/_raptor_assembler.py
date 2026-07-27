@@ -37,7 +37,6 @@ from pirn_agents.retrieval.vector_stores.vector_memory_store import VectorMemory
 from pirn_agents.retrieval.vector_stores.vector_record import VectorRecord
 from pirn_agents.specializations.rag.indexing.raptor_node import RaptorNode
 from pirn_agents.specializations.rag.indexing.raptor_tree import RaptorTree
-from pirn_agents.specializations.rag.rag_prompt import RagPrompt
 
 
 class _RaptorAssembler(Knot):
@@ -204,7 +203,7 @@ class _RaptorAssembler(Knot):
     async def _summarize(llm: LLMProvider, texts: list[str]) -> str:
         """Summarize a cluster of node texts into one concise summary."""
         joined = "\n\n".join(texts)
-        prompt = RagPrompt.render(_RaptorAssembler._summary_prompt, {"joined": joined})
+        prompt = _RaptorAssembler._summary_prompt.render({"joined": joined})
         raw = await llm.chat([{"role": "user", "content": prompt}])
         if isinstance(raw, str):
             return raw

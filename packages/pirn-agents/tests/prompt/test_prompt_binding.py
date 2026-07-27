@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import unittest
+from dataclasses import FrozenInstanceError
 
 from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.prompt.prompt_catalog import PromptCatalog
@@ -27,7 +28,7 @@ class ConstructionTests(unittest.TestCase):
 
     def test_is_frozen(self) -> None:
         binding = PromptBinding(name="a.b", default="text")
-        with self.assertRaises(Exception):
+        with self.assertRaises(FrozenInstanceError):
             binding.default = "other"  # type: ignore[misc]
 
     def test_rejects_empty_name(self) -> None:
@@ -79,12 +80,8 @@ class ResolutionOrderTests(unittest.TestCase):
 
     def test_version_pin_selects_the_pinned_template(self) -> None:
         catalog = PromptCatalog()
-        catalog.load_mapping(
-            {"templates": {"a.b": {"template": "v1", "version": "1.0.0"}}}
-        )
-        catalog.load_mapping(
-            {"templates": {"a.b": {"template": "v2", "version": "2.0.0"}}}
-        )
+        catalog.load_mapping({"templates": {"a.b": {"template": "v1", "version": "1.0.0"}}})
+        catalog.load_mapping({"templates": {"a.b": {"template": "v2", "version": "2.0.0"}}})
         pinned = PromptBinding(name="a.b", default="builtin", version="1.0.0")
         floating = PromptBinding(name="a.b", default="builtin")
         assert pinned.resolve(catalog=catalog) == "v1"

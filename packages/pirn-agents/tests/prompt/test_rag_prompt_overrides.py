@@ -11,18 +11,16 @@ from __future__ import annotations
 
 import inspect
 import unittest
-from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
-
 from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.prompt.prompt_catalog import PromptCatalog
-from pirn_agents.specializations.rag.rag_prompt import RagPrompt
 from pirn_agents.specializations.rag.rag_prompt_builder import RAGPromptBuilder
 from pirn_agents.specializations.rag.rag_synthesizer import RAGSynthesizer
 from pirn_agents.specializations.rag.sub_question_decomposer import SubQuestionDecomposer
+
 from tests.specializations.conftest import StubLLMProvider
 
 
@@ -117,20 +115,21 @@ class ParameterDefaultResolvesAtCallTimeTests(_SharedCatalogCase):
 
 
 class RagPromptRenderTests(_SharedCatalogCase):
-    """``RagPrompt.render`` guards its input and never re-scans what it inserts."""
+    """``PromptBinding.render`` never re-scans what it inserts, from a RAG call site.
 
-    def test_rejects_a_non_binding(self) -> None:
-        not_a_binding: Any = "specializations.rag.rag_synthesizer.synthesis_prompt"
-        with self.assertRaisesRegex(TypeError, "binding must be a PromptBinding"):
-            RagPrompt.render(not_a_binding, {})
+    The rag-local ``RagPrompt`` helper these cases were first written against was
+    folded into :meth:`PromptBinding.render` once both prompt lanes had landed —
+    the concern was never rag-specific. Its input guard went with it: ``render``
+    is a method on the binding, so there is no longer a non-binding to reject.
+    """
 
     def test_a_value_containing_a_slot_marker_is_inert(self) -> None:
         binding = PromptBinding(name="test.inert", default="Q: {{ query }}")
-        assert RagPrompt.render(binding, {"query": "{{ secret }}"}) == "Q: {{ secret }}"
+        assert binding.render({"query": "{{ secret }}"}) == "Q: {{ secret }}"
 
     def test_an_explicit_catalog_is_consulted_instead_of_the_shared_one(self) -> None:
         binding = PromptBinding(name="test.scoped", default="built-in {{ query }}")
         catalog = PromptCatalog()
         catalog.load_mapping({"templates": {"test.scoped": "scoped {{ query }}"}})
-        assert RagPrompt.render(binding, {"query": "Q"}, catalog=catalog) == "scoped Q"
-        assert RagPrompt.render(binding, {"query": "Q"}) == "built-in Q"
+        assert binding.render({"query": "Q"}, catalog=catalog) == "scoped Q"
+        assert binding.render({"query": "Q"}) == "built-in Q"

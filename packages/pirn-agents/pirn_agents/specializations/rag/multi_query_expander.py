@@ -28,7 +28,6 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
-from pirn_agents.specializations.rag.rag_prompt import RagPrompt
 
 
 class MultiQueryExpander(Knot):
@@ -96,9 +95,8 @@ class MultiQueryExpander(Knot):
             )
         variants: list[str] = [query]
         if num_queries > 1:
-            prompt = RagPrompt.render(
-                type(self)._expansion_prompt,
-                {"alternative_count": num_queries - 1, "query": query},
+            prompt = type(self)._expansion_prompt.render(
+                {"alternative_count": num_queries - 1, "query": query}
             )
             raw = await llm.chat([{"role": "user", "content": prompt}])
             for line in self._extract_text(raw).splitlines():

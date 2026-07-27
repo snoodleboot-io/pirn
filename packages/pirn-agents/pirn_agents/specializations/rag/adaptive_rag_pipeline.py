@@ -44,7 +44,6 @@ from pirn_agents.specializations.rag.llm_chat_call import LLMChatCall
 from pirn_agents.specializations.rag.memory_search_retriever import (
     MemorySearchRetriever,
 )
-from pirn_agents.specializations.rag.rag_prompt import RagPrompt
 from pirn_agents.specializations.rag.rag_prompt_builder import (
     RAGPromptBuilder,
 )
@@ -107,7 +106,7 @@ class AdaptiveRAGPipeline(AgentPipeline):
         Raises:
             TypeError: If query is not a string.
         """
-        classify_prompt = RagPrompt.render(type(self)._classify_prompt, {"query": query})
+        classify_prompt = type(self)._classify_prompt.render({"query": query})
         with Tapestry() as inner_classify:
             LLMChatCall(
                 prompt=classify_prompt,
@@ -139,7 +138,7 @@ class AdaptiveRAGPipeline(AgentPipeline):
             )
 
         elif "COMPLEX" in complexity:
-            decompose_prompt = RagPrompt.render(type(self)._decompose_prompt, {"query": query})
+            decompose_prompt = type(self)._decompose_prompt.render({"query": query})
             with Tapestry() as inner_decompose:
                 LLMChatCall(
                     prompt=decompose_prompt,

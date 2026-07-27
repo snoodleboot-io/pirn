@@ -46,7 +46,6 @@ from pirn_agents.specializations.rag.llm_chat_call import LLMChatCall
 from pirn_agents.specializations.rag.memory_search_retriever import (
     MemorySearchRetriever,
 )
-from pirn_agents.specializations.rag.rag_prompt import RagPrompt
 from pirn_agents.specializations.rag.rag_prompt_builder import (
     RAGPromptBuilder,
 )
@@ -103,8 +102,8 @@ class MultiHopRAGPipeline(AgentPipeline):
         Raises:
             TypeError: If query is not a string.
         """
-        decompose_prompt = RagPrompt.render(
-            type(self)._decompose_prompt, {"num_hops": num_hops, "query": query}
+        decompose_prompt = type(self)._decompose_prompt.render(
+            {"num_hops": num_hops, "query": query}
         )
         with Tapestry() as inner_decompose:
             LLMChatCall(

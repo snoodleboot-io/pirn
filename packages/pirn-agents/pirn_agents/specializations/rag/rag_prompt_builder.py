@@ -35,7 +35,6 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.prompt.prompt_binding import PromptBinding
-from pirn_agents.specializations.rag.rag_prompt import RagPrompt
 
 
 class RAGPromptBuilder(Knot):
@@ -122,7 +121,6 @@ class RAGPromptBuilder(Knot):
             context_block = "\n".join(rendered_hits)
         else:
             context_block = "(no context retrieved)"
-        return RagPrompt.render(
-            type(self)._prompt_layout,
-            {"instruction": instruction, "context_block": context_block, "query": query},
+        return type(self)._prompt_layout.render(
+            {"instruction": instruction, "context_block": context_block, "query": query}
         )

@@ -29,7 +29,6 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
-from pirn_agents.specializations.rag.rag_prompt import RagPrompt
 
 
 class ContextualCompressor(Knot):
@@ -92,9 +91,7 @@ class ContextualCompressor(Knot):
         compressed: list[Mapping[str, Any]] = []
         for doc in documents:
             text = self._doc_text(doc)
-            prompt = RagPrompt.render(
-                type(self)._compression_prompt, {"query": query, "text": text}
-            )
+            prompt = type(self)._compression_prompt.render({"query": query, "text": text})
             raw = await llm.chat([{"role": "user", "content": prompt}])
             extracted = self._extract_text(raw).strip()
             if not extracted or extracted.upper() == "NONE":

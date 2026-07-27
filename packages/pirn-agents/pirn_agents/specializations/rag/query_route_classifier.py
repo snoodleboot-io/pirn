@@ -26,7 +26,6 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
-from pirn_agents.specializations.rag.rag_prompt import RagPrompt
 
 
 class QueryRouteClassifier(Knot):
@@ -90,7 +89,7 @@ class QueryRouteClassifier(Knot):
         if not route_names:
             raise ValueError("QueryRouteClassifier: route_names must be non-empty")
         options = ", ".join(route_names)
-        prompt = RagPrompt.render(type(self)._route_prompt, {"options": options, "query": query})
+        prompt = type(self)._route_prompt.render({"options": options, "query": query})
         raw = await llm.chat([{"role": "user", "content": prompt}])
         reply = self._extract_text(raw).strip().lower()
         for name in route_names:

@@ -26,7 +26,6 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
-from pirn_agents.specializations.rag.rag_prompt import RagPrompt
 
 
 class SubQuestionDecomposer(Knot):
@@ -93,9 +92,8 @@ class SubQuestionDecomposer(Knot):
                 "SubQuestionDecomposer: max_sub_questions must be a positive int, "
                 f"got {max_sub_questions!r}"
             )
-        prompt = RagPrompt.render(
-            type(self)._decomposition_prompt,
-            {"max_sub_questions": max_sub_questions, "query": query},
+        prompt = type(self)._decomposition_prompt.render(
+            {"max_sub_questions": max_sub_questions, "query": query}
         )
         raw = await llm.chat([{"role": "user", "content": prompt}])
         sub_questions = [

@@ -32,7 +32,6 @@ from pirn_agents.interfaces.retriever import Retriever
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.prompt.prompt_binding import PromptBinding
-from pirn_agents.specializations.rag.rag_prompt import RagPrompt
 
 
 class IterativeRetriever(Retriever):
@@ -140,13 +139,12 @@ class IterativeRetriever(Retriever):
     ) -> str | None:
         """Ask the LLM to refine; return a follow-up query or ``None`` to stop."""
         context = "\n".join(str(doc) for doc in merged.values()) or "(nothing yet)"
-        prompt = RagPrompt.render(
-            IterativeRetriever._decide_prompt,
+        prompt = IterativeRetriever._decide_prompt.render(
             {
                 "original_query": original_query,
                 "current_query": current_query,
                 "context": context,
-            },
+            }
         )
         raw = await llm.chat([{"role": "user", "content": prompt}])
         reply = IterativeRetriever._extract_text(raw).strip()

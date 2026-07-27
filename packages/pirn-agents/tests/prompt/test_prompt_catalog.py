@@ -58,14 +58,18 @@ class ResolveTests(unittest.TestCase):
 
     def test_substitutes_supplied_variables(self) -> None:
         catalog = PromptCatalog()
-        catalog.registry.register(PromptTemplate(name="a", version="1.0.0", template="hi {{ who }}"))
+        catalog.registry.register(
+            PromptTemplate(name="a", version="1.0.0", template="hi {{ who }}")
+        )
         assert catalog.resolve("a", namespace="default", variables={"who": "you"}) == "hi you"
 
     def test_unfilled_slot_stays_literal_instead_of_raising(self) -> None:
         # Non-strict on purpose: a stray marker is visible to the operator, a
         # mid-turn PromptRenderError would take the agent down.
         catalog = PromptCatalog()
-        catalog.registry.register(PromptTemplate(name="a", version="1.0.0", template="hi {{ who }}"))
+        catalog.registry.register(
+            PromptTemplate(name="a", version="1.0.0", template="hi {{ who }}")
+        )
         assert catalog.resolve("a", namespace="default") == "hi {{ who }}"
 
 

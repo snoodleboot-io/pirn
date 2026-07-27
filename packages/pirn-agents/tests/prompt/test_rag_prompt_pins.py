@@ -16,7 +16,6 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
-
 from pirn_agents.specializations.rag.adaptive_rag_pipeline import AdaptiveRAGPipeline
 from pirn_agents.specializations.rag.agentic_rag_pipeline import AgenticRagPipeline
 from pirn_agents.specializations.rag.contextual_chunk_enricher import ContextualChunkEnricher
@@ -37,6 +36,7 @@ from pirn_agents.specializations.rag.self_query_filter_extractor import SelfQuer
 from pirn_agents.specializations.rag.self_rag_pipeline import SelfRAGPipeline
 from pirn_agents.specializations.rag.speculative_draft_generator import SpeculativeDraftGenerator
 from pirn_agents.specializations.rag.sub_question_decomposer import SubQuestionDecomposer
+
 from tests.specializations.conftest import StubLLMProvider, StubMemoryStore
 
 

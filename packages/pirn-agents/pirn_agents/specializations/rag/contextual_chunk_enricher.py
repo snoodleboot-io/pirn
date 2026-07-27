@@ -28,7 +28,6 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
-from pirn_agents.specializations.rag.rag_prompt import RagPrompt
 
 
 class ContextualChunkEnricher(Knot):
@@ -94,9 +93,8 @@ class ContextualChunkEnricher(Knot):
         enriched: list[Mapping[str, Any]] = []
         for doc in documents:
             chunk_text = self._doc_text(doc)
-            prompt = RagPrompt.render(
-                type(self)._enrichment_prompt,
-                {"document_text": document_text, "chunk_text": chunk_text},
+            prompt = type(self)._enrichment_prompt.render(
+                {"document_text": document_text, "chunk_text": chunk_text}
             )
             raw = await llm.chat([{"role": "user", "content": prompt}])
             context = self._extract_text(raw).strip()

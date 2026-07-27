@@ -27,7 +27,6 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
-from pirn_agents.specializations.rag.rag_prompt import RagPrompt
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
@@ -97,9 +96,8 @@ class DraftVerifier(Knot):
         for index, doc in enumerate(documents):
             blocks.append(f"[{index + 1}] {self._doc_text(doc)}")
         context = "\n\n".join(blocks) if blocks else "(no documents retrieved)"
-        prompt = RagPrompt.render(
-            type(self)._verification_prompt,
-            {"query": query, "draft": draft, "context": context},
+        prompt = type(self)._verification_prompt.render(
+            {"query": query, "draft": draft, "context": context}
         )
         raw = await llm.chat([{"role": "user", "content": prompt}])
         return AgentResponse(content=self._extract_text(raw), finish_reason="stop")

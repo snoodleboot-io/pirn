@@ -52,7 +52,6 @@ from pirn_agents.specializations.rag.llm_chat_call import LLMChatCall
 from pirn_agents.specializations.rag.memory_search_retriever import (
     MemorySearchRetriever,
 )
-from pirn_agents.specializations.rag.rag_prompt import RagPrompt
 from pirn_agents.specializations.rag.rag_prompt_builder import (
     RAGPromptBuilder,
 )
@@ -138,8 +137,8 @@ class SelfRAGPipeline(AgentPipeline):
         draft_result = await self._run_inner(inner_draft)
         draft_answer = draft_result.outputs.get("draft", "")
 
-        assess_prompt = RagPrompt.render(
-            type(self)._assess_prompt, {"query": query, "draft_answer": draft_answer}
+        assess_prompt = type(self)._assess_prompt.render(
+            {"query": query, "draft_answer": draft_answer}
         )
         with Tapestry() as inner_assess:
             LLMChatCall(

@@ -23,7 +23,6 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
-from pirn_agents.specializations.rag.rag_prompt import RagPrompt
 
 
 class SpeculativeDraftGenerator(Knot):
@@ -74,7 +73,7 @@ class SpeculativeDraftGenerator(Knot):
             raise TypeError(
                 f"SpeculativeDraftGenerator: llm must be an LLMProvider, got {type(llm).__name__}"
             )
-        prompt = RagPrompt.render(type(self)._draft_prompt, {"query": query})
+        prompt = type(self)._draft_prompt.render({"query": query})
         raw = await llm.chat([{"role": "user", "content": prompt}])
         return self._extract_text(raw)
 

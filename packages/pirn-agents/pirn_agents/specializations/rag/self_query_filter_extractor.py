@@ -30,7 +30,6 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
-from pirn_agents.specializations.rag.rag_prompt import RagPrompt
 
 
 class SelfQueryFilterExtractor(Knot):
@@ -95,7 +94,7 @@ class SelfQueryFilterExtractor(Knot):
                 f"SelfQueryFilterExtractor: llm must be an LLMProvider, got {type(llm).__name__}"
             )
         fields = ", ".join(filterable_fields) if filterable_fields else "(none)"
-        prompt = RagPrompt.render(type(self)._extraction_prompt, {"fields": fields, "query": query})
+        prompt = type(self)._extraction_prompt.render({"fields": fields, "query": query})
         raw = await llm.chat([{"role": "user", "content": prompt}])
         semantic_query, metadata_filter = self._parse(self._extract_text(raw), query)
         allowed = set(filterable_fields)

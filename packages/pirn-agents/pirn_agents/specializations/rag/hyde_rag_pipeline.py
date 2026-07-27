@@ -45,7 +45,6 @@ from pirn_agents.specializations.rag.llm_chat_call import LLMChatCall
 from pirn_agents.specializations.rag.memory_search_retriever import (
     MemorySearchRetriever,
 )
-from pirn_agents.specializations.rag.rag_prompt import RagPrompt
 from pirn_agents.specializations.rag.rag_prompt_builder import (
     RAGPromptBuilder,
 )
@@ -94,7 +93,7 @@ class HyDERAGPipeline(AgentPipeline):
         Raises:
             TypeError: If query is not a string.
         """
-        hypothesis_prompt = RagPrompt.render(type(self)._hypothesis_prompt, {"query": query})
+        hypothesis_prompt = type(self)._hypothesis_prompt.render({"query": query})
         hypothesis = LLMChatCall(
             prompt=hypothesis_prompt,
             llm=llm,

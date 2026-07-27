@@ -38,8 +38,7 @@ class RenderFromBuiltinDefault(unittest.TestCase):
     def test_repeated_slot_is_filled_every_time(self) -> None:
         binding = PromptBinding(name="t.lang", default="A {{ lang }} expert writing {{ lang }}.")
         assert (
-            binding.render({"lang": "C++"}, catalog=PromptCatalog())
-            == "A C++ expert writing C++."
+            binding.render({"lang": "C++"}, catalog=PromptCatalog()) == "A C++ expert writing C++."
         )
 
     def test_unsupplied_slot_stays_literal_rather_than_raising(self) -> None:
@@ -86,17 +85,14 @@ class RenderPrecedence(unittest.TestCase):
         binding = PromptBinding(name="t.greet", default="Hello {{ name }}.")
         catalog = PromptCatalog()
         catalog.load_mapping({"templates": {"t.greet": "Bonjour {{ name }} !"}})
-        assert (
-            binding.render({"name": "Ada"}, "Yo {{ name }}.", catalog=catalog) == "Yo Ada."
-        )
+        assert binding.render({"name": "Ada"}, "Yo {{ name }}.", catalog=catalog) == "Yo Ada."
 
     def test_declared_equal_to_default_still_lets_the_pack_win(self) -> None:
         binding = PromptBinding(name="t.greet", default="Hello {{ name }}.")
         catalog = PromptCatalog()
         catalog.load_mapping({"templates": {"t.greet": "Bonjour {{ name }} !"}})
         assert (
-            binding.render({"name": "Ada"}, "Hello {{ name }}.", catalog=catalog)
-            == "Bonjour Ada !"
+            binding.render({"name": "Ada"}, "Hello {{ name }}.", catalog=catalog) == "Bonjour Ada !"
         )
 
     def test_no_variables_renders_the_body_unchanged(self) -> None:
