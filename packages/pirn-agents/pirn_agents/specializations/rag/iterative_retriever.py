@@ -23,7 +23,7 @@ References:
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -31,10 +31,23 @@ from pirn.core.knot_config import KnotConfig
 from pirn_agents.interfaces.retriever import Retriever
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
+from pirn_agents.prompt.prompt_binding import PromptBinding
+from pirn_agents.specializations.rag.rag_prompt import RagPrompt
 
 
 class IterativeRetriever(Retriever):
     """Retrieve, ask the LLM whether to refine, and loop under a budget."""
+
+    _decide_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.rag.iterative_retriever.decide_prompt",
+        default=(
+            "You are running iterative retrieval. Given the original question and the "
+            "evidence gathered so far, reply with exactly 'DONE' if the evidence is "
+            "sufficient, or 'REFINE: <a sharper follow-up search query>' if more is "
+            "needed.\n\nOriginal question: {{ original_query }}\n"
+            "Last query: {{ current_query }}\n\nEvidence:\n{{ context }}"
+        ),
+    )
 
     def __init__(
         self,
@@ -127,12 +140,13 @@ class IterativeRetriever(Retriever):
     ) -> str | None:
         """Ask the LLM to refine; return a follow-up query or ``None`` to stop."""
         context = "\n".join(str(doc) for doc in merged.values()) or "(nothing yet)"
-        prompt = (
-            "You are running iterative retrieval. Given the original question and the "
-            "evidence gathered so far, reply with exactly 'DONE' if the evidence is "
-            "sufficient, or 'REFINE: <a sharper follow-up search query>' if more is "
-            f"needed.\n\nOriginal question: {original_query}\n"
-            f"Last query: {current_query}\n\nEvidence:\n{context}"
+        prompt = RagPrompt.render(
+            IterativeRetriever._decide_prompt,
+            {
+                "original_query": original_query,
+                "current_query": current_query,
+                "context": context,
+            },
         )
         raw = await llm.chat([{"role": "user", "content": prompt}])
         reply = IterativeRetriever._extract_text(raw).strip()

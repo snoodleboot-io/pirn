@@ -20,17 +20,30 @@ References:
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
+from pirn_agents.specializations.rag.rag_prompt import RagPrompt
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class DraftVerifier(Knot):
     """Verify and, if needed, revise a draft answer against retrieved evidence."""
+
+    _verification_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.rag.draft_verifier.verification_prompt",
+        default=(
+            "A draft answer was written before sources were consulted. Verify it against "
+            "the sources below: keep what they support, correct what they contradict, and "
+            "cite the sources you rely on using their bracketed numbers.\n\n"
+            "Question: {{ query }}\n\nDraft answer: {{ draft }}\n\nSources:\n{{ context }}\n\n"
+            "Verified answer:"
+        ),
+    )
 
     def __init__(
         self,
@@ -84,12 +97,9 @@ class DraftVerifier(Knot):
         for index, doc in enumerate(documents):
             blocks.append(f"[{index + 1}] {self._doc_text(doc)}")
         context = "\n\n".join(blocks) if blocks else "(no documents retrieved)"
-        prompt = (
-            "A draft answer was written before sources were consulted. Verify it against "
-            "the sources below: keep what they support, correct what they contradict, and "
-            "cite the sources you rely on using their bracketed numbers.\n\n"
-            f"Question: {query}\n\nDraft answer: {draft}\n\nSources:\n{context}\n\n"
-            "Verified answer:"
+        prompt = RagPrompt.render(
+            type(self)._verification_prompt,
+            {"query": query, "draft": draft, "context": context},
         )
         raw = await llm.chat([{"role": "user", "content": prompt}])
         return AgentResponse(content=self._extract_text(raw), finish_reason="stop")

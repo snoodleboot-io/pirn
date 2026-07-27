@@ -19,16 +19,28 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
+from pirn_agents.specializations.rag.rag_prompt import RagPrompt
 
 
 class SubQuestionDecomposer(Knot):
     """Decompose a compound query into a list of retrievable sub-questions."""
+
+    _decomposition_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.rag.sub_question_decomposer.decomposition_prompt",
+        default=(
+            "Break the following question into at most {{ max_sub_questions }} independent, "
+            "self-contained sub-questions that together cover it. Return one sub-question "
+            "per line with no numbering or commentary.\n\n"
+            "Question: {{ query }}"
+        ),
+    )
 
     def __init__(
         self,
@@ -81,11 +93,9 @@ class SubQuestionDecomposer(Knot):
                 "SubQuestionDecomposer: max_sub_questions must be a positive int, "
                 f"got {max_sub_questions!r}"
             )
-        prompt = (
-            f"Break the following question into at most {max_sub_questions} independent, "
-            "self-contained sub-questions that together cover it. Return one sub-question "
-            "per line with no numbering or commentary.\n\n"
-            f"Question: {query}"
+        prompt = RagPrompt.render(
+            type(self)._decomposition_prompt,
+            {"max_sub_questions": max_sub_questions, "query": query},
         )
         raw = await llm.chat([{"role": "user", "content": prompt}])
         sub_questions = [

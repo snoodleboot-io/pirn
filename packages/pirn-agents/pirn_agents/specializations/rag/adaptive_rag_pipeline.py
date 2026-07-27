@@ -29,7 +29,7 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -38,11 +38,13 @@ from pirn.tapestry import Tapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.rag.llm_chat_call import LLMChatCall
 from pirn_agents.specializations.rag.memory_search_retriever import (
     MemorySearchRetriever,
 )
+from pirn_agents.specializations.rag.rag_prompt import RagPrompt
 from pirn_agents.specializations.rag.rag_prompt_builder import (
     RAGPromptBuilder,
 )
@@ -54,6 +56,28 @@ from pirn_agents.types.messaging.agent_response import AgentResponse
 
 class AdaptiveRAGPipeline(AgentPipeline):
     """Classify query complexity, then route to naive RAG, multi-hop RAG, or direct LLM."""
+
+    _classify_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.rag.adaptive_rag_pipeline.classify_prompt",
+        default=(
+            "Classify the complexity of the following question as one of: "
+            "SIMPLE, MODERATE, or COMPLEX. "
+            "SIMPLE means it can be answered directly without external context. "
+            "MODERATE means a single retrieval step suffices. "
+            "COMPLEX means it requires multiple reasoning steps or sub-questions. "
+            "Reply with only the single word.\n\n"
+            "Question: {{ query }}"
+        ),
+    )
+
+    _decompose_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.rag.adaptive_rag_pipeline.decompose_prompt",
+        default=(
+            "Decompose the following question into exactly three concise "
+            "sub-questions, one per line, no numbering or bullets.\n\n"
+            "Question: {{ query }}"
+        ),
+    )
 
     def __init__(
         self,
@@ -83,15 +107,7 @@ class AdaptiveRAGPipeline(AgentPipeline):
         Raises:
             TypeError: If query is not a string.
         """
-        classify_prompt = (
-            "Classify the complexity of the following question as one of: "
-            "SIMPLE, MODERATE, or COMPLEX. "
-            "SIMPLE means it can be answered directly without external context. "
-            "MODERATE means a single retrieval step suffices. "
-            "COMPLEX means it requires multiple reasoning steps or sub-questions. "
-            "Reply with only the single word.\n\n"
-            f"Question: {query}"
-        )
+        classify_prompt = RagPrompt.render(type(self)._classify_prompt, {"query": query})
         with Tapestry() as inner_classify:
             LLMChatCall(
                 prompt=classify_prompt,
@@ -123,11 +139,7 @@ class AdaptiveRAGPipeline(AgentPipeline):
             )
 
         elif "COMPLEX" in complexity:
-            decompose_prompt = (
-                "Decompose the following question into exactly three concise "
-                "sub-questions, one per line, no numbering or bullets.\n\n"
-                f"Question: {query}"
-            )
+            decompose_prompt = RagPrompt.render(type(self)._decompose_prompt, {"query": query})
             with Tapestry() as inner_decompose:
                 LLMChatCall(
                     prompt=decompose_prompt,

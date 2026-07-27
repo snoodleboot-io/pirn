@@ -37,7 +37,7 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -46,11 +46,13 @@ from pirn.tapestry import Tapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.rag.llm_chat_call import LLMChatCall
 from pirn_agents.specializations.rag.memory_search_retriever import (
     MemorySearchRetriever,
 )
+from pirn_agents.specializations.rag.rag_prompt import RagPrompt
 from pirn_agents.specializations.rag.rag_prompt_builder import (
     RAGPromptBuilder,
 )
@@ -62,6 +64,16 @@ from pirn_agents.types.messaging.agent_response import AgentResponse
 
 class SelfRAGPipeline(AgentPipeline):
     """Generate, self-assess retrieval need, optionally retrieve, then regenerate."""
+
+    _assess_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.rag.self_rag_pipeline.assess_prompt",
+        default=(
+            "Given the following question and draft answer, decide if "
+            "retrieval of additional context is needed to give a more "
+            "accurate or complete answer. Reply with only YES or NO.\n\n"
+            "Question: {{ query }}\nDraft answer: {{ draft_answer }}"
+        ),
+    )
 
     def __init__(
         self,
@@ -126,11 +138,8 @@ class SelfRAGPipeline(AgentPipeline):
         draft_result = await self._run_inner(inner_draft)
         draft_answer = draft_result.outputs.get("draft", "")
 
-        assess_prompt = (
-            "Given the following question and draft answer, decide if "
-            "retrieval of additional context is needed to give a more "
-            "accurate or complete answer. Reply with only YES or NO.\n\n"
-            f"Question: {query}\nDraft answer: {draft_answer}"
+        assess_prompt = RagPrompt.render(
+            type(self)._assess_prompt, {"query": query, "draft_answer": draft_answer}
         )
         with Tapestry() as inner_assess:
             LLMChatCall(

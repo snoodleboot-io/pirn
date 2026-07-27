@@ -22,16 +22,27 @@ References:
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
+from pirn_agents.specializations.rag.rag_prompt import RagPrompt
 
 
 class ContextualCompressor(Knot):
     """Compress each retrieved document to only its query-relevant content."""
+
+    _compression_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.rag.contextual_compressor.compression_prompt",
+        default=(
+            "Extract only the sentences from the document that are relevant to the "
+            "query. Preserve wording exactly. If nothing is relevant, reply with only "
+            "'NONE'.\n\nQuery: {{ query }}\n\nDocument:\n{{ text }}"
+        ),
+    )
 
     def __init__(
         self,
@@ -81,10 +92,8 @@ class ContextualCompressor(Knot):
         compressed: list[Mapping[str, Any]] = []
         for doc in documents:
             text = self._doc_text(doc)
-            prompt = (
-                "Extract only the sentences from the document that are relevant to the "
-                "query. Preserve wording exactly. If nothing is relevant, reply with only "
-                f"'NONE'.\n\nQuery: {query}\n\nDocument:\n{text}"
+            prompt = RagPrompt.render(
+                type(self)._compression_prompt, {"query": query, "text": text}
             )
             raw = await llm.chat([{"role": "user", "content": prompt}])
             extracted = self._extract_text(raw).strip()

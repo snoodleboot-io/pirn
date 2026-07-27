@@ -30,13 +30,15 @@ References:
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.retrieval.rerank.reranker_backend import RerankerBackend
+from pirn_agents.specializations.rag.rag_prompt import RagPrompt
 
 
 class Reranker(Knot):
@@ -48,6 +50,16 @@ class Reranker(Knot):
     cross-encoder adapter) injected via ``reranker``. Exactly one of ``llm`` or
     ``reranker`` must be supplied.
     """
+
+    _score_prompt: ClassVar[PromptBinding] = PromptBinding(
+        name="specializations.rag.reranker.score_prompt",
+        default=(
+            "Score the relevance of the following document to the query "
+            "on a scale from 0.0 (not relevant) to 1.0 (highly relevant). "
+            "Reply with only the numeric score.\n\n"
+            "Query: {{ query }}\n\nDocument: {{ text }}"
+        ),
+    )
 
     def __init__(
         self,
@@ -121,11 +133,8 @@ class Reranker(Knot):
         scored: list[tuple[float, Mapping[str, Any]]] = []
         for doc in documents:
             text = self._doc_text(doc)
-            score_prompt = (
-                "Score the relevance of the following document to the query "
-                "on a scale from 0.0 (not relevant) to 1.0 (highly relevant). "
-                "Reply with only the numeric score.\n\n"
-                f"Query: {query}\n\nDocument: {text}"
+            score_prompt = RagPrompt.render(
+                type(self)._score_prompt, {"query": query, "text": text}
             )
             raw = await llm.chat([{"role": "user", "content": score_prompt}])
             score_text = self._extract_text(raw).strip()
