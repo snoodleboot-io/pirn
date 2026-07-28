@@ -21,10 +21,19 @@ from pirn_agents.tools.tool import Tool
 
 
 class StubLLMProvider(LLMProvider):
-    """Returns a script of canned responses on each :meth:`chat` call."""
+    """Returns a script of canned responses on each :meth:`chat` call.
 
-    def __init__(self, responses: Sequence[str]) -> None:
+    By default the script is exhaustive: a call beyond the last scripted
+    response raises. Replaying the last response forever hides bugs where a
+    pipeline makes more calls than it should — it is how PIR-753's ReAct
+    always-pay defect stayed invisible to every test. Pass
+    ``repeat_last=True`` only where the call count is genuinely unbounded
+    and not the property under test.
+    """
+
+    def __init__(self, responses: Sequence[str], *, repeat_last: bool = False) -> None:
         self._responses = list(responses)
+        self._repeat_last = repeat_last
         self._index = 0
         self.calls: list[Sequence[Mapping[str, Any]]] = []
 
@@ -40,8 +49,15 @@ class StubLLMProvider(LLMProvider):
         if self._index < len(self._responses):
             text = self._responses[self._index]
             self._index += 1
-        else:
+        elif self._repeat_last:
             text = self._responses[-1] if self._responses else ""
+        else:
+            raise AssertionError(
+                f"StubLLMProvider: chat() call #{len(self.calls)} exceeds the "
+                f"{len(self._responses)} scripted response(s). Either the code under "
+                "test makes more LLM calls than intended, or this stub needs a longer "
+                "script (or repeat_last=True if the count is genuinely unbounded)."
+            )
         return {"role": "assistant", "content": text}
 
     async def stream_chat(

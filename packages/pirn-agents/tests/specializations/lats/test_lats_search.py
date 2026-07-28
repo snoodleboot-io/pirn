@@ -28,8 +28,10 @@ class _KeywordValueModel(TrajectoryValueModel):
 
 
 def _proposer_llm() -> StubLLMProvider:
-    # Every expansion proposes the same two candidate actions.
-    return StubLLMProvider(["- left\n- right"])
+    # Every expansion proposes the same two candidate actions. The number of
+    # expansions is a property of the search, not of this fixture, so the
+    # response genuinely repeats.
+    return StubLLMProvider(["- left\n- right"], repeat_last=True)
 
 
 class TestLatsActionProposer(unittest.IsolatedAsyncioTestCase):

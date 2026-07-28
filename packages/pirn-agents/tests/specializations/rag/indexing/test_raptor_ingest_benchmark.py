@@ -43,7 +43,7 @@ async def _build(store: InMemoryVectorStore, embedder: StubEmbeddingProvider, ll
 async def test_raptor_rebuild_skips_summaries() -> None:
     embedder = StubEmbeddingProvider(dimension=4)
     store = InMemoryVectorStore(embedder=embedder)
-    llm = StubLLMProvider(["summary"])
+    llm = StubLLMProvider(["summary"], repeat_last=True)
 
     start = time.perf_counter()
     first = await _build(store, embedder, llm)

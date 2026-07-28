@@ -14,10 +14,12 @@ on purpose: ReAct termination is a policy decision and the surrounding
 a fixed number of step knots.
 
 Algorithm:
-    1. Extract the trailing assistant message from ``latest_response``.
-    2. If the message content contains ``Final Answer:``, return ``True``.
-    3. If ``current_iteration >= max_iterations``, return ``True``.
-    4. Otherwise return ``False``.
+    1. If ``already_terminated`` is true, return ``True`` — termination
+       latches and is never withdrawn.
+    2. Extract the trailing assistant message from ``latest_response``.
+    3. If the message content contains ``Final Answer:``, return ``True``.
+    4. If ``current_iteration >= max_iterations``, return ``True``.
+    5. Otherwise return ``False``.
 
 
 References:
@@ -46,6 +48,7 @@ class ReActTerminationCheck(Knot):
         latest_response: Knot,
         max_iterations: Knot | int,
         current_iteration: Knot | int,
+        already_terminated: Knot | bool,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
@@ -53,6 +56,7 @@ class ReActTerminationCheck(Knot):
             latest_response=latest_response,
             max_iterations=max_iterations,
             current_iteration=current_iteration,
+            already_terminated=already_terminated,
             _config=_config,
             **kwargs,
         )
@@ -62,17 +66,25 @@ class ReActTerminationCheck(Knot):
         latest_response: Any,
         max_iterations: int,
         current_iteration: int,
+        already_terminated: bool,
         **_: Any,
     ) -> bool:
         """Return True when the latest step contains a final-answer marker or the iteration cap is reached.
+
+        Once termination has been signalled it is never withdrawn: ``already_terminated``
+        latches the result to True. Without the latch, a step that runs after the final
+        answer contributes no marker of its own, so the gate would reopen and let a later
+        accumulator append over the answer.
 
         Args:
             latest_response: The output of the most recent ReActStepExecutor, used to check for a final-answer marker.
             max_iterations: The maximum number of iterations before forced termination.
             current_iteration: The 1-based count of the iteration just completed.
+            already_terminated: Whether an earlier gate has already signalled termination.
 
         Returns:
-            True if the final-answer marker is present or current_iteration has reached max_iterations.
+            True if termination was already signalled, the final-answer marker is present,
+            or current_iteration has reached max_iterations.
 
         Raises:
             ValueError: If max_iterations is not a positive int or current_iteration is negative.
@@ -87,6 +99,8 @@ class ReActTerminationCheck(Knot):
                 "ReActTerminationCheck: current_iteration must be a non-negative int, "
                 f"got {current_iteration!r}"
             )
+        if already_terminated:
+            return True
         messages = self._coerce_messages(latest_response)
         for message in reversed(messages):
             if message.role == "assistant":

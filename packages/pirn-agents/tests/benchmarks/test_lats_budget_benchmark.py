@@ -29,7 +29,7 @@ async def _run(node_budget: int, max_depth: int) -> tuple[float, int, bool]:
     with Tapestry() as t:
         LatsSearch(
             task="maze",
-            llm=StubLLMProvider(["- left\n- right"]),
+            llm=StubLLMProvider(["- left\n- right"], repeat_last=True),
             value_model=_DepthValueModel(),
             budget=RunBudget(max_iterations=node_budget),
             max_depth=max_depth,
