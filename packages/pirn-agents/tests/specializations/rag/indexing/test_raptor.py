@@ -46,7 +46,7 @@ class TestRaptor(unittest.IsolatedAsyncioTestCase):
     async def test_builds_multi_level_tree(self) -> None:
         embedder = StubEmbeddingProvider(dimension=4)
         store = InMemoryVectorStore(embedder=embedder)
-        llm = StubLLMProvider(["summary text"])
+        llm = StubLLMProvider(["summary text"], repeat_last=True)
         tree = await _build(store, embedder, llm)
         assert isinstance(tree, RaptorTree)
         assert tree.reused is False
@@ -57,7 +57,7 @@ class TestRaptor(unittest.IsolatedAsyncioTestCase):
     async def test_rebuild_is_reused_without_llm_calls(self) -> None:
         embedder = StubEmbeddingProvider(dimension=4)
         store = InMemoryVectorStore(embedder=embedder)
-        llm = StubLLMProvider(["summary text"])
+        llm = StubLLMProvider(["summary text"], repeat_last=True)
         first = await _build(store, embedder, llm)
         calls_after_first = len(llm.calls)
         assert calls_after_first > 0
@@ -70,7 +70,7 @@ class TestRaptor(unittest.IsolatedAsyncioTestCase):
     async def test_collapsed_retrieval_excludes_meta(self) -> None:
         embedder = StubEmbeddingProvider(dimension=4)
         store = InMemoryVectorStore(embedder=embedder)
-        llm = StubLLMProvider(["summary text"])
+        llm = StubLLMProvider(["summary text"], repeat_last=True)
         await _build(store, embedder, llm)
         leaf = await store.get(
             "raptor:" + (await _build(store, embedder, llm)).content_hash + ":0:0"

@@ -16,13 +16,21 @@ runs that complete early simply pay the cost of a few short-circuit
 knots after the final answer is found. ``max_iterations`` caps the
 number of step knots the inner tapestry contains.
 
+The termination signal is threaded into every downstream knot of the
+next iteration — the step executor, the accumulator, and the next gate.
+The step executor needs it to avoid paying for an LLM call whose result
+would be discarded; the gate needs it because a step that runs after the
+final answer emits no marker of its own, so without the latch the gate
+would reopen and a later accumulator would append over the answer.
+
 Algorithm:
     1. Receive ``messages``, ``llm``, ``tools``, and ``max_iterations``
        at process time.
     2. Validate input types; raise on bad types or non-positive iterations.
     3. Build an inner :class:`Tapestry` with a fixed-length unrolled chain:
        a. Seed knot: :class:`MessagesPassthrough` over the input messages.
-       b. For each iteration index 0..max_iterations-1:
+       b. For each iteration index 0..max_iterations-1, threading the
+          prior iteration's termination signal into all three knots:
           i.  :class:`ContextBuilder` over the running message tail.
           ii. :class:`ReActStepExecutor` with ``llm`` and ``tools``.
           iii. :class:`ReActStepAccumulator` appending the step output.
@@ -131,13 +139,10 @@ class ReActLoop(AgentPipeline):
             messages=seed_messages,
             _config=KnotConfig(id="seed"),
         )
-        ContextBuilder(
-            messages=seed,
-            _config=KnotConfig(id="initial_context"),
-        )
         running_messages: Knot = seed
         already_terminated: Knot | bool = False
         for index in range(max_iterations):
+            prior_terminated = already_terminated
             context_knot = ContextBuilder(
                 messages=running_messages,
                 _config=KnotConfig(id=f"context_{index}"),
@@ -146,18 +151,20 @@ class ReActLoop(AgentPipeline):
                 context=context_knot,
                 llm=llm,
                 tools=tool_tuple,
+                already_terminated=prior_terminated,
                 _config=KnotConfig(id=f"step_{index}"),
             )
             running_messages = ReActStepAccumulator(
                 prior=running_messages,
                 step_output=step,
-                already_terminated=already_terminated,
+                already_terminated=prior_terminated,
                 _config=KnotConfig(id=f"accum_{index}"),
             )
             already_terminated = ReActTerminationCheck(
                 latest_response=step,
                 max_iterations=max_iterations,
                 current_iteration=index + 1,
+                already_terminated=prior_terminated,
                 _config=KnotConfig(id=f"gate_{index}"),
             )
         return ReActResponseExtractor(

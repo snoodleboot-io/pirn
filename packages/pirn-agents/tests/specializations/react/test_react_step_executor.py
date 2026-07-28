@@ -33,6 +33,7 @@ class TestReActStepExecutorProcess(unittest.IsolatedAsyncioTestCase):
                 context=ctx,
                 llm=llm,
                 tools=tools,
+                already_terminated=False,
                 _config=KnotConfig(id="step"),
             )
 
@@ -44,6 +45,7 @@ class TestReActStepExecutorProcess(unittest.IsolatedAsyncioTestCase):
                 context=[AgentMessage(role="user", content="hi")],
                 llm="not-a-provider",  # type: ignore[arg-type]
                 tools=(),
+                already_terminated=False,
             )
 
     async def test_rejects_non_tool(self) -> None:
@@ -54,6 +56,7 @@ class TestReActStepExecutorProcess(unittest.IsolatedAsyncioTestCase):
                 context=[AgentMessage(role="user", content="hi")],
                 llm=llm,
                 tools=("not-a-tool",),  # type: ignore[arg-type]
+                already_terminated=False,
             )
 
     async def test_final_answer_short_circuits_tool_call(self) -> None:
@@ -61,7 +64,9 @@ class TestReActStepExecutorProcess(unittest.IsolatedAsyncioTestCase):
         tool = StubTool(name="search", handler="result")
         knot = self._make(llm, tools=(tool,))
         context = [AgentMessage(role="user", content="What?")]
-        emitted = await knot.process(context=context, llm=llm, tools=(tool,))
+        emitted = await knot.process(
+            context=context, llm=llm, tools=(tool,), already_terminated=False
+        )
         assert len(emitted) == 1
         assert emitted[0].role == "assistant"
         assert "Final Answer:" in emitted[0].content
@@ -72,7 +77,9 @@ class TestReActStepExecutorProcess(unittest.IsolatedAsyncioTestCase):
         tool = StubTool(name="search", handler="qubits are stable")
         knot = self._make(llm, tools=(tool,))
         context = [AgentMessage(role="user", content="research")]
-        emitted = await knot.process(context=context, llm=llm, tools=(tool,))
+        emitted = await knot.process(
+            context=context, llm=llm, tools=(tool,), already_terminated=False
+        )
         assert len(emitted) == 3
         thought, call, observation = emitted
         assert thought.role == "assistant"
@@ -81,3 +88,28 @@ class TestReActStepExecutorProcess(unittest.IsolatedAsyncioTestCase):
         assert observation.role == "tool"
         assert observation.content == "qubits are stable"
         assert tool.invocations == [{"input": "quantum computing"}]
+
+    async def test_already_terminated_makes_no_llm_call(self) -> None:
+        """The PIR-753 cost defect: a post-termination step must not pay for a call."""
+        llm = StubLLMProvider(["should never be requested"])
+        tool = StubTool(name="search", handler="result")
+        knot = self._make(llm, tools=(tool,))
+        context = [AgentMessage(role="user", content="What?")]
+        emitted = await knot.process(
+            context=context, llm=llm, tools=(tool,), already_terminated=True
+        )
+        assert emitted == ()
+        assert llm.calls == []
+        assert tool.invocations == []
+
+    async def test_already_terminated_still_validates_its_inputs(self) -> None:
+        """Short-circuiting must not weaken the type contract."""
+        llm = StubLLMProvider(["unused"])
+        knot = self._make(llm)
+        with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
+            await knot.process(
+                context=[AgentMessage(role="user", content="hi")],
+                llm="not-a-provider",  # type: ignore[arg-type]
+                tools=(),
+                already_terminated=True,
+            )

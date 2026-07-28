@@ -22,17 +22,21 @@ short-circuits tool selection: no tool call is performed and the
 trailing assistant message stands as the final answer for the loop.
 
 Algorithm:
-    1. Receive ``context``, ``llm``, and ``tools`` at process time.
+    1. Receive ``context``, ``llm``, ``tools``, and ``already_terminated``
+       at process time.
     2. Validate ``llm`` and each entry in ``tools``; raise on bad types.
-    3. Build a tool registry keyed by ``tool.name``.
-    4. Render the prompt from ``context``.
-    5. Call ``llm.chat`` with the rendered prompt.
-    6. Extract the thought text from the raw LLM response.
-    7. If the thought contains ``"Final Answer:"``, return ``(thought,)``.
-    8. Parse ``Action:`` / ``Action Input:`` lines from the thought.
-    9. If no action name is found, return ``(thought,)``.
-    10. Invoke the named tool (or produce an error observation).
-    11. Return ``(thought, tool_call_message, observation)``.
+    3. If ``already_terminated`` is true, return ``()`` without calling
+       the LLM — an earlier step has produced the final answer and this
+       unrolled step is a no-op.
+    4. Build a tool registry keyed by ``tool.name``.
+    5. Render the prompt from ``context``.
+    6. Call ``llm.chat`` with the rendered prompt.
+    7. Extract the thought text from the raw LLM response.
+    8. If the thought contains ``"Final Answer:"``, return ``(thought,)``.
+    9. Parse ``Action:`` / ``Action Input:`` lines from the thought.
+    10. If no action name is found, return ``(thought,)``.
+    11. Invoke the named tool (or produce an error observation).
+    12. Return ``(thought, tool_call_message, observation)``.
 
 
 References:
@@ -80,16 +84,25 @@ class ReActStepExecutor(Knot):
         context: Knot,
         llm: Knot | LLMProvider,
         tools: Knot | Sequence[Tool],
+        already_terminated: Knot | bool,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        super().__init__(context=context, llm=llm, tools=tools, _config=_config, **kwargs)
+        super().__init__(
+            context=context,
+            llm=llm,
+            tools=tools,
+            already_terminated=already_terminated,
+            _config=_config,
+            **kwargs,
+        )
 
     async def process(
         self,
         context: Any,
         llm: LLMProvider,
         tools: Sequence[Tool],
+        already_terminated: bool,
         **_: Any,
     ) -> tuple[AgentMessage, ...]:
         """Emit a thought, optionally invoke a tool, and return the new tail of messages.
@@ -98,10 +111,13 @@ class ReActStepExecutor(Knot):
             context: The current agent context used to render the prompt for the LLM.
             llm: The LLM provider used to generate the thought.
             tools: The sequence of available tools for this step.
+            already_terminated: Whether an earlier step has already signalled termination.
+                When true this step is a no-op and no LLM call is made.
 
         Returns:
             A tuple of new AgentMessage instances: the thought, optional tool-call surrogate,
-            and observation; or just the thought when a Final Answer is emitted.
+            and observation; or just the thought when a Final Answer is emitted. Returns an
+            empty tuple when the loop has already terminated.
 
         Raises:
             TypeError: If llm is not an LLMProvider or any tool is not a Tool.
@@ -117,6 +133,8 @@ class ReActStepExecutor(Knot):
                     f"ReActStepExecutor: tools[{index}] must be a Tool, "
                     f"got {type(candidate).__name__}"
                 )
+        if already_terminated:
+            return ()
         tools_by_name = {tool.name: tool for tool in tool_tuple}
         prompt = self._render_prompt(context, tool_tuple)
         chat_messages = [{"role": "user", "content": prompt}]

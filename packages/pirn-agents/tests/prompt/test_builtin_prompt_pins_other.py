@@ -405,7 +405,7 @@ class ReActPromptPins(unittest.IsolatedAsyncioTestCase):
         tool = StubTool(name="search", description="stub tool")
         knot = _bare(ReActStepExecutor)
         context = [AgentMessage(role="user", content="What?")]
-        await knot.process(context=context, llm=llm, tools=(tool,))
+        await knot.process(context=context, llm=llm, tools=(tool,), already_terminated=False)
         assert llm.calls[0][0]["content"] == (
             "You are a ReAct agent. Available tools:\n"
             "- search: stub tool\n\n"
