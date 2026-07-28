@@ -6,6 +6,7 @@ import dataclasses
 
 import pytest
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
+
 from pirn_agents.agent.agent_nesting_config import AgentNestingConfig
 
 

@@ -14,6 +14,7 @@ from collections.abc import Callable
 from typing import Any
 
 import pytest
+
 from pirn_agents.agent.agent_invoker import AgentInvoker
 from pirn_agents.agent.agent_tool_context import AgentToolContext
 from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor

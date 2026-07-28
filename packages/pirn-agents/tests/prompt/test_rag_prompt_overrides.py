@@ -15,12 +15,12 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.prompt.prompt_catalog import PromptCatalog
 from pirn_agents.specializations.rag.rag_prompt_builder import RAGPromptBuilder
 from pirn_agents.specializations.rag.rag_synthesizer import RAGSynthesizer
 from pirn_agents.specializations.rag.sub_question_decomposer import SubQuestionDecomposer
-
 from tests.specializations.conftest import StubLLMProvider
 
 

@@ -16,6 +16,7 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.tapestry import Tapestry
+
 from pirn_agents.control.reflection_check import ReflectionCheck
 from pirn_agents.planning.plan import Plan
 from pirn_agents.planning.planner import Planner
@@ -31,7 +32,6 @@ from pirn_agents.specializations.reflection.self_critique_revise import SelfCrit
 from pirn_agents.types.messaging.agent_context import AgentContext
 from pirn_agents.types.messaging.agent_message import AgentMessage
 from pirn_agents.types.messaging.agent_response import AgentResponse
-
 from tests.conftest import StubLLMProvider
 
 
