@@ -81,10 +81,15 @@ class _IterationChainKnot(Knot):
     plans the next iteration via ``step``, and self-registers the successor
     into the loop tapestry's store for the extensible engine to pick up.
 
-    ``state`` is always the single declared input.  For iteration_1 it is a
-    plain config value (the initial state).  For iteration N+1 it is the
-    previous iteration knot (a Knot parent), resolved to that knot's output
-    state before ``process`` is called.  The edge encodes the data dependency.
+    ``state`` is always the single declared input, and is always a plain config
+    value: the second element of the tuple ``step`` returned for this iteration.
+    That is what ``fold`` receives, per the contract in the module docstring.
+
+    Sequencing is carried separately by the ``_previous_iteration`` implicit
+    parent, so iteration N+1 cannot begin before iteration N completes.  These
+    two concerns used to share one wiring — ``state=self`` — which meant
+    ``step``'s returned state was silently discarded for every iteration after
+    the first (PIR-754).
     """
 
     def __init__(
@@ -147,13 +152,22 @@ class _IterationChainKnot(Knot):
         next_knot_id = loop.step_id(new_state, next_idx)
 
         if next_outcome is not None:
-            next_tapestry, _ = next_outcome
+            next_tapestry, next_state = next_outcome
             next_knot = _IterationChainKnot(
                 _loop_sub=loop,
                 _iter_tapestry=next_tapestry,
                 _iteration_idx=next_idx,
                 _outer_history=outer_history,
-                state=self,
+                # ``state`` is the state ``step`` returned, matching iteration 1
+                # (see ``_first_iteration_knot``) and the documented contract:
+                # "return it alongside the updated state that ``fold`` will
+                # receive".  Passing ``self`` here instead silently dropped that
+                # second tuple element for every iteration after the first.
+                state=next_state,
+                # Ordering only.  ``state`` used to double as the sequencing edge;
+                # now that it carries a value, the chain needs its own explicit
+                # parent so iteration N+1 still cannot start before iteration N.
+                _previous_iteration=self,
                 _config=KnotConfig(id=next_knot_id),
             )
             store.register(next_knot)
