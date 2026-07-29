@@ -81,9 +81,7 @@ class TestCheckpointHashInvariant:
     _golden_digest = "9e638e5c7315150eb97518e4441423cf3e1aafbf24b06db203198b27c8d39f94"
 
     def test_canonical_payload_json_is_unchanged(self) -> None:
-        canonical = json.dumps(
-            _golden_state().to_payload(), sort_keys=True, separators=(",", ":")
-        )
+        canonical = json.dumps(_golden_state().to_payload(), sort_keys=True, separators=(",", ":"))
         assert canonical == self._golden_canonical, (
             "RunState.to_payload() changed shape. This is the persisted "
             "checkpoint format -- every stored checkpoint_id is derived from "

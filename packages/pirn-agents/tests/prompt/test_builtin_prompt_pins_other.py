@@ -18,6 +18,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_agents.input.intent_classifier import IntentClassifier
 from pirn_agents.memory.patterns.semantic_memory_pipeline import SemanticMemoryPipeline
 from pirn_agents.memory.patterns.semantic_memory_upsert import SemanticMemoryUpsert
@@ -78,7 +79,6 @@ from pirn_agents.tools.tool_result import ToolResult
 from pirn_agents.types.messaging.agent_context import AgentContext
 from pirn_agents.types.messaging.agent_message import AgentMessage
 from pirn_agents.types.messaging.agent_response import AgentResponse
-
 from tests.conftest import StubLLMProvider, StubMemoryStore, StubTool
 from tests.specializations.conftest import StubEmbeddingProvider
 

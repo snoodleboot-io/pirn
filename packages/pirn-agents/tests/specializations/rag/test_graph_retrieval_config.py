@@ -6,6 +6,7 @@ import dataclasses
 
 import pytest
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
+
 from pirn_agents.specializations.rag.graph_retrieval_config import GraphRetrievalConfig
 
 

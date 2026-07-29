@@ -170,9 +170,29 @@ jobs:
           # aligned with .pre-commit-config.yaml.
           uv pip install --system --find-links dist/ -e "packages/${{ matrix.package }}" 'ruff==0.15.22' 'pyright==1.1.411'
       - name: Ruff lint + format (package's own config)
+        # Run from INSIDE the package, like the pyright step below (PIR-760).
+        # Ruff infers first-party packages from the working directory: invoked
+        # from the repo root it classified `pirn_agents` as third-party and
+        # re-sorted nearly every test file — 397 I001 findings against the 12
+        # the documented local gate reports. Source dirs happen to be I001-clean
+        # under both classifications, which is the only reason this never bit.
+        # cd-ing in also makes CI and the local gate the same command.
         run: |
-          ruff check --config packages/${{ matrix.package }}/pyproject.toml packages/${{ matrix.package }}/${{ steps.pkg.outputs.imp }}
-          ruff format --check --config packages/${{ matrix.package }}/pyproject.toml packages/${{ matrix.package }}/${{ steps.pkg.outputs.imp }}
+          cd packages/${{ matrix.package }}
+          ruff check ${{ steps.pkg.outputs.imp }}
+          ruff format --check ${{ steps.pkg.outputs.imp }}
+      - name: Ruff lint + format tests (opt-in per package)
+        # PIR-760: the documented local gate lints `tests/`, CI did not, so the
+        # two disagreed by construction and findings accumulated unseen.
+        # tests/ is NOT clean workspace-wide — pirn-core has 241 findings across
+        # 198 files, pirn-data 369, and the others 95–192 — so this is opt-in
+        # rather than a global switch. Add a package here once its tests/ pass;
+        # do not add one speculatively, a red main helps nobody.
+        if: contains(fromJSON('["pirn-agents"]'), matrix.package)
+        run: |
+          cd packages/${{ matrix.package }}
+          ruff check tests
+          ruff format --check tests
       - name: Pyright (package's own config)
         run: cd packages/${{ matrix.package }} && pyright
 
