@@ -4,6 +4,8 @@
 
 Every iteration is a real, traceable knot in run history.  This is the defining difference between `LoopSubTapestry` and a bare Python `while` loop hidden inside a `Knot.process()` — pirn's explorer can drill into each step, replay any iteration, and attribute latency to individual turns.
 
+> **Iteration bound.** Iterations chain through parent edges, and resolving that chain costs stack depth proportional to its length. Past roughly 950 iterations (at CPython's default recursion limit of 1000) a run fails with `RecursionError` recorded against the loop knot — `succeeded=False`, so it fails loudly rather than returning a wrong answer. This is comfortably above bounded agent loops, which run 3–20 iterations, but a genuinely open-ended conversational session should not assume it can run indefinitely. Tracked separately; see PIR-763.
+
 ## Core Concepts
 
 ### Why Not a Python `while` Loop?
@@ -45,7 +47,9 @@ Called before each iteration.  Given the current state, decide:
 - **Continue**: build the iteration's tapestry, return `(tapestry, updated_state)`.
 - **Terminate**: return `None`.
 
-The second element of the return tuple is ignored by the framework. `fold` always receives the same state that was passed into `step` for that iteration, not the state returned here. Return `state` unchanged as a convention.
+The second element of the return tuple is the state `fold` will receive for that iteration. Returning `state` unchanged is still the simplest convention — and is what you want whenever `step` mutates a shared state object in place — but a `step` that computes a *new* state value can return it and `fold` will see it.
+
+> **Changed in PIR-754.** This previously read "the second element is ignored; `fold` always receives the state passed into `step`". That described a defect, not a contract: the framework honoured `step`'s returned state on iteration 1 and discarded it on every later iteration, so the two disagreed with each other. `fold` now receives `step`'s returned state on every iteration, matching `LoopSubTapestry`'s own class docstring. A `step` that returns `state` unchanged — the documented convention, and what every in-tree loop does — is unaffected.
 
 Build the iteration tapestry with a plain `Tapestry()` context manager:
 
