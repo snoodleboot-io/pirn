@@ -18,12 +18,13 @@ Algorithm:
        LLMProvider, ``top_k`` positive integer.
     3. Run a first inner tapestry to generate a draft answer.
     4. Run a second inner tapestry to assess (YES/NO) whether retrieval
-       would improve the answer.
-    5. If YES: run a third inner tapestry that retrieves from ``memory``,
-       builds a context-augmented prompt, calls the LLM, and packages
-       the result as an :class:`AgentResponse`.
-    6. If NO: return the draft answer wrapped in an
-       :class:`AgentResponse` directly.
+       would improve the answer. Both need their own run because the value
+       is required in Python before the next graph can be built.
+    5. If YES: build retrieval, prompt, generation and response into the
+       inner tapestry ``SubTapestry.__call__`` already opened, and return the
+       :class:`RAGResponseBuilder` sink — so the arm's knots belong to the run
+       this pipeline reports.
+    6. If NO: return a :class:`RAGResponseBuilder` sink wrapping the draft.
 
 Math:
     No quantitative computation — self-assessment is a binary LLM
@@ -41,7 +42,6 @@ from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.source import Source
 from pirn.tapestry import Tapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
@@ -58,7 +58,6 @@ from pirn_agents.specializations.rag.rag_prompt_builder import (
 from pirn_agents.specializations.rag.rag_response_builder import (
     RAGResponseBuilder,
 )
-from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class SelfRAGPipeline(AgentPipeline):
@@ -149,43 +148,38 @@ class SelfRAGPipeline(AgentPipeline):
         assess_result = await self._run_inner(inner_assess)
         assessment = str(assess_result.outputs.get("assess", "")).strip().upper()
 
+        # Each arm is built into the inner tapestry `SubTapestry.__call__` has
+        # already opened, and returns its real sink knot. Previously the
+        # retrieval arm opened its own `with Tapestry()`, ran it via
+        # `_run_inner`, pulled the answer out, and handed back a `_ResultSource`
+        # closure wrapping the precomputed value — so the arm's knots were
+        # invisible to the run this pipeline reports.
         if "YES" in assessment:
-            with Tapestry() as inner_rag:
-                retrieved = MemorySearchRetriever(
-                    store=memory,
-                    query=query,
-                    top_k=top_k,
-                    _config=KnotConfig(id="retrieve"),
-                )
-                prompt = RAGPromptBuilder(
-                    query=query,
-                    retrieved=retrieved,
-                    _config=KnotConfig(id="prompt"),
-                )
-                answer = LLMChatCall(
-                    prompt=prompt,
-                    llm=llm,
-                    _config=KnotConfig(id="generate"),
-                )
-                RAGResponseBuilder(
-                    answer=answer,
-                    _config=KnotConfig(id="response"),
-                )
-            rag_result = await self._run_inner(inner_rag)
-            final_response: AgentResponse = rag_result.outputs.get("response") or AgentResponse(
-                content="", finish_reason="length"
+            retrieved = MemorySearchRetriever(
+                store=memory,
+                query=query,
+                top_k=top_k,
+                _config=KnotConfig(id="retrieve"),
             )
-        else:
-            final_response = (
-                AgentResponse(content=draft_answer, finish_reason="stop")
-                if isinstance(draft_answer, str)
-                else AgentResponse(content="", finish_reason="length")
+            prompt = RAGPromptBuilder(
+                query=query,
+                retrieved=retrieved,
+                _config=KnotConfig(id="prompt"),
             )
+            answer = LLMChatCall(
+                prompt=prompt,
+                llm=llm,
+                _config=KnotConfig(id="generate"),
+            )
+            return RAGResponseBuilder(answer=answer, _config=KnotConfig(id="response"))
 
-        _resp = final_response
-
-        class _ResultSource(Source):
-            async def process(self, **_: Any) -> AgentResponse:
-                return _resp
-
-        return _ResultSource(_config=KnotConfig(id="result"))
+        # The draft is always a string: `outputs.get("draft", "")` defaults to
+        # one and `LLMChatCall` returns `_extract_text`'s str. The old
+        # `finish_reason="length"` fallback for a non-str draft was therefore
+        # unreachable, and no test covered it; the coercion is kept so the
+        # behaviour is identical on every reachable path.
+        content = draft_answer if isinstance(draft_answer, str) else ""
+        return RAGResponseBuilder(
+            answer=content,  # pyright: ignore[reportArgumentType]
+            _config=KnotConfig(id="direct_response"),
+        )
