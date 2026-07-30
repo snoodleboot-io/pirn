@@ -39,6 +39,21 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 
+def _is_async_callable(combine: Callable[..., Any]) -> bool:
+    """Return True if calling ``combine`` produces a coroutine.
+
+    ``inspect`` rather than ``asyncio``: ``asyncio.iscoroutinefunction`` is
+    deprecated from 3.12, and neither form sees through a callable *object*
+    whose ``__call__`` is the async part — so that case is checked explicitly.
+    """
+    if inspect.iscoroutinefunction(combine):
+        return True
+    # Fetched statically to inspect it, not to test callability — `callable()`
+    # would answer a different question and give nothing to inspect.
+    call = inspect.getattr_static(type(combine), "__call__", None)
+    return call is not None and inspect.iscoroutinefunction(call)
+
+
 class Reduce(Knot):
     """Fold a list parent into a single value.
 
@@ -54,13 +69,16 @@ class Reduce(Knot):
            ``TypeError``.
         2. Pairwise validation — if the pairwise form is selected and no
            ``initial`` value is given, ``TypeError`` is raised immediately.
-        3. Resolution — the engine resolves the single ``of`` parent and passes
+        3. Async detection — also at construction time, ``combine`` is checked
+           for coroutine-ness so ``process`` knows whether to await it.  Both
+           forms support an ``async def combine``.
+        4. Resolution — the engine resolves the single ``of`` parent and passes
            its output as the ``of`` argument to ``process()``.
-        4. Whole-list reduction — ``combine(of)`` is called once with the entire
-           list and its return value is the output.
-        5. Pairwise reduction — starting from ``initial``, ``combine(acc, item)``
-           is called for each element in ``of`` in order, accumulating into
-           ``acc``.  The final ``acc`` is the output.
+        5. Whole-list reduction — ``combine(of)`` is called once with the entire
+           list and its return value (awaited if async) is the output.
+        6. Pairwise reduction — starting from ``initial``, ``combine(acc, item)``
+           is called for each element in ``of`` in order, each result awaited if
+           async, accumulating into ``acc``.  The final ``acc`` is the output.
 
     Math:
         Whole-list form: ``output = combine(items)``
@@ -117,6 +135,7 @@ class Reduce(Knot):
             raise TypeError(f"Reduce: 'combine' must take 1 or 2 required args, got {n_required}")
 
         self._mutable_combine = combine
+        self._mutable_combine_is_async = _is_async_callable(combine)
         self._mutable_initial = initial
 
         self._mutable_config = _config
@@ -144,11 +163,19 @@ class Reduce(Knot):
         Returns:
             Single value resulting from applying combine to the list, either whole-list or pairwise.
         """
-        if self._mutable_form == "whole":
-            return self._mutable_combine(of)
-        # Pairwise.
-        acc = self._mutable_initial
         combine = self._mutable_combine
+        # An async combine was previously invoked without awaiting in both
+        # forms, so the node emitted a coroutine object as its output instead
+        # of the reduced value — silently, since a coroutine is a perfectly
+        # good `Any`. See PIR-768.
+        is_async = self._mutable_combine_is_async
+        if self._mutable_form == "whole":
+            result = combine(of)
+            return await result if is_async else result
+        # Pairwise.  Each step is awaited, so the accumulator stays a value
+        # rather than becoming a coroutine fed into the next iteration.
+        acc = self._mutable_initial
         for item in of:
-            acc = combine(acc, item)
+            result = combine(acc, item)
+            acc = await result if is_async else result
         return acc

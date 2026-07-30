@@ -87,3 +87,60 @@ class TestReduceProcess(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         self.assertEqual(result.outputs["r"], {"a": 2, "b": 1})
+
+
+class TestReduceAsyncCombine(unittest.IsolatedAsyncioTestCase):
+    """An ``async def combine`` must be awaited, not emitted as a coroutine.
+
+    Both forms invoked combine synchronously, so an async combine made the node
+    output a coroutine object — silently, because a coroutine is a perfectly
+    good ``Any``. Downstream saw ``<coroutine object ...>`` where the reduced
+    value belonged. See PIR-768.
+    """
+
+    async def test_whole_form_awaits(self) -> None:
+        async def combine(items: list[int]) -> int:
+            return sum(items)
+
+        with Tapestry() as t:
+            src = _ListSource(items=[1, 2, 3], _config=KnotConfig(id="src"))
+            Reduce(of=src, combine=combine, _config=KnotConfig(id="r"))
+        result = await t.run(RunRequest())
+        self.assertTrue(result.succeeded)
+        self.assertEqual(result.outputs["r"], 6)
+
+    async def test_pairwise_form_awaits_every_step(self) -> None:
+        async def combine(acc: int, item: int) -> int:
+            return acc + item
+
+        with Tapestry() as t:
+            src = _ListSource(items=[1, 2, 3], _config=KnotConfig(id="src"))
+            Reduce(of=src, combine=combine, initial=0, _config=KnotConfig(id="r"))
+        result = await t.run(RunRequest())
+        self.assertTrue(result.succeeded)
+        # Not just the final await: an unawaited step would feed a coroutine
+        # into the next iteration as the accumulator.
+        self.assertEqual(result.outputs["r"], 6)
+
+    async def test_async_dunder_call_object_is_detected(self) -> None:
+        """A callable object whose ``__call__`` is async is the case that
+        motivated detecting with ``inspect`` rather than ``asyncio``."""
+
+        class _AsyncSummer:
+            async def __call__(self, items: list[int]) -> int:
+                return sum(items)
+
+        with Tapestry() as t:
+            src = _ListSource(items=[4, 5], _config=KnotConfig(id="src"))
+            Reduce(of=src, combine=_AsyncSummer(), _config=KnotConfig(id="r"))
+        result = await t.run(RunRequest())
+        self.assertTrue(result.succeeded)
+        self.assertEqual(result.outputs["r"], 9)
+
+    async def test_sync_combine_still_not_awaited(self) -> None:
+        with Tapestry() as t:
+            src = _ListSource(items=[1, 2, 3], _config=KnotConfig(id="src"))
+            Reduce(of=src, combine=sum, _config=KnotConfig(id="r"))
+        result = await t.run(RunRequest())
+        self.assertTrue(result.succeeded)
+        self.assertEqual(result.outputs["r"], 6)
