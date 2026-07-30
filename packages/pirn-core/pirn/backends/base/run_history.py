@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from pirn.backends.base.run_retention import RunRetention
+
 if TYPE_CHECKING:
     from pirn.core.knot_source import KnotSourceRecord
     from pirn.core.lineage import KnotLineage
@@ -12,6 +14,21 @@ class RunHistory:
 
     Implementations inherit from this class and override all methods.
     """
+
+    @property
+    def retention(self) -> RunRetention:
+        """Declare how much history this backend keeps.
+
+        Defaults to durable and unbounded, which is right for a real store.  An
+        ephemeral backend overrides this to declare its ceiling, so callers that
+        would otherwise grow history without limit — ``LoopSubTapestry``, whose
+        conversational flows record one child run per turn — can be recorded
+        against a bounded window instead of being skipped outright.
+
+        This exists so the engine never has to ask what *class* a store is.
+        See PIR-765.
+        """
+        return RunRetention()
 
     async def record_run(self, result: Any) -> None:
         """Persist a completed run and its per-knot lineage records.

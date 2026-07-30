@@ -116,7 +116,6 @@ class _IterationChainKnot(Knot):
         Returns:
             Updated state value produced by folding this iteration's RunResult.
         """
-        from pirn.backends.in_memory.in_memory_history import InMemoryHistory
         from pirn.core.run_request import RunRequest
         from pirn.tapestry import _current_history, _current_run_id
 
@@ -127,7 +126,18 @@ class _IterationChainKnot(Knot):
 
         if outer_history is None:
             outer_history = _current_history.get(None)
-        if outer_history is not None and not isinstance(outer_history, InMemoryHistory):
+        if outer_history is not None:
+            # Always record.  This used to be skipped when the store was an
+            # InMemoryHistory, on the sound reasoning that an open-ended loop
+            # accumulates one child run per turn and an ephemeral store cannot
+            # absorb that.  But InMemoryHistory is the *default* backend, so the
+            # effect was that a conversational loop was silently unobservable
+            # out of the box — and a concrete-type check here cannot recognise
+            # an ephemeral backend core has never heard of.
+            #
+            # The growth guard now lives where it belongs: the store declares a
+            # `retention` capability and keeps a bounded window. Recording is
+            # bounded rather than absent. See PIR-765.
             iter_tapestry._history = outer_history
 
         parent_run_id = _current_run_id.get(None)
