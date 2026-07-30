@@ -111,3 +111,47 @@ class TestLoopSubTapestryDepth(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         self.assertTrue(result.succeeded, [e.exc_type for e in result.exceptions])
         self.assertEqual(result.outputs["loop"], target)
+
+
+class TestLoopSubTapestryHistory(unittest.IsolatedAsyncioTestCase):
+    """Loop iterations must be recorded on the default backend.
+
+    `_IterationChainKnot` used to inject the outer history only when it was
+    *not* an InMemoryHistory. The intent was sound — an open-ended
+    conversational loop records one child run per turn and an ephemeral store
+    cannot absorb that — but InMemoryHistory is the default backend
+    (`tapestry.py`), so out of the box a loop's iterations were recorded
+    nowhere at all.
+
+    The growth guard now lives on the store as a declared `retention`
+    capability, so recording is bounded rather than absent. See PIR-765.
+    """
+
+    async def test_iterations_are_recorded_against_the_default_backend(self) -> None:
+        from pirn.backends.in_memory.in_memory_history import InMemoryHistory
+
+        history = InMemoryHistory()
+        with Tapestry(history=history) as t:
+            src = _InitSource(init_state=0, _config=KnotConfig(id="init"))
+            _CounterLoop(target=3, state=src, _config=KnotConfig(id="loop"))
+        result = await t.run(RunRequest())
+        self.assertTrue(result.succeeded)
+        self.assertEqual(result.outputs["loop"], 3)
+
+        # The loop's own inner run, then one child run per iteration beneath it.
+        loop_runs = await history.children_of(result.run_id)
+        self.assertEqual([r.parent_knot_id for r in loop_runs], ["loop"])
+        iterations = await history.children_of(loop_runs[0].run_id)
+        self.assertEqual(
+            [r.parent_knot_id for r in iterations], ["step_1", "step_2", "step_3"]
+        )
+
+    async def test_per_iteration_lineage_is_queryable(self) -> None:
+        from pirn.backends.in_memory.in_memory_history import InMemoryHistory
+
+        history = InMemoryHistory()
+        with Tapestry(history=history) as t:
+            src = _InitSource(init_state=0, _config=KnotConfig(id="init"))
+            _CounterLoop(target=3, state=src, _config=KnotConfig(id="loop"))
+        await t.run(RunRequest())
+        self.assertEqual(len(await history.query_lineage_by_knot_id("incr")), 3)

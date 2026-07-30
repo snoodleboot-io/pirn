@@ -145,3 +145,70 @@ class TestInMemoryHistory(unittest.IsolatedAsyncioTestCase):
         await self.history.record_run(r2)
         runs = await self.history.query_runs_by_actor("alice")
         self.assertEqual(len(runs), 2)
+
+
+class TestInMemoryHistoryEviction(unittest.IsolatedAsyncioTestCase):
+    """Being ephemeral, the store keeps a bounded window rather than everything.
+
+    This is the growth guard that used to live in ``LoopSubTapestry`` as an
+    ``isinstance(outer_history, InMemoryHistory)`` check that skipped recording
+    altogether. Moving it here makes loop history *bounded* instead of *absent*,
+    and means the engine never has to ask what class a store is. See PIR-765.
+    """
+
+    async def test_keeps_the_most_recent_runs_within_the_bound(self) -> None:
+        history = InMemoryHistory(max_runs=3)
+        for index in range(5):
+            await history.record_run(_make_result(run_id=f"run-{index}"))
+        self.assertIsNone(await history.get_run("run-0"))
+        self.assertIsNone(await history.get_run("run-1"))
+        for index in (2, 3, 4):
+            self.assertIsNotNone(await history.get_run(f"run-{index}"))
+
+    async def test_eviction_purges_the_lineage_indexes(self) -> None:
+        """Bounding `_runs` alone would leave lineage growing without limit."""
+        history = InMemoryHistory(max_runs=1)
+        await history.record_run(
+            _make_result(
+                run_id="old",
+                lineage=[
+                    _make_lineage(
+                        run_id="old",
+                        knot_id="k",
+                        output_hash="sha256:old",
+                        parent_input_hashes={"p": "sha256:in-old"},
+                    )
+                ],
+            )
+        )
+        await history.record_run(
+            _make_result(
+                run_id="new",
+                lineage=[
+                    _make_lineage(
+                        run_id="new",
+                        knot_id="k",
+                        output_hash="sha256:new",
+                        parent_input_hashes={"p": "sha256:in-new"},
+                    )
+                ],
+            )
+        )
+        self.assertEqual(await history.query_lineage_by_output_hash("sha256:old"), [])
+        self.assertEqual(await history.query_lineage_by_input_hash("sha256:in-old"), [])
+        surviving = await history.query_lineage_by_knot_id("k")
+        self.assertEqual([rec.run_id for rec in surviving], ["new"])
+        self.assertEqual(len(await history.query_lineage_by_output_hash("sha256:new")), 1)
+
+    async def test_eviction_purges_the_actor_and_parent_indexes(self) -> None:
+        history = InMemoryHistory(max_runs=1)
+        await history.record_run(_make_result(run_id="old", actor="alice", parent_run_id="p"))
+        await history.record_run(_make_result(run_id="new", actor="alice", parent_run_id="p"))
+        self.assertEqual([r.run_id for r in await history.query_runs_by_actor("alice")], ["new"])
+        self.assertEqual([r.run_id for r in await history.children_of("p")], ["new"])
+
+    async def test_default_bound_does_not_evict_in_ordinary_use(self) -> None:
+        history = InMemoryHistory()
+        for index in range(50):
+            await history.record_run(_make_result(run_id=f"run-{index}"))
+        self.assertIsNotNone(await history.get_run("run-0"))
