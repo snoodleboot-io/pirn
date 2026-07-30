@@ -74,3 +74,98 @@ class TestSubTapestryProcess(unittest.IsolatedAsyncioTestCase):
             _Bare(upstream=src, _config=KnotConfig(id="bare"))
         result = await t.run(RunRequest())
         self.assertFalse(result.succeeded)
+
+
+class _Leaf(Source):
+    async def process(self, **_: Any) -> int:
+        return 42
+
+
+class _Depth2(SubTapestry):
+    """A pipeline constructed inside _Depth1.process() — the nesting that broke."""
+
+    async def process(self, **_: Any) -> Any:
+        return _Leaf(_config=KnotConfig(id="leaf"))
+
+
+class _Depth1(SubTapestry):
+    async def process(self, **_: Any) -> Any:
+        return _Depth2(_config=KnotConfig(id="l2"))
+
+
+class TestNestedSubTapestryHistory(unittest.IsolatedAsyncioTestCase):
+    """A SubTapestry nested inside another SubTapestry's process() must record.
+
+    Before PIR-764 the depth-2 pipeline captured its history at construction
+    time from the ambient tapestry — which, inside a parent's process(), is the
+    throwaway ``with Tapestry() as inner:`` that __call__ opens. That store is
+    discarded when the parent's inner run ends, so everything below depth 2
+    vanished while the run still reported success with the right answer.
+
+    A plain Knot at depth 1 was always recorded; only pipeline-in-pipeline
+    nesting was affected. Both bounds are asserted here.
+    """
+
+    async def _run(self) -> tuple[Any, Any]:
+        from pirn.backends.in_memory.in_memory_history import InMemoryHistory
+
+        history = InMemoryHistory()
+        with Tapestry(history=history) as outer:
+            _Depth1(_config=KnotConfig(id="l1"))
+        return await outer.run(RunRequest()), history
+
+    async def test_depth_two_inner_run_is_recorded(self) -> None:
+        result, history = await self._run()
+        self.assertTrue(result.succeeded)
+        self.assertEqual(result.outputs["l1"], 42)
+
+        depth1 = await history.children_of(result.run_id)
+        self.assertEqual([c.parent_knot_id for c in depth1], ["l1"])
+        depth2 = await history.children_of(depth1[0].run_id)
+        self.assertEqual([c.parent_knot_id for c in depth2], ["l2"])
+
+    async def test_leaf_below_the_nested_pipeline_has_lineage(self) -> None:
+        _, history = await self._run()
+        self.assertEqual(len(await history.query_lineage_by_knot_id("l1")), 1)
+        self.assertEqual(len(await history.query_lineage_by_knot_id("l2")), 1)
+        self.assertEqual(len(await history.query_lineage_by_knot_id("leaf")), 1)
+
+
+class _Flaky(SubTapestry):
+    """Succeeds or fails depending on a mutable flag, to exercise reuse."""
+
+    should_fail = False
+
+    async def process(self, **_: Any) -> Any:
+        if type(self).should_fail:
+
+            class _Boom(Source):
+                async def process(self, **_kw: Any) -> Any:
+                    raise RuntimeError("inner blew up")
+
+            return _Boom(_config=KnotConfig(id="boom"))
+        return _Leaf(_config=KnotConfig(id="ok_leaf"))
+
+
+class TestInnerRunMetaOnFailure(unittest.IsolatedAsyncioTestCase):
+    """A failed inner run must not report the previous run's inner_run_id."""
+
+    async def test_failure_does_not_inherit_the_previous_runs_meta(self) -> None:
+        _Flaky.should_fail = False
+        try:
+            with Tapestry() as t:
+                knot = _Flaky(_config=KnotConfig(id="flaky"))
+            ok_run = await t.run(RunRequest())
+            self.assertTrue(ok_run.succeeded)
+            first_inner_id = knot.lineage_extra()["inner_run_id"]
+
+            _Flaky.should_fail = True
+            fail_run = await t.run(RunRequest())
+            self.assertFalse(fail_run.succeeded)
+            meta = knot.lineage_extra()
+            # Populated, and pointing at the run that actually failed.
+            self.assertIn("inner_run_id", meta)
+            self.assertNotEqual(meta["inner_run_id"], first_inner_id)
+            self.assertEqual(meta["inner_failures"], 1)
+        finally:
+            _Flaky.should_fail = False
