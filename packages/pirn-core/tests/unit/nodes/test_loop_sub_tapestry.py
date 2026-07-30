@@ -155,3 +155,100 @@ class TestLoopSubTapestryHistory(unittest.IsolatedAsyncioTestCase):
             _CounterLoop(target=3, state=src, _config=KnotConfig(id="loop"))
         await t.run(RunRequest())
         self.assertEqual(len(await history.query_lineage_by_knot_id("incr")), 3)
+
+
+class _RecordingLoop(LoopSubTapestry[int]):
+    """Records what ``fold`` is handed on each iteration.
+
+    ``step`` advances by 100 and ``fold`` by 1, so the two are distinguishable
+    in the recorded sequence: a run that folds against ``step``'s returned state
+    and one that folds against the previous ``fold`` output produce different
+    numbers, not merely different orderings.
+    """
+
+    def __init__(self, *, limit: int, **kwargs: Any) -> None:
+        self._limit = limit
+        self.folded_states: list[int] = []
+        self.stepped_states: list[int] = []
+        super().__init__(**kwargs)
+
+    def step(self, state: int) -> tuple[Tapestry, int] | None:
+        if len(self.stepped_states) >= self._limit:
+            return None
+        self.stepped_states.append(state)
+        emitted = state + 100
+
+        class _Emit(Source):
+            async def process(self, **_: Any) -> int:
+                return emitted
+
+        t = Tapestry()
+        with t:
+            _Emit(_config=KnotConfig(id="emit"))
+        return t, emitted
+
+    def fold(self, state: int, result: RunResult) -> int:
+        self.folded_states.append(state)
+        return state + 1
+
+
+class TestLoopSubTapestryFoldStateContract(unittest.IsolatedAsyncioTestCase):
+    """Characterization suite for the state-threading contract (PIR-754).
+
+    PIR-754 fixed a divergence between iteration 1 and iterations 2+: the first
+    passed ``step``'s returned state to ``fold``, later ones re-used the
+    *previous fold's output* because ``state=self`` was doing double duty as
+    both the value and the sequencing edge. It shipped with **zero** tests.
+
+    This is the evidence base any port onto ``LoopSubTapestry`` depends on, so
+    it lives in core beside the node rather than in a consumer package.
+    The existing ``_CounterLoop.fold`` above never reads ``state``, which is
+    why reverting the fix reddens nothing without these.
+    """
+
+    async def _run(self, limit: int) -> _RecordingLoop:
+        with Tapestry() as t:
+            src = _InitSource(init_state=0, _config=KnotConfig(id="init"))
+            loop = _RecordingLoop(limit=limit, state=src, _config=KnotConfig(id="loop"))
+        result = await t.run(RunRequest())
+        self.assertTrue(result.succeeded, [e.exc_type for e in result.exceptions])
+        return loop
+
+    async def test_fold_receives_the_state_step_returned(self) -> None:
+        """Not the previous fold's output — the distinction PIR-754 turned on.
+
+        step: s -> s+100, fold: s -> s+1, initial 0.
+          folding against step's return  => 100, 201, 302
+          folding against fold's output  => 100, 101, 102   (the pre-fix bug)
+        """
+        loop = await self._run(3)
+        self.assertEqual(loop.folded_states, [100, 201, 302])
+
+    async def test_step_receives_the_state_fold_returned(self) -> None:
+        """The other half of the round trip."""
+        loop = await self._run(3)
+        self.assertEqual(loop.stepped_states, [0, 101, 202])
+
+    async def test_iterations_are_sequential(self) -> None:
+        """Ordering survives `state` no longer being the sequencing edge.
+
+        PIR-754 split the two jobs apart, adding an explicit
+        ``_previous_iteration`` parent. If that edge were dropped the recorded
+        sequences could interleave.
+        """
+        loop = await self._run(4)
+        self.assertEqual(loop.stepped_states, sorted(loop.stepped_states))
+        self.assertEqual(loop.folded_states, sorted(loop.folded_states))
+        self.assertEqual(len(loop.stepped_states), 4)
+
+    async def test_step_returning_none_terminates(self) -> None:
+        loop = await self._run(1)
+        self.assertEqual(loop.stepped_states, [0])
+        self.assertEqual(loop.folded_states, [100])
+
+    async def test_final_output_is_the_last_fold(self) -> None:
+        with Tapestry() as t:
+            src = _InitSource(init_state=0, _config=KnotConfig(id="init"))
+            _RecordingLoop(limit=3, state=src, _config=KnotConfig(id="loop"))
+        result = await t.run(RunRequest())
+        self.assertEqual(result.outputs["loop"], 303)
