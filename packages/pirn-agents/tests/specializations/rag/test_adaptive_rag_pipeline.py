@@ -10,6 +10,7 @@ from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.rag.adaptive_rag_pipeline import (
     AdaptiveRAGPipeline,
+    _select_complexity_route,
 )
 from pirn_agents.types.messaging.agent_response import AgentResponse
 from tests.specializations.conftest import (
@@ -75,6 +76,88 @@ class TestAdaptiveRAGPipelineComplex(unittest.IsolatedAsyncioTestCase):
         assert isinstance(response, AgentResponse)
         assert response.content == "multi-hop answer"
         assert len(memory.search_queries) == 3
+
+
+class TestAdaptiveRAGPipelineHedgedClassification(unittest.IsolatedAsyncioTestCase):
+    """A classifier reply naming two labels must route to the one it means.
+
+    Both label tests are substring matches. Before PIR-770 SIMPLE was tried
+    first, so a reply like ``"COMPLEX (not simple)"`` took the SIMPLE arm —
+    and because that arm answers directly with the next LLM response, the run
+    returned the *sub-question decomposition* as the answer, with
+    ``succeeded=True`` and no exception. A silent wrong answer.
+    """
+
+    async def test_complex_reply_mentioning_simple_routes_to_multi_hop(self) -> None:
+        memory = StubMemoryStore([{"text": "hop context"}])
+        llm = StubLLMProvider(
+            ["COMPLEX (not simple)", "sub-q1\nsub-q2\nsub-q3", "multi-hop answer"]
+        )
+        with Tapestry() as t:
+            AdaptiveRAGPipeline(
+                query="Complex multi-part question",
+                memory=memory,
+                llm=llm,
+                top_k=1,
+                _config=KnotConfig(id="adaptive"),
+            )
+        result = await t.run(RunRequest())
+        assert result.succeeded
+        response = result.outputs["adaptive"]
+        assert isinstance(response, AgentResponse)
+        assert response.content == "multi-hop answer"
+        assert len(memory.search_queries) == 3
+
+    async def test_bare_simple_reply_still_routes_to_direct_llm(self) -> None:
+        """The fix must not cost the well-behaved reply its arm."""
+        memory = StubMemoryStore([{"text": "irrelevant"}])
+        llm = StubLLMProvider(["SIMPLE", "direct answer"])
+        with Tapestry() as t:
+            AdaptiveRAGPipeline(
+                query="What color is the sky?",
+                memory=memory,
+                llm=llm,
+                _config=KnotConfig(id="adaptive"),
+            )
+        result = await t.run(RunRequest())
+        assert result.succeeded
+        response = result.outputs["adaptive"]
+        assert isinstance(response, AgentResponse)
+        assert response.content == "direct answer"
+        assert memory.search_queries == []
+
+
+class TestSelectComplexityRoute(unittest.TestCase):
+    """Direct coverage of the selector, which sees an upper-cased reply."""
+
+    def test_exact_labels(self) -> None:
+        assert _select_complexity_route("SIMPLE") == "simple"
+        assert _select_complexity_route("MODERATE") == "moderate"
+        assert _select_complexity_route("COMPLEX") == "complex"
+
+    def test_exact_match_wins_over_substring_ordering(self) -> None:
+        assert _select_complexity_route("SIMPLE") == "simple"
+
+    def test_padded_single_label(self) -> None:
+        assert _select_complexity_route("THE ANSWER IS COMPLEX.") == "complex"
+        assert _select_complexity_route("THIS ONE IS SIMPLE.") == "simple"
+
+    def test_hedged_reply_naming_both_labels_resolves_to_complex(self) -> None:
+        """A reply naming both labels is irreducibly ambiguous — COMPLEX wins.
+
+        Substring matching cannot tell ``"COMPLEX (not simple)"`` from
+        ``"SIMPLE, not complex"``; nor can whole-word matching. Some tiebreak
+        has to be picked, and COMPLEX is picked deliberately: routing a simple
+        query through multi-hop costs latency and tokens, whereas routing a
+        complex query to the direct arm returns a wrong answer. This is the
+        recorded decision, not an accident of ordering — see PIR-770.
+        """
+        assert _select_complexity_route("COMPLEX (NOT SIMPLE)") == "complex"
+        assert _select_complexity_route("SIMPLE, NOT COMPLEX") == "complex"
+
+    def test_unrecognised_reply_falls_back_to_moderate(self) -> None:
+        assert _select_complexity_route("") == "moderate"
+        assert _select_complexity_route("BANANA") == "moderate"
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
