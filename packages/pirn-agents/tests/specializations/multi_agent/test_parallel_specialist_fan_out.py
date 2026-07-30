@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.nodes.sub_tapestry import SubTapestry
@@ -14,6 +15,7 @@ from pirn_agents.specializations.multi_agent.parallel_specialist_fan_out import 
     ParallelSpecialistFanOut,
 )
 from pirn_agents.types.messaging.agent_response import AgentResponse
+from tests.specializations.conftest import response_sink
 
 _SPEC_REGISTRY: dict[str, str] = {}
 
@@ -22,9 +24,12 @@ class StubSpecialist(SubTapestry):
     def __init__(self, *, task: Any = "", _config: KnotConfig, **kwargs: Any) -> None:
         super().__init__(task=task, _config=_config, **kwargs)
 
-    async def process(self, task: str = "", **_: Any) -> AgentResponse:
+    async def process(self, task: str = "", **_: Any) -> Knot:
         reply = _SPEC_REGISTRY.get(self.config.id, "ok")
-        return AgentResponse(content=f"{reply}:{task}", finish_reason="stop")
+        return response_sink(
+            AgentResponse(content=f"{reply}:{task}", finish_reason="stop"),
+            f"{self.config.id}_reply",
+        )
 
 
 def _make_spec(reply: str, id_: str) -> StubSpecialist:

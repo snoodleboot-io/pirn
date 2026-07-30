@@ -13,11 +13,35 @@ from typing import Any
 from pirn.connectors.database_connection_pool import (
     DatabaseConnectionPool,
 )
+from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
+from pirn.nodes.source import Source
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
 from pirn_agents.tools.tool import Tool
+from pirn_agents.types.messaging.agent_response import AgentResponse
+
+
+def response_sink(response: AgentResponse, knot_id: str) -> Knot:
+    """Wrap ``response`` in a ``Source`` knot, as a ``SubTapestry`` sink must be.
+
+    ``SubTapestry.process()`` is required to *return the sink knot* of the inner
+    pipeline, not the answer itself — ``__call__`` then runs that pipeline and
+    extracts the sink's output. Doubles that returned a bare ``AgentResponse``
+    were violating the contract, and because the four multi-agent pipelines
+    hand-called ``process()`` they never noticed. See PIR-769.
+
+    Call this from inside a ``process()`` body so the knot auto-registers in the
+    inner tapestry ``__call__`` has already opened.
+    """
+
+    class _ResponseSink(Source):
+        async def process(self, **_: Any) -> AgentResponse:
+            return response
+
+    return _ResponseSink(_config=KnotConfig(id=knot_id))
 
 
 class StubLLMProvider(LLMProvider):

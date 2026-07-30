@@ -4,12 +4,15 @@ A :class:`SubTapestry` that:
 
 1. Asks an LLM (via :class:`OrchestratorRouter`) to pick the best
    specialist for the supplied task.
-2. Invokes that specialist's ``process`` with ``task=task`` and
-   returns the resulting :class:`AgentResponse`.
+2. Invokes that specialist through its engine entry point with
+   ``task=task`` and returns the resulting :class:`AgentResponse`.
 
-Specialists are expected to accept a ``task: str`` kwarg and return
-an :class:`AgentResponse`. They run as sub-pipelines outside the
-orchestrator's inner :class:`Tapestry`; only the routing decision is
+Specialists are expected to accept a ``task: str`` kwarg. As
+:class:`SubTapestry` instances their ``process()`` returns the *sink knot*
+of their inner pipeline, so they must be invoked via
+:func:`invoke_specialist` — calling ``process()`` directly hands back an
+unexecuted :class:`Knot` (see PIR-769). They run as sub-pipelines outside
+the orchestrator's inner :class:`Tapestry`; only the routing decision is
 recorded as an inner knot.
 
 Algorithm:
@@ -18,7 +21,8 @@ Algorithm:
        with the specialist names.
     3. Execute via ``self._run_inner(inner)`` to obtain the routing decision.
     4. Look up the chosen specialist by name; fall back to the first on mismatch.
-    5. Call ``specialist.process(task=task)`` and normalise to :class:`AgentResponse`.
+    5. Run the specialist via :func:`invoke_specialist` and normalise the value
+       it produced to an :class:`AgentResponse`.
 
 
 References:
@@ -38,6 +42,9 @@ from pirn.tapestry import Tapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
+from pirn_agents.specializations.multi_agent._specialist_invoker import (
+    invoke_specialist,
+)
 from pirn_agents.specializations.multi_agent.orchestrator_router import (
     OrchestratorRouter,
 )
@@ -97,7 +104,7 @@ class OrchestratorAgent(AgentPipeline):
         if not isinstance(chosen_name, str):
             chosen_name = next(iter(specialists_dict))
         specialist = specialists_dict[chosen_name]
-        raw = await specialist.process(task=task)
+        raw = await invoke_specialist(specialist, task=task)
         final: AgentResponse = (
             raw
             if isinstance(raw, AgentResponse)

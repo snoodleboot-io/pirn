@@ -2,12 +2,18 @@
 
 A :class:`SubTapestry` that fans out a single task string to every
 registered specialist in parallel via :func:`asyncio.gather`. Each
-specialist must expose a ``process(task: str, **_: Any) -> AgentResponse``
-shape. The pipeline returns a mapping ``{specialist_name: AgentResponse}``.
+specialist accepts a ``task: str`` and produces an :class:`AgentResponse`.
+The pipeline returns a mapping ``{specialist_name: AgentResponse}``.
+
+Specialists are run through :func:`invoke_specialist`, not by calling
+``process()``: a :class:`SubTapestry`'s ``process()`` returns the *sink knot*
+of its inner pipeline rather than the answer, so the direct call handed back
+an unexecuted :class:`Knot` (see PIR-769).
 
 Algorithm:
     1. Validate ``specialists`` (non-empty mapping) and ``task`` (str).
-    2. Gather all ``specialist.process(task=task)`` coroutines concurrently.
+    2. Gather all ``invoke_specialist(specialist, task=task)`` coroutines
+       concurrently.
     3. Normalise each result to an :class:`AgentResponse`.
     4. Build an inner :class:`Tapestry` with :class:`SpecialistFanOutCollector`
        over the materialised responses.
@@ -29,6 +35,9 @@ from pirn.core.knot_config import KnotConfig
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
+from pirn_agents.specializations.multi_agent._specialist_invoker import (
+    invoke_specialist,
+)
 from pirn_agents.specializations.multi_agent.specialist_fan_out_collector import (
     SpecialistFanOutCollector,
 )
@@ -73,7 +82,7 @@ class ParallelSpecialistFanOut(AgentPipeline):
             )
         specialists_dict: dict[str, SubTapestry] = dict(specialists)  # type: ignore[arg-type]
         names = list(specialists_dict.keys())
-        coros = [specialists_dict[name].process(task=task) for name in names]
+        coros = [invoke_specialist(specialists_dict[name], task=task) for name in names]
         raw_results = await asyncio.gather(*coros)
         materialised: dict[str, AgentResponse] = {}
         for name, raw in zip(names, raw_results, strict=False):

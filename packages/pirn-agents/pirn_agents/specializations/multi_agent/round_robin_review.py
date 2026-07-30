@@ -4,7 +4,12 @@ A :class:`SubTapestry` that passes a draft :class:`AgentResponse`
 through N reviewer agents in order, each receiving the previous
 agent's output as its input. Returns the final revised response.
 
-Reviewers must expose ``process(response: AgentResponse, **_) -> AgentResponse``.
+Reviewers accept a ``response: AgentResponse`` and produce a revised one. They
+are run through :func:`invoke_specialist`, not by calling ``process()``: a
+:class:`SubTapestry`'s ``process()`` returns the *sink knot* of its inner
+pipeline, and because the loop below guards on ``isinstance(result,
+AgentResponse)`` that Knot failed the guard and **every review was silently
+discarded** (see PIR-769).
 
 Algorithm
 ---------
@@ -32,6 +37,9 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.multi_agent._response_echo import _ResponseEcho
+from pirn_agents.specializations.multi_agent._specialist_invoker import (
+    invoke_specialist,
+)
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
@@ -77,7 +85,7 @@ class RoundRobinReview(AgentPipeline):
             )
         current = response
         for reviewer in reviewer_list:
-            result = await reviewer.process(response=current)
+            result = await invoke_specialist(reviewer, response=current)
             if isinstance(result, AgentResponse):
                 current = result
         return _ResponseEcho(
