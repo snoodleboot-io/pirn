@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.nodes.sub_tapestry import SubTapestry
@@ -14,7 +15,7 @@ from pirn_agents.specializations.multi_agent.debate_framework import (
     DebateFramework,
 )
 from pirn_agents.types.messaging.agent_response import AgentResponse
-from tests.specializations.conftest import StubLLMProvider
+from tests.specializations.conftest import StubLLMProvider, response_sink
 
 _DEBATER_REGISTRY: dict[str, str] = {}
 
@@ -23,9 +24,12 @@ class StubDebater(SubTapestry):
     def __init__(self, *, task: Any = "", _config: KnotConfig, **kwargs: Any) -> None:
         super().__init__(task=task, _config=_config, **kwargs)
 
-    async def process(self, task: str = "", **_: Any) -> AgentResponse:
+    async def process(self, task: str = "", **_: Any) -> Knot:
         argument = _DEBATER_REGISTRY.get(self.config.id, "argument")
-        return AgentResponse(content=argument, finish_reason="stop")
+        return response_sink(
+            AgentResponse(content=argument, finish_reason="stop"),
+            f"{self.config.id}_argument",
+        )
 
 
 def _make_knot(debaters: tuple, judge: StubLLMProvider) -> DebateFramework:

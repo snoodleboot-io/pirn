@@ -1,10 +1,13 @@
 """``DebateFramework`` — multi-round debate judged by an LLM.
 
 A :class:`SubTapestry` that runs ``rounds`` of debate between the
-provided debaters. Each round, every debater is invoked via its
-``process(task=task, **_)`` shape with the topic plus a textual
-recap of every prior round's responses. After ``rounds`` rounds, a
-judge LLM picks the best response and the pipeline returns it.
+provided debaters. Each round, every debater is invoked with the topic
+plus a textual recap of every prior round's responses. After ``rounds``
+rounds, a judge LLM picks the best response and the pipeline returns it.
+
+Debaters are run through :func:`invoke_specialist`, not by calling
+``process()``: a :class:`SubTapestry`'s ``process()`` returns the *sink knot*
+of its inner pipeline rather than the argument (see PIR-769).
 
 Algorithm:
     1. Validate debaters (≥ 2, all :class:`SubTapestry`) and ``rounds`` (> 0).
@@ -33,6 +36,9 @@ from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
+from pirn_agents.specializations.multi_agent._specialist_invoker import (
+    invoke_specialist,
+)
 from pirn_agents.specializations.multi_agent.debate_judge import (
     DebateJudge,
 )
@@ -109,7 +115,7 @@ class DebateFramework(AgentPipeline):
                 f"{recap}\n"
                 "Make your strongest argument."
             )
-            coros = [debater.process(task=framed) for debater in debater_tuple]
+            coros = [invoke_specialist(debater, task=framed) for debater in debater_tuple]
             raw_results = await asyncio.gather(*coros)
             latest_round = []
             for raw in raw_results:

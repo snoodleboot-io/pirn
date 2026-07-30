@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.nodes.sub_tapestry import SubTapestry
@@ -14,6 +15,7 @@ from pirn_agents.specializations.multi_agent.round_robin_review import (
     RoundRobinReview,
 )
 from pirn_agents.types.messaging.agent_response import AgentResponse
+from tests.specializations.conftest import response_sink
 
 _REVIEWER_REGISTRY: dict[str, str] = {}
 
@@ -24,12 +26,14 @@ class _AppendReviewer(SubTapestry):
     def __init__(self, *, _config: KnotConfig, **kwargs: Any) -> None:
         super().__init__(_config=_config, **kwargs)
 
-    async def process(self, **kwargs: Any) -> AgentResponse:
+    async def process(self, **kwargs: Any) -> Knot:
         suffix = _REVIEWER_REGISTRY.get(self.config.id, "")
         response = kwargs.get("response")
-        if response is None:
-            return AgentResponse(content=suffix, finish_reason="stop")
-        return AgentResponse(content=response.content + suffix, finish_reason="stop")
+        content = suffix if response is None else response.content + suffix
+        return response_sink(
+            AgentResponse(content=content, finish_reason="stop"),
+            f"{self.config.id}_review",
+        )
 
 
 def _make_reviewer(suffix: str, id_: str) -> _AppendReviewer:
