@@ -10,7 +10,9 @@ routes to:
 
 Algorithm:
     1. Call the LLM with a classification prompt; expect one of SIMPLE,
-       MODERATE, or COMPLEX in the response.
+       MODERATE, or COMPLEX in the response. Resolve the reply to an arm with
+       :func:`_select_complexity_route`, which prefers an exact match and
+       falls back to a most-specific-first substring test.
     2. **SIMPLE branch** — run a single :class:`LLMChatCall` directly on the
        query and wrap the result via :class:`RAGResponseBuilder`.
     3. **COMPLEX branch** — ask the LLM to decompose the query into three
@@ -51,6 +53,50 @@ from pirn_agents.specializations.rag.rag_response_builder import (
     RAGResponseBuilder,
 )
 from pirn_agents.types.messaging.agent_response import AgentResponse
+
+_ROUTE_SIMPLE = "simple"
+_ROUTE_MODERATE = "moderate"
+_ROUTE_COMPLEX = "complex"
+
+
+def _select_complexity_route(complexity: str) -> str:
+    """Map a classifier reply to the name of the arm that should answer it.
+
+    The classification prompt asks for a single bare word, so an exact match
+    is tried first and the well-behaved reply never depends on substring
+    semantics at all. Padded replies are common enough to need a fallback,
+    and that fallback tests COMPLEX before SIMPLE.
+
+    The ordering is load-bearing. Both fallback tests are substring tests, so
+    a reply naming *both* labels — ``"COMPLEX (not simple)"`` — matches either
+    one, and whichever is tried first wins. Substring matching cannot resolve
+    that, and neither can whole-word matching; the reply is genuinely
+    ambiguous. COMPLEX is chosen because the two mistakes are not
+    symmetrical: routing a simple query through multi-hop costs latency and
+    tokens, whereas routing a complex query to the direct arm returns a wrong
+    answer with ``succeeded=True``. Before PIR-770 SIMPLE was tried first, so
+    the ladder failed in the expensive direction.
+
+    An unrecognised reply routes to MODERATE. That is the documented default,
+    not a consequence of the ordering.
+
+    Args:
+        complexity: The classifier reply, already stripped and upper-cased.
+
+    Returns:
+        One of ``"simple"``, ``"moderate"`` or ``"complex"``.
+    """
+    if complexity == "COMPLEX":
+        return _ROUTE_COMPLEX
+    if complexity == "SIMPLE":
+        return _ROUTE_SIMPLE
+    if complexity == "MODERATE":
+        return _ROUTE_MODERATE
+    if "COMPLEX" in complexity:
+        return _ROUTE_COMPLEX
+    if "SIMPLE" in complexity:
+        return _ROUTE_SIMPLE
+    return _ROUTE_MODERATE
 
 
 class AdaptiveRAGPipeline(AgentPipeline):
@@ -117,8 +163,9 @@ class AdaptiveRAGPipeline(AgentPipeline):
         complexity = str(classify_result.outputs.get("classify", "")).strip().upper()
 
         final_response: AgentResponse
+        route = _select_complexity_route(complexity)
 
-        if "SIMPLE" in complexity:
+        if route == _ROUTE_SIMPLE:
             with Tapestry() as inner_direct:
                 answer = LLMChatCall(
                     prompt=query,
@@ -137,7 +184,7 @@ class AdaptiveRAGPipeline(AgentPipeline):
                 else AgentResponse(content="", finish_reason="length")
             )
 
-        elif "COMPLEX" in complexity:
+        elif route == _ROUTE_COMPLEX:
             decompose_prompt = type(self)._decompose_prompt.render({"query": query})
             with Tapestry() as inner_decompose:
                 LLMChatCall(
