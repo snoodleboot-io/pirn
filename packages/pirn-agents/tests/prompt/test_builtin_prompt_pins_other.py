@@ -26,13 +26,12 @@ from pirn_agents.memory.patterns.session_summarizer import SessionSummarizer
 from pirn_agents.retrieval.graph_rag.entity_relation_extractor import EntityRelationExtractor
 from pirn_agents.retrieval.graph_rag.extraction_schema import ExtractionSchema
 from pirn_agents.security.llm_injection_classifier import LlmInjectionClassifier
+from pirn_agents.specializations.document_processing._chunk_summariser import _ChunkSummariser
 from pirn_agents.specializations.document_processing._chunk_translator import _ChunkTranslator
-from pirn_agents.specializations.document_processing._map_reduce_summariser import (
-    _MapReduceSummariser,
-)
 from pirn_agents.specializations.document_processing._qa_retrieve_and_answer import (
     _QARetrieveAndAnswer,
 )
+from pirn_agents.specializations.document_processing._summary_reducer import _SummaryReducer
 from pirn_agents.specializations.document_processing.metadata_extractor import MetadataExtractor
 from pirn_agents.specializations.evaluator_optimizer.candidate_generator import CandidateGenerator
 from pirn_agents.specializations.evaluator_optimizer.llm_judge import LlmJudge
@@ -213,14 +212,30 @@ class DocumentProcessingPromptPins(unittest.IsolatedAsyncioTestCase):
             "translation only — no commentary."
         )
 
-    async def test_map_reduce_summariser_both_systems(self) -> None:
-        llm = StubLLMProvider(responses=["s1", "s2", "combined"])
-        knot = _bare(_MapReduceSummariser)
-        await knot.process(chunks=["a", "b"], llm=llm)
+    async def test_chunk_summariser_system(self) -> None:
+        llm = StubLLMProvider(responses=["s1"])
+        knot = _bare(_ChunkSummariser)
+        await knot.process(chunk="a", position="Chunk 1 of 2", llm=llm)
         assert llm.calls[0][0]["content"] == (
             "Summarise the supplied document chunk in 3-5 sentences. "
             "Preserve key facts and named entities."
         )
+
+    async def test_chunk_summariser_user_message(self) -> None:
+        """The ``"Chunk i of n."`` prefix is the reason the fan-out needs ZipMap.
+
+        Nothing in the repo asserted this text before PIR-716, so a
+        "simplify away the index" shortcut would have shipped silently.
+        """
+        llm = StubLLMProvider(responses=["s1"])
+        knot = _bare(_ChunkSummariser)
+        await knot.process(chunk="a", position="Chunk 1 of 2", llm=llm)
+        assert llm.calls[0][1]["content"] == "Chunk 1 of 2.\n\na"
+
+    async def test_summary_reducer_system(self) -> None:
+        llm = StubLLMProvider(responses=["combined"])
+        knot = _bare(_SummaryReducer)
+        await knot.process(summaries=["s1", "s2"], llm=llm)
         assert llm.calls[-1][0]["content"] == (
             "Combine the following per-chunk summaries into one "
             "coherent summary of the entire document. Avoid "
