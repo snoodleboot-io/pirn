@@ -83,3 +83,31 @@ class TestLoopSubTapestryProcess(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         self.assertTrue(result.succeeded)
         self.assertEqual(result.outputs["loop"], 5)
+
+
+class TestLoopSubTapestryDepth(unittest.IsolatedAsyncioTestCase):
+    """A long loop must not die on CPython's recursion limit.
+
+    Each iteration adds one parent-chain level, and the engine validates the
+    graph on every run with a DFS that used to recurse per level. Runs
+    succeeded at 900 iterations and failed from ~984 upward with a
+    RecursionError recorded against the loop knot. PIR-766 made that walk
+    iterative; this pins the result well past the old ceiling.
+
+    This is PIR-763's step 3 ("a regression test at a few thousand
+    iterations"), discharged here rather than in that ticket.
+    """
+
+    async def test_runs_far_past_the_old_recursion_ceiling(self) -> None:
+        # Comfortably past the measured ~984 ceiling. Iteration cost here is
+        # quadratic in the chain length, so a larger target buys no extra
+        # confidence and costs real wall time in every CI run; the unbounded
+        # case is covered directly and cheaply by TestCycleDetectorDepth at
+        # 5000 nodes.
+        target = 1200
+        with Tapestry() as t:
+            src = _InitSource(init_state=0, _config=KnotConfig(id="init"))
+            _CounterLoop(target=target, state=src, _config=KnotConfig(id="loop"))
+        result = await t.run(RunRequest())
+        self.assertTrue(result.succeeded, [e.exc_type for e in result.exceptions])
+        self.assertEqual(result.outputs["loop"], target)

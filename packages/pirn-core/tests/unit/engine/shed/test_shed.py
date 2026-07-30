@@ -37,6 +37,44 @@ class TestCycleDetector(unittest.TestCase):
     def test_detect_cycle_wrapper(self) -> None:
         self.assertFalse(detect_cycle(["x"], {"x": []}))
 
+    def test_child_outside_knot_ids_is_explored(self) -> None:
+        """Children absent from ``knot_ids`` are white and get walked."""
+        children = {"a": ["ghost"], "ghost": ["a"]}
+        self.assertTrue(CycleDetector.detect(["a"], children))
+
+    def test_self_loop(self) -> None:
+        self.assertTrue(CycleDetector.detect(["a"], {"a": ["a"]}))
+
+    def test_diamond_is_not_a_cycle(self) -> None:
+        """A re-converging path revisits a black node; that is not a cycle."""
+        children = {"a": ["b", "c"], "b": ["d"], "c": ["d"], "d": []}
+        self.assertFalse(CycleDetector.detect(["a", "b", "c", "d"], children))
+
+
+class TestCycleDetectorDepth(unittest.TestCase):
+    """The walk must not consume a Python frame per graph level.
+
+    It used to recurse, capping usable graph depth at roughly 980 knots. Because
+    the engine validates the graph on every run, a deeper chain died with a
+    RecursionError before executing anything. ``LoopSubTapestry`` chains
+    iterations through parent edges — one level per iteration — so an
+    open-ended conversational loop reached that ceiling in normal use.
+    See PIR-766, which closes PIR-763.
+    """
+
+    DEPTH = 5000
+
+    def test_deep_acyclic_chain(self) -> None:
+        ids = [f"n{i}" for i in range(self.DEPTH)]
+        children = {f"n{i}": [f"n{i + 1}"] for i in range(self.DEPTH - 1)}
+        self.assertFalse(CycleDetector.detect(ids, children))
+
+    def test_deep_cyclic_chain(self) -> None:
+        ids = [f"n{i}" for i in range(self.DEPTH)]
+        children = {f"n{i}": [f"n{i + 1}"] for i in range(self.DEPTH - 1)}
+        children[f"n{self.DEPTH - 1}"] = ["n0"]
+        self.assertTrue(CycleDetector.detect(ids, children))
+
 
 class TestShedFromTerminals(unittest.TestCase):
     def test_single_terminal(self) -> None:
