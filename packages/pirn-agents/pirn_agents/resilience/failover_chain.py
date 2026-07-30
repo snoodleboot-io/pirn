@@ -18,6 +18,10 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Sequence
+from typing import Any
+
+from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.resilience.circuit_breaker_registry import CircuitBreakerRegistry
 from pirn_agents.resilience.circuit_open_error import CircuitOpenError
@@ -27,14 +31,16 @@ from pirn_agents.resilience.failover_outcome import FailoverOutcome
 from pirn_agents.resilience.failover_result import FailoverResult
 
 
-class FailoverChain:
+class FailoverChain(Knot):
     """Invoke an ordered candidate chain, rerouting on failure/timeout/open."""
 
     def __init__(
         self,
-        candidates: Sequence[FailoverCandidate],
         *,
+        candidates: Sequence[FailoverCandidate],
         breakers: CircuitBreakerRegistry | None = None,
+        _config: KnotConfig,
+        **kwargs: Any,
     ) -> None:
         """Build the chain.
 
@@ -44,6 +50,8 @@ class FailoverChain:
             breakers: Optional registry consulted per candidate; when present, an
                 open candidate is skipped and each attempt's outcome is recorded
                 into its breaker. When ``None``, no circuit logic is applied.
+            _config: Knot configuration carrying this chain's graph id.
+            **kwargs: Forwarded to :class:`~pirn.core.knot.Knot`.
 
         Raises:
             ValueError: If ``candidates`` is empty.
@@ -64,10 +72,21 @@ class FailoverChain:
                 f"FailoverChain: breakers must be a CircuitBreakerRegistry or None, "
                 f"got {type(breakers).__name__}"
             )
-        self._candidates = ordered
-        self._breakers = breakers
+        super().__init__(_config=_config, **kwargs)
+        # ``_mutable_`` slots: Knot freezes the instance, and these are
+        # collaborators rather than graph parents.
+        object.__setattr__(self, "_mutable_candidates", ordered)
+        object.__setattr__(self, "_mutable_breakers", breakers)
 
-    async def run(self) -> FailoverResult:
+    @property
+    def _candidates(self) -> tuple[FailoverCandidate, ...]:
+        return object.__getattribute__(self, "_mutable_candidates")
+
+    @property
+    def _breakers(self) -> CircuitBreakerRegistry | None:
+        return object.__getattribute__(self, "_mutable_breakers")
+
+    async def process(self, **_: Any) -> FailoverResult:
         """Walk the chain, returning the first success or an exhausted result.
 
         Returns:

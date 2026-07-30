@@ -7,9 +7,12 @@ therefore a ``Knot``), and each concrete overrides ``process`` so it selects a
 destination rather than raising the base ``NotImplementedError``.
 
 :class:`~pirn_agents.specializations.routing.model_cascade_router.ModelCascadeRouter`
-is intentionally excluded: it is a bare (non-``Knot``) class exposing a ``route``
-coroutine rather than ``Knot.process``. The exclusion is pinned here so a future
-rebase cannot quietly fold it into the family.
+was previously pinned *out* of the family, with a docstring saying the exclusion
+existed so a future rebase could not quietly fold it in. That pin was a PIR-728
+deferral rather than a settled decision — PIR-728's own body lists the cascade
+router among the routers needing a base and defers the shape question to
+"WS7·S3/S6". PIR-718 discharges it, and the assertion below is now a **positive**
+membership check.
 
 Per-concrete runtime round-trips live with each concrete's own suite (each
 ``process`` needs bespoke wiring); this module stays type/contract-focused.
@@ -40,6 +43,7 @@ from pirn_agents.specializations.routing.model_cascade_router import ModelCascad
 
 CONCRETE_ROUTERS: tuple[type[Router], ...] = (
     IntentRouter,
+    ModelCascadeRouter,
     CapabilityRouter,
     CandidateRouter,
     ConfidenceRouter,
@@ -91,14 +95,20 @@ class TestConcreteSubstitutability(unittest.TestCase):
                 assert cls.process is not Router.process
 
 
-class TestModelCascadeRouterExcluded(unittest.TestCase):
-    def test_model_cascade_router_is_not_a_router(self) -> None:
-        # Arrange / Act / Assert -- bare ``route`` class, not a family member.
-        assert not issubclass(ModelCascadeRouter, Router)
+class TestModelCascadeRouterIsAFamilyMember(unittest.TestCase):
+    """Replaces the PIR-728 exclusion pin, discharged by PIR-718."""
 
-    def test_model_cascade_router_is_not_a_knot(self) -> None:
+    def test_model_cascade_router_is_a_router(self) -> None:
         # Arrange / Act / Assert
-        assert not issubclass(ModelCascadeRouter, Knot)
+        assert issubclass(ModelCascadeRouter, Router)
+
+    def test_model_cascade_router_is_a_knot(self) -> None:
+        # Arrange / Act / Assert
+        assert issubclass(ModelCascadeRouter, Knot)
+
+    def test_model_cascade_router_overrides_process(self) -> None:
+        # Arrange / Act / Assert -- it routes rather than raising the base.
+        assert ModelCascadeRouter.process is not Router.process
 
 
 if __name__ == "__main__":
