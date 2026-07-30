@@ -23,26 +23,36 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable, Sequence
 from typing import Any
 
+from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
+
+from pirn_agents.interfaces.router import Router
 from pirn_agents.performance.run_budget_meter import RunBudgetMeter
 from pirn_agents.performance.spend_cap_policy import SpendCapPolicy
 from pirn_agents.specializations.routing.cascade_outcome import CascadeOutcome
 from pirn_agents.specializations.routing.cascade_tier import CascadeTier
 
 
-class ModelCascadeRouter:
+class ModelCascadeRouter(Router):
     """Route to cost-ordered model tiers, escalating on low confidence or failure."""
 
     def __init__(
         self,
+        *,
+        request: Knot | Any,
         tiers: Sequence[CascadeTier],
         confidence: Callable[[Any], Awaitable[float]],
-        *,
         meter: RunBudgetMeter | None = None,
         spend_cap_policy: SpendCapPolicy = SpendCapPolicy.DOWNSHIFT,
+        _config: KnotConfig,
+        **kwargs: Any,
     ) -> None:
         """Create a cascade over ``tiers`` (cheapest first).
 
         Args:
+            request: The payload to route, or a :class:`Knot` producing it.
+                Declared as a graph input so the engine resolves it, which is
+                what makes the cascade observable.
             tiers: The model tiers to try in order; must be non-empty and each a
                 :class:`CascadeTier`.
             confidence: Async scorer mapping a tier's output to a confidence in
@@ -51,6 +61,8 @@ class ModelCascadeRouter:
                 accrues into it and the spend cap is enforced.
             spend_cap_policy: What to do when escalating would breach the cost
                 cap — abort the run or downshift (stop escalating).
+            _config: Knot configuration carrying this router's graph id.
+            **kwargs: Forwarded to :class:`~pirn.core.knot.Knot`.
 
         Raises:
             ValueError: If ``tiers`` is empty.
@@ -68,12 +80,31 @@ class ModelCascadeRouter:
                 )
         if not callable(confidence):
             raise TypeError("ModelCascadeRouter: confidence must be an async callable")
-        self._tiers = tier_tuple
-        self._confidence = confidence
-        self._meter = meter
-        self._policy = spend_cap_policy
+        super().__init__(request=request, _config=_config, **kwargs)
+        # Held on ``_mutable_`` slots: ``Knot.__init__`` freezes the instance,
+        # and these are collaborators rather than graph parents.
+        object.__setattr__(self, "_mutable_tiers", tier_tuple)
+        object.__setattr__(self, "_mutable_confidence", confidence)
+        object.__setattr__(self, "_mutable_meter", meter)
+        object.__setattr__(self, "_mutable_policy", spend_cap_policy)
 
-    async def route(self, request: Any) -> CascadeOutcome:
+    @property
+    def _tiers(self) -> tuple[CascadeTier, ...]:
+        return object.__getattribute__(self, "_mutable_tiers")
+
+    @property
+    def _confidence(self) -> Callable[[Any], Awaitable[float]]:
+        return object.__getattribute__(self, "_mutable_confidence")
+
+    @property
+    def _meter(self) -> RunBudgetMeter | None:
+        return object.__getattribute__(self, "_mutable_meter")
+
+    @property
+    def _policy(self) -> SpendCapPolicy:
+        return object.__getattribute__(self, "_mutable_policy")
+
+    async def process(self, request: Any, **_: Any) -> CascadeOutcome:
         """Run the cascade for ``request`` and return the observable outcome.
 
         Walks the tiers cheapest-first: on a tier failure or a sub-floor

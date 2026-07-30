@@ -19,9 +19,20 @@ so the rebase changes no observable behavior.
 
 Note:
     :class:`~pirn_agents.specializations.routing.model_cascade_router.ModelCascadeRouter`
-    is intentionally **not** a member of this family: it is a bare (non-``Knot``)
-    class exposing a ``route`` coroutine rather than ``Knot.process``, so
-    rebasing it here would alter its runtime surface. It is left unchanged.
+    **is** a member of this family, as of PIR-718.
+
+    It was previously excluded, and the exclusion was documented here as
+    intentional. That reading was wrong: PIR-728, the story that wrote it, names
+    the cascade router as one of the "9 routers, no ``Router`` base" and hands
+    the shape question forward — "coordinate with WS7·S3/S6". The exclusion meant
+    *not in that PR*, in a strictly behaviour-preserving story that could not
+    afford to change a runtime surface. It was a deferral, not a decision, and
+    PIR-718 discharges it.
+
+    The port keeps the returned
+    :class:`~pirn_agents.specializations.routing.cascade_outcome.CascadeOutcome`
+    unchanged; only the constructor (now kwargs-only with ``_config``) and the
+    entry point (``route`` → ``Knot.process``) moved.
 
 References:
     - :class:`pirn.core.knot.Knot`

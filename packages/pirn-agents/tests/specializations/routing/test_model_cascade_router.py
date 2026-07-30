@@ -9,6 +9,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 
 import pytest
+from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.performance.budget_breach_error import BudgetBreachError
 from pirn_agents.performance.run_budget import RunBudget
@@ -42,11 +43,21 @@ def _confidence_from(table: dict[str, float]) -> Callable[[object], Awaitable[fl
 class TestValidation:
     def test_empty_tiers_rejected(self) -> None:
         with pytest.raises(ValueError, match="non-empty"):
-            ModelCascadeRouter([], _confidence_from({}))
+            ModelCascadeRouter(
+                request="q",
+                tiers=[],
+                confidence=_confidence_from({}),
+                _config=KnotConfig(id="cascade"),
+            )
 
     def test_non_tier_rejected(self) -> None:
         with pytest.raises(TypeError, match="CascadeTier"):
-            ModelCascadeRouter(["nope"], _confidence_from({}))  # type: ignore[list-item]
+            ModelCascadeRouter(
+                request="q",
+                tiers=["nope"],
+                confidence=_confidence_from({}),
+                _config=KnotConfig(id="cascade"),
+            )  # type: ignore[list-item]
 
     def test_bad_min_confidence_rejected(self) -> None:
         with pytest.raises(ValueError, match="min_confidence"):
@@ -56,9 +67,14 @@ class TestValidation:
 class TestCheapFirst:
     async def test_cheap_tier_accepted_without_escalation(self) -> None:
         tiers = [_tier("cheap", "A", min_confidence=0.5), _tier("strong", "B")]
-        router = ModelCascadeRouter(tiers, _confidence_from({"A": 0.9}))
+        router = ModelCascadeRouter(
+            request="q",
+            tiers=tiers,
+            confidence=_confidence_from({"A": 0.9}),
+            _config=KnotConfig(id="cascade"),
+        )
 
-        outcome = await router.route("q")
+        outcome = await router.process(request="q")
 
         assert outcome.value == "A"
         assert outcome.chosen == "cheap"
@@ -67,9 +83,14 @@ class TestCheapFirst:
 
     async def test_low_confidence_escalates(self) -> None:
         tiers = [_tier("cheap", "A", min_confidence=0.8), _tier("strong", "B", min_confidence=0.8)]
-        router = ModelCascadeRouter(tiers, _confidence_from({"A": 0.3, "B": 0.95}))
+        router = ModelCascadeRouter(
+            request="q",
+            tiers=tiers,
+            confidence=_confidence_from({"A": 0.3, "B": 0.95}),
+            _config=KnotConfig(id="cascade"),
+        )
 
-        outcome = await router.route("q")
+        outcome = await router.process(request="q")
 
         assert outcome.value == "B"
         assert outcome.chosen == "strong"
@@ -78,18 +99,28 @@ class TestCheapFirst:
 
     async def test_failure_escalates(self) -> None:
         tiers = [_failing_tier("cheap"), _tier("strong", "B", min_confidence=0.5)]
-        router = ModelCascadeRouter(tiers, _confidence_from({"B": 0.9}))
+        router = ModelCascadeRouter(
+            request="q",
+            tiers=tiers,
+            confidence=_confidence_from({"B": 0.9}),
+            _config=KnotConfig(id="cascade"),
+        )
 
-        outcome = await router.route("q")
+        outcome = await router.process(request="q")
 
         assert outcome.chosen == "strong"
         assert any("failed" in d for d in outcome.decisions)
 
     async def test_all_low_confidence_returns_best_effort(self) -> None:
         tiers = [_tier("cheap", "A", min_confidence=0.9), _tier("strong", "B", min_confidence=0.9)]
-        router = ModelCascadeRouter(tiers, _confidence_from({"A": 0.1, "B": 0.2}))
+        router = ModelCascadeRouter(
+            request="q",
+            tiers=tiers,
+            confidence=_confidence_from({"A": 0.1, "B": 0.2}),
+            _config=KnotConfig(id="cascade"),
+        )
 
-        outcome = await router.route("q")
+        outcome = await router.process(request="q")
 
         assert outcome.succeeded is False
         assert outcome.chosen == "strong"  # last tier's best-effort output
@@ -99,9 +130,14 @@ class TestCheapFirst:
 class TestObservability:
     async def test_decisions_are_logged(self) -> None:
         tiers = [_tier("cheap", "A", min_confidence=0.8), _tier("strong", "B")]
-        router = ModelCascadeRouter(tiers, _confidence_from({"A": 0.2, "B": 1.0}))
+        router = ModelCascadeRouter(
+            request="q",
+            tiers=tiers,
+            confidence=_confidence_from({"A": 0.2, "B": 1.0}),
+            _config=KnotConfig(id="cascade"),
+        )
 
-        outcome = await router.route("q")
+        outcome = await router.process(request="q")
 
         assert "cheap: low confidence=0.2 -> escalate" in outcome.decisions
         assert "strong: accepted (confidence=1.0)" in outcome.decisions
@@ -115,13 +151,15 @@ class TestSpendCapInteraction:
             _tier("strong", "B", min_confidence=0.9, cost=1.0),
         ]
         router = ModelCascadeRouter(
-            tiers,
-            _confidence_from({"A": 0.1}),
+            request="q",
+            tiers=tiers,
+            confidence=_confidence_from({"A": 0.1}),
             meter=meter,
             spend_cap_policy=SpendCapPolicy.DOWNSHIFT,
+            _config=KnotConfig(id="cascade"),
         )
 
-        outcome = await router.route("q")
+        outcome = await router.process(request="q")
 
         # cheap spent 0.5; escalating to strong (1.0 more) would breach the 1.0 cap
         assert outcome.chosen == "cheap"
@@ -135,18 +173,29 @@ class TestSpendCapInteraction:
             _tier("strong", "B", min_confidence=0.9, cost=1.0),
         ]
         router = ModelCascadeRouter(
-            tiers, _confidence_from({"A": 0.1}), meter=meter, spend_cap_policy=SpendCapPolicy.ABORT
+            request="q",
+            tiers=tiers,
+            confidence=_confidence_from({"A": 0.1}),
+            meter=meter,
+            spend_cap_policy=SpendCapPolicy.ABORT,
+            _config=KnotConfig(id="cascade"),
         )
 
         with pytest.raises(BudgetBreachError):
-            await router.route("q")
+            await router.process(request="q")
 
     async def test_under_cap_accrues_cost(self) -> None:
         meter = RunBudgetMeter(RunBudget(max_cost=10.0))
         tiers = [_tier("cheap", "A", min_confidence=0.0, cost=2.0)]
-        router = ModelCascadeRouter(tiers, _confidence_from({"A": 1.0}), meter=meter)
+        router = ModelCascadeRouter(
+            request="q",
+            tiers=tiers,
+            confidence=_confidence_from({"A": 1.0}),
+            meter=meter,
+            _config=KnotConfig(id="cascade"),
+        )
 
-        outcome = await router.route("q")
+        outcome = await router.process(request="q")
 
         assert outcome.succeeded is True
         assert meter.cost == pytest.approx(2.0)
