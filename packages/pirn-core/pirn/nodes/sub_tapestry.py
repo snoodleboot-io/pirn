@@ -178,6 +178,11 @@ class SubTapestry(Knot):
             except ValidationError as exc:
                 return Err(record=ExceptionRecord.for_knot(config.id, exc))
 
+        # Clear the previous invocation's metadata up front.  It used to be
+        # assigned only after the try body succeeded, so a failed inner run left
+        # the *previous* run's inner_run_id in place for lineage to report.
+        self._mutable_inner_run_meta = {}
+
         try:
             with Tapestry() as inner:
                 sink = await self.process(**kwargs)
@@ -192,17 +197,28 @@ class SubTapestry(Knot):
                     f"{type(self).__name__}.process() returned a Knot not registered "
                     "in the inner tapestry — was it built outside the process() body?"
                 )
-            run_result = await self._run_inner(inner, extensible=self._extensible_inner_run)
+            try:
+                run_result = await self._run_inner(inner, extensible=self._extensible_inner_run)
+            except SubTapestryError as exc:
+                # Record the metadata for the run that failed.  Without this the
+                # failure path reports no inner_run_id at all, leaving a sibling's
+                # Ok record in the same inner run with no retrieval path.
+                self._record_inner_run_meta(exc.inner_result)
+                raise
+            self._record_inner_run_meta(run_result)
             output = run_result.outputs[self._resolve_output_key(sink)]
         except BaseException as exc:
             return Err(record=ExceptionRecord.for_knot(config.id, exc))
 
+        return Ok(value=output)
+
+    def _record_inner_run_meta(self, run_result: RunResult) -> None:
+        """Publish the inner run's identifiers for ``lineage_extra`` to surface."""
         self._mutable_inner_run_meta = {
             "inner_run_id": run_result.run_id,
             "inner_knot_count": len(run_result.lineage),
             "inner_failures": len(run_result.exceptions),
         }
-        return Ok(value=output)
 
     async def _run_inner(
         self,
@@ -222,12 +238,23 @@ class SubTapestry(Knot):
         from pirn.core.run_request import RunRequest
         from pirn.tapestry import _current_history, _current_run_id
 
-        outer_history: RunHistory | None = object.__getattribute__(self, "_mutable_outer_history")
-        # Knots constructed dynamically mid-run (outside a `with Tapestry():` block)
-        # have no outer history at construction time.  Fall back to the context var
-        # set by the enclosing Tapestry.run() call.
+        # Prefer the live contextvar over the construction-time capture.
+        #
+        # `__init__` captures the history of whatever tapestry was ambient when
+        # this knot was built.  For a SubTapestry constructed inside another
+        # SubTapestry's `process()`, that ambient tapestry is the throwaway
+        # `with Tapestry() as inner:` opened by `__call__` below — so the capture
+        # is a fresh default store which is discarded once the parent's inner run
+        # completes, and every record written to it is lost.  It is non-None but
+        # wrong, which is why the old `is None` fallback never fired.
+        #
+        # The contextvar is set by the enclosing `Tapestry.run()` to the store
+        # that run is actually writing to, so it is right at every depth.  It is
+        # None only outside a run, and the construction-time capture is then the
+        # correct answer.  See PIR-764.
+        outer_history: RunHistory | None = _current_history.get(None)
         if outer_history is None:
-            outer_history = _current_history.get(None)
+            outer_history = object.__getattribute__(self, "_mutable_outer_history")
         # Inject the outer history into the inner tapestry so inner runs are
         # recorded to the same store and appear in the explorer.
         if outer_history is not None:
