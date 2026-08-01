@@ -16,14 +16,19 @@ Algorithm:
     2. **SIMPLE branch** — run a single :class:`LLMChatCall` directly on the
        query and wrap the result via :class:`RAGResponseBuilder`.
     3. **COMPLEX branch** — ask the LLM to decompose the query into three
-       sub-questions; retrieve ``top_k`` hits per sub-question via
-       :class:`MemorySearchRetriever`; merge all hits; build a prompt with
-       :class:`RAGPromptBuilder`; call the LLM; wrap via
-       :class:`RAGResponseBuilder`.
+       sub-questions; retrieve ``top_k`` hits per sub-question via one
+       :class:`MemorySearchRetriever` each, merged by an :class:`Aggregator`
+       so the retrievals are engine-scheduled siblings rather than a Python
+       loop; build a prompt with :class:`RAGPromptBuilder`; call the LLM; wrap
+       via :class:`RAGResponseBuilder`.
     4. **MODERATE branch** (default) — retrieve ``top_k`` hits for the
        original query; build prompt; call LLM; wrap via
        :class:`RAGResponseBuilder`.
-    5. Return the :class:`AgentResponse` from the selected branch.
+    5. Return the selected arm's sink knot. Every arm is built into the inner
+       tapestry ``SubTapestry.__call__`` already opened, so its knots belong to
+       the run this pipeline reports; only ``classify`` and (on the COMPLEX
+       path) ``decompose`` need their own inner run, because their values are
+       required in Python before the rest of the graph can be built.
 
 References:
     - Adaptive RAG: https://arxiv.org/abs/2403.14403
@@ -35,7 +40,7 @@ from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.source import Source
+from pirn.nodes.aggregator import Aggregator
 from pirn.tapestry import Tapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
@@ -52,11 +57,33 @@ from pirn_agents.specializations.rag.rag_prompt_builder import (
 from pirn_agents.specializations.rag.rag_response_builder import (
     RAGResponseBuilder,
 )
-from pirn_agents.types.messaging.agent_response import AgentResponse
 
 _ROUTE_SIMPLE = "simple"
 _ROUTE_MODERATE = "moderate"
 _ROUTE_COMPLEX = "complex"
+
+
+def _merge_hits(**per_question: Any) -> list[Any]:
+    """Flatten the per-sub-question retrieval results into one hit list.
+
+    Used as an :class:`Aggregator` combine so the multi-hop retrievals are
+    engine-scheduled siblings rather than a Python loop. Module-level and plain
+    (not a closure) so the aggregator carries no captured state.
+
+    Args:
+        **per_question: One resolved retriever output per sub-question, keyed
+            ``hits_0``, ``hits_1``, … Sorted by key so the merged order follows
+            sub-question order regardless of completion order.
+
+    Returns:
+        The concatenated hits.
+    """
+    merged: list[Any] = []
+    for key in sorted(per_question, key=lambda name: int(name.rsplit("_", 1)[1])):
+        hits = per_question[key]
+        if isinstance(hits, list):
+            merged.extend(hits)
+    return merged
 
 
 def _select_complexity_route(complexity: str) -> str:
@@ -152,6 +179,10 @@ class AdaptiveRAGPipeline(AgentPipeline):
         Raises:
             TypeError: If query is not a string.
         """
+        if not isinstance(query, str):
+            raise TypeError(
+                f"AdaptiveRAGPipeline: query must be a string, got {type(query).__name__}"
+            )
         classify_prompt = type(self)._classify_prompt.render({"query": query})
         with Tapestry() as inner_classify:
             LLMChatCall(
@@ -162,29 +193,24 @@ class AdaptiveRAGPipeline(AgentPipeline):
         classify_result = await self._run_inner(inner_classify)
         complexity = str(classify_result.outputs.get("classify", "")).strip().upper()
 
-        final_response: AgentResponse
         route = _select_complexity_route(complexity)
 
+        # Each arm is built into the inner tapestry `SubTapestry.__call__` has
+        # already opened, and returns its real sink knot. Previously every arm
+        # opened its own `with Tapestry()`, ran it via `_run_inner`, pulled the
+        # answer out, and handed back a `_ResultSource` closure wrapping the
+        # precomputed value — so the arm's knots were invisible to the run this
+        # pipeline reports. Only the decisions that must be resolved before the
+        # graph can be built still need their own inner run.
         if route == _ROUTE_SIMPLE:
-            with Tapestry() as inner_direct:
-                answer = LLMChatCall(
-                    prompt=query,
-                    llm=llm,
-                    _config=KnotConfig(id="generate"),
-                )
-                RAGResponseBuilder(
-                    answer=answer,
-                    _config=KnotConfig(id="response"),
-                )
-            result = await self._run_inner(inner_direct)
-            raw = result.outputs.get("response")
-            final_response = (
-                raw
-                if isinstance(raw, AgentResponse)
-                else AgentResponse(content="", finish_reason="length")
+            answer = LLMChatCall(
+                prompt=query,
+                llm=llm,
+                _config=KnotConfig(id="generate"),
             )
+            return RAGResponseBuilder(answer=answer, _config=KnotConfig(id="response"))
 
-        elif route == _ROUTE_COMPLEX:
+        if route == _ROUTE_COMPLEX:
             decompose_prompt = type(self)._decompose_prompt.render({"query": query})
             with Tapestry() as inner_decompose:
                 LLMChatCall(
@@ -200,77 +226,46 @@ class AdaptiveRAGPipeline(AgentPipeline):
             if not sub_questions:
                 sub_questions = [query]
 
-            all_hits: list[Any] = []
-            for sub_q in sub_questions:
-                with Tapestry() as inner_retrieve:
-                    MemorySearchRetriever(
-                        store=memory,
-                        query=sub_q,
-                        top_k=top_k,
-                        _config=KnotConfig(id="sub_retrieve"),
-                    )
-                sub_result = await self._run_inner(inner_retrieve)
-                hits = sub_result.outputs.get("sub_retrieve", [])
-                if isinstance(hits, list):
-                    all_hits.extend(hits)
-
-            with Tapestry() as inner_synth:
-                prompt_knot = RAGPromptBuilder(
-                    query=query,
-                    retrieved=all_hits,
-                    _config=KnotConfig(id="prompt"),
-                )
-                answer_knot = LLMChatCall(
-                    prompt=prompt_knot,
-                    llm=llm,
-                    _config=KnotConfig(id="generate"),
-                )
-                RAGResponseBuilder(
-                    answer=answer_knot,
-                    _config=KnotConfig(id="response"),
-                )
-            synth_result = await self._run_inner(inner_synth)
-            raw = synth_result.outputs.get("response")
-            final_response = (
-                raw
-                if isinstance(raw, AgentResponse)
-                else AgentResponse(content="", finish_reason="length")
-            )
-
-        else:
-            with Tapestry() as inner_naive:
-                retrieved = MemorySearchRetriever(
+            retrievers = {
+                f"hits_{index}": MemorySearchRetriever(
                     store=memory,
-                    query=query,
+                    query=sub_q,
                     top_k=top_k,
-                    _config=KnotConfig(id="retrieve"),
+                    _config=KnotConfig(id=f"sub_retrieve_{index}"),
                 )
-                prompt = RAGPromptBuilder(
-                    query=query,
-                    retrieved=retrieved,
-                    _config=KnotConfig(id="prompt"),
-                )
-                answer = LLMChatCall(
-                    prompt=prompt,
-                    llm=llm,
-                    _config=KnotConfig(id="generate"),
-                )
-                RAGResponseBuilder(
-                    answer=answer,
-                    _config=KnotConfig(id="response"),
-                )
-            naive_result = await self._run_inner(inner_naive)
-            raw = naive_result.outputs.get("response")
-            final_response = (
-                raw
-                if isinstance(raw, AgentResponse)
-                else AgentResponse(content="", finish_reason="length")
+                for index, sub_q in enumerate(sub_questions)
+            }
+            merged = Aggregator(
+                combine=_merge_hits,
+                _config=KnotConfig(id="merge"),
+                **retrievers,
             )
+            prompt_knot = RAGPromptBuilder(
+                query=query,
+                retrieved=merged,
+                _config=KnotConfig(id="prompt"),
+            )
+            answer_knot = LLMChatCall(
+                prompt=prompt_knot,
+                llm=llm,
+                _config=KnotConfig(id="generate"),
+            )
+            return RAGResponseBuilder(answer=answer_knot, _config=KnotConfig(id="response"))
 
-        _resp = final_response
-
-        class _ResultSource(Source):
-            async def process(self, **_: Any) -> AgentResponse:
-                return _resp
-
-        return _ResultSource(_config=KnotConfig(id="result"))
+        retrieved = MemorySearchRetriever(
+            store=memory,
+            query=query,
+            top_k=top_k,
+            _config=KnotConfig(id="retrieve"),
+        )
+        prompt = RAGPromptBuilder(
+            query=query,
+            retrieved=retrieved,
+            _config=KnotConfig(id="prompt"),
+        )
+        answer = LLMChatCall(
+            prompt=prompt,
+            llm=llm,
+            _config=KnotConfig(id="generate"),
+        )
+        return RAGResponseBuilder(answer=answer, _config=KnotConfig(id="response"))

@@ -167,5 +167,57 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         with Tapestry():
             k = AdaptiveRAGPipeline.__new__(AdaptiveRAGPipeline)
             object.__setattr__(k, "_config", KnotConfig(id="x"))
-        with self.assertRaises((TypeError, AttributeError)):
+        # Tightened by PIR-715. The docstring has always promised TypeError, but
+        # the guard was missing, so this actually raised AttributeError
+        # ('_mutable_outer_history') from sub_tapestry.py — and the assertion
+        # accepted either, hiding the gap.
+        with self.assertRaisesRegex(TypeError, "query must be a string"):
             await k.process(query=123, memory=memory, llm=llm, top_k=5)  # type: ignore[arg-type]
+
+
+class TestAdaptiveRAGPipelineArmObservability(unittest.IsolatedAsyncioTestCase):
+    """The selected arm's knots must belong to the run this pipeline reports.
+
+    Each arm used to open its own `with Tapestry()`, run it via `_run_inner`,
+    pull the answer out, and return a `_ResultSource` closure wrapping the
+    precomputed value. The pipeline's own inner run therefore contained exactly
+    one knot — that closure — on every path, whatever work the arm had done.
+    PIR-715 builds each arm into the inner tapestry `SubTapestry.__call__`
+    already opens and returns its real sink.
+
+    Counts here are the shape of the arm, not a magic number: SIMPLE is
+    generate + response; MODERATE adds retrieve + prompt; COMPLEX is three
+    retrievers + merge + prompt + generate + response.
+    """
+
+    async def _inner_knot_count(self, script: list[str], **kwargs: object) -> tuple[int, int]:
+        memory = StubMemoryStore([{"text": "ctx"}])
+        llm = StubLLMProvider(script)
+        with Tapestry() as t:
+            AdaptiveRAGPipeline(
+                query="q",
+                memory=memory,
+                llm=llm,
+                _config=KnotConfig(id="adaptive"),
+                **kwargs,  # type: ignore[arg-type]
+            )
+        run = await t.run(RunRequest())
+        assert run.succeeded
+        return run.lineage[0].extra["inner_knot_count"], len(memory.search_queries)
+
+    async def test_simple_arm_is_recorded(self) -> None:
+        count, searches = await self._inner_knot_count(["SIMPLE", "direct answer"])
+        assert count == 2
+        assert searches == 0
+
+    async def test_moderate_arm_is_recorded(self) -> None:
+        count, searches = await self._inner_knot_count(["MODERATE", "rag answer"], top_k=1)
+        assert count == 4
+        assert searches == 1
+
+    async def test_complex_arm_is_recorded(self) -> None:
+        count, searches = await self._inner_knot_count(
+            ["COMPLEX", "s1\ns2\ns3", "mh answer"], top_k=1
+        )
+        assert count == 7
+        assert searches == 3
