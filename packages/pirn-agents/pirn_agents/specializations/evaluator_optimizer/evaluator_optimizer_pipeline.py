@@ -26,6 +26,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
 
 from pirn_agents.control.reflection_check import ReflectionCheck
 from pirn_agents.llm.llm_provider import LLMProvider
@@ -36,8 +37,8 @@ from pirn_agents.specializations.evaluator_optimizer._evaluator_optimizer_loop i
 from pirn_agents.specializations.evaluator_optimizer._evaluator_optimizer_result_builder import (
     _EvaluatorOptimizerResultBuilder,
 )
-from pirn_agents.specializations.evaluator_optimizer._initial_loop_state import (
-    _InitialLoopState,
+from pirn_agents.specializations.evaluator_optimizer._evaluator_optimizer_state import (
+    _EvaluatorOptimizerState,
 )
 
 
@@ -108,7 +109,10 @@ class EvaluatorOptimizerPipeline(AgentPipeline):
                 f"{max_iterations!r}"
             )
 
-        initial = _InitialLoopState(_config=KnotConfig(id="eo_initial_state"))
+        # A plain Parameter seeds the loop; no bespoke Source needed.
+        initial = Parameter(
+            "eo_state", _EvaluatorOptimizerState, default=_EvaluatorOptimizerState()
+        )
         loop = _EvaluatorOptimizerLoop(
             task=task,
             llm=llm,
