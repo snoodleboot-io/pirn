@@ -11,6 +11,11 @@ The pattern separates into two pure functions that the framework threads togethe
         Integrate the iteration's outcome into state.  The returned value is
         passed to the next ``step`` call.
 
+        By default ``result`` is always a *successful* run — a failed iteration
+        raises before ``fold`` is reached.  Set the class-level
+        ``_tolerate_iteration_failures = True`` to receive failed runs too, which
+        is what makes retry-until-success expressible.
+
 The framework drives the loop as a single extensible inner run.  Each
 iteration is a knot inside that run, connected by edges that reflect the
 sequential (or parallel) data dependencies between them.  Sub-tapestries
@@ -146,11 +151,15 @@ class _IterationChainKnot(Knot):
             _parent_run_id=parent_run_id,
             _parent_knot_id=self.knot_id,
         )
-        if not result.succeeded:
+        if not result.succeeded and not loop._tolerate_iteration_failures:
             from pirn.nodes.sub_tapestry import SubTapestryError
 
             raise SubTapestryError(result)
 
+        # When the loop tolerates failures, the failed RunResult is handed to
+        # `fold` unchanged — `succeeded is False` with a populated `exceptions`
+        # — so the loop itself decides whether that is a retry trigger or a
+        # reason to stop.  See PIR-772.
         new_state = loop.fold(state, result)
 
         store = get_current_store()
@@ -239,6 +248,23 @@ class LoopSubTapestry(SubTapestry, Generic[S]):
 
     _extensible_inner_run: ClassVar[bool] = True
     _terminal_id: ClassVar[str] = "__loop_terminal__"
+
+    #: Whether a failed iteration is survivable.
+    #:
+    #: ``False`` (the default) preserves the original behaviour: any failed
+    #: iteration raises ``SubTapestryError`` and kills the whole loop.
+    #:
+    #: Set ``True`` to hand the failed ``RunResult`` to ``fold`` instead, with
+    #: ``succeeded is False`` and a populated ``exceptions``.  ``fold`` then
+    #: decides — return state that makes ``step`` retry, or state that makes it
+    #: terminate.  This is what makes retry-until-success expressible: a flaky
+    #: provider call, a timeout, a tool error or a rate limit is a *legitimate
+    #: retry trigger*, and without this the loop could not see it at all.
+    #:
+    #: Opt-in rather than default because tolerating a failure silently is the
+    #: wrong answer for a loop that has no retry logic — it would turn a real
+    #: error into a quietly wrong final state.  See PIR-772.
+    _tolerate_iteration_failures: ClassVar[bool] = False
 
     def _resolve_output_key(self, sink: Knot) -> str:
         return self._terminal_id

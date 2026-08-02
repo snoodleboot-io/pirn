@@ -252,3 +252,98 @@ class TestLoopSubTapestryFoldStateContract(unittest.IsolatedAsyncioTestCase):
             _RecordingLoop(limit=3, state=src, _config=KnotConfig(id="loop"))
         result = await t.run(RunRequest())
         self.assertEqual(result.outputs["loop"], 303)
+
+
+class _RetryLoop(LoopSubTapestry[dict]):
+    """Retry-until-success — the shape that was inexpressible before PIR-772.
+
+    The attempt counter is a list on the loop instance. Not a class attribute —
+    each iteration builds a fresh source class, so that would reset every time.
+    Not an ``int`` either: ``Knot`` freezes the instance, so rebinding an
+    attribute from inside ``process`` raises. Appending to a list mutates
+    without a ``setattr``.
+    """
+
+    _tolerate_iteration_failures: ClassVar[bool] = True
+
+    def __init__(self, *, fail_times: int, max_attempts: int, **kwargs: Any) -> None:
+        self._fail_times = fail_times
+        self._max_attempts = max_attempts
+        self._attempts: list[int] = []
+        self.folded: list[bool] = []
+        super().__init__(**kwargs)
+
+    def step(self, state: dict) -> tuple[Tapestry, dict] | None:
+        if state.get("done") or state.get("attempts", 0) >= self._max_attempts:
+            return None
+        loop = self
+
+        class _Attempt(Source):
+            async def process(self, **_: Any) -> str:
+                loop._attempts.append(1)
+                if len(loop._attempts) <= loop._fail_times:
+                    raise RuntimeError(f"attempt {len(loop._attempts)} failed")
+                return "ok"
+
+        t = Tapestry()
+        with t:
+            _Attempt(_config=KnotConfig(id="attempt"))
+        return t, {**state, "attempts": state.get("attempts", 0) + 1}
+
+    def fold(self, state: dict, result: RunResult) -> dict:
+        self.folded.append(result.succeeded)
+        if result.succeeded:
+            return {**state, "done": True, "value": result.outputs["attempt"]}
+        return state
+
+
+class TestLoopSubTapestryIterationFailure(unittest.IsolatedAsyncioTestCase):
+    """A failed iteration should be survivable — but only on request.
+
+    Before PIR-772 any failed iteration raised SubTapestryError and killed the
+    whole loop, so `fold` never saw the failure and retry-until-success could
+    not be written at all.
+    """
+
+    async def test_default_still_fails_the_whole_loop(self) -> None:
+        """Opt-in, not opt-out: tolerating silently would turn a real error
+        into a quietly wrong final state for loops with no retry logic."""
+
+        class _StrictLoop(_RetryLoop):
+            _tolerate_iteration_failures: ClassVar[bool] = False
+
+        with Tapestry() as t:
+            src = _InitSource(init_state={}, _config=KnotConfig(id="init"))
+            _StrictLoop(
+                fail_times=1, max_attempts=3, state=src, _config=KnotConfig(id="loop")
+            )
+        result = await t.run(RunRequest())
+        self.assertFalse(result.succeeded)
+        self.assertEqual([e.exc_type for e in result.exceptions], ["SubTapestryError"])
+
+    async def test_fold_receives_the_failed_run_and_the_loop_retries(self) -> None:
+        with Tapestry() as t:
+            src = _InitSource(init_state={}, _config=KnotConfig(id="init"))
+            loop = _RetryLoop(
+                fail_times=2, max_attempts=5, state=src, _config=KnotConfig(id="loop")
+            )
+        result = await t.run(RunRequest())
+        self.assertTrue(result.succeeded, [e.exc_type for e in result.exceptions])
+        # Two failures observed by fold, then the success that terminates.
+        self.assertEqual(loop.folded, [False, False, True])
+        self.assertEqual(result.outputs["loop"]["value"], "ok")
+        self.assertEqual(result.outputs["loop"]["attempts"], 3)
+
+    async def test_a_tolerated_failure_still_reaches_history(self) -> None:
+        """The failed iteration is a real child run and must remain visible."""
+        from pirn.backends.in_memory.in_memory_history import InMemoryHistory
+
+        history = InMemoryHistory()
+        with Tapestry(history=history) as t:
+            src = _InitSource(init_state={}, _config=KnotConfig(id="init"))
+            _RetryLoop(fail_times=1, max_attempts=5, state=src, _config=KnotConfig(id="loop"))
+        result = await t.run(RunRequest())
+        self.assertTrue(result.succeeded)
+        loop_runs = await history.children_of(result.run_id)
+        iterations = await history.children_of(loop_runs[0].run_id)
+        self.assertEqual([r.succeeded for r in iterations], [False, True])
