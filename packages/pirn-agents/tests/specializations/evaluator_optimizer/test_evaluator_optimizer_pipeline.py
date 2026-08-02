@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.backends.in_memory.in_memory_history import InMemoryHistory
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -93,3 +94,46 @@ class TestEvaluatorOptimizerPipeline(unittest.IsolatedAsyncioTestCase):
             object.__setattr__(knot, "_reflection_gate", None)
         with self.assertRaises(ValueError):
             await knot.process(task="q", llm=llm, max_iterations=0)
+
+
+class TestEvaluatorOptimizerLoopObservability(unittest.IsolatedAsyncioTestCase):
+    """Every refine iteration must be an engine-visible run.
+
+    The loop used to be a Python `for` awaiting generator/judge/gate.process()
+    directly, so the whole refinement was one opaque knot: no per-iteration
+    Result, no history record, no lineage. PIR-713 ports it onto
+    LoopSubTapestry by composition, so each iteration is a child run.
+
+    (Requires PIR-773 — `LoopSubTapestry.process` was reading a stale history
+    capture when nested inside a pipeline, which made all of this invisible.)
+    """
+
+    async def _run(self) -> tuple[object, InMemoryHistory]:
+        history = InMemoryHistory()
+        llm = StubLLMProvider(["c1", "SCORE: 5\nweak", "c2", "SCORE: 9\nstrong"])
+        with Tapestry(history=history) as t:
+            EvaluatorOptimizerPipeline(
+                task="write",
+                llm=llm,
+                threshold=8.0,
+                max_iterations=3,
+                _config=KnotConfig(id="eo"),
+            )
+        run = await t.run(RunRequest())
+        assert run.succeeded
+        return run, history
+
+    async def test_each_iteration_is_its_own_child_run(self) -> None:
+        run, history = await self._run()
+        pipeline_runs = await history.children_of(run.run_id)
+        loop_runs = await history.children_of(pipeline_runs[0].run_id)
+        iterations = await history.children_of(loop_runs[0].run_id)
+        assert [r.parent_knot_id for r in iterations] == [
+            "eo_iteration_1",
+            "eo_iteration_2",
+        ]
+
+    async def test_inner_knots_have_per_iteration_lineage(self) -> None:
+        _, history = await self._run()
+        for knot_id in ("eo_gen", "eo_judge", "eo_gate"):
+            assert len(await history.query_lineage_by_knot_id(knot_id)) == 2, knot_id

@@ -305,7 +305,19 @@ class LoopSubTapestry(SubTapestry, Generic[S]):
             ``_LoopTerminal`` (zero iterations) or the first
             ``_IterationChainKnot``.
         """
-        outer_history: Any = object.__getattribute__(self, "_mutable_outer_history")
+        # Prefer the live contextvar over the construction-time capture, for the
+        # same reason `SubTapestry._run_inner` does (PIR-764): a loop built
+        # inside another SubTapestry's `process()` captured the throwaway
+        # `with Tapestry() as inner:` that `__call__` opens, which is discarded
+        # when that outer inner-run ends — so every iteration run below it was
+        # recorded into a store nobody keeps. PIR-764 fixed `_run_inner`; this
+        # call site had no consumer to expose it until the PIR-713 pilot nested
+        # a loop inside a pipeline.
+        from pirn.tapestry import _current_history
+
+        outer_history: Any = _current_history.get(None)
+        if outer_history is None:
+            outer_history = object.__getattribute__(self, "_mutable_outer_history")
 
         first_outcome = self.step(state)
         if first_outcome is None:
