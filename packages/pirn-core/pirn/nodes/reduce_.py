@@ -35,23 +35,9 @@ import inspect
 from collections.abc import Callable
 from typing import Any, ClassVar
 
+from pirn.core.async_callable import is_async_callable
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-
-
-def _is_async_callable(combine: Callable[..., Any]) -> bool:
-    """Return True if calling ``combine`` produces a coroutine.
-
-    ``inspect`` rather than ``asyncio``: ``asyncio.iscoroutinefunction`` is
-    deprecated from 3.12, and neither form sees through a callable *object*
-    whose ``__call__`` is the async part — so that case is checked explicitly.
-    """
-    if inspect.iscoroutinefunction(combine):
-        return True
-    # Fetched statically to inspect it, not to test callability — `callable()`
-    # would answer a different question and give nothing to inspect.
-    call = inspect.getattr_static(type(combine), "__call__", None)
-    return call is not None and inspect.iscoroutinefunction(call)
 
 
 class Reduce(Knot):
@@ -135,7 +121,7 @@ class Reduce(Knot):
             raise TypeError(f"Reduce: 'combine' must take 1 or 2 required args, got {n_required}")
 
         self._mutable_combine = combine
-        self._mutable_combine_is_async = _is_async_callable(combine)
+        self._mutable_combine_is_async = is_async_callable(combine)
         self._mutable_initial = initial
 
         self._mutable_config = _config
