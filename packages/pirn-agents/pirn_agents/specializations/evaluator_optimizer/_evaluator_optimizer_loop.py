@@ -4,17 +4,12 @@ Replaces the hand-rolled ``for index in range(max_iterations)`` that awaited
 ``generator/judge/gate.process()`` directly, so every iteration is an engine
 knot with its own ``Result``, history record and lineage.
 
-**Both termination decisions live inside the iteration tapestry.** ``step`` and
-``fold`` are sync, so an ``await``-driven stop condition cannot be evaluated in
-them — the sanctioned answer (ADR §7) is to express the decision as a knot and
-have ``fold`` read its output off the ``RunResult``. Here that means:
-
-* ``AcceptGate`` is a knot, not an awaited call in a Python ``if``.
-* The optional ``ReflectionCheck`` is a knot too, but must only run when the
-  accept gate did *not* fire, or an accepted run pays an extra LLM call. Core
-  ``Gate`` passes through one parent, so it opens on "not accepted" and
-  :class:`_CandidateResponse` joins it with the candidate; when the gate is
-  ``Skipped`` the reflection check is skipped with it.
+Both termination decisions live inside the iteration tapestry, per
+:class:`~pirn_agents.specializations.base.agent_loop_pipeline.AgentLoopPipeline`
+— that base explains why. Concretely: ``AcceptGate`` is a knot rather than an
+awaited call in a Python ``if``, and the optional ``ReflectionCheck`` sits behind
+a ``Gate`` that opens only on "not accepted", so an accepted run does not pay for
+it.
 
 Internal API. See PIR-713.
 """
@@ -25,15 +20,12 @@ from typing import TYPE_CHECKING, Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.gate.gate import Gate
-from pirn.nodes.loop_sub_tapestry import LoopSubTapestry
 from pirn.tapestry import Tapestry
 
 from pirn_agents.control.reflection_check import ReflectionCheck
 from pirn_agents.llm.llm_provider import LLMProvider
-from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.evaluator_optimizer._candidate_response import (
-    _CandidateResponse,
-)
+from pirn_agents.specializations.base.agent_loop_pipeline import AgentLoopPipeline
+from pirn_agents.specializations.base.gated_agent_response import GatedAgentResponse
 from pirn_agents.specializations.evaluator_optimizer._evaluator_optimizer_state import (
     _EvaluatorOptimizerState,
 )
@@ -59,7 +51,7 @@ def _reject(accepted: bool) -> bool:
     return not accepted
 
 
-class _EvaluatorOptimizerLoop(LoopSubTapestry[_EvaluatorOptimizerState], AgentPipeline):
+class _EvaluatorOptimizerLoop(AgentLoopPipeline[_EvaluatorOptimizerState]):
     """Iterate generate → judge → accept until accepted, stopped, or capped."""
 
     def __init__(
@@ -119,8 +111,8 @@ class _EvaluatorOptimizerLoop(LoopSubTapestry[_EvaluatorOptimizerState], AgentPi
                     predicate=_reject,
                     _config=KnotConfig(id=_CONTINUE_ID),
                 )
-                response = _CandidateResponse(
-                    candidate=candidate,
+                response = GatedAgentResponse(
+                    content=candidate,
                     gate=keep_going,
                     _config=KnotConfig(id="eo_candidate_response"),
                 )
