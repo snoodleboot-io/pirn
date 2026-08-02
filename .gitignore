@@ -51,3 +51,7 @@ _pheenyx_charts/
 # Local harness working state (sessions are not version-controlled)
 .promptosaurus/sessions/
 .prompticorn/sessions/
+
+# ADRs live in Linear as projects, not in this repo (PIR-774, PIR-776).
+# Drafting one locally is fine; committing it is not.
+docs/adr/
