@@ -122,7 +122,7 @@ class _IterationChainKnot(Knot):
             Updated state value produced by folding this iteration's RunResult.
         """
         from pirn.core.run_request import RunRequest
-        from pirn.tapestry import _current_history, _current_run_id
+        from pirn.tapestry import _current_history, _current_run_id, _current_traceback_filter
 
         loop: LoopSubTapestry = object.__getattribute__(self, "_mutable_loop_sub")  # type: ignore[type-arg]
         iter_tapestry: Tapestry = object.__getattribute__(self, "_mutable_iter_tapestry")
@@ -150,6 +150,8 @@ class _IterationChainKnot(Knot):
             RunRequest(),
             _parent_run_id=parent_run_id,
             _parent_knot_id=self.knot_id,
+            # Same inheritance as SubTapestry._run_inner — see PIR-725.
+            traceback_filter=_current_traceback_filter.get(None),
         )
         if not result.succeeded and not loop._tolerate_iteration_failures:
             from pirn.nodes.sub_tapestry import SubTapestryError
