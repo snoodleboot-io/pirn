@@ -9,6 +9,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.nodes.loop_sub_tapestry import LoopSubTapestry
 from pirn.nodes.source import Source
+from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
 if TYPE_CHECKING:
@@ -142,9 +143,7 @@ class TestLoopSubTapestryHistory(unittest.IsolatedAsyncioTestCase):
         loop_runs = await history.children_of(result.run_id)
         self.assertEqual([r.parent_knot_id for r in loop_runs], ["loop"])
         iterations = await history.children_of(loop_runs[0].run_id)
-        self.assertEqual(
-            [r.parent_knot_id for r in iterations], ["step_1", "step_2", "step_3"]
-        )
+        self.assertEqual([r.parent_knot_id for r in iterations], ["step_1", "step_2", "step_3"])
 
     async def test_per_iteration_lineage_is_queryable(self) -> None:
         from pirn.backends.in_memory.in_memory_history import InMemoryHistory
@@ -314,9 +313,7 @@ class TestLoopSubTapestryIterationFailure(unittest.IsolatedAsyncioTestCase):
 
         with Tapestry() as t:
             src = _InitSource(init_state={}, _config=KnotConfig(id="init"))
-            _StrictLoop(
-                fail_times=1, max_attempts=3, state=src, _config=KnotConfig(id="loop")
-            )
+            _StrictLoop(fail_times=1, max_attempts=3, state=src, _config=KnotConfig(id="loop"))
         result = await t.run(RunRequest())
         self.assertFalse(result.succeeded)
         self.assertEqual([e.exc_type for e in result.exceptions], ["SubTapestryError"])
@@ -347,3 +344,52 @@ class TestLoopSubTapestryIterationFailure(unittest.IsolatedAsyncioTestCase):
         loop_runs = await history.children_of(result.run_id)
         iterations = await history.children_of(loop_runs[0].run_id)
         self.assertEqual([r.succeeded for r in iterations], [False, True])
+
+
+class _LoopHost(SubTapestry):
+    """A pipeline whose body is a loop — the PIR-713 pilot's shape."""
+
+    async def process(self, **_: Any) -> Any:
+        src = _InitSource(init_state=0, _config=KnotConfig(id="host_init"))
+        return _CounterLoop(target=3, state=src, _config=KnotConfig(id="host_loop"))
+
+
+class TestLoopNestedInsideAPipeline(unittest.IsolatedAsyncioTestCase):
+    """A loop built inside another SubTapestry's process() must still record.
+
+    `LoopSubTapestry.process` read the construction-time history capture, which
+    inside a parent's `process()` is the throwaway `with Tapestry() as inner:`
+    that `__call__` opens — discarded when the parent's inner run ends. Every
+    iteration run below it went into a store nobody keeps, while the run
+    reported success with the right answer.
+
+    Same defect PIR-764 fixed in `SubTapestry._run_inner`; this call site had no
+    consumer to expose it until the PIR-713 pilot nested a loop in a pipeline.
+    See PIR-773.
+    """
+
+    async def test_iterations_are_recorded_from_inside_a_pipeline(self) -> None:
+        from pirn.backends.in_memory.in_memory_history import InMemoryHistory
+
+        history = InMemoryHistory()
+        with Tapestry(history=history) as t:
+            _LoopHost(_config=KnotConfig(id="host"))
+        result = await t.run(RunRequest())
+        self.assertTrue(result.succeeded)
+        self.assertEqual(result.outputs["host"], 3)
+
+        host_runs = await history.children_of(result.run_id)
+        self.assertEqual([r.parent_knot_id for r in host_runs], ["host"])
+        loop_runs = await history.children_of(host_runs[0].run_id)
+        self.assertEqual([r.parent_knot_id for r in loop_runs], ["host_loop"])
+        iterations = await history.children_of(loop_runs[0].run_id)
+        self.assertEqual([r.parent_knot_id for r in iterations], ["step_1", "step_2", "step_3"])
+
+    async def test_per_iteration_lineage_survives_the_nesting(self) -> None:
+        from pirn.backends.in_memory.in_memory_history import InMemoryHistory
+
+        history = InMemoryHistory()
+        with Tapestry(history=history) as t:
+            _LoopHost(_config=KnotConfig(id="host"))
+        await t.run(RunRequest())
+        self.assertEqual(len(await history.query_lineage_by_knot_id("incr")), 3)

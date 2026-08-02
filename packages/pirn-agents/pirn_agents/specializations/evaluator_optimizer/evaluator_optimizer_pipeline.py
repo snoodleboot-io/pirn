@@ -26,20 +26,19 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.source import Source
-from pirn.tapestry import Tapestry
 
 from pirn_agents.control.reflection_check import ReflectionCheck
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.evaluator_optimizer.accept_gate import AcceptGate
-from pirn_agents.specializations.evaluator_optimizer.candidate_generator import CandidateGenerator
-from pirn_agents.specializations.evaluator_optimizer.evaluator_optimizer_result import (
-    EvaluatorOptimizerResult,
+from pirn_agents.specializations.evaluator_optimizer._evaluator_optimizer_loop import (
+    _EvaluatorOptimizerLoop,
 )
-from pirn_agents.specializations.evaluator_optimizer.judge_verdict import JudgeVerdict
-from pirn_agents.specializations.evaluator_optimizer.llm_judge import LlmJudge
-from pirn_agents.types.messaging.agent_response import AgentResponse
+from pirn_agents.specializations.evaluator_optimizer._evaluator_optimizer_result_builder import (
+    _EvaluatorOptimizerResultBuilder,
+)
+from pirn_agents.specializations.evaluator_optimizer._initial_loop_state import (
+    _InitialLoopState,
+)
 
 
 class EvaluatorOptimizerPipeline(AgentPipeline):
@@ -109,50 +108,17 @@ class EvaluatorOptimizerPipeline(AgentPipeline):
                 f"{max_iterations!r}"
             )
 
-        with Tapestry():
-            generator = CandidateGenerator(task=task, llm=llm, _config=KnotConfig(id="eo_gen"))
-            judge = LlmJudge(task=task, candidate="", llm=llm, _config=KnotConfig(id="eo_judge"))
-            gate = AcceptGate(
-                verdict=JudgeVerdict(score=0.0),
-                threshold=threshold,
-                _config=KnotConfig(id="eo_gate"),
-            )
-
-        gate_check = self._reflection_gate
-        feedback = ""
-        best_answer = ""
-        best_score = 0.0
-        accepted = False
-        iterations = 0
-
-        for index in range(max_iterations):
-            iterations = index + 1
-            candidate = await generator.process(task=task, llm=llm, feedback=feedback)
-            verdict = await judge.process(task=task, candidate=candidate, llm=llm)
-            if verdict.score >= best_score or index == 0:
-                best_answer = candidate
-                best_score = verdict.score
-            if await gate.process(verdict=verdict, threshold=threshold):
-                accepted = True
-                break
-            feedback = verdict.feedback
-            if gate_check is not None:
-                iterate_again = await gate_check.process(
-                    response=AgentResponse(content=candidate), llm=llm
-                )
-                if not iterate_again:
-                    break
-
-        result = EvaluatorOptimizerResult(
-            answer=best_answer,
-            score=best_score,
-            accepted=accepted,
-            iterations=iterations,
+        initial = _InitialLoopState(_config=KnotConfig(id="eo_initial_state"))
+        loop = _EvaluatorOptimizerLoop(
+            task=task,
+            llm=llm,
+            threshold=float(threshold),
+            max_iterations=max_iterations,
+            reflection_gate=self._reflection_gate,
+            state=initial,
+            _config=KnotConfig(id="eo_loop"),
         )
-        _result = result
-
-        class _EvaluatorOptimizerResultSource(Source):
-            async def process(self, **_: Any) -> EvaluatorOptimizerResult:
-                return _result
-
-        return _EvaluatorOptimizerResultSource(_config=KnotConfig(id="eo_result"))
+        return _EvaluatorOptimizerResultBuilder(
+            state=loop,
+            _config=KnotConfig(id="eo_result"),
+        )
