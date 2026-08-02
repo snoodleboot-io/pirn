@@ -236,7 +236,7 @@ class SubTapestry(Knot):
         link this inner run to a known outer run_id.
         """
         from pirn.core.run_request import RunRequest
-        from pirn.tapestry import _current_history, _current_run_id
+        from pirn.tapestry import _current_history, _current_run_id, _current_traceback_filter
 
         # Prefer the live contextvar over the construction-time capture.
         #
@@ -265,11 +265,17 @@ class SubTapestry(Knot):
         if parent_run_id is None:
             parent_run_id = _current_run_id.get(None)
 
+        # Inherit the enclosing run's traceback filter.  Without this the inner
+        # run records its own exceptions unfiltered, and since nested runs became
+        # durable (PIR-764/765) a credential in an inner traceback is persisted
+        # verbatim — redacted in the outer record, leaked in the inner one.
+        # See PIR-725.
         result = await tapestry.run(
             RunRequest(),
             _parent_run_id=parent_run_id,
             _parent_knot_id=self.knot_id,
             extensible=extensible,
+            traceback_filter=_current_traceback_filter.get(None),
         )
         if not result.succeeded:
             raise SubTapestryError(result)

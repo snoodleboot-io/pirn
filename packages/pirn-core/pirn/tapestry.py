@@ -47,6 +47,15 @@ _current_run_id: ContextVar[str | None] = ContextVar("pirn_current_run_id", defa
 # and record their inner runs to the same store.
 _current_history: ContextVar[Any] = ContextVar("pirn_current_history", default=None)
 
+#: The traceback filter the enclosing run is using.  Inner runs read this so a
+#: filter set once at the top covers the whole tree — without it, an exception
+#: raised inside a SubTapestry is redacted in the outer record but stored
+#: verbatim in the inner run's own record, which run history persists.
+#: See PIR-725.
+_current_traceback_filter: ContextVar[Any] = ContextVar(
+    "pirn_current_traceback_filter", default=None
+)
+
 # ContextVar carrying the store of the currently-executing extensible run.
 # Set only when extensible=True.  Knots can call get_current_store() during
 # process() to register new knots into the running tapestry — the engine
@@ -252,6 +261,7 @@ class Tapestry:
         token_run_id = _current_run_id.set(request.run_id)
         token_store = _current_store.set(self._store if extensible else None)
         token_history = _current_history.set(self._history)
+        token_filter = _current_traceback_filter.set(active_filter)
         try:
             return await engine.execute(
                 terminals=chosen,
@@ -271,6 +281,7 @@ class Tapestry:
             _current_run_id.reset(token_run_id)
             _current_store.reset(token_store)
             _current_history.reset(token_history)
+            _current_traceback_filter.reset(token_filter)
 
     def add_emitter(self, emitter: Any) -> None:
         """Append an emitter to this tapestry's default emitter list.
