@@ -74,3 +74,25 @@ class TestAggregatorProcess(unittest.IsolatedAsyncioTestCase):
             Aggregator(combine=lambda a: sum(a), a=ka, _config=KnotConfig(id="agg"))
         result = await t.run(RunRequest())
         self.assertEqual(result.outputs["agg"], 6)
+
+    async def test_async_dunder_call_object_is_detected(self) -> None:
+        """A callable object whose ``__call__`` is async must still be awaited.
+
+        Neither `asyncio.iscoroutinefunction` (deprecated, removed in 3.16) nor
+        a bare `inspect.iscoroutinefunction` sees through `__call__`, so such a
+        combine was treated as sync and the node emitted a coroutine object as
+        its output — silently, since a coroutine is a perfectly good `Any`.
+        See PIR-771; same defect PIR-768 fixed in `Reduce`.
+        """
+
+        class _AsyncMerge:
+            async def __call__(self, a: int, b: int) -> int:
+                return a + b
+
+        with Tapestry() as t:
+            ka = _ValSource(value=3, _config=KnotConfig(id="a"))
+            kb = _ValSource(value=4, _config=KnotConfig(id="b"))
+            Aggregator(combine=_AsyncMerge(), a=ka, b=kb, _config=KnotConfig(id="agg"))
+        result = await t.run(RunRequest())
+        self.assertTrue(result.succeeded, [e.exc_type for e in result.exceptions])
+        self.assertEqual(result.outputs["agg"], 7)

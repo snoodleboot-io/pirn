@@ -27,10 +27,10 @@ arguments matching the parent kwarg names.
 
 from __future__ import annotations
 
-import asyncio
 from collections.abc import Callable
 from typing import Any
 
+from pirn.core.async_callable import is_async_callable
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -85,7 +85,7 @@ class Aggregator(Knot):
         # process() takes **kwargs — but we still want the parents to
         # show up as parents on the knot, so we wire them manually.
         self._mutable_combine = combine
-        self._mutable_combine_is_async = asyncio.iscoroutinefunction(combine)
+        self._mutable_combine_is_async = is_async_callable(combine)
 
         # Build the bare _mutable_ state ourselves (mirroring Knot.__init__
         # post-validation) since we know parents are all Knots and there
