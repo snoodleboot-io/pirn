@@ -25,9 +25,53 @@ run = await t.run(RunRequest())
 response = run.outputs[agent.knot_id]  # knot_id is stable & derived, not random
 ```
 
-Supported patterns: `Agent.patterns()` → `("naive_rag", "rag", "react")`.
-`react` needs `llm` + `input`; `naive_rag`/`rag` needs `llm` + `memory` + a
-string `input`.
+## Every shipped pattern is reachable by name
+
+`Agent.patterns()` returns all 52 pattern names (plus the `rag` alias for
+`naive_rag`) — the RAG family, the guardrail gates, the multi-agent
+orchestrations, the specialized agents, the structured-output extractors, the
+ingestors, and the reasoning loops. None of them is builder-invisible.
+
+Patterns need different parts, so beyond `.llm()`, `.memory()` and `.tools()`
+there is a general `.component(name, value)` slot keyed by the pattern's own
+constructor parameter names. Ask what a pattern needs rather than guessing:
+
+```python
+from pirn_agents.builder.agent_pattern_registry import AgentPatternRegistry
+
+AgentPatternRegistry.required_components("graph_rag")    # ('graph_memory', 'llm')
+AgentPatternRegistry.optional_parameters("graph_rag")    # ('hop_count',)
+AgentPatternRegistry.describe("graph_rag")               # full contract, printable
+
+with Tapestry() as t:
+    agent = (
+        Agent.builder()
+        .llm(my_llm)
+        .component("graph_memory", my_graph_store)
+        .pattern("graph_rag", hop_count=2)
+        .input("who reports to whom?")
+        .build()
+    )
+```
+
+A builder mid-configuration reports what is still missing:
+
+```python
+b = Agent.builder().llm(my_llm).pattern("self_query_rag")
+b.missing_components     # ('store', 'embedder')
+```
+
+**The builder requires exactly what the class requires.** Required components
+and optional knobs are read off the pattern class's constructor, not from a
+hand-written table, so they cannot drift from the class. Two consequences worth
+knowing:
+
+- `.pattern("react")` now needs `.tools(...)` — pass `.tools(())` for a
+  tool-less ReAct. `ReActLoop.__init__` has no default for `tools`, and the
+  builder no longer supplies a hidden one that hand-wiring would not.
+- A component or option the chosen pattern does not accept is an error, not a
+  silent no-op — a graph wired differently from the one you asked for is worse
+  than a build that stops.
 
 ## Auto-generated, stable knot ids
 
@@ -40,8 +84,9 @@ with `.name("my-agent")` (id becomes `agent.my-agent`).
 ## Config-driven agents: `AgentSpec`
 
 `AgentSpec` is the declarative, serialisable counterpart of the builder. It
-stores provider/tool **references** (plain strings) plus the pattern and its
-options, and round-trips losslessly through dict/JSON/YAML.
+stores provider/tool **references** (plain strings) plus the pattern, its other
+component references, and its options, and round-trips losslessly through
+dict/JSON/YAML.
 
 ```python
 from pirn_agents.builder.agent_spec import AgentSpec
@@ -89,7 +134,9 @@ b = Agent.builder().llm(my_llm).tools(my_tools).pattern("react", max_iterations=
 b.pattern_class   # -> <class 'ReActLoop'>  (construct it yourself if you prefer)
 b.knot_id         # -> the id build() will assign (derived, stable)
 b.llm_provider, b.tool_list, b.memory_store, b.pattern_name, b.options, b.input_value
-b.to_spec()       # -> declarative AgentSpec snapshot
+b.components          # -> every configured component, by parameter name
+b.missing_components  # -> what the chosen pattern still needs
+b.to_spec()           # -> declarative AgentSpec snapshot
 ```
 
 `build()` is exactly equivalent to hand-wiring the pattern class. The two graphs

@@ -8,12 +8,20 @@ id. The generated graph is byte-for-byte equivalent to hand-wiring the
 corresponding pattern class, so it shares the engine's caching and lineage
 exactly.
 
+Patterns need more than three kinds of part: a graph-RAG pipeline wants a
+``graph_memory``, a self-query pipeline a ``store`` and an ``embedder``, a
+debate a list of ``debaters``. :meth:`component` is the general slot — any
+constructor parameter of the chosen pattern, supplied by name — and
+:meth:`llm`, :meth:`tools` and :meth:`memory` are type-checked shorthand for the
+three that recur most (PIR-730). :attr:`missing_components` reports what the
+chosen pattern still needs, so a caller can ask rather than guess.
+
 The builder is a *thin* convenience: it hides no capability. Every collected
 component is readable back (``llm_provider``, ``tool_list``, ``memory_store``,
-``pattern_name``, ``options``), the target pattern class is exposed via
-:attr:`pattern_class`, the derived id via :attr:`knot_id`, and a declarative
-snapshot via :meth:`to_spec` — so advanced users can drop straight to the
-knot-first API. See ``BUILDER.md``.
+``components``, ``pattern_name``, ``options``), the target pattern class is
+exposed via :attr:`pattern_class`, the derived id via :attr:`knot_id`, and a
+declarative snapshot via :meth:`to_spec` — so advanced users can drop straight
+to the knot-first API. See ``BUILDER.md``.
 """
 
 from __future__ import annotations
@@ -31,14 +39,16 @@ from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.toolset import Toolset
 
+#: Component names with a dedicated, type-checked setter on the builder.
+_SHORTHAND_COMPONENTS = frozenset({"llm", "memory", "tools"})
+
 
 class AgentBuilder:
     """Chainable builder that generates a :class:`SubTapestry` agent graph."""
 
     def __init__(self) -> None:
         """Start an empty builder with no components configured."""
-        self._llm: LLMProvider | None = None
-        self._memory: MemoryStore | None = None
+        self._components: dict[str, Any] = {}
         self._tools: list[Tool] = []
         self._pattern: str | None = None
         self._options: dict[str, Any] = {}
@@ -55,7 +65,7 @@ class AgentBuilder:
             raise TypeError(
                 f"AgentBuilder.llm: provider must be an LLMProvider, got {type(provider).__name__}"
             )
-        self._llm = provider
+        self._components["llm"] = provider
         return self
 
     def tools(self, tools: Toolset | Sequence[Tool]) -> AgentBuilder:
@@ -80,6 +90,7 @@ class AgentBuilder:
                     f"AgentBuilder.tools: tools[{index}] must be a Tool, got {type(candidate).__name__}"
                 )
         self._tools.extend(candidates)
+        self._components["tools"] = tuple(self._tools)
         return self
 
     def memory(self, store: MemoryStore) -> AgentBuilder:
@@ -92,7 +103,38 @@ class AgentBuilder:
             raise TypeError(
                 f"AgentBuilder.memory: store must be a MemoryStore, got {type(store).__name__}"
             )
-        self._memory = store
+        self._components["memory"] = store
+        return self
+
+    def component(self, name: str, value: Any) -> AgentBuilder:
+        """Supply a pattern component by constructor-parameter name; return ``self``.
+
+        The general form of :meth:`llm`/:meth:`memory`/:meth:`tools`, for the
+        parts that vary by pattern — ``graph_memory``, ``embedder``, ``store``,
+        ``pool``, ``specialists``, ``reviewers``, ``schema``, and so on. Ask the
+        registry (or :attr:`missing_components`) which names a pattern needs.
+
+        Args:
+            name: A constructor parameter of the chosen pattern.
+            value: The live object to bind to it.
+
+        Raises:
+            TypeError: If ``name`` is not a string.
+            ValueError: If ``name`` is empty, or is one of ``llm``/``memory``/
+                ``tools`` — those have type-checked setters and using them keeps
+                the check.
+        """
+        if not isinstance(name, str):
+            raise TypeError(
+                f"AgentBuilder.component: name must be a str, got {type(name).__name__}"
+            )
+        if not name:
+            raise ValueError("AgentBuilder.component: name must be a non-empty string")
+        if name in _SHORTHAND_COMPONENTS:
+            raise ValueError(
+                f"AgentBuilder.component: use .{name}(...) to set {name!r} — it is type-checked"
+            )
+        self._components[name] = value
         return self
 
     def pattern(self, name: str, **options: Any) -> AgentBuilder:
@@ -109,7 +151,8 @@ class AgentBuilder:
         if not isinstance(name, str):
             raise TypeError(f"AgentBuilder.pattern: name must be a str, got {type(name).__name__}")
         # Validate eagerly so a typo fails at configuration time, not build time.
-        AgentPatternRegistry.pattern_class(name)
+        # `descriptor` checks the name without importing the pattern's module.
+        AgentPatternRegistry.descriptor(name)
         self._pattern = name
         self._options = dict(options)
         return self
@@ -133,17 +176,43 @@ class AgentBuilder:
     @property
     def llm_provider(self) -> LLMProvider | None:
         """The configured LLM provider, or ``None`` (escape-hatch accessor)."""
-        return self._llm
+        provider = self._components.get("llm")
+        return provider if isinstance(provider, LLMProvider) else None
 
     @property
     def memory_store(self) -> MemoryStore | None:
         """The configured memory store, or ``None`` (escape-hatch accessor)."""
-        return self._memory
+        store = self._components.get("memory")
+        return store if isinstance(store, MemoryStore) else None
 
     @property
     def tool_list(self) -> tuple[Tool, ...]:
         """The configured tools in order (escape-hatch accessor)."""
         return tuple(self._tools)
+
+    @property
+    def components(self) -> Mapping[str, Any]:
+        """A copy of every configured component, keyed by parameter name."""
+        return dict(self._components)
+
+    @property
+    def missing_components(self) -> tuple[str, ...]:
+        """Component names the chosen pattern requires that are not yet set.
+
+        Empty means :meth:`build` will not fail for want of a component.
+
+        Raises:
+            ValueError: If no pattern has been selected yet.
+        """
+        if self._pattern is None:
+            raise ValueError(
+                "AgentBuilder.missing_components: no pattern selected; call .pattern(...)"
+            )
+        return tuple(
+            name
+            for name in AgentPatternRegistry.required_components(self._pattern)
+            if name not in self._components and name not in self._options
+        )
 
     @property
     def pattern_name(self) -> str | None:
@@ -182,12 +251,31 @@ class AgentBuilder:
             raise ValueError("AgentBuilder.knot_id: no pattern selected; call .pattern(...)")
         return AgentKnotIdFactory.derive(
             pattern=self._pattern,
-            llm=None if self._llm is None else type(self._llm).__name__,
-            memory=None if self._memory is None else type(self._memory).__name__,
+            llm=self._component_label("llm"),
+            memory=self._component_label("memory"),
             tools=[tool.name for tool in self._tools],
+            components=self._component_labels(),
             options=self._options,
             name=self._name,
         )
+
+    def _component_label(self, name: str) -> str | None:
+        """Return the reference label of one component, or ``None`` if unset."""
+        value = self._components.get(name)
+        return None if value is None else type(value).__name__
+
+    def _component_labels(self) -> dict[str, str]:
+        """Return reference labels for the components without a dedicated field.
+
+        ``llm``/``memory``/``tools`` are carried by the id factory's own
+        arguments, so restating them here would double-count them and change
+        every previously derived id.
+        """
+        return {
+            name: type(value).__name__
+            for name, value in sorted(self._components.items())
+            if name not in _SHORTHAND_COMPONENTS
+        }
 
     def to_spec(self) -> AgentSpec:
         """Return a declarative :class:`AgentSpec` snapshot of this builder.
@@ -202,9 +290,10 @@ class AgentBuilder:
             raise ValueError("AgentBuilder.to_spec: no pattern selected; call .pattern(...)")
         return AgentSpec(
             pattern=self._pattern,
-            llm=None if self._llm is None else type(self._llm).__name__,
-            memory=None if self._memory is None else type(self._memory).__name__,
+            llm=self._component_label("llm"),
+            memory=self._component_label("memory"),
             tools=tuple(tool.name for tool in self._tools),
+            components=self._component_labels(),
             options=dict(self._options),
         )
 
@@ -219,8 +308,9 @@ class AgentBuilder:
             :attr:`pattern_class` for the fully hand-wired equivalent).
 
         Raises:
-            ValueError: If no pattern is selected, or a required component
-                (llm/memory/input) is missing.
+            ValueError: If no pattern is selected, no input is set, a component
+                the pattern requires is missing, or a configured component or
+                option is not a parameter of the chosen pattern.
             TypeError: If the runtime input has a type the pattern cannot use.
         """
         if self._pattern is None:
@@ -233,8 +323,6 @@ class AgentBuilder:
             self._pattern,
             knot_id=self.knot_id,
             input_value=self._input,
-            llm=self._llm,
-            tools=tuple(self._tools),
-            memory=self._memory,
+            components=self._components,
             options=self._options,
         )
