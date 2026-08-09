@@ -74,8 +74,11 @@ class CronTrigger(Trigger):
                 ``every_seconds`` and ``delay_fn``.
             delay_fn: Maps the next 1-based fire ordinal to the seconds to
                 wait before it (schedule-function mode) — the seam an
-                external cron backend fills.  Mutually exclusive with
-                ``every_seconds`` and ``at_times``.
+                external cron backend fills.  Every returned delay is
+                awaited, including ordinal 1's and including zero or
+                negative values, which :func:`asyncio.sleep` treats as no
+                wait.  Mutually exclusive with ``every_seconds`` and
+                ``at_times``.
             parameters_factory: Zero-argument callable returning a
                 ``dict`` of run parameters.  Called once per emitted
                 ``RunRequest``.  Defaults to an empty dict when ``None``.
@@ -125,6 +128,11 @@ class CronTrigger(Trigger):
         requests when set, or when ``close()`` is called — in neither
         case does it sleep past the final fire.
 
+        ``close()`` is honoured at both points it can arrive: delivered at
+        the ``yield``, the generator returns without starting the next
+        wait; delivered while the generator is parked in that wait, the
+        fire it was waiting for is not emitted.
+
         Yields:
             One ``RunRequest`` per scheduled fire time.
         """
@@ -133,10 +141,14 @@ class CronTrigger(Trigger):
             if self._max_runs is not None and emitted >= self._max_runs:
                 return
             delay = self._delay_before(emitted + 1)
-            # Interval mode's first fire is immediate (delay 0) and must not
-            # await at all.  Every later fire awaits even a zero delay, so the
-            # loop stays cooperative when the schedule collapses to no wait.
-            if emitted > 0 or delay > 0:
+            # Interval mode's first fire is immediate by contract, and is the
+            # only fire that skips the await entirely.  Every other fire awaits
+            # the delay its mode produced — including a zero or negative one,
+            # so that ``delay_fn``'s contract ("wait fn(ordinal) seconds before
+            # each fire") holds for ordinal 1 as well, and so the loop stays
+            # cooperative when a schedule collapses to no wait.
+            interval_first_fire = self._every_seconds is not None and emitted == 0
+            if not interval_first_fire:
                 await self._wait(delay)
                 if self._closed:
                     return
@@ -209,5 +221,21 @@ class CronTrigger(Trigger):
         return (candidate - now).total_seconds()
 
     async def close(self) -> None:
-        """Signal the trigger to stop after the current sleep completes."""
+        """Signal the trigger to stop, emitting no further ``RunRequest``.
+
+        Sets a flag; it never cancels an in-flight wait, so when it lands
+        depends on where the generator is:
+
+        * **At the ``yield``** — the ordinary case, a consumer calling
+          ``close()`` inside its own ``async for``.  The generator returns
+          as soon as it resumes, *without* starting the next wait.  In
+          interval mode that means shutdown is immediate rather than one
+          interval later.
+        * **Inside the wait** — a concurrent task closing the trigger while
+          the generator is parked.  The wait still runs to completion,
+          after which the generator returns; the fire it was waiting for is
+          not emitted.
+
+        Idempotent, as ``run_forever`` requires.
+        """
         self._closed = True
