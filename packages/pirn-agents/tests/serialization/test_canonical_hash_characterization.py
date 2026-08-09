@@ -18,13 +18,12 @@ Two distinct things are recorded:
   values is a storage-format break needing a migration. See
   ``tests/sessions/test_checkpoint_hash_invariant.py``.
 
-* **The divergences** — :func:`~pirn_agents.caching.content_address.content_address`
-  uses default separators (``", "`` / ``": "``) and ``ensure_ascii=False``, so
-  it disagrees with the other hashers on *every* non-trivial payload. Those
-  pins are *characterization only*: they record today's behaviour so the WS8
-  migration is visibly deliberate. ``content_address`` keys only in-memory
-  caches (``ResultCache``, ``PromptCache``, ``EmbeddingCache``,
-  ``SemanticResultCache``), so moving its digests persists nothing.
+* **The convergence** — :func:`~pirn_agents.caching.content_address.content_address`
+  used to diverge on two axes, default separators (``", "`` / ``": "``) *and*
+  ``ensure_ascii=False``, so it disagreed with the other hashers on every
+  non-trivial payload. PIR-785 moved it onto the seam. Its pre-migration
+  digests are in this file's git history; nothing persisted was keyed by them,
+  because all four of its callers are in-memory caches.
 
 Payloads are built from literals inside this file rather than from a shared
 factory, so that editing a fixture elsewhere cannot quietly move a golden value.
@@ -186,90 +185,24 @@ class TestContentDigestCanonicalForm:
 
 
 class TestContentAddressCanonicalForm:
-    """``content_address`` diverges: default separators plus ``ensure_ascii=False``.
+    """``content_address`` now emits the shared canonical form (PIR-785 / WS8-A3).
 
-    Characterization only — these pins record the pre-WS8 behaviour. Nothing
-    persisted is keyed by them (all four callers are in-memory caches).
+    Before WS8 it diverged on two axes — default separators *and*
+    ``ensure_ascii=False`` — so it disagreed with every other hasher on every
+    non-trivial payload. Its pre-migration digests are recorded in this file's
+    git history; nothing persisted was keyed by them, because all four callers
+    are in-memory caches (``ResultCache``, ``PromptCache``, ``EmbeddingCache``,
+    ``SemanticResultCache``).
+
+    The pin table is deliberately *not* restated here. These tests assert
+    against ``TestContentDigestCanonicalForm._pins`` so the two hashers cannot
+    drift apart by someone updating one copy of the table and not the other.
     """
 
-    _pins: ClassVar[dict[str, tuple[str, str]]] = {
-        "empty_dict": (
-            "{}",
-            "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-        ),
-        "empty_list": (
-            "[]",
-            "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
-        ),
-        "scalar_str": (
-            '"x"',
-            "ba2df4903a2c14e86dc3bcca58911b44ac1d2514b7227bf6eb08cfb978f55a1b",
-        ),
-        "scalar_int": (
-            "42",
-            "73475cb40a568e8da8a045ced110137e159f890ac4da883b6b17dc651b3a8049",
-        ),
-        "scalar_float": (
-            "1.5",
-            "9f29a130438b81170b92a42650f9a94291ecad60bd47af2a3886e75f7f728725",
-        ),
-        "scalar_true": (
-            "true",
-            "b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b",
-        ),
-        "scalar_none": (
-            "null",
-            "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
-        ),
-        "flat_dict": (
-            '{"a": 1, "b": 2}',
-            "d8497d9d82770a70729261095aa98f7ef5154d7af499f8037b6ca250296785a6",
-        ),
-        "nested_dict": (
-            '{"outer": {"a": [1, 2, {"k": "v"}], "z": 1}}',
-            "daa1de7fddb9e6c634212d75b0d336a35cf66aeb95700e126af40ec054097535",
-        ),
-        "list_of_dicts": (
-            '[{"a": 2, "b": 1}, {"c": 4, "d": 3}]',
-            "84ed7b4eeb25e1b309496497adc5b5d802f94424808f309b217fd6559a270ae0",
-        ),
-        "unicode": (
-            '{"café": "中文", "emoji": "🙂"}',
-            "7774316c57c6934ff2fda500d09f4054cde7b1051e579aa87807a378f29f1a69",
-        ),
-        "floats": (
-            '{"exp": 1e+20, "half": 1.5, "neg_zero": -0.0}',
-            "d2e0f728806b8bb256e439ac82c2301f400fe8df7d8f47d7cf4bcc8c4c1bf56f",
-        ),
-        "bools_and_null": (
-            '{"f": false, "n": null, "t": true}',
-            "f555ff7fdba4f36070eecba4785bec7202ddba683c26ac7d346fe6d88addca9c",
-        ),
-        "empty_containers_nested": (
-            '{"d": {}, "s": "", "xs": []}',
-            "4bc9354bc53f4603eb23e2f0ca489881cf99f015fe43f68f6d9e155cabfe40b3",
-        ),
-        "deep_nesting": (
-            '{"a": {"b": {"c": {"d": [{"e": 1}]}}}}',
-            "28cde3eb4a7903c8e92cca5585e5e10b1005ba664b9e21be149ea4b70e540fc6",
-        ),
-    }
-
     @pytest.mark.parametrize("name", _payload_names())
-    def test_canonical_string_is_unchanged(self, name: str) -> None:
-        canonical, _ = self._pins[name]
-        actual = json.dumps(_payloads()[name], sort_keys=True, default=repr, ensure_ascii=False)
-        assert actual == canonical
-
-    @pytest.mark.parametrize("name", _payload_names())
-    def test_digest_is_unchanged(self, name: str) -> None:
-        _, digest = self._pins[name]
+    def test_digest_matches_the_shared_canonical_pin(self, name: str) -> None:
+        _, digest = TestContentDigestCanonicalForm._pins[name]
         assert content_address(_payloads()[name]) == digest
-
-    @pytest.mark.parametrize("name", _payload_names())
-    def test_digest_is_sha256_of_the_pinned_canonical_string(self, name: str) -> None:
-        canonical, digest = self._pins[name]
-        assert hashlib.sha256(canonical.encode("utf-8")).hexdigest() == digest
 
     @pytest.mark.parametrize("name", _payload_names())
     def test_digest_is_bare_64_hex(self, name: str) -> None:
@@ -282,44 +215,34 @@ class TestContentAddressCanonicalForm:
             {"c": 3, "a": 1, "b": 2}
         )
 
+    def test_non_json_leaf_is_refused(self) -> None:
+        # The PIR-785 fix: no `default=repr` fallback, so a cache key can never
+        # be derived from an object's memory address.
+        with pytest.raises(TypeError):
+            content_address({"leaf": object()})
 
-class TestCanonicalFormDivergence:
-    """Where the hashers agree today, and where they do not.
 
-    The split is one-against-many: ``content_digest`` and
-    ``RunCheckpoint.content_hash`` are byte-identical for every JSON payload,
-    and ``content_address`` is the outlier.
-    """
+class TestCanonicalFormConvergence:
+    """All the JSON hashers now answer "what bytes do we hash?" identically."""
 
-    def test_the_two_hashers_agree_only_on_separator_free_payloads(self) -> None:
-        # Scalars and empty containers have no separators and no non-ASCII, so
-        # the flag differences cannot show. Everything else diverges.
-        agreeing = {
-            name
-            for name, payload in _payloads().items()
-            if content_address(payload) == content_digest(payload)
-        }
-        assert agreeing == {
-            "empty_dict",
-            "empty_list",
-            "scalar_str",
-            "scalar_int",
-            "scalar_float",
-            "scalar_true",
-            "scalar_none",
-        }
+    @pytest.mark.parametrize("name", _payload_names())
+    def test_the_hashers_agree_on_every_payload(self, name: str) -> None:
+        payload = _payloads()[name]
+        assert content_address(payload) == content_digest(payload)
 
-    def test_separator_divergence_witness(self) -> None:
-        assert content_address({"a": 1}) != content_digest({"a": 1})
-        assert json.dumps({"a": 1}, sort_keys=True, default=repr, ensure_ascii=False) == '{"a": 1}'
+    def test_separator_form_is_the_tight_one(self) -> None:
+        # The witness for the divergence that used to exist: content_address
+        # produced '{"a": 1}' where every other hasher produced '{"a":1}'.
+        assert json.dumps({"a": 1}, sort_keys=True) == '{"a": 1}'
         assert json.dumps({"a": 1}, sort_keys=True, separators=(",", ":")) == '{"a":1}'
+        assert content_address({"a": 1}) == hashlib.sha256(b'{"a":1}').hexdigest()
 
-    def test_ensure_ascii_divergence_witness(self) -> None:
-        # Not just separators: content_address also escapes non-ASCII
-        # differently, so an ASCII-only test suite would miss this one.
+    def test_ensure_ascii_stays_at_its_default(self) -> None:
+        # The second, easier-to-miss axis: an ASCII-only matrix cannot see it.
         payload = {"k": "café"}
         assert json.dumps(payload, sort_keys=True, ensure_ascii=False) == '{"k": "café"}'
         assert json.dumps(payload, sort_keys=True) == '{"k": "caf\\u00e9"}'
+        assert content_address(payload) == content_digest(payload)
 
     def test_content_digest_and_checkpoint_hash_share_one_canonical_form(self) -> None:
         # The only difference between the two is the opaque-leaf branch
