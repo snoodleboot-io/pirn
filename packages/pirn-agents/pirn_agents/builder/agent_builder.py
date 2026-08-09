@@ -16,8 +16,15 @@ constructor parameter of the chosen pattern, supplied by name — and
 three that recur most (PIR-730). :attr:`missing_components` reports what the
 chosen pattern still needs, so a caller can ask rather than guess.
 
-The builder is a *thin* convenience: it hides no capability. Every collected
-component is readable back (``llm_provider``, ``tool_list``, ``memory_store``,
+The builder is the **one authoring spine**: the fluent front end,
+:class:`AgentSpec` its declarative serialisation in both directions
+(:meth:`to_spec` out, :meth:`from_spec` in),
+:class:`~pirn_agents.builder.agent_presets.AgentPresets` named entries into it,
+and :class:`AgentPatternRegistry` the pattern table all of them consume
+(PIR-732).
+
+It is a *thin* convenience: it hides no capability. Every collected component is
+readable back (``llm_provider``, ``tool_list``, ``memory_store``,
 ``components``, ``pattern_name``, ``options``), the target pattern class is
 exposed via :attr:`pattern_class`, the derived id via :attr:`knot_id`, and a
 declarative snapshot via :meth:`to_spec` — so advanced users can drop straight
@@ -33,6 +40,7 @@ from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.builder.agent_knot_id_factory import AgentKnotIdFactory
 from pirn_agents.builder.agent_pattern_registry import AgentPatternRegistry
+from pirn_agents.builder.agent_references import AgentReferences
 from pirn_agents.builder.agent_spec import AgentSpec
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
@@ -45,6 +53,53 @@ _SHORTHAND_COMPONENTS = frozenset({"llm", "memory", "tools"})
 
 class AgentBuilder:
     """Chainable builder that generates a :class:`SubTapestry` agent graph."""
+
+    @classmethod
+    def from_spec(cls, spec: AgentSpec, *, references: AgentReferences) -> AgentBuilder:
+        """Return a builder configured from a declarative :class:`AgentSpec`.
+
+        The inverse of :meth:`to_spec`, and the step that makes the declarative
+        surface able to *run* rather than only describe (PIR-732). A spec names
+        its parts by reference label; ``references`` maps those labels to the
+        live objects the caller owns.
+
+        The returned builder still needs ``.input(...)``: a spec describes an
+        agent's *shape*, not the runtime seed it is asked about, so one spec
+        serves many inputs.
+
+        Args:
+            spec: The declarative description to configure from.
+            references: Label-to-object table covering every label ``spec``
+                names.
+
+        Returns:
+            A configured :class:`AgentBuilder`, ready for ``.input(...).build()``.
+
+        Raises:
+            TypeError: If ``spec``/``references`` have the wrong type, or a
+                resolved object does not match the slot it fills.
+            ValueError: If ``spec.pattern`` is not a known pattern.
+            KeyError: If a label the spec names is not registered.
+        """
+        if not isinstance(spec, AgentSpec):
+            raise TypeError(
+                f"AgentBuilder.from_spec: spec must be an AgentSpec, got {type(spec).__name__}"
+            )
+        if not isinstance(references, AgentReferences):
+            raise TypeError(
+                f"AgentBuilder.from_spec: references must be an AgentReferences, "
+                f"got {type(references).__name__}"
+            )
+        builder = cls()
+        if spec.llm is not None:
+            builder.llm(references.resolve(spec.llm))
+        if spec.memory is not None:
+            builder.memory(references.resolve(spec.memory))
+        if spec.tools:
+            builder.tools([references.resolve(label) for label in spec.tools])
+        for name, label in spec.components.items():
+            builder.component(name, references.resolve(label))
+        return builder.pattern(spec.pattern, **spec.options)
 
     def __init__(self) -> None:
         """Start an empty builder with no components configured."""
