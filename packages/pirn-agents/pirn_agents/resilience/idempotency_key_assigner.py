@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
 from collections.abc import Mapping
 from typing import Any
+
+from pirn_agents.serialization.canonical_json import CanonicalJson
+from pirn_agents.serialization.opaque_policy import OpaquePolicy
 
 
 class IdempotencyKeyAssigner:
@@ -66,11 +67,14 @@ class IdempotencyKeyAssigner:
                 f"IdempotencyKeyAssigner: arguments must be a Mapping, "
                 f"got {type(arguments).__name__}"
             )
-        canonical = json.dumps(
-            {"operation": operation, "arguments": arguments},
-            sort_keys=True,
-            separators=(",", ":"),
-            default=repr,
+        # OpaquePolicy.REPR rather than the seam's RAISE default, to keep
+        # already-issued keys valid. NOTE: this carries the PIR-785 hazard --
+        # an argument whose type has no content-derived __repr__ keys on its
+        # memory address, so the retry that this key exists to dedupe derives a
+        # *different* key and the mutation is applied twice. Tightening it
+        # invalidates keys a backend may still be holding, so it needs its own
+        # ticket rather than riding along with a canonicalisation collapse.
+        digest = CanonicalJson.digest(
+            {"operation": operation, "arguments": arguments}, policy=OpaquePolicy.REPR
         )
-        digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
         return f"{self._namespace}:{digest}" if self._namespace else digest

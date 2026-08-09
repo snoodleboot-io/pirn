@@ -11,11 +11,11 @@ graphs share the engine's content-addressed cache exactly like hand-wired ones.
 
 from __future__ import annotations
 
-import hashlib
-import json
 import re
 from collections.abc import Mapping, Sequence
 from typing import Any
+
+from pirn_agents.serialization.canonical_json import CanonicalJson
 
 
 class AgentKnotIdFactory:
@@ -85,7 +85,6 @@ class AgentKnotIdFactory:
         # alignment for graphs that have not changed at all.
         if components:
             signature["components"] = dict(components)
-        canonical = json.dumps(signature, sort_keys=True, separators=(",", ":"))
-        digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:12]
+        digest = CanonicalJson.digest(signature)[:12]
         safe_pattern = re.sub(r"[^a-zA-Z0-9_\-.]", "_", pattern)
         return f"agent.{safe_pattern}.{digest}"

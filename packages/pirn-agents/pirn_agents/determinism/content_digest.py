@@ -6,13 +6,18 @@ payload, mirroring the content-addressed DAG (see
 requests collapse to the same key, and any change to the payload yields a
 different one. Time-travel diffing reuses the same digest to detect changed
 inputs/outputs between two runs.
+
+The canonicalisation lives in
+:class:`~pirn_agents.serialization.canonical_json.CanonicalJson`, shared with
+the cache, checkpoint and idempotency hashers.
 """
 
 from __future__ import annotations
 
-import hashlib
-import json
 from typing import Any
+
+from pirn_agents.serialization.canonical_json import CanonicalJson
+from pirn_agents.serialization.opaque_policy import OpaquePolicy
 
 
 def content_digest(payload: Any) -> str:
@@ -26,5 +31,10 @@ def content_digest(payload: Any) -> str:
     Returns:
         The 64-character hex SHA-256 digest of the canonical encoding.
     """
-    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
-    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    # OpaquePolicy.STR rather than the seam's RAISE default: recorded cassettes
+    # are keyed by digests taken with the `str` fallback, so tightening this
+    # would orphan them. It carries the PIR-785 identity-keying hazard for
+    # leaves that do not override __str__ -- a cassette recorded from such a
+    # request can never be replayed, because the address will differ next run.
+    # Tightening it is a cassette-format break and needs its own ticket.
+    return CanonicalJson.digest(payload, policy=OpaquePolicy.STR)
