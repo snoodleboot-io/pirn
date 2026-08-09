@@ -16,6 +16,7 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from contextvars import Context, copy_context
 
+from pirn_agents.observability.span import Span
 from pirn_agents.observability.span_kind import SpanKind
 from pirn_agents.observability.span_status import SpanStatus
 from pirn_agents.observability.tracer import Tracer
@@ -45,6 +46,76 @@ def _parent_of_a_detached_span(tracer: Tracer) -> str | None:
     span = tracer.start_span(name="detached")
     span.finish(SpanStatus.OK)
     return span.parent_id
+
+
+def _finish_from_this_context(span: Span) -> None:
+    """Close ``span`` from whatever context this happens to run in.
+
+    Driven through a copied :class:`~contextvars.Context` on a worker thread to
+    model the shape that actually occurs: a span opened on the event loop and
+    closed on a ``ThreadDispatcher`` worker (PIR-767).
+    """
+    span.finish(SpanStatus.OK)
+
+
+class TestCrossContextFinish:
+    """A span finished in a different context than it was opened in (PIR-788).
+
+    The existing coverage only opens *and* closes inside the hopped context,
+    which is why the stranding went unnoticed: rebuilding the stack in the
+    finishing context leaves the opener's own stack holding the entry forever,
+    and every context later copied from it inherits the corpse.
+    """
+
+    async def test_finishing_in_a_copied_context_drains_the_openers_stack(self) -> None:
+        tracer = Tracer(RecordingSink())
+        outer = tracer.start_span(name="outer")
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            pool.submit(copy_context().run, _finish_from_this_context, outer).result()
+        assert tracer.open_span_ids == ()
+
+    async def test_the_next_span_is_not_parented_to_a_closed_span(self) -> None:
+        tracer = Tracer(RecordingSink())
+        outer = tracer.start_span(name="outer")
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            pool.submit(copy_context().run, _finish_from_this_context, outer).result()
+        after = tracer.start_span(name="after")
+        assert after.parent_id is None
+        after.finish(SpanStatus.OK)
+
+    async def test_the_residue_does_not_propagate_into_a_later_hop(self) -> None:
+        # A context copied *after* the cross-context finish must not inherit the
+        # closed entry either — otherwise the residue is permanent and spreads
+        # to every task or thread the opener later spawns.
+        tracer = Tracer(RecordingSink())
+        outer = tracer.start_span(name="outer")
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            pool.submit(copy_context().run, _finish_from_this_context, outer).result()
+            parent = pool.submit(copy_context().run, _parent_of_a_detached_span, tracer).result()
+        assert parent is None
+
+    async def test_the_residue_does_not_propagate_into_a_later_task(self) -> None:
+        tracer = Tracer(RecordingSink())
+        outer = tracer.start_span(name="outer")
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            pool.submit(copy_context().run, _finish_from_this_context, outer).result()
+        parents: list[str | None] = []
+        # `asyncio` copies the context per task, so a task created after the
+        # cross-context finish is the other way the corpse escapes.
+        await asyncio.gather(*(_record_child_parent(tracer, index, parents) for index in range(3)))
+        assert parents == [None] * 3
+
+    async def test_a_cross_context_finish_leaves_the_enclosing_span_open(self) -> None:
+        # Draining must be surgical: closing the inner span from elsewhere may
+        # not take the still-open outer one with it.
+        tracer = Tracer(RecordingSink())
+        outer = tracer.start_span(name="outer")
+        inner = tracer.start_span(name="inner")
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            pool.submit(copy_context().run, _finish_from_this_context, inner).result()
+        assert tracer.open_span_ids == (outer.span_id,)
+        outer.finish(SpanStatus.OK)
+        assert tracer.open_span_ids == ()
 
 
 class TestDefaultNoOp:
