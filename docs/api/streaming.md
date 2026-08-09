@@ -24,7 +24,8 @@ Streaming sources feed continuous data into a single long-running pipeline. Unli
 ### Example
 
 ```python
-from pirn.streaming import IterableSource, run_stream
+from pirn.streaming.base import run_stream
+from pirn.streaming.iterable import IterableSource
 
 source = IterableSource([1, 2, 3], parameter_name="x")
 await run_stream(source, tapestry, on_result=handle)
@@ -47,7 +48,7 @@ Wraps any Python iterable as a streaming source.
 ### Example
 
 ```python
-from pirn.streaming import IterableSource
+from pirn.streaming.iterable import IterableSource
 
 source = IterableSource(
     items=[{"id": 1}, {"id": 2}, {"id": 3}],
@@ -71,7 +72,7 @@ Tails a file, yielding new lines as they appear.
 ### Example
 
 ```python
-from pirn.streaming import FileTailSource
+from pirn.streaming.file_tail import FileTailSource
 
 source = FileTailSource("/var/log/app.log", parameter_name="line")
 await run_stream(source, tapestry, on_result=handle_log_line)
@@ -92,7 +93,7 @@ Consumes a Kafka topic, yielding one value per message.
 ### Example
 
 ```python
-from pirn.streaming import KafkaStreamingSource
+from pirn.streaming.kafka import KafkaStreamingSource
 
 source = KafkaStreamingSource(
     topic="events",
@@ -118,8 +119,9 @@ Adapts a `StreamingSource` to implement the `Trigger` protocol, so it can be dri
 ### Example
 
 ```python
-from pirn.streaming import FileTailSource, StreamingSourceTrigger
-from pirn.triggers import run_forever
+from pirn.streaming.file_tail import FileTailSource
+from pirn.streaming.trigger_adapter import StreamingSourceTrigger
+from pirn.triggers.base import run_forever
 
 source = FileTailSource("/var/log/app.log", parameter_name="line")
 trigger = StreamingSourceTrigger(source)

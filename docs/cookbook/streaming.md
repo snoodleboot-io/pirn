@@ -21,7 +21,8 @@ Wrap any Python iterable — lists, generators, range objects:
 ```python
 import asyncio
 from pirn import Tapestry, Parameter, KnotConfig, knot, RunRequest
-from pirn.streaming import IterableSource, run_stream
+from pirn.streaming.base import run_stream
+from pirn.streaming.iterable import IterableSource
 
 
 @knot
@@ -73,7 +74,7 @@ Output:
 Tail a log file and process each new line as it arrives:
 
 ```python
-from pirn.streaming import FileTailSource
+from pirn.streaming.file_tail import FileTailSource
 
 
 @knot
@@ -115,7 +116,7 @@ asyncio.run(main())
 Consume a Kafka topic, one run per message:
 
 ```python
-from pirn.streaming import KafkaStreamingSource
+from pirn.streaming.kafka import KafkaStreamingSource
 
 
 @knot
@@ -177,8 +178,9 @@ These are merged into the `RunRequest.parameters` for every tick. Parameters in 
 Adapt a streaming source to the `Trigger` protocol with `StreamingSourceTrigger`:
 
 ```python
-from pirn.streaming import FileTailSource, StreamingSourceTrigger
-from pirn.triggers import run_forever
+from pirn.streaming.file_tail import FileTailSource
+from pirn.streaming.trigger_adapter import StreamingSourceTrigger
+from pirn.triggers.base import run_forever
 
 source = FileTailSource("/var/log/app.log", parameter_name="line")
 trigger = StreamingSourceTrigger(source)
