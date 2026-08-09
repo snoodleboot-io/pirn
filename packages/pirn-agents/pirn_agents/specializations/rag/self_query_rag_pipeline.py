@@ -79,28 +79,7 @@ class SelfQueryRagPipeline(AgentPipeline):
 
         Returns:
             The :class:`RAGSynthesizer` sink knot whose output is the answer.
-
-        Raises:
-            TypeError: If ``query``/``store``/``embedder``/``llm`` are the wrong type.
         """
-        if not isinstance(query, str):
-            raise TypeError(
-                f"SelfQueryRagPipeline: query must be a string, got {type(query).__name__}"
-            )
-        if not isinstance(store, VectorMemoryStore):
-            raise TypeError(
-                f"SelfQueryRagPipeline: store must be a VectorMemoryStore, "
-                f"got {type(store).__name__}"
-            )
-        if not isinstance(embedder, EmbeddingProvider):
-            raise TypeError(
-                f"SelfQueryRagPipeline: embedder must be an EmbeddingProvider, "
-                f"got {type(embedder).__name__}"
-            )
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"SelfQueryRagPipeline: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
         spec = SelfQueryFilterExtractor(
             query=query,
             llm=llm,

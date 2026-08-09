@@ -51,18 +51,12 @@ class TestSelfQueryRagPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
         assert "ho paper" in synth_prompt
         assert "sohl paper" not in synth_prompt
 
-    async def test_rejects_non_vector_store(self) -> None:
-        knot = SelfQueryRagPipeline(
-            query="q",
-            store=InMemoryVectorStore(embedder=StubEmbeddingProvider(dimension=4)),
-            embedder=StubEmbeddingProvider(dimension=4),
-            llm=StubLLMProvider(["{}", "a"]),
-            _config=KnotConfig(id="selfquery"),
-        )
-        with self.assertRaisesRegex(TypeError, "store must be a VectorMemoryStore"):
-            await knot.process(
+    def test_rejects_non_vector_store(self) -> None:
+        with self.assertRaises(TypeError):
+            SelfQueryRagPipeline(
                 query="q",
                 store="nope",  # type: ignore[arg-type]
                 embedder=StubEmbeddingProvider(dimension=4),
                 llm=StubLLMProvider(["{}", "a"]),
+                _config=KnotConfig(id="selfquery"),
             )

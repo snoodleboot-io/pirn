@@ -43,6 +43,7 @@ from typing import Any, ClassVar
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
+from pydantic import PositiveInt
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
@@ -97,7 +98,7 @@ class SelfRAGPipeline(AgentPipeline):
         query: str,
         memory: MemoryStore,
         llm: LLMProvider,
-        top_k: int = 5,
+        top_k: PositiveInt = 5,
         **_: Any,
     ) -> Any:
         """Generate a draft answer, assess retrieval need, optionally retrieve and regenerate.
@@ -110,23 +111,7 @@ class SelfRAGPipeline(AgentPipeline):
 
         Returns:
             An AgentResponse containing the final LLM-generated answer.
-
-        Raises:
-            TypeError: If query is not a string or memory/llm are wrong types.
-            ValueError: If top_k is not a positive integer.
         """
-        if not isinstance(query, str):
-            raise TypeError(f"SelfRAGPipeline: query must be a string, got {type(query).__name__}")
-        if not isinstance(memory, MemoryStore):
-            raise TypeError(
-                f"SelfRAGPipeline: memory must be a MemoryStore, got {type(memory).__name__}"
-            )
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"SelfRAGPipeline: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
-        if not isinstance(top_k, int) or top_k <= 0:
-            raise ValueError(f"SelfRAGPipeline: top_k must be a positive int, got {top_k!r}")
         with Tapestry() as inner_draft:
             LLMChatCall(
                 prompt=query,

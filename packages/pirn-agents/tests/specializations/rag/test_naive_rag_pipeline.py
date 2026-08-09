@@ -18,34 +18,55 @@ from tests.specializations.conftest import (
 )
 
 
-class TestNaiveRAGPipelineProcess(unittest.IsolatedAsyncioTestCase):
-    async def test_rejects_non_memory_store(self) -> None:
-        llm = StubLLMProvider(["answer"])
-        memory = StubMemoryStore([])
-        knot = NaiveRAGPipeline(
-            query="q",
-            memory=memory,
-            llm=llm,
-            _config=KnotConfig(id="rag"),
-        )
-        with self.assertRaisesRegex(TypeError, "memory must be a MemoryStore"):
-            await knot.process(
+class TestNaiveRAGPipelineInputContract(unittest.IsolatedAsyncioTestCase):
+    """Bad inputs are refused by the framework, not by hand-written re-guards.
+
+    These previously called ``process()`` directly, which skips the engine and
+    so skips ``validate_io`` — they could only ever have passed against a guard
+    inside the body. They now assert the contract at the point it is actually
+    enforced: eagerly at construction for a constant (PIR-734).
+    """
+
+    def test_rejects_a_memory_that_is_not_a_store(self) -> None:
+        with self.assertRaises(TypeError) as caught:
+            NaiveRAGPipeline(
                 query="q",
                 memory="not-a-store",  # type: ignore[arg-type]
-                llm=llm,
+                llm=StubLLMProvider(["answer"]),
+                _config=KnotConfig(id="rag"),
+            )
+        assert "failed validation" in str(caught.exception)
+
+    def test_rejects_an_llm_that_is_not_a_provider(self) -> None:
+        with self.assertRaises(TypeError):
+            NaiveRAGPipeline(
+                query="q",
+                memory=StubMemoryStore([]),
+                llm="not-a-provider",  # type: ignore[arg-type]
+                _config=KnotConfig(id="rag"),
             )
 
-    async def test_rejects_zero_top_k(self) -> None:
-        memory = StubMemoryStore([{"id": 1}])
-        llm = StubLLMProvider(["answer"])
-        knot = NaiveRAGPipeline(
-            query="q",
-            memory=memory,
-            llm=llm,
-            _config=KnotConfig(id="rag"),
-        )
-        with self.assertRaisesRegex(ValueError, "top_k must be a positive int"):
-            await knot.process(query="q", memory=memory, llm=llm, top_k=0)
+    def test_rejects_zero_top_k(self) -> None:
+        """`top_k`'s domain rides on PositiveInt, so it is still refused."""
+        with self.assertRaises(TypeError) as caught:
+            NaiveRAGPipeline(
+                query="q",
+                memory=StubMemoryStore([{"id": 1}]),
+                llm=StubLLMProvider(["answer"]),
+                top_k=0,
+                _config=KnotConfig(id="rag"),
+            )
+        assert "failed validation" in str(caught.exception)
+
+    def test_rejects_negative_top_k(self) -> None:
+        with self.assertRaises(TypeError):
+            NaiveRAGPipeline(
+                query="q",
+                memory=StubMemoryStore([]),
+                llm=StubLLMProvider(["answer"]),
+                top_k=-3,
+                _config=KnotConfig(id="rag"),
+            )
 
 
 class TestNaiveRAGPipelineHappyPath(unittest.IsolatedAsyncioTestCase):

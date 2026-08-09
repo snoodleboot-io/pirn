@@ -30,6 +30,7 @@ from typing import Any, ClassVar
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.source import Source
+from pydantic import PositiveInt
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
@@ -76,7 +77,7 @@ class AgenticRagPipeline(AgentPipeline):
         query: str,
         rag_tool: Tool,
         llm: LLMProvider,
-        max_iterations: int = 3,
+        max_iterations: PositiveInt = 3,
         **_: Any,
     ) -> Any:
         """Drive the RAG tool loop and return the final answer as a source knot.
@@ -89,27 +90,7 @@ class AgenticRagPipeline(AgentPipeline):
 
         Returns:
             A source knot whose output is the final :class:`AgentResponse`.
-
-        Raises:
-            TypeError: If ``query``/``rag_tool``/``llm`` are the wrong type.
-            ValueError: If ``max_iterations`` is not a positive integer.
         """
-        if not isinstance(query, str):
-            raise TypeError(
-                f"AgenticRagPipeline: query must be a string, got {type(query).__name__}"
-            )
-        if not isinstance(rag_tool, Tool):
-            raise TypeError(
-                f"AgenticRagPipeline: rag_tool must be a Tool, got {type(rag_tool).__name__}"
-            )
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"AgenticRagPipeline: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
-        if not isinstance(max_iterations, int) or max_iterations <= 0:
-            raise ValueError(
-                f"AgenticRagPipeline: max_iterations must be a positive int, got {max_iterations!r}"
-            )
         current_question = query
         answer = ""
         for iteration in range(max_iterations):

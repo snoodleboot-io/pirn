@@ -175,14 +175,7 @@ class AdaptiveRAGPipeline(AgentPipeline):
 
         Returns:
             An AgentResponse containing the LLM-generated answer.
-
-        Raises:
-            TypeError: If query is not a string.
         """
-        if not isinstance(query, str):
-            raise TypeError(
-                f"AdaptiveRAGPipeline: query must be a string, got {type(query).__name__}"
-            )
         classify_prompt = type(self)._classify_prompt.render({"query": query})
         with Tapestry() as inner_classify:
             LLMChatCall(

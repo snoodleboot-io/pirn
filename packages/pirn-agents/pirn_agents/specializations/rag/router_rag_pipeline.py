@@ -69,22 +69,7 @@ class RouterRagPipeline(AgentPipeline):
 
         Returns:
             The :class:`RAGSynthesizer` sink knot whose output is the answer.
-
-        Raises:
-            TypeError: If ``query``/``routes``/``llm`` are the wrong type.
         """
-        if not isinstance(query, str):
-            raise TypeError(
-                f"RouterRagPipeline: query must be a string, got {type(query).__name__}"
-            )
-        if not isinstance(routes, RouteTable):
-            raise TypeError(
-                f"RouterRagPipeline: routes must be a RouteTable, got {type(routes).__name__}"
-            )
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"RouterRagPipeline: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
         route = QueryRouteClassifier(
             query=query,
             llm=llm,
