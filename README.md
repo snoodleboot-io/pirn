@@ -253,7 +253,10 @@ metrics, message buses, or traces.
 ### Triggers
 
 ```python
-from pirn.triggers import CronTrigger, KafkaTrigger, WebhookTrigger, run_forever
+from pirn.triggers.base import run_forever
+from pirn.triggers.cron import CronTrigger
+from pirn.triggers.http import WebhookTrigger
+from pirn.triggers.kafka import KafkaTrigger
 
 # Run every five minutes.
 trigger = CronTrigger(every_seconds=300)
@@ -305,7 +308,9 @@ Triggers fire whole runs (request/response). **Streaming sources**
 feed continuous data into a single long-running pipeline — ETL-style.
 
 ```python
-from pirn.streaming import IterableSource, FileTailSource, run_stream
+from pirn.streaming.base import run_stream
+from pirn.streaming.file_tail import FileTailSource
+from pirn.streaming.iterable import IterableSource
 
 # Tail a log file forever.
 source = FileTailSource("/var/log/app.log", parameter_name="line")
