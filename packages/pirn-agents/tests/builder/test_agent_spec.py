@@ -71,6 +71,31 @@ class TestAgentSpecFromDict(unittest.TestCase):
         assert spec.options == {"max_iterations": 6}
 
 
+class TestAgentSpecComponents(unittest.TestCase):
+    """Patterns need components beyond llm/memory/tools; the spec records them."""
+
+    def test_components_are_references_keyed_by_parameter_name(self) -> None:
+        spec = AgentSpec(pattern="graph_rag", components={"graph_memory": "Neo4jStore"})
+        assert spec.components == {"graph_memory": "Neo4jStore"}
+
+    def test_components_default_to_empty(self) -> None:
+        assert AgentSpec(pattern="react").components == {}
+
+    def test_a_live_object_is_rejected_in_place_of_a_reference(self) -> None:
+        with self.assertRaisesRegex(TypeError, "must be a str reference"):
+            AgentSpec(pattern="graph_rag", components={"graph_memory": object()})  # type: ignore[dict-item]
+
+    def test_components_must_be_a_mapping(self) -> None:
+        with self.assertRaisesRegex(TypeError, "components must be a mapping"):
+            AgentSpec(pattern="graph_rag", components=["graph_memory"])  # type: ignore[arg-type]
+
+    def test_components_load_from_a_mapping(self) -> None:
+        spec = AgentSpec.from_dict(
+            {"pattern": "graph_rag", "components": {"graph_memory": "Neo4jStore"}}
+        )
+        assert spec.components == {"graph_memory": "Neo4jStore"}
+
+
 class TestAgentSpecRoundTrip(unittest.TestCase):
     def test_to_dict_from_dict_preserves_all_fields(self) -> None:
         # Arrange
@@ -79,6 +104,7 @@ class TestAgentSpecRoundTrip(unittest.TestCase):
             llm="llm-ref",
             memory="mem-ref",
             tools=("t1", "t2"),
+            components={"embedder": "StubEmbedder"},
             options={"top_k": 3, "flag": True, "label": "x"},
         )
 
