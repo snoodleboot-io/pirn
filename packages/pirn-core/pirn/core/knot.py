@@ -480,10 +480,18 @@ class Knot:
         ``inspect.signature`` follows ``__wrapped__`` for ``@knot``-
         generated subclasses.  See Phase 1 commit history for the
         justification.
+
+        ``include_extras=True`` keeps ``Annotated`` metadata on the hints.
+        Without it :func:`get_type_hints` erases the annotation's extras, so
+        ``Annotated[int, Field(gt=0)]`` reaches pydantic as a bare ``int`` and
+        the constraint is silently dropped — validation that reads as declared
+        but never runs.  Keeping the extras is what lets a knot state a value
+        domain in its signature instead of re-checking it by hand in
+        ``process``.
         """
         process_fn = type(self).process
         try:
-            hints = get_type_hints(process_fn)
+            hints = get_type_hints(process_fn, include_extras=True)
         except Exception:
             hints = {}
 
