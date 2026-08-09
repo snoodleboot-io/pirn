@@ -2,8 +2,9 @@
 
 Covers read-only enforcement (rejecting DML/DDL and stacked statements),
 row-cap truncation, the typed F1 result shape, parameter passthrough, the stdlib
-:class:`SqliteConnector`, and the friendly missing-``aiosqlite`` install error
-(forced via ``patch.dict(sys.modules, {"aiosqlite": None})``).
+:class:`SqliteConnector`, the friendly missing-``aiosqlite`` install error
+(forced via ``patch.dict(sys.modules, {"aiosqlite": None})``), and the
+:class:`SqlServiceConnector` interface conformance the tool type-checks (PIR-786).
 """
 
 from __future__ import annotations
@@ -16,6 +17,8 @@ from unittest import mock
 
 import pytest
 
+from pirn_agents.connectors.column_aware_pool import ColumnAwarePool
+from pirn_agents.connectors.sql_service_connector import SqlServiceConnector
 from pirn_agents.tools.sql.aiosqlite_connector import AiosqliteConnector
 from pirn_agents.tools.sql.sql_connector import SqlConnector
 from pirn_agents.tools.sql.sql_query_tool import SqlQueryTool
@@ -135,3 +138,55 @@ class TestAiosqliteConnector:
         with mock.patch.dict(sys.modules, {"aiosqlite": None}):
             with pytest.raises(ImportError, match=r'pip install "pirn-agents\[sql\]"'):
                 await connector.execute("SELECT 1")
+
+
+class _FakeColumnAwarePool(ColumnAwarePool):
+    """Offline ColumnAwarePool double so the service connector runs without a driver."""
+
+    def __init__(self, columns: Sequence[str], rows: Sequence[Sequence[Any]]) -> None:
+        self._columns = list(columns)
+        self._rows = [list(row) for row in rows]
+        self.calls: list[tuple[str, tuple[Any, ...]]] = []
+
+    async def fetch_columns(
+        self, query: str, parameters: Sequence[Any] | None = None
+    ) -> tuple[list[str], list[list[Any]]]:
+        self.calls.append((query, tuple(parameters or ())))
+        return self._columns, [list(row) for row in self._rows]
+
+    async def close(self) -> None:
+        return None
+
+
+class TestSqlServiceConnectorIsASqlConnector:
+    """PIR-786: the flagship agents connector must satisfy the tool's interface."""
+
+    def test_declares_the_sql_connector_interface(self) -> None:
+        assert issubclass(SqlServiceConnector, SqlConnector) is True
+
+    def test_instance_passes_the_tool_type_check(self) -> None:
+        connector = SqlServiceConnector(pool=_FakeColumnAwarePool([], []))
+        assert isinstance(connector, SqlConnector)
+
+    async def test_end_to_end_through_the_tool(self) -> None:
+        pool = _FakeColumnAwarePool(["id", "name"], [[1, "a"], [2, "b"]])
+        connector = SqlServiceConnector(pool=pool)
+        tool = SqlQueryTool(connector=connector)
+
+        result = await tool.invoke(
+            {"query": "SELECT id, name FROM t WHERE id > ?", "parameters": [0]}
+        )
+
+        assert result["columns"] == ["id", "name"]
+        assert result["rows"] == [[1, "a"], [2, "b"]]
+        assert result["row_count"] == 2
+        assert result["truncated"] is False
+        assert pool.calls == [("SELECT id, name FROM t WHERE id > ?", (0,))]
+        await connector.close()
+
+    async def test_tool_surfaces_connector_read_only_rejection(self) -> None:
+        connector = SqlServiceConnector(pool=_FakeColumnAwarePool([], []))
+        tool = SqlQueryTool(connector=connector, read_only=False)
+        with pytest.raises(ValueError):
+            await tool.invoke({"query": "DROP TABLE t"})
+        await connector.close()
