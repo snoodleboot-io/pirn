@@ -14,6 +14,14 @@ connector adds only the three things core's pool abstraction does not provide:
 
 The pool is built lazily via :class:`ConnectorBase`'s construct-once lifecycle, so
 importing this module — and constructing the connector — stays backend-free.
+
+It also declares
+:class:`~pirn_agents.tools.sql.sql_connector.SqlConnector`, the tool-side SQL
+interface, so the connector is accepted by
+:class:`~pirn_agents.tools.sql.sql_query_tool.SqlQueryTool` (which type-checks its
+injected connector) and therefore by ``data_toolset`` (PIR-786). Both bases derive
+from ``PirnOpaqueValue``, so the two lineages linearise cleanly and ``ConnectorBase``
+keeps precedence for the lifecycle and audit behaviour.
 """
 
 from __future__ import annotations
@@ -30,10 +38,14 @@ from pirn_agents.connectors.column_aware_pool import ColumnAwarePool
 from pirn_agents.connectors.column_aware_postgres_pool import ColumnAwarePostgresPool
 from pirn_agents.connectors.column_aware_sqlite_pool import ColumnAwareSqlitePool
 from pirn_agents.tools.sql._read_only_sql_guard import ReadOnlySqlGuard
+from pirn_agents.tools.sql.sql_connector import SqlConnector
 
 
-class SqlServiceConnector(ConnectorBase):
-    """Read-only, row-capped, column-aware SQL over a core connection pool."""
+class SqlServiceConnector(ConnectorBase, SqlConnector):
+    """Read-only, row-capped, column-aware SQL over a core connection pool.
+
+    Implements the :class:`SqlConnector` interface so ``sql_query`` accepts it.
+    """
 
     def __init__(
         self,
