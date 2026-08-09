@@ -16,11 +16,13 @@ Triggers produce independent, complete `RunRequest` objects per event. This is d
 pirn/triggers/
 ├── base.py       Trigger          — base class; implement name, stream(), close()
 │                 run_forever()    — driver: pull requests from trigger, run tapestry, call callbacks
-├── cron.py       CronTrigger      — yield RunRequests on a cron schedule
-├── http.py       WebhookTrigger   — HTTP server; yield one RunRequest per POST
+├── cron.py       CronTrigger      — yield RunRequests on a time-based schedule
+├── http.py       WebhookTrigger   — Starlette ASGI app; yield one RunRequest per POST
 ├── kafka.py      KafkaTrigger     — Kafka consumer; yield one RunRequest per message
 └── valkey.py     ValKeyTrigger    — Valkey/Redis pub-sub; yield one RunRequest per message
 ```
+
+`pirn/triggers/__init__.py` deliberately re-exports nothing — the house convention forbids import forwarding, and `scripts/check_no_import_forwarding.py` enforces it in CI. Always import from the concrete module: `from pirn.triggers.base import run_forever`, **not** `from pirn.triggers import run_forever`.
 
 ---
 
@@ -30,7 +32,6 @@ pirn/triggers/
 
 ```python
 import asyncio
-from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 from pirn.triggers.cron import CronTrigger
 from pirn.triggers.base import run_forever
@@ -38,7 +39,7 @@ from pirn.triggers.base import run_forever
 with Tapestry() as t:
     ...  # build pipeline
 
-trigger = CronTrigger(schedule="0 * * * *")   # every hour
+trigger = CronTrigger(every_seconds=3600)   # every hour, first fire immediate
 
 async def main():
     await run_forever(trigger, t)
@@ -46,15 +47,44 @@ async def main():
 asyncio.run(main())
 ```
 
-### Webhook-triggered pipeline
+`CronTrigger` takes exactly one of three mutually exclusive schedule arguments:
 
 ```python
+from datetime import time
+
+CronTrigger(every_seconds=300)                      # every 5 minutes; fires at t=0 first
+CronTrigger(at_times=[time(9, 0), time(17, 0)])     # daily at 09:00 and 17:00 UTC
+CronTrigger(delay_fn=lambda ordinal: 60.0)          # caller-supplied per-fire delay
+```
+
+`delay_fn` is the cron seam: it maps the next 1-based fire ordinal to the seconds to wait before that fire, so a croniter/APScheduler-derived "seconds until the next cron instant" function drops straight in without pirn importing a scheduler.
+
+Optional arguments, valid in all three modes:
+
+```python
+CronTrigger(
+    every_seconds=300,
+    parameters_factory=lambda: {"run_at": datetime.now(UTC).isoformat()},
+    max_runs=10,        # stop after 10 requests; must be an int >= 1
+    sleep=fake_sleep,   # inject the async sleep so tests advance with no wall-clock wait
+)
+```
+
+### Webhook-triggered pipeline
+
+`WebhookTrigger` does **not** bind a socket — it exposes a Starlette ASGI app as `trigger.app` for you to mount. There is no `host=` or `port=` argument; hosting decisions (TLS, CORS, which server) belong to the deployment.
+
+```python
+import uvicorn
 from pirn.triggers.http import WebhookTrigger
 
-trigger = WebhookTrigger(host="0.0.0.0", port=8080, path="/run")
-# POST to http://host:8080/run with JSON body {"parameters": {...}}
+trigger = WebhookTrigger(path="/run", auth_token=os.environ["PIRN_WEBHOOK_TOKEN"])
+uvicorn.run(trigger.app, host="0.0.0.0", port=8080)
+# POST to http://host:8080/run with JSON body treated as the RunRequest parameters
 # Each POST yields one RunRequest
 ```
+
+Also accepts `rate_limit_rpm=` (per-IP sliding-window cap, HTTP 429 on excess) and `request_builder=` (custom `(payload, request) -> RunRequest`).
 
 ### Observe results and errors
 
@@ -105,7 +135,7 @@ If `on_error` is not provided and a run raises, `run_forever` re-raises and exit
 
 ### Using `run_forever` for a streaming source
 
-`run_forever` is for triggers that produce independent `RunRequest` objects. For continuous data (file tail, Kafka stream), use `pirn.streaming.run_stream` instead — it handles the different lifecycle.
+`run_forever` is for triggers that produce independent `RunRequest` objects. For continuous data (file tail, Kafka stream), use `run_stream` from `pirn.streaming.base` instead — it handles the different lifecycle. Note it is a free function, not a `Tapestry` method.
 
 ---
 
@@ -113,9 +143,12 @@ If `on_error` is not provided and a run raises, `run_forever` re-raises and exit
 
 - **`run_forever` calls `trigger.close()` on any exit**, including cancellation. Ensure `close()` is idempotent.
 - **`CronTrigger` does not backfill missed ticks.** If the process is down during a scheduled window, those runs are lost.
+- **`CronTrigger(every_seconds=...)` fires immediately at t=0**, then once per interval. Use `delay_fn` if you need the first fire delayed too.
+- **`CronTrigger.close()` takes effect after the in-flight sleep** and does not emit a further request.
 - **`KafkaTrigger` requires `pirn[kafka]`.** It is not included in the base install.
-- **`WebhookTrigger` blocks the event loop for the HTTP server.** Run it in a dedicated task alongside the rest of your async application.
+- **`WebhookTrigger` does not run a server.** It exposes `trigger.app`; you mount it on uvicorn/hypercorn or compose it into an existing Starlette/FastAPI app, in a task alongside the rest of your async application.
 - **`ValKeyTrigger` requires a Valkey/Redis connection.** Pass a configured async client at construction.
+- **Nothing is exported from `pirn.triggers`.** Import from the concrete module (`pirn.triggers.base`, `pirn.triggers.cron`, …).
 
 ---
 
@@ -123,8 +156,12 @@ If `on_error` is not provided and a run raises, `run_forever` re-raises and exit
 
 | Task | How |
 |------|-----|
-| Run on a cron schedule | `CronTrigger(schedule="*/5 * * * *")` |
-| Run on HTTP POST | `WebhookTrigger(host=..., port=..., path=...)` |
+| Run every 5 minutes | `CronTrigger(every_seconds=300)` |
+| Run at fixed times of day (UTC) | `CronTrigger(at_times=[time(9, 0)])` |
+| Run on an external cron backend | `CronTrigger(delay_fn=seconds_until_next_instant)` |
+| Bound the number of runs | `CronTrigger(every_seconds=300, max_runs=10)` |
+| Test a schedule without waiting | `CronTrigger(every_seconds=300, sleep=fake_sleep)` |
+| Run on HTTP POST | `WebhookTrigger(path=...)`, then serve `trigger.app` |
 | Run on Kafka message | `KafkaTrigger(topic=..., consumer=...)` |
 | Run on Valkey pub-sub | `ValKeyTrigger(channel=..., client=...)` |
 | Drive the trigger | `await run_forever(trigger, tapestry)` |
