@@ -52,6 +52,20 @@ async def test_single_item_failure_does_not_abort_batch() -> None:
     assert by_key["2"].status is BatchItemStatus.OK
 
 
+async def test_failure_carries_an_exception_record() -> None:
+    agent = StubAgent(fail_items={"bad"})
+    runner = MapAgent(agent, concurrency=1)
+
+    results = await _drain(runner, ["bad"])
+
+    record = results[0].exception
+    assert record is not None
+    assert record.exc_type == "RuntimeError"
+    assert "permanent failure" in record.message
+    assert "raise" in record.traceback_text
+    assert record.knot_id == "0"
+
+
 async def test_concurrency_cap_respected() -> None:
     counter = InFlightCounter()
     gate = asyncio.Event()
@@ -112,6 +126,24 @@ async def test_timeout_isolated_from_siblings() -> None:
     assert by_key["0"].status is BatchItemStatus.TIMEOUT
     assert by_key["0"].error is not None and "timed out" in by_key["0"].error
     assert by_key["1"].status is BatchItemStatus.OK
+
+
+async def test_timeout_carries_an_exception_record() -> None:
+    async def agent(item: object) -> object:
+        await asyncio.sleep(0.5)
+        return f"done:{item}"
+
+    runner = MapAgent(agent, concurrency=1, timeout=0.05)
+
+    results = await _drain(runner, ["slow"])
+
+    # The timing-out exception is captured, not dropped, while the message stays
+    # the operator-readable one.
+    record = results[0].exception
+    assert record is not None
+    assert record.exc_type == "TimeoutError"
+    assert "timed out" in record.message
+    assert record.knot_id == "0"
 
 
 async def test_retry_then_success() -> None:
