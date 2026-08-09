@@ -130,6 +130,96 @@ class _ClientConfig:
         return "_ClientConfig(api_key='k-live-4f9a2c7e18b3', region='eu-west-1')"
 
 
+class TestSpanNameRedaction:
+    """PIR-789 exempted ``span.name`` as a "call-site literal". It is not one.
+
+    The only span-name producer outside tests is
+    :class:`~pirn_agents.observability.span_emitting_tool_invocation_hook.SpanEmittingToolInvocationHook`,
+    which interpolates ``f"tool:{tool_name}"`` from ``call.tool_name`` — an
+    unvalidated ``raw["name"]`` off the provider wire. The hook fires before the
+    executor resolves the toolset, so a name matching no registered tool still
+    reaches the collector.
+    """
+
+    def test_a_provider_supplied_tool_name_does_not_leak_via_the_span_name(
+        self, fake_otel: _FakeOtelTracer
+    ) -> None:
+        from pirn_agents.observability.otel_sink import OtelSink
+
+        sink = OtelSink()
+        hostile = "exfil_postgresql://admin:hunter2@db.internal/prod"
+        span = Span(
+            name=f"tool:{hostile}",
+            kind=SpanKind.TOOL,
+            span_id="s10",
+            sink=sink,
+            attributes={"tool.name": hostile},
+        )
+        span.finish(SpanStatus.OK)
+        exported = fake_otel.spans[0].attributes
+        # The identical string was already redacted in the attribute; shipping it
+        # raw as the span name in the same export makes the attribute pointless.
+        assert "hunter2" not in exported["__name__"]
+        assert "hunter2" not in exported["tool.name"]
+        assert "<redacted>" in exported["__name__"]
+        # Only the credential goes — the tool prefix and host stay groupable.
+        assert exported["__name__"].startswith("tool:")
+        assert "db.internal" in exported["__name__"]
+
+    def test_an_api_key_in_a_span_name_is_redacted(self, fake_otel: _FakeOtelTracer) -> None:
+        from pirn_agents.observability.otel_sink import OtelSink
+
+        sink = OtelSink()
+        span = Span(
+            name="tool:fetch?api_key=abc123def456",
+            kind=SpanKind.TOOL,
+            span_id="s11",
+            sink=sink,
+        )
+        span.finish(SpanStatus.OK)
+        assert "abc123def456" not in fake_otel.spans[0].attributes["__name__"]
+
+    def test_a_genuine_call_site_literal_name_survives_untouched(
+        self, fake_otel: _FakeOtelTracer
+    ) -> None:
+        # Redaction must not mangle the field collectors group on. Every name a
+        # call site actually writes is unchanged by it.
+        from pirn_agents.observability.otel_sink import OtelSink
+
+        sink = OtelSink()
+        for index, name in enumerate(("llm.chat", "tool:search", "retrieval", "llm.call")):
+            span = Span(name=name, kind=SpanKind.LLM, span_id=f"g{index}", sink=sink)
+            span.finish(SpanStatus.OK)
+        assert [span.attributes["__name__"] for span in fake_otel.spans] == [
+            "llm.chat",
+            "tool:search",
+            "retrieval",
+            "llm.call",
+        ]
+
+    def test_name_redaction_honours_the_opt_out(self, fake_otel: _FakeOtelTracer) -> None:
+        from pirn_agents.observability.otel_sink import OtelSink
+
+        sink = OtelSink(redact_secrets=False)
+        span = Span(
+            name="tool:postgresql://admin:hunter2@db.internal/prod",
+            kind=SpanKind.TOOL,
+            span_id="s12",
+            sink=sink,
+        )
+        span.finish(SpanStatus.OK)
+        assert "hunter2" in fake_otel.spans[0].attributes["__name__"]
+
+    def test_an_injected_redactor_also_governs_the_name(self, fake_otel: _FakeOtelTracer) -> None:
+        from pirn_agents.observability.otel_sink import OtelSink
+
+        scanner = SecretLeakScanner(extra_patterns=(("employee_id", r"\bEMP-[0-9]{4}\b"),))
+        sink = OtelSink(redactor=SecretRedactor(scanner=scanner))
+        span = Span(name="tool:lookup:EMP-8821", kind=SpanKind.TOOL, span_id="s13", sink=sink)
+        span.finish(SpanStatus.OK)
+        assert "EMP-8821" not in fake_otel.spans[0].attributes["__name__"]
+
+
 class TestAttributeRedaction:
     def test_dsn_in_a_string_attribute_is_redacted_at_export(
         self, fake_otel: _FakeOtelTracer

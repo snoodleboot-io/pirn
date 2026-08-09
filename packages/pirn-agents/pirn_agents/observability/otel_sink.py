@@ -7,13 +7,23 @@ pirn_agents`` — and importing this very module — stays backend-free; only
 :class:`Span` is mapped onto an OTel span on finish, carrying its kind, status,
 attributes, and duration.
 
-Span attributes are redacted on the way out. Nothing constrains what a knot puts
-in them and this sink ships them to a *third-party collector*, so a
-:class:`~pirn_agents.security.secret_redactor.SecretRedactor` — the same scanner
-PIR-725 attached to
+Span attributes *and the span name* are redacted on the way out. Nothing
+constrains what a knot puts in them and this sink ships them to a *third-party
+collector*, so a :class:`~pirn_agents.security.secret_redactor.SecretRedactor` —
+the same scanner PIR-725 attached to
 :class:`~pirn_agents.observability.logging_sink.LoggingSink`, not a second set
-of patterns — runs over the mapping first, and again over the ``repr`` of every
-non-primitive (PIR-789).
+of patterns — runs over the mapping first, again over the ``repr`` of every
+non-primitive (PIR-789), and over the name (PIR-789 remediation).
+
+The name is *not* a call-site literal, and treating it as one was the original
+gap. The only span-name producer outside tests is
+:class:`~pirn_agents.observability.span_emitting_tool_invocation_hook.SpanEmittingToolInvocationHook`,
+which builds ``f"tool:{tool_name}"`` from ``call.tool_name`` — an unvalidated
+``raw["name"]`` decoded straight off the provider wire. The hook fires before
+the executor resolves the toolset, so a name matching no registered tool still
+reaches the collector. Redaction is surgical (only the credential is replaced),
+so genuine literals like ``"llm.chat"`` pass through byte-identical and
+collector-side grouping is unaffected.
 """
 
 from __future__ import annotations
@@ -50,12 +60,12 @@ class OtelSink(ObservabilitySink):
             tracer: An OpenTelemetry ``Tracer`` to export to; when ``None`` the
                 globally configured tracer (``opentelemetry.trace.get_tracer``)
                 is used.
-            redactor: The redactor attribute values are scrubbed through; a
-                default one is built when ``None``. Inject to widen the pattern
-                set or the secret-bearing key names.
-            redact_secrets: Set ``False`` to export attributes verbatim — only
-                when something upstream already redacts, or the collector is as
-                trusted as the process itself.
+            redactor: The redactor the span name and attribute values are
+                scrubbed through; a default one is built when ``None``. Inject
+                to widen the pattern set or the secret-bearing key names.
+            redact_secrets: Set ``False`` to export the name and attributes
+                verbatim — only when something upstream already redacts, or the
+                collector is as trusted as the process itself.
 
         Raises:
             ImportError: If the ``otel`` extra (``opentelemetry``) is not
@@ -78,8 +88,12 @@ class OtelSink(ObservabilitySink):
         Modelled on span *finish* (rather than start) so the OTel span is
         created and ended in one shot with the full attribute set and duration
         known — the common shape for exporting already-timed regions.
+
+        The name is redacted before the OTel span is opened: it is interpolated
+        from wire-supplied tool names, not a call-site literal, and it leaves
+        the process on the same export as the attributes.
         """
-        otel_span = self._tracer.start_span(span.name)
+        otel_span = self._tracer.start_span(self._redact_text(span.name))
         try:
             otel_span.set_attribute("pirn.span.kind", span.kind.value)
             otel_span.set_attribute("pirn.span.status", span.status.value)
@@ -120,7 +134,14 @@ class OtelSink(ObservabilitySink):
 
     def _redact_repr(self, value: Any) -> str:
         """Return ``repr(value)`` with any secret it embeds scrubbed."""
-        rendered = repr(value)
+        return self._redact_text(repr(value))
+
+    def _redact_text(self, text: str) -> str:
+        """Return ``text`` with any secret it embeds scrubbed.
+
+        The single free-text redaction path, shared by the span name and the
+        ``repr`` branch, so neither can drift onto its own pattern set.
+        """
         if self._redactor is None:
-            return rendered
-        return str(self._redactor.redact_text(rendered).value)
+            return text
+        return str(self._redactor.redact_text(text).value)
