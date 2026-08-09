@@ -1,8 +1,14 @@
 """Mirrored contract tests for the S2 ``SessionStore`` adapters (PIR-359).
 
-The same interface-contract suite runs against both the in-memory adapter and the
-persisted adapter (over a backend-free dict :class:`MemoryStore`), so both are
-proven to satisfy the identical save/load/delete/list contract.
+The same interface-contract suite runs against three adapters, so all three are
+proven to satisfy the identical save/load/delete/list contract:
+
+* the in-memory adapter;
+* the persisted adapter over a backend-free dict :class:`MemoryStore` double;
+* the persisted adapter over :class:`DataStoreMemoryStore`, i.e. a **shipped**
+  core backend rather than a test double (PIR-787). Until that adapter existed
+  no concrete ``MemoryStore`` accepted a plain mapping, so this suite could only
+  ever run against a hand-rolled double and the gap stayed invisible.
 """
 
 from __future__ import annotations
@@ -10,7 +16,9 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 
 import pytest
+from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
 
+from pirn_agents.memory.stores.data_store_memory_store import DataStoreMemoryStore
 from pirn_agents.sessions.in_memory_session_store import InMemorySessionStore
 from pirn_agents.sessions.persisted_session_store import PersistedSessionStore
 from pirn_agents.sessions.run_checkpoint import RunCheckpoint
@@ -28,7 +36,15 @@ def _persisted() -> SessionStore:
     return PersistedSessionStore(store=DictMemoryStore())
 
 
-@pytest.fixture(params=[_in_memory, _persisted], ids=["in_memory", "persisted"])
+def _persisted_over_data_store() -> SessionStore:
+    """The persisted adapter over a real shipped core ``DataStore``."""
+    return PersistedSessionStore(store=DataStoreMemoryStore(data_store=InMemoryDataStore()))
+
+
+@pytest.fixture(
+    params=[_in_memory, _persisted, _persisted_over_data_store],
+    ids=["in_memory", "persisted", "persisted_data_store"],
+)
 def store(request: pytest.FixtureRequest) -> SessionStore:
     factory: StoreFactory = request.param
     return factory()
