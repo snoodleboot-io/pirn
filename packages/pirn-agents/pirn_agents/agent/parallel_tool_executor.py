@@ -248,7 +248,7 @@ class ParallelToolExecutor(AsyncFanoutEngine[ToolResult], Knot):
                 status=ToolStatus.OK,
                 latency=time.perf_counter() - start,
             ),
-            on_timeout=lambda _attempts: ToolResult(
+            on_timeout=lambda _exc, _attempts: ToolResult(
                 call_id=call.call_id,
                 result=None,
                 status=ToolStatus.TIMEOUT,

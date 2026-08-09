@@ -81,7 +81,7 @@ class AsyncFanoutEngine(Generic[R]):
         timeout: float | None,
         retries: int,
         on_ok: Callable[[object, int], R],
-        on_timeout: Callable[[int], R],
+        on_timeout: Callable[[BaseException, int], R],
         on_error: Callable[[BaseException, int], R],
         before_attempt: Callable[[], Awaitable[None]] | None = None,
         on_exception: Callable[[BaseException], None] | None = None,
@@ -100,7 +100,10 @@ class AsyncFanoutEngine(Generic[R]):
             timeout: Per-attempt time budget in seconds, or ``None`` to disable.
             retries: Extra attempts granted after the first on a retryable failure.
             on_ok: ``(value, attempts) -> R`` — build the success result.
-            on_timeout: ``(attempts) -> R`` — build the terminal-timeout result.
+            on_timeout: ``(exc, attempts) -> R`` — build the terminal-timeout
+                result. The timing-out exception is handed over rather than
+                discarded, so a builder can capture it as richly as the error
+                path does.
             on_error: ``(exc, attempts) -> R`` — build the exhausted-error result.
             before_attempt: Optional async hook run at the top of every attempt
                 (e.g. acquiring a rate-limiter token).
@@ -124,7 +127,7 @@ class AsyncFanoutEngine(Generic[R]):
                 if on_exception is not None:
                     on_exception(exc)
                 if timeout is not None and isinstance(exc, TimeoutError):
-                    return on_timeout(attempt + 1)
+                    return on_timeout(exc, attempt + 1)
                 if attempt >= retries:
                     return on_error(exc, attempt + 1)
                 await self._backoff(attempt)

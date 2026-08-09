@@ -34,6 +34,8 @@ import asyncio
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterable
 
+from pirn.managers.exception_record import ExceptionRecord
+
 from pirn_agents.agent.async_fanout_engine import AsyncFanoutEngine
 from pirn_agents.batch.adaptive_concurrency_controller import AdaptiveConcurrencyController
 from pirn_agents.batch.batch_checkpointer import BatchCheckpointer
@@ -271,11 +273,11 @@ class MapAgent(AsyncFanoutEngine[BatchItemResult]):
                 attempts=attempts,
                 latency=time.perf_counter() - start,
             ),
-            on_timeout=lambda attempts: BatchItemResult(
+            on_timeout=lambda exc, attempts: BatchItemResult(
                 index=index,
                 key=key,
                 status=BatchItemStatus.TIMEOUT,
-                error=f"item timed out after {self._timeout}s",
+                exception=MapAgent._record_for(key, exc, f"item timed out after {self._timeout}s"),
                 attempts=attempts,
                 latency=time.perf_counter() - start,
             ),
@@ -318,7 +320,19 @@ class MapAgent(AsyncFanoutEngine[BatchItemResult]):
             index=index,
             key=key,
             status=BatchItemStatus.ERROR,
-            error=str(exc) or type(exc).__name__,
+            exception=MapAgent._record_for(key, exc, str(exc) or type(exc).__name__),
             attempts=attempts,
             latency=time.perf_counter() - start,
         )
+
+    @staticmethod
+    def _record_for(key: str, exc: BaseException, message: str) -> ExceptionRecord:
+        """Capture ``exc`` against item ``key`` under a caller-chosen message.
+
+        :meth:`ExceptionRecord.for_knot` does the capture — detaching the
+        traceback from live frames — and the item's key stands in for the knot
+        id, since a batch item is the unit a fleet failure is attributed to. The
+        message is supplied by the caller because ``str(exc)`` is empty for an
+        ``asyncio`` timeout and often terse for provider errors.
+        """
+        return ExceptionRecord.for_knot(key, exc).model_copy(update={"message": message})
