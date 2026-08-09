@@ -82,12 +82,7 @@ class RaptorTreeBuilder(AgentPipeline):
 
         Returns:
             The ``_RaptorAssembler`` sink knot whose output is the :class:`RaptorTree`.
-
-        Raises:
-            TypeError: If ``text`` is not a string.
         """
-        if not isinstance(text, str):
-            raise TypeError(f"RaptorTreeBuilder: text must be a string, got {type(text).__name__}")
         chunks = _DocumentChunker(
             text=text,
             chunk_size=leaf_chunk_size,

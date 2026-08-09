@@ -36,12 +36,11 @@ class TestRouterRagPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
         assert code.search_queries == ["how do I call the api"]
         assert docs.search_queries == []
 
-    async def test_rejects_non_route_table(self) -> None:
-        knot = RouterRagPipeline(
-            query="q",
-            routes=RouteTable({"docs": StubMemoryStore([])}),
-            llm=StubLLMProvider(["docs", "a"]),
-            _config=KnotConfig(id="router"),
-        )
-        with self.assertRaisesRegex(TypeError, "routes must be a RouteTable"):
-            await knot.process(query="q", routes="nope", llm=StubLLMProvider(["a"]))  # type: ignore[arg-type]
+    def test_rejects_non_route_table(self) -> None:
+        with self.assertRaises(TypeError):
+            RouterRagPipeline(
+                query="q",
+                routes="nope",  # type: ignore[arg-type]
+                llm=StubLLMProvider(["docs", "a"]),
+                _config=KnotConfig(id="router"),
+            )

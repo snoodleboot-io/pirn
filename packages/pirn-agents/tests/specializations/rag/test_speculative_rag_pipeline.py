@@ -36,13 +36,11 @@ class TestSpeculativeRagPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
         assert "speculative draft" in verify_prompt
         assert "grounding fact" in verify_prompt
 
-    async def test_rejects_non_memory_store(self) -> None:
-        llm = StubLLMProvider(["a", "b"])
-        knot = SpeculativeRagPipeline(
-            query="q",
-            memory=StubMemoryStore([]),
-            llm=llm,
-            _config=KnotConfig(id="spec"),
-        )
-        with self.assertRaisesRegex(TypeError, "memory must be a MemoryStore"):
-            await knot.process(query="q", memory="nope", llm=llm)  # type: ignore[arg-type]
+    def test_rejects_non_memory_store(self) -> None:
+        with self.assertRaises(TypeError):
+            SpeculativeRagPipeline(
+                query="q",
+                memory="nope",  # type: ignore[arg-type]
+                llm=StubLLMProvider(["a", "b"]),
+                _config=KnotConfig(id="spec"),
+            )

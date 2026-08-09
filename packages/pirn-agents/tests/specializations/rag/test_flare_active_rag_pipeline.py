@@ -70,17 +70,14 @@ class TestFlareActiveRagPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
         assert isinstance(response, AgentResponse)
         assert response.content == "rewritten one. second weak."
 
-    async def test_rejects_non_positive_budget(self) -> None:
-        knot = FlareActiveRagPipeline(
-            query="q",
-            memory=StubMemoryStore([]),
-            llm=StubLLMProvider(["DONE"]),
-            _config=KnotConfig(id="flare"),
-        )
-        with self.assertRaisesRegex(ValueError, "max_retrieval_calls must be a positive int"):
-            await knot.process(
-                query="q",
-                memory=StubMemoryStore([]),
-                llm=StubLLMProvider(["DONE"]),
-                max_retrieval_calls=0,
-            )
+    def test_rejects_non_positive_budget(self) -> None:
+        """Each budget's domain rides on PositiveInt, so they are still refused."""
+        for budget in ("max_retrieval_calls", "max_sentences", "top_k"):
+            with self.subTest(budget=budget), self.assertRaises(TypeError):
+                FlareActiveRagPipeline(
+                    query="q",
+                    memory=StubMemoryStore([]),
+                    llm=StubLLMProvider(["DONE"]),
+                    _config=KnotConfig(id="flare"),
+                    **{budget: 0},
+                )

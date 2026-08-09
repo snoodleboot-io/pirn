@@ -80,9 +80,11 @@ class TestAgenticRagPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_rag_tool_is_a_tool(self) -> None:
         assert isinstance(_answer_tool(), Tool)
 
-    async def test_rejects_non_tool(self) -> None:
-        with Tapestry():
-            knot = AgenticRagPipeline.__new__(AgenticRagPipeline)
-            object.__setattr__(knot, "_config", KnotConfig(id="x"))
-        with self.assertRaisesRegex(TypeError, "rag_tool must be a Tool"):
-            await knot.process(query="q", rag_tool="nope", llm=StubLLMProvider(["DONE"]))  # type: ignore[arg-type]
+    def test_rejects_non_tool(self) -> None:
+        with self.assertRaises(TypeError):
+            AgenticRagPipeline(
+                query="q",
+                rag_tool="nope",  # type: ignore[arg-type]
+                llm=StubLLMProvider(["DONE"]),
+                _config=KnotConfig(id="x"),
+            )
