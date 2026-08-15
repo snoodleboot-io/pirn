@@ -156,6 +156,43 @@ class TestRecordShape:
         index = MemoryStoreKeyIndex(store=backend, index_key="ns:__index__")
         assert await index.keys() == []
 
+    @pytest.mark.parametrize(
+        "malformed",
+        [
+            pytest.param(5, id="int"),
+            pytest.param(None, id="none"),
+            pytest.param("abc", id="string"),
+            pytest.param({"a": 1}, id="mapping"),
+            pytest.param(object(), id="arbitrary-object"),
+        ],
+    )
+    async def test_malformed_field_reads_empty(
+        self, backend: DictMemoryStore, malformed: object
+    ) -> None:
+        # keys() promises a malformed record reads as empty rather than raising.
+        # Only some shapes honoured that: an int or None raised TypeError out of
+        # the list comprehension, a mapping yielded its keys, and — worst — a
+        # string was iterated one character at a time, so a corrupted record
+        # became a plausible-looking key list a caller could not distinguish
+        # from a real one. Anything that is not a sequence of entries is now
+        # treated as "this record does not carry an index".
+        await backend.store("ns:__index__", {"keys": malformed})
+        index = MemoryStoreKeyIndex(store=backend, index_key="ns:__index__")
+        assert await index.keys() == []
+
+    async def test_list_entries_are_coerced_to_str(self, backend: DictMemoryStore) -> None:
+        # A list is the right shape, so its entries are still coerced rather than
+        # discarded — only the shape check is new.
+        await backend.store("ns:__index__", {"keys": [1, 2]})
+        index = MemoryStoreKeyIndex(store=backend, index_key="ns:__index__")
+        assert await index.keys() == ["1", "2"]
+
+    async def test_tuple_field_is_accepted(self, backend: DictMemoryStore) -> None:
+        # A backend that round-trips JSON or msgpack may hand back either.
+        await backend.store("ns:__index__", {"keys": ("a", "b")})
+        index = MemoryStoreKeyIndex(store=backend, index_key="ns:__index__")
+        assert await index.keys() == ["a", "b"]
+
     async def test_separate_index_keys_do_not_collide(self, backend: DictMemoryStore) -> None:
         first = MemoryStoreKeyIndex(store=backend, index_key="a:__index__")
         second = MemoryStoreKeyIndex(store=backend, index_key="b:__index__")

@@ -85,10 +85,17 @@ class MemoryStoreKeyIndex:
         """Return the indexed keys in insertion order.
 
         Reads take the lock as well as writes, so a caller never observes the
-        state a half-finished mutation is about to replace. An absent or
-        malformed record reads as empty rather than raising: an index is a
-        derived convenience, and a store that has never been written to simply
-        holds nothing.
+        state a half-finished mutation is about to replace.
+
+        An absent record, a record without the configured field, and a record
+        whose field does not hold a list or tuple all read as empty rather than
+        raising: an index is derived convenience state, and a store that has
+        never been written to simply holds nothing. That shape check is
+        deliberate, not incidental. Iterating the field directly would accept a
+        string and yield one key per character, so a record corrupted to
+        ``{"keys": "abc"}`` would enumerate as ``["a", "b", "c"]`` — a plausible
+        key list a caller cannot tell from a real one. Entries inside a
+        well-shaped list are coerced with ``str``.
 
         Returns:
             A fresh list the caller may mutate without affecting the index.
@@ -131,7 +138,10 @@ class MemoryStoreKeyIndex:
         record = await self._store.retrieve(self._index_key)
         if record is None:
             return []
-        return [str(entry) for entry in record.get(self._field, [])]
+        entries = record.get(self._field)
+        if not isinstance(entries, (list, tuple)):
+            return []
+        return [str(entry) for entry in entries]
 
     async def _write(self, keys: list[str]) -> None:
         """Overwrite the persisted key list. Caller must hold the lock."""
