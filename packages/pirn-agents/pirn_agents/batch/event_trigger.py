@@ -12,6 +12,14 @@ imported. This is the in-process *source* — a genuinely external source is a
 core trigger of its own (``KafkaTrigger``, ``ValKeyTrigger``, ``WebhookTrigger``)
 and drives the same consumer directly, or is wired here by calling :meth:`fire`
 from its handler.
+
+Lifecycle: this trigger is **single-use**, because :meth:`close` is terminal —
+it refuses further :meth:`fire` calls, so a stream that has run to its end can
+never be fed again. Re-streaming a spent trigger therefore raises instead of
+parking forever on a queue nothing can refill; construct a new ``EventTrigger``
+per run. The queue is shared by every live stream, so two concurrent consumers
+*compete* for signals (each fire reaches exactly one of them) — end-of-stream is
+the one signal that broadcasts, so closing releases all of them.
 """
 
 from __future__ import annotations
@@ -24,7 +32,13 @@ from pirn.triggers.base import Trigger
 
 
 class EventTrigger(Trigger):
-    """Fire once per externally-signalled event until closed."""
+    """Fire once per externally-signalled event until closed.
+
+    Single-use: ``close()`` is terminal, so a spent trigger refuses both
+    :meth:`fire` and a new :meth:`stream` rather than deadlocking a caller who
+    reuses it. Concurrent consumers share one queue and so split the signals
+    between them; only end-of-stream reaches all of them.
+    """
 
     def __init__(self) -> None:
         """Create an idle trigger with an empty signal queue."""

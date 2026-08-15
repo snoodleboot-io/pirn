@@ -17,7 +17,17 @@ rather than as ``CronTrigger(every_seconds=...)`` deliberately: ``every_seconds`
 mode yields its *first* request immediately, whereas an interval batch must wait
 one window before its first run so that run has a window's worth of data to
 process. Delegating through ``delay_fn`` keeps that wait-then-fire semantic and
-still reuses core's loop, close handling and ``RunRequest`` construction.
+still reuses core's loop and close handling. The ``RunRequest`` is rebuilt here
+rather than taken from the delegate, because the fire ordinal has to be per
+stream and the delegate's ``parameters_factory`` seam is zero-argument and so
+cannot tell two streams apart.
+
+Lifecycle: every :meth:`~IntervalTrigger.stream` call is independent — its own
+ordinals, its own ``max_fires`` budget — so a trigger that has run out of fires
+is reusable and can drive another batch. :meth:`~IntervalTrigger.close` is the
+one shared, and terminal, operation: it ends every live stream and makes any
+later ``stream()`` raise, rather than hand back an empty stream that reads like
+a schedule which merely has not fired yet.
 """
 
 from __future__ import annotations
@@ -30,7 +40,13 @@ from pirn.triggers.cron import CronTrigger
 
 
 class IntervalTrigger(Trigger):
-    """Fire on a fixed interval or an injected per-fire delay schedule."""
+    """Fire on a fixed interval or an injected per-fire delay schedule.
+
+    Re-streamable: each :meth:`stream` numbers its own fires from 1 and gets its
+    own ``max_fires`` budget, so sequential and concurrent consumers never share
+    a counter. :meth:`close` is terminal and applies to the whole trigger, so a
+    caller that wants to run the schedule again must simply not close it.
+    """
 
     def __init__(
         self,

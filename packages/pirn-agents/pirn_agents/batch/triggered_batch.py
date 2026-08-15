@@ -42,7 +42,12 @@ from pirn_agents.batch.map_agent import MapAgent
 
 
 class TriggeredBatch:
-    """Drive a :class:`MapAgent` once per fire of a core :class:`Trigger`."""
+    """Drive a :class:`MapAgent` once per fire of a core :class:`Trigger`.
+
+    The trigger's lifecycle stays with whoever constructed it unless
+    ``owns_trigger=True`` transfers it, so binding a trigger here does not
+    consume it and the same trigger can drive another run.
+    """
 
     def __init__(
         self,
