@@ -8,6 +8,11 @@ injected :class:`~pirn_agents.sessions.session_store.SessionStore` — the same
 store type an agent run checkpoints to. On restart, :meth:`load` reads the latest
 checkpoint back into a :class:`BatchProgress` so already-completed items are
 skipped. No batch-specific persistence backend is introduced.
+
+The ``batch_id`` is the whole of the namespace: two runs sharing one id share
+one skip-set. :meth:`scoped` derives a *sibling* checkpointer under a narrower
+id, which is how a repeating batch keeps each occurrence's resume state
+separate while still resuming within an occurrence (PIR-803).
 """
 
 from __future__ import annotations
@@ -44,6 +49,31 @@ class BatchCheckpointer:
     def batch_id(self) -> str:
         """The batch id this checkpointer persists under."""
         return self._batch_id
+
+    def scoped(self, suffix: str) -> BatchCheckpointer:
+        """Return a sibling checkpointer namespaced under ``"<batch_id>-<suffix>"``.
+
+        The same store, a narrower key. A batch that runs repeatedly — once per
+        trigger fire, say — resumes correctly *within* one occurrence by using
+        one stable suffix for it, while a different suffix keeps the next
+        occurrence's skip-set entirely separate. Without that, an item key
+        repeating across occurrences (a customer id, a partition key) is read as
+        already-done and silently skipped.
+
+        Args:
+            suffix: The scope discriminator, e.g. a fire ordinal. Must be
+                non-empty and stable for the occurrence it names, since it *is*
+                the resume key.
+
+        Returns:
+            A new ``BatchCheckpointer`` over this one's store.
+
+        Raises:
+            ValueError: If ``suffix`` is not a non-empty ``str``.
+        """
+        if not isinstance(suffix, str) or not suffix:
+            raise ValueError("BatchCheckpointer.scoped: suffix must be a non-empty str")
+        return BatchCheckpointer(store=self._store, batch_id=f"{self._batch_id}-{suffix}")
 
     async def load(self) -> BatchProgress:
         """Return the persisted progress, or empty progress when none exists yet."""
