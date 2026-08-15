@@ -83,6 +83,21 @@ class _DuckTypedPageSize:
         return "1 UNION SELECT pw FROM secrets--"
 
 
+class _LyingCursor(str):
+    """A ``str`` subclass vouching for a payload its real buffer contradicts.
+
+    ``isdigit``/``isascii`` are the caller's code, so a guard built from them
+    admits text that ``int()`` then chokes on — and CPython's ValueError quotes
+    the offending string, carrying the payload into the logs.
+    """
+
+    def isdigit(self) -> bool:
+        return True
+
+    def isascii(self) -> bool:
+        return True
+
+
 class _HostileIdentifier:
     """Anything exposing ``.sql`` was interpolated verbatim if swapped in post-hoc."""
 
@@ -234,6 +249,24 @@ class TestHostileCursorsAreRejected:
         source = SqlTableSource(connector=_FakeSqlConnector(), table="users")
         with pytest.raises(TypeError, match="cursor"):
             await source.fetch_page(7)  # pyright: ignore[reportArgumentType]
+
+    async def test_a_lying_str_subclass_cursor_never_reaches_int(self) -> None:
+        # A str subclass can override isdigit()/isascii() to vouch for a payload
+        # its real buffer does not contain. Parsing must read the buffer, never
+        # the object's claims about itself, and the rejection must not replay the
+        # payload — CPython's own int() ValueError quotes the string verbatim.
+        connector = _FakeSqlConnector(["id"], _rows(1))
+        source = SqlTableSource(connector=connector, table="users")
+        with pytest.raises(ValueError) as info:
+            await source.fetch_page(_LyingCursor("0; DROP TABLE secrets"))
+        assert connector.calls == []
+        assert "DROP TABLE secrets" not in str(info.value)
+
+    async def test_the_cursor_rejection_never_echoes_the_payload(self) -> None:
+        source = SqlTableSource(connector=_FakeSqlConnector(), table="users")
+        with pytest.raises(ValueError) as info:
+            await source.fetch_page("0 UNION SELECT pw FROM secrets")
+        assert "secrets" not in str(info.value)
 
 
 class TestHostilePageSizesAreRejected:

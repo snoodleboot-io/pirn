@@ -55,7 +55,9 @@ Two caveats a caller must know:
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping, Sequence
+from re import Pattern
 from typing import Any, ClassVar
 
 from pirn.connectors.capabilities.table_source import TableSource
@@ -92,6 +94,10 @@ class SqlTableSource(TableSource):
     # module constant so a deployment with a genuinely larger appetite can subclass
     # instead of editing this module; see _validated_page_size for why a cap exists.
     _maximum_page_size: ClassVar[int] = 1_000_000
+
+    # A whole cursor: ASCII digits only. See _offset_from_cursor for why this is a
+    # regex and not str.isdigit()/isascii().
+    _cursor_pattern: ClassVar[Pattern[str]] = re.compile(r"[0-9]+")
 
     def __init__(
         self,
@@ -204,22 +210,33 @@ class SqlTableSource(TableSource):
         return f"{self._scan_prefix} LIMIT {int(limit)} OFFSET {int(offset)}"
 
     def _offset_from_cursor(self, cursor: str | None) -> int:
-        """Parse a cursor into a non-negative row offset, rejecting anything else."""
+        """Parse a cursor into a non-negative row offset, rejecting anything else.
+
+        Matching is done with a regex rather than ``str`` predicates. ``isascii``
+        and ``isdigit`` are methods on the caller's object, and ``isinstance``
+        admits ``str`` subclasses, so a subclass overriding them could vouch for a
+        buffer they do not describe — after which ``int()`` raised CPython's own
+        ``ValueError``, which quotes the offending string and so carried the
+        payload into the logs. ``re`` reads the honest buffer, and the offset is
+        parsed from ``match.group()``, which is an exact ``str`` of ASCII digits
+        and therefore cannot fail to parse or echo anything.
+
+        ``[0-9]`` rather than ``\\d``: the latter also matches Arabic-Indic and
+        other Unicode decimal forms, which ``int()`` would happily accept.
+        """
         if cursor is None:
             return 0
         if not isinstance(cursor, str):
             raise TypeError(
                 f"SqlTableSource: cursor must be a str or None, got {type(cursor).__name__}"
             )
-        # ASCII-only digits: str.isdigit() alone accepts Arabic-Indic and other
-        # Unicode decimal forms, and would also let a signed, spaced or
-        # exponent-bearing string through to int().
-        if not cursor.isascii() or not cursor.isdigit():
+        match = self._cursor_pattern.fullmatch(cursor)
+        if match is None:
             raise ValueError(
                 "SqlTableSource: cursor must be an ASCII decimal row offset returned by a "
                 "previous fetch_page() call"
             )
-        return int(cursor)
+        return int(match.group())
 
     @classmethod
     def _validated_page_size(cls, page_size: int) -> int:
