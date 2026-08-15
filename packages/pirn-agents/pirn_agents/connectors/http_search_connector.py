@@ -52,6 +52,18 @@ class HttpSearchConnector(SearchBackend):
             TypeError: If ``http`` is not an :class:`HttpConnector`.
             ValueError: If ``endpoint`` is empty.
         """
+        # PIR-722 reviewed this concrete-type guard and kept it, on narrower
+        # grounds than the one in WebCrawlSourceConnector. The egress argument is
+        # weaker here because ``endpoint`` is operator-configured rather than
+        # attacker-supplied, so the SSRF guard is not what this check is
+        # protecting. It is kept because there is no HTTP interface in core to
+        # depend on instead: the alternative is not a better abstraction but no
+        # check at all, which would turn a mistyped injection into an
+        # AttributeError raised deep inside ``request()`` on the first search
+        # rather than a clear TypeError at construction. The adapter also relies
+        # on HttpConnector's pooling, auth-header and retry behaviour, none of
+        # which a bare structural type would promise. Revisit under PIR-792,
+        # which is where a core HTTP abstraction would come from.
         if not isinstance(http, HttpConnector):
             raise TypeError(
                 f"HttpSearchConnector: http must be an HttpConnector, got {type(http).__name__}"
