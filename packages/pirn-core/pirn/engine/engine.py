@@ -205,6 +205,10 @@ class Engine:
                 break
 
             tasks: dict[str, asyncio.Task[tuple[Result[Any], dict[str, str], datetime]]] = {}
+            # The knot instance this run actually dispatched, kept so lineage
+            # is read back off the copy that executed rather than off the
+            # shared graph knot -- see ``Knot.run_scoped_copy`` (PIR-809).
+            dispatched: dict[str, Knot] = {}
             for kid in ready:
                 knot = shed.knot(kid)
                 ctx.status.transition(kid, KnotState.RUNNING)
@@ -231,11 +235,18 @@ class Engine:
                 materialized = await self._materialize(
                     knot, decision, shed, handles, handle_transports, active_transport
                 )
-                tasks[kid] = asyncio.create_task(self._dispatch_with_timing(knot, materialized))
+                # Dispatch a copy so run-derived state the knot stashes for
+                # ``lineage_extra`` lands on something this run owns.  Several
+                # knots write that state onto ``self``, and it is read back
+                # only after the await below -- long enough for a concurrent
+                # run to overwrite it on the shared graph knot (PIR-809).
+                run_knot = knot.run_scoped_copy()
+                dispatched[kid] = run_knot
+                tasks[kid] = asyncio.create_task(self._dispatch_with_timing(run_knot, materialized))
 
             for kid, task in tasks.items():
                 result, parent_hashes, started_at = await task
-                knot = shed.knot(kid)
+                knot = dispatched[kid]
                 # Re-register placeholder records with the live manager.
                 result = self._rebind_err(result, kid, ctx)
                 results[kid] = result

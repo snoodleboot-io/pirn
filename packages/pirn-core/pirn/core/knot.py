@@ -33,6 +33,7 @@ explicitly.
 from __future__ import annotations
 
 import asyncio
+import copy
 import inspect
 import types as _types
 from collections.abc import Mapping
@@ -349,10 +350,53 @@ class Knot:
         implementation returns fan-out metadata when a map operation ran,
         otherwise an empty dict.
 
+        Called by the engine after ``__call__`` returns on the **run-scoped
+        copy** it dispatched, so an override may read execution-time state
+        that ``process()``/``__call__`` stashed on ``self`` -- that state
+        belongs to one run and cannot be seen by another.
+
         Called by the engine after ``__call__`` returns; the returned dict is
         merged into ``KnotLineage.extra``.
         """
         return dict(self._mutable_fan_out_extra)
+
+    def run_scoped_copy(self) -> Knot:
+        """Return a copy of this knot for one run to execute and mutate.
+
+        A ``Tapestry`` is routinely built once at startup and used to serve
+        many concurrent requests, so its knots are shared across runs.
+        Several of them publish run-derived metadata by writing it onto
+        ``self`` for ``lineage_extra`` to read back -- the selected branch, a
+        gate's predicate outcome, fan-out element counts, a ``SubTapestry``'s
+        ``inner_run_id``.  The engine reads that slot only after awaiting the
+        dispatch, and a sibling run finishing inside that window overwrote it,
+        so runs recorded each other's answers (PIR-809).  Nothing failed: the
+        outputs stayed correct and each record still carried its own run id,
+        which is what made the wrong ``inner_run_id`` -- the only navigation
+        path from an outer lineage record to its child run -- so misleading.
+
+        Giving each run its own copy to execute fixes every such slot at once,
+        including ones added later, instead of defending each site
+        individually.  The copy keeps this knot's ``knot_id``, config, parents
+        and adapters, so the engine's id-keyed bookkeeping (results, handles,
+        status, lineage) is unaffected, and it deliberately does not register
+        with a tapestry: it belongs to one dispatch, not to the graph.  The
+        shared knot is never executed and so is never mutated, which also
+        closes the stale-read path between *sequential* runs.
+
+        Mutating ``self`` inside ``process()`` still works within a run -- a
+        fan-out calls ``process()`` many times on the same copy.  Only
+        accumulation *across* runs is dropped, which was never safe on a
+        shared graph.
+
+        Override in a subclass whose per-run state needs deeper isolation
+        than a shallow copy provides.
+
+        Returns:
+            A copy of this knot for a single dispatch, leaving ``self``
+            untouched.
+        """
+        return copy.copy(self)
 
     # ----------------------------------------------------------- properties
 

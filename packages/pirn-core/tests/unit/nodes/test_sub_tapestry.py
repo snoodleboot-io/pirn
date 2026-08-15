@@ -150,22 +150,49 @@ class _Flaky(SubTapestry):
 class TestInnerRunMetaOnFailure(unittest.IsolatedAsyncioTestCase):
     """A failed inner run must not report the previous run's inner_run_id."""
 
+    @staticmethod
+    def _recorded_meta(result: RunResult, knot_id: str) -> dict[str, Any]:
+        """Return the lineage ``extra`` the engine recorded for ``knot_id``.
+
+        Read from the run's lineage rather than from the knot instance: since
+        PIR-809 the engine dispatches a per-run copy, so the shared graph knot
+        carries no run state for either run to inspect.  The lineage record is
+        where this metadata was always headed anyway.
+        """
+        for row in result.lineage:
+            if row.knot_id == knot_id:
+                return row.extra
+        raise AssertionError(f"no lineage row for {knot_id!r}")
+
     async def test_failure_does_not_inherit_the_previous_runs_meta(self) -> None:
         _Flaky.should_fail = False
         try:
             with Tapestry() as t:
-                knot = _Flaky(_config=KnotConfig(id="flaky"))
+                _Flaky(_config=KnotConfig(id="flaky"))
             ok_run = await t.run(RunRequest())
             self.assertTrue(ok_run.succeeded)
-            first_inner_id = knot.lineage_extra()["inner_run_id"]
+            first_inner_id = self._recorded_meta(ok_run, "flaky")["inner_run_id"]
 
             _Flaky.should_fail = True
             fail_run = await t.run(RunRequest())
             self.assertFalse(fail_run.succeeded)
-            meta = knot.lineage_extra()
+            meta = self._recorded_meta(fail_run, "flaky")
             # Populated, and pointing at the run that actually failed.
             self.assertIn("inner_run_id", meta)
             self.assertNotEqual(meta["inner_run_id"], first_inner_id)
             self.assertEqual(meta["inner_failures"], 1)
         finally:
             _Flaky.should_fail = False
+
+    async def test_the_shared_knot_carries_no_inner_run_meta_after_a_run(self) -> None:
+        """The reset in ``__call__`` protects the copy; the graph knot stays clean.
+
+        Pins that the staleness PIR-764 fixed cannot come back through the
+        shared instance either -- there is nothing on it to go stale.
+        """
+        _Flaky.should_fail = False
+        with Tapestry() as t:
+            knot = _Flaky(_config=KnotConfig(id="flaky"))
+        await t.run(RunRequest())
+
+        self.assertEqual(knot.lineage_extra(), {})
