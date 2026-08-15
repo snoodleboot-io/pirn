@@ -26,6 +26,27 @@ streaming per-fire progress to its caller is its whole public contract, whereas
 One deliberate departure: ``run_forever`` routes every ``BaseException`` to
 ``on_error``, so an observer silently swallows cancellation. Here
 ``asyncio.CancelledError`` is re-raised before ``on_error`` is consulted.
+
+Checkpoint scoping (PIR-803)
+----------------------------
+The single ``MapAgent`` is reused for every fire, and a ``MapAgent`` re-seeds
+its skip-set from its checkpointer on every run. A checkpoint is therefore
+scoped to *one fire*: each run is given the fire's ordinal as its
+``checkpoint_scope``, so an interrupted fire still resumes where it stopped
+while the next fire starts clean. Sharing one namespace across fires instead
+made a key that repeats between windows — a customer id, a file name, a
+partition key — read as already-done, so a fire could report success having
+processed nothing. Callers who genuinely want cross-fire de-duplication ask for
+it with ``shared_checkpoint=True``, which is sound only when item keys are
+unique across *all* fires.
+
+The fire ordinal is taken from the trigger's own
+``request.parameters["fire_ordinal"]`` rather than from a counter local to this
+loop, so the ordinal that names the batch, selects the inputs, scopes the
+checkpoint, and reaches an ``on_result`` observer are all one number. Carrying
+that parameter is a convention of this package's triggers, not something the
+core ``Trigger`` base guarantees, so a fire that omits it (or carries a
+non-positive-int) falls back to this loop's counter.
 """
 
 from __future__ import annotations
@@ -57,6 +78,7 @@ class TriggeredBatch:
         inputs_fn: Callable[[int], Iterable[object]],
         batch_id: str = "batch",
         owns_trigger: bool = False,
+        shared_checkpoint: bool = False,
         on_result: Callable[[RunRequest, BatchProgress], Awaitable[None]] | None = None,
         on_error: Callable[[RunRequest, BaseException], Awaitable[None]] | None = None,
     ) -> None:
@@ -66,8 +88,10 @@ class TriggeredBatch:
             trigger: The fire source — any core ``Trigger``. Its lifecycle
                 belongs to the caller unless ``owns_trigger`` says otherwise.
             map_agent: The configured batch runner invoked on each fire.
-            inputs_fn: Maps a 1-based fire ordinal to that run's input items —
-                called fresh per fire so each run can pick up new data.
+            inputs_fn: Maps the fire ordinal to that run's input items — called
+                fresh per fire so each run can pick up new data. The ordinal is
+                the trigger's own ``fire_ordinal`` where it publishes one, else
+                a 1-based counter over this loop's fires.
             batch_id: Stable prefix for each run's reported batch id
                 (``"<batch_id>-<ordinal>"``).
             owns_trigger: Whether :meth:`run` closes the trigger when it exits.
@@ -78,6 +102,15 @@ class TriggeredBatch:
                 always-close semantics and no leak if the consumer walks away.
                 Closing is terminal for both triggers in this package, so an
                 owned trigger must not be reused.
+            shared_checkpoint: Whether every fire shares one checkpoint
+                namespace. Defaults to ``False``: each fire checkpoints under
+                its own ordinal, so an interrupted fire resumes and a later fire
+                never skips work merely because an earlier one used the same
+                item key. Pass ``True`` only when item keys are globally unique
+                across *all* fires and you want an item completed in one fire
+                skipped in every later one — with repeating keys it silently
+                drops the whole of a later fire's work. It has no effect unless
+                the ``map_agent`` was given a checkpointer.
             on_result: Awaited after each completed run with the fire's
                 ``RunRequest`` and the ``BatchProgress`` about to be yielded.
             on_error: Awaited when a run raises, with the fire's ``RunRequest``
@@ -88,7 +121,7 @@ class TriggeredBatch:
 
         Raises:
             TypeError: If ``trigger``/``map_agent`` are the wrong type,
-                ``owns_trigger`` is not a ``bool``, or
+                ``owns_trigger``/``shared_checkpoint`` are not ``bool``, or
                 ``inputs_fn``/``on_result``/``on_error`` are not callable.
             ValueError: If ``batch_id`` is empty.
         """
@@ -118,11 +151,17 @@ class TriggeredBatch:
             raise TypeError(
                 f"TriggeredBatch: owns_trigger must be a bool, got {type(owns_trigger).__name__}"
             )
+        if not isinstance(shared_checkpoint, bool):
+            raise TypeError(
+                f"TriggeredBatch: shared_checkpoint must be a bool, "
+                f"got {type(shared_checkpoint).__name__}"
+            )
         self._trigger = trigger
         self._map_agent = map_agent
         self._inputs_fn = inputs_fn
         self._batch_id = batch_id
         self._owns_trigger = owns_trigger
+        self._shared_checkpoint = shared_checkpoint
         self._on_result = on_result
         self._on_error = on_error
 
@@ -141,10 +180,11 @@ class TriggeredBatch:
             One ``BatchProgress`` per completed fire. A fire whose run failed
             and was absorbed by ``on_error`` yields nothing.
         """
-        ordinal = 0
+        fires = 0
         try:
             async for request in self._trigger.stream():
-                ordinal += 1
+                fires += 1
+                ordinal = TriggeredBatch._fire_ordinal(request, fires)
                 try:
                     progress = await self._run_once(ordinal)
                 except asyncio.CancelledError:
@@ -164,20 +204,43 @@ class TriggeredBatch:
                 with contextlib.suppress(Exception):
                     await self._trigger.close()
 
+    @staticmethod
+    def _fire_ordinal(request: RunRequest, fallback: int) -> int:
+        """Return the trigger's own fire ordinal, or ``fallback`` when unusable.
+
+        The ordinal drives the reported ``batch_id``, the ``inputs_fn`` call and
+        the checkpoint scope, so taking it from the request keeps all three in
+        step with what an ``on_result`` observer reads off the same request. A
+        core ``Trigger`` is not obliged to publish ``fire_ordinal`` — only this
+        package's triggers do — so anything missing or not a positive ``int``
+        falls back to this loop's own count of fires rather than failing a run
+        or, worse, collapsing two fires onto one checkpoint scope.
+        """
+        ordinal = request.parameters.get("fire_ordinal")
+        if isinstance(ordinal, bool) or not isinstance(ordinal, int) or ordinal < 1:
+            return fallback
+        return ordinal
+
     async def _run_once(self, ordinal: int) -> BatchProgress:
         """Run one batch for the given fire and summarise it.
 
+        The fire's ordinal is also its checkpoint scope, so a fire interrupted
+        part-way resumes from its own checkpoint on a replay while contributing
+        nothing to any other fire's skip-set — unless ``shared_checkpoint`` put
+        every fire back in one namespace.
+
         Args:
-            ordinal: 1-based index of the fire being run.
+            ordinal: Index of the fire being run.
 
         Returns:
             The run's ``BatchProgress`` — ``completed_keys`` for the items that
             succeeded, out of ``total`` attempted.
         """
         inputs = self._inputs_fn(ordinal)
+        scope = None if self._shared_checkpoint else str(ordinal)
         completed: set[str] = set()
         total = 0
-        async for result in self._map_agent.run(inputs):
+        async for result in self._map_agent.run(inputs, checkpoint_scope=scope):
             total += 1
             if result.succeeded:
                 completed.add(result.key)
