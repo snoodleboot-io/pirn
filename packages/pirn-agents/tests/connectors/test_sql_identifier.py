@@ -14,6 +14,43 @@ import pytest
 from pirn_agents.connectors.sql_identifier import SqlIdentifier
 
 
+class _Liar(str):
+    """A ``str`` subclass whose ``split`` and ``__format__`` both lie.
+
+    ``isinstance(x, str)`` admits subclasses, so every ``str`` method the class
+    calls is really a call into attacker-controlled code. ``re`` is the exception:
+    it reads the honest underlying buffer, which is why the validated *match text*
+    — never the input object — is what may be quoted into a statement.
+    """
+
+    def __format__(self, format_spec: str) -> str:
+        return 'x" ; DROP TABLE secrets; --'
+
+    def split(self, sep: str | None = None, maxsplit: int = -1) -> list[str]:
+        return [self]
+
+
+class _FormatOnlyLiar(str):
+    """A ``str`` subclass overriding only ``__format__`` — the interpolation hook."""
+
+    def __format__(self, format_spec: str) -> str:
+        return 'x" ; DROP TABLE secrets; --'
+
+
+class _SplitOnlyLiar(str):
+    """A ``str`` subclass overriding only ``split`` — the part-decomposition hook."""
+
+    def split(self, sep: str | None = None, maxsplit: int = -1) -> list[str]:
+        return ["users"]
+
+
+class _StrOnlyLiar(str):
+    """A ``str`` subclass overriding only ``__str__``, the usual normalisation hook."""
+
+    def __str__(self) -> str:
+        return 'x" ; DROP TABLE secrets; --'
+
+
 class TestAcceptedIdentifiers:
     def test_bare_name_is_quoted(self) -> None:
         assert SqlIdentifier("users").sql == '"users"'
@@ -87,6 +124,50 @@ class TestHostileIdentifiersAreRejected:
         with pytest.raises(ValueError) as info:
             SqlIdentifier("users; DROP TABLE secrets")
         assert "DROP TABLE secrets" not in str(info.value)
+
+
+class TestStrSubclassesCannotLieTheirWayIntoSql:
+    """``isinstance(raw, str)`` admits subclasses, so ``str`` methods are hostile code.
+
+    The class must derive the rendered identifier from the text it actually
+    validated — the regex match against the honest buffer — rather than from any
+    method or dunder the input object controls. These tests pin that no override
+    of ``split``, ``__format__`` or ``__str__`` can change what is emitted.
+    """
+
+    def test_a_subclass_lying_in_split_and_format_still_renders_its_real_buffer(self) -> None:
+        assert SqlIdentifier(_Liar("users")).sql == '"users"'
+
+    def test_a_format_only_liar_cannot_inject(self) -> None:
+        assert SqlIdentifier(_FormatOnlyLiar("users")).sql == '"users"'
+
+    def test_a_split_only_liar_cannot_inject(self) -> None:
+        assert SqlIdentifier(_SplitOnlyLiar("users")).sql == '"users"'
+
+    def test_a_str_only_liar_cannot_inject(self) -> None:
+        assert SqlIdentifier(_StrOnlyLiar("users")).sql == '"users"'
+
+    def test_a_hostile_buffer_is_rejected_even_when_split_vouches_for_it(self) -> None:
+        # split() claims a single clean part; the real buffer is an injection.
+        # Validation must read the buffer, so this is refused at construction.
+        with pytest.raises(ValueError, match="SqlIdentifier"):
+            SqlIdentifier(_SplitOnlyLiar('users"; DROP TABLE secrets; --'))
+
+    @pytest.mark.parametrize("liar", [_Liar, _FormatOnlyLiar, _SplitOnlyLiar, _StrOnlyLiar])
+    def test_no_payload_survives_into_the_rendered_sql(self, liar: type[str]) -> None:
+        rendered = SqlIdentifier(liar("users")).sql
+        assert "DROP TABLE" not in rendered
+        assert rendered.count('"') == 2
+
+    def test_the_rendered_sql_is_a_plain_str_not_the_subclass(self) -> None:
+        # A subclass leaking out would re-arm the same trick at the next
+        # interpolation site downstream.
+        assert type(SqlIdentifier(_Liar("users")).sql) is str
+
+    def test_text_is_the_validated_plain_str_not_the_original_object(self) -> None:
+        text = SqlIdentifier(_Liar("users")).text
+        assert text == "users"
+        assert type(text) is str
 
 
 class TestQuotingIsClosedUnderRerendering:

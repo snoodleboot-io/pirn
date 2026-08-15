@@ -46,13 +46,37 @@ lands in logs.
 from __future__ import annotations
 
 import re
+from re import Pattern
+from typing import ClassVar
 
 
 class SqlIdentifier:
     """A SQL table/column identifier validated against a portable allowlist."""
 
+    # One whole identifier: a part, optionally followed by a dotted second part.
+    # Matching the *whole* input in one pass is what keeps validation and
+    # rendering reading the same text — see __init__ for why that matters.
+    _pattern: ClassVar[Pattern[str]] = re.compile(
+        r"[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?"
+    )
+    _dot: ClassVar[Pattern[str]] = re.compile(r"\.")
+
     def __init__(self, raw: str) -> None:
-        """Validate ``raw`` and retain its parts for quoted rendering.
+        """Validate ``raw`` and retain the validated text for quoted rendering.
+
+        ``isinstance(raw, str)`` admits *subclasses*, and a subclass may override
+        any ``str`` method. That is not hypothetical: a subclass whose ``split``
+        returns itself and whose ``__format__`` returns an injection defeated a
+        validate-then-quote implementation that split the input and interpolated
+        the resulting objects, because ``re`` reads the honest underlying buffer
+        while the f-string called the lying ``__format__``.
+
+        The invariant that closes this is that **the text which is validated is
+        exactly the text which is quoted**. Validation matches the whole input
+        with a regex — which reads the buffer, not the object's methods — and
+        everything downstream is derived from ``match.group()``, which CPython
+        returns as an exact ``str`` regardless of the input's class. No method or
+        dunder of the caller's object is consulted after that point.
 
         Args:
             raw: An unquoted identifier, optionally ``schema``-qualified with a
@@ -65,22 +89,24 @@ class SqlIdentifier:
         """
         if not isinstance(raw, str):
             raise TypeError(f"SqlIdentifier: identifier must be a str, got {type(raw).__name__}")
-        pattern = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
-        parts = raw.split(".")
-        if len(parts) > 2:
-            raise ValueError(
-                "SqlIdentifier: expected at most a 'schema.name' identifier, "
-                f"got {len(parts)} dot-separated parts"
-            )
-        for position, part in enumerate(parts, start=1):
-            if pattern.fullmatch(part) is None:
+        match = self._pattern.fullmatch(raw)
+        if match is None:
+            # Count parts with a regex too: str.split on a subclass is the
+            # caller's code, and the count reaches the message below.
+            seen = len(self._dot.split(raw))
+            if seen > 2:
                 raise ValueError(
-                    f"SqlIdentifier: part {position} of {len(parts)} is not a portable SQL "
-                    "identifier; each part must match [A-Za-z_][A-Za-z0-9_]* "
-                    "(ASCII letters, digits and underscore, not starting with a digit)"
+                    "SqlIdentifier: expected at most a 'schema.name' identifier, "
+                    f"got {seen} dot-separated parts"
                 )
-        self._parts = tuple(parts)
-        self._raw = raw
+            raise ValueError(
+                "SqlIdentifier: not a portable SQL identifier; each dot-separated part "
+                "must match [A-Za-z_][A-Za-z0-9_]* (ASCII letters, digits and underscore, "
+                "not starting with a digit)"
+            )
+        text = match.group()
+        self._parts = tuple(text.split("."))
+        self._text = text
 
     @property
     def sql(self) -> str:
@@ -89,9 +115,16 @@ class SqlIdentifier:
 
     @property
     def text(self) -> str:
-        """Return the original unquoted identifier as supplied."""
-        return self._raw
+        """Return the validated identifier as a plain ``str``.
+
+        This is the text the allowlist actually accepted, never the object the
+        caller passed: returning a ``str`` subclass would hand a downstream
+        interpolation site the same lying ``__format__`` this class exists to
+        defuse. It is unquoted, so a caller embedding it in SQL must quote it —
+        prefer :attr:`sql`, which is already safe to interpolate.
+        """
+        return self._text
 
     def __repr__(self) -> str:
         """Return an unambiguous representation naming the validated identifier."""
-        return f"SqlIdentifier({self._raw!r})"
+        return f"SqlIdentifier({self._text!r})"
