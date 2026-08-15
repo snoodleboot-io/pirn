@@ -8,6 +8,7 @@ reads. Offline: an injected connection (sqlite) / pool (postgres) makes
 
 from __future__ import annotations
 
+import sqlite3
 from collections.abc import Sequence
 from typing import Any
 
@@ -32,18 +33,38 @@ class _FakeCursor:
 
 
 class _FakeAiosqliteConnection:
+    """A double that models ``sqlite3``'s implicit-transaction rule.
+
+    ``sqlite3`` opens a transaction for DML only — not for reads or DDL — and
+    ``in_transaction`` reports it. ``ColumnAwareSqlitePool`` reads that flag to tell
+    the transaction it opened from one the caller already had (PIR-801), so the
+    double has to carry it or it would not exercise the real code path.
+    """
+
     def __init__(self, columns: Sequence[str], rows: Sequence[Sequence[Any]]) -> None:
         self._columns = columns
         self._rows = rows
         self.calls: list[tuple[str, tuple[Any, ...]]] = []
         self.commits = 0
+        self.rollbacks = 0
+        self.in_transaction = False
+
+    def _make_cursor(self) -> _FakeCursor:
+        return _FakeCursor(self._columns, self._rows)
 
     async def execute(self, query: str, parameters: tuple[Any, ...]) -> _FakeCursor:
         self.calls.append((query, parameters))
-        return _FakeCursor(self._columns, self._rows)
+        if query.lstrip().split(" ")[0].upper() in ("INSERT", "UPDATE", "DELETE", "REPLACE"):
+            self.in_transaction = True
+        return self._make_cursor()
 
     async def commit(self) -> None:
         self.commits += 1
+        self.in_transaction = False
+
+    async def rollback(self) -> None:
+        self.rollbacks += 1
+        self.in_transaction = False
 
     async def close(self) -> None:
         return None
@@ -55,8 +76,7 @@ class _ExplodingCursor(_FakeCursor):
 
 
 class _ExplodingConnection(_FakeAiosqliteConnection):
-    async def execute(self, query: str, parameters: tuple[Any, ...]) -> _FakeCursor:
-        self.calls.append((query, parameters))
+    def _make_cursor(self) -> _FakeCursor:
         return _ExplodingCursor(self._columns, self._rows)
 
 
@@ -114,6 +134,22 @@ class TestSqlitePoolDurability:
         with pytest.raises(RuntimeError, match="blew up"):
             await pool.fetch_columns("INSERT INTO t (id) VALUES (?)", [1])
         assert conn.commits == 0
+        # It is not enough to skip the commit: the transaction the failed statement
+        # opened must be ended, or the next call inherits its partial write.
+        assert conn.rollbacks == 1
+        assert conn.in_transaction is False
+
+    async def test_a_read_neither_commits_nor_rolls_back(self) -> None:
+        conn = _FakeAiosqliteConnection(["id"], [[1]])
+        pool = ColumnAwareSqlitePool(SqliteConfig(database=":memory:"), connection=conn)  # pyright: ignore[reportCallIssue]
+        await pool.fetch_columns("SELECT id FROM t")
+        assert (conn.commits, conn.rollbacks) == (0, 0)
+
+    async def test_ddl_neither_commits_nor_rolls_back(self) -> None:
+        conn = _FakeAiosqliteConnection([], [])
+        pool = ColumnAwareSqlitePool(SqliteConfig(database=":memory:"), connection=conn)  # pyright: ignore[reportCallIssue]
+        await pool.fetch_columns("CREATE TABLE t (id INTEGER)")
+        assert (conn.commits, conn.rollbacks) == (0, 0)
 
     async def test_a_write_survives_close_and_reopen(self, tmp_path: Any) -> None:
         pytest.importorskip("aiosqlite")
@@ -131,6 +167,117 @@ class TestSqlitePoolDurability:
             await reader.close()
         assert columns == ["id", "name"]
         assert rows == [[1, "sprocket"]]
+
+
+class TestSqlitePoolTransactionOwnership:
+    """Regression (PIR-801): ``fetch_columns`` must own only the transaction it opened.
+
+    The PIR-801 commit was unconditional, which made every call commit whatever
+    happened to be open on the shared connection — including a partial write left
+    behind by a *failed* statement, and a transaction the caller opened themselves.
+    These exercise a real aiosqlite file: the behaviour under test is SQLite's own
+    (``OR FAIL`` keeps rows already changed; ``COMMIT`` upgrades to an exclusive
+    lock), so a hand-written double cannot show it.
+    """
+
+    @staticmethod
+    async def _seed(database: str) -> None:
+        """Create ``widget`` with a UNIQUE name and three committed rows."""
+        pool = ColumnAwareSqlitePool(SqliteConfig(database=database))  # pyright: ignore[reportCallIssue]
+        try:
+            await pool.fetch_columns(
+                "CREATE TABLE widget (id INTEGER PRIMARY KEY, name TEXT UNIQUE)"
+            )
+            for row_id, name in ((1, "a"), (2, "b"), (3, "c")):
+                await pool.fetch_columns(
+                    "INSERT INTO widget (id, name) VALUES (?, ?)", [row_id, name]
+                )
+        finally:
+            await pool.close()
+
+    @staticmethod
+    def _rows_on_disk(database: str) -> list[tuple[Any, ...]]:
+        """Read the table back with plain ``sqlite3`` — the durable truth."""
+        with sqlite3.connect(database) as disk:
+            return disk.execute("SELECT id, name FROM widget ORDER BY id").fetchall()
+
+    async def test_a_failed_statement_leaves_no_durable_residue(self, tmp_path: Any) -> None:
+        pytest.importorskip("aiosqlite")
+        database = str(tmp_path / "residue.db")
+        await self._seed(database)
+
+        pool = ColumnAwareSqlitePool(SqliteConfig(database=database))  # pyright: ignore[reportCallIssue]
+        try:
+            # ``UPDATE OR FAIL`` renames row 1, then hits the UNIQUE constraint on
+            # row 2 and aborts — keeping row 1's change and leaving the transaction
+            # open.
+            with pytest.raises(sqlite3.IntegrityError):
+                await pool.fetch_columns("UPDATE OR FAIL widget SET name = 'dup'")
+            connection = await pool.acquire()
+            assert connection.in_transaction is False, "the failed statement was not rolled back"
+
+            # An innocent read that asked for nothing must not adopt the residue.
+            await pool.fetch_columns("SELECT id, name FROM widget")
+        finally:
+            await pool.close()
+
+        assert self._rows_on_disk(database) == [(1, "a"), (2, "b"), (3, "c")]
+
+    async def test_a_read_does_not_commit_a_caller_transaction(self, tmp_path: Any) -> None:
+        pytest.importorskip("aiosqlite")
+        database = str(tmp_path / "caller_txn.db")
+        await self._seed(database)
+
+        pool = ColumnAwareSqlitePool(SqliteConfig(database=database))  # pyright: ignore[reportCallIssue]
+        try:
+            # The caller drives the pool directly and opens a transaction.
+            connection = await pool.acquire()
+            cursor = await connection.execute("INSERT INTO widget (id, name) VALUES (4, 'd')")
+            await cursor.close()
+            assert connection.in_transaction is True
+
+            await pool.fetch_columns("SELECT id, name FROM widget")
+            assert connection.in_transaction is True, "the read committed the caller's transaction"
+
+            await connection.rollback()
+        finally:
+            await pool.close()
+
+        assert self._rows_on_disk(database) == [(1, "a"), (2, "b"), (3, "c")]
+
+    async def test_a_read_is_not_locked_out_by_a_concurrent_reader(self, tmp_path: Any) -> None:
+        pytest.importorskip("aiosqlite")
+        database = str(tmp_path / "locked.db")
+        await self._seed(database)
+
+        # ``timeout`` only bounds how long the lock wait takes; the outcome —
+        # rows versus OperationalError — does not depend on machine speed.
+        pool = ColumnAwareSqlitePool(  # pyright: ignore[reportCallIssue]
+            SqliteConfig(database=database, journal_mode="DELETE", timeout=0.1)
+        )
+        reader = sqlite3.connect(database, timeout=0.1)
+        try:
+            # The caller holds an open write transaction (RESERVED).
+            connection = await pool.acquire()
+            cursor = await connection.execute("INSERT INTO widget (id, name) VALUES (4, 'd')")
+            await cursor.close()
+
+            # A second connection holds a shared read lock, which blocks the
+            # exclusive lock a COMMIT needs under journal_mode=DELETE.
+            reader.execute("BEGIN")
+            reader.execute("SELECT id FROM widget").fetchall()
+
+            # A pure read must still be a pure read.
+            columns, rows = await pool.fetch_columns(
+                "SELECT id, name FROM widget WHERE id = ?", [1]
+            )
+            assert columns == ["id", "name"]
+            assert rows == [[1, "a"]]
+
+            await connection.rollback()
+        finally:
+            reader.close()
+            await pool.close()
 
 
 class _FakeRecord:

@@ -31,13 +31,23 @@ class ColumnAwarePool(DatabaseConnectionPool):
         before executing, so the same injection defence as core's ``fetch_all``
         still holds. Rows are returned uncapped; the caller applies any row cap.
 
-        **Durability contract.** Implementations must leave no uncommitted work
-        behind: when this returns, any effect of ``query`` is durable. This is not
-        automatic — the SQLite implementation has to commit explicitly (core's
-        ``SqlitePool.execute`` does the same), while asyncpg satisfies it for free
-        by autocommitting outside an explicit transaction. Before PIR-801 the
-        SQLite pool omitted the commit, so the same call was durable on Postgres
-        and silently discarded on SQLite.
+        **Durability contract.** An implementation owns exactly the transaction its
+        own statement opens, and no other:
+
+        * a statement that succeeds leaves no uncommitted work behind — when this
+          returns, any effect of ``query`` is durable;
+        * a statement that raises leaves nothing behind at all, including a partial
+          write it made before failing;
+        * a transaction the caller already had open is left untouched — neither
+          committed nor rolled back — so a caller may hold one across these calls.
+
+        This is not automatic. The SQLite implementation tracks ownership across
+        ``in_transaction`` and commits or rolls back explicitly, while asyncpg
+        satisfies the whole contract for free by autocommitting outside an explicit
+        transaction. Before PIR-801 the SQLite pool never committed, so the same
+        call was durable on Postgres and silently discarded on SQLite; committing
+        unconditionally then swung it the other way, adopting work the call had not
+        done.
 
         Raises:
             NotImplementedError: Always, in the interface.

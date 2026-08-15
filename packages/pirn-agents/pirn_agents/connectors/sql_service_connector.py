@@ -114,10 +114,15 @@ class SqlServiceConnector(ConnectorBase, SqlConnector):
     ) -> tuple[Sequence[str], Sequence[Sequence[Any]]]:
         """Run ``query`` with bound ``parameters`` and return ``(columns, rows)``.
 
-        Under ``read_only=False`` a write is durable once this returns — the pool
-        honours ``ColumnAwarePool``'s durability contract. Each statement stands
-        alone; there is no multi-statement transaction seam on this connector, so
-        callers needing one should drive the pool directly.
+        Under ``read_only=False`` a write is durable once this returns, and a
+        statement that raises leaves nothing behind — the pool honours
+        ``ColumnAwarePool``'s durability contract.
+
+        Each statement stands alone; this connector exposes no multi-statement
+        transaction seam. A caller who needs one may open it on the pool directly
+        and keep it open across calls made through here: the pool ends only the
+        transactions its own statements opened, so a read issued through this
+        method will neither commit nor roll back the caller's work.
 
         Raises:
             ValueError: In read-only mode, if ``query`` is not a single read.
