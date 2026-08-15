@@ -170,6 +170,41 @@ class TestStrSubclassesCannotLieTheirWayIntoSql:
         assert type(text) is str
 
 
+class TestTheValueObjectIsImmutable:
+    """Validation at construction is only a defence if the state cannot change after.
+
+    ``SqlIdentifier`` is the single place identifier interpolation is allowed, so
+    a writable attribute feeding ``sql`` would reopen the hole the allowlist
+    closes: rebinding the parts after a clean construction would re-inject.
+    """
+
+    def test_rebinding_the_parts_fails(self) -> None:
+        identifier = SqlIdentifier("users")
+        with pytest.raises(AttributeError):
+            identifier._parts = ('users"; DROP TABLE t; --',)
+
+    def test_rebinding_the_text_fails(self) -> None:
+        identifier = SqlIdentifier("users")
+        with pytest.raises(AttributeError):
+            identifier._text = 'users"; DROP TABLE t; --'
+
+    def test_a_new_attribute_cannot_be_attached(self) -> None:
+        identifier = SqlIdentifier("users")
+        with pytest.raises(AttributeError):
+            identifier.sql_override = "anything"  # pyright: ignore[reportAttributeAccessIssue]
+
+    def test_the_rendered_sql_is_unchanged_by_an_attempted_mutation(self) -> None:
+        identifier = SqlIdentifier("users")
+        with pytest.raises(AttributeError):
+            identifier._parts = ('users"; DROP TABLE t; --',)
+        assert identifier.sql == '"users"'
+
+    def test_deleting_state_fails(self) -> None:
+        identifier = SqlIdentifier("users")
+        with pytest.raises(AttributeError):
+            del identifier._text
+
+
 class TestQuotingIsClosedUnderRerendering:
     def test_rendered_sql_never_contains_an_unescaped_quote_run(self) -> None:
         # Every accepted identifier renders as an even number of double quotes

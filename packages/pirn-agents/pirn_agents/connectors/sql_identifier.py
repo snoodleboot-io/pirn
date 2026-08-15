@@ -51,7 +51,25 @@ from typing import ClassVar
 
 
 class SqlIdentifier:
-    """A SQL table/column identifier validated against a portable allowlist."""
+    """A SQL table/column identifier validated against a portable allowlist.
+
+    Instances are immutable. Validation happens once, at construction, so any
+    later write to the state ``sql`` is built from would bypass the allowlist
+    entirely — rebinding ``_parts`` on a cleanly-constructed instance used to
+    re-inject. Immutability is enforced two ways, deliberately: ``__slots__``
+    means there is no instance ``__dict__`` and so no arbitrary attribute can be
+    attached, and ``__setattr__``/``__delattr__`` refuse writes so an attempted
+    mutation fails loudly instead of silently doing nothing. ``__init__`` seeds
+    the slots through ``object.__setattr__``, which is the same mechanism a
+    frozen dataclass generates; a frozen dataclass was not used directly because
+    the public constructor takes raw text and stores validated *derived* state,
+    which a generated ``__init__`` cannot express.
+    """
+
+    __slots__ = ("_parts", "_text")
+
+    _parts: tuple[str, ...]
+    _text: str
 
     # One whole identifier: a part, optionally followed by a dotted second part.
     # Matching the *whole* input in one pass is what keeps validation and
@@ -105,8 +123,21 @@ class SqlIdentifier:
                 "not starting with a digit)"
             )
         text = match.group()
-        self._parts = tuple(text.split("."))
-        self._text = text
+        # object.__setattr__ because this class's own __setattr__ refuses writes.
+        object.__setattr__(self, "_parts", tuple(text.split(".")))
+        object.__setattr__(self, "_text", text)
+
+    def __setattr__(self, name: str, value: object) -> None:
+        """Refuse every attribute write: the validated state is final."""
+        raise AttributeError(
+            f"SqlIdentifier is immutable; cannot set {name!r}. Its state is validated "
+            "once at construction, so rebinding it would bypass the allowlist. "
+            "Construct a new SqlIdentifier instead."
+        )
+
+    def __delattr__(self, name: str) -> None:
+        """Refuse every attribute deletion, for the same reason as ``__setattr__``."""
+        raise AttributeError(f"SqlIdentifier is immutable; cannot delete {name!r}")
 
     @property
     def sql(self) -> str:

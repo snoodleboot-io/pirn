@@ -65,7 +65,28 @@ from pirn_agents.tools.sql.sql_connector import SqlConnector
 
 
 class SqlTableSource(TableSource):
-    """Paginated whole-table scans of one bound SQL table, as a ``TableSource``."""
+    """Paginated whole-table scans of one bound SQL table, as a ``TableSource``.
+
+    Instances are immutable. The table and ``order_by`` columns are validated once,
+    at construction, so a writable attribute would reopen the hole the allowlist
+    closes: ``_table`` was previously replaceable with any object exposing a
+    ``.sql`` string, which the renderer then interpolated verbatim. Writes are
+    refused by ``__setattr__``, and — the stronger half — the identifier portion of
+    the statement is rendered once at construction, so even a write that reaches
+    past ``__setattr__`` cannot change the SQL that is emitted.
+
+    ``__slots__`` is declared for intent and to keep the state enumerated, but note
+    it cannot stand alone here: ``TableSource`` is a plain class, so instances still
+    carry a ``__dict__`` and ``__setattr__`` is what actually refuses new attributes.
+    """
+
+    __slots__ = ("_connector", "_order_by", "_page_size", "_scan_prefix", "_table")
+
+    _table: SqlIdentifier
+    _order_by: tuple[SqlIdentifier, ...]
+    _page_size: int
+    _connector: SqlConnector
+    _scan_prefix: str
 
     # Ceiling on a single page, in rows. An internal class attribute rather than a
     # module constant so a deployment with a genuinely larger appetite can subclass
@@ -100,10 +121,33 @@ class SqlTableSource(TableSource):
             raise TypeError(
                 f"SqlTableSource: connector must be a SqlConnector, got {type(connector).__name__}"
             )
-        self._table = SqlIdentifier(table)
-        self._order_by = tuple(SqlIdentifier(column) for column in order_by or ())
-        self._page_size = self._validated_page_size(page_size)
-        self._connector = connector
+        bound_table = SqlIdentifier(table)
+        columns = tuple(SqlIdentifier(column) for column in order_by or ())
+        ordering = ""
+        if columns:
+            ordering = " ORDER BY " + ", ".join(column.sql for column in columns)
+        # object.__setattr__ because this class's own __setattr__ refuses writes.
+        object.__setattr__(self, "_table", bound_table)
+        object.__setattr__(self, "_order_by", columns)
+        object.__setattr__(self, "_page_size", self._validated_page_size(page_size))
+        object.__setattr__(self, "_connector", connector)
+        # Render the invariant head of the statement once, here, while the
+        # validated identifiers are in hand. Everything that reaches SQL from now
+        # on is either this frozen string or an int, so no later state change can
+        # alter the emitted text.
+        object.__setattr__(self, "_scan_prefix", f"SELECT * FROM {bound_table.sql}{ordering}")
+
+    def __setattr__(self, name: str, value: object) -> None:
+        """Refuse every attribute write: the bound table and page size are final."""
+        raise AttributeError(
+            f"SqlTableSource is immutable; cannot set {name!r}. The table and order-by "
+            "columns are validated once at construction, so rebinding them would bypass "
+            "the identifier allowlist. Construct a new SqlTableSource instead."
+        )
+
+    def __delattr__(self, name: str) -> None:
+        """Refuse every attribute deletion, for the same reason as ``__setattr__``."""
+        raise AttributeError(f"SqlTableSource is immutable; cannot delete {name!r}")
 
     async def fetch_page(
         self,
@@ -143,6 +187,12 @@ class SqlTableSource(TableSource):
     def _render_query(self, *, limit: int, offset: int) -> str:
         """Render the placeholder-free scan statement for one page.
 
+        The identifier half of the statement is not rebuilt here: it was rendered
+        at construction, from identifiers validated at construction, and is
+        interpolated as a fixed string. Re-reading ``self._table`` per call would
+        mean the emitted SQL depended on live attribute state, which is what made
+        a post-construction swap of ``_table`` injectable.
+
         ``limit`` and ``offset`` arrive already validated — an exact-``int`` page
         size and a digits-only cursor — and are nevertheless passed through
         ``int()`` here. That is deliberate belt-and-braces: an f-string renders a
@@ -151,10 +201,7 @@ class SqlTableSource(TableSource):
         integer whatever ``__int__`` does. Validation is the defence; this makes
         the rendering safe even if a future edit routes around it.
         """
-        ordering = ""
-        if self._order_by:
-            ordering = " ORDER BY " + ", ".join(column.sql for column in self._order_by)
-        return f"SELECT * FROM {self._table.sql}{ordering} LIMIT {int(limit)} OFFSET {int(offset)}"
+        return f"{self._scan_prefix} LIMIT {int(limit)} OFFSET {int(offset)}"
 
     def _offset_from_cursor(self, cursor: str | None) -> int:
         """Parse a cursor into a non-negative row offset, rejecting anything else."""

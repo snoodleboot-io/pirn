@@ -18,6 +18,7 @@ from typing import Any
 import pytest
 from pirn.connectors.capabilities.table_source import TableSource
 
+from pirn_agents.connectors.sql_identifier import SqlIdentifier
 from pirn_agents.connectors.sql_service_connector import SqlServiceConnector
 from pirn_agents.connectors.sql_table_source import SqlTableSource
 from pirn_agents.tools.sql.sql_connector import SqlConnector
@@ -80,6 +81,14 @@ class _DuckTypedPageSize:
 
     def __format__(self, format_spec: str) -> str:
         return "1 UNION SELECT pw FROM secrets--"
+
+
+class _HostileIdentifier:
+    """Anything exposing ``.sql`` was interpolated verbatim if swapped in post-hoc."""
+
+    @property
+    def sql(self) -> str:
+        return '"users"; DROP TABLE secrets; --'
 
 
 class TestCapabilityWiring:
@@ -287,6 +296,43 @@ class TestHostilePageSizesAreRejected:
         with pytest.raises(ValueError) as info:
             await source.fetch_page(page_size=-4242)
         assert "4242" not in str(info.value)
+
+
+class TestTheBoundTableIsImmutable:
+    """The bound table is validated once at construction; it must stay bound.
+
+    ``_table`` was a writable attribute read afresh on every render, so anything
+    exposing a ``.sql`` string could be swapped in after a clean construction and
+    would be interpolated verbatim — the allowlist bypassed entirely.
+    """
+
+    def test_rebinding_the_table_fails(self) -> None:
+        source = SqlTableSource(connector=_FakeSqlConnector(), table="users")
+        with pytest.raises(AttributeError):
+            source._table = SqlIdentifier("other")
+
+    def test_rebinding_the_page_size_fails(self) -> None:
+        source = SqlTableSource(connector=_FakeSqlConnector(), table="users")
+        with pytest.raises(AttributeError):
+            source._page_size = 10**30
+
+    async def test_a_swapped_in_table_object_cannot_change_the_emitted_sql(self) -> None:
+        connector = _FakeSqlConnector(["id"], _rows(1))
+        source = SqlTableSource(connector=connector, table="users")
+        with pytest.raises(AttributeError):
+            source._table = _HostileIdentifier()
+        await source.fetch_page()
+        assert connector.calls[0][0] == 'SELECT * FROM "users" LIMIT 101 OFFSET 0'
+
+    async def test_the_statement_is_fixed_at_construction(self) -> None:
+        # Even reaching past __setattr__ (as object.__setattr__ does) must not
+        # change the statement: the scan prefix is rendered once, at construction,
+        # from the validated identifiers and never recomputed from live state.
+        connector = _FakeSqlConnector(["id"], _rows(1))
+        source = SqlTableSource(connector=connector, table="users")
+        object.__setattr__(source, "_table", _HostileIdentifier())
+        await source.fetch_page()
+        assert "DROP TABLE" not in connector.calls[0][0]
 
 
 class TestAgainstALiveSqliteBackend:
