@@ -51,14 +51,69 @@ class SqliteConnector(SqlConnector):
         query: str,
         parameters: Sequence[Any] | None,
     ) -> tuple[Sequence[str], Sequence[Sequence[Any]]]:
-        """Synchronously execute ``query`` and materialise its result set."""
-        cursor = self._connection.execute(query, tuple(parameters or ()))
+        """Synchronously execute ``query`` and materialise its result set.
+
+        **Transaction ownership.** This commits — or rolls back — exactly the
+        transaction *its own statement* opened, and never touches one the caller
+        already had open: the same guarantee
+        :meth:`~pirn_agents.connectors.column_aware_sqlite_pool.ColumnAwareSqlitePool.fetch_columns`
+        makes (PIR-801). The connection here is *caller-owned* and long-lived, so
+        sampling ``in_transaction`` before and after the statement is what makes
+        committing safe — it is the discriminator that identifies the owner.
+
+        ``sqlite3`` starts an implicit transaction for DML only, which separates
+        the outcomes precisely:
+
+        * a write that succeeds is committed, so it is durable once this returns.
+          Previously nothing here committed, so under the default
+          ``isolation_level`` a write was lost whenever the caller closed the
+          connection without committing, and was invisible to any other
+          connection until they did (PIR-807);
+        * a statement that raises is rolled back. ``UPDATE ... OR FAIL`` aborts
+          mid-statement while *keeping* the rows it already changed and leaves
+          the transaction open, so without the rollback that partial write
+          survives on this long-lived connection to be committed by whatever runs
+          next — including a pure read;
+        * a read, and DDL, open no transaction and so neither commit nor roll
+          back, leaving a caller who opened their own transaction — or who set
+          ``isolation_level=None`` for autocommit — in sole control of it.
+
+        Each statement therefore stands alone; a caller who needs several in one
+        transaction must open it on the connection themselves, and remains the
+        only one who may end it.
+        """
+        connection = self._connection
+        in_transaction_on_entry = bool(connection.in_transaction)
         try:
-            columns = [description[0] for description in cursor.description or ()]
-            rows = [list(row) for row in cursor.fetchall()]
-        finally:
-            cursor.close()
+            cursor = connection.execute(query, tuple(parameters or ()))
+            try:
+                columns = [description[0] for description in cursor.description or ()]
+                rows = [list(row) for row in cursor.fetchall()]
+            finally:
+                cursor.close()
+        except BaseException:
+            if self._opened_transaction(connection, in_transaction_on_entry):
+                connection.rollback()
+            raise
+        if self._opened_transaction(connection, in_transaction_on_entry):
+            connection.commit()
         return columns, rows
+
+    @staticmethod
+    def _opened_transaction(connection: sqlite3.Connection, in_transaction_on_entry: bool) -> bool:
+        """Whether the statement just run is what opened the now-open transaction.
+
+        Args:
+            connection: The connection the statement ran on.
+            in_transaction_on_entry: ``connection.in_transaction`` sampled before
+                the statement ran.
+
+        Returns:
+            ``True`` only when a transaction is open now and none was open
+            before, which makes this call its owner — and so the one responsible
+            for ending it.
+        """
+        return bool(connection.in_transaction) and not in_transaction_on_entry
 
     def _clear_credentials(self) -> None:
         """Drop the connection reference so it becomes garbage-collectable."""

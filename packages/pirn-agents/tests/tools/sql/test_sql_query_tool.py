@@ -19,6 +19,7 @@ import pytest
 
 from pirn_agents.connectors.column_aware_pool import ColumnAwarePool
 from pirn_agents.connectors.sql_service_connector import SqlServiceConnector
+from pirn_agents.tools.sql import aiosqlite_connector
 from pirn_agents.tools.sql.aiosqlite_connector import AiosqliteConnector
 from pirn_agents.tools.sql.sql_connector import SqlConnector
 from pirn_agents.tools.sql.sql_query_tool import SqlQueryTool
@@ -132,12 +133,277 @@ class TestSqliteConnector:
             SqliteConnector(connection=object())  # type: ignore[arg-type]
 
 
+class TestSqliteConnectorDurability:
+    """Regression (PIR-807): a write through the stdlib connector must persist.
+
+    ``_execute_sync`` ran the statement and closed only the cursor, so under
+    sqlite3's default ``isolation_level`` the implicit transaction an ``INSERT``
+    opened was never committed. The connection is *caller-owned* and long-lived,
+    so the loss was not immediately visible — it surfaced whenever the caller
+    closed without committing, and any concurrent connection never saw the row.
+
+    The fix mirrors PIR-801's transaction ownership: commit exactly the
+    transaction this call opened, roll it back when the statement raises, and
+    never touch one the caller already had open.
+    """
+
+    @staticmethod
+    def _rows_on_disk(database: str) -> list[tuple[Any, ...]]:
+        """Read ``widget`` back on a separate connection — the durable truth."""
+        with sqlite3.connect(database) as disk:
+            return disk.execute("SELECT id, name FROM widget ORDER BY id").fetchall()
+
+    async def test_a_write_is_visible_to_another_connection(self, tmp_path: Any) -> None:
+        database = str(tmp_path / "durable.db")
+        connection = sqlite3.connect(database, check_same_thread=False)
+        connector = SqliteConnector(connection=connection)
+        try:
+            await connector.execute("CREATE TABLE widget (id INTEGER PRIMARY KEY, name TEXT)")
+            await connector.execute("INSERT INTO widget (id, name) VALUES (?, ?)", (1, "sprocket"))
+            # No connection.commit() here: the connector owes the commit for the
+            # transaction its own INSERT opened.
+            assert self._rows_on_disk(database) == [(1, "sprocket")]
+        finally:
+            connection.close()
+
+    async def test_an_update_and_delete_persist(self, tmp_path: Any) -> None:
+        database = str(tmp_path / "mutate.db")
+        connection = sqlite3.connect(database, check_same_thread=False)
+        connector = SqliteConnector(connection=connection)
+        try:
+            await connector.execute("CREATE TABLE widget (id INTEGER PRIMARY KEY, name TEXT)")
+            await connector.execute("INSERT INTO widget (id, name) VALUES (1, 'old')")
+            await connector.execute("INSERT INTO widget (id, name) VALUES (2, 'doomed')")
+            await connector.execute("UPDATE widget SET name = ? WHERE id = ?", ("new", 1))
+            await connector.execute("DELETE FROM widget WHERE id = ?", (2,))
+            assert self._rows_on_disk(database) == [(1, "new")]
+        finally:
+            connection.close()
+
+    async def test_a_failed_statement_leaves_no_residue(self, tmp_path: Any) -> None:
+        database = str(tmp_path / "residue.db")
+        connection = sqlite3.connect(database, check_same_thread=False)
+        connector = SqliteConnector(connection=connection)
+        try:
+            await connector.execute(
+                "CREATE TABLE widget (id INTEGER PRIMARY KEY, name TEXT UNIQUE)"
+            )
+            for row_id, name in ((1, "a"), (2, "b"), (3, "c")):
+                await connector.execute(
+                    "INSERT INTO widget (id, name) VALUES (?, ?)", (row_id, name)
+                )
+
+            # ``UPDATE OR FAIL`` renames row 1, then hits the UNIQUE constraint on
+            # row 2 and aborts — keeping row 1's change and leaving the transaction
+            # open. Skipping the commit is not enough; it must be rolled back or the
+            # next statement inherits the partial write.
+            with pytest.raises(sqlite3.IntegrityError):
+                await connector.execute("UPDATE OR FAIL widget SET name = 'dup'")
+            assert connection.in_transaction is False
+
+            # An innocent read must not adopt — nor commit — the residue.
+            await connector.execute("SELECT id FROM widget")
+            assert self._rows_on_disk(database) == [(1, "a"), (2, "b"), (3, "c")]
+        finally:
+            connection.close()
+
+    async def test_a_caller_transaction_is_left_alone(self, tmp_path: Any) -> None:
+        database = str(tmp_path / "caller_txn.db")
+        connection = sqlite3.connect(database, check_same_thread=False)
+        connector = SqliteConnector(connection=connection)
+        try:
+            await connector.execute("CREATE TABLE widget (id INTEGER PRIMARY KEY, name TEXT)")
+            await connector.execute("INSERT INTO widget (id, name) VALUES (1, 'a')")
+
+            # The caller owns the connection and may drive it directly; a
+            # transaction they opened is theirs to end.
+            connection.execute("INSERT INTO widget (id, name) VALUES (2, 'b')")
+            assert connection.in_transaction is True
+
+            await connector.execute("SELECT id FROM widget")
+            assert connection.in_transaction is True, "the read committed the caller's transaction"
+
+            connection.rollback()
+            assert self._rows_on_disk(database) == [(1, "a")]
+        finally:
+            connection.close()
+
+
+class _FakeSqliteCursor:
+    def __init__(self, columns: Sequence[str], rows: Sequence[Sequence[Any]]) -> None:
+        self.description = [(name,) for name in columns]
+        self._rows = rows
+
+    async def fetchall(self) -> Sequence[Sequence[Any]]:
+        return self._rows
+
+    async def close(self) -> None:
+        return None
+
+
+class _ExplodingSqliteCursor(_FakeSqliteCursor):
+    async def fetchall(self) -> Sequence[Sequence[Any]]:
+        raise RuntimeError("backend blew up mid-statement")
+
+
+class _FakeAiosqliteConnection:
+    """A double modelling sqlite3's implicit-transaction rule.
+
+    ``sqlite3`` opens a transaction for DML only — not for reads or DDL — and
+    ``in_transaction`` reports it. :class:`AiosqliteConnector` reads that flag to
+    decide whether it owes a commit (PIR-807), so the double must carry it or the
+    real code path is never exercised.
+    """
+
+    def __init__(
+        self, columns: Sequence[str], rows: Sequence[Sequence[Any]], *, explode: bool = False
+    ) -> None:
+        self._columns = columns
+        self._rows = rows
+        self._explode = explode
+        self.calls: list[tuple[str, tuple[Any, ...]]] = []
+        self.commits = 0
+        self.rollbacks = 0
+        self.closed = False
+        self.in_transaction = False
+
+    async def execute(self, query: str, parameters: tuple[Any, ...]) -> _FakeSqliteCursor:
+        self.calls.append((query, parameters))
+        if query.lstrip().split(" ")[0].upper() in ("INSERT", "UPDATE", "DELETE", "REPLACE"):
+            self.in_transaction = True
+        if self._explode:
+            return _ExplodingSqliteCursor(self._columns, self._rows)
+        return _FakeSqliteCursor(self._columns, self._rows)
+
+    async def commit(self) -> None:
+        self.commits += 1
+        self.in_transaction = False
+
+    async def rollback(self) -> None:
+        self.rollbacks += 1
+        self.in_transaction = False
+
+    async def __aenter__(self) -> _FakeAiosqliteConnection:
+        return self
+
+    async def __aexit__(self, *_exc: Any) -> None:
+        self.closed = True
+
+
+class _FakeAiosqliteModule:
+    """Stands in for the lazily imported ``aiosqlite`` backend."""
+
+    def __init__(self, connection: _FakeAiosqliteConnection) -> None:
+        self._connection = connection
+        self.databases: list[str] = []
+
+    def connect(self, database: str) -> _FakeAiosqliteConnection:
+        self.databases.append(database)
+        return self._connection
+
+
 class TestAiosqliteConnector:
     async def test_missing_backend_friendly_error(self) -> None:
         connector = AiosqliteConnector(database=":memory:")
         with mock.patch.dict(sys.modules, {"aiosqlite": None}):
             with pytest.raises(ImportError, match=r'pip install "pirn-agents\[sql\]"'):
                 await connector.execute("SELECT 1")
+
+
+class TestAiosqliteConnectorDurability:
+    """Regression (PIR-807): every write through this connector was discarded.
+
+    ``execute`` opened a connection per query, ran the statement, and let the
+    ``async with`` close it without committing. sqlite3 autocommits DDL but opens
+    an implicit transaction for DML, so a ``CREATE TABLE`` survived while the
+    ``INSERT`` vanished — a reopened database showed the full schema and zero
+    rows, with no error at any point.
+
+    The fix mirrors PIR-801's transaction ownership. The connection is opened
+    here and never shared, so ``in_transaction`` *is* ownership — nothing else
+    could have opened one — and the same three outcomes follow: a write is
+    committed, a statement that raises is rolled back, and a read or DDL opens no
+    transaction and so issues neither.
+    """
+
+    @staticmethod
+    def _rows_on_disk(database: str) -> list[tuple[Any, ...]]:
+        """Read ``widget`` back with plain sqlite3 — the durable truth."""
+        with sqlite3.connect(database) as disk:
+            return disk.execute("SELECT id, name FROM widget ORDER BY id").fetchall()
+
+    async def test_a_write_survives_the_per_query_connection(self, tmp_path: Any) -> None:
+        pytest.importorskip("aiosqlite")
+        database = str(tmp_path / "durable.db")
+        connector = AiosqliteConnector(database=database)
+
+        await connector.execute("CREATE TABLE widget (id INTEGER PRIMARY KEY, name TEXT)")
+        await connector.execute("INSERT INTO widget (id, name) VALUES (?, ?)", (1, "sprocket"))
+
+        # Each execute opens its own connection, so this read already crosses the
+        # close/reopen boundary that used to swallow the row.
+        columns, rows = await connector.execute("SELECT id, name FROM widget")
+        assert columns == ["id", "name"]
+        assert rows == [[1, "sprocket"]]
+        assert self._rows_on_disk(database) == [(1, "sprocket")]
+
+    async def test_an_update_and_delete_persist(self, tmp_path: Any) -> None:
+        pytest.importorskip("aiosqlite")
+        database = str(tmp_path / "mutate.db")
+        connector = AiosqliteConnector(database=database)
+
+        await connector.execute("CREATE TABLE widget (id INTEGER PRIMARY KEY, name TEXT)")
+        await connector.execute("INSERT INTO widget (id, name) VALUES (1, 'old')")
+        await connector.execute("INSERT INTO widget (id, name) VALUES (2, 'doomed')")
+        await connector.execute("UPDATE widget SET name = ? WHERE id = ?", ("new", 1))
+        await connector.execute("DELETE FROM widget WHERE id = ?", (2,))
+
+        assert self._rows_on_disk(database) == [(1, "new")]
+
+    async def test_a_write_through_the_tool_persists(self, tmp_path: Any) -> None:
+        # The reachable path: SqlQueryTool(read_only=False) -> AiosqliteConnector.
+        pytest.importorskip("aiosqlite")
+        database = str(tmp_path / "via_tool.db")
+        tool = SqlQueryTool(connector=AiosqliteConnector(database=database), read_only=False)
+
+        await tool.invoke({"query": "CREATE TABLE widget (id INTEGER PRIMARY KEY, name TEXT)"})
+        await tool.invoke(
+            {"query": "INSERT INTO widget (id, name) VALUES (?, ?)", "parameters": [1, "kept"]}
+        )
+
+        assert self._rows_on_disk(database) == [(1, "kept")]
+
+    async def test_a_write_commits(self) -> None:
+        connection = _FakeAiosqliteConnection(["id"], [[1]])
+        connector = AiosqliteConnector(database=":memory:")
+        with mock.patch.object(
+            aiosqlite_connector, "_require", return_value=_FakeAiosqliteModule(connection)
+        ):
+            await connector.execute("INSERT INTO t (id) VALUES (?)", [1])
+        assert (connection.commits, connection.rollbacks) == (1, 0)
+
+    async def test_a_failed_statement_is_rolled_back_not_committed(self) -> None:
+        connection = _FakeAiosqliteConnection(["id"], [[1]], explode=True)
+        connector = AiosqliteConnector(database=":memory:")
+        with mock.patch.object(
+            aiosqlite_connector, "_require", return_value=_FakeAiosqliteModule(connection)
+        ):
+            with pytest.raises(RuntimeError, match="blew up"):
+                await connector.execute("INSERT INTO t (id) VALUES (?)", [1])
+        assert (connection.commits, connection.rollbacks) == (0, 1)
+
+    @pytest.mark.parametrize("query", ["SELECT id FROM t", "CREATE TABLE t (id INTEGER)"])
+    async def test_a_read_or_ddl_neither_commits_nor_rolls_back(self, query: str) -> None:
+        # A COMMIT is not merely redundant here: under journal_mode=DELETE it must
+        # take the exclusive lock, so a read that issued one could fail with
+        # "database is locked" against a concurrent reader.
+        connection = _FakeAiosqliteConnection(["id"], [[1]])
+        connector = AiosqliteConnector(database=":memory:")
+        with mock.patch.object(
+            aiosqlite_connector, "_require", return_value=_FakeAiosqliteModule(connection)
+        ):
+            await connector.execute(query)
+        assert (connection.commits, connection.rollbacks) == (0, 0)
 
 
 class _FakeColumnAwarePool(ColumnAwarePool):
