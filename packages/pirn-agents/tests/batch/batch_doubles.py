@@ -8,7 +8,37 @@ asserted exactly.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
+
+from pirn.core.run_request import RunRequest
+from pirn.triggers.base import Trigger
+
+
+class RecordingTrigger(Trigger):
+    """A core ``Trigger`` firing a fixed number of times and counting closes.
+
+    Lets the ``TriggeredBatch`` driver's close handling be asserted directly:
+    ``closes`` counts every ``close()`` call, and ``close_error`` makes the
+    close itself fail so the driver's suppression can be exercised.
+    """
+
+    def __init__(self, *, fires: int, close_error: BaseException | None = None) -> None:
+        self._fires = fires
+        self._close_error = close_error
+        self.closes = 0
+
+    @property
+    def name(self) -> str:
+        return "RecordingTrigger"
+
+    async def stream(self) -> AsyncIterator[RunRequest]:
+        for ordinal in range(1, self._fires + 1):
+            yield RunRequest(parameters={"fire_ordinal": ordinal})
+
+    async def close(self) -> None:
+        self.closes += 1
+        if self._close_error is not None:
+            raise self._close_error
 
 
 class InFlightCounter:
