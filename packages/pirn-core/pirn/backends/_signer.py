@@ -83,10 +83,22 @@ class _Signer:
         Raises ``ValueError`` if the payload is too short or the signature
         does not match.
         """
+        # An HMAC failure cannot distinguish malice from damage — that is
+        # inherent to the primitive.  Name the likelier causes rather than
+        # asserting tampering, so a truncated read or a rotated key does not
+        # send an operator into a security investigation.
         if len(payload) < self.__digest_size:
-            raise ValueError("payload too short to contain a signature — possible tampering")
+            raise ValueError(
+                f"payload too short to contain a signature "
+                f"({len(payload)} bytes, need at least {self.__digest_size}) — "
+                "the payload is likely truncated or partially written, "
+                "but tampering cannot be ruled out"
+            )
         sig, raw = payload[: self.__digest_size], payload[self.__digest_size :]
         expected = hmac.new(self.__key, raw, hashlib.sha256).digest()
         if not hmac.compare_digest(sig, expected):
-            raise ValueError("HMAC signature mismatch — payload may have been tampered with")
+            raise ValueError(
+                "HMAC signature mismatch — the payload may be corrupt, truncated, "
+                "signed with a different key, or tampered with"
+            )
         return raw
