@@ -100,6 +100,8 @@ async def on_error(request, exc):
 await run_forever(trigger, t, on_result=on_result, on_error=on_error)
 ```
 
+`on_error` sees *run failures* only. `asyncio.CancelledError`, `KeyboardInterrupt` and `SystemExit` are re-raised before `on_error` is consulted, so the log-and-continue observer above cannot swallow a shutdown signal and keep the loop alive after its task was cancelled.
+
 ### Custom trigger
 
 ```python
@@ -146,6 +148,7 @@ If `on_error` is not provided and a run raises, `run_forever` re-raises and exit
 ## Constraints and gotchas
 
 - **`run_forever` calls `trigger.close()` on any exit**, including cancellation. Ensure `close()` is idempotent.
+- **`on_error` never sees `CancelledError`, `KeyboardInterrupt` or `SystemExit`.** They are re-raised ahead of it, so `task.cancel()` always ends the loop no matter what the observer does.
 - **`CronTrigger` does not backfill missed ticks.** If the process is down during a scheduled window, those runs are lost.
 - **`CronTrigger(every_seconds=...)` fires immediately at t=0**, then once per interval. Use `delay_fn` if you need the first fire delayed too.
 - **`CronTrigger.close()` never emits a further request**, but *when* it takes effect depends on where the generator is when it lands. Called at the `yield` — the usual case, from inside your own `async for` — the generator returns immediately, without starting the next wait; in `every_seconds=` mode that means shutdown costs nothing, not one more interval. Called from a concurrent task while the generator is parked in a wait, the wait still runs to completion and the fire it was waiting on is dropped. `close()` sets a flag; it does not cancel a sleep. To bound shutdown latency in the parked case, cancel the task running `run_forever` rather than relying on `close()` alone.

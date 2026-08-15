@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import TYPE_CHECKING
 
@@ -71,11 +72,20 @@ async def run_forever(
 
     Cancellation is the standard async pattern: the caller can wrap
     this coroutine in a task and ``task.cancel()`` it.
+
+    ``on_error`` observes *run failures* only.  ``asyncio.CancelledError``,
+    ``KeyboardInterrupt`` and ``SystemExit`` are re-raised before it is
+    consulted: they end the process rather than describe a bad event, so a
+    log-and-continue observer — the obvious thing to write for a daemon —
+    must not be able to swallow them and leave the loop running after its
+    task was cancelled.
     """
     try:
         async for request in trigger.stream():
             try:
                 result = await tapestry.run(request)
+            except (asyncio.CancelledError, KeyboardInterrupt, SystemExit):
+                raise
             except BaseException as exc:
                 if on_error is not None:
                     await on_error(request, exc)
