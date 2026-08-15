@@ -11,6 +11,8 @@ validation deterministic.
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 from pirn.core.run_request import RunRequest
 from pirn.triggers.base import Trigger
@@ -93,6 +95,40 @@ async def test_close_is_idempotent() -> None:
 
     await trigger.close()
     await trigger.close()
+
+
+async def test_sequential_streams_are_independent() -> None:
+    """Each ``stream()`` call numbers its own fires from 1, as ``fires()`` did."""
+
+    async def fake_sleep(delay: float) -> None:
+        return None
+
+    trigger = IntervalTrigger(interval=1.0, max_fires=2, sleep=fake_sleep)
+
+    first = [request.parameters["fire_ordinal"] async for request in trigger.stream()]
+    second = [request.parameters["fire_ordinal"] async for request in trigger.stream()]
+
+    assert first == [1, 2]
+    assert second == [1, 2]
+
+
+async def test_concurrent_streams_do_not_interleave_ordinals() -> None:
+    """Two live consumers each see a full 1..n run, never a shared counter."""
+
+    async def fake_sleep(delay: float) -> None:
+        # Yield to the loop so the two consumers genuinely interleave; a shared
+        # ordinal counter shows up as 1,3,5 / 2,4,6 rather than 1,2,3 / 1,2,3.
+        await asyncio.sleep(0)
+
+    trigger = IntervalTrigger(interval=0.0, max_fires=3, sleep=fake_sleep)
+
+    async def drain() -> list[int]:
+        return [request.parameters["fire_ordinal"] async for request in trigger.stream()]
+
+    first, second = await asyncio.gather(drain(), drain())
+
+    assert first == [1, 2, 3]
+    assert second == [1, 2, 3]
 
 
 def test_requires_exactly_one_of_interval_or_delay_fn() -> None:

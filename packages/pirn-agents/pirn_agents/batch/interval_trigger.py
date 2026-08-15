@@ -23,7 +23,6 @@ still reuses core's loop, close handling and ``RunRequest`` construction.
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Awaitable, Callable
-from typing import Any
 
 from pirn.core.run_request import RunRequest
 from pirn.triggers.base import Trigger
@@ -66,10 +65,8 @@ class IntervalTrigger(Trigger):
         # Only consulted when ``delay_fn`` is absent, i.e. when ``interval`` was
         # supplied and validated non-negative.
         self._interval: float = 0.0 if interval is None else interval
-        self._fired = 0
         self._cron = CronTrigger(
             delay_fn=delay_fn if delay_fn is not None else self._constant_delay,
-            parameters_factory=self._next_parameters,
             max_runs=max_fires,
             sleep=sleep,
         )
@@ -82,11 +79,36 @@ class IntervalTrigger(Trigger):
     def stream(self) -> AsyncIterator[RunRequest]:
         """Yield one ``RunRequest`` per fire, waiting the scheduled delay first.
 
+        Each call returns an **independent** stream that numbers its own fires
+        from 1 and gets its own ``max_fires`` budget, so a trigger may be
+        re-streamed (sequentially or concurrently) without two consumers sharing
+        a counter. Only :meth:`close` is shared: it ends every live stream.
+
         Returns:
-            The delegate's request stream; each request carries its 1-based
+            A fresh request stream; each request carries its 1-based
             ``fire_ordinal`` in ``parameters``.
         """
-        return self._cron.stream()
+        return self._numbered_stream()
+
+    async def _numbered_stream(self) -> AsyncIterator[RunRequest]:
+        """Re-number a fresh delegate stream from a per-call ordinal.
+
+        The delegate owns the schedule, the ``max_fires`` bound and close
+        handling; the ordinal is kept here, as a local of this generator rather
+        than on the instance, because that is what makes two streams
+        independent. The delegate's own ``RunRequest`` is discarded: it carries
+        no parameters, so rebuilding is cheaper than threading a per-stream
+        counter through the shared ``parameters_factory`` seam, which is
+        zero-argument and so cannot tell the streams apart.
+
+        Yields:
+            One ``RunRequest`` per fire, carrying this stream's 1-based
+            ``fire_ordinal``.
+        """
+        ordinal = 0
+        async for _ in self._cron.stream():
+            ordinal += 1
+            yield RunRequest(parameters={"fire_ordinal": ordinal})
 
     async def close(self) -> None:
         """Stop the schedule; no further ``RunRequest`` is emitted. Idempotent."""
@@ -103,15 +125,3 @@ class IntervalTrigger(Trigger):
             The configured ``interval`` in seconds.
         """
         return self._interval
-
-    def _next_parameters(self) -> dict[str, Any]:
-        """Return the run parameters for the fire now being emitted.
-
-        Called once per emitted ``RunRequest`` by the delegate, so the counter
-        advances only for fires that actually reach a consumer.
-
-        Returns:
-            A mapping carrying the 1-based ``fire_ordinal`` of this fire.
-        """
-        self._fired += 1
-        return {"fire_ordinal": self._fired}
