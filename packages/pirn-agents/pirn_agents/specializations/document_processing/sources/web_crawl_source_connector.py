@@ -47,6 +47,17 @@ class WebCrawlSourceConnector(SourceConnector):
         Raises:
             TypeError: If ``connector`` is not an :class:`HttpConnector`.
         """
+        # PIR-722 reviewed this concrete-type guard and deliberately kept it.
+        # HttpConnector is not merely "something with stream_bytes()": it is the
+        # component that applies the egress/SSRF policy to every URL, pins the
+        # request to the address that policy vetted (which is what closes DNS
+        # rebinding), and keeps redirect-following off so the pin cannot be
+        # sidestepped. This connector fetches caller-supplied seed URLs — the
+        # canonical SSRF sink — so widening to a structural type would admit a
+        # client that performs none of that vetting and make this class's
+        # "pooled, SSRF-guarded" contract untrue. Depending on an abstraction
+        # only helps once core has an HTTP interface that carries the egress
+        # guarantee in its contract; that is core work, tracked as PIR-792.
         if not isinstance(connector, HttpConnector):
             raise TypeError(
                 f"WebCrawlSourceConnector: connector must be an HttpConnector, "
