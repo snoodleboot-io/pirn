@@ -393,7 +393,21 @@ class Engine:
             ctx.status.subscribe(_EmitterSubscriber(emitter, loop, emitter_tasks))
 
     def _bind_parameters(self, shed: Shed, ctx: RunContext) -> None:
-        for knot in shed.knots.values():
+        """Bind every parameter's value for *this* run.
+
+        The value goes onto a run-scoped copy that replaces the parameter in
+        this run's shed -- never onto the shared graph knot.  One ``Tapestry``
+        is commonly built at startup and then serves many concurrent runs;
+        binding on the shared instance let those runs overwrite each other's
+        inputs while each still reported its own run id, producing wrong
+        answers with no error raised (PIR-802).
+
+        The shed is per-run and keyed by ``knot_id``, which the copy
+        preserves, so edges, results and lineage are unaffected.  Called again
+        after each mid-run merge; re-binding an already-bound copy is
+        idempotent because the value is re-read from ``ctx.parameters``.
+        """
+        for knot_id, knot in list(shed.knots.items()):
             if isinstance(knot, Parameter):
                 if knot.name in ctx.parameters:
                     bound = knot.bind(ctx.parameters[knot.name])
@@ -403,7 +417,7 @@ class Engine:
                     raise RuntimeError(
                         f"parameter {knot.name!r} has no value supplied and no default"
                     )
-                knot.bind_value(bound)
+                shed.knots[knot_id] = knot.bound_copy(bound)
 
     def _merge_new_knots(
         self,
