@@ -12,7 +12,9 @@ window the lock exists to close never opens.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Mapping
 from pathlib import Path
+from typing import Any
 
 import pytest
 from pirn.backends._signer import _Signer
@@ -37,6 +39,33 @@ def _suspending_index(root: Path, *, index_key: str = "ns:__index__") -> MemoryS
     """An index over a backend that really awaits IO between read and write."""
     disk = LocalDiskDataStore(root, signer=_Signer.test_signer())
     return MemoryStoreKeyIndex(store=DataStoreMemoryStore(data_store=disk), index_key=index_key)
+
+
+class _RendezvousMemoryStore(DictMemoryStore):
+    """A dict store that holds each reader until ``parties`` of them have arrived.
+
+    :class:`TestLockScopeIsHonest` needs both index instances to have read the
+    same stale list *before* either writes; only that ordering guarantees one
+    edit is clobbered. Raced against real disk IO the ordering merely *happens
+    sometimes*: the disk-backed version of that test failed 17 of 50 isolated
+    runs, reddening unrelated work. Parking each read on a barrier makes the
+    interleaving the test's choice rather than the scheduler's, so the lost
+    update is forced rather than hoped for.
+    """
+
+    def __init__(self, *, parties: int) -> None:
+        super().__init__()
+        self._barrier: asyncio.Barrier | None = asyncio.Barrier(parties)
+
+    def stop_rendezvous(self) -> None:
+        """Let later reads through unblocked, so assertions can read the record back."""
+        self._barrier = None
+
+    async def retrieve(self, key: str) -> Mapping[str, Any] | None:
+        found = await super().retrieve(key)
+        if self._barrier is not None:
+            await self._barrier.wait()
+        return found
 
 
 class TestConstruction:
@@ -178,17 +207,38 @@ class TestConcurrentMutation:
 
 
 class TestLockScopeIsHonest:
-    async def test_two_instances_over_one_record_still_race(self, tmp_path: Path) -> None:
+    async def test_two_instances_over_one_record_lose_an_edit(self) -> None:
         # Pinned deliberately. Each instance owns its own asyncio.Lock, so two of
         # them sharing a record serialise nothing — exactly as the class docstring
         # says. This is the boundary of the guarantee, and it stands in for the
         # multi-process case the lock also cannot cover. Anyone who makes this
-        # test pass has strengthened the contract and should update the docstring
+        # test fail has strengthened the contract and should update the docstring
         # rather than delete the test; anyone tempted to claim cross-process
         # safety should read it first.
-        first = _suspending_index(tmp_path)
-        second = _suspending_index(tmp_path)
+        #
+        # The interleaving is driven, not raced: _RendezvousMemoryStore holds both
+        # reads until both have arrived, so both instances necessarily see the same
+        # stale list and the second write necessarily clobbers the first.
+        backend = _RendezvousMemoryStore(parties=2)
+        first = MemoryStoreKeyIndex(store=backend, index_key="ns:__index__")
+        second = MemoryStoreKeyIndex(store=backend, index_key="ns:__index__")
 
-        await asyncio.gather(first.add("from-first"), second.add("from-second"))
+        try:
+            async with asyncio.timeout(5):
+                await asyncio.gather(first.add("from-first"), second.add("from-second"))
+        except TimeoutError:
+            pytest.fail(
+                "The two index instances no longer read concurrently, so the lock now "
+                "covers more than one instance. That is a stronger contract than "
+                "MemoryStoreKeyIndex documents: update the class docstring and this "
+                "test together rather than reverting the change."
+            )
+        backend.stop_rendezvous()
 
-        assert len(await first.keys()) == 1
+        # Both adds wrote; the later write overwrote the earlier one's key.
+        assert backend.stored == ["ns:__index__", "ns:__index__"]
+        survivors = await first.keys()
+        assert len(survivors) == 1
+        # Which of the two survives depends on the order the barrier releases its
+        # waiters, so only the *loss* is asserted — that part is guaranteed.
+        assert survivors[0] in {"from-first", "from-second"}
