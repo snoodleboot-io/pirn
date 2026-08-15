@@ -48,6 +48,11 @@ class IntervalTrigger(Trigger):
                 be given.
             delay_fn: Maps the next 1-based fire ordinal to the seconds to wait
                 before it — the cron seam. Mutually exclusive with ``interval``.
+                Every returned delay is awaited, ordinal 1's included and zero
+                or negative ones included: :func:`asyncio.sleep` treats those as
+                no wait, a cron backend may legitimately return a negative when
+                the instant it computed has just passed, and awaiting
+                unconditionally keeps a collapsed schedule from busy-spinning.
             max_fires: Stop after this many fires; ``None`` runs unbounded. Must
                 be an ``int``; a non-integral bound such as ``2.5`` is rejected
                 rather than silently truncated at the fire that crosses it.

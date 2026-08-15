@@ -75,6 +75,27 @@ async def test_zero_interval_still_awaits_the_sleep() -> None:
     assert recorded == [0.0, 0.0]
 
 
+async def test_a_negative_delay_is_awaited_rather_than_skipped_or_rejected() -> None:
+    """Declared change: every delay reaches the sleep, negative ones included."""
+    recorded: list[float] = []
+
+    async def fake_sleep(delay: float) -> None:
+        recorded.append(delay)
+
+    trigger = IntervalTrigger(delay_fn=lambda ordinal: -1.0, max_fires=2, sleep=fake_sleep)
+
+    requests = [request async for request in trigger.stream()]
+
+    assert [request.parameters["fire_ordinal"] for request in requests] == [1, 2]
+    # Pre-Wave-2 the guard `if delay and delay > 0` skipped the await outright,
+    # so this recorded []. Negative delays are passed through rather than
+    # rejected: asyncio.sleep treats <= 0 as no wait, a cron seam can honestly
+    # return a small negative when the instant it computed has just passed, and
+    # awaiting unconditionally keeps a collapsed schedule cooperative instead of
+    # busy-spinning the event loop.
+    assert recorded == [-1.0, -1.0]
+
+
 async def test_close_ends_an_unbounded_stream() -> None:
     async def fake_sleep(delay: float) -> None:
         return None
