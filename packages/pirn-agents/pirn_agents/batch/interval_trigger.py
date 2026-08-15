@@ -48,19 +48,26 @@ class IntervalTrigger(Trigger):
                 be given.
             delay_fn: Maps the next 1-based fire ordinal to the seconds to wait
                 before it — the cron seam. Mutually exclusive with ``interval``.
-            max_fires: Stop after this many fires; ``None`` runs unbounded.
+            max_fires: Stop after this many fires; ``None`` runs unbounded. Must
+                be an ``int``; a non-integral bound such as ``2.5`` is rejected
+                rather than silently truncated at the fire that crosses it.
             sleep: Async sleep used before each fire; injected in tests. Defaults
                 to :func:`asyncio.sleep` inside the delegate.
 
         Raises:
             ValueError: If neither or both of ``interval``/``delay_fn`` are given,
-                ``interval`` is negative, or ``max_fires`` < 1.
+                ``interval`` is negative, or ``max_fires`` is not an ``int`` >= 1.
         """
         if (interval is None) == (delay_fn is None):
             raise ValueError("IntervalTrigger: give exactly one of interval or delay_fn")
         if interval is not None and interval < 0:
             raise ValueError(f"IntervalTrigger: interval must be >= 0, got {interval!r}")
-        if max_fires is not None and (isinstance(max_fires, bool) or max_fires < 1):
+        # Validated here, before delegating, so a bad value is reported against
+        # the parameter the caller actually passed rather than the delegate's
+        # ``max_runs``. The int check is what the delegate would have applied.
+        if max_fires is not None and (
+            isinstance(max_fires, bool) or not isinstance(max_fires, int) or max_fires < 1
+        ):
             raise ValueError(f"IntervalTrigger: max_fires must be an int >= 1, got {max_fires!r}")
         # Only consulted when ``delay_fn`` is absent, i.e. when ``interval`` was
         # supplied and validated non-negative.

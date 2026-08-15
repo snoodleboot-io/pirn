@@ -153,3 +153,17 @@ def test_rejects_negative_interval_and_bad_max_fires() -> None:
         IntervalTrigger(interval=-1.0)
     with pytest.raises(ValueError):
         IntervalTrigger(interval=1.0, max_fires=0)
+
+
+def test_a_non_int_max_fires_is_rejected_naming_the_callers_parameter() -> None:
+    """The delegate must not leak its own parameter name into our error."""
+    with pytest.raises(ValueError) as caught:
+        IntervalTrigger(interval=1.0, max_fires=2.5)
+
+    message = str(caught.value)
+    assert "max_fires" in message
+    assert "IntervalTrigger" in message
+    # Pre-fix this validation happened inside the delegate, so the caller was
+    # told about "CronTrigger: max_runs", a parameter they never passed.
+    assert "max_runs" not in message
+    assert "CronTrigger" not in message
