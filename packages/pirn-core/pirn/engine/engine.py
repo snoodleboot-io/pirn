@@ -46,6 +46,7 @@ from pirn.core.transport.inline_transport import InlineTransport
 from pirn.core.transport.transport_handle import TransportHandle
 from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
 from pirn.engine._emitter_subscriber import _EmitterSubscriber
+from pirn.engine._run_scoped_subscriber import _RunScopedSubscriber
 from pirn.engine.dispatchers.dispatcher import Dispatcher
 from pirn.engine.dispatchers.local_dispatcher import LocalDispatcher
 from pirn.engine.shed.shed import Shed
@@ -99,7 +100,11 @@ class Engine:
 
         # Mid-run extension: subscribe to the store if one was provided.
         # New knots arriving during the run go into ``pending_new`` and
-        # are merged into the shed between waves.
+        # are merged into the shed between waves.  The store is
+        # tapestry-scoped and fans every registration to every
+        # subscriber, so the callback filters to this run's own
+        # registrations -- otherwise concurrent extensible runs execute
+        # each other's knots (PIR-808).
         pending_new: list[Knot] = []
         subscribe_token = None
         if extensible_store is not None:
@@ -111,7 +116,9 @@ class Engine:
                     "the InMemoryStore is the reference implementation"
                 )
 
-            subscribe_token = extensible_store.subscribe(pending_new.append)
+            subscribe_token = extensible_store.subscribe(
+                _RunScopedSubscriber(ctx.run_id, pending_new)
+            )
 
         active_transport: DataTransport = transport or InlineTransport()
         try:

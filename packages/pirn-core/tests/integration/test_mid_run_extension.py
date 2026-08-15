@@ -240,3 +240,66 @@ async def test_non_extensible_run_ignores_late_knots():
     assert result.outputs["r"] == 2  # registrar succeeded
     # The late knot is in the tapestry but wasn't part of this run.
     assert t.get("late") is not None
+
+
+# ------------------------------------------------- concurrent run scoping
+
+
+async def test_concurrent_extensible_runs_do_not_share_registered_knots():
+    """Two concurrent top-level ``extensible=True`` runs on one Tapestry
+    must not execute each other's dynamically-registered knots.
+
+    ``pending_new`` is per-run but the store it subscribes to is
+    tapestry-scoped, so a knot registered by run A was fanned into run
+    B's pending queue and -- because the parent sits in both sheds --
+    actually executed as part of run B (PIR-808).
+    """
+    with Tapestry() as t:
+        tag = Parameter("tag", str, _config=KnotConfig(id="tag"))
+
+    # Four parties: `held` and `register` in each of the two runs.  The
+    # barrier keeps both runs in flight until both registrations have
+    # landed, which is what makes the cross-run delivery observable.
+    both_registered = asyncio.Barrier(4)
+
+    @knot
+    async def _hold(tag: str) -> str:
+        await both_registered.wait()
+        return tag
+
+    with t:
+        held = _hold(tag=tag, _config=KnotConfig(id="held"))
+
+    @knot
+    async def _tail(x: str) -> str:
+        return f"tail:{x}"
+
+    @knot
+    async def _register(tag: str) -> str:
+        with t:
+            _tail(x=held, _config=KnotConfig(id=f"late_{tag}"))
+        await both_registered.wait()
+        return tag
+
+    with t:
+        register = _register(tag=tag, _config=KnotConfig(id="reg"))
+
+    run_a, run_b = await asyncio.gather(
+        t.run(
+            RunRequest(parameters={"tag": "a"}),
+            terminals=[held, register],
+            extensible=True,
+        ),
+        t.run(
+            RunRequest(parameters={"tag": "b"}),
+            terminals=[held, register],
+            extensible=True,
+        ),
+    )
+
+    # Each run picks up its own late knot ...
+    assert "late_a" in run_a.outputs
+    assert "late_b" in run_b.outputs
+    # ... and only its own.
+    assert "late_b" not in run_a.outputs
+    assert "late_a" not in run_b.outputs
