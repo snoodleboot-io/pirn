@@ -251,7 +251,10 @@ class Tapestry:
                 "inside `with Tapestry() as t:` or pass `terminals=`."
             )
 
-        active_emitters = self._emitters if emitters is None else list(emitters)
+        # Snapshot: the live list is mutable via add_emitter/remove_emitter,
+        # and handing it to the run unwrapped let a subscription change made
+        # while the run was in flight alter that run's emitter set mid-run.
+        active_emitters = list(self._emitters) if emitters is None else list(emitters)
         active_policy = (
             emitter_error_policy if emitter_error_policy is not None else self._emitter_error_policy
         )
