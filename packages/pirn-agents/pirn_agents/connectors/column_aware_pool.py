@@ -31,6 +31,14 @@ class ColumnAwarePool(DatabaseConnectionPool):
         before executing, so the same injection defence as core's ``fetch_all``
         still holds. Rows are returned uncapped; the caller applies any row cap.
 
+        **Durability contract.** Implementations must leave no uncommitted work
+        behind: when this returns, any effect of ``query`` is durable. This is not
+        automatic — the SQLite implementation has to commit explicitly (core's
+        ``SqlitePool.execute`` does the same), while asyncpg satisfies it for free
+        by autocommitting outside an explicit transaction. Before PIR-801 the
+        SQLite pool omitted the commit, so the same call was durable on Postgres
+        and silently discarded on SQLite.
+
         Raises:
             NotImplementedError: Always, in the interface.
         """

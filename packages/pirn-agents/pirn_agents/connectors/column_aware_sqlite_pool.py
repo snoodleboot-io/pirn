@@ -45,6 +45,14 @@ class ColumnAwareSqlitePool(SqlitePool, ColumnAwarePool):
         read query commonly contains (``LIKE '%term%'``, JSON ``{...}``), and this
         connector's defences are read-only mode plus bound parameters — SQLite uses
         ``?`` / ``:name`` markers, never ``%s``, so a literal ``%`` is always data.
+
+        The statement is committed before returning, matching core's
+        ``SqlitePool.execute``. Without it a write reaching this method — the only
+        path ``SqlServiceConnector(read_only=False)`` has — was rolled back when the
+        connection closed, silently and with no error (PIR-801). ``sqlite3`` only
+        opens an implicit transaction for DML, so the commit is a no-op on the read
+        path and on DDL; it is issued outside the ``try`` so a statement that raises
+        is never committed.
         """
         connection = await self.acquire()
         cursor = await connection.execute(query, tuple(parameters or ()))
@@ -53,4 +61,5 @@ class ColumnAwareSqlitePool(SqlitePool, ColumnAwarePool):
             columns = [description[0] for description in cursor.description or ()]
         finally:
             await cursor.close()
+        await connection.commit()
         return columns, [list(row) for row in fetched]

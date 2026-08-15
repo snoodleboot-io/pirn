@@ -66,7 +66,8 @@ class SqlServiceConnector(ConnectorBase, SqlConnector):
             dsn: Postgres DSN (``asyncpg`` driver); falls back to the credential
                 secret when omitted.
             read_only: When ``True`` (default), only ``SELECT``/``WITH`` queries
-                are allowed.
+                are allowed. When ``False``, writes are permitted and committed
+                before :meth:`execute` returns.
             max_rows: Maximum number of rows returned; extra rows are dropped.
             credential: Optional :class:`CredentialRef` (a DSN for ``asyncpg``).
             pool: Optional pre-built :class:`ColumnAwarePool`, pooled as-is — the
@@ -112,6 +113,11 @@ class SqlServiceConnector(ConnectorBase, SqlConnector):
         parameters: Sequence[Any] | None = None,
     ) -> tuple[Sequence[str], Sequence[Sequence[Any]]]:
         """Run ``query`` with bound ``parameters`` and return ``(columns, rows)``.
+
+        Under ``read_only=False`` a write is durable once this returns — the pool
+        honours ``ColumnAwarePool``'s durability contract. Each statement stands
+        alone; there is no multi-statement transaction seam on this connector, so
+        callers needing one should drive the pool directly.
 
         Raises:
             ValueError: In read-only mode, if ``query`` is not a single read.

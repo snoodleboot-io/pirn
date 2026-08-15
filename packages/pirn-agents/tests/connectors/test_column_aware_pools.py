@@ -11,6 +11,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
+import pytest
 from pirn.connectors.databases.sqlite_config import SqliteConfig
 
 from pirn_agents.connectors.column_aware_postgres_pool import ColumnAwarePostgresPool
@@ -35,13 +36,28 @@ class _FakeAiosqliteConnection:
         self._columns = columns
         self._rows = rows
         self.calls: list[tuple[str, tuple[Any, ...]]] = []
+        self.commits = 0
 
     async def execute(self, query: str, parameters: tuple[Any, ...]) -> _FakeCursor:
         self.calls.append((query, parameters))
         return _FakeCursor(self._columns, self._rows)
 
+    async def commit(self) -> None:
+        self.commits += 1
+
     async def close(self) -> None:
         return None
+
+
+class _ExplodingCursor(_FakeCursor):
+    async def fetchall(self) -> Sequence[Sequence[Any]]:
+        raise RuntimeError("backend blew up mid-statement")
+
+
+class _ExplodingConnection(_FakeAiosqliteConnection):
+    async def execute(self, query: str, parameters: tuple[Any, ...]) -> _FakeCursor:
+        self.calls.append((query, parameters))
+        return _ExplodingCursor(self._columns, self._rows)
 
 
 def _sqlite_pool(columns: Sequence[str], rows: Sequence[Sequence[Any]]) -> ColumnAwareSqlitePool:
@@ -74,6 +90,47 @@ class TestColumnAwareSqlitePool:
             "SELECT n FROM t WHERE n LIKE '%smith%'",
             "SELECT n FROM t WHERE j = '{\"k\": 1}'",
         ]
+
+
+class TestSqlitePoolDurability:
+    """Regression (PIR-801): ``fetch_columns`` must not leave a write uncommitted.
+
+    Core's ``SqlitePool.execute`` commits; ``fetch_columns`` did not, so a statement
+    routed through it (the only path ``SqlServiceConnector`` has) was rolled back
+    when the connection closed. ``ColumnAwarePostgresPool`` has no matching bug —
+    asyncpg autocommits outside an explicit transaction — so committing here also
+    makes the two ``ColumnAwarePool`` implementations agree.
+    """
+
+    async def test_fetch_columns_commits(self) -> None:
+        conn = _FakeAiosqliteConnection(["id"], [[1]])
+        pool = ColumnAwareSqlitePool(SqliteConfig(database=":memory:"), connection=conn)  # pyright: ignore[reportCallIssue]
+        await pool.fetch_columns("INSERT INTO t (id) VALUES (?)", [1])
+        assert conn.commits == 1
+
+    async def test_a_failed_statement_is_not_committed(self) -> None:
+        conn = _ExplodingConnection(["id"], [[1]])
+        pool = ColumnAwareSqlitePool(SqliteConfig(database=":memory:"), connection=conn)  # pyright: ignore[reportCallIssue]
+        with pytest.raises(RuntimeError, match="blew up"):
+            await pool.fetch_columns("INSERT INTO t (id) VALUES (?)", [1])
+        assert conn.commits == 0
+
+    async def test_a_write_survives_close_and_reopen(self, tmp_path: Any) -> None:
+        pytest.importorskip("aiosqlite")
+        database = str(tmp_path / "durable.db")
+
+        writer = ColumnAwareSqlitePool(SqliteConfig(database=database))  # pyright: ignore[reportCallIssue]
+        await writer.fetch_columns("CREATE TABLE widget (id INTEGER PRIMARY KEY, name TEXT)")
+        await writer.fetch_columns("INSERT INTO widget (id, name) VALUES (?, ?)", [1, "sprocket"])
+        await writer.close()
+
+        reader = ColumnAwareSqlitePool(SqliteConfig(database=database))  # pyright: ignore[reportCallIssue]
+        try:
+            columns, rows = await reader.fetch_columns("SELECT id, name FROM widget")
+        finally:
+            await reader.close()
+        assert columns == ["id", "name"]
+        assert rows == [[1, "sprocket"]]
 
 
 class _FakeRecord:

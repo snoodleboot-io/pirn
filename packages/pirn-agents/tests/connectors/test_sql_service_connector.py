@@ -60,6 +60,84 @@ class TestReadOnlyMode:
         assert pool.calls[0][0] == "UPDATE t SET n = 1"
 
 
+class TestWritePersistence:
+    """Regression (PIR-801): ``read_only=False`` writes must actually persist.
+
+    ``execute`` routes through ``ColumnAwarePool.fetch_columns``, which issued no
+    commit, so an ``INSERT`` reported success, read back correctly *within the same
+    session*, and then vanished when the connection closed — with no error at any
+    point. These tests run a real aiosqlite file database so the close/reopen
+    boundary is exercised for real; an in-memory database would be destroyed on
+    close and could not tell the two outcomes apart.
+    """
+
+    async def test_a_write_survives_close_and_reopen(self, tmp_path: Any) -> None:
+        pytest.importorskip("aiosqlite")
+        database = str(tmp_path / "persist.db")
+
+        writer = SqlServiceConnector(driver="aiosqlite", database=database, read_only=False)
+        try:
+            await writer.execute("CREATE TABLE widget (id INTEGER PRIMARY KEY, name TEXT)")
+            await writer.execute("INSERT INTO widget (id, name) VALUES (?, ?)", (1, "sprocket"))
+            _, same_session = await writer.execute("SELECT id, name FROM widget")
+            assert same_session == [[1, "sprocket"]]
+        finally:
+            await writer.close()
+
+        reader = SqlServiceConnector(driver="aiosqlite", database=database)
+        try:
+            columns, rows = await reader.execute("SELECT id, name FROM widget")
+        finally:
+            await reader.close()
+        assert columns == ["id", "name"]
+        assert rows == [[1, "sprocket"]]
+
+    async def test_an_update_and_delete_survive_close_and_reopen(self, tmp_path: Any) -> None:
+        pytest.importorskip("aiosqlite")
+        database = str(tmp_path / "mutate.db")
+
+        writer = SqlServiceConnector(driver="aiosqlite", database=database, read_only=False)
+        try:
+            await writer.execute("CREATE TABLE widget (id INTEGER PRIMARY KEY, name TEXT)")
+            await writer.execute("INSERT INTO widget (id, name) VALUES (?, ?)", (1, "old"))
+            await writer.execute("INSERT INTO widget (id, name) VALUES (?, ?)", (2, "doomed"))
+            await writer.execute("UPDATE widget SET name = ? WHERE id = ?", ("new", 1))
+            await writer.execute("DELETE FROM widget WHERE id = ?", (2,))
+        finally:
+            await writer.close()
+
+        reader = SqlServiceConnector(driver="aiosqlite", database=database)
+        try:
+            _, rows = await reader.execute("SELECT id, name FROM widget ORDER BY id")
+        finally:
+            await reader.close()
+        assert rows == [[1, "new"]]
+
+    async def test_read_only_still_refuses_writes_against_a_live_backend(
+        self, tmp_path: Any
+    ) -> None:
+        # The commit added for PIR-801 must not open a write path in read-only
+        # mode: the guard still rejects before the pool is ever reached.
+        pytest.importorskip("aiosqlite")
+        database = str(tmp_path / "guarded.db")
+
+        writer = SqlServiceConnector(driver="aiosqlite", database=database, read_only=False)
+        try:
+            await writer.execute("CREATE TABLE widget (id INTEGER PRIMARY KEY, name TEXT)")
+            await writer.execute("INSERT INTO widget (id, name) VALUES (?, ?)", (1, "kept"))
+        finally:
+            await writer.close()
+
+        reader = SqlServiceConnector(driver="aiosqlite", database=database, read_only=True)
+        try:
+            with pytest.raises(ValueError, match="read-only"):
+                await reader.execute("DELETE FROM widget")
+            _, rows = await reader.execute("SELECT id, name FROM widget")
+        finally:
+            await reader.close()
+        assert rows == [[1, "kept"]]
+
+
 class TestParameterizationAndCaps:
     async def test_parameters_passed_through_not_interpolated(self) -> None:
         pool = _FakePool(["id"], [[1]])
