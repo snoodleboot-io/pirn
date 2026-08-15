@@ -9,9 +9,15 @@ fire). It owns no scheduling itself; the trigger decides *when* and this decides
 *what*, so a cron/interval schedule and an event source drive the same batch with
 no code change.
 
-The loop takes its semantics from :func:`pirn.triggers.base.run_forever`: the
-trigger is closed on every exit path, and optional ``on_result``/``on_error``
-callbacks observe each run. It cannot *be* ``run_forever``, which calls
+The loop takes its semantics from :func:`pirn.triggers.base.run_forever`, with
+optional ``on_result``/``on_error`` callbacks observing each run. Trigger
+lifecycle is the one place it deliberately does not: ``run_forever`` closes the
+trigger on every exit path, whereas this leaves a trigger the caller
+constructed open unless ``owns_trigger=True`` hands it over. Closing is terminal
+for both triggers in this package — a closed ``IntervalTrigger`` yields nothing
+and a closed ``EventTrigger`` can never be fed again — so closing one the caller
+still holds turns a second run into a silent no-op or a deadlock. Ownership is
+therefore explicit and defaults to the caller. It cannot *be* ``run_forever``, which calls
 ``tapestry.run(request)`` — a ``MapAgent`` is not a ``Tapestry`` (it has no
 terminals), and this must stay an ``AsyncIterator[BatchProgress]`` because
 streaming per-fire progress to its caller is its whole public contract, whereas
@@ -45,18 +51,28 @@ class TriggeredBatch:
         map_agent: MapAgent,
         inputs_fn: Callable[[int], Iterable[object]],
         batch_id: str = "batch",
+        owns_trigger: bool = False,
         on_result: Callable[[RunRequest, BatchProgress], Awaitable[None]] | None = None,
         on_error: Callable[[RunRequest, BaseException], Awaitable[None]] | None = None,
     ) -> None:
         """Bind the trigger, runner, and per-fire input source.
 
         Args:
-            trigger: The fire source — any core ``Trigger``.
+            trigger: The fire source — any core ``Trigger``. Its lifecycle
+                belongs to the caller unless ``owns_trigger`` says otherwise.
             map_agent: The configured batch runner invoked on each fire.
             inputs_fn: Maps a 1-based fire ordinal to that run's input items —
                 called fresh per fire so each run can pick up new data.
             batch_id: Stable prefix for each run's reported batch id
                 (``"<batch_id>-<ordinal>"``).
+            owns_trigger: Whether :meth:`run` closes the trigger when it exits.
+                Defaults to ``False``: the caller constructed the trigger and
+                still holds it, so it stays usable for another run. Pass
+                ``True`` for the fire-and-forget shape — a trigger constructed
+                inline purely to drive this batch — to get ``run_forever``'s
+                always-close semantics and no leak if the consumer walks away.
+                Closing is terminal for both triggers in this package, so an
+                owned trigger must not be reused.
             on_result: Awaited after each completed run with the fire's
                 ``RunRequest`` and the ``BatchProgress`` about to be yielded.
             on_error: Awaited when a run raises, with the fire's ``RunRequest``
@@ -66,7 +82,8 @@ class TriggeredBatch:
                 reaches this callback.
 
         Raises:
-            TypeError: If ``trigger``/``map_agent`` are the wrong type or
+            TypeError: If ``trigger``/``map_agent`` are the wrong type,
+                ``owns_trigger`` is not a ``bool``, or
                 ``inputs_fn``/``on_result``/``on_error`` are not callable.
             ValueError: If ``batch_id`` is empty.
         """
@@ -92,20 +109,28 @@ class TriggeredBatch:
             )
         if not isinstance(batch_id, str) or not batch_id:
             raise ValueError("TriggeredBatch: batch_id must be a non-empty str")
+        if not isinstance(owns_trigger, bool):
+            raise TypeError(
+                f"TriggeredBatch: owns_trigger must be a bool, got {type(owns_trigger).__name__}"
+            )
         self._trigger = trigger
         self._map_agent = map_agent
         self._inputs_fn = inputs_fn
         self._batch_id = batch_id
+        self._owns_trigger = owns_trigger
         self._on_result = on_result
         self._on_error = on_error
 
     async def run(self) -> AsyncIterator[BatchProgress]:
         """Run one batch per fire, yielding a :class:`BatchProgress` per run.
 
-        The trigger is closed on every exit path — normal end of stream, a
-        propagating error, cancellation, or the consumer abandoning this
-        generator. A failure raised by ``close()`` itself is suppressed so it
-        cannot mask whatever ended the loop, matching ``run_forever``.
+        The trigger is left open, so a caller-owned trigger that ends by itself
+        — an ``IntervalTrigger`` exhausting ``max_fires``, say — can drive
+        another run. When ``owns_trigger`` was set, the trigger is instead
+        closed on every exit path (normal end of stream, a propagating error,
+        cancellation, or the consumer abandoning this generator), matching
+        ``run_forever``; a failure raised by ``close()`` itself is suppressed so
+        it cannot mask whatever ended the loop.
 
         Yields:
             One ``BatchProgress`` per completed fire. A fire whose run failed
@@ -130,8 +155,9 @@ class TriggeredBatch:
                     await self._on_result(request, progress)
                 yield progress
         finally:
-            with contextlib.suppress(Exception):
-                await self._trigger.close()
+            if self._owns_trigger:
+                with contextlib.suppress(Exception):
+                    await self._trigger.close()
 
     async def _run_once(self, ordinal: int) -> BatchProgress:
         """Run one batch for the given fire and summarise it.

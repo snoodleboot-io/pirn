@@ -20,6 +20,7 @@ import pytest
 from pirn.core.run_request import RunRequest
 
 from pirn_agents.batch.batch_progress import BatchProgress
+from pirn_agents.batch.event_trigger import EventTrigger
 from pirn_agents.batch.interval_trigger import IntervalTrigger
 from pirn_agents.batch.map_agent import MapAgent
 from pirn_agents.batch.triggered_batch import TriggeredBatch
@@ -65,7 +66,10 @@ async def test_inputs_fn_receives_the_fire_ordinal() -> None:
 async def test_closes_the_trigger_when_the_stream_ends() -> None:
     trigger = RecordingTrigger(fires=2)
     triggered = TriggeredBatch(
-        trigger=trigger, map_agent=MapAgent(StubAgent(), concurrency=1), inputs_fn=lambda o: ["a"]
+        trigger=trigger,
+        map_agent=MapAgent(StubAgent(), concurrency=1),
+        inputs_fn=lambda o: ["a"],
+        owns_trigger=True,
     )
 
     progresses = [progress async for progress in triggered.run()]
@@ -77,7 +81,10 @@ async def test_closes_the_trigger_when_the_stream_ends() -> None:
 async def test_closes_the_trigger_when_the_consumer_abandons_the_generator() -> None:
     trigger = RecordingTrigger(fires=5)
     triggered = TriggeredBatch(
-        trigger=trigger, map_agent=MapAgent(StubAgent(), concurrency=1), inputs_fn=lambda o: ["a"]
+        trigger=trigger,
+        map_agent=MapAgent(StubAgent(), concurrency=1),
+        inputs_fn=lambda o: ["a"],
+        owns_trigger=True,
     )
 
     runs = triggered.run()
@@ -90,7 +97,10 @@ async def test_closes_the_trigger_when_the_consumer_abandons_the_generator() -> 
 async def test_a_failing_close_does_not_sink_the_run() -> None:
     trigger = RecordingTrigger(fires=1, close_error=RuntimeError("close blew up"))
     triggered = TriggeredBatch(
-        trigger=trigger, map_agent=MapAgent(StubAgent(), concurrency=1), inputs_fn=lambda o: ["a"]
+        trigger=trigger,
+        map_agent=MapAgent(StubAgent(), concurrency=1),
+        inputs_fn=lambda o: ["a"],
+        owns_trigger=True,
     )
 
     progresses = [progress async for progress in triggered.run()]
@@ -150,7 +160,10 @@ async def test_without_on_error_a_failed_run_propagates() -> None:
         raise RuntimeError("could not fetch this fire's inputs")
 
     triggered = TriggeredBatch(
-        trigger=trigger, map_agent=MapAgent(StubAgent(), concurrency=1), inputs_fn=inputs_fn
+        trigger=trigger,
+        map_agent=MapAgent(StubAgent(), concurrency=1),
+        inputs_fn=inputs_fn,
+        owns_trigger=True,
     )
 
     with pytest.raises(RuntimeError):
@@ -172,6 +185,7 @@ async def test_on_error_never_swallows_cancellation() -> None:
         trigger=trigger,
         map_agent=MapAgent(StubAgent(), concurrency=1),
         inputs_fn=inputs_fn,
+        owns_trigger=True,
         on_error=on_error,
     )
 
@@ -179,6 +193,60 @@ async def test_on_error_never_swallows_cancellation() -> None:
         _ = [progress async for progress in triggered.run()]
     assert observed == []
     assert trigger.closes == 1
+
+
+async def test_the_caller_keeps_ownership_of_the_trigger_by_default() -> None:
+    """The default must not close a trigger the caller constructed and still holds."""
+    trigger = RecordingTrigger(fires=2)
+    triggered = TriggeredBatch(
+        trigger=trigger, map_agent=MapAgent(StubAgent(), concurrency=1), inputs_fn=lambda o: ["a"]
+    )
+
+    progresses = [progress async for progress in triggered.run()]
+
+    assert len(progresses) == 2
+    assert trigger.closes == 0
+
+
+async def test_an_interval_trigger_can_be_reused_across_runs() -> None:
+    """A caller-owned trigger re-fires on a second run instead of doing nothing."""
+    trigger = IntervalTrigger(interval=0.0, max_fires=2, sleep=_fake_sleep)
+    runner = MapAgent(StubAgent(), concurrency=1)
+
+    def make() -> TriggeredBatch:
+        return TriggeredBatch(trigger=trigger, map_agent=runner, inputs_fn=lambda o: ["a"])
+
+    first = [progress.batch_id async for progress in make().run()]
+    second = [progress.batch_id async for progress in make().run()]
+
+    assert first == ["batch-1", "batch-2"]
+    assert second == ["batch-1", "batch-2"]
+
+
+async def test_reusing_a_closed_event_trigger_fails_fast_and_never_hangs() -> None:
+    """A closed event trigger must raise on re-stream, not park on an empty queue.
+
+    ``wait_for`` bounds the test so a regression fails in a second instead of
+    wedging the run: the pre-fix behaviour blocked forever in ``queue.get()``
+    with the sentinel already consumed.
+    """
+    trigger = EventTrigger()
+    runner = MapAgent(StubAgent(), concurrency=1)
+
+    def make() -> TriggeredBatch:
+        return TriggeredBatch(trigger=trigger, map_agent=runner, inputs_fn=lambda o: ["a"])
+
+    await trigger.fire()
+    await trigger.close()
+    first = [progress.batch_id async for progress in make().run()]
+
+    assert first == ["batch-1"]
+
+    async def second() -> list[str]:
+        return [progress.batch_id async for progress in make().run()]
+
+    with pytest.raises(RuntimeError):
+        await asyncio.wait_for(second(), timeout=1.0)
 
 
 def test_validates_constructor_arguments() -> None:
@@ -192,3 +260,10 @@ def test_validates_constructor_arguments() -> None:
         TriggeredBatch(trigger=trigger, map_agent=runner, inputs_fn=123)  # type: ignore[arg-type]
     with pytest.raises(ValueError):
         TriggeredBatch(trigger=trigger, map_agent=runner, inputs_fn=lambda o: [], batch_id="")
+    with pytest.raises(TypeError):
+        TriggeredBatch(
+            trigger=trigger,
+            map_agent=runner,
+            inputs_fn=lambda o: [],
+            owns_trigger="yes",  # type: ignore[arg-type]
+        )

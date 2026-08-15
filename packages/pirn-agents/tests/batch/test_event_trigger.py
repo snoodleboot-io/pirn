@@ -71,3 +71,36 @@ async def test_close_is_idempotent() -> None:
     # The second close must not queue a second sentinel that a later stream
     # would mistake for a live signal.
     assert requests == []
+
+
+async def test_restreaming_an_ended_trigger_raises_instead_of_blocking() -> None:
+    """Closing is terminal; a second stream must not park on a dead queue."""
+    trigger = EventTrigger()
+    await trigger.fire()
+    await trigger.close()
+
+    assert [request.parameters["fire_ordinal"] async for request in trigger.stream()] == [1]
+
+    # Pre-fix this blocked forever in queue.get(): the sentinel was consumed by
+    # the first stream and close() refuses to queue a second one.
+    with pytest.raises(RuntimeError):
+        await asyncio.wait_for(anext(trigger.stream()), timeout=1.0)
+
+
+async def test_a_second_concurrent_consumer_is_released_by_close() -> None:
+    """No consumer may outlive close() parked on the queue waiting for a signal."""
+    trigger = EventTrigger()
+
+    async def drain() -> list[int]:
+        return [request.parameters["fire_ordinal"] async for request in trigger.stream()]
+
+    first = asyncio.ensure_future(drain())
+    second = asyncio.ensure_future(drain())
+    await asyncio.sleep(0)  # park both consumers on the empty queue
+    await trigger.close()
+
+    # Only one sentinel exists, so the other consumer is freed by the
+    # closed-and-empty guard rather than waiting for a signal that cannot come.
+    results = await asyncio.wait_for(asyncio.gather(first, second), timeout=1.0)
+
+    assert results == [[], []]

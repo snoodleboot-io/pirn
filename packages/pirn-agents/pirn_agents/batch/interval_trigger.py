@@ -65,6 +65,7 @@ class IntervalTrigger(Trigger):
         # Only consulted when ``delay_fn`` is absent, i.e. when ``interval`` was
         # supplied and validated non-negative.
         self._interval: float = 0.0 if interval is None else interval
+        self._closed = False
         self._cron = CronTrigger(
             delay_fn=delay_fn if delay_fn is not None else self._constant_delay,
             max_runs=max_fires,
@@ -87,7 +88,19 @@ class IntervalTrigger(Trigger):
         Returns:
             A fresh request stream; each request carries its 1-based
             ``fire_ordinal`` in ``parameters``.
+
+        Raises:
+            RuntimeError: If :meth:`close` has been called. Closing is terminal,
+                and a closed trigger's stream would otherwise end immediately
+                and report nothing, which is indistinguishable from a schedule
+                that simply has not fired yet.
         """
+        if self._closed:
+            raise RuntimeError(
+                "IntervalTrigger: this trigger is closed, so a new stream would "
+                "yield nothing. Closing is terminal; construct a new "
+                "IntervalTrigger rather than re-streaming a closed one."
+            )
         return self._numbered_stream()
 
     async def _numbered_stream(self) -> AsyncIterator[RunRequest]:
@@ -111,7 +124,13 @@ class IntervalTrigger(Trigger):
             yield RunRequest(parameters={"fire_ordinal": ordinal})
 
     async def close(self) -> None:
-        """Stop the schedule; no further ``RunRequest`` is emitted. Idempotent."""
+        """Stop the schedule; no further ``RunRequest`` is emitted. Idempotent.
+
+        Terminal: it ends every live stream and bars new ones. A caller that
+        wants the schedule to pause and resume should simply not close it —
+        a stream that has exhausted ``max_fires`` leaves the trigger reusable.
+        """
+        self._closed = True
         await self._cron.close()
 
     def _constant_delay(self, ordinal: int) -> float:

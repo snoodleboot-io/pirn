@@ -30,6 +30,7 @@ class EventTrigger(Trigger):
         """Create an idle trigger with an empty signal queue."""
         self._queue: asyncio.Queue[bool] = asyncio.Queue()
         self._closed = False
+        self._ended = False
 
     @property
     def name(self) -> str:
@@ -50,15 +51,45 @@ class EventTrigger(Trigger):
         """Signal end-of-stream so :meth:`stream` stops draining.
 
         Idempotent: a second call queues no second sentinel, which a later
-        consumer would otherwise mistake for a live signal.
+        consumer would otherwise mistake for a live signal. The one sentinel is
+        re-armed by whichever consumer takes it, so end-of-stream reaches every
+        live consumer rather than only the first.
+
+        Terminal: :meth:`fire` is refused afterwards and :meth:`stream` raises
+        once the stream has run out, so a closed trigger cannot be reused.
         """
         if self._closed:
             return
         self._closed = True
         self._queue.put_nowait(False)
 
-    async def stream(self) -> AsyncIterator[RunRequest]:
-        """Yield one ``RunRequest`` per received fire signal until closed.
+    def stream(self) -> AsyncIterator[RunRequest]:
+        """Return a stream yielding one ``RunRequest`` per fire signal.
+
+        Closing is **terminal**: this trigger is single-use, because ``close()``
+        can only queue one end-of-stream signal and a consumer eats it. Once a
+        stream has run to that end, re-streaming raises rather than parking
+        forever on a queue that can never be fed again — ``fire()`` is closed
+        too. Signals queued before ``close()`` are still drained first, so
+        fire/fire/close/stream reports both fires.
+
+        Returns:
+            An async iterator of ``RunRequest``, each carrying the 1-based
+            ``fire_ordinal`` of the signal that produced it.
+
+        Raises:
+            RuntimeError: If this trigger's stream has already run to its end.
+        """
+        if self._ended:
+            raise RuntimeError(
+                "EventTrigger: this trigger's stream has already ended, so a new "
+                "stream would block forever — close() is terminal and fire() is "
+                "refused afterwards. Construct a new EventTrigger per run."
+            )
+        return self._drain()
+
+    async def _drain(self) -> AsyncIterator[RunRequest]:
+        """Drain the signal queue until the end-of-stream signal arrives.
 
         Yields:
             A ``RunRequest`` whose ``parameters`` carry the 1-based
@@ -68,6 +99,14 @@ class EventTrigger(Trigger):
         while True:
             live = await self._queue.get()
             if not live:
+                self._ended = True
+                # Put the end-of-stream signal back. close() can only queue one,
+                # so without this the *first* consumer to see it strands every
+                # other consumer parked in get() forever — and a queue nothing
+                # can refill, since fire() is refused once closed. Re-arming
+                # makes end-of-stream broadcast to all consumers instead of
+                # being delivered to exactly one.
+                self._queue.put_nowait(False)
                 return
             ordinal += 1
             yield RunRequest(parameters={"fire_ordinal": ordinal})

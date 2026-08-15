@@ -97,6 +97,16 @@ async def test_close_is_idempotent() -> None:
     await trigger.close()
 
 
+async def test_streaming_a_closed_trigger_raises_rather_than_yielding_nothing() -> None:
+    """A closed trigger must say so, not look like a schedule that has not fired."""
+    trigger = IntervalTrigger(interval=1.0, max_fires=2)
+
+    await trigger.close()
+
+    with pytest.raises(RuntimeError):
+        trigger.stream()
+
+
 async def test_sequential_streams_are_independent() -> None:
     """Each ``stream()`` call numbers its own fires from 1, as ``fires()`` did."""
 
