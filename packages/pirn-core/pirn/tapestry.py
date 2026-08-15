@@ -328,3 +328,28 @@ class Tapestry:
 def current_tapestry() -> Tapestry | None:
     """Return the tapestry active in the current `with` context, or None."""
     return _current_tapestry.get(None)
+
+
+def current_run_id() -> str | None:
+    """Return the run_id of the currently-executing run, or None.
+
+    Downstream packages need run identity to correlate their own telemetry
+    with the engine's lineage and status streams.  Without a public accessor
+    they have to read the private ``_current_run_id``, so this exposes the
+    same value under a supported name.
+
+    Returns ``None`` outside a run, and ``None`` in an interpreter that never
+    inherited the context — a process-boundary dispatcher (Ray/Dask/Celery)
+    starts from an empty context, so callers there get nothing rather than a
+    stale id.  It does survive a thread hop made with ``copy_context()``,
+    which is how ``ThreadDispatcher`` hands off work (PIR-767).
+
+    Inside a ``SubTapestry`` the value is the **inner** run's id, not the
+    enclosing one: the inner ``Tapestry.run()`` sets the var for its own run
+    and reads the outer value only to record it as ``parent_run_id``.
+
+    There is deliberately no ``current_knot_id()`` companion.  Knot identity
+    is never ambient — a knot reads ``self.knot_id``, and callers that are not
+    knots must be told which knot they belong to.
+    """
+    return _current_run_id.get(None)
