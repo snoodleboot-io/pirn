@@ -49,13 +49,33 @@ class ReadOnlySqlGuard(SecurityGuard):
     def assert_read_only(self, query: str) -> None:
         """Raise :class:`ValueError` unless ``query`` is a single read-only statement.
 
+        ``INTO`` is checked separately from :attr:`_forbidden` because it is not
+        itself a write keyword — it is a clause that turns an otherwise ordinary
+        read into DDL. ``SELECT * INTO newtbl FROM t`` starts with ``SELECT`` and
+        names no forbidden keyword, yet it *creates a table* on PostgreSQL (and
+        ``SELECT ... INTO OUTFILE`` writes a file on MySQL), so it passed the
+        guard and let ``read_only=True`` write (PIR-812). It is only a syntax
+        error on SQLite, which is why the hole went unnoticed.
+
+        The check runs after the first-token check, so a statement already
+        rejected for not beginning with ``SELECT``/``WITH`` — ``INSERT INTO``,
+        ``REPLACE INTO``, ``MERGE INTO``, ``VACUUM INTO`` — keeps being rejected
+        for that stronger reason, before its body is inspected at all. Scanning
+        the whole body rather than only the text after ``SELECT`` is deliberate:
+        it also catches the form smuggled inside a ``WITH`` CTE.
+
+        A column genuinely named ``into`` is unaffected: ``INTO`` is a reserved
+        word, so such a column can only be written quoted, and quoted identifiers
+        are stripped before the scan — the same path that already lets a column
+        named ``delete`` through.
+
         Args:
             query: The SQL text to vet.
 
         Raises:
             ValueError: If ``query`` is empty, contains multiple statements, does
                 not start with ``SELECT``/``WITH``, or contains a write/DDL
-                keyword.
+                keyword or ``INTO``.
         """
         cleaned = self._strip_comments_and_strings(query).strip()
         if not cleaned:
@@ -75,6 +95,11 @@ class ReadOnlySqlGuard(SecurityGuard):
         if forbidden:
             self._reject(
                 f"sql_query: forbidden write/DDL keyword(s) in read-only mode: {sorted(forbidden)}"
+            )
+        if "INTO" in tokens:
+            self._reject(
+                "sql_query: INTO is not allowed in read-only mode — 'SELECT ... INTO' "
+                "creates a table on PostgreSQL, and writes a file on MySQL"
             )
 
     @staticmethod
