@@ -25,12 +25,24 @@ reasoning.
 **Why no bound parameters at all.** ``SqlConnector.execute`` accepts
 ``parameters`` but declares no paramstyle, and the shipped backends disagree:
 SQLite binds ``?`` while asyncpg binds ``$1``. A facade that must work against
-any ``SqlConnector`` therefore cannot emit a placeholder. ``LIMIT`` and
-``OFFSET`` are instead rendered from Python ``int`` values that this class
-derives itself — a validated page size and an offset parsed out of the cursor —
-so the interpolated text is an integer by construction and carries no attacker
-influence. The cursor is checked to be an ASCII decimal string before parsing,
-so a hostile cursor is rejected rather than reaching the database.
+more than one ``SqlConnector`` backend therefore cannot emit a placeholder.
+``LIMIT`` and ``OFFSET`` are instead rendered from Python ``int`` values that
+this class derives itself — a page size validated to be an exact ``int`` in
+range, and an offset parsed out of the cursor by regex — so the interpolated
+text is an integer literal and carries no caller influence. Both validations are
+security controls rather than tidiness: the values are interpolated, and an
+f-string renders a value by calling its ``__format__``, which any object may
+override. See ``_validated_page_size`` and ``_offset_from_cursor``.
+
+**Dialect scope — this facade is not dialect-agnostic.** It emits
+``LIMIT n OFFSET m``, which is SQLite, Postgres and MySQL syntax. It is *not*
+valid on SQL Server or Oracle, both of which spell row limiting as
+``OFFSET m ROWS FETCH NEXT n ROWS ONLY`` (and SQL Server additionally requires an
+``ORDER BY`` for it). The identifier quoting has its own, differently-shaped
+limit — see :class:`~pirn_agents.connectors.sql_identifier.SqlIdentifier`. So
+while the facade accepts any ``SqlConnector``, the statement it builds targets
+the shipped backends (``aiosqlite``, ``asyncpg``); pointing it at a SQL Server or
+Oracle connector would produce a syntax error, not a silent wrong answer.
 
 **Pagination model.** The cursor is the opaque encoding of a ``LIMIT``/``OFFSET``
 row offset. Each call fetches ``page_size + 1`` rows: the extra probe row decides
@@ -192,6 +204,9 @@ class SqlTableSource(TableSource):
 
     def _render_query(self, *, limit: int, offset: int) -> str:
         """Render the placeholder-free scan statement for one page.
+
+        ``LIMIT n OFFSET m`` is SQLite/Postgres/MySQL syntax and is not valid on
+        SQL Server or Oracle; see the module docstring for the dialect scope.
 
         The identifier half of the statement is not rebuilt here: it was rendered
         at construction, from identifiers validated at construction, and is

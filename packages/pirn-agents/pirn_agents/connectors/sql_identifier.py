@@ -21,24 +21,37 @@ homoglyph and zero-width confusables). At most two parts are accepted —
 ``schema.table``, covering SQLite's ``main.t`` and Postgres' ``public.t``.
 
 *Quote.* Each validated part is wrapped in ``"`` and joined with ``.``. Quoting
-is not the injection defence here — validation already guarantees no part can
+is *not* the injection defence here — validation already guarantees no part can
 escape — it is what keeps an identifier that collides with a reserved word
 (``"order"``, ``"select"``) legal, and what preserves case, since an unquoted
 identifier is case-folded (down in Postgres, up in Oracle) while a quoted one is
 taken literally.
 
-**Why not escape instead of validate?** Escaping by doubling embedded quotes is
-dialect-sensitive: double quotes delimit identifiers under the SQL standard,
-SQLite and Postgres, but MySQL uses backticks unless ``ANSI_QUOTES`` is set, and
-SQL Server uses brackets. A facade that only escaped would be safe on the
-dialects it was written against and unsafe on a backend plugged in later behind
-the same interface. Restricting to the character set that needs no escaping in
-*any* mainstream dialect makes the rendering correct regardless of which backend
-the connector actually talks to. The cost is that exotic-but-legal identifiers
-(spaces, non-ASCII, embedded quotes) are refused; a caller holding one should
-create a view with a portable name rather than widen this class.
+**Which dialects the emitted text is valid on.** Be precise about this, because
+the two halves have different reach. *Validation* is portable: the accepted
+grammar is legal unquoted in every mainstream dialect. The *quoting* is not.
+``"`` is the delimiter of the SQL standard, SQLite, Postgres and Oracle, but
+MySQL reads ``"users"`` as a string *literal* unless ``ANSI_QUOTES`` is enabled
+— so ``SELECT * FROM "users"`` is an error there, not a safe-but-ugly rendering
+— and SQL Server delimits with ``[users]`` unless ``QUOTED_IDENTIFIER`` is on.
+The emitted form therefore targets standard SQL, SQLite and Postgres, which is
+what this package's shipped backends (``aiosqlite``, ``asyncpg``) speak. A MySQL
+or SQL Server backend plugged in behind the same interface would need a
+dialect-aware quote style; it is the *quoting*, not the validation, that would
+have to change.
 
-Errors deliberately name the offending *position* and never replay the rejected
+**Why not escape instead of validate?** Escaping by doubling embedded quotes
+puts the safety of the statement in the hands of the escaper, and the correct
+escape is dialect-sensitive (doubled ``"`` under the standard, backticks in
+MySQL, brackets in SQL Server). A facade that only escaped would be safe on the
+dialects it was written against and unsafe on a backend plugged in later behind
+the same interface. Restricting to a character set that needs no escaping at all
+means the safety of the rendering does not depend on getting a dialect-specific
+escape right. The cost is that exotic-but-legal identifiers (spaces, non-ASCII,
+embedded quotes) are refused; a caller holding one should create a view with a
+portable name rather than widen this class.
+
+Errors deliberately describe the *shape* required and never replay the rejected
 text, because a rejected identifier can be attacker-controlled and the message
 lands in logs.
 """
