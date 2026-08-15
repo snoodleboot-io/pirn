@@ -1,6 +1,6 @@
 """``TriggeredBatch`` — run a batch once per trigger fire (F28-S5 / PIR-584).
 
-Binds a :class:`~pirn_agents.batch.batch_trigger.BatchTrigger` to a
+Binds a core :class:`pirn.triggers.base.Trigger` to a
 :class:`~pirn_agents.batch.map_agent.MapAgent`: for each fire it fetches a fresh
 input set from ``inputs_fn(ordinal)``, runs the batch to completion, and yields a
 :class:`~pirn_agents.batch.batch_progress.BatchProgress` summarising that run
@@ -14,18 +14,19 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator, Callable, Iterable
 
+from pirn.triggers.base import Trigger
+
 from pirn_agents.batch.batch_progress import BatchProgress
-from pirn_agents.batch.batch_trigger import BatchTrigger
 from pirn_agents.batch.map_agent import MapAgent
 
 
 class TriggeredBatch:
-    """Drive a :class:`MapAgent` once per fire of a :class:`BatchTrigger`."""
+    """Drive a :class:`MapAgent` once per fire of a core :class:`Trigger`."""
 
     def __init__(
         self,
         *,
-        trigger: BatchTrigger,
+        trigger: Trigger,
         map_agent: MapAgent,
         inputs_fn: Callable[[int], Iterable[object]],
         batch_id: str = "batch",
@@ -45,9 +46,9 @@ class TriggeredBatch:
                 ``inputs_fn`` is not callable.
             ValueError: If ``batch_id`` is empty.
         """
-        if not isinstance(trigger, BatchTrigger):
+        if not isinstance(trigger, Trigger):
             raise TypeError(
-                f"TriggeredBatch: trigger must be a BatchTrigger, got {type(trigger).__name__}"
+                f"TriggeredBatch: trigger must be a Trigger, got {type(trigger).__name__}"
             )
         if not isinstance(map_agent, MapAgent):
             raise TypeError(
@@ -66,7 +67,9 @@ class TriggeredBatch:
 
     async def run(self) -> AsyncIterator[BatchProgress]:
         """Run one batch per fire, yielding a :class:`BatchProgress` per run."""
-        async for ordinal in self._trigger.fires():
+        ordinal = 0
+        async for _request in self._trigger.stream():
+            ordinal += 1
             inputs = self._inputs_fn(ordinal)
             completed: set[str] = set()
             total = 0
