@@ -12,6 +12,7 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Mapping, Sequence
 from contextlib import closing
+from decimal import Decimal
 from typing import Any
 
 import pytest
@@ -39,6 +40,46 @@ class _FakeSqlConnector(SqlConnector):
 
 def _rows(count: int) -> list[list[Any]]:
     return [[n, f"name-{n}"] for n in range(count)]
+
+
+class _LyingPageSize(int):
+    """An ``int`` subclass that injects SQL through ``__format__``.
+
+    ``isinstance(x, int)`` is true, so a subclass check alone lets this through;
+    the payload is only delivered when the value is interpolated by an f-string,
+    which consults ``__format__`` rather than the integer's own value.
+    """
+
+    def __format__(self, format_spec: str) -> str:
+        return "1 OFFSET (SELECT CASE WHEN substr(pw,1,1)='h' THEN 4 ELSE 0 END FROM secrets) -- "
+
+    def __add__(self, other: int) -> _LyingPageSize:
+        """Absorb the ``+ 1`` probe-row arithmetic so the payload survives."""
+        return self
+
+
+class _NegativePageSize(int):
+    """An ``int`` subclass that renders a negative, comment-terminated ``LIMIT``."""
+
+    def __format__(self, format_spec: str) -> str:
+        return "-1 --"
+
+    def __add__(self, other: int) -> _NegativePageSize:
+        return self
+
+
+class _DuckTypedPageSize:
+    """A non-``int`` that satisfies every operation the unhardened code performed."""
+
+    def __le__(self, other: object) -> bool:
+        """Claim to be greater than zero so a ``<= 0`` range check passes."""
+        return False
+
+    def __add__(self, other: int) -> _DuckTypedPageSize:
+        return self
+
+    def __format__(self, format_spec: str) -> str:
+        return "1 UNION SELECT pw FROM secrets--"
 
 
 class TestCapabilityWiring:
@@ -184,6 +225,68 @@ class TestHostileCursorsAreRejected:
         source = SqlTableSource(connector=_FakeSqlConnector(), table="users")
         with pytest.raises(TypeError, match="cursor"):
             await source.fetch_page(7)  # pyright: ignore[reportArgumentType]
+
+
+class TestHostilePageSizesAreRejected:
+    """``page_size`` reaches the statement text, so its type is a security control.
+
+    ``LIMIT``/``OFFSET`` cannot be bound as parameters here (the facade must work
+    against any ``SqlConnector`` and the backends disagree on paramstyle), so the
+    page size is interpolated. An f-string calls ``__format__``, which any object
+    may override — including an ``int`` subclass, which passes ``isinstance``. A
+    range check alone is therefore not a defence: these tests pin that a hostile
+    or merely wrong-typed page size is refused *before* any statement is built.
+    """
+
+    @pytest.mark.parametrize(
+        "size",
+        [
+            pytest.param(_LyingPageSize(1), id="int-subclass-lying-format"),
+            pytest.param(_NegativePageSize(1), id="int-subclass-negative-format"),
+            pytest.param(_DuckTypedPageSize(), id="duck-typed-le-and-add"),
+            pytest.param(100.0, id="float"),
+            pytest.param(True, id="bool"),
+            pytest.param(Decimal(5), id="decimal"),
+            pytest.param(10**30, id="absurdly-large-int"),
+        ],
+    )
+    async def test_no_sql_is_emitted_for_a_hostile_page_size(self, size: Any) -> None:
+        connector = _FakeSqlConnector(["id"], _rows(1))
+        source = SqlTableSource(connector=connector, table="users")
+        with pytest.raises((TypeError, ValueError), match="page_size"):
+            await source.fetch_page(page_size=size)
+        assert connector.calls == []
+
+    @pytest.mark.parametrize(
+        "size",
+        [
+            pytest.param(_LyingPageSize(1), id="int-subclass-lying-format"),
+            pytest.param(_DuckTypedPageSize(), id="duck-typed-le-and-add"),
+            pytest.param(100.0, id="float"),
+            pytest.param(True, id="bool"),
+            pytest.param(Decimal(5), id="decimal"),
+        ],
+    )
+    def test_a_wrongly_typed_page_size_is_refused_at_construction(self, size: Any) -> None:
+        with pytest.raises(TypeError, match="page_size"):
+            SqlTableSource(connector=_FakeSqlConnector(), table="users", page_size=size)
+
+    def test_bool_is_not_accepted_as_the_int_it_subclasses(self) -> None:
+        # bool is a subclass of int, so an isinstance check alone silently reads
+        # True as a page size of 1 — a caller passing a flag by mistake would get
+        # one-row pages rather than an error.
+        with pytest.raises(TypeError, match="page_size"):
+            SqlTableSource(connector=_FakeSqlConnector(), table="users", page_size=True)
+
+    def test_an_oversized_page_size_is_refused(self) -> None:
+        with pytest.raises(ValueError, match="page_size"):
+            SqlTableSource(connector=_FakeSqlConnector(), table="users", page_size=10**30)
+
+    async def test_rejection_messages_never_echo_the_caller_value(self) -> None:
+        source = SqlTableSource(connector=_FakeSqlConnector(), table="users")
+        with pytest.raises(ValueError) as info:
+            await source.fetch_page(page_size=-4242)
+        assert "4242" not in str(info.value)
 
 
 class TestAgainstALiveSqliteBackend:

@@ -56,7 +56,7 @@ Two caveats a caller must know:
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.connectors.capabilities.table_source import TableSource
 
@@ -66,6 +66,11 @@ from pirn_agents.tools.sql.sql_connector import SqlConnector
 
 class SqlTableSource(TableSource):
     """Paginated whole-table scans of one bound SQL table, as a ``TableSource``."""
+
+    # Ceiling on a single page, in rows. An internal class attribute rather than a
+    # module constant so a deployment with a genuinely larger appetite can subclass
+    # instead of editing this module; see _validated_page_size for why a cap exists.
+    _maximum_page_size: ClassVar[int] = 1_000_000
 
     def __init__(
         self,
@@ -86,8 +91,9 @@ class SqlTableSource(TableSource):
                 is validated and quoted by :class:`SqlIdentifier`.
 
         Raises:
-            TypeError: If ``connector`` is not a :class:`SqlConnector`.
-            ValueError: If ``page_size`` is not positive, or ``table`` or any
+            TypeError: If ``connector`` is not a :class:`SqlConnector`, or
+                ``page_size`` is not exactly an ``int``.
+            ValueError: If ``page_size`` is out of range, or ``table`` or any
                 ``order_by`` column is not a portable SQL identifier.
         """
         if not isinstance(connector, SqlConnector):
@@ -117,9 +123,10 @@ class SqlTableSource(TableSource):
             for the following page, or ``None`` once the scan is exhausted.
 
         Raises:
-            TypeError: If ``cursor`` is neither a ``str`` nor ``None``.
+            TypeError: If ``cursor`` is neither a ``str`` nor ``None``, or
+                ``page_size`` is not exactly an ``int``.
             ValueError: If ``cursor`` is not an ASCII decimal offset, or
-                ``page_size`` is not positive.
+                ``page_size`` is out of range.
         """
         offset = self._offset_from_cursor(cursor)
         size = self._page_size if page_size is None else self._validated_page_size(page_size)
@@ -136,14 +143,18 @@ class SqlTableSource(TableSource):
     def _render_query(self, *, limit: int, offset: int) -> str:
         """Render the placeholder-free scan statement for one page.
 
-        ``limit`` and ``offset`` are ``int`` by construction (a validated page
-        size and a digits-only cursor), so interpolating them cannot inject; the
-        table and column names are pre-validated :class:`SqlIdentifier` values.
+        ``limit`` and ``offset`` arrive already validated — an exact-``int`` page
+        size and a digits-only cursor — and are nevertheless passed through
+        ``int()`` here. That is deliberate belt-and-braces: an f-string renders a
+        value by calling its ``__format__``, so a lying object that reached this
+        point would write its own SQL, whereas ``int()`` must return a true
+        integer whatever ``__int__`` does. Validation is the defence; this makes
+        the rendering safe even if a future edit routes around it.
         """
         ordering = ""
         if self._order_by:
             ordering = " ORDER BY " + ", ".join(column.sql for column in self._order_by)
-        return f"SELECT * FROM {self._table.sql}{ordering} LIMIT {limit} OFFSET {offset}"
+        return f"SELECT * FROM {self._table.sql}{ordering} LIMIT {int(limit)} OFFSET {int(offset)}"
 
     def _offset_from_cursor(self, cursor: str | None) -> int:
         """Parse a cursor into a non-negative row offset, rejecting anything else."""
@@ -163,9 +174,40 @@ class SqlTableSource(TableSource):
             )
         return int(cursor)
 
-    @staticmethod
-    def _validated_page_size(page_size: int) -> int:
-        """Return ``page_size`` if it is a positive row count, else raise."""
+    @classmethod
+    def _validated_page_size(cls, page_size: int) -> int:
+        """Return ``page_size`` if it is a plain, in-range ``int``, else raise.
+
+        The type check is a security control, not defensive tidiness. ``page_size``
+        is interpolated into the statement text, and an f-string renders a value by
+        calling its ``__format__`` — which any object may override to return
+        arbitrary SQL while its arithmetic and comparisons behave normally. An
+        ``isinstance`` check does not close that: ``bool`` and any hostile ``int``
+        subclass pass it. Only exact ``int`` is accepted, so the rendered text is a
+        Python integer literal and nothing else. ``bool`` is refused rather than
+        read as 0/1 because a flag reaching this parameter is a caller mistake, not
+        a one-row page.
+
+        The upper bound exists because every row of a page is materialised in
+        memory as a ``dict`` before being returned, and the statement is built from
+        the number given. An unbounded page size therefore lets a single call ask a
+        backend for an arbitrarily large result set and allocate without limit — a
+        memory-exhaustion foot-gun reachable from any caller-supplied value, such
+        as a JSON payload or an LLM tool-call argument.
+
+        Raises:
+            TypeError: If ``page_size`` is not exactly an ``int`` (``bool``,
+                ``float``, ``Decimal`` and ``int`` subclasses are all refused).
+            ValueError: If ``page_size`` is not positive or exceeds the cap.
+        """
+        # `type(...) is int` rather than isinstance: subclasses are the attack.
+        if type(page_size) is not int:
+            raise TypeError(
+                "SqlTableSource: page_size must be an int, got "
+                f"{type(page_size).__name__}"  # the type, never the value
+            )
         if page_size <= 0:
-            raise ValueError(f"SqlTableSource: page_size must be positive, got {page_size}")
+            raise ValueError("SqlTableSource: page_size must be a positive row count")
+        if page_size > cls._maximum_page_size:
+            raise ValueError(f"SqlTableSource: page_size must not exceed {cls._maximum_page_size}")
         return page_size
