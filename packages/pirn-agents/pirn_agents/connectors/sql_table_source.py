@@ -54,9 +54,10 @@ Two caveats a caller must know:
 
 * **Ordering.** ``OFFSET`` pagination is only stable under a deterministic row
   order. Pass ``order_by`` naming a unique key for a scan that must not repeat
-  or skip rows; with no ``order_by`` the statement omits ``ORDER BY`` entirely
-  and the row order is whatever the backend returns, which is well-defined only
-  for a quiescent table.
+  or skip rows — as a *sequence*, ``["id"]`` rather than ``"id"``, since a bare
+  string is refused rather than being read as a one-column list. With no
+  ``order_by`` the statement omits ``ORDER BY`` entirely and the row order is
+  whatever the backend returns, which is well-defined only for a quiescent table.
 * **Row caps.** A connector may cap its own result set —
   :class:`~pirn_agents.connectors.sql_service_connector.SqlServiceConnector`
   truncates to ``max_rows``. That cap is not visible through the ``SqlConnector``
@@ -126,18 +127,33 @@ class SqlTableSource(TableSource):
             table: The table to scan, optionally ``schema``-qualified. Validated
                 and quoted by :class:`SqlIdentifier`.
             page_size: Rows per page when the caller does not override it.
-            order_by: Optional column names for a deterministic scan order; each
-                is validated and quoted by :class:`SqlIdentifier`.
+            order_by: Optional column names for a deterministic scan order, as a
+                sequence — ``["id"]``, not ``"id"``. Each is validated and quoted
+                by :class:`SqlIdentifier`.
 
         Raises:
-            TypeError: If ``connector`` is not a :class:`SqlConnector`, or
-                ``page_size`` is not exactly an ``int``.
+            TypeError: If ``connector`` is not a :class:`SqlConnector`,
+                ``page_size`` is not exactly an ``int``, or ``order_by`` is a
+                bare ``str``/``bytes`` rather than a sequence of column names.
             ValueError: If ``page_size`` is out of range, or ``table`` or any
                 ``order_by`` column is not a portable SQL identifier.
         """
         if not isinstance(connector, SqlConnector):
             raise TypeError(
                 f"SqlTableSource: connector must be a SqlConnector, got {type(connector).__name__}"
+            )
+        # A str satisfies Sequence[str], so no type checker catches order_by="id"
+        # — and iterating it yields characters, every one a legal one-letter
+        # identifier. The allowlist passes each in turn and the facade emits
+        # ORDER BY "i", "d": no error, plausible SQL, ordered by columns the caller
+        # never named. Refuse rather than coerce to ["id"]: a str really is a
+        # sequence, so guessing which of the two meanings was intended just moves
+        # the surprise. bytes is the same hazard, and decomposes into ints.
+        if isinstance(order_by, (str, bytes)):
+            raise TypeError(
+                "SqlTableSource: order_by must be a sequence of column names, not a bare "
+                f"{type(order_by).__name__}; pass ['id'] rather than 'id'. Iterating a "
+                "string would order by its characters."
             )
         bound_table = SqlIdentifier(table)
         columns = tuple(SqlIdentifier(column) for column in order_by or ())

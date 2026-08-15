@@ -123,6 +123,73 @@ class TestCapabilityWiring:
         with pytest.raises(ValueError, match="SqlIdentifier"):
             SqlTableSource(connector=_FakeSqlConnector(), table="users", order_by=["id; DROP x"])
 
+
+class TestABareStringOrderByIsRejected:
+    """``str`` satisfies ``Sequence[str]``, so the type checker cannot catch this.
+
+    Passing ``order_by="id"`` instead of ``order_by=["id"]`` is the obvious caller
+    mistake, and iterating it yields *characters*: every one is a legal one-letter
+    identifier, so the allowlist passes each in turn and the facade emits
+    ``ORDER BY "i", "d"`` — valid-looking SQL ordering by columns nobody asked for,
+    with no error anywhere. It is refused rather than coerced to ``["id"]``, because
+    a ``str`` genuinely is a sequence and silently picking one of the two possible
+    meanings is how the next surprise gets built.
+    """
+
+    def test_a_bare_str_order_by_is_a_type_error(self) -> None:
+        with pytest.raises(TypeError, match="order_by"):
+            SqlTableSource(
+                connector=_FakeSqlConnector(),
+                table="users",
+                order_by="id",  # pyright: ignore[reportArgumentType]
+            )
+
+    def test_it_is_refused_rather_than_silently_coerced(self) -> None:
+        # The bug's signature: no exception, and characters as column names.
+        connector = _FakeSqlConnector(["id"], _rows(1))
+        with pytest.raises(TypeError, match="order_by"):
+            SqlTableSource(
+                connector=connector,
+                table="users",
+                order_by="id",  # pyright: ignore[reportArgumentType]
+            )
+        assert connector.calls == []
+
+    def test_the_message_names_the_type_not_the_value(self) -> None:
+        with pytest.raises(TypeError) as info:
+            SqlTableSource(
+                connector=_FakeSqlConnector(),
+                table="users",
+                order_by="secret_column",  # pyright: ignore[reportArgumentType]
+            )
+        assert "secret_column" not in str(info.value)
+        assert "str" in str(info.value)
+
+    def test_bytes_are_refused_too(self) -> None:
+        # Same hazard, worse error: iterating bytes yields ints, so the failure
+        # surfaced as "identifier must be a str, got int" and named neither
+        # order_by nor the real mistake.
+        with pytest.raises(TypeError, match="order_by"):
+            SqlTableSource(
+                connector=_FakeSqlConnector(),
+                table="users",
+                order_by=b"id",  # pyright: ignore[reportArgumentType]
+            )
+
+    @pytest.mark.parametrize("columns", [["id"], ("id",), ["id", "created_at"]])
+    async def test_genuine_sequences_still_work(self, columns: Sequence[str]) -> None:
+        connector = _FakeSqlConnector(["id"], _rows(1))
+        source = SqlTableSource(connector=connector, table="users", order_by=columns)
+        await source.fetch_page()
+        expected = ", ".join(f'"{column}"' for column in columns)
+        assert f"ORDER BY {expected}" in connector.calls[0][0]
+
+    async def test_no_order_by_still_omits_the_clause(self) -> None:
+        connector = _FakeSqlConnector(["id"], _rows(1))
+        source = SqlTableSource(connector=connector, table="users")
+        await source.fetch_page()
+        assert "ORDER BY" not in connector.calls[0][0]
+
     @pytest.mark.parametrize("size", [0, -1])
     def test_rejects_a_non_positive_page_size(self, size: int) -> None:
         with pytest.raises(ValueError, match="page_size"):
