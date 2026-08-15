@@ -88,7 +88,16 @@ class PersistedSessionStore(SessionStore):
         await self._index.remove(session_id)
 
     async def list_sessions(self) -> Sequence[str]:
-        """Return the sorted ids of all sessions with a stored checkpoint."""
+        """Return the sorted ids of all sessions with a stored checkpoint.
+
+        Raises:
+            KeyIndexUnreadableError: If the index record could not be read. The
+                checkpoints themselves are unaffected and :meth:`load` still
+                works for any id the caller already holds; only enumeration is
+                lost, and it stays lost until the index record is scrubbed. See
+                :class:`MemoryStoreKeyIndex` for how a record becomes unreadable
+                and how to recover it.
+        """
         return sorted(await self._index.keys())
 
     async def close(self) -> None:

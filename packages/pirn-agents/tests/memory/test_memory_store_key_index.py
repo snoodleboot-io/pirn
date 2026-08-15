@@ -21,6 +21,7 @@ from pirn.backends._signer import _Signer
 from pirn.backends.disk import LocalDiskDataStore
 
 from pirn_agents.memory.stores.data_store_memory_store import DataStoreMemoryStore
+from pirn_agents.memory.stores.key_index_unreadable_error import KeyIndexUnreadableError
 from pirn_agents.memory.stores.memory_store_key_index import MemoryStoreKeyIndex
 from tests.sessions.conftest import DictMemoryStore
 
@@ -39,6 +40,27 @@ def _suspending_index(root: Path, *, index_key: str = "ns:__index__") -> MemoryS
     """An index over a backend that really awaits IO between read and write."""
     disk = LocalDiskDataStore(root, signer=_Signer.test_signer())
     return MemoryStoreKeyIndex(store=DataStoreMemoryStore(data_store=disk), index_key=index_key)
+
+
+def _truncate_index_record(root: Path) -> None:
+    """Halve the single file the index wrote, the way an interrupted write leaves it.
+
+    ``LocalDiskDataStore.__write`` is a plain ``path.write_bytes`` — no temp file,
+    no ``os.replace`` — so a reader arriving mid-write sees a prefix of the
+    payload and the signer rejects it. Truncating deliberately reproduces exactly
+    that byte pattern without having to win a race for it.
+    """
+    files = [path for path in root.rglob("*") if path.is_file()]
+    assert len(files) == 1, f"expected exactly one backend file, found {files}"
+    raw = files[0].read_bytes()
+    files[0].write_bytes(raw[: len(raw) // 2])
+
+
+class _TornMemoryStore(DictMemoryStore):
+    """A dict store whose reads fail the way a half-written signed payload does."""
+
+    async def retrieve(self, key: str) -> Mapping[str, Any] | None:
+        raise ValueError("HMAC signature mismatch — payload may have been tampered with")
 
 
 class _RendezvousMemoryStore(DictMemoryStore):
@@ -241,6 +263,87 @@ class TestConcurrentMutation:
         await asyncio.gather(*(index.add("same") for _ in range(8)))
 
         assert await index.keys() == ["same"]
+
+
+class TestUnreadableRecord:
+    """A record that cannot be read at all is not the same as one that is empty.
+
+    Two instances racing one record can leave it torn, and core's disk backend
+    has no atomic write to prevent that. The class refuses to paper over it —
+    see ``MemoryStoreKeyIndex``'s docstring for why reading empty would be
+    actively destructive rather than merely dishonest.
+    """
+
+    async def test_torn_disk_record_raises_a_typed_error(self, tmp_path: Path) -> None:
+        index = _suspending_index(tmp_path)
+        await index.add("a")
+        _truncate_index_record(tmp_path)
+
+        with pytest.raises(KeyIndexUnreadableError):
+            await index.keys()
+
+    async def test_a_torn_record_never_heals_itself(self, tmp_path: Path) -> None:
+        # The bytes on disk stay torn, so this is permanent until someone scrubs
+        # the record — which is precisely why the error has to name the recovery.
+        index = _suspending_index(tmp_path)
+        await index.add("a")
+        _truncate_index_record(tmp_path)
+
+        with pytest.raises(KeyIndexUnreadableError):
+            await index.keys()
+        with pytest.raises(KeyIndexUnreadableError):
+            await index.keys()
+
+    async def test_scrubbing_the_record_restores_the_index(self, tmp_path: Path) -> None:
+        # The documented recovery path. The index is derived state, so dropping
+        # the unreadable record always gets enumeration working again.
+        disk = LocalDiskDataStore(tmp_path, signer=_Signer.test_signer())
+        store = DataStoreMemoryStore(data_store=disk)
+        index = MemoryStoreKeyIndex(store=store, index_key="ns:__index__")
+        await index.add("a")
+        _truncate_index_record(tmp_path)
+
+        await store.forget("ns:__index__")
+
+        assert await index.keys() == []
+        await index.add("a")
+        assert await index.keys() == ["a"]
+
+    async def test_add_refuses_to_overwrite_an_unreadable_index(self) -> None:
+        # The decisive reason _read raises rather than reading empty: add() is a
+        # read-modify-write, so a swallowed read failure would persist ["new"]
+        # over an index that may hold thousands of keys. That would turn a
+        # transient backend outage into permanent data loss.
+        backend = _TornMemoryStore()
+        index = MemoryStoreKeyIndex(store=backend, index_key="ns:__index__")
+
+        with pytest.raises(KeyIndexUnreadableError):
+            await index.add("new")
+
+        assert backend.stored == []
+
+    async def test_remove_refuses_on_an_unreadable_index(self) -> None:
+        backend = _TornMemoryStore()
+        index = MemoryStoreKeyIndex(store=backend, index_key="ns:__index__")
+
+        with pytest.raises(KeyIndexUnreadableError):
+            await index.remove("gone")
+
+        assert backend.stored == []
+
+    async def test_error_names_the_record_and_chains_the_cause(self) -> None:
+        # The backend's ValueError says "HMAC signature mismatch" and nothing
+        # about which record or what to do, so it is wrapped rather than
+        # propagated — but never discarded.
+        backend = _TornMemoryStore()
+        index = MemoryStoreKeyIndex(store=backend, index_key="ns:__index__")
+
+        with pytest.raises(KeyIndexUnreadableError) as caught:
+            await index.keys()
+
+        assert "ns:__index__" in str(caught.value)
+        assert "forget" in str(caught.value)
+        assert isinstance(caught.value.__cause__, ValueError)
 
 
 class TestLockScopeIsHonest:

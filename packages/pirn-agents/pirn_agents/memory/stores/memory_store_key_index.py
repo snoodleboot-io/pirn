@@ -28,12 +28,38 @@ processes need the backend itself to provide atomicity (a compare-and-set, a
 conditional write, or a row lock); this class cannot supply it and does not
 pretend to. Within a single agent process — the shape every current consumer
 has — it is sufficient.
+
+**Racing writers can do worse than lose an edit.** Read "two instances race" as
+"the key listing can break permanently", not "the key listing can go stale".
+Core's ``LocalDiskDataStore`` writes with a plain ``path.write_bytes`` — no temp
+file, no ``os.replace`` — so a reader that arrives mid-write sees a *prefix* of
+the payload and the signature check rejects it (``ValueError: HMAC signature
+mismatch``, or ``payload too short to contain a signature``). Measured over 30
+trials of the two-instance scenario, 29 lost an edit and one left the record
+unreadable; the unreadable share grows with the number of instances. Nothing
+repairs it afterwards, so from that point every :meth:`keys` call — and every
+``list_sessions()`` above it — raises :class:`KeyIndexUnreadableError` until an
+operator intervenes. The durable fix belongs in the backend: writing to a temp
+file and ``os.replace``-ing it into position is atomic on POSIX and would close
+the torn-read window entirely. That is core's to make; this class can only
+decline to make the damage worse.
+
+**Why an unreadable record raises instead of reading as empty.** Because
+:meth:`add` is a read-modify-write, treating a failed read as an empty index
+would be actively destructive: an index holding ten thousand keys that failed to
+read once would be *overwritten* with a single-entry list, turning a transient
+backend outage into permanent data loss. Raising leaves the surviving bytes
+alone. And because the index is derived state, a recovery always exists and the
+error names it — scrub the record (``MemoryStore.forget(index_key)``) and re-add
+the keys. A record that reads back fine but holds the wrong *shape* is a
+different case and still reads as empty; see :meth:`keys`.
 """
 
 from __future__ import annotations
 
 import asyncio
 
+from pirn_agents.memory.stores.key_index_unreadable_error import KeyIndexUnreadableError
 from pirn_agents.memory.stores.memory_store import MemoryStore
 
 
@@ -97,8 +123,15 @@ class MemoryStoreKeyIndex:
         key list a caller cannot tell from a real one. Entries inside a
         well-shaped list are coerced with ``str``.
 
+        A record that cannot be *read at all* is the one case that does raise;
+        see the class docstring for why that is not treated as "empty".
+
         Returns:
             A fresh list the caller may mutate without affecting the index.
+
+        Raises:
+            KeyIndexUnreadableError: If the backend could not return the record —
+                a torn payload, a rejected signature, or a backend outage.
         """
         async with self._lock:
             return await self._read()
@@ -113,6 +146,11 @@ class MemoryStoreKeyIndex:
         Args:
             key: The key to index. Adding a key already present is a no-op and
                 writes nothing.
+
+        Raises:
+            KeyIndexUnreadableError: If the current record could not be read.
+                Nothing is written in that case: overwriting an index that
+                merely failed to read would discard every key it holds.
         """
         async with self._lock:
             current = await self._read()
@@ -126,6 +164,10 @@ class MemoryStoreKeyIndex:
         Args:
             key: The key to de-index. Removing an absent key is a no-op and
                 writes nothing.
+
+        Raises:
+            KeyIndexUnreadableError: If the current record could not be read.
+                Nothing is written in that case.
         """
         async with self._lock:
             current = await self._read()
@@ -134,8 +176,20 @@ class MemoryStoreKeyIndex:
             await self._write([entry for entry in current if entry != key])
 
     async def _read(self) -> list[str]:
-        """Return the persisted key list. Caller must hold the lock."""
-        record = await self._store.retrieve(self._index_key)
+        """Return the persisted key list. Caller must hold the lock.
+
+        Raises:
+            KeyIndexUnreadableError: If the backend could not return the record.
+        """
+        try:
+            record = await self._store.retrieve(self._index_key)
+        except Exception as exc:
+            raise KeyIndexUnreadableError(
+                f"MemoryStoreKeyIndex: index record {self._index_key!r} could not be read "
+                f"({type(exc).__name__}: {exc}). The indexed data itself is unaffected — "
+                f"this record is derived state. Recover by scrubbing it "
+                f"(MemoryStore.forget({self._index_key!r})) and re-adding the keys."
+            ) from exc
         if record is None:
             return []
         entries = record.get(self._field)
