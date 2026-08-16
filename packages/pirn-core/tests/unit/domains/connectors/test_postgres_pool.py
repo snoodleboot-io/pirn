@@ -7,7 +7,7 @@ real Postgres needed. Real-Postgres integration tests live under
 
 from __future__ import annotations
 
-import unittest
+import unittest.mock
 from typing import Any
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool

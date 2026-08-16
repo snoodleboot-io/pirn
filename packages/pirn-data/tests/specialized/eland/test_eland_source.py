@@ -7,7 +7,7 @@ so the test does not need a live cluster.
 
 from __future__ import annotations
 
-import unittest
+import unittest.mock
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
