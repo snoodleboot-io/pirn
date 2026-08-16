@@ -31,6 +31,7 @@ factory, so that editing a fixture elsewhere cannot quietly move a golden value.
 
 from __future__ import annotations
 
+import decimal
 import hashlib
 import json
 from typing import Any, ClassVar
@@ -253,8 +254,24 @@ class TestCanonicalFormConvergence:
             assert with_default == without_default
 
     def test_opaque_leaf_is_the_only_behavioural_split(self) -> None:
-        # content_digest stringifies, the checkpoint hasher raises.
-        leaf = {"leaf": object()}
-        assert len(content_digest(leaf)) == 64
+        # The split is still the opaque leaf, but it now falls where the leaf
+        # renders content rather than wherever `str` happened to succeed.
+        #
+        # This assertion used to read `len(content_digest({"leaf": object()})) == 64`
+        # — it pinned the PIR-785 hazard rather than a contract. A bare `object()`
+        # has no content-derived __str__, so that digest was its memory address
+        # and differed on the next run; a cassette keyed by it could never
+        # replay. PIR-795 narrowed content_digest to STR_CONTENT, so that case
+        # is now refused at record time.
+        identity_leaf = {"leaf": object()}
         with pytest.raises(TypeError):
-            json.dumps(leaf, sort_keys=True, separators=(",", ":"))
+            content_digest(identity_leaf)
+        with pytest.raises(TypeError):
+            json.dumps(identity_leaf, sort_keys=True, separators=(",", ":"))
+
+        # A leaf that renders content is still the branch the checkpoint hasher
+        # does not have: content_digest accepts it, bare json.dumps does not.
+        content_leaf = {"leaf": decimal.Decimal("1.25")}
+        assert len(content_digest(content_leaf)) == 64
+        with pytest.raises(TypeError):
+            json.dumps(content_leaf, sort_keys=True, separators=(",", ":"))
