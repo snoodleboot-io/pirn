@@ -27,6 +27,25 @@ class MySQLPool(DatabaseConnectionPool):
     Parameter style: aiomysql uses ``%s`` placeholders (the canonical MySQL
     parameter marker). That is **not** considered inline interpolation —
     only ``{...}``-style brace interpolation is rejected here.
+
+    **Transaction ownership.** ``execute``, ``execute_many`` and ``fetch_all``
+    each end exactly the transaction *their own statement* opened, and never
+    touch one they found already open: success commits, failure rolls back.
+
+    The discriminator is ``aiomysql.Connection.get_transaction_status()``,
+    which returns MySQL's own ``SERVER_STATUS_IN_TRANS`` flag as carried on
+    the last OK/EOF packet. That makes it a true equivalent of
+    ``sqlite3.Connection.in_transaction`` — the server's answer, not a
+    client-side guess — so the same before/after sampling used by the SQLite
+    pools transplants directly.
+
+    Reads need this as much as writes do. aiomysql leaves ``autocommit`` at
+    the driver default of ``False``, under which InnoDB opens a transaction
+    for a plain ``SELECT`` and pins a read view. A ``fetch_all`` that returned
+    its connection mid-transaction was not merely untidy: ``aiomysql.Pool``'s
+    ``release()`` samples the same flag and *closes* a connection still in a
+    transaction rather than returning it to the free list, so every read paid
+    a fresh TCP connect and handshake.
     """
 
     _inline_interpolation_pattern = r"\{[^}]*\}"
@@ -88,18 +107,21 @@ class MySQLPool(DatabaseConnectionPool):
         params = list(parameters or ())
         connection = await pool.acquire()
         try:
-            cursor = await connection.cursor()
+            status_on_entry = self._transaction_status(connection)
             try:
-                await cursor.execute(query, params)
-                rowcount = getattr(cursor, "rowcount", None)
-                commit_fn = getattr(connection, "commit", None)
-                if callable(commit_fn):
-                    result = commit_fn()
-                    if hasattr(result, "__await__"):
-                        await result  # type: ignore[misc]
-                return rowcount
-            finally:
-                await cursor.close()
+                cursor = await connection.cursor()
+                try:
+                    await cursor.execute(query, params)
+                    rowcount = getattr(cursor, "rowcount", None)
+                finally:
+                    await cursor.close()
+            except BaseException:
+                if self._opened_transaction(connection, status_on_entry):
+                    await self._end_transaction(connection, "rollback")
+                raise
+            if self._opened_transaction(connection, status_on_entry):
+                await self._end_transaction(connection, "commit")
+            return rowcount
         finally:
             await pool.release(connection)
 
@@ -113,13 +135,21 @@ class MySQLPool(DatabaseConnectionPool):
         params = list(parameters or ())
         connection = await pool.acquire()
         try:
-            cursor = await connection.cursor()
+            status_on_entry = self._transaction_status(connection)
             try:
-                await cursor.execute(query, params)
-                rows = await cursor.fetchall()
-                return [tuple(r) for r in rows]
-            finally:
-                await cursor.close()
+                cursor = await connection.cursor()
+                try:
+                    await cursor.execute(query, params)
+                    rows = await cursor.fetchall()
+                finally:
+                    await cursor.close()
+            except BaseException:
+                if self._opened_transaction(connection, status_on_entry):
+                    await self._end_transaction(connection, "rollback")
+                raise
+            if self._opened_transaction(connection, status_on_entry):
+                await self._end_transaction(connection, "commit")
+            return [tuple(r) for r in rows]
         finally:
             await pool.release(connection)
 
@@ -133,20 +163,72 @@ class MySQLPool(DatabaseConnectionPool):
         rows = [list(p) for p in parameter_seq]
         connection = await pool.acquire()
         try:
-            cursor = await connection.cursor()
+            status_on_entry = self._transaction_status(connection)
             try:
-                await cursor.executemany(query, rows)
-                rowcount = getattr(cursor, "rowcount", None)
-                commit_fn = getattr(connection, "commit", None)
-                if callable(commit_fn):
-                    result = commit_fn()
-                    if hasattr(result, "__await__"):
-                        await result  # type: ignore[misc]
-                return rowcount
-            finally:
-                await cursor.close()
+                cursor = await connection.cursor()
+                try:
+                    await cursor.executemany(query, rows)
+                    rowcount = getattr(cursor, "rowcount", None)
+                finally:
+                    await cursor.close()
+            except BaseException:
+                if self._opened_transaction(connection, status_on_entry):
+                    await self._end_transaction(connection, "rollback")
+                raise
+            if self._opened_transaction(connection, status_on_entry):
+                await self._end_transaction(connection, "commit")
+            return rowcount
         finally:
             await pool.release(connection)
+
+    @staticmethod
+    def _transaction_status(connection: Any) -> bool | None:
+        """MySQL's ``SERVER_STATUS_IN_TRANS`` flag for *connection*.
+
+        Returns ``None`` when the connection does not report transaction
+        status at all. Every real ``aiomysql.Connection`` does; a stand-in
+        supplied through the ``pool=`` seam need not.
+        """
+        status_fn = getattr(connection, "get_transaction_status", None)
+        if not callable(status_fn):
+            return None
+        return bool(status_fn())
+
+    @classmethod
+    def _opened_transaction(cls, connection: Any, status_on_entry: bool | None) -> bool:
+        """Whether the statement just run is what opened the now-open transaction.
+
+        Args:
+            connection: The aiomysql-shaped connection the statement ran on.
+            status_on_entry: :meth:`_transaction_status` sampled before the
+                statement ran.
+
+        Returns:
+            ``True`` only when a transaction is open now and none was open
+            before, which makes this call its owner — and so the one
+            responsible for ending it.
+        """
+        status_now = cls._transaction_status(connection)
+        if status_now is None:
+            # Undiscriminable stand-in: treat the call as the owner. Ending a
+            # transaction that was never opened is a no-op, whereas leaving one
+            # open is the defect this guards.
+            return True
+        return status_now and not bool(status_on_entry)
+
+    @staticmethod
+    async def _end_transaction(connection: Any, verb: str) -> None:
+        """Call ``connection.commit()`` or ``connection.rollback()``.
+
+        Tolerates both sync and async driver methods, matching the rest of
+        this pool's handling of the injectable ``pool=`` seam.
+        """
+        method = getattr(connection, verb, None)
+        if not callable(method):
+            return
+        result = method()
+        if hasattr(result, "__await__"):
+            await result  # type: ignore[misc]
 
     async def _ensure_pool(self) -> Any:
         if self._closed:
