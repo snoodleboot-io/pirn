@@ -1,14 +1,24 @@
 """``SQLAgent`` — natural-language to SQL with safe execution.
 
 A :class:`SubTapestry` that asks an LLM to translate a natural-language
-question into a SQL query, validates the query through the connector
-pool's ``_reject_inline_interpolation`` guard, executes the query, and
-returns the result inside an :class:`AgentResponse`.
+question into a SQL query, validates the query through two independent
+guards, executes it, and returns the result inside an
+:class:`AgentResponse`.
 
-The inline-interpolation guard rejects ``str.format``-style ``{...}`` and
-printf-style ``%s``/``%d`` markers in the generated SQL, defending
-against both prompt-injected dynamic SQL and accidental bad templating
-from the LLM.
+The query is written by a model, so both guards apply and they cover
+different threats:
+
+* the **read-only guard** (default, ``read_only=True``) rejects any
+  statement that is not a single ``SELECT``/``WITH``, so a model that
+  emits ``DROP TABLE``, ``UPDATE`` or DDL is refused before the statement
+  reaches the database. Writing is opt-in and explicit (PIR-817);
+* the **inline-interpolation guard** rejects ``str.format``-style
+  ``{...}`` and printf-style ``%s``/``%d`` markers in the generated SQL,
+  defending against both prompt-injected dynamic SQL and accidental bad
+  templating from the LLM. It applies in both modes.
+
+Neither guard is a substitute for a least-privilege database role; see
+``pirn_agents/TOOLS.md``.
 
 Algorithm:
     1. Receive ``question`` (str), ``llm``, ``pool``, and
@@ -59,8 +69,29 @@ class SQLAgent(AgentPipeline):
         pool: Knot | DatabaseConnectionPool,
         _config: KnotConfig,
         schema_description: Knot | str = "",
+        read_only: bool = True,
         **kwargs: Any,
     ) -> None:
+        """Bind the question, providers, and the write policy for generated SQL.
+
+        Args:
+            question: The natural-language question, or the knot producing it.
+            llm: The LLM provider, or the knot producing it.
+            pool: The database connection pool, or the knot producing it.
+            _config: Framework knot configuration.
+            schema_description: Optional schema hint passed to the LLM.
+            read_only: When ``True`` (the default), the generated statement must
+                be a single ``SELECT``/``WITH``; anything else is refused before
+                it reaches the database. Set ``False`` only where this agent is
+                genuinely meant to write — the statement is model-written, so
+                writing is opt-in and explicit (PIR-817).
+
+        Note:
+            ``read_only`` is held as plain constructor state rather than being
+            forwarded as a knot input, so the policy cannot be driven by another
+            knot's output on a pipeline whose data originates in model text.
+        """
+        self._read_only = read_only
         super().__init__(
             question=question,
             llm=llm,
@@ -115,6 +146,7 @@ class SQLAgent(AgentPipeline):
         rows = _SQLExecutor(
             sql=sql,
             pool=pool,
+            read_only=self._read_only,
             _config=KnotConfig(id="execute_sql"),
         )
         return _SQLResponseFormatter(
