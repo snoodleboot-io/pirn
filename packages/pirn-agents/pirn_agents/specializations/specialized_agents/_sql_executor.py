@@ -21,8 +21,7 @@ Algorithm:
     2. Raise :class:`ValueError` if ``sql`` is empty.
     3. Run ``pool._reject_inline_interpolation(sql)`` — always, in both modes.
     4. In read-only mode (the default), run
-       :meth:`ReadOnlySqlGuard.assert_read_only`, then read via ``fetch_all``
-       when the pool offers it.
+       :meth:`ReadOnlySqlGuard.assert_read_only`, then read via ``fetch_all``.
     5. When writes are opted in, execute on an acquired connection and commit
        or roll back exactly the transaction this statement opened.
     6. Return the rows as a plain list.
@@ -129,19 +128,17 @@ class _SQLExecutor(Knot):
         matters beyond tidiness: under ``journal_mode=DELETE`` a ``COMMIT`` must
         take the exclusive lock, so committing here would make a query that only
         read rows fail with ``database is locked`` against a concurrent reader.
+
+        ``fetch_all`` is declared on
+        :class:`~pirn.connectors.database_connection_pool.DatabaseConnectionPool`
+        itself, so every conforming pool has it and this is the only read path.
+        A ``hasattr(pool, "fetch_all")`` guard with an acquire/execute fallback
+        used to sit here; it was unreachable, and — having neither commit nor
+        rollback — it carried exactly the stranded-transaction shape PIR-801,
+        PIR-817 and PIR-819 removed from the reachable paths, so it was a trap
+        rather than a safety net (PIR-823).
         """
-        if hasattr(pool, "fetch_all"):
-            rows = await pool.fetch_all(sql)  # type: ignore[attr-defined]
-            return list(rows)
-        connection = await pool.acquire()
-        try:
-            cursor = await connection.execute(sql)
-            try:
-                rows = await cursor.fetchall()
-            finally:
-                await cursor.close()
-        finally:
-            await pool.release(connection)
+        rows = await pool.fetch_all(sql)
         return list(rows)
 
     @classmethod
