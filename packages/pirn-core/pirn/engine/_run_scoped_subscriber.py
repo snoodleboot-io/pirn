@@ -30,6 +30,12 @@ class _RunScopedSubscriber:
     external-orchestrator seam: a task created outside ``run()`` never
     inherited a run context, and narrowing it to "nobody" would trade a
     silent-wrong-output bug for a silent-dropped-work one.
+
+    Reading ambient identity requires the store to call subscribers in
+    the registering context.  ``InMemoryStore`` does so directly; the
+    durable stores deliver from a background LISTEN/pub-sub task and so
+    carry the registering run in the notification payload and rebind it
+    around dispatch, which restores the same invariant (PIR-815).
     """
 
     def __init__(self, run_id: str, pending_new: list[Knot]) -> None:
