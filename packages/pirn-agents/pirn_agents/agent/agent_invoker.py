@@ -130,7 +130,12 @@ class AgentInvoker:
                 call_id=call_id,
                 result=None,
                 status=ToolStatus.ERROR,
+                # The message keeps its existing "<type>: <message>" shape, but
+                # the record itself now travels too (PIR-794). This call site
+                # already held a full ExceptionRecord and flattened it to a
+                # string purely because ToolResult had nowhere to put it.
                 error=f"{record.exc_type}: {record.message}",
+                exception=record,
                 latency=latency,
             )
 

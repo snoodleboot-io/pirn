@@ -315,3 +315,43 @@ async def test_runs_through_tapestry_end_to_end() -> None:
     results = run.outputs["pte"]
     assert results[0].status is ToolStatus.OK
     assert results[0].result == "value"
+
+
+async def test_error_path_carries_the_exception_record() -> None:
+    """PIR-794: the tool path keeps type and traceback, not just a string."""
+    # fail_times exceeds the retry budget below, so the call ends in ERROR.
+    toolset = Toolset([StubTool(name="t", fail_times=1)])
+    executor = _make_executor()
+
+    results = await executor.process(
+        tool_calls=[ToolCall(tool_name="t", arguments={}, call_id="c1")],
+        toolset=toolset,
+        max_concurrency=4,
+        timeout=None,
+        retries=0,
+    )
+
+    assert results[0].status is ToolStatus.ERROR
+    record = results[0].exception
+    assert record is not None
+    assert record.exc_type == "RuntimeError"
+    assert record.message == "t transient failure"
+    assert "RuntimeError: t transient failure" in record.traceback_text
+    # The string stays available and agrees with the record.
+    assert results[0].error == "t transient failure"
+
+
+async def test_tool_not_found_carries_the_exception_record() -> None:
+    executor = _make_executor()
+
+    results = await executor.process(
+        tool_calls=[ToolCall(tool_name="absent", arguments={}, call_id="c1")],
+        toolset=Toolset([]),
+        max_concurrency=4,
+        timeout=None,
+        retries=0,
+    )
+
+    assert results[0].status is ToolStatus.ERROR
+    assert results[0].exception is not None
+    assert results[0].exception.exc_type == "ToolNotFoundError"
