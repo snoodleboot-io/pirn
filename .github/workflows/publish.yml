@@ -54,12 +54,31 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
       - name: Install uv
-        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990  # v8.3.2
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d  # v10.0.1
         with:
           # Pinned (PIR-816). The action ref is immutable but `version:` is not
           # defaulted, so uv otherwise resolves to whatever is latest at run time —
           # the drift shape that broke publishing via hatchling in PIR-806.
-          version: "0.12.5"
+          #
+          # The action ref and this version move TOGETHER, and the version is
+          # chosen from what the action can VERIFY (PIR-827). setup-uv validates
+          # the uv it downloads against a KNOWN_CHECKSUMS table baked into the
+          # action; for a version missing from that table it logs a debug line and
+          # returns *without validating* (src/download/checksum/checksum.ts) — no
+          # error, no warning in a normal log. The table only gains a version when
+          # the action itself is released, so it necessarily lags uv. Pinning uv to
+          # the newest release therefore silently buys an UNVERIFIED download.
+          #
+          # So: pin uv to the newest version this action ref knows. v10.0.1's table
+          # tops out at 0.12.4 (uv 0.12.5 is out and is absent from it). 0.12.4 and
+          # 0.12.5 produce byte-identical wheel METADATA for all seven packages, so
+          # this costs nothing. When bumping the action, re-check the table and move
+          # this pin up with it; keep Dockerfile.ci's uv digest on the same version.
+          #
+          # `enable-cache: true` is explicit rather than inherited: v10 made the
+          # DEFAULT (`auto`) disable the cache on events exposed to cache poisoning,
+          # and this job wants the cache.
+          version: "0.12.4"
           enable-cache: true
           python-version: "3.12"
       - name: Derive lockstep version (from the anchor's PyPI history)
@@ -176,9 +195,15 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
       - name: Install uv
-        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990  # v8.3.2
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d  # v10.0.1
         with:
-          version: "0.12.5"  # pinned (PIR-816) — see the build job above
+          # No `enable-cache` on purpose: this job installs one already-published
+          # wheel from an index to prove it is installable, so a cache buys it
+          # nothing. That leaves it on the default `auto`, which under v10 means
+          # the cache is disabled for events exposed to cache poisoning — the
+          # safer side, and the reason this is the one call site whose caching
+          # behaviour the v10 bump actually changes (PIR-827).
+          version: "0.12.4"  # pinned (PIR-816) — see the build job above
           python-version: "3.12"
       - name: Install ${{ matrix.package }}==${{ needs.build.outputs.version }} from TestPyPI
         run: |
