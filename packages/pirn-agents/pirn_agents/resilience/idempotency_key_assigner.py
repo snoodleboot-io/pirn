@@ -67,14 +67,21 @@ class IdempotencyKeyAssigner:
                 f"IdempotencyKeyAssigner: arguments must be a Mapping, "
                 f"got {type(arguments).__name__}"
             )
-        # OpaquePolicy.REPR rather than the seam's RAISE default, to keep
-        # already-issued keys valid. NOTE: this carries the PIR-785 hazard --
-        # an argument whose type has no content-derived __repr__ keys on its
-        # memory address, so the retry that this key exists to dedupe derives a
-        # *different* key and the mutation is applied twice. Tightening it
-        # invalidates keys a backend may still be holding, so it needs its own
-        # ticket rather than riding along with a canonicalisation collapse.
+        # REPR_CONTENT, not the seam's RAISE default and no longer the bare
+        # REPR (PIR-795). Every argument whose `repr` already rendered content
+        # -- datetime, UUID, Decimal, Path, Enum, any type with its own
+        # __repr__ -- encodes byte-identically, so keys a backend is still
+        # holding stay valid and no migration is required.
+        #
+        # What it removes is the PIR-785 hazard this comment used to only warn
+        # about: an argument with no content-derived __repr__ was keyed on its
+        # memory address, so the retry this key exists to deduplicate derived a
+        # *different* key and the guarded mutation applied twice. That now
+        # raises when the key is issued. No previously-valid key is invalidated,
+        # because such a key never reproduced in the first place -- which is
+        # exactly why it was unsafe. RAISE would additionally reject the
+        # content-rendering arguments above, and that WOULD move issued keys.
         digest = CanonicalJson.digest(
-            {"operation": operation, "arguments": arguments}, policy=OpaquePolicy.REPR
+            {"operation": operation, "arguments": arguments}, policy=OpaquePolicy.REPR_CONTENT
         )
         return f"{self._namespace}:{digest}" if self._namespace else digest

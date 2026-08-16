@@ -9,8 +9,13 @@ that is already persisted. The decisive test here is therefore
 
 from __future__ import annotations
 
+import datetime
+import decimal
+import enum
 import hashlib
 import json
+import pathlib
+import uuid
 from typing import Any, ClassVar
 
 import pytest
@@ -49,6 +54,44 @@ def _payloads() -> dict[str, Any]:
 def _payload_names() -> list[str]:
     """Return the matrix keys, sorted, for stable parametrisation ids."""
     return sorted(_payloads())
+
+
+class _ContentRepr:
+    """A leaf with a content-derived ``__repr__`` — the case that must keep working."""
+
+    def __init__(self, v: int) -> None:
+        self.v = v
+
+    def __repr__(self) -> str:
+        return f"_ContentRepr({self.v})"
+
+
+class _Shade(enum.Enum):
+    RED = "red"
+
+
+def _stable_opaque_leaves() -> dict[str, Any]:
+    """Return leaves JSON cannot encode but whose rendering *is* content-derived.
+
+    These are the values ``STR``/``REPR`` already hashed reproducibly, and that
+    the ``*_CONTENT`` narrowing must therefore leave byte-identical (PIR-795).
+    """
+    return {
+        "datetime": datetime.datetime(2026, 1, 2, 3, 4, 5),
+        "date": datetime.date(2026, 1, 2),
+        "uuid": uuid.UUID(int=1),
+        "decimal": decimal.Decimal("1.25"),
+        "path": pathlib.PurePosixPath("/a/b"),
+        "enum": _Shade.RED,
+        "set": {1, 2},
+        "bytes": b"abc",
+        "custom_repr": _ContentRepr(7),
+    }
+
+
+def _stable_leaf_names() -> list[str]:
+    """Return the stable-leaf keys, sorted, for stable parametrisation ids."""
+    return sorted(_stable_opaque_leaves())
 
 
 def _golden_state() -> RunState:
@@ -216,3 +259,105 @@ class TestOpaquePolicy:
 
         first = CanonicalJson.encode({"o": Bare()}, policy=OpaquePolicy.REPR)
         assert "0x" in first
+
+
+class TestContentOnlyPolicies:
+    """``STR_CONTENT`` / ``REPR_CONTENT`` — PIR-795.
+
+    These narrow ``STR`` / ``REPR`` to reject exactly the leaves that render a
+    memory address, and nothing else. The load-bearing property is *negative*:
+    adopting them must not move a single digest that was already stable, or
+    tightening the two live key spaces would orphan cassettes and issued
+    idempotency keys.
+    """
+
+    @pytest.mark.parametrize("name", _stable_leaf_names())
+    def test_narrowing_does_not_move_a_stable_digest(self, name: str) -> None:
+        # THE migration guarantee. If this ever fails, adopting the narrowed
+        # policy became a storage break for cassettes / idempotency keys.
+        payload = {"leaf": _stable_opaque_leaves()[name]}
+        assert CanonicalJson.digest(payload, policy=OpaquePolicy.STR_CONTENT) == CanonicalJson.digest(
+            payload, policy=OpaquePolicy.STR
+        )
+        assert CanonicalJson.digest(payload, policy=OpaquePolicy.REPR_CONTENT) == CanonicalJson.digest(
+            payload, policy=OpaquePolicy.REPR
+        )
+
+    @pytest.mark.parametrize("policy", [OpaquePolicy.STR_CONTENT, OpaquePolicy.REPR_CONTENT])
+    def test_refuses_a_leaf_that_renders_its_own_address(self, policy: OpaquePolicy) -> None:
+        class Bare:
+            pass
+
+        with pytest.raises(TypeError, match="memory address"):
+            CanonicalJson.digest({"leaf": Bare()}, policy=policy)
+
+    @pytest.mark.parametrize("policy", [OpaquePolicy.STR_CONTENT, OpaquePolicy.REPR_CONTENT])
+    def test_refusal_reaches_a_nested_leaf(self, policy: OpaquePolicy) -> None:
+        class Bare:
+            pass
+
+        with pytest.raises(TypeError):
+            CanonicalJson.digest({"a": [{"b": Bare()}]}, policy=policy)
+
+    @pytest.mark.parametrize("policy", [OpaquePolicy.STR_CONTENT, OpaquePolicy.REPR_CONTENT])
+    def test_refuses_a_subclass_that_inherits_the_default_repr(self, policy: OpaquePolicy) -> None:
+        # The check must not be "does this exact class define __repr__" — a
+        # subclass inherits the identity rendering just as surely.
+        class Bare:
+            pass
+
+        class Derived(Bare):
+            pass
+
+        with pytest.raises(TypeError):
+            CanonicalJson.digest({"leaf": Derived()}, policy=policy)
+
+    def test_each_fallback_is_judged_on_what_it_actually_rendered(self) -> None:
+        # A class defining __str__ but not __repr__ renders content under `str`
+        # and identity under `repr`. Judging the rendered text rather than the
+        # dunder is what lets one implementation serve both fallbacks.
+        class StrOnly:
+            def __str__(self) -> str:
+                return "StrOnly!"
+
+        payload = {"leaf": StrOnly()}
+        assert CanonicalJson.digest(payload, policy=OpaquePolicy.STR_CONTENT) == CanonicalJson.digest(
+            payload, policy=OpaquePolicy.STR
+        )
+        with pytest.raises(TypeError):
+            CanonicalJson.digest(payload, policy=OpaquePolicy.REPR_CONTENT)
+
+    def test_str_and_repr_variants_stay_distinct(self) -> None:
+        # Collapsing the two into one policy would move exactly the digests
+        # this change exists to preserve: str(Decimal("1.25")) is "1.25" where
+        # repr is "Decimal('1.25')".
+        payload = {"leaf": decimal.Decimal("1.25")}
+        assert CanonicalJson.digest(
+            payload, policy=OpaquePolicy.STR_CONTENT
+        ) != CanonicalJson.digest(payload, policy=OpaquePolicy.REPR_CONTENT)
+
+
+class TestContentDigestRejectsIdentityKeyedRequests:
+    """PIR-795 at the cassette seam — the failure must land at record time."""
+
+    def test_a_request_carrying_an_identity_keyed_leaf_is_refused(self) -> None:
+        # Previously this returned a 64-char digest derived from a memory
+        # address, so the cassette recorded under it could never be replayed:
+        # the next run computed a different key and simply missed. Refusing at
+        # record time is what makes that discoverable.
+        class Handle:
+            pass
+
+        with pytest.raises(TypeError, match="memory address"):
+            content_digest({"prompt": "hi", "handle": Handle()})
+
+    @pytest.mark.parametrize("name", _stable_leaf_names())
+    def test_a_request_carrying_a_content_rendering_leaf_still_digests(self, name: str) -> None:
+        payload = {"prompt": "hi", "leaf": _stable_opaque_leaves()[name]}
+        assert len(content_digest(payload)) == 64
+
+    @pytest.mark.parametrize("name", _stable_leaf_names())
+    def test_recorded_digests_do_not_move(self, name: str) -> None:
+        # The migration guarantee stated at the seam callers actually use.
+        payload = {"prompt": "hi", "leaf": _stable_opaque_leaves()[name]}
+        assert content_digest(payload) == CanonicalJson.digest(payload, policy=OpaquePolicy.STR)
