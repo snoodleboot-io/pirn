@@ -56,7 +56,7 @@ jobs:
       packages: ${{ steps.compute.outputs.packages }}
       any: ${{ steps.compute.outputs.any }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 0
       - name: Compute affected package set (dependency closure)
@@ -119,7 +119,7 @@ jobs:
       # immutable :py<ver>-<sha> tag is not usable from a consumer (PIR-816).
       image: ghcr.io/${{ github.repository_owner }}/pirn-ci-base:py3.12
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - name: Build all wheels
         run: |
           set -euo pipefail
@@ -151,7 +151,7 @@ jobs:
       matrix:
         package: ${{ fromJSON(needs.changes.outputs.packages) }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v7.0.0 (match upload-artifact v7; v8 digest-verify mismatched v7 uploads -> stale wheelhouse)
         with: { name: wheelhouse, path: dist/ }
       - name: Resolve import dir
@@ -217,7 +217,7 @@ jobs:
         package: ${{ fromJSON(needs.changes.outputs.packages) }}
         python-version: ["3.11", "3.12", "3.13", "3.14"]
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v7.0.0 (match upload-artifact v7; v8 digest-verify mismatched v7 uploads -> stale wheelhouse)
         with: { name: wheelhouse, path: dist/ }
       - name: Compute install spec (extras minus heavy ML) + cross-dep refresh
@@ -281,7 +281,7 @@ jobs:
       matrix:
         package: ${{ fromJSON(needs.changes.outputs.packages) }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v7.0.0 (match upload-artifact v7; v8 digest-verify mismatched v7 uploads -> stale wheelhouse)
         with: { name: wheelhouse, path: dist/ }
       - name: Clean-env install + dependency-tree closure gate
@@ -310,7 +310,7 @@ jobs:
       matrix:
         extra: [llm, vector, web, mcp, all]
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v7.0.0 (match upload-artifact v7; v8 digest-verify mismatched v7 uploads -> stale wheelhouse)
         with: { name: wheelhouse, path: dist/ }
       - name: Clean-env install of pirn-agents[${{ matrix.extra }}] + import probe
@@ -338,7 +338,7 @@ jobs:
     container:
       image: ghcr.io/${{ github.repository_owner }}/pirn-ci-base:py3.12
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v7.0.0 (match upload-artifact v7; v8 digest-verify mismatched v7 uploads -> stale wheelhouse)
         with: { name: wheelhouse, path: dist/ }
       - name: Install all packages (from wheelhouse) + test tooling
@@ -374,7 +374,7 @@ jobs:
     container:
       image: ghcr.io/${{ github.repository_owner }}/pirn-ci-base:py3.12
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v7.0.0 (match upload-artifact v7; v8 digest-verify mismatched v7 uploads -> stale wheelhouse)
         with: { name: wheelhouse, path: dist/ }
       - name: Install bare pirn-core (from wheelhouse)
@@ -404,7 +404,7 @@ jobs:
     container:
       image: ghcr.io/${{ github.repository_owner }}/pirn-ci-base:py3.12
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - name: No __init__.py re-exports an unused symbol
         # Directory args are walked for __init__.py. The script exits 2 if a path
         # is missing or matches nothing, so a future miswiring fails loudly
@@ -429,7 +429,7 @@ jobs:
     container:
       image: ghcr.io/${{ github.repository_owner }}/pirn-ci-base:py3.12
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - name: All packages lockstep-versioned; pins floored + capped (C4)
         run: python scripts/stamp_workspace_version.py --check
 
