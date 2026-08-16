@@ -16,6 +16,8 @@ import time
 from collections.abc import Mapping
 from typing import Any
 
+from pirn.managers.exception_record import ExceptionRecord
+
 from pirn_agents.mcp.mcp_client import McpClient
 from pirn_agents.mcp.mcp_error import McpError
 from pirn_agents.tools.tool import Tool
@@ -143,11 +145,12 @@ class McpTool(Tool):
         try:
             raw = await self._client.call_tool(self._name, call.arguments)
         except McpError as exc:
+            # ``error`` derives from the record, so the two cannot drift.
             return ToolResult(
                 call_id=call.call_id,
                 result=None,
                 status=ToolStatus.ERROR,
-                error=str(exc),
+                exception=ExceptionRecord.for_knot(self._name, exc),
                 latency=time.perf_counter() - start,
             )
         latency = time.perf_counter() - start

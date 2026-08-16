@@ -43,6 +43,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.managers.exception_record import ExceptionRecord
 
 from pirn_agents.agent.async_fanout_engine import AsyncFanoutEngine
 from pirn_agents.exceptions.tool_not_found_error import ToolNotFoundError
@@ -232,11 +233,13 @@ class ParallelToolExecutor(AsyncFanoutEngine[ToolResult], Knot):
         """
         tool: Tool | None = toolset.get(call.tool_name)
         if tool is None:
+            not_found = ToolNotFoundError(call.tool_name, call.call_id)
             return ToolResult(
                 call_id=call.call_id,
                 result=None,
                 status=ToolStatus.ERROR,
-                error=str(ToolNotFoundError(call.tool_name, call.call_id)),
+                error=str(not_found),
+                exception=ExceptionRecord.for_knot(call.tool_name, not_found),
                 latency=time.perf_counter() - start,
             )
         # Precomputed under the guard so the on_timeout builder (which fires only
@@ -254,18 +257,26 @@ class ParallelToolExecutor(AsyncFanoutEngine[ToolResult], Knot):
                 status=ToolStatus.OK,
                 latency=time.perf_counter() - start,
             ),
-            on_timeout=lambda _exc, _attempts: ToolResult(
+            # PIR-724 widened these callbacks to receive the exception; PIR-794
+            # is the tool path finally keeping it. The timeout branch reports
+            # the domain message from ``timeout_error`` as before, but the
+            # record captures the exception the engine actually raised — that
+            # is where the traceback lives.
+            on_timeout=lambda exc, _attempts: ToolResult(
                 call_id=call.call_id,
                 result=None,
                 status=ToolStatus.TIMEOUT,
                 error=str(timeout_error),
+                exception=ExceptionRecord.for_knot(call.tool_name, exc),
                 latency=time.perf_counter() - start,
             ),
+            # ``error`` is left to derive from the record, so the message and the
+            # record cannot drift apart.
             on_error=lambda exc, _attempts: ToolResult(
                 call_id=call.call_id,
                 result=None,
                 status=ToolStatus.ERROR,
-                error=str(exc),
+                exception=ExceptionRecord.for_knot(call.tool_name, exc),
                 latency=time.perf_counter() - start,
             ),
         )
