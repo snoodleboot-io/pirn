@@ -44,7 +44,12 @@ class RedundantCallRate(Metric):
             A :class:`MetricResult` named ``"redundant_call_rate"``.
 
         Raises:
-            TypeError: If ``actual`` is not a :class:`Trajectory`.
+            TypeError: If ``actual`` is not a :class:`Trajectory`, or if a
+                step's arguments contain a value that renders only as its own
+                memory address. Such a value cannot yield a stable key, so two
+                identical calls would not recognise each other and this metric
+                would under-report redundancy; it declines to score rather than
+                return a number it cannot stand behind (PIR-826).
         """
         if not isinstance(actual, Trajectory):
             raise TypeError(

@@ -36,8 +36,6 @@ References:
 from __future__ import annotations
 
 import asyncio
-import hashlib
-import json
 import logging
 import time
 from collections.abc import Awaitable, Callable, Sequence
@@ -51,12 +49,20 @@ from pirn_agents.exceptions.tool_not_found_error import ToolNotFoundError
 from pirn_agents.exceptions.tool_timeout_error import ToolTimeoutError
 from pirn_agents.llm.retry_policy import RetryPolicy
 from pirn_agents.performance.concurrency_config import ConcurrencyConfig
+from pirn_agents.serialization.canonical_json import CanonicalJson
+from pirn_agents.serialization.opaque_policy import OpaquePolicy
 from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_invocation_hook import ToolInvocationHook
 from pirn_agents.tools.tool_result import ToolResult
 from pirn_agents.tools.tool_status import ToolStatus
 from pirn_agents.tools.toolset import Toolset
+
+# Reported as the argument digest when the arguments have no content-derived
+# encoding (PIR-826). Deliberately NOT hex, so a consumer can distinguish it
+# from a real 16-hex-char digest instead of being handed an address-derived
+# value that looks like one.
+_UNHASHABLE_ARGS_DIGEST = "unhashable-args"
 
 
 class ParallelToolExecutor(AsyncFanoutEngine[ToolResult], Knot):
@@ -268,15 +274,28 @@ class ParallelToolExecutor(AsyncFanoutEngine[ToolResult], Knot):
         """Fire ``hook.on_start`` for ``call``, swallowing any hook exception.
 
         The argument digest is a stable 16-hex-char SHA-256 prefix over the
-        call's arguments (JSON-serialised with sorted keys, non-JSON values
-        stringified) — short, order-independent, and safe to record without
+        call's arguments — short, order-independent, and safe to record without
         exposing raw argument values. This method is only ever reached when a
         hook is configured, so the digest is never computed on the no-hook
         path. A raising hook is logged and ignored, never propagated.
+
+        The digest now comes from the shared canonical seam rather than a local
+        ``json.dumps``, so it agrees with every other content hash in the package
+        (PIR-726/PIR-826). Its value therefore differs from the pre-PIR-826 one:
+        the seam uses tight separators. Nothing persists this digest — it is
+        handed to a hook for correlation — so that is a cosmetic change.
+
+        Unlike :meth:`~pirn_agents.evaluation.trajectory_call_key.TrajectoryCallKey.args_key`,
+        an argument that renders only as a memory address does **not** raise
+        here. That would breach this method's contract — the digest is computed
+        outside the ``try`` below, so a raise would propagate out of a purely
+        observational call path and break tool execution, and only when a hook
+        happened to be configured. Degrading to a sentinel keeps the event
+        flowing and is honest: it says "no content-derived digest" rather than
+        offering an address-derived one that looks like a digest and silently
+        differs on the next identical call.
         """
-        digest = hashlib.sha256(
-            json.dumps(dict(call.arguments), sort_keys=True, default=str).encode()
-        ).hexdigest()[:16]
+        digest = self._args_digest(call)
         try:
             hook.on_start(tool_name=call.tool_name, args_digest=digest, call_id=call.call_id)
         except Exception:
@@ -285,6 +304,31 @@ class ParallelToolExecutor(AsyncFanoutEngine[ToolResult], Knot):
                 call.call_id,
                 exc_info=True,
             )
+
+    @staticmethod
+    def _args_digest(call: ToolCall) -> str:
+        """Return a 16-hex-char content digest of ``call``'s arguments.
+
+        Args:
+            call: The tool call whose arguments are being summarised.
+
+        Returns:
+            The first 16 hex characters of the canonical SHA-256 over the
+            arguments, or :data:`_UNHASHABLE_ARGS_DIGEST` when an argument
+            renders only as its own memory address and so has no content-derived
+            encoding. The sentinel is not hex, so a consumer can tell the two
+            apart rather than being handed a plausible-looking digest.
+        """
+        try:
+            return CanonicalJson.digest(dict(call.arguments), policy=OpaquePolicy.STR_CONTENT)[:16]
+        except TypeError:
+            logging.getLogger(__name__).warning(
+                "ParallelToolExecutor: arguments for call_id=%s contain a value with no "
+                "content-derived rendering, so no stable digest exists; reporting %r",
+                call.call_id,
+                _UNHASHABLE_ARGS_DIGEST,
+            )
+            return _UNHASHABLE_ARGS_DIGEST
 
     def _fire_finish(self, hook: ToolInvocationHook, call: ToolCall, result: ToolResult) -> None:
         """Fire ``hook.on_finish`` for ``result``, swallowing any hook exception.

@@ -12,6 +12,7 @@ from pirn_agents.evaluation.redundant_call_rate import RedundantCallRate
 from pirn_agents.evaluation.step_efficiency import StepEfficiency
 from pirn_agents.evaluation.tool_choice_accuracy import ToolChoiceAccuracy
 from pirn_agents.evaluation.trajectory import Trajectory
+from pirn_agents.evaluation.trajectory_call_key import TrajectoryCallKey
 from pirn_agents.evaluation.trajectory_step import TrajectoryStep
 
 
@@ -99,3 +100,84 @@ class RedundantCallRateTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class _AddressOnly:
+    """A step argument whose only rendering is its memory address."""
+
+
+class _ContentRendered:
+    """A step argument that renders its content."""
+
+    def __init__(self, amount: int) -> None:
+        self.amount = amount
+
+    def __str__(self) -> str:
+        return f"_ContentRendered({self.amount})"
+
+
+class TrajectoryCallKeyContentKeyingTests(unittest.TestCase):
+    """PIR-826 — the key promises stability, so it must not key on an address."""
+
+    # ---- what actually changed: the address-keyed case is now refused -------
+    #
+    # Note the shape of this fix. An argument that renders content — anything
+    # with its own __str__, plus datetime/UUID/Decimal/Path/Enum — was ALREADY
+    # keyed correctly by the previous `default=str`, and still is, byte for
+    # byte. So there is no "used to score wrong, now scores right" case to
+    # assert: the repair is that the *unfixable* case stops producing a number
+    # at all. Only an argument whose sole rendering is its memory address was
+    # ever broken, and for that no stable key exists to compute.
+
+    def test_address_keyed_argument_is_refused(self) -> None:
+        with self.assertRaises(TypeError):
+            TrajectoryCallKey().args_key({"handle": _AddressOnly()})
+
+    def test_redundant_call_rate_declines_rather_than_under_reporting(self) -> None:
+        # Before: each _AddressOnly rendered to a different address, so two
+        # identical calls looked unique and the metric returned 0.0 — a wrong
+        # number, silently. Now it refuses to produce one.
+        traj = Trajectory(
+            steps=[
+                TrajectoryStep(tool_name="s", arguments={"handle": _AddressOnly()}),
+                TrajectoryStep(tool_name="s", arguments={"handle": _AddressOnly()}),
+            ]
+        )
+        with self.assertRaises(TypeError):
+            RedundantCallRate().score(traj)
+
+    def test_tool_choice_accuracy_declines_rather_than_scoring_a_match_wrong(self) -> None:
+        # Before: returned 0.0 for a call that was in fact correct.
+        actual = Trajectory(
+            steps=[TrajectoryStep(tool_name="s", arguments={"handle": _AddressOnly()})]
+        )
+        expected = Trajectory(
+            steps=[TrajectoryStep(tool_name="s", arguments={"handle": _AddressOnly()})]
+        )
+        with self.assertRaises(TypeError):
+            ToolChoiceAccuracy(match_arguments=True).score(actual, expected)
+
+    # ---- preservation: everything that worked keeps working, unchanged ------
+
+    def test_identical_content_in_distinct_instances_is_one_key(self) -> None:
+        key = TrajectoryCallKey()
+        assert key.args_key({"amount": _ContentRendered(5)}) == key.args_key(
+            {"amount": _ContentRendered(5)}
+        )
+
+    def test_key_is_order_independent(self) -> None:
+        key = TrajectoryCallKey()
+        assert key.args_key({"a": 1, "b": 2}) == key.args_key({"b": 2, "a": 1})
+
+    def test_content_rendering_arguments_still_score(self) -> None:
+        traj = Trajectory(
+            steps=[
+                TrajectoryStep(tool_name="s", arguments={"amount": _ContentRendered(5)}),
+                TrajectoryStep(tool_name="s", arguments={"amount": _ContentRendered(5)}),
+            ]
+        )
+        assert RedundantCallRate().score(traj).score == 0.5
+        one = Trajectory(
+            steps=[TrajectoryStep(tool_name="s", arguments={"amount": _ContentRendered(5)})]
+        )
+        assert ToolChoiceAccuracy(match_arguments=True).score(one, one).score == 1.0
