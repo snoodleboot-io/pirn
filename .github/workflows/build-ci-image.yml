@@ -4,6 +4,23 @@ name: Build CI Base Images
 # change (push to main), refreshes them weekly, and on demand. PRs consume the
 # existing images (and install any dep-delta at job time), so image builds are
 # intentionally NOT triggered per-PR (36-image build is expensive).
+#
+# Every job below pushes TWO tags: a mutable `:py<ver>` and an immutable
+# `:py<ver>-<sha>`. Consumers (workspace.yml, real-backends.yml, heavy-tests.yml)
+# reference the MUTABLE one on purpose (PIR-816):
+#
+#   * The immutable tag is stamped with the SHA of the commit that BUILT the
+#     image. A consumer running on a pull_request has a completely different
+#     `github.sha`, so `:py3.12-${{ github.sha }}` in a consumer would name a tag
+#     that does not exist and every containerised job would fail to pull. The
+#     immutable tag is for pinning to a KNOWN build, not for self-reference.
+#   * Pinning consumers to a digest instead would work, but the weekly cron above
+#     exists precisely to refresh these images; a digest pin would make that
+#     refresh inert until someone merged a bump across 10+ references.
+#
+# Reproducibility is therefore bought at the layer that actually decides build
+# output — uv, hatchling, ruff and pyright are each pinned — rather than by
+# freezing the image that merely carries them.
 on:
   push:
     branches: [main]

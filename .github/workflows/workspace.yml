@@ -115,6 +115,8 @@ jobs:
     if: needs.changes.outputs.any == 'true'
     runs-on: ubuntu-latest
     container:
+      # Mutable tag by design — build-ci-image.yml's header explains why the
+      # immutable :py<ver>-<sha> tag is not usable from a consumer (PIR-816).
       image: ghcr.io/${{ github.repository_owner }}/pirn-ci-base:py3.12
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
