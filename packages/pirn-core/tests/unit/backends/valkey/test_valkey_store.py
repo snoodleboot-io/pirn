@@ -6,10 +6,13 @@ import unittest
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
+from pirn.backends.base.knot_registration_notice import KnotRegistrationNotice
 from pirn.backends.base.subscribable_store import SubscribableStore
 from pirn.backends.base.tapestry_snapshot import TapestrySnapshot
 from pirn.backends.base.tapestry_store import TapestryStore
 from pirn.backends.valkey.valkey_store import ValKeyStore
+from pirn.engine._run_scoped_subscriber import _RunScopedSubscriber
+from pirn.tapestry import _current_run_id, current_run_id
 
 
 def _make_knot(knot_id: str) -> MagicMock:
@@ -173,6 +176,107 @@ class TestValKeyStoreOnMessage(unittest.TestCase):
         msg = MagicMock()
         msg.message = b"k1"
         self.store._on_message(msg, None)  # must not raise
+
+
+class TestValKeyStoreRunAttribution(unittest.IsolatedAsyncioTestCase):
+    """Published messages carry the registering run, and delivery restores it.
+
+    ``ValKeyStore`` delivers through a pub/sub callback on a dedicated
+    connection, which never inherited the registering task's context, so
+    PIR-808's ``_RunScopedSubscriber`` saw no ambient run and fell
+    through its ``None`` passthrough -- every extensible run on the
+    tapestry got every other run's knots (PIR-815).
+    """
+
+    def setUp(self) -> None:
+        self.client = _make_mock_client()
+        self.store = ValKeyStore(client=self.client)
+
+    async def _register_under_run(self, knot: Any, run_id: str | None) -> None:
+        """Register ``knot`` with ``run_id`` as the ambient run, then leave."""
+        token = _current_run_id.set(run_id)
+        try:
+            await self.store.aregister(knot)
+        finally:
+            _current_run_id.reset(token)
+
+    def _published_payloads(self) -> list[str]:
+        return [call.args[1] for call in self.client.publish.call_args_list]
+
+    def _drain_messages(self) -> None:
+        """Replay published payloads the way the pub/sub callback would.
+
+        Deliberately called with no run in scope -- that is what the
+        dedicated subscriber connection's context looks like.
+        """
+        self.assertIsNone(current_run_id())
+        for payload in self._published_payloads():
+            msg = MagicMock()
+            msg.message = payload.encode()
+            self.store._on_message(msg, None)
+        self.client.publish.reset_mock()
+
+    async def test_published_payload_carries_the_registering_run_id(self) -> None:
+        self.store._subscribers[0] = lambda k: None
+        await self._register_under_run(_make_knot("k1"), "run-a")
+
+        payloads = self._published_payloads()
+        self.assertEqual(len(payloads), 1)
+        notice = KnotRegistrationNotice.decode(payloads[0])
+        self.assertEqual(notice.knot_id, "k1")
+        self.assertEqual(notice.run_id, "run-a")
+
+    async def test_concurrent_runs_do_not_receive_each_others_knots(self) -> None:
+        pending_a: list[Any] = []
+        pending_b: list[Any] = []
+        self.store._subscribers[0] = _RunScopedSubscriber("run-a", pending_a)
+        self.store._subscribers[1] = _RunScopedSubscriber("run-b", pending_b)
+
+        knot_a = _make_knot("k-a")
+        knot_b = _make_knot("k-b")
+        await self._register_under_run(knot_a, "run-a")
+        await self._register_under_run(knot_b, "run-b")
+        self._drain_messages()
+
+        self.assertEqual(pending_a, [knot_a])
+        self.assertEqual(pending_b, [knot_b])
+
+    async def test_delivery_runs_under_the_registering_run(self) -> None:
+        seen: list[str | None] = []
+        self.store._subscribers[0] = lambda k: seen.append(current_run_id())
+        await self._register_under_run(_make_knot("k1"), "run-a")
+        self._drain_messages()
+
+        self.assertEqual(seen, ["run-a"])
+
+    async def test_registration_with_no_run_in_scope_still_broadcasts(self) -> None:
+        pending_a: list[Any] = []
+        pending_b: list[Any] = []
+        self.store._subscribers[0] = _RunScopedSubscriber("run-a", pending_a)
+        self.store._subscribers[1] = _RunScopedSubscriber("run-b", pending_b)
+
+        knot = _make_knot("k1")
+        await self._register_under_run(knot, None)
+        self._drain_messages()
+
+        self.assertEqual(pending_a, [knot])
+        self.assertEqual(pending_b, [knot])
+
+    def test_legacy_bare_knot_id_payload_still_broadcasts(self) -> None:
+        """A publisher from before PIR-815 sends the bare knot id."""
+        pending_a: list[Any] = []
+        pending_b: list[Any] = []
+        self.store._subscribers[0] = _RunScopedSubscriber("run-a", pending_a)
+        self.store._subscribers[1] = _RunScopedSubscriber("run-b", pending_b)
+
+        knot = _make_knot("k1")
+        self.store._live["k1"] = knot
+        msg = MagicMock()
+        msg.message = b"k1"
+        self.store._on_message(msg, None)
+
+        self.assertEqual(pending_a, [knot])
+        self.assertEqual(pending_b, [knot])
 
 
 class TestValKeyStoreInheritance(unittest.TestCase):

@@ -15,7 +15,8 @@ is an internal collaborator, not something users construct directly.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any
 
@@ -69,6 +70,11 @@ def get_current_store() -> TapestryStore | None:
     Returns ``None`` when called outside an extensible run.  Use this inside
     a knot's ``process()`` to register successor knots into the running
     tapestry — the engine picks them up between waves.
+
+    Registration is permanent: the knot stays in the tapestry after this
+    run ends and later runs treat it as an ordinary member.  Give it an
+    id that is unique across runs — re-registering a different instance
+    under an id an earlier run already used raises (PIR-815).
 
     Example::
 
@@ -189,6 +195,13 @@ class Tapestry:
         Computed on demand — the tapestry doesn't track this incrementally
         because splice operations would need to maintain it, and the cost
         of computing it is O(n) anyway.
+
+        This reflects **every** member of the store, including knots a
+        previous ``run(extensible=True)`` registered mid-run: such knots
+        are permanent members of the tapestry, so a later ``run()`` that
+        omits ``terminals=`` will execute them (PIR-815).  If you want a
+        run confined to the statically-declared graph, pass ``terminals=``
+        explicitly or use a fresh ``Tapestry``.
         """
         all_knots = self._store.all()
         referenced: set[str] = set()
@@ -224,8 +237,16 @@ class Tapestry:
         registered with the tapestry while the run is in flight are
         merged into the shed at the end of each wave.  Requires a
         ``TapestryStore`` that implements the ``SubscribableStore``
-        protocol (``InMemoryStore`` does; the SQLite/Postgres/ValKey
-        stores do not yet).
+        protocol — ``InMemoryStore``, ``PostgresStore`` and
+        ``ValKeyStore`` do; the SQLite store does not.  Only *this* run's
+        own registrations are merged; a concurrent run's are not
+        (PIR-808, PIR-815).
+
+        ``extensible`` governs mid-run merging only.  Knots registered
+        during an earlier run stay in the tapestry and are ordinary
+        members afterwards, so a later run that omits ``terminals=``
+        executes them whether or not it is extensible — see
+        :meth:`terminals`.
         """
         from pirn.core.knot import Knot as _Knot
         from pirn.core.run_request import RunRequest as _RunRequest
@@ -356,3 +377,27 @@ def current_run_id() -> str | None:
     knots must be told which knot they belong to.
     """
     return _current_run_id.get(None)
+
+
+@contextmanager
+def _run_id_scope(run_id: str | None) -> Iterator[None]:
+    """Bind ``current_run_id()`` to ``run_id`` for the duration of the block.
+
+    Internal.  ``Tapestry.run()`` owns run identity for real runs; this
+    exists for the one case where a run's identity has to be *restored*
+    rather than established — a durable store delivering a knot
+    registration from a background LISTEN/pub-sub task that never
+    inherited the registering task's context.  The store reads the
+    registering run off the notification payload and rebinds it here so
+    that everything downstream of ``subscribe()`` reads ambient run
+    identity exactly as it does under ``InMemoryStore``, which delivers
+    synchronously in the registering context (PIR-815).
+
+    ``None`` is a legitimate value: it restores "no run in scope", which
+    is what an unowned registration means.
+    """
+    token = _current_run_id.set(run_id)
+    try:
+        yield
+    finally:
+        _current_run_id.reset(token)

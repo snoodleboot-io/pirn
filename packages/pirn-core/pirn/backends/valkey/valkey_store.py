@@ -6,6 +6,7 @@ import logging
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
+from pirn.backends.base.knot_registration_notice import KnotRegistrationNotice
 from pirn.backends.base.subscribable_store import SubscribableStore
 
 _logger = logging.getLogger(__name__)
@@ -84,7 +85,10 @@ class ValKeyStore(TapestryStore, SubscribableStore):
         )
         await client.sadd(self._ids_key, [knot.knot_id])
         if self._subscribers:
-            await client.publish(self._registrations_channel, knot.knot_id)
+            # Stamped here, in the registering context: delivery happens
+            # on the pub/sub connection, which cannot read it (PIR-815).
+            notice = KnotRegistrationNotice.for_current_run(knot.knot_id)
+            await client.publish(self._registrations_channel, notice.encode())
 
     def register(self, knot: Knot) -> None:
         """Register a knot, dispatching to the async path appropriately.
@@ -178,27 +182,37 @@ class ValKeyStore(TapestryStore, SubscribableStore):
     def _on_message(self, msg: Any, ctx: Any) -> None:
         """Pub/sub callback invoked for each message on the registrations channel.
 
-        Decodes the knot id from the message, looks up the knot from the
+        Decodes the notice from the message, looks up the knot from the
         in-process dict, and dispatches to all subscribers.  Exceptions
         raised by callbacks are logged and suppressed.
 
+        Dispatch runs under the *registering* run's identity, recovered
+        from the payload, not under whatever context this pub/sub
+        connection happens to hold.  Without that, a run-scoped
+        subscriber cannot tell whose registration this is (PIR-815).
+
         Args:
-            msg: The pub/sub message object received from glide.
+            msg: The pub/sub message object received from glide.  Its
+                payload is an encoded ``KnotRegistrationNotice``; a bare
+                knot id from an older publisher is accepted and treated
+                as unattributed.
             ctx: Opaque context object passed through by glide (unused).
         """
-        knot_id = msg.message.decode() if isinstance(msg.message, bytes) else msg.message
-        knot = self._live.get(knot_id)
+        payload = msg.message.decode() if isinstance(msg.message, bytes) else msg.message
+        notice = KnotRegistrationNotice.decode(payload)
+        knot = self._live.get(notice.knot_id)
         if knot is None:
             return
-        for cb in list(self._subscribers.values()):
-            try:
-                cb(knot)
-            except Exception:
-                _logger.warning(
-                    "ValKeyStore: subscriber callback raised an exception for knot %r",
-                    knot_id,
-                    exc_info=True,
-                )
+        with notice.run_scope():
+            for cb in list(self._subscribers.values()):
+                try:
+                    cb(knot)
+                except Exception:
+                    _logger.warning(
+                        "ValKeyStore: subscriber callback raised an exception for knot %r",
+                        notice.knot_id,
+                        exc_info=True,
+                    )
 
     async def _listen_loop(self) -> None:
         """Hold a dedicated pub/sub connection until all subscribers cancel.
