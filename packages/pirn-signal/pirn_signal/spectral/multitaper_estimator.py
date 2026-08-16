@@ -20,9 +20,10 @@ References:
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
+import numpy.typing as npt
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from scipy.signal import windows
@@ -33,13 +34,18 @@ from pirn_signal.types.spectrum_payload import SpectrumPayload
 
 
 def _compute_multitaper(
-    data: np.ndarray,
+    data: np.typing.NDArray[np.floating[Any]],
     n: int,
     time_bandwidth: float,
     taper_count: int,
 ) -> np.ndarray:
     tapers = windows.dpss(n, time_bandwidth, Kmax=taper_count)
-    tapered = data[..., np.newaxis, :] * tapers
+    # Both operands are real — ``data`` is a real time series and ``dpss``
+    # returns real tapers — so the product is real.  numpy's stubs widen
+    # ``__mul__`` to include ``complexfloating``, which ``rfft`` rejects, so
+    # narrow it here rather than coercing (a coercion would upcast float32
+    # input and change the result's precision).
+    tapered = cast("npt.NDArray[np.floating[Any]]", data[..., np.newaxis, :] * tapers)
     spectra = np.fft.rfft(tapered, axis=-1)
     pxx = np.mean(np.abs(spectra) ** 2, axis=-2)
     return pxx
