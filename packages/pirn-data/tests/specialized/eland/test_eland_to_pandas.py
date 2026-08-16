@@ -7,7 +7,7 @@ offline.
 
 from __future__ import annotations
 
-import unittest
+import unittest.mock
 
 try:
     import pandas  # noqa: F401

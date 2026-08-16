@@ -6,7 +6,7 @@ real Redshift cluster needed.
 
 from __future__ import annotations
 
-import unittest
+import unittest.mock
 from typing import Any
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
