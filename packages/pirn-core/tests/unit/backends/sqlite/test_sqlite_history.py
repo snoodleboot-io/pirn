@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+import shutil
 import sqlite3
+import tempfile
 import unittest
 from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock
 
 from pirn.backends.sqlite.sqlite_history import SQLiteHistory
+from pirn.core.knot_source import KnotSourceRecord
 from pirn.core.lineage import KnotLineage
 
 
@@ -185,3 +190,150 @@ class TestSQLiteHistorySharedConnection(unittest.IsolatedAsyncioTestCase):
         retrieved = await history2.get_run("shared-run")
         self.assertIsNotNone(retrieved)
         self.assertEqual(retrieved.run_id, "shared-run")
+
+
+class _FailingConnection:
+    """Delegates to a real connection but raises on the nth ``executemany``.
+
+    ``record_run`` issues an ``INSERT`` followed by two ``executemany`` calls, so
+    failing one of the latter reproduces a failure that lands *after* the run row
+    has already been written into the open transaction.
+    """
+
+    def __init__(self, connection: sqlite3.Connection, *, fail_on_executemany_call: int) -> None:
+        self._connection = connection
+        self._fail_on_executemany_call = fail_on_executemany_call
+        self.executemany_calls = 0
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._connection, name)
+
+    def executemany(self, *args: Any, **kwargs: Any) -> Any:
+        self.executemany_calls += 1
+        if self.executemany_calls == self._fail_on_executemany_call:
+            raise RuntimeError("statement failed partway through record_run")
+        return self._connection.executemany(*args, **kwargs)
+
+
+class TestSQLiteHistoryTransactionOwnership(unittest.IsolatedAsyncioTestCase):
+    """Writes end only the transaction their own statements opened (PIR-823).
+
+    The class docstring recommends sharing one connection with ``SQLiteStore``,
+    so a transaction opened by someone else on that connection is documented
+    usage rather than misuse.
+    """
+
+    def setUp(self) -> None:
+        self._dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self._dir, True)
+        self.db_path = str(Path(self._dir) / "pirn.db")
+
+    def _initialised_history(self) -> tuple[sqlite3.Connection, SQLiteHistory]:
+        connection = sqlite3.connect(self.db_path)
+        history = SQLiteHistory(connection=connection)
+        history._ensure_init()
+        return connection, history
+
+    async def test_record_run_leaves_a_callers_open_transaction_open(self) -> None:
+        connection, history = self._initialised_history()
+        self.addCleanup(connection.close)
+        connection.execute("CREATE TABLE caller_work (v TEXT)")
+        connection.commit()
+
+        connection.execute("INSERT INTO caller_work VALUES ('half-written')")
+        self.assertTrue(connection.in_transaction)
+        await history.record_run(_make_run_result(run_id="run-1"))
+        self.assertTrue(connection.in_transaction)
+
+    async def test_record_knot_source_leaves_a_callers_open_transaction_open(self) -> None:
+        connection, history = self._initialised_history()
+        self.addCleanup(connection.close)
+        connection.execute("CREATE TABLE caller_work (v TEXT)")
+        connection.commit()
+
+        connection.execute("INSERT INTO caller_work VALUES ('half-written')")
+        await history.record_knot_source(
+            KnotSourceRecord(
+                source_hash="sha256:src",
+                source_text="class K: ...",
+                knot_class="pkg.MyKnot",
+                pirn_version="0.0.0",
+            )
+        )
+        self.assertTrue(connection.in_transaction)
+
+    async def test_record_run_does_not_make_a_callers_rolled_back_work_durable(self) -> None:
+        connection, history = self._initialised_history()
+        connection.execute("CREATE TABLE caller_work (v TEXT)")
+        connection.commit()
+
+        connection.execute("INSERT INTO caller_work VALUES ('half-written')")
+        await history.record_run(_make_run_result(run_id="run-1"))
+        connection.rollback()
+        connection.close()
+
+        reopened = sqlite3.connect(self.db_path)
+        self.addCleanup(reopened.close)
+        self.assertEqual(reopened.execute("SELECT v FROM caller_work").fetchall(), [])
+
+    async def test_record_run_commits_the_transaction_it_opened(self) -> None:
+        connection = sqlite3.connect(self.db_path)
+        history = SQLiteHistory(connection=connection)
+        await history.record_run(
+            _make_run_result(
+                run_id="run-1",
+                lineage=[_make_lineage(parent_input_hashes={"a": "sha256:in"})],
+            )
+        )
+        self.assertFalse(connection.in_transaction)
+        connection.close()
+
+        reopened = sqlite3.connect(self.db_path)
+        self.addCleanup(reopened.close)
+        self.assertEqual(reopened.execute("SELECT run_id FROM runs").fetchall(), [("run-1",)])
+        self.assertEqual(reopened.execute("SELECT knot_id FROM lineage").fetchall(), [("knot-a",)])
+
+    async def test_record_run_failing_midway_leaves_no_partial_row(self) -> None:
+        connection, history = self._initialised_history()
+        history._conn = _FailingConnection(connection, fail_on_executemany_call=1)
+
+        with self.assertRaises(RuntimeError):
+            await history.record_run(
+                _make_run_result(run_id="run-partial", lineage=[_make_lineage()])
+            )
+        self.assertFalse(connection.in_transaction)
+        connection.close()
+
+        reopened = sqlite3.connect(self.db_path)
+        self.addCleanup(reopened.close)
+        self.assertEqual(reopened.execute("SELECT run_id FROM runs").fetchall(), [])
+        self.assertEqual(reopened.execute("SELECT knot_id FROM lineage").fetchall(), [])
+
+    async def test_record_run_failing_on_the_third_statement_leaves_no_partial_row(self) -> None:
+        connection, history = self._initialised_history()
+        history._conn = _FailingConnection(connection, fail_on_executemany_call=2)
+
+        with self.assertRaises(RuntimeError):
+            await history.record_run(
+                _make_run_result(
+                    run_id="run-partial",
+                    lineage=[_make_lineage(parent_input_hashes={"a": "sha256:in"})],
+                )
+            )
+        self.assertFalse(connection.in_transaction)
+        connection.close()
+
+        reopened = sqlite3.connect(self.db_path)
+        self.addCleanup(reopened.close)
+        self.assertEqual(reopened.execute("SELECT run_id FROM runs").fetchall(), [])
+        self.assertEqual(reopened.execute("SELECT knot_id FROM lineage").fetchall(), [])
+
+    async def test_get_run_read_issues_no_commit(self) -> None:
+        connection, history = self._initialised_history()
+        self.addCleanup(connection.close)
+        connection.execute("CREATE TABLE caller_work (v TEXT)")
+        connection.commit()
+
+        connection.execute("INSERT INTO caller_work VALUES ('uncommitted')")
+        await history.get_run("missing")
+        self.assertTrue(connection.in_transaction)
