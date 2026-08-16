@@ -242,3 +242,140 @@ async def test_rejects_a_non_str_checkpoint_scope() -> None:
     runner = MapAgent(StubAgent(), concurrency=1)
     with pytest.raises(TypeError):
         _ = [result async for result in runner.run(["a"], checkpoint_scope=7)]  # type: ignore[arg-type]
+
+
+# --------------------------------------------------------------------------
+# PIR-813: the ordinal is not a resume key across process lifetimes
+# --------------------------------------------------------------------------
+
+
+async def test_a_replacement_process_silently_drops_repeat_keys_without_scope_fn() -> None:
+    """The defect, demonstrated end to end.
+
+    The ordinal lives in the trigger's generator, so a replacement process
+    restarts numbering at 1 and its fire 1 adopts the *previous* process's fire-1
+    skip-set. A customer seen in both runs is dropped — reported as completed
+    having never been processed.
+    """
+    store = InMemorySessionStore()
+    proc1_agent, proc2_agent = StubAgent(), StubAgent()
+    proc1_windows: dict[int, list[object]] = {1: ["a", "b"], 2: ["c", "a"]}
+    proc2_windows: dict[int, list[object]] = {1: ["a", "d"], 2: ["e", "a"]}
+
+    for agent, windows in ((proc1_agent, proc1_windows), (proc2_agent, proc2_windows)):
+        # A fresh TriggeredBatch each time == a fresh process, but the SAME
+        # durable store, which is the whole point of a checkpoint.
+        runner = MapAgent(
+            agent,
+            concurrency=1,
+            key_fn=_by_customer,
+            checkpointer=BatchCheckpointer(store=store, batch_id="daily"),
+        )
+        triggered = TriggeredBatch(
+            trigger=RecordingTrigger(fires=2),
+            map_agent=runner,
+            inputs_fn=lambda ordinal, w=windows: w[ordinal],
+        )
+        [progress async for progress in triggered.run()]
+
+    assert proc1_agent.calls == ["a", "b", "c", "a"]
+    # 'a' appears in both of proc2's windows and is dropped from both, because
+    # scopes "1" and "2" already hold it from proc1.
+    assert proc2_agent.calls == ["d", "e"]
+
+
+async def test_scope_fn_keeps_a_replacement_process_processing_its_own_window() -> None:
+    """The fix: a window identity derived from the data does not restart at 1."""
+    store = InMemorySessionStore()
+    proc1_agent, proc2_agent = StubAgent(), StubAgent()
+    proc1_windows: dict[int, list[object]] = {1: ["a", "b"], 2: ["c", "a"]}
+    proc2_windows: dict[int, list[object]] = {1: ["a", "d"], 2: ["e", "a"]}
+    # What a real caller supplies: the window it is producing, not a counter.
+    proc1_scopes = {1: "2026-08-15T00:00", 2: "2026-08-15T12:00"}
+    proc2_scopes = {1: "2026-08-16T00:00", 2: "2026-08-16T12:00"}
+
+    for agent, windows, scopes in (
+        (proc1_agent, proc1_windows, proc1_scopes),
+        (proc2_agent, proc2_windows, proc2_scopes),
+    ):
+        runner = MapAgent(
+            agent,
+            concurrency=1,
+            key_fn=_by_customer,
+            checkpointer=BatchCheckpointer(store=store, batch_id="daily"),
+        )
+        triggered = TriggeredBatch(
+            trigger=RecordingTrigger(fires=2),
+            map_agent=runner,
+            inputs_fn=lambda ordinal, w=windows: w[ordinal],
+            scope_fn=lambda ordinal, s=scopes: s[ordinal],
+        )
+        [progress async for progress in triggered.run()]
+
+    assert proc1_agent.calls == ["a", "b", "c", "a"]
+    # Nothing dropped: proc2's windows are its own.
+    assert proc2_agent.calls == ["a", "d", "e", "a"]
+
+
+async def test_a_repeated_scope_is_refused_rather_than_silently_shared() -> None:
+    """Two fires in one namespace make the second report success doing nothing."""
+    runner = MapAgent(
+        StubAgent(),
+        concurrency=1,
+        key_fn=_by_customer,
+        checkpointer=BatchCheckpointer(store=InMemorySessionStore(), batch_id="daily"),
+    )
+    triggered = TriggeredBatch(
+        trigger=RecordingTrigger(fires=2),
+        map_agent=runner,
+        inputs_fn=lambda ordinal: ["c1"],
+        scope_fn=lambda ordinal: "always-the-same",
+    )
+
+    with pytest.raises(ValueError, match="already used"):
+        [progress async for progress in triggered.run()]
+
+
+async def test_scope_fn_must_return_a_non_empty_str() -> None:
+    def _runner() -> MapAgent:
+        return MapAgent(StubAgent(), concurrency=1, key_fn=_by_customer)
+
+    for bad, exc in ((lambda ordinal: 7, TypeError), (lambda ordinal: "", ValueError)):
+        triggered = TriggeredBatch(
+            trigger=RecordingTrigger(fires=1),
+            map_agent=_runner(),
+            inputs_fn=lambda ordinal: ["c1"],
+            scope_fn=bad,
+        )
+        with pytest.raises(exc):
+            [progress async for progress in triggered.run()]
+
+
+def test_scope_fn_must_be_callable() -> None:
+    with pytest.raises(TypeError, match="scope_fn"):
+        TriggeredBatch(
+            trigger=RecordingTrigger(fires=1),
+            map_agent=MapAgent(StubAgent(), concurrency=1, key_fn=_by_customer),
+            inputs_fn=lambda ordinal: [],
+            scope_fn="not-callable",  # type: ignore[arg-type]
+        )
+
+
+async def test_without_scope_fn_the_ordinal_still_scopes_each_fire() -> None:
+    """The default path is unchanged — PIR-803's guarantee still holds."""
+    agent = StubAgent()
+    runner = MapAgent(
+        agent,
+        concurrency=1,
+        key_fn=_by_customer,
+        checkpointer=BatchCheckpointer(store=InMemorySessionStore(), batch_id="daily"),
+    )
+    triggered = TriggeredBatch(
+        trigger=RecordingTrigger(fires=2),
+        map_agent=runner,
+        inputs_fn=lambda ordinal: ["c1", "c2"],
+    )
+    progresses = [progress async for progress in triggered.run()]
+
+    assert [progress.completed_count for progress in progresses] == [2, 2]
+    assert agent.calls == ["c1", "c2", "c1", "c2"]

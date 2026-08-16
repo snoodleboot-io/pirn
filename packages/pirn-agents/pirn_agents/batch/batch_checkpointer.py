@@ -60,10 +60,18 @@ class BatchCheckpointer:
         repeating across occurrences (a customer id, a partition key) is read as
         already-done and silently skipped.
 
+        The suffix is percent-escaped before being joined, so the mapping from
+        suffix to namespace is injective (PIR-813). Without that, two different
+        suffixes could name one namespace and silently share a skip-set — and
+        the case is not hypothetical now that a caller may name a window with a
+        timestamp: ``2026-08-16`` and ``2026`` + ``08-16`` would otherwise both
+        land on ``<batch_id>-2026-08-16``.
+
         Args:
-            suffix: The scope discriminator, e.g. a fire ordinal. Must be
-                non-empty and stable for the occurrence it names, since it *is*
-                the resume key.
+            suffix: The scope discriminator, e.g. a fire ordinal or a window
+                identity. Must be non-empty and stable for the occurrence it
+                names, since it *is* the resume key. Any character is allowed;
+                the escaping keeps the namespace unambiguous.
 
         Returns:
             A new ``BatchCheckpointer`` over this one's store.
@@ -73,7 +81,9 @@ class BatchCheckpointer:
         """
         if not isinstance(suffix, str) or not suffix:
             raise ValueError("BatchCheckpointer.scoped: suffix must be a non-empty str")
-        return BatchCheckpointer(store=self._store, batch_id=f"{self._batch_id}-{suffix}")
+        # `%` first, or escaping `-` would itself become escapable input.
+        escaped = suffix.replace("%", "%25").replace("-", "%2D")
+        return BatchCheckpointer(store=self._store, batch_id=f"{self._batch_id}-{escaped}")
 
     async def load(self) -> BatchProgress:
         """Return the persisted progress, or empty progress when none exists yet."""

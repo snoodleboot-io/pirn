@@ -76,6 +76,7 @@ class TriggeredBatch:
         trigger: Trigger,
         map_agent: MapAgent,
         inputs_fn: Callable[[int], Iterable[object]],
+        scope_fn: Callable[[int], str] | None = None,
         batch_id: str = "batch",
         owns_trigger: bool = False,
         shared_checkpoint: bool = False,
@@ -92,6 +93,25 @@ class TriggeredBatch:
                 fresh per fire so each run can pick up new data. The ordinal is
                 the trigger's own ``fire_ordinal`` where it publishes one, else
                 a 1-based counter over this loop's fires.
+            scope_fn: Maps the fire ordinal to a **stable identity for the window
+                being processed** — a window start timestamp, a partition key, a
+                content hash of the inputs. When supplied it, not the ordinal,
+                becomes the checkpoint scope.
+
+                Supply it whenever a batch must survive process restarts
+                (PIR-813). The ordinal is a per-``stream()`` counter held inside
+                the trigger's generator, so a replacement process restarts
+                numbering at 1 and fire N of the new process inherits fire N of
+                the old one's skip-set — every item already seen under that
+                number is silently dropped, including a repeat customer or
+                partition key that genuinely needs reprocessing. An identity
+                derived from the data does not restart.
+
+                ``inputs_fn`` is called fresh per fire precisely so each run can
+                pick up new data, which means the caller already knows which
+                window it just produced and is the only party able to name it.
+                Left ``None``, the scope falls back to the ordinal — today's
+                behaviour, correct for a single long-lived process.
             batch_id: Stable prefix for each run's reported batch id
                 (``"<batch_id>-<ordinal>"``).
             owns_trigger: Whether :meth:`run` closes the trigger when it exits.
@@ -137,6 +157,10 @@ class TriggeredBatch:
             raise TypeError(
                 f"TriggeredBatch: inputs_fn must be callable, got {type(inputs_fn).__name__}"
             )
+        if scope_fn is not None and not callable(scope_fn):
+            raise TypeError(
+                f"TriggeredBatch: scope_fn must be callable, got {type(scope_fn).__name__}"
+            )
         if on_result is not None and not callable(on_result):
             raise TypeError(
                 f"TriggeredBatch: on_result must be callable, got {type(on_result).__name__}"
@@ -159,6 +183,11 @@ class TriggeredBatch:
         self._trigger = trigger
         self._map_agent = map_agent
         self._inputs_fn = inputs_fn
+        self._scope_fn = scope_fn
+        # Scopes already used by this instance. A repeated scope would put two
+        # fires in one namespace, so the second silently processes nothing
+        # (PIR-813); it is rejected rather than allowed to look like success.
+        self._seen_scopes: set[str] = set()
         self._batch_id = batch_id
         self._owns_trigger = owns_trigger
         self._shared_checkpoint = shared_checkpoint
@@ -221,13 +250,60 @@ class TriggeredBatch:
             return fallback
         return ordinal
 
+    def _checkpoint_scope(self, ordinal: int) -> str:
+        """Return this fire's checkpoint scope, rejecting one already used.
+
+        The uniqueness check is what the ordinal never had (PIR-813). A trigger
+        publishing a repeated ``fire_ordinal`` — or publishing ``2`` on its first
+        fire and omitting it on the second, so the fallback counter also yields
+        ``2`` — put two fires in one namespace. The second then found every key
+        already checkpointed and processed nothing, while an ``on_result``
+        observer saw two fires reporting the same ``batch_id``. That reads as
+        success, which is the reason it is worth refusing.
+
+        The guard is per-instance and therefore per-process. It cannot see what a
+        previous process did, which is exactly why a caller who needs to survive
+        restarts supplies ``scope_fn`` instead of relying on the ordinal.
+
+        Args:
+            ordinal: Index of the fire being run.
+
+        Returns:
+            The scope string for this fire.
+
+        Raises:
+            TypeError: If ``scope_fn`` returned a non-``str``.
+            ValueError: If ``scope_fn`` returned an empty string, or the scope
+                was already used by an earlier fire on this instance.
+        """
+        if self._scope_fn is None:
+            scope = str(ordinal)
+        else:
+            scope = self._scope_fn(ordinal)
+            if not isinstance(scope, str):
+                raise TypeError(
+                    f"TriggeredBatch: scope_fn must return a str, got {type(scope).__name__}"
+                )
+            if not scope:
+                raise ValueError("TriggeredBatch: scope_fn must return a non-empty str")
+        if scope in self._seen_scopes:
+            raise ValueError(
+                f"TriggeredBatch: checkpoint scope {scope!r} was already used by an earlier "
+                f"fire. Two fires sharing one scope make the second skip every item the first "
+                f"completed, so it would report success having processed nothing. "
+                f"{'Return a distinct value per window from scope_fn' if self._scope_fn is not None else 'The trigger repeated a fire_ordinal; supply scope_fn to name each window'}."
+            )
+        self._seen_scopes.add(scope)
+        return scope
+
     async def _run_once(self, ordinal: int) -> BatchProgress:
         """Run one batch for the given fire and summarise it.
 
-        The fire's ordinal is also its checkpoint scope, so a fire interrupted
-        part-way resumes from its own checkpoint on a replay while contributing
-        nothing to any other fire's skip-set — unless ``shared_checkpoint`` put
-        every fire back in one namespace.
+        The fire's checkpoint scope is ``scope_fn(ordinal)`` when one was
+        supplied and the ordinal otherwise, so a fire interrupted part-way
+        resumes from its own checkpoint on a replay while contributing nothing
+        to any other fire's skip-set — unless ``shared_checkpoint`` put every
+        fire back in one namespace.
 
         Args:
             ordinal: Index of the fire being run.
@@ -235,9 +311,14 @@ class TriggeredBatch:
         Returns:
             The run's ``BatchProgress`` — ``completed_keys`` for the items that
             succeeded, out of ``total`` attempted.
+
+        Raises:
+            TypeError: If ``scope_fn`` returned a non-``str``.
+            ValueError: If ``scope_fn`` returned an empty string, or if this
+                fire's scope was already used by an earlier fire.
         """
         inputs = self._inputs_fn(ordinal)
-        scope = None if self._shared_checkpoint else str(ordinal)
+        scope = None if self._shared_checkpoint else self._checkpoint_scope(ordinal)
         completed: set[str] = set()
         total = 0
         async for result in self._map_agent.run(inputs, checkpoint_scope=scope):
