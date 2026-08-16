@@ -71,6 +71,11 @@ def get_current_store() -> TapestryStore | None:
     a knot's ``process()`` to register successor knots into the running
     tapestry — the engine picks them up between waves.
 
+    Registration is permanent: the knot stays in the tapestry after this
+    run ends and later runs treat it as an ordinary member.  Give it an
+    id that is unique across runs — re-registering a different instance
+    under an id an earlier run already used raises (PIR-815).
+
     Example::
 
         store = get_current_store()
@@ -190,6 +195,13 @@ class Tapestry:
         Computed on demand — the tapestry doesn't track this incrementally
         because splice operations would need to maintain it, and the cost
         of computing it is O(n) anyway.
+
+        This reflects **every** member of the store, including knots a
+        previous ``run(extensible=True)`` registered mid-run: such knots
+        are permanent members of the tapestry, so a later ``run()`` that
+        omits ``terminals=`` will execute them (PIR-815).  If you want a
+        run confined to the statically-declared graph, pass ``terminals=``
+        explicitly or use a fresh ``Tapestry``.
         """
         all_knots = self._store.all()
         referenced: set[str] = set()
@@ -229,6 +241,12 @@ class Tapestry:
         ``ValKeyStore`` do; the SQLite store does not.  Only *this* run's
         own registrations are merged; a concurrent run's are not
         (PIR-808, PIR-815).
+
+        ``extensible`` governs mid-run merging only.  Knots registered
+        during an earlier run stay in the tapestry and are ordinary
+        members afterwards, so a later run that omits ``terminals=``
+        executes them whether or not it is extensible — see
+        :meth:`terminals`.
         """
         from pirn.core.knot import Knot as _Knot
         from pirn.core.run_request import RunRequest as _RunRequest
