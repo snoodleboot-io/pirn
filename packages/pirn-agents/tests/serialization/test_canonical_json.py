@@ -276,12 +276,12 @@ class TestContentOnlyPolicies:
         # THE migration guarantee. If this ever fails, adopting the narrowed
         # policy became a storage break for cassettes / idempotency keys.
         payload = {"leaf": _stable_opaque_leaves()[name]}
-        assert CanonicalJson.digest(payload, policy=OpaquePolicy.STR_CONTENT) == CanonicalJson.digest(
-            payload, policy=OpaquePolicy.STR
-        )
-        assert CanonicalJson.digest(payload, policy=OpaquePolicy.REPR_CONTENT) == CanonicalJson.digest(
-            payload, policy=OpaquePolicy.REPR
-        )
+        assert CanonicalJson.digest(
+            payload, policy=OpaquePolicy.STR_CONTENT
+        ) == CanonicalJson.digest(payload, policy=OpaquePolicy.STR)
+        assert CanonicalJson.digest(
+            payload, policy=OpaquePolicy.REPR_CONTENT
+        ) == CanonicalJson.digest(payload, policy=OpaquePolicy.REPR)
 
     @pytest.mark.parametrize("policy", [OpaquePolicy.STR_CONTENT, OpaquePolicy.REPR_CONTENT])
     def test_refuses_a_leaf_that_renders_its_own_address(self, policy: OpaquePolicy) -> None:
@@ -321,9 +321,9 @@ class TestContentOnlyPolicies:
                 return "StrOnly!"
 
         payload = {"leaf": StrOnly()}
-        assert CanonicalJson.digest(payload, policy=OpaquePolicy.STR_CONTENT) == CanonicalJson.digest(
-            payload, policy=OpaquePolicy.STR
-        )
+        assert CanonicalJson.digest(
+            payload, policy=OpaquePolicy.STR_CONTENT
+        ) == CanonicalJson.digest(payload, policy=OpaquePolicy.STR)
         with pytest.raises(TypeError):
             CanonicalJson.digest(payload, policy=OpaquePolicy.REPR_CONTENT)
 
