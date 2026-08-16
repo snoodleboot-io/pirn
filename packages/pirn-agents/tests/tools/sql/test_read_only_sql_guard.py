@@ -127,3 +127,159 @@ class TestReadsStayAllowed:
         # the same path that already lets a column named ``delete`` through.
         ReadOnlySqlGuard().assert_read_only('SELECT "into" FROM t')
         ReadOnlySqlGuard().assert_read_only('SELECT t."into" AS n FROM t')
+
+
+class TestCommentMarkersInsideLiteralsCannotHideStatements:
+    """Regression (PIR-818): a ``/*`` in a literal must not open a real comment.
+
+    The pre-scanner cleaner ran four sequential regexes and stripped block
+    comments *before* string literals, so a ``/*`` inside one literal paired with
+    a ``*/`` inside a later literal and deleted everything between them — the
+    forbidden keyword *and* both semicolons — defeating the multi-statement check
+    and the keyword scan at once.
+    """
+
+    @pytest.mark.parametrize(
+        "query",
+        [
+            # The canonical defect: both semicolons and the DROP are deleted.
+            "SELECT '/*' AS a; DROP TABLE t; SELECT '*/' AS b",
+            "SELECT '/*' AS a; DELETE FROM t; SELECT '*/' AS b",
+            "SELECT '/*' AS a; SELECT * INTO evil FROM t; SELECT '*/' AS b",
+            # The same trick through quoted identifiers rather than literals.
+            'SELECT "/*" AS a; DROP TABLE t; SELECT "*/" AS b',
+            "SELECT `/*` AS a; DROP TABLE t; SELECT `*/` AS b",
+            # A ``--`` inside a literal must not comment out the rest of the line.
+            "SELECT '--' AS a; DROP TABLE t",
+            "SELECT '--' AS a; SELECT * INTO evil FROM t",
+            # Doubled quotes keep the scanner inside the literal, so the closing
+            # quote is the real one and the DROP stays visible.
+            "SELECT 'it''s /*' AS a; DROP TABLE t; SELECT '*/' AS b",
+        ],
+    )
+    def test_comment_marker_in_literal_does_not_hide_a_write(self, query: str) -> None:
+        with pytest.raises(ValueError):
+            ReadOnlySqlGuard().assert_read_only(query)
+
+    @pytest.mark.parametrize(
+        "query",
+        [
+            "SELECT 'unterminated",
+            "SELECT * FROM t WHERE x = 'a''",
+            'SELECT "unterminated FROM t',
+            "SELECT 1 /* unterminated",
+            "SELECT `unterminated FROM t",
+        ],
+    )
+    def test_unterminated_literal_or_block_comment_is_rejected(self, query: str) -> None:
+        with pytest.raises(ValueError, match="unterminated"):
+            ReadOnlySqlGuard().assert_read_only(query)
+
+    @pytest.mark.parametrize(
+        "query",
+        [
+            # MySQL only starts a line comment when ``--`` is followed by
+            # whitespace, so ``1--1;`` is ``1 - -1`` and then a *second statement*.
+            "SELECT 1--1; DROP TABLE t",
+            "SELECT 1--1; SELECT * INTO evil FROM t",
+            # MySQL executes the body of a ``/*! ... */`` version comment.
+            "SELECT 1 /*! ; DROP TABLE t */",
+            "SELECT 1 /*!32302 ; DROP TABLE t */",
+        ],
+    )
+    def test_mysql_only_comment_forms_are_treated_as_code(self, query: str) -> None:
+        with pytest.raises(ValueError):
+            ReadOnlySqlGuard().assert_read_only(query)
+
+    @pytest.mark.parametrize(
+        "query",
+        [
+            # Bracket and backtick identifiers are stripped like any other quote.
+            "SELECT `into` FROM t",
+            "SELECT [into] FROM t",
+            "SELECT [delete] FROM `t`",
+            'SELECT "a""b" FROM t',
+            "SELECT 'it''s fine' AS a FROM t",
+            "SELECT `a``b` FROM t",
+            "SELECT [a]]b] FROM t",
+            # Comment markers *inside* literals are still just text.
+            "SELECT '/* not a comment */' AS a FROM t",
+            "SELECT '-- not a comment' AS a FROM t",
+            # A real block comment between two literals still gets stripped.
+            "SELECT 'a' /* c */, 'b' FROM t",
+            # ``*`` immediately followed by a block comment is multiplication.
+            "SELECT 4*/*c*/2 AS n",
+        ],
+    )
+    def test_reads_with_awkward_quoting_stay_allowed(self, query: str) -> None:
+        ReadOnlySqlGuard().assert_read_only(query)
+
+    @pytest.mark.parametrize(
+        "query", ["-- c\nINSERT INTO t VALUES (1)", "/*c*/ INSERT INTO t VALUES (1)"]
+    )
+    def test_a_leading_comment_still_exposes_the_first_real_token(self, query: str) -> None:
+        # Comment stripping runs before the first-token check, so the ``INSERT``
+        # is seen and rejected on the strong first-token path. The scanner must
+        # not change that.
+        with pytest.raises(ValueError, match="only SELECT/WITH"):
+            ReadOnlySqlGuard().assert_read_only(query)
+
+
+class TestOtherQuotingFormsCannotHideStatements:
+    """Two more ways to pair a quote across a write, found by attacking the scanner.
+
+    Both are the *same shape* as the block-comment defect — one quoting form the
+    scanner did not know about lets a quote character that the database treats as
+    ordinary text be misread as opening a literal, so the literal swallows the
+    statement separator and the write with it.
+    """
+
+    @pytest.mark.parametrize(
+        "query",
+        [
+            # Postgres dollar-quoting: the ``'`` between the ``$$`` markers is
+            # *text* to Postgres, but a scanner that does not know ``$$`` reads it
+            # as opening a literal that runs to the ``'`` past the DROP.
+            "SELECT $$ ' $$ ; DROP TABLE t; SELECT ' ",
+            "SELECT $tag$ ' $tag$ ; DROP TABLE t; SELECT ' ",
+            "SELECT $$ ' $$ ; SELECT * INTO evil FROM t; SELECT ' ",
+        ],
+    )
+    def test_dollar_quoting_does_not_hide_a_write(self, query: str) -> None:
+        with pytest.raises(ValueError):
+            ReadOnlySqlGuard().assert_read_only(query)
+
+    @pytest.mark.parametrize(
+        "query",
+        [
+            # Postgres ends a ``--`` comment at CR as well as LF, so everything
+            # after the CR is live code.
+            "SELECT 1 -- x\r; DROP TABLE t",
+            "SELECT 1 -- \r DROP TABLE t",
+            "SELECT 1 -- x\r; SELECT * INTO evil FROM t",
+        ],
+    )
+    def test_carriage_return_ends_a_line_comment(self, query: str) -> None:
+        with pytest.raises(ValueError):
+            ReadOnlySqlGuard().assert_read_only(query)
+
+    @pytest.mark.parametrize("query", ["SELECT $$ unterminated", "SELECT $tag$ unterminated"])
+    def test_unterminated_dollar_quote_is_rejected(self, query: str) -> None:
+        with pytest.raises(ValueError, match="unterminated"):
+            ReadOnlySqlGuard().assert_read_only(query)
+
+    @pytest.mark.parametrize(
+        "query",
+        [
+            # A dollar-quoted body is a string literal, so a keyword inside it is
+            # no more dangerous than one inside ``'...'``.
+            "SELECT $$abc$$ AS a",
+            "SELECT $$ DROP TABLE t $$ AS a",
+            "SELECT $tag$ delete from x $tag$ AS a",
+            # ``$1`` is a positional parameter, not a dollar quote.
+            "SELECT * FROM t WHERE id = $1",
+            "SELECT * FROM t WHERE id = $1 AND n = $2",
+        ],
+    )
+    def test_dollar_forms_that_must_stay_allowed(self, query: str) -> None:
+        ReadOnlySqlGuard().assert_read_only(query)
