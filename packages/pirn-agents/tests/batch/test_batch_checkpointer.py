@@ -51,3 +51,28 @@ def test_rejects_non_session_store() -> None:
 def test_rejects_empty_batch_id() -> None:
     with pytest.raises(ValueError):
         BatchCheckpointer(store=InMemorySessionStore(), batch_id="")
+
+
+def test_scoped_suffixes_cannot_collide_after_escaping() -> None:
+    """PIR-813: the suffix -> namespace mapping must be injective.
+
+    Without escaping, ``"2026-08-16"`` and any pair splitting on a hyphen land on
+    the same namespace, so two different windows would silently share one
+    skip-set. That case stops being hypothetical once a caller names a window
+    with a timestamp.
+    """
+    root = BatchCheckpointer(store=InMemorySessionStore(), batch_id="daily")
+    assert root.scoped("2026-08-16").batch_id != root.scoped("2026").scoped("08-16").batch_id
+
+
+def test_scoped_is_injective_across_awkward_suffixes() -> None:
+    root = BatchCheckpointer(store=InMemorySessionStore(), batch_id="daily")
+    suffixes = ["1", "1-2", "1%2D2", "%", "%25", "2026-08-16T00:00", "a-b-c"]
+    ids = [root.scoped(s).batch_id for s in suffixes]
+    assert len(set(ids)) == len(suffixes)
+
+
+def test_scoped_still_rejects_an_empty_suffix() -> None:
+    root = BatchCheckpointer(store=InMemorySessionStore(), batch_id="daily")
+    with pytest.raises(ValueError):
+        root.scoped("")
