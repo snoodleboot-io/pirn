@@ -10,6 +10,8 @@ from functools import partial
 from typing import Any
 from uuid import uuid4
 
+from pirn.tapestry import current_run_id
+
 from pirn_agents.observability.observability_sink import ObservabilitySink
 from pirn_agents.observability.open_span_entry import OpenSpanEntry
 from pirn_agents.observability.span import Span
@@ -162,7 +164,7 @@ class Tracer:
             span_id=span_id,
             sink=self._sink,
             parent_id=parent_id,
-            attributes=attributes,
+            attributes=self._with_run_id(attributes),
             monotonic=self._monotonic,
             on_close=partial(self._pop, entry),
         )
@@ -172,6 +174,39 @@ class Tracer:
         except Exception:
             pass
         return span
+
+    @staticmethod
+    def _with_run_id(attributes: Mapping[str, Any] | None) -> dict[str, Any]:
+        """Return ``attributes`` with the enclosing run's id stamped on (PIR-798).
+
+        Agent spans otherwise reach a collector as an unattributable forest:
+        nothing on them says which pirn run produced them, so they cannot be
+        lined up against the core lineage stream keyed by the same id.
+
+        ``run_id`` is ambient — :func:`pirn.tapestry.current_run_id` reads the
+        contextvar the engine sets for the duration of a run — so every span
+        gets it here rather than each call site remembering to pass it. Its
+        sibling ``knot_id`` deliberately is *not* stamped here: no
+        ``_current_knot_id`` contextvar exists in core, so there is nothing
+        ambient to read and it has to be supplied per call site (see
+        :class:`~pirn_agents.observability.span_emitting_tool_invocation_hook.SpanEmittingToolInvocationHook`).
+
+        Outside a run the accessor returns ``None`` and the key is **omitted**
+        rather than written as ``None``, so a span never carries an attribute
+        asserting it belongs to no run. The same holds across a
+        process-boundary dispatcher, where the contextvar does not travel.
+
+        A caller-supplied ``pirn.run_id`` is left untouched: an explicit value
+        beats an inferred one, which is what lets a span be re-attributed when
+        it is reconstructed away from the run that produced it.
+        """
+        stamped = dict(attributes or {})
+        if "pirn.run_id" in stamped:
+            return stamped
+        run_id = current_run_id()
+        if run_id is not None:
+            stamped["pirn.run_id"] = run_id
+        return stamped
 
     @asynccontextmanager
     async def span(

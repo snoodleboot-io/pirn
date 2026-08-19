@@ -28,9 +28,32 @@ class SpanEmittingToolInvocationHook(ToolInvocationHook):
     never abort tool execution.
     """
 
-    def __init__(self, tracer: Tracer) -> None:
-        """Bind to the :class:`Tracer` whose sink tool spans are reported to."""
+    def __init__(self, tracer: Tracer, *, knot_id: str | None = None) -> None:
+        """Bind to the :class:`Tracer` whose sink tool spans are reported to.
+
+        Args:
+            tracer: The tracer whose sink these spans are reported to.
+            knot_id: Identity of the knot these tool calls run under, stamped on
+                every span this hook opens (PIR-798).
+
+                It has to be passed because there is nothing ambient to read:
+                core has no ``_current_knot_id`` contextvar, unlike ``run_id``,
+                which :class:`Tracer` stamps for itself. An executor that is a
+                ``Knot`` can hand over its own ``knot_id``; a caller that is not
+                one — ``MapAgent``, for instance — has no knot identity to give
+                and leaves this ``None``, in which case the key is omitted
+                rather than written as ``None``.
+
+        Raises:
+            TypeError: If ``knot_id`` is neither ``None`` nor a ``str``.
+        """
+        if knot_id is not None and not isinstance(knot_id, str):
+            raise TypeError(
+                f"SpanEmittingToolInvocationHook: knot_id must be a str or None, "
+                f"got {type(knot_id).__name__}"
+            )
         self._tracer = tracer
+        self._knot_id = knot_id
         self._open: dict[str, Span] = {}
 
     def on_start(self, *, tool_name: str, args_digest: str, call_id: str) -> None:
@@ -38,13 +61,29 @@ class SpanEmittingToolInvocationHook(ToolInvocationHook):
         span = self._tracer.start_span(
             name=f"tool:{tool_name}",
             kind=SpanKind.TOOL,
-            attributes={
-                "tool.name": tool_name,
-                "tool.args_digest": args_digest,
-                "tool.call_id": call_id,
-            },
+            attributes=self._span_attributes(
+                tool_name=tool_name, args_digest=args_digest, call_id=call_id
+            ),
         )
         self._open[call_id] = span
+
+    def _span_attributes(
+        self, *, tool_name: str, args_digest: str, call_id: str
+    ) -> dict[str, object]:
+        """Build the span's attributes, adding ``knot_id`` when one is known.
+
+        ``run_id`` is not added here — :class:`Tracer` stamps it on every span
+        it opens, because it is ambient. This method carries only the half that
+        is not (PIR-798).
+        """
+        attributes: dict[str, object] = {
+            "tool.name": tool_name,
+            "tool.args_digest": args_digest,
+            "tool.call_id": call_id,
+        }
+        if self._knot_id is not None:
+            attributes["pirn.knot_id"] = self._knot_id
+        return attributes
 
     def on_finish(
         self, *, tool_name: str, call_id: str, status: ToolStatus, latency: float
