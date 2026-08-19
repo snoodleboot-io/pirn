@@ -24,6 +24,18 @@ class SnowflakePool(DatabaseConnectionPool):
     (warehouse / database / schema / role) so a single underlying
     connection is sufficient. ``acquire`` returns the shared connection
     and ``release`` is a no-op.
+
+    **Transactions.** This pool issues no transaction control of its own and
+    relies on the driver's session default, ``AUTOCOMMIT=TRUE``, under which
+    each statement commits itself. That is correct for a connection this pool
+    opens from ``config``, which never turns autocommit off.
+
+    It is *not* guaranteed for a connection supplied through ``client=``. A
+    caller injecting one built with ``autocommit=False`` gets a session in
+    which Snowflake opens a transaction implicitly and nothing here ever
+    commits it, so writes made through :meth:`execute` are discarded when the
+    connection closes — silently, with no error. Inject an autocommit
+    connection, or drive ``BEGIN``/``COMMIT`` on it yourself.
     """
 
     def __init__(

@@ -39,6 +39,10 @@ class AgentSpec(PirnOpaqueValue):
         Reference of the memory store the agent uses, or ``None``.
     tools:
         Ordered references of the tools the agent may call.
+    components:
+        References of the pattern's remaining components, keyed by constructor
+        parameter name (``{"graph_memory": "Neo4jStore"}``). ``llm``, ``memory``
+        and ``tools`` have their own fields and are not repeated here.
     options:
         Pattern-specific options (e.g. ``{"max_iterations": 6}``). Values are
         restricted to JSON primitives so the spec round-trips cleanly.
@@ -48,6 +52,7 @@ class AgentSpec(PirnOpaqueValue):
     llm: str | None = None
     memory: str | None = None
     tools: tuple[str, ...] = ()
+    components: Mapping[str, str] = field(default_factory=dict)
     options: Mapping[str, str | int | float | bool] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -76,6 +81,21 @@ class AgentSpec(PirnOpaqueValue):
                 raise TypeError(
                     f"AgentSpec: tools[{index}] must be a str, got {type(name).__name__}"
                 )
+        if not isinstance(self.components, Mapping):
+            raise TypeError(
+                f"AgentSpec: components must be a mapping, got {type(self.components).__name__}"
+            )
+        component_refs: dict[str, str] = {}
+        for key, reference in self.components.items():
+            if not isinstance(key, str):
+                raise TypeError(f"AgentSpec: component keys must be str, got {type(key).__name__}")
+            if not isinstance(reference, str):
+                raise TypeError(
+                    f"AgentSpec: component {key!r} must be a str reference, "
+                    f"got {type(reference).__name__}"
+                )
+            component_refs[key] = reference
+        object.__setattr__(self, "components", component_refs)
         if not isinstance(self.options, Mapping):
             raise TypeError(
                 f"AgentSpec: options must be a mapping, got {type(self.options).__name__}"
@@ -96,7 +116,7 @@ class AgentSpec(PirnOpaqueValue):
     @classmethod
     def allowed_fields(cls) -> tuple[str, ...]:
         """Return the field names a mapping may contain when loaded."""
-        return ("pattern", "llm", "memory", "tools", "options")
+        return ("pattern", "llm", "memory", "tools", "components", "options")
 
     @classmethod
     def from_dict(cls, data: Mapping[str, Any]) -> AgentSpec:
@@ -135,6 +155,8 @@ class AgentSpec(PirnOpaqueValue):
             llm=data.get("llm"),
             memory=data.get("memory"),
             tools=tuple(raw_tools),
+            # Passed through raw so __post_init__ reports a bad type by name.
+            components=data.get("components", {}),
             options=dict(data.get("options", {})),
         )
 
@@ -149,6 +171,7 @@ class AgentSpec(PirnOpaqueValue):
             "llm": self.llm,
             "memory": self.memory,
             "tools": list(self.tools),
+            "components": dict(self.components),
             "options": dict(self.options),
         }
 

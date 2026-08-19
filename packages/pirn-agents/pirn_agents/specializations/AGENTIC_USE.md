@@ -17,6 +17,35 @@ When choosing a family, the key questions are:
 
 ---
 
+## Two ways to wire a pattern, and they meet
+
+This document is the **knot-first** way: import a pipeline class, pass its
+constructor your LLM caller, memory store and tools, and place it in a tapestry.
+That is the substrate, and nothing below is builder-only.
+
+`pirn_agents/builder/BUILDER.md` documents the **facade** over the same thing —
+one spine with four views of it: `AgentBuilder` (fluent) ⇄ `AgentSpec` (the same
+configuration as data, via `.to_spec()` / `Agent.from_spec()`), with
+`AgentPresets` as named entries and `AgentPatternRegistry` as the single pattern
+table. All 52 pipelines in this tree are reachable by name through it.
+
+The two are not layers you must choose between:
+
+- `Agent.builder()...build()` returns an ordinary `SubTapestry` — wire it as a
+  parent of your own hand-built knots, or vice versa, in one `Tapestry`.
+- Everything the facade will generate is readable first: `.pattern_class` is the
+  class you would have imported, `.knot_id` the id it will take, `.to_spec()`
+  the whole recipe as data.
+- `AgentPatternRegistry.describe(name)` reports a pattern's constructor contract
+  — required components and optional knobs — whether or not you use the builder
+  to satisfy it.
+
+Reach for the facade when a configuration is named, repeated, or comes from a
+config file. Reach for raw knots when the graph is one-off or when you are
+composing a pipeline into something larger. There is no boundary between them.
+
+---
+
 ## Sub-package index
 
 | Sub-package | Pattern | Guide |

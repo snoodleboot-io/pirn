@@ -5,6 +5,27 @@ ordinary `SubTapestry` knot graphs — it hides nothing and adds no capability.
 Every graph it produces is identical to a hand-wired one and shares the engine's
 caching and lineage. Drop to raw knots whenever you want.
 
+## One spine, four views of it
+
+There is one authoring path. The pieces are not alternatives to each other:
+
+| Piece | Role |
+|---|---|
+| `AgentBuilder` | the spine — the fluent front end, and what every other piece produces or consumes |
+| `AgentSpec` | the builder as **data**, in both directions: `.to_spec()` out, `AgentBuilder.from_spec()` in |
+| `AgentReferences` | the caller-owned table binding a spec's reference labels to live objects |
+| `AgentPresets` | **named entries** into the spine; `builder_for(...)` hands back the builder a recipe uses |
+| `AgentPatternRegistry` | the single pattern table all of the above consult |
+
+```
+       .pattern()/.llm()/...                      .to_spec()
+Agent.builder() ─────────────► AgentBuilder ─────────────────► AgentSpec ──► JSON/YAML
+                                 ▲     │                          │
+AgentPresets.builder_for() ──────┘     │ .build()                 │ Agent.from_spec(spec,
+                                       ▼                          │        references=…)
+                                  SubTapestry ◄──────────────────-┘
+```
+
 ## Quick start
 
 ```python
@@ -25,9 +46,53 @@ run = await t.run(RunRequest())
 response = run.outputs[agent.knot_id]  # knot_id is stable & derived, not random
 ```
 
-Supported patterns: `Agent.patterns()` → `("naive_rag", "rag", "react")`.
-`react` needs `llm` + `input`; `naive_rag`/`rag` needs `llm` + `memory` + a
-string `input`.
+## Every shipped pattern is reachable by name
+
+`Agent.patterns()` returns all 52 pattern names (plus the `rag` alias for
+`naive_rag`) — the RAG family, the guardrail gates, the multi-agent
+orchestrations, the specialized agents, the structured-output extractors, the
+ingestors, and the reasoning loops. None of them is builder-invisible.
+
+Patterns need different parts, so beyond `.llm()`, `.memory()` and `.tools()`
+there is a general `.component(name, value)` slot keyed by the pattern's own
+constructor parameter names. Ask what a pattern needs rather than guessing:
+
+```python
+from pirn_agents.builder.agent_pattern_registry import AgentPatternRegistry
+
+AgentPatternRegistry.required_components("graph_rag")    # ('graph_memory', 'llm')
+AgentPatternRegistry.optional_parameters("graph_rag")    # ('hop_count',)
+AgentPatternRegistry.describe("graph_rag")               # full contract, printable
+
+with Tapestry() as t:
+    agent = (
+        Agent.builder()
+        .llm(my_llm)
+        .component("graph_memory", my_graph_store)
+        .pattern("graph_rag", hop_count=2)
+        .input("who reports to whom?")
+        .build()
+    )
+```
+
+A builder mid-configuration reports what is still missing:
+
+```python
+b = Agent.builder().llm(my_llm).pattern("self_query_rag")
+b.missing_components     # ('store', 'embedder')
+```
+
+**The builder requires exactly what the class requires.** Required components
+and optional knobs are read off the pattern class's constructor, not from a
+hand-written table, so they cannot drift from the class. Two consequences worth
+knowing:
+
+- `.pattern("react")` now needs `.tools(...)` — pass `.tools(())` for a
+  tool-less ReAct. `ReActLoop.__init__` has no default for `tools`, and the
+  builder no longer supplies a hidden one that hand-wiring would not.
+- A component or option the chosen pattern does not accept is an error, not a
+  silent no-op — a graph wired differently from the one you asked for is worse
+  than a build that stops.
 
 ## Auto-generated, stable knot ids
 
@@ -39,32 +104,57 @@ with `.name("my-agent")` (id becomes `agent.my-agent`).
 
 ## Config-driven agents: `AgentSpec`
 
-`AgentSpec` is the declarative, serialisable counterpart of the builder. It
-stores provider/tool **references** (plain strings) plus the pattern and its
-options, and round-trips losslessly through dict/JSON/YAML.
+`AgentSpec` is the builder as data. It stores provider/tool/component
+**references** (plain strings) plus the pattern and its options, and round-trips
+losslessly through dict/JSON/YAML.
+
+A spec cannot hold an open HTTP client or a live vector store, so it names them.
+`AgentReferences` is the caller-owned table that binds those names back to real
+objects — and `Agent.from_spec` turns the pair into a builder:
 
 ```python
-from pirn_agents.builder.agent_spec import AgentSpec
+from pirn.tapestry import Tapestry
+from pirn_agents.builder.agent import Agent
+from pirn_agents.builder.agent_references import AgentReferences
 from pirn_agents.builder.agent_spec_loader import AgentSpecLoader
 
 spec = AgentSpecLoader.from_yaml("""
-pattern: react
+pattern: naive_rag
 llm: my-llm
-tools: [web_fetch, html_to_text]
-options: {max_iterations: 6}
+memory: kb
+options: {top_k: 5}
 """)
-assert AgentSpec.from_dict(spec.to_dict()) == spec   # round-trips
+
+references = AgentReferences().register("my-llm", my_llm).register("kb", my_store)
+
+with Tapestry() as t:
+    agent = Agent.from_spec(spec, references=references).input("what changed?").build()
+```
+
+`register_tools(toolset)` binds each tool under its own `name`, which is the
+label `to_spec()` writes for tools. An unregistered label raises and lists the
+labels that *are* registered — a typo in a config file fails at bind time rather
+than wiring a knot to nothing.
+
+**A spec has no `input`.** It describes an agent's shape, not the question it is
+asked, so one spec serves many inputs — `from_spec` returns a builder and you
+supply `.input(...)` per call.
+
+The trip is lossless in both directions:
+
+```python
+b = Agent.builder().llm(my_llm).pattern("react", max_iterations=6)
+assert Agent.from_spec(b.to_spec(), references=refs).to_spec() == b.to_spec()
 ```
 
 `from_json` uses only the standard library; `from_yaml`/`to_yaml` need the
-`yaml` extra (`pip install "pirn-agents[yaml]"`) and are imported lazily, so a
-bare `import pirn_agents` never pulls in PyYAML. Unknown or malformed fields are
-rejected on load.
+`yaml` extra (`pip install "pirn-agents[yaml]"`) and are imported lazily.
+Unknown or malformed fields are rejected on load.
 
 ## Curated presets
 
-`AgentPresets` are one-call recipes built entirely from the public builder API.
-Each takes a caller-supplied `llm` (and `memory` where relevant) and accepts a
+`AgentPresets` are named entries into the spine, not a separate way in. Each
+takes a caller-supplied `llm` (and `memory` where relevant) and accepts a
 `tools=` override, so no preset hard-codes a vendor.
 
 ```python
@@ -74,6 +164,19 @@ with Tapestry() as t:
     research = AgentPresets.research(llm=my_llm, input="...")          # web tools
     chat     = AgentPresets.rag_chat(llm=my_llm, memory=store, input="...")
     coder    = AgentPresets.coding(llm=my_llm, input="...", root="/srv/ws")
+```
+
+`builder_for(name, **kwargs)` hands back the builder the recipe uses, before it
+becomes a graph — so a preset can be read as data, adjusted, or serialised. The
+named call above is exactly this followed by `.build()`, so there is no second
+copy of the defaults to drift:
+
+```python
+b = AgentPresets.builder_for("rag_chat", llm=my_llm, memory=store, input="...")
+b.to_spec()                       # the recipe as data — no Tapestry needed
+b.pattern("naive_rag", top_k=9)   # keep chaining; it is an ordinary builder
+with Tapestry():
+    agent = b.build()
 ```
 
 ## Escape hatch — drop to raw knots
@@ -89,7 +192,9 @@ b = Agent.builder().llm(my_llm).tools(my_tools).pattern("react", max_iterations=
 b.pattern_class   # -> <class 'ReActLoop'>  (construct it yourself if you prefer)
 b.knot_id         # -> the id build() will assign (derived, stable)
 b.llm_provider, b.tool_list, b.memory_store, b.pattern_name, b.options, b.input_value
-b.to_spec()       # -> declarative AgentSpec snapshot
+b.components          # -> every configured component, by parameter name
+b.missing_components  # -> what the chosen pattern still needs
+b.to_spec()           # -> declarative AgentSpec snapshot
 ```
 
 `build()` is exactly equivalent to hand-wiring the pattern class. The two graphs

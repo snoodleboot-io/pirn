@@ -83,23 +83,7 @@ class RagFusionPipeline(AgentPipeline):
 
         Returns:
             The :class:`RAGSynthesizer` sink knot whose output is the answer.
-
-        Raises:
-            TypeError: If ``query`` is not a string, ``memory`` not a MemoryStore,
-                or ``llm`` not an LLMProvider.
         """
-        if not isinstance(query, str):
-            raise TypeError(
-                f"RagFusionPipeline: query must be a string, got {type(query).__name__}"
-            )
-        if not isinstance(memory, MemoryStore):
-            raise TypeError(
-                f"RagFusionPipeline: memory must be a MemoryStore, got {type(memory).__name__}"
-            )
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"RagFusionPipeline: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
         variants = MultiQueryExpander(
             query=query,
             llm=llm,

@@ -184,7 +184,7 @@ asyncio.run(main())
 ```python
 import uvicorn
 from pirn import Tapestry
-from pirn.triggers import WebhookTrigger
+from pirn.triggers.http import WebhookTrigger
 
 trigger = WebhookTrigger(path="/run")
 # trigger.app is a Starlette ASGI app
@@ -200,7 +200,8 @@ uvicorn.run(trigger.app, host="127.0.0.1", port=8080)
 ### Event-driven (Kafka trigger)
 
 ```python
-from pirn.triggers import KafkaTrigger, run_forever
+from pirn.triggers.base import run_forever
+from pirn.triggers.kafka import KafkaTrigger
 
 trigger = KafkaTrigger(
     topic="orders",

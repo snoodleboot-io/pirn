@@ -24,7 +24,7 @@ from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.specializations.rag.speculative_rag_pipeline import SpeculativeRagPipeline
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
-_STAGE_DELAY = 0.05
+_STAGE_DELAY = 0.1
 
 
 class _SlowLLM(LLMProvider):
@@ -84,23 +84,59 @@ class _SlowMemory(MemoryStore):
         return None
 
 
-@pytest.mark.benchmark
-async def test_speculative_overlaps_draft_and_retrieval() -> None:
-    llm = _SlowLLM(["draft", "verified"])
-    memory = _SlowMemory()
-    with Tapestry() as t:
+async def _sequential_floor() -> float:
+    """Return what three serial stage delays actually cost, here and now.
+
+    The baseline is *measured on the same runner in the same process* rather
+    than computed as ``3 * _STAGE_DELAY``. A literal budget encodes "this
+    machine is fast enough": it passed at 118 ms and failed at 425 ms on a
+    loaded CI runner, reddening unrelated PRs (PIR-777). Scheduler delay
+    inflates the baseline and the measurement together, so a ratio survives a
+    slow runner while still failing if the overlap regresses.
+    """
+    start = time.perf_counter()
+    for _ in range(3):
+        await asyncio.sleep(_STAGE_DELAY)
+    return time.perf_counter() - start
+
+
+async def _run_pipeline() -> tuple[float, Any]:
+    """Build and run one speculative pipeline, returning (elapsed, run result)."""
+    with Tapestry() as tapestry:
         SpeculativeRagPipeline(
-            query="q", memory=memory, llm=llm, top_k=1, _config=KnotConfig(id="spec")
+            query="q",
+            memory=_SlowMemory(),
+            llm=_SlowLLM(["draft", "verified"]),
+            top_k=1,
+            _config=KnotConfig(id="spec"),
         )
     start = time.perf_counter()
-    result = await t.run(RunRequest())
-    elapsed = time.perf_counter() - start
+    result = await tapestry.run(RunRequest())
+    return time.perf_counter() - start, result
+
+
+@pytest.mark.benchmark
+async def test_speculative_overlaps_draft_and_retrieval() -> None:
+    # Arrange: one untimed run first. The engine's first run in a process pays
+    # import and setup costs that land inside the measured window and have
+    # nothing to do with overlap — that alone reddened a cold run at this
+    # threshold.
+    await _run_pipeline()
+    sequential = await _sequential_floor()
+
+    # Act
+    elapsed, result = await _run_pipeline()
+
+    # Assert
     assert result.succeeded
     assert isinstance(result.outputs["spec"], AgentResponse)
-
-    sequential = 3 * _STAGE_DELAY  # draft + retrieve + verify with no overlap
-    assert elapsed < sequential
+    # Drafting hides behind retrieval, so one whole stage disappears: the run
+    # should land near max(draft, retrieve) + verify, not the sum of all three.
+    # The 10% allowance is engine overhead, which the raw-sleep floor excludes.
+    assert elapsed < sequential * 0.9, (
+        f"no overlap: {elapsed * 1e3:.1f}ms vs sequential floor {sequential * 1e3:.1f}ms"
+    )
     print(
         f"[benchmark] speculative_rag elapsed={elapsed * 1e3:.1f}ms "
-        f"sequential_baseline={sequential * 1e3:.1f}ms stage_delay={_STAGE_DELAY * 1e3:.1f}ms"
+        f"sequential_floor={sequential * 1e3:.1f}ms stage_delay={_STAGE_DELAY * 1e3:.1f}ms"
     )

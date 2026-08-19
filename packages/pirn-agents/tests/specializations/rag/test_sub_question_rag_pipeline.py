@@ -33,13 +33,11 @@ class TestSubQuestionRagPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
         assert response.content == "combined answer"
         assert sorted(memory.search_queries) == ["sub one", "sub two"]
 
-    async def test_rejects_non_llm(self) -> None:
-        memory = StubMemoryStore([])
-        knot = SubQuestionRagPipeline(
-            query="q",
-            memory=memory,
-            llm=StubLLMProvider(["a", "b"]),
-            _config=KnotConfig(id="subq"),
-        )
-        with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
-            await knot.process(query="q", memory=memory, llm="nope")  # type: ignore[arg-type]
+    def test_rejects_non_llm(self) -> None:
+        with self.assertRaises(TypeError):
+            SubQuestionRagPipeline(
+                query="q",
+                memory=StubMemoryStore([]),
+                llm="nope",  # type: ignore[arg-type]
+                _config=KnotConfig(id="subq"),
+            )

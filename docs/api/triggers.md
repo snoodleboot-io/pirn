@@ -24,7 +24,8 @@ Triggers start a new pipeline run for each external event. Drive them with `run_
 ### Example
 
 ```python
-from pirn.triggers import CronTrigger, run_forever
+from pirn.triggers.base import run_forever
+from pirn.triggers.cron import CronTrigger
 
 trigger = CronTrigger(every_seconds=300)
 await run_forever(trigger, tapestry, on_result=handle_result)
@@ -47,7 +48,8 @@ Fires on a schedule.
 ### Example
 
 ```python
-from pirn.triggers import CronTrigger, run_forever
+from pirn.triggers.base import run_forever
+from pirn.triggers.cron import CronTrigger
 
 # Run every five minutes
 trigger = CronTrigger(every_seconds=300)
@@ -69,7 +71,7 @@ Fires on each HTTP POST request. `trigger.app` is a Starlette ASGI app you mount
 ### Example
 
 ```python
-from pirn.triggers import WebhookTrigger
+from pirn.triggers.http import WebhookTrigger
 import uvicorn
 
 trigger = WebhookTrigger(path="/run")
@@ -95,7 +97,8 @@ Fires on each Kafka message. Requires `pirn[kafka]`.
 ### Example
 
 ```python
-from pirn.triggers import KafkaTrigger, run_forever
+from pirn.triggers.base import run_forever
+from pirn.triggers.kafka import KafkaTrigger
 
 trigger = KafkaTrigger(
     topic="orders",

@@ -41,6 +41,10 @@ class ColumnAwarePostgresPool(PostgresPool, ColumnAwarePool):
         read query commonly contains (``LIKE '%term%'``, JSON ``{...}``), and this
         connector's defences are read-only mode plus bound parameters — Postgres
         uses ``$1`` markers, never ``%s``, so a literal ``%`` is always data.
+
+        No explicit commit is issued: asyncpg connections autocommit outside an
+        explicit transaction, so the interface's durability contract already holds
+        here. This pool never had the PIR-801 write-loss the SQLite one did.
         """
         connection = await self.acquire()
         try:

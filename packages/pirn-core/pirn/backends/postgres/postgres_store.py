@@ -6,6 +6,7 @@ import logging
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
+from pirn.backends.base.knot_registration_notice import KnotRegistrationNotice
 from pirn.backends.base.subscribable_store import SubscribableStore
 from pirn.backends.base.tapestry_snapshot import TapestrySnapshot
 from pirn.backends.base.tapestry_store import TapestryStore
@@ -148,7 +149,11 @@ class PostgresStore(TapestryStore, SubscribableStore):
                 parents_json,
             )
             if self._subscribers:
-                await conn.execute("SELECT pg_notify('pirn_knots', $1)", knot.knot_id)
+                # Stamped here, in the registering context: delivery
+                # happens on the LISTEN task, which cannot read it
+                # (PIR-815).
+                notice = KnotRegistrationNotice.for_current_run(knot.knot_id)
+                await conn.execute("SELECT pg_notify('pirn_knots', $1)", notice.encode())
 
     def register(self, knot: Knot) -> None:
         """Register a knot, dispatching to the async path appropriately.
@@ -247,24 +252,33 @@ class PostgresStore(TapestryStore, SubscribableStore):
         subscribers.  Exceptions raised by callbacks are logged and suppressed
         so one bad subscriber does not break the rest.
 
+        Dispatch runs under the *registering* run's identity, recovered
+        from the payload, not under whatever context this background task
+        happens to hold.  Without that, a run-scoped subscriber cannot
+        tell whose registration this is (PIR-815).
+
         Args:
             conn: The asyncpg connection that received the notification.
             pid: The backend process id that sent the notification.
             channel: The channel name (always ``"pirn_knots"``).
-            payload: The knot id sent with the NOTIFY.
+            payload: The encoded ``KnotRegistrationNotice`` sent with the
+                NOTIFY.  A bare knot id from an older publisher is
+                accepted and treated as unattributed.
         """
-        knot = self._live.get(payload)
+        notice = KnotRegistrationNotice.decode(payload)
+        knot = self._live.get(notice.knot_id)
         if knot is None:
             return
-        for cb in list(self._subscribers.values()):
-            try:
-                cb(knot)
-            except Exception:
-                _logger.warning(
-                    "PostgresStore: subscriber callback raised an exception for knot %r",
-                    payload,
-                    exc_info=True,
-                )
+        with notice.run_scope():
+            for cb in list(self._subscribers.values()):
+                try:
+                    cb(knot)
+                except Exception:
+                    _logger.warning(
+                        "PostgresStore: subscriber callback raised an exception for knot %r",
+                        notice.knot_id,
+                        exc_info=True,
+                    )
 
     async def _listen_loop(self) -> None:
         """Hold a dedicated connection in LISTEN mode until all subscribers cancel.

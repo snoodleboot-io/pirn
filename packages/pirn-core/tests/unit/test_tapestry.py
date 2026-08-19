@@ -7,11 +7,35 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
+from pirn.core.run_result import RunResult
+from pirn.emitters.base import Emitter
 from pirn.tapestry import Tapestry, _current_tapestry, current_tapestry
 
 
 @knot
 async def _f(x: int) -> int:
+    return x
+
+
+class _RecordingEmitter(Emitter):
+    """Captures the run results it is handed."""
+
+    def __init__(self) -> None:
+        self.run_results: list[RunResult] = []
+
+    async def on_run_result(self, result: RunResult) -> None:
+        self.run_results.append(result)
+
+
+# (tapestry, emitter) queued for a knot to register while a run is in flight.
+_pending_emitter: list[tuple[Tapestry, Emitter]] = []
+
+
+@knot
+async def _adds_emitter(x: int) -> int:
+    """Subscribe an emitter from inside the run that must not see it."""
+    for tapestry, emitter in _pending_emitter:
+        tapestry.add_emitter(emitter)
     return x
 
 
@@ -156,10 +180,46 @@ class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
     
     def test_emitters_property_returns_copy(self):
         from pirn.emitters.log import LogEmitter
-    
+
         t = Tapestry()
         e = LogEmitter()
         t.add_emitter(e)
         snapshot = t.emitters
         snapshot.clear()
         assert len(t.emitters) == 1
+
+
+    async def test_run_snapshots_the_emitter_list_at_entry(self):
+        """A subscription change mid-run must not alter the run already in flight.
+
+        ``run()`` used to hand the live ``_emitters`` list straight to the
+        engine, so an ``add_emitter`` from another task landed in the running
+        run's emitter set -- a run fanning events to an observer its caller
+        never registered for it (PIR-809).  The engine re-reads the list at
+        run end to deliver ``on_run_result``, which is where the late arrival
+        showed up.
+
+        An emitter is registered up front because the engine replaces an empty
+        list with a fresh one (``emitters or []``), which would hide the alias.
+        """
+        from pirn.core.run_request import RunRequest
+
+        early = _RecordingEmitter()
+        late = _RecordingEmitter()
+
+        with Tapestry() as t:
+            p = Parameter("x", int, default=1)
+            a = _adds_emitter(x=p, _config=KnotConfig(id="a"))
+        t.add_emitter(early)
+
+        _pending_emitter.append((t, late))
+        try:
+            await t.run(RunRequest(), terminals=a)
+        finally:
+            _pending_emitter.clear()
+
+        # The run's own emitter was served; the late arrival is registered for
+        # subsequent runs but saw nothing from this one.
+        assert len(early.run_results) == 1
+        assert t.emitters[-1] is late
+        assert late.run_results == []

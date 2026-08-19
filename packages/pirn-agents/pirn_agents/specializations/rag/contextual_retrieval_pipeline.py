@@ -24,6 +24,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pydantic import PositiveInt
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
@@ -67,8 +68,8 @@ class ContextualRetrievalPipeline(AgentPipeline):
         memory: MemoryStore,
         llm: LLMProvider,
         reranker: RerankerBackend | None = None,
-        fetch_k: int = 10,
-        rerank_k: int = 5,
+        fetch_k: PositiveInt = 10,
+        rerank_k: PositiveInt = 5,
         **_: Any,
     ) -> Any:
         """Wire retrieval → rerank → compression → synthesis.
@@ -83,32 +84,7 @@ class ContextualRetrievalPipeline(AgentPipeline):
 
         Returns:
             The :class:`RAGSynthesizer` sink knot whose output is the answer.
-
-        Raises:
-            TypeError: If ``query``/``memory``/``llm`` are the wrong type.
-            ValueError: If ``fetch_k``/``rerank_k`` are not positive ints.
         """
-        if not isinstance(query, str):
-            raise TypeError(
-                f"ContextualRetrievalPipeline: query must be a string, got {type(query).__name__}"
-            )
-        if not isinstance(memory, MemoryStore):
-            raise TypeError(
-                "ContextualRetrievalPipeline: memory must be a MemoryStore, "
-                f"got {type(memory).__name__}"
-            )
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"ContextualRetrievalPipeline: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
-        if not isinstance(fetch_k, int) or fetch_k <= 0:
-            raise ValueError(
-                f"ContextualRetrievalPipeline: fetch_k must be a positive int, got {fetch_k!r}"
-            )
-        if not isinstance(rerank_k, int) or rerank_k <= 0:
-            raise ValueError(
-                f"ContextualRetrievalPipeline: rerank_k must be a positive int, got {rerank_k!r}"
-            )
         retrieved = MemorySearchRetriever(
             store=memory,
             query=query,

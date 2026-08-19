@@ -57,6 +57,149 @@ class FakeOracleClient:
         self.closed = True
 
 
+# ──────────────────────────────────────────────── transaction-faithful double
+
+
+class FakeOracleError(Exception):
+    """Stands in for ``oracledb.DatabaseError``."""
+
+
+class FakeOracleDatabase:
+    """The durable side of the fake — rows that survived a ``COMMIT``."""
+
+    def __init__(self) -> None:
+        self.rows: list[tuple[Any, ...]] = []
+
+
+class FakeTransactionalCursor:
+    """Cursor over a :class:`FakeTransactionalConnection`."""
+
+    def __init__(self, connection: FakeTransactionalConnection) -> None:
+        self._connection = connection
+        self.rowcount = 0
+        self.closed = False
+
+    def execute(self, statement: str, parameters: list[Any]) -> None:
+        self.rowcount = self._connection.run(statement, list(parameters))
+
+    def executemany(self, statement: str, rows: list[list[Any]]) -> None:
+        # python-oracledb without ``batcherrors`` stops at the first failing
+        # row and *keeps* the rows already applied, leaving the transaction
+        # open — the Oracle analogue of SQLite's ``UPDATE ... OR FAIL``.
+        for row in rows:
+            self.rowcount += self._connection.run(statement, list(row))
+
+    def fetchall(self) -> list[tuple[Any, ...]]:
+        return self._connection.fetch_last_rows()
+
+    def close(self) -> None:
+        self.closed = True
+
+
+class FakeTransactionalConnection:
+    """A non-autocommit ``oracledb``-shaped connection.
+
+    Models exactly the Oracle semantics :class:`OraclePool` depends on:
+
+    * DML stages rows and opens a transaction, which
+      ``transaction_in_progress`` reports — the driver attribute that stands in
+      for ``sqlite3.Connection.in_transaction``;
+    * ``commit()`` makes the staged rows durable and ``rollback()`` discards
+      them; both end the transaction;
+    * ``close()`` discards anything uncommitted, which is what python-oracledb
+      does and why a missing commit loses the write *silently*;
+    * a ``SELECT`` opens no transaction and sees durable rows plus this
+      transaction's own staged rows;
+    * ``fetchall()`` on a statement that was not a query raises, as the real
+      driver does.
+    """
+
+    def __init__(
+        self,
+        database: FakeOracleDatabase,
+        *,
+        failing_values: frozenset[Any] = frozenset(),
+    ) -> None:
+        self._database = database
+        self._staged: list[tuple[Any, ...]] = []
+        self._failing_values = failing_values
+        self._last_rows: list[tuple[Any, ...]] | None = None
+        self._in_transaction = False
+        self.commits = 0
+        self.rollbacks = 0
+        self.closed = False
+
+    @property
+    def transaction_in_progress(self) -> bool:
+        """Read-only, as on a real ``oracledb.Connection``."""
+        return self._in_transaction
+
+    def cursor(self) -> FakeTransactionalCursor:
+        return FakeTransactionalCursor(self)
+
+    def run(self, statement: str, parameters: list[Any]) -> int:
+        verb = statement.split()[0].upper()
+        if verb == "SELECT":
+            self._last_rows = [*self._database.rows, *self._staged]
+            return 0
+        if verb == "INSERT":
+            self._last_rows = None
+            value = parameters[0]
+            if value in self._failing_values:
+                raise FakeOracleError(f"ORA-00001: unique constraint violated ({value!r})")
+            self._staged.append(tuple(parameters))
+            self._in_transaction = True
+            return 1
+        raise AssertionError(f"fake connection does not model: {statement}")
+
+    def fetch_last_rows(self) -> list[tuple[Any, ...]]:
+        if self._last_rows is None:
+            raise FakeOracleError("ORA-01003: no statement parsed")
+        return list(self._last_rows)
+
+    def commit(self) -> None:
+        self.commits += 1
+        self._database.rows.extend(self._staged)
+        self._discard()
+
+    def rollback(self) -> None:
+        self.rollbacks += 1
+        self._discard()
+
+    def close(self) -> None:
+        self._discard()  # python-oracledb rolls back an open transaction on close
+        self.closed = True
+
+    def _discard(self) -> None:
+        self._staged.clear()
+        self._in_transaction = False
+
+
+class NoFlagConnection(FakeTransactionalConnection):
+    """A pre-2.3 python-oracledb shape: no ``transaction_in_progress`` at all.
+
+    Raising ``AttributeError`` from the property is indistinguishable, to the
+    ``getattr(..., None)`` probe under test, from the attribute being absent.
+    """
+
+    @property
+    def transaction_in_progress(self) -> bool:
+        raise AttributeError("transaction_in_progress")
+
+
+class UnreadableFlagConnection(FakeTransactionalConnection):
+    """Reading the flag raises, as it does once the session has dropped.
+
+    The real property calls ``_verify_connected()`` first, so it raises a
+    ``DatabaseError`` rather than an ``AttributeError`` — which ``getattr`` will
+    not swallow.
+    """
+
+    @property
+    def transaction_in_progress(self) -> bool:
+        raise FakeOracleError("DPY-1001: not connected to database")
+
+
 # ───────────────────────────────────────────────────────────── conformance
 
 
@@ -109,6 +252,148 @@ class TestDelegation(unittest.IsolatedAsyncioTestCase):
         assert fake.executed_many == [
             ("INSERT INTO t VALUES (:x, :y)", [[1, "a"], [2, "b"]])
         ]
+
+
+# ────────────────────────────────────────────────────── transaction ownership
+
+
+class TestTransactionOwnership(unittest.IsolatedAsyncioTestCase):
+    """The pool ends exactly the transaction each call opened — no more."""
+
+    async def test_write_is_durable_across_close_and_reopen(self) -> None:
+        database = FakeOracleDatabase()
+        pool = OraclePool(client=FakeTransactionalConnection(database))
+
+        await pool.execute("INSERT INTO t (x) VALUES (:x)", ["kept"])
+        await pool.close()
+
+        reopened = OraclePool(client=FakeTransactionalConnection(database))
+        assert await reopened.fetch_all("SELECT x FROM t") == [("kept",)]
+
+    async def test_execute_many_is_durable_across_close_and_reopen(self) -> None:
+        database = FakeOracleDatabase()
+        pool = OraclePool(client=FakeTransactionalConnection(database))
+
+        await pool.execute_many("INSERT INTO t (x) VALUES (:x)", [["a"], ["b"]])
+        await pool.close()
+
+        reopened = OraclePool(client=FakeTransactionalConnection(database))
+        assert await reopened.fetch_all("SELECT x FROM t") == [("a",), ("b",)]
+
+    async def test_failed_write_leaves_no_residue(self) -> None:
+        database = FakeOracleDatabase()
+        connection = FakeTransactionalConnection(database, failing_values=frozenset({"boom"}))
+        pool = OraclePool(client=connection)
+
+        with self.assertRaises(FakeOracleError):
+            await pool.execute("INSERT INTO t (x) VALUES (:x)", ["boom"])
+
+        assert connection.commits == 0
+        assert connection.transaction_in_progress is False
+        assert database.rows == []
+
+    async def test_partially_applied_batch_is_rolled_back(self) -> None:
+        database = FakeOracleDatabase()
+        connection = FakeTransactionalConnection(database, failing_values=frozenset({"boom"}))
+        pool = OraclePool(client=connection)
+
+        with self.assertRaises(FakeOracleError):
+            await pool.execute_many("INSERT INTO t (x) VALUES (:x)", [["ok"], ["boom"]])
+
+        assert connection.rollbacks == 1
+        assert connection.commits == 0
+        assert connection.transaction_in_progress is False
+        assert database.rows == []
+
+    async def test_read_issues_no_commit(self) -> None:
+        database = FakeOracleDatabase()
+        database.rows.append(("durable",))
+        connection = FakeTransactionalConnection(database)
+        pool = OraclePool(client=connection)
+
+        assert await pool.fetch_all("SELECT x FROM t") == [("durable",)]
+        assert connection.commits == 0
+        assert connection.rollbacks == 0
+
+    async def test_read_leaves_a_caller_transaction_open(self) -> None:
+        database = FakeOracleDatabase()
+        connection = FakeTransactionalConnection(database)
+        caller_cursor = connection.cursor()
+        caller_cursor.execute("INSERT INTO t (x) VALUES (:x)", ["callers"])
+        pool = OraclePool(client=connection)
+
+        assert await pool.fetch_all("SELECT x FROM t") == [("callers",)]
+        assert connection.commits == 0
+        assert connection.rollbacks == 0
+        assert connection.transaction_in_progress is True
+
+    async def test_write_does_not_adopt_a_caller_transaction(self) -> None:
+        database = FakeOracleDatabase()
+        connection = FakeTransactionalConnection(database)
+        caller_cursor = connection.cursor()
+        caller_cursor.execute("INSERT INTO t (x) VALUES (:x)", ["callers"])
+        pool = OraclePool(client=connection)
+
+        await pool.execute("INSERT INTO t (x) VALUES (:x)", ["pools"])
+
+        assert connection.commits == 0
+        assert connection.transaction_in_progress is True
+        assert database.rows == []
+
+    async def test_dml_reaching_the_read_path_is_not_stranded(self) -> None:
+        database = FakeOracleDatabase()
+        connection = FakeTransactionalConnection(database)
+        pool = OraclePool(client=connection)
+
+        with self.assertRaises(FakeOracleError):
+            await pool.fetch_all("INSERT INTO t (x) VALUES (:x)", ["stranded"])
+
+        assert connection.rollbacks == 1
+        assert connection.transaction_in_progress is False
+        assert database.rows == []
+
+
+class TestUnreportableTransactionState(unittest.IsolatedAsyncioTestCase):
+    """A client that cannot report ``transaction_in_progress`` still stays safe."""
+
+    async def test_write_commits_when_the_flag_is_absent(self) -> None:
+        database = FakeOracleDatabase()
+        connection = NoFlagConnection(database)
+        pool = OraclePool(client=connection)
+
+        await pool.execute("INSERT INTO t (x) VALUES (:x)", ["kept"])
+
+        assert connection.commits == 1
+        assert database.rows == [("kept",)]
+
+    async def test_write_commits_when_reading_the_flag_raises(self) -> None:
+        database = FakeOracleDatabase()
+        connection = UnreadableFlagConnection(database)
+        pool = OraclePool(client=connection)
+
+        await pool.execute("INSERT INTO t (x) VALUES (:x)", ["kept"])
+
+        assert connection.commits == 1
+        assert database.rows == [("kept",)]
+
+    async def test_read_still_commits_nothing_when_the_flag_is_absent(self) -> None:
+        database = FakeOracleDatabase()
+        database.rows.append(("durable",))
+        connection = NoFlagConnection(database)
+        pool = OraclePool(client=connection)
+
+        assert await pool.fetch_all("SELECT x FROM t") == [("durable",)]
+        assert connection.commits == 0
+        assert connection.rollbacks == 0
+
+    async def test_statement_error_is_not_masked_by_an_unreadable_flag(self) -> None:
+        database = FakeOracleDatabase()
+        connection = UnreadableFlagConnection(database, failing_values=frozenset({"boom"}))
+        pool = OraclePool(client=connection)
+
+        # The statement's own ORA error surfaces, not the flag's InterfaceError.
+        with self.assertRaisesRegex(FakeOracleError, "ORA-00001"):
+            await pool.execute("INSERT INTO t (x) VALUES (:x)", ["boom"])
 
 
 # ─────────────────────────────────────────────────────────── query safety

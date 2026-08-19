@@ -240,3 +240,170 @@ async def test_non_extensible_run_ignores_late_knots():
     assert result.outputs["r"] == 2  # registrar succeeded
     # The late knot is in the tapestry but wasn't part of this run.
     assert t.get("late") is not None
+
+
+# ------------------------------------------------- concurrent run scoping
+
+
+async def test_concurrent_extensible_runs_do_not_share_registered_knots():
+    """Two concurrent top-level ``extensible=True`` runs on one Tapestry
+    must not execute each other's dynamically-registered knots.
+
+    ``pending_new`` is per-run but the store it subscribes to is
+    tapestry-scoped, so a knot registered by run A was fanned into run
+    B's pending queue and -- because the parent sits in both sheds --
+    actually executed as part of run B (PIR-808).
+    """
+    with Tapestry() as t:
+        tag = Parameter("tag", str, _config=KnotConfig(id="tag"))
+
+    # Four parties: `held` and `register` in each of the two runs.  The
+    # barrier keeps both runs in flight until both registrations have
+    # landed, which is what makes the cross-run delivery observable.
+    both_registered = asyncio.Barrier(4)
+
+    @knot
+    async def _hold(tag: str) -> str:
+        await both_registered.wait()
+        return tag
+
+    with t:
+        held = _hold(tag=tag, _config=KnotConfig(id="held"))
+
+    @knot
+    async def _tail(x: str) -> str:
+        return f"tail:{x}"
+
+    @knot
+    async def _register(tag: str) -> str:
+        with t:
+            _tail(x=held, _config=KnotConfig(id=f"late_{tag}"))
+        await both_registered.wait()
+        return tag
+
+    with t:
+        register = _register(tag=tag, _config=KnotConfig(id="reg"))
+
+    run_a, run_b = await asyncio.gather(
+        t.run(
+            RunRequest(parameters={"tag": "a"}),
+            terminals=[held, register],
+            extensible=True,
+        ),
+        t.run(
+            RunRequest(parameters={"tag": "b"}),
+            terminals=[held, register],
+            extensible=True,
+        ),
+    )
+
+    # Each run picks up its own late knot ...
+    assert "late_a" in run_a.outputs
+    assert "late_b" in run_b.outputs
+    # ... and only its own.
+    assert "late_b" not in run_a.outputs
+    assert "late_a" not in run_b.outputs
+
+
+# --------------------------------------- tapestry membership after the run
+
+
+async def test_dynamically_registered_knots_are_permanent_tapestry_members():
+    """A knot registered mid-run stays in the tapestry, terminals included.
+
+    This pins the contract that was previously only implicit (PIR-815).
+    Registration goes through the same ``TapestryStore.register`` seam a
+    ``with Tapestry():`` block uses, and the store *is* the tapestry's
+    definition, so the knot is an ordinary member afterwards: ``get``,
+    ``all_knots`` and ``terminals`` all see it, and a later run that
+    omits ``terminals=`` runs it.
+
+    Extensibility governs whether *new* registrations reach a running
+    shed, not whether existing members run -- so the later run picks the
+    knot up even though it is not itself extensible.
+
+    The alternative -- discarding dynamic knots at run end -- was
+    rejected: ``PostgresStore`` persists knots to a table that a fresh
+    process reads back with no run provenance at all, so "run-scoped
+    membership" cannot be honoured uniformly across backends, and
+    silently dropping a registered knot is the silent-lost-work failure
+    PIR-808 refused.
+    """
+    with Tapestry() as t:
+        p = Parameter("x", int, _config=KnotConfig(id="px"))
+
+    @knot
+    async def _double(x: int) -> int:
+        return x * 2
+
+    @knot
+    async def _registrar(x: int) -> int:
+        with t:
+            _double(x=p, _config=KnotConfig(id=f"late_{x}"))
+        return x
+
+    with t:
+        registrar = _registrar(x=p, _config=KnotConfig(id="r"))
+
+    first = await t.run(
+        RunRequest(parameters={"x": 1}),
+        terminals=[registrar],
+        extensible=True,
+    )
+    assert first.outputs["late_1"] == 2
+
+    # Membership survives the run that created it ...
+    assert t.get("late_1") is not None
+    assert "late_1" in [k.knot_id for k in t.all_knots()]
+    # ... and the knot is a leaf, so it is in the default terminal set.
+    assert "late_1" in [k.knot_id for k in t.terminals()]
+
+    # A later, non-extensible run that omits `terminals=` therefore runs
+    # it, against that run's own parameters.
+    second = await t.run(RunRequest(parameters={"x": 5}))
+    assert second.outputs["late_1"] == 10
+    assert second.outputs["r"] == 5
+    # The second run's own registration is ignored: it is not extensible.
+    assert "late_5" not in second.outputs
+    assert t.get("late_5") is not None
+
+
+async def test_reregistering_a_previous_runs_knot_id_fails_loudly():
+    """Permanent membership means ids are permanent too.
+
+    A registrar that uses a fixed id works once and then collides with
+    the instance the earlier run left behind.  That is the store's
+    duplicate-id check doing its job: the second run's registrar fails
+    visibly rather than silently overwriting an existing member (PIR-815).
+    """
+    with Tapestry() as t:
+        p = Parameter("x", int, _config=KnotConfig(id="px"))
+
+    @knot
+    async def _double(x: int) -> int:
+        return x * 2
+
+    @knot
+    async def _registrar(x: int) -> int:
+        with t:
+            _double(x=p, _config=KnotConfig(id="late"))
+        return x
+
+    with t:
+        registrar = _registrar(x=p, _config=KnotConfig(id="r"))
+
+    first = await t.run(
+        RunRequest(parameters={"x": 1}),
+        terminals=[registrar],
+        extensible=True,
+    )
+    assert first.outputs["r"] == 1
+
+    second = await t.run(
+        RunRequest(parameters={"x": 5}),
+        terminals=[registrar],
+        extensible=True,
+    )
+    assert "r" not in second.outputs
+    assert [e.knot_id for e in second.exceptions] == ["r"]
+    assert "already registered" in second.exceptions[0].message

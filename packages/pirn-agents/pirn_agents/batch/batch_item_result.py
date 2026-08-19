@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
+from pirn.managers.exception_record import ExceptionRecord
 
 from pirn_agents.batch.batch_item_status import BatchItemStatus
 
@@ -30,8 +31,11 @@ class BatchItemResult(PirnOpaqueValue):
         Terminal :class:`BatchItemStatus`.
     output:
         The agent's return value when ``status`` is ``OK``; otherwise ``None``.
-    error:
-        Human-readable failure detail when ``status`` is ``ERROR``/``TIMEOUT``.
+    exception:
+        The captured :class:`ExceptionRecord` when ``status`` is
+        ``ERROR``/``TIMEOUT``; otherwise ``None``. A fleet failure therefore
+        carries the same fidelity — type, message, and detached traceback — as a
+        per-knot failure, instead of a lossy one-line string.
     attempts:
         How many times the item was attempted (1 = succeeded first try).
     latency:
@@ -42,7 +46,7 @@ class BatchItemResult(PirnOpaqueValue):
     key: str
     status: BatchItemStatus
     output: Any = None
-    error: str | None = None
+    exception: ExceptionRecord | None = None
     attempts: int = 1
     latency: float = 0.0
 
@@ -57,18 +61,34 @@ class BatchItemResult(PirnOpaqueValue):
             raise TypeError(
                 f"BatchItemResult: status must be a BatchItemStatus, got {type(self.status).__name__}"
             )
+        if self.exception is not None and not isinstance(self.exception, ExceptionRecord):
+            raise TypeError(
+                f"BatchItemResult: exception must be an ExceptionRecord, "
+                f"got {type(self.exception).__name__}"
+            )
 
     @property
     def succeeded(self) -> bool:
         """Whether the item completed successfully."""
         return self.status is BatchItemStatus.OK
 
+    @property
+    def error(self) -> str | None:
+        """Human-readable failure detail, derived from :attr:`exception`.
+
+        Read-only: the record is the single source of truth for a failure, and
+        this is the one line of it a progress report or log line wants.
+        """
+        return None if self.exception is None else self.exception.message
+
     def to_payload(self) -> dict[str, Any]:
         """Return a JSON-friendly mapping of this result.
 
         ``output`` is stringified when it is not already a JSON primitive so the
         record stays serialisable for a durable sink without constraining what
-        the agent may return.
+        the agent may return. ``error`` is emitted alongside the full
+        ``exception`` mapping so a reader written against the pre-record payload
+        shape keeps working.
         """
         return {
             "index": self.index,
@@ -76,6 +96,7 @@ class BatchItemResult(PirnOpaqueValue):
             "status": self.status.value,
             "output": self._json_safe(self.output),
             "error": self.error,
+            "exception": None if self.exception is None else self.exception.model_dump(mode="json"),
             "attempts": self.attempts,
             "latency": self.latency,
         }
@@ -94,6 +115,10 @@ class BatchItemResult(PirnOpaqueValue):
     def from_payload(cls, payload: Any) -> BatchItemResult:
         """Reconstruct a result from a mapping produced by :meth:`to_payload`.
 
+        Accepts both the current shape and the pre-record shape, in which a
+        failure carried only a bare ``error`` string — a checkpoint written by an
+        older run must stay resumable.
+
         Raises:
             TypeError: If ``payload`` is not a Mapping.
         """
@@ -107,9 +132,31 @@ class BatchItemResult(PirnOpaqueValue):
             key=str(payload["key"]),
             status=BatchItemStatus(str(payload["status"])),
             output=payload.get("output"),
-            error=payload.get("error"),
+            exception=cls._exception_from_payload(payload),
             attempts=int(payload.get("attempts", 1)),
             latency=float(payload.get("latency", 0.0)),
+        )
+
+    @staticmethod
+    def _exception_from_payload(payload: Mapping[Any, Any]) -> ExceptionRecord | None:
+        """Recover the failure record, lifting a legacy bare ``error`` string.
+
+        A pre-record checkpoint has no traceback and no exception type to
+        recover, so those are filled with the ``<unknown>`` sentinel rather than
+        guessed at; the message the old run wrote is preserved verbatim.
+        """
+        raw = payload.get("exception")
+        if raw is not None:
+            return ExceptionRecord.model_validate(raw)
+        error = payload.get("error")
+        if error is None:
+            return None
+        return ExceptionRecord(
+            run_id="<unbound>",
+            knot_id=str(payload["key"]),
+            exc_type="<unknown>",
+            message=str(error),
+            traceback_text="",
         )
 
     def _pirn_audit_dict(self) -> dict[str, Any]:

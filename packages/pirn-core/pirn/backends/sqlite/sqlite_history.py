@@ -46,6 +46,40 @@ class SQLiteHistory(RunHistory):
         conn.execute("PRAGMA journal_mode=WAL")
         store   = SQLiteStore(connection=conn)
         history = SQLiteHistory(connection=conn)
+
+    **Transaction ownership.** Because that shared connection is the documented
+    arrangement, every write here commits — or rolls back — exactly the
+    transaction *its own statements* opened, and never touches one it found
+    already open. This is the guarantee
+    ``ColumnAwareSqlitePool.fetch_columns`` (PIR-801) and ``_SQLExecutor``
+    (PIR-817) already make, and that ``SqlitePool`` takes up in PIR-819;
+    ``sqlite3`` starts an implicit transaction for DML only, so comparing
+    ``in_transaction`` before and after the statements identifies the owner
+    precisely:
+
+    * :meth:`record_run` and :meth:`record_knot_source` previously committed
+      unconditionally, adopting a transaction opened by ``SQLiteStore`` on the
+      shared connection or by the application itself — making someone else's
+      half-written work durable and stealing their ability to roll it back
+      (PIR-823);
+    * :meth:`record_run` writes a run row plus two bulk inserts, so all three
+      are wrapped together and a failure partway through rolls the whole thing
+      back. Without that, the run row stayed in an open transaction with no
+      matching lineage, and the next write on the connection committed that
+      partial row. This matches what
+      :meth:`~pirn.backends.postgres.postgres_history.PostgresHistory.record_run`
+      already does with ``async with conn.transaction()``;
+    * reads open no transaction and so issue no ``COMMIT``, which matters beyond
+      tidiness: under ``journal_mode=DELETE`` a ``COMMIT`` must take the
+      exclusive lock, so a concurrent reader would make a query that only read
+      rows fail with ``database is locked``.
+
+    One exception remains by design: :meth:`_ensure_init` runs the schema DDL
+    through ``executescript``, which ``sqlite3`` documents as implicitly
+    committing any pending transaction. Schema creation is one-time setup that
+    must be durable for every later statement, so it is left unconditional —
+    mirroring ``SqlitePool._open_connection``. Callers who hold a transaction
+    across history calls should therefore let the history initialise first.
     """
 
     _schema_version_ddl = """
@@ -170,12 +204,31 @@ class SQLiteHistory(RunHistory):
         """Persist a run result and all associated lineage records.
 
         Inserts or replaces the run row, then bulk-inserts lineage rows and
-        per-knot input hash rows in a single commit.
+        per-knot input hash rows.  All three statements share one transaction:
+        it is committed only if this call opened it, and a failure partway
+        through rolls back every row this call wrote, so a run is never left
+        half-recorded.  See the class docstring.
 
         Args:
             result: A ``RunResult`` instance to persist.
         """
         self._ensure_init()
+        in_transaction_on_entry = bool(self._conn.in_transaction)
+        try:
+            self._write_run(result)
+        except BaseException:
+            if self._opened_transaction(self._conn, in_transaction_on_entry):
+                self._conn.rollback()
+            raise
+        if self._opened_transaction(self._conn, in_transaction_on_entry):
+            self._conn.commit()
+
+    def _write_run(self, result: Any) -> None:
+        """Issue the run, lineage, and lineage-input statements.
+
+        Args:
+            result: A ``RunResult`` instance to persist.
+        """
         self._conn.execute(
             """INSERT OR REPLACE INTO runs
                (run_id, succeeded, started_at, finished_at, dispatcher,
@@ -233,7 +286,6 @@ class SQLiteHistory(RunHistory):
                        (run_id, knot_id, input_name, input_hash) VALUES (?, ?, ?, ?)""",
                     input_rows,
                 )
-        self._conn.commit()
 
     async def get_run(self, run_id: str) -> Any:
         """Fetch a single run by id.
@@ -339,17 +391,27 @@ class SQLiteHistory(RunHistory):
     async def record_knot_source(self, record: KnotSourceRecord) -> None:
         """Persist a knot source snapshot; no-op if the hash already exists.
 
+        Commits only the transaction this statement opened — see the class
+        docstring for why that is not an unconditional commit.
+
         Args:
             record: The ``KnotSourceRecord`` to persist.
         """
         self._ensure_init()
-        self._conn.execute(
-            """INSERT OR IGNORE INTO knot_sources
-               (source_hash, source_text, knot_class, pirn_version)
-               VALUES (?, ?, ?, ?)""",
-            (record.source_hash, record.source_text, record.knot_class, record.pirn_version),
-        )
-        self._conn.commit()
+        in_transaction_on_entry = bool(self._conn.in_transaction)
+        try:
+            self._conn.execute(
+                """INSERT OR IGNORE INTO knot_sources
+                   (source_hash, source_text, knot_class, pirn_version)
+                   VALUES (?, ?, ?, ?)""",
+                (record.source_hash, record.source_text, record.knot_class, record.pirn_version),
+            )
+        except BaseException:
+            if self._opened_transaction(self._conn, in_transaction_on_entry):
+                self._conn.rollback()
+            raise
+        if self._opened_transaction(self._conn, in_transaction_on_entry):
+            self._conn.commit()
 
     async def get_knot_source(self, source_hash: str) -> KnotSourceRecord | None:
         """Fetch a knot source snapshot by content hash.
@@ -372,6 +434,22 @@ class SQLiteHistory(RunHistory):
         return KnotSourceRecord(
             source_hash=row[0], source_text=row[1], knot_class=row[2], pirn_version=row[3]
         )
+
+    @staticmethod
+    def _opened_transaction(connection: Any, in_transaction_on_entry: bool) -> bool:
+        """Whether the statements just run are what opened the now-open transaction.
+
+        Args:
+            connection: The ``sqlite3`` connection the statements ran on.
+            in_transaction_on_entry: ``connection.in_transaction`` sampled before
+                they ran.
+
+        Returns:
+            ``True`` only when a transaction is open now and none was open
+            before, which makes this call its owner — and so the one responsible
+            for ending it.
+        """
+        return bool(connection.in_transaction) and not in_transaction_on_entry
 
     def close(self) -> None:
         """Close the underlying SQLite connection.

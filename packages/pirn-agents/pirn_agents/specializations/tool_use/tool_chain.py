@@ -26,6 +26,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.managers.exception_record import ExceptionRecord
 
 from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_call import ToolCall
@@ -86,10 +87,11 @@ class ToolChain(Knot):
                 last_result = ToolResult(call_id=current_call_id, result=raw)
                 current_arguments = {"input": raw}
             except Exception as exc:
+                # ``error`` derives from the record, so the two cannot drift.
                 return ToolResult(
                     call_id=current_call_id,
                     result=None,
-                    error=str(exc),
+                    exception=ExceptionRecord.for_knot(tool.name, exc),
                 )
 
         if last_result is None:

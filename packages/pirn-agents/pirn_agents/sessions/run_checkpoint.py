@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
+from pirn_agents.serialization.canonical_json import CanonicalJson
 from pirn_agents.sessions.run_state import RunState
 
 
@@ -42,9 +41,16 @@ class RunCheckpoint(PirnOpaqueValue):
 
     @staticmethod
     def content_hash(state: RunState) -> str:
-        """Return the SHA-256 hex digest of ``state``'s canonical JSON payload."""
-        canonical = json.dumps(state.to_payload(), sort_keys=True, separators=(",", ":"))
-        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+        """Return the SHA-256 hex digest of ``state``'s canonical JSON payload.
+
+        The canonical form is the package-wide one; this digest is the persisted
+        checkpoint format, pinned by
+        ``tests/sessions/test_checkpoint_hash_invariant.py``.
+
+        Raises:
+            TypeError: If the payload contains a value JSON cannot represent.
+        """
+        return CanonicalJson.digest(state.to_payload())
 
     @classmethod
     def create(cls, state: RunState) -> RunCheckpoint:

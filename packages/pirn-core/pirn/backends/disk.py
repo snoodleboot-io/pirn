@@ -16,7 +16,9 @@ rather than this class for MinIO deployments.
 from __future__ import annotations
 
 import asyncio
+import os
 from pathlib import Path
+from uuid import uuid4
 
 from pirn.backends._signer import _Signer
 from pirn.backends.base._cloud_object_store import _CloudObjectStore
@@ -90,7 +92,11 @@ class LocalDiskDataStore(_CloudObjectStore):
         return str(resolved)
 
     async def _put_bytes(self, key: str, payload: bytes) -> None:
-        """Write raw bytes to a file, creating parent directories as needed.
+        """Atomically write raw bytes to a file, creating parent directories as needed.
+
+        The bytes land via a temporary file plus ``os.replace``, so a
+        concurrent reader observes either the previous value or the new one
+        and never a partially written file.
 
         Args:
             key: Absolute file path returned by :meth:`_object_key`.
@@ -132,8 +138,32 @@ class LocalDiskDataStore(_CloudObjectStore):
         await asyncio.to_thread(self.__unlink, Path(key))
 
     def __write(self, path: Path, payload: bytes) -> None:
+        # Writing in place (truncate, then write) leaves a window in which a
+        # concurrent reader sees a half-written file.  The signing layer
+        # reports that as a signature mismatch, so the race surfaces as a
+        # tampering alert.  Write to a sibling temp file and rename instead:
+        # os.replace is atomic on POSIX and on Windows for same-volume moves,
+        # and the temp file shares the destination's directory so the rename
+        # never crosses a filesystem boundary.
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(payload)
+        tmp = path.parent / f".{path.name}.{uuid4().hex}.tmp"
+        try:
+            # 0o666 is masked by the process umask exactly as ``open(path,
+            # "wb")`` would be, so a newly created value file keeps the
+            # permissions it had before writes became atomic.
+            fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666)
+            with os.fdopen(fd, "wb") as handle:
+                handle.write(payload)
+            # os.replace swaps in a new inode, so carry the destination's own
+            # mode over on a rewrite rather than silently resetting it.
+            try:
+                os.chmod(tmp, os.stat(path).st_mode & 0o7777)
+            except FileNotFoundError:
+                pass
+            os.replace(tmp, path)
+        except BaseException:
+            tmp.unlink(missing_ok=True)
+            raise
 
     def __read(self, path: Path, key: str) -> bytes:
         if not path.exists():

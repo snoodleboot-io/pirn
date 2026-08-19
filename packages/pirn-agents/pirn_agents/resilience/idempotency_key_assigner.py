@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
 from collections.abc import Mapping
 from typing import Any
+
+from pirn_agents.serialization.canonical_json import CanonicalJson
+from pirn_agents.serialization.opaque_policy import OpaquePolicy
 
 
 class IdempotencyKeyAssigner:
@@ -66,11 +67,21 @@ class IdempotencyKeyAssigner:
                 f"IdempotencyKeyAssigner: arguments must be a Mapping, "
                 f"got {type(arguments).__name__}"
             )
-        canonical = json.dumps(
-            {"operation": operation, "arguments": arguments},
-            sort_keys=True,
-            separators=(",", ":"),
-            default=repr,
+        # REPR_CONTENT, not the seam's RAISE default and no longer the bare
+        # REPR (PIR-795). Every argument whose `repr` already rendered content
+        # -- datetime, UUID, Decimal, Path, Enum, any type with its own
+        # __repr__ -- encodes byte-identically, so keys a backend is still
+        # holding stay valid and no migration is required.
+        #
+        # What it removes is the PIR-785 hazard this comment used to only warn
+        # about: an argument with no content-derived __repr__ was keyed on its
+        # memory address, so the retry this key exists to deduplicate derived a
+        # *different* key and the guarded mutation applied twice. That now
+        # raises when the key is issued. No previously-valid key is invalidated,
+        # because such a key never reproduced in the first place -- which is
+        # exactly why it was unsafe. RAISE would additionally reject the
+        # content-rendering arguments above, and that WOULD move issued keys.
+        digest = CanonicalJson.digest(
+            {"operation": operation, "arguments": arguments}, policy=OpaquePolicy.REPR_CONTENT
         )
-        digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
         return f"{self._namespace}:{digest}" if self._namespace else digest

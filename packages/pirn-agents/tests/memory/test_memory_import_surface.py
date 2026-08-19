@@ -33,12 +33,14 @@ from pirn_agents.memory.patterns.working_memory_pipeline import WorkingMemoryPip
 from pirn_agents.memory.patterns.working_memory_window_writer import (
     WorkingMemoryWindowWriter,
 )
+from pirn_agents.memory.stores.data_store_memory_store import DataStoreMemoryStore
 from pirn_agents.memory.stores.knots.memory_store_knot import MemoryStoreKnot
 from pirn_agents.memory.stores.memory_store import MemoryStore
 
 # Every symbol on the pinned public surface.
 PUBLIC_SYMBOLS: tuple[object, ...] = (
     MemoryStore,
+    DataStoreMemoryStore,
     MemoryStoreKnot,
     MemoryWriter,
     MemoryWriterBase,

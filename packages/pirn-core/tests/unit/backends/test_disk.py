@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+import asyncio
+import os
 import tempfile
+import threading
 import unittest
+import unittest.mock
 from pathlib import Path
 
+from pirn.backends._signer import _Signer
 from pirn.backends.disk import LocalDiskDataStore
 
 
@@ -90,3 +95,120 @@ class TestLocalDiskDataStoreCRUD(unittest.IsolatedAsyncioTestCase):
         await self.store.put("sha256:complex", obj)
         result = await self.store.get("sha256:complex")
         self.assertEqual(result, obj)
+
+
+class TestLocalDiskDataStoreAtomicWrite(unittest.IsolatedAsyncioTestCase):
+    """Writes land atomically (PIR-804).
+
+    An in-place ``truncate + write`` lets a concurrent reader see a
+    half-written file, which the signing layer reports as a signature
+    mismatch — i.e. a write race that looks like tampering.
+    """
+
+    def setUp(self) -> None:
+        self.td = tempfile.TemporaryDirectory()
+        self.addCleanup(self.td.cleanup)
+        self.root = Path(self.td.name)
+        self.store = LocalDiskDataStore(self.root, allow_unsigned=True)
+
+    def __temp_files(self) -> list[Path]:
+        return [p for p in self.root.rglob("*.tmp") if p.is_file()]
+
+    @unittest.skipUnless(os.name == "posix", "inode identity is only meaningful on POSIX")
+    async def test_rewrite_swaps_inode_instead_of_truncating_in_place(self) -> None:
+        # os.replace installs a new inode at the destination.  Writing in
+        # place keeps the original inode, so this pins the atomic mechanism.
+        await self.store.put("sha256:abc123", "first")
+        path = Path(self.store._object_key("sha256:abc123"))
+        first_inode = path.stat().st_ino
+
+        await self.store.put("sha256:abc123", "second")
+
+        self.assertNotEqual(first_inode, path.stat().st_ino)
+        self.assertEqual(await self.store.get("sha256:abc123"), "second")
+
+    async def test_concurrent_reader_never_observes_torn_payload(self) -> None:
+        # The reported symptom: a reader racing a rewrite gets a ValueError
+        # from signature verification because it read a partial file.
+        store = LocalDiskDataStore(self.root, signer=_Signer.test_signer())
+        content_hash = "sha256:" + "a" * 64
+        await store.put(content_hash, b"x" * 1024)
+
+        failures: list[str] = []
+        stop = threading.Event()
+
+        def reader() -> None:
+            while not stop.is_set():
+                try:
+                    asyncio.run(store.get(content_hash))
+                except KeyError:
+                    pass
+                except Exception as exc:  # any read failure is the defect under test
+                    failures.append(f"{type(exc).__name__}: {exc}")
+                    return
+
+        thread = threading.Thread(target=reader, daemon=True)
+        thread.start()
+        try:
+            for filler in (b"y", b"z", b"w"):
+                await store.put(content_hash, filler * (8 * 1024 * 1024))
+        finally:
+            stop.set()
+            thread.join(timeout=30)
+
+        self.assertEqual(failures, [])
+
+    async def test_successful_write_leaves_no_temp_files(self) -> None:
+        await self.store.put("sha256:abc123", "value")
+        self.assertEqual(self.__temp_files(), [])
+
+    async def test_failed_write_preserves_previous_value(self) -> None:
+        await self.store.put("sha256:abc123", "original")
+
+        with unittest.mock.patch(
+            "pirn.backends.disk.os.replace", side_effect=OSError("rename failed")
+        ):
+            with self.assertRaises(OSError):
+                await self.store.put("sha256:abc123", "replacement")
+
+        self.assertEqual(await self.store.get("sha256:abc123"), "original")
+
+    async def test_failed_write_cleans_up_temp_file(self) -> None:
+        with unittest.mock.patch(
+            "pirn.backends.disk.os.replace", side_effect=OSError("rename failed")
+        ):
+            with self.assertRaises(OSError):
+                await self.store.put("sha256:abc123", "replacement")
+
+        self.assertEqual(self.__temp_files(), [])
+
+    @unittest.skipUnless(os.name == "posix", "POSIX file modes")
+    async def test_rewrite_preserves_destination_permissions(self) -> None:
+        # os.replace swaps the inode, so the destination's mode must be
+        # carried over rather than reset to the temp file's.
+        await self.store.put("sha256:abc123", "first")
+        path = Path(self.store._object_key("sha256:abc123"))
+        path.chmod(0o640)
+
+        await self.store.put("sha256:abc123", "second")
+
+        self.assertEqual(path.stat().st_mode & 0o777, 0o640)
+
+    @unittest.skipUnless(os.name == "posix", "POSIX file modes")
+    async def test_new_file_mode_follows_process_umask(self) -> None:
+        # Going through a temp file must not silently tighten permissions the
+        # way tempfile.mkstemp (0o600) would: a fresh value file still gets
+        # 0o666 masked by the umask, exactly as an in-place write produced.
+        previous = os.umask(0o027)
+        self.addCleanup(os.umask, previous)
+        store = LocalDiskDataStore(self.root / "umask", allow_unsigned=True)
+
+        await store.put("sha256:abc123", "value")
+
+        path = Path(store._object_key("sha256:abc123"))
+        self.assertEqual(path.stat().st_mode & 0o777, 0o666 & ~0o027)
+
+    async def test_put_still_creates_missing_parent_directories(self) -> None:
+        store = LocalDiskDataStore(self.root / "deeper" / "nest", allow_unsigned=True)
+        await store.put("sha256:abc123", "value")
+        self.assertEqual(await store.get("sha256:abc123"), "value")

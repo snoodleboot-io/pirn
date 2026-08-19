@@ -78,14 +78,7 @@ class ParentDocumentIngestor(AgentPipeline):
 
         Returns:
             The ``_ParentChildIndexer`` sink knot whose output is the child count.
-
-        Raises:
-            TypeError: If ``text`` is not a string.
         """
-        if not isinstance(text, str):
-            raise TypeError(
-                f"ParentDocumentIngestor: text must be a string, got {type(text).__name__}"
-            )
         chunks = _DocumentChunker(
             text=text,
             chunk_size=child_chunk_size,

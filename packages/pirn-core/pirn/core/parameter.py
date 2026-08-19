@@ -12,6 +12,7 @@ type's value at run time.
 
 from __future__ import annotations
 
+import copy
 from typing import Any
 
 from pydantic import TypeAdapter
@@ -150,12 +151,44 @@ class Parameter(Knot):
         return self._mutable_output_adapter.validate_python(supplied)
 
     def bind_value(self, value: Any) -> None:
-        """Set the bound value (engine internal).
+        """Set the bound value on *this* instance.
 
         ``_mutable_value`` starts with ``_mutable_`` so the Knot freeze
         guard permits this normal assignment without bypass tricks.
+
+        This mutates shared graph state, so the engine does **not** use it —
+        see :meth:`bound_copy`.  It remains for direct, single-owner use of a
+        standalone ``Parameter``.
         """
         self._mutable_value = value
+
+    def bound_copy(self, value: Any) -> Parameter:
+        """Return a run-scoped copy of this parameter carrying ``value``.
+
+        The engine binds parameters per run rather than onto the shared
+        graph.  A ``Tapestry`` is routinely built once at startup and used to
+        serve many requests; writing the value onto the shared instance let
+        concurrent runs overwrite one another, so every run computed with
+        whichever request bound last while still reporting its own run id --
+        wrong answers with no error and a plausible lineage record (PIR-802).
+
+        The copy keeps this parameter's ``knot_id``, spec and validation
+        adapter, so the engine's id-keyed bookkeeping (shed, results,
+        lineage) is unaffected.  It deliberately does not register with a
+        tapestry: it belongs to one run, not to the graph.  Because the value
+        travels on the returned knot rather than in ambient context, a
+        dispatcher that serializes the knot to another thread, process or
+        machine still carries the binding with it.
+
+        Args:
+            value: The already-validated value this run should see.
+
+        Returns:
+            A new ``Parameter`` bound to ``value``, leaving ``self`` untouched.
+        """
+        clone = copy.copy(self)
+        clone._mutable_value = value
+        return clone
 
     async def process(self, **_: Any) -> Any:
         """Return the bound parameter value, falling back to the declared default.
