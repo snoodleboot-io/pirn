@@ -10,11 +10,20 @@ data into a single long-running pipeline.  Use triggers for
 request/response patterns; use streaming sources for ETL-style
 continuous transformation.
 
-Concrete sources:
+Concrete sources, each imported from the module that owns it:
 
-* ``IterableSource`` — wraps any async iterable (tests, simple cases).
-* ``KafkaStreamingSource`` — streams Kafka messages.
-* ``FileTailSource`` — tails a file like ``tail -f``.
+* ``pirn.streaming.iterable.IterableSource`` — wraps any async iterable
+  (tests, simple cases).
+* ``pirn.streaming.kafka.KafkaStreamingSource`` — streams Kafka messages.
+* ``pirn.streaming.file_tail.FileTailSource`` — tails a file like ``tail -f``.
 
-The engine's streaming mode is opt-in via ``Tapestry.run_stream(...)``.
+Streaming is driven by ``pirn.streaming.base.run_stream(source, tapestry)``,
+which ticks the tapestry once per yielded value.  There is no
+``Tapestry.run_stream`` method — the driver is a free function, so the
+engine carries no streaming-specific surface.
+
+No public-API re-exports live here.  The house convention forbids import
+forwarding (``.claude/conventions/languages/python.md``), enforced
+workspace-wide by ``scripts/check_no_import_forwarding.py``; import each
+symbol from the concrete module listed above.
 """

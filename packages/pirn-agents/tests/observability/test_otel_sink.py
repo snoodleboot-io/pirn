@@ -1,9 +1,14 @@
-"""Tests for :class:`OtelSink` — lazy backend guard and span mapping.
+"""Tests for :class:`OtelSink` — lazy backend guard, span mapping, redaction.
 
 ``opentelemetry`` is not installed in the base env, so construction must raise a
 friendly :class:`ImportError`. The mapping behaviour is exercised against a
 minimal fake ``opentelemetry.trace`` module injected into ``sys.modules``, so no
 real backend is required.
+
+:class:`TestAttributeRedaction` covers PIR-789: attributes are exported to a
+third-party collector, so they go through the same
+:class:`~pirn_agents.security.secret_leak_scanner.SecretLeakScanner` machinery
+PIR-725 wired into :class:`~pirn_agents.observability.logging_sink.LoggingSink`.
 """
 
 from __future__ import annotations
@@ -19,6 +24,8 @@ import pytest
 from pirn_agents.observability.span import Span
 from pirn_agents.observability.span_kind import SpanKind
 from pirn_agents.observability.span_status import SpanStatus
+from pirn_agents.security.secret_leak_scanner import SecretLeakScanner
+from pirn_agents.security.secret_redactor import SecretRedactor
 
 
 class TestLazyBackendGuard:
@@ -103,3 +110,231 @@ class TestSpanMapping:
         span = Span(name="tool", kind=SpanKind.TOOL, span_id="s2", sink=sink)
         span.finish(SpanStatus.ERROR)
         assert fake_otel.spans[0].status == ("status", "ERROR")
+
+
+class _ConnectionHandle:
+    """A non-primitive attribute value whose ``repr`` carries a live DSN.
+
+    The realistic shape: nobody puts a password in a span attribute on purpose,
+    they attach the client object and the sink stringifies it.
+    """
+
+    def __repr__(self) -> str:
+        return "_ConnectionHandle(dsn='postgresql://admin:hunter2@db.internal/prod')"
+
+
+class _ClientConfig:
+    """A non-primitive attribute value whose ``repr`` carries an API key."""
+
+    def __repr__(self) -> str:
+        return "_ClientConfig(api_key='k-live-4f9a2c7e18b3', region='eu-west-1')"
+
+
+class TestSpanNameRedaction:
+    """PIR-789 exempted ``span.name`` as a "call-site literal". It is not one.
+
+    The only span-name producer outside tests is
+    :class:`~pirn_agents.observability.span_emitting_tool_invocation_hook.SpanEmittingToolInvocationHook`,
+    which interpolates ``f"tool:{tool_name}"`` from ``call.tool_name`` — an
+    unvalidated ``raw["name"]`` off the provider wire. The hook fires before the
+    executor resolves the toolset, so a name matching no registered tool still
+    reaches the collector.
+    """
+
+    def test_a_provider_supplied_tool_name_does_not_leak_via_the_span_name(
+        self, fake_otel: _FakeOtelTracer
+    ) -> None:
+        from pirn_agents.observability.otel_sink import OtelSink
+
+        sink = OtelSink()
+        hostile = "exfil_postgresql://admin:hunter2@db.internal/prod"
+        span = Span(
+            name=f"tool:{hostile}",
+            kind=SpanKind.TOOL,
+            span_id="s10",
+            sink=sink,
+            attributes={"tool.name": hostile},
+        )
+        span.finish(SpanStatus.OK)
+        exported = fake_otel.spans[0].attributes
+        # The identical string was already redacted in the attribute; shipping it
+        # raw as the span name in the same export makes the attribute pointless.
+        assert "hunter2" not in exported["__name__"]
+        assert "hunter2" not in exported["tool.name"]
+        assert "<redacted>" in exported["__name__"]
+        # Only the credential goes — the tool prefix and host stay groupable.
+        assert exported["__name__"].startswith("tool:")
+        assert "db.internal" in exported["__name__"]
+
+    def test_an_api_key_in_a_span_name_is_redacted(self, fake_otel: _FakeOtelTracer) -> None:
+        from pirn_agents.observability.otel_sink import OtelSink
+
+        sink = OtelSink()
+        span = Span(
+            name="tool:fetch?api_key=abc123def456",
+            kind=SpanKind.TOOL,
+            span_id="s11",
+            sink=sink,
+        )
+        span.finish(SpanStatus.OK)
+        assert "abc123def456" not in fake_otel.spans[0].attributes["__name__"]
+
+    def test_a_genuine_call_site_literal_name_survives_untouched(
+        self, fake_otel: _FakeOtelTracer
+    ) -> None:
+        # Redaction must not mangle the field collectors group on. Every name a
+        # call site actually writes is unchanged by it.
+        from pirn_agents.observability.otel_sink import OtelSink
+
+        sink = OtelSink()
+        for index, name in enumerate(("llm.chat", "tool:search", "retrieval", "llm.call")):
+            span = Span(name=name, kind=SpanKind.LLM, span_id=f"g{index}", sink=sink)
+            span.finish(SpanStatus.OK)
+        assert [span.attributes["__name__"] for span in fake_otel.spans] == [
+            "llm.chat",
+            "tool:search",
+            "retrieval",
+            "llm.call",
+        ]
+
+    def test_name_redaction_honours_the_opt_out(self, fake_otel: _FakeOtelTracer) -> None:
+        from pirn_agents.observability.otel_sink import OtelSink
+
+        sink = OtelSink(redact_secrets=False)
+        span = Span(
+            name="tool:postgresql://admin:hunter2@db.internal/prod",
+            kind=SpanKind.TOOL,
+            span_id="s12",
+            sink=sink,
+        )
+        span.finish(SpanStatus.OK)
+        assert "hunter2" in fake_otel.spans[0].attributes["__name__"]
+
+    def test_an_injected_redactor_also_governs_the_name(self, fake_otel: _FakeOtelTracer) -> None:
+        from pirn_agents.observability.otel_sink import OtelSink
+
+        scanner = SecretLeakScanner(extra_patterns=(("employee_id", r"\bEMP-[0-9]{4}\b"),))
+        sink = OtelSink(redactor=SecretRedactor(scanner=scanner))
+        span = Span(name="tool:lookup:EMP-8821", kind=SpanKind.TOOL, span_id="s13", sink=sink)
+        span.finish(SpanStatus.OK)
+        assert "EMP-8821" not in fake_otel.spans[0].attributes["__name__"]
+
+
+class TestAttributeRedaction:
+    def test_dsn_in_a_string_attribute_is_redacted_at_export(
+        self, fake_otel: _FakeOtelTracer
+    ) -> None:
+        from pirn_agents.observability.otel_sink import OtelSink
+
+        sink = OtelSink()
+        span = Span(
+            name="db.query",
+            kind=SpanKind.TOOL,
+            span_id="s3",
+            sink=sink,
+            attributes={"db.url": "postgresql://admin:hunter2@db.internal/prod"},
+        )
+        span.finish(SpanStatus.OK)
+        exported = fake_otel.spans[0].attributes["db.url"]
+        assert "hunter2" not in exported
+        assert "<redacted>" in exported
+        # Only the credential goes — the host stays, or the trace is useless.
+        assert "db.internal" in exported
+
+    def test_secret_bearing_key_name_is_blanked(self, fake_otel: _FakeOtelTracer) -> None:
+        from pirn_agents.observability.otel_sink import OtelSink
+
+        sink = OtelSink()
+        span = Span(
+            name="tool:fetch",
+            kind=SpanKind.TOOL,
+            span_id="s4",
+            sink=sink,
+            attributes={"authorization": "Bearer abcdef0123456789"},
+        )
+        span.finish(SpanStatus.OK)
+        assert fake_otel.spans[0].attributes["authorization"] == "<redacted>"
+
+    def test_repr_of_a_non_primitive_is_redacted(self, fake_otel: _FakeOtelTracer) -> None:
+        from pirn_agents.observability.otel_sink import OtelSink
+
+        sink = OtelSink()
+        span = Span(
+            name="db.query",
+            kind=SpanKind.TOOL,
+            span_id="s5",
+            sink=sink,
+            attributes={"conn": _ConnectionHandle(), "config": _ClientConfig()},
+        )
+        span.finish(SpanStatus.OK)
+        exported = fake_otel.spans[0].attributes
+        assert "hunter2" not in exported["conn"]
+        assert "k-live-4f9a2c7e18b3" not in exported["config"]
+        assert "eu-west-1" in exported["config"]
+
+    def test_nested_container_attribute_is_redacted(self, fake_otel: _FakeOtelTracer) -> None:
+        from pirn_agents.observability.otel_sink import OtelSink
+
+        sink = OtelSink()
+        span = Span(
+            name="tool:fetch",
+            kind=SpanKind.TOOL,
+            span_id="s6",
+            sink=sink,
+            attributes={"args": {"endpoint": "https://api.example.com/v1?api_key=abc123def456"}},
+        )
+        span.finish(SpanStatus.OK)
+        assert "abc123def456" not in fake_otel.spans[0].attributes["args"]
+
+    def test_benign_attributes_survive_untouched(self, fake_otel: _FakeOtelTracer) -> None:
+        from pirn_agents.observability.otel_sink import OtelSink
+
+        sink = OtelSink()
+        span = Span(
+            name="llm.chat",
+            kind=SpanKind.LLM,
+            span_id="s7",
+            sink=sink,
+            attributes={"model": "stub", "tokens": 42, "stream": True, "temperature": 0.5},
+        )
+        span.finish(SpanStatus.OK)
+        exported = fake_otel.spans[0].attributes
+        assert exported["model"] == "stub"
+        assert exported["tokens"] == 42
+        assert exported["stream"] is True
+        assert exported["temperature"] == 0.5
+
+    def test_redaction_can_be_opted_out_of(self, fake_otel: _FakeOtelTracer) -> None:
+        from pirn_agents.observability.otel_sink import OtelSink
+
+        sink = OtelSink(redact_secrets=False)
+        span = Span(
+            name="db.query",
+            kind=SpanKind.TOOL,
+            span_id="s8",
+            sink=sink,
+            attributes={"db.url": "postgresql://admin:hunter2@db.internal/prod"},
+        )
+        span.finish(SpanStatus.OK)
+        assert "hunter2" in fake_otel.spans[0].attributes["db.url"]
+
+    def test_an_injected_redactor_is_used(self, fake_otel: _FakeOtelTracer) -> None:
+        from pirn_agents.observability.otel_sink import OtelSink
+
+        scanner = SecretLeakScanner(extra_patterns=(("employee_id", r"\bEMP-[0-9]{4}\b"),))
+        sink = OtelSink(redactor=SecretRedactor(scanner=scanner))
+        span = Span(
+            name="tool:lookup",
+            kind=SpanKind.TOOL,
+            span_id="s9",
+            sink=sink,
+            attributes={"subject": "EMP-8821"},
+        )
+        span.finish(SpanStatus.OK)
+        assert fake_otel.spans[0].attributes["subject"] == "<redacted>"
+
+    def test_a_non_redactor_is_rejected(self, fake_otel: _FakeOtelTracer) -> None:
+        from pirn_agents.observability.otel_sink import OtelSink
+
+        with pytest.raises(TypeError, match="SecretRedactor"):
+            OtelSink(redactor=object())  # type: ignore[arg-type]

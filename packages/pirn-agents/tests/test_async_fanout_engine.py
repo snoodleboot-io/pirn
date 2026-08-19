@@ -27,7 +27,7 @@ class _Engine(AsyncFanoutEngine[str]):
 def _builders() -> dict[str, object]:
     return {
         "on_ok": lambda value, attempts: f"ok:{value}:{attempts}",
-        "on_timeout": lambda attempts: f"timeout:{attempts}",
+        "on_timeout": lambda exc, attempts: f"timeout:{type(exc).__name__}:{attempts}",
         "on_error": lambda exc, attempts: f"error:{exc}:{attempts}",
     }
 
@@ -70,7 +70,8 @@ class TestRunWithRetries:
             return "never"
 
         result = await _Engine()._run_with_retries(_invoke, timeout=0.01, retries=5, **_builders())
-        assert result == "timeout:1"
+        # The timing-out exception reaches the builder — it is never dropped.
+        assert result == "timeout:TimeoutError:1"
         assert attempts == 1  # a timeout is never retried
 
     async def test_timeouterror_is_retryable_when_no_budget(self) -> None:

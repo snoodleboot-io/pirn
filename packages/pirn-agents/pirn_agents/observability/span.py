@@ -53,7 +53,25 @@ class Span:
         parent_id: str | None = None,
         attributes: Mapping[str, Any] | None = None,
         monotonic: Callable[[], float] = time.perf_counter,
+        on_close: Callable[[Span], None] | None = None,
     ) -> None:
+        """Open a span.
+
+        Args:
+            name: Human-readable span name.
+            kind: The :class:`SpanKind` classifying the wrapped call site.
+            span_id: Unique identifier for this span.
+            sink: Sink each lifecycle transition is reported to.
+            parent_id: Enclosing span's id, or ``None`` for a root span.
+            attributes: Initial key/value metadata.
+            monotonic: Clock used for start/end timestamps.
+            on_close: Owner callback fired exactly once when the span finishes,
+                *before* the sink. The opening
+                :class:`~pirn_agents.observability.tracer.Tracer` uses it to pop
+                its nesting stack, so the stack stays balanced even on the
+                ``start_span``/:meth:`finish` path where no context manager is
+                in play (PIR-788).
+        """
         self.name = name
         self.kind = kind
         self.span_id = span_id
@@ -63,6 +81,7 @@ class Span:
         self.events: list[tuple[str, Mapping[str, Any]]] = []
         self._sink = sink
         self._monotonic = monotonic
+        self._on_close = on_close
         self.start_time = monotonic()
         self.end_time: float | None = None
 
@@ -91,13 +110,21 @@ class Span:
         """Close the span with ``status`` and report it; idempotent.
 
         A second call is ignored so a span finished by an error path is not
-        re-finished by a surrounding context manager. A sink exception is
-        swallowed so observability can never abort the traced operation.
+        re-finished by a surrounding context manager — which also means the
+        ``on_close`` owner callback fires exactly once, keeping the tracer's
+        nesting stack balanced. Both the owner callback and the sink call are
+        best-effort: exceptions are swallowed so observability can never abort
+        the traced operation.
         """
         if self.end_time is not None:
             return
         self.status = status
         self.end_time = self._monotonic()
+        if self._on_close is not None:
+            try:
+                self._on_close(self)
+            except Exception:
+                pass
         try:
             self._sink.on_finish(self)
         except Exception:

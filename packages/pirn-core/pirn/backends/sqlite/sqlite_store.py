@@ -19,6 +19,35 @@ class SQLiteStore(TapestryStore):
 
     Live knot references are kept in-process; SQLite holds a snapshot of
     each knot (id, class, config, parent ids) for cross-process queries.
+
+    **Transaction ownership.** :meth:`register` commits — or rolls back —
+    exactly the transaction *its own statement* opened, and never touches one it
+    found already open. This is the guarantee
+    ``ColumnAwareSqlitePool.fetch_columns`` (PIR-801) and ``_SQLExecutor``
+    (PIR-817) already make, and that ``SqlitePool`` takes up in PIR-819;
+    ``sqlite3`` starts an implicit transaction for DML only, so comparing
+    ``in_transaction`` before and after the statement identifies the owner
+    precisely.
+
+    Sampling the flag matters here because the connection is *designed* to be
+    shared: :class:`~pirn.backends.sqlite.sqlite_history.SQLiteHistory`'s class
+    docstring recommends passing one ``sqlite3.Connection`` to both, so a
+    transaction opened by the history — or by the application itself — is
+    documented usage. ``register`` previously committed unconditionally, which
+    adopted whatever it found open, making someone else's half-written work
+    durable and stealing their ability to roll it back (PIR-823).
+
+    Reads (:meth:`snapshot`) open no transaction and so issue no ``COMMIT``,
+    which matters beyond tidiness: under ``journal_mode=DELETE`` a ``COMMIT``
+    must take the exclusive lock, so a concurrent reader would make a query that
+    only read rows fail with ``database is locked``.
+
+    One exception remains by design: :meth:`_ensure_init` runs the schema DDL
+    through ``executescript``, which ``sqlite3`` documents as implicitly
+    committing any pending transaction. Schema creation is one-time setup that
+    must be durable for every later statement, so it is left unconditional —
+    mirroring ``SqlitePool._open_connection``. Callers who hold a transaction
+    across store calls should therefore let the store initialise first.
     """
 
     _schema_version_ddl = """
@@ -78,6 +107,9 @@ class SQLiteStore(TapestryStore):
         is replaced (idempotent).  Raises if a *different* instance carries
         the same knot id.
 
+        Commits only the transaction this statement opened — see the class
+        docstring for why that is not an unconditional commit.
+
         Args:
             knot: The knot to register.
 
@@ -100,13 +132,20 @@ class SQLiteStore(TapestryStore):
         knot_class = f"{type(knot).__module__}.{type(knot).__qualname__}"
         now = datetime.now(UTC).isoformat()
 
-        self._conn.execute(
-            """INSERT OR REPLACE INTO knots
-               (knot_id, knot_class, config_json, parents_json, registered_at)
-               VALUES (?, ?, ?, ?, ?)""",
-            (knot.knot_id, knot_class, config_json, parents_json, now),
-        )
-        self._conn.commit()
+        in_transaction_on_entry = bool(self._conn.in_transaction)
+        try:
+            self._conn.execute(
+                """INSERT OR REPLACE INTO knots
+                   (knot_id, knot_class, config_json, parents_json, registered_at)
+                   VALUES (?, ?, ?, ?, ?)""",
+                (knot.knot_id, knot_class, config_json, parents_json, now),
+            )
+        except BaseException:
+            if self._opened_transaction(self._conn, in_transaction_on_entry):
+                self._conn.rollback()
+            raise
+        if self._opened_transaction(self._conn, in_transaction_on_entry):
+            self._conn.commit()
 
     def get(self, knot_id: str) -> Knot | None:
         """Return the in-process ``Knot`` instance for ``knot_id``, or ``None``.
@@ -140,6 +179,22 @@ class SQLiteStore(TapestryStore):
         self._ensure_init()
         cursor = self._conn.execute("SELECT knot_id FROM knots ORDER BY registered_at")
         return TapestrySnapshot(knot_ids=[row[0] for row in cursor.fetchall()])
+
+    @staticmethod
+    def _opened_transaction(connection: Any, in_transaction_on_entry: bool) -> bool:
+        """Whether the statement just run is what opened the now-open transaction.
+
+        Args:
+            connection: The ``sqlite3`` connection the statement ran on.
+            in_transaction_on_entry: ``connection.in_transaction`` sampled before
+                the statement ran.
+
+        Returns:
+            ``True`` only when a transaction is open now and none was open
+            before, which makes this call its owner — and so the one responsible
+            for ending it.
+        """
+        return bool(connection.in_transaction) and not in_transaction_on_entry
 
     def close(self) -> None:
         """Close the underlying SQLite connection.

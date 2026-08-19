@@ -46,6 +46,7 @@ from pirn.core.transport.inline_transport import InlineTransport
 from pirn.core.transport.transport_handle import TransportHandle
 from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
 from pirn.engine._emitter_subscriber import _EmitterSubscriber
+from pirn.engine._run_scoped_subscriber import _RunScopedSubscriber
 from pirn.engine.dispatchers.dispatcher import Dispatcher
 from pirn.engine.dispatchers.local_dispatcher import LocalDispatcher
 from pirn.engine.shed.shed import Shed
@@ -99,7 +100,11 @@ class Engine:
 
         # Mid-run extension: subscribe to the store if one was provided.
         # New knots arriving during the run go into ``pending_new`` and
-        # are merged into the shed between waves.
+        # are merged into the shed between waves.  The store is
+        # tapestry-scoped and fans every registration to every
+        # subscriber, so the callback filters to this run's own
+        # registrations -- otherwise concurrent extensible runs execute
+        # each other's knots (PIR-808).
         pending_new: list[Knot] = []
         subscribe_token = None
         if extensible_store is not None:
@@ -111,7 +116,9 @@ class Engine:
                     "the InMemoryStore is the reference implementation"
                 )
 
-            subscribe_token = extensible_store.subscribe(pending_new.append)
+            subscribe_token = extensible_store.subscribe(
+                _RunScopedSubscriber(ctx.run_id, pending_new)
+            )
 
         active_transport: DataTransport = transport or InlineTransport()
         try:
@@ -198,6 +205,10 @@ class Engine:
                 break
 
             tasks: dict[str, asyncio.Task[tuple[Result[Any], dict[str, str], datetime]]] = {}
+            # The knot instance this run actually dispatched, kept so lineage
+            # is read back off the copy that executed rather than off the
+            # shared graph knot -- see ``Knot.run_scoped_copy`` (PIR-809).
+            dispatched: dict[str, Knot] = {}
             for kid in ready:
                 knot = shed.knot(kid)
                 ctx.status.transition(kid, KnotState.RUNNING)
@@ -224,11 +235,18 @@ class Engine:
                 materialized = await self._materialize(
                     knot, decision, shed, handles, handle_transports, active_transport
                 )
-                tasks[kid] = asyncio.create_task(self._dispatch_with_timing(knot, materialized))
+                # Dispatch a copy so run-derived state the knot stashes for
+                # ``lineage_extra`` lands on something this run owns.  Several
+                # knots write that state onto ``self``, and it is read back
+                # only after the await below -- long enough for a concurrent
+                # run to overwrite it on the shared graph knot (PIR-809).
+                run_knot = knot.run_scoped_copy()
+                dispatched[kid] = run_knot
+                tasks[kid] = asyncio.create_task(self._dispatch_with_timing(run_knot, materialized))
 
             for kid, task in tasks.items():
                 result, parent_hashes, started_at = await task
-                knot = shed.knot(kid)
+                knot = dispatched[kid]
                 # Re-register placeholder records with the live manager.
                 result = self._rebind_err(result, kid, ctx)
                 results[kid] = result
@@ -393,7 +411,21 @@ class Engine:
             ctx.status.subscribe(_EmitterSubscriber(emitter, loop, emitter_tasks))
 
     def _bind_parameters(self, shed: Shed, ctx: RunContext) -> None:
-        for knot in shed.knots.values():
+        """Bind every parameter's value for *this* run.
+
+        The value goes onto a run-scoped copy that replaces the parameter in
+        this run's shed -- never onto the shared graph knot.  One ``Tapestry``
+        is commonly built at startup and then serves many concurrent runs;
+        binding on the shared instance let those runs overwrite each other's
+        inputs while each still reported its own run id, producing wrong
+        answers with no error raised (PIR-802).
+
+        The shed is per-run and keyed by ``knot_id``, which the copy
+        preserves, so edges, results and lineage are unaffected.  Called again
+        after each mid-run merge; re-binding an already-bound copy is
+        idempotent because the value is re-read from ``ctx.parameters``.
+        """
+        for knot_id, knot in list(shed.knots.items()):
             if isinstance(knot, Parameter):
                 if knot.name in ctx.parameters:
                     bound = knot.bind(ctx.parameters[knot.name])
@@ -403,7 +435,7 @@ class Engine:
                     raise RuntimeError(
                         f"parameter {knot.name!r} has no value supplied and no default"
                     )
-                knot.bind_value(bound)
+                shed.knots[knot_id] = knot.bound_copy(bound)
 
     def _merge_new_knots(
         self,

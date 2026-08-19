@@ -71,22 +71,7 @@ class SpeculativeRagPipeline(AgentPipeline):
 
         Returns:
             The :class:`DraftVerifier` sink knot whose output is the answer.
-
-        Raises:
-            TypeError: If ``query``/``memory``/``llm`` are the wrong type.
         """
-        if not isinstance(query, str):
-            raise TypeError(
-                f"SpeculativeRagPipeline: query must be a string, got {type(query).__name__}"
-            )
-        if not isinstance(memory, MemoryStore):
-            raise TypeError(
-                f"SpeculativeRagPipeline: memory must be a MemoryStore, got {type(memory).__name__}"
-            )
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"SpeculativeRagPipeline: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
         draft = SpeculativeDraftGenerator(
             query=query,
             llm=llm,

@@ -11,11 +11,11 @@ graphs share the engine's content-addressed cache exactly like hand-wired ones.
 
 from __future__ import annotations
 
-import hashlib
-import json
 import re
 from collections.abc import Mapping, Sequence
 from typing import Any
+
+from pirn_agents.serialization.canonical_json import CanonicalJson
 
 
 class AgentKnotIdFactory:
@@ -34,6 +34,7 @@ class AgentKnotIdFactory:
         llm: str | None = None,
         memory: str | None = None,
         tools: Sequence[str] = (),
+        components: Mapping[str, str] | None = None,
         options: Mapping[str, Any] | None = None,
         name: str | None = None,
     ) -> str:
@@ -49,6 +50,8 @@ class AgentKnotIdFactory:
             llm: Reference of the LLM provider, or ``None``.
             memory: Reference of the memory store, or ``None``.
             tools: References of the tools wired into the agent.
+            components: References of the pattern's other components, keyed by
+                constructor parameter name (embedder, store, specialists, …).
             options: Pattern options influencing the structure.
             name: Optional explicit name; when given, no digest is appended.
 
@@ -69,14 +72,19 @@ class AgentKnotIdFactory:
                     "[a-zA-Z0-9_-.] and be 1-200 chars"
                 )
             return f"agent.{name}"
-        signature = {
+        signature: dict[str, Any] = {
             "pattern": pattern,
             "llm": llm,
             "memory": memory,
             "tools": list(tools),
             "options": dict(options or {}),
         }
-        canonical = json.dumps(signature, sort_keys=True, separators=(",", ":"))
-        digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:12]
+        # Only present when non-empty: an always-present key would change the
+        # canonical form, and so every id previously derived for the three
+        # llm/memory/tools patterns — breaking lineage continuity and cache
+        # alignment for graphs that have not changed at all.
+        if components:
+            signature["components"] = dict(components)
+        digest = CanonicalJson.digest(signature)[:12]
         safe_pattern = re.sub(r"[^a-zA-Z0-9_\-.]", "_", pattern)
         return f"agent.{safe_pattern}.{digest}"

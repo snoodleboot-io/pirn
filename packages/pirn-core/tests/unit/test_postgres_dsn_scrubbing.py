@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import unittest
+import unittest.mock
 
 
 class _StandaloneTests(unittest.IsolatedAsyncioTestCase):

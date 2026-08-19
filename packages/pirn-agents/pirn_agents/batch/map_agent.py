@@ -34,6 +34,8 @@ import asyncio
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterable
 
+from pirn.managers.exception_record import ExceptionRecord
+
 from pirn_agents.agent.async_fanout_engine import AsyncFanoutEngine
 from pirn_agents.batch.adaptive_concurrency_controller import AdaptiveConcurrencyController
 from pirn_agents.batch.batch_checkpointer import BatchCheckpointer
@@ -90,7 +92,11 @@ class MapAgent(AsyncFanoutEngine[BatchItemResult]):
             checkpointer: An optional :class:`BatchCheckpointer` over an F14
                 store. When set, :meth:`run` loads prior progress on start
                 (skipping already-completed items as ``SKIPPED``) and persists
-                each newly-completed key so a killed batch resumes mid-way.
+                each newly-completed key so a killed batch resumes mid-way. One
+                runner may be re-run many times over *different* datasets; pass
+                :meth:`run`'s ``checkpoint_scope`` to give each such run its own
+                namespace, or every run after the first skips whatever key the
+                earlier ones completed.
             checkpoint_every: Persist a checkpoint after this many newly-completed
                 items (a final flush always runs). Must be >= 1.
             retry_policy: The single backoff-schedule source for retry delays;
@@ -151,7 +157,6 @@ class MapAgent(AsyncFanoutEngine[BatchItemResult]):
         self._retry_policy = retry_policy if retry_policy is not None else RetryPolicy()
         self._rng = rng
         self._sleep = sleep if sleep is not None else asyncio.sleep
-        self._completed_keys: frozenset[str] = frozenset()
 
     @property
     def concurrency(self) -> int:
@@ -172,61 +177,89 @@ class MapAgent(AsyncFanoutEngine[BatchItemResult]):
             raise TypeError(f"MapAgent: key_fn must return a non-empty str, got {key!r}")
         return key
 
-    async def run(self, inputs: Iterable[object]) -> AsyncIterator[BatchItemResult]:
+    async def run(
+        self, inputs: Iterable[object], *, checkpoint_scope: str | None = None
+    ) -> AsyncIterator[BatchItemResult]:
         """Run the agent over ``inputs``, yielding each result as it settles.
 
         Args:
             inputs: The dataset to map over. Consumed lazily — one item is pulled
                 only when an in-flight slot is free — so the stream is never
                 materialised in full and backpressure flows to the producer.
+            checkpoint_scope: Namespaces this run's checkpoint state, via
+                :meth:`BatchCheckpointer.scoped`. Ignored when no checkpointer is
+                configured. ``None`` (the default) uses the checkpointer's own
+                id, which is right for the single-dataset case where re-running
+                *is* a resume. A runner invoked repeatedly over different
+                datasets must pass a distinct, stable scope per dataset:
+                without one, all those runs share a skip-set and a key that
+                repeats between datasets is skipped as already-done. Stable is
+                the operative word — the scope is the resume key, so an
+                interrupted run must be replayed under the same one to pick up
+                where it stopped.
 
         Yields:
             One :class:`BatchItemResult` per input item, in completion order.
 
         Raises:
+            TypeError: If ``checkpoint_scope`` is neither ``None`` nor a ``str``.
             asyncio.CancelledError: Propagated (after cancelling in-flight items)
                 if the generator is cancelled.
         """
-        progress = await self._load_progress()
+        if checkpoint_scope is not None and not isinstance(checkpoint_scope, str):
+            raise TypeError(
+                f"MapAgent.run: checkpoint_scope must be a str or None, "
+                f"got {type(checkpoint_scope).__name__}"
+            )
+        checkpointer = self._scoped_checkpointer(checkpoint_scope)
+        progress = await MapAgent._load_progress(checkpointer)
+        # Held as a local, not on the instance: it belongs to this run, and a
+        # runner is deliberately reusable across runs (PIR-803).
+        completed_keys = progress.completed_keys
         source = enumerate(inputs)
         pending: set[asyncio.Task[BatchItemResult]] = set()
         exhausted = False
         since_checkpoint = 0
         try:
             while True:
-                exhausted = self._fill(source, pending, exhausted)
+                exhausted = self._fill(source, pending, exhausted, completed_keys)
                 if not pending:
                     break
                 done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
                 for task in done:
                     result = task.result()
-                    if self._checkpointer is not None and result.status is BatchItemStatus.OK:
+                    if checkpointer is not None and result.status is BatchItemStatus.OK:
                         progress = progress.with_completed(result.key)
                         since_checkpoint += 1
                         if since_checkpoint >= self._checkpoint_every:
-                            await self._checkpointer.save(progress)
+                            await checkpointer.save(progress)
                             since_checkpoint = 0
                     yield result
         except asyncio.CancelledError:
             await self._drain_on_cancel(pending)
             raise
-        if self._checkpointer is not None and since_checkpoint > 0:
-            await self._checkpointer.save(progress)
+        if checkpointer is not None and since_checkpoint > 0:
+            await checkpointer.save(progress)
 
-    async def _load_progress(self) -> BatchProgress:
+    def _scoped_checkpointer(self, checkpoint_scope: str | None) -> BatchCheckpointer | None:
+        """Return the checkpointer this run persists through, narrowed by scope."""
+        if self._checkpointer is None or checkpoint_scope is None:
+            return self._checkpointer
+        return self._checkpointer.scoped(checkpoint_scope)
+
+    @staticmethod
+    async def _load_progress(checkpointer: BatchCheckpointer | None) -> BatchProgress:
         """Load prior progress (seeding the resume skip-set), or start empty."""
-        if self._checkpointer is None:
-            self._completed_keys = frozenset()
+        if checkpointer is None:
             return BatchProgress(batch_id="batch")
-        progress = await self._checkpointer.load()
-        self._completed_keys = progress.completed_keys
-        return progress
+        return await checkpointer.load()
 
     def _fill(
         self,
         source: object,
         pending: set[asyncio.Task[BatchItemResult]],
         exhausted: bool,
+        completed_keys: frozenset[str],
     ) -> bool:
         """Top up ``pending`` up to the current limit, returning exhaustion.
 
@@ -241,10 +274,12 @@ class MapAgent(AsyncFanoutEngine[BatchItemResult]):
             except StopIteration:
                 return True
             key = self._key_for(index, item)
-            pending.add(asyncio.ensure_future(self._run_one(index, item, key)))
+            pending.add(asyncio.ensure_future(self._run_one(index, item, key, completed_keys)))
         return False
 
-    async def _run_one(self, index: int, item: object, key: str) -> BatchItemResult:
+    async def _run_one(
+        self, index: int, item: object, key: str, completed_keys: frozenset[str]
+    ) -> BatchItemResult:
         """Run a single item to a terminal result, never raising (except cancel).
 
         Every outcome — success, timeout, or exhausted retries — is converted to
@@ -253,7 +288,7 @@ class MapAgent(AsyncFanoutEngine[BatchItemResult]):
         :class:`asyncio.CancelledError` is the sole exception allowed to
         propagate, preserving cooperative cancellation.
         """
-        if key in self._completed_keys:
+        if key in completed_keys:
             return BatchItemResult(index=index, key=key, status=BatchItemStatus.SKIPPED, attempts=0)
         start = time.perf_counter()
         return await self._run_with_retries(
@@ -271,11 +306,11 @@ class MapAgent(AsyncFanoutEngine[BatchItemResult]):
                 attempts=attempts,
                 latency=time.perf_counter() - start,
             ),
-            on_timeout=lambda attempts: BatchItemResult(
+            on_timeout=lambda exc, attempts: BatchItemResult(
                 index=index,
                 key=key,
                 status=BatchItemStatus.TIMEOUT,
-                error=f"item timed out after {self._timeout}s",
+                exception=MapAgent._record_for(key, exc, f"item timed out after {self._timeout}s"),
                 attempts=attempts,
                 latency=time.perf_counter() - start,
             ),
@@ -318,7 +353,19 @@ class MapAgent(AsyncFanoutEngine[BatchItemResult]):
             index=index,
             key=key,
             status=BatchItemStatus.ERROR,
-            error=str(exc) or type(exc).__name__,
+            exception=MapAgent._record_for(key, exc, str(exc) or type(exc).__name__),
             attempts=attempts,
             latency=time.perf_counter() - start,
         )
+
+    @staticmethod
+    def _record_for(key: str, exc: BaseException, message: str) -> ExceptionRecord:
+        """Capture ``exc`` against item ``key`` under a caller-chosen message.
+
+        :meth:`ExceptionRecord.for_knot` does the capture — detaching the
+        traceback from live frames — and the item's key stands in for the knot
+        id, since a batch item is the unit a fleet failure is attributed to. The
+        message is supplied by the caller because ``str(exc)`` is empty for an
+        ``asyncio`` timeout and often terse for provider errors.
+        """
+        return ExceptionRecord.for_knot(key, exc).model_copy(update={"message": message})

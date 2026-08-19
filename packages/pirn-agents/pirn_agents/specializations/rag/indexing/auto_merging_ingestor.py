@@ -79,14 +79,7 @@ class AutoMergingIngestor(AgentPipeline):
 
         Returns:
             The ``_ParentChildIndexer`` sink knot whose output is the leaf count.
-
-        Raises:
-            TypeError: If ``text`` is not a string.
         """
-        if not isinstance(text, str):
-            raise TypeError(
-                f"AutoMergingIngestor: text must be a string, got {type(text).__name__}"
-            )
         chunks = _DocumentChunker(
             text=text,
             chunk_size=leaf_chunk_size,

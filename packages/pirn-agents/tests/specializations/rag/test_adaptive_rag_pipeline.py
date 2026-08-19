@@ -161,18 +161,20 @@ class TestSelectComplexityRoute(unittest.TestCase):
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
-    async def test_process_rejects_non_string_query(self) -> None:
-        memory = StubMemoryStore([])
-        llm = StubLLMProvider(["SIMPLE", "answer"])
-        with Tapestry():
-            k = AdaptiveRAGPipeline.__new__(AdaptiveRAGPipeline)
-            object.__setattr__(k, "_config", KnotConfig(id="x"))
-        # Tightened by PIR-715. The docstring has always promised TypeError, but
-        # the guard was missing, so this actually raised AttributeError
-        # ('_mutable_outer_history') from sub_tapestry.py — and the assertion
-        # accepted either, hiding the gap.
-        with self.assertRaisesRegex(TypeError, "query must be a string"):
-            await k.process(query=123, memory=memory, llm=llm, top_k=5)  # type: ignore[arg-type]
+    def test_process_rejects_non_string_query(self) -> None:
+        # PIR-715 added a hand-written guard here because the docstring promised
+        # TypeError and nothing delivered it — reached through `__new__`, the
+        # call raised AttributeError instead. PIR-734 removed that guard: the
+        # promise is now kept by the framework, against the `query: str`
+        # annotation, at the point a real caller constructs the knot.
+        with self.assertRaises(TypeError):
+            AdaptiveRAGPipeline(
+                query=123,  # type: ignore[arg-type]
+                memory=StubMemoryStore([]),
+                llm=StubLLMProvider(["SIMPLE", "answer"]),
+                top_k=5,
+                _config=KnotConfig(id="x"),
+            )
 
 
 class TestAdaptiveRAGPipelineArmObservability(unittest.IsolatedAsyncioTestCase):

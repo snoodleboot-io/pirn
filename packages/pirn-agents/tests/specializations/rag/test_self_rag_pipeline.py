@@ -19,64 +19,42 @@ from tests.specializations.conftest import (
 
 
 class TestSelfRAGPipelineProcess(unittest.IsolatedAsyncioTestCase):
-    async def test_rejects_non_memory_store(self) -> None:
-        llm = StubLLMProvider(["draft", "NO"])
-        memory = StubMemoryStore([])
-        knot = SelfRAGPipeline(
-            query="q",
-            memory=memory,
-            llm=llm,
-            _config=KnotConfig(id="self_rag"),
-        )
-        with self.assertRaisesRegex(TypeError, "memory must be a MemoryStore"):
-            await knot.process(
+    def test_rejects_non_memory_store(self) -> None:
+        with self.assertRaises(TypeError):
+            SelfRAGPipeline(
                 query="q",
                 memory="not-a-store",  # type: ignore[arg-type]
-                llm=llm,
+                llm=StubLLMProvider(["draft", "NO"]),
+                _config=KnotConfig(id="self_rag"),
             )
 
-    async def test_rejects_non_llm_provider(self) -> None:
-        memory = StubMemoryStore([])
-        llm = StubLLMProvider([])
-        knot = SelfRAGPipeline(
-            query="q",
-            memory=memory,
-            llm=llm,
-            _config=KnotConfig(id="self_rag"),
-        )
-        with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
-            await knot.process(
+    def test_rejects_non_llm_provider(self) -> None:
+        with self.assertRaises(TypeError):
+            SelfRAGPipeline(
                 query="q",
-                memory=memory,
+                memory=StubMemoryStore([]),
                 llm="not-llm",  # type: ignore[arg-type]
+                _config=KnotConfig(id="self_rag"),
             )
 
-    async def test_rejects_zero_top_k(self) -> None:
-        memory = StubMemoryStore([])
-        llm = StubLLMProvider(["draft", "NO"])
-        knot = SelfRAGPipeline(
-            query="q",
-            memory=memory,
-            llm=llm,
-            _config=KnotConfig(id="self_rag"),
-        )
-        with self.assertRaisesRegex(ValueError, "top_k must be a positive int"):
-            await knot.process(query="q", memory=memory, llm=llm, top_k=0)
+    def test_rejects_zero_top_k(self) -> None:
+        """`top_k`'s domain rides on PositiveInt, so it is still refused."""
+        with self.assertRaises(TypeError):
+            SelfRAGPipeline(
+                query="q",
+                memory=StubMemoryStore([]),
+                llm=StubLLMProvider(["draft", "NO"]),
+                top_k=0,
+                _config=KnotConfig(id="self_rag"),
+            )
 
-    async def test_rejects_non_string_query(self) -> None:
-        memory = StubMemoryStore([])
-        llm = StubLLMProvider(["draft", "NO"])
-        knot = SelfRAGPipeline(
-            query="q",
-            memory=memory,
-            llm=llm,
-            _config=KnotConfig(id="self_rag"),
-        )
-        with self.assertRaisesRegex(TypeError, "query"):
-            await knot.process(
+    def test_rejects_non_string_query(self) -> None:
+        with self.assertRaises(TypeError):
+            SelfRAGPipeline(
                 query=123,  # type: ignore[arg-type]
-                memory=memory,
-                llm=llm,
+                memory=StubMemoryStore([]),
+                llm=StubLLMProvider(["draft", "NO"]),
+                _config=KnotConfig(id="self_rag"),
             )
 
 

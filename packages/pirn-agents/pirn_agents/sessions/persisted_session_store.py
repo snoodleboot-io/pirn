@@ -8,8 +8,13 @@ backend (chroma / pgvector / qdrant, …) is lazily imported *inside the concret
 backend-free. Checkpoints round-trip through the store's untyped mapping payload
 via :meth:`RunCheckpoint.to_payload` / :meth:`RunCheckpoint.from_payload`.
 
-A small key index (stored under :attr:`_index_key`) tracks the live session ids so
-:meth:`list_sessions` never has to scan the whole backend.
+A small key index tracks the live session ids so :meth:`list_sessions` never has
+to scan the whole backend — core's ``DataStore`` is content-hash-keyed and cannot
+enumerate. Maintaining that index is delegated to
+:class:`~pirn_agents.memory.stores.memory_store_key_index.MemoryStoreKeyIndex`,
+which serialises the read-modify-write behind a lock; done inline it lost session
+ids whenever two saves overlapped (PIR-720). See that class for the precise
+scope of the guarantee — it holds within one process, not across several.
 """
 
 from __future__ import annotations
@@ -17,6 +22,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from pirn_agents.memory.stores.memory_store import MemoryStore
+from pirn_agents.memory.stores.memory_store_key_index import MemoryStoreKeyIndex
 from pirn_agents.sessions.run_checkpoint import RunCheckpoint
 from pirn_agents.sessions.session_store import SessionStore
 
@@ -43,22 +49,17 @@ class PersistedSessionStore(SessionStore):
             raise ValueError("PersistedSessionStore: key_prefix must be non-empty")
         self._store = store
         self._key_prefix = key_prefix
-        self._index_key = f"{key_prefix}:__index__"
+        # "session_ids" is the field name already-persisted indexes were written
+        # under, so it is pinned here rather than left to the helper's default.
+        self._index = MemoryStoreKeyIndex(
+            store=store,
+            index_key=f"{key_prefix}:__index__",
+            field="session_ids",
+        )
 
     def _key(self, session_id: str) -> str:
         """Return the backing-store key for ``session_id``."""
         return f"{self._key_prefix}:{session_id}"
-
-    async def _index(self) -> list[str]:
-        """Return the current list of live session ids from the index record."""
-        record = await self._store.retrieve(self._index_key)
-        if record is None:
-            return []
-        return [str(sid) for sid in record.get("session_ids", [])]
-
-    async def _write_index(self, session_ids: Sequence[str]) -> None:
-        """Persist the live-session-id index."""
-        await self._store.store(self._index_key, {"session_ids": list(session_ids)})
 
     async def save(self, session_id: str, checkpoint: RunCheckpoint) -> None:
         """Persist ``checkpoint`` for ``session_id`` and index the id.
@@ -72,9 +73,7 @@ class PersistedSessionStore(SessionStore):
                 f"got {type(checkpoint).__name__}"
             )
         await self._store.store(self._key(session_id), checkpoint.to_payload())
-        index = await self._index()
-        if session_id not in index:
-            await self._write_index([*index, session_id])
+        await self._index.add(session_id)
 
     async def load(self, session_id: str) -> RunCheckpoint | None:
         """Return the latest checkpoint for ``session_id``, or ``None``."""
@@ -86,13 +85,20 @@ class PersistedSessionStore(SessionStore):
     async def delete(self, session_id: str) -> None:
         """Remove the checkpoint for ``session_id`` and de-index the id."""
         await self._store.forget(self._key(session_id))
-        index = await self._index()
-        if session_id in index:
-            await self._write_index([sid for sid in index if sid != session_id])
+        await self._index.remove(session_id)
 
     async def list_sessions(self) -> Sequence[str]:
-        """Return the sorted ids of all sessions with a stored checkpoint."""
-        return sorted(await self._index())
+        """Return the sorted ids of all sessions with a stored checkpoint.
+
+        Raises:
+            KeyIndexUnreadableError: If the index record could not be read. The
+                checkpoints themselves are unaffected and :meth:`load` still
+                works for any id the caller already holds; only enumeration is
+                lost, and it stays lost until the index record is scrubbed. See
+                :class:`MemoryStoreKeyIndex` for how a record becomes unreadable
+                and how to recover it.
+        """
+        return sorted(await self._index.keys())
 
     async def close(self) -> None:
         """Release the backing store's resources."""

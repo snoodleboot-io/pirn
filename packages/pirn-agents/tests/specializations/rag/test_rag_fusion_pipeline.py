@@ -37,13 +37,11 @@ class TestRagFusionPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
         assert len(memory.search_queries) == 4
         assert memory.search_queries[0] == "quantum facts"
 
-    async def test_rejects_non_memory_store(self) -> None:
-        llm = StubLLMProvider(["a", "b"])
-        knot = RagFusionPipeline(
-            query="q",
-            memory=StubMemoryStore([]),
-            llm=llm,
-            _config=KnotConfig(id="fusion"),
-        )
-        with self.assertRaisesRegex(TypeError, "memory must be a MemoryStore"):
-            await knot.process(query="q", memory="nope", llm=llm)  # type: ignore[arg-type]
+    def test_rejects_non_memory_store(self) -> None:
+        with self.assertRaises(TypeError):
+            RagFusionPipeline(
+                query="q",
+                memory="nope",  # type: ignore[arg-type]
+                llm=StubLLMProvider(["a", "b"]),
+                _config=KnotConfig(id="fusion"),
+            )

@@ -80,22 +80,7 @@ class SubQuestionRagPipeline(AgentPipeline):
 
         Returns:
             The :class:`RAGSynthesizer` sink knot whose output is the answer.
-
-        Raises:
-            TypeError: If ``query``/``memory``/``llm`` are the wrong type.
         """
-        if not isinstance(query, str):
-            raise TypeError(
-                f"SubQuestionRagPipeline: query must be a string, got {type(query).__name__}"
-            )
-        if not isinstance(memory, MemoryStore):
-            raise TypeError(
-                f"SubQuestionRagPipeline: memory must be a MemoryStore, got {type(memory).__name__}"
-            )
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"SubQuestionRagPipeline: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
         sub_questions = SubQuestionDecomposer(
             query=query,
             llm=llm,

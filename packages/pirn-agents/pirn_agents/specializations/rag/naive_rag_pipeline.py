@@ -41,6 +41,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pydantic import PositiveInt
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
@@ -84,36 +85,27 @@ class NaiveRAGPipeline(AgentPipeline):
         query: str,
         memory: MemoryStore,
         llm: LLMProvider,
-        top_k: int = 5,
+        top_k: PositiveInt = 5,
         **_: Any,
     ) -> Any:
         """Retrieve top-k memories, build a prompt, generate an answer, and return it as an AgentResponse.
+
+        Inputs are validated by the framework against these annotations before
+        ``process`` is entered (``KnotConfig.validate_io``, on by default), so
+        the body states what the pipeline *does*. ``top_k``'s domain is carried
+        by :data:`~pydantic.PositiveInt` rather than a hand-written check, which
+        keeps it enforced at both points validation happens: eagerly at
+        construction for a constant, per-run for a value from a parent.
 
         Args:
             query: The user query string to retrieve context for and answer.
             memory: The MemoryStore to search for relevant entries.
             llm: The LLMProvider used to generate the answer.
-            top_k: The number of top memories to retrieve.
+            top_k: The number of top memories to retrieve; must be positive.
 
         Returns:
             An AgentResponse containing the LLM-generated answer.
-
-        Raises:
-            TypeError: If query is not a string or memory/llm are wrong types.
-            ValueError: If top_k is not a positive integer.
         """
-        if not isinstance(query, str):
-            raise TypeError(f"NaiveRAGPipeline: query must be a string, got {type(query).__name__}")
-        if not isinstance(memory, MemoryStore):
-            raise TypeError(
-                f"NaiveRAGPipeline: memory must be a MemoryStore, got {type(memory).__name__}"
-            )
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"NaiveRAGPipeline: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
-        if not isinstance(top_k, int) or top_k <= 0:
-            raise ValueError(f"NaiveRAGPipeline: top_k must be a positive int, got {top_k!r}")
         retrieved = MemorySearchRetriever(
             store=memory,
             query=query,

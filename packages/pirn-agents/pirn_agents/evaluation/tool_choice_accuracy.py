@@ -50,7 +50,12 @@ class ToolChoiceAccuracy(Metric):
 
         Raises:
             TypeError: If ``actual`` or ``expected`` is not a
-                :class:`Trajectory`.
+                :class:`Trajectory`, or — when ``match_arguments`` is set — if a
+                step's arguments contain a value that renders only as its own
+                memory address. Such a value cannot yield a stable key, so a
+                correct call would compare unequal to its expected counterpart
+                and score as wrong; it declines to score rather than return a
+                number it cannot stand behind (PIR-826).
         """
         if not isinstance(actual, Trajectory):
             raise TypeError(

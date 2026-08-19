@@ -32,6 +32,7 @@ from typing import Any, ClassVar
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.source import Source
+from pydantic import PositiveInt
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
@@ -94,9 +95,9 @@ class FlareActiveRagPipeline(AgentPipeline):
         memory: MemoryStore,
         llm: LLMProvider,
         confidence_threshold: float = 0.5,
-        max_sentences: int = 5,
-        max_retrieval_calls: int = 3,
-        top_k: int = 3,
+        max_sentences: PositiveInt = 5,
+        max_retrieval_calls: PositiveInt = 3,
+        top_k: PositiveInt = 3,
         **_: Any,
     ) -> Any:
         """Run the FLARE loop and return the assembled answer as a source knot.
@@ -112,34 +113,7 @@ class FlareActiveRagPipeline(AgentPipeline):
 
         Returns:
             A source knot whose output is the final :class:`AgentResponse`.
-
-        Raises:
-            TypeError: If ``query``/``memory``/``llm`` are the wrong type.
-            ValueError: If any budget is not a positive integer.
         """
-        if not isinstance(query, str):
-            raise TypeError(
-                f"FlareActiveRagPipeline: query must be a string, got {type(query).__name__}"
-            )
-        if not isinstance(memory, MemoryStore):
-            raise TypeError(
-                f"FlareActiveRagPipeline: memory must be a MemoryStore, got {type(memory).__name__}"
-            )
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"FlareActiveRagPipeline: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
-        if not isinstance(max_sentences, int) or max_sentences <= 0:
-            raise ValueError(
-                f"FlareActiveRagPipeline: max_sentences must be a positive int, got {max_sentences!r}"
-            )
-        if not isinstance(max_retrieval_calls, int) or max_retrieval_calls <= 0:
-            raise ValueError(
-                "FlareActiveRagPipeline: max_retrieval_calls must be a positive int, "
-                f"got {max_retrieval_calls!r}"
-            )
-        if not isinstance(top_k, int) or top_k <= 0:
-            raise ValueError(f"FlareActiveRagPipeline: top_k must be a positive int, got {top_k!r}")
         parts: list[str] = []
         retrieval_calls = 0
         for _step in range(max_sentences):

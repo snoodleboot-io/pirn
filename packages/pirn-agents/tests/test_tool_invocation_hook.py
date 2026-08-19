@@ -18,7 +18,10 @@ from typing import Any
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
+from pirn_agents.agent.parallel_tool_executor import (
+    _UNHASHABLE_ARGS_DIGEST,
+    ParallelToolExecutor,
+)
 from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_invocation_hook import ToolInvocationHook
@@ -279,3 +282,73 @@ async def test_raising_hook_does_not_break_execution() -> None:
 def _comparable(results: tuple[ToolResult, ...]) -> list[tuple[str, Any, ToolStatus, str | None]]:
     """Reduce results to their latency-independent identity for comparison."""
     return [(r.call_id, r.result, r.status, r.error) for r in results]
+
+
+class _AddressOnly:
+    """An argument whose only rendering is its memory address."""
+
+
+class _ContentRendered:
+    """An argument that renders its content, so it CAN be digested."""
+
+    def __init__(self, amount: int) -> None:
+        self.amount = amount
+
+    def __str__(self) -> str:
+        return f"_ContentRendered({self.amount})"
+
+
+async def test_opaque_arguments_do_not_break_tool_execution() -> None:
+    """PIR-826: the digest degrades; it must never propagate out of _fire_start.
+
+    The digest is computed *outside* the try/except that swallows hook errors,
+    so raising on an un-digestible argument would break the tool call itself —
+    and only when a hook happened to be configured.
+    """
+    hook = RecordingHook()
+    toolset = Toolset([StubTool(name="t", result="v")])
+    calls = [ToolCall(tool_name="t", arguments={"handle": _AddressOnly()}, call_id="c1")]
+    executor = _make_executor(hook=hook)
+
+    results = await executor.process(
+        tool_calls=calls, toolset=toolset, max_concurrency=8, timeout=None, retries=0
+    )
+
+    assert len(results) == 1
+    assert results[0].status is ToolStatus.OK
+    assert results[0].result == "v"
+    # The event still fires, carrying an honest sentinel rather than a
+    # plausible-looking address-derived digest.
+    starts = [e for e in hook.events if isinstance(e, StartEvent)]
+    assert len(starts) == 1
+    assert starts[0].args_digest == _UNHASHABLE_ARGS_DIGEST
+    assert not all(c in "0123456789abcdef" for c in starts[0].args_digest)
+
+
+async def test_content_rendering_arguments_still_get_a_real_digest() -> None:
+    hook = RecordingHook()
+    toolset = Toolset([StubTool(name="t", result="v")])
+    args = {"amount": _ContentRendered(5), "q": "hi"}
+    calls = [
+        ToolCall(tool_name="t", arguments=dict(args), call_id="c1"),
+        # Same content, different key order and a distinct instance — what a
+        # repeated call actually looks like.
+        ToolCall(
+            tool_name="t",
+            arguments={"q": "hi", "amount": _ContentRendered(5)},
+            call_id="c2",
+        ),
+    ]
+    executor = _make_executor(hook=hook)
+
+    await executor.process(
+        tool_calls=calls, toolset=toolset, max_concurrency=8, timeout=None, retries=0
+    )
+
+    digests = [e.args_digest for e in hook.events if isinstance(e, StartEvent)]
+    assert len(digests) == 2
+    assert len(digests[0]) == 16
+    assert all(c in "0123456789abcdef" for c in digests[0])
+    # The point of the change: identical content digests identically, even
+    # though the two instances are distinct objects.
+    assert digests[0] == digests[1]

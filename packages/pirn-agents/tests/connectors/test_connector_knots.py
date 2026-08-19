@@ -58,7 +58,10 @@ async def _assert_engine_rejects_wrong_type(cls: type[Knot], expected_type: str)
     records = [r for r in result.exceptions if r.knot_id == "vend"]
     assert records, "expected a validation failure recorded against the vending knot"
     assert records[0].exc_type == "ValidationError"
-    assert expected_type in records[0].message
+    # Assert the exact phrase pydantic's is_instance schema emits, so the test
+    # pins the *declared* parameter type and cannot pass on an incidental
+    # substring of some other class name in the message.
+    assert f"Input should be an instance of {expected_type}" in records[0].message
 
 
 class TestHttpConnectorKnot:
@@ -85,7 +88,7 @@ class TestSqlConnectorKnot:
         assert await knot.process(connector=connector) is connector
 
     async def test_engine_rejects_wrong_type(self) -> None:
-        await _assert_engine_rejects_wrong_type(SqlConnectorKnot, "SqlServiceConnector")
+        await _assert_engine_rejects_wrong_type(SqlConnectorKnot, "SqlConnector")
 
 
 class TestSearchConnectorKnot:

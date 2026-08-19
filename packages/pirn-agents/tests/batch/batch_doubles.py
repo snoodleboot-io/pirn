@@ -8,7 +8,53 @@ asserted exactly.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
+
+from pirn.core.run_request import RunRequest
+from pirn.triggers.base import Trigger
+
+
+class RecordingTrigger(Trigger):
+    """A core ``Trigger`` firing a fixed number of times and counting closes.
+
+    Lets the ``TriggeredBatch`` driver's close handling be asserted directly:
+    ``closes`` counts every ``close()`` call, and ``close_error`` makes the
+    close itself fail so the driver's suppression can be exercised.
+
+    ``first_ordinal`` stands in for a custom trigger whose ordinals are not a
+    fresh 1-based per-stream counter: an offset numbers the fires from there,
+    and ``None`` omits ``fire_ordinal`` entirely, since carrying it is a
+    convention of this package's triggers rather than a ``Trigger`` guarantee.
+    """
+
+    def __init__(
+        self,
+        *,
+        fires: int,
+        close_error: BaseException | None = None,
+        first_ordinal: int | None = 1,
+    ) -> None:
+        self._fires = fires
+        self._close_error = close_error
+        self._first_ordinal = first_ordinal
+        self.closes = 0
+
+    @property
+    def name(self) -> str:
+        return "RecordingTrigger"
+
+    async def stream(self) -> AsyncIterator[RunRequest]:
+        if self._first_ordinal is None:
+            for _ in range(self._fires):
+                yield RunRequest()
+            return
+        for offset in range(self._fires):
+            yield RunRequest(parameters={"fire_ordinal": self._first_ordinal + offset})
+
+    async def close(self) -> None:
+        self.closes += 1
+        if self._close_error is not None:
+            raise self._close_error
 
 
 class InFlightCounter:

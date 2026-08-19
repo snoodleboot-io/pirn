@@ -59,14 +59,13 @@ class TestContextualRetrievalPipelineHappyPath(unittest.IsolatedAsyncioTestCase)
         synth_prompt = llm.calls[-1][-1]["content"]
         assert "TARGET answer" in synth_prompt
 
-    async def test_rejects_non_positive_rerank_k(self) -> None:
-        knot = ContextualRetrievalPipeline(
-            query="q",
-            memory=StubMemoryStore([]),
-            llm=StubLLMProvider(["a"]),
-            _config=KnotConfig(id="ctx"),
-        )
-        with self.assertRaisesRegex(ValueError, "rerank_k must be a positive int"):
-            await knot.process(
-                query="q", memory=StubMemoryStore([]), llm=StubLLMProvider(["a"]), rerank_k=0
+    def test_rejects_non_positive_rerank_k(self) -> None:
+        """`rerank_k`'s domain rides on PositiveInt, so it is still refused."""
+        with self.assertRaises(TypeError):
+            ContextualRetrievalPipeline(
+                query="q",
+                memory=StubMemoryStore([]),
+                llm=StubLLMProvider(["a"]),
+                rerank_k=0,
+                _config=KnotConfig(id="ctx"),
             )
