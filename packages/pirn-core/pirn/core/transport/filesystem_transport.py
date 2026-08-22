@@ -43,6 +43,7 @@ import shutil
 import time
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 from pirn.core.transport.data_transport import DataTransport
 from pirn.core.transport.serializers.serializer_registry import SerializerRegistry
@@ -111,6 +112,48 @@ class FilesystemTransport(DataTransport):
         self._write_manifest(run_dir, run_id)
         self._acquire_lock(run_id, run_dir)
 
+    @staticmethod
+    def _write_atomic(path: Path, payload: bytes) -> None:
+        """Write ``payload`` to ``path`` so a reader never sees a partial file.
+
+        A bare ``write_bytes`` creates the file and then fills it, leaving a
+        window in which a concurrent reader observes a truncated object
+        (PIR-805). Same shape as
+        :class:`~pirn.backends.disk.DiskBackend`'s writer (PIR-804): a temp
+        file in the *destination directory*, then ``os.replace`` — atomic on
+        POSIX and on Windows for same-volume moves, and sharing the directory
+        keeps the rename off a filesystem boundary.
+
+        Lower stakes here than in the data store, because these filenames embed
+        a content hash: racing writers are writing identical bytes, and there is
+        no signing layer to mistranslate a torn read into a tampering alert. The
+        torn read itself is still real.
+
+        ``os.open(..., 0o666)`` rather than :func:`tempfile.mkstemp`, which
+        forces ``0o600`` and would silently tighten permissions on every output
+        file; ``0o666`` is masked by the process umask exactly as
+        ``open(path, "wb")`` was.
+
+        Args:
+            path: Destination file, whose parent directory must already exist.
+            payload: Bytes to write.
+        """
+        tmp = path.parent / f".{path.name}.{uuid4().hex}.tmp"
+        try:
+            fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666)
+            with os.fdopen(fd, "wb") as handle:
+                handle.write(payload)
+            # os.replace swaps in a new inode, so carry any existing
+            # destination's mode across rather than resetting it on rewrite.
+            try:
+                os.chmod(tmp, os.stat(path).st_mode & 0o7777)
+            except FileNotFoundError:
+                pass
+            os.replace(tmp, path)
+        except BaseException:
+            tmp.unlink(missing_ok=True)
+            raise
+
     async def write(self, run_id: str, knot_id: str, value: Any) -> TransportHandle:
         run_dir = self._run_dir(run_id)
         serialiser = self._registry.get(value)
@@ -125,7 +168,7 @@ class FilesystemTransport(DataTransport):
         filename = f"{safe_knot_id}-{content_hash}.bin"
         file_path = run_dir / filename
         try:
-            file_path.write_bytes(raw)
+            self._write_atomic(file_path, raw)
         except OSError as exc:
             raise TransportError(
                 f"FilesystemTransport: failed to write output of knot {knot_id!r} "

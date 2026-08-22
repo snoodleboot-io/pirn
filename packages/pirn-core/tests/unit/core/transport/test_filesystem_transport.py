@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+import os
 import time
 import unittest
+import unittest.mock
 from pathlib import Path
 
 from pirn.core.transport.filesystem_transport import FilesystemTransport
@@ -185,3 +187,81 @@ class TestFilesystemTransport(unittest.IsolatedAsyncioTestCase):
         await t.begin_run("run-sweep")
         assert not stale_dir.exists()
         await t.end_run("run-sweep", success=True)
+
+
+class TestFilesystemTransportAtomicWrite(unittest.IsolatedAsyncioTestCase):
+    """Outputs land atomically (PIR-805).
+
+    A bare ``write_bytes`` creates the file and then fills it, so a concurrent
+    reader can observe a truncated object. Filenames embed a content hash, so
+    racing writers write identical bytes and there is no signing layer to
+    mistranslate a torn read into a tampering alert — but the torn read is real
+    regardless, which is what this pins.
+    """
+
+    def setUp(self) -> None:
+        import tempfile
+
+        self._tmpdir = tempfile.TemporaryDirectory()
+        self.base = Path(self._tmpdir.name)
+
+    def tearDown(self) -> None:
+        self._tmpdir.cleanup()
+
+    def _transport(self) -> FilesystemTransport:
+        return FilesystemTransport(base_dir=self.base, sweep_on_startup=False)
+
+    @unittest.skipUnless(os.name == "posix", "inode identity is only meaningful on POSIX")
+    async def test_rewrite_swaps_inode_instead_of_filling_in_place(self) -> None:
+        # os.replace installs a NEW inode at the destination; writing in place
+        # keeps the original. This pins the mechanism, not just the outcome.
+        t = self._transport()
+        await t.begin_run("run-atomic")
+        handle = await t.write("run-atomic", "knot-a", {"x": 1})
+        path = Path(handle.key)
+        first_inode = path.stat().st_ino
+
+        # Same knot and same value -> same content hash -> same destination.
+        again = await t.write("run-atomic", "knot-a", {"x": 1})
+
+        assert Path(again.key) == path
+        assert path.stat().st_ino != first_inode
+
+    async def test_no_temp_file_survives_a_successful_write(self) -> None:
+        t = self._transport()
+        await t.begin_run("run-clean")
+        await t.write("run-clean", "knot-a", {"x": 1})
+        assert [p for p in self.base.rglob("*.tmp") if p.is_file()] == []
+
+    async def test_a_failed_write_leaves_no_temp_file_behind(self) -> None:
+        # The `except BaseException: unlink; raise` arm — a half-written temp
+        # file must not accumulate in the run directory.
+        t = self._transport()
+        await t.begin_run("run-boom")
+        run_dir = self.base / "pirn-run-boom"
+        target = run_dir / "victim.bin"
+
+        with unittest.mock.patch("os.replace", side_effect=OSError("no space")):
+            with self.assertRaises(OSError):
+                FilesystemTransport._write_atomic(target, b"payload")
+
+        assert [p for p in run_dir.rglob("*.tmp") if p.is_file()] == []
+        assert not target.exists()
+
+    @unittest.skipUnless(os.name == "posix", "permission bits are POSIX-only")
+    async def test_written_file_is_not_tightened_to_0o600(self) -> None:
+        # tempfile.mkstemp would force 0o600 here; os.open(..., 0o666) keeps
+        # whatever the process umask would have produced for open(path, "wb").
+        t = self._transport()
+        await t.begin_run("run-perm")
+        handle = await t.write("run-perm", "knot-a", {"x": 1})
+
+        expected = 0o666 & ~_current_umask()
+        assert Path(handle.key).stat().st_mode & 0o777 == expected
+
+
+def _current_umask() -> int:
+    """Read the process umask without leaving it changed."""
+    value = os.umask(0)
+    os.umask(value)
+    return value
