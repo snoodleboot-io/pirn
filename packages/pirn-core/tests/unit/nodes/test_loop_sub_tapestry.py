@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 import unittest
 from typing import TYPE_CHECKING, Any
 
@@ -99,6 +101,13 @@ class TestLoopSubTapestryDepth(unittest.IsolatedAsyncioTestCase):
     iterations"), discharged here rather than in that ticket.
     """
 
+    # ~12s on an idle box, but iteration cost is quadratic in chain length and
+    # the whole test stretches with machine load — measured at 73-80s under load
+    # average 54, which overruns the suite's `--timeout=60` and reddens a gate
+    # for reasons that have nothing to do with the code (PIR-810). An explicit
+    # timeout keeps the coverage instead of trading it away for a marker that
+    # would stop running the test at all.
+    @pytest.mark.timeout(300)
     async def test_runs_far_past_the_old_recursion_ceiling(self) -> None:
         # Comfortably past the measured ~984 ceiling. Iteration cost here is
         # quadratic in the chain length, so a larger target buys no extra
