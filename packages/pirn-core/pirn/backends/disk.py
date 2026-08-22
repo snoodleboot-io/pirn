@@ -171,5 +171,8 @@ class LocalDiskDataStore(_CloudObjectStore):
         return path.read_bytes()
 
     def __unlink(self, path: Path) -> None:
-        if path.exists():
-            path.unlink()
+        # `missing_ok` rather than an `exists()` guard: two concurrent scrubs
+        # can both pass the guard, and the loser then raises FileNotFoundError
+        # — which breaks the base contract that `_delete_key` is idempotent and
+        # a no-op on an absent key (PIR-805).
+        path.unlink(missing_ok=True)

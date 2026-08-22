@@ -212,3 +212,54 @@ class TestLocalDiskDataStoreAtomicWrite(unittest.IsolatedAsyncioTestCase):
         store = LocalDiskDataStore(self.root / "deeper" / "nest", allow_unsigned=True)
         await store.put("sha256:abc123", "value")
         self.assertEqual(await store.get("sha256:abc123"), "value")
+
+
+class TestLocalDiskDataStoreDeleteIsIdempotent(unittest.IsolatedAsyncioTestCase):
+    """`_delete_key` must be a no-op on an absent key (PIR-805).
+
+    The old body was ``if path.exists(): path.unlink()``. Two concurrent
+    ``scrub()`` calls can both pass that check, and the loser then raises
+    ``FileNotFoundError`` — breaking the base contract, and doing so only
+    under concurrency, which is the worst way to find out.
+    """
+
+    def setUp(self) -> None:
+        self.td = tempfile.TemporaryDirectory()
+        self.addCleanup(self.td.cleanup)
+        self.store = LocalDiskDataStore(Path(self.td.name), allow_unsigned=True)
+
+    async def test_deleting_an_absent_key_does_not_raise(self) -> None:
+        await self.store._delete_key(self.store._object_key("sha256:never-written"))
+
+    async def test_deleting_the_same_key_twice_does_not_raise(self) -> None:
+        await self.store.put("sha256:abc123", "value")
+        key = self.store._object_key("sha256:abc123")
+        await self.store._delete_key(key)
+        await self.store._delete_key(key)
+
+    async def test_losing_the_exists_race_does_not_raise(self) -> None:
+        # The actual defect, made deterministic.
+        #
+        # Plain concurrent deletes do NOT reproduce it: the window between
+        # `exists()` and `unlink()` is far too narrow to hit reliably, so a
+        # gather() of 8 deletes passes against the broken code too and pins
+        # nothing. What the old body did wrong is fail when the file vanishes
+        # *after* the check — so force exactly that state.
+        await self.store.put("sha256:abc123", "value")
+        key = self.store._object_key("sha256:abc123")
+        Path(key).unlink()  # the winner already deleted it
+
+        with unittest.mock.patch.object(Path, "exists", return_value=True):
+            await self.store._delete_key(key)
+
+    async def test_concurrent_deletes_of_one_key_all_succeed(self) -> None:
+        # Weaker than the test above — it does not reliably hit the window —
+        # but it is the shape a caller actually runs, so it is worth holding.
+        await self.store.put("sha256:abc123", "value")
+        key = self.store._object_key("sha256:abc123")
+
+        results = await asyncio.gather(
+            *(self.store._delete_key(key) for _ in range(8)), return_exceptions=True
+        )
+
+        assert [r for r in results if isinstance(r, BaseException)] == []
