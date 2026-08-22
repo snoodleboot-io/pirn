@@ -14,8 +14,6 @@ class TestOracleConfig(unittest.TestCase):
         self.assertIsNone(cfg.password)
         self.assertIsNone(cfg.dsn)
         self.assertIsNone(cfg.wallet_location)
-        self.assertEqual(cfg.min_size, 1)
-        self.assertEqual(cfg.max_size, 4)
 
     def test_construct_with_fields(self) -> None:
         cfg = OracleConfig(
@@ -23,11 +21,18 @@ class TestOracleConfig(unittest.TestCase):
             password="oracle-pw",
             dsn="host:1521/ORCLPDB1",
             wallet_location="/oracle/wallet",
-            min_size=2,
-            max_size=8,
         )
         self.assertEqual(cfg.user, "oracle_user")
         self.assertEqual(cfg.dsn, "host:1521/ORCLPDB1")
+
+    def test_has_no_pool_size_fields(self) -> None:
+        # OraclePool holds ONE connection for its lifetime, so bounds would be
+        # inert. They existed and were passed to `oracledb.create_pool`, whose
+        # result had no `cursor()` — so the path raised on every statement and
+        # was never reachable. Removed with the fix (PIR-824); this pins that
+        # they do not quietly return.
+        for field in ("min_size", "max_size"):
+            self.assertFalse(hasattr(OracleConfig(), field))
 
     def test_sensitive_fields(self) -> None:
         self.assertIn("password", OracleConfig.sensitive_fields)

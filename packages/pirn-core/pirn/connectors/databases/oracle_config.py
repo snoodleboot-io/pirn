@@ -21,15 +21,23 @@ class OracleConfig(ConnectionConfig):
     wallet_location:
         Optional filesystem path to an Oracle wallet directory used for
         mTLS / TLS-only connections (e.g. Autonomous Database).
-    min_size / max_size:
-        Pool bounds passed to :func:`oracledb.create_pool`.
+
+    Notes
+    -----
+    There are deliberately no pool-size fields. This config drives
+    :class:`~pirn.connectors.databases.oracle_pool.OraclePool`, which holds a
+    single connection for its lifetime, so bounds would be inert. ``min_size``
+    and ``max_size`` did exist and were passed to ``oracledb.create_pool`` —
+    but that call produced a ``ConnectionPool`` with no ``cursor()``, so the
+    path raised on every statement and was never reachable in practice. They
+    were removed with the fix rather than left as knobs that describe a pool
+    this class does not have (PIR-824). Sibling configs for genuinely pooled
+    backends — MySQL, Postgres, MSSQL — keep theirs.
     """
 
     user: str | None = None
     password: str | None = None
     dsn: str | None = None
     wallet_location: str | None = None
-    min_size: int = 1
-    max_size: int = 4
 
     sensitive_fields: ClassVar[tuple[str, ...]] = ("password",)
