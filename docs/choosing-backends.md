@@ -5,9 +5,9 @@ implementation for each one and combine freely.
 
 | Role | Interface | Question it answers |
 |------|-----------|---------------------|
-| **TapestryStore** | `pirn.backends.TapestryStore` | Where does the tapestry *definition* live? |
-| **RunHistory** | `pirn.backends.RunHistory` | Where are lineage records and run summaries persisted? |
-| **DataStore** | `pirn.backends.DataStore` | Where do intermediate values live between knots? |
+| **TapestryStore** | `pirn.backends.base.tapestry_store.TapestryStore` | Where does the tapestry *definition* live? |
+| **RunHistory** | `pirn.backends.base.run_history.RunHistory` | Where are lineage records and run summaries persisted? |
+| **DataStore** | `pirn.backends.base.data_store.DataStore` | Where do intermediate values live between knots? |
 
 ---
 
@@ -38,7 +38,15 @@ implementation for each one and combine freely.
 | `InMemoryDataStore` | `pirn.backends.in_memory` | Default. No eviction. |
 | `LocalDiskDataStore` | `pirn.backends.disk` | Content-addressed files; survives restarts. |
 | `S3DataStore` | `pirn.backends.s3` | Large objects; needs `pirn[s3]`. |
+| `GCSDataStore` | `pirn.backends.gcs` | Large objects on GCS; needs `pirn[gcs]`. |
+| `AzureBlobDataStore` | `pirn.backends.azure` | Large objects on Azure Blob; needs `pirn[azure]`. |
 | `ValKeyDataStore` | `pirn.backends.valkey` | Fast; optional TTL; needs `pirn[valkey]`. |
+
+That table is the complete list. There is **no `SQLiteDataStore` and no
+`PostgresDataStore`** — `SQLiteStore` and `PostgresStore` implement
+`TapestryStore`, a different interface, so picking SQLite or Postgres for the
+tapestry definition does not also supply a data store. Every recipe below
+therefore pairs them with a disk, object-store, or ValKey `DataStore`.
 
 ---
 
