@@ -133,7 +133,7 @@ The explorer defaults to dark mode. Click the **Dark** button in the top right t
 Generates Mermaid `graph LR` syntax for the tapestry structure. Use it in Markdown documentation that supports Mermaid (MkDocs, GitHub, GitLab):
 
 ```python
-from pirn import mermaid_for_tapestry
+from pirn.viz.mermaid import mermaid_for_tapestry
 
 with Tapestry() as t:
     x = Parameter("x", int)
@@ -161,7 +161,7 @@ graph LR
 Generates Mermaid syntax with knot outcomes overlaid. Nodes are coloured by outcome — `ok` green, `err` red, `skipped` grey. Useful for embedding execution traces in incident reports or CI artifacts.
 
 ```python
-from pirn import mermaid_for_run
+from pirn.viz.mermaid import mermaid_for_run
 
 result = await tapestry.run(RunRequest(parameters={"x": 5}))
 print(mermaid_for_run(result))
@@ -176,7 +176,7 @@ print(mermaid_for_run(result))
 Generates a self-contained HTML file with the run graph and outcome overlays — status colours, hover tooltips with content hashes and duration, and outcome filter buttons.
 
 ```python
-from pirn import html_for_run
+from pirn.viz.html import html_for_run
 from pathlib import Path
 
 result = await tapestry.run(RunRequest(parameters={"x": 5}))
@@ -188,7 +188,7 @@ Path("run.html").write_text(html_for_run(result))
 Generates a self-contained HTML file showing the tapestry structure without run outcomes. Use it for documentation, architecture reviews, or sharing pipeline designs before running.
 
 ```python
-from pirn import html_for_tapestry
+from pirn.viz.html import html_for_tapestry
 
 Path("tapestry.html").write_text(html_for_tapestry(tapestry))
 ```

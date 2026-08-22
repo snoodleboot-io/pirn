@@ -29,7 +29,8 @@ Pass `traceback_filter` to `Tapestry` (constructor or `run()`) to sanitise
 every `traceback_text` before it is stored:
 
 ```python
-from pirn import Tapestry, redact_common_secrets
+from pirn.managers.redact import redact_common_secrets
+from pirn.tapestry import Tapestry
 
 # Apply at construction — all runs use the filter.
 t = Tapestry(traceback_filter=redact_common_secrets)
@@ -59,7 +60,7 @@ with `<redacted>`.
 ### Example
 
 ```python
-from pirn.managers.exceptions import redact_common_secrets
+from pirn.managers.redact import redact_common_secrets
 
 before = (
     "Traceback (most recent call last):\n"
@@ -141,7 +142,8 @@ raises during `on_lineage` or `on_run_result`:
 ### Usage
 
 ```python
-from pirn import Tapestry, EmitterErrorPolicy
+from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
+from pirn.tapestry import Tapestry
 
 # Constructor default — all runs use WARN.
 t = Tapestry(emitter_error_policy=EmitterErrorPolicy.WARN)

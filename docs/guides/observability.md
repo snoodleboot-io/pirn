@@ -24,8 +24,9 @@ By default, emitter exceptions are logged as warnings and the run continues. Con
 Attach emitters at construction or per-run:
 
 ```python
-from pirn import Tapestry
-from pirn.emitters import LogEmitter, OpenTelemetryEmitter
+from pirn.tapestry import Tapestry
+from pirn.emitters.log import LogEmitter
+from pirn.emitters.otel import OpenTelemetryEmitter
 
 # All runs
 t = Tapestry(emitters=[LogEmitter(), OpenTelemetryEmitter()])
@@ -56,7 +57,7 @@ result = await t.run(request, emitters=[])
 `LogEmitter` writes one JSON line per event to the `pirn.emitters.log` logger at `INFO` level:
 
 ```python
-from pirn.emitters import LogEmitter
+from pirn.emitters.log import LogEmitter
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -96,7 +97,7 @@ from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-from pirn.emitters import OpenTelemetryEmitter
+from pirn.emitters.otel import OpenTelemetryEmitter
 
 provider = TracerProvider()
 provider.add_span_processor(
@@ -153,7 +154,7 @@ histogram_quantile(0.99,
 Publish status, lineage, and result events to separate Kafka topics:
 
 ```python
-from pirn.emitters import KafkaEmitter
+from pirn.emitters.kafka import KafkaEmitter
 
 emitter = KafkaEmitter(
     bootstrap_servers="kafka:9092",
@@ -171,7 +172,7 @@ Requires `pip install pirn[kafka]`. Each event is a JSON-serialised Pydantic mod
 ## ValKey pub/sub emitter
 
 ```python
-from pirn.emitters import ValKeyEmitter
+from pirn.emitters.valkey import ValKeyEmitter
 
 emitter = ValKeyEmitter(url="redis://localhost:6379", channel="pirn:events")
 t = Tapestry(emitters=[emitter])
@@ -186,7 +187,7 @@ A separate consumer subscribes to `pirn:events` and forwards events to a metrics
 `WebhookEmitter` POSTs JSON to an HTTP endpoint on every `on_run_result` call:
 
 ```python
-from pirn.emitters import WebhookEmitter
+from pirn.emitters.webhook import WebhookEmitter
 
 emitter = WebhookEmitter(url="https://hooks.slack.com/...")
 t = Tapestry(emitters=[emitter])
@@ -251,7 +252,7 @@ t = Tapestry(emitters=[
 `EmitterErrorPolicy` controls what happens when an emitter raises an exception. Set it on the `Tapestry` or override per-run:
 
 ```python
-from pirn import Tapestry
+from pirn.tapestry import Tapestry
 from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
 
 t = Tapestry(

@@ -10,7 +10,12 @@ Suppose you have a knot that produces a list of IDs, and you want to enrich each
 
 ```python
 import asyncio
-from pirn import Tapestry, Parameter, KnotConfig, knot, RunRequest, Map
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.nodes.map_markers import Map
+from pirn.tapestry import Tapestry
 
 
 @knot
@@ -84,7 +89,7 @@ with Tapestry() as t:
 After fanning out with `Map`, use `Reduce` to fold the results back into a single value:
 
 ```python
-from pirn import Reduce
+from pirn.nodes.reduce_ import Reduce
 
 
 @knot

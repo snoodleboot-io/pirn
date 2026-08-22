@@ -5,7 +5,7 @@
 ## `load_pipeline()`
 
 ```python
-from pirn import load_pipeline
+from pirn.yaml_loader.loader import load_pipeline
 
 tapestry = load_pipeline(
     yaml_text,

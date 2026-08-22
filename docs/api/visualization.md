@@ -16,7 +16,7 @@ Generate Mermaid `graph LR` syntax showing the tapestry structure.
 ### Example
 
 ```python
-from pirn import mermaid_for_tapestry
+from pirn.viz.mermaid import mermaid_for_tapestry
 
 # Embed in Markdown
 print(mermaid_for_tapestry(tapestry))
@@ -41,7 +41,7 @@ Generate Mermaid syntax with knot outcomes overlaid via class assignments.
 ### Example
 
 ```python
-from pirn import mermaid_for_run
+from pirn.viz.mermaid import mermaid_for_run
 
 result = await tapestry.run(request)
 diagram = mermaid_for_run(result)
@@ -63,7 +63,7 @@ Generate a self-contained HTML file with SVG rendering, hover tooltips, and outc
 ### Example
 
 ```python
-from pirn import html_for_run
+from pirn.viz.html import html_for_run
 from pathlib import Path
 
 result = await tapestry.run(request)

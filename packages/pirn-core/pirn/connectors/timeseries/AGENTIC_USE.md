@@ -14,12 +14,12 @@ Time-series pools are interchangeable with `DatabaseConnectionPool` for query/ex
 
 ```
 pirn/domains/connectors/timeseries/
-├── influxdb_config.py        InfluxdbConfig        — url, token, org, bucket
-├── influxdb_pool.py          InfluxdbPool          — InfluxDB v2 client (influxdb-client-python async)
-├── timescaledb_config.py     TimescaledbConfig     — host, port, database, user, password, ssl_mode
-├── timescaledb_pool.py       TimescaledbPool       — asyncpg-backed pool (TimescaleDB is PostgreSQL)
-├── questdb_config.py         QuestdbConfig         — host, ilp_port, http_port, user, password
-├── questdb_pool.py           QuestdbPool           — QuestDB ILP (line protocol) + REST query client
+├── influxdb_config.py        InfluxDBConfig        — url, token, org, bucket
+├── influxdb_pool.py          InfluxDBPool          — InfluxDB v2 client (influxdb-client-python async)
+├── timescaledb_config.py     TimescaleDBConfig     — host, port, database, user, password, ssl_mode
+├── timescaledb_pool.py       TimescaleDBPool       — asyncpg-backed pool (TimescaleDB is PostgreSQL)
+├── questdb_config.py         QuestDBConfig         — host, ilp_port, http_port, user, password
+├── questdb_pool.py           QuestDBPool           — QuestDB ILP (line protocol) + REST query client
 ├── kdb_config.py             KdbConfig             — host, port, user, password
 ├── kdb_pool.py               KdbPool               — kdb+ q-IPC async client (qasync)
 ├── victoriametrics_config.py VictoriaMetricsConfig — url, tenant_id (for Cluster)
@@ -33,14 +33,14 @@ pirn/domains/connectors/timeseries/
 ### InfluxDB — write metrics, query with Flux
 
 ```python
-from pirn.connectors.timeseries.influxdb_config import InfluxdbConfig
-from pirn.connectors.timeseries.influxdb_pool import InfluxdbPool
+from pirn.connectors.timeseries.influxdb_config import InfluxDBConfig
+from pirn.connectors.timeseries.influxdb_pool import InfluxDBPool
 from pirn.connectors.knots.database_execute_sink import DatabaseExecuteSink
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
-pool = InfluxdbPool(config=InfluxdbConfig(
+pool = InfluxDBPool(config=InfluxDBConfig(
     url="http://influx:8086",
     token=os.environ["INFLUX_TOKEN"],
     org="my-org",
@@ -61,11 +61,11 @@ await pool.close()
 ### TimescaleDB — query hypertable
 
 ```python
-from pirn.connectors.timeseries.timescaledb_config import TimescaledbConfig
-from pirn.connectors.timeseries.timescaledb_pool import TimescaledbPool
+from pirn.connectors.timeseries.timescaledb_config import TimescaleDBConfig
+from pirn.connectors.timeseries.timescaledb_pool import TimescaleDBPool
 from pirn.connectors.knots.database_query_source import DatabaseQuerySource
 
-pool = TimescaledbPool(config=TimescaledbConfig(
+pool = TimescaleDBPool(config=TimescaleDBConfig(
     host="timescale", port=5432, database="metrics", user="app", password="s3cr3t"
 ))
 
@@ -81,16 +81,16 @@ with Tapestry() as t:
 
 ## Anti-patterns
 
-**Using `InfluxdbPool` with SQL-style `SELECT` statements** — InfluxDB v2 uses Flux or InfluxQL, not standard SQL. Pass Flux queries when using `DatabaseQuerySource` with `InfluxdbPool`.
+**Using `InfluxDBPool` with SQL-style `SELECT` statements** — InfluxDB v2 uses Flux or InfluxQL, not standard SQL. Pass Flux queries when using `DatabaseQuerySource` with `InfluxDBPool`.
 
-**Forgetting that `TimescaledbPool` is PostgreSQL** — TimescaleDB extends PostgreSQL. All `asyncpg`-style parameters and connection limits apply. Treat it identically to `PostgresPool`.
+**Forgetting that `TimescaleDBPool` is PostgreSQL** — TimescaleDB extends PostgreSQL. All `asyncpg`-style parameters and connection limits apply. Treat it identically to `PostgresPool`.
 
 ---
 
 ## Constraints and gotchas
 
 - **Each pool requires its own extra:** `pirn[influxdb]`, `pirn[timescaledb]`, `pirn[questdb]`, `pirn[kdb]`, `pirn[victoriametrics]`.
-- **`QuestdbPool` exposes two ports:** ILP port 9009 for high-throughput writes (line protocol), HTTP port 9000 for queries. The pool constructor takes both.
+- **`QuestDBPool` exposes two ports:** ILP port 9009 for high-throughput writes (line protocol), HTTP port 9000 for queries. The pool constructor takes both.
 - **`KdbPool` requires a running kdb+ q process.** The pool speaks the q-IPC binary protocol — it is not SQL.
 - **`VictoriaMetricsPool` in cluster mode requires `tenant_id`** to route writes and queries to the correct tenant shard.
 
@@ -100,9 +100,9 @@ with Tapestry() as t:
 
 | Database | Config | Pool | Extra |
 |----------|--------|------|-------|
-| InfluxDB v2 | `InfluxdbConfig` | `InfluxdbPool` | `pirn[influxdb]` |
-| TimescaleDB | `TimescaledbConfig` | `TimescaledbPool` | `pirn[timescaledb]` |
-| QuestDB | `QuestdbConfig` | `QuestdbPool` | `pirn[questdb]` |
+| InfluxDB v2 | `InfluxDBConfig` | `InfluxDBPool` | `pirn[influxdb]` |
+| TimescaleDB | `TimescaleDBConfig` | `TimescaleDBPool` | `pirn[timescaledb]` |
+| QuestDB | `QuestDBConfig` | `QuestDBPool` | `pirn[questdb]` |
 | kdb+ | `KdbConfig` | `KdbPool` | `pirn[kdb]` |
 | VictoriaMetrics | `VictoriaMetricsConfig` | `VictoriaMetricsPool` | `pirn[victoriametrics]` |
 

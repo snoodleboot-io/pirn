@@ -45,13 +45,13 @@ pirn_agents/
 │   └── termination_check.py  TerminationCheck
 └── specializations/
     ├── react/               ReActLoop (SubTapestry)
-    ├── rag/                 NaiveRagPipeline, CorrectiveRagPipeline, HyDeRagPipeline, GraphRagPipeline
+    ├── rag/                 NaiveRAGPipeline, CorrectiveRAGPipeline, HyDERAGPipeline, GraphRAGPipeline
     ├── multi_agent/         OrchestratorAgent, ParallelSpecialistFanOut, ConsensusAggregator, DebateFramework
     ├── memory_patterns/     SemanticMemoryPipeline, EpisodicMemoryPipeline, ProceduralMemoryPipeline, WorkingMemoryPipeline
     ├── guardrails/          InputGuardrailGate, OutputGuardrailGate, PiiRedactorCheck, FactCheckGate
     ├── structured_output/   JsonExtractorPipeline, YamlExtractorPipeline, PydanticValidatorPipeline, EnumClassifierPipeline
-    ├── specialized_agents/  ReActLoop-based: BrowserAgent, CodeAgent, SqlAgent, ResearchAgent, DataAnalystAgent
-    └── document_processing/ DocumentIngestionPipeline, DocumentQaPipeline, DocumentSummarizerPipeline, DocumentTranslationPipeline
+    ├── specialized_agents/  ReActLoop-based: BrowserAgent, CodeAgent, SQLAgent, ResearchAgent, DataAnalystAgent
+    └── document_processing/ DocumentIngestionPipeline, DocumentQAPipeline, DocumentSummarizerPipeline, DocumentTranslationPipeline
 ```
 
 ### Concrete implementations
@@ -401,7 +401,7 @@ from pirn_agents.control.safety_check import SafetyCheck
 from pirn_agents.specializations.guardrails.output_guardrail_gate import (
     OutputGuardrailGate,
 )
-from pirn_agents.specializations.guardrails.pii_redactor_gate import (
+from pirn_agents.specializations.guardrails.pii_redactor_check import (
     PiiRedactorCheck,
 )
 
@@ -483,17 +483,17 @@ Four retrieval-augmented generation pipelines:
 
 | Pipeline | Best for |
 |---|---|
-| `NaiveRagPipeline` | Simple retrieval → prompt → answer |
-| `CorrectiveRagPipeline` | Re-retrieves when relevance score is low |
-| `HyDeRagPipeline` | Generates a hypothetical document first to improve recall |
-| `GraphRagPipeline` | Graph-structured context (entities + relationships) |
+| `NaiveRAGPipeline` | Simple retrieval → prompt → answer |
+| `CorrectiveRAGPipeline` | Re-retrieves when relevance score is low |
+| `HyDERAGPipeline` | Generates a hypothetical document first to improve recall |
+| `GraphRAGPipeline` | Graph-structured context (entities + relationships) |
 
 ```python
 from pirn_agents.specializations.rag.corrective_rag_pipeline import (
-    CorrectiveRagPipeline,
+    CorrectiveRAGPipeline,
 )
 
-rag = CorrectiveRagPipeline(
+rag = CorrectiveRAGPipeline(
     query="Explain the DICOM pixel data format.",
     llm=llm,
     memory_store=document_store,
@@ -537,7 +537,7 @@ Pre-built `SubTapestry` agents backed by `ReActLoop`:
 |---|---|
 | `BrowserAgent` | Web search + scraping tasks |
 | `CodeAgent` | Code generation + linting loop |
-| `SqlAgent` | NL → SQL → execute → format |
+| `SQLAgent` | NL → SQL → execute → format |
 | `ResearchAgent` | Multi-source research with citations |
 | `DataAnalystAgent` | Statistical analysis with tool use |
 
@@ -652,7 +652,9 @@ F1 primitives:
 
 ```python
 from pirn.core.knot_config import KnotConfig
-from pirn_agents.mcp import McpConnector, McpToolset, StdioTransport
+from pirn_agents.mcp.mcp_connector import McpConnector
+from pirn_agents.mcp.mcp_toolset import McpToolset
+from pirn_agents.mcp.stdio_transport import StdioTransport
 
 # One pooled, self-healing session per server (built once, reused for the run).
 connector = McpConnector(
@@ -929,7 +931,7 @@ Patterns compose — pick the pieces you need:
    → [IntentClassifier]                    ← routing input
    → [OrchestratorAgent]                   ← coordinator/dispatcher
        ├── [ReActLoop + SearchTool]         ← react (research leg)
-       ├── [CorrectiveRagPipeline]          ← RAG (document leg)
+       ├── [CorrectiveRAGPipeline]          ← RAG (document leg)
        └── [CodeAgent]                      ← specialised agent (code leg)
    → [ConsensusAggregator]                  ← synthesiser
    → [PiiRedactorCheck → OutputGuardrailGate] ← supervision (output)

@@ -39,7 +39,8 @@ Set per-knot via `_config=KnotConfig(id="...", error_policy=ErrorPolicy.xxx)`.
 If any parent produced `Err` or `Skipped`, this knot becomes `Skipped` without calling `process()`. The skip propagates downstream. Use for most knots that cannot meaningfully proceed without upstream data.
 
 ```python
-from pirn import KnotConfig, ErrorPolicy
+from pirn.core.error_policy import ErrorPolicy
+from pirn.core.knot_config import KnotConfig
 
 answer = add(
     a=x, b=d,
@@ -54,7 +55,9 @@ answer = add(
 The engine calls `process()` unconditionally, passing `Result` objects as arguments instead of unwrapped values. Use for aggregation, fallback, or circuit-breaker knots.
 
 ```python
-from pirn import Knot, KnotConfig, ErrorPolicy
+from pirn.core.error_policy import ErrorPolicy
+from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
 from pirn.core.result import Result
 
 class Summarise(Knot):
@@ -91,7 +94,9 @@ critical = pipeline_step(
 `Optional` signals that a knot's own failure is tolerable — it should be treated as a `Skipped` for downstream consumers rather than an `Err`.
 
 ```python
-from pirn import Optional, Knot, KnotConfig
+from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
+from pirn.core.optional import Optional
 
 class FetchPrefs(Optional, Knot):
     async def process(self, user_id: str) -> dict:
@@ -140,7 +145,8 @@ Tracebacks can contain secrets — DSN credentials in error messages, API keys i
 ### Built-in filter: `redact_common_secrets`
 
 ```python
-from pirn import Tapestry, redact_common_secrets
+from pirn.managers.redact import redact_common_secrets
+from pirn.tapestry import Tapestry
 
 # Apply to all runs from this tapestry
 t = Tapestry(traceback_filter=redact_common_secrets)
@@ -189,7 +195,7 @@ Controls what happens when an emitter raises during `on_lineage` or `on_run_resu
 | `RAISE` | Propagate the exception — for tests that assert emitter correctness |
 
 ```python
-from pirn import EmitterErrorPolicy
+from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
 
 t = Tapestry(emitter_error_policy=EmitterErrorPolicy.RAISE)
 

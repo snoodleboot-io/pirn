@@ -66,7 +66,11 @@ Three equivalent ways to define a knot:
 ```python
 import asyncio
 from typing import Any
-from pirn import Tapestry, Parameter, KnotConfig, knot, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 
 # **_: Any is mandatory — absorbs implicit ordering dependencies.
 @knot
@@ -97,7 +101,11 @@ asyncio.run(main())
 ```python
 import asyncio
 from typing import Any
-from pirn import Knot, Tapestry, Parameter, KnotConfig, RunRequest
+from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 
 class Normalise(Knot):
     """Lower-case and strip whitespace from every string field."""
@@ -149,7 +157,8 @@ nodes:
 
 ```python
 import asyncio
-from pirn import load_pipeline, RunRequest
+from pirn.core.run_request import RunRequest
+from pirn.yaml_loader.loader import load_pipeline
 import pathlib
 
 async def main():
@@ -176,7 +185,8 @@ asyncio.run(main())
 
 ```python
 from typing import Any
-from pirn import Knot, KnotConfig
+from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
 
 class Normalise(Knot):
     async def process(self, value: float, scale: float, **_: Any) -> float:
@@ -193,7 +203,8 @@ with Tapestry() as t:
 **Contract:** subclass `Source`, implement `async def process(self, **_: Any) -> T` with no named parameters. Sources may not accept any kwarg other than `_config` and `tapestry`.
 
 ```python
-from pirn import Source, KnotConfig
+from pirn.core.knot_config import KnotConfig
+from pirn.nodes.source import Source
 import json, pathlib
 
 class ReadConfig(Source):
@@ -209,7 +220,8 @@ with Tapestry() as t:
 **Contract:** subclass `Sink`, implement `async def process(self, ..., **_: Any) -> None`. Wire it to upstream knots the same way as any knot; return value is conventionally `None` but not enforced.
 
 ```python
-from pirn import Sink, KnotConfig
+from pirn.core.knot_config import KnotConfig
+from pirn.nodes.sink import Sink
 import json
 
 class WriteOutput(Sink):
@@ -263,7 +275,8 @@ Lives in `pirn/domains/{domain}/disassemblers/`. Named `{Subject}{Sink}Disassemb
 
 ```python
 from typing import Any
-from pirn import KnotConfig, Parameter
+from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
 from pirn.nodes.sub_tapestry import SubTapestry
 
 class ProcessBatch(SubTapestry):
@@ -408,7 +421,11 @@ with Tapestry() as t:
 
 ```python
 import asyncio
-from pirn import Tapestry, Parameter, KnotConfig, knot, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 
 @knot
 async def extract(source_csv: str, **_) -> list[dict]:
@@ -454,7 +471,11 @@ import asyncio
 from dataclasses import dataclass
 from typing import Any
 
-from pirn import Tapestry, Parameter, KnotConfig, knot, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 from pirn.core.run_result import RunResult
 from pirn.nodes.sub_tapestry import SubTapestry
 

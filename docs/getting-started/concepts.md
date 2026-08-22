@@ -11,7 +11,7 @@ The fundamental unit of work. A knot is a typed, async function with explicit in
 Knots are immutable after construction — you cannot change a knot's parents or config once it has been built. This makes pipelines safe to reason about statically.
 
 ```python
-from pirn import knot
+from pirn.core.knot_factory import knot
 
 @knot
 async def score(text: str, threshold: float) -> float:
@@ -79,7 +79,7 @@ The full dependency graph of all knots in a tapestry — the "loom" on which the
 A special knot with no parents that binds an external value at run time. Parameters are the entry points for data into a tapestry.
 
 ```python
-from pirn import Parameter
+from pirn.core.parameter import Parameter
 
 x = Parameter("x", int)               # id="x", type=int, no default
 y = Parameter("y", float, default=1.0)  # optional parameter with default
@@ -156,7 +156,7 @@ Built-in triggers: `CronTrigger`, `WebhookTrigger` (HTTP), `KafkaTrigger`, `ValK
 The input to a single pipeline execution. Contains `parameters` (a `dict[str, Any]` mapping parameter ids to values) and a `run_id` (auto-generated UUID if omitted).
 
 ```python
-from pirn import RunRequest
+from pirn.core.run_request import RunRequest
 
 request = RunRequest(parameters={"user_id": "u123", "threshold": 0.7})
 ```

@@ -110,7 +110,7 @@ await run_forever(trigger, tapestry)
 
 ---
 
-## ValkeyTrigger
+## ValKeyTrigger
 
 Fires on ValKey pub/sub messages. Requires `pirn[valkey]`.
 

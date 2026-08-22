@@ -10,7 +10,8 @@ This guide covers sizing guidance for different deployment scales, connection po
 
 ```python
 import asyncpg
-from pirn.backends.postgres import PostgresStore, PostgresHistory
+from pirn.backends.postgres.postgres_history import PostgresHistory
+from pirn.backends.postgres.postgres_store import PostgresStore
 
 pool = await asyncpg.create_pool(
     dsn,
@@ -56,7 +57,8 @@ Enable WAL mode for best performance:
 
 ```python
 import sqlite3
-from pirn.backends.sqlite import SQLiteHistory, SQLiteStore
+from pirn.backends.sqlite.sqlite_history import SQLiteHistory
+from pirn.backends.sqlite.sqlite_store import SQLiteStore
 
 conn = sqlite3.connect("pirn.db")
 conn.execute("PRAGMA journal_mode=WAL")
@@ -164,8 +166,10 @@ Single host, SQLite, no infrastructure:
 ```python
 # run.py — invoked by cron
 import asyncio
-from pirn import Tapestry, RunRequest
-from pirn.backends.sqlite import SQLiteStore, SQLiteHistory
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
+from pirn.backends.sqlite.sqlite_history import SQLiteHistory
+from pirn.backends.sqlite.sqlite_store import SQLiteStore
 from pirn.backends.disk import LocalDiskDataStore
 
 async def main():
@@ -183,7 +187,7 @@ asyncio.run(main())
 
 ```python
 import uvicorn
-from pirn import Tapestry
+from pirn.tapestry import Tapestry
 from pirn.triggers.http import WebhookTrigger
 
 trigger = WebhookTrigger(path="/run")

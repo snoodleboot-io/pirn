@@ -16,12 +16,12 @@ pirn/domains/connectors/saas/
 ├── stripe_client.py           StripeClient           — Stripe API (payments, subscriptions, events)
 ├── salesforce_config.py       SalesforceConfig       — instance_url, client_id, client_secret, username
 ├── salesforce_client.py       SalesforceClient       — Salesforce REST API (SOQL, objects, bulk)
-├── hubspot_config.py          HubspotConfig          — access_token
-├── hubspot_client.py          HubspotClient          — HubSpot CRM API (contacts, deals, pipelines)
+├── hubspot_config.py          HubSpotConfig          — access_token
+├── hubspot_client.py          HubSpotClient          — HubSpot CRM API (contacts, deals, pipelines)
 ├── jira_config.py             JiraConfig             — base_url, user, api_token
 ├── jira_client.py             JiraClient             — Jira REST API v3 (issues, projects, boards)
-├── github_config.py           GithubConfig           — token, base_url (for GHE)
-├── github_client.py           GithubClient           — GitHub REST + GraphQL API
+├── github_config.py           GitHubConfig           — token, base_url (for GHE)
+├── github_client.py           GitHubClient           — GitHub REST + GraphQL API
 ├── zendesk_config.py          ZendeskConfig          — subdomain, user, api_token
 ├── zendesk_client.py          ZendeskClient          — Zendesk Support API (tickets, users, macros)
 ├── shopify_config.py          ShopifyConfig          — shop_domain, access_token
@@ -87,7 +87,7 @@ sf = SalesforceClient(config=SalesforceConfig(
 
 - **Each client requires its own extra:** `pirn[stripe]`, `pirn[salesforce]`, `pirn[hubspot]`, `pirn[jira]`, `pirn[github]`, etc.
 - **`SalesforceClient` uses OAuth2 client-credentials flow.** The `username` is only needed for user-context operations.
-- **`GithubClient` supports both REST and GraphQL.** Use `.graphql(query)` for paginated or nested resource fetches.
+- **`GitHubClient` supports both REST and GraphQL.** Use `.graphql(query)` for paginated or nested resource fetches.
 - **`TwilioClient` sends real SMS/calls in production.** Always use test credentials (`AC` prefix test SID) in non-production environments.
 - **`GoogleAnalyticsClient` requires the GA4 Data API**, not the Universal Analytics API. Properties must be migrated to GA4.
 
@@ -99,9 +99,9 @@ sf = SalesforceClient(config=SalesforceConfig(
 |----------|--------|--------|
 | Stripe | `StripeConfig` | `StripeClient` |
 | Salesforce | `SalesforceConfig` | `SalesforceClient` |
-| HubSpot | `HubspotConfig` | `HubspotClient` |
+| HubSpot | `HubSpotConfig` | `HubSpotClient` |
 | Jira | `JiraConfig` | `JiraClient` |
-| GitHub | `GithubConfig` | `GithubClient` |
+| GitHub | `GitHubConfig` | `GitHubClient` |
 | Zendesk | `ZendeskConfig` | `ZendeskClient` |
 | Shopify | `ShopifyConfig` | `ShopifyClient` |
 | Twilio | `TwilioConfig` | `TwilioClient` |

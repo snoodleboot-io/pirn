@@ -129,7 +129,7 @@ native attempt yields invalid output — it falls back to the retry pipeline):
 
 ```python
 from pydantic import BaseModel
-from pirn_agents.specializations.structured_output import structured_decode
+from pirn_agents.specializations.structured_output.structured_decoder import structured_decode
 
 class Invoice(BaseModel):
     vendor: str

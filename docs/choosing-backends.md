@@ -57,7 +57,7 @@ therefore pairs them with a disk, object-store, or ValKey `DataStore`.
 No infrastructure, no persistence needed between runs.
 
 ```python
-from pirn import Tapestry
+from pirn.tapestry import Tapestry
 
 t = Tapestry()           # InMemoryStore + InMemoryHistory + InMemoryDataStore
 ```
@@ -71,8 +71,9 @@ No imports required. This is the default.
 One machine, survives restarts, no external services.
 
 ```python
-from pirn import Tapestry
-from pirn.backends.sqlite import SQLiteHistory, SQLiteStore
+from pirn.tapestry import Tapestry
+from pirn.backends.sqlite.sqlite_history import SQLiteHistory
+from pirn.backends.sqlite.sqlite_store import SQLiteStore
 from pirn.backends.disk import LocalDiskDataStore
 
 t = Tapestry(
@@ -94,8 +95,8 @@ serialises writers; switch to Postgres when you feel contention).
 You want `GROUP BY knot_id`, percentiles over lineage, or ad-hoc SQL.
 
 ```python
-from pirn import Tapestry
-from pirn.backends.sqlite import SQLiteStore
+from pirn.tapestry import Tapestry
+from pirn.backends.sqlite.sqlite_store import SQLiteStore
 from pirn.backends.duckdb import DuckDBHistory
 from pirn.backends.disk import LocalDiskDataStore
 
@@ -118,8 +119,9 @@ Multiple hosts writing runs concurrently, large intermediate values, full
 durability.
 
 ```python
-from pirn import Tapestry
-from pirn.backends.postgres import PostgresStore, PostgresHistory
+from pirn.tapestry import Tapestry
+from pirn.backends.postgres.postgres_history import PostgresHistory
+from pirn.backends.postgres.postgres_store import PostgresStore
 from pirn.backends.s3 import S3DataStore
 
 store   = PostgresStore(dsn="postgresql://…")
@@ -145,9 +147,10 @@ DuckDB separately (e.g. via DuckDB's Postgres scanner or a Postgres read replica
 mounted as a DuckDB external table).
 
 ```python
-from pirn import Tapestry
-from pirn.backends.postgres import PostgresStore, PostgresHistory
-from pirn.backends.valkey import ValKeyDataStore
+from pirn.tapestry import Tapestry
+from pirn.backends.postgres.postgres_history import PostgresHistory
+from pirn.backends.postgres.postgres_store import PostgresStore
+from pirn.backends.valkey.valkey_data_store import ValKeyDataStore
 
 # Writes go to Postgres
 t = Tapestry(
@@ -168,9 +171,10 @@ Everything in ValKey with a TTL. Lineage goes to Postgres for durability;
 intermediate values evict automatically.
 
 ```python
-from pirn import Tapestry
-from pirn.backends.postgres import PostgresHistory
-from pirn.backends.valkey import ValKeyStore, ValKeyDataStore
+from pirn.tapestry import Tapestry
+from pirn.backends.postgres.postgres_history import PostgresHistory
+from pirn.backends.valkey.valkey_data_store import ValKeyDataStore
+from pirn.backends.valkey.valkey_store import ValKeyStore
 
 t = Tapestry(
     store=ValKeyStore(url="redis://…", ttl=300),

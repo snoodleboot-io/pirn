@@ -31,8 +31,8 @@ pirn_ml/specializations/
 │  ── Production ──
 ├── production/
 │   ├── batch_inference_pipeline.py      BatchInferencePipeline     — run model on a DataBatch; emit predictions
-│   ├── ab_test_pipeline.py              AbTestPipeline             — split traffic; run two models; collect metrics
-│   ├── ab_test_deployer.py              AbTestDeployer             — deploy A/B test configuration
+│   ├── ab_test_pipeline.py              ABTestPipeline             — split traffic; run two models; collect metrics
+│   ├── ab_test_deployer.py              ABTestDeployer             — deploy A/B test configuration
 │   ├── canary_deployer.py               CanaryDeployer             — ramp new model from 0–100% traffic
 │   ├── data_drift_detector.py           DataDriftDetector          — detect input distribution shift
 │   ├── concept_drift_detector.py        ConceptDriftDetector       — detect prediction accuracy degradation
@@ -142,7 +142,7 @@ with Tapestry() as t:
 |------|------------|
 | Run model on batch | `BatchInferencePipeline(features=..., model=...)` |
 | Monitor for data drift | `DriftMonitor(features=..., reference_dataset=...)` |
-| A/B test two models | `AbTestPipeline(model_a=..., model_b=..., traffic_split=0.1)` |
+| A/B test two models | `ABTestPipeline(model_a=..., model_b=..., traffic_split=0.1)` |
 | Tune hyperparameters | `BayesianSearchTuner` / `GridSearchTuner` / `HyperbandTuner` |
 | Full classification pipeline | `BinaryClassificationPipeline` |
 | Time-series forecasting | `ForecastingPipeline` |

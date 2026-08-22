@@ -50,7 +50,8 @@ Specialised node classes beyond the base `Knot`.
 ### Example
 
 ```python
-from pirn import Aggregator, KnotConfig
+from pirn.core.knot_config import KnotConfig
+from pirn.nodes.aggregator import Aggregator
 
 merged = Aggregator(
     parents={"left": left_knot, "right": right_knot},
@@ -72,7 +73,8 @@ merged = Aggregator(
 ### Example
 
 ```python
-from pirn import Branch, KnotConfig
+from pirn.core.knot_config import KnotConfig
+from pirn.nodes.branch.branch import Branch
 
 route = Branch(
     input=classify_knot,
@@ -101,7 +103,8 @@ handle_resp(payload=route["response"], _config=KnotConfig(id="handle_resp"))
 ### Example
 
 ```python
-from pirn import Gate, KnotConfig
+from pirn.core.knot_config import KnotConfig
+from pirn.nodes.gate.gate import Gate
 
 quality_gate = Gate(
     input=score_knot,
@@ -142,7 +145,7 @@ single element.
 
 ```python
 from pirn.nodes.map_markers import Map, ZipMap, DictMap
-from pirn import KnotConfig
+from pirn.core.knot_config import KnotConfig
 
 # Map: fan over a single ordered collection
 analysed = analyse_sample(sample=Map(batch), _config=KnotConfig(id="analyse"))
@@ -177,7 +180,8 @@ entries = process_entry(k=DictMap(lookup), v=DictMap(lookup), _config=KnotConfig
 ### Example
 
 ```python
-from pirn import Reduce, KnotConfig
+from pirn.core.knot_config import KnotConfig
+from pirn.nodes.reduce_ import Reduce
 
 total = Reduce(
     of=scores_knot,    # produces list[float]
@@ -206,7 +210,7 @@ The outer tapestry's history backend is automatically forwarded to inner runs so
 
 ```python
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn import KnotConfig
+from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 from pirn.core.parameter import Parameter
 from pirn.core.knot import Knot

@@ -27,7 +27,7 @@ Writes structured JSON to Python `logging`.
 ### Example
 
 ```python
-from pirn.emitters import LogEmitter
+from pirn.emitters.log import LogEmitter
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -52,7 +52,7 @@ Emits OTel spans per knot and per run.
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-from pirn.emitters import OpenTelemetryEmitter
+from pirn.emitters.otel import OpenTelemetryEmitter
 from opentelemetry import trace
 
 provider = TracerProvider()
@@ -77,7 +77,7 @@ Publishes events to Kafka topics.
 ### Example
 
 ```python
-from pirn.emitters import KafkaEmitter
+from pirn.emitters.kafka import KafkaEmitter
 
 emitter = KafkaEmitter(
     bootstrap_servers="kafka:9092",
@@ -115,7 +115,7 @@ POSTs JSON to an HTTP endpoint on `on_run_result`.
 ### Example
 
 ```python
-from pirn.emitters import WebhookEmitter
+from pirn.emitters.webhook import WebhookEmitter
 
 t = Tapestry(emitters=[WebhookEmitter(url="https://hooks.slack.com/...")])
 ```

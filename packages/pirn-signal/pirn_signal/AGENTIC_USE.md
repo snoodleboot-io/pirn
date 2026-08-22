@@ -126,7 +126,7 @@ class SignalFrame(PirnOpaqueValue):
 Key points:
 - **Immutable.** Knots that transform a signal return a *new* `SignalFrame` with an annotated `signal_id` (e.g. `"ecg:butter-lowpass"`).
 - **No sample data.** The frame is a lineage record. Actual numpy arrays are loaded by the scipy/librosa backend during `process()`.
-- **Multi-channel.** `channel_count > 1` is valid. Knots that are single-channel-only (e.g. `EmdDecomposer`) must receive `channel_count == 1`; pass a channel-splitter or select channel 0 before wiring.
+- **Multi-channel.** `channel_count > 1` is valid. Knots that are single-channel-only (e.g. `EMDDecomposer`) must receive `channel_count == 1`; pass a channel-splitter or select channel 0 before wiring.
 
 Constructing a frame at pipeline entry (after decoding an audio record):
 
@@ -195,15 +195,15 @@ dwt = DWTDecomposer(
 
 | Sub-area | When to use | Representative knots |
 |---|---|---|
-| `filters` | Remove noise, isolate a frequency band, smooth before analysis | `ButterworthFilter`, `NotchFilter`, `FirFilter`, `SavitzkyGolayFilter`, `KalmanSmoother` |
-| `spectral` | Frequency-domain analysis, PSD estimation, time-frequency maps | `FftAnalyzer`, `WelchEstimator`, `StftDecomposer`, `HilbertTransformer`, `MultitaperEstimator` |
-| `wavelets` | Time-frequency localisation, multi-resolution, non-stationary signals | `DWTDecomposer`, `CwtDecomposer`, `MultiresolutionAnalyzer`, `EmdDecomposer`, `VmdDecomposer` |
+| `filters` | Remove noise, isolate a frequency band, smooth before analysis | `ButterworthFilter`, `NotchFilter`, `FIRFilter`, `SavitzkyGolayFilter`, `KalmanSmoother` |
+| `spectral` | Frequency-domain analysis, PSD estimation, time-frequency maps | `FFTAnalyzer`, `WelchEstimator`, `STFTDecomposer`, `HilbertTransformer`, `MultitaperEstimator` |
+| `wavelets` | Time-frequency localisation, multi-resolution, non-stationary signals | `DWTDecomposer`, `CWTDecomposer`, `MultiresolutionAnalyzer`, `EMDDecomposer`, `VMDDecomposer` |
 | `resampling` | Normalise sample rate before feeding heterogeneous sources into a shared pipeline | `PolyphaseResampler`, `RationalResamplerPipeline`, `Downsampler`, `StreamingBufferManager` |
-| `adaptive` | Online noise cancellation, system identification, tracking time-varying signals | `LmsAdaptiveFilter`, `NlmsAdaptiveFilter`, `RlsAdaptiveFilter`, `KalmanFilter` |
-| `separation` | Blind source separation, dimensionality reduction, mixed-channel demixing | `IcaDecomposer`, `NmfDecomposer`, `PcaDecomposer`, `SsaDecomposer` |
-| `statistical` | Super-resolution frequency estimation, nonlinear state tracking | `MusicEstimator`, `EspritEstimator`, `ExtendedKalmanFilter`, `ParticleFilter` |
+| `adaptive` | Online noise cancellation, system identification, tracking time-varying signals | `LMSAdaptiveFilter`, `NLMSAdaptiveFilter`, `RLSAdaptiveFilter`, `KalmanFilter` |
+| `separation` | Blind source separation, dimensionality reduction, mixed-channel demixing | `ICADecomposer`, `NMFDecomposer`, `PCADecomposer`, `SSADecomposer` |
+| `statistical` | Super-resolution frequency estimation, nonlinear state tracking | `MUSICEstimator`, `ESPRITEstimator`, `ExtendedKalmanFilter`, `ParticleFilter` |
 | `nonlinear` | Complexity analysis, chaos detection, long-range dependency | `EntropyEstimator`, `LyapunovExponentEstimator`, `HurstExponentEstimator` |
-| `audio` | Music / speech feature extraction after ingest and resampling | `MfccExtractor`, `MelSpectrogramExtractor`, `PitchEstimator`, `BeatTracker` |
+| `audio` | Music / speech feature extraction after ingest and resampling | `MFCCExtractor`, `MelSpectrogramExtractor`, `PitchEstimator`, `BeatTracker` |
 
 ---
 
@@ -236,7 +236,7 @@ Placing a filter upstream of a resampler means the filter was designed for the w
 
 ### Feeding multi-channel frames to single-channel decomposers
 
-`EmdDecomposer`, `VmdDecomposer`, and `EemdDecomposer` operate on single-channel signals. Check `channel_count == 1` before wiring; split channels upstream if needed.
+`EMDDecomposer`, `VMDDecomposer`, and `EEMDDecomposer` operate on single-channel signals. Check `channel_count == 1` before wiring; split channels upstream if needed.
 
 ---
 
@@ -258,23 +258,23 @@ Placing a filter upstream of a resampler means the filter was designed for the w
 |---|---|
 | Low-pass / high-pass / band-pass / notch | `ButterworthFilter`, `LowPassFilter`, `NotchFilter` |
 | Polynomial smoothing | `SavitzkyGolayFilter` |
-| FIR with custom window | `FirFilter` |
-| FFT magnitude/phase spectrum | `FftAnalyzer` |
+| FIR with custom window | `FIRFilter` |
+| FFT magnitude/phase spectrum | `FFTAnalyzer` |
 | PSD via Welch's method | `WelchEstimator` |
-| Spectrogram (STFT) | `StftDecomposer` |
+| Spectrogram (STFT) | `STFTDecomposer` |
 | Instantaneous amplitude / phase | `HilbertTransformer` |
 | Multi-resolution wavelet decomposition | `DWTDecomposer`, `MultiresolutionAnalyzer` |
-| Continuous wavelet transform | `CwtDecomposer` |
-| Empirical mode decomposition | `EmdDecomposer` |
+| Continuous wavelet transform | `CWTDecomposer` |
+| Empirical mode decomposition | `EMDDecomposer` |
 | Integer downsampling | `Downsampler` |
 | Arbitrary-ratio resampling | `PolyphaseResampler` |
 | Streaming overlap-save buffer | `StreamingBufferManager` |
-| Online noise cancellation | `LmsAdaptiveFilter`, `NlmsAdaptiveFilter` |
-| Blind source separation | `IcaDecomposer` |
-| NMF decomposition | `NmfDecomposer` |
-| Super-resolution freq estimation | `MusicEstimator`, `EspritEstimator` |
+| Online noise cancellation | `LMSAdaptiveFilter`, `NLMSAdaptiveFilter` |
+| Blind source separation | `ICADecomposer` |
+| NMF decomposition | `NMFDecomposer` |
+| Super-resolution freq estimation | `MUSICEstimator`, `ESPRITEstimator` |
 | Nonlinear complexity / entropy | `EntropyEstimator`, `LyapunovExponentEstimator` |
-| MFCC / Mel spectrogram | `MfccExtractor`, `MelSpectrogramExtractor` |
+| MFCC / Mel spectrogram | `MFCCExtractor`, `MelSpectrogramExtractor` |
 | Pitch / beat tracking | `PitchEstimator`, `BeatTracker` |
 | Load audio from file (WAV) | `pirn.connectors.file_formats.wav_format.WavFormat` |
 | Load audio from file (FLAC/OGG) | `pirn.connectors.file_formats.flac_format.FlacFormat` |

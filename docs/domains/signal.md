@@ -143,8 +143,8 @@ Deterministic digital filter knots backed by `scipy.signal`.
 | `ChebyshevType2Filter` | Chebyshev Type II IIR with ripple in the stopband |
 | `EllipticFilter` | Elliptic (Cauer) IIR — minimum order for given spec |
 | `BesselFilter` | Bessel IIR with maximally flat group delay |
-| `FirFilter` | FIR filter with configurable window and tap count |
-| `IirFilter` | Generic IIR filter with user-supplied `b`/`a` coefficients |
+| `FIRFilter` | FIR filter with configurable window and tap count |
+| `IIRFilter` | Generic IIR filter with user-supplied `b`/`a` coefficients |
 | `MatchedFilter` | Matched filter (cross-correlation with a reference signal) |
 | `SavitzkyGolayFilter` | Savitzky-Golay polynomial smoothing filter |
 | `WienerFilter` | Wiener filter for noise reduction |
@@ -159,8 +159,8 @@ Spectral analysis knots.
 
 | Knot | Description |
 |---|---|
-| `FftAnalyzer` | Fast Fourier Transform magnitude/phase spectrum |
-| `StftDecomposer` | Short-Time Fourier Transform (spectrogram) |
+| `FFTAnalyzer` | Fast Fourier Transform magnitude/phase spectrum |
+| `STFTDecomposer` | Short-Time Fourier Transform (spectrogram) |
 | `WelchEstimator` | Welch periodogram PSD estimate |
 | `PeriodogramEstimator` | Raw periodogram PSD estimate |
 | `MultitaperEstimator` | Multi-taper (Slepian) PSD estimate |
@@ -179,14 +179,14 @@ Wavelet transform knots backed by `pywavelets` (`PyWavelets`).
 
 | Knot | Description |
 |---|---|
-| `DwtDecomposer` | Discrete Wavelet Transform (single-level or multi-level) |
-| `DwptDecomposer` | Discrete Wavelet Packet Transform |
-| `CwtDecomposer` | Continuous Wavelet Transform (Morlet, Mexican hat, etc.) |
+| `DWTDecomposer` | Discrete Wavelet Transform (single-level or multi-level) |
+| `DWPTDecomposer` | Discrete Wavelet Packet Transform |
+| `CWTDecomposer` | Continuous Wavelet Transform (Morlet, Mexican hat, etc.) |
 | `MultiresolutionAnalyzer` | Mallat multiresolution analysis; decomposes signal into approximation + detail coefficients |
 | `WaveletPacketDecomposer` | Full wavelet packet tree decomposition |
-| `EmdDecomposer` | Empirical Mode Decomposition (Hilbert-Huang) |
-| `EemdDecomposer` | Ensemble EMD for noise-assisted decomposition |
-| `VmdDecomposer` | Variational Mode Decomposition |
+| `EMDDecomposer` | Empirical Mode Decomposition (Hilbert-Huang) |
+| `EEMDDecomposer` | Ensemble EMD for noise-assisted decomposition |
+| `VMDDecomposer` | Variational Mode Decomposition |
 
 ---
 
@@ -212,9 +212,9 @@ Adaptive filter knots that update coefficients online.
 
 | Knot | Description |
 |---|---|
-| `LmsAdaptiveFilter` | Least Mean Squares (LMS) adaptive filter |
-| `NlmsAdaptiveFilter` | Normalised LMS adaptive filter |
-| `RlsAdaptiveFilter` | Recursive Least Squares (RLS) adaptive filter |
+| `LMSAdaptiveFilter` | Least Mean Squares (LMS) adaptive filter |
+| `NLMSAdaptiveFilter` | Normalised LMS adaptive filter |
+| `RLSAdaptiveFilter` | Recursive Least Squares (RLS) adaptive filter |
 | `AffinProjectionFilter` | Affine Projection Algorithm (APA) |
 | `SubbandAdaptiveFilter` | Subband decomposition + per-band LMS/NLMS |
 | `KalmanFilter` | Scalar Kalman filter (linear, time-invariant) |
@@ -227,11 +227,11 @@ Source separation and blind decomposition knots.
 
 | Knot | Description |
 |---|---|
-| `IcaDecomposer` | Fast-ICA blind source separation |
-| `IcaRobustDecomposer` | Robust ICA with outlier handling |
-| `PcaDecomposer` | Principal Component Analysis projection |
-| `NmfDecomposer` | Non-negative Matrix Factorisation |
-| `SsaDecomposer` | Singular Spectrum Analysis |
+| `ICADecomposer` | Fast-ICA blind source separation |
+| `ICARobustDecomposer` | Robust ICA with outlier handling |
+| `PCADecomposer` | Principal Component Analysis projection |
+| `NMFDecomposer` | Non-negative Matrix Factorisation |
+| `SSADecomposer` | Singular Spectrum Analysis |
 | `SparseDecomposer` | Sparse coding (OMP / LASSO) |
 | `DictionaryLearner` | Online dictionary learning for sparse representations |
 
@@ -243,8 +243,8 @@ Statistical signal processing and spectral estimation knots.
 
 | Knot | Description |
 |---|---|
-| `MusicEstimator` | MUSIC super-resolution frequency estimator |
-| `EspritEstimator` | ESPRIT frequency estimator |
+| `MUSICEstimator` | MUSIC super-resolution frequency estimator |
+| `ESPRITEstimator` | ESPRIT frequency estimator |
 | `PisarenkoEstimator` | Pisarenko harmonic decomposition |
 | `PronyEstimator` | Prony method for damped sinusoid estimation |
 | `ExtendedKalmanFilter` | Extended Kalman filter for nonlinear state estimation |
@@ -277,7 +277,7 @@ High-level audio analysis knots backed by `librosa`.
 |---|---|
 | `AudioResampler` | Sample rate conversion using `librosa.resample` |
 | `MelSpectrogramExtractor` | Mel-scale spectrogram extraction |
-| `MfccExtractor` | Mel-frequency cepstral coefficients |
+| `MFCCExtractor` | Mel-frequency cepstral coefficients |
 | `PitchEstimator` | Fundamental frequency / pitch estimation |
 | `OnsetDetector` | Note onset detection |
 | `BeatTracker` | Beat and tempo tracking |
@@ -290,7 +290,11 @@ High-level audio analysis knots backed by `librosa`.
 ### Filtering then spectral analysis
 
 ```python
-from pirn import knot, Parameter, Tapestry, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 from pirn_signal.filters.butterworth_filter import ButterworthFilter
 from pirn_signal.spectral.welch_estimator import WelchEstimator
 
@@ -317,7 +321,7 @@ psd = WelchEstimator(
 
 ```python
 from pirn.connectors.file_formats.wav_format import WavFormat
-from pirn_signal.audio.mfcc_extractor import MfccExtractor
+from pirn_signal.audio.mfcc_extractor import MFCCExtractor
 
 # Outside the pipeline — load bytes from disk/storage
 wav_bytes = Path("recording.wav").read_bytes()
@@ -327,15 +331,15 @@ format_ = WavFormat()
 records = await format_.decode(wav_bytes)
 # records[0] has sample_rate, n_channels, sampwidth, n_frames, frames
 
-# In a pipeline, wire the decoded record to MfccExtractor
+# In a pipeline, wire the decoded record to MFCCExtractor
 ```
 
 ### Wavelet decomposition
 
 ```python
-from pirn_signal.wavelets.dwt_decomposer import DwtDecomposer
+from pirn_signal.wavelets.dwt_decomposer import DWTDecomposer
 
-decomposed = DwtDecomposer(
+decomposed = DWTDecomposer(
     signal=filtered,
     _config=KnotConfig(id="dwt"),
     wavelet="db4",

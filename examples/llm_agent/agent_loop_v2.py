@@ -44,13 +44,13 @@ from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.core.providers.llm_provider import LLMProvider
 from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry, get_current_store
 from pirn_agents.generation.llm_call import LLMCall
 from pirn_agents.generation.output_parser import OutputParser
 from pirn_agents.input.context_builder import ContextBuilder
+from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.planning.planner import Planner
 from pirn_agents.planning.tool_executor import ToolExecutor
 from pirn_agents.planning.tool_router import ToolRouter

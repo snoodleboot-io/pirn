@@ -7,7 +7,8 @@ pirn workloads you want to tune this:
 
 ```python
 import asyncpg
-from pirn.backends.postgres import PostgresHistory, PostgresStore
+from pirn.backends.postgres.postgres_history import PostgresHistory
+from pirn.backends.postgres.postgres_store import PostgresStore
 
 pool = await asyncpg.create_pool(
     dsn,
@@ -78,7 +79,7 @@ import sqlite3
 conn = sqlite3.connect("pirn.db")
 conn.execute("PRAGMA journal_mode=WAL")
 conn.execute("PRAGMA synchronous=NORMAL")  # faster, still safe
-from pirn.backends.sqlite import SQLiteHistory
+from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 history = SQLiteHistory(connection=conn)
 ```
 

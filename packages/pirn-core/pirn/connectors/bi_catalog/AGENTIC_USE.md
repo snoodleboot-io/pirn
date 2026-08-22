@@ -20,8 +20,8 @@ pirn/domains/connectors/bi_catalog/
 ├── fivetran_client.py        FivetranClient        — Fivetran REST API (connectors, sync status)
 ├── airbyte_config.py         AirbyteConfig         — base_url, client_id, client_secret
 ├── airbyte_client.py         AirbyteClient         — Airbyte API v1 (connections, jobs, streams)
-├── datahub_config.py         DatahubConfig         — server (GMS URL), token
-├── datahub_client.py         DatahubClient         — DataHub REST emitter + search API
+├── datahub_config.py         DataHubConfig         — server (GMS URL), token
+├── datahub_client.py         DataHubClient         — DataHub REST emitter + search API
 ├── alation_config.py         AlationConfig         — base_url, api_token
 ├── alation_client.py         AlationClient         — Alation REST API (schemas, articles, queries)
 ├── open_metadata_config.py   OpenMetadataConfig    — host_port, jwt_token
@@ -62,10 +62,10 @@ ft = FivetranClient(config=FivetranConfig(
 ### Publish lineage to DataHub
 
 ```python
-from pirn.connectors.bi_catalog.datahub_config import DatahubConfig
-from pirn.connectors.bi_catalog.datahub_client import DatahubClient
+from pirn.connectors.bi_catalog.datahub_config import DataHubConfig
+from pirn.connectors.bi_catalog.datahub_client import DataHubClient
 
-dh = DatahubClient(config=DatahubConfig(
+dh = DataHubClient(config=DataHubConfig(
     server="http://datahub-gms:8080",
     token=os.environ["DATAHUB_TOKEN"],
 ))
@@ -86,7 +86,7 @@ dh = DatahubClient(config=DatahubConfig(
 
 - **Each client requires its own extra:** `pirn[dbt-artifacts]`, `pirn[fivetran]`, `pirn[airbyte]`, `pirn[datahub]`, `pirn[alation]`, `pirn[open-metadata]`.
 - **`DbtArtifactsReader` reads files at construction time**, not lazily. Ensure `target/manifest.json` is present before building the tapestry.
-- **`DatahubClient` uses the DataHub GMS REST API**, not the Python SDK emitter — no local SDK install required beyond `pirn[datahub]`.
+- **`DataHubClient` uses the DataHub GMS REST API**, not the Python SDK emitter — no local SDK install required beyond `pirn[datahub]`.
 - **`AirbyteClient` uses Airbyte API v1** — requires Airbyte >= 0.50.0.
 
 ---
@@ -98,7 +98,7 @@ dh = DatahubClient(config=DatahubConfig(
 | Read dbt column schema | `DbtArtifactsReader(config=DbtArtifactsConfig(...)).get_model_schema(name)` |
 | Trigger Fivetran sync | `FivetranClient(...).trigger_sync(connector_id=...)` |
 | Trigger Airbyte sync | `AirbyteClient(...).trigger_sync(connection_id=...)` |
-| Publish lineage to DataHub | `DatahubClient(...).emit_lineage(upstream_urns=..., downstream_urn=...)` |
+| Publish lineage to DataHub | `DataHubClient(...).emit_lineage(upstream_urns=..., downstream_urn=...)` |
 | Search Alation catalog | `AlationClient(...).search(query=...)` |
 | Get table metadata from OpenMetadata | `OpenMetadataClient(...).get_table(fqn=...)` |
 

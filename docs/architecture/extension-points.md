@@ -9,7 +9,8 @@ pirn is designed to be extended. Every major subsystem is a protocol — impleme
 Subclass `Knot` and implement `async def process(self, ...) -> Any`:
 
 ```python
-from pirn.core.knot import Knot, Optional
+from pirn.core.knot import Knot
+from pirn.core.optional import Optional
 from pirn.core.knot_config import KnotConfig
 
 class FilterByScore(Knot):
@@ -51,9 +52,9 @@ If `process()` raises, the outcome is converted from `Err` to `Skipped`, making 
 Implement the `TapestryStore` protocol from `pirn.backends`:
 
 ```python
-from pirn.backends import TapestryStore
+from pirn.backends.base.tapestry_store import TapestryStore
 from pirn.core.knot import Knot
-from pirn.backends import TapestrySnapshot
+from pirn.backends.base.tapestry_snapshot import TapestrySnapshot
 
 
 class RedisStore:
@@ -98,7 +99,7 @@ class SubscribableRedisStore(RedisStore):
 Implement `pirn.backends.RunHistory`:
 
 ```python
-from pirn.backends import RunHistory
+from pirn.backends.base.run_history import RunHistory
 from pirn.core.run_result import RunResult
 from pirn.core.lineage import KnotLineage
 
@@ -138,7 +139,7 @@ class BigQueryHistory:
 Implement `pirn.backends.DataStore`:
 
 ```python
-from pirn.backends import DataStore
+from pirn.backends.base.data_store import DataStore
 
 
 class GCSDataStore:

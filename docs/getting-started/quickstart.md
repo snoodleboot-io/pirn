@@ -78,7 +78,7 @@ Extras without system deps (`duckdb`, `polars`, `datafusion`, `s3`, `otel`, etc.
 A knot is the fundamental unit of work in pirn. Use `@knot` to wrap an async function:
 
 ```python
-from pirn import knot
+from pirn.core.knot_factory import knot
 
 
 @knot
@@ -100,7 +100,8 @@ You can also subclass `Knot` directly for richer behaviour:
 
 ```python
 from typing import Any
-from pirn import Knot, KnotConfig
+from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
 
 class EnrichUser(Knot):
     async def process(self, user_id: str, lookup_table: dict, **_: Any) -> dict:
@@ -115,7 +116,11 @@ Knots are wired inside a `Tapestry` context manager. Pass one knot as a kwarg to
 
 ```python
 import asyncio
-from pirn import Tapestry, Parameter, KnotConfig, knot, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 
 
 @knot
@@ -234,7 +239,10 @@ Every knot produces one of three results:
 By default, a knot whose parent failed is skipped (`SKIP_IF_PARENT_FAILED`). You can change this per knot:
 
 ```python
-from pirn import Tapestry, knot, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 from pirn.core.error_policy import ErrorPolicy
 
 # This knot receives Result objects directly — it handles failures itself

@@ -20,7 +20,11 @@ Wrap any Python iterable — lists, generators, range objects:
 
 ```python
 import asyncio
-from pirn import Tapestry, Parameter, KnotConfig, knot, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 from pirn.streaming.base import run_stream
 from pirn.streaming.iterable import IterableSource
 

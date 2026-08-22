@@ -46,7 +46,7 @@ When in doubt, use `BatchFileFormat`. It is always correct (at the cost of memor
 
 ### BatchFileFormat (worked example)
 
-Create one file: `pirn/domains/connectors/file_formats/widget_format.py`
+Create one file: `pirn/connectors/file_formats/widget_format.py`
 
 ```python
 """``WidgetFormat`` — Widget binary format encoder/decoder.
@@ -399,7 +399,7 @@ Test class naming: `Test{ClassName}Construction`, `Test{ClassName}Properties`, `
 
 ### Add to `__init__.py`
 
-Open `pirn/domains/connectors/file_formats/__init__.py` and add your class to the `__all__` list and the conditional import block:
+Open `pirn/connectors/file_formats/__init__.py` and add your class to the `__all__` list and the conditional import block:
 
 ```python
 # In the appropriate section (e.g. "# Scientific" or "# ML artifacts"):
@@ -434,17 +434,17 @@ uv run pytest tests/unit/domains/connectors/file_formats/test_widget_format.py -
 uv run pytest tests/unit/ -m slow -x
 
 # Run with coverage (check you hit every branch):
-uv run pytest tests/unit/ --cov=pirn/domains/connectors/file_formats/widget_format --cov-report=term-missing
+uv run pytest tests/unit/ --cov=pirn/connectors/file_formats/widget_format --cov-report=term-missing
 ```
 
 The CI gate runs `ruff check`, `pyright`, and `pytest tests/unit/` in that order. All three must pass before a PR is merged.
 
 ```bash
 # Lint
-uv run ruff check pirn/domains/connectors/file_formats/widget_format.py
+uv run ruff check pirn/connectors/file_formats/widget_format.py
 
 # Type-check
-uv run pyright pirn/domains/connectors/file_formats/widget_format.py
+uv run pyright pirn/connectors/file_formats/widget_format.py
 ```
 
 ---
