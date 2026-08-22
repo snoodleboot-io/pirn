@@ -90,7 +90,7 @@ Complete reference for every file format, codec, archive wrapper, and lakehouse 
 | Format | Class | Read | Write | Streaming | Optional Extra | Notes |
 |--------|-------|------|-------|-----------|----------------|-------|
 | Shapefile | `ShapefileFormat` | ✓ | ✓ | — | `pirn[shapefile]` | Backed by `pyshp`. Emits GeoJSON-style geometry dicts. |
-| GeoJSON | `GeojsonFormat` | ✓ | ✓ | ✓ | `pirn[geojson]` | Backed by `geojson`. Feature collections. |
+| GeoJSON | `GeoJsonFormat` | ✓ | ✓ | ✓ | `pirn[geojson]` | Backed by `geojson`. Feature collections. |
 | KML | `KmlFormat` | ✓ | ✓ | — | `pirn[kml]` | Backed by `simplekml`+`lxml`. |
 | GeoTIFF | `GeotiffFormat` | ✓ | ✓ | — | `pirn[geotiff]` | Backed by `rasterio`. Raster data with CRS metadata. |
 | GeoPackage | `GeopackageFormat` | ✓ | ✓ | — | `pirn[geopackage]` | Backed by `fiona`. SQLite-backed vector layers. |
@@ -153,7 +153,7 @@ Complete reference for every file format, codec, archive wrapper, and lakehouse 
 | EDF | `EdfFormat` | ✓ | ✓ | — | `pirn[health]` | European Data Format physiological signals; backed by `pyedflib`. |
 | EDF+ | `EdfPlusFormat` | ✓ | ✓ | — | `pirn[health]` | EDF+ with annotations; backed by `pyedflib`. |
 | BDF | `BdfFormat` | ✓ | ✓ | — | `pirn[health]` | 24-bit BioSemi Data Format; backed by `pyedflib` (`FILETYPE_BDF`). |
-| BrainVision | `BrainvisionFormat` | ✓ | ✓ | — | `pirn[health]` | BrainProducts BrainVision format; backed by `mne`. |
+| BrainVision | `BrainVisionFormat` | ✓ | ✓ | — | `pirn[health]` | BrainProducts BrainVision format; backed by `mne`. |
 | BIDS dataset | `BidsDatasetFormat` | ✓ | ✓ | — | `pirn[health]` | Brain Imaging Data Structure (zip bundle); `pybids` used for layout validation when installed. |
 
 ---

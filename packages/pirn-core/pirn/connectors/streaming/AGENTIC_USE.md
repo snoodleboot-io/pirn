@@ -18,11 +18,11 @@ pirn/domains/connectors/streaming/
 ├── kafka_broker.py              KafkaBroker              — Kafka via aiokafka
 ├── kinesis_config.py            KinesisConfig            — stream_name, region, credentials
 ├── kinesis_broker.py            KinesisBroker            — AWS Kinesis via aiobotocore
-├── rabbitmq_config.py           RabbitmqConfig           — host, port, vhost, user, password, queue
-├── rabbitmq_broker.py           RabbitmqBroker           — RabbitMQ via aio-pika
-├── rabbitmq_plain_message.py    RabbitmqPlainMessage     — simple message wrapper for RabbitMQ
-├── pubsub_config.py             PubsubConfig             — project, topic, subscription, credentials_json
-├── pubsub_broker.py             PubsubBroker             — Google Pub/Sub via gcloud-aio-pubsub
+├── rabbitmq_config.py           RabbitMQConfig           — host, port, vhost, user, password, queue
+├── rabbitmq_broker.py           RabbitMQBroker           — RabbitMQ via aio-pika
+├── rabbitmq_plain_message.py    RabbitMQPlainMessage     — simple message wrapper for RabbitMQ
+├── pubsub_config.py             PubSubConfig             — project, topic, subscription, credentials_json
+├── pubsub_broker.py             PubSubBroker             — Google Pub/Sub via gcloud-aio-pubsub
 ├── valkey_stream_config.py      ValkeyStreamConfig       — host, port, stream_key, group
 ├── valkey_stream_broker.py      ValkeyStreamBroker       — ValKey/Redis streams via redis-py async
 ├── azure_servicebus_config.py   AzureServiceBusConfig    — connection_string, queue_name or topic_name
@@ -82,7 +82,7 @@ with Tapestry() as t:
 - **Each broker requires its own extra:** `pirn[kafka]`, `pirn[kinesis]`, `pirn[rabbitmq]`, `pirn[pubsub]`, `pirn[valkey]`, `pirn[azure-servicebus]`.
 - **`KafkaBroker` with `group_id` enables consumer group offset tracking.** Without it, consume starts at the latest offset.
 - **`ValkeyStreamBroker` uses Redis Streams XADD/XREAD semantics.** The `group` field enables consumer group mode; omit it for simple XREAD without acknowledgement.
-- **`RabbitmqBroker.consume()` returns a single message and acks it.** For batched consumption, call in a loop or use `pirn.streaming`.
+- **`RabbitMQBroker.consume()` returns a single message and acks it.** For batched consumption, call in a loop or use `pirn.streaming`.
 
 ---
 
@@ -92,9 +92,9 @@ with Tapestry() as t:
 |------|-----|
 | Publish result to Kafka | `MessageBrokerPublishSink(broker=KafkaBroker(...), message=...)` |
 | Consume from Kafka | `MessageBrokerConsumeSource(broker=KafkaBroker(...))` |
-| Publish to RabbitMQ | `MessageBrokerPublishSink(broker=RabbitmqBroker(...), message=...)` |
+| Publish to RabbitMQ | `MessageBrokerPublishSink(broker=RabbitMQBroker(...), message=...)` |
 | Publish to Kinesis | `MessageBrokerPublishSink(broker=KinesisBroker(...), message=...)` |
-| Publish to Pub/Sub | `MessageBrokerPublishSink(broker=PubsubBroker(...), message=...)` |
+| Publish to Pub/Sub | `MessageBrokerPublishSink(broker=PubSubBroker(...), message=...)` |
 | Stream continuously from Kafka | use `pirn.streaming.KafkaStreamingSource` |
 
 ---

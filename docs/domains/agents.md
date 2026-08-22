@@ -33,7 +33,7 @@ Specialised pipelines (RAG, ReAct, document processing, multi-agent, structured 
 
 ## Core interfaces
 
-### LlmProvider
+### LLMProvider
 
 `LLMProvider` (`pirn_agents/llm/llm_provider.py`) is the interface every LLM backend must satisfy. Inherit from it and implement the three async methods:
 
@@ -228,7 +228,7 @@ Pre-built `SubTapestry` pipelines for common agent patterns.
 | `guardrails/` | Input/output guardrail gates, PII redaction, fact-checking |
 | `structured_output/` | `JsonExtractorPipeline`, `YamlExtractorPipeline`, `PydanticValidatorPipeline`, `EnumClassifierPipeline` |
 | `memory_patterns/` | Working memory, episodic memory, semantic memory, and procedural memory pipelines |
-| `specialized_agents/` | `CodeAgent`, `SqlAgent`, `ResearchAgent`, `DataAnalystAgent`, `BrowserAgent` |
+| `specialized_agents/` | `CodeAgent`, `SQLAgent`, `ResearchAgent`, `DataAnalystAgent`, `BrowserAgent` |
 
 ---
 

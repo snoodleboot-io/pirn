@@ -24,7 +24,7 @@ F7 (agents-as-tools), and F10 (run budgets).
 |-------|--------|---------|
 | Parallel bounded-concurrency tool executor (F1) | `parallel_tool_executor.ParallelToolExecutor` | ReWOO, Orchestrator-Workers |
 | Toolset / ToolCall / ToolResult (F1) | `toolset`, `types/tool_call`, `types/tool_result` | ReWOO, Router+Fallback, Orchestrator-Workers |
-| LLM provider interface (F3) | `pirn.core.providers.llm_provider.LLMProvider` | all |
+| LLM provider interface (F3) | `pirn_agents.llm.llm_provider.LLMProvider` | all |
 | Memory store interface (F4) | `memory_store.MemoryStore` | Reflexion |
 | Agents-as-tools (F7) | `agent_tool.AgentTool` | Orchestrator-Workers |
 | Run budget + meter (F10) | `performance.run_budget.RunBudget`, `run_budget_meter.RunBudgetMeter` | LATS |

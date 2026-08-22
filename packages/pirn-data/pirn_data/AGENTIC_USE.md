@@ -84,7 +84,7 @@ pirn_data/
 ├── specializations/            # Pre-wired high-level patterns  ← specializations
 │   ├── ingestion/              # AppendOnlyIngest, FullRefreshExtract, WatermarkIncrementalExtract  ← specializations
 │   ├── medallion/              # BronzeRawIngest, SilverCleanTransform, GoldAggregation  ← specializations
-│   ├── scd/                   # ScdType1/2/3/4/5/6/7, CdcDebezium, DebeziumSource  ← specializations
+│   ├── scd/                   # ScdType1/2/3/4/5/6/7, CDCDebezium, DebeziumSource  ← specializations
 │   ├── dimensional/            # DateDimGenerator, DimTableLoad, FactTableLoad, BridgeTableBuilder  ← specializations
 │   ├── data_vault/             # DataVaultHubLoader, DataVaultLinkLoader, DataVaultSatelliteLoader, DataVaultPITTableBuilder, DataVaultBridgeTableBuilder  ← specializations
 │   ├── incremental/            # SnapshotTableAppender, DbtStyleSnapshot, MergeUpsert, DeleteSafeSync, PartitionedOverwrite  ← specializations
@@ -219,7 +219,7 @@ Equivalent bridges exist in `frames/duckdb/bridges/`.
 
 ### Using Tier-1 `Aggregate` for joins
 
-Tier-1 has no `Join` knot — a Python-level hash-join of two `tuple[dict]` lists would be O(n·m) without indexes. If you need joins, promote to Tier 2 first with a bridge knot, then use `PolarsJoin` or `DuckDbJoin`.
+Tier-1 has no `Join` knot — a Python-level hash-join of two `tuple[dict]` lists would be O(n·m) without indexes. If you need joins, promote to Tier 2 first with a bridge knot, then use `PolarsJoin` or `DuckdbJoin`.
 
 ### Calling `IcebergTable.merge()` in production
 
@@ -263,7 +263,7 @@ As of mid-2026, `pyiceberg`'s Python writer does not implement merge. The method
 | Group-by aggregation | 1 | `Aggregate` |
 | Deduplication | 1 | `Deduplicate` |
 | Vectorised filter (Polars expr) | 2 | `PolarsFilter` |
-| Join two frames | 2 | `PolarsJoin` / `DuckDbJoin` |
+| Join two frames | 2 | `PolarsJoin` / `DuckdbJoin` |
 | Window functions | 2 | `PolarsWindowCalc` |
 | Pivot / unpivot | 2 | `PolarsPivot` / `PolarsUnpivot` |
 | DataBatch → Polars | bridge | `DataBatchToPolars` |
@@ -279,7 +279,7 @@ As of mid-2026, `pyiceberg`'s Python writer does not implement merge. The method
 | SCD Type 3 previous value | specialisation | `ScdType3PreviousValue` |
 | SCD Type 4 mini-dimension | specialisation | `ScdType4MiniDimension` |
 | SCD Type 6 hybrid (1+2+3) | specialisation | `ScdType6Hybrid` |
-| Debezium CDC apply | specialisation | `CdcDebezium` |
+| Debezium CDC apply | specialisation | `CDCDebezium` |
 | Date dimension generate | specialisation | `DateDimGenerator` |
 | Dimension table load | specialisation | `DimTableLoad` |
 | Fact table load | specialisation | `FactTableLoad` |

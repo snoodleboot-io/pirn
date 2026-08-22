@@ -18,11 +18,11 @@ Every knot here receives a `signal` array and `fs` (Hz) and returns a filtered s
 ├── chebyshev_type2_filter.py    ChebyshevType2Filter     — monotone passband, equiripple stopband
 ├── comb_filter.py               CombFilter               — enhances or cancels harmonically spaced frequencies
 ├── elliptic_filter.py           EllipticFilter           — equiripple in both bands, steepest roll-off
-├── fir_filter.py                FirFilter                — generic FIR with user-supplied coefficients
-├── fir_parks_mcclellan_filter.py FirParksMcClellanFilter — equiripple FIR via Parks-McClellan (Remez)
-├── fir_window_filter.py         FirWindowFilter          — windowed-sinc FIR (Hamming, Hann, Blackman…)
+├── fir_filter.py                FIRFilter                — generic FIR with user-supplied coefficients
+├── fir_parks_mcclellan_filter.py FIRParksMcClellanFilter — equiripple FIR via Parks-McClellan (Remez)
+├── fir_window_filter.py         FIRWindowFilter          — windowed-sinc FIR (Hamming, Hann, Blackman…)
 ├── high_pass_filter.py          HighPassFilter           — passes frequencies above cutoff
-├── iir_filter.py                IirFilter                — generic IIR with user-supplied b/a coefficients
+├── iir_filter.py                IIRFilter                — generic IIR with user-supplied b/a coefficients
 ├── kalman_smoother.py           KalmanSmoother           — RTS smoother for Gaussian noise reduction
 ├── low_pass_filter.py           LowPassFilter            — passes frequencies below cutoff
 ├── matched_filter.py            MatchedFilter            — correlates signal against a known template
@@ -91,7 +91,7 @@ filtered = result["zp"]
 | Real-time single-pass | `CausalRealtimeFilter` |
 | Steepest roll-off | `EllipticFilter` |
 | Best phase linearity | `BesselFilter` |
-| Guaranteed linear phase | `FirWindowFilter` or `FirParksMcClellanFilter` |
+| Guaranteed linear phase | `FIRWindowFilter` or `FIRParksMcClellanFilter` |
 | Noise model available | `WienerFilter` or `KalmanSmoother` |
 
 ---

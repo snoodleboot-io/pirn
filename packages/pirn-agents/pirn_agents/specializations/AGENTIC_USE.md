@@ -82,11 +82,11 @@ pirn_agents/specializations/
 │
 │  ── ReAct ──
 ├── react/
-│   ├── react_loop.py                ReactLoop                — Thought → Action → Observation loop; terminates on stop signal
-│   ├── react_step_executor.py       ReactStepExecutor        — dispatches a single tool call
-│   ├── react_step_accumulator.py    ReactStepAccumulator     — builds up trajectory history
-│   ├── react_response_extractor.py  ReactResponseExtractor   — extracts Thought/Action/Observation from LLM output
-│   ├── react_termination_check.py   ReactTerminationCheck    — decides when to stop the loop
+│   ├── react_loop.py                ReActLoop                — Thought → Action → Observation loop; terminates on stop signal
+│   ├── react_step_executor.py       ReActStepExecutor        — dispatches a single tool call
+│   ├── react_step_accumulator.py    ReActStepAccumulator     — builds up trajectory history
+│   ├── react_response_extractor.py  ReActResponseExtractor   — extracts Thought/Action/Observation from LLM output
+│   ├── react_termination_check.py   ReActTerminationCheck    — decides when to stop the loop
 │   └── messages_passthrough.py      MessagesPassthrough      — forwards accumulated messages unchanged
 │
 │  ── Reflection ──
@@ -121,7 +121,7 @@ pirn_agents/specializations/
 ## Canonical pattern — ReAct with tools
 
 ```python
-from pirn_agents.specializations.react.react_loop import ReactLoop
+from pirn_agents.specializations.react.react_loop import ReActLoop
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
@@ -129,7 +129,7 @@ from pirn.tapestry import Tapestry
 
 with Tapestry() as t:
     request = Parameter("request", str)
-    answer  = ReactLoop(
+    answer  = ReActLoop(
         request=request,
         tools=[search_tool, calculator_tool],
         llm=my_llm_caller,
@@ -155,7 +155,7 @@ result = await t.run(RunRequest(parameters={"request": "What is the population o
 
 - **All specialization knots depend on the agent tier.** The `llm=` argument must be a `LlmCaller` from `pirn_agents.knots`; tool arguments must implement the `Tool` interface.
 - **`TreeOfThought` samples N branches in parallel.** Default `branches=3`. Increase LLM rate-limit budget accordingly.
-- **`ReactLoop` does not have a built-in timeout.** Set `max_steps` to bound execution. Unbounded loops will run until the LLM stops emitting actions or the process is killed.
+- **`ReActLoop` does not have a built-in timeout.** Set `max_steps` to bound execution. Unbounded loops will run until the LLM stops emitting actions or the process is killed.
 
 ---
 
@@ -166,7 +166,7 @@ result = await t.run(RunRequest(parameters={"request": "What is the population o
 | Chain-of-thought | `ChainOfThought(request=..., llm=...)` |
 | Tree-of-thought | `TreeOfThought(request=..., llm=..., branches=N)` |
 | Self-consistency | `SelfConsistencyEnsemble(request=..., llm=..., samples=K)` |
-| ReAct loop | `ReactLoop(request=..., tools=[...], llm=..., max_steps=N)` |
+| ReAct loop | `ReActLoop(request=..., tools=[...], llm=..., max_steps=N)` |
 | Self-critique/revise | `SelfCritiqueRevise(draft=..., llm=..., max_iters=N)` |
 | Route by intent | `IntentRouter(request=..., llm=..., routes={...})` |
 | Parallel tool calls | `ParallelToolCaller(request=..., tools=[...])` |

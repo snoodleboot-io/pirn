@@ -156,7 +156,7 @@ An ML model evaluation loop that dynamically registers a benchmark suite for eac
 uv run python examples/domain_formats/geospatial_layer_analysis.py
 ```
 
-Site suitability scoring over synthetic GeoJSON/Shapefile layers. Each candidate site is scored across four spatial analysis knots (geometry validation, elevation, land cover, planning zone) running in parallel before a composite suitability score is assembled. Record schemas align with `GeojsonFormat` and `ShapefileFormat` output.
+Site suitability scoring over synthetic GeoJSON/Shapefile layers. Each candidate site is scored across four spatial analysis knots (geometry validation, elevation, land cover, planning zone) running in parallel before a composite suitability score is assembled. Record schemas align with `GeoJsonFormat` and `ShapefileFormat` output.
 
 ### hl7v2_message_router.py
 

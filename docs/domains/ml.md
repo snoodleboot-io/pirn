@@ -197,12 +197,12 @@ Pre-built `SubTapestry` pipelines for common ML patterns.
 
 | Sub-area | Pipelines |
 |----------|-----------|
-| `task_pipelines/` | `BinaryClassificationPipeline`, `MulticlassClassificationPipeline`, `RegressionPipeline`, `ForecastingPipeline`, `NlpPipeline`, `ComputerVisionPipeline` |
-| `training/` | `SklearnTrainerPipeline`, `XgboostTrainerPipeline`, `NeuralNetTrainerPipeline` |
-| `evaluation/` | `ClassificationEvalPipeline`, `RegressionEvalPipeline`, `RankingEvalPipeline`, `TimeseriesEvalPipeline`, `WalkForwardValidator` |
-| `experiments/` | `GridSearchTuner`, `BayesianSearchTuner`, `StratifiedKfoldValidator`, `TimeSeriesSplitterValidator`, `AblationStudyPipeline`, `ChampionChallengerGate` |
+| `task_pipelines/` | `BinaryClassificationPipeline`, `MulticlassClassificationPipeline`, `RegressionPipeline`, `ForecastingPipeline`, `NLPPipeline`, `ComputerVisionPipeline` |
+| `training/` | `SklearnTrainerPipeline`, `XGBoostTrainerPipeline`, `NeuralNetTrainerPipeline` |
+| `evaluation/` | `ClassificationEvalPipeline`, `RegressionEvalPipeline`, `RankingEvalPipeline`, `TimeSeriesEvalPipeline`, `WalkForwardValidator` |
+| `experiments/` | `GridSearchTuner`, `BayesianSearchTuner`, `StratifiedKFoldValidator`, `TimeSeriesSplitterValidator`, `AblationStudyPipeline`, `ChampionChallengerGate` |
 | `feature_engineering/` | `FeatureStoreReader`, `FeatureStoreWriter`, `TextEmbeddingExtractor`, `ImageEmbeddingExtractor`, `LagFeatureGenerator`, `TargetEncoder` |
-| `production/` | `FullTrainDeployPipeline`, `ShadowDeploymentPipeline`, `AbTestPipeline`, `ContinuousTrainingPipeline`, `DriftMonitor`, `ModelLineageTracker` |
+| `production/` | `FullTrainDeployPipeline`, `ShadowDeploymentPipeline`, `ABTestPipeline`, `ContinuousTrainingPipeline`, `DriftMonitor`, `ModelLineageTracker` |
 
 ---
 

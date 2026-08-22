@@ -10,14 +10,14 @@ A seismic processing pipeline is a directed graph of transform knots, each consu
 ├── acoustic_impedance_inverter.py    AcousticImpedanceInverter    — model-based post-stack acoustic impedance inversion
 ├── cmp_gather_extractor.py           CmpGatherExtractor           — sorts input trace data into CMP gathers
 ├── fault_detector.py                 FaultDetector                — detects faults from coherence or similarity volumes
-├── fk_denoising_knot.py              FkDenoisingKnot              — applies F-K domain noise suppression
+├── fk_denoising_knot.py              FKDenoisingKnot              — applies F-K domain noise suppression
 ├── frequency_decomposer.py           FrequencyDecomposer          — spectral decomposition into sub-bands
 ├── horizon_picker.py                 HorizonPicker                — picks seismic horizons from amplitude volumes
 ├── instantaneous_attribute_extractor.py  InstantaneousAttributeExtractor  — computes instantaneous phase, amplitude, and frequency
 ├── migration_processor.py            MigrationProcessor           — applies Kirchhoff or phase-shift migration
 ├── mute_applicator.py                MuteApplicator               — applies top, surgical, or surgical mute functions
 ├── normal_moveout_corrector.py       NormalMoveoutCorrector       — applies NMO correction using a velocity model
-├── seismic_qc_gate.py                SeismicQcGate                — checks trace health, fold, and S/N thresholds before downstream steps
+├── seismic_qc_gate.py                SeismicQCGate                — checks trace health, fold, and S/N thresholds before downstream steps
 ├── spectral_whitener.py              SpectralWhitener             — flattens amplitude spectrum within an operator length
 ├── surface_consistent_deconvolver.py SurfaceConsistentDeconvolver — surface-consistent spiking or predictive deconvolution
 ├── stacking_velocity_picker.py       StackingVelocityPicker       — semblance-based stacking velocity picker
@@ -40,7 +40,7 @@ from pirn_oilgas.seismic import (
     NormalMoveoutCorrector,
     MigrationProcessor,
     InstantaneousAttributeExtractor,
-    SeismicQcGate,
+    SeismicQCGate,
 )
 
 with Tapestry() as t:
@@ -51,7 +51,7 @@ with Tapestry() as t:
         _config=KnotConfig(id="cmp_extract"),
     )
 
-    qc_passed = SeismicQcGate(
+    qc_passed = SeismicQCGate(
         gathers=gathers,
         _config=KnotConfig(id="seismic_qc"),
     )
@@ -76,7 +76,7 @@ result = await t.run(RunRequest(parameters={"raw_traces": trace_array}))
 
 ## Anti-patterns
 
-**Skipping SeismicQcGate before velocity analysis** — feeding unchecked gathers into StackingVelocityPicker propagates dead traces and noisy semblance panels silently.
+**Skipping SeismicQCGate before velocity analysis** — feeding unchecked gathers into StackingVelocityPicker propagates dead traces and noisy semblance panels silently.
 
 **Running MigrationProcessor on time-domain gathers instead of a stack** — migration expects a stacked or angle-stacked volume; passing pre-stack gathers without explicit pre-stack migration config produces smeared output.
 
@@ -84,7 +84,7 @@ result = await t.run(RunRequest(parameters={"raw_traces": trace_array}))
 
 ## Constraints and gotchas
 
-- `SeismicQcGate` raises `KnotCheckError` when fold drops below the configured threshold; set `min_fold` explicitly for sparse 3D surveys.
+- `SeismicQCGate` raises `KnotCheckError` when fold drops below the configured threshold; set `min_fold` explicitly for sparse 3D surveys.
 - `NormalMoveoutCorrector` expects velocities in m/s; ft/s inputs will produce silent stretch artefacts without unit metadata.
 - `AcousticImpedanceInverter` requires a low-frequency model parameter; omitting it defaults to zero LF trend, which biases absolute impedance.
 - `MigrationProcessor` with `algorithm="phase_shift"` loads the full velocity field into memory; use `algorithm="kirchhoff"` for large 3D volumes.
@@ -95,7 +95,7 @@ result = await t.run(RunRequest(parameters={"raw_traces": trace_array}))
 | Task | How |
 |------|-----|
 | Extract CMP gathers from trace array | `CmpGatherExtractor(traces=param)` |
-| Validate gather health before processing | `SeismicQcGate(gathers=gathers)` |
+| Validate gather health before processing | `SeismicQCGate(gathers=gathers)` |
 | Apply NMO and stack gathers | `NormalMoveoutCorrector` then sum in `MigrationProcessor` |
 | Pick stacking velocities from semblance | `StackingVelocityPicker(gathers=gathers)` |
 | Build velocity model from picks | `VelocityModelBuilder(picks=picks)` |

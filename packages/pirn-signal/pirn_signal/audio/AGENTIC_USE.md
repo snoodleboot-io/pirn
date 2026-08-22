@@ -13,12 +13,12 @@ Knots here operate on audio waveforms (1-D float arrays, mono or stereo) at a kn
 ├── audio_resampler.py              AudioResampler             — converts audio to a target sample rate
 ├── beat_tracker.py                 BeatTracker                — estimates beat positions and tempo (BPM)
 ├── mel_spectrogram_extractor.py    MelSpectrogramExtractor    — mel-scaled log spectrogram (freq × time)
-├── mfcc_extractor.py               MfccExtractor              — mel-frequency cepstral coefficients
+├── mfcc_extractor.py               MFCCExtractor              — mel-frequency cepstral coefficients
 ├── music_information_retriever.py  MusicInformationRetriever  — key, mode, chroma, and tonal features
 ├── onset_detector.py               OnsetDetector              — detects note/transient onsets
 ├── pitch_estimator.py              PitchEstimator             — fundamental frequency (F0) estimation
 ├── speaker_diarization_pipeline.py SpeakerDiarizationPipeline — segments audio by speaker identity
-├── vad_detector.py                 VadDetector                — voice activity detection (speech vs. silence)
+├── vad_detector.py                 VADDetector                — voice activity detection (speech vs. silence)
 └── (AudioResampler wraps resampling/ for audio-idiomatic use)
 ```
 
@@ -30,7 +30,7 @@ from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 from pirn_signal.audio.audio_denoiser import AudioDenoiser
-from pirn_signal.audio.mfcc_extractor import MfccExtractor
+from pirn_signal.audio.mfcc_extractor import MFCCExtractor
 
 tapestry = Tapestry()
 
@@ -40,7 +40,7 @@ denoised = AudioDenoiser(
     method="wiener",
     _config=KnotConfig(id="denoised"),
 )
-mfccs = MfccExtractor(
+mfccs = MFCCExtractor(
     signal=denoised.output,
     fs=16000,
     n_mfcc=13,
@@ -60,10 +60,10 @@ features = result["mfccs"]  # shape: (n_mfcc, time_frames)
 
 ## Constraints and gotchas
 
-- `MelSpectrogramExtractor` and `MfccExtractor` expect mono audio; average stereo channels before wiring in.
+- `MelSpectrogramExtractor` and `MFCCExtractor` expect mono audio; average stereo channels before wiring in.
 - `AudioAugmentationPipeline` is stochastic — set a random seed via `KnotConfig` metadata if reproducibility matters.
 - `BeatTracker` assumes music; it will produce spurious results on speech or noise-only signals.
-- `VadDetector` outputs a boolean mask array aligned with the input waveform, not a list of timestamps; convert with `np.where` if timestamps are needed.
+- `VADDetector` outputs a boolean mask array aligned with the input waveform, not a list of timestamps; convert with `np.where` if timestamps are needed.
 - `PitchEstimator` is undefined for polyphonic signals — use for single-instrument or speech only.
 - Extra: `pirn[signal-audio]` (installs librosa and related deps).
 
@@ -72,10 +72,10 @@ features = result["mfccs"]  # shape: (n_mfcc, time_frames)
 | Goal | Knot |
 |---|---|
 | Reduce background noise | `AudioDenoiser` |
-| Speech features (ASR) | `MfccExtractor` |
+| Speech features (ASR) | `MFCCExtractor` |
 | Music/CNN features | `MelSpectrogramExtractor` |
 | Tempo and beat grid | `BeatTracker` |
-| Speech segments | `VadDetector` |
+| Speech segments | `VADDetector` |
 | Speaker turn detection | `SpeakerDiarizationPipeline` |
 | Transient / onset times | `OnsetDetector` |
 | Data augmentation | `AudioAugmentationPipeline` |

@@ -1,4 +1,4 @@
-Performs oilgas geospatial analysis — coordinate transformation, lease block grouping, well location projection, and fault and boundary proximity checks. Does NOT read GeoTIFF or Shapefile; use GeoTiffFormat/ShapefileFormat from file_formats.
+Performs oilgas geospatial analysis — coordinate transformation, lease block grouping, well location projection, and fault and boundary proximity checks. Does NOT read GeoTIFF or Shapefile; use GeotiffFormat/ShapefileFormat from file_formats.
 
 ## Mental model
 
@@ -23,11 +23,9 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
-from pirn_oilgas.geospatial import (
-    CoordinateSystemTransformer,
-    LeaseBlockGrouper,
-    BoundaryProximityChecker,
-)
+from pirn_oilgas.geospatial.boundary_proximity_checker import BoundaryProximityChecker
+from pirn_oilgas.geospatial.coordinate_system_transformer import CoordinateSystemTransformer
+from pirn_oilgas.geospatial.lease_block_grouper import LeaseBlockGrouper
 
 with Tapestry() as t:
     well_locations = Parameter("well_locations", object)   # GeoDataFrame from ShapefileFormat

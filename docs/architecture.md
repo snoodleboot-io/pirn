@@ -515,7 +515,7 @@ Consumes `RunRequest`s from `trigger.stream()` and calls `tapestry.run(request)`
 | `CronTrigger` | Schedule-based; wraps `croniter` or similar |
 | `WebhookTrigger` | Embedded HTTP server (webhook receiver) |
 | `KafkaTrigger` | Kafka consumer; one `RunRequest` per message |
-| `ValkeyTrigger` | ValKey pubsub subscriber |
+| `ValKeyTrigger` | ValKey pubsub subscriber |
 
 ### 3.7 YAML Loader Layer
 
@@ -1298,7 +1298,7 @@ flowchart TD
 
     Q2 -->|No, distributed| Q4{Data value size?}
     Q4 -->|Small to medium| Q5{Need low latency?}
-    Q5 -->|Yes| ValkeyStack["PostgresStore + PostgresHistory\n+ ValkeyDataStore\nDurable lineage + fast values\nValKey TTL for auto-expiry"]
+    Q5 -->|Yes| ValkeyStack["PostgresStore + PostgresHistory\n+ ValKeyDataStore\nDurable lineage + fast values\nValKey TTL for auto-expiry"]
     Q5 -->|No| PGStack["PostgresStore + PostgresHistory\n+ LocalDiskDataStore\nFull OLTP stack"]
 
     Q4 -->|Large objects| S3Stack["PostgresStore + PostgresHistory\n+ S3DataStore\nScalable object storage\nMultipart upload for large values"]

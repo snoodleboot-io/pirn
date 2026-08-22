@@ -143,8 +143,8 @@ Deterministic digital filter knots backed by `scipy.signal`.
 | `ChebyshevType2Filter` | Chebyshev Type II IIR with ripple in the stopband |
 | `EllipticFilter` | Elliptic (Cauer) IIR — minimum order for given spec |
 | `BesselFilter` | Bessel IIR with maximally flat group delay |
-| `FirFilter` | FIR filter with configurable window and tap count |
-| `IirFilter` | Generic IIR filter with user-supplied `b`/`a` coefficients |
+| `FIRFilter` | FIR filter with configurable window and tap count |
+| `IIRFilter` | Generic IIR filter with user-supplied `b`/`a` coefficients |
 | `MatchedFilter` | Matched filter (cross-correlation with a reference signal) |
 | `SavitzkyGolayFilter` | Savitzky-Golay polynomial smoothing filter |
 | `WienerFilter` | Wiener filter for noise reduction |
@@ -159,8 +159,8 @@ Spectral analysis knots.
 
 | Knot | Description |
 |---|---|
-| `FftAnalyzer` | Fast Fourier Transform magnitude/phase spectrum |
-| `StftDecomposer` | Short-Time Fourier Transform (spectrogram) |
+| `FFTAnalyzer` | Fast Fourier Transform magnitude/phase spectrum |
+| `STFTDecomposer` | Short-Time Fourier Transform (spectrogram) |
 | `WelchEstimator` | Welch periodogram PSD estimate |
 | `PeriodogramEstimator` | Raw periodogram PSD estimate |
 | `MultitaperEstimator` | Multi-taper (Slepian) PSD estimate |
@@ -180,13 +180,13 @@ Wavelet transform knots backed by `pywavelets` (`PyWavelets`).
 | Knot | Description |
 |---|---|
 | `DWTDecomposer` | Discrete Wavelet Transform (single-level or multi-level) |
-| `DwptDecomposer` | Discrete Wavelet Packet Transform |
-| `CwtDecomposer` | Continuous Wavelet Transform (Morlet, Mexican hat, etc.) |
+| `DWPTDecomposer` | Discrete Wavelet Packet Transform |
+| `CWTDecomposer` | Continuous Wavelet Transform (Morlet, Mexican hat, etc.) |
 | `MultiresolutionAnalyzer` | Mallat multiresolution analysis; decomposes signal into approximation + detail coefficients |
 | `WaveletPacketDecomposer` | Full wavelet packet tree decomposition |
-| `EmdDecomposer` | Empirical Mode Decomposition (Hilbert-Huang) |
-| `EemdDecomposer` | Ensemble EMD for noise-assisted decomposition |
-| `VmdDecomposer` | Variational Mode Decomposition |
+| `EMDDecomposer` | Empirical Mode Decomposition (Hilbert-Huang) |
+| `EEMDDecomposer` | Ensemble EMD for noise-assisted decomposition |
+| `VMDDecomposer` | Variational Mode Decomposition |
 
 ---
 
@@ -212,9 +212,9 @@ Adaptive filter knots that update coefficients online.
 
 | Knot | Description |
 |---|---|
-| `LmsAdaptiveFilter` | Least Mean Squares (LMS) adaptive filter |
-| `NlmsAdaptiveFilter` | Normalised LMS adaptive filter |
-| `RlsAdaptiveFilter` | Recursive Least Squares (RLS) adaptive filter |
+| `LMSAdaptiveFilter` | Least Mean Squares (LMS) adaptive filter |
+| `NLMSAdaptiveFilter` | Normalised LMS adaptive filter |
+| `RLSAdaptiveFilter` | Recursive Least Squares (RLS) adaptive filter |
 | `AffinProjectionFilter` | Affine Projection Algorithm (APA) |
 | `SubbandAdaptiveFilter` | Subband decomposition + per-band LMS/NLMS |
 | `KalmanFilter` | Scalar Kalman filter (linear, time-invariant) |
@@ -227,11 +227,11 @@ Source separation and blind decomposition knots.
 
 | Knot | Description |
 |---|---|
-| `IcaDecomposer` | Fast-ICA blind source separation |
-| `IcaRobustDecomposer` | Robust ICA with outlier handling |
-| `PcaDecomposer` | Principal Component Analysis projection |
-| `NmfDecomposer` | Non-negative Matrix Factorisation |
-| `SsaDecomposer` | Singular Spectrum Analysis |
+| `ICADecomposer` | Fast-ICA blind source separation |
+| `ICARobustDecomposer` | Robust ICA with outlier handling |
+| `PCADecomposer` | Principal Component Analysis projection |
+| `NMFDecomposer` | Non-negative Matrix Factorisation |
+| `SSADecomposer` | Singular Spectrum Analysis |
 | `SparseDecomposer` | Sparse coding (OMP / LASSO) |
 | `DictionaryLearner` | Online dictionary learning for sparse representations |
 
@@ -243,8 +243,8 @@ Statistical signal processing and spectral estimation knots.
 
 | Knot | Description |
 |---|---|
-| `MusicEstimator` | MUSIC super-resolution frequency estimator |
-| `EspritEstimator` | ESPRIT frequency estimator |
+| `MUSICEstimator` | MUSIC super-resolution frequency estimator |
+| `ESPRITEstimator` | ESPRIT frequency estimator |
 | `PisarenkoEstimator` | Pisarenko harmonic decomposition |
 | `PronyEstimator` | Prony method for damped sinusoid estimation |
 | `ExtendedKalmanFilter` | Extended Kalman filter for nonlinear state estimation |

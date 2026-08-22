@@ -14,12 +14,12 @@ Each store has a `*Config` (endpoint, credentials, bucket/container name) and a 
 pirn/domains/connectors/object_storage/
 ├── s3_config.py                  S3Config                — region, bucket, prefix, credentials (key/secret or role)
 ├── s3_store.py                   S3Store                 — AWS S3 via aiobotocore
-├── gcs_config.py                 GcsConfig               — project, bucket, prefix, credentials_json
-├── gcs_store.py                  GcsStore                — Google Cloud Storage via gcloud-aio-storage
+├── gcs_config.py                 GCSConfig               — project, bucket, prefix, credentials_json
+├── gcs_store.py                  GCSStore                — Google Cloud Storage via gcloud-aio-storage
 ├── azure_blob_config.py          AzureBlobConfig         — account_name, container, sas_token or connection_string
 ├── azure_blob_store.py           AzureBlobStore          — Azure Blob Storage via azure-storage-blob async
-├── hdfs_config.py                HdfsConfig              — namenode, port, user, krb5_principal
-├── hdfs_store.py                 HdfsStore               — HDFS via hdfs3 / libhdfs
+├── hdfs_config.py                HDFSConfig              — namenode, port, user, krb5_principal
+├── hdfs_store.py                 HDFSStore               — HDFS via hdfs3 / libhdfs
 ├── local_filesystem_config.py    LocalFilesystemConfig   — root_path, create_dirs
 └── local_filesystem_store.py     LocalFilesystemStore    — local disk (dev/test only)
 ```
@@ -74,8 +74,8 @@ with Tapestry() as t:
 
 - **Each store requires its own extra:** `pirn[s3]`, `pirn[gcs]`, `pirn[azure-blob]`, `pirn[hdfs]`.
 - **`S3Store` uses IAM roles if `access_key` and `secret_key` are absent** — the host must have an instance profile or task role attached.
-- **`GcsStore` requires a `credentials_json` path or `GOOGLE_APPLICATION_CREDENTIALS` env var.**
-- **`HdfsStore` with Kerberos requires `krb5_principal` and a valid keytab on the executing host.**
+- **`GCSStore` requires a `credentials_json` path or `GOOGLE_APPLICATION_CREDENTIALS` env var.**
+- **`HDFSStore` with Kerberos requires `krb5_principal` and a valid keytab on the executing host.**
 - **`ObjectStoreListSource` returns a list of string keys**, not file contents — wire through a `Map` + `ObjectStoreReadSource` to read each one.
 
 ---
@@ -85,7 +85,7 @@ with Tapestry() as t:
 | Task | How |
 |------|-----|
 | Read a file from S3 | `ObjectStoreReadSource(store=S3Store(...), key=..., file_format=...)` |
-| Write a file to GCS | `ObjectStoreWriteSink(store=GcsStore(...), key=..., file_format=..., data=...)` |
+| Write a file to GCS | `ObjectStoreWriteSink(store=GCSStore(...), key=..., file_format=..., data=...)` |
 | List keys under a prefix | `ObjectStoreListSource(store=..., prefix=...)` |
 | Delete an object | `store.delete(key)` — call directly outside of a tapestry |
 | Local dev store | `LocalFilesystemStore(config=LocalFilesystemConfig(root_path="/tmp/data"))` |

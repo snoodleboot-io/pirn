@@ -11,7 +11,7 @@ The ML pipeline maps directly onto pirn's knot graph:
 ```
 DatasetLoader → TrainTestSplit → [Scaler / Encoder / Imputer / EmbeddingExtractor]
     → Trainer / HyperparamSearch / EnsembleBuilder
-    → Evaluator → MetricGate
+    → Evaluator → MetricCheck
     → ModelSerializer → ModelRegistrar
     → Predictor / ShadowDeployer
 ```
@@ -206,7 +206,7 @@ from pirn_ml.data_prep.train_test_split import TrainTestSplit
 from pirn_ml.features.scaler import Scaler
 from pirn_ml.training.trainer import Trainer
 from pirn_ml.evaluation.evaluator import Evaluator
-from pirn_ml.evaluation.metric_gate import MetricGate
+from pirn_ml.evaluation.metric_gate import MetricCheck
 from pirn_ml.deployment.model_serializer import ModelSerializer
 from pirn_ml.deployment.model_registrar import ModelRegistrar
 from pirn.connectors.file_formats.joblib_format import JoblibFormat
@@ -225,7 +225,7 @@ async def main():
         scaled = Scaler(split=split, strategy="standard", _config=KnotConfig(id="scale"))
         model = Trainer(split=scaled, estimator=LogisticRegression(max_iter=500), _config=KnotConfig(id="train"))
         report = Evaluator(model=model, split=scaled, _config=KnotConfig(id="eval"))
-        gate = MetricGate(report=report, metric="f1", min_value=0.80, raise_on_fail=True, _config=KnotConfig(id="gate"))
+        gate = MetricCheck(report=report, metric="f1", min_value=0.80, raise_on_fail=True, _config=KnotConfig(id="gate"))
         # `ModelSerializer` serialises metadata only. Wire a format connector (e.g. `JoblibFormat`) upstream to produce serialised bytes if you need to persist the estimator itself.
         serialized = ModelSerializer(model=model, format="joblib", _config=KnotConfig(id="serialize"))
         ModelRegistrar(serialized=serialized, lineage_store=my_mlflow_store, model_name="fraud-clf", _config=KnotConfig(id="register"))
@@ -273,9 +273,9 @@ To persist the fitted estimator itself, use a format connector (`JoblibFormat`, 
 
 `TfSavedModelFormat` ZIP-wraps the entire SavedModel directory on encode and extracts to a temporary directory on decode. Do not pass a file path directly to the format class; pass the raw bytes of the ZIP archive. The temp dir is cleaned up after decoding.
 
-### Wiring `MetricGate` with a `thresholds` dict
+### Wiring `MetricCheck` with a `thresholds` dict
 
-`MetricGate` takes a single `metric: str` and `min_value: float`, not a dict of thresholds. To gate on multiple metrics, chain multiple `MetricGate` knots in series.
+`MetricCheck` takes a single `metric: str` and `min_value: float`, not a dict of thresholds. To gate on multiple metrics, chain multiple `MetricCheck` knots in series.
 
 ### Ignoring `EmbeddingProvider.close()` in long-running processes
 
@@ -283,14 +283,14 @@ To persist the fitted estimator itself, use a format connector (`JoblibFormat`, 
 
 ### Passing a `CrossValidator` output directly to `Trainer`
 
-`CrossValidator` produces `k` fold pairs; `Trainer` expects a single `DataSplit`. Use `SklearnTrainerPipeline` or the `StratifiedKfoldValidator` specialisation which handles the fold loop internally.
+`CrossValidator` produces `k` fold pairs; `Trainer` expects a single `DataSplit`. Use `SklearnTrainerPipeline` or the `StratifiedKFoldValidator` specialisation which handles the fold loop internally.
 
 ---
 
 ## Constraints and gotchas
 
 - **Lazy extras guard.** The core interfaces and types import without optional deps. Modules that use numpy/pandas/scikit-learn call `ExtrasLoader` at module top — the missing-extras error fires on first import of that module, not at install time. This means import errors surface at runtime inside a pipeline run if you forget `pip install pirn[ml]`.
-- **`MetricGate` raises `KeyError` on unknown metric names.** The knot does not silently skip absent metrics — it raises. Ensure the metric key matches exactly what `Evaluator` puts in `EvalReport.metrics`.
+- **`MetricCheck` raises `KeyError` on unknown metric names.** The knot does not silently skip absent metrics — it raises. Ensure the metric key matches exactly what `Evaluator` puts in `EvalReport.metrics`.
 - **`ShadowDeployer` does not surface the challenger result.** Challenger responses are logged to the `LineageStore` but not returned to callers. Do not use `ShadowDeployer` if you need the challenger result in your application logic.
 - **`ModelRegistrar` depends on a `LineageStore` implementation.** There is no default built-in store. Wire in an MLflow, Weights & Biases, or custom `LineageStore` implementation before running.
 - **Dynamic DAG expansion requires `extensible=True`.** When knots register successor knots at runtime via `get_current_store()`, call `await t.run(extensible=True)`. Without the flag, pirn treats the initial graph as final and will not resolve the dynamically registered knots.
@@ -315,7 +315,7 @@ To persist the fitted estimator itself, use a format connector (`JoblibFormat`, 
 | Hyperparameter search | `HyperparamSearch` |
 | Ensemble | `EnsembleBuilder` |
 | Evaluate model | `Evaluator` |
-| Gate on a metric | `MetricGate` |
+| Gate on a metric | `MetricCheck` |
 | Explain predictions | `Explainer` |
 | Fairness audit | `FairnessAudit` |
 | Serialise artifact (metadata) | `ModelSerializer` |
@@ -327,7 +327,7 @@ To persist the fitted estimator itself, use a format connector (`JoblibFormat`, 
 | Batch inference | `Predictor` |
 | Champion/challenger routing | `ShadowDeployer` |
 | Full train-to-deploy pipeline | `specializations/production/FullTrainDeployPipeline` |
-| A/B test pipeline | `specializations/production/AbTestPipeline` |
+| A/B test pipeline | `specializations/production/ABTestPipeline` |
 | Drift monitoring | `specializations/production/DriftMonitor` |
 | Dynamic multi-model evaluation | `get_current_store()` + `extensible=True` (see `ml_evaluation_loop.py`) |
 | k-fold (plain) | `specializations/experiments/KFoldCrossValidator` |

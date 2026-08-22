@@ -19,7 +19,7 @@ pirn_agents/specializations/document_processing/
 ├── metadata_extractor.py              MetadataExtractor            — extract title, author, date, etc. from a document
 │
 │  ── Question answering ──
-├── document_qa_pipeline.py            DocumentQaPipeline           — load + chunk + retrieve + answer
+├── document_qa_pipeline.py            DocumentQAPipeline           — load + chunk + retrieve + answer
 │
 │  ── Summarization ──
 ├── document_summarizer_pipeline.py    DocumentSummarizerPipeline   — map-reduce summarization over chunks
@@ -72,12 +72,12 @@ result = await t.run(RunRequest(parameters={"doc_bytes": pdf_bytes}))
 ### Question answering over a document
 
 ```python
-from pirn_agents.specializations.document_processing.document_qa_pipeline import DocumentQaPipeline
+from pirn_agents.specializations.document_processing.document_qa_pipeline import DocumentQAPipeline
 
 with Tapestry() as t:
     question  = Parameter("question", str)
     doc_bytes = Parameter("doc_bytes", bytes)
-    answer    = DocumentQaPipeline(
+    answer    = DocumentQAPipeline(
         question=question,
         document=doc_bytes,
         file_format=PdfFormat(),
@@ -109,7 +109,7 @@ with Tapestry() as t:
 
 ## Anti-patterns
 
-**Calling `DocumentIngestionPipeline` and `DocumentQaPipeline` in the same tapestry run** — ingest first (writes to store), then query in a separate run. Running both in the same tapestry means the QA pipeline reads from the store before ingestion has committed.
+**Calling `DocumentIngestionPipeline` and `DocumentQAPipeline` in the same tapestry run** — ingest first (writes to store), then query in a separate run. Running both in the same tapestry means the QA pipeline reads from the store before ingestion has committed.
 
 **Setting chunk size without considering the LLM's context window** — each chunk is sent to the LLM during summarization or QA. Chunk size × top_k must fit the context window with room for the system prompt and response.
 
@@ -128,7 +128,7 @@ with Tapestry() as t:
 | Task | Pipeline |
 |------|---------|
 | Load + chunk + embed + store | `DocumentIngestionPipeline` |
-| Ask a question about a document | `DocumentQaPipeline` |
+| Ask a question about a document | `DocumentQAPipeline` |
 | Summarize a long document | `DocumentSummarizerPipeline` |
 | Translate a document | `DocumentTranslationPipeline` |
 | Extract document metadata | `MetadataExtractor` |

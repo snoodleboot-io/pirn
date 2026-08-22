@@ -81,7 +81,7 @@ pirn_agents/
     │                            HallucinationDetector, CitationGrounder
     ├── structured_output/       JsonExtractor, YamlExtractor, PydanticValidator, EnumClassifier
     │                            SchemaEnforcer, RetryOnParseFailure, FormatCoercer
-    ├── specialized_agents/      CodeAgent, SqlAgent, ResearchAgent, DataAnalystAgent, BrowserAgent
+    ├── specialized_agents/      CodeAgent, SQLAgent, ResearchAgent, DataAnalystAgent, BrowserAgent
     ├── document_processing/     Ingestion, QA, Summarizer, Translation pipelines
     │                            EmbeddingIndexer, MetadataExtractor
     ├── chain_of_thought/        ChainOfThought, SelfConsistencyEnsemble, TreeOfThought,
@@ -106,7 +106,7 @@ pirn_agents/
 **Must not:** Block the event loop. Both `chat` and `stream_chat` must be fully async. Never store credentials beyond `close()`.
 
 ```python
-from pirn.core.providers.llm_provider import LLMProvider
+from pirn_agents.llm.llm_provider import LLMProvider
 
 class AnthropicProvider(LLMProvider):
     def __init__(self, api_key: str, default_model: str) -> None:
@@ -541,7 +541,7 @@ Call `self._clear_credentials()` inside `close()` for every provider, tool, or s
 | Write to memory | `MemoryWriter(key=..., value=..., memory_store=store, _config=...)` |
 | Retrieve from memory | `MemoryRetriever(query=..., memory_store=store, _config=...)` |
 | Sliding message window | `ConversationBuffer(messages=..., max_turns=N, _config=...)` |
-| RAG (simple) | `NaiveRagPipeline(query=..., memory_store=..., llm=..., top_k=5, _config=...)` |
+| RAG (simple) | `NaiveRAGPipeline(query=..., memory_store=..., llm=..., top_k=5, _config=...)` |
 | RAG (self-correcting) | `SelfRAG(query=..., memory_store=..., llm=..., _config=...)` |
 | RAG (multi-hop) | `MultiHopRAG(query=..., memory_store=..., llm=..., hops=3, _config=...)` |
 | Rerank retrieved docs | `Reranker(candidates=..., query=..., llm=..., _config=...)` |

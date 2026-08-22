@@ -62,7 +62,7 @@ pirn_health/
 ├── pathology/                   ← WSI tiles / tissue / cell detection (OpenSlide)
 ├── trials/                      ← SDTM / ADaM / Define-XML / MedDRA
 ├── wearables/                   ← ECG / HRV / sleep / glucose / spirometry
-├── protocols/                   ← FhirClient, PacsClient, OmopConnection, LabInstrumentConnection
+├── protocols/                   ← FHIRClient, PACSClient, OMOPConnection, LabInstrumentConnection
 └── types/                       ← shared domain value types
 
 ├── assemblers/
