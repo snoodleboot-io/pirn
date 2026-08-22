@@ -48,7 +48,7 @@ version 1 → 2):
 
 ### 1. Write the migration function
 
-**Postgres** (`pirn/backends/postgres.py`):
+**Postgres** (`pirn/backends/postgres/`):
 
 ```python
 async def _migrate_history_1_to_2(conn: Any) -> None:
@@ -57,7 +57,7 @@ async def _migrate_history_1_to_2(conn: Any) -> None:
     )
 ```
 
-**SQLite** (`pirn/backends/sqlite.py`):
+**SQLite** (`pirn/backends/sqlite/`):
 
 ```python
 def _migrate_history_1_to_2(conn: Any) -> None:

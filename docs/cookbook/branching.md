@@ -10,7 +10,12 @@ pirn has two mechanisms for conditional execution: `Branch` (routes to one of N 
 
 ```python
 import asyncio
-from pirn import Tapestry, Parameter, KnotConfig, knot, RunRequest, Branch
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.nodes.branch.branch import Branch
+from pirn.tapestry import Tapestry
 
 
 @knot
@@ -97,7 +102,7 @@ asyncio.run(main())
 `Gate` takes one input and a predicate. If the predicate returns `True`, downstream knots receive the value. If `False`, they receive `Skipped`.
 
 ```python
-from pirn import Gate
+from pirn.nodes.gate.gate import Gate
 
 
 @knot
@@ -149,7 +154,9 @@ asyncio.run(main())
 To collect results from all branches (regardless of which was activated), use an `Aggregator` with `RECEIVE_ERRORS`:
 
 ```python
-from pirn import Aggregator, ErrorPolicy, KnotConfig
+from pirn.core.error_policy import ErrorPolicy
+from pirn.core.knot_config import KnotConfig
+from pirn.nodes.aggregator import Aggregator
 
 
 merged = Aggregator(
@@ -172,7 +179,9 @@ merged = Aggregator(
 A simpler pattern is a single `Sink` that uses `RECEIVE_ERRORS`:
 
 ```python
-from pirn import Sink, ErrorPolicy, KnotConfig
+from pirn.core.error_policy import ErrorPolicy
+from pirn.core.knot_config import KnotConfig
+from pirn.nodes.sink import Sink
 from pirn.core.result import Result
 
 

@@ -10,7 +10,7 @@ Common patterns for testing pirn pipelines, from simple unit tests to full integ
 
 ```python
 # myapp/knots.py
-from pirn import knot
+from pirn.core.knot_factory import knot
 
 @knot
 async def compute_discount(base_price: float, tier: str) -> float:
@@ -44,7 +44,10 @@ async def test_compute_discount_unknown_tier():
 
 ```python
 import pytest
-from pirn import Tapestry, Parameter, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 from myapp.knots import compute_discount
 
 @pytest.mark.asyncio
@@ -97,7 +100,9 @@ async def test_lineage_is_complete():
 ## Pattern 4: Test error propagation
 
 ```python
-from pirn import knot, KnotConfig, ErrorPolicy
+from pirn.core.error_policy import ErrorPolicy
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
 
 @knot
 async def divide(numerator: float, denominator: float) -> float:
@@ -133,7 +138,9 @@ async def test_division_by_zero_skips_downstream():
 ## Pattern 5: Test with RECEIVE_ERRORS policy
 
 ```python
-from pirn import Knot, KnotConfig, ErrorPolicy
+from pirn.core.error_policy import ErrorPolicy
+from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
 from pirn.core.result import Result
 
 class FallbackTotal(Knot):
@@ -186,7 +193,7 @@ async def test_fallback_on_error():
 ```python
 from pirn.emitters.base import Emitter
 from pirn.core.lineage import KnotLineage
-from pirn import EmitterErrorPolicy
+from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
 
 class RecordingEmitter(Emitter):
     def __init__(self):
@@ -218,7 +225,7 @@ async def test_emitter_receives_all_lineage():
 ## Pattern 7: Test cross-run lineage queries
 
 ```python
-from pirn.backends.in_memory import InMemoryHistory
+from pirn.backends.in_memory.in_memory_history import InMemoryHistory
 
 @pytest.mark.asyncio
 async def test_same_input_same_hash_across_runs():
@@ -245,7 +252,7 @@ async def test_same_input_same_hash_across_runs():
 ## Pattern 8: Test YAML pipelines
 
 ```python
-from pirn import load_pipeline
+from pirn.yaml_loader.loader import load_pipeline
 
 YAML = """
 name: test_yaml
@@ -280,8 +287,10 @@ async def test_yaml_pipeline_integration():
 ```python
 # conftest.py
 import pytest
-from pirn.backends.in_memory import InMemoryStore, InMemoryHistory, InMemoryDataStore
-from pirn import Tapestry
+from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
+from pirn.backends.in_memory.in_memory_history import InMemoryHistory
+from pirn.backends.in_memory.in_memory_store import InMemoryStore
+from pirn.tapestry import Tapestry
 
 
 @pytest.fixture

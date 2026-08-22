@@ -64,7 +64,9 @@ async def test_score_text_toxic():
 `@knot`-decorated functions expose their original function as `.fn`. For Knot subclasses, instantiate normally inside a `with Tapestry():` block (so the knot registers and wiring runs), then call `process()` directly with plain values:
 
 ```python
-from pirn import Tapestry, KnotConfig, Parameter
+from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
+from pirn.tapestry import Tapestry
 from myapp.knots import EnrichUser
 
 @pytest.mark.asyncio
@@ -88,7 +90,11 @@ Use all in-memory backends (the defaults). No database setup needed:
 ```python
 import asyncio
 import pytest
-from pirn import Tapestry, Parameter, KnotConfig, knot, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 
 
 @knot
@@ -170,7 +176,9 @@ async def test_skip_propagation():
 For tests that need to query lineage across runs:
 
 ```python
-from pirn.backends.in_memory import InMemoryStore, InMemoryHistory, InMemoryDataStore
+from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
+from pirn.backends.in_memory.in_memory_history import InMemoryHistory
+from pirn.backends.in_memory.in_memory_store import InMemoryStore
 
 
 @pytest.mark.asyncio
@@ -229,7 +237,7 @@ class RecordingDispatcher:
 
 @pytest.mark.asyncio
 async def test_dispatch_order():
-    from pirn.engine.dispatchers import LocalDispatcher
+    from pirn.engine.dispatchers.local_dispatcher import LocalDispatcher
 
     dispatcher = RecordingDispatcher(LocalDispatcher())
 
@@ -254,7 +262,7 @@ Use `EmitterErrorPolicy.RAISE` and a recording emitter to assert events:
 from pirn.emitters.base import Emitter
 from pirn.core.lineage import KnotLineage
 from pirn.core.run_result import RunResult
-from pirn import EmitterErrorPolicy
+from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
 
 
 class RecordingEmitter(Emitter):
@@ -322,8 +330,10 @@ nodes:
 ```python
 # conftest.py
 import pytest
-from pirn.backends.in_memory import InMemoryStore, InMemoryHistory, InMemoryDataStore
-from pirn import Tapestry
+from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
+from pirn.backends.in_memory.in_memory_history import InMemoryHistory
+from pirn.backends.in_memory.in_memory_store import InMemoryStore
+from pirn.tapestry import Tapestry
 
 
 @pytest.fixture

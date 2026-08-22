@@ -72,7 +72,7 @@ fmt = JoblibFormat(allow_unsigned=True)
 
 ### EmbeddingProvider
 
-`EmbeddingProvider` (`pirn/core/providers/embedding_provider.py`) is the interface for text embedding backends. Implement `embed` and `close`:
+`EmbeddingProvider` (`pirn_agents/retrieval/embeddings/embedding_provider.py`) is the interface for text embedding backends. Implement `embed` and `close`:
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
@@ -80,7 +80,7 @@ fmt = JoblibFormat(allow_unsigned=True)
 | `close` | `() -> None` | Release underlying connections. Call `_clear_credentials()` to null API key. |
 
 ```python
-from pirn.core.providers.embedding_provider import EmbeddingProvider
+from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
 
 class OpenAIEmbedder(EmbeddingProvider):
     def __init__(self, api_key: str) -> None:
@@ -223,7 +223,10 @@ Pre-built `SubTapestry` pipelines for common ML patterns.
 
 ```python
 import asyncio
-from pirn import Tapestry, Parameter, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 from pirn_ml.data_prep.dataset_loader import DatasetLoader
 from pirn_ml.data_prep.train_test_split import TrainTestSplit
 from pirn_ml.features.scaler import Scaler

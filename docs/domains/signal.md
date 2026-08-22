@@ -179,7 +179,7 @@ Wavelet transform knots backed by `pywavelets` (`PyWavelets`).
 
 | Knot | Description |
 |---|---|
-| `DwtDecomposer` | Discrete Wavelet Transform (single-level or multi-level) |
+| `DWTDecomposer` | Discrete Wavelet Transform (single-level or multi-level) |
 | `DwptDecomposer` | Discrete Wavelet Packet Transform |
 | `CwtDecomposer` | Continuous Wavelet Transform (Morlet, Mexican hat, etc.) |
 | `MultiresolutionAnalyzer` | Mallat multiresolution analysis; decomposes signal into approximation + detail coefficients |
@@ -277,7 +277,7 @@ High-level audio analysis knots backed by `librosa`.
 |---|---|
 | `AudioResampler` | Sample rate conversion using `librosa.resample` |
 | `MelSpectrogramExtractor` | Mel-scale spectrogram extraction |
-| `MfccExtractor` | Mel-frequency cepstral coefficients |
+| `MFCCExtractor` | Mel-frequency cepstral coefficients |
 | `PitchEstimator` | Fundamental frequency / pitch estimation |
 | `OnsetDetector` | Note onset detection |
 | `BeatTracker` | Beat and tempo tracking |
@@ -290,7 +290,11 @@ High-level audio analysis knots backed by `librosa`.
 ### Filtering then spectral analysis
 
 ```python
-from pirn import knot, Parameter, Tapestry, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 from pirn_signal.filters.butterworth_filter import ButterworthFilter
 from pirn_signal.spectral.welch_estimator import WelchEstimator
 
@@ -317,7 +321,7 @@ psd = WelchEstimator(
 
 ```python
 from pirn.connectors.file_formats.wav_format import WavFormat
-from pirn_signal.audio.mfcc_extractor import MfccExtractor
+from pirn_signal.audio.mfcc_extractor import MFCCExtractor
 
 # Outside the pipeline — load bytes from disk/storage
 wav_bytes = Path("recording.wav").read_bytes()
@@ -327,15 +331,15 @@ format_ = WavFormat()
 records = await format_.decode(wav_bytes)
 # records[0] has sample_rate, n_channels, sampwidth, n_frames, frames
 
-# In a pipeline, wire the decoded record to MfccExtractor
+# In a pipeline, wire the decoded record to MFCCExtractor
 ```
 
 ### Wavelet decomposition
 
 ```python
-from pirn_signal.wavelets.dwt_decomposer import DwtDecomposer
+from pirn_signal.wavelets.dwt_decomposer import DWTDecomposer
 
-decomposed = DwtDecomposer(
+decomposed = DWTDecomposer(
     signal=filtered,
     _config=KnotConfig(id="dwt"),
     wavelet="db4",

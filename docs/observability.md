@@ -18,8 +18,9 @@ async def on_run_result(self, result: RunResult) -> None: ...
 Attach emitters when constructing a `Tapestry`, or per-run:
 
 ```python
-from pirn import Tapestry
-from pirn.emitters import LogEmitter, OpenTelemetryEmitter
+from pirn.tapestry import Tapestry
+from pirn.emitters.log import LogEmitter
+from pirn.emitters.otel import OpenTelemetryEmitter
 
 t = Tapestry(emitters=[LogEmitter(), OpenTelemetryEmitter()])
 
@@ -64,8 +65,10 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 
-from pirn import Tapestry, knot, RunRequest
-from pirn.emitters import OpenTelemetryEmitter
+from pirn.core.knot_factory import knot
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
+from pirn.emitters.otel import OpenTelemetryEmitter
 
 # 1. Configure the SDK once at process startup.
 provider = TracerProvider()
@@ -83,7 +86,8 @@ async def my_knot(x: int) -> int:
 
 async def main():
     with Tapestry(emitters=[emitter]) as t:
-        from pirn import Parameter, KnotConfig
+        from pirn.core.knot_config import KnotConfig
+        from pirn.core.parameter import Parameter
         p = Parameter("x", int, _config=KnotConfig(id="x"))
         my_knot(x=p, _config=KnotConfig(id="double"))
 
@@ -169,7 +173,7 @@ async def handle_request():
 `pirn.emitters.log` at `INFO` level:
 
 ```python
-from pirn.emitters import LogEmitter
+from pirn.emitters.log import LogEmitter
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -193,7 +197,7 @@ Pass these to your log aggregator (Loki, Splunk, CloudWatch) and query by
 `ValKeyEmitter` publishes each event as a JSON message to a ValKey channel:
 
 ```python
-from pirn.emitters import ValKeyEmitter
+from pirn.emitters.valkey import ValKeyEmitter
 
 emitter = ValKeyEmitter(url="redis://localhost:6379", channel="pirn:events")
 t = Tapestry(emitters=[emitter])
@@ -213,7 +217,7 @@ See `docs/subscribable-stores.md` for the same-process subscription model
 call. Useful for Slack alerts, GitHub status checks, or custom dashboards:
 
 ```python
-from pirn.emitters import WebhookEmitter
+from pirn.emitters.webhook import WebhookEmitter
 
 emitter = WebhookEmitter(url="https://hooks.slack.com/…")
 t = Tapestry(emitters=[emitter])
@@ -226,9 +230,9 @@ t = Tapestry(emitters=[emitter])
 Subclass `Emitter` and override whichever methods you need:
 
 ```python
-from pirn.emitters import Emitter
+from pirn.emitters.base import Emitter
 from pirn.core.lineage import KnotLineage
-from pirn.core.context import RunResult
+from pirn.core.run_result import RunResult
 
 class PrometheusEmitter(Emitter):
     def __init__(self, registry):

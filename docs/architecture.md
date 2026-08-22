@@ -282,7 +282,7 @@ class EnrichUser(Knot):
 **`@knot` decorator:**
 
 ```python
-from pirn.core.knot import knot
+from pirn.core.knot_factory import knot
 
 @knot
 async def double(x: int) -> int:
@@ -312,7 +312,7 @@ with Tapestry(store=..., history=..., data_store=..., dispatcher=..., emitters=[
 
 ### 3.2 Pipeline Graph Layer
 
-**Files:** `pirn/tapestry.py`, `pirn/engine/shed.py`, `pirn/core/parameter.py`
+**Files:** `pirn/tapestry.py`, `pirn/engine/shed/`, `pirn/core/parameter.py`
 
 **Knot wiring:**
 
@@ -346,7 +346,7 @@ A terminal is any knot not referenced as a parent by any other knot in the tapes
 
 **Shed construction (`Shed.from_terminals`):**
 
-The `Shed` (`pirn/engine/shed.py`) is a per-run, ephemeral view of the subgraph reachable from the terminal set. It is built via BFS from terminals, walking `knot.parents` references:
+The `Shed` (`pirn/engine/shed/`) is a per-run, ephemeral view of the subgraph reachable from the terminal set. It is built via BFS from terminals, walking `knot.parents` references:
 
 - `knots: dict[str, Knot]` — all reachable knots by id.
 - `edges_by_child: dict[str, list[Edge]]` — for each knot, the list of parent edges.
@@ -362,7 +362,7 @@ The Shed is not part of the public API. It is an engine internal.
 
 ### 3.3 Execution Layer
 
-**Files:** `pirn/engine/engine.py`, `pirn/engine/shed.py`, `pirn/engine/dispatchers/dispatcher.py`
+**Files:** `pirn/engine/engine.py`, `pirn/engine/shed/`, `pirn/engine/dispatchers/dispatcher.py`
 
 **Engine:**
 
@@ -428,7 +428,7 @@ Requires the store to implement `SubscribableStore` (`pirn/backends/base/subscri
 
 ### 3.4 Storage Layer
 
-**Files:** `pirn/backends/__init__.py`, `pirn/backends/in_memory.py`, plus sqlite, postgres, duckdb, valkey, s3, disk backends.
+**Files:** `pirn/backends/__init__.py`, `pirn/backends/in_memory/`, plus sqlite, postgres, duckdb, valkey, s3, disk backends.
 
 Three protocols (all `@runtime_checkable`):
 
@@ -519,7 +519,7 @@ Consumes `RunRequest`s from `trigger.stream()` and calls `tapestry.run(request)`
 
 ### 3.7 YAML Loader Layer
 
-**Files:** `pirn/yaml_loader/loader.py`, `pirn/yaml_loader/spec.py`
+**Files:** `pirn/yaml_loader/loader.py`, `pirn/yaml_loader/specs/`
 
 The YAML loader translates a pipeline definition file into a live `Tapestry`. It is an optional convenience layer; all pipeline constructions can be done programmatically.
 
@@ -678,7 +678,8 @@ t = Tapestry()  # all defaults: InMemoryStore, InMemoryHistory, InMemoryDataStor
 **Single-host durable:**
 
 ```python
-from pirn.backends.sqlite import SQLiteStore, SQLiteHistory
+from pirn.backends.sqlite.sqlite_history import SQLiteHistory
+from pirn.backends.sqlite.sqlite_store import SQLiteStore
 from pirn.backends.disk import LocalDiskDataStore
 
 t = Tapestry(
@@ -693,7 +694,8 @@ Suitable for scheduled batch jobs on a single machine. SQLite is the write path;
 **Distributed OLTP:**
 
 ```python
-from pirn.backends.postgres import PostgresStore, PostgresHistory
+from pirn.backends.postgres.postgres_history import PostgresHistory
+from pirn.backends.postgres.postgres_store import PostgresStore
 from pirn.backends.s3 import S3DataStore
 
 t = Tapestry(
@@ -708,7 +710,8 @@ Multiple workers can share the same Postgres cluster and S3 bucket. Suitable for
 **Mixed OLTP/OLAP:**
 
 ```python
-from pirn.backends.postgres import PostgresStore, PostgresHistory
+from pirn.backends.postgres.postgres_history import PostgresHistory
+from pirn.backends.postgres.postgres_store import PostgresStore
 from pirn.backends.duckdb import DuckDBHistory
 
 # OLTP writes go to Postgres; OLAP reads hit DuckDB (e.g. against a read replica)
@@ -724,7 +727,8 @@ analytics_history = DuckDBHistory("analytics.duckdb")
 **Low-latency streaming:**
 
 ```python
-from pirn.backends.valkey import ValKeyStore, ValKeyDataStore
+from pirn.backends.valkey.valkey_data_store import ValKeyDataStore
+from pirn.backends.valkey.valkey_store import ValKeyStore
 
 t = Tapestry(
     store=ValKeyStore(host="localhost", port=6379),
@@ -740,10 +744,10 @@ ValKey (Redis-compatible) provides sub-millisecond get/put with optional TTL on 
 
 ### CeleryDispatcher
 
-**File:** `pirn/engine/celery_dispatcher.py`
+**File:** `pirn/engine/dispatchers/celery_dispatcher.py`
 
 ```python
-from pirn.engine.celery_dispatcher import CeleryDispatcher, register_celery_worker_task
+from pirn.engine.dispatchers.celery_dispatcher import CeleryDispatcher, register_celery_worker_task
 
 # Driver side
 dispatcher = CeleryDispatcher(broker_url="redis://localhost:6379/0",
@@ -771,7 +775,7 @@ register_celery_worker_task(app)
 
 ### DaskDispatcher
 
-**File:** `pirn/engine/dask_dispatcher.py`
+**File:** `pirn/engine/dispatchers/dask_dispatcher.py`
 
 Submits knots via `client.submit(asyncio.run, knot, dict(inputs))` against a Dask `Client`. Serialization is via `cloudpickle` (Dask's default), which handles most Python objects including lambdas and locally-defined functions. Workers must have `pirn` importable.
 
@@ -779,7 +783,7 @@ Construction: `DaskDispatcher(client=<dask.distributed.Client>)` or `DaskDispatc
 
 ### RayDispatcher
 
-**File:** `pirn/engine/ray_dispatcher.py`
+**File:** `pirn/engine/dispatchers/ray_dispatcher.py`
 
 Submits knots as Ray remote tasks. Ray uses `cloudpickle` for serialization. Construction: `RayDispatcher()` (expects `ray.init()` to have been called by the application).
 
@@ -864,7 +868,7 @@ Built-in sources: `IterableStreamingSource` (wraps a Python iterable), `FileTail
 
 ## 8. YAML Pipeline Loader
 
-**Files:** `pirn/yaml_loader/loader.py`, `pirn/yaml_loader/spec.py`
+**Files:** `pirn/yaml_loader/loader.py`, `pirn/yaml_loader/specs/`
 
 ### Entry Point
 
@@ -954,7 +958,8 @@ The loader's `_resolve_callable` checks `known_callables` first, then falls back
 Subclass `Knot` and implement `async def process(self, ...) -> Any`:
 
 ```python
-from pirn.core.knot import Knot, Optional
+from pirn.core.knot import Knot
+from pirn.core.optional import Optional
 from pirn.core.knot_config import KnotConfig
 
 class MyKnot(Optional, Knot):
@@ -1101,9 +1106,9 @@ graph TD
         Engine["Engine\npirn/engine/engine.py"]
         LocalDisp["LocalDispatcher"]
         ThreadDisp["ThreadDispatcher"]
-        CeleryDisp["CeleryDispatcher\npirn/engine/celery_dispatcher.py"]
-        DaskDisp["DaskDispatcher\npirn/engine/dask_dispatcher.py"]
-        RayDisp["RayDispatcher\npirn/engine/ray_dispatcher.py"]
+        CeleryDisp["CeleryDispatcher\npirn/engine/dispatchers/celery_dispatcher.py"]
+        DaskDisp["DaskDispatcher\npirn/engine/dispatchers/dask_dispatcher.py"]
+        RayDisp["RayDispatcher\npirn/engine/dispatchers/ray_dispatcher.py"]
     end
 
     subgraph Core["Core Primitives"]
@@ -1310,24 +1315,24 @@ flowchart TD
 | `pirn/core/knot.py` | `Knot` ABC, `Optional` mixin, `@knot` decorator, `KnotFactory`, `_pending_record` |
 | `pirn/core/knot_config.py` | `KnotConfig` |
 | `pirn/core/error_policy.py` | `ErrorPolicy` enum |
-| `pirn/core/context.py` | `RunRequest`, `RunResult`, `RunContext` |
+| `pirn/core/run_request.py`, `pirn/core/run_result.py`, `pirn/core/run_context.py` | `RunRequest`, `RunResult`, `RunContext` |
 | `pirn/core/hashing.py` | `content_hash()`, `_canonicalise()` |
 | `pirn/core/lineage.py` | `KnotLineage` Pydantic model |
 | `pirn/core/parameter.py` | `Parameter` knot (external input binding) |
 | `pirn/core/result.py` | `Ok`, `Err`, `Skipped` |
 | `pirn/tapestry.py` | `Tapestry`, `_CURRENT_TAPESTRY` ContextVar, `current_tapestry()` |
 | `pirn/engine/engine.py` | `Engine`, wave loop, `_decide`, `_dispatch_with_timing`, `_record_lineage` |
-| `pirn/engine/shed.py` | `Shed`, `Edge`, `ShedError`, BFS construction, `merge_knot` |
+| `pirn/engine/shed/` | `Shed`, `Edge`, `ShedError`, BFS construction, `merge_knot` |
 | `pirn/engine/dispatchers/dispatcher.py` | `Dispatcher` protocol, `LocalDispatcher`, `ThreadDispatcher` |
-| `pirn/engine/celery_dispatcher.py` | `CeleryDispatcher`, `register_celery_worker_task` |
-| `pirn/engine/dask_dispatcher.py` | `DaskDispatcher` |
-| `pirn/engine/ray_dispatcher.py` | `RayDispatcher` |
+| `pirn/engine/dispatchers/celery_dispatcher.py` | `CeleryDispatcher`, `register_celery_worker_task` |
+| `pirn/engine/dispatchers/dask_dispatcher.py` | `DaskDispatcher` |
+| `pirn/engine/dispatchers/ray_dispatcher.py` | `RayDispatcher` |
 | `pirn/backends/__init__.py` | `TapestryStore`, `RunHistory`, `DataStore` protocols, `TapestrySnapshot` |
-| `pirn/backends/in_memory.py` | `InMemoryStore`, `InMemoryHistory`, `InMemoryDataStore` |
-| `pirn/backends/sqlite.py` | `SQLiteStore`, `SQLiteHistory` |
-| `pirn/backends/postgres.py` | `PostgresStore`, `PostgresHistory` |
+| `pirn/backends/in_memory/` | `InMemoryStore`, `InMemoryHistory`, `InMemoryDataStore` |
+| `pirn/backends/sqlite/` | `SQLiteStore`, `SQLiteHistory` |
+| `pirn/backends/postgres/` | `PostgresStore`, `PostgresHistory` |
 | `pirn/backends/duckdb.py` | `DuckDBHistory` |
-| `pirn/backends/valkey.py` | `ValKeyStore`, `ValKeyDataStore` |
+| `pirn/backends/valkey/` | `ValKeyStore`, `ValKeyDataStore` |
 | `pirn/backends/s3.py` | `S3DataStore` |
 | `pirn/backends/disk.py` | `LocalDiskDataStore` |
 | `pirn/backends/base/subscribable_store.py` | `SubscribableStore` protocol |
@@ -1336,15 +1341,15 @@ flowchart TD
 | `pirn/streaming/base.py` | `StreamingSource` protocol, `run_stream()` |
 | `pirn/streaming/trigger_adapter.py` | `StreamingSourceTrigger` |
 | `pirn/nodes/map_markers.py` | `Map`, `ZipMap`, `DictMap` — fan-out markers |
-| `pirn/nodes/branch.py` | `Branch`, `BranchOutput` — selector routing |
-| `pirn/nodes/gate.py` | `Gate` — predicate-based pass/skip |
+| `pirn/nodes/branch/` | `Branch`, `BranchOutput` — selector routing |
+| `pirn/nodes/gate/` | `Gate` — predicate-based pass/skip |
 | `pirn/nodes/reduce_.py` | `Reduce` — sequential fold over a collection |
 | `pirn/nodes/aggregator.py` | `Aggregator` — multi-parent combine |
 | `pirn/nodes/source.py` | `Source` — no-parent producer |
 | `pirn/nodes/sink.py` | `Sink` — return-none consumer |
 | `pirn/yaml_loader/loader.py` | `load_pipeline()`, `_topo_order_specs`, `_resolve_callable` |
-| `pirn/yaml_loader/spec.py` | `PipelineSpec`, all `*Spec` models |
+| `pirn/yaml_loader/specs/` | `PipelineSpec`, all `*Spec` models |
 | `pirn/replay.py` | `replay_run()`, `compare_runs()`, `KnotDiff` |
 | `pirn/check/` | `validate_tapestry()`, `tapestry-check` CLI, `ValidationResult`, `ValidationIssue` |
-| `pirn/managers/exceptions.py` | `ExceptionRecord`, `ExceptionManager`, `RebindableException` |
-| `pirn/managers/status.py` | `StatusManager`, `KnotState`, `StatusEvent` |
+| `pirn/managers/exception_manager.py`, `pirn/managers/exception_record.py`, `pirn/managers/rebindable_exception.py` | `ExceptionRecord`, `ExceptionManager`, `RebindableException` |
+| `pirn/managers/status_manager.py`, `pirn/managers/knot_state.py`, `pirn/managers/status_event.py` | `StatusManager`, `KnotState`, `StatusEvent` |

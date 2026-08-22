@@ -19,7 +19,11 @@ Requires Python 3.11+.
 
 ```python
 import asyncio
-from pirn import Tapestry, Parameter, KnotConfig, knot, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 
 @knot
 async def double(x: int) -> int:
@@ -117,7 +121,8 @@ If you want an `Err` from a particular knot to behave like a `Skipped`
 downstream, mix in `Optional`:
 
 ```python
-from pirn import Optional, Knot
+from pirn.core.knot import Knot
+from pirn.core.optional import Optional
 
 class FetchPrefs(Optional, Knot):
     async def process(self, user_id: str) -> dict:
@@ -189,7 +194,11 @@ Beyond `Knot`, pirn ships a handful of specialised classes:
 `Optional` is a mixin (not a node).
 
 ```python
-from pirn import Map, Reduce, Aggregator, Gate, Branch
+from pirn.nodes.aggregator import Aggregator
+from pirn.nodes.branch.branch import Branch
+from pirn.nodes.gate.gate import Gate
+from pirn.nodes.map_markers import Map
+from pirn.nodes.reduce_ import Reduce
 
 # Map an inner knot over a collection-producing parent.
 users = Map(
@@ -228,8 +237,8 @@ The dispatcher decides where work runs.
   (`pip install pirn[celery]`).
 
 ```python
-from pirn import ThreadDispatcher
-from pirn.engine.dask_dispatcher import DaskDispatcher
+from pirn.engine.dispatchers.thread_dispatcher import ThreadDispatcher
+from pirn.engine.dispatchers.dask_dispatcher import DaskDispatcher
 
 # In-process scaling.
 with Tapestry(dispatcher=ThreadDispatcher(max_workers=8)) as t:
@@ -279,7 +288,9 @@ uvicorn.run(trigger.app, host="0.0.0.0", port=8080)
 ### Emitters
 
 ```python
-from pirn import LogEmitter, KafkaEmitter, OpenTelemetryEmitter
+from pirn.emitters.kafka import KafkaEmitter
+from pirn.emitters.log import LogEmitter
+from pirn.emitters.otel import OpenTelemetryEmitter
 
 # Stream structured logs.
 log_emitter = LogEmitter(with_payload=False)
@@ -375,7 +386,8 @@ persistent stores do not yet support mid-run extension.
 ## Visualization
 
 ```python
-from pirn import mermaid_for_tapestry, mermaid_for_run, html_for_run
+from pirn.viz.html import html_for_run
+from pirn.viz.mermaid import mermaid_for_tapestry, mermaid_for_run
 
 # Mermaid for embedding in docs.
 print(mermaid_for_tapestry(t))           # structure only
@@ -415,7 +427,8 @@ nodes:
 ```
 
 ```python
-from pirn import load_pipeline, RunRequest
+from pirn.core.run_request import RunRequest
+from pirn.yaml_loader.loader import load_pipeline
 
 t = load_pipeline(
     yaml_text,
