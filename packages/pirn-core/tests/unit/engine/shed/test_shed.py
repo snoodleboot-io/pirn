@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
 from pirn.engine.shed.shed import CycleDetector, Shed, detect_cycle
 from pirn.engine.shed.shed_error import ShedError
 from pirn.nodes.sink import Sink
@@ -161,21 +162,58 @@ class TestShedFromTerminals(unittest.TestCase):
         self.assertEqual(len(s), 1)
 
 
-class TestShedMergeKnot(unittest.TestCase):
-    def test_merge_adds_new_knot(self) -> None:
-        with Tapestry():
-            src = _A(_config=KnotConfig(id="a"))
-        s = Shed.from_terminals(src)
+class TestShedEntriesAreIdKeyedNotIdentityKeyed(unittest.TestCase):
+    """A shed entry need not be the object the caller's graph holds.
 
-        with Tapestry():
-            src2 = _A(_config=KnotConfig(id="a2"))
-        added = s.merge_knot(src2)
-        self.assertTrue(added)
-        self.assertIn("a2", s)
+    ``Engine._bind_parameters`` swaps each ``Parameter`` for a run-scoped
+    ``bound_copy`` under the same ``knot_id`` (PIR-802).  ``Knot.__eq__`` and
+    ``__hash__`` are identity, so any shed helper that compares a stored knot
+    against a graph knot by ``is`` (or by ``==``) reports a mismatch that is
+    not one.  ``Shed.merge_knot`` did exactly that and raised "two distinct
+    knots share id" for a perfectly ordinary bound parameter; it was
+    unreachable dead code and was deleted (PIR-811).  These pin the contract
+    any replacement must honour.
+    """
 
-    def test_merge_same_knot_is_noop(self) -> None:
+    def _bound_shed(self) -> tuple[Shed, Parameter]:
         with Tapestry():
-            src = _A(_config=KnotConfig(id="a"))
-        s = Shed.from_terminals(src)
-        added = s.merge_knot(src)
-        self.assertFalse(added)
+            param = Parameter("p", int, _config=KnotConfig(id="p"))
+            sink = _B(a=param, _config=KnotConfig(id="b"))
+        shed = Shed.from_terminals(sink)
+        # What Engine._bind_parameters does once per run.
+        shed.knots["p"] = param.bound_copy(1)
+        return shed, param
+
+    def test_bound_copy_keeps_the_id_but_not_the_identity(self) -> None:
+        shed, param = self._bound_shed()
+        stored = shed.knot("p")
+        self.assertEqual(stored.knot_id, param.knot_id)
+        self.assertIsNot(stored, param)
+        self.assertNotEqual(stored, param)
+
+    def test_lookups_still_resolve_by_id_after_binding(self) -> None:
+        shed, _ = self._bound_shed()
+        self.assertIn("p", shed)
+        self.assertEqual([e.parent_id for e in shed.parents_of("b")], ["p"])
+        self.assertEqual(shed.children_of("p"), ["b"])
+        self.assertEqual(shed.topological_order(), ["p", "b"])
+
+    def test_shed_exposes_no_mutation_api(self) -> None:
+        """The engine owns post-construction mutation; the shed offers none."""
+        public = {
+            name
+            for name in dir(Shed)
+            if not name.startswith("_") and callable(getattr(Shed, name, None))
+        }
+        self.assertEqual(
+            public,
+            {
+                "children_of",
+                "from_terminals",
+                "knot",
+                "leaves",
+                "parents_of",
+                "roots",
+                "topological_order",
+            },
+        )

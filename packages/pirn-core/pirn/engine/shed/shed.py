@@ -84,9 +84,18 @@ def detect_cycle(knot_ids: list[str], children_by_parent: dict[str, list[str]]) 
 class Shed:
     """An immutable-after-construction view of a knot subgraph.
 
-    Built via Shed.from_terminals(terminals).  The engine treats this as
-    read-only after construction; there is no mutation API beyond
-    merge_knot (used in extensible mode between waves).
+    Built via Shed.from_terminals(terminals).  There is no mutation API: the
+    engine owns every post-construction change to a shed and makes it by
+    writing the dicts directly.  Two such writes exist, both id-keyed:
+    ``Engine._merge_new_knots`` inserts knots registered mid-run under
+    ``extensible=True``, and ``Engine._bind_parameters`` replaces each
+    ``Parameter`` with a run-scoped ``bound_copy`` (PIR-802).
+
+    Anything added here must therefore key off ``knot_id`` alone.  A shed
+    entry is not guaranteed to be the same *object* the caller's graph holds
+    -- ``bound_copy`` returns a new instance under the same id, and
+    ``Knot.__eq__``/``__hash__`` are identity, so an identity comparison
+    against a graph knot reports a mismatch that is not one (PIR-811).
     """
 
     __slots__ = ("children_by_parent", "edges_by_child", "knots")
@@ -177,46 +186,3 @@ class Shed:
         if len(order) != len(self.knots):
             raise ShedError("cycle detected during topological sort")
         return order
-
-    def merge_knot(self, knot: Knot) -> bool:
-        """Add a knot to the shed mid-run, walking its parent chain."""
-        from pirn.core.knot import Knot as _Knot
-
-        if knot.knot_id in self.knots:
-            existing = self.knots[knot.knot_id]
-            if existing is knot:
-                return False
-            raise ShedError(f"two distinct knots share id {knot.knot_id!r}")
-
-        added: set[str] = set()
-        queue: deque[Knot] = deque([knot])
-        while queue:
-            candidate = queue.popleft()
-            if candidate.knot_id in self.knots:
-                if self.knots[candidate.knot_id] is not candidate:
-                    raise ShedError(f"two distinct knots share id {candidate.knot_id!r}")
-                continue
-            assert isinstance(candidate, _Knot)
-            self.knots[candidate.knot_id] = candidate
-            self.children_by_parent.setdefault(candidate.knot_id, [])
-            edges: list[Edge] = []
-            for input_name, parent in candidate.parents.items():
-                edges.append(
-                    Edge(child_id=candidate.knot_id, parent_id=parent.knot_id, name=input_name)
-                )
-                self.children_by_parent.setdefault(parent.knot_id, []).append(candidate.knot_id)
-                queue.append(parent)
-            self.edges_by_child[candidate.knot_id] = edges
-            added.add(candidate.knot_id)
-
-        if CycleDetector.detect(list(self.knots.keys()), self.children_by_parent):
-            for kid in added:
-                self.knots.pop(kid, None)
-                self.edges_by_child.pop(kid, None)
-                for parent_kids in self.children_by_parent.values():
-                    while kid in parent_kids:
-                        parent_kids.remove(kid)
-                self.children_by_parent.pop(kid, None)
-            raise ShedError(f"absorbing knot {knot.knot_id!r} would introduce a cycle")
-
-        return bool(added)
