@@ -126,7 +126,15 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
-addopts = "--strict-markers -ra -m 'not slow and not mutation and not heavy'"
+# `not benchmark` (PIR-810/PIR-777): the benchmark suite asserts wall-clock
+# ratios and budgets, which a loaded machine breaks regardless of the code. It
+# is not excluded because it is unimportant — `.github/workflows/benchmarks.yml`
+# runs it nightly with `-o addopts=""` on a quiet runner, which is where a
+# timing assertion means something. Leaving it in the default suite made a
+# developer with a build running elsewhere get a red gate that looked like their
+# own change, and there is no way to read that signal correctly without knowing
+# which tests are load-fragile.
+addopts = "--strict-markers -ra -m 'not slow and not mutation and not heavy and not benchmark'"
 markers = [
     "slow: tests that take meaningful wall-clock time",
     "mutation: mutation-test-specific assertions",
