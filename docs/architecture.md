@@ -1322,7 +1322,9 @@ flowchart TD
 | `pirn/core/result.py` | `Ok`, `Err`, `Skipped` |
 | `pirn/tapestry.py` | `Tapestry`, `_CURRENT_TAPESTRY` ContextVar, `current_tapestry()` |
 | `pirn/engine/engine.py` | `Engine`, wave loop, `_decide`, `_dispatch_with_timing`, `_record_lineage` |
-| `pirn/engine/shed/` | `Shed`, `Edge`, `ShedError`, BFS construction, `merge_knot` |
+| `pirn/engine/shed/shed.py` | `Shed`, `CycleDetector`, BFS construction, topological sort |
+| `pirn/engine/shed/edge.py` | `Edge` |
+| `pirn/engine/shed/shed_error.py` | `ShedError` |
 | `pirn/engine/dispatchers/dispatcher.py` | `Dispatcher` protocol, `LocalDispatcher`, `ThreadDispatcher` |
 | `pirn/engine/dispatchers/celery_dispatcher.py` | `CeleryDispatcher`, `register_celery_worker_task` |
 | `pirn/engine/dispatchers/dask_dispatcher.py` | `DaskDispatcher` |

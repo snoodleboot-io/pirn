@@ -4,9 +4,9 @@ pirn splits persistence into three independent roles. Pick the right implementat
 
 | Role | Interface | Question it answers |
 |------|-----------|---------------------|
-| `TapestryStore` | `pirn.backends.TapestryStore` | Where does the tapestry *definition* live? |
-| `RunHistory` | `pirn.backends.RunHistory` | Where are lineage records and run summaries persisted? |
-| `DataStore` | `pirn.backends.DataStore` | Where do intermediate values live between knots? |
+| `TapestryStore` | `pirn.backends.base.tapestry_store.TapestryStore` | Where does the tapestry *definition* live? |
+| `RunHistory` | `pirn.backends.base.run_history.RunHistory` | Where are lineage records and run summaries persisted? |
+| `DataStore` | `pirn.backends.base.data_store.DataStore` | Where do intermediate values live between knots? |
 
 ---
 
@@ -20,7 +20,18 @@ pirn splits persistence into three independent roles. Pick the right implementat
 | `DuckDBHistory` | — | Y | — | N | OLAP queries on lineage. Best as a read-path target. |
 | `LocalDiskDataStore` | — | — | Y | N | Content-addressed files per value; survives restarts. |
 | `S3DataStore` | — | — | Y | N | Distributed object storage. Requires `pirn[s3]`. |
+| `GCSDataStore` | — | — | Y | N | Google Cloud Storage. Requires `pirn[gcs]`. |
+| `AzureBlobDataStore` | — | — | Y | N | Azure Blob Storage. Requires `pirn[azure]`. |
 | `ValKeyStore / ValKeyDataStore` | Y | — | Y | Y | Low-latency. Optional TTL on data values. Requires `pirn[valkey]`. Subscribable via pub/sub. |
+
+A `—` means *no such class exists*, not "undocumented". In particular there is
+**no `SQLiteDataStore` and no `PostgresDataStore`**: `SQLiteStore` and
+`PostgresStore` implement `TapestryStore`, which is a different interface from
+`DataStore`, so choosing SQLite or Postgres for the tapestry definition does not
+also give you a data store. The six classes above are the complete shipped
+`DataStore` roster. Pair a SQLite or Postgres deployment with
+`LocalDiskDataStore`, one of the object-store backends, or `ValKeyDataStore` —
+that is what the deployment recipes below do.
 
 ---
 
