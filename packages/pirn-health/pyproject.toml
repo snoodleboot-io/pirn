@@ -6,10 +6,22 @@
 # depends only on pirn-core. `bids` (pybids) and `pyteomics`/`psims` stay in
 # pirn-core — they are not health-domain-owned.
 [build-system]
-# hatchling is pinned (PIR-806): 1.32.0 emits `Metadata-Version: 2.5`, which the
-# twine 6.1.0 bundled in the pinned pypa/gh-action-pypi-publish rejects. 1.30.1..1.31.x
-# emit 2.4; the floor also skips 1.30.0, which emitted 2.5 before its 1.30.1 revert.
-requires = ["hatchling>=1.30.1,<1.32"]
+# hatchling is pinned to ONE minor on purpose (PIR-806, relaxed by PIR-828).
+#
+# The window decides the emitted `Metadata-Version`, so it is build output, not a
+# convenience bound. 1.30.1..1.31.x emit 2.4; 1.32.0 emits 2.5. PIR-806 had to cap
+# below 1.32 because the twine 6.1.0 / packaging 25.0 inside the pinned
+# pypa/gh-action-pypi-publish rejected 2.5 outright. Bumping that action to 1.14.2
+# (PR #234) moved it to twine 7.0.0 / packaging 26.2, which accepts 2.5 — verified
+# by running `twine check` on a 2.5 wheel under both pin sets, and by installing
+# one with pip 24.0, 24.3.1, 25.0 and 25.2.
+#
+# The bound stays one minor wide rather than becoming `<2`, because hatchling's
+# metadata behaviour is demonstrably NON-MONOTONIC: 1.30.0 emitted 2.5, 1.30.1
+# reverted to 2.4, 1.32.0 reintroduced it. A wider range would let the same source
+# emit either version depending on what resolution happened to pick — the exact
+# nondeterminism this pin exists to prevent. Re-measure before widening it.
+requires = ["hatchling>=1.32.0,<1.33"]
 build-backend = "hatchling.build"
 
 [project]
