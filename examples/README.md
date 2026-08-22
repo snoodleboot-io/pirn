@@ -176,6 +176,28 @@ FASTQ sequencing run QC pipeline. Each read batch flows through quality trimming
 
 ---
 
+## observability
+
+### traced_tool_calls.py
+
+```bash
+uv run python examples/observability/traced_tool_calls.py
+```
+
+Wires the span plane onto a `ParallelToolExecutor` so every tool call emits a span carrying the identity of the run *and* the knot that produced it. Without that correlation, agent spans reach a collector as an unattributable forest — you can see that a tool was slow, but not which run to blame.
+
+The assembly is three objects, and this example exists mainly because it is not obvious from the type names alone:
+
+```python
+tracer   = Tracer(LoggingSink(level=logging.INFO))
+hook     = SpanEmittingToolInvocationHook(tracer, knot_id="tool_executor")
+executor = ParallelToolExecutor(..., hook=hook)
+```
+
+Four things are visible in the output. `pirn.run_id` is stamped by the `Tracer` itself, read from the ambient run, so no call site threads it through. `pirn.knot_id` is passed in when the hook is built, because core has no `_current_knot_id` contextvar to read from. A span opened *outside* a run **omits** `pirn.run_id` rather than writing `None` — a span claiming to belong to no run is worse than silence for a collector grouping by run id. And calling one tool twice with equal arguments yields the *same* `tool.args_digest`, because the digest is keyed on argument content rather than object identity.
+
+Note that every import in the example is the concrete module that owns the symbol: pirn-agents forbids re-export barrels, and CI enforces it.
+
 ## llm_agent
 
 ### chatbot_pipeline.py
