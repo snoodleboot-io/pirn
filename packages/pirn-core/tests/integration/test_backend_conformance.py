@@ -286,3 +286,74 @@ async def test_lineage_hashes_stable_across_backends():
     duck = await collect_hashes(DuckDBHistory)
 
     assert in_mem == sqlite == duck
+
+
+# --------------------------------- Backend roles are distinct (PIR-793)
+#
+# WS8 planning asserted that adopting the ``DataStore`` vocabulary meant
+# "SQLite/Postgres/Valkey/disk/S3 backends come for free". That is false:
+# ``SQLiteStore`` and ``PostgresStore`` implement ``TapestryStore``, which is
+# a different interface, so they are not data stores at all. These two tests
+# make the true statement executable so the confusion cannot quietly return.
+#
+# If core ever *does* ship a SQLite or Postgres ``DataStore``, these tests are
+# supposed to fail — that is a deliberate product decision, and updating them
+# (plus the roster in ``pirn/backends/__init__.py`` and ``docs/guides/
+# backends.md``) is part of shipping it. A failure here is not a bug to
+# silence.
+
+
+def test_sqlite_and_postgres_stores_are_tapestry_stores_not_data_stores():
+    from pirn.backends.postgres.postgres_store import PostgresStore
+    from pirn.backends.sqlite.sqlite_store import SQLiteStore
+
+    for cls in (SQLiteStore, PostgresStore):
+        assert issubclass(cls, TapestryStore), f"{cls.__name__} must be a TapestryStore"
+        assert not issubclass(cls, DataStore), (
+            f"{cls.__name__} is a TapestryStore, not a DataStore — the two "
+            f"interfaces are unrelated"
+        )
+
+
+def test_shipped_data_store_roster_is_closed():
+    """The six classes below are every ``DataStore`` core ships.
+
+    The second half walks the SQLite and Postgres backend packages and asserts
+    they define no ``DataStore`` at all, which is what actually catches a new
+    one appearing.
+    """
+    import importlib
+    import inspect
+    import pkgutil
+
+    from pirn.backends.azure import AzureBlobDataStore
+    from pirn.backends.disk import LocalDiskDataStore
+    from pirn.backends.gcs import GCSDataStore
+    from pirn.backends.s3 import S3DataStore
+    from pirn.backends.valkey.valkey_data_store import ValKeyDataStore
+
+    shipped = {
+        InMemoryDataStore,
+        LocalDiskDataStore,
+        S3DataStore,
+        GCSDataStore,
+        AzureBlobDataStore,
+        ValKeyDataStore,
+    }
+    for cls in shipped:
+        assert issubclass(cls, DataStore), f"{cls.__name__} must be a DataStore"
+
+    for package_name in ("pirn.backends.sqlite", "pirn.backends.postgres"):
+        package = importlib.import_module(package_name)
+        modules = [package]
+        for _, name, _ in pkgutil.iter_modules(package.__path__):
+            modules.append(importlib.import_module(f"{package_name}.{name}"))
+        for module in modules:
+            for attr, obj in vars(module).items():
+                if not inspect.isclass(obj) or not obj.__module__.startswith(package_name):
+                    continue
+                assert not issubclass(obj, DataStore), (
+                    f"{package_name} now defines a DataStore ({attr}). If that is "
+                    f"intended, update this test, the roster table in "
+                    f"pirn/backends/__init__.py, and docs/guides/backends.md."
+                )

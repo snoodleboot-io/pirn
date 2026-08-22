@@ -78,7 +78,7 @@ A tapestry holds three backends:
 |-----------------|-------------------------------------------------|---------------------------------------------|
 | `TapestryStore` | the canonical knot definitions                  | `InMemoryStore`, `SQLiteStore`, `PostgresStore`, `ValKeyStore` |
 | `RunHistory`    | run results and lineage records                 | `InMemoryHistory`, `SQLiteHistory`, `DuckDBHistory`, `PostgresHistory` |
-| `DataStore`     | intermediate values, keyed by content hash      | `InMemoryDataStore`, `LocalDiskDataStore`, `ValKeyDataStore`, `S3DataStore` |
+| `DataStore`     | intermediate values, keyed by content hash      | `InMemoryDataStore`, `LocalDiskDataStore`, `ValKeyDataStore`, `S3DataStore`, `GCSDataStore`, `AzureBlobDataStore` |
 
 They're separate so each can be picked for its strength: Postgres for both
 store and history when you want one durable database; SQLite store +
