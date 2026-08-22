@@ -7,6 +7,8 @@ Uses an injected stub client that mirrors the cursor-based slice of the
 from __future__ import annotations
 
 import unittest
+import unittest.mock
+import sys
 from typing import Any
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
@@ -17,9 +19,7 @@ from pirn.connectors.databases.oracle_pool import OraclePool
 
 
 class FakeOracleCursor:
-    def __init__(
-        self, parent: FakeOracleClient
-    ) -> None:
+    def __init__(self, parent: FakeOracleClient) -> None:
         self._parent = parent
         self._last_query: str | None = None
         self.rowcount = 0
@@ -203,23 +203,20 @@ class UnreadableFlagConnection(FakeTransactionalConnection):
 # ───────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_database_connection_pool(self) -> None:
         pool = OraclePool(client=FakeOracleClient())
         assert isinstance(pool, DatabaseConnectionPool)
-    
-    
+
     def test_construction_requires_config_or_client(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or client="):
             OraclePool()
-    
-    
+
     def test_construction_rejects_bogus_config_type(self) -> None:
         with self.assertRaisesRegex(TypeError, "OracleConfig"):
             OraclePool(config="not-a-config")  # type: ignore[arg-type]
-    
-    
+
+
 # ────────────────────────────────────────────────────────── delegation
 
 
@@ -227,31 +224,21 @@ class TestDelegation(unittest.IsolatedAsyncioTestCase):
     async def test_execute_passes_query_and_params(self) -> None:
         fake = FakeOracleClient()
         pool = OraclePool(client=fake)
-        await pool.execute(
-            "INSERT INTO t (x, y) VALUES (:x, :y)", [1, "hello"]
-        )
-        assert fake.executed == [
-            ("INSERT INTO t (x, y) VALUES (:x, :y)", [1, "hello"])
-        ]
+        await pool.execute("INSERT INTO t (x, y) VALUES (:x, :y)", [1, "hello"])
+        assert fake.executed == [("INSERT INTO t (x, y) VALUES (:x, :y)", [1, "hello"])]
 
     async def test_fetch_all_returns_rows(self) -> None:
         fake = FakeOracleClient()
         fake.responses["SELECT id FROM t WHERE x = :x"] = [(1,), (2,)]
         pool = OraclePool(client=fake)
-        rows = await pool.fetch_all(
-            "SELECT id FROM t WHERE x = :x", [99]
-        )
+        rows = await pool.fetch_all("SELECT id FROM t WHERE x = :x", [99])
         assert rows == [(1,), (2,)]
 
     async def test_execute_many_batches(self) -> None:
         fake = FakeOracleClient()
         pool = OraclePool(client=fake)
-        await pool.execute_many(
-            "INSERT INTO t VALUES (:x, :y)", [(1, "a"), (2, "b")]
-        )
-        assert fake.executed_many == [
-            ("INSERT INTO t VALUES (:x, :y)", [[1, "a"], [2, "b"]])
-        ]
+        await pool.execute_many("INSERT INTO t VALUES (:x, :y)", [(1, "a"), (2, "b")])
+        assert fake.executed_many == [("INSERT INTO t VALUES (:x, :y)", [[1, "a"], [2, "b"]])]
 
 
 # ────────────────────────────────────────────────────── transaction ownership
@@ -476,3 +463,92 @@ class TestCredentialSafety(unittest.TestCase):
 
     def test_password_listed_in_sensitive_fields(self) -> None:
         assert "password" in OracleConfig.sensitive_fields
+
+
+# ────────────────────────────────────────────── config-built client (PIR-824)
+
+
+class TestConfigBuiltClient(unittest.IsolatedAsyncioTestCase):
+    """The ``config=`` seam must produce a client statements can actually use.
+
+    This path built an ``oracledb.ConnectionPool``, which exposes
+    acquire/release/close/drop and **no** ``cursor()`` — so every statement
+    method raised ``AttributeError`` the moment it ran. It never ran: no test
+    constructed ``OraclePool(config=...)`` and drove a statement, which is
+    exactly how a broken public path stayed broken. That end-to-end exercise is
+    what this class adds.
+    """
+
+    @staticmethod
+    def _oracledb_double(database: FakeOracleDatabase) -> Any:
+        """Return a stand-in ``oracledb`` module recording how it was called."""
+
+        class _FakePool:
+            """What `create_pool` returns: no `cursor`, which is the defect."""
+
+            def acquire(self) -> Any:  # pragma: no cover - must never be used
+                raise AssertionError("create_pool path should not be taken")
+
+        class _Module:
+            def __init__(self) -> None:
+                self.connect_calls: list[dict[str, Any]] = []
+                self.create_pool_calls: list[dict[str, Any]] = []
+
+            def connect(self, **kwargs: Any) -> Any:
+                self.connect_calls.append(kwargs)
+                return FakeTransactionalConnection(database)
+
+            def create_pool(self, **kwargs: Any) -> Any:
+                self.create_pool_calls.append(kwargs)
+                return _FakePool()
+
+        return _Module()
+
+    async def test_a_statement_runs_end_to_end_from_a_config(self) -> None:
+        # The exercise that did not exist. Against the old implementation this
+        # fails with AttributeError: '_FakePool' object has no attribute 'cursor'.
+        database = FakeOracleDatabase()
+        module = self._oracledb_double(database)
+        pool = OraclePool(config=OracleConfig(user="alice", password="pw", dsn="host:1521/ORCL"))
+
+        with unittest.mock.patch.dict(sys.modules, {"oracledb": module}):
+            rowcount = await pool.execute("INSERT INTO t VALUES (:1)", ["a"])
+            rows = await pool.fetch_all("SELECT * FROM t")
+
+        assert rowcount == 1
+        assert rows == [("a",)]
+
+    async def test_it_connects_rather_than_creating_a_pool(self) -> None:
+        database = FakeOracleDatabase()
+        module = self._oracledb_double(database)
+        pool = OraclePool(config=OracleConfig(user="alice", dsn="host:1521/ORCL"))
+
+        with unittest.mock.patch.dict(sys.modules, {"oracledb": module}):
+            await pool.execute("INSERT INTO t VALUES (:1)", ["a"])
+
+        assert module.create_pool_calls == []
+        assert len(module.connect_calls) == 1
+
+    async def test_only_the_configured_fields_are_forwarded(self) -> None:
+        # No pool bounds are sent — the config no longer has any, and passing
+        # min/max to `connect` would be a TypeError.
+        database = FakeOracleDatabase()
+        module = self._oracledb_double(database)
+        pool = OraclePool(config=OracleConfig(user="alice", dsn="host:1521/ORCL"))
+
+        with unittest.mock.patch.dict(sys.modules, {"oracledb": module}):
+            await pool.execute("INSERT INTO t VALUES (:1)", ["a"])
+
+        assert module.connect_calls[0] == {"user": "alice", "dsn": "host:1521/ORCL"}
+
+    async def test_the_config_client_commits_like_the_injected_one(self) -> None:
+        # PIR-821's transaction ownership must hold on this seam too, not just
+        # on `client=` — the whole reason a single connection is kept.
+        database = FakeOracleDatabase()
+        module = self._oracledb_double(database)
+        pool = OraclePool(config=OracleConfig(user="alice", dsn="host:1521/ORCL"))
+
+        with unittest.mock.patch.dict(sys.modules, {"oracledb": module}):
+            await pool.execute("INSERT INTO t VALUES (:1)", ["durable"])
+
+        assert database.rows == [("durable",)]

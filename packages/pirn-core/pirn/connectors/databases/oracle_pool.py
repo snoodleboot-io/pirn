@@ -30,13 +30,19 @@ class OraclePool(DatabaseConnectionPool):
 
     It must be a *connection*, not a session pool: every statement method calls
     ``client.cursor()``, which ``oracledb.ConnectionPool`` does not provide —
-    it exposes ``acquire``/``release`` instead. The ``config=`` path is
-    therefore not usable as written, because ``_create_client`` builds one with
-    ``oracledb.create_pool``; only the ``client=`` seam works today. That is a
-    separate defect from the transaction handling described below and is left
-    for its own change, since fixing it means deciding whether this class keeps
-    one connection or checks one out per call as
-    :class:`~pirn.connectors.databases.mssql_pool.MssqlPool` does.
+    it exposes ``acquire``/``release`` instead. Both construction seams now
+    honour that. The ``config=`` path builds its client with
+    ``oracledb.connect`` (PIR-824); it previously used ``oracledb.create_pool``
+    and so produced an object every statement failed on, undetected because
+    nothing ever exercised it.
+
+    **This class holds one connection for its lifetime** — that is the meaning
+    of ``acquire`` returning the shared client and ``release`` being a no-op,
+    and it is load bearing for the transaction ownership described below, which
+    compares session state before and after a statement on the *same* session.
+    Checking a connection out per call, as
+    :class:`~pirn.connectors.databases.mssql_pool.MssqlPool` does, would be a
+    different class with a different mechanism, not a drop-in change.
 
     **Transaction ownership.** Every statement method here commits — or rolls
     back — exactly the transaction *its own statement* opened, and never touches
@@ -313,10 +319,20 @@ class OraclePool(DatabaseConnectionPool):
         if self._config is None:
             raise RuntimeError("OraclePool: missing config and no injected client")
 
-        kwargs: dict[str, Any] = {
-            "min": self._config.min_size,
-            "max": self._config.max_size,
-        }
+        # `connect`, not `create_pool` (PIR-824). This path used to build an
+        # `oracledb.ConnectionPool`, which exposes acquire/release/close/drop
+        # and **no** `cursor()` — so every statement method here failed on it
+        # with AttributeError the moment it ran. It never did run: nothing in
+        # the tree constructed `OraclePool(config=...)` and executed anything,
+        # which is how a broken public path stayed broken.
+        #
+        # A single connection is the shape this class already has — `acquire`
+        # returns the one client and `release` is a no-op — and it is what the
+        # transaction-ownership sampling added by PIR-821 depends on, since
+        # that compares `transaction_in_progress` before and after a statement
+        # on the *same* session. Handing each call a different pooled
+        # connection would quietly invalidate it.
+        kwargs: dict[str, Any] = {}
         for name, key in (
             ("user", "user"),
             ("password", "password"),
@@ -327,7 +343,7 @@ class OraclePool(DatabaseConnectionPool):
             if value is not None:
                 kwargs[key] = value
         try:
-            client = await asyncio.to_thread(oracledb.create_pool, **kwargs)
+            client = await asyncio.to_thread(oracledb.connect, **kwargs)
         except Exception as exc:
             self._reraise_scrubbed(exc)
         self._logger.debug("oracle.connect")
