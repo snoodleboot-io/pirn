@@ -176,6 +176,13 @@ tests_dir = "tests/"
 runner = ".venv/bin/python -m pytest tests -x -q --no-header"
 
 [tool.pyright]
+# Pin type resolution to the workspace venv (PIR-814). Without venvPath/venv,
+# pyright resolves whichever interpreter the shell happens to hand it -- an
+# active VIRTUAL_ENV, else the bare system python -- so the same source yields
+# different diagnostics depending on where you invoked it from. Pointing it at
+# the workspace root venv makes `cd packages/<pkg> && pyright` reproducible.
+venvPath = "../.."
+venv = ".venv"
 include = ["pirn_agents"]
 pythonVersion = "3.12"
 reportMissingImports = "none"
