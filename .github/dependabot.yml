@@ -1,3 +1,43 @@
+# Dependabot update configuration.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# READ THIS BEFORE WONDERING WHY A DEPENDABOT PR WILL NOT MERGE (PIR-829)
+#
+# A Dependabot PR here reaches "every check green" and still sits at BLOCKED,
+# with nothing in the UI naming the missing requirement.
+#
+# Cause: `main`'s ruleset carries a `code_quality` rule, satisfied by CodeQL
+# **default setup**. Default setup does not run on a Dependabot-authored PR
+# head — Actions on Dependabot PRs get a read-only token and no
+# `security-events: write`. Measured on this repo: of 300 sampled CodeQL runs,
+# **zero** were on a `dependabot/*` branch, while every hand-authored PR has
+# two. The required check is therefore never queued — it does not fail, it
+# never exists — so the rule can never be satisfied and the PR blocks forever.
+#
+# Fix, per PR:
+#
+#     gh pr update-branch <number>
+#
+# That puts a *user-authored* merge commit at the head, which lifts the
+# Dependabot restriction; CodeQL then runs and the PR walks
+# BLOCKED -> UNSTABLE -> CLEAN and merges normally.
+#
+# Do NOT reach for `gh pr merge --admin`. It merges just as fast while leaving
+# the cause undiagnosed and the trap in place for the next bump.
+#
+# Two things this is NOT, both checked:
+#   * not staleness — the PRs that hit it were created after default setup was
+#     configured (setup 2026-07-20, PRs 2026-07-27 and 2026-08-03);
+#   * not a missing review — approving one changes nothing, `reviewDecision`
+#     stays null, because `required_approving_review_count` is 0 and no
+#     CODEOWNERS file exists for `require_code_owner_review` to match.
+#
+# A durable fix means changing configuration rather than this file: replace
+# default setup with an advanced CodeQL workflow that can run on Dependabot
+# heads, or exempt Dependabot from the `code_quality` rule — the latter
+# removing the scan from exactly the PRs that change third-party code.
+# ─────────────────────────────────────────────────────────────────────────────
+
 version: 2
 updates:
   - package-ecosystem: "pip"
