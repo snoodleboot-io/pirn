@@ -1,23 +1,34 @@
 """``ParallelSpecialistFanOut`` — invoke multiple specialists concurrently.
 
-A :class:`SubTapestry` that fans out a single task string to every
-registered specialist in parallel via :func:`asyncio.gather`. Each
-specialist accepts a ``task: str`` and produces an :class:`AgentResponse`.
-The pipeline returns a mapping ``{specialist_name: AgentResponse}``.
+A :class:`SubTapestry` that fans out a single task string to every registered
+specialist and returns a mapping ``{specialist_name: AgentResponse}``.
 
-Specialists are run through :func:`invoke_specialist`, not by calling
-``process()``: a :class:`SubTapestry`'s ``process()`` returns the *sink knot*
-of its inner pipeline rather than the answer, so the direct call handed back
-an unexecuted :class:`Knot` (see PIR-769).
+The fan-out is expressed as a graph, not as an ad-hoc ``asyncio.gather``: each
+specialist becomes one :class:`SpecialistInvocation` knot, and all of them are
+wired as the parents of a single :class:`~pirn.nodes.aggregator.Aggregator`.
+The engine then schedules the whole wave concurrently — every ready sibling
+runs in one ``asyncio.gather`` inside the scheduler — so the specialists run
+*through* the engine rather than outside it. See PIR-714.
+
+Failure mode is UNCHANGED by this rewrite. If any invocation fails, the inner
+``tapestry.run`` records an exception and :class:`SubTapestryError` is raised
+for the whole knot (``sub_tapestry.py``), exactly as the old ``asyncio.gather``
+surfaced the first failure. No per-specialist error isolation is gained — that
+would need a core change and is out of scope.
+
+Per-specialist lineage is NOT in the outer ``run.outputs`` (the inner knots run
+in a separate inner ``RunResult``). To reach it, read
+``lineage[].extra['inner_run_id']`` and look that run up in history — and note
+that on the failure path ``inner_run_id`` may be absent, so a sibling's ``Ok``
+record has no retrieval path there.
 
 Algorithm:
     1. Validate ``specialists`` (non-empty mapping) and ``task`` (str).
-    2. Gather all ``invoke_specialist(specialist, task=task)`` coroutines
-       concurrently.
-    3. Normalise each result to an :class:`AgentResponse`.
-    4. Build an inner :class:`Tapestry` with :class:`SpecialistFanOutCollector`
-       over the materialised responses.
-    5. Execute via ``self._run_inner(inner)`` and return the collected mapping.
+    2. Build one :class:`SpecialistInvocation` per specialist, each holding its
+       specialist on a ``_mutable_`` slot and receiving the shared ``task``.
+    3. Wire all invocations as parents of an :class:`Aggregator` whose combine
+       reassembles the ``{name: AgentResponse}`` mapping in registration order.
+    4. Return the aggregator as the inner pipeline's sink.
 
 
 References:
@@ -26,22 +37,35 @@ References:
 
 from __future__ import annotations
 
-import asyncio
 from collections.abc import Mapping
 from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.multi_agent._specialist_invoker import (
-    invoke_specialist,
-)
-from pirn_agents.specializations.multi_agent.specialist_fan_out_collector import (
-    SpecialistFanOutCollector,
+from pirn_agents.specializations.multi_agent.specialist_invocation import (
+    SpecialistInvocation,
 )
 from pirn_agents.types.messaging.agent_response import AgentResponse
+
+
+def _make_mapping_combine(
+    order: list[tuple[str, str]],
+) -> Any:
+    """Build the aggregator combine that reassembles ``{name: response}``.
+
+    ``order`` pairs each parent kwarg key with its original specialist name, so
+    the mapping is rebuilt in the specialists' registration order regardless of
+    the keys used to wire the parents.
+    """
+
+    def combine(**responses: AgentResponse) -> dict[str, AgentResponse]:
+        return {name: responses[key] for key, name in order}
+
+    return combine
 
 
 class ParallelSpecialistFanOut(AgentPipeline):
@@ -62,16 +86,17 @@ class ParallelSpecialistFanOut(AgentPipeline):
         task: str,
         specialists: Any,
         **_: Any,
-    ) -> Any:
-        """Fan out the task to all specialists concurrently and return a name-to-response mapping.
+    ) -> Knot:
+        """Fan the task out to all specialists and return the aggregating sink knot.
 
         Args:
             task: The task string sent to every registered specialist.
 
         Returns:
-            A mapping of specialist name to the AgentResponse produced by that specialist.
+            The :class:`Aggregator` sink whose output is the name-to-response mapping.
 
         Raises:
+            ValueError: If specialists is empty or not a Mapping.
             TypeError: If task is not a string.
         """
         if not isinstance(specialists, Mapping) or not specialists:
@@ -81,19 +106,18 @@ class ParallelSpecialistFanOut(AgentPipeline):
                 f"ParallelSpecialistFanOut: task must be a string, got {type(task).__name__}"
             )
         specialists_dict: dict[str, SubTapestry] = dict(specialists)  # type: ignore[arg-type]
-        names = list(specialists_dict.keys())
-        coros = [invoke_specialist(specialists_dict[name], task=task) for name in names]
-        raw_results = await asyncio.gather(*coros)
-        materialised: dict[str, AgentResponse] = {}
-        for name, raw in zip(names, raw_results, strict=False):
-            if isinstance(raw, AgentResponse):
-                materialised[name] = raw
-            else:
-                materialised[name] = AgentResponse(
-                    content=str(raw),
-                    finish_reason="stop",
-                )
-        return SpecialistFanOutCollector(
-            responses=materialised,
-            _config=KnotConfig(id="collect"),
+        parents: dict[str, Knot] = {}
+        order: list[tuple[str, str]] = []
+        for index, (name, specialist) in enumerate(specialists_dict.items()):
+            key = f"invocation_{index}"
+            parents[key] = SpecialistInvocation(
+                specialist=specialist,
+                task=task,
+                _config=KnotConfig(id=f"invoke_{index}"),
+            )
+            order.append((key, name))
+        return Aggregator(
+            combine=_make_mapping_combine(order),
+            _config=KnotConfig(id="fan_out_aggregate"),
+            **parents,
         )

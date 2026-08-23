@@ -32,6 +32,16 @@ class StubDebater(SubTapestry):
         )
 
 
+class FailingDebater(SubTapestry):
+    """A debater whose inner run raises — used to exercise the failure path."""
+
+    def __init__(self, *, _config: KnotConfig, **kwargs: Any) -> None:
+        super().__init__(_config=_config, **kwargs)
+
+    async def process(self, **_: Any) -> Knot:
+        raise RuntimeError("debater boom")
+
+
 def _make_knot(debaters: tuple, judge: StubLLMProvider) -> DebateFramework:
     with Tapestry():
         return DebateFramework(
@@ -102,3 +112,24 @@ class TestDebateFrameworkProcess(unittest.IsolatedAsyncioTestCase):
         winner = result.outputs["debate"]
         assert isinstance(winner, AgentResponse)
         assert winner.content == "against the motion"
+
+    async def test_failure_mode_unchanged_when_a_debater_fails(self) -> None:
+        # Unrolling the rounds into Aggregators gains NO per-debater isolation:
+        # SubTapestry raises SubTapestryError on ANY inner failure, so one failing
+        # debater fails the whole knot — byte-identical to the old per-round gather.
+        judge = StubLLMProvider(["0"])
+        _DEBATER_REGISTRY["sound"] = "sound argument"
+        with Tapestry():
+            good = StubDebater(_config=KnotConfig(id="sound"))
+            bad = FailingDebater(_config=KnotConfig(id="bad"))
+        with Tapestry() as t:
+            DebateFramework(
+                topic="should we ship",
+                debaters=(good, bad),
+                judge_llm=judge,
+                rounds=2,
+                _config=KnotConfig(id="debate"),
+            )
+        run = await t.run(RunRequest())
+        assert not run.succeeded
+        assert "debate" not in run.outputs

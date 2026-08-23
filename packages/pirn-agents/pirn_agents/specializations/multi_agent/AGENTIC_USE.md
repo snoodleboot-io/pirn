@@ -17,7 +17,8 @@ pirn_agents/specializations/multi_agent/
 ├── orchestrator_agent.py           OrchestratorAgent           — LLM decides which specialist to delegate to
 ├── orchestrator_router.py          OrchestratorRouter          — route result of orchestrator decision to knot
 ├── parallel_specialist_fan_out.py  ParallelSpecialistFanOut    — send same input to N specialist agents in parallel
-├── specialist_fan_out_collector.py SpecialistFanOutCollector   — collect N parallel outputs into a list
+├── specialist_invocation.py        SpecialistInvocation        — run one specialist as a graph node (fan-out parent)
+├── debate_round_framer.py          DebateRoundFramer           — render one debate round's task from prior rounds
 ├── consensus_aggregator.py         ConsensusAggregator         — combine N answers; pick by majority vote or synthesis
 ├── consensus_majority_vote_picker.py ConsensusMajorityVotePicker — vote on which answer is most common
 ├── consensus_synthesis_caller.py   ConsensusSynthesisCaller    — call LLM to synthesize N divergent answers
