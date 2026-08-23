@@ -48,40 +48,32 @@ class Neo4jPool(DatabaseConnectionPool):
         self._closed = True
         self._logger.debug("neo4j.close")
 
-    async def execute(self, query: str, *args: Any) -> None:
-        if len(args) > 1:
-            raise ValueError(
-                "Neo4jPool.execute() accepts at most one positional parameter "
-                "(a dict of named parameters)."
-            )
-        parameters: dict[str, Any] = dict(args[0]) if args else {}
+    async def execute(self, query: str, parameters: Iterable[Any] | None = None) -> None:
+        bound: dict[str, Any] = dict(parameters) if parameters is not None else {}
         driver = await self._ensure_driver()
         database = self._config.database if self._config else None
         session = driver.session(database=database)
         try:
-            await session.run(query, parameters)
+            await session.run(query, bound)
         finally:
             await session.close()
 
-    async def fetch_all(self, query: str, *args: Any) -> list[dict[str, Any]]:
-        if len(args) > 1:
-            raise ValueError(
-                "Neo4jPool.fetch_all() accepts at most one positional parameter "
-                "(a dict of named parameters)."
-            )
-        parameters: dict[str, Any] = dict(args[0]) if args else {}
+    async def fetch_all(
+        self, query: str, parameters: Iterable[Any] | None = None
+    ) -> list[dict[str, Any]]:
+        bound: dict[str, Any] = dict(parameters) if parameters is not None else {}
         driver = await self._ensure_driver()
         database = self._config.database if self._config else None
         session = driver.session(database=database)
         try:
-            result = await session.run(query, parameters)
+            result = await session.run(query, bound)
             records = await result.values()
             return [dict(r) for r in records]
         finally:
             await session.close()
 
-    async def execute_many(self, query: str, args_seq: Iterable[dict[str, Any]]) -> None:
-        for params in args_seq:
+    async def execute_many(self, query: str, parameter_seq: Iterable[Iterable[Any]]) -> None:
+        for params in parameter_seq:
             await self.execute(query, params)
 
     async def _ensure_driver(self) -> Any:

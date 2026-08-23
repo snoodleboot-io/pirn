@@ -51,42 +51,42 @@ class FirestorePool(DatabaseConnectionPool):
         self._closed = True
         self._logger.debug("firestore.close")
 
-    async def execute(self, query: str, *args: Any) -> str:
-        """Add a document to ``query`` collection; ``args[0]`` is the doc dict.
+    async def execute(self, query: str, parameters: Iterable[Any] | None = None) -> str:
+        """Add a document to ``query`` collection; ``parameters`` is the doc dict.
 
         Returns the new document id.
         """
         await self._ensure_client()
         if self._client is None:
             raise RuntimeError("FirestorePool: not connected — call connect() first")
-        doc_data = args[0] if args else {}
+        doc_data = parameters if parameters is not None else {}
         _timestamp, doc_ref = await self._client.collection(query).add(doc_data)
         return doc_ref.id
 
-    async def fetch_all(self, query: str, *args: Any) -> list[Any]:
+    async def fetch_all(self, query: str, parameters: Iterable[Any] | None = None) -> list[Any]:
         """Fetch documents from ``query`` collection path.
 
-        ``args[0]`` is an optional filter dict (field equality filters).
+        ``parameters`` is an optional filter dict (field equality filters).
         """
         await self._ensure_client()
         if self._client is None:
             raise RuntimeError("FirestorePool: not connected — call connect() first")
         col_ref = self._client.collection(query)
-        if args and isinstance(args[0], dict):
-            for field, value in args[0].items():
+        if isinstance(parameters, dict):
+            for field, value in parameters.items():
                 col_ref = col_ref.where(field, "==", value)
         docs = col_ref.stream()
         return [doc.to_dict() async for doc in docs]
 
-    async def execute_many(self, query: str, args_seq: Iterable[Iterable[Any]]) -> None:
+    async def execute_many(self, query: str, parameter_seq: Iterable[Iterable[Any]]) -> None:
         """Batch-write documents to ``query`` collection."""
         await self._ensure_client()
         if self._client is None:
             raise RuntimeError("FirestorePool: not connected — call connect() first")
         batch = self._client.batch()
         col_ref = self._client.collection(query)
-        for args in args_seq:
-            doc_data = args if isinstance(args, dict) else (next(iter(args)) if args else {})
+        for row in parameter_seq:
+            doc_data = row if isinstance(row, dict) else (next(iter(row), {}) if row else {})
             doc_ref = col_ref.document()
             batch.set(doc_ref, doc_data)
         await batch.commit()

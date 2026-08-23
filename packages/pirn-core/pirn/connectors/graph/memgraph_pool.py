@@ -47,19 +47,19 @@ class MemgraphPool(DatabaseConnectionPool):
         self._closed = True
         self._logger.debug("memgraph.close")
 
-    async def execute(self, query: str, *args: Any) -> None:
+    async def execute(self, query: str, parameters: Iterable[Any] | None = None) -> None:
         conn = await self._ensure_connection()
-        parameters = args[0] if args else None
         await conn.execute(query, parameters=parameters)
 
-    async def fetch_all(self, query: str, *args: Any) -> list[dict[str, Any]]:
+    async def fetch_all(
+        self, query: str, parameters: Iterable[Any] | None = None
+    ) -> list[dict[str, Any]]:
         conn = await self._ensure_connection()
-        parameters = args[0] if args else None
         results = await conn.execute(query, parameters=parameters)
         return [dict(r) for r in results]
 
-    async def execute_many(self, query: str, args_seq: Iterable[Any]) -> None:
-        for params in args_seq:
+    async def execute_many(self, query: str, parameter_seq: Iterable[Any]) -> None:
+        for params in parameter_seq:
             await self.execute(query, params)
 
     async def _ensure_connection(self) -> Any:

@@ -52,26 +52,26 @@ class CouchbasePool(DatabaseConnectionPool):
         self._closed = True
         self._logger.debug("couchbase.close")
 
-    async def execute(self, query: str, *args: Any) -> str:
+    async def execute(self, query: str, parameters: Iterable[Any] | None = None) -> str:
         """Execute a N1QL/SQL++ query; returns status string."""
         await self._ensure_cluster()
         if self._cluster is None:
             raise RuntimeError("CouchbasePool: not connected — call connect() first")
-        result = await asyncio.to_thread(self._cluster.query, query, *args)
+        result = await asyncio.to_thread(self._cluster.query, query, *tuple(parameters or ()))
         return str(result.meta_data().status)
 
-    async def fetch_all(self, query: str, *args: Any) -> list[Any]:
+    async def fetch_all(self, query: str, parameters: Iterable[Any] | None = None) -> list[Any]:
         """Execute a N1QL/SQL++ query and return all result rows."""
         await self._ensure_cluster()
         if self._cluster is None:
             raise RuntimeError("CouchbasePool: not connected — call connect() first")
-        result = await asyncio.to_thread(self._cluster.query, query, *args)
+        result = await asyncio.to_thread(self._cluster.query, query, *tuple(parameters or ()))
         return list(result.rows())
 
-    async def execute_many(self, query: str, args_seq: Iterable[Iterable[Any]]) -> None:
-        """Execute a N1QL/SQL++ query for each args tuple in args_seq."""
-        for args in args_seq:
-            await self.execute(query, *args)
+    async def execute_many(self, query: str, parameter_seq: Iterable[Iterable[Any]]) -> None:
+        """Execute a N1QL/SQL++ query once per bind-value iterable."""
+        for row in parameter_seq:
+            await self.execute(query, row)
 
     async def _ensure_cluster(self) -> None:
         if self._closed:

@@ -52,21 +52,21 @@ class DremioPool(DatabaseConnectionPool):
         self._closed = True
         self._logger.debug("dremio.close")
 
-    async def execute(self, query: str, *args: Any) -> str:
+    async def execute(self, query: str, parameters: Iterable[Any] | None = None) -> str:
         self._reject_inline_interpolation(query)
         connection = await self._ensure_connection()
         self._logger.debug("dremio.execute")
         return await asyncio.to_thread(self._run_action, connection, query)
 
-    async def fetch_all(self, query: str, *args: Any) -> list[Any]:
+    async def fetch_all(self, query: str, parameters: Iterable[Any] | None = None) -> list[Any]:
         self._reject_inline_interpolation(query)
         connection = await self._ensure_connection()
         self._logger.debug("dremio.fetch_all")
         return await asyncio.to_thread(self._run_query, connection, query)
 
-    async def execute_many(self, query: str, args_seq: Iterable[Iterable[Any]]) -> None:
+    async def execute_many(self, query: str, parameter_seq: Iterable[Iterable[Any]]) -> None:
         self._reject_inline_interpolation(query)
-        for _ in args_seq:
+        for _ in parameter_seq:
             await self.execute(query)
 
     def _run_action(self, connection: Any, query: str) -> str:
