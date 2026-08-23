@@ -18,6 +18,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.nodes.source import Source
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.llm.stream_delta import StreamDelta
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
 from pirn_agents.tools.tool import Tool
@@ -84,16 +85,16 @@ class StubLLMProvider(LLMProvider):
             )
         return {"role": "assistant", "content": text}
 
-    async def stream_chat(
+    def stream_chat(
         self,
         messages: Sequence[Mapping[str, Any]],
         *,
         model: str | None = None,
         max_tokens: int | None = None,
         temperature: float | None = None,
-    ) -> AsyncIterator[Mapping[str, Any]]:
-        async def _aiter() -> AsyncIterator[Mapping[str, Any]]:
-            yield {"content": "stub"}
+    ) -> AsyncIterator[StreamDelta]:
+        async def _aiter() -> AsyncIterator[StreamDelta]:
+            yield StreamDelta(content="stub")
 
         return _aiter()
 

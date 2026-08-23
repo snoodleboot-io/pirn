@@ -17,7 +17,7 @@ retriever overrides it with its own arm-specific retrieval and fusion.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn_agents.interfaces.retriever import Retriever
 
@@ -25,7 +25,11 @@ from pirn_agents.interfaces.retriever import Retriever
 class HybridRetrieverBase(Retriever):
     """Shared base for hybrid retrievers that fuse two rankings via RRF."""
 
-    async def process(self, **kwargs: Any) -> list[Mapping[str, Any]]:
+    # ``process`` below is declared in the gradual parameter form; see
+    # ``Knot._dynamic_process_signature`` for why (PIR-833).
+    _dynamic_process_signature: ClassVar[bool] = True
+
+    async def process(self, *args: Any, **kwargs: Any) -> list[Mapping[str, Any]]:
         """Retrieve two candidate rankings and fuse them into ``top_k`` hits.
 
         Returns:

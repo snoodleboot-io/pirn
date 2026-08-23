@@ -12,6 +12,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Mapping, Sequence
 from typing import Any
 
+from pirn_agents.llm.stream_delta import StreamDelta
 from pirn_agents.specializations.structured_output.structured_output_capability import (
     StructuredOutputCapability,
 )
@@ -100,16 +101,16 @@ class StubStructuredProvider(StructuredOutputProvider):
             content = self._chat_responses[-1] if self._chat_responses else ""
         return {"role": "assistant", "content": content}
 
-    async def stream_chat(
+    def stream_chat(
         self,
         messages: Sequence[Mapping[str, Any]],
         *,
         model: str | None = None,
         max_tokens: int | None = None,
         temperature: float | None = None,
-    ) -> AsyncIterator[Mapping[str, Any]]:
-        async def _aiter() -> AsyncIterator[Mapping[str, Any]]:
-            yield {"content": "stub"}
+    ) -> AsyncIterator[StreamDelta]:
+        async def _aiter() -> AsyncIterator[StreamDelta]:
+            yield StreamDelta(content="stub")
 
         return _aiter()
 

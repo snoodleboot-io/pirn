@@ -13,6 +13,7 @@ from typing import Any
 import pytest
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.llm.stream_delta import StreamDelta
 from pirn_agents.security.injection_detected_error import InjectionDetectedError
 from pirn_agents.security.injection_screen import InjectionScreen
 from pirn_agents.security.injection_verdict import InjectionVerdict
@@ -37,16 +38,16 @@ class _StubProvider(LLMProvider):
         self.calls.append([dict(m) for m in messages])
         return {"role": "assistant", "content": self._answer}
 
-    async def stream_chat(
+    def stream_chat(
         self,
         messages: Sequence[Mapping[str, Any]],
         *,
         model: str | None = None,
         max_tokens: int | None = None,
         temperature: float | None = None,
-    ) -> AsyncIterator[Mapping[str, Any]]:
-        async def _aiter() -> AsyncIterator[Mapping[str, Any]]:
-            yield {"content": self._answer}
+    ) -> AsyncIterator[StreamDelta]:
+        async def _aiter() -> AsyncIterator[StreamDelta]:
+            yield StreamDelta(content=self._answer)
 
         return _aiter()
 
