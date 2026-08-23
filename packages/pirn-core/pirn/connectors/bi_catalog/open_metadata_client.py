@@ -188,32 +188,17 @@ class OpenMetadataClient(ApiClient, TableSource, MetadataCatalog):
             path = "/" + path
         return base.rstrip("/") + path
 
-    async def _ensure_client(self) -> Any:
-        if self._closed:
-            raise RuntimeError("OpenMetadataClient is closed")
-        if self._client is None:
-            self._client = await self._create_client()
-        return self._client
-
     async def _create_client(self) -> Any:
-        try:
-            import httpx  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "OpenMetadataClient requires httpx; install via `pip install pirn[open-metadata]`"
-            ) from exc
         if self._config is None:
             raise RuntimeError("OpenMetadataClient: missing config and no injected client")
         if self._config.host_url is None:
             raise RuntimeError("OpenMetadataClient: config.host_url is required")
         if self._config.jwt_token is None:
             raise RuntimeError("OpenMetadataClient: config.jwt_token is required")
-        try:
-            client = httpx.AsyncClient(
-                headers={"Authorization": f"Bearer {self._config.jwt_token}"}
-            )
-        except Exception as exc:
-            safe_message = self._scrubber.scrub(str(exc))
-            raise type(exc)(safe_message) from None
+        client = self._build_httpx_client(
+            "open-metadata",
+            scrub_errors=True,
+            headers={"Authorization": f"Bearer {self._config.jwt_token}"},
+        )
         self._logger.debug("open_metadata.connect")
         return client

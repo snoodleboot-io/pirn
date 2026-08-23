@@ -147,20 +147,7 @@ class AirbyteClient(ApiClient, TableSource):
             path = "/" + path
         return base.rstrip("/") + path
 
-    async def _ensure_client(self) -> Any:
-        if self._closed:
-            raise RuntimeError("AirbyteClient is closed")
-        if self._client is None:
-            self._client = await self._create_client()
-        return self._client
-
     async def _create_client(self) -> Any:
-        try:
-            import httpx  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "AirbyteClient requires httpx; install via `pip install pirn[airbyte]`"
-            ) from exc
         if self._config is None:
             raise RuntimeError("AirbyteClient: missing config and no injected client")
         if self._config.access_token is None:
@@ -169,10 +156,10 @@ class AirbyteClient(ApiClient, TableSource):
                 "exchange not yet implemented in this connector)"
             )
         token = self._config.access_token
-        try:
-            client = httpx.AsyncClient(headers={"Authorization": f"Bearer {token}"})
-        except Exception as exc:
-            safe_message = self._scrubber.scrub(str(exc))
-            raise type(exc)(safe_message) from None
+        client = self._build_httpx_client(
+            "airbyte",
+            scrub_errors=True,
+            headers={"Authorization": f"Bearer {token}"},
+        )
         self._logger.debug("airbyte.connect")
         return client

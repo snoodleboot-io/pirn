@@ -123,23 +123,10 @@ class TeamsClient(ApiClient):
         self._closed = True
         self._logger.debug("teams.close")
 
-    async def _ensure_client(self) -> Any:
-        if self._closed:
-            raise RuntimeError("TeamsClient is closed")
-        if self._client is None:
-            self._client = await self._create_client()
-        return self._client
-
     async def _create_client(self) -> Any:
-        try:
-            import httpx  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "TeamsClient requires httpx; install via pip install pirn[teams]"
-            ) from exc
         if self._config is None:
             raise RuntimeError("TeamsClient: missing config and no injected client")
         if not self._config.webhook_url:
             raise ValueError("TeamsClient: config.webhook_url must be non-empty")
         self._logger.debug("teams.connect")
-        return httpx.AsyncClient(timeout=self._config.timeout)
+        return self._build_httpx_client("teams", quoted=False, timeout=self._config.timeout)

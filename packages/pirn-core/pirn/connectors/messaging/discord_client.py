@@ -134,20 +134,7 @@ class DiscordClient(ApiClient):
         self._closed = True
         self._logger.debug("discord.close")
 
-    async def _ensure_client(self) -> Any:
-        if self._closed:
-            raise RuntimeError("DiscordClient is closed")
-        if self._client is None:
-            self._client = await self._create_client()
-        return self._client
-
     async def _create_client(self) -> Any:
-        try:
-            import httpx  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "DiscordClient requires httpx; install via pip install pirn[discord]"
-            ) from exc
         if self._config is None:
             raise RuntimeError("DiscordClient: missing config and no injected client")
         if not self._config.webhook_url and not self._config.bot_token:
@@ -155,4 +142,4 @@ class DiscordClient(ApiClient):
                 "DiscordClient: at least one of webhook_url or bot_token must be non-empty"
             )
         self._logger.debug("discord.connect")
-        return httpx.AsyncClient(timeout=self._config.timeout)
+        return self._build_httpx_client("discord", quoted=False, timeout=self._config.timeout)

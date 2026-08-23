@@ -182,20 +182,7 @@ class DataHubClient(ApiClient, TableSource, MetadataCatalog):
             path = "/" + path
         return base.rstrip("/") + path
 
-    async def _ensure_client(self) -> Any:
-        if self._closed:
-            raise RuntimeError("DataHubClient is closed")
-        if self._client is None:
-            self._client = await self._create_client()
-        return self._client
-
     async def _create_client(self) -> Any:
-        try:
-            import httpx  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "DataHubClient requires httpx; install via `pip install pirn[datahub]`"
-            ) from exc
         if self._config is None:
             raise RuntimeError("DataHubClient: missing config and no injected client")
         if self._config.gms_url is None:
@@ -203,10 +190,6 @@ class DataHubClient(ApiClient, TableSource, MetadataCatalog):
         kwargs: dict[str, Any] = {}
         if self._config.token is not None:
             kwargs["headers"] = {"Authorization": f"Bearer {self._config.token}"}
-        try:
-            client = httpx.AsyncClient(**kwargs)
-        except Exception as exc:
-            safe_message = self._scrubber.scrub(str(exc))
-            raise type(exc)(safe_message) from None
+        client = self._build_httpx_client("datahub", scrub_errors=True, **kwargs)
         self._logger.debug("datahub.connect")
         return client

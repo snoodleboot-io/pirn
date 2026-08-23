@@ -143,20 +143,8 @@ class FivetranClient(ApiClient, TableSource):
             return path
         return base.rstrip("/") + path
 
-    async def _ensure_client(self) -> Any:
-        if self._closed:
-            raise RuntimeError("FivetranClient is closed")
-        if self._client is None:
-            self._client = await self._create_client()
-        return self._client
-
     async def _create_client(self) -> Any:
-        try:
-            import httpx  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "FivetranClient requires httpx; install via `pip install pirn[fivetran]`"
-            ) from exc
+        httpx = self._import_httpx("fivetran")
         if self._config is None:
             raise RuntimeError("FivetranClient: missing config and no injected client")
         if self._config.api_key is None or self._config.api_secret is None:
@@ -166,7 +154,6 @@ class FivetranClient(ApiClient, TableSource):
                 auth=httpx.BasicAuth(self._config.api_key, self._config.api_secret)
             )
         except Exception as exc:
-            safe_message = self._scrubber.scrub(str(exc))
-            raise type(exc)(safe_message) from None
+            self._reraise_scrubbed(exc)
         self._logger.debug("fivetran.connect")
         return client
