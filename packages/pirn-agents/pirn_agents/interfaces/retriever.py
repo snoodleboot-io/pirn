@@ -23,7 +23,7 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 
@@ -38,7 +38,11 @@ class Retriever(Knot):
     store or index and returns its ranked hits.
     """
 
-    async def process(self, **kwargs: Any) -> Any:
+    # ``process`` below is declared in the gradual parameter form; see
+    # ``Knot._dynamic_process_signature`` for why (PIR-833).
+    _dynamic_process_signature: ClassVar[bool] = True
+
+    async def process(self, *args: Any, **kwargs: Any) -> Any:
         """Retrieve ranked candidates for a query.
 
         Concrete subclasses override this with their own keyword parameters and

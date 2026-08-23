@@ -20,6 +20,7 @@ from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.llm.stream_delta import StreamDelta
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.specializations.rag.speculative_rag_pipeline import SpeculativeRagPipeline
 from pirn_agents.types.messaging.agent_response import AgentResponse
@@ -45,16 +46,16 @@ class _SlowLLM(LLMProvider):
         self._index += 1
         return {"role": "assistant", "content": text}
 
-    async def stream_chat(
+    def stream_chat(
         self,
         messages: Sequence[Mapping[str, Any]],
         *,
         model: str | None = None,
         max_tokens: int | None = None,
         temperature: float | None = None,
-    ) -> AsyncIterator[Mapping[str, Any]]:
-        async def _aiter() -> AsyncIterator[Mapping[str, Any]]:
-            yield {"content": "stub"}
+    ) -> AsyncIterator[StreamDelta]:
+        async def _aiter() -> AsyncIterator[StreamDelta]:
+            yield StreamDelta(content="stub")
 
         return _aiter()
 

@@ -11,6 +11,7 @@ from collections.abc import AsyncIterator, Callable, Mapping, Sequence
 from typing import Any
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.llm.stream_delta import StreamDelta
 from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
 
 
@@ -43,18 +44,17 @@ class ScriptedJudgeProvider(LLMProvider):
             text = self._replies[-1] if self._replies else ""
         return {"role": "assistant", "content": text}
 
-    async def stream_chat(
+    def stream_chat(
         self,
         messages: Sequence[Mapping[str, Any]],
         *,
         model: str | None = None,
         max_tokens: int | None = None,
         temperature: float | None = None,
-    ) -> AsyncIterator[Mapping[str, Any]]:
-        reply = await self.chat(messages)
-
-        async def _aiter() -> AsyncIterator[Mapping[str, Any]]:
-            yield {"content": reply.get("content", "")}
+    ) -> AsyncIterator[StreamDelta]:
+        async def _aiter() -> AsyncIterator[StreamDelta]:
+            reply = await self.chat(messages)
+            yield StreamDelta(content=reply.get("content", ""))
 
         return _aiter()
 

@@ -33,7 +33,7 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.nodes.sub_tapestry import SubTapestry
@@ -50,7 +50,11 @@ class AgentPipeline(SubTapestry):
     sink knot whose output becomes this knot's output.
     """
 
-    async def process(self, **_: Any) -> Knot:
+    # ``process`` below is declared in the gradual parameter form; see
+    # ``Knot._dynamic_process_signature`` for why (PIR-833).
+    _dynamic_process_signature: ClassVar[bool] = True
+
+    async def process(self, *args: Any, **kwargs: Any) -> Knot:
         """Declare the inner pipeline and return its terminal knot.
 
         Concrete subclasses override this with their own keyword parameters,

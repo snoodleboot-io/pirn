@@ -11,6 +11,7 @@ from collections.abc import AsyncIterator, Callable, Mapping, Sequence
 from typing import Any
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.llm.stream_delta import StreamDelta
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.tools.tool import Tool
 
@@ -39,19 +40,19 @@ class StubLLMProvider(LLMProvider):
             text = self._responses[-1] if self._responses else ""
         return {"role": "assistant", "content": text}
 
-    async def stream_chat(
+    def stream_chat(
         self,
         messages: Sequence[Mapping[str, Any]],
         *,
         model: str | None = None,
         max_tokens: int | None = None,
         temperature: float | None = None,
-    ) -> AsyncIterator[Mapping[str, Any]]:
+    ) -> AsyncIterator[StreamDelta]:
         chunks = self._responses or [""]
 
-        async def _aiter() -> AsyncIterator[Mapping[str, Any]]:
+        async def _aiter() -> AsyncIterator[StreamDelta]:
             for chunk in chunks:
-                yield {"content": chunk}
+                yield StreamDelta(content=chunk)
 
         return _aiter()
 
