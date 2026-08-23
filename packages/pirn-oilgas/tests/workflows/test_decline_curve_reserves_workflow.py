@@ -15,6 +15,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_oilgas.workflows.decline_curve_reserves_workflow import (
     DeclineCurveReservesWorkflow,
 )
@@ -24,7 +25,6 @@ _ROWS = [(datetime(2026, 1, 1, 0, 0, i, tzinfo=UTC), float(100 - i)) for i in ra
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
-
     def _make_knot(self) -> DeclineCurveReservesWorkflow:
         return DeclineCurveReservesWorkflow(
             rows=Parameter("rows", list, default=_ROWS),

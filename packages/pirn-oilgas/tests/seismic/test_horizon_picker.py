@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
+
 from pirn_oilgas.seismic.horizon_picker import HorizonPicker
 from pirn_oilgas.types.segy_volume import SegyVolume
 
@@ -33,6 +34,8 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_returns_horizon_volume(self) -> None:
         knot = self._make_knot()
-        out = await knot.process(volume=_VOLUME, horizon_name="niobrara", seed_inline=10, seed_xline=20)
+        out = await knot.process(
+            volume=_VOLUME, horizon_name="niobrara", seed_inline=10, seed_xline=20
+        )
         assert isinstance(out, SegyVolume)
         assert "horizon_niobrara" in out.volume_id

@@ -10,6 +10,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_oilgas.well.vshale_calculator import VshaleCalculator
 
 
@@ -19,9 +20,9 @@ class _GRSource(Knot):
 
     async def process(self, **_: Any) -> list[dict[str, Any]]:
         return [
-            {"depth_ft": 1000.0, "gr_api": 20.0},   # clean sand
+            {"depth_ft": 1000.0, "gr_api": 20.0},  # clean sand
             {"depth_ft": 1001.0, "gr_api": 120.0},  # shale
-            {"depth_ft": 1002.0, "gr_api": 70.0},   # intermediate
+            {"depth_ft": 1002.0, "gr_api": 70.0},  # intermediate
         ]
 
 

@@ -6,6 +6,7 @@ import unittest
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
+
 from pirn_oilgas.production.tank_gauging_processor import TankGaugingProcessor
 
 _GAUGE: dict[str, Any] = {

@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
+
 from pirn_oilgas.assemblers.scada_database_assembler import ScadaDatabaseAssembler
 from pirn_oilgas.types.scada_payload import ScadaPayload
 
@@ -31,31 +32,40 @@ _ROWS = [(datetime(2024, 1, 1, 0, 0, i, tzinfo=UTC), float(i)) for i in range(5)
 
 
 class TestScadaDatabaseAssembler(unittest.IsolatedAsyncioTestCase):
-
     async def test_returns_scada_payload(self) -> None:
         knot = _make()
-        result = await knot.process(rows=_ROWS, tag="PUMP-01", since=_SINCE, sample_interval_sec=1.0)
+        result = await knot.process(
+            rows=_ROWS, tag="PUMP-01", since=_SINCE, sample_interval_sec=1.0
+        )
         assert isinstance(result, ScadaPayload)
 
     async def test_metadata_sensor_id_matches(self) -> None:
         knot = _make()
-        result = await knot.process(rows=_ROWS, tag="PUMP-01", since=_SINCE, sample_interval_sec=1.0)
+        result = await knot.process(
+            rows=_ROWS, tag="PUMP-01", since=_SINCE, sample_interval_sec=1.0
+        )
         assert result.series.sensor_id == "PUMP-01"
 
     async def test_sample_count_matches_rows(self) -> None:
         knot = _make()
-        result = await knot.process(rows=_ROWS, tag="PUMP-01", since=_SINCE, sample_interval_sec=1.0)
+        result = await knot.process(
+            rows=_ROWS, tag="PUMP-01", since=_SINCE, sample_interval_sec=1.0
+        )
         assert result.series.sample_count == 5
 
     async def test_values_array_shape(self) -> None:
         knot = _make()
-        result = await knot.process(rows=_ROWS, tag="PUMP-01", since=_SINCE, sample_interval_sec=1.0)
+        result = await knot.process(
+            rows=_ROWS, tag="PUMP-01", since=_SINCE, sample_interval_sec=1.0
+        )
         assert result.values.shape == (5,)
 
     async def test_rejects_non_list_rows(self) -> None:
         knot = _make()
         with pytest.raises(TypeError, match="rows must be list"):
-            await knot.process(rows="not-a-list", tag="PUMP-01", since=_SINCE, sample_interval_sec=1.0)  # type: ignore[arg-type]
+            await knot.process(
+                rows="not-a-list", tag="PUMP-01", since=_SINCE, sample_interval_sec=1.0
+            )  # type: ignore[arg-type]
 
     async def test_rejects_non_str_tag(self) -> None:
         knot = _make()
@@ -70,7 +80,9 @@ class TestScadaDatabaseAssembler(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_datetime_since(self) -> None:
         knot = _make()
         with pytest.raises(TypeError, match="since must be datetime"):
-            await knot.process(rows=_ROWS, tag="PUMP-01", since="2024-01-01", sample_interval_sec=1.0)  # type: ignore[arg-type]
+            await knot.process(
+                rows=_ROWS, tag="PUMP-01", since="2024-01-01", sample_interval_sec=1.0
+            )  # type: ignore[arg-type]
 
     async def test_rejects_non_positive_interval(self) -> None:
         knot = _make()

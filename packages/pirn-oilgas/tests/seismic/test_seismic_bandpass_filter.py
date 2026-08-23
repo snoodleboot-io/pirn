@@ -6,6 +6,7 @@ import unittest
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
+
 from pirn_oilgas.seismic.seismic_bandpass_filter import SeismicBandpassFilter
 
 _DATA: dict[str, Any] = {

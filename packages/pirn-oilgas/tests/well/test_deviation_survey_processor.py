@@ -6,19 +6,22 @@ import unittest
 
 import numpy as np
 from pirn.core.knot_config import KnotConfig
+
 from pirn_oilgas.types.deviation_survey import DeviationSurvey
 from pirn_oilgas.types.deviation_survey_payload import DeviationSurveyPayload
 from pirn_oilgas.well.deviation_survey_processor import DeviationSurveyProcessor
 
 _SURVEY = DeviationSurveyPayload(
     metadata=DeviationSurvey(well_id="W", station_count=5),
-    data=np.array([
-        [0.0, 0.0, 0.0],
-        [100.0, 5.0, 10.0],
-        [200.0, 10.0, 15.0],
-        [300.0, 12.0, 20.0],
-        [400.0, 15.0, 25.0],
-    ]),
+    data=np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [100.0, 5.0, 10.0],
+            [200.0, 10.0, 15.0],
+            [300.0, 12.0, 20.0],
+            [400.0, 15.0, 25.0],
+        ]
+    ),
 )
 
 

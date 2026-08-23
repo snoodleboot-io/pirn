@@ -8,6 +8,7 @@ import unittest
 import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
+
 from pirn_oilgas.assemblers.well_completion_object_store_assembler import (
     WellCompletionObjectStoreAssembler,
 )
@@ -26,16 +27,17 @@ def _make(well_id: str = "W-01") -> WellCompletionObjectStoreAssembler:
     )
 
 
-_VALID_BODY = json.dumps({
-    "perforations": [
-        {"top_ft": 8500.0, "bottom_ft": 8520.0},
-        {"top_ft": 8550.0, "bottom_ft": 8570.0},
-    ]
-}).encode()
+_VALID_BODY = json.dumps(
+    {
+        "perforations": [
+            {"top_ft": 8500.0, "bottom_ft": 8520.0},
+            {"top_ft": 8550.0, "bottom_ft": 8570.0},
+        ]
+    }
+).encode()
 
 
 class TestWellCompletionObjectStoreAssembler(unittest.IsolatedAsyncioTestCase):
-
     async def test_returns_drilling_parameters(self) -> None:
         knot = _make("W-01")
         result = await knot.process(body=_VALID_BODY, well_id="W-01")

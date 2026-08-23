@@ -12,6 +12,7 @@ except ImportError as _e:
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
+
 from pirn_oilgas.seismic.instantaneous_attribute_extractor import (
     InstantaneousAttributeExtractor,
 )

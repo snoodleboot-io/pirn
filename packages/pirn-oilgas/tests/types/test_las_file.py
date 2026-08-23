@@ -33,9 +33,7 @@ class TestConstruction(unittest.TestCase):
 class TestAuditDict(unittest.TestCase):
     def test_audit_dict_curves_as_list(self) -> None:
         when = datetime(2026, 1, 1, tzinfo=UTC)
-        las = LASFile(
-            well_id="well-A", curves=("GR",), depth_unit="m", fetched_at=when
-        )
+        las = LASFile(well_id="well-A", curves=("GR",), depth_unit="m", fetched_at=when)
         d = las._pirn_audit_dict()
         assert d["well_id"] == "well-A"
         assert d["curves"] == ["GR"]

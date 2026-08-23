@@ -9,13 +9,16 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_oilgas.assemblers.well_completion_object_store_assembler import (
     WellCompletionObjectStoreAssembler,
 )
 from pirn_oilgas.types.drilling_parameters import DrillingParameters
 from pirn_oilgas.well.mud_weight_calculator import MudWeightCalculator
 
-_COMPLETION_BODY = json.dumps({"perforations": [{"top_ft": 8500.0}, {"bottom_ft": 8520.0}]}).encode()
+_COMPLETION_BODY = json.dumps(
+    {"perforations": [{"top_ft": 8500.0}, {"bottom_ft": 8520.0}]}
+).encode()
 
 
 class TestConstruction(unittest.IsolatedAsyncioTestCase):

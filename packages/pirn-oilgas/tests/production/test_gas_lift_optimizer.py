@@ -6,6 +6,7 @@ import unittest
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
+
 from pirn_oilgas.production.gas_lift_optimizer import GasLiftOptimizer
 
 _WELL_DATA: dict[str, Any] = {
@@ -60,7 +61,10 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         knot = self._make_knot()
         with self.assertRaisesRegex(ValueError, "injection_mmscfd"):
             await knot.process(
-                well_data={"performance_curve": [{"oil_bopd": 400.0}], "current_injection_mmscfd": 0.5},
+                well_data={
+                    "performance_curve": [{"oil_bopd": 400.0}],
+                    "current_injection_mmscfd": 0.5,
+                },
                 injection_gas_cost_per_mscf=2.5,
                 max_injection_rate_mmscfd=2.0,
             )

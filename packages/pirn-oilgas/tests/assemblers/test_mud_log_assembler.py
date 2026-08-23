@@ -8,6 +8,7 @@ import unittest
 import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
+
 from pirn_oilgas.assemblers.mud_log_assembler import MudLogAssembler
 
 
@@ -22,17 +23,18 @@ def _make() -> MudLogAssembler:
     )
 
 
-_VALID_BODY = json.dumps({
-    "header": {"well_name": "WX-1"},
-    "data": [
-        {"depth_ft": 1000.0, "rop_ft_hr": 50.0, "gas_units": 120.0},
-        {"depth_ft": 1001.0, "rop_ft_hr": 48.5, "gas_units": 115.0},
-    ],
-}).encode()
+_VALID_BODY = json.dumps(
+    {
+        "header": {"well_name": "WX-1"},
+        "data": [
+            {"depth_ft": 1000.0, "rop_ft_hr": 50.0, "gas_units": 120.0},
+            {"depth_ft": 1001.0, "rop_ft_hr": 48.5, "gas_units": 115.0},
+        ],
+    }
+).encode()
 
 
 class TestMudLogAssembler(unittest.IsolatedAsyncioTestCase):
-
     async def test_returns_dict(self) -> None:
         knot = _make()
         result = await knot.process(body=_VALID_BODY)
@@ -71,9 +73,11 @@ class TestMudLogAssembler(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_missing_required_curves(self) -> None:
         knot = _make()
-        body = json.dumps({
-            "header": {"well_name": "WX-1"},
-            "data": [{"depth_ft": 1000.0}],
-        }).encode()
+        body = json.dumps(
+            {
+                "header": {"well_name": "WX-1"},
+                "data": [{"depth_ft": 1000.0}],
+            }
+        ).encode()
         with pytest.raises(ValueError, match="missing required curves"):
             await knot.process(body=body)

@@ -6,6 +6,7 @@ import unittest
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
+
 from pirn_oilgas.production.esp_health_monitor import EspHealthMonitor
 
 _TELEMETRY: dict[str, Any] = {

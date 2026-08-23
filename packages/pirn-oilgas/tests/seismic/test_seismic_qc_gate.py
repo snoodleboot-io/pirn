@@ -6,6 +6,7 @@ import unittest
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
+
 from pirn_oilgas.seismic.seismic_qc_gate import SeismicQCGate
 
 _PASSING: dict[str, Any] = {"traces": [{"samples": [1.0]}] * 10, "fold": 20}

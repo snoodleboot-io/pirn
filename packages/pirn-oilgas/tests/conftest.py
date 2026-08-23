@@ -13,6 +13,7 @@ from collections.abc import AsyncIterator, Mapping
 from datetime import UTC, datetime
 
 import pytest
+
 from pirn_oilgas.protocols.historian_connection import HistorianConnection
 from pirn_oilgas.protocols.seismic_volume_store import SeismicVolumeStore
 from pirn_oilgas.protocols.well_data_service import WellDataService
@@ -30,9 +31,7 @@ class StubHistorianConnection(HistorianConnection):
         self.fetched: list[tuple[str, datetime]] = []
         self.closed: bool = False
 
-    async def fetch_tag(
-        self, tag: str, since: datetime
-    ) -> AsyncIterator[Mapping[str, object]]:
+    async def fetch_tag(self, tag: str, since: datetime) -> AsyncIterator[Mapping[str, object]]:
         self.fetched.append((tag, since))
 
         async def _aiter() -> AsyncIterator[Mapping[str, object]]:

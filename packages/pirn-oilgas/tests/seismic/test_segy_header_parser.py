@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
+
 from pirn_oilgas.seismic.segy_header_parser import SegyHeaderParser
 from pirn_oilgas.types.parsed_trace_header import ParsedTraceHeader
 from pirn_oilgas.types.segy_volume import SegyVolume

@@ -6,6 +6,7 @@ import unittest
 
 import numpy as np
 from pirn.core.knot_config import KnotConfig
+
 from pirn_oilgas.types.las_file import LASFile
 from pirn_oilgas.types.las_payload import LASPayload
 from pirn_oilgas.well.log_normalizer import LogNormalizer

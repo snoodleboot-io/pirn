@@ -11,6 +11,7 @@ except ImportError as _e:
 
 import numpy as np
 from pirn.core.knot_config import KnotConfig
+
 from pirn_oilgas.reservoir.decline_curve_analyzer import DeclineCurveAnalyzer
 from pirn_oilgas.types.scada_payload import ScadaPayload
 from pirn_oilgas.types.scada_time_series import ScadaTimeSeries

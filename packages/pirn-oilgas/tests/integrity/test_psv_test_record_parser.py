@@ -6,6 +6,7 @@ import unittest
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
+
 from pirn_oilgas.integrity.psv_test_record_parser import PSVTestRecordParser
 
 _FULL_RECORD: dict[str, Any] = {
@@ -18,7 +19,9 @@ _MISSING_FIELD_RECORD: dict[str, Any] = {"tag": "PSV-101"}
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
-    def _make_knot(self, required_fields: tuple = ("tag", "set_pressure_psi", "test_date", "pass_fail")) -> PSVTestRecordParser:
+    def _make_knot(
+        self, required_fields: tuple = ("tag", "set_pressure_psi", "test_date", "pass_fail")
+    ) -> PSVTestRecordParser:
         return PSVTestRecordParser(
             raw_record=None,  # type: ignore[arg-type]
             required_fields=required_fields,

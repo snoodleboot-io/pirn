@@ -16,6 +16,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_oilgas.types.las_file import LASFile
 from pirn_oilgas.types.las_payload import LASPayload
 from pirn_oilgas.types.segy_volume import SegyVolume
@@ -36,7 +37,6 @@ def _fake_segy_decode(body: bytes, volume_id: str) -> SegyVolume:
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
-
     def _make_knot(self) -> SeismicToWellTieWorkflow:
         return SeismicToWellTieWorkflow(
             segy_body=Parameter("segy_body", bytes, default=b"segy-bytes"),
@@ -81,12 +81,15 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_inner_pipeline_runs(self) -> None:
         with Tapestry() as t:
             self._make_knot()
-        with patch(
-            "pirn_oilgas.assemblers.las_object_store_assembler._decode",
-            side_effect=_fake_las_decode,
-        ), patch(
-            "pirn_oilgas.assemblers.segy_object_store_assembler._decode",
-            side_effect=_fake_segy_decode,
+        with (
+            patch(
+                "pirn_oilgas.assemblers.las_object_store_assembler._decode",
+                side_effect=_fake_las_decode,
+            ),
+            patch(
+                "pirn_oilgas.assemblers.segy_object_store_assembler._decode",
+                side_effect=_fake_segy_decode,
+            ),
         ):
             result = await t.run(RunRequest())
         assert result.succeeded

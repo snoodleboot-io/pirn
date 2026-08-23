@@ -7,6 +7,7 @@ from typing import Any
 
 import pytest
 from pirn.core.knot_config import KnotConfig
+
 from pirn_oilgas.well.environmental_correction_applicator import (
     EnvironmentalCorrectionApplicator,
 )

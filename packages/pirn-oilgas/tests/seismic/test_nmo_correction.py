@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
+
 from pirn_oilgas.seismic.nmo_correction import NmoCorrection
 from pirn_oilgas.types.segy_volume import SegyVolume
 
