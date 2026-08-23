@@ -6,6 +6,7 @@ import unittest
 from unittest.mock import MagicMock
 
 from pirn.core.knot_config import KnotConfig
+
 from pirn_data.lazy.spark.spark_dataframe import SparkDataFrame
 
 try:

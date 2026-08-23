@@ -14,6 +14,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.data_batch import DataBatch
 from pirn_data.data_schema import DataSchema
 from pirn_data.quality.schema_validator import SchemaValidator
@@ -60,9 +61,7 @@ async def emit_users_with_nullable_null() -> DataBatch:
 
 class TestSchemaValidatorPasses(unittest.IsolatedAsyncioTestCase):
     async def test_passing_report_when_every_row_conforms(self) -> None:
-        expected_schema = DataSchema(
-            columns={"id": int, "name": str}, primary_keys=("id",)
-        )
+        expected_schema = DataSchema(columns={"id": int, "name": str}, primary_keys=("id",))
         with Tapestry() as t:
             batch = emit_users(_config=KnotConfig(id="users"))
             SchemaValidator(
@@ -78,9 +77,7 @@ class TestSchemaValidatorPasses(unittest.IsolatedAsyncioTestCase):
         assert all(check.passed for check in report.checks)
 
     async def test_nullable_column_accepts_none(self) -> None:
-        expected_schema = DataSchema(
-            columns={"id": int, "name": str}, nullable=("name",)
-        )
+        expected_schema = DataSchema(columns={"id": int, "name": str}, nullable=("name",))
         with Tapestry() as t:
             batch = emit_users_with_nullable_null(_config=KnotConfig(id="users"))
             SchemaValidator(

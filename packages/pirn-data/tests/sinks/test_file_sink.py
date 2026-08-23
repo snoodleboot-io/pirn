@@ -13,6 +13,7 @@ from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.nodes.source import Source
 from pirn.tapestry import Tapestry
+
 from pirn_data.data_batch import DataBatch
 from pirn_data.sinks.file_sink import FileSink
 
@@ -175,20 +176,14 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_object_store(self) -> None:
         k = self._make_sink()
         with self.assertRaisesRegex(TypeError, "ObjectStore"):
-            await k.process(
-                batch=_make_batch(), store=object(), format=_FakeFormat(), key="x.csv"
-            )
+            await k.process(batch=_make_batch(), store=object(), format=_FakeFormat(), key="x.csv")
 
     async def test_rejects_non_file_format(self) -> None:
         k = self._make_sink()
         with self.assertRaisesRegex(TypeError, "FileFormat"):
-            await k.process(
-                batch=_make_batch(), store=_FakeStore(), format=object(), key="x.csv"
-            )
+            await k.process(batch=_make_batch(), store=_FakeStore(), format=object(), key="x.csv")
 
     async def test_rejects_empty_key(self) -> None:
         k = self._make_sink(key="placeholder.csv")
         with self.assertRaisesRegex(ValueError, "non-empty"):
-            await k.process(
-                batch=_make_batch(), store=_FakeStore(), format=_FakeFormat(), key=""
-            )
+            await k.process(batch=_make_batch(), store=_FakeStore(), format=_FakeFormat(), key="")

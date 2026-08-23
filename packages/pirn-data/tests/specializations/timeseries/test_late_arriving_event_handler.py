@@ -10,6 +10,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.timeseries.late_arriving_event_handler import (
     LateArrivingEventHandler,
 )
@@ -150,7 +151,10 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
     async def test_empty_input_returns_empty(self) -> None:
         k = self._make_knot()
         result = await k.process(
-            rows=[], timestamp_column="ts", value_column="v",
-            bucket_seconds=60, allowed_lateness_seconds=30,
+            rows=[],
+            timestamp_column="ts",
+            value_column="v",
+            bucket_seconds=60,
+            allowed_lateness_seconds=30,
         )
         assert result == []

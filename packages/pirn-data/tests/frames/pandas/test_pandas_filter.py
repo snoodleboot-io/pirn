@@ -14,6 +14,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.frames.pandas.pandas_data_batch import PandasDataBatch
 from pirn_data.frames.pandas.pandas_filter import PandasFilter
 
@@ -23,7 +24,7 @@ async def emit_users() -> PandasDataBatch:
     return PandasDataBatch(
         frame=pd.DataFrame(
             {
-                "id":     [1, 2, 3, 4],
+                "id": [1, 2, 3, 4],
                 "active": [True, False, True, False],
                 "region": ["EU", "US", "US", "EU"],
             }
@@ -35,7 +36,7 @@ def _users_batch() -> PandasDataBatch:
     return PandasDataBatch(
         frame=pd.DataFrame(
             {
-                "id":     [1, 2, 3, 4],
+                "id": [1, 2, 3, 4],
                 "active": [True, False, True, False],
                 "region": ["EU", "US", "US", "EU"],
             }

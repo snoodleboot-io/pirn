@@ -9,6 +9,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.data_batch import DataBatch
 from pirn_data.transforms.aggregate import Aggregate
 from pirn_data.transforms.aggregate_spec import AggregateSpec
@@ -17,11 +18,11 @@ from pirn_data.transforms.aggregate_spec import AggregateSpec
 @knot
 async def emit_orders() -> DataBatch:
     rows = (
-        {"region": "EU", "amount": 10.0,  "customer": "alice"},
-        {"region": "EU", "amount": 25.0,  "customer": "bob"},
-        {"region": "EU", "amount": 5.0,   "customer": "alice"},
+        {"region": "EU", "amount": 10.0, "customer": "alice"},
+        {"region": "EU", "amount": 25.0, "customer": "bob"},
+        {"region": "EU", "amount": 5.0, "customer": "alice"},
         {"region": "US", "amount": 100.0, "customer": "carol"},
-        {"region": "US", "amount": None,  "customer": "carol"},
+        {"region": "US", "amount": None, "customer": "carol"},
     )
     return DataBatch(rows=rows)
 
@@ -77,7 +78,7 @@ class TestAggregate(unittest.IsolatedAsyncioTestCase):
                 batch=batch,
                 by=("region",),
                 aggs={
-                    "n_orders":   AggregateSpec(source="amount",   function="count"),
+                    "n_orders": AggregateSpec(source="amount", function="count"),
                     "n_customers": AggregateSpec(source="customer", function="count_distinct"),
                 },
                 _config=KnotConfig(id="agg"),
@@ -85,8 +86,8 @@ class TestAggregate(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         out: DataBatch = result.outputs["agg"]
         eu = _row_by_region(out.rows, "EU")
-        assert eu["n_orders"] == 3        # 3 non-null amounts
-        assert eu["n_customers"] == 2      # alice, bob
+        assert eu["n_orders"] == 3  # 3 non-null amounts
+        assert eu["n_customers"] == 2  # alice, bob
         us = _row_by_region(out.rows, "US")
         assert us["n_orders"] == 1
         assert us["n_customers"] == 1
@@ -98,10 +99,10 @@ class TestAggregate(unittest.IsolatedAsyncioTestCase):
                 batch=batch,
                 by=("region",),
                 aggs={
-                    "lo":    AggregateSpec(source="amount", function="min"),
-                    "hi":    AggregateSpec(source="amount", function="max"),
+                    "lo": AggregateSpec(source="amount", function="min"),
+                    "hi": AggregateSpec(source="amount", function="max"),
                     "first": AggregateSpec(source="amount", function="first"),
-                    "last":  AggregateSpec(source="amount", function="last"),
+                    "last": AggregateSpec(source="amount", function="last"),
                 },
                 _config=KnotConfig(id="agg"),
             )

@@ -11,6 +11,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.data_vault.data_vault_link_loader import (
     DataVaultLinkLoader,
 )
@@ -76,9 +77,7 @@ class TestDataVaultLinkLoader(unittest.IsolatedAsyncioTestCase):
             _make_knot(self.src, self.tgt)
         result = await t.run(RunRequest())
         assert result.succeeded
-        rows = await self.tgt.fetch_all(
-            "SELECT link_hk FROM link_order ORDER BY link_hk"
-        )
+        rows = await self.tgt.fetch_all("SELECT link_hk FROM link_order ORDER BY link_hk")
         assert rows == [("lhk_1",), ("lhk_2",)]
 
     async def test_second_run_is_noop_for_existing_links(self) -> None:
@@ -104,9 +103,7 @@ class TestDataVaultLinkLoader(unittest.IsolatedAsyncioTestCase):
         with Tapestry() as t:
             _make_knot(self.src, self.tgt)
         assert (await t.run(RunRequest())).succeeded
-        rows = await self.tgt.fetch_all(
-            "SELECT record_source, load_date FROM link_order"
-        )
+        rows = await self.tgt.fetch_all("SELECT record_source, load_date FROM link_order")
         assert rows[0][0] == _RECORD_SOURCE
         assert rows[0][1] is not None
 

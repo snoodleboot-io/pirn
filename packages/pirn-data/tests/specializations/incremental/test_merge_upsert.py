@@ -11,6 +11,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.incremental.merge_upsert import MergeUpsert
 
 _SOURCE_QUERY = "SELECT id, name, dept FROM employees ORDER BY id"
@@ -21,17 +22,13 @@ _NON_KEY_COLS = ("name", "dept")
 
 async def _make_pools() -> tuple[SqlitePool, SqlitePool]:
     src = SqlitePool(SqliteConfig(database=":memory:"))
-    await src.execute(
-        "CREATE TABLE employees (id INTEGER PRIMARY KEY, name TEXT, dept TEXT)"
-    )
+    await src.execute("CREATE TABLE employees (id INTEGER PRIMARY KEY, name TEXT, dept TEXT)")
     await src.execute_many(
         "INSERT INTO employees (id, name, dept) VALUES (?, ?, ?)",
         [(1, "Alice", "Eng"), (2, "Bob", "Sales")],
     )
     tgt = SqlitePool(SqliteConfig(database=":memory:"))
-    await tgt.execute(
-        "CREATE TABLE employees (id INTEGER PRIMARY KEY, name TEXT, dept TEXT)"
-    )
+    await tgt.execute("CREATE TABLE employees (id INTEGER PRIMARY KEY, name TEXT, dept TEXT)")
     return src, tgt
 
 
@@ -60,9 +57,7 @@ class TestMergeUpsert(unittest.IsolatedAsyncioTestCase):
             _make_knot(self.src, self.tgt)
         result = await t.run(RunRequest())
         assert result.succeeded
-        rows = await self.tgt.fetch_all(
-            "SELECT id, name, dept FROM employees ORDER BY id"
-        )
+        rows = await self.tgt.fetch_all("SELECT id, name, dept FROM employees ORDER BY id")
         assert rows == [(1, "Alice", "Eng"), (2, "Bob", "Sales")]
 
     async def test_updates_changed_rows(self) -> None:

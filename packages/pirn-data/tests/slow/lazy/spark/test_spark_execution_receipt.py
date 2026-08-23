@@ -39,7 +39,9 @@ class TestSparkExecutionReceipt:
 
     def test_receipt_is_frozen(self) -> None:
         receipt = SparkExecutionReceipt(
-            succeeded=True, row_count=None, output_path=None,
+            succeeded=True,
+            row_count=None,
+            output_path=None,
         )
         with pytest.raises(Exception):
             receipt.succeeded = False  # type: ignore[misc]
@@ -64,7 +66,9 @@ class TestSparkExecutionReceipt:
 
     def test_pydantic_validates_via_isinstance(self) -> None:
         receipt = SparkExecutionReceipt(
-            succeeded=True, row_count=None, output_path=None,
+            succeeded=True,
+            row_count=None,
+            output_path=None,
         )
         adapter = TypeAdapter(SparkExecutionReceipt)
         assert adapter.validate_python(receipt) is receipt

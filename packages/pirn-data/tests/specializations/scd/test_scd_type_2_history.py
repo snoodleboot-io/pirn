@@ -13,6 +13,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.scd.scd_type_2_history import ScdType2History
 
 _SOURCE_QUERY = "SELECT id, region FROM customers ORDER BY id"
@@ -47,9 +48,7 @@ class TestScdType2History(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         self.src = await _make_src()
         self._tmp = tempfile.TemporaryDirectory()
-        self.tgt = SqlitePool(
-            SqliteConfig(database=str(Path(self._tmp.name) / "tgt.db"))
-        )
+        self.tgt = SqlitePool(SqliteConfig(database=str(Path(self._tmp.name) / "tgt.db")))
         await self.tgt.execute(
             "CREATE TABLE customers ("
             "  id INTEGER NOT NULL,"
@@ -70,9 +69,7 @@ class TestScdType2History(unittest.IsolatedAsyncioTestCase):
             _make_knot(self.src, self.tgt)
         result = await t.run(RunRequest())
         assert result.succeeded
-        rows = await self.tgt.fetch_all(
-            "SELECT id, region, is_current FROM customers ORDER BY id"
-        )
+        rows = await self.tgt.fetch_all("SELECT id, region, is_current FROM customers ORDER BY id")
         assert rows == [(1, "EU", 1), (2, "US", 1)]
 
     async def test_closes_and_inserts_on_change(self) -> None:
@@ -114,9 +111,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         self.src = await _make_src()
         self._tmp = tempfile.TemporaryDirectory()
-        self.tgt = SqlitePool(
-            SqliteConfig(database=str(Path(self._tmp.name) / "tgt.db"))
-        )
+        self.tgt = SqlitePool(SqliteConfig(database=str(Path(self._tmp.name) / "tgt.db")))
         await self.tgt.execute(
             "CREATE TABLE customers ("
             "  id INTEGER NOT NULL,"
@@ -156,9 +151,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         self.src = await _make_src()
         self._tmp = tempfile.TemporaryDirectory()
-        self.tgt = SqlitePool(
-            SqliteConfig(database=str(Path(self._tmp.name) / "tgt.db"))
-        )
+        self.tgt = SqlitePool(SqliteConfig(database=str(Path(self._tmp.name) / "tgt.db")))
         await self.tgt.execute(
             "CREATE TABLE customers ("
             "  id INTEGER NOT NULL,"

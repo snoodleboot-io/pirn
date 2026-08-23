@@ -14,6 +14,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.lazy.ibis.ibis_connection import IbisConnection
 from pirn_data.lazy.ibis.ibis_execution_receipt import IbisExecutionReceipt
 from pirn_data.lazy.ibis.ibis_filter import IbisFilter
@@ -27,7 +28,7 @@ def _make_orders_con() -> ibis.BaseBackend:
     con.create_table(
         "orders",
         {
-            "id":     [1, 2, 3, 4],
+            "id": [1, 2, 3, 4],
             "amount": [10.0, 25.0, 5.0, 100.0],
             "region": ["EU", "EU", "EU", "US"],
         },
@@ -40,8 +41,10 @@ class TestIbisToTable(unittest.IsolatedAsyncioTestCase):
         con = _make_orders_con()
         with Tapestry() as t:
             src = IbisSource(
-                connection=IbisConnection(con), table="orders",
-                backend_name="duckdb", _config=KnotConfig(id="src"),
+                connection=IbisConnection(con),
+                table="orders",
+                backend_name="duckdb",
+                _config=KnotConfig(id="src"),
             )
             eu = IbisFilter(
                 batch=src,
@@ -62,8 +65,10 @@ class TestIbisToTable(unittest.IsolatedAsyncioTestCase):
         con = _make_orders_con()
         with Tapestry() as t:
             src = IbisSource(
-                connection=IbisConnection(con), table="orders",
-                backend_name="duckdb", _config=KnotConfig(id="src"),
+                connection=IbisConnection(con),
+                table="orders",
+                backend_name="duckdb",
+                _config=KnotConfig(id="src"),
             )
             eu = IbisFilter(
                 batch=src,
@@ -71,7 +76,8 @@ class TestIbisToTable(unittest.IsolatedAsyncioTestCase):
                 _config=KnotConfig(id="eu"),
             )
             IbisToTable(
-                batch=eu, connection=IbisConnection(con),
+                batch=eu,
+                connection=IbisConnection(con),
                 target_table="eu_orders",
                 _config=KnotConfig(id="exec"),
             )
@@ -94,12 +100,15 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
 
         with Tapestry() as t:
             src = IbisSource(
-                connection=IbisConnection(con), table="orders",
-                backend_name="duckdb", _config=KnotConfig(id="src"),
+                connection=IbisConnection(con),
+                table="orders",
+                backend_name="duckdb",
+                _config=KnotConfig(id="src"),
             )
             name_knot = emit_table_name(_config=KnotConfig(id="name"))
             IbisToTable(
-                batch=src, connection=IbisConnection(con),
+                batch=src,
+                connection=IbisConnection(con),
                 target_table=name_knot,
                 _config=KnotConfig(id="exec"),
             )
@@ -112,8 +121,12 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, **kwargs: object) -> IbisToTable:
         con = _make_orders_con()
         with Tapestry():
-            src = IbisSource(connection=IbisConnection(con), table="orders", _config=KnotConfig(id="src"))
-            return IbisToTable(batch=src, connection=IbisConnection(con), _config=KnotConfig(id="x"), **kwargs)
+            src = IbisSource(
+                connection=IbisConnection(con), table="orders", _config=KnotConfig(id="src")
+            )
+            return IbisToTable(
+                batch=src, connection=IbisConnection(con), _config=KnotConfig(id="x"), **kwargs
+            )
 
     def _make_batch(self) -> IbisTable:
         con = _make_orders_con()

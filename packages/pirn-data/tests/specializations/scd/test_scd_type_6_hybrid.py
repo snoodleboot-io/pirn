@@ -12,6 +12,7 @@ from pirn.connectors.databases.sqlite_pool import SqlitePool
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.scd.scd_type_6_hybrid import ScdType6Hybrid
 
 
@@ -30,7 +31,6 @@ def _make_scd6(source_pool: SqlitePool, target_pool: SqlitePool) -> ScdType6Hybr
 
 
 class TestConstruction(unittest.IsolatedAsyncioTestCase):
-
     async def asyncSetUp(self) -> None:
         pool = SqlitePool(SqliteConfig(database=":memory:"))
         await pool.execute(
@@ -125,7 +125,6 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
 
 
 class TestScdType6Behaviour(unittest.IsolatedAsyncioTestCase):
-
     async def asyncSetUp(self) -> None:
         pool = SqlitePool(SqliteConfig(database=":memory:"))
         await pool.execute(
@@ -172,8 +171,7 @@ class TestScdType6Behaviour(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         assert result.succeeded
         rows = await target_pool.fetch_all(
-            "SELECT id, valid_to, is_current, prev_name, prev_region "
-            "FROM customers ORDER BY id"
+            "SELECT id, valid_to, is_current, prev_name, prev_region FROM customers ORDER BY id"
         )
         assert len(rows) == 2
         for row in rows:
@@ -196,8 +194,7 @@ class TestScdType6Behaviour(unittest.IsolatedAsyncioTestCase):
             _make_scd6(source_pool, target_pool)
         assert (await t2.run(RunRequest())).succeeded
         rows = await target_pool.fetch_all(
-            "SELECT id, region, is_current, prev_region "
-            "FROM customers ORDER BY id, valid_from"
+            "SELECT id, region, is_current, prev_region FROM customers ORDER BY id, valid_from"
         )
         assert len(rows) == 3
         old_alice = next(r for r in rows if r[0] == 1 and r[2] == 0)
@@ -219,8 +216,6 @@ class TestScdType6Behaviour(unittest.IsolatedAsyncioTestCase):
         with Tapestry() as t2:
             _make_scd6(source_pool, target_pool)
         assert (await t2.run(RunRequest())).succeeded
-        rows = await target_pool.fetch_all(
-            "SELECT id, current_region FROM customers WHERE id = 1"
-        )
+        rows = await target_pool.fetch_all("SELECT id, current_region FROM customers WHERE id = 1")
         for row in rows:
             assert row[1] == "APAC"

@@ -11,6 +11,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.data_vault.data_vault_pit_table_builder import (
     DataVaultPITTableBuilder,
 )
@@ -24,9 +25,7 @@ _SAT_CFG = [
         "pit_pointer_column": "sat_customer_load_date",
     }
 ]
-_PIT_SPINE_QUERY = (
-    "SELECT hub_hk, snapshot_date FROM pit_spine ORDER BY hub_hk, snapshot_date"
-)
+_PIT_SPINE_QUERY = "SELECT hub_hk, snapshot_date FROM pit_spine ORDER BY hub_hk, snapshot_date"
 _TARGET_TABLE = "pit_customer"
 _HUB_HK_COL = "hub_hk"
 _SNAPSHOT_COL = "snapshot_date"
@@ -35,10 +34,7 @@ _SNAPSHOT_COL = "snapshot_date"
 async def _make_vault_pool() -> SqlitePool:
     pool = SqlitePool(SqliteConfig(database=":memory:"))
     await pool.execute(
-        "CREATE TABLE pit_spine ("
-        "  hub_hk TEXT NOT NULL,"
-        "  snapshot_date TEXT NOT NULL"
-        ")"
+        "CREATE TABLE pit_spine (  hub_hk TEXT NOT NULL,  snapshot_date TEXT NOT NULL)"
     )
     await pool.execute_many(
         "INSERT INTO pit_spine (hub_hk, snapshot_date) VALUES (?, ?)",

@@ -8,6 +8,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.data_batch import DataBatch
 from pirn_data.data_schema import DataSchema
 from pirn_data.transforms.cast import Cast
@@ -17,7 +18,7 @@ from pirn_data.transforms.cast import Cast
 async def emit_string_users() -> DataBatch:
     schema = DataSchema(columns={"id": str, "amount": str, "name": str})
     rows = (
-        {"id": "1", "amount": "12.5",  "name": "alice"},
+        {"id": "1", "amount": "12.5", "name": "alice"},
         {"id": "2", "amount": "99.99", "name": "bob"},
     )
     return DataBatch(rows=rows, schema=schema)
@@ -92,10 +93,7 @@ class TestCast(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         assert not result.succeeded
-        assert any(
-            "could not coerce" in (exc.message or "")
-            for exc in result.exceptions
-        )
+        assert any("could not coerce" in (exc.message or "") for exc in result.exceptions)
 
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):

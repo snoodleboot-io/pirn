@@ -12,13 +12,13 @@ from pirn.connectors.databases.sqlite_pool import SqlitePool
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.scd.scd_type_5_mini_dim_with_current import (
     ScdType5MiniDimWithCurrent,
 )
 
 
 class TestConstruction(unittest.IsolatedAsyncioTestCase):
-
     async def asyncSetUp(self) -> None:
         self._tmp_main_pool = tempfile.TemporaryDirectory()
         tmp_path = Path(self._tmp_main_pool.name)
@@ -112,7 +112,6 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
 
 
 class TestScdType5Behaviour(unittest.IsolatedAsyncioTestCase):
-
     async def asyncSetUp(self) -> None:
         self._tmp_main_pool = tempfile.TemporaryDirectory()
         tmp_path = Path(self._tmp_main_pool.name)

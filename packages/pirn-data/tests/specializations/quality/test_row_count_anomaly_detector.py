@@ -11,6 +11,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.quality.row_count_anomaly_detector import (
     RowCountAnomalyDetector,
 )
@@ -22,9 +23,7 @@ _AUDIT = "row_count_audit"
 async def _make_pool() -> SqlitePool:
     p = SqlitePool(SqliteConfig(database=":memory:"))
     await p.execute("CREATE TABLE events (id INTEGER PRIMARY KEY)")
-    await p.execute_many(
-        "INSERT INTO events (id) VALUES (?)", [(i,) for i in range(10)]
-    )
+    await p.execute_many("INSERT INTO events (id) VALUES (?)", [(i,) for i in range(10)])
     await p.execute(
         "CREATE TABLE row_count_audit ("
         "  table_name TEXT NOT NULL,"

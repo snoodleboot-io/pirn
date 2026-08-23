@@ -6,6 +6,7 @@ import unittest
 from datetime import UTC, datetime
 
 import pytest
+
 from pirn_data.lazy.ray.ray_execution_receipt import RayExecutionReceipt
 
 pytestmark = pytest.mark.slow

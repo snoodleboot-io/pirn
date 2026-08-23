@@ -14,6 +14,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.frames.pyarrow.pyarrow_cast import PyarrowCast
 from pirn_data.frames.pyarrow.pyarrow_data_batch import PyarrowDataBatch
 
@@ -24,9 +25,7 @@ def _empty_batch() -> PyarrowDataBatch:
 
 @knot
 async def emit_strings() -> PyarrowDataBatch:
-    return PyarrowDataBatch(
-        table=pa.table({"id": ["1", "2", "3"], "label": ["a", "b", "c"]})
-    )
+    return PyarrowDataBatch(table=pa.table({"id": ["1", "2", "3"], "label": ["a", "b", "c"]}))
 
 
 class TestPyarrowCast(unittest.IsolatedAsyncioTestCase):
@@ -95,9 +94,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            return PyarrowCast(
-                batch=batch, _config=KnotConfig(id="c"), **kwargs
-            )
+            return PyarrowCast(batch=batch, _config=KnotConfig(id="c"), **kwargs)
 
     async def test_rejects_empty_casts(self) -> None:
         k = self._make_knot(casts={})

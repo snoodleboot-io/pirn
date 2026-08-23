@@ -12,6 +12,7 @@ from pirn.connectors.databases.sqlite_pool import SqlitePool
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.scd.scd_type_1 import ScdType1
 
 
@@ -23,7 +24,6 @@ def _make_pool() -> MagicMock:
 
 
 class TestScdType1Behaviour(unittest.IsolatedAsyncioTestCase):
-
     async def asyncSetUp(self) -> None:
         pool = SqlitePool(SqliteConfig(database=":memory:"))
         await pool.execute(
@@ -67,9 +67,7 @@ class TestScdType1Behaviour(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         assert result.succeeded
-        rows = await target_pool.fetch_all(
-            "SELECT id, name, region FROM customers ORDER BY id"
-        )
+        rows = await target_pool.fetch_all("SELECT id, name, region FROM customers ORDER BY id")
         assert rows == [(1, "Alice", "EU"), (2, "Bob", "US")]
 
     async def test_second_run_overwrites_changed_row(self) -> None:
@@ -101,14 +99,11 @@ class TestScdType1Behaviour(unittest.IsolatedAsyncioTestCase):
                 _config=KnotConfig(id="scd1"),
             )
         assert (await t2.run(RunRequest())).succeeded
-        rows = await target_pool.fetch_all(
-            "SELECT id, name, region FROM customers ORDER BY id"
-        )
+        rows = await target_pool.fetch_all("SELECT id, name, region FROM customers ORDER BY id")
         assert rows == [(1, "Alice", "APAC"), (2, "Bob", "US")]
 
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):
-
     def _make_knot(self, **kwargs: Any) -> ScdType1:
         src = _make_pool()
         tgt = _make_pool()

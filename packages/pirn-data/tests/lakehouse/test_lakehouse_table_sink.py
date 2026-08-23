@@ -11,6 +11,7 @@ from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.nodes.source import Source
 from pirn.tapestry import Tapestry
+
 from pirn_data.data_batch import DataBatch
 from pirn_data.lakehouse.lakehouse_table import LakehouseTable
 from pirn_data.lakehouse.lakehouse_table_sink import LakehouseTableSink
@@ -53,9 +54,7 @@ class _FakeTable(LakehouseTable):
         self._last_partition_filter = partition_filter
         return "snap-overwrite"
 
-    async def merge(
-        self, records: AsyncIterator[Mapping[str, Any]], *, on: Sequence[str]
-    ) -> str:
+    async def merge(self, records: AsyncIterator[Mapping[str, Any]], *, on: Sequence[str]) -> str:
         rows: list[dict] = []
         async for row in records:
             rows.append(dict(row))
@@ -197,13 +196,9 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
     async def test_merge_mode_requires_merge_on(self) -> None:
         k = self._make_sink()
         with self.assertRaisesRegex(ValueError, "merge_on"):
-            await k.process(
-                batch=_make_batch(), table=self._table(), mode="merge", merge_on=None
-            )
+            await k.process(batch=_make_batch(), table=self._table(), mode="merge", merge_on=None)
 
     async def test_merge_mode_requires_non_empty_merge_on(self) -> None:
         k = self._make_sink()
         with self.assertRaisesRegex(ValueError, "merge_on"):
-            await k.process(
-                batch=_make_batch(), table=self._table(), mode="merge", merge_on=[]
-            )
+            await k.process(batch=_make_batch(), table=self._table(), mode="merge", merge_on=[])

@@ -10,6 +10,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.timeseries.sessionization_knot import (
     SessionizationKnot,
 )
@@ -146,15 +147,19 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
             {"uid": "u1", "ts": _ts(60)},
         ]
         result = await k.process(
-            rows=rows, entity_columns=["uid"],
-            timestamp_column="ts", inactivity_minutes=30,
+            rows=rows,
+            entity_columns=["uid"],
+            timestamp_column="ts",
+            inactivity_minutes=30,
         )
         assert result[1]["session_seq"] == 1
 
     async def test_empty_input_returns_empty(self) -> None:
         k = self._make_knot()
         result = await k.process(
-            rows=[], entity_columns=["uid"],
-            timestamp_column="ts", inactivity_minutes=30,
+            rows=[],
+            entity_columns=["uid"],
+            timestamp_column="ts",
+            inactivity_minutes=30,
         )
         assert result == []

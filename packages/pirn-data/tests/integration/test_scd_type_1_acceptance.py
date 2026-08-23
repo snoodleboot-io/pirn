@@ -18,6 +18,7 @@ from pirn.connectors.databases.sqlite_pool import SqlitePool
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.scd.scd_type_1_overwrite import (
     ScdType1Overwrite,
 )
@@ -41,8 +42,7 @@ async def pool() -> SqlitePool:
         ")"
     )
     await p.execute_many(
-        "INSERT INTO source_customers (customer_id, full_name, region) "
-        "VALUES (?, ?, ?)",
+        "INSERT INTO source_customers (customer_id, full_name, region) VALUES (?, ?, ?)",
         [
             (1, "Alice", "EU"),
             (2, "Bob", "US"),
@@ -58,9 +58,7 @@ async def test_scd_type_1_overwrite_first_then_update(pool: SqlitePool) -> None:
     with Tapestry() as t1:
         ScdType1Overwrite(
             source_pool=pool,
-            source_query=(
-                "SELECT customer_id, full_name, region FROM source_customers"
-            ),
+            source_query=("SELECT customer_id, full_name, region FROM source_customers"),
             target_pool=pool,
             target_table="dim_customers",
             key_columns=("customer_id",),
@@ -70,8 +68,7 @@ async def test_scd_type_1_overwrite_first_then_update(pool: SqlitePool) -> None:
     r1 = await t1.run(RunRequest())
     assert r1.succeeded, [(rec.knot_id, rec.outcome) for rec in r1.lineage]
     after_first = await pool.fetch_all(
-        "SELECT customer_id, full_name, region FROM dim_customers "
-        "ORDER BY customer_id"
+        "SELECT customer_id, full_name, region FROM dim_customers ORDER BY customer_id"
     )
     assert after_first == [
         (1, "Alice", "EU"),
@@ -92,9 +89,7 @@ async def test_scd_type_1_overwrite_first_then_update(pool: SqlitePool) -> None:
     with Tapestry() as t2:
         ScdType1Overwrite(
             source_pool=pool,
-            source_query=(
-                "SELECT customer_id, full_name, region FROM source_customers"
-            ),
+            source_query=("SELECT customer_id, full_name, region FROM source_customers"),
             target_pool=pool,
             target_table="dim_customers",
             key_columns=("customer_id",),
@@ -104,8 +99,7 @@ async def test_scd_type_1_overwrite_first_then_update(pool: SqlitePool) -> None:
     r2 = await t2.run(RunRequest())
     assert r2.succeeded
     after_second = await pool.fetch_all(
-        "SELECT customer_id, full_name, region FROM dim_customers "
-        "ORDER BY customer_id"
+        "SELECT customer_id, full_name, region FROM dim_customers ORDER BY customer_id"
     )
     # Only one row per natural key — Type 1 overwrites, never accumulates.
     assert after_second == [

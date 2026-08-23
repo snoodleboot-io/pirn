@@ -14,6 +14,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.lazy.ibis.ibis_connection import IbisConnection
 from pirn_data.lazy.ibis.ibis_group_by_aggregate import IbisGroupByAggregate
 from pirn_data.lazy.ibis.ibis_source import IbisSource
@@ -25,8 +26,8 @@ def _make_orders_con() -> ibis.BaseBackend:
     con.create_table(
         "orders",
         {
-            "region":   ["EU", "EU", "EU", "US", "US"],
-            "amount":   [10.0, 25.0, 5.0,  100.0, 50.0],
+            "region": ["EU", "EU", "EU", "US", "US"],
+            "amount": [10.0, 25.0, 5.0, 100.0, 50.0],
             "customer": ["alice", "bob", "alice", "carol", "carol"],
         },
     )
@@ -38,8 +39,10 @@ class TestIbisGroupByAggregate(unittest.IsolatedAsyncioTestCase):
         con = _make_orders_con()
         with Tapestry() as t:
             src = IbisSource(
-                connection=IbisConnection(con), table="orders",
-                backend_name="duckdb", _config=KnotConfig(id="src"),
+                connection=IbisConnection(con),
+                table="orders",
+                backend_name="duckdb",
+                _config=KnotConfig(id="src"),
             )
             IbisGroupByAggregate(
                 batch=src,
@@ -57,8 +60,10 @@ class TestIbisGroupByAggregate(unittest.IsolatedAsyncioTestCase):
         con = _make_orders_con()
         with Tapestry() as t:
             src = IbisSource(
-                connection=IbisConnection(con), table="orders",
-                backend_name="duckdb", _config=KnotConfig(id="src"),
+                connection=IbisConnection(con),
+                table="orders",
+                backend_name="duckdb",
+                _config=KnotConfig(id="src"),
             )
             IbisGroupByAggregate(
                 batch=src,
@@ -80,8 +85,10 @@ class TestIbisGroupByAggregate(unittest.IsolatedAsyncioTestCase):
         con = _make_orders_con()
         with Tapestry() as t:
             src = IbisSource(
-                connection=IbisConnection(con), table="orders",
-                backend_name="duckdb", _config=KnotConfig(id="src"),
+                connection=IbisConnection(con),
+                table="orders",
+                backend_name="duckdb",
+                _config=KnotConfig(id="src"),
             )
             IbisGroupByAggregate(
                 batch=src,
@@ -105,8 +112,10 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
 
         with Tapestry() as t:
             src = IbisSource(
-                connection=IbisConnection(con), table="orders",
-                backend_name="duckdb", _config=KnotConfig(id="src"),
+                connection=IbisConnection(con),
+                table="orders",
+                backend_name="duckdb",
+                _config=KnotConfig(id="src"),
             )
             by_knot = emit_by(_config=KnotConfig(id="by"))
             IbisGroupByAggregate(
@@ -125,7 +134,9 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, **kwargs: object) -> IbisGroupByAggregate:
         con = _make_orders_con()
         with Tapestry():
-            src = IbisSource(connection=IbisConnection(con), table="orders", _config=KnotConfig(id="src"))
+            src = IbisSource(
+                connection=IbisConnection(con), table="orders", _config=KnotConfig(id="src")
+            )
             return IbisGroupByAggregate(
                 batch=src,
                 by=("region",),

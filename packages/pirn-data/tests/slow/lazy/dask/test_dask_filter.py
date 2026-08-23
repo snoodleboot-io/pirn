@@ -11,6 +11,7 @@ pytestmark = pytest.mark.slow
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.lazy.dask.dask_dataframe import DaskDataFrame
 from pirn_data.lazy.dask.dask_filter import DaskFilter
 from pirn_data.lazy.dask.dask_source import DaskSource
@@ -19,7 +20,7 @@ from pirn_data.lazy.dask.dask_source import DaskSource
 def _orders_factory() -> dd.DataFrame:
     pdf = pd.DataFrame(
         {
-            "id":     [1, 2, 3, 4],
+            "id": [1, 2, 3, 4],
             "amount": [10.0, 25.0, 5.0, 100.0],
             "region": ["EU", "EU", "EU", "US"],
         }

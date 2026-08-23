@@ -9,6 +9,7 @@ pytestmark = pytest.mark.slow
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.lazy.spark.spark_aggregate import SparkAggregate
 from pirn_data.lazy.spark.spark_dataframe import SparkDataFrame
 from pirn_data.lazy.spark.spark_source import SparkSource
@@ -54,7 +55,7 @@ async def test_aggregate_multiple_functions(_spark_session) -> None:
             frame=src,
             by=("region",),
             aggs={
-                "n":     ("id", "count"),
+                "n": ("id", "count"),
                 "min_a": ("amount", "min"),
                 "max_a": ("amount", "max"),
             },

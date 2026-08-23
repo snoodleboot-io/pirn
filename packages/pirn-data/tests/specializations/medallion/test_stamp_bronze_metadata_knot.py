@@ -10,6 +10,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.medallion.stamp_bronze_metadata_knot import (
     StampBronzeMetadataKnot,
 )
@@ -58,9 +59,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
         with Tapestry() as t:
             r = emit_rows(_config=KnotConfig(id="rows"))
             u = emit_uri(_config=KnotConfig(id="uri"))
-            k = StampBronzeMetadataKnot(
-                rows=r, source_uri=u, _config=KnotConfig(id="stamp")
-            )
+            k = StampBronzeMetadataKnot(rows=r, source_uri=u, _config=KnotConfig(id="stamp"))
         result = await t.run(RunRequest())
         stamped = result.outputs[k.config.id]
         assert stamped[0][-1] == "db://src/t"

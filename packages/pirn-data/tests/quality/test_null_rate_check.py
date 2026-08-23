@@ -8,6 +8,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.data_batch import DataBatch
 from pirn_data.quality.null_rate_check import NullRateCheck
 from pirn_data.quality_report import QualityReport
@@ -15,10 +16,7 @@ from pirn_data.quality_report import QualityReport
 
 @knot
 async def emit_mostly_filled() -> DataBatch:
-    rows = tuple(
-        {"id": i, "email": f"u{i}@x" if i % 5 != 0 else None}
-        for i in range(10)
-    )
+    rows = tuple({"id": i, "email": f"u{i}@x" if i % 5 != 0 else None} for i in range(10))
     return DataBatch(rows=rows)
 
 

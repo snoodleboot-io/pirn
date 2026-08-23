@@ -11,6 +11,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.schema_migration.backfill_runner import (
     BackfillRunner,
 )
@@ -67,8 +68,13 @@ class TestBackfillRunner(unittest.IsolatedAsyncioTestCase):
 
     async def test_resume_from_key_skips_processed(self) -> None:
         with Tapestry() as t:
-            _make_knot(self.src, self.tgt, resume_from_key=3, batch_size=1000,
-                       _config=KnotConfig(id="bf-resume"))
+            _make_knot(
+                self.src,
+                self.tgt,
+                resume_from_key=3,
+                batch_size=1000,
+                _config=KnotConfig(id="bf-resume"),
+            )
         result = await t.run(RunRequest())
         assert result.succeeded
         assert result.outputs["bf-resume"]["rows_processed"] == 2

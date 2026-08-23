@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, MagicMock
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.scd.scd_type_2_merge_knot import ScdType2MergeKnot
 
 _TARGET_TABLE = "dim_customer"
@@ -61,9 +62,7 @@ class TestScdType2MergeKnotConstruction(unittest.TestCase):
         )
         self.assertIn(
             "dim_customer",
-            ScdType2MergeKnot._expire_query(
-                "dim_customer", ("id",), "valid_to", "is_current"
-            ),
+            ScdType2MergeKnot._expire_query("dim_customer", ("id",), "valid_to", "is_current"),
         )
 
 

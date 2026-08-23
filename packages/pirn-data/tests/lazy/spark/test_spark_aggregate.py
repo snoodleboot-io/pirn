@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
+
 from pirn_data.lazy.spark.spark_dataframe import SparkDataFrame
 
 try:
@@ -17,6 +18,7 @@ except ImportError as _e:
 
 from pirn.nodes.source import Source
 from pirn.tapestry import Tapestry
+
 from pirn_data.lazy.spark.spark_aggregate import SparkAggregate
 
 
@@ -60,6 +62,7 @@ class TestSparkAggregate(unittest.IsolatedAsyncioTestCase):
             )
         mock_sf = _mock_spark_functions()
         import pyspark.sql as _psql
+
         with patch.object(_psql, "functions", mock_sf):
             result = await agg.process(
                 frame=sdf,
@@ -81,6 +84,7 @@ class TestSparkAggregate(unittest.IsolatedAsyncioTestCase):
             )
         mock_sf = _mock_spark_functions()
         import pyspark.sql as _psql
+
         with patch.object(_psql, "functions", mock_sf):
             result = await agg.process(
                 frame=sdf,

@@ -15,6 +15,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.frames.datafusion.datafusion_aggregate import (
     DatafusionAggregate,
 )
@@ -36,7 +37,7 @@ async def emit_orders() -> DatafusionDataBatch:
         [
             {"region": "EU", "amount": 10.0, "customer": "alice"},
             {"region": "EU", "amount": 25.0, "customer": "bob"},
-            {"region": "EU", "amount": 5.0,  "customer": "alice"},
+            {"region": "EU", "amount": 5.0, "customer": "alice"},
             {"region": "US", "amount": 100.0, "customer": "carol"},
         ]
     )
@@ -109,9 +110,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            return DatafusionAggregate(
-                batch=batch, _config=KnotConfig(id="a"), **kwargs
-            )
+            return DatafusionAggregate(batch=batch, _config=KnotConfig(id="a"), **kwargs)
 
     async def test_rejects_empty_by(self) -> None:
         k = self._make_knot(by=(), aggs={"total": dff.sum(df.col("x"))})

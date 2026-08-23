@@ -23,6 +23,7 @@ from lance.dataset import write_dataset
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specialized.lance.lance_dataset import LanceDataset
 from pirn_data.specialized.lance.lance_source import LanceSource
 

@@ -14,6 +14,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.frames.pyarrow.pyarrow_data_batch import PyarrowDataBatch
 from pirn_data.frames.pyarrow.pyarrow_deduplicate import (
     PyarrowDeduplicate,
@@ -29,7 +30,7 @@ async def emit_dupes() -> PyarrowDataBatch:
     return PyarrowDataBatch(
         table=pa.table(
             {
-                "id":   [1, 1, 2, 2, 3],
+                "id": [1, 1, 2, 2, 3],
                 "name": ["a", "a2", "b", "b2", "c"],
             }
         )
@@ -59,8 +60,8 @@ class TestPyarrowDeduplicate(unittest.IsolatedAsyncioTestCase):
                 table=pa.table(
                     {
                         "region": ["EU", "EU", "US", "EU"],
-                        "tier":   ["A",  "A",  "A",  "B"],
-                        "rev":    [1,    2,    3,    4],
+                        "tier": ["A", "A", "A", "B"],
+                        "rev": [1, 2, 3, 4],
                     }
                 )
             )
@@ -80,14 +81,13 @@ class TestPyarrowDeduplicate(unittest.IsolatedAsyncioTestCase):
     async def test_empty_table_passes_through(self) -> None:
         @knot
         async def emit_empty() -> PyarrowDataBatch:
-            return PyarrowDataBatch(
-                table=pa.table({"id": pa.array([], type=pa.int64())})
-            )
+            return PyarrowDataBatch(table=pa.table({"id": pa.array([], type=pa.int64())}))
 
         with Tapestry() as t:
             batch = emit_empty(_config=KnotConfig(id="src"))
             PyarrowDeduplicate(
-                batch=batch, keys=("id",),
+                batch=batch,
+                keys=("id",),
                 _config=KnotConfig(id="dedup"),
             )
         result = await t.run(RunRequest())
@@ -123,9 +123,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            return PyarrowDeduplicate(
-                batch=batch, _config=KnotConfig(id="d"), **kwargs
-            )
+            return PyarrowDeduplicate(batch=batch, _config=KnotConfig(id="d"), **kwargs)
 
     async def test_rejects_string_keys(self) -> None:
         k = self._make_knot(keys="id")

@@ -11,6 +11,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.quality.reconciliation_diff import ReconciliationDiff
 
 _SRC_QUERY = "SELECT id, value FROM records ORDER BY id"
@@ -21,9 +22,7 @@ _VAL_COLS = ("value",)
 
 async def _make_source_pool() -> SqlitePool:
     p = SqlitePool(SqliteConfig(database=":memory:"))
-    await p.execute(
-        "CREATE TABLE records (id INTEGER PRIMARY KEY, value TEXT NOT NULL)"
-    )
+    await p.execute("CREATE TABLE records (id INTEGER PRIMARY KEY, value TEXT NOT NULL)")
     await p.execute_many(
         "INSERT INTO records (id, value) VALUES (?, ?)",
         [(1, "alpha"), (2, "beta"), (3, "gamma")],
@@ -33,9 +32,7 @@ async def _make_source_pool() -> SqlitePool:
 
 async def _make_target_pool() -> SqlitePool:
     p = SqlitePool(SqliteConfig(database=":memory:"))
-    await p.execute(
-        "CREATE TABLE records (id INTEGER PRIMARY KEY, value TEXT NOT NULL)"
-    )
+    await p.execute("CREATE TABLE records (id INTEGER PRIMARY KEY, value TEXT NOT NULL)")
     await p.execute_many(
         "INSERT INTO records (id, value) VALUES (?, ?)",
         [(1, "alpha"), (2, "CHANGED"), (4, "delta")],

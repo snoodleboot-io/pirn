@@ -14,6 +14,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.frames.polars.polars_data_batch import PolarsDataBatch
 from pirn_data.frames.polars.polars_window_calc import PolarsWindowCalc
 
@@ -24,7 +25,7 @@ async def emit_orders() -> PolarsDataBatch:
         frame=pl.DataFrame(
             {
                 "region": ["EU", "EU", "EU", "US", "US"],
-                "amount": [10.0, 25.0, 5.0,  100.0, 50.0],
+                "amount": [10.0, 25.0, 5.0, 100.0, 50.0],
             }
         )
     )
@@ -73,7 +74,11 @@ class TestPolarsWindowCalc(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         out: PolarsDataBatch = result.outputs["cum"]
         assert out.frame["running_total"].to_list() == [
-            10.0, 35.0, 40.0, 140.0, 190.0,
+            10.0,
+            35.0,
+            40.0,
+            140.0,
+            190.0,
         ]
 
 

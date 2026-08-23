@@ -8,6 +8,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.data_batch import DataBatch
 from pirn_data.transforms.normalize import Normalize
 from pirn_data.transforms.normalize_column_rule import NormalizeColumnRule
@@ -16,9 +17,9 @@ from pirn_data.transforms.normalize_column_rule import NormalizeColumnRule
 @knot
 async def emit_messy() -> DataBatch:
     rows = (
-        {"name": "  Alice   Smith  ",  "region": "EU",  "comment": "n/a"},
-        {"name": "BOB",                 "region": "us",  "comment": ""},
-        {"name": "carol",               "region": "Asia","comment": "needs review"},
+        {"name": "  Alice   Smith  ", "region": "EU", "comment": "n/a"},
+        {"name": "BOB", "region": "us", "comment": ""},
+        {"name": "carol", "region": "Asia", "comment": "needs review"},
     )
     return DataBatch(rows=rows)
 
@@ -77,7 +78,8 @@ class TestNormalize(unittest.IsolatedAsyncioTestCase):
                 batch=batch,
                 rules={
                     "name": NormalizeColumnRule(
-                        strip_whitespace=True, case="title",
+                        strip_whitespace=True,
+                        case="title",
                     ),
                 },
                 _config=KnotConfig(id="norm"),
@@ -97,7 +99,7 @@ class TestNormalize(unittest.IsolatedAsyncioTestCase):
             Normalize(
                 batch=batch,
                 rules={
-                    "id":   NormalizeColumnRule(strip_whitespace=True),
+                    "id": NormalizeColumnRule(strip_whitespace=True),
                     "name": NormalizeColumnRule(strip_whitespace=True),
                 },
                 _config=KnotConfig(id="norm"),

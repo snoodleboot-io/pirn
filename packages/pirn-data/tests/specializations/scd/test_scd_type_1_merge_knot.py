@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, MagicMock
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.scd.scd_type_1_merge_knot import ScdType1MergeKnot
 
 _TARGET_TABLE = "dim_customer"
@@ -124,6 +125,4 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_pk_not_in_columns(self) -> None:
         k = _make_knot()
         with self.assertRaises(ValueError):
-            await self._call(
-                k, primary_keys=("missing_key",), rows=[(1, "a")]
-            )
+            await self._call(k, primary_keys=("missing_key",), rows=[(1, "a")])

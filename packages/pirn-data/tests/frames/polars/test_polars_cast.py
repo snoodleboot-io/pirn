@@ -14,21 +14,18 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.frames.polars.polars_cast import PolarsCast
 from pirn_data.frames.polars.polars_data_batch import PolarsDataBatch
 
 
 @knot
 async def emit_string_columns() -> PolarsDataBatch:
-    return PolarsDataBatch(
-        frame=pl.DataFrame({"id": ["1", "2"], "amount": ["12.5", "99.0"]})
-    )
+    return PolarsDataBatch(frame=pl.DataFrame({"id": ["1", "2"], "amount": ["12.5", "99.0"]}))
 
 
 def _string_batch() -> PolarsDataBatch:
-    return PolarsDataBatch(
-        frame=pl.DataFrame({"id": ["1", "2"], "amount": ["12.5", "99.0"]})
-    )
+    return PolarsDataBatch(frame=pl.DataFrame({"id": ["1", "2"], "amount": ["12.5", "99.0"]}))
 
 
 class TestPolarsCast(unittest.IsolatedAsyncioTestCase):

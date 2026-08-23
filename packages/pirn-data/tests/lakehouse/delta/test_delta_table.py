@@ -24,7 +24,11 @@ from pirn_data.lakehouse.lakehouse_table import LakehouseTable
 class StubDt:
     """Minimal stand-in for ``deltalake.DeltaTable``."""
 
-    def __init__(self, rows: list[dict[str, Any]] | None = None, version_value: int = 7,) -> None:
+    def __init__(
+        self,
+        rows: list[dict[str, Any]] | None = None,
+        version_value: int = 7,
+    ) -> None:
         self._rows = list(rows or [])
         self._version = version_value
         self.loaded_version: int | None = None
@@ -33,7 +37,11 @@ class StubDt:
         self.last_columns: Any = None
         self.merge_calls: list[dict[str, Any]] = []
 
-    def to_pyarrow_table(self, partitions: Any = None, columns: Any = None,) -> Any:
+    def to_pyarrow_table(
+        self,
+        partitions: Any = None,
+        columns: Any = None,
+    ) -> Any:
         self.last_partitions = partitions
         self.last_columns = columns
         rows = self._rows
@@ -70,7 +78,14 @@ class StubDt:
             {"version": 1, "operation": "MERGE"},
         ]
 
-    def merge(self, *, source: Any, predicate: str, source_alias: str, target_alias: str,) -> Any:
+    def merge(
+        self,
+        *,
+        source: Any,
+        predicate: str,
+        source_alias: str,
+        target_alias: str,
+    ) -> Any:
         self.merge_calls.append(
             {
                 "predicate": predicate,
@@ -156,9 +171,7 @@ class TestConstruction(unittest.TestCase):
 
 class TestLifecycle(unittest.IsolatedAsyncioTestCase):
     async def test_close_clears_credentials(self) -> None:
-        cfg = DeltaTableConfig(
-            table_uri="s3://b/t", storage_options={"k": "v"}
-        )
+        cfg = DeltaTableConfig(table_uri="s3://b/t", storage_options={"k": "v"})
         table = DeltaTable(cfg, dt=StubDt())
         await table.close()
         assert table._config is None  # cleared via _clear_credentials

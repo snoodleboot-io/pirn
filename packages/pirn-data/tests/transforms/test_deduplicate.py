@@ -8,6 +8,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.data_batch import DataBatch
 from pirn_data.transforms.deduplicate import Deduplicate
 
@@ -19,7 +20,7 @@ async def emit_with_dups() -> DataBatch:
         {"id": 2, "version": 1, "name": "bob"},
         {"id": 1, "version": 2, "name": "alice-v2"},  # dup on id
         {"id": 3, "version": 1, "name": "carol"},
-        {"id": 2, "version": 2, "name": "bob-v2"},    # dup on id
+        {"id": 2, "version": 2, "name": "bob-v2"},  # dup on id
     )
     return DataBatch(rows=rows)
 

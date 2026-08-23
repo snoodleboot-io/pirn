@@ -12,6 +12,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.ingestion.query_new_rows_knot import (
     QueryNewRowsKnot,
 )
@@ -19,9 +20,7 @@ from pirn_data.specializations.ingestion.query_new_rows_knot import (
 
 async def _make_source_pool() -> SqlitePool:
     pool = SqlitePool(SqliteConfig(database=":memory:"))
-    await pool.execute(
-        "CREATE TABLE orders (id INTEGER PRIMARY KEY, updated_at TEXT)"
-    )
+    await pool.execute("CREATE TABLE orders (id INTEGER PRIMARY KEY, updated_at TEXT)")
     await pool.execute_many(
         "INSERT INTO orders (id, updated_at) VALUES (?, ?)",
         [(1, "2024-01-01"), (2, "2024-06-01")],

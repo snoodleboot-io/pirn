@@ -14,6 +14,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.frames.pyarrow.pyarrow_data_batch import PyarrowDataBatch
 from pirn_data.frames.pyarrow.pyarrow_rename import PyarrowRename
 
@@ -24,9 +25,7 @@ def _empty_batch() -> PyarrowDataBatch:
 
 @knot
 async def emit_users() -> PyarrowDataBatch:
-    return PyarrowDataBatch(
-        table=pa.table({"id": [1, 2], "name": ["a", "b"]})
-    )
+    return PyarrowDataBatch(table=pa.table({"id": [1, 2], "name": ["a", "b"]}))
 
 
 class TestPyarrowRename(unittest.IsolatedAsyncioTestCase):
@@ -82,9 +81,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            return PyarrowRename(
-                batch=batch, _config=KnotConfig(id="r"), **kwargs
-            )
+            return PyarrowRename(batch=batch, _config=KnotConfig(id="r"), **kwargs)
 
     async def test_rejects_empty_mapping(self) -> None:
         k = self._make_knot(mapping={})

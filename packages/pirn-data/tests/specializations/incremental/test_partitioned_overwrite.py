@@ -11,12 +11,10 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.incremental.partitioned_overwrite import PartitionedOverwrite
 
-_SRC_QUERY = (
-    "SELECT event_date, metric, value FROM facts "
-    "WHERE event_date = '2024-01-01'"
-)
+_SRC_QUERY = "SELECT event_date, metric, value FROM facts WHERE event_date = '2024-01-01'"
 _TARGET_TABLE = "facts"
 _PARTITION_COL = "event_date"
 _PARTITION_VAL = "2024-01-01"

@@ -14,6 +14,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.frames.duckdb.duckdb_data_batch import DuckdbDataBatch
 from pirn_data.frames.duckdb.duckdb_filter import DuckdbFilter
 
@@ -30,9 +31,7 @@ async def emit_users() -> DuckdbDataBatch:
         "(4, FALSE, 'EU')"
         ") AS v(id, active, region)"
     )
-    return DuckdbDataBatch(
-        relation=connection.table("users"), connection=connection
-    )
+    return DuckdbDataBatch(relation=connection.table("users"), connection=connection)
 
 
 def _make_batch() -> DuckdbDataBatch:
@@ -48,7 +47,8 @@ class TestDuckdbFilter(unittest.IsolatedAsyncioTestCase):
         with Tapestry() as t:
             batch = emit_users(_config=KnotConfig(id="users"))
             DuckdbFilter(
-                batch=batch, predicate="active",
+                batch=batch,
+                predicate="active",
                 _config=KnotConfig(id="active"),
             )
         result = await t.run(RunRequest())
@@ -98,7 +98,9 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
 
         with Tapestry():
             batch = upstream(_config=KnotConfig(id="up"))
-            return DuckdbFilter(batch=batch, predicate="active", _config=KnotConfig(id="f"), **kwargs)
+            return DuckdbFilter(
+                batch=batch, predicate="active", _config=KnotConfig(id="f"), **kwargs
+            )
 
     async def test_rejects_non_string_predicate(self) -> None:
         k = await self._make_knot()

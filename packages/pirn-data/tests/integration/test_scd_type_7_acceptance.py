@@ -22,6 +22,7 @@ from pirn.connectors.databases.sqlite_pool import SqlitePool
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.scd.scd_type_7_hybrid import (
     ScdType7Hybrid,
 )
@@ -50,8 +51,7 @@ async def pool() -> SqlitePool:
         ")"
     )
     await p.execute_many(
-        "INSERT INTO source_customers (customer_id, region, tier) "
-        "VALUES (?, ?, ?)",
+        "INSERT INTO source_customers (customer_id, region, tier) VALUES (?, ?, ?)",
         [
             (1, "EU", "gold"),
             (2, "US", "silver"),
@@ -65,9 +65,7 @@ def _build_pipeline(pool: SqlitePool) -> Tapestry:
     with Tapestry() as t:
         ScdType7Hybrid(
             source_pool=pool,
-            source_query=(
-                "SELECT customer_id, region, tier FROM source_customers"
-            ),
+            source_query=("SELECT customer_id, region, tier FROM source_customers"),
             target_pool=pool,
             target_table="dim_customers_hybrid",
             key_columns=("customer_id",),

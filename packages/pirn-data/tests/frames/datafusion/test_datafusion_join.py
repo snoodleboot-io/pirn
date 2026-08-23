@@ -14,6 +14,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.frames.datafusion.datafusion_data_batch import (
     DatafusionDataBatch,
 )
@@ -59,7 +60,10 @@ class TestDatafusionJoin(unittest.IsolatedAsyncioTestCase):
             users = emit_users(_config=KnotConfig(id="users"))
             orders = emit_orders(_config=KnotConfig(id="orders"))
             DatafusionJoin(
-                left=users, right=orders, on="user_id", how="inner",
+                left=users,
+                right=orders,
+                on="user_id",
+                how="inner",
                 _config=KnotConfig(id="joined"),
             )
         result = await t.run(RunRequest())
@@ -73,7 +77,10 @@ class TestDatafusionJoin(unittest.IsolatedAsyncioTestCase):
             users = emit_users(_config=KnotConfig(id="users"))
             orders = emit_orders(_config=KnotConfig(id="orders"))
             DatafusionJoin(
-                left=users, right=orders, on="user_id", how="left",
+                left=users,
+                right=orders,
+                on="user_id",
+                how="left",
                 _config=KnotConfig(id="joined"),
             )
         result = await t.run(RunRequest())
@@ -87,9 +94,7 @@ class TestDatafusionJoin(unittest.IsolatedAsyncioTestCase):
         @knot
         async def emit_renamed_users() -> DatafusionDataBatch:
             ctx = df.SessionContext()
-            frame = ctx.from_pylist(
-                [{"uid": 1, "name": "alice"}, {"uid": 2, "name": "bob"}]
-            )
+            frame = ctx.from_pylist([{"uid": 1, "name": "alice"}, {"uid": 2, "name": "bob"}])
             return DatafusionDataBatch(frame=frame, context=ctx)
 
         @knot
@@ -104,8 +109,10 @@ class TestDatafusionJoin(unittest.IsolatedAsyncioTestCase):
             left = emit_renamed_users(_config=KnotConfig(id="users"))
             right = emit_renamed_orders(_config=KnotConfig(id="orders"))
             DatafusionJoin(
-                left=left, right=right,
-                left_on="uid", right_on="customer_id",
+                left=left,
+                right=right,
+                left_on="uid",
+                right_on="customer_id",
                 how="inner",
                 _config=KnotConfig(id="joined"),
             )
@@ -126,7 +133,10 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
             orders = emit_orders(_config=KnotConfig(id="orders"))
             how_knot = emit_how(_config=KnotConfig(id="how"))
             DatafusionJoin(
-                left=users, right=orders, on="user_id", how=how_knot,
+                left=users,
+                right=orders,
+                on="user_id",
+                how=how_knot,
                 _config=KnotConfig(id="joined"),
             )
         result = await t.run(RunRequest())
@@ -149,38 +159,58 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
         k = self._make_knot(on="x", how="diagonal")
         with self.assertRaisesRegex(ValueError, "how must be one of"):
             await k.process(
-                left=_make_empty_batch(), right=_make_empty_batch(),
-                on="x", left_on=None, right_on=None, how="diagonal",
+                left=_make_empty_batch(),
+                right=_make_empty_batch(),
+                on="x",
+                left_on=None,
+                right_on=None,
+                how="diagonal",
             )
 
     async def test_rejects_both_on_and_left_on(self) -> None:
         k = self._make_knot(on="x", left_on="x", right_on="x")
         with self.assertRaisesRegex(TypeError, "not both"):
             await k.process(
-                left=_make_empty_batch(), right=_make_empty_batch(),
-                on="x", left_on="x", right_on="x", how="inner",
+                left=_make_empty_batch(),
+                right=_make_empty_batch(),
+                on="x",
+                left_on="x",
+                right_on="x",
+                how="inner",
             )
 
     async def test_requires_either_on_or_both_left_right(self) -> None:
         k = self._make_knot(how="inner")
         with self.assertRaises(TypeError):
             await k.process(
-                left=_make_empty_batch(), right=_make_empty_batch(),
-                on=None, left_on=None, right_on=None, how="inner",
+                left=_make_empty_batch(),
+                right=_make_empty_batch(),
+                on=None,
+                left_on=None,
+                right_on=None,
+                how="inner",
             )
 
     async def test_rejects_unsafe_on_column(self) -> None:
         k = self._make_knot(on="x; DROP TABLE t")
         with self.assertRaisesRegex(ValueError, "plain identifier"):
             await k.process(
-                left=_make_empty_batch(), right=_make_empty_batch(),
-                on="x; DROP TABLE t", left_on=None, right_on=None, how="inner",
+                left=_make_empty_batch(),
+                right=_make_empty_batch(),
+                on="x; DROP TABLE t",
+                left_on=None,
+                right_on=None,
+                how="inner",
             )
 
     async def test_rejects_mismatched_left_right_lengths(self) -> None:
         k = self._make_knot(left_on=("a", "b"), right_on=("c",))
         with self.assertRaisesRegex(ValueError, "same length"):
             await k.process(
-                left=_make_empty_batch(), right=_make_empty_batch(),
-                on=None, left_on=("a", "b"), right_on=("c",), how="inner",
+                left=_make_empty_batch(),
+                right=_make_empty_batch(),
+                on=None,
+                left_on=("a", "b"),
+                right_on=("c",),
+                how="inner",
             )

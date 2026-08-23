@@ -23,6 +23,7 @@ import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.lazy.ibis.ibis_execution_receipt import IbisExecutionReceipt
 from pirn_data.lazy.ibis.ibis_filter import IbisFilter
 from pirn_data.lazy.ibis.ibis_group_by_aggregate import IbisGroupByAggregate
@@ -58,8 +59,8 @@ def duckdb_recorded():
         "orders",
         {
             "user_id": [1, 1, 2, 3, 3, 4],
-            "amount":  [10.0, 25.0, 5.0, 100.0, 50.0, 1.0],
-            "active":  [True, True, False, True, True, False],
+            "amount": [10.0, 25.0, 5.0, 100.0, 50.0, 1.0],
+            "active": [True, True, False, True, True, False],
         },
     )
     return _ExecutionRecorder(base)
@@ -69,12 +70,14 @@ def duckdb_recorded():
 async def test_push_down_pipeline_executes_once(duckdb_recorded) -> None:
     with Tapestry() as t:
         users = IbisSource(
-            connection=duckdb_recorded, table="users",
+            connection=duckdb_recorded,
+            table="users",
             backend_name="duckdb",
             _config=KnotConfig(id="users", validate_io=False),
         )
         orders = IbisSource(
-            connection=duckdb_recorded, table="orders",
+            connection=duckdb_recorded,
+            table="orders",
             backend_name="duckdb",
             _config=KnotConfig(id="orders", validate_io=False),
         )
@@ -84,7 +87,8 @@ async def test_push_down_pipeline_executes_once(duckdb_recorded) -> None:
             _config=KnotConfig(id="active"),
         )
         joined = IbisJoin(
-            left=users, right=active_orders,
+            left=users,
+            right=active_orders,
             predicates=("user_id",),
             how="inner",
             _config=KnotConfig(id="joined"),
@@ -117,10 +121,10 @@ async def test_push_down_pipeline_executes_once(duckdb_recorded) -> None:
     assert receipt.row_count == 2  # 2 regions
     sql = receipt.compiled_sql.lower()
     # All push-down landmarks should appear in the single compiled query.
-    assert "where" in sql        # filter
-    assert "group by" in sql      # aggregate
-    assert "join" in sql          # join
-    assert "sum" in sql           # aggregation
+    assert "where" in sql  # filter
+    assert "group by" in sql  # aggregate
+    assert "join" in sql  # join
+    assert "sum" in sql  # aggregation
 
     # Confirm only the sink triggered .execute() against the backend.
     # Source / filter / aggregate / join were *deferred* — no execute.
@@ -130,9 +134,7 @@ async def test_push_down_pipeline_executes_once(duckdb_recorded) -> None:
     assert len(duckdb_recorded.execute_calls) <= 2, duckdb_recorded.execute_calls
 
     # And the destination table holds the per-region totals.
-    persisted = duckdb_recorded.execute(
-        duckdb_recorded.table("region_totals")
-    ).set_index("region")
+    persisted = duckdb_recorded.execute(duckdb_recorded.table("region_totals")).set_index("region")
     # EU active orders: 10 + 25 = 35 (user 1's two orders); US active: 100+50 = 150
     assert persisted.loc["EU", "total"] == 35.0
     assert persisted.loc["US", "total"] == 150.0

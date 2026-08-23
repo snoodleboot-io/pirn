@@ -11,6 +11,7 @@ pytestmark = pytest.mark.slow
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.lazy.dask.dask_dataframe import DaskDataFrame
 from pirn_data.lazy.dask.dask_source import DaskSource
 
@@ -38,9 +39,7 @@ async def test_dask_source_emits_deferred_frame() -> None:
 @pytest.mark.asyncio
 async def test_dask_source_path_with_reader(tmp_path) -> None:
     parquet_path = tmp_path / "users.parquet"
-    pd.DataFrame(
-        {"id": [1, 2], "name": ["alice", "bob"]}
-    ).to_parquet(parquet_path)
+    pd.DataFrame({"id": [1, 2], "name": ["alice", "bob"]}).to_parquet(parquet_path)
 
     with Tapestry() as t:
         DaskSource(

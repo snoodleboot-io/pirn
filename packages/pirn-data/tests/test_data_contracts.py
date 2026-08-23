@@ -80,28 +80,18 @@ class TestDataBatch(unittest.TestCase):
 
 class TestQualityReport(unittest.TestCase):
     def test_passing_report(self) -> None:
-        checks = (
-            QualityCheck(name="row_count_min", passed=True, threshold="1", actual="5"),
-        )
+        checks = (QualityCheck(name="row_count_min", passed=True, threshold="1", actual="5"),)
         r = QualityReport(passed=True, checks=checks, row_count=5)
         assert r.failed_checks == ()
 
     def test_failing_check_with_passed_false(self) -> None:
-        checks = (
-            QualityCheck(
-                name="row_count_min", passed=False, threshold="100", actual="5"
-            ),
-        )
+        checks = (QualityCheck(name="row_count_min", passed=False, threshold="100", actual="5"),)
         r = QualityReport(passed=False, checks=checks, row_count=5)
         assert len(r.failed_checks) == 1
 
     def test_inconsistency_raises(self) -> None:
         # passed=True but a check failed → invariant violated.
-        checks = (
-            QualityCheck(
-                name="x", passed=False, threshold="100", actual="5"
-            ),
-        )
+        checks = (QualityCheck(name="x", passed=False, threshold="100", actual="5"),)
         with self.assertRaisesRegex(ValueError, "cannot be True"):
             QualityReport(passed=True, checks=checks)
 

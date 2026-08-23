@@ -24,6 +24,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specialized.lance.arrow_to_lance_sink import ArrowToLanceSink
 
 
@@ -61,9 +62,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
         with Tapestry() as t:
             tbl = _emit_table(_config=KnotConfig(id="t"))
             path_knot = emit_path(_config=KnotConfig(id="path"))
-            ArrowToLanceSink(
-                table=tbl, path=path_knot, _config=KnotConfig(id="sink")
-            )
+            ArrowToLanceSink(table=tbl, path=path_knot, _config=KnotConfig(id="sink"))
         result = await t.run(RunRequest())
         assert result.outputs["sink"] == expected_path
 
@@ -91,7 +90,5 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
         self.addCleanup(tmp_dir.cleanup)
         path = str(Path(tmp_dir.name) / "x.lance")
         k = self._make_sink(path=path, mode="overwrite")
-        result = await k.process(
-            table=pa.table({"id": [1]}), path=path, mode="overwrite"
-        )
+        result = await k.process(table=pa.table({"id": [1]}), path=path, mode="overwrite")
         assert result == path

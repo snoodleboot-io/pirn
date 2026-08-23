@@ -10,6 +10,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.data_batch import DataBatch
 from pirn_data.specializations.medallion.tuples_to_data_batch_knot import (
     TuplesToDataBatchKnot,
@@ -27,9 +28,7 @@ def _make_knot(column_names: list[str] | None = None) -> TuplesToDataBatchKnot:
 class TestTuplesToDataBatchKnot(unittest.IsolatedAsyncioTestCase):
     async def test_maps_tuples_to_dicts(self) -> None:
         k = _make_knot()
-        result = await k.process(
-            rows=[(1, "alice"), (2, "bob")], column_names=["id", "name"]
-        )
+        result = await k.process(rows=[(1, "alice"), (2, "bob")], column_names=["id", "name"])
         assert isinstance(result, DataBatch)
         assert result.rows == ({"id": 1, "name": "alice"}, {"id": 2, "name": "bob"})
 
@@ -62,9 +61,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
         defaults: dict[str, Any] = {"column_names": ["id"]}
         defaults.update(kwargs)
         with Tapestry():
-            return TuplesToDataBatchKnot(
-                rows=MagicMock(), **defaults, _config=KnotConfig(id="val")
-            )
+            return TuplesToDataBatchKnot(rows=MagicMock(), **defaults, _config=KnotConfig(id="val"))
 
     async def _call(self, k: TuplesToDataBatchKnot, **overrides: Any) -> None:
         args: dict[str, Any] = {"rows": [], "column_names": ["id"]}

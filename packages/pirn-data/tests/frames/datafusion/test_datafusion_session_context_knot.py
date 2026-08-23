@@ -10,6 +10,7 @@ except ImportError as _e:
     raise unittest.SkipTest("datafusion not installed") from _e
 
 from pirn.core.knot_config import KnotConfig
+
 from pirn_data.frames.datafusion.datafusion_session_context import (
     DatafusionSessionContext,
 )

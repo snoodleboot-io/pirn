@@ -11,6 +11,7 @@ except ImportError as _e:
 from datetime import UTC
 
 import ibis
+
 from pirn_data.lazy.ibis.ibis_table import IbisTable
 
 
@@ -35,9 +36,7 @@ class TestIbisTable(unittest.TestCase):
             backend_name="duckdb",
             source_uri="duckdb:///memory",
         )
-        replaced = original.with_expression(
-            original.expression.filter(original.expression.id > 1)
-        )
+        replaced = original.with_expression(original.expression.filter(original.expression.id > 1))
         assert replaced.backend_name == "duckdb"
         assert replaced.source_uri == "duckdb:///memory"
         assert replaced.fetched_at == original.fetched_at

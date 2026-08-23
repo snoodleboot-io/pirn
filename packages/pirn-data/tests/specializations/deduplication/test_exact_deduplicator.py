@@ -10,6 +10,7 @@ from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.deduplication.exact_deduplicator import (
     ExactDeduplicator,
 )

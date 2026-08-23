@@ -11,6 +11,7 @@ except ImportError as _e:
 from datetime import UTC
 
 import pyarrow as pa
+
 from pirn_data.frames.pyarrow.pyarrow_data_batch import PyarrowDataBatch
 
 

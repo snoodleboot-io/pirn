@@ -14,6 +14,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.frames.duckdb.duckdb_aggregate import DuckdbAggregate
 from pirn_data.frames.duckdb.duckdb_data_batch import DuckdbDataBatch
 
@@ -31,16 +32,12 @@ async def emit_orders() -> DuckdbDataBatch:
         "('US', NULL, 'carol')"
         ") AS v(region, amount, customer)"
     )
-    return DuckdbDataBatch(
-        relation=connection.table("t"), connection=connection
-    )
+    return DuckdbDataBatch(relation=connection.table("t"), connection=connection)
 
 
 def _make_batch() -> DuckdbDataBatch:
     connection = duckdb.connect(database=":memory:")
-    connection.execute(
-        "CREATE TABLE t AS SELECT * FROM (VALUES ('EU', 10.0)) AS v(region, amount)"
-    )
+    connection.execute("CREATE TABLE t AS SELECT * FROM (VALUES ('EU', 10.0)) AS v(region, amount)")
     return DuckdbDataBatch(relation=connection.table("t"), connection=connection)
 
 
@@ -94,9 +91,7 @@ class TestDuckdbAggregate(unittest.IsolatedAsyncioTestCase):
                 "('US', 'A', 4)"
                 ") AS v(region, tier, amount)"
             )
-            return DuckdbDataBatch(
-                relation=connection.table("t"), connection=connection
-            )
+            return DuckdbDataBatch(relation=connection.table("t"), connection=connection)
 
         with Tapestry() as t:
             batch = two_dim(_config=KnotConfig(id="orders"))
@@ -142,8 +137,11 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
         with Tapestry():
             batch = upstream(_config=KnotConfig(id="up"))
             return DuckdbAggregate(
-                batch=batch, by=("region",), aggs={"total": "SUM(amount)"},
-                _config=KnotConfig(id="a"), **kwargs,
+                batch=batch,
+                by=("region",),
+                aggs={"total": "SUM(amount)"},
+                _config=KnotConfig(id="a"),
+                **kwargs,
             )
 
     async def test_rejects_non_mapping_aggs(self) -> None:
@@ -160,7 +158,8 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
         k = await self._make_knot()
         with self.assertRaisesRegex(ValueError, "forbidden"):
             await k.process(
-                batch=_make_batch(), by=("region",),
+                batch=_make_batch(),
+                by=("region",),
                 aggs={"total": "SUM(x); DROP TABLE t"},
             )
 
@@ -168,7 +167,8 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
         k = await self._make_knot()
         with self.assertRaisesRegex(TypeError, "SQL expression"):
             await k.process(
-                batch=_make_batch(), by=("region",),
+                batch=_make_batch(),
+                by=("region",),
                 aggs={"total": 123},  # type: ignore[dict-item]
             )
 
@@ -176,6 +176,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
         k = await self._make_knot()
         with self.assertRaisesRegex(ValueError, "plain identifier"):
             await k.process(
-                batch=_make_batch(), by=("region",),
+                batch=_make_batch(),
+                by=("region",),
                 aggs={"bad name!": "SUM(amount)"},
             )

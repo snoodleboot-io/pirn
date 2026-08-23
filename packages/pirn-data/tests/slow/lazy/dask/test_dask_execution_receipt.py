@@ -40,7 +40,9 @@ class TestDaskExecutionReceipt:
 
     def test_receipt_is_frozen(self) -> None:
         receipt = DaskExecutionReceipt(
-            backend_name="dask", target_path=None, partitions_executed=1,
+            backend_name="dask",
+            target_path=None,
+            partitions_executed=1,
         )
         with pytest.raises(Exception):
             receipt.backend_name = "other"  # type: ignore[misc]

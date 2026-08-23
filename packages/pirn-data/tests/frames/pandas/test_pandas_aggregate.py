@@ -15,6 +15,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.frames.pandas.pandas_aggregate import PandasAggregate
 from pirn_data.frames.pandas.pandas_data_batch import PandasDataBatch
 from pirn_data.transforms.aggregate_spec import AggregateSpec
@@ -25,8 +26,8 @@ async def emit_orders() -> PandasDataBatch:
     return PandasDataBatch(
         frame=pd.DataFrame(
             {
-                "region":   ["EU", "EU", "EU", "US", "US"],
-                "amount":   [10.0, 25.0, 5.0,  100.0, None],
+                "region": ["EU", "EU", "EU", "US", "US"],
+                "amount": [10.0, 25.0, 5.0, 100.0, None],
                 "customer": ["alice", "bob", "alice", "carol", "carol"],
             }
         )
@@ -62,9 +63,7 @@ class TestPandasAggregate(unittest.IsolatedAsyncioTestCase):
                 aggs={
                     "total": AggregateSpec(source="amount", function="sum"),
                     "avg": AggregateSpec(source="amount", function="mean"),
-                    "n_customers": AggregateSpec(
-                        source="customer", function="count_distinct"
-                    ),
+                    "n_customers": AggregateSpec(source="customer", function="count_distinct"),
                 },
                 _config=KnotConfig(id="agg"),
             )
@@ -82,7 +81,7 @@ class TestPandasAggregate(unittest.IsolatedAsyncioTestCase):
                 frame=pd.DataFrame(
                     {
                         "region": ["EU", "EU", "EU", "US"],
-                        "tier":   ["A", "B", "A", "A"],
+                        "tier": ["A", "B", "A", "A"],
                         "amount": [1, 2, 3, 4],
                     }
                 )

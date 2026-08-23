@@ -11,6 +11,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.ingestion.read_high_water_mark_knot import (
     ReadHighWaterMarkKnot,
 )
@@ -18,9 +19,7 @@ from pirn_data.specializations.ingestion.read_high_water_mark_knot import (
 
 async def _make_pool(with_rows: bool = False) -> SqlitePool:
     pool = SqlitePool(SqliteConfig(database=":memory:"))
-    await pool.execute(
-        "CREATE TABLE events (id INTEGER PRIMARY KEY, loaded_at TEXT)"
-    )
+    await pool.execute("CREATE TABLE events (id INTEGER PRIMARY KEY, loaded_at TEXT)")
     if with_rows:
         await pool.execute_many(
             "INSERT INTO events (id, loaded_at) VALUES (?, ?)",

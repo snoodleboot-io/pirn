@@ -14,6 +14,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.frames.duckdb.duckdb_cast import DuckdbCast
 from pirn_data.frames.duckdb.duckdb_data_batch import DuckdbDataBatch
 
@@ -22,20 +23,14 @@ from pirn_data.frames.duckdb.duckdb_data_batch import DuckdbDataBatch
 async def emit_string_columns() -> DuckdbDataBatch:
     connection = duckdb.connect(database=":memory:")
     connection.execute(
-        "CREATE TABLE t AS "
-        "SELECT * FROM (VALUES ('1', '12.5'), ('2', '99.0')) AS v(id, amount)"
+        "CREATE TABLE t AS SELECT * FROM (VALUES ('1', '12.5'), ('2', '99.0')) AS v(id, amount)"
     )
-    return DuckdbDataBatch(
-        relation=connection.table("t"), connection=connection
-    )
+    return DuckdbDataBatch(relation=connection.table("t"), connection=connection)
 
 
 def _make_batch() -> DuckdbDataBatch:
     connection = duckdb.connect(database=":memory:")
-    connection.execute(
-        "CREATE TABLE t AS "
-        "SELECT * FROM (VALUES ('1', '12.5')) AS v(id, amount)"
-    )
+    connection.execute("CREATE TABLE t AS SELECT * FROM (VALUES ('1', '12.5')) AS v(id, amount)")
     return DuckdbDataBatch(relation=connection.table("t"), connection=connection)
 
 
@@ -111,8 +106,10 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
         with Tapestry():
             batch = upstream(_config=KnotConfig(id="up"))
             return DuckdbCast(
-                batch=batch, casts={"id": "INTEGER"},
-                _config=KnotConfig(id="c"), **kwargs,
+                batch=batch,
+                casts={"id": "INTEGER"},
+                _config=KnotConfig(id="c"),
+                **kwargs,
             )
 
     async def test_rejects_non_mapping_casts(self) -> None:

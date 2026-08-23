@@ -20,7 +20,11 @@ from pirn_data.lakehouse.lakehouse_table import LakehouseTable
 class StubTable:
     """Minimal stand-in for a Hudi vendor table."""
 
-    def __init__(self, rows: list[dict[str, Any]] | None = None, commits: list[Mapping[str, Any]] | None = None,) -> None:
+    def __init__(
+        self,
+        rows: list[dict[str, Any]] | None = None,
+        commits: list[Mapping[str, Any]] | None = None,
+    ) -> None:
         self._rows = list(rows or [])
         self._commits = list(commits or [])
 
@@ -56,27 +60,15 @@ class TestConstruction(unittest.TestCase):
 
     def test_rejects_invalid_table_type(self) -> None:
         with self.assertRaisesRegex(ValueError, "table_type"):
-            HudiTable(
-                HudiTableConfig(
-                    table_path="file:///t", table_type="STREAMING"
-                )
-            )
+            HudiTable(HudiTableConfig(table_path="file:///t", table_type="STREAMING"))
 
     def test_rejects_empty_record_key(self) -> None:
         with self.assertRaisesRegex(ValueError, "record_key_field"):
-            HudiTable(
-                HudiTableConfig(
-                    table_path="file:///t", record_key_field=""
-                )
-            )
+            HudiTable(HudiTableConfig(table_path="file:///t", record_key_field=""))
 
     def test_rejects_empty_precombine(self) -> None:
         with self.assertRaisesRegex(ValueError, "precombine_field"):
-            HudiTable(
-                HudiTableConfig(
-                    table_path="file:///t", precombine_field=""
-                )
-            )
+            HudiTable(HudiTableConfig(table_path="file:///t", precombine_field=""))
 
     def test_accepts_injected_table(self) -> None:
         table = HudiTable(table=StubTable())
@@ -129,9 +121,7 @@ class TestScan(unittest.IsolatedAsyncioTestCase):
             {"id": 2, "region": "EU"},
         ]
         table = HudiTable(table=StubTable(rows=rows))
-        out = [
-            r async for r in await table.scan(filter={"region": "US"})
-        ]
+        out = [r async for r in await table.scan(filter={"region": "US"})]
         assert out == [{"id": 1, "region": "US"}]
 
     async def test_scan_rejects_both_time_travel_args(self) -> None:
@@ -185,6 +175,7 @@ class TestHistory(unittest.IsolatedAsyncioTestCase):
 
     async def test_history_without_stub_raises_not_implemented(self) -> None:
         cfg = HudiTableConfig(table_path="file:///t")
+
         # No injected table; production path requires Hudi Java libs.
         # _scan_parquet path only runs for scan(); history() raises.
         # Use a minimal stub without history attr to exercise the

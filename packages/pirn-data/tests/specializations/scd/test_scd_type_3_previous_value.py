@@ -12,13 +12,13 @@ from pirn.connectors.databases.sqlite_pool import SqlitePool
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.scd.scd_type_3_previous_value import (
     ScdType3PreviousValue,
 )
 
 
 class TestConstruction(unittest.IsolatedAsyncioTestCase):
-
     async def asyncSetUp(self) -> None:
         pool = SqlitePool(SqliteConfig(database=":memory:"))
         await pool.execute(
@@ -104,7 +104,6 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
 
 
 class TestScdType3Behaviour(unittest.IsolatedAsyncioTestCase):
-
     async def asyncSetUp(self) -> None:
         pool = SqlitePool(SqliteConfig(database=":memory:"))
         await pool.execute(
@@ -135,12 +134,11 @@ class TestScdType3Behaviour(unittest.IsolatedAsyncioTestCase):
 
     async def asyncTearDown(self) -> None:
         await self.source_pool.close()
-        
-        
+
         await self.target_pool.close()
-        
-        
+
         self._tmp_target_pool.cleanup()
+
     async def test_first_run_inserts_with_null_previous(self) -> None:
         source_pool = self.source_pool
         target_pool = self.target_pool
@@ -157,8 +155,7 @@ class TestScdType3Behaviour(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         assert result.succeeded
         rows = await target_pool.fetch_all(
-            "SELECT id, name, region, name_previous, region_previous "
-            "FROM customers ORDER BY id"
+            "SELECT id, name, region, name_previous, region_previous FROM customers ORDER BY id"
         )
         assert len(rows) == 2
         for row in rows:
@@ -229,8 +226,6 @@ class TestScdType3Behaviour(unittest.IsolatedAsyncioTestCase):
                 _config=KnotConfig(id="scd3"),
             )
         assert (await t2.run(RunRequest())).succeeded
-        rows = await target_pool.fetch_all(
-            "SELECT name_previous FROM customers ORDER BY id"
-        )
+        rows = await target_pool.fetch_all("SELECT name_previous FROM customers ORDER BY id")
         for row in rows:
             assert row[0] is None

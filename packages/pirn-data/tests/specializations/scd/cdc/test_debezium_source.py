@@ -11,6 +11,7 @@ from pirn.connectors.message_broker import MessageBroker
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.scd.cdc.cdc_message_broker_knot import (
     CdcMessageBrokerKnot,
 )
@@ -36,7 +37,11 @@ class _StubBroker(MessageBroker):
         self._records = list(records)
 
     async def publish(
-        self, topic: str, value: bytes, *, key: bytes | None = None,
+        self,
+        topic: str,
+        value: bytes,
+        *,
+        key: bytes | None = None,
         headers: dict[str, bytes] | None = None,
     ) -> None:
         raise NotImplementedError("_StubBroker is consume-only")
@@ -205,10 +210,7 @@ class TestDebeziumSourceBehaviour(unittest.IsolatedAsyncioTestCase):
 
     async def test_max_messages_bounds_loop(self) -> None:
         # Ten valid records but max_messages=3.
-        records = [
-            _StubRecord(json.dumps(_envelope("c", after={"id": i})))
-            for i in range(10)
-        ]
+        records = [_StubRecord(json.dumps(_envelope("c", after={"id": i}))) for i in range(10)]
         broker = _StubBroker(records)
         with Tapestry() as t:
             broker_knot = CdcMessageBrokerKnot(broker=broker, _config=KnotConfig(id="mb"))

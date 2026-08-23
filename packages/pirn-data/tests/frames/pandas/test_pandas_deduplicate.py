@@ -14,6 +14,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.frames.pandas.pandas_data_batch import PandasDataBatch
 from pirn_data.frames.pandas.pandas_deduplicate import PandasDeduplicate
 
@@ -23,9 +24,9 @@ async def emit_with_dups() -> PandasDataBatch:
     return PandasDataBatch(
         frame=pd.DataFrame(
             {
-                "id":      [1, 2, 1, 3, 2],
+                "id": [1, 2, 1, 3, 2],
                 "version": [1, 1, 2, 1, 2],
-                "name":    ["a", "b", "a-v2", "c", "b-v2"],
+                "name": ["a", "b", "a-v2", "c", "b-v2"],
             }
         )
     )
@@ -35,7 +36,7 @@ def _dup_batch() -> PandasDataBatch:
     return PandasDataBatch(
         frame=pd.DataFrame(
             {
-                "id":   [1, 2, 1],
+                "id": [1, 2, 1],
                 "name": ["a", "b", "a-v2"],
             }
         )
@@ -47,7 +48,9 @@ class TestPandasDeduplicate(unittest.IsolatedAsyncioTestCase):
         with Tapestry() as t:
             batch = emit_with_dups(_config=KnotConfig(id="batch"))
             PandasDeduplicate(
-                batch=batch, keys=("id",), _config=KnotConfig(id="dedup"),
+                batch=batch,
+                keys=("id",),
+                _config=KnotConfig(id="dedup"),
             )
         result = await t.run(RunRequest())
         out: PandasDataBatch = result.outputs["dedup"]
@@ -58,7 +61,8 @@ class TestPandasDeduplicate(unittest.IsolatedAsyncioTestCase):
         with Tapestry() as t:
             batch = emit_with_dups(_config=KnotConfig(id="batch"))
             PandasDeduplicate(
-                batch=batch, keys=("id", "version"),
+                batch=batch,
+                keys=("id", "version"),
                 _config=KnotConfig(id="dedup"),
             )
         result = await t.run(RunRequest())

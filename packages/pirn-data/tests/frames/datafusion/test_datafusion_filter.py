@@ -14,6 +14,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.frames.datafusion.datafusion_data_batch import (
     DatafusionDataBatch,
 )
@@ -26,9 +27,9 @@ def _make_batch() -> DatafusionDataBatch:
     ctx = df.SessionContext()
     frame = ctx.from_pylist(
         [
-            {"id": 1, "active": True,  "region": "EU"},
+            {"id": 1, "active": True, "region": "EU"},
             {"id": 2, "active": False, "region": "US"},
-            {"id": 3, "active": True,  "region": "US"},
+            {"id": 3, "active": True, "region": "US"},
             {"id": 4, "active": False, "region": "EU"},
         ]
     )
