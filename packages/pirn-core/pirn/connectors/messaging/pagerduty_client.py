@@ -184,23 +184,10 @@ class PagerDutyClient(ApiClient):
         self._closed = True
         self._logger.debug("pagerduty.close")
 
-    async def _ensure_client(self) -> Any:
-        if self._closed:
-            raise RuntimeError("PagerDutyClient is closed")
-        if self._client is None:
-            self._client = await self._create_client()
-        return self._client
-
     async def _create_client(self) -> Any:
-        try:
-            import httpx  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "PagerDutyClient requires httpx; install via pip install pirn[pagerduty]"
-            ) from exc
         if self._config is None:
             raise RuntimeError("PagerDutyClient: missing config and no injected client")
         if not self._config.api_key:
             raise ValueError("PagerDutyClient: config.api_key must be non-empty")
         self._logger.debug("pagerduty.connect")
-        return httpx.AsyncClient(timeout=self._config.timeout)
+        return self._build_httpx_client("pagerduty", quoted=False, timeout=self._config.timeout)

@@ -124,23 +124,10 @@ class TelegramClient(ApiClient):
         self._closed = True
         self._logger.debug("telegram.close")
 
-    async def _ensure_client(self) -> Any:
-        if self._closed:
-            raise RuntimeError("TelegramClient is closed")
-        if self._client is None:
-            self._client = await self._create_client()
-        return self._client
-
     async def _create_client(self) -> Any:
-        try:
-            import httpx  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "TelegramClient requires httpx; install via pip install pirn[telegram]"
-            ) from exc
         if self._config is None:
             raise RuntimeError("TelegramClient: missing config and no injected client")
         if not self._config.bot_token:
             raise ValueError("TelegramClient: config.bot_token must be non-empty")
         self._logger.debug("telegram.connect")
-        return httpx.AsyncClient(timeout=self._config.timeout)
+        return self._build_httpx_client("telegram", quoted=False, timeout=self._config.timeout)

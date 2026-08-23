@@ -158,20 +158,7 @@ class PrometheusClient(ApiClient, MetricQuery):
         self._closed = True
         self._logger.debug("prometheus.close")
 
-    async def _ensure_client(self) -> Any:
-        if self._closed:
-            raise RuntimeError("PrometheusClient is closed")
-        if self._client is None:
-            self._client = await self._create_client()
-        return self._client
-
     async def _create_client(self) -> Any:
-        try:
-            import httpx  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "PrometheusClient requires httpx; install via `pip install pirn[http]`"
-            ) from exc
         if self._config is None:
             raise RuntimeError("PrometheusClient: missing config and no injected client")
         if self._config.base_url is None:
@@ -181,13 +168,11 @@ class PrometheusClient(ApiClient, MetricQuery):
         if self._config.bearer_token is not None:
             client_headers["Authorization"] = f"Bearer {self._config.bearer_token}"
 
-        try:
-            client = httpx.AsyncClient(
-                base_url=self._config.base_url.rstrip("/"),
-                headers=client_headers or None,
-            )
-        except Exception as exc:
-            safe_message = self._scrubber.scrub(str(exc))
-            raise type(exc)(safe_message) from None
+        client = self._build_httpx_client(
+            "http",
+            scrub_errors=True,
+            base_url=self._config.base_url.rstrip("/"),
+            headers=client_headers or None,
+        )
         self._logger.debug("prometheus.connect")
         return client

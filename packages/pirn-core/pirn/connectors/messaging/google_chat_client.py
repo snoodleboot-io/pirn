@@ -92,23 +92,10 @@ class GoogleChatClient(ApiClient):
         self._closed = True
         self._logger.debug("google_chat.close")
 
-    async def _ensure_client(self) -> Any:
-        if self._closed:
-            raise RuntimeError("GoogleChatClient is closed")
-        if self._client is None:
-            self._client = await self._create_client()
-        return self._client
-
     async def _create_client(self) -> Any:
-        try:
-            import httpx  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "GoogleChatClient requires httpx; install via pip install pirn[google-chat]"
-            ) from exc
         if self._config is None:
             raise RuntimeError("GoogleChatClient: missing config and no injected client")
         if not self._config.webhook_url:
             raise ValueError("GoogleChatClient: config.webhook_url must be non-empty")
         self._logger.debug("google_chat.connect")
-        return httpx.AsyncClient(timeout=self._config.timeout)
+        return self._build_httpx_client("google-chat", quoted=False, timeout=self._config.timeout)

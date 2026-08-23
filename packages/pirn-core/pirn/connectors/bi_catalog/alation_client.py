@@ -186,30 +186,17 @@ class AlationClient(ApiClient, TableSource, MetadataCatalog):
             path = "/" + path
         return base.rstrip("/") + path
 
-    async def _ensure_client(self) -> Any:
-        if self._closed:
-            raise RuntimeError("AlationClient is closed")
-        if self._client is None:
-            self._client = await self._create_client()
-        return self._client
-
     async def _create_client(self) -> Any:
-        try:
-            import httpx  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "AlationClient requires httpx; install via `pip install pirn[alation]`"
-            ) from exc
         if self._config is None:
             raise RuntimeError("AlationClient: missing config and no injected client")
         if self._config.base_url is None:
             raise RuntimeError("AlationClient: config.base_url is required")
         if self._config.refresh_token is None:
             raise RuntimeError("AlationClient: config.refresh_token is required")
-        try:
-            client = httpx.AsyncClient(headers={"Token": self._config.refresh_token})
-        except Exception as exc:
-            safe_message = self._scrubber.scrub(str(exc))
-            raise type(exc)(safe_message) from None
+        client = self._build_httpx_client(
+            "alation",
+            scrub_errors=True,
+            headers={"Token": self._config.refresh_token},
+        )
         self._logger.debug("alation.connect")
         return client

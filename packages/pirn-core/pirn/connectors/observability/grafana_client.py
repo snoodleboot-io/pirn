@@ -227,20 +227,7 @@ class GrafanaClient(ApiClient, TableSource, MetricQuery):
         self._closed = True
         self._logger.debug("grafana.close")
 
-    async def _ensure_client(self) -> Any:
-        if self._closed:
-            raise RuntimeError("GrafanaClient is closed")
-        if self._client is None:
-            self._client = await self._create_client()
-        return self._client
-
     async def _create_client(self) -> Any:
-        try:
-            import httpx  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "GrafanaClient requires httpx; install via `pip install pirn[grafana]`"
-            ) from exc
         if self._config is None:
             raise RuntimeError("GrafanaClient: missing config and no injected client")
         if self._config.base_url is None:
@@ -250,13 +237,11 @@ class GrafanaClient(ApiClient, TableSource, MetricQuery):
         if self._config.api_key is not None:
             client_headers["Authorization"] = f"Bearer {self._config.api_key}"
 
-        try:
-            client = httpx.AsyncClient(
-                base_url=self._config.base_url.rstrip("/"),
-                headers=client_headers or None,
-            )
-        except Exception as exc:
-            safe_message = self._scrubber.scrub(str(exc))
-            raise type(exc)(safe_message) from None
+        client = self._build_httpx_client(
+            "grafana",
+            scrub_errors=True,
+            base_url=self._config.base_url.rstrip("/"),
+            headers=client_headers or None,
+        )
         self._logger.debug("grafana.connect")
         return client
