@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.yaml_loader.specs.sink_spec import SinkSpec
 from pydantic import ValidationError
+
+from pirn.yaml_loader.specs.sink_spec import SinkSpec
 
 
 class TestSinkSpecConstruction(unittest.TestCase):

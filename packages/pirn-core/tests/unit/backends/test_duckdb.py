@@ -61,8 +61,8 @@ def _make_run_result(
 def _make_history() -> DuckDBHistory:
     try:
         return DuckDBHistory(path=":memory:")
-    except ImportError:
-        raise unittest.SkipTest("duckdb not installed")
+    except ImportError as _e:
+        raise unittest.SkipTest("duckdb not installed") from _e
 
 
 class TestDuckDBHistoryInit(unittest.IsolatedAsyncioTestCase):

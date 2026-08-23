@@ -12,11 +12,11 @@ except ImportError as _e:
 
 import onnx as _onnx
 from onnx import TensorProto, helper
+
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.connectors.file_formats.onnx_format import OnnxFormat
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -24,20 +24,12 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 
 def _make_tiny_model() -> bytes:
     """Build a minimal valid ONNX model: identity on a 2-element float vector."""
-    input_value = helper.make_tensor_value_info(
-        "x", TensorProto.FLOAT, [2]
-    )
-    output_value = helper.make_tensor_value_info(
-        "y", TensorProto.FLOAT, [2]
-    )
+    input_value = helper.make_tensor_value_info("x", TensorProto.FLOAT, [2])
+    output_value = helper.make_tensor_value_info("y", TensorProto.FLOAT, [2])
     identity_node = helper.make_node("Identity", ["x"], ["y"])
-    graph = helper.make_graph(
-        [identity_node], "tiny", [input_value], [output_value]
-    )
+    graph = helper.make_graph([identity_node], "tiny", [input_value], [output_value])
     opset = helper.make_opsetid("", 17)
-    model = helper.make_model(
-        graph, producer_name="pirn-test", opset_imports=[opset]
-    )
+    model = helper.make_model(graph, producer_name="pirn-test", opset_imports=[opset])
     model.ir_version = 9
     _onnx.checker.check_model(model)
     return model.SerializeToString()
@@ -72,9 +64,7 @@ class TestOnnxFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
         payload = _make_tiny_model()
         fmt = OnnxFormat()
-        body = await FormatRoundTrip.encode(
-            fmt, [{"model_bytes": payload}]
-        )
+        body = await FormatRoundTrip.encode(fmt, [{"model_bytes": payload}])
         decoded = await FormatRoundTrip.decode(fmt, body)
         assert len(decoded) == 1
         record: dict[str, Any] = dict(decoded[0])
@@ -98,9 +88,7 @@ class TestOnnxFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_encode_rejects_invalid_bytes(self) -> None:
         fmt = OnnxFormat()
         with self.assertRaises(ValueError):
-            await FormatRoundTrip.encode(
-                fmt, [{"model_bytes": b"junk"}]
-            )
+            await FormatRoundTrip.encode(fmt, [{"model_bytes": b"junk"}])
 
     async def test_encode_empty_records_rejected(self) -> None:
         fmt = OnnxFormat()

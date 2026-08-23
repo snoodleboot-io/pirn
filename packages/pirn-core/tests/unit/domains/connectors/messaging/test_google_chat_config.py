@@ -14,8 +14,12 @@ class TestGoogleChatConfig(unittest.TestCase):
         self.assertEqual(cfg.timeout, 30.0)
 
     def test_construct_with_webhook(self) -> None:
-        cfg = GoogleChatConfig(webhook_url="https://chat.googleapis.com/v1/spaces/abc/messages?key=xyz")
-        self.assertEqual(cfg.webhook_url, "https://chat.googleapis.com/v1/spaces/abc/messages?key=xyz")
+        cfg = GoogleChatConfig(
+            webhook_url="https://chat.googleapis.com/v1/spaces/abc/messages?key=xyz"
+        )
+        self.assertEqual(
+            cfg.webhook_url, "https://chat.googleapis.com/v1/spaces/abc/messages?key=xyz"
+        )
 
     def test_sensitive_fields(self) -> None:
         self.assertIn("webhook_url", GoogleChatConfig.sensitive_fields)

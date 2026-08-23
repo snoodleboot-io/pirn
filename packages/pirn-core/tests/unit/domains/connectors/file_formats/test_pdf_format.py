@@ -23,7 +23,6 @@ from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.connectors.file_formats.pdf_format import PdfFormat
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -69,13 +68,9 @@ class TestPdfFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
         payload = await FormatRoundTrip.encode(fmt, records)
         decoded = await FormatRoundTrip.decode(fmt, payload)
         assert len(decoded) == len(records)
-        for index, (original, recovered) in enumerate(
-            zip(records, decoded, strict=True)
-        ):
+        for index, (original, recovered) in enumerate(zip(records, decoded, strict=True)):
             assert recovered["page_number"] == index + 1
-            assert _normalise(original["text"]) in _normalise(
-                recovered["text"]
-            )
+            assert _normalise(original["text"]) in _normalise(recovered["text"])
 
     async def test_round_trip_empty(self) -> None:
         fmt = PdfFormat()
@@ -92,9 +87,7 @@ class TestPdfFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
         payload = await FormatRoundTrip.encode(fmt, records)
         decoded = await FormatRoundTrip.decode(fmt, payload)
         assert len(decoded) == 1
-        assert _normalise("only one page here") in _normalise(
-            decoded[0]["text"]
-        )
+        assert _normalise("only one page here") in _normalise(decoded[0]["text"])
         assert decoded[0]["page_number"] == 1
 
     async def test_extract_layout_includes_bbox(self) -> None:

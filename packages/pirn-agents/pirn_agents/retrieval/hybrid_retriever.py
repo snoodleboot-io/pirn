@@ -116,6 +116,16 @@ class HybridRetriever(HybridRetrieverBase):
                 f"got {candidate_multiplier!r}"
             )
         fetch = top_k * candidate_multiplier
+        # DECISION (PIR-758): this Aggregator-shaped fan-out is DELIBERATELY NOT
+        # converted to engine-scheduled Aggregator wiring. The arms are provider/
+        # library calls (embedder.embed + store.query; a BM25 index search), not
+        # knots — an Aggregator schedules child *knots*, so porting would promote
+        # this plain Knot into the AgentPipeline family and change what the class
+        # IS, for no behavioural gain. Matching a primitive's shape is not reason
+        # enough to port (PIR-715 dropped four routers on exactly that basis).
+        # In-knot asyncio.gather + asyncio.to_thread is correct here:
+        # asyncio.to_thread copies the contextvars context (run_in_executor does
+        # not), so the active AgentToolContext survives the thread hop. Leave it.
         dense_ids, lexical_ids = await asyncio.gather(
             self._dense_ids(store, embedder, query, fetch),
             asyncio.to_thread(self._lexical_ids, lexical, query, fetch),

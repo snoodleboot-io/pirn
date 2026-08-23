@@ -16,7 +16,6 @@ from pirn.connectors.file_formats.aac_format import AacFormat
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -28,9 +27,7 @@ def _pcm_record(
     n_frames: int = 1024,
     sample_width: int = 2,
 ) -> dict[str, object]:
-    frames = struct.pack(
-        f"<{n_frames * n_channels}h", *([0] * n_frames * n_channels)
-    )
+    frames = struct.pack(f"<{n_frames * n_channels}h", *([0] * n_frames * n_channels))
     return {
         "sample_rate": sample_rate,
         "n_channels": n_channels,
@@ -108,6 +105,7 @@ class TestAacFormatErrors(unittest.IsolatedAsyncioTestCase):
 class TestAacFormatMissingDep(unittest.TestCase):
     def test_import_error_message(self) -> None:
         import unittest.mock
+
         with unittest.mock.patch.dict("sys.modules", {"pydub": None}):
             with self.assertRaisesRegex(ImportError, "pirn\\[audio\\]"):
                 AacFormat._load_pydub()

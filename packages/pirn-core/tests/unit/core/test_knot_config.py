@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import unittest
 
+from pydantic import ValidationError
+
 from pirn.core.error_policy import ErrorPolicy
 from pirn.core.knot_config import KnotConfig
-from pydantic import ValidationError
 
 
 class TestKnotConfig(unittest.TestCase):
@@ -55,7 +56,7 @@ class TestKnotConfig(unittest.TestCase):
 
     def test_frozen(self) -> None:
         cfg = KnotConfig(id="k")
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValidationError):
             cfg.id = "other"
 
     def test_extra_fields_forbidden(self) -> None:

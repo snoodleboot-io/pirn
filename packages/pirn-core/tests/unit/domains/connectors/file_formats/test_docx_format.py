@@ -13,7 +13,6 @@ from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.connectors.file_formats.docx_format import DocxFormat
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -55,9 +54,7 @@ class TestDocxFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
         payload = await FormatRoundTrip.encode(fmt, records)
         decoded = await FormatRoundTrip.decode(fmt, payload)
         assert len(decoded) == len(records)
-        for index, (original, recovered) in enumerate(
-            zip(records, decoded, strict=True)
-        ):
+        for index, (original, recovered) in enumerate(zip(records, decoded, strict=True)):
             assert recovered["index"] == index
             assert recovered["text"] == original["text"]
             assert recovered["style"] == original["style"]
@@ -103,6 +100,4 @@ class TestDocxFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_encode_rejects_non_string_style(self) -> None:
         fmt = DocxFormat()
         with self.assertRaises(TypeError):
-            await FormatRoundTrip.encode(
-                fmt, [{"text": "hi", "style": 9}]
-            )
+            await FormatRoundTrip.encode(fmt, [{"text": "hi", "style": 9}])

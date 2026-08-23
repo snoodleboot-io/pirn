@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 
 import numpy as np
+
 from pirn.core.transport.serializers.numpy_serializer import NumpySerializer
 from pirn.core.transport.serializers.pickle_serializer import PickleSerializer
 from pirn.core.transport.serializers.serializer_registry import SerializerRegistry

@@ -16,7 +16,6 @@ from pirn.connectors.file_formats.batch_file_format import (
 from pirn.connectors.file_formats.pytorch_format import (
     PytorchFormat,
 )
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -26,6 +25,7 @@ _HAS_TORCH = importlib.util.find_spec("torch") is not None
 
 def _tiny_state_dict() -> dict:
     import torch
+
     return {"weight": torch.zeros(2, 2)}
 
 
@@ -41,9 +41,7 @@ class TestPytorchFormatConstruction(unittest.TestCase):
             PytorchFormat(weights_only=False)
 
     def test_unsafe_with_signer_allowed(self) -> None:
-        fmt = PytorchFormat(
-            weights_only=False, signer=_Signer.test_signer()
-        )
+        fmt = PytorchFormat(weights_only=False, signer=_Signer.test_signer())
         assert fmt.weights_only is False
         assert fmt.signer is not None
 
@@ -93,11 +91,10 @@ class TestPytorchFormatValidation(unittest.IsolatedAsyncioTestCase):
 class TestPytorchFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
         import torch
+
         fmt = PytorchFormat()
         state = _tiny_state_dict()
-        payload = await FormatRoundTrip.encode(
-            fmt, [{"state_dict": state}]
-        )
+        payload = await FormatRoundTrip.encode(fmt, [{"state_dict": state}])
         decoded = await FormatRoundTrip.decode(fmt, payload)
         assert len(decoded) == 1
         recovered = decoded[0]["state_dict"]
@@ -108,18 +105,14 @@ class TestPytorchFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
         signer = _Signer.test_signer()
         fmt = PytorchFormat(signer=signer)
         state = _tiny_state_dict()
-        payload = await FormatRoundTrip.encode(
-            fmt, [{"state_dict": state}]
-        )
+        payload = await FormatRoundTrip.encode(fmt, [{"state_dict": state}])
         decoded = await FormatRoundTrip.decode(fmt, payload)
         assert decoded[0]["metadata"]["signed"] is True
 
     async def test_signed_payload_rejects_tamper(self) -> None:
         signer = _Signer.test_signer()
         fmt = PytorchFormat(signer=signer)
-        payload = await FormatRoundTrip.encode(
-            fmt, [{"state_dict": _tiny_state_dict()}]
-        )
+        payload = await FormatRoundTrip.encode(fmt, [{"state_dict": _tiny_state_dict()}])
         tampered = bytes(payload)
         tampered = tampered[:40] + bytes([tampered[40] ^ 0xFF]) + tampered[41:]
         with self.assertRaises(ValueError):

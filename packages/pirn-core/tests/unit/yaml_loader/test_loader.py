@@ -29,6 +29,7 @@ class TestPipelineLoaderResolveType(unittest.TestCase):
     def test_dotted_path(self) -> None:
         result = PipelineLoader._resolve_type("pathlib.Path")
         import pathlib
+
         self.assertIs(result, pathlib.Path)
 
     def test_unknown_bare_name_raises(self) -> None:
@@ -38,7 +39,9 @@ class TestPipelineLoaderResolveType(unittest.TestCase):
 
 class TestPipelineLoaderResolveCallable(unittest.TestCase):
     def test_known_callables_lookup(self) -> None:
-        fn = lambda x: x
+        def fn(x):
+            return x
+
         result = PipelineLoader._resolve_callable("my_fn", {"my_fn": fn}, False)
         self.assertIs(result, fn)
 
@@ -51,6 +54,7 @@ class TestPipelineLoaderResolveCallable(unittest.TestCase):
             "pathlib.Path", {}, True, allowed_module_prefixes=None
         )
         import pathlib
+
         self.assertIs(result, pathlib.Path)
 
     def test_allowlist_blocks_disallowed_module(self) -> None:
@@ -64,6 +68,7 @@ class TestPipelineLoaderResolveCallable(unittest.TestCase):
             "pathlib.Path", {}, True, allowed_module_prefixes=["pathlib"]
         )
         import pathlib
+
         self.assertIs(result, pathlib.Path)
 
     def test_non_dotted_ref_raises_in_loose_mode(self) -> None:
@@ -77,22 +82,26 @@ class TestPipelineLoaderResolveCallable(unittest.TestCase):
 
 class TestPipelineLoaderTopoOrder(unittest.TestCase):
     def test_linear_chain(self) -> None:
-        spec = PipelineSpec.model_validate({
-            "nodes": [
-                {"id": "k1", "type": "knot", "callable": "fn", "parents": {"data": "src"}},
-                {"id": "src", "type": "source", "callable": "fn"},
-            ]
-        })
+        spec = PipelineSpec.model_validate(
+            {
+                "nodes": [
+                    {"id": "k1", "type": "knot", "callable": "fn", "parents": {"data": "src"}},
+                    {"id": "src", "type": "source", "callable": "fn"},
+                ]
+            }
+        )
         ordered = PipelineLoader._topo_order_specs(spec)
         ids = [n.id for n in ordered]
         self.assertLess(ids.index("src"), ids.index("k1"))
 
     def test_unknown_parent_raises(self) -> None:
-        spec = PipelineSpec.model_validate({
-            "nodes": [
-                {"id": "k1", "type": "knot", "callable": "fn", "parents": {"data": "missing"}},
-            ]
-        })
+        spec = PipelineSpec.model_validate(
+            {
+                "nodes": [
+                    {"id": "k1", "type": "knot", "callable": "fn", "parents": {"data": "missing"}},
+                ]
+            }
+        )
         with self.assertRaises(ValueError, msg="unknown parent"):
             PipelineLoader._topo_order_specs(spec)
 

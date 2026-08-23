@@ -31,31 +31,26 @@ from pirn.connectors.databases.sqlite_pool import SqlitePool
 # ────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_database_connection_pool(self) -> None:
         pool = SqlitePool(SqliteConfig(database=":memory:"))
         assert isinstance(pool, DatabaseConnectionPool)
-    
-    
+
+
 # ─────────────────────────────────────────────────────────────── CRUD
 
 
 class TestCrud(unittest.IsolatedAsyncioTestCase):
-
     async def asyncSetUp(self) -> None:
         p = SqlitePool(SqliteConfig(database=":memory:"))
         self.pool = p
 
     async def asyncTearDown(self) -> None:
         await self.pool.close()
-        
-        
+
     async def test_create_insert_select(self) -> None:
         pool = self.pool
-        await pool.execute(
-            "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL)"
-        )
+        await pool.execute("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL)")
         await pool.execute("INSERT INTO users (id, name) VALUES (?, ?)", (1, "alice"))
         await pool.execute("INSERT INTO users (id, name) VALUES (?, ?)", (2, "bob"))
 
@@ -65,9 +60,7 @@ class TestCrud(unittest.IsolatedAsyncioTestCase):
     async def test_execute_many_inserts_batch(self) -> None:
         pool = self.pool
         await pool.execute("CREATE TABLE k (k TEXT, v INT)")
-        await pool.execute_many(
-            "INSERT INTO k VALUES (?, ?)", [("a", 1), ("b", 2), ("c", 3)]
-        )
+        await pool.execute_many("INSERT INTO k VALUES (?, ?)", [("a", 1), ("b", 2), ("c", 3)])
         rows = await pool.fetch_all("SELECT k, v FROM k ORDER BY k")
         assert rows == [("a", 1), ("b", 2), ("c", 3)]
 
@@ -105,8 +98,6 @@ class TestInjectionResistance(unittest.IsolatedAsyncioTestCase):
 
     async def asyncTearDown(self) -> None:
         await self.pool.close()
-        
-        
 
     async def test_quote_in_value_does_not_break_query(self) -> None:
         pool = self.pool
@@ -127,15 +118,13 @@ class TestInjectionResistance(unittest.IsolatedAsyncioTestCase):
 
 
 class TestLifecycle(unittest.IsolatedAsyncioTestCase):
-
     async def asyncSetUp(self) -> None:
         p = SqlitePool(SqliteConfig(database=":memory:"))
         self.pool = p
 
     async def asyncTearDown(self) -> None:
         await self.pool.close()
-        
-        
+
     async def test_acquire_after_close_raises(self) -> None:
         pool = SqlitePool(SqliteConfig(database=":memory:"))
         await pool.close()

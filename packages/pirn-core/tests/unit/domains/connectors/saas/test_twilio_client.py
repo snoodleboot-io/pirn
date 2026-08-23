@@ -25,7 +25,12 @@ class FakeTwilioClient:
         self.closed = False
 
     def request(
-        self, method: str, uri: str, params: Any = None, data: Any = None, headers: Any = None,
+        self,
+        method: str,
+        uri: str,
+        params: Any = None,
+        data: Any = None,
+        headers: Any = None,
     ) -> Any:
         self.calls.append((method, uri, params, data, headers))
         return self.response
@@ -37,22 +42,19 @@ class FakeTwilioClient:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_api_client(self) -> None:
         client = TwilioClient(client=FakeTwilioClient())
         assert isinstance(client, ApiClient)
-    
-    
+
     def test_construction_requires_config_or_client(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or client="):
             TwilioClient()
-    
-    
+
     def test_sensitive_fields_listed(self) -> None:
         assert TwilioConfig.sensitive_fields == ("auth_token",)
-    
-    
+
+
 # ────────────────────────────────────────────────────────────── dispatch
 
 
@@ -143,15 +145,13 @@ class TestCredentialSafety(unittest.TestCase):
         assert d["account_sid"] == "AC123"
         assert d["region"] == "ie1"
 
-
-# ────────────────────────────────────────────────────────── capability surface
-
+    # ────────────────────────────────────────────────────────── capability surface
 
     def test_implements_record_writer(self) -> None:
         client = TwilioClient(client=FakeTwilioClient())
         assert isinstance(client, RecordWriter)
-    
-    
+
+
 class TestSendSms(unittest.IsolatedAsyncioTestCase):
     async def test_send_sms_posts_message(self) -> None:
         fake = FakeTwilioClient()
@@ -175,13 +175,13 @@ class TestSendSms(unittest.IsolatedAsyncioTestCase):
             "Body": "hello",
         }
 
-    async def test_send_sms_uses_account_placeholder_without_config(self,) -> None:
+    async def test_send_sms_uses_account_placeholder_without_config(
+        self,
+    ) -> None:
         fake = FakeTwilioClient()
         client = TwilioClient(client=fake)
 
-        await client.send_sms(
-            from_number="+1", to="+2", body="hi"
-        )
+        await client.send_sms(from_number="+1", to="+2", body="hi")
 
         _, uri, _, _, _ = fake.calls[0]
         assert uri == "/2010-04-01/Accounts/Account/Messages.json"
@@ -232,6 +232,4 @@ class TestWriteRecords(unittest.IsolatedAsyncioTestCase):
         client = TwilioClient(config=cfg, client=fake)
 
         with self.assertRaisesRegex(ValueError, "'from', 'to', and 'body'"):
-            await client.write_records(
-                [{"from": "+1", "to": "+2"}]
-            )
+            await client.write_records([{"from": "+1", "to": "+2"}])

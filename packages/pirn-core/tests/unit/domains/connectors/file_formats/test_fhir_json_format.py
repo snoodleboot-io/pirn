@@ -17,7 +17,6 @@ from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.connectors.file_formats.fhir_json_format import FhirJsonFormat
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -25,6 +24,7 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_bundle(resources: list[dict]) -> bytes:
     bundle = {
@@ -62,6 +62,7 @@ async def _decode(fmt: FhirJsonFormat, payload: bytes) -> list[dict]:
 # Construction
 # ---------------------------------------------------------------------------
 
+
 class TestFhirJsonFormatConstruction(unittest.TestCase):
     def test_is_batch_format(self) -> None:
         assert isinstance(FhirJsonFormat(), BatchFileFormat)
@@ -76,6 +77,7 @@ class TestFhirJsonFormatConstruction(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # PHI sanitisation
 # ---------------------------------------------------------------------------
+
 
 class TestFhirJsonFormatPhiSanitisation(unittest.IsolatedAsyncioTestCase):
     async def test_name_stripped(self) -> None:
@@ -130,6 +132,7 @@ class TestFhirJsonFormatPhiSanitisation(unittest.IsolatedAsyncioTestCase):
 # Round-trip
 # ---------------------------------------------------------------------------
 
+
 class TestFhirJsonFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_single_resource(self) -> None:
         records = [
@@ -182,6 +185,7 @@ class TestFhirJsonFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
 # Error paths
 # ---------------------------------------------------------------------------
 
+
 class TestFhirJsonFormatErrors(unittest.IsolatedAsyncioTestCase):
     async def test_invalid_json_raises(self) -> None:
         fmt = FhirJsonFormat()
@@ -197,6 +201,7 @@ class TestFhirJsonFormatErrors(unittest.IsolatedAsyncioTestCase):
 # ---------------------------------------------------------------------------
 # Missing dependency
 # ---------------------------------------------------------------------------
+
 
 class TestFhirJsonFormatMissingDep(unittest.TestCase):
     def test_missing_fhir_raises_import_error(self) -> None:

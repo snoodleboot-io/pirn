@@ -37,24 +37,21 @@ class FakeHubSpotClient:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_api_client(self) -> None:
         client = HubSpotClient(client=FakeHubSpotClient())
         assert isinstance(client, ApiClient)
-    
-    
+
     def test_construction_requires_config_or_client(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or client="):
             HubSpotClient()
-    
-    
+
     def test_sensitive_fields_declared(self) -> None:
         cfg = HubSpotConfig()
         assert "access_token" in cfg.sensitive_fields
         assert "api_key" in cfg.sensitive_fields
-    
-    
+
+
 # ────────────────────────────────────────────────────────── delegation
 
 
@@ -62,13 +59,9 @@ class TestRequest(unittest.IsolatedAsyncioTestCase):
     async def test_get_dispatches_with_query_string(self) -> None:
         fake = FakeHubSpotClient()
         client = HubSpotClient(client=fake)
-        result = await client.request(
-            "GET", "/some/path", params={"a": 1}
-        )
+        result = await client.request("GET", "/some/path", params={"a": 1})
         assert result == fake.response
-        assert fake.calls == [
-            {"method": "GET", "path": "/some/path", "qs": {"a": 1}}
-        ]
+        assert fake.calls == [{"method": "GET", "path": "/some/path", "qs": {"a": 1}}]
 
     async def test_post_passes_body(self) -> None:
         fake = FakeHubSpotClient()
@@ -128,26 +121,22 @@ class TestCredentialSafety(unittest.TestCase):
         assert "hapikey-leaks" not in text
         assert "<redacted>" in text
 
-
-# ───────────────────────────────────────────────────────── capability mixins
-
+    # ───────────────────────────────────────────────────────── capability mixins
 
     def test_implements_table_source_and_record_writer(self) -> None:
         client = HubSpotClient(client=FakeHubSpotClient())
         assert isinstance(client, TableSource)
         assert isinstance(client, RecordWriter)
-    
-    
+
     def test_default_object_type_is_contacts(self) -> None:
         client = HubSpotClient(client=FakeHubSpotClient())
         assert client.object_type == "contacts"
-    
-    
+
     def test_construction_rejects_empty_object_type(self) -> None:
         with self.assertRaisesRegex(ValueError, "object_type"):
             HubSpotClient(client=FakeHubSpotClient(), object_type="")
-    
-    
+
+
 class TestFetchPage(unittest.IsolatedAsyncioTestCase):
     async def test_fetch_page_initial_no_paging(self) -> None:
         fake = FakeHubSpotClient()
@@ -211,9 +200,7 @@ class TestWriteRecords(unittest.IsolatedAsyncioTestCase):
         assert len(fake.calls) == 2
         assert fake.calls[0]["method"] == "POST"
         assert fake.calls[0]["path"] == "/crm/v3/objects/contacts"
-        assert fake.calls[0]["body"] == {
-            "properties": {"email": "a@b"}
-        }
+        assert fake.calls[0]["body"] == {"properties": {"email": "a@b"}}
 
     async def test_write_records_empty_returns_zero(self) -> None:
         fake = FakeHubSpotClient()

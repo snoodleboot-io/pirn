@@ -86,6 +86,7 @@ class TestTriggerAbstract(unittest.TestCase):
 
     def test_close_raises(self) -> None:
         import asyncio
+
         t = Trigger()
         with self.assertRaises(NotImplementedError):
             asyncio.run(t.close())

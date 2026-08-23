@@ -187,12 +187,13 @@ jobs:
         # PIR-760: the documented local gate lints `tests/`, CI did not, so the
         # two disagreed by construction and findings accumulated unseen.
         # PIR-761 cleaned the five non-core sibling packages' tests/ to zero
-        # findings and opted each in below. pirn-core stays OUT: its tests/ F821
-        # findings are the live signal that three emitter tests have never run
-        # (PIR-762) and must not be masked. Keep this opt-in — add a package here
-        # only once its tests/ pass; do not add one speculatively, a red main
-        # helps nobody.
-        if: contains(fromJSON('["pirn-agents","pirn-signal","pirn-data","pirn-ml","pirn-health","pirn-oilgas"]'), matrix.package)
+        # findings and opted each in, then finished pirn-core (its tests/ F821
+        # were missing typing imports in stringized annotations, not the PIR-762
+        # signal once feared — added the imports; every other finding fixed or
+        # honestly scoped). All seven packages are now in. Keep this opt-in — add
+        # a package here only once its tests/ pass; do not add one speculatively,
+        # a red main helps nobody.
+        if: contains(fromJSON('["pirn-core","pirn-agents","pirn-signal","pirn-data","pirn-ml","pirn-health","pirn-oilgas"]'), matrix.package)
         run: |
           cd packages/${{ matrix.package }}
           ruff check tests

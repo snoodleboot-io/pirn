@@ -17,9 +17,7 @@ from pirn.connectors.databases.mysql_pool import MySQLPool
 
 
 class FakeMysqlCursor:
-    def __init__(
-        self, parent: FakeMysqlConnection
-    ) -> None:
+    def __init__(self, parent: FakeMysqlConnection) -> None:
         self._parent = parent
         self._last_query: str | None = None
         self.rowcount = 0
@@ -31,9 +29,7 @@ class FakeMysqlCursor:
         self.rowcount = 1
 
     async def executemany(self, query: str, rows: list[list[Any]]) -> None:
-        self._parent.parent_pool.executed_many.append(
-            (query, [list(r) for r in rows])
-        )
+        self._parent.parent_pool.executed_many.append((query, [list(r) for r in rows]))
         self.rowcount = len(rows)
 
     async def fetchall(self) -> list[tuple[Any, ...]]:
@@ -85,23 +81,20 @@ class FakeAiomysqlPool:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_database_connection_pool(self) -> None:
         pool = MySQLPool(pool=FakeAiomysqlPool())
         assert isinstance(pool, DatabaseConnectionPool)
-    
-    
+
     def test_construction_requires_config_or_pool(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or pool="):
             MySQLPool()
-    
-    
+
     def test_construction_rejects_bogus_config_type(self) -> None:
         with self.assertRaisesRegex(TypeError, "MySQLConfig"):
             MySQLPool(config="not-a-config")  # type: ignore[arg-type]
-    
-    
+
+
 # ────────────────────────────────────────────────────────── delegation
 
 
@@ -109,12 +102,8 @@ class TestDelegation(unittest.IsolatedAsyncioTestCase):
     async def test_execute_passes_query_and_params(self) -> None:
         fake = FakeAiomysqlPool()
         pool = MySQLPool(pool=fake)
-        await pool.execute(
-            "INSERT INTO t (x, y) VALUES (%s, %s)", [1, "hello"]
-        )
-        assert fake.executed == [
-            ("INSERT INTO t (x, y) VALUES (%s, %s)", [1, "hello"])
-        ]
+        await pool.execute("INSERT INTO t (x, y) VALUES (%s, %s)", [1, "hello"])
+        assert fake.executed == [("INSERT INTO t (x, y) VALUES (%s, %s)", [1, "hello"])]
         # connection acquired and released
         assert len(fake.acquired) == 1
         assert fake.released == fake.acquired
@@ -123,20 +112,14 @@ class TestDelegation(unittest.IsolatedAsyncioTestCase):
         fake = FakeAiomysqlPool()
         fake.responses["SELECT id FROM t WHERE x = %s"] = [(1,), (2,)]
         pool = MySQLPool(pool=fake)
-        rows = await pool.fetch_all(
-            "SELECT id FROM t WHERE x = %s", [99]
-        )
+        rows = await pool.fetch_all("SELECT id FROM t WHERE x = %s", [99])
         assert rows == [(1,), (2,)]
 
     async def test_execute_many_batches(self) -> None:
         fake = FakeAiomysqlPool()
         pool = MySQLPool(pool=fake)
-        await pool.execute_many(
-            "INSERT INTO t VALUES (%s, %s)", [(1, "a"), (2, "b")]
-        )
-        assert fake.executed_many == [
-            ("INSERT INTO t VALUES (%s, %s)", [[1, "a"], [2, "b"]])
-        ]
+        await pool.execute_many("INSERT INTO t VALUES (%s, %s)", [(1, "a"), (2, "b")])
+        assert fake.executed_many == [("INSERT INTO t VALUES (%s, %s)", [[1, "a"], [2, "b"]])]
 
     async def test_acquire_release_roundtrip(self) -> None:
         fake = FakeAiomysqlPool()

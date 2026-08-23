@@ -12,7 +12,6 @@ from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.connectors.file_formats.gguf_format import GgufFormat
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -48,9 +47,7 @@ class TestGgufFormatValidation(unittest.IsolatedAsyncioTestCase):
     async def test_encode_missing_keys_rejected(self) -> None:
         fmt = GgufFormat()
         with self.assertRaises(ValueError):
-            await FormatRoundTrip.encode(
-                fmt, [{"metadata": {}, "tensors": []}]
-            )
+            await FormatRoundTrip.encode(fmt, [{"metadata": {}, "tensors": []}])
 
 
 class TestGgufFormatRoundTrip(unittest.IsolatedAsyncioTestCase):

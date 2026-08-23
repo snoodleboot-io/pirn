@@ -29,9 +29,7 @@ class TestMainReturnCodes(unittest.TestCase):
 
     def test_error_result_returns_1(self) -> None:
         tap = MagicMock()
-        error_result = ValidationResult(issues=[
-            ValidationIssue("error", None, "cycle detected")
-        ])
+        error_result = ValidationResult(issues=[ValidationIssue("error", None, "cycle detected")])
 
         with patch("pirn.check.main._load_factory", return_value=lambda: tap):
             with patch("pirn.check.main.validate_tapestry", return_value=error_result):
@@ -40,9 +38,9 @@ class TestMainReturnCodes(unittest.TestCase):
 
     def test_strict_mode_warning_returns_1(self) -> None:
         tap = MagicMock()
-        warn_result = ValidationResult(issues=[
-            ValidationIssue("warning", None, "too many terminals")
-        ])
+        warn_result = ValidationResult(
+            issues=[ValidationIssue("warning", None, "too many terminals")]
+        )
 
         with patch("pirn.check.main._load_factory", return_value=lambda: tap):
             with patch("pirn.check.main.validate_tapestry", return_value=warn_result):
@@ -51,9 +49,9 @@ class TestMainReturnCodes(unittest.TestCase):
 
     def test_warning_without_strict_returns_0(self) -> None:
         tap = MagicMock()
-        warn_result = ValidationResult(issues=[
-            ValidationIssue("warning", None, "too many terminals")
-        ])
+        warn_result = ValidationResult(
+            issues=[ValidationIssue("warning", None, "too many terminals")]
+        )
 
         with patch("pirn.check.main._load_factory", return_value=lambda: tap):
             with patch("pirn.check.main.validate_tapestry", return_value=warn_result):

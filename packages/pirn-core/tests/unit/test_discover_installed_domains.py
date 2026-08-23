@@ -4,14 +4,16 @@ from __future__ import annotations
 
 # cross-domain: skipped in per-package isolation, run by the unified suite (SCD-24)
 import pytest as _pytest
+
 _pytest.importorskip("pirn_signal")
 pytestmark = _pytest.mark.cross_domain
 
 import unittest
 
+from sweet_tea.abstract_inverter_factory import AbstractInverterFactory
+
 from pirn.core.knot import Knot
 from pirn.domain_discovery import discover_installed_domains
-from sweet_tea.abstract_inverter_factory import AbstractInverterFactory
 
 
 class TestDiscoverInstalledDomains(unittest.TestCase):

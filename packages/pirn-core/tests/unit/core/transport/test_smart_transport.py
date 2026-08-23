@@ -11,7 +11,9 @@ from pirn.core.transport.transport_handle import TransportHandle
 
 
 def _handle(transport_id: str, key: str = "k") -> TransportHandle:
-    return TransportHandle(transport_id=transport_id, key=key, type_name="builtins.int", size_bytes=4, checksum="abc")
+    return TransportHandle(
+        transport_id=transport_id, key=key, type_name="builtins.int", size_bytes=4, checksum="abc"
+    )
 
 
 class TestSmartTransportRouting(unittest.IsolatedAsyncioTestCase):
@@ -66,9 +68,7 @@ class TestSmartTransportRouting(unittest.IsolatedAsyncioTestCase):
         bulk.begin_run = AsyncMock()
         bulk.write = AsyncMock(return_value=_handle("bulk"))
 
-        smart = SmartTransport(
-            fast=fast, bulk=bulk, threshold_bytes=1_000_000, large_types=(list,)
-        )
+        smart = SmartTransport(fast=fast, bulk=bulk, threshold_bytes=1_000_000, large_types=(list,))
         await smart.begin_run("r1")
         await smart.write("r1", "k1", [1, 2, 3])
         bulk.write.assert_called_once()
@@ -112,7 +112,7 @@ class TestSmartTransportRouting(unittest.IsolatedAsyncioTestCase):
         bulk.exists.assert_not_called()
 
     async def test_probe_size_fallback_on_unregistered_type(self) -> None:
-        smart, fast, bulk = self._make(threshold=999_999_999)
+        smart, fast, _bulk = self._make(threshold=999_999_999)
         await smart.begin_run("r1")
         await smart.write("r1", "k1", object())
         fast.write.assert_called_once()

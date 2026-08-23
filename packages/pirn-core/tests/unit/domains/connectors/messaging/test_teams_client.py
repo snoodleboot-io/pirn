@@ -34,23 +34,20 @@ class FakeHTTPXClient:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_api_client(self) -> None:
         client = TeamsClient(client=FakeHTTPXClient())
         assert isinstance(client, ApiClient)
-    
-    
+
     def test_construction_requires_config_or_client(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or client="):
             TeamsClient()
-    
-    
+
     def test_sensitive_fields_declared(self) -> None:
         cfg = TeamsConfig()
         assert "webhook_url" in cfg.sensitive_fields
-    
-    
+
+
 # ────────────────────────────────────────────────────────────── send_message
 
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import unittest
+from typing import ClassVar
 
 from pirn.core.run_request import RunRequest
 from pirn.triggers.http import WebhookTrigger
@@ -69,30 +70,32 @@ class TestWebhookTriggerStream(unittest.IsolatedAsyncioTestCase):
 
     async def test_handle_request_auth_token_required(self) -> None:
         import pytest
+
         pytest.importorskip("starlette")
         trigger = WebhookTrigger(auth_token="my-secret")
 
         class FakeRequest:
-            headers = {}
+            headers: ClassVar[dict] = {}
             client = None
 
             async def body(self):
-                return b'{}'
+                return b"{}"
 
         response = await trigger._handle_request(FakeRequest())
         self.assertEqual(response.status_code, 401)
 
     async def test_handle_request_valid_auth(self) -> None:
         import pytest
+
         pytest.importorskip("starlette")
         trigger = WebhookTrigger(auth_token="my-secret")
 
         class FakeRequest:
-            headers = {"Authorization": "Bearer my-secret"}
+            headers: ClassVar[dict] = {"Authorization": "Bearer my-secret"}
             client = None
 
             async def body(self):
-                return b'{}'
+                return b"{}"
 
         response = await trigger._handle_request(FakeRequest())
         self.assertEqual(response.status_code, 200)

@@ -55,7 +55,11 @@ class StubS3Client:
         return {}
 
     async def list_objects_v2(
-        self, *, Bucket: str, Prefix: str = "", ContinuationToken: str | None = None,
+        self,
+        *,
+        Bucket: str,
+        Prefix: str = "",
+        ContinuationToken: str | None = None,
     ) -> dict[str, Any]:
         keys = sorted(k for (b, k) in self.objects if b == Bucket and k.startswith(Prefix))
         return {
@@ -85,31 +89,26 @@ async def _from_chunks(chunks: list[bytes]) -> AsyncIterator[bytes]:
 # ────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_object_store(self) -> None:
         stub = StubS3Client()
         store = S3Store(S3Config(bucket="b"), client=stub)
         assert isinstance(store, ObjectStore)
-    
-    
+
     def test_construction_requires_bucket(self) -> None:
         with self.assertRaisesRegex(ValueError, "bucket is required"):
             S3Store(S3Config(bucket=""), client=StubS3Client())
-    
-    
+
+
 # ───────────────────────────────────────────────────────────── round-trip
 
 
 class TestRoundTrip(unittest.IsolatedAsyncioTestCase):
-
     async def asyncSetUp(self) -> None:
         self.stub = StubS3Client()
-        
-        
+
         self.store = S3Store(S3Config(bucket="my-bucket", chunk_size=4), client=self.stub)
-        
-        
+
     async def test_put_then_get(self) -> None:
         store = self.store
         stub = self.stub
@@ -143,14 +142,11 @@ class TestRoundTrip(unittest.IsolatedAsyncioTestCase):
 
 
 class TestList(unittest.IsolatedAsyncioTestCase):
-
     async def asyncSetUp(self) -> None:
         self.stub = StubS3Client()
-        
-        
+
         self.store = S3Store(S3Config(bucket="my-bucket", chunk_size=4), client=self.stub)
-        
-        
+
     async def test_lists_all_keys_under_prefix(self) -> None:
         store = self.store
         await store.put("users/alice.json", b"{}")
@@ -167,14 +163,11 @@ class TestList(unittest.IsolatedAsyncioTestCase):
 
 
 class TestKeyValidation(unittest.IsolatedAsyncioTestCase):
-
     async def asyncSetUp(self) -> None:
         self.stub = StubS3Client()
-        
-        
+
         self.store = S3Store(S3Config(bucket="my-bucket", chunk_size=4), client=self.stub)
-        
-        
+
     async def test_rejects_empty_key(self) -> None:
         store = self.store
         with self.assertRaisesRegex(ValueError, "non-empty"):
@@ -224,14 +217,11 @@ class TestLogSafety(unittest.TestCase):
 
 
 class TestErrorPropagation(unittest.IsolatedAsyncioTestCase):
-
     async def asyncSetUp(self) -> None:
         self.stub = StubS3Client()
-        
-        
+
         self.store = S3Store(S3Config(bucket="my-bucket", chunk_size=4), client=self.stub)
-        
-        
+
     async def test_get_missing_key_raises(self) -> None:
         store = self.store
         with self.assertRaises(FileNotFoundError):
@@ -239,6 +229,7 @@ class TestErrorPropagation(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_bytes_in_iterator(self) -> None:
         store = self.store
+
         async def bad() -> AsyncIterator[bytes]:
             yield "not bytes"  # type: ignore[misc]
 

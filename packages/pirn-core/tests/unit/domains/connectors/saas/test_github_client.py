@@ -24,7 +24,12 @@ class FakeRequester:
         self.response: Any = ({"X-Stub": "1"}, {"ok": True})
 
     def requestJsonAndCheck(
-        self, method: str, url: str, parameters: Any, headers: Any, input: Any,
+        self,
+        method: str,
+        url: str,
+        parameters: Any,
+        headers: Any,
+        input: Any,
     ) -> Any:
         self.calls.append((method, url, parameters, headers, input))
         return self.response
@@ -44,22 +49,19 @@ class FakeGithubClient:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_api_client(self) -> None:
         client = GitHubClient(client=FakeGithubClient())
         assert isinstance(client, ApiClient)
-    
-    
+
     def test_construction_requires_config_or_client(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or client="):
             GitHubClient()
-    
-    
+
     def test_sensitive_fields_listed(self) -> None:
         assert GitHubConfig.sensitive_fields == ("token", "private_key")
-    
-    
+
+
 # ────────────────────────────────────────────────────────────── dispatch
 
 
@@ -132,37 +134,30 @@ class TestCredentialSafety(unittest.TestCase):
         assert "<redacted>" in text
 
     def test_audit_dict_redacts_private_key(self) -> None:
-        cfg = GitHubConfig(
-            app_id="123", private_key="-----BEGIN RSA PRIVATE KEY-----\nleak"
-        )
+        cfg = GitHubConfig(app_id="123", private_key="-----BEGIN RSA PRIVATE KEY-----\nleak")
         d = cfg.to_audit_dict()
         assert d["private_key"] == "<redacted>"
         assert d["app_id"] == "123"
 
-
-# ────────────────────────────────────────────────────────── capability surface
-
+    # ────────────────────────────────────────────────────────── capability surface
 
     def test_implements_table_source(self) -> None:
         client = GitHubClient(client=FakeGithubClient())
         assert isinstance(client, TableSource)
-    
-    
+
     def test_construction_rejects_empty_resource(self) -> None:
         with self.assertRaisesRegex(ValueError, "resource must be a non-empty"):
             GitHubClient(client=FakeGithubClient(), resource="")
-    
-    
+
     def test_resource_property_defaults_to_issues(self) -> None:
         client = GitHubClient(client=FakeGithubClient())
         assert client.resource == "issues"
-    
-    
+
     def test_resource_property_reflects_constructor(self) -> None:
         client = GitHubClient(client=FakeGithubClient(), resource="repos")
         assert client.resource == "repos"
-    
-    
+
+
 class TestVendorTypedReads(unittest.IsolatedAsyncioTestCase):
     async def test_list_repos_passes_owner_and_pagination(self) -> None:
         fake = FakeGithubClient()
@@ -172,9 +167,7 @@ class TestVendorTypedReads(unittest.IsolatedAsyncioTestCase):
         )
         client = GitHubClient(client=fake)
 
-        rows, next_cursor = await client.list_repos(
-            "octocat", page=1, per_page=3
-        )
+        rows, next_cursor = await client.list_repos("octocat", page=1, per_page=3)
 
         assert rows == [{"id": 1}, {"id": 2}, {"id": 3}]
         assert next_cursor == "2"
@@ -188,9 +181,7 @@ class TestVendorTypedReads(unittest.IsolatedAsyncioTestCase):
         fake.requester.response = ({}, [{"id": 1}])
         client = GitHubClient(client=fake)
 
-        rows, next_cursor = await client.list_repos(
-            "octocat", page=4, per_page=10
-        )
+        rows, next_cursor = await client.list_repos("octocat", page=4, per_page=10)
 
         assert rows == [{"id": 1}]
         assert next_cursor is None
@@ -215,9 +206,7 @@ class TestVendorTypedReads(unittest.IsolatedAsyncioTestCase):
         fake.requester.response = ({}, [{"number": 1}, {"number": 2}])
         client = GitHubClient(client=fake)
 
-        rows, next_cursor = await client.list_issues(
-            "octocat", "spoon", page=1, per_page=2
-        )
+        rows, next_cursor = await client.list_issues("octocat", "spoon", page=1, per_page=2)
 
         assert rows == [{"number": 1}, {"number": 2}]
         assert next_cursor == "2"
@@ -252,9 +241,7 @@ class TestFetchPage(unittest.IsolatedAsyncioTestCase):
         fake.requester.response = ({}, [{"id": 9}])
         client = GitHubClient(client=fake, resource="repos")
 
-        rows, next_cursor = await client.fetch_page(
-            cursor="3", page_size=1
-        )
+        rows, next_cursor = await client.fetch_page(cursor="3", page_size=1)
 
         assert rows == [{"id": 9}]
         assert next_cursor == "4"

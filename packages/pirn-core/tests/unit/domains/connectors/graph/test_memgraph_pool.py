@@ -55,18 +55,16 @@ class FakeMemgraphConnection:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
     def test_implements_database_connection_pool(self) -> None:
         pool = MemgraphPool(connection=FakeMemgraphConnection())
         assert isinstance(pool, DatabaseConnectionPool)
-    
-    
+
     def test_construction_requires_config_or_connection(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or connection="):
             MemgraphPool()
-    
-    
+
+
 # ────────────────────────────────────────────────────────────── delegation
 
 

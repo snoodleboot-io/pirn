@@ -38,9 +38,13 @@ class TestKnotHelpers(unittest.TestCase):
     def test_extract_coercible_type_union_with_knot(self) -> None:
         from typing import Union
 
-        result = _extract_coercible_type(Union[Knot, int])
+        # Deliberately the typing.Union form (not `Knot | int`): this exercises
+        # _extract_coercible_type's `origin is Union` branch specifically, which
+        # is distinct from its PEP-604 types.UnionType branch. Mirrors the
+        # UP007 suppression the source itself carries where Union is required.
+        result = _extract_coercible_type(Union[Knot, int])  # noqa: UP007
         self.assertIsNotNone(result)
-        coerce_type, adapter_type = result
+        coerce_type, _adapter_type = result
         self.assertIs(coerce_type, int)
 
 
@@ -103,6 +107,7 @@ class TestKnotConstruction(unittest.TestCase):
 
     def test_plain_knot_is_not_optional(self) -> None:
         from pirn.core.optional import Optional
+
         node = Add(a=self._p("a"), b=self._p("b"), _config=KnotConfig(id="add"))
         self.assertNotIsInstance(node, Optional)
 

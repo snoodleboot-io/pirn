@@ -17,13 +17,20 @@ from pirn.tapestry import Tapestry
 
 def _make_failed_result() -> RunResult:
     exc = ExceptionRecord(
-        run_id="r", knot_id="fail", exc_type="RuntimeError",
-        message="inner failure", traceback_text="",
+        run_id="r",
+        knot_id="fail",
+        exc_type="RuntimeError",
+        message="inner failure",
+        traceback_text="",
     )
     return RunResult(
-        run_id="r", terminals_requested=["fail"], outputs={},
-        exceptions=[exc], started_at=datetime.now(UTC),
-        finished_at=datetime.now(UTC), dispatcher="local",
+        run_id="r",
+        terminals_requested=["fail"],
+        outputs={},
+        exceptions=[exc],
+        started_at=datetime.now(UTC),
+        finished_at=datetime.now(UTC),
+        dispatcher="local",
     )
 
 

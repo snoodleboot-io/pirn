@@ -34,23 +34,20 @@ class FakeHTTPXClient:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_api_client(self) -> None:
         client = TelegramClient(client=FakeHTTPXClient())
         assert isinstance(client, ApiClient)
-    
-    
+
     def test_construction_requires_config_or_client(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or client="):
             TelegramClient()
-    
-    
+
     def test_sensitive_fields_declared(self) -> None:
         cfg = TelegramConfig(bot_token="123:ABC")
         assert "bot_token" in cfg.sensitive_fields
-    
-    
+
+
 # ────────────────────────────────────────────────────────────── parse_mode validation
 
 

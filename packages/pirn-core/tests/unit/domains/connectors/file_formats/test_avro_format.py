@@ -16,7 +16,6 @@ from pirn.connectors.file_formats.avro_format import (
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -89,8 +88,6 @@ class TestAvroFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
             await FormatRoundTrip.encode(fmt, [])
 
     async def test_round_trip_single_row(self) -> None:
-        records = [
-            {"id": 42, "name": "solo", "score": 9.0, "active": True}
-        ]
+        records = [{"id": 42, "name": "solo", "score": 9.0, "active": True}]
         fmt = AvroFormat(schema=_explicit_schema())
         await FormatRoundTrip.assert_round_trip(fmt, records)

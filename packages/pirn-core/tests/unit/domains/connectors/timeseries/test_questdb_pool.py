@@ -52,27 +52,23 @@ class FakeAsyncpgPool:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_database_connection_pool(self) -> None:
         pool = QuestDBPool(pool=FakeAsyncpgPool())
         assert isinstance(pool, DatabaseConnectionPool)
-    
-    
+
     def test_construction_requires_config_or_pool(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or pool="):
             QuestDBPool()
-    
-    
-# ───────────────────────────────────────────────────────────── config
 
+    # ───────────────────────────────────────────────────────────── config
 
     def test_config_repr_redacts_password(self) -> None:
         cfg = QuestDBConfig(password="hunter-2-leaks")
         assert "hunter-2-leaks" not in repr(cfg)
         assert "<redacted>" in repr(cfg)
-    
-    
+
+
 # ───────────────────────────────────────────────────────────── delegation
 
 
@@ -97,9 +93,7 @@ class TestDelegation(unittest.IsolatedAsyncioTestCase):
             "INSERT INTO t VALUES ($1, $2)",
             [(1, "a"), (2, "b")],
         )
-        assert fake.executed_many == [
-            ("INSERT INTO t VALUES ($1, $2)", [(1, "a"), (2, "b")])
-        ]
+        assert fake.executed_many == [("INSERT INTO t VALUES ($1, $2)", [(1, "a"), (2, "b")])]
 
     async def test_acquire_release_roundtrip(self) -> None:
         fake = FakeAsyncpgPool()

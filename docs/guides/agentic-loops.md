@@ -211,6 +211,38 @@ Because every iteration is a knot:
 - **Parent/child links** connect the loop run to its per-iteration sub-runs.
 - **Failures** surface at the iteration level — a failed `step_3` does not erase `step_1` and `step_2` from history.
 
+## Concurrency and Dispatchers
+
+A `Dispatcher` decides **where** a single knot's coroutine runs — not whether sibling knots overlap.  Concurrency between knots is the engine's job, and it already happens by default: for each ready wave the engine wraps every knot in `asyncio.create_task` (`pirn/engine/engine.py`) and awaits the wave together, so the default `LocalDispatcher` runs a whole wave of ready knots concurrently on the event loop.  Swapping in another dispatcher changes only the execution *location* of each knot; it does not add or remove sibling concurrency.
+
+### Speeding up a nested agent loop
+
+To move the whole nested subtree off the event loop and onto a worker thread — useful when a loop mixes CPU-ish orchestration with async I/O — set a `ThreadDispatcher` on the **outer** `Tapestry`:
+
+```python
+from pirn.engine.dispatchers.thread_dispatcher import ThreadDispatcher
+
+with Tapestry(dispatcher=ThreadDispatcher()) as t:
+    ...  # your LoopSubTapestry and its inner tapestry
+```
+
+This is the **supported** escape: the outer dispatcher carries the entire nested subtree — including agent-as-tool invocations — into the worker thread, with no change required on the agents side.
+
+### Do not set a dispatcher on an *inner* tapestry
+
+Setting a per-**inner**-tapestry dispatcher (for example a `ThreadDispatcher` on a `SubTapestry`/`LoopSubTapestry`'s own inner tapestry) is **not supported and is unsafe** for agent-as-tool workloads.  The agent-as-tool machinery binds an `AgentToolContext` into a `contextvars` context (read by `current_agent_tool_context()` in `pirn_agents/agent/agent_invoker.py`).  An inner dispatcher crosses the thread boundary *after* that bind, and `loop.run_in_executor` — unlike `asyncio.to_thread` — does **not** copy the context into the worker thread.  The inner knot then sees no context, so `agent_invoker.py` falls back to a fresh **root** `AgentToolContext`:
+
+```python
+parent = current_agent_tool_context()          # None across the uncopied boundary
+base = parent if parent is not None else AgentToolContext(max_depth=self._max_depth)
+```
+
+That silently resets `depth` to the root and drops the inherited cycle set and budget meter, defeating `AgentDepthExceededError`, `AgentCycleError`, and `BudgetBreachError`.  The **outer**-dispatcher configuration above is safe precisely because the bind happens *inside* the worker thread, so there is no boundary to cross afterward.
+
+### Blocking work inside a knot
+
+For blocking work *within* a single knot's `process()`, the idiom is `asyncio.to_thread(...)`, which copies the calling `contextvars` context into the thread (again, `run_in_executor` does not).  This keeps the active `AgentToolContext` — and therefore the depth, cycle, and budget guards — intact.
+
 ## Zero-Iteration Loops
 
 If `step(initial_state)` returns `None` immediately, the loop completes with the initial state as output and a single `__loop_terminal__` knot in history.  No exception is raised.

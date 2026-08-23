@@ -389,7 +389,12 @@ select = ["E", "F", "I", "B", "UP", "RUF"]
 ignore = ["E501"]
 
 [tool.ruff.lint.per-file-ignores]
-"**/tests/**/*.py" = ["F841"]
+# E402: test modules legitimately place module-level imports after a
+# `pytest.importorskip(...)` guard, a `pytestmark = ...` assignment, or a
+# `sys.path`/fixture-path setup block (the optional backends — duckdb, valkey,
+# kafka, dask, ray — and the integration DB fixtures must be skip-guarded
+# before import). Scoped to tests only, deliberately not project-wide.
+"**/tests/**/*.py" = ["F841", "E402"]
 "**/pirn/__init__.py" = ["RUF022"]
 "**/pirn/viz/explorer.py" = ["E501"]
 "**/pirn/viz/html.py" = ["E501"]

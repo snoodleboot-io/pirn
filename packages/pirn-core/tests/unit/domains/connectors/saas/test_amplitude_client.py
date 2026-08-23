@@ -44,7 +44,7 @@ class FakeAmplitudeClient:
         self.shutdown_called = True
 
 
-from pirn.connectors.saas.amplitude_client import AmplitudeClient  # noqa: E402
+from pirn.connectors.saas.amplitude_client import AmplitudeClient
 
 _fake_amplitude = types.ModuleType("amplitude")
 _fake_amplitude.BaseEvent = FakeBaseEvent  # type: ignore[attr-defined]
@@ -58,18 +58,16 @@ def tearDownModule() -> None:
     sys.modules.pop("amplitude", None)
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_api_client(self) -> None:
         client = AmplitudeClient(client=FakeAmplitudeClient())
         assert isinstance(client, ApiClient)
-    
-    
+
     def test_construction_requires_config_or_client(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or client="):
             AmplitudeClient()
-    
-    
+
+
 class TestRequestDispatch(unittest.IsolatedAsyncioTestCase):
     async def test_track_builds_base_event(self) -> None:
         fake = FakeAmplitudeClient()
@@ -162,15 +160,13 @@ class TestConfigSafety(unittest.TestCase):
         assert d["api_key"] == "<redacted>"
         assert d["secret_key"] == "<redacted>"
 
-
-# ────────────────────────────────────────────────────────── capability surface
-
+    # ────────────────────────────────────────────────────────── capability surface
 
     def test_implements_event_emitter(self) -> None:
         client = AmplitudeClient(client=FakeAmplitudeClient())
         assert isinstance(client, EventEmitter)
-    
-    
+
+
 class TestTrack(unittest.IsolatedAsyncioTestCase):
     async def test_track_builds_base_event(self) -> None:
         fake = FakeAmplitudeClient()
@@ -241,9 +237,7 @@ class TestEmit(unittest.IsolatedAsyncioTestCase):
     async def test_emit_returns_none(self) -> None:
         fake = FakeAmplitudeClient()
         client = AmplitudeClient(client=fake)
-        result = await client.emit(
-            {"user_id": "u", "event_type": "x"}
-        )
+        result = await client.emit({"user_id": "u", "event_type": "x"})
         assert result is None
 
     async def test_emit_requires_user_id(self) -> None:

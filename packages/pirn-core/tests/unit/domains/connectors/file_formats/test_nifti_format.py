@@ -14,7 +14,6 @@ from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.connectors.file_formats.nifti_format import NiftiFormat
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -22,6 +21,7 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_nifti_bytes() -> bytes:
     """Return a minimal valid NIfTI file as bytes."""
@@ -56,6 +56,7 @@ async def _decode_bytes(fmt: NiftiFormat, payload: bytes) -> list[dict]:
 # Construction
 # ---------------------------------------------------------------------------
 
+
 class TestNiftiFormatConstruction(unittest.TestCase):
     def test_is_batch_format(self) -> None:
         assert isinstance(NiftiFormat(), BatchFileFormat)
@@ -70,6 +71,7 @@ class TestNiftiFormatConstruction(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # Round-trip
 # ---------------------------------------------------------------------------
+
 
 class TestNiftiFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_decode_record_shape(self) -> None:
@@ -115,6 +117,7 @@ class TestNiftiFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
 # Error paths
 # ---------------------------------------------------------------------------
 
+
 class TestNiftiFormatErrors(unittest.IsolatedAsyncioTestCase):
     async def test_encode_empty_raises(self) -> None:
         fmt = NiftiFormat()
@@ -147,6 +150,7 @@ class TestNiftiFormatErrors(unittest.IsolatedAsyncioTestCase):
 # ---------------------------------------------------------------------------
 # Missing dependency guard
 # ---------------------------------------------------------------------------
+
 
 class TestNiftiFormatMissingDep(unittest.TestCase):
     def test_load_nibabel_raises_on_missing(self) -> None:

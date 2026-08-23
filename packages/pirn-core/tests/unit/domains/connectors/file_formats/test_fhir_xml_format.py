@@ -23,7 +23,6 @@ from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.connectors.file_formats.fhir_xml_format import FhirXmlFormat
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -33,8 +32,7 @@ _FHIR_NS = "http://hl7.org/fhir"
 
 def _make_bundle_xml(resources_xml: list[str]) -> bytes:
     entries = "".join(
-        f"<entry xmlns='{_FHIR_NS}'><resource>{r}</resource></entry>"
-        for r in resources_xml
+        f"<entry xmlns='{_FHIR_NS}'><resource>{r}</resource></entry>" for r in resources_xml
     )
     return (
         f"<?xml version='1.0' encoding='UTF-8'?>"
@@ -73,6 +71,7 @@ async def _decode(fmt: FhirXmlFormat, payload: bytes) -> list[dict]:
 # Construction
 # ---------------------------------------------------------------------------
 
+
 class TestFhirXmlFormatConstruction(unittest.TestCase):
     def test_is_batch_format(self) -> None:
         assert isinstance(FhirXmlFormat(), BatchFileFormat)
@@ -87,6 +86,7 @@ class TestFhirXmlFormatConstruction(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # PHI sanitisation
 # ---------------------------------------------------------------------------
+
 
 class TestFhirXmlFormatPhiSanitisation(unittest.IsolatedAsyncioTestCase):
     async def test_name_stripped(self) -> None:
@@ -135,6 +135,7 @@ class TestFhirXmlFormatPhiSanitisation(unittest.IsolatedAsyncioTestCase):
 # Round-trip
 # ---------------------------------------------------------------------------
 
+
 class TestFhirXmlFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_single_resource(self) -> None:
         records = [
@@ -176,6 +177,7 @@ class TestFhirXmlFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
 # Error paths
 # ---------------------------------------------------------------------------
 
+
 class TestFhirXmlFormatErrors(unittest.IsolatedAsyncioTestCase):
     async def test_invalid_xml_raises(self) -> None:
         fmt = FhirXmlFormat()
@@ -191,6 +193,7 @@ class TestFhirXmlFormatErrors(unittest.IsolatedAsyncioTestCase):
 # ---------------------------------------------------------------------------
 # Missing dependency
 # ---------------------------------------------------------------------------
+
 
 class TestFhirXmlFormatMissingDep(unittest.TestCase):
     def test_missing_fhir_raises(self) -> None:

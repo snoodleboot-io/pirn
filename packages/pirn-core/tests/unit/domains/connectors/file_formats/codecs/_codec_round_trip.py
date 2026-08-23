@@ -39,7 +39,6 @@ class CodecRoundTrip:
         compressed = await cls.compress(codec, payload)
         recovered = await cls.decompress(codec, compressed)
         assert recovered == payload, (
-            f"{codec.name}: decompressed {len(recovered)} bytes != "
-            f"input {len(payload)} bytes"
+            f"{codec.name}: decompressed {len(recovered)} bytes != input {len(payload)} bytes"
         )
         return compressed

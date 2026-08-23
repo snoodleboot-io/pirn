@@ -3,6 +3,8 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime, timedelta
 
+from pydantic import ValidationError
+
 from pirn.core.lineage import KnotLineage
 
 
@@ -72,5 +74,5 @@ class TestKnotLineage(unittest.TestCase):
 
     def test_frozen(self) -> None:
         rec = _make_lineage()
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValidationError):
             rec.outcome = "err"

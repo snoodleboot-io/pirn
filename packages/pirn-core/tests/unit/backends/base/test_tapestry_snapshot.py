@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import unittest
 
+from pydantic import ValidationError
+
 from pirn.backends.base.tapestry_snapshot import TapestrySnapshot
 
 
@@ -20,7 +22,7 @@ class TestTapestrySnapshot(unittest.TestCase):
 
     def test_snapshot_is_frozen_cannot_mutate(self) -> None:
         snap = TapestrySnapshot(knot_ids=["x"])
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValidationError):
             snap.knot_ids = ["y"]  # type: ignore[misc]
 
     def test_snapshot_equality_by_value(self) -> None:

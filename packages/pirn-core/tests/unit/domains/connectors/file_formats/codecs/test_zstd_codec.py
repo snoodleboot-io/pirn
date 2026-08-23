@@ -10,7 +10,6 @@ except ImportError as _e:
     raise unittest.SkipTest("zstandard not installed") from _e
 
 from pirn.connectors.file_formats.codecs.zstd_codec import ZstdCodec
-
 from tests.unit.domains.connectors.file_formats.codecs._codec_round_trip import (
     CodecRoundTrip,
 )
@@ -35,8 +34,7 @@ class TestZstdCodecRoundTrip(unittest.IsolatedAsyncioTestCase):
         payload = b"hello world " * 100
         compressed = await CodecRoundTrip.compress(ZstdCodec(), payload)
         assert len(compressed) < len(payload), (
-            f"zstd should shrink repetitive input; "
-            f"got {len(compressed)} >= {len(payload)}"
+            f"zstd should shrink repetitive input; got {len(compressed)} >= {len(payload)}"
         )
 
     async def test_empty_input(self) -> None:

@@ -17,9 +17,7 @@ from pirn.connectors.databases.snowflake_pool import SnowflakePool
 
 
 class FakeSnowflakeCursor:
-    def __init__(
-        self, parent: FakeSnowflakeClient
-    ) -> None:
+    def __init__(self, parent: FakeSnowflakeClient) -> None:
         self._parent = parent
         self._last_query: str | None = None
         self.rowcount = 0
@@ -60,18 +58,16 @@ class FakeSnowflakeClient:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_database_connection_pool(self) -> None:
         pool = SnowflakePool(client=FakeSnowflakeClient())
         assert isinstance(pool, DatabaseConnectionPool)
-    
-    
+
     def test_construction_requires_config_or_client(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or client="):
             SnowflakePool()
-    
-    
+
+
 # ────────────────────────────────────────────────────────── delegation
 
 
@@ -79,31 +75,21 @@ class TestDelegation(unittest.IsolatedAsyncioTestCase):
     async def test_execute_passes_query_and_params(self) -> None:
         fake = FakeSnowflakeClient()
         pool = SnowflakePool(client=fake)
-        await pool.execute(
-            "INSERT INTO t (x, y) VALUES (?, ?)", [1, "hello"]
-        )
-        assert fake.executed == [
-            ("INSERT INTO t (x, y) VALUES (?, ?)", [1, "hello"])
-        ]
+        await pool.execute("INSERT INTO t (x, y) VALUES (?, ?)", [1, "hello"])
+        assert fake.executed == [("INSERT INTO t (x, y) VALUES (?, ?)", [1, "hello"])]
 
     async def test_fetch_all_returns_rows(self) -> None:
         fake = FakeSnowflakeClient()
         fake.responses["SELECT id FROM t WHERE x = ?"] = [(1,), (2,)]
         pool = SnowflakePool(client=fake)
-        rows = await pool.fetch_all(
-            "SELECT id FROM t WHERE x = ?", [99]
-        )
+        rows = await pool.fetch_all("SELECT id FROM t WHERE x = ?", [99])
         assert rows == [(1,), (2,)]
 
     async def test_execute_many_batches(self) -> None:
         fake = FakeSnowflakeClient()
         pool = SnowflakePool(client=fake)
-        await pool.execute_many(
-            "INSERT INTO t VALUES (?, ?)", [(1, "a"), (2, "b")]
-        )
-        assert fake.executed_many == [
-            ("INSERT INTO t VALUES (?, ?)", [[1, "a"], [2, "b"]])
-        ]
+        await pool.execute_many("INSERT INTO t VALUES (?, ?)", [(1, "a"), (2, "b")])
+        assert fake.executed_many == [("INSERT INTO t VALUES (?, ?)", [[1, "a"], [2, "b"]])]
 
 
 # ─────────────────────────────────────────────────────────── query safety

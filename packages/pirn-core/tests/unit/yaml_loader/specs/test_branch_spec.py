@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.yaml_loader.specs.branch_spec import BranchSpec
 from pydantic import ValidationError
+
+from pirn.yaml_loader.specs.branch_spec import BranchSpec
 
 
 class TestBranchSpecConstruction(unittest.TestCase):

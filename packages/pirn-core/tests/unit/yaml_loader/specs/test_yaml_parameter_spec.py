@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.yaml_loader.specs.yaml_parameter_spec import YamlParameterSpec
 from pydantic import ValidationError
+
+from pirn.yaml_loader.specs.yaml_parameter_spec import YamlParameterSpec
 
 
 class TestParameterSpecConstruction(unittest.TestCase):
@@ -17,12 +18,16 @@ class TestParameterSpecConstruction(unittest.TestCase):
         self.assertFalse(s.has_default)
 
     def test_with_default(self) -> None:
-        s = YamlParameterSpec(id="p2", type="parameter", type_="str", default="hello", has_default=True)
+        s = YamlParameterSpec(
+            id="p2", type="parameter", type_="str", default="hello", has_default=True
+        )
         self.assertEqual(s.default, "hello")
         self.assertTrue(s.has_default)
 
     def test_default_none_allowed(self) -> None:
-        s = YamlParameterSpec(id="p3", type="parameter", type_="int", default=None, has_default=True)
+        s = YamlParameterSpec(
+            id="p3", type="parameter", type_="int", default=None, has_default=True
+        )
         self.assertIsNone(s.default)
         self.assertTrue(s.has_default)
 

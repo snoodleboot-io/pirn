@@ -19,7 +19,6 @@ from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.connectors.file_formats.tflite_format import TfliteFormat
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -66,16 +65,12 @@ class TestTfliteFormatValidation(unittest.IsolatedAsyncioTestCase):
     async def test_encode_non_bytes_rejected(self) -> None:
         fmt = TfliteFormat()
         with self.assertRaises(TypeError):
-            await FormatRoundTrip.encode(
-                fmt, [{"model_bytes": "not-bytes"}]
-            )
+            await FormatRoundTrip.encode(fmt, [{"model_bytes": "not-bytes"}])
 
     async def test_encode_emits_bytes_verbatim(self) -> None:
         fmt = TfliteFormat()
         # Encode-only path doesn't need the SDK; just verify pass-through.
-        body = await FormatRoundTrip.encode(
-            fmt, [{"model_bytes": b"abc"}]
-        )
+        body = await FormatRoundTrip.encode(fmt, [{"model_bytes": b"abc"}])
         assert body == b"abc"
 
 
@@ -89,15 +84,11 @@ class TestTfliteFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
             import tensorflow as tf
         except ImportError as _e:
             self.skipTest("tensorflow not installed")
-        model = tf.keras.Sequential(
-            [tf.keras.layers.Dense(2, input_shape=(2,))]
-        )
+        model = tf.keras.Sequential([tf.keras.layers.Dense(2, input_shape=(2,))])
         converter = tf.lite.TFLiteConverter.from_keras_model(model)
         tflite_bytes = converter.convert()
         fmt = TfliteFormat()
-        payload = await FormatRoundTrip.encode(
-            fmt, [{"model_bytes": tflite_bytes}]
-        )
+        payload = await FormatRoundTrip.encode(fmt, [{"model_bytes": tflite_bytes}])
         assert payload == bytes(tflite_bytes)
         decoded = await FormatRoundTrip.decode(fmt, payload)
         assert len(decoded) == 1

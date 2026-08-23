@@ -60,7 +60,11 @@ class StubReceiver:
 
 
 class StubServiceBusClient:
-    def __init__(self, *, receiver_messages: dict[str, list[Any]] | None = None,) -> None:
+    def __init__(
+        self,
+        *,
+        receiver_messages: dict[str, list[Any]] | None = None,
+    ) -> None:
         self.senders: dict[str, StubSender] = {}
         self.receivers: dict[str, StubReceiver] = {}
         self._receiver_messages = receiver_messages or {}
@@ -87,7 +91,6 @@ class StubMessage:
 # ───────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_message_broker(self) -> None:
         broker = AzureServiceBusBroker(
@@ -95,18 +98,16 @@ class _StandaloneTests(unittest.TestCase):
             client=StubServiceBusClient(),
         )
         assert isinstance(broker, MessageBroker)
-    
-    
+
     def test_rejects_non_config(self) -> None:
         with self.assertRaisesRegex(TypeError, "must be AzureServiceBusConfig"):
             AzureServiceBusBroker("nope", client=StubServiceBusClient())  # type: ignore[arg-type]
-    
-    
+
     def test_requires_connection_or_injected_client(self) -> None:
         with self.assertRaisesRegex(ValueError, "connection_string"):
             AzureServiceBusBroker(AzureServiceBusConfig())
-    
-    
+
+
 # ─────────────────────────────────────────────────────────────── publish
 
 
@@ -134,9 +135,7 @@ class TestPublish(unittest.IsolatedAsyncioTestCase):
             AzureServiceBusConfig(connection_string="Endpoint=sb://x"),
             client=client,
         )
-        await broker.publish(
-            "events", b"v", key=b"user-1", headers={"trace": b"abc"}
-        )
+        await broker.publish("events", b"v", key=b"user-1", headers={"trace": b"abc"})
         sender = client.senders["events"]
         sent = sender.sent[0]
         body = sent.body
@@ -213,9 +212,7 @@ class TestLifecycle(unittest.IsolatedAsyncioTestCase):
 
 class TestCredentialSafety(unittest.TestCase):
     def test_repr_redacts_connection_string(self) -> None:
-        cfg = AzureServiceBusConfig(
-            connection_string="Endpoint=sb://leak;SharedAccessKey=secret"
-        )
+        cfg = AzureServiceBusConfig(connection_string="Endpoint=sb://leak;SharedAccessKey=secret")
         text = repr(cfg)
         assert "secret" not in text
         assert "Endpoint=sb://leak" not in text

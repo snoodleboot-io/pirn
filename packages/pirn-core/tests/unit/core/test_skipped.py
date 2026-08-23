@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import unittest
 
+from pydantic import ValidationError
+
 from pirn.core.skipped import Skipped
 
 
@@ -38,5 +40,5 @@ class TestSkipped(unittest.TestCase):
 
     def test_frozen(self):
         s = Skipped()
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValidationError):
             s.reason = "other"  # type: ignore[misc]

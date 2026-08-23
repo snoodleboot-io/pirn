@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.core.pirn_opaque_value import PirnOpaqueValue
 from pydantic import BaseModel
+
+from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 
 class _MyOpaque(PirnOpaqueValue):
@@ -44,6 +45,7 @@ class TestPirnOpaqueValue(unittest.TestCase):
 
     def test_pydantic_rejects_wrong_type(self):
         from pydantic import ValidationError
+
         with self.assertRaises(ValidationError):
             _Container(value="not an opaque")  # type: ignore[arg-type]
 

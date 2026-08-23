@@ -15,6 +15,7 @@ from __future__ import annotations
 
 # cross-domain: skipped in per-package isolation, run by the unified suite (SCD-24)
 import pytest as _pytest
+
 _pytest.importorskip("pirn_agents")
 pytestmark = _pytest.mark.cross_domain
 

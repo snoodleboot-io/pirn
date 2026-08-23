@@ -17,7 +17,6 @@ from pirn.connectors.file_formats.batch_file_format import (
 from pirn.connectors.file_formats.tf_saved_model_format import (
     TfSavedModelFormat,
 )
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -53,9 +52,7 @@ class TestTfSavedModelFormatValidation(unittest.IsolatedAsyncioTestCase):
     async def test_encode_invalid_path_rejected(self) -> None:
         fmt = TfSavedModelFormat()
         with self.assertRaises(ValueError):
-            await FormatRoundTrip.encode(
-                fmt, [{"saved_model_path": "/nonexistent/path/xyz"}]
-            )
+            await FormatRoundTrip.encode(fmt, [{"saved_model_path": "/nonexistent/path/xyz"}])
 
     async def test_encode_empty_rejected(self) -> None:
         fmt = TfSavedModelFormat()
@@ -65,26 +62,21 @@ class TestTfSavedModelFormatValidation(unittest.IsolatedAsyncioTestCase):
 
 @pytest.mark.skipif(not _HAS_TF, reason="requires tensorflow")
 class TestTfSavedModelFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
-
     async def asyncSetUp(self) -> None:
         """Build a tiny SavedModel on disk and return the directory path."""
         import tensorflow as tf
+
         tmp = tempfile.mkdtemp(prefix="pirn-tf-fixture-")
-        model = tf.keras.Sequential(
-            [tf.keras.layers.Dense(2, input_shape=(2,))]
-        )
+        model = tf.keras.Sequential([tf.keras.layers.Dense(2, input_shape=(2,))])
         model.compile(optimizer="sgd", loss="mse")
         path = os.path.join(tmp, "saved_model")
         tf.saved_model.save(model, path)
         self.saved_model_path = path
-        
-        
+
     async def test_round_trip_basic(self) -> None:
         saved_model_path = self.saved_model_path
         fmt = TfSavedModelFormat()
-        payload = await FormatRoundTrip.encode(
-            fmt, [{"saved_model_path": saved_model_path}]
-        )
+        payload = await FormatRoundTrip.encode(fmt, [{"saved_model_path": saved_model_path}])
         assert payload[:2] == b"PK"  # ZIP magic
         decoded = await FormatRoundTrip.decode(fmt, payload)
         assert len(decoded) == 1

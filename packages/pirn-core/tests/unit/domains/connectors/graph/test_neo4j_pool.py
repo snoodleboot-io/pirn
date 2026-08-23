@@ -64,18 +64,16 @@ class FakeNeo4jDriver:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
     def test_implements_database_connection_pool(self) -> None:
         pool = Neo4jPool(driver=FakeNeo4jDriver())
         assert isinstance(pool, DatabaseConnectionPool)
-    
-    
+
     def test_construction_requires_config_or_driver(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or driver="):
             Neo4jPool()
-    
-    
+
+
 # ────────────────────────────────────────────────────────────── delegation
 
 
@@ -206,9 +204,7 @@ class TestConnectErrorScrubs(unittest.IsolatedAsyncioTestCase):
 
         fake_neo4j.AsyncGraphDatabase = FakeAsyncGraphDatabase  # type: ignore[attr-defined]
         with unittest.mock.patch.dict(sys.modules, {"neo4j": fake_neo4j}):
-            pool = Neo4jPool(
-                Neo4jConfig(uri="bolt://localhost:7687", password="secret-pw")
-            )
+            pool = Neo4jPool(Neo4jConfig(uri="bolt://localhost:7687", password="secret-pw"))
             with self.assertRaises(ConnectionError) as exc_info:
                 await pool.acquire()
         msg = str(exc_info.exception)

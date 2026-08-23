@@ -22,15 +22,13 @@ async def f(x: int) -> int:
     return x
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_single_knot(self):
         p = Parameter("x", int, _config=KnotConfig(id="p"))
         s = Shed.from_terminals(p)
         assert len(s) == 1
         assert "p" in s
-    
-    
+
     def test_chain_walks_parents(self):
         p = Parameter("x", int, _config=KnotConfig(id="p"))
         a = f(x=p, _config=KnotConfig(id="a"))
@@ -39,25 +37,23 @@ class _StandaloneTests(unittest.TestCase):
         assert len(s) == 3
         order = s.topological_order()
         assert order.index("p") < order.index("a") < order.index("b")
-    
-    
+
     def test_diamond(self):
         p = Parameter("x", int, _config=KnotConfig(id="p"))
         a = f(x=p, _config=KnotConfig(id="a"))
         b = f(x=p, _config=KnotConfig(id="b"))
-    
+
         @knot
         async def join(left: int, right: int) -> int:
             return left + right
-    
+
         j = join(left=a, right=b, _config=KnotConfig(id="j"))
         s = Shed.from_terminals(j)
         assert len(s) == 4
         order = s.topological_order()
         assert order.index("p") < order.index("a") < order.index("j")
         assert order.index("p") < order.index("b") < order.index("j")
-    
-    
+
     def test_multiple_terminals_union(self):
         p = Parameter("x", int, _config=KnotConfig(id="p"))
         a = f(x=p, _config=KnotConfig(id="a"))
@@ -65,8 +61,7 @@ class _StandaloneTests(unittest.TestCase):
         s = Shed.from_terminals([a, b])
         assert len(s) == 3
         assert {"p", "a", "b"} == set(s.knots)
-    
-    
+
     def test_roots_and_leaves(self):
         p = Parameter("x", int, _config=KnotConfig(id="p"))
         a = f(x=p, _config=KnotConfig(id="a"))
@@ -74,15 +69,13 @@ class _StandaloneTests(unittest.TestCase):
         s = Shed.from_terminals(b)
         assert [k.knot_id for k in s.roots()] == ["p"]
         assert [k.knot_id for k in s.leaves()] == ["b"]
-    
-    
+
     def test_unknown_lookup_raises(self):
         p = Parameter("x", int, _config=KnotConfig(id="p"))
         s = Shed.from_terminals(p)
         with self.assertRaises(ShedError):
             s.knot("nope")
-    
-    
+
     def test_two_distinct_knots_with_same_id_raises(self):
         """The shed builder catches id collision while walking."""
         p1 = Parameter("x", int, _config=KnotConfig(id="dup"))

@@ -19,7 +19,6 @@ from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.connectors.file_formats.grib_format import GribFormat
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -110,6 +109,7 @@ class TestGribFormatErrors(unittest.IsolatedAsyncioTestCase):
 class TestGribFormatMissingDep(unittest.TestCase):
     def test_import_error_message(self) -> None:
         import unittest.mock
+
         with unittest.mock.patch.dict("sys.modules", {"cfgrib": None, "eccodes": None}):
             with self.assertRaisesRegex(ImportError, "pirn\\[weather\\]"):
                 GribFormat._load_cfgrib_eccodes()

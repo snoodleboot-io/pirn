@@ -19,7 +19,6 @@ from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.connectors.file_formats.define_xml_format import DefineXmlFormat
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -43,7 +42,7 @@ def _make_define_xml(items: list[dict]) -> bytes:
             f'OID="{item["oid"]}" '
             f'Name="{item["name"]}" '
             f'DataType="{item["data_type"]}"'
-            f'{length_attr}>'
+            f"{length_attr}>"
             f"{label_el}"
             f"</ItemDef>"
         )
@@ -72,6 +71,7 @@ async def _decode(fmt: DefineXmlFormat, payload: bytes) -> list[dict]:
 # Construction
 # ---------------------------------------------------------------------------
 
+
 class TestDefineXmlFormatConstruction(unittest.TestCase):
     def test_is_batch_format(self) -> None:
         assert isinstance(DefineXmlFormat(), BatchFileFormat)
@@ -87,6 +87,7 @@ class TestDefineXmlFormatConstruction(unittest.TestCase):
 # PHI sanitisation (not applicable — Define-XML has no PHI)
 # ---------------------------------------------------------------------------
 
+
 class TestDefineXmlFormatNoPhiRequired(unittest.IsolatedAsyncioTestCase):
     def test_no_phi_keywords_needed(self) -> None:
         """Define-XML contains no PHI; confirm class instantiates cleanly."""
@@ -95,8 +96,15 @@ class TestDefineXmlFormatNoPhiRequired(unittest.IsolatedAsyncioTestCase):
 
     async def test_record_shape(self) -> None:
         payload = _make_define_xml(
-            [{"oid": "IT.SUBJ", "name": "SUBJ", "data_type": "text", "length": 20,
-              "label": "Subject ID"}]
+            [
+                {
+                    "oid": "IT.SUBJ",
+                    "name": "SUBJ",
+                    "data_type": "text",
+                    "length": 20,
+                    "label": "Subject ID",
+                }
+            ]
         )
         records = await _decode(DefineXmlFormat(), payload)
         assert len(records) == 1
@@ -109,8 +117,15 @@ class TestDefineXmlFormatNoPhiRequired(unittest.IsolatedAsyncioTestCase):
 
     async def test_fields_decoded_correctly(self) -> None:
         payload = _make_define_xml(
-            [{"oid": "IT.AGE", "name": "AGE", "data_type": "integer", "length": 3,
-              "label": "Age in years"}]
+            [
+                {
+                    "oid": "IT.AGE",
+                    "name": "AGE",
+                    "data_type": "integer",
+                    "length": 3,
+                    "label": "Age in years",
+                }
+            ]
         )
         records = await _decode(DefineXmlFormat(), payload)
         assert records[0]["oid"] == "IT.AGE"
@@ -121,8 +136,13 @@ class TestDefineXmlFormatNoPhiRequired(unittest.IsolatedAsyncioTestCase):
 
     async def test_multiple_items(self) -> None:
         items = [
-            {"oid": "IT.SUBJ", "name": "SUBJ", "data_type": "text",
-             "length": 20, "label": "Subject"},
+            {
+                "oid": "IT.SUBJ",
+                "name": "SUBJ",
+                "data_type": "text",
+                "length": 20,
+                "label": "Subject",
+            },
             {"oid": "IT.AGE", "name": "AGE", "data_type": "integer", "length": 3, "label": None},
             {"oid": "IT.SEX", "name": "SEX", "data_type": "text", "length": 1, "label": "Sex"},
         ]
@@ -138,6 +158,7 @@ class TestDefineXmlFormatNoPhiRequired(unittest.IsolatedAsyncioTestCase):
 # ---------------------------------------------------------------------------
 # Round-trip
 # ---------------------------------------------------------------------------
+
 
 class TestDefineXmlFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_single_item(self) -> None:
@@ -162,8 +183,13 @@ class TestDefineXmlFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
 
     async def test_round_trip_multiple_items(self) -> None:
         records = [
-            {"oid": "IT.SUBJ", "name": "SUBJ", "data_type": "text",
-             "length": 20, "label": "Subject"},
+            {
+                "oid": "IT.SUBJ",
+                "name": "SUBJ",
+                "data_type": "text",
+                "length": 20,
+                "label": "Subject",
+            },
             {"oid": "IT.AGE", "name": "AGE", "data_type": "integer", "length": 3, "label": None},
         ]
         fmt = DefineXmlFormat()
@@ -178,6 +204,7 @@ class TestDefineXmlFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
 # ---------------------------------------------------------------------------
 # Error paths
 # ---------------------------------------------------------------------------
+
 
 class TestDefineXmlFormatErrors(unittest.IsolatedAsyncioTestCase):
     async def test_invalid_xml_raises(self) -> None:
@@ -194,6 +221,7 @@ class TestDefineXmlFormatErrors(unittest.IsolatedAsyncioTestCase):
 # ---------------------------------------------------------------------------
 # Missing dependency
 # ---------------------------------------------------------------------------
+
 
 class TestDefineXmlFormatMissingDep(unittest.TestCase):
     def test_missing_defusedxml_raises(self) -> None:

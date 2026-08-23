@@ -13,4 +13,5 @@ class TestOsIdentityResolver(unittest.TestCase):
 
     def test_isinstance_identity_resolver(self) -> None:
         from pirn.core.identity.identity_resolver import IdentityResolver
+
         self.assertIsInstance(OsIdentityResolver(), IdentityResolver)

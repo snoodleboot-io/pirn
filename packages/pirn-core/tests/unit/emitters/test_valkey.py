@@ -17,7 +17,7 @@ def _make_client() -> MagicMock:
 
 def _make_event() -> MagicMock:
     e = MagicMock()
-    e.model_dump_json = MagicMock(return_value='{}')
+    e.model_dump_json = MagicMock(return_value="{}")
     return e
 
 

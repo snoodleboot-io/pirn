@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.yaml_loader.specs.aggregator_spec import AggregatorSpec
 from pydantic import ValidationError
+
+from pirn.yaml_loader.specs.aggregator_spec import AggregatorSpec
 
 
 class TestAggregatorSpecConstruction(unittest.TestCase):

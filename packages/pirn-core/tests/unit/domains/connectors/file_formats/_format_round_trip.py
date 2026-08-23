@@ -60,6 +60,5 @@ class FormatRoundTrip:
         )
         for original, recovered in zip(records, decoded, strict=True):
             assert dict(original) == dict(recovered), (
-                f"{format.name}: row mismatch — original={original} "
-                f"decoded={recovered}"
+                f"{format.name}: row mismatch — original={original} decoded={recovered}"
             )

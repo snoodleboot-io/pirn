@@ -33,7 +33,13 @@ class FakeHttpx:
         self.closed = False
 
     async def request(
-        self, method: str, url: str, *, params: Any = None, json: Any = None, headers: Any = None,
+        self,
+        method: str,
+        url: str,
+        *,
+        params: Any = None,
+        json: Any = None,
+        headers: Any = None,
     ) -> FakeResponse:
         self.calls.append(
             {
@@ -50,36 +56,27 @@ class FakeHttpx:
         self.closed = True
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_api_client(self) -> None:
         client = OpenMetadataClient(client=FakeHttpx())
         assert isinstance(client, ApiClient)
-    
-    
+
     def test_construction_requires_config_or_client(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or client="):
             OpenMetadataClient()
-    
-    
+
     def test_sensitive_fields_listed(self) -> None:
         assert OpenMetadataConfig.sensitive_fields == ("jwt_token",)
-    
-    
+
+
 class TestRequest(unittest.IsolatedAsyncioTestCase):
     async def test_request_builds_full_url_and_returns_json(self) -> None:
         fake = FakeHttpx()
-        cfg = OpenMetadataConfig(
-            host_url="https://om.acme.com/api", jwt_token="jwt"
-        )
-        fake.responses[
-            ("GET", "https://om.acme.com/api/v1/tables")
-        ] = {"data": [{"name": "t1"}]}
+        cfg = OpenMetadataConfig(host_url="https://om.acme.com/api", jwt_token="jwt")
+        fake.responses[("GET", "https://om.acme.com/api/v1/tables")] = {"data": [{"name": "t1"}]}
         client = OpenMetadataClient(cfg, client=fake)
 
-        result = await client.request(
-            "GET", "/v1/tables", params={"a": 1}
-        )
+        result = await client.request("GET", "/v1/tables", params={"a": 1})
 
         assert result == {"data": [{"name": "t1"}]}
         assert fake.calls == [
@@ -111,32 +108,25 @@ class TestLifecycle(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(RuntimeError, "closed"):
             await client.request("GET", "/v1/tables")
 
-
     def test_implements_table_source_and_metadata_catalog(self) -> None:
         client = OpenMetadataClient(client=FakeHttpx())
         assert isinstance(client, TableSource)
         assert isinstance(client, MetadataCatalog)
-    
-    
+
     def test_default_entity_type_is_tables(self) -> None:
         client = OpenMetadataClient(client=FakeHttpx())
         assert client.entity_type == "tables"
-    
-    
+
     def test_blank_entity_type_rejected(self) -> None:
         with self.assertRaisesRegex(ValueError, "entity_type"):
             OpenMetadataClient(client=FakeHttpx(), entity_type="")
-    
-    
+
+
 class TestVendorTypedListings(unittest.IsolatedAsyncioTestCase):
     async def test_list_tables_passes_paging_params(self) -> None:
         fake = FakeHttpx()
-        cfg = OpenMetadataConfig(
-            host_url="https://om.acme.com", jwt_token="jwt"
-        )
-        fake.responses[
-            ("GET", "https://om.acme.com/api/v1/tables")
-        ] = {
+        cfg = OpenMetadataConfig(host_url="https://om.acme.com", jwt_token="jwt")
+        fake.responses[("GET", "https://om.acme.com/api/v1/tables")] = {
             "data": [{"name": "t1"}, {"name": "t2"}],
             "paging": {"after": "next-token"},
         }
@@ -150,12 +140,11 @@ class TestVendorTypedListings(unittest.IsolatedAsyncioTestCase):
 
     async def test_list_dashboards_targets_dashboards_url(self) -> None:
         fake = FakeHttpx()
-        cfg = OpenMetadataConfig(
-            host_url="https://om.acme.com", jwt_token="jwt"
-        )
-        fake.responses[
-            ("GET", "https://om.acme.com/api/v1/dashboards")
-        ] = {"data": [{"name": "d1"}], "paging": {}}
+        cfg = OpenMetadataConfig(host_url="https://om.acme.com", jwt_token="jwt")
+        fake.responses[("GET", "https://om.acme.com/api/v1/dashboards")] = {
+            "data": [{"name": "d1"}],
+            "paging": {},
+        }
         client = OpenMetadataClient(cfg, client=fake)
 
         rows, cursor = await client.list_dashboards()
@@ -168,17 +157,14 @@ class TestVendorTypedListings(unittest.IsolatedAsyncioTestCase):
 class TestFetchPage(unittest.IsolatedAsyncioTestCase):
     async def test_uses_configured_entity_type(self) -> None:
         fake = FakeHttpx()
-        cfg = OpenMetadataConfig(
-            host_url="https://om.acme.com", jwt_token="jwt"
-        )
-        fake.responses[
-            ("GET", "https://om.acme.com/api/v1/tables")
-        ] = {"data": [{"id": 1}], "paging": {"after": "x"}}
+        cfg = OpenMetadataConfig(host_url="https://om.acme.com", jwt_token="jwt")
+        fake.responses[("GET", "https://om.acme.com/api/v1/tables")] = {
+            "data": [{"id": 1}],
+            "paging": {"after": "x"},
+        }
         client = OpenMetadataClient(cfg, client=fake)
 
-        rows, cursor = await client.fetch_page(
-            cursor="prev", page_size=10
-        )
+        rows, cursor = await client.fetch_page(cursor="prev", page_size=10)
 
         assert rows == [{"id": 1}]
         assert cursor == "x"
@@ -186,12 +172,11 @@ class TestFetchPage(unittest.IsolatedAsyncioTestCase):
 
     async def test_no_paging_after_returns_none_cursor(self) -> None:
         fake = FakeHttpx()
-        cfg = OpenMetadataConfig(
-            host_url="https://om.acme.com", jwt_token="jwt"
-        )
-        fake.responses[
-            ("GET", "https://om.acme.com/api/v1/tables")
-        ] = {"data": [{"id": 1}], "paging": {}}
+        cfg = OpenMetadataConfig(host_url="https://om.acme.com", jwt_token="jwt")
+        fake.responses[("GET", "https://om.acme.com/api/v1/tables")] = {
+            "data": [{"id": 1}],
+            "paging": {},
+        }
         client = OpenMetadataClient(cfg, client=fake)
 
         _, cursor = await client.fetch_page()
@@ -202,9 +187,7 @@ class TestFetchPage(unittest.IsolatedAsyncioTestCase):
 class TestListEntities(unittest.IsolatedAsyncioTestCase):
     async def test_paginates_internally(self) -> None:
         fake = FakeHttpx()
-        cfg = OpenMetadataConfig(
-            host_url="https://om.acme.com", jwt_token="jwt"
-        )
+        cfg = OpenMetadataConfig(host_url="https://om.acme.com", jwt_token="jwt")
         page_calls = {"count": 0}
 
         async def request_request(
@@ -232,9 +215,7 @@ class TestListEntities(unittest.IsolatedAsyncioTestCase):
                         "paging": {"after": "tok2"},
                     }
                 )
-            return _FakeJson(
-                {"data": [{"name": "t2"}], "paging": {}}
-            )
+            return _FakeJson({"data": [{"name": "t2"}], "paging": {}})
 
         fake.request = request_request  # type: ignore[assignment]
         client = OpenMetadataClient(cfg, client=fake)
@@ -248,12 +229,8 @@ class TestListEntities(unittest.IsolatedAsyncioTestCase):
 
     async def test_filter_applied(self) -> None:
         fake = FakeHttpx()
-        cfg = OpenMetadataConfig(
-            host_url="https://om.acme.com", jwt_token="jwt"
-        )
-        fake.responses[
-            ("GET", "https://om.acme.com/api/v1/tables")
-        ] = {
+        cfg = OpenMetadataConfig(host_url="https://om.acme.com", jwt_token="jwt")
+        fake.responses[("GET", "https://om.acme.com/api/v1/tables")] = {
             "data": [
                 {"name": "t1", "tier": "gold"},
                 {"name": "t2", "tier": "bronze"},
@@ -263,9 +240,7 @@ class TestListEntities(unittest.IsolatedAsyncioTestCase):
         client = OpenMetadataClient(cfg, client=fake)
 
         results = []
-        async for entity in client.list_entities(
-            "tables", filter={"tier": "gold"}
-        ):
+        async for entity in client.list_entities("tables", filter={"tier": "gold"}):
             results.append(entity)
 
         assert results == [{"name": "t1", "tier": "gold"}]
@@ -274,12 +249,11 @@ class TestListEntities(unittest.IsolatedAsyncioTestCase):
 class TestDescribeEntity(unittest.IsolatedAsyncioTestCase):
     async def test_calls_entities_endpoint(self) -> None:
         fake = FakeHttpx()
-        cfg = OpenMetadataConfig(
-            host_url="https://om.acme.com", jwt_token="jwt"
-        )
-        fake.responses[
-            ("GET", "https://om.acme.com/api/v1/entities/abc-123")
-        ] = {"id": "abc-123", "name": "thing"}
+        cfg = OpenMetadataConfig(host_url="https://om.acme.com", jwt_token="jwt")
+        fake.responses[("GET", "https://om.acme.com/api/v1/entities/abc-123")] = {
+            "id": "abc-123",
+            "name": "thing",
+        }
         client = OpenMetadataClient(cfg, client=fake)
 
         result = await client.describe_entity("abc-123")

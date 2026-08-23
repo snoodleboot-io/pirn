@@ -3,6 +3,8 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime, timedelta
 
+from pydantic import ValidationError
+
 from pirn.core.run_result import RunResult
 
 
@@ -73,5 +75,5 @@ class TestRunResult(unittest.TestCase):
 
     def test_frozen(self) -> None:
         result = _make_result()
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValidationError):
             result.run_id = "other"

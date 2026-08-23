@@ -18,7 +18,6 @@ from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.connectors.file_formats.pptx_format import PptxFormat
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -64,18 +63,12 @@ class TestPptxFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
         payload = await FormatRoundTrip.encode(fmt, records)
         decoded = await FormatRoundTrip.decode(fmt, payload)
         assert len(decoded) == len(records)
-        for index, (original, recovered) in enumerate(
-            zip(records, decoded, strict=True)
-        ):
+        for index, (original, recovered) in enumerate(zip(records, decoded, strict=True)):
             assert recovered["slide_number"] == index + 1
-            assert _normalise(original["text"]) in _normalise(
-                recovered["text"]
-            )
+            assert _normalise(original["text"]) in _normalise(recovered["text"])
             if original["notes"]:
                 assert recovered["notes"] is not None
-                assert _normalise(original["notes"]) in _normalise(
-                    recovered["notes"]
-                )
+                assert _normalise(original["notes"]) in _normalise(recovered["notes"])
 
     async def test_round_trip_empty(self) -> None:
         fmt = PptxFormat()
@@ -89,9 +82,7 @@ class TestPptxFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
         payload = await FormatRoundTrip.encode(fmt, records)
         decoded = await FormatRoundTrip.decode(fmt, payload)
         assert len(decoded) == 1
-        assert _normalise("single slide content") in _normalise(
-            decoded[0]["text"]
-        )
+        assert _normalise("single slide content") in _normalise(decoded[0]["text"])
         assert decoded[0]["slide_number"] == 1
 
     async def test_extract_speaker_notes_false(self) -> None:
@@ -115,6 +106,4 @@ class TestPptxFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_encode_rejects_non_string_notes(self) -> None:
         fmt = PptxFormat()
         with self.assertRaises(TypeError):
-            await FormatRoundTrip.encode(
-                fmt, [{"text": "ok", "notes": 9}]
-            )
+            await FormatRoundTrip.encode(fmt, [{"text": "ok", "notes": 9}])

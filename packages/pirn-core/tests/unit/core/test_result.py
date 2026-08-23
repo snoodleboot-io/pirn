@@ -34,6 +34,7 @@ class TestResult(unittest.TestCase):
 
     def test_all_exported(self):
         from pirn.core.result import __all__
+
         self.assertIn("Ok", __all__)
         self.assertIn("Err", __all__)
         self.assertIn("Skipped", __all__)

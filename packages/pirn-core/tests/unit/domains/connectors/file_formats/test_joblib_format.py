@@ -19,7 +19,6 @@ from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.connectors.file_formats.joblib_format import JoblibFormat
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -51,18 +50,14 @@ class TestJoblibFormatBasics(unittest.TestCase):
         assert JoblibFormat(allow_unsigned=True).streaming is False
 
     def test_inherits_batch_base(self) -> None:
-        assert isinstance(
-            JoblibFormat(allow_unsigned=True), BatchFileFormat
-        )
+        assert isinstance(JoblibFormat(allow_unsigned=True), BatchFileFormat)
 
 
 class TestJoblibFormatRoundTripUnsigned(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic_unsigned(self) -> None:
         fmt = JoblibFormat(allow_unsigned=True)
         payload_object = {"params": [1, 2, 3], "name": "demo"}
-        body = await FormatRoundTrip.encode(
-            fmt, [{"object": payload_object}]
-        )
+        body = await FormatRoundTrip.encode(fmt, [{"object": payload_object}])
         decoded = await FormatRoundTrip.decode(fmt, body)
         assert len(decoded) == 1
         record: dict[str, Any] = dict(decoded[0])
@@ -84,9 +79,7 @@ class TestJoblibFormatRoundTripSigned(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_signed(self) -> None:
         signer = _Signer.test_signer()
         fmt = JoblibFormat(signer=signer)
-        body = await FormatRoundTrip.encode(
-            fmt, [{"object": {"a": 1, "b": "two"}}]
-        )
+        body = await FormatRoundTrip.encode(fmt, [{"object": {"a": 1, "b": "two"}}])
         # Signed payload begins with a 32-byte HMAC header.
         assert len(body) > 32
         decoded = await FormatRoundTrip.decode(fmt, body)
@@ -96,9 +89,7 @@ class TestJoblibFormatRoundTripSigned(unittest.IsolatedAsyncioTestCase):
     async def test_signed_payload_rejected_when_tampered(self) -> None:
         signer = _Signer.test_signer()
         fmt = JoblibFormat(signer=signer)
-        body = await FormatRoundTrip.encode(
-            fmt, [{"object": [1, 2, 3]}]
-        )
+        body = await FormatRoundTrip.encode(fmt, [{"object": [1, 2, 3]}])
         # Flip a byte in the body section (after the 32-byte signature).
         tampered = bytearray(body)
         tampered[40] = tampered[40] ^ 0xFF
@@ -108,9 +99,7 @@ class TestJoblibFormatRoundTripSigned(unittest.IsolatedAsyncioTestCase):
     async def test_signed_payload_rejected_by_unsigned_reader(self) -> None:
         signer = _Signer.test_signer()
         writer = JoblibFormat(signer=signer)
-        body = await FormatRoundTrip.encode(
-            writer, [{"object": {"x": 1}}]
-        )
+        body = await FormatRoundTrip.encode(writer, [{"object": {"x": 1}}])
         reader = JoblibFormat(allow_unsigned=True)
         # The signature header is not pickle, so unsigned read fails.
         with self.assertRaises(ValueError):

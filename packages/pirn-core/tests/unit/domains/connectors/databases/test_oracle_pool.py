@@ -6,9 +6,9 @@ Uses an injected stub client that mirrors the cursor-based slice of the
 
 from __future__ import annotations
 
+import sys
 import unittest
 import unittest.mock
-import sys
 from typing import Any
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool

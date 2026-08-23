@@ -101,27 +101,23 @@ class StubConnection:
 # ───────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_message_broker(self) -> None:
         broker = RabbitMQBroker(RabbitMQConfig(), connection=StubConnection())
         assert isinstance(broker, MessageBroker)
-    
-    
+
     def test_rejects_non_config(self) -> None:
         with self.assertRaisesRegex(TypeError, "must be RabbitMQConfig"):
             RabbitMQBroker("nope", connection=StubConnection())  # type: ignore[arg-type]
-    
-    
+
+
 # ─────────────────────────────────────────────────────────────── publish
 
 
 class TestPublish(unittest.IsolatedAsyncioTestCase):
     async def test_publish_bytes_to_default_exchange(self) -> None:
         channel = StubChannel()
-        broker = RabbitMQBroker(
-            RabbitMQConfig(), connection=StubConnection(channel=channel)
-        )
+        broker = RabbitMQBroker(RabbitMQConfig(), connection=StubConnection(channel=channel))
         await broker.publish("events", b"hello")
         assert len(channel.default_exchange.published) == 1
         pub = channel.default_exchange.published[0]
@@ -132,12 +128,8 @@ class TestPublish(unittest.IsolatedAsyncioTestCase):
 
     async def test_publish_with_key_and_headers(self) -> None:
         channel = StubChannel()
-        broker = RabbitMQBroker(
-            RabbitMQConfig(), connection=StubConnection(channel=channel)
-        )
-        await broker.publish(
-            "events", b"v", key=b"user-1", headers={"trace": b"abc"}
-        )
+        broker = RabbitMQBroker(RabbitMQConfig(), connection=StubConnection(channel=channel))
+        await broker.publish("events", b"v", key=b"user-1", headers={"trace": b"abc"})
         published = channel.default_exchange.published[0]
         assert published["body"] == b"v"
         assert published["correlation_id"] == "user-1"
@@ -161,9 +153,7 @@ class TestConsume(unittest.IsolatedAsyncioTestCase):
     async def test_yields_messages_from_queue(self) -> None:
         messages = [StubMessage(b"a"), StubMessage(b"b")]
         channel = StubChannel(queue_messages={"events": messages})
-        broker = RabbitMQBroker(
-            RabbitMQConfig(), connection=StubConnection(channel=channel)
-        )
+        broker = RabbitMQBroker(RabbitMQConfig(), connection=StubConnection(channel=channel))
         out: list[bytes] = []
         async for msg in await broker.consume("events"):
             out.append(msg.body)

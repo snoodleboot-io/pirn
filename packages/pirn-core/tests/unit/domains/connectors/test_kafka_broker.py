@@ -25,12 +25,14 @@ class StubProducer:
         self.stopped = True
 
     async def send_and_wait(
-        self, topic: str, *, value: bytes,
-        key: bytes | None = None, headers: list[tuple[str, bytes]] | None = None,
+        self,
+        topic: str,
+        *,
+        value: bytes,
+        key: bytes | None = None,
+        headers: list[tuple[str, bytes]] | None = None,
     ) -> None:
-        self.published.append(
-            {"topic": topic, "value": value, "key": key, "headers": headers}
-        )
+        self.published.append({"topic": topic, "value": value, "key": key, "headers": headers})
 
 
 class StubConsumer:
@@ -64,13 +66,12 @@ def _record(topic: str, value: bytes, *, key: bytes | None = None) -> Any:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_message_broker(self) -> None:
         broker = KafkaBroker(KafkaConfig(), producer=StubProducer())
         assert isinstance(broker, MessageBroker)
-    
-    
+
+
 # ─────────────────────────────────────────────────────────────── publish
 
 
@@ -86,9 +87,7 @@ class TestPublish(unittest.IsolatedAsyncioTestCase):
     async def test_publish_with_key_and_headers(self) -> None:
         prod = StubProducer()
         broker = KafkaBroker(KafkaConfig(), producer=prod)
-        await broker.publish(
-            "events", b"v", key=b"k", headers={"trace-id": b"abc"}
-        )
+        await broker.publish("events", b"v", key=b"k", headers={"trace-id": b"abc"})
         published = prod.published[0]
         assert published["key"] == b"k"
         assert published["headers"] == [("trace-id", b"abc")]

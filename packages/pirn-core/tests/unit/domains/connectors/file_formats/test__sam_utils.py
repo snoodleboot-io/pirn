@@ -47,9 +47,17 @@ class TestSamUtilsSafeUnlink(unittest.TestCase):
 class TestSamUtilsValidateRecord(unittest.TestCase):
     def _valid_record(self):
         return {
-            "qname": "read1", "flag": 0, "rname": "chr1", "pos": 1,
-            "mapq": 60, "cigar": "10M", "rnext": "*", "pnext": 0,
-            "tlen": 0, "seq": "ACGTACGTAC", "qual": "IIIIIIIIII",
+            "qname": "read1",
+            "flag": 0,
+            "rname": "chr1",
+            "pos": 1,
+            "mapq": 60,
+            "cigar": "10M",
+            "rnext": "*",
+            "pnext": 0,
+            "tlen": 0,
+            "seq": "ACGTACGTAC",
+            "qual": "IIIIIIIIII",
         }
 
     def test_valid_record_passes(self) -> None:
@@ -65,11 +73,22 @@ class TestSamUtilsValidateRecord(unittest.TestCase):
 class TestSamUtilsInferHeader(unittest.TestCase):
     def test_infer_header_produces_sq_entries(self) -> None:
         import unittest.mock as mock
+
         pysam_stub = mock.MagicMock()
         records = [
-            {"rname": "chr1", "pos": 100, "seq": "ACGT", "mapq": 0,
-             "flag": 0, "qname": "r1", "cigar": "4M", "rnext": "*",
-             "pnext": 0, "tlen": 0, "qual": "*"},
+            {
+                "rname": "chr1",
+                "pos": 100,
+                "seq": "ACGT",
+                "mapq": 0,
+                "flag": 0,
+                "qname": "r1",
+                "cigar": "4M",
+                "rnext": "*",
+                "pnext": 0,
+                "tlen": 0,
+                "qual": "*",
+            },
         ]
         header = _SamUtils.infer_header(pysam_stub, records)
         self.assertIn("SQ", header)
@@ -77,6 +96,7 @@ class TestSamUtilsInferHeader(unittest.TestCase):
 
     def test_infer_header_no_records_uses_chr1_fallback(self) -> None:
         import unittest.mock as mock
+
         pysam_stub = mock.MagicMock()
         header = _SamUtils.infer_header(pysam_stub, [])
         self.assertEqual(header["SQ"][0]["SN"], "chr1")

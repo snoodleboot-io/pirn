@@ -23,7 +23,6 @@ from pirn.connectors.file_formats.batch_file_format import (
 from pirn.connectors.file_formats.zarr_format import (
     ZarrFormat,
 )
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -141,12 +140,19 @@ class TestZarrFormatSecureTempFiles(unittest.IsolatedAsyncioTestCase):
         records = [{"id": 1, "name": "alpha", "score": 1.5}]
         fmt = ZarrFormat()
         payload = await FormatRoundTrip.encode(fmt, records)  # library-write path
-        await FormatRoundTrip.decode(fmt, payload)            # payload-write path
+        await FormatRoundTrip.decode(fmt, payload)  # payload-write path
         assert self._temp_zarr_files() == before, "encode/decode leaked a temp file"
 
     async def test_decode_failure_leaves_no_temp_files(self) -> None:
         before = self._temp_zarr_files()
         fmt = ZarrFormat()
-        with self.assertRaises(Exception):
+        # The exception TYPE is a zarr-version-dependent implementation detail:
+        # some versions raise zipfile.BadZipFile from the stdlib zip open, others
+        # raise AttributeError from zarr's own ZipStore when the open fails before
+        # `_zf` is bound (seen in CI). The test's actual contract is that a failed
+        # decode of invalid bytes raises *something* (never silently succeeds) and
+        # leaks no temp files — narrowing the type breaks across zarr releases
+        # (PIR-761).
+        with self.assertRaises(Exception):  # noqa: B017 - type is zarr-version-dependent, see comment
             await FormatRoundTrip.decode(fmt, b"not a valid zarr zip payload")
         assert self._temp_zarr_files() == before, "failed decode leaked a temp file"

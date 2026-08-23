@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import unittest
 
+from pydantic import ValidationError
+
 from pirn.core.ok import Ok
 
 
@@ -28,7 +30,7 @@ class TestOk(unittest.TestCase):
 
     def test_frozen(self):
         ok = Ok(value=1)
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValidationError):
             ok.value = 2  # type: ignore[misc]
 
     def test_none_value(self):

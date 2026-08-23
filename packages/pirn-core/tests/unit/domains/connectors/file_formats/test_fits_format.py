@@ -13,7 +13,6 @@ from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.connectors.file_formats.fits_format import FitsFormat
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -135,6 +134,7 @@ class TestFitsFormatErrors(unittest.IsolatedAsyncioTestCase):
 class TestFitsFormatMissingDep(unittest.TestCase):
     def test_import_error_message(self) -> None:
         import unittest.mock
+
         with unittest.mock.patch.dict(
             "sys.modules", {"astropy": None, "astropy.io": None, "astropy.io.fits": None}
         ):

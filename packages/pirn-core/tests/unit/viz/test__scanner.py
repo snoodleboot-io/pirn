@@ -103,7 +103,7 @@ class TestTapestryGraphScannerScanFolder(unittest.TestCase):
             yaml_file = Path(tmp) / "pipeline.yaml"
             yaml_file.write_text("key: value\n")
             scanner = TapestryGraphScanner()
-            tapestries, runs = scanner.scan_folder(Path(tmp))
+            tapestries, _runs = scanner.scan_folder(Path(tmp))
         # The loader will fail on a non-pipeline YAML; scanner returns error graphs.
         self.assertEqual(len(tapestries), 1)
         self.assertIsNotNone(tapestries[0].error)

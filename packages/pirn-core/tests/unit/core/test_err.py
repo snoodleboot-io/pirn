@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import unittest
 
+from pydantic import ValidationError
+
 from pirn.core.err import Err
 from pirn.managers.exception_record import ExceptionRecord
 
@@ -44,5 +46,5 @@ class TestErr(unittest.TestCase):
 
     def test_frozen(self):
         err = Err(record=_make_record())
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValidationError):
             err.record = _make_record()  # type: ignore[misc]

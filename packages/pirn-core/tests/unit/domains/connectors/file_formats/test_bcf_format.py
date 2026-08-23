@@ -15,7 +15,6 @@ from pirn.connectors.file_formats.batch_file_format import (
 from pirn.connectors.file_formats.bcf_format import (
     BcfFormat,
 )
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -28,7 +27,7 @@ class TestBcfFormatConstruction(unittest.TestCase):
 
     def test_custom_header_lines(self) -> None:
         header_lines = (
-            "##INFO=<ID=DP,Number=1,Type=Integer,Description=\"Depth\">",
+            '##INFO=<ID=DP,Number=1,Type=Integer,Description="Depth">',
             "##contig=<ID=chr1>",
         )
         fmt = BcfFormat(header_lines=header_lines)
@@ -93,7 +92,7 @@ class TestBcfFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
 
     async def test_round_trip_empty_with_header(self) -> None:
         header_lines = (
-            "##INFO=<ID=DP,Number=1,Type=String,Description=\"Depth\">",
+            '##INFO=<ID=DP,Number=1,Type=String,Description="Depth">',
             "##contig=<ID=chr1>",
         )
         fmt = BcfFormat(header_lines=header_lines)

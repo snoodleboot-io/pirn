@@ -17,7 +17,6 @@ from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.connectors.file_formats.segy_format import SegyFormat
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -25,6 +24,7 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 
 def _trace_record(idx: int, n_samples: int = 8) -> dict:
     import struct
+
     values = [float(idx * 10 + i) for i in range(n_samples)]
     data = struct.pack(f">{n_samples}f", *values)
     return {
@@ -84,6 +84,7 @@ class TestSegyFormatErrors(unittest.IsolatedAsyncioTestCase):
 class TestSegyFormatMissingDep(unittest.TestCase):
     def test_import_error_message(self) -> None:
         import unittest.mock
+
         fmt = SegyFormat()
         with unittest.mock.patch.dict("sys.modules", {"segyio": None}):
             with self.assertRaisesRegex(ImportError, "pirn\\[oilgas\\]"):

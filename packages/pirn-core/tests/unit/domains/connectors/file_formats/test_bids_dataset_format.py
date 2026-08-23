@@ -18,7 +18,6 @@ from pirn.connectors.file_formats.batch_file_format import (
 from pirn.connectors.file_formats.bids_dataset_format import (
     BidsDatasetFormat,
 )
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -26,6 +25,7 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_bids_zip() -> bytes:
     """Return a minimal BIDS-like zip bundle as bytes."""
@@ -51,6 +51,7 @@ async def _decode_bytes(fmt: BidsDatasetFormat, payload: bytes) -> list[dict]:
 # Construction
 # ---------------------------------------------------------------------------
 
+
 class TestBidsDatasetFormatConstruction(unittest.TestCase):
     def test_is_batch_format(self) -> None:
         assert isinstance(BidsDatasetFormat(), BatchFileFormat)
@@ -65,6 +66,7 @@ class TestBidsDatasetFormatConstruction(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # Round-trip
 # ---------------------------------------------------------------------------
+
 
 class TestBidsDatasetFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_decode_emits_file_records(self) -> None:
@@ -109,6 +111,7 @@ class TestBidsDatasetFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
 # Error paths
 # ---------------------------------------------------------------------------
 
+
 class TestBidsDatasetFormatErrors(unittest.IsolatedAsyncioTestCase):
     async def test_invalid_payload_raises(self) -> None:
         fmt = BidsDatasetFormat()
@@ -134,6 +137,7 @@ class TestBidsDatasetFormatErrors(unittest.IsolatedAsyncioTestCase):
 # ---------------------------------------------------------------------------
 # Missing dependency guard
 # ---------------------------------------------------------------------------
+
 
 class TestBidsDatasetFormatMissingDep(unittest.TestCase):
     def test_still_works_without_pybids(self) -> None:

@@ -18,7 +18,6 @@ from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.connectors.file_formats.dicom_format import DicomFormat
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -26,6 +25,7 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_minimal_dicom_bytes() -> bytes:
     """Return a minimal valid DICOM Part-10 file as bytes."""
@@ -83,6 +83,7 @@ async def _decode_bytes(fmt: DicomFormat, payload: bytes) -> list[Mapping[str, A
 # Construction
 # ---------------------------------------------------------------------------
 
+
 class TestDicomFormatConstruction(unittest.TestCase):
     def test_is_batch_format(self) -> None:
         assert isinstance(DicomFormat(), BatchFileFormat)
@@ -97,6 +98,7 @@ class TestDicomFormatConstruction(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # PHI keyword set
 # ---------------------------------------------------------------------------
+
 
 class TestPhiKeywords(unittest.TestCase):
     def test_patient_id_in_phi_set(self) -> None:
@@ -118,6 +120,7 @@ class TestPhiKeywords(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
 
 class TestHashPatientId(unittest.TestCase):
     def test_known_hash(self) -> None:
@@ -180,6 +183,7 @@ class TestCoerceMetadataValue(unittest.TestCase):
 # Decode — PHI sanitisation
 # ---------------------------------------------------------------------------
 
+
 class TestDicomDecodePhiSanitisation(unittest.IsolatedAsyncioTestCase):
     async def test_patient_id_hashed_not_raw(self) -> None:
         payload = _make_minimal_dicom_bytes()
@@ -237,6 +241,7 @@ class TestDicomDecodePhiSanitisation(unittest.IsolatedAsyncioTestCase):
 # Decode — error paths
 # ---------------------------------------------------------------------------
 
+
 class TestDicomDecodeErrors(unittest.IsolatedAsyncioTestCase):
     async def test_invalid_payload_type_raises_type_error(self) -> None:
         fmt = DicomFormat()
@@ -262,6 +267,7 @@ class TestDicomDecodeErrors(unittest.IsolatedAsyncioTestCase):
 # ---------------------------------------------------------------------------
 # Encode — error paths
 # ---------------------------------------------------------------------------
+
 
 class TestDicomEncodeErrors(unittest.IsolatedAsyncioTestCase):
     async def test_encode_empty_raises_value_error(self) -> None:
@@ -297,6 +303,7 @@ class TestDicomEncodeErrors(unittest.IsolatedAsyncioTestCase):
 # ---------------------------------------------------------------------------
 # Round-trip (encode → decode)
 # ---------------------------------------------------------------------------
+
 
 class TestDicomRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
@@ -354,6 +361,7 @@ class TestDicomRoundTrip(unittest.IsolatedAsyncioTestCase):
 # ---------------------------------------------------------------------------
 # Missing pydicom guard
 # ---------------------------------------------------------------------------
+
 
 class TestDicomMissingDependency(unittest.TestCase):
     def test_load_pydicom_raises_on_missing(self) -> None:

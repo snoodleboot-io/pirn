@@ -79,37 +79,31 @@ def make_pool(client: FakeInfluxClient | None = None) -> InfluxDBPool:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_database_connection_pool(self) -> None:
         pool = make_pool()
         assert isinstance(pool, DatabaseConnectionPool)
-    
-    
+
     def test_construction_requires_config_or_client(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or client="):
             InfluxDBPool()
-    
-    
-# ───────────────────────────────────────────────────────────── config validation
 
+    # ───────────────────────────────────────────────────────────── config validation
 
     def test_config_requires_org(self) -> None:
         with self.assertRaisesRegex(ValueError, "org"):
             InfluxDBConfig(org="", bucket="b")
-    
-    
+
     def test_config_requires_bucket(self) -> None:
         with self.assertRaisesRegex(ValueError, "bucket"):
             InfluxDBConfig(org="o", bucket="")
-    
-    
+
     def test_config_repr_redacts_token(self) -> None:
         cfg = make_config(token="super-secret-token")
         assert "super-secret-token" not in repr(cfg)
         assert "<redacted>" in repr(cfg)
-    
-    
+
+
 # ───────────────────────────────────────────────────────────── delegation
 
 

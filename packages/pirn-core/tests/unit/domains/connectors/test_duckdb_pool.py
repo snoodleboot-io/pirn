@@ -20,18 +20,16 @@ class _StandaloneTests(unittest.TestCase):
     def test_implements_database_connection_pool(self) -> None:
         pool = DuckdbPool(DuckdbConfig(database=":memory:"))
         assert isinstance(pool, DatabaseConnectionPool)
-    
-    
-class TestCrud(unittest.IsolatedAsyncioTestCase):
 
+
+class TestCrud(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         p = DuckdbPool(DuckdbConfig(database=":memory:"))
         self.pool = p
 
     async def asyncTearDown(self) -> None:
         await self.pool.close()
-        
-        
+
     async def test_create_insert_select(self) -> None:
         pool = self.pool
         await pool.execute("CREATE TABLE t (id INTEGER, name VARCHAR)")
@@ -62,15 +60,13 @@ class TestQuerySafety(unittest.TestCase):
 
 
 class TestInjectionResistance(unittest.IsolatedAsyncioTestCase):
-
     async def asyncSetUp(self) -> None:
         p = DuckdbPool(DuckdbConfig(database=":memory:"))
         self.pool = p
 
     async def asyncTearDown(self) -> None:
         await self.pool.close()
-        
-        
+
     async def test_quote_in_value_is_treated_as_data(self) -> None:
         pool = self.pool
         await pool.execute("CREATE TABLE u (name VARCHAR)")
@@ -103,9 +99,7 @@ class TestLifecycle(unittest.IsolatedAsyncioTestCase):
         await write_pool.execute("INSERT INTO t VALUES (?)", (1,))
         await write_pool.close()
 
-        ro_pool = DuckdbPool(
-            DuckdbConfig(database=tmp_path / "ro.duckdb", read_only=True)
-        )
+        ro_pool = DuckdbPool(DuckdbConfig(database=tmp_path / "ro.duckdb", read_only=True))
         # Reads work.
         rows = await ro_pool.fetch_all("SELECT x FROM t")
         assert rows == [(1,)]

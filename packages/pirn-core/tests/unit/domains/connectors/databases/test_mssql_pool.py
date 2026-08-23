@@ -17,9 +17,7 @@ from pirn.connectors.databases.mssql_pool import MssqlPool
 
 
 class FakeMssqlCursor:
-    def __init__(
-        self, parent: FakeMssqlConnection
-    ) -> None:
+    def __init__(self, parent: FakeMssqlConnection) -> None:
         self._parent = parent
         self._last_query: str | None = None
         self.rowcount = 0
@@ -31,9 +29,7 @@ class FakeMssqlCursor:
         self.rowcount = 1
 
     async def executemany(self, query: str, rows: list[list[Any]]) -> None:
-        self._parent.parent_pool.executed_many.append(
-            (query, [list(r) for r in rows])
-        )
+        self._parent.parent_pool.executed_many.append((query, [list(r) for r in rows]))
         self.rowcount = len(rows)
 
     async def fetchall(self) -> list[tuple[Any, ...]]:
@@ -85,18 +81,16 @@ class FakeAioodbcPool:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_database_connection_pool(self) -> None:
         pool = MssqlPool(pool=FakeAioodbcPool())
         assert isinstance(pool, DatabaseConnectionPool)
-    
-    
+
     def test_construction_requires_config_or_pool(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or pool="):
             MssqlPool()
-    
-    
+
+
 # ────────────────────────────────────────────────────────── delegation
 
 
@@ -120,12 +114,8 @@ class TestDelegation(unittest.IsolatedAsyncioTestCase):
     async def test_execute_many_batches(self) -> None:
         fake = FakeAioodbcPool()
         pool = MssqlPool(pool=fake)
-        await pool.execute_many(
-            "INSERT INTO t VALUES (?, ?)", [(1, "a"), (2, "b")]
-        )
-        assert fake.executed_many == [
-            ("INSERT INTO t VALUES (?, ?)", [[1, "a"], [2, "b"]])
-        ]
+        await pool.execute_many("INSERT INTO t VALUES (?, ?)", [(1, "a"), (2, "b")])
+        assert fake.executed_many == [("INSERT INTO t VALUES (?, ?)", [[1, "a"], [2, "b"]])]
 
     async def test_acquire_release_roundtrip(self) -> None:
         fake = FakeAioodbcPool()

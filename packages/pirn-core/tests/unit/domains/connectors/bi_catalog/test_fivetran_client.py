@@ -33,7 +33,13 @@ class FakeHttpx:
         self.closed = False
 
     async def request(
-        self, method: str, url: str, *, params: Any = None, json: Any = None, headers: Any = None,
+        self,
+        method: str,
+        url: str,
+        *,
+        params: Any = None,
+        json: Any = None,
+        headers: Any = None,
     ) -> FakeResponse:
         self.calls.append(
             {
@@ -54,39 +60,32 @@ class FakeHttpx:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_api_client(self) -> None:
         client = FivetranClient(client=FakeHttpx())
         assert isinstance(client, ApiClient)
-    
-    
+
     def test_construction_requires_config_or_client(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or client="):
             FivetranClient()
-    
-    
+
     def test_sensitive_fields_listed(self) -> None:
         assert FivetranConfig.sensitive_fields == ("api_key", "api_secret")
-    
-    
+
+
 # ────────────────────────────────────────────────────────────── dispatch
 
 
 class TestRequest(unittest.IsolatedAsyncioTestCase):
     async def test_request_builds_full_url_and_returns_json(self) -> None:
         fake = FakeHttpx()
-        cfg = FivetranConfig(
-            api_key="k", api_secret="s", base_url="https://api.fivetran.com/v1"
-        )
-        fake.responses[
-            ("GET", "https://api.fivetran.com/v1/connectors")
-        ] = {"data": [{"id": "abc"}]}
+        cfg = FivetranConfig(api_key="k", api_secret="s", base_url="https://api.fivetran.com/v1")
+        fake.responses[("GET", "https://api.fivetran.com/v1/connectors")] = {
+            "data": [{"id": "abc"}]
+        }
         client = FivetranClient(cfg, client=fake)
 
-        result = await client.request(
-            "GET", "/connectors", params={"a": 1}
-        )
+        result = await client.request("GET", "/connectors", params={"a": 1})
 
         assert result == {"data": [{"id": "abc"}]}
         assert fake.calls == [
@@ -137,25 +136,21 @@ class TestLifecycle(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(RuntimeError, "closed"):
             await client.request("GET", "/connectors")
 
-
-# ─────────────────────────────────────────────────────── table source surface
-
+    # ─────────────────────────────────────────────────────── table source surface
 
     def test_implements_table_source(self) -> None:
         client = FivetranClient(client=FakeHttpx())
         assert isinstance(client, TableSource)
-    
-    
+
     def test_default_resource_is_connectors(self) -> None:
         client = FivetranClient(client=FakeHttpx())
         assert client.resource == "connectors"
-    
-    
+
     def test_blank_resource_rejected(self) -> None:
         with self.assertRaisesRegex(ValueError, "resource"):
             FivetranClient(client=FakeHttpx(), resource="")
-    
-    
+
+
 class TestFetchPage(unittest.IsolatedAsyncioTestCase):
     async def test_fetch_page_returns_rows_and_next_cursor(self) -> None:
         fake = FakeHttpx()
@@ -164,9 +159,7 @@ class TestFetchPage(unittest.IsolatedAsyncioTestCase):
             api_secret="s",
             base_url="https://api.fivetran.com/v1",
         )
-        fake.responses[
-            ("GET", "https://api.fivetran.com/v1/connectors")
-        ] = {
+        fake.responses[("GET", "https://api.fivetran.com/v1/connectors")] = {
             "data": {
                 "items": [{"id": "abc"}, {"id": "def"}],
                 "next_cursor": "tok2",
@@ -174,9 +167,7 @@ class TestFetchPage(unittest.IsolatedAsyncioTestCase):
         }
         client = FivetranClient(cfg, client=fake)
 
-        rows, cursor = await client.fetch_page(
-            cursor="tok1", page_size=10
-        )
+        rows, cursor = await client.fetch_page(cursor="tok1", page_size=10)
 
         assert rows == [{"id": "abc"}, {"id": "def"}]
         assert cursor == "tok2"
@@ -189,9 +180,9 @@ class TestFetchPage(unittest.IsolatedAsyncioTestCase):
             api_secret="s",
             base_url="https://api.fivetran.com/v1",
         )
-        fake.responses[
-            ("GET", "https://api.fivetran.com/v1/connectors")
-        ] = {"data": {"items": [{"id": "abc"}]}}
+        fake.responses[("GET", "https://api.fivetran.com/v1/connectors")] = {
+            "data": {"items": [{"id": "abc"}]}
+        }
         client = FivetranClient(cfg, client=fake)
 
         _, cursor = await client.fetch_page()
@@ -207,9 +198,9 @@ class TestVendorTypedListings(unittest.IsolatedAsyncioTestCase):
             api_secret="s",
             base_url="https://api.fivetran.com/v1",
         )
-        fake.responses[
-            ("GET", "https://api.fivetran.com/v1/connectors")
-        ] = {"data": {"items": [{"id": "abc"}]}}
+        fake.responses[("GET", "https://api.fivetran.com/v1/connectors")] = {
+            "data": {"items": [{"id": "abc"}]}
+        }
         client = FivetranClient(cfg, client=fake)
 
         rows, _ = await client.list_connectors(limit=5)
@@ -224,9 +215,9 @@ class TestVendorTypedListings(unittest.IsolatedAsyncioTestCase):
             api_secret="s",
             base_url="https://api.fivetran.com/v1",
         )
-        fake.responses[
-            ("GET", "https://api.fivetran.com/v1/groups")
-        ] = {"data": {"items": [{"id": "g1"}]}}
+        fake.responses[("GET", "https://api.fivetran.com/v1/groups")] = {
+            "data": {"items": [{"id": "g1"}]}
+        }
         client = FivetranClient(cfg, client=fake)
 
         rows, _ = await client.list_groups()

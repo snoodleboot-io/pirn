@@ -16,15 +16,11 @@ class TestValidationResultProperties(unittest.TestCase):
         self.assertEqual(result.warnings, [])
 
     def test_error_makes_not_ok(self) -> None:
-        result = ValidationResult(issues=[
-            ValidationIssue("error", None, "boom")
-        ])
+        result = ValidationResult(issues=[ValidationIssue("error", None, "boom")])
         self.assertFalse(result.ok)
 
     def test_warning_does_not_affect_ok(self) -> None:
-        result = ValidationResult(issues=[
-            ValidationIssue("warning", None, "just a note")
-        ])
+        result = ValidationResult(issues=[ValidationIssue("warning", None, "just a note")])
         self.assertTrue(result.ok)
 
     def test_errors_filters_correctly(self) -> None:
@@ -38,10 +34,12 @@ class TestValidationResultProperties(unittest.TestCase):
         self.assertEqual(len(result.warnings), 1)
 
     def test_warnings_filters_correctly(self) -> None:
-        result = ValidationResult(issues=[
-            ValidationIssue("warning", None, "w"),
-            ValidationIssue("warning", None, "w2"),
-        ])
+        result = ValidationResult(
+            issues=[
+                ValidationIssue("warning", None, "w"),
+                ValidationIssue("warning", None, "w2"),
+            ]
+        )
         self.assertEqual(len(result.warnings), 2)
         self.assertEqual(result.errors, [])
 

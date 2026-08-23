@@ -13,7 +13,6 @@ from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.connectors.file_formats.hl7v2_format import Hl7v2Format
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -43,6 +42,7 @@ async def _decode(fmt: Hl7v2Format, payload: bytes) -> list[dict]:
 # Construction
 # ---------------------------------------------------------------------------
 
+
 class TestHl7v2FormatConstruction(unittest.TestCase):
     def test_is_batch_format(self) -> None:
         assert isinstance(Hl7v2Format(), BatchFileFormat)
@@ -58,28 +58,23 @@ class TestHl7v2FormatConstruction(unittest.TestCase):
 # PHI sanitisation
 # ---------------------------------------------------------------------------
 
+
 class TestHl7v2FormatPhiSanitisation(unittest.IsolatedAsyncioTestCase):
     async def test_pid5_name_redacted(self) -> None:
         records = await _decode(Hl7v2Format(), _MINIMAL_HL7.encode("utf-8"))
-        pid_seg = next(
-            s for s in records[0]["segments"] if s["segment_id"] == "PID"
-        )
+        pid_seg = next(s for s in records[0]["segments"] if s["segment_id"] == "PID")
         # PID.5 is index 4 in fields (0-based, field 5 - 1)
         assert pid_seg["fields"][4] == "[REDACTED]"
 
     async def test_pid7_dob_redacted(self) -> None:
         records = await _decode(Hl7v2Format(), _MINIMAL_HL7.encode("utf-8"))
-        pid_seg = next(
-            s for s in records[0]["segments"] if s["segment_id"] == "PID"
-        )
+        pid_seg = next(s for s in records[0]["segments"] if s["segment_id"] == "PID")
         # PID.7 is index 6 in fields (0-based)
         assert pid_seg["fields"][6] == "[REDACTED]"
 
     async def test_pid11_address_redacted(self) -> None:
         records = await _decode(Hl7v2Format(), _MINIMAL_HL7.encode("utf-8"))
-        pid_seg = next(
-            s for s in records[0]["segments"] if s["segment_id"] == "PID"
-        )
+        pid_seg = next(s for s in records[0]["segments"] if s["segment_id"] == "PID")
         # PID.11 is index 10 in fields (0-based)
         assert pid_seg["fields"][10] == "[REDACTED]"
 
@@ -104,6 +99,7 @@ class TestHl7v2FormatPhiSanitisation(unittest.IsolatedAsyncioTestCase):
 # ---------------------------------------------------------------------------
 # Round-trip
 # ---------------------------------------------------------------------------
+
 
 class TestHl7v2FormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_preserves_segments(self) -> None:
@@ -132,6 +128,7 @@ class TestHl7v2FormatRoundTrip(unittest.IsolatedAsyncioTestCase):
 # Error paths
 # ---------------------------------------------------------------------------
 
+
 class TestHl7v2FormatErrors(unittest.IsolatedAsyncioTestCase):
     async def test_invalid_hl7_raises(self) -> None:
         fmt = Hl7v2Format()
@@ -148,9 +145,11 @@ class TestHl7v2FormatErrors(unittest.IsolatedAsyncioTestCase):
 # Missing dependency
 # ---------------------------------------------------------------------------
 
+
 class TestHl7v2FormatMissingDep(unittest.TestCase):
     def test_missing_hl7_raises(self) -> None:
         import unittest.mock
+
         fmt = Hl7v2Format()
         with unittest.mock.patch.dict("sys.modules", {"hl7": None}):
             with self.assertRaisesRegex(ImportError, "pirn\\[health\\]"):

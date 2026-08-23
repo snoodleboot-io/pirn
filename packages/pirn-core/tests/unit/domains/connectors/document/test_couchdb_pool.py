@@ -72,18 +72,16 @@ def make_pool(
 # ───────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_database_connection_pool(self) -> None:
         pool, _ = make_pool()
         assert isinstance(pool, DatabaseConnectionPool)
-    
-    
+
     def test_construction_requires_config_or_session(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or session="):
             CouchDBPool()
-    
-    
+
+
 # ───────────────────────────────────────────────────────────── operations
 
 

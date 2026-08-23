@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.yaml_loader.specs.reduce_spec import ReduceSpec
 from pydantic import ValidationError
+
+from pirn.yaml_loader.specs.reduce_spec import ReduceSpec
 
 
 class TestReduceSpecConstruction(unittest.TestCase):

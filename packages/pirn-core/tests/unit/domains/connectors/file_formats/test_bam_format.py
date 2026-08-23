@@ -15,7 +15,6 @@ from pirn.connectors.file_formats.bam_format import (
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -102,9 +101,7 @@ class TestBamFormatBasics(unittest.TestCase):
 class TestBamFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_basic(self) -> None:
         records = _alignment_records()
-        fmt = BamFormat(
-            header_lines=("@HD\tVN:1.6", "@SQ\tSN:chr1\tLN:1000000")
-        )
+        fmt = BamFormat(header_lines=("@HD\tVN:1.6", "@SQ\tSN:chr1\tLN:1000000"))
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
     async def test_round_trip_inferred_header(self) -> None:
@@ -113,14 +110,10 @@ class TestBamFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
     async def test_round_trip_empty(self) -> None:
-        fmt = BamFormat(
-            header_lines=("@HD\tVN:1.6", "@SQ\tSN:chr1\tLN:1000")
-        )
+        fmt = BamFormat(header_lines=("@HD\tVN:1.6", "@SQ\tSN:chr1\tLN:1000"))
         await FormatRoundTrip.assert_round_trip(fmt, [])
 
     async def test_round_trip_single(self) -> None:
         records = [_alignment_records()[0]]
-        fmt = BamFormat(
-            header_lines=("@HD\tVN:1.6", "@SQ\tSN:chr1\tLN:1000")
-        )
+        fmt = BamFormat(header_lines=("@HD\tVN:1.6", "@SQ\tSN:chr1\tLN:1000"))
         await FormatRoundTrip.assert_round_trip(fmt, records)

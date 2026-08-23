@@ -6,6 +6,7 @@ import pickle
 from contextlib import asynccontextmanager
 
 import pytest
+
 from pirn.backends.s3 import S3DataStore
 
 # ---------------------------------------------------- fake S3 client

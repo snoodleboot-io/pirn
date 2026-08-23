@@ -17,7 +17,6 @@ from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.connectors.file_formats.kml_format import KmlFormat
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -75,9 +74,7 @@ class TestKmlFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
             assert recovered["name"] == original["name"]
             assert recovered["description"] == original["description"]
             assert recovered["geometry_type"] == original["geometry_type"]
-            assert _coordinates_xy(recovered["coordinates"]) == list(
-                original["coordinates"]
-            )
+            assert _coordinates_xy(recovered["coordinates"]) == list(original["coordinates"])
             assert recovered["extended_data"] == original["extended_data"]
 
     async def test_round_trip_empty(self) -> None:
@@ -93,9 +90,7 @@ class TestKmlFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
         decoded = await FormatRoundTrip.decode(fmt, payload)
         assert len(decoded) == 1
         assert decoded[0]["name"] == records[0]["name"]
-        assert _coordinates_xy(decoded[0]["coordinates"]) == list(
-            records[0]["coordinates"]
-        )
+        assert _coordinates_xy(decoded[0]["coordinates"]) == list(records[0]["coordinates"])
 
     async def test_unsupported_geometry_type_raises(self) -> None:
         fmt = KmlFormat()

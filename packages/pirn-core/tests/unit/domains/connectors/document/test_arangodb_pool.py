@@ -43,18 +43,16 @@ def make_pool(rows: list[dict[str, Any]] | None = None) -> tuple[ArangoDBPool, F
 # ───────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_database_connection_pool(self) -> None:
         pool, _ = make_pool()
         assert isinstance(pool, DatabaseConnectionPool)
-    
-    
+
     def test_construction_requires_config_or_db(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or db="):
             ArangoDBPool()
-    
-    
+
+
 # ───────────────────────────────────────────────────────────── operations
 
 

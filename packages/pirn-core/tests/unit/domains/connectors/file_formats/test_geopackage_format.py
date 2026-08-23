@@ -17,7 +17,6 @@ from pirn.connectors.file_formats.batch_file_format import (
 from pirn.connectors.file_formats.geopackage_format import (
     GeopackageFormat,
 )
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -89,18 +88,10 @@ class TestGeopackageFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
             assert recovered["geometry"]["type"] == "Point"
             recovered_coords = recovered["geometry"]["coordinates"]
             original_coords = original["geometry"]["coordinates"]
-            assert (
-                recovered_coords[0] == pytest.approx(original_coords[0])
-            )
-            assert (
-                recovered_coords[1] == pytest.approx(original_coords[1])
-            )
-            assert recovered["properties"]["name"] == (
-                original["properties"]["name"]
-            )
-            assert recovered["properties"]["score"] == (
-                original["properties"]["score"]
-            )
+            assert recovered_coords[0] == pytest.approx(original_coords[0])
+            assert recovered_coords[1] == pytest.approx(original_coords[1])
+            assert recovered["properties"]["name"] == (original["properties"]["name"])
+            assert recovered["properties"]["score"] == (original["properties"]["score"])
 
     async def test_round_trip_single(self) -> None:
         fmt = GeopackageFormat()
@@ -118,9 +109,7 @@ class TestGeopackageFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_encode_rejects_record_missing_geometry(self) -> None:
         fmt = GeopackageFormat()
         with self.assertRaises(ValueError):
-            await FormatRoundTrip.encode(
-                fmt, [{"properties": {"name": "x"}}]
-            )
+            await FormatRoundTrip.encode(fmt, [{"properties": {"name": "x"}}])
 
     async def test_encode_rejects_geometry_without_type(self) -> None:
         fmt = GeopackageFormat()

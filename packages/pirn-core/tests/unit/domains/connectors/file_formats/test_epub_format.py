@@ -13,7 +13,6 @@ from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.connectors.file_formats.epub_format import EpubFormat
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -27,9 +26,7 @@ class TestEpubFormatConstruction(unittest.TestCase):
         assert fmt.identifier == "pirn-epub"
 
     def test_custom_arguments(self) -> None:
-        fmt = EpubFormat(
-            title="Book", language="fr", identifier="custom-id"
-        )
+        fmt = EpubFormat(title="Book", language="fr", identifier="custom-id")
         assert fmt.title == "Book"
         assert fmt.language == "fr"
         assert fmt.identifier == "custom-id"
@@ -80,20 +77,10 @@ class TestEpubFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
         payload = await FormatRoundTrip.encode(fmt, records)
         decoded = await FormatRoundTrip.decode(fmt, payload)
         # ebooklib may add nav documents; filter to authored chapters.
-        authored = [
-            row
-            for row in decoded
-            if row["chapter_id"] in {"intro", "body"}
-        ]
+        authored = [row for row in decoded if row["chapter_id"] in {"intro", "body"}]
         assert len(authored) == 2
-        assert any(
-            "Welcome to the first chapter" in row["text"]
-            for row in authored
-        )
-        assert any(
-            "Here is the second chapter content" in row["text"]
-            for row in authored
-        )
+        assert any("Welcome to the first chapter" in row["text"] for row in authored)
+        assert any("Here is the second chapter content" in row["text"] for row in authored)
 
     async def test_round_trip_single(self) -> None:
         fmt = EpubFormat()
@@ -106,9 +93,7 @@ class TestEpubFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
         ]
         payload = await FormatRoundTrip.encode(fmt, records)
         decoded = await FormatRoundTrip.decode(fmt, payload)
-        authored = [
-            row for row in decoded if row["chapter_id"] == "only"
-        ]
+        authored = [row for row in decoded if row["chapter_id"] == "only"]
         assert len(authored) == 1
         assert "Single chapter body text" in authored[0]["text"]
 

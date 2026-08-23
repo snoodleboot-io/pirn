@@ -8,12 +8,14 @@ import unittest
 class TestLoadFactory(unittest.TestCase):
     def _call(self, spec: str):
         from pirn.check._loader import _load_factory
+
         return _load_factory(spec)
 
     def test_valid_spec_returns_callable(self) -> None:
         # Use a real importable symbol.
         result = self._call("pathlib:Path")
         import pathlib
+
         self.assertIs(result, pathlib.Path)
 
     def test_missing_colon_exits_2(self) -> None:
@@ -33,5 +35,6 @@ class TestLoadFactory(unittest.TestCase):
 
     def test_function_attribute_returned(self) -> None:
         import os.path
+
         result = self._call("os.path:join")
         self.assertIs(result, os.path.join)

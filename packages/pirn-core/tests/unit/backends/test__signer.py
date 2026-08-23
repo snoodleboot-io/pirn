@@ -85,5 +85,5 @@ class TestSignerVerifyEdgeCases(unittest.TestCase):
 
     def test_verify_returns_exact_original_bytes(self) -> None:
         signer = _Signer.test_signer()
-        original = b"\x00\x01\x02\xFF" * 100
+        original = b"\x00\x01\x02\xff" * 100
         self.assertEqual(signer.verify(signer.sign(original)), original)

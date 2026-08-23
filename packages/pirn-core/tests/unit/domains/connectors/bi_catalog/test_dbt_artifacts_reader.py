@@ -23,12 +23,11 @@ class _StandaloneTests(unittest.TestCase):
     def test_construction_requires_config_or_preloaded_data(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or pre-loaded"):
             DbtArtifactsReader()
-    
-    
+
     def test_sensitive_fields_listed(self) -> None:
         assert DbtArtifactsConfig.sensitive_fields == ()
-    
-    
+
+
 class TestLoadManifest(unittest.IsolatedAsyncioTestCase):
     async def test_returns_preloaded_manifest(self) -> None:
         manifest = {"nodes": {"model.foo.bar": {"unique_id": "model.foo.bar"}}}
@@ -76,12 +75,11 @@ class TestCredentialSafety(unittest.TestCase):
         # No sensitive fields — repr is just a smoke test.
         assert "DbtArtifactsConfig" in repr(cfg)
 
-
     def test_implements_metadata_catalog(self) -> None:
         reader = DbtArtifactsReader(manifest={"nodes": {}})
         assert isinstance(reader, MetadataCatalog)
-    
-    
+
+
 class TestListEntities(unittest.IsolatedAsyncioTestCase):
     async def test_lists_models_filtered_by_resource_type(self) -> None:
         manifest = {
@@ -191,12 +189,7 @@ class TestListEntities(unittest.IsolatedAsyncioTestCase):
         }
         reader = DbtArtifactsReader(manifest=manifest)
 
-        results = [
-            e
-            async for e in reader.list_entities(
-                "model", filter={"schema": "gold"}
-            )
-        ]
+        results = [e async for e in reader.list_entities("model", filter={"schema": "gold"})]
 
         assert [e["unique_id"] for e in results] == ["model.foo.a"]
 
@@ -227,9 +220,7 @@ class TestDescribeEntity(unittest.IsolatedAsyncioTestCase):
     async def test_describe_finds_source(self) -> None:
         manifest = {
             "nodes": {},
-            "sources": {
-                "source.foo.s1": {"unique_id": "source.foo.s1", "name": "s1"}
-            },
+            "sources": {"source.foo.s1": {"unique_id": "source.foo.s1", "name": "s1"}},
         }
         reader = DbtArtifactsReader(manifest=manifest)
 

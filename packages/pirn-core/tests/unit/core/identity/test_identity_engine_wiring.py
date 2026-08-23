@@ -58,7 +58,10 @@ class TestIdentityEngineWiring(unittest.TestCase):
         # Clear CI env vars so EnvIdentityResolver yields nothing and falls through to OS user.
         empty = {"GITHUB_ACTOR": "", "GITLAB_USER_LOGIN": "", "CI_USER": "", "BUILD_USER": ""}
         with patch.dict("os.environ", empty):
-            with patch("pirn.core.identity.os_identity_resolver.getpass.getuser", return_value="test-os-user"):
+            with patch(
+                "pirn.core.identity.os_identity_resolver.getpass.getuser",
+                return_value="test-os-user",
+            ):
                 result = asyncio.run(t.run(RunRequest()))
         self.assertEqual(result.actor, "test-os-user")
 

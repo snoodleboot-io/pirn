@@ -37,7 +37,13 @@ class FakeHttpx:
         self.closed = False
 
     async def request(
-        self, method: str, path: str, *, params: Any = None, json: Any = None, headers: Any = None,
+        self,
+        method: str,
+        path: str,
+        *,
+        params: Any = None,
+        json: Any = None,
+        headers: Any = None,
     ) -> FakeResponse:
         self.calls.append(
             (
@@ -55,22 +61,19 @@ class FakeHttpx:
 # ──────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_api_client(self) -> None:
         client = GrafanaClient(client=FakeHttpx())
         assert isinstance(client, ApiClient)
-    
-    
+
     def test_construction_requires_config_or_client(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or client="):
             GrafanaClient()
-    
-    
+
     def test_sensitive_fields_listed(self) -> None:
         assert GrafanaConfig.sensitive_fields == ("api_key",)
-    
-    
+
+
 # ──────────────────────────────────────────────────────────── request
 
 
@@ -178,35 +181,29 @@ class TestCredentialSafety(unittest.TestCase):
         assert d["api_key"] == "<redacted>"
         assert d["base_url"] == "https://grafana.acme.com"
 
-
-# ──────────────────────────────────────────────────────── capabilities
-
+    # ──────────────────────────────────────────────────────── capabilities
 
     def test_implements_table_source(self) -> None:
         client = GrafanaClient(client=FakeHttpx())
         assert isinstance(client, TableSource)
-    
-    
+
     def test_implements_metric_query(self) -> None:
         client = GrafanaClient(client=FakeHttpx())
         assert isinstance(client, MetricQuery)
-    
-    
+
     def test_default_resource_is_dashboards(self) -> None:
         client = GrafanaClient(client=FakeHttpx())
         assert client.resource == "dashboards"
-    
-    
+
     def test_resource_must_be_supported(self) -> None:
         with self.assertRaisesRegex(ValueError, "resource"):
             GrafanaClient(client=FakeHttpx(), resource="bogus")
-    
-    
+
     def test_resource_rejects_empty_string(self) -> None:
         with self.assertRaisesRegex(ValueError, "resource"):
             GrafanaClient(client=FakeHttpx(), resource="")
-    
-    
+
+
 # ─────────────────────────────────────────────────── TableSource adapter
 
 
@@ -249,21 +246,15 @@ class TestFetchPage(unittest.IsolatedAsyncioTestCase):
 
     async def test_datasources_resource_slices_client_side(self) -> None:
         fake = FakeHttpx()
-        fake.response = [
-            {"id": i, "name": f"ds-{i}"} for i in range(5)
-        ]
+        fake.response = [{"id": i, "name": f"ds-{i}"} for i in range(5)]
         client = GrafanaClient(client=fake, resource="datasources")
         rows, next_cursor = await client.fetch_page(page_size=2)
         assert rows == fake.response[:2]
         assert next_cursor == "2"
-        rows2, next_cursor2 = await client.fetch_page(
-            cursor="2", page_size=2
-        )
+        rows2, next_cursor2 = await client.fetch_page(cursor="2", page_size=2)
         assert rows2 == fake.response[2:4]
         assert next_cursor2 == "3"
-        rows3, next_cursor3 = await client.fetch_page(
-            cursor="3", page_size=2
-        )
+        rows3, next_cursor3 = await client.fetch_page(cursor="3", page_size=2)
         assert rows3 == fake.response[4:]
         assert next_cursor3 is None
 
@@ -319,18 +310,14 @@ class TestQuery(unittest.IsolatedAsyncioTestCase):
             await client.query("up")
 
     async def test_query_rejects_empty(self) -> None:
-        client = GrafanaClient(
-            client=FakeHttpx(), datasource_uid="prom-uid"
-        )
+        client = GrafanaClient(client=FakeHttpx(), datasource_uid="prom-uid")
         with self.assertRaisesRegex(ValueError, "query"):
             await client.query("")
 
     async def test_query_posts_to_ds_query(self) -> None:
         fake = FakeHttpx()
         fake.response = {"results": {"A": {"frames": []}}}
-        client = GrafanaClient(
-            client=fake, datasource_uid="prom-uid"
-        )
+        client = GrafanaClient(client=fake, datasource_uid="prom-uid")
         start = datetime(2024, 1, 1, tzinfo=UTC)
         end = datetime(2024, 1, 2, tzinfo=UTC)
         result = await client.query("up", start=start, end=end, step="30s")
@@ -353,9 +340,7 @@ class TestQuery(unittest.IsolatedAsyncioTestCase):
     async def test_query_without_window(self) -> None:
         fake = FakeHttpx()
         fake.response = {"results": {}}
-        client = GrafanaClient(
-            client=fake, datasource_uid="prom-uid"
-        )
+        client = GrafanaClient(client=fake, datasource_uid="prom-uid")
         await client.query("up")
         body = fake.calls[0][2]["json"]
         assert "from" not in body

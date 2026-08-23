@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -167,7 +168,6 @@ async def test_html_for_run_handles_empty_lineage():
     # Synthesize a run-like object minimally.  We can't easily make
     # the engine produce zero lineage, so build a result manually.
     from datetime import UTC, datetime
-
 
     result = RunResult(
         run_id="empty",

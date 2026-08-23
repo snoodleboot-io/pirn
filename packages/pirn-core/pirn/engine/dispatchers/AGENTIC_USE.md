@@ -115,7 +115,7 @@ Each dispatcher submits work independently. Knots that write to shared in-proces
 - **`ThreadDispatcher(max_workers=None)` uses the Python default** — `min(32, os.cpu_count() + 4)`. Set explicitly for predictable resource usage.
 - **`DaskDispatcher` without a `client` argument** connects to a locally spawned scheduler. Pass `client=Client(...)` for production clusters.
 - **`RayDispatcher` requires `ray.init()` before first use.** The dispatcher does not call `ray.init()` itself.
-- **Dispatcher is tapestry-level, not knot-level.** All knots in a tapestry use the same dispatcher. To mix (e.g. most knots async, one CPU-bound), use `SubTapestry` with a different dispatcher on the inner tapestry.
+- **Dispatcher is tapestry-level, not knot-level.** All knots in a tapestry use the same dispatcher. To mix (e.g. most knots async, one CPU-bound), use `SubTapestry` with a different dispatcher on the inner tapestry. **Exception — agent-as-tool workloads:** a dispatcher on an *inner* tapestry is unsafe when the subtree runs agents-as-tools, because it crosses the `AgentToolContext` bind and silently defeats the depth/cycle/budget guards; set a `ThreadDispatcher` on the *outer* `Tapestry` instead. See [Concurrency and Dispatchers](../../../../../docs/guides/agentic-loops.md#concurrency-and-dispatchers).
 
 ---
 

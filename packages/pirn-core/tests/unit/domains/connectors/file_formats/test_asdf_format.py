@@ -13,7 +13,6 @@ from pirn.connectors.file_formats.asdf_format import AsdfFormat
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -103,6 +102,7 @@ class TestAsdfFormatErrors(unittest.IsolatedAsyncioTestCase):
 class TestAsdfFormatMissingDep(unittest.TestCase):
     def test_import_error_message(self) -> None:
         import unittest.mock
+
         with unittest.mock.patch.dict("sys.modules", {"asdf": None}):
             with self.assertRaisesRegex(ImportError, "pirn\\[astronomy\\]"):
                 AsdfFormat._load_asdf()

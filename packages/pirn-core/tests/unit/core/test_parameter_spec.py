@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import unittest
 
+from pydantic import ValidationError
+
 from pirn.core.parameter_spec import ParameterSpec
 
 
@@ -34,7 +36,7 @@ class TestParameterSpec(unittest.TestCase):
 
     def test_frozen(self) -> None:
         spec = ParameterSpec(name="x", type_=int)
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValidationError):
             spec.name = "y"
 
     def test_arbitrary_types_allowed(self) -> None:

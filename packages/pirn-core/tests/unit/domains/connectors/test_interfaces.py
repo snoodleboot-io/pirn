@@ -32,8 +32,10 @@ class TestDatabaseConnectionPoolInterface(unittest.IsolatedAsyncioTestCase):
         class Concrete(DatabaseConnectionPool):
             async def acquire(self):
                 return None
+
             async def release(self, conn):
                 return None
+
             async def close(self):
                 return None
 

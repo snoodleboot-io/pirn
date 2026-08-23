@@ -19,7 +19,6 @@ from pirn.connectors.file_formats.batch_file_format import (
 from pirn.connectors.file_formats.markdown_format import (
     MarkdownFormat,
 )
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -91,9 +90,7 @@ class TestMarkdownFormatHeadingMode(unittest.IsolatedAsyncioTestCase):
 
     async def test_round_trip_single(self) -> None:
         fmt = MarkdownFormat(split_on="heading")
-        records = [
-            {"title": "Solo", "level": 1, "text": "Just one section."}
-        ]
+        records = [{"title": "Solo", "level": 1, "text": "Just one section."}]
         payload = await FormatRoundTrip.encode(fmt, records)
         decoded = await FormatRoundTrip.decode(fmt, payload)
         assert len(decoded) == 1
@@ -118,9 +115,7 @@ class TestMarkdownFormatParagraphMode(unittest.IsolatedAsyncioTestCase):
 class TestMarkdownFormatFileMode(unittest.IsolatedAsyncioTestCase):
     async def test_decode_renders_html(self) -> None:
         fmt = MarkdownFormat(split_on="file")
-        records = [
-            {"text": "# Heading\n\nSome body.", "level": 0, "title": None}
-        ]
+        records = [{"text": "# Heading\n\nSome body.", "level": 0, "title": None}]
         payload = await FormatRoundTrip.encode(fmt, records)
         decoded = await FormatRoundTrip.decode(fmt, payload)
         assert len(decoded) == 1
@@ -136,6 +131,4 @@ class TestMarkdownFormatValidation(unittest.IsolatedAsyncioTestCase):
     async def test_non_string_text_raises(self) -> None:
         fmt = MarkdownFormat(split_on="heading")
         with self.assertRaises(TypeError):
-            await FormatRoundTrip.encode(
-                fmt, [{"text": 1, "title": "x", "level": 1}]
-            )
+            await FormatRoundTrip.encode(fmt, [{"text": 1, "title": "x", "level": 1}])

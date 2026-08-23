@@ -61,7 +61,6 @@ async def _from_chunks(chunks: list[bytes]) -> AsyncIterator[bytes]:
 # ────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_object_store(self) -> None:
         stub = StubHDFSClient(base_path="/data")
@@ -70,27 +69,23 @@ class _StandaloneTests(unittest.TestCase):
             client=stub,
         )
         assert isinstance(store, ObjectStore)
-    
-    
+
     def test_construction_requires_namenode_host(self) -> None:
         with self.assertRaisesRegex(ValueError, "namenode_host is required"):
             HDFSStore(HDFSConfig(namenode_host="", namenode_port=50070))
-    
-    
+
     def test_construction_requires_positive_port(self) -> None:
         with self.assertRaisesRegex(ValueError, "namenode_port"):
             HDFSStore(HDFSConfig(namenode_host="h", namenode_port=0))
-    
-    
+
+
 # ───────────────────────────────────────────────────────────── round-trip
 
 
 class TestRoundTrip(unittest.IsolatedAsyncioTestCase):
-
     async def asyncSetUp(self) -> None:
         self.stub = StubHDFSClient(base_path="/data")
-        
-        
+
         cfg = HDFSConfig(
             namenode_host="namenode.local",
             namenode_port=50070,
@@ -98,8 +93,7 @@ class TestRoundTrip(unittest.IsolatedAsyncioTestCase):
             chunk_size=4,
         )
         self.store = HDFSStore(cfg, client=self.stub)
-        
-        
+
     async def test_put_then_get(self) -> None:
         store = self.store
         stub = self.stub
@@ -133,11 +127,9 @@ class TestRoundTrip(unittest.IsolatedAsyncioTestCase):
 
 
 class TestList(unittest.IsolatedAsyncioTestCase):
-
     async def asyncSetUp(self) -> None:
         self.stub = StubHDFSClient(base_path="/data")
-        
-        
+
         cfg = HDFSConfig(
             namenode_host="namenode.local",
             namenode_port=50070,
@@ -145,8 +137,7 @@ class TestList(unittest.IsolatedAsyncioTestCase):
             chunk_size=4,
         )
         self.store = HDFSStore(cfg, client=self.stub)
-        
-        
+
     async def test_lists_keys_under_prefix(self) -> None:
         store = self.store
         await store.put("users/alice.json", b"{}")
@@ -163,11 +154,9 @@ class TestList(unittest.IsolatedAsyncioTestCase):
 
 
 class TestKeyValidation(unittest.IsolatedAsyncioTestCase):
-
     async def asyncSetUp(self) -> None:
         self.stub = StubHDFSClient(base_path="/data")
-        
-        
+
         cfg = HDFSConfig(
             namenode_host="namenode.local",
             namenode_port=50070,
@@ -175,8 +164,7 @@ class TestKeyValidation(unittest.IsolatedAsyncioTestCase):
             chunk_size=4,
         )
         self.store = HDFSStore(cfg, client=self.stub)
-        
-        
+
     async def test_rejects_empty_key(self) -> None:
         store = self.store
         with self.assertRaisesRegex(ValueError, "non-empty"):
@@ -202,11 +190,9 @@ class TestKeyValidation(unittest.IsolatedAsyncioTestCase):
 
 
 class TestClose(unittest.IsolatedAsyncioTestCase):
-
     async def asyncSetUp(self) -> None:
         self.stub = StubHDFSClient(base_path="/data")
-        
-        
+
         cfg = HDFSConfig(
             namenode_host="namenode.local",
             namenode_port=50070,
@@ -214,8 +200,7 @@ class TestClose(unittest.IsolatedAsyncioTestCase):
             chunk_size=4,
         )
         self.store = HDFSStore(cfg, client=self.stub)
-        
-        
+
     async def test_close_clears_client(self) -> None:
         store = self.store
         stub = self.stub
@@ -250,11 +235,9 @@ class TestClose(unittest.IsolatedAsyncioTestCase):
 
 
 class TestTypeSafety(unittest.IsolatedAsyncioTestCase):
-
     async def asyncSetUp(self) -> None:
         self.stub = StubHDFSClient(base_path="/data")
-        
-        
+
         cfg = HDFSConfig(
             namenode_host="namenode.local",
             namenode_port=50070,
@@ -262,10 +245,10 @@ class TestTypeSafety(unittest.IsolatedAsyncioTestCase):
             chunk_size=4,
         )
         self.store = HDFSStore(cfg, client=self.stub)
-        
-        
+
     async def test_rejects_non_bytes_in_iterator(self) -> None:
         store = self.store
+
         async def bad() -> AsyncIterator[bytes]:
             yield "not bytes"  # type: ignore[misc]
 
@@ -277,9 +260,7 @@ class TestTypeSafety(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(FileNotFoundError):
             await _drain(await store.get("nope.bin"))
 
-
-# ─────────────────────────────────────────────── config property
-
+    # ─────────────────────────────────────────────── config property
 
     def test_config_property(self) -> None:
         stub = StubHDFSClient(base_path="/data")

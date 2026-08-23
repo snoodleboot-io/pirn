@@ -19,7 +19,6 @@ from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.connectors.file_formats.cda_xml_format import CdaXmlFormat
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -83,6 +82,7 @@ async def _decode(fmt: CdaXmlFormat, payload: bytes) -> list[dict]:
 # Construction
 # ---------------------------------------------------------------------------
 
+
 class TestCdaXmlFormatConstruction(unittest.TestCase):
     def test_is_batch_format(self) -> None:
         assert isinstance(CdaXmlFormat(), BatchFileFormat)
@@ -98,6 +98,7 @@ class TestCdaXmlFormatConstruction(unittest.TestCase):
 # PHI sanitisation
 # ---------------------------------------------------------------------------
 
+
 class TestCdaXmlFormatPhiSanitisation(unittest.IsolatedAsyncioTestCase):
     def test_phi_keywords_frozenset(self) -> None:
         assert isinstance(CdaXmlFormat._phi_keywords, frozenset)
@@ -111,15 +112,11 @@ class TestCdaXmlFormatPhiSanitisation(unittest.IsolatedAsyncioTestCase):
         assert records[0]["document_id"] == "DOC001"
 
     async def test_record_has_title(self) -> None:
-        records = await _decode(
-            CdaXmlFormat(), _make_cda_xml(title="Discharge Summary")
-        )
+        records = await _decode(CdaXmlFormat(), _make_cda_xml(title="Discharge Summary"))
         assert records[0]["title"] == "Discharge Summary"
 
     async def test_record_has_effective_time(self) -> None:
-        records = await _decode(
-            CdaXmlFormat(), _make_cda_xml(effective_time="20230601")
-        )
+        records = await _decode(CdaXmlFormat(), _make_cda_xml(effective_time="20230601"))
         assert records[0]["effective_time"] == "20230601"
 
     async def test_body_contains_sections(self) -> None:
@@ -132,6 +129,7 @@ class TestCdaXmlFormatPhiSanitisation(unittest.IsolatedAsyncioTestCase):
 # ---------------------------------------------------------------------------
 # Round-trip
 # ---------------------------------------------------------------------------
+
 
 class TestCdaXmlFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_single_document(self) -> None:
@@ -173,6 +171,7 @@ class TestCdaXmlFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
 # Error paths
 # ---------------------------------------------------------------------------
 
+
 class TestCdaXmlFormatErrors(unittest.IsolatedAsyncioTestCase):
     async def test_invalid_xml_raises(self) -> None:
         fmt = CdaXmlFormat()
@@ -199,6 +198,7 @@ class TestCdaXmlFormatErrors(unittest.IsolatedAsyncioTestCase):
 # ---------------------------------------------------------------------------
 # Missing dependency
 # ---------------------------------------------------------------------------
+
 
 class TestCdaXmlFormatMissingDep(unittest.TestCase):
     def test_missing_defusedxml_raises(self) -> None:
