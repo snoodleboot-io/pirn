@@ -186,11 +186,13 @@ jobs:
       - name: Ruff lint + format tests (opt-in per package)
         # PIR-760: the documented local gate lints `tests/`, CI did not, so the
         # two disagreed by construction and findings accumulated unseen.
-        # tests/ is NOT clean workspace-wide — pirn-core has 241 findings across
-        # 198 files, pirn-data 369, and the others 95–192 — so this is opt-in
-        # rather than a global switch. Add a package here once its tests/ pass;
-        # do not add one speculatively, a red main helps nobody.
-        if: contains(fromJSON('["pirn-agents"]'), matrix.package)
+        # PIR-761 cleaned the five non-core sibling packages' tests/ to zero
+        # findings and opted each in below. pirn-core stays OUT: its tests/ F821
+        # findings are the live signal that three emitter tests have never run
+        # (PIR-762) and must not be masked. Keep this opt-in — add a package here
+        # only once its tests/ pass; do not add one speculatively, a red main
+        # helps nobody.
+        if: contains(fromJSON('["pirn-agents","pirn-signal","pirn-data","pirn-ml","pirn-health","pirn-oilgas"]'), matrix.package)
         run: |
           cd packages/${{ matrix.package }}
           ruff check tests
