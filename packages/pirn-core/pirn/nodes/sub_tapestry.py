@@ -49,6 +49,37 @@ if TYPE_CHECKING:
     from pirn.tapestry import Tapestry
 
 
+def _inherited_emitters(own: list[Any], inherited: list[Any] | None) -> list[Any] | None:
+    """Combine an inner tapestry's own emitters with those inherited from the outer run.
+
+    Returns ``None`` when there is nothing to inherit.  ``None`` is what
+    ``Tapestry.run(emitters=...)`` reads as "not overridden", so the inner
+    tapestry keeps whatever subscription it already had — which is also the
+    right answer when the outer run deliberately opted out with
+    ``run(emitters=[])``.
+
+    De-duplicated by identity, not equality: the same emitter instance
+    registered on both the outer tapestry and the inner one must receive one
+    ``on_lineage`` call per record, not two.  Equality is the wrong test
+    because emitters are ordinary objects whose ``__eq__`` may be identity-
+    based, value-based, or expensive.
+
+    Args:
+        own: Emitters the inner tapestry already carries, in declared order.
+        inherited: Emitters the enclosing run is fanning to, or ``None`` when
+            there is no enclosing run.
+
+    Returns:
+        The merged list, or ``None`` to leave the inner subscription alone.
+    """
+    if not inherited:
+        return None
+    merged = list(own)
+    seen = {id(emitter) for emitter in merged}
+    merged.extend(emitter for emitter in inherited if id(emitter) not in seen)
+    return merged
+
+
 class SubTapestryError(Exception):
     """Raised when the inner tapestry pipeline fails.
 
@@ -81,13 +112,20 @@ class SubTapestry(Knot):
     become parents resolved by the outer engine; non-Knot kwargs become
     config constants.  Both arrive as plain resolved values in ``process``.
 
-    The outer tapestry's history backend is captured at construction time and
-    automatically forwarded to inner runs so they appear in the same history
-    store and are reachable by the explorer's drill-down navigation.
+    The outer tapestry's observability wiring — its history backend, its
+    emitters, and the error policy governing them — is captured at construction
+    time and forwarded to inner runs.  Inner runs therefore appear in the same
+    history store, reachable by the explorer's drill-down navigation, *and* fan
+    their status, lineage and run-result events to the same emitters.  Both
+    halves travel together on purpose: forwarding history alone left the two
+    observability planes disagreeing, so a knot moved into a SubTapestry body
+    looked fully traced in the explorer while silently losing every span,
+    metric and log line it used to produce (PIR-834).
 
     Algorithm:
-        1. Construction — capture the outer tapestry's history backend (if any)
-           so it can be forwarded to the inner run.
+        1. Construction — capture the outer tapestry's history backend and
+           emitter subscription (if any) so they can be forwarded to the inner
+           run.
         2. Outer engine invocation — ``__call__`` receives resolved parent values
            and config constants as ``parent_results``.
         3. Fan-out short-circuit — if mapped inputs are declared, delegate to
@@ -102,7 +140,8 @@ class SubTapestry(Knot):
         7. Sink validation — assert the returned value is a ``Knot`` instance and
            (for non-extensible runs) that it was registered in the inner tapestry.
         8. Inner run — call ``_run_inner`` to execute the inner tapestry.  The
-           outer history is injected so inner run records appear in the same store.
+           outer history and emitters are injected so inner run records appear in
+           the same store and inner events reach the same subscribers.
            If the inner run produces any exceptions, ``SubTapestryError`` is raised.
         9. Output extraction — look up the sink knot's output from
            ``run_result.outputs`` using the key returned by
@@ -128,17 +167,25 @@ class SubTapestry(Knot):
         return sink.knot_id
 
     def __init__(self, **kwargs: Any) -> None:
-        # Capture the outer history *before* super().__init__ freezes the object.
+        # Capture the outer observability wiring *before* super().__init__
+        # freezes the object.  History and emitters are captured together
+        # because they are two halves of the same subscription: forwarding one
+        # without the other is what made inner work visible to the explorer and
+        # invisible to spans/metrics/logs (PIR-834).
         from pirn.tapestry import _current_tapestry
 
         explicit_tapestry = kwargs.get("tapestry")
         outer = explicit_tapestry or _current_tapestry.get(None)
         outer_history: RunHistory | None = outer.history if outer is not None else None
+        outer_emitters: list[Any] | None = outer.emitters if outer is not None else None
+        outer_emitter_policy: Any = outer.emitter_error_policy if outer is not None else None
         super().__init__(**kwargs)
         # Bypass freeze guard to stash fields that are unknown until after
-        # __init__ completes.  Both follow the _mutable_ convention so the
+        # __init__ completes.  All follow the _mutable_ convention so the
         # freeze guard allows them.
         object.__setattr__(self, "_mutable_outer_history", outer_history)
+        object.__setattr__(self, "_mutable_outer_emitters", outer_emitters)
+        object.__setattr__(self, "_mutable_outer_emitter_policy", outer_emitter_policy)
         object.__setattr__(self, "_mutable_inner_run_meta", {})
 
     def lineage_extra(self) -> dict[str, Any]:
@@ -240,12 +287,32 @@ class SubTapestry(Knot):
 
         Raises ``SubTapestryError`` if the inner run produces any exceptions.
 
-        The outer tapestry's history is injected automatically so inner runs
-        are recorded to the same store.  Pass ``parent_run_id`` to explicitly
-        link this inner run to a known outer run_id.
+        The outer tapestry's history *and* emitters are injected automatically,
+        so inner runs are recorded to the same store and fan their status,
+        lineage and run-result events to the same subscribers.  Pass
+        ``parent_run_id`` to explicitly link this inner run to a known outer
+        run_id.
+
+        Emitter forwarding is unconditional — there is no volume guard, and
+        that is deliberate.  ``RunRetention`` (PIR-765) bounds *history*
+        because ``InMemoryHistory`` is the default backend, so an open-ended
+        ``LoopSubTapestry`` would otherwise grow an ephemeral store without
+        limit that nobody asked for.  Emitters have no default instance: every
+        one present was attached by an operator who asked to observe this
+        pipeline, and the events an inner run produces are proportional to work
+        it actually did.  Suppressing them would recreate exactly the defect
+        this forwarding fixes, one nesting level down.  An emitter that needs
+        to bound its own intake can filter on ``RunResult.parent_run_id`` /
+        ``run_path``, which identify inner runs precisely.  See PIR-834.
         """
         from pirn.core.run_request import RunRequest
-        from pirn.tapestry import _current_history, _current_run_id, _current_traceback_filter
+        from pirn.tapestry import (
+            _current_emitter_error_policy,
+            _current_emitters,
+            _current_history,
+            _current_run_id,
+            _current_traceback_filter,
+        )
 
         # Prefer the live contextvar over the construction-time capture.
         #
@@ -269,6 +336,27 @@ class SubTapestry(Knot):
         if outer_history is not None:
             tapestry._history = outer_history
 
+        # Emitters follow history through the same two-source dance, and for the
+        # same reason: a SubTapestry built inside another SubTapestry's
+        # `process()` captured the throwaway `with Tapestry() as inner:` at
+        # construction time, which carries no emitters at all.  Reading the
+        # contextvar first means a nested SubTapestry inherits the *real* outer
+        # subscription rather than the throwaway's empty one (PIR-764/PIR-773).
+        #
+        # The list and the policy are read as a pair from whichever source wins:
+        # a policy belongs to the subscription it governs, so mixing a live
+        # emitter list with a construction-time policy (or vice versa) would
+        # apply one run's error handling to another run's emitters.
+        outer_emitters: list[Any] | None = _current_emitters.get(None)
+        outer_emitter_policy: Any = _current_emitter_error_policy.get(None)
+        if outer_emitters is None:
+            outer_emitters = object.__getattribute__(self, "_mutable_outer_emitters")
+            outer_emitter_policy = object.__getattribute__(self, "_mutable_outer_emitter_policy")
+        inner_emitters = _inherited_emitters(tapestry.emitters, outer_emitters)
+        # Only carry the outer policy when emitters actually came with it;
+        # otherwise leave the inner tapestry governed by its own default.
+        inner_emitter_policy = outer_emitter_policy if inner_emitters is not None else None
+
         # If no explicit parent_run_id was supplied, inherit from the context
         # var set by the enclosing Tapestry.run() call.
         if parent_run_id is None:
@@ -285,6 +373,8 @@ class SubTapestry(Knot):
             _parent_knot_id=self.knot_id,
             extensible=extensible,
             traceback_filter=_current_traceback_filter.get(None),
+            emitters=inner_emitters,
+            emitter_error_policy=inner_emitter_policy,
         )
         if not result.succeeded:
             raise SubTapestryError(result)

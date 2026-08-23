@@ -21,7 +21,7 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn_agents.interfaces.writer import Writer
 
@@ -36,7 +36,11 @@ class MemoryWriterBase(Writer):
     returns a storage handle describing what was written.
     """
 
-    async def process(self, **kwargs: Any) -> Any:
+    # ``process`` below is declared in the gradual parameter form; see
+    # ``Knot._dynamic_process_signature`` for why (PIR-833).
+    _dynamic_process_signature: ClassVar[bool] = True
+
+    async def process(self, *args: Any, **kwargs: Any) -> Any:
         """Persist state into a ``MemoryStore`` and return a storage handle.
 
         Concrete subclasses override this with their own keyword parameters and

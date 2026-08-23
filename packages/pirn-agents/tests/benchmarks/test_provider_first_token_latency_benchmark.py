@@ -19,7 +19,7 @@ async def test_provider_first_token_latency(benchmark_recorder: BenchmarkRecorde
     provider = StubLLMProvider(["chunk-a", "chunk-b", "chunk-c"])
 
     start = time.perf_counter()
-    stream = await provider.stream_chat([{"role": "user", "content": "hi"}])
+    stream = provider.stream_chat([{"role": "user", "content": "hi"}])
     first = None
     async for chunk in stream:
         first = chunk

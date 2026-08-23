@@ -20,7 +20,7 @@ class TestLLMProviderInterface(unittest.IsolatedAsyncioTestCase):
 
     async def test_stream_chat_raises_not_implemented(self) -> None:
         with self.assertRaisesRegex(NotImplementedError, "stream_chat"):
-            await LLMProvider().stream_chat(messages=())
+            LLMProvider().stream_chat(messages=())
 
     async def test_close_raises_not_implemented(self) -> None:
         with self.assertRaisesRegex(NotImplementedError, "close"):

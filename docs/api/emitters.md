@@ -14,6 +14,37 @@ Emitters observe runs and fan events to logs, traces, metrics, message buses, or
 
 ---
 
+## Nested runs
+
+A `SubTapestry` executes its body as a separate inner run, and the engine fans
+emitter events per run. The tapestry's emitters — and its `EmitterErrorPolicy` —
+are forwarded into every inner run, at any nesting depth, so a knot inside a
+`SubTapestry` body reaches the same emitters as one at the top level.
+
+That forwarding is what keeps the two observability planes in agreement: inner
+runs have always been recorded to the outer `RunHistory` (reachable via
+`history.children_of(run_id)`), and before it they emitted nothing at all —
+work that looked fully traced in the explorer while silently producing no
+spans, metrics or log lines.
+
+Consequences worth planning for:
+
+- **You receive one `on_run_result` per inner run**, not one per top-level
+  `tapestry.run()` call. A `LoopSubTapestry` runs one child run per turn, so a
+  long conversational loop delivers one `on_run_result` per turn plus the status
+  and lineage events of every knot inside it. There is no cap: emitters are
+  always attached deliberately, and their intake is proportional to work the
+  pipeline actually performed.
+- **Inner runs are identifiable.** `RunResult.parent_run_id` is `None` only for
+  the top-level run, and `RunResult.run_path` gives the full nesting path — use
+  either to filter, sample, or aggregate if you need to bound intake yourself.
+- **`run(emitters=[])` is honoured all the way down.** An explicit opt-out on
+  the outer run leaves inner runs silent too.
+- **An emitter registered on both an outer and an inner tapestry still receives
+  each event once** — the two lists are merged by object identity.
+
+---
+
 ## LogEmitter
 
 Writes structured JSON to Python `logging`.

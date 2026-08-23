@@ -49,6 +49,23 @@ _current_run_id: ContextVar[str | None] = ContextVar("pirn_current_run_id", defa
 # and record their inner runs to the same store.
 _current_history: ContextVar[Any] = ContextVar("pirn_current_history", default=None)
 
+#: The emitter list the enclosing run is fanning events to, and the policy that
+#: run applies when one of them raises.  Inner runs read both so a knot executing
+#: inside a SubTapestry body reaches the same emitters as one executing at the
+#: top level.  History was already forwarded to inner runs and emitters were not,
+#: so the two observability planes disagreed about the same execution: an inner
+#: knot appeared in ``history.children_of(...)`` but produced no status, lineage
+#: or run-result event at all.  See PIR-834.
+#:
+#: ``None`` means "no enclosing run".  That is deliberately distinct from an
+#: enclosing run whose emitter list is empty — ``run(emitters=[])`` is an
+#: explicit opt-out, and an inner run must honour it rather than falling back to
+#: the construction-time capture.
+_current_emitters: ContextVar[list[Any] | None] = ContextVar("pirn_current_emitters", default=None)
+_current_emitter_error_policy: ContextVar[Any] = ContextVar(
+    "pirn_current_emitter_error_policy", default=None
+)
+
 #: The traceback filter the enclosing run is using.  Inner runs read this so a
 #: filter set once at the top covers the whole tree — without it, an exception
 #: raised inside a SubTapestry is redacted in the outer record but stored
@@ -300,6 +317,10 @@ class Tapestry:
         token_store = _current_store.set(self._store if extensible else None)
         token_history = _current_history.set(self._history)
         token_filter = _current_traceback_filter.set(active_filter)
+        # Publish this run's emitter subscription so nested runs inherit it, the
+        # same way they already inherit history and the traceback filter.
+        token_emitters = _current_emitters.set(active_emitters)
+        token_emitter_policy = _current_emitter_error_policy.set(active_policy)
         try:
             return await engine.execute(
                 terminals=chosen,
@@ -321,6 +342,8 @@ class Tapestry:
             _current_store.reset(token_store)
             _current_history.reset(token_history)
             _current_traceback_filter.reset(token_filter)
+            _current_emitters.reset(token_emitters)
+            _current_emitter_error_policy.reset(token_emitter_policy)
 
     def add_emitter(self, emitter: Any) -> None:
         """Append an emitter to this tapestry's default emitter list.
@@ -345,6 +368,17 @@ class Tapestry:
     def emitters(self) -> list[Any]:
         """Read-only view of the currently registered emitters."""
         return list(self._emitters)
+
+    @property
+    def emitter_error_policy(self) -> EmitterErrorPolicy:
+        """How runs of this tapestry react when an emitter raises.
+
+        Read-only companion to :attr:`emitters`.  ``SubTapestry`` reads it when
+        capturing the outer subscription at construction time, so a forwarded
+        emitter is governed by the policy its owner chose rather than silently
+        reverting to the inner tapestry's default (PIR-834).
+        """
+        return self._emitter_error_policy
 
     # ----------------------------------------------------------- with-block
 

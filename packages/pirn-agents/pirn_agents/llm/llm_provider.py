@@ -19,6 +19,8 @@ from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
+from pirn_agents.llm.stream_delta import StreamDelta
+
 
 class LLMProvider(PirnOpaqueValue):
     """Interface every async LLM provider must satisfy."""
@@ -38,15 +40,30 @@ class LLMProvider(PirnOpaqueValue):
         """
         raise NotImplementedError(f"{type(self).__name__} must implement chat()")
 
-    async def stream_chat(
+    def stream_chat(
         self,
         messages: Sequence[Mapping[str, Any]],
         *,
         model: str | None = None,
         max_tokens: int | None = None,
         temperature: float | None = None,
-    ) -> AsyncIterator[Mapping[str, Any]]:
-        """Yield streamed chat-completion chunks for ``messages``."""
+    ) -> AsyncIterator[StreamDelta]:
+        """Return an async iterator of :class:`StreamDelta` fragments for ``messages``.
+
+        Two things about this declaration were wrong until PIR-833, and both
+        misled callers written against the interface rather than against a
+        concrete provider:
+
+        * It was ``async def``, while every provider implements this as an async
+          generator whose *call* already returns the iterator — so ``await
+          provider.stream_chat(...)``, which the declaration invited, raises
+          ``TypeError`` against a real provider. Call it and iterate the result.
+        * It said the fragments were ``Mapping[str, Any]``; every provider
+          yields the neutral :class:`StreamDelta`.
+
+        Raises:
+            NotImplementedError: Always, on the base class.
+        """
         raise NotImplementedError(f"{type(self).__name__} must implement stream_chat()")
 
     async def close(self) -> None:

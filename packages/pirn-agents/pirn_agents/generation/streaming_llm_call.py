@@ -24,11 +24,11 @@ from pirn_agents.types.messaging.agent_context import AgentContext
 
 
 class StreamingLLMCall(Knot):
-    """Hands back an :class:`AsyncIterator` of streamed chat chunks.
+    """Hands back an :class:`AsyncIterator` of streamed chat fragments.
 
     The iterator is constructed by invoking
     :meth:`LLMProvider.stream_chat`; the knot itself does not consume
-    the stream so callers retain full control over chunk handling.
+    the stream so callers retain full control over fragment handling.
     """
 
     def __init__(
@@ -63,7 +63,8 @@ class StreamingLLMCall(Knot):
             model: Optional model identifier override; uses the provider default if None.
 
         Returns:
-            An async iterator of response chunk mappings from the LLM provider.
+            An async iterator of :class:`~pirn_agents.llm.stream_delta.StreamDelta`
+            fragments from the LLM provider.
 
         Raises:
             TypeError: If context is not an AgentContext or llm is not an LLMProvider.
@@ -71,8 +72,15 @@ class StreamingLLMCall(Knot):
         """
         # Return type elided to ``Any`` because pydantic's ``TypeAdapter``
         # cannot produce a schema for :class:`AsyncIterator`; downstream
-        # callers narrow back to ``AsyncIterator[Mapping[str, Any]]``
-        # by iterating the result.
+        # callers narrow back to ``AsyncIterator[StreamDelta]`` by iterating
+        # the result.
+        #
+        # The provider call is deliberately NOT awaited (PIR-833): every
+        # provider implements ``stream_chat`` as an async generator, so the
+        # call already yields the iterator this knot hands back. It used to be
+        # awaited — which the interface's own ``async def`` declaration invited
+        # — and that raises ``TypeError`` against any real provider; only test
+        # doubles that returned an iterator from a coroutine made it work.
         if not isinstance(context, AgentContext):
             raise TypeError(
                 f"StreamingLLMCall: context must be an AgentContext, got {type(context).__name__}"
@@ -88,4 +96,4 @@ class StreamingLLMCall(Knot):
         wire_messages = tuple(
             {"role": message.role, "content": message.content} for message in context.messages
         )
-        return await llm.stream_chat(messages=wire_messages, model=model)
+        return llm.stream_chat(messages=wire_messages, model=model)
