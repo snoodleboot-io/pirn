@@ -5,7 +5,6 @@ from __future__ import annotations
 import os
 import tempfile
 import unittest
-import zipfile
 
 import pytest
 
@@ -147,10 +146,13 @@ class TestZarrFormatSecureTempFiles(unittest.IsolatedAsyncioTestCase):
     async def test_decode_failure_leaves_no_temp_files(self) -> None:
         before = self._temp_zarr_files()
         fmt = ZarrFormat()
-        # ZarrFormat decodes via zarr.storage.ZipStore, which opens the payload
-        # with the stdlib zipfile; non-zip bytes raise zipfile.BadZipFile
-        # (empirically confirmed on zarr 3.3.0, and stable across zarr v2/v3
-        # since both defer to stdlib zipfile).
-        with self.assertRaises(zipfile.BadZipFile):
+        # The exception TYPE is a zarr-version-dependent implementation detail:
+        # some versions raise zipfile.BadZipFile from the stdlib zip open, others
+        # raise AttributeError from zarr's own ZipStore when the open fails before
+        # `_zf` is bound (seen in CI). The test's actual contract is that a failed
+        # decode of invalid bytes raises *something* (never silently succeeds) and
+        # leaks no temp files — narrowing the type breaks across zarr releases
+        # (PIR-761).
+        with self.assertRaises(Exception):  # noqa: B017 - type is zarr-version-dependent, see comment
             await FormatRoundTrip.decode(fmt, b"not a valid zarr zip payload")
         assert self._temp_zarr_files() == before, "failed decode leaked a temp file"
