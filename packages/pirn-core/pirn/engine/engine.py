@@ -52,6 +52,8 @@ from pirn.engine.dispatchers.local_dispatcher import LocalDispatcher
 from pirn.engine.shed.shed import Shed
 from pirn.managers.knot_state import KnotState
 from pirn.managers.rebindable_exception import RebindableError
+from pirn.recording.invocation_identity import InvocationIdentity
+from pirn.recording.replay_session import ReplaySession
 
 _log = logging.getLogger(__name__)
 
@@ -76,6 +78,7 @@ class Engine:
         parent_knot_id: str | None = None,
         transport: DataTransport | None = None,
         actor: str | None = None,
+        replay: ReplaySession | None = None,
     ) -> RunResult:
         shed = Shed.from_terminals(terminals)
 
@@ -132,6 +135,7 @@ class Engine:
                 request=request,
                 emitter_error_policy=emitter_error_policy,
                 transport=active_transport,
+                replay=replay,
             )
         finally:
             if extensible_store is not None and subscribe_token is not None:
@@ -148,6 +152,7 @@ class Engine:
         request: RunRequest,
         emitter_error_policy: EmitterErrorPolicy = EmitterErrorPolicy.WARN,
         transport: DataTransport | None = None,
+        replay: ReplaySession | None = None,
     ) -> RunResult:
         active_transport: DataTransport = transport or InlineTransport()
         await active_transport.begin_run(ctx.run_id)
@@ -204,7 +209,7 @@ class Engine:
                 # Should never happen for a valid DAG.
                 break
 
-            tasks: dict[str, asyncio.Task[tuple[Result[Any], dict[str, str], datetime]]] = {}
+            tasks: dict[str, asyncio.Task[tuple[Result[Any], dict[str, str], datetime, bool]]] = {}
             # The knot instance this run actually dispatched, kept so lineage
             # is read back off the copy that executed rather than off the
             # shared graph knot -- see ``Knot.run_scoped_copy`` (PIR-809).
@@ -242,10 +247,12 @@ class Engine:
                 # run to overwrite it on the shared graph knot (PIR-809).
                 run_knot = knot.run_scoped_copy()
                 dispatched[kid] = run_knot
-                tasks[kid] = asyncio.create_task(self._dispatch_with_timing(run_knot, materialized))
+                tasks[kid] = asyncio.create_task(
+                    self._invoke(run_knot, materialized, replay, data_store)
+                )
 
             for kid, task in tasks.items():
-                result, parent_hashes, started_at = await task
+                result, parent_hashes, started_at, replayed = await task
                 knot = dispatched[kid]
                 # Re-register placeholder records with the live manager.
                 result = self._rebind_err(result, kid, ctx)
@@ -280,6 +287,7 @@ class Engine:
                     result,
                     parent_hashes=parent_hashes,
                     started=started_at,
+                    replayed_from=replay.source_run_id if replayed and replay else None,
                 )
 
             remaining -= set(ready)
@@ -561,6 +569,61 @@ class Engine:
         # RECEIVE_ERRORS: pass Result objects through unchanged.
         return dict(parent_results)
 
+    async def _invoke(
+        self,
+        knot: Knot,
+        inputs: dict[str, Any],
+        replay: ReplaySession | None,
+        data_store: DataStore,
+    ) -> tuple[Result[Any], dict[str, str], datetime, bool]:
+        """Produce a knot's outcome — by executing it, or from a recording.
+
+        Returns ``(result, parent_input_hashes, started_at, replayed)``.  When
+        *replay* is ``None`` this is exactly the pre-existing dispatch path and
+        ``replayed`` is always ``False``; passing a session is the only way to
+        reach the substituting branch, so record/replay is additive and
+        default-off.
+
+        ``Parameter`` knots execute even under replay.  Their value comes from
+        the ``RunRequest`` rather than from a parent, and no hash in the
+        lineage row covers it, so substituting the recorded output would
+        silently discard the parameters the caller just supplied.  They are
+        bound, run, and then *checked* against the recording instead — which
+        is also what makes a changed parameter fail at the parameter rather
+        than somewhere downstream.
+
+        Every other knot is served from the session and never dispatched, so
+        its side effects — a network call, a counter, a write — do not happen.
+        Failures to serve raise out of this coroutine and abort the run;
+        replay never falls back to live execution.
+        """
+        if replay is None:
+            result, parent_hashes, started_at = await self._dispatch_with_timing(knot, inputs)
+            return result, parent_hashes, started_at, False
+
+        if isinstance(knot, Parameter):
+            result, parent_hashes, started_at = await self._dispatch_with_timing(knot, inputs)
+            if isinstance(result, Ok):
+                replay.verify_executed(
+                    knot_id=knot.knot_id,
+                    output_hash=content_hash(result.value),
+                )
+            return result, parent_hashes, started_at, False
+
+        parent_hashes = {name: content_hash(value) for name, value in inputs.items()}
+        started_at = datetime.now(UTC)
+        result = await replay.resolve(
+            knot=knot,
+            knot_config_hash=self._config_hash(knot),
+            parent_input_hashes=parent_hashes,
+            data_store=data_store,
+        )
+        return result, parent_hashes, started_at, True
+
+    def _config_hash(self, knot: Knot) -> str:
+        """Hash the knot's canonical config — the value lineage records."""
+        return content_hash(knot.config.model_dump(mode="json"))
+
     async def _dispatch_with_timing(
         self,
         knot: Knot,
@@ -606,12 +669,17 @@ class Engine:
         result: Result[Any],
         parent_hashes: dict[str, str] | None = None,
         started: datetime | None = None,
+        replayed_from: str | None = None,
     ) -> None:
         """Build and stash a KnotLineage for this knot's execution.
 
         For knots that didn't actually dispatch (Skipped / synthetic Err),
         ``parent_hashes`` is computed here from the available parent
         results.
+
+        ``replayed_from`` is the run id this outcome was served from when the
+        knot was replayed rather than executed; it lands in ``extra`` so a
+        replayed run is distinguishable from a live one after the fact.
         """
         if parent_hashes is None:
             parent_hashes = {}
@@ -642,7 +710,7 @@ class Engine:
 
         # If validate_io is on, we hash the canonical config (the user-
         # facing fields).  Otherwise we hash a sentinel.
-        cfg_hash = content_hash(knot.config.model_dump(mode="json"))
+        cfg_hash = self._config_hash(knot)
 
         parent_knot_ids = {name: pk.knot_id for name, pk in knot.parents.items()}
 
@@ -667,6 +735,19 @@ class Engine:
 
         # L-7: Record the applied error policy.
         extra["error_policy"] = str(knot.config.error_policy)
+
+        # Literal constructor arguments reach process() as inputs but are
+        # covered by neither ``knot_config_hash`` nor ``parent_input_hashes``.
+        # Record their hash so replay can tell ``Scale(x=p, factor=3)`` from
+        # ``Scale(x=p, factor=5)``, which are otherwise byte-identical in
+        # lineage.  Omitted entirely when the knot has no literal inputs, so
+        # the common row is unchanged.
+        config_values_hash = InvocationIdentity.config_values_hash(knot)
+        if config_values_hash is not None:
+            extra["config_values_hash"] = config_values_hash
+
+        if replayed_from is not None:
+            extra["replayed_from_run_id"] = replayed_from
 
         record = KnotLineage(
             run_id=ctx.run_id,
