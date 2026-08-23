@@ -403,21 +403,21 @@ Clinical data knots for EHR and CDS workflows.
 | Knot | Description |
 |---|---|
 | `FhirPatientAssembler` *(from `pirn_health.assemblers`)* | Assembles sanitised `ClinicalRecord` tuples from `list[dict]` + metadata (replaces removed `FhirPatientIngestor`) |
-| `Hl7v2MessageParser` | Parses HL7 v2 messages from bytes |
-| `PhiRedactor` | Explicit pass-through redaction knot for clinical record streams |
+| `HL7v2MessageParser` | Parses HL7 v2 messages from bytes |
+| `PHIRedactor` | Explicit pass-through redaction knot for clinical record streams |
 | `PatientCohortBuilder` | Filters a record stream into a named cohort by inclusion criteria |
 | `DiagnosisCodeRollup` | Rolls ICD-10 leaf codes up to a configurable ancestor level |
-| `Icd10CodeValidator` | Validates ICD-10-CM codes against a reference dictionary |
-| `LoincMapper` | Maps local lab codes to LOINC identifiers |
+| `ICD10CodeValidator` | Validates ICD-10-CM codes against a reference dictionary |
+| `LOINCMapper` | Maps local lab codes to LOINC identifiers |
 | `LabResultNormalizer` | Normalises lab result units and reference ranges |
 | `VitalSignsAggregator` | Aggregates vital sign observations into summary statistics |
 | `EncounterTimelineAssembler` | Assembles an ordered encounter timeline per patient |
 | `MedicationReconciliationPipeline` | Reconciles medication lists across encounters |
 | `RxNormNormalizer` | Normalises drug names to RxNorm CUIs |
-| `SnomedCtNormalizer` | Maps clinical terms to SNOMED CT concept IDs |
-| `OmopCdmMapper` | Maps source records to OMOP CDM domain tables |
+| `SnomedCTNormalizer` | Maps clinical terms to SNOMED CT concept IDs |
+| `OMOPCDMMapper` | Maps source records to OMOP CDM domain tables |
 | `ReadmissionRiskScorer` | Produces a 30-day readmission risk score |
-| `ClinicalNlpExtractor` | Extracts structured entities from clinical free text |
+| `ClinicalNLPExtractor` | Extracts structured entities from clinical free text |
 | `ClinicalTrialEligibilityFilter` | Filters patients against trial inclusion/exclusion criteria |
 | `ClinicalDataQualityCheck` | Quality assessment knot; emits `Err` for records that fail quality checks |
 
@@ -430,7 +430,7 @@ MRI acquisition and analysis knots.
 | Knot | Description |
 |---|---|
 | `DicomPacsAssembler` *(from `pirn_health.assemblers`)* | Assembles a `DICOMPayload` from a `DICOMSeries` + staging dir (replaces removed `DicomIngestor`) |
-| `NiftiConverter` | Converts DICOM volumes to NIfTI format |
+| `NIfTIConverter` | Converts DICOM volumes to NIfTI format |
 | `BiasFieldCorrector` | N4 bias field correction via ANTs/SimpleITK |
 | `BrainMaskExtractor` | Skull-stripping and brain mask extraction |
 | `MotionCorrector` | Volume-to-volume motion correction |
@@ -454,7 +454,7 @@ EEG and MEG processing knots backed by `mne`.
 |---|---|
 | `EegObjectStoreAssembler` *(from `pirn_health.assemblers`)* | Assembles a `SignalPayload` from `bytes` + metadata (replaces removed `EEGRawIngestor`) |
 | `MegObjectStoreAssembler` *(from `pirn_health.assemblers`)* | Assembles a `SignalPayload` from `bytes` + metadata (replaces removed `MegRawIngestor`) |
-| `BandpassFilter` | Applies a bandpass filter to raw data |
+| `BandPassFilter` | Applies a bandpass filter to raw data |
 | `NotchFilter` | Notch filter for power-line noise removal |
 | `ArtifactRemover` | ICA-based artifact rejection |
 | `EpochExtractor` | Segments continuous data into epochs around events |
@@ -475,17 +475,17 @@ NGS pipeline knots.
 | Knot | Description |
 |---|---|
 | `FastqQualityController` | FASTQ quality filtering and trimming |
-| `BwaAligner` | BWA-MEM alignment to a reference genome |
+| `BWAAligner` | BWA-MEM alignment to a reference genome |
 | `Bowtie2Aligner` | Bowtie2 alignment to a reference genome |
-| `StarAligner` | STAR RNA-seq aligner |
-| `GatkCaller` | GATK HaplotypeCaller variant calling |
-| `BcftoolsCaller` | BCFtools variant calling |
-| `VcfFilter` | VCF filtering by quality, depth, and annotation |
-| `VcfMerger` | Merges multiple VCF files |
-| `GvcfCombiner` | Combines per-sample GVCFs for joint genotyping |
+| `STARAligner` | STAR RNA-seq aligner |
+| `GATKCaller` | GATK HaplotypeCaller variant calling |
+| `BCFtoolsCaller` | BCFtools variant calling |
+| `VCFFilter` | VCF filtering by quality, depth, and annotation |
+| `VCFMerger` | Merges multiple VCF files |
+| `GVCFCombiner` | Combines per-sample GVCFs for joint genotyping |
 | `SnpEffAnnotator` | Annotates variants with SnpEff |
-| `VepAnnotator` | Annotates variants with Ensembl VEP |
-| `CnvDetector` | Copy number variant detection |
+| `VEPAnnotator` | Annotates variants with Ensembl VEP |
+| `CNVDetector` | Copy number variant detection |
 | `StructuralVariantDetector` | SV detection from aligned reads |
 | `ExpressionQuantifier` | RNA-seq expression quantification |
 | `DifferentialExpressionAnalyzer` | Differential expression analysis |
@@ -516,10 +516,10 @@ Clinical trial data management knots (CDISC/SDTM/ADaM).
 
 | Knot | Description |
 |---|---|
-| `SdtmDomainValidator` | Validates SDTM datasets against domain rules |
-| `AdamDatasetBuilder` | Builds ADaM datasets from SDTM source data |
-| `DefineXmlGenerator` | Generates Define-XML 2.x metadata from dataset definitions |
-| `MeddraNormalizer` | Maps adverse event terms to MedDRA hierarchy |
+| `SDTMDomainValidator` | Validates SDTM datasets against domain rules |
+| `ADaMDatasetBuilder` | Builds ADaM datasets from SDTM source data |
+| `DefineXMLGenerator` | Generates Define-XML 2.x metadata from dataset definitions |
+| `MedDRANormalizer` | Maps adverse event terms to MedDRA hierarchy |
 | `ClinicalEventAggregator` | Aggregates clinical events into analysis-ready records |
 | `TreatmentEmergentClassifier` | Classifies treatment-emergent adverse events |
 | `EstimandAlignedAnalyzer` | Applies estimand-aligned intercurrent event strategies |
@@ -532,7 +532,7 @@ Wearable and remote monitoring knots.
 
 | Knot | Description |
 |---|---|
-| `EcgRPeakDetector` | R-peak detection from single-lead ECG signals |
+| `ECGRPeakDetector` | R-peak detection from single-lead ECG signals |
 | `HeartRateVariabilityAnalyzer` | HRV time-domain and frequency-domain metrics |
 | `SleepStager` | Sleep stage classification from accelerometer + PPG |
 | `StepCounter` | Step count from tri-axial accelerometer |
@@ -547,9 +547,9 @@ Connection interfaces for healthcare system backends.
 
 | Class | Description |
 |---|---|
-| `FhirClient` | FHIR REST API client (read/write resources) |
-| `PacsClient` | DICOM PACS client (C-FIND / C-MOVE) |
-| `OmopConnection` | OMOP CDM database connection |
+| `FHIRClient` | FHIR REST API client (read/write resources) |
+| `PACSClient` | DICOM PACS client (C-FIND / C-MOVE) |
+| `OMOPConnection` | OMOP CDM database connection |
 | `LabInstrumentConnection` | LIS/HL7 lab instrument interface |
 
 ---

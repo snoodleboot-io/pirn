@@ -5,9 +5,9 @@ implementation for each one and combine freely.
 
 | Role | Interface | Question it answers |
 |------|-----------|---------------------|
-| **TapestryStore** | `pirn.backends.TapestryStore` | Where does the tapestry *definition* live? |
-| **RunHistory** | `pirn.backends.RunHistory` | Where are lineage records and run summaries persisted? |
-| **DataStore** | `pirn.backends.DataStore` | Where do intermediate values live between knots? |
+| **TapestryStore** | `pirn.backends.base.tapestry_store.TapestryStore` | Where does the tapestry *definition* live? |
+| **RunHistory** | `pirn.backends.base.run_history.RunHistory` | Where are lineage records and run summaries persisted? |
+| **DataStore** | `pirn.backends.base.data_store.DataStore` | Where do intermediate values live between knots? |
 
 ---
 
@@ -38,7 +38,15 @@ implementation for each one and combine freely.
 | `InMemoryDataStore` | `pirn.backends.in_memory` | Default. No eviction. |
 | `LocalDiskDataStore` | `pirn.backends.disk` | Content-addressed files; survives restarts. |
 | `S3DataStore` | `pirn.backends.s3` | Large objects; needs `pirn[s3]`. |
+| `GCSDataStore` | `pirn.backends.gcs` | Large objects on GCS; needs `pirn[gcs]`. |
+| `AzureBlobDataStore` | `pirn.backends.azure` | Large objects on Azure Blob; needs `pirn[azure]`. |
 | `ValKeyDataStore` | `pirn.backends.valkey` | Fast; optional TTL; needs `pirn[valkey]`. |
+
+That table is the complete list. There is **no `SQLiteDataStore` and no
+`PostgresDataStore`** — `SQLiteStore` and `PostgresStore` implement
+`TapestryStore`, a different interface, so picking SQLite or Postgres for the
+tapestry definition does not also supply a data store. Every recipe below
+therefore pairs them with a disk, object-store, or ValKey `DataStore`.
 
 ---
 
@@ -49,7 +57,7 @@ implementation for each one and combine freely.
 No infrastructure, no persistence needed between runs.
 
 ```python
-from pirn import Tapestry
+from pirn.tapestry import Tapestry
 
 t = Tapestry()           # InMemoryStore + InMemoryHistory + InMemoryDataStore
 ```
@@ -63,8 +71,9 @@ No imports required. This is the default.
 One machine, survives restarts, no external services.
 
 ```python
-from pirn import Tapestry
-from pirn.backends.sqlite import SQLiteHistory, SQLiteStore
+from pirn.tapestry import Tapestry
+from pirn.backends.sqlite.sqlite_history import SQLiteHistory
+from pirn.backends.sqlite.sqlite_store import SQLiteStore
 from pirn.backends.disk import LocalDiskDataStore
 
 t = Tapestry(
@@ -86,8 +95,8 @@ serialises writers; switch to Postgres when you feel contention).
 You want `GROUP BY knot_id`, percentiles over lineage, or ad-hoc SQL.
 
 ```python
-from pirn import Tapestry
-from pirn.backends.sqlite import SQLiteStore
+from pirn.tapestry import Tapestry
+from pirn.backends.sqlite.sqlite_store import SQLiteStore
 from pirn.backends.duckdb import DuckDBHistory
 from pirn.backends.disk import LocalDiskDataStore
 
@@ -110,8 +119,9 @@ Multiple hosts writing runs concurrently, large intermediate values, full
 durability.
 
 ```python
-from pirn import Tapestry
-from pirn.backends.postgres import PostgresStore, PostgresHistory
+from pirn.tapestry import Tapestry
+from pirn.backends.postgres.postgres_history import PostgresHistory
+from pirn.backends.postgres.postgres_store import PostgresStore
 from pirn.backends.s3 import S3DataStore
 
 store   = PostgresStore(dsn="postgresql://…")
@@ -137,9 +147,10 @@ DuckDB separately (e.g. via DuckDB's Postgres scanner or a Postgres read replica
 mounted as a DuckDB external table).
 
 ```python
-from pirn import Tapestry
-from pirn.backends.postgres import PostgresStore, PostgresHistory
-from pirn.backends.valkey import ValKeyDataStore
+from pirn.tapestry import Tapestry
+from pirn.backends.postgres.postgres_history import PostgresHistory
+from pirn.backends.postgres.postgres_store import PostgresStore
+from pirn.backends.valkey.valkey_data_store import ValKeyDataStore
 
 # Writes go to Postgres
 t = Tapestry(
@@ -160,9 +171,10 @@ Everything in ValKey with a TTL. Lineage goes to Postgres for durability;
 intermediate values evict automatically.
 
 ```python
-from pirn import Tapestry
-from pirn.backends.postgres import PostgresHistory
-from pirn.backends.valkey import ValKeyStore, ValKeyDataStore
+from pirn.tapestry import Tapestry
+from pirn.backends.postgres.postgres_history import PostgresHistory
+from pirn.backends.valkey.valkey_data_store import ValKeyDataStore
+from pirn.backends.valkey.valkey_store import ValKeyStore
 
 t = Tapestry(
     store=ValKeyStore(url="redis://…", ttl=300),

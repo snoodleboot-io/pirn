@@ -7,7 +7,8 @@ pirn pipelines can be declared entirely in YAML and loaded at runtime with `load
 ## Entry point
 
 ```python
-from pirn import load_pipeline, RunRequest
+from pirn.core.run_request import RunRequest
+from pirn.yaml_loader.loader import load_pipeline
 
 tapestry = load_pipeline(
     yaml_text,                              # str or Path

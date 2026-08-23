@@ -325,7 +325,7 @@ All ~98 formats grouped by category. Read (R) and Write (W) indicate supported o
 | Format | Class | R | W | Streaming | Extra |
 |--------|-------|---|---|-----------|-------|
 | Shapefile | `ShapefileFormat` | ✓ | ✓ | — | `pirn[shapefile]` |
-| GeoJSON | `GeojsonFormat` | ✓ | ✓ | ✓ | `pirn[geojson]` |
+| GeoJSON | `GeoJsonFormat` | ✓ | ✓ | ✓ | `pirn[geojson]` |
 | KML | `KmlFormat` | ✓ | ✓ | — | `pirn[kml]` |
 | GeoTIFF | `GeotiffFormat` | ✓ | ✓ | — | `pirn[geotiff]` |
 | GeoPackage | `GeopackageFormat` | ✓ | ✓ | — | `pirn[geopackage]` |
@@ -378,7 +378,7 @@ All ~98 formats grouped by category. Read (R) and Write (W) indicate supported o
 | EDF | `EdfFormat` | ✓ | ✓ | — | `pirn[health]` |
 | EDF+ | `EdfPlusFormat` | ✓ | ✓ | — | `pirn[health]` |
 | BDF | `BdfFormat` | ✓ | ✓ | — | `pirn[health]` |
-| BrainVision | `BrainvisionFormat` | ✓ | ✓ | — | `pirn[health]` |
+| BrainVision | `BrainVisionFormat` | ✓ | ✓ | — | `pirn[health]` |
 | BIDS dataset | `BidsDatasetFormat` | ✓ | ✓ | — | `pirn[health]` |
 
 #### Audio
@@ -551,7 +551,7 @@ The `pirn_data.specialisations` package bundles higher-level knot compositions f
 | `ScdType7` | Hybrid: SCD-2 history table + SCD-1 current view. |
 | `ScdType7Hybrid` | Manages both the history and current-view tables simultaneously. |
 | `ScdType7MergeKnot` | Merge step for SCD Type 7. |
-| `CdcDebezium` | Applies Debezium CDC event envelopes (op=c/u/d) to a target table. |
+| `CDCDebezium` | Applies Debezium CDC event envelopes (op=c/u/d) to a target table. |
 | `DebeziumSource` | Reads Debezium-formatted CDC events from a topic. |
 
 **See also:** [Transforms](#transforms), [Lakehouse](#lakehouse), [Architecture — Tiered Data Domain](../architecture/overview.md)

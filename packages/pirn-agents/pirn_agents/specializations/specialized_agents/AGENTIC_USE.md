@@ -17,7 +17,7 @@ pirn_agents/specializations/specialized_agents/
 ├── research_agent.py        ResearchAgent       — multi-hop web search + synthesis; returns a research report
 ├── browser_agent.py         BrowserAgent        — navigates web pages; extracts structured data from HTML
 ├── code_agent.py            CodeAgent           — generates, lints, and formats code given a specification
-├── sql_agent.py             SqlAgent            — text-to-SQL; executes query; returns formatted results
+├── sql_agent.py             SQLAgent            — text-to-SQL; executes query; returns formatted results
 ├── data_analyst_agent.py    DataAnalystAgent    — statistical analysis + chart description over tabular data
 │
 │  ── Internal helpers ──
@@ -37,7 +37,7 @@ pirn_agents/specializations/specialized_agents/
 ### SQL agent — natural language to query to result
 
 ```python
-from pirn_agents.specializations.specialized_agents.sql_agent import SqlAgent
+from pirn_agents.specializations.specialized_agents.sql_agent import SQLAgent
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
@@ -45,7 +45,7 @@ from pirn.tapestry import Tapestry
 
 with Tapestry() as t:
     question = Parameter("question", str)
-    result   = SqlAgent(
+    result   = SQLAgent(
         question=question,
         schema=my_db_schema_str,   # DDL string describing tables
         pool=my_postgres_pool,
@@ -91,7 +91,7 @@ with Tapestry() as t:
 
 ## Anti-patterns
 
-**Using `SqlAgent` without providing a schema** — the LLM cannot generate correct SQL without knowing table names and columns. Pass a full DDL string or a compact schema description.
+**Using `SQLAgent` without providing a schema** — the LLM cannot generate correct SQL without knowing table names and columns. Pass a full DDL string or a compact schema description.
 
 **Using `BrowserAgent` for structured data extraction from APIs** — `BrowserAgent` navigates and scrapes HTML. For REST API data, use the appropriate SaaS client from `pirn.connectors.saas` instead.
 
@@ -99,7 +99,7 @@ with Tapestry() as t:
 
 ## Constraints and gotchas
 
-- **`SqlAgent` executes generated SQL directly against the pool.** Run with a read-only database user for safety — the agent does not sandbox the generated query.
+- **`SQLAgent` executes generated SQL directly against the pool.** Run with a read-only database user for safety — the agent does not sandbox the generated query.
 - **`ResearchAgent` makes `max_hops` sequential LLM + search calls.** Latency scales linearly with `max_hops`. Default is `3`.
 - **`CodeAgent` lints output using the language's default linter** (`ruff` for Python, `eslint` for JavaScript). The linter must be installed in the environment.
 - **`DataAnalystAgent` returns a text description of charts**, not rendered images. Pair with a charting knot if visual output is needed.
@@ -113,7 +113,7 @@ with Tapestry() as t:
 | Multi-hop web research report | `ResearchAgent(topic=..., search_tool=..., llm=...)` |
 | Web page navigation + extraction | `BrowserAgent(url=..., task=..., llm=...)` |
 | Code generation + linting | `CodeAgent(spec=..., language=..., llm=...)` |
-| Natural language SQL query | `SqlAgent(question=..., schema=..., pool=..., llm=...)` |
+| Natural language SQL query | `SQLAgent(question=..., schema=..., pool=..., llm=...)` |
 | Statistical analysis over table | `DataAnalystAgent(data=..., question=..., llm=...)` |
 
 ---

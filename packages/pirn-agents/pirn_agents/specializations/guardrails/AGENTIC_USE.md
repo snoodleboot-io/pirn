@@ -23,7 +23,7 @@ pirn_agents/specializations/guardrails/
 │  ── Output guardrails ──
 ├── output_guardrail_gate.py       OutputGuardrailGate      — run output checks; Err if any check fails
 ├── output_response_validator.py   OutputResponseValidator  — validate LLM output against schema or rules
-├── pii_response_redactor.py       PiiResponseRedactor      — redact PII from LLM response before returning
+├── pii_response_redactor.py       PIIResponseRedactor      — redact PII from LLM response before returning
 │
 │  ── Fact-checking ──
 ├── fact_claim_extractor.py        FactClaimExtractor       — extract verifiable claims from LLM output
@@ -104,7 +104,7 @@ with Tapestry() as t:
 | Block unsafe input | `InputGuardrailGate(checks=[...])` |
 | Redact PII from input | `PiiRedactorCheck(mode="redact")` |
 | Validate LLM output | `OutputGuardrailGate(checks=[...])` |
-| Redact PII from output | `PiiResponseRedactor` |
+| Redact PII from output | `PIIResponseRedactor` |
 | Detect hallucinations | `HallucinationDetector(reference=..., threshold=...)` |
 | Fact-check claims | `FactClaimExtractor` → `FactCheckGate` |
 | Ground citations | `CitationGrounder(response=..., store=...)` |

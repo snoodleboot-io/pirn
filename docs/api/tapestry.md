@@ -7,7 +7,11 @@ The `Tapestry` is the central workspace. Build knots inside a `with Tapestry() a
 ## Quick reference
 
 ```python
-from pirn import Tapestry, RunRequest, Parameter, KnotConfig, knot
+from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 
 @knot
 async def double(x: int) -> int:
@@ -38,8 +42,10 @@ result = await t.run(RunRequest(parameters={"x": 5}))
 pirn auto-resolves WHO initiated each run. The default resolver checks CI env vars first (`GITHUB_ACTOR`, `GITLAB_USER_LOGIN`, `CI_USER`, `BUILD_USER`), then falls back to the OS user. Every run result carries the resolved `actor` and an optional `trigger`.
 
 ```python
-from pirn import Tapestry, RunRequest
-from pirn.core.identity import StaticIdentityResolver, NullIdentityResolver
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
+from pirn.core.identity.null_identity_resolver import NullIdentityResolver
+from pirn.core.identity.static_identity_resolver import StaticIdentityResolver
 
 # Production service — fixed service account
 tapestry = Tapestry(identity_resolver=StaticIdentityResolver("svc-ingest"))

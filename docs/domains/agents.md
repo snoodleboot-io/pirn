@@ -33,9 +33,9 @@ Specialised pipelines (RAG, ReAct, document processing, multi-agent, structured 
 
 ## Core interfaces
 
-### LlmProvider
+### LLMProvider
 
-`LLMProvider` (`pirn/core/providers/llm_provider.py`) is the interface every LLM backend must satisfy. Inherit from it and implement the three async methods:
+`LLMProvider` (`pirn_agents/llm/llm_provider.py`) is the interface every LLM backend must satisfy. Inherit from it and implement the three async methods:
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
@@ -48,7 +48,7 @@ Specialised pipelines (RAG, ReAct, document processing, multi-agent, structured 
 `LLMProvider` inherits from `PirnOpaqueValue`, so pirn serialises providers by identity rather than by inspecting their internals. This keeps content-addressing cache stable even when the provider holds live SDK state.
 
 ```python
-from pirn.core.providers.llm_provider import LLMProvider
+from pirn_agents.llm.llm_provider import LLMProvider
 
 class AnthropicProvider(LLMProvider):
     def __init__(self, api_key: str, default_model: str) -> None:
@@ -81,7 +81,7 @@ class AnthropicProvider(LLMProvider):
 
 ### Tool
 
-`Tool` (`pirn_agents/tool.py`) is the interface for any capability an agent can call during planning. Inherit from it and implement four members:
+`Tool` (`pirn_agents/tools/tool.py`) is the interface for any capability an agent can call during planning. Inherit from it and implement four members:
 
 | Member | Kind | Description |
 |--------|------|-------------|
@@ -146,7 +146,7 @@ react = ReActLoop(messages=msgs, llm=provider, tools=[web_search, lookup_policy]
 
 ### MemoryStore
 
-`MemoryStore` (`pirn_agents/memory_store.py`) is the interface for keyed storage with optional similarity search. Inherit from it and implement:
+`MemoryStore` (`pirn_agents/memory/stores/memory_store.py`) is the interface for keyed storage with optional similarity search. Inherit from it and implement:
 
 | Method | Description |
 |--------|-------------|
@@ -221,14 +221,14 @@ Pre-built `SubTapestry` pipelines for common agent patterns.
 
 | Sub-area | Pipelines |
 |----------|-----------|
-| `rag/` | `NaiveRagPipeline`, `CorrectiveRagPipeline`, `HydeRagPipeline`, `GraphRagPipeline` — retrieval-augmented generation patterns with relevance gating |
+| `rag/` | `NaiveRAGPipeline`, `CorrectiveRAGPipeline`, `HyDERAGPipeline`, `GraphRAGPipeline` — retrieval-augmented generation patterns with relevance gating |
 | `react/` | `ReActLoop` — Reasoning + Acting loop with step accumulation, tool execution, and termination gating |
 | `document_processing/` | `DocumentIngestionPipeline`, `DocumentQAPipeline`, `DocumentSummarizerPipeline`, `DocumentTranslationPipeline` |
 | `multi_agent/` | `OrchestratorAgent`, `ParallelSpecialistFanOut`, `DebateFramework`, `ConsensusAggregator` — multi-agent coordination patterns |
 | `guardrails/` | Input/output guardrail gates, PII redaction, fact-checking |
 | `structured_output/` | `JsonExtractorPipeline`, `YamlExtractorPipeline`, `PydanticValidatorPipeline`, `EnumClassifierPipeline` |
 | `memory_patterns/` | Working memory, episodic memory, semantic memory, and procedural memory pipelines |
-| `specialized_agents/` | `CodeAgent`, `SqlAgent`, `ResearchAgent`, `DataAnalystAgent`, `BrowserAgent` |
+| `specialized_agents/` | `CodeAgent`, `SQLAgent`, `ResearchAgent`, `DataAnalystAgent`, `BrowserAgent` |
 
 ---
 
@@ -255,7 +255,10 @@ The example below wires a simple tool-using chat agent. Raw user text enters thr
 
 ```python
 import asyncio
-from pirn import Tapestry, Parameter, KnotConfig, RunRequest
+from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 from pirn_agents.input.message_parser import MessageParser
 from pirn_agents.input.context_builder import ContextBuilder
 from pirn_agents.generation.llm_call import LLMCall
@@ -331,12 +334,12 @@ async def main():
 asyncio.run(main())
 ```
 
-For higher-level patterns, use the pre-built `SubTapestry` pipelines from `specializations/`. For example, `NaiveRagPipeline` wraps the full retrieve-prompt-answer cycle in a single node:
+For higher-level patterns, use the pre-built `SubTapestry` pipelines from `specializations/`. For example, `NaiveRAGPipeline` wraps the full retrieve-prompt-answer cycle in a single node:
 
 ```python
-from pirn_agents.specializations.rag.naive_rag_pipeline import NaiveRagPipeline
+from pirn_agents.specializations.rag.naive_rag_pipeline import NaiveRAGPipeline
 
-rag = NaiveRagPipeline(
+rag = NaiveRAGPipeline(
     query=query_knot,
     memory_store=my_vector_store,
     llm=provider,

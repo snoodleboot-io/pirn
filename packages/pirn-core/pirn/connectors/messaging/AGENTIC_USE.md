@@ -22,8 +22,8 @@ pirn/domains/connectors/messaging/
 ├── discord_client.py        DiscordClient        — Discord REST API client
 ├── telegram_config.py       TelegramConfig       — bot_token, chat_id (default)
 ├── telegram_client.py       TelegramClient       — Telegram Bot API client
-├── pagerduty_config.py      PagerdutyConfig      — api_key, service_key
-└── pagerduty_client.py      PagerdutyClient      — PagerDuty Events API v2 client
+├── pagerduty_config.py      PagerDutyConfig      — api_key, service_key
+└── pagerduty_client.py      PagerDutyClient      — PagerDuty Events API v2 client
 ```
 
 ---
@@ -49,10 +49,10 @@ result = await t.run(RunRequest())
 ### PagerDuty — trigger an incident on pipeline failure
 
 ```python
-from pirn.connectors.messaging.pagerduty_config import PagerdutyConfig
-from pirn.connectors.messaging.pagerduty_client import PagerdutyClient
+from pirn.connectors.messaging.pagerduty_config import PagerDutyConfig
+from pirn.connectors.messaging.pagerduty_client import PagerDutyClient
 
-pd = PagerdutyClient(config=PagerdutyConfig(
+pd = PagerDutyClient(config=PagerDutyConfig(
     api_key=os.environ["PD_API_KEY"],
     service_key=os.environ["PD_SERVICE_KEY"],
 ))
@@ -73,7 +73,7 @@ pd = PagerdutyClient(config=PagerdutyConfig(
 
 - **Each client requires its own extra:** `pirn[slack]`, `pirn[teams]`, `pirn[discord]`, `pirn[telegram]`, `pirn[pagerduty]`.
 - **`TeamsClient` supports two auth modes:** incoming webhook URL (simpler, less permission) and Microsoft Graph API (full features, requires Azure app registration).
-- **`PagerdutyClient.trigger()` uses Events API v2** — `service_key` is the integration key, not the service ID.
+- **`PagerDutyClient.trigger()` uses Events API v2** — `service_key` is the integration key, not the service ID.
 - **Rate limits are enforced by the upstream service**, not pirn. Add retry logic in the client wrapper for production use.
 
 ---
@@ -86,7 +86,7 @@ pd = PagerdutyClient(config=PagerdutyConfig(
 | Post to Teams | `TeamsClient(config=TeamsConfig(webhook_url=...))` |
 | Send Discord message | `DiscordClient(config=DiscordConfig(bot_token=..., guild_id=...))` |
 | Send Telegram message | `TelegramClient(config=TelegramConfig(bot_token=..., chat_id=...))` |
-| Trigger PagerDuty incident | `PagerdutyClient(config=PagerdutyConfig(api_key=..., service_key=...))` |
+| Trigger PagerDuty incident | `PagerDutyClient(config=PagerDutyConfig(api_key=..., service_key=...))` |
 
 ---
 

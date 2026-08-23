@@ -6,7 +6,7 @@
 
 Each observability backend has a `*Config` (API endpoint, credentials) and a `*Client` or emitter. Use these when a knot needs to report a metric, annotation, or span to an external observability system as part of its business logic. For tapestry-level lifecycle events (run started, knot completed, run failed), use `pirn.emitters` instead.
 
-`OpentelemetryEmitter` is dual-purpose: it implements the `pirn.emitters` interface **and** can be used standalone for direct span/metric emission.
+`OpenTelemetrySpanEmitter` is dual-purpose: it implements the `pirn.emitters` interface **and** can be used standalone for direct span/metric emission.
 
 ---
 
@@ -20,8 +20,8 @@ pirn/domains/connectors/observability/
 ├── grafana_client.py         GrafanaClient         — Grafana HTTP API (annotations, alerts, datasources)
 ├── prometheus_config.py      PrometheusConfig      — pushgateway_url, job, grouping_key
 ├── prometheus_client.py      PrometheusClient      — Prometheus Pushgateway client (push metrics)
-├── opentelemetry_config.py   OpentelemetryConfig   — endpoint, protocol (grpc/http), headers, resource_attrs
-└── opentelemetry_emitter.py  OpentelemetryEmitter  — pirn emitter + standalone OTel span/metric emitter
+├── opentelemetry_config.py   OpenTelemetryConfig   — endpoint, protocol (grpc/http), headers, resource_attrs
+└── opentelemetry_emitter.py  OpenTelemetrySpanEmitter  — pirn emitter + standalone OTel span/metric emitter
 ```
 
 ---
@@ -50,10 +50,10 @@ with Tapestry() as t:
 ### OpenTelemetry as a tapestry emitter
 
 ```python
-from pirn.connectors.observability.opentelemetry_config import OpentelemetryConfig
-from pirn.connectors.observability.opentelemetry_emitter import OpentelemetryEmitter
+from pirn.connectors.observability.opentelemetry_config import OpenTelemetryConfig
+from pirn.connectors.observability.opentelemetry_span_emitter import OpenTelemetrySpanEmitter
 
-otel = OpentelemetryEmitter(config=OpentelemetryConfig(
+otel = OpenTelemetrySpanEmitter(config=OpenTelemetryConfig(
     endpoint="http://otel-collector:4317",
     protocol="grpc",
 ))
@@ -89,7 +89,7 @@ prom = PrometheusClient(config=PrometheusConfig(
 
 - **Each client requires its own extra:** `pirn[datadog]`, `pirn[grafana]`, `pirn[prometheus]`, `pirn[opentelemetry]`.
 - **`PrometheusClient` uses the Pushgateway**, which is suitable for batch/short-lived jobs. Do not use it for long-running services where a pull-based exporter is more appropriate.
-- **`OpentelemetryEmitter` spans follow the tapestry run hierarchy** — each knot's `process()` is wrapped in a child span under the root run span.
+- **`OpenTelemetrySpanEmitter` spans follow the tapestry run hierarchy** — each knot's `process()` is wrapped in a child span under the root run span.
 - **`DatadogClient` uses the v2 API.** Metrics must use the Distribution or Gauge type; the v1 legacy `series` endpoint is not used.
 
 ---
@@ -101,7 +101,7 @@ prom = PrometheusClient(config=PrometheusConfig(
 | Push metric to Datadog | `DatadogClient(config=DatadogConfig(...)).send_metric(name, value, tags)` |
 | Create Grafana annotation | `GrafanaClient(config=GrafanaConfig(...)).create_annotation(text, tags)` |
 | Push metrics to Prometheus | `PrometheusClient(config=PrometheusConfig(...)).push({metric: value})` |
-| Emit OTel spans for tapestry runs | `Tapestry(emitters=[OpentelemetryEmitter(...)])` |
+| Emit OTel spans for tapestry runs | `Tapestry(emitters=[OpenTelemetrySpanEmitter(...)])` |
 
 ---
 

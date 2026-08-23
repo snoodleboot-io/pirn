@@ -14,11 +14,11 @@ The `MriQcGate` knot validates SNR, motion parameters, and field-of-view coverag
 pirn_health/mri/
 ├── atlas_aligner.py                          AtlasAligner                       — registers image to standard atlas space (MNI/Talairach)
 ├── bias_field_corrector.py                   BiasFieldCorrector                 — N4 bias field correction via ANTs
-├── bids_converter.py                         BidsConverter                      — converts NIfTI + metadata to BIDS directory structure
+├── bids_converter.py                         BIDSConverter                      — converts NIfTI + metadata to BIDS directory structure
 ├── brain_age_estimator.py                    BrainAgeEstimator                  — predicts brain age from structural MRI features
 ├── brain_mask_extractor.py                   BrainMaskExtractor                 — extracts binary brain mask from T1w volume
 ├── cortical_thickness_estimator.py           CorticalThicknessEstimator         — estimates regional cortical thickness via FreeSurfer
-├── dti_preprocessor.py                       DtiPreprocessor                    — eddy current correction and tensor fitting for DTI
+├── dti_preprocessor.py                       DTIPreprocessor                    — eddy current correction and tensor fitting for DTI
 ├── functional_connectivity_extractor.py      FunctionalConnectivityExtractor    — extracts ROI-to-ROI connectivity matrices from fMRI
 ├── image_registrar.py                        ImageRegistrar                     — pairwise image registration (rigid/affine/deformable)
 ├── intensity_normalizer.py                   IntensityNormalizer                — intensity normalisation across subjects/sessions
@@ -86,7 +86,7 @@ lesion_mask = result.outputs["lesion_seg"]
 
 **Running analysis knots on raw scanner output** — knots like `LesionSegmenter`, `TumorSegmenter`, and `FunctionalConnectivityExtractor` are validated against preprocessed, skull-stripped, bias-corrected images in standard space. Passing raw NIfTI output from the scanner will produce silently wrong results, not errors.
 
-**Wiring `TractographyRunner` without DTI preprocessing** — `TractographyRunner` expects a fitted tensor or fibre orientation distribution, not a raw DWI volume. Wire `DtiPreprocessor` before `TractographyRunner`; skipping it will cause MRtrix3 to fail with an opaque input-format error.
+**Wiring `TractographyRunner` without DTI preprocessing** — `TractographyRunner` expects a fitted tensor or fibre orientation distribution, not a raw DWI volume. Wire `DTIPreprocessor` before `TractographyRunner`; skipping it will cause MRtrix3 to fail with an opaque input-format error.
 
 **Reusing atlas-space paths across workers** — `AtlasAligner` and `ImageRegistrar` write intermediate warp fields to a temporary directory on the executing worker. Do not share or cache these paths across tapestry runs or distributed workers; each run creates its own scratch space.
 
@@ -96,7 +96,7 @@ lesion_mask = result.outputs["lesion_seg"]
 - `NiftiFormat` writes to a temp file internally — ensure `/tmp` is writable and has sufficient space for the volumes being processed (up to several GB for high-res T1w or DWI).
 - `SurfaceReconstructor` wraps `recon-all`, which takes 6–12 hours per subject. Run it on a dedicated worker with a long timeout configured in `KnotConfig.extra`.
 - `MriQcGate` raises `MriQcError` (not a subclass of the health-domain base error). Catch it specifically at the tapestry call site.
-- `BidsConverter` produces a directory tree on the local filesystem, not in-memory bytes. The output value is a path string.
+- `BIDSConverter` produces a directory tree on the local filesystem, not in-memory bytes. The output value is a path string.
 - Install: `pip install pirn[mri]`
 
 ## Quick reference
@@ -111,7 +111,7 @@ lesion_mask = result.outputs["lesion_seg"]
 | WMH detection and volume | `WhiteMatterHyperintensitySegmenter` → `WmhVolumeQuantifier` |
 | Glioma segmentation | `TumorSegmenter` on FLAIR/T1ce/T2 registered stack |
 | rs-fMRI connectivity | `RestingStateExtractor` → `FunctionalConnectivityExtractor` |
-| DTI tractography | `DtiPreprocessor` → `TractographyRunner` |
+| DTI tractography | `DTIPreprocessor` → `TractographyRunner` |
 | VBM analysis | `VbmProcessor` (wraps full SPM/FSL VBM pipeline) |
 
 *See also: [health AGENTIC_USE.md](../AGENTIC_USE.md)*

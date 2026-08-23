@@ -12,7 +12,7 @@ Asset integrity analytics is a risk-reduction pipeline: measurement knots (pig r
 ├── energy_efficiency_kpi_calculator.py  EnergyEfficiencyKpiCalculator   — computes energy intensity and efficiency KPIs for facilities
 ├── gas_chromatography_analyzer.py       GasChromatographyAnalyzer       — processes GC compositional analysis results
 ├── pig_run_data_processor.py            PigRunDataProcessor             — processes inline inspection pig run data into anomaly records
-├── psv_test_record_parser.py            PsvTestRecordParser             — parses PSV test records to check set-pressure compliance
+├── psv_test_record_parser.py            PSVTestRecordParser             — parses PSV test records to check set-pressure compliance
 ├── risk_based_inspection_scorer.py      RiskBasedInspectionScorer       — scores assets using API 581 or custom RBI methodology
 ├── scope1_emissions_reporter.py         Scope1EmissionsReporter         — calculates and formats Scope 1 GHG emissions for regulatory reporting
 ├── wall_thickness_loss_estimator.py     WallThicknessLossEstimator      — estimates wall thickness loss rate from UT or MFL inspection data
@@ -71,7 +71,7 @@ result = await t.run(RunRequest(parameters={"pig_data": df}))
 - `RiskBasedInspectionScorer` with `methodology="api_581"` requires fluid toxicity and flammability inputs; missing fields raise `RbiInputError`.
 - `PigRunDataProcessor` validates that clock-distance alignment is within 0.5% of nominal pipe length; misaligned runs are rejected with `PigAlignmentError`.
 - `Scope1EmissionsReporter` uses GWP-100 factors from the configured IPCC assessment report version; changing the version between runs produces non-comparable outputs — pin it in `_config.params`.
-- `PsvTestRecordParser` flags PSVs where measured set pressure deviates more than ±3% from nameplate; these are emitted as `ComplianceFlag` records, not errors.
+- `PSVTestRecordParser` flags PSVs where measured set pressure deviates more than ±3% from nameplate; these are emitted as `ComplianceFlag` records, not errors.
 - Install extra: `pip install pirn[oilgas]`
 
 ## Quick reference
@@ -83,7 +83,7 @@ result = await t.run(RunRequest(parameters={"pig_data": df}))
 | Compute corrosion rate (mm/yr) | `CorrosionRateEstimator(thickness_history=wt_loss)` |
 | Score assets for inspection priority | `RiskBasedInspectionScorer(corrosion_rate=rate)` |
 | Evaluate cathodic protection survey | `CathodicProtectionAnalyzer(cp_survey=param)` |
-| Parse PSV test records for compliance | `PsvTestRecordParser(test_records=param)` |
+| Parse PSV test records for compliance | `PSVTestRecordParser(test_records=param)` |
 | Process GC compositional analysis | `GasChromatographyAnalyzer(gc_data=param)` |
 | Report Scope 1 GHG emissions | `Scope1EmissionsReporter(production_data=param, gc=gc_output)` |
 | Calculate facility energy KPIs | `EnergyEfficiencyKpiCalculator(energy_data=param)` |

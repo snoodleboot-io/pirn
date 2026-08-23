@@ -4,9 +4,9 @@ pirn splits persistence into three independent roles. Pick the right implementat
 
 | Role | Interface | Question it answers |
 |------|-----------|---------------------|
-| `TapestryStore` | `pirn.backends.TapestryStore` | Where does the tapestry *definition* live? |
-| `RunHistory` | `pirn.backends.RunHistory` | Where are lineage records and run summaries persisted? |
-| `DataStore` | `pirn.backends.DataStore` | Where do intermediate values live between knots? |
+| `TapestryStore` | `pirn.backends.base.tapestry_store.TapestryStore` | Where does the tapestry *definition* live? |
+| `RunHistory` | `pirn.backends.base.run_history.RunHistory` | Where are lineage records and run summaries persisted? |
+| `DataStore` | `pirn.backends.base.data_store.DataStore` | Where do intermediate values live between knots? |
 
 ---
 
@@ -20,7 +20,18 @@ pirn splits persistence into three independent roles. Pick the right implementat
 | `DuckDBHistory` | — | Y | — | N | OLAP queries on lineage. Best as a read-path target. |
 | `LocalDiskDataStore` | — | — | Y | N | Content-addressed files per value; survives restarts. |
 | `S3DataStore` | — | — | Y | N | Distributed object storage. Requires `pirn[s3]`. |
+| `GCSDataStore` | — | — | Y | N | Google Cloud Storage. Requires `pirn[gcs]`. |
+| `AzureBlobDataStore` | — | — | Y | N | Azure Blob Storage. Requires `pirn[azure]`. |
 | `ValKeyStore / ValKeyDataStore` | Y | — | Y | Y | Low-latency. Optional TTL on data values. Requires `pirn[valkey]`. Subscribable via pub/sub. |
+
+A `—` means *no such class exists*, not "undocumented". In particular there is
+**no `SQLiteDataStore` and no `PostgresDataStore`**: `SQLiteStore` and
+`PostgresStore` implement `TapestryStore`, which is a different interface from
+`DataStore`, so choosing SQLite or Postgres for the tapestry definition does not
+also give you a data store. The six classes above are the complete shipped
+`DataStore` roster. Pair a SQLite or Postgres deployment with
+`LocalDiskDataStore`, one of the object-store backends, or `ValKeyDataStore` —
+that is what the deployment recipes below do.
 
 ---
 
@@ -29,7 +40,7 @@ pirn splits persistence into three independent roles. Pick the right implementat
 ### InMemoryStore (default)
 
 ```python
-from pirn import Tapestry
+from pirn.tapestry import Tapestry
 t = Tapestry()  # InMemoryStore is the default
 ```
 
@@ -38,7 +49,7 @@ No configuration. All knots are lost when the process exits. Suitable for tests,
 ### SQLiteStore
 
 ```python
-from pirn.backends.sqlite import SQLiteStore
+from pirn.backends.sqlite.sqlite_store import SQLiteStore
 
 t = Tapestry(store=SQLiteStore("pirn.db"))
 ```
@@ -48,7 +59,7 @@ Requires `pip install pirn[sqlite]`. Uses WAL journal mode by default. Single-wr
 ### PostgresStore
 
 ```python
-from pirn.backends.postgres import PostgresStore
+from pirn.backends.postgres.postgres_store import PostgresStore
 
 store = PostgresStore(dsn="postgresql://user:pass@host/db")
 t = Tapestry(store=store)
@@ -59,7 +70,7 @@ Requires `pip install pirn[postgres]`. Connection pooled via `asyncpg`. Schema i
 ### ValKeyStore
 
 ```python
-from pirn.backends.valkey import ValKeyStore
+from pirn.backends.valkey.valkey_store import ValKeyStore
 
 store = ValKeyStore(url="redis://localhost:6379", ttl=3600)
 t = Tapestry(store=store)
@@ -78,7 +89,7 @@ Lost on process exit. Suitable for tests and one-shot runs where you read the `R
 ### SQLiteHistory
 
 ```python
-from pirn.backends.sqlite import SQLiteHistory
+from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 
 t = Tapestry(history=SQLiteHistory("pirn.db"))
 ```
@@ -98,7 +109,7 @@ Requires `pip install pirn[duckdb]`. Column-oriented — scanning millions of li
 ### PostgresHistory
 
 ```python
-from pirn.backends.postgres import PostgresHistory
+from pirn.backends.postgres.postgres_history import PostgresHistory
 
 history = PostgresHistory(dsn="postgresql://...")
 t = Tapestry(history=history)
@@ -145,7 +156,7 @@ Requires `pip install pirn[s3]`. Uses `aiobotocore`. Suitable for large intermed
 ### ValKeyDataStore
 
 ```python
-from pirn.backends.valkey import ValKeyDataStore
+from pirn.backends.valkey.valkey_data_store import ValKeyDataStore
 
 data = ValKeyDataStore(url="redis://localhost:6379", ttl_seconds=3600)
 t = Tapestry(data_store=data)
@@ -173,8 +184,9 @@ t = Tapestry()  # all defaults
 One machine, survives restarts, no external services:
 
 ```python
-from pirn import Tapestry
-from pirn.backends.sqlite import SQLiteStore, SQLiteHistory
+from pirn.tapestry import Tapestry
+from pirn.backends.sqlite.sqlite_history import SQLiteHistory
+from pirn.backends.sqlite.sqlite_store import SQLiteStore
 from pirn.backends.disk import LocalDiskDataStore
 
 t = Tapestry(
@@ -191,7 +203,7 @@ Good for: cron pipelines, ETL jobs, solo developers, CI runners. Avoid for write
 Add DuckDB for fast lineage queries:
 
 ```python
-from pirn.backends.sqlite import SQLiteStore
+from pirn.backends.sqlite.sqlite_store import SQLiteStore
 from pirn.backends.duckdb import DuckDBHistory
 from pirn.backends.disk import LocalDiskDataStore
 
@@ -207,7 +219,8 @@ t = Tapestry(
 Multiple hosts, durable lineage, large values:
 
 ```python
-from pirn.backends.postgres import PostgresStore, PostgresHistory
+from pirn.backends.postgres.postgres_history import PostgresHistory
+from pirn.backends.postgres.postgres_store import PostgresStore
 from pirn.backends.s3 import S3DataStore
 
 t = Tapestry(
@@ -222,8 +235,9 @@ t = Tapestry(
 ValKey for ephemeral values, Postgres for durable lineage:
 
 ```python
-from pirn.backends.postgres import PostgresHistory
-from pirn.backends.valkey import ValKeyStore, ValKeyDataStore
+from pirn.backends.postgres.postgres_history import PostgresHistory
+from pirn.backends.valkey.valkey_data_store import ValKeyDataStore
+from pirn.backends.valkey.valkey_store import ValKeyStore
 
 t = Tapestry(
     store=ValKeyStore(url="redis://...", ttl=300),

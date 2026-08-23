@@ -16,8 +16,8 @@ pirn/domains/connectors/graph/
 ├── neo4j_pool.py        Neo4jPool        — neo4j async driver (bolt protocol)
 ├── memgraph_config.py   MemgraphConfig   — host, port, user, password, encrypted
 ├── memgraph_pool.py     MemgraphPool     — GQLAlchemy async client (Bolt-compatible)
-├── orientdb_config.py   OrientdbConfig   — host, port, database, user, password
-└── orientdb_pool.py     OrientdbPool     — pyorient async wrapper
+├── orientdb_config.py   OrientDBConfig   — host, port, database, user, password
+└── orientdb_pool.py     OrientDBPool     — pyorient async wrapper
 ```
 
 ---
@@ -57,7 +57,7 @@ await pool.close()
 - **Each pool requires its own extra:** `pirn[neo4j]`, `pirn[memgraph]`, `pirn[orientdb]`.
 - **`MemgraphPool` is Bolt-compatible** with Neo4j — the same Cypher queries work on both. Use `MemgraphPool` when targeting Memgraph specifically for its streaming/in-memory properties.
 - **`Neo4jPool` requires the Bolt port (default 7687)**, not the HTTP browser port (7474).
-- **`OrientdbPool` is legacy.** OrientDB SQL is not standard SQL — graph traversal uses `TRAVERSE` and `MATCH` extensions.
+- **`OrientDBPool` is legacy.** OrientDB SQL is not standard SQL — graph traversal uses `TRAVERSE` and `MATCH` extensions.
 
 ---
 
@@ -67,7 +67,7 @@ await pool.close()
 |----------|--------|------|----------------|-------|
 | Neo4j | `Neo4jConfig` | `Neo4jPool` | Cypher | `pirn[neo4j]` |
 | Memgraph | `MemgraphConfig` | `MemgraphPool` | Cypher | `pirn[memgraph]` |
-| OrientDB | `OrientdbConfig` | `OrientdbPool` | OrientDB SQL + graph extensions | `pirn[orientdb]` |
+| OrientDB | `OrientDBConfig` | `OrientDBPool` | OrientDB SQL + graph extensions | `pirn[orientdb]` |
 
 ---
 

@@ -41,8 +41,8 @@ Offloads each knot to a global thread pool. Useful for CPU-bound or sync-heavy w
 ### Example
 
 ```python
-from pirn import Tapestry
-from pirn.engine.dispatchers import ThreadDispatcher
+from pirn.tapestry import Tapestry
+from pirn.engine.dispatchers.thread_dispatcher import ThreadDispatcher
 
 with Tapestry(dispatcher=ThreadDispatcher(max_workers=8)) as t:
     ...

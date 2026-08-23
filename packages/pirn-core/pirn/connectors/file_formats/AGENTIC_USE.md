@@ -28,8 +28,8 @@ pirn/domains/connectors/file_formats/
 │
 │  ── Scientific / array ──
 ├── hdf5_format.py           Hdf5Format           — HDF5 (hierarchical datasets)
-├── netcdf4_format.py        NetCdf4Format        — NetCDF-4 (earth/climate data)
-├── netcdf_format.py         NetCdfFormat         — NetCDF classic (v3)
+├── netcdf4_format.py        Netcdf4Format        — NetCDF-4 (earth/climate data)
+├── netcdf_format.py         NetcdfFormat         — NetCDF classic (v3)
 ├── zarr_format.py           ZarrFormat           — Zarr chunked arrays
 ├── numpy_npy_format.py      NumpyNpyFormat       — single NumPy array (.npy)
 ├── numpy_npz_format.py      NumpyNpzFormat       — multiple NumPy arrays (.npz)
@@ -50,7 +50,7 @@ pirn/domains/connectors/file_formats/
 │
 │  ── Geospatial ──
 ├── geojson_format.py        GeoJsonFormat        — GeoJSON features
-├── geotiff_format.py        GeoTiffFormat        — GeoTIFF raster (georeferenced)
+├── geotiff_format.py        GeotiffFormat        — GeoTIFF raster (georeferenced)
 ├── geopackage_format.py     GeopackageFormat     — GeoPackage (vector/raster SQLite)
 ├── shapefile_format.py      ShapefileFormat      — ESRI Shapefile (.shp/.dbf/.shx)
 ├── kml_format.py            KmlFormat            — KML (Google Earth)
@@ -218,7 +218,7 @@ fmt = CompressedFileFormat(inner=JsonFormat(), codec="zstd")
 | BAM/SAM/CRAM | `BamFormat`, `SamFormat`, `CramFormat` | `pirn[genomics]` |
 | SEG-Y | `SegyFormat` | `pirn[segy]` |
 | DLIS | `DlisFormat` | `pirn[segy]` |
-| GeoTIFF | `GeoTiffFormat` | `pirn[geospatial]` |
+| GeoTIFF | `GeotiffFormat` | `pirn[geospatial]` |
 | PDF | `PdfFormat` | `pirn[document]` |
 | DOCX / PPTX | `DocxFormat`, `PptxFormat` | `pirn[document]` |
 | WAV / MP3 | `WavFormat`, `Mp3Format` | `pirn[audio]` |

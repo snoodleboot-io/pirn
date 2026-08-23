@@ -46,7 +46,7 @@ available_extras()["web"]   # True once httpx is installed
 ## Minimal usage
 
 ```python
-from pirn_agents.credential_ref import CredentialRef
+from pirn.security.credential_ref import CredentialRef
 from pirn_agents.llm.openai_compatible_provider import OpenAICompatibleProvider
 from pirn_agents.llm.model_pricing import ModelPricing
 from pirn_agents.llm.retry_policy import RetryPolicy
