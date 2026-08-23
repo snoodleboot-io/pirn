@@ -10,7 +10,7 @@ except ImportError as _e:
     raise unittest.SkipTest("pyarrow not installed") from _e
 
 try:
-    from lance.dataset import LanceDataset as _LanceDataset
+    from lance.dataset import LanceDataset as _LanceDataset  # noqa: F401
     from lance.dataset import write_dataset as _lance_write_dataset  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("lance not installed") from _e

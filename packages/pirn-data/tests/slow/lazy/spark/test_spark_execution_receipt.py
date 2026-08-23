@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import FrozenInstanceError
 from datetime import UTC, datetime
 
 import pytest
@@ -43,7 +44,7 @@ class TestSparkExecutionReceipt:
             row_count=None,
             output_path=None,
         )
-        with pytest.raises(Exception):
+        with pytest.raises(FrozenInstanceError):
             receipt.succeeded = False  # type: ignore[misc]
 
     def test_pydantic_serialises_to_primitive_dict(self) -> None:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import FrozenInstanceError
 from datetime import UTC, datetime
 
 import pytest
@@ -44,5 +45,5 @@ class TestDaskExecutionReceipt:
             target_path=None,
             partitions_executed=1,
         )
-        with pytest.raises(Exception):
+        with pytest.raises(FrozenInstanceError):
             receipt.backend_name = "other"  # type: ignore[misc]

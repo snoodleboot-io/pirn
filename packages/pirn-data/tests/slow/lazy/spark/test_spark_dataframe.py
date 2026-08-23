@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import FrozenInstanceError
 from datetime import UTC
 
 import pytest
@@ -44,5 +45,5 @@ class TestSparkDataFrame:
 
     def test_dataframe_is_frozen(self) -> None:
         batch = SparkDataFrame(frame=_orders_frame())
-        with pytest.raises(Exception):
+        with pytest.raises(FrozenInstanceError):
             batch.backend_name = "other"  # type: ignore[misc]
