@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import unittest
 
+from pydantic import ValidationError
+
 from pirn.engine.shed.edge import Edge
 
 
@@ -16,7 +18,7 @@ class TestEdge(unittest.TestCase):
 
     def test_is_frozen(self) -> None:
         e = Edge(child_id="c", parent_id="p", name="n")
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValidationError):
             e.child_id = "other"  # type: ignore
 
     def test_equality(self) -> None:

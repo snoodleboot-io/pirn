@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import unittest
+from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.map_markers import DictMap, Map, MapTypeError, ZipMap

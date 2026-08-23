@@ -3,6 +3,8 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime
 
+from pydantic import ValidationError
+
 from pirn.managers.knot_state import KnotState
 from pirn.managers.status_event import StatusEvent
 
@@ -36,5 +38,5 @@ class TestStatusEvent(unittest.TestCase):
 
     def test_frozen(self):
         ev = self._make()
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValidationError):
             ev.run_id = "other"  # type: ignore[misc]

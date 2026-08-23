@@ -44,7 +44,7 @@ class FakeAmplitudeClient:
         self.shutdown_called = True
 
 
-from pirn.connectors.saas.amplitude_client import AmplitudeClient  # noqa: E402
+from pirn.connectors.saas.amplitude_client import AmplitudeClient
 
 _fake_amplitude = types.ModuleType("amplitude")
 _fake_amplitude.BaseEvent = FakeBaseEvent  # type: ignore[attr-defined]

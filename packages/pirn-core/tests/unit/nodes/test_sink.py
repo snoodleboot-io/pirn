@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import unittest
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -19,7 +19,7 @@ class _IntSource(Source):
 
 
 class _CollectingSink(Sink):
-    _collected: list = []
+    _collected: ClassVar[list] = []
 
     async def process(self, value: Any, **_: Any) -> None:
         _CollectingSink._collected.append(value)

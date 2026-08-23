@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import tempfile
 import unittest
+import zipfile
 
 import pytest
 
@@ -146,6 +147,10 @@ class TestZarrFormatSecureTempFiles(unittest.IsolatedAsyncioTestCase):
     async def test_decode_failure_leaves_no_temp_files(self) -> None:
         before = self._temp_zarr_files()
         fmt = ZarrFormat()
-        with self.assertRaises(Exception):
+        # ZarrFormat decodes via zarr.storage.ZipStore, which opens the payload
+        # with the stdlib zipfile; non-zip bytes raise zipfile.BadZipFile
+        # (empirically confirmed on zarr 3.3.0, and stable across zarr v2/v3
+        # since both defer to stdlib zipfile).
+        with self.assertRaises(zipfile.BadZipFile):
             await FormatRoundTrip.decode(fmt, b"not a valid zarr zip payload")
         assert self._temp_zarr_files() == before, "failed decode leaked a temp file"

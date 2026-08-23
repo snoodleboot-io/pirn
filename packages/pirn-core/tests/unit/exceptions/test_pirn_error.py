@@ -18,7 +18,11 @@ class TestPirnError(unittest.TestCase):
         self.assertEqual(str(err), "test message")
 
     def test_catch_as_exception(self):
-        with self.assertRaises(Exception):
+        # Deliberate blind-Exception assert: this test's whole point is that a
+        # PirnError is catchable via the builtin Exception base. Narrowing to
+        # PirnError would duplicate test_raise_and_catch and drop that coverage;
+        # the raise is inline, so there is no wrong-exception false-green risk.
+        with self.assertRaises(Exception):  # noqa: B017
             raise PirnError("caught as base")
 
     def test_empty_message(self):

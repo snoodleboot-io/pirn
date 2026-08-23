@@ -56,7 +56,7 @@ class TestKnotConfig(unittest.TestCase):
 
     def test_frozen(self) -> None:
         cfg = KnotConfig(id="k")
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValidationError):
             cfg.id = "other"
 
     def test_extra_fields_forbidden(self) -> None:

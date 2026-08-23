@@ -112,7 +112,7 @@ class TestSmartTransportRouting(unittest.IsolatedAsyncioTestCase):
         bulk.exists.assert_not_called()
 
     async def test_probe_size_fallback_on_unregistered_type(self) -> None:
-        smart, fast, bulk = self._make(threshold=999_999_999)
+        smart, fast, _bulk = self._make(threshold=999_999_999)
         await smart.begin_run("r1")
         await smart.write("r1", "k1", object())
         fast.write.assert_called_once()

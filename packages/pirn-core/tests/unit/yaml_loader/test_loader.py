@@ -39,7 +39,9 @@ class TestPipelineLoaderResolveType(unittest.TestCase):
 
 class TestPipelineLoaderResolveCallable(unittest.TestCase):
     def test_known_callables_lookup(self) -> None:
-        fn = lambda x: x
+        def fn(x):
+            return x
+
         result = PipelineLoader._resolve_callable("my_fn", {"my_fn": fn}, False)
         self.assertIs(result, fn)
 

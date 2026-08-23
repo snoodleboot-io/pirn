@@ -3,6 +3,8 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime
 
+from pydantic import ValidationError
+
 from pirn.managers.exception_record import ExceptionRecord
 
 
@@ -43,7 +45,7 @@ class TestExceptionRecord(unittest.TestCase):
 
     def test_frozen(self):
         rec = self._make()
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValidationError):
             rec.run_id = "other"  # type: ignore[misc]
 
     def test_for_knot_sets_unbound_run_id(self):

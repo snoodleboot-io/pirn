@@ -3,6 +3,8 @@ from __future__ import annotations
 import unittest
 from datetime import datetime
 
+from pydantic import ValidationError
+
 from pirn.core.run_request import RunRequest
 
 
@@ -33,5 +35,5 @@ class TestRunRequest(unittest.TestCase):
 
     def test_frozen(self) -> None:
         req = RunRequest()
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValidationError):
             req.run_id = "other"
