@@ -10,7 +10,6 @@ except ImportError as _e:
     raise unittest.SkipTest("pyarrow not installed") from _e
 
 from pirn.connectors.file_formats.parquet_format import ParquetFormat
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -78,8 +77,5 @@ class TestParquetFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
 
     async def test_round_trip_with_compression(self) -> None:
         fmt = ParquetFormat(compression="snappy", row_group_size=2)
-        records = [
-            {"k": i, "v": float(i) * 0.5, "label": f"row-{i}"}
-            for i in range(5)
-        ]
+        records = [{"k": i, "v": float(i) * 0.5, "label": f"row-{i}"} for i in range(5)]
         await FormatRoundTrip.assert_round_trip(fmt, records)

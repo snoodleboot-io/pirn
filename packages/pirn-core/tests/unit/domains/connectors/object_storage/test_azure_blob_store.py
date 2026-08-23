@@ -42,13 +42,9 @@ class _StubBlobClient:
         self._blob = blob
 
     async def download_blob(self) -> _Downloader:
-        self._store.calls.append(
-            ("download", {"container": self._container, "blob": self._blob})
-        )
+        self._store.calls.append(("download", {"container": self._container, "blob": self._blob}))
         if (self._container, self._blob) not in self._store.objects:
-            raise FileNotFoundError(
-                f"azure://{self._container}/{self._blob}: no such blob"
-            )
+            raise FileNotFoundError(f"azure://{self._container}/{self._blob}: no such blob")
         return _Downloader(self._store.objects[(self._container, self._blob)])
 
     async def upload_blob(self, data: bytes, *, overwrite: bool = False) -> None:
@@ -68,9 +64,7 @@ class _StubBlobClient:
         self._store.objects[(self._container, self._blob)] = data
 
     async def delete_blob(self) -> None:
-        self._store.calls.append(
-            ("delete", {"container": self._container, "blob": self._blob})
-        )
+        self._store.calls.append(("delete", {"container": self._container, "blob": self._blob}))
         self._store.objects.pop((self._container, self._blob), None)
 
 
@@ -122,58 +116,48 @@ async def _from_chunks(chunks: list[bytes]) -> AsyncIterator[bytes]:
 # ────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_object_store(self) -> None:
         stub = _StubServiceClient()
         s = AzureBlobStore(AzureBlobConfig(container="c"), client=stub)
         assert isinstance(s, ObjectStore)
-    
-    
+
     def test_construction_requires_container(self) -> None:
         with self.assertRaisesRegex(ValueError, "container is required"):
             AzureBlobStore(AzureBlobConfig(container=None), client=_StubServiceClient())
         with self.assertRaisesRegex(ValueError, "container is required"):
             AzureBlobStore(AzureBlobConfig(container=""), client=_StubServiceClient())
-    
-    
+
     def test_construction_requires_credentials_when_no_client(self) -> None:
         with self.assertRaisesRegex(ValueError, "connection_string or"):
             AzureBlobStore(AzureBlobConfig(container="c"))
-    
-    
+
     def test_accepts_connection_string_without_client(self) -> None:
         # Should not raise — credential is supplied via connection_string.
         AzureBlobStore(
             AzureBlobConfig(container="c", connection_string="UseDevelopmentStorage=true"),
             client=_StubServiceClient(),
         )
-    
-    
+
     def test_accepts_account_name_and_key_without_client(self) -> None:
         AzureBlobStore(
-            AzureBlobConfig(
-                container="c", account_name="acct", account_key="abc=="
-            ),
+            AzureBlobConfig(container="c", account_name="acct", account_key="abc=="),
             client=_StubServiceClient(),
         )
-    
-    
+
+
 # ───────────────────────────────────────────────────────────── round-trip
 
 
 class TestRoundTrip(unittest.IsolatedAsyncioTestCase):
-
     async def asyncSetUp(self) -> None:
         self.stub = _StubServiceClient()
-        
-        
+
         self.store = AzureBlobStore(
             AzureBlobConfig(container="my-container", chunk_size=4),
             client=self.stub,
         )
-        
-        
+
     async def test_put_then_get(self) -> None:
         store = self.store
         stub = self.stub
@@ -207,17 +191,14 @@ class TestRoundTrip(unittest.IsolatedAsyncioTestCase):
 
 
 class TestList(unittest.IsolatedAsyncioTestCase):
-
     async def asyncSetUp(self) -> None:
         self.stub = _StubServiceClient()
-        
-        
+
         self.store = AzureBlobStore(
             AzureBlobConfig(container="my-container", chunk_size=4),
             client=self.stub,
         )
-        
-        
+
     async def test_lists_all_keys_under_prefix(self) -> None:
         store = self.store
         await store.put("users/alice.json", b"{}")
@@ -244,17 +225,14 @@ class TestList(unittest.IsolatedAsyncioTestCase):
 
 
 class TestKeyValidation(unittest.IsolatedAsyncioTestCase):
-
     async def asyncSetUp(self) -> None:
         self.stub = _StubServiceClient()
-        
-        
+
         self.store = AzureBlobStore(
             AzureBlobConfig(container="my-container", chunk_size=4),
             client=self.stub,
         )
-        
-        
+
     async def test_rejects_empty_key(self) -> None:
         store = self.store
         with self.assertRaisesRegex(ValueError, "non-empty"):
@@ -309,17 +287,14 @@ class TestLogSafety(unittest.TestCase):
 
 
 class TestErrorPropagation(unittest.IsolatedAsyncioTestCase):
-
     async def asyncSetUp(self) -> None:
         self.stub = _StubServiceClient()
-        
-        
+
         self.store = AzureBlobStore(
             AzureBlobConfig(container="my-container", chunk_size=4),
             client=self.stub,
         )
-        
-        
+
     async def test_get_missing_key_raises(self) -> None:
         store = self.store
         with self.assertRaises(FileNotFoundError):
@@ -327,6 +302,7 @@ class TestErrorPropagation(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_bytes_in_iterator(self) -> None:
         store = self.store
+
         async def bad() -> AsyncIterator[bytes]:
             yield "not bytes"  # type: ignore[misc]
 

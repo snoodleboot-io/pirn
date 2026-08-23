@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+
 from pirn.backends.base.data_store import DataStore
 from pirn.backends.base.run_history import RunHistory
 from pirn.backends.base.tapestry_store import TapestryStore
@@ -310,8 +311,7 @@ def test_sqlite_and_postgres_stores_are_tapestry_stores_not_data_stores():
     for cls in (SQLiteStore, PostgresStore):
         assert issubclass(cls, TapestryStore), f"{cls.__name__} must be a TapestryStore"
         assert not issubclass(cls, DataStore), (
-            f"{cls.__name__} is a TapestryStore, not a DataStore — the two "
-            f"interfaces are unrelated"
+            f"{cls.__name__} is a TapestryStore, not a DataStore — the two interfaces are unrelated"
         )
 
 

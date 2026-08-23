@@ -24,7 +24,6 @@ from pirn.connectors.file_formats.batch_file_format import (
 from pirn.connectors.file_formats.geotiff_format import (
     GeotiffFormat,
 )
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -60,9 +59,7 @@ def _band_records() -> list[dict[str, object]]:
         },
         {
             "band_number": 3,
-            "data": [
-                100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200, 210
-            ],
+            "data": [100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200, 210],
             "transform": transform,
             "crs": "EPSG:4326",
             "width": 4,

@@ -82,17 +82,19 @@ class TestTapestryHtmlRendererRenderSvg(unittest.TestCase):
         self.assertIn("empty run", svg)
 
     def test_single_node_svg_contains_id(self) -> None:
-        nodes = [{
-            "id": "my_node",
-            "class": "MyKnot",
-            "outcome": "ok",
-            "duration_ms": 0,
-            "output_hash": "",
-            "config_hash": "abc",
-            "error_record_id": "",
-            "skip_reason": "",
-            "is_sub_tapestry": False,
-        }]
+        nodes = [
+            {
+                "id": "my_node",
+                "class": "MyKnot",
+                "outcome": "ok",
+                "duration_ms": 0,
+                "output_hash": "",
+                "config_hash": "abc",
+                "error_record_id": "",
+                "skip_reason": "",
+                "is_sub_tapestry": False,
+            }
+        ]
         coords = {"my_node": (0.0, 60.0)}
         svg = TapestryHtmlRenderer._render_svg(nodes, [], coords)
         self.assertIn("<svg", svg)

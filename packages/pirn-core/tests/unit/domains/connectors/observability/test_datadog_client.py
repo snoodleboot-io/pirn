@@ -27,8 +27,13 @@ class FakeDatadog:
         self.closed = False
 
     def call_api(
-        self, method: str, path: str, *,
-        query_params: Any = None, body: Any = None, header_params: Any = None,
+        self,
+        method: str,
+        path: str,
+        *,
+        query_params: Any = None,
+        body: Any = None,
+        header_params: Any = None,
     ) -> Any:
         self.calls.append(
             (
@@ -50,22 +55,19 @@ class FakeDatadog:
 # ──────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_api_client(self) -> None:
         client = DatadogClient(client=FakeDatadog())
         assert isinstance(client, ApiClient)
-    
-    
+
     def test_construction_requires_config_or_client(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or client="):
             DatadogClient()
-    
-    
+
     def test_sensitive_fields_listed(self) -> None:
         assert DatadogConfig.sensitive_fields == ("api_key", "app_key")
-    
-    
+
+
 # ──────────────────────────────────────────────────────────── request
 
 
@@ -161,35 +163,29 @@ class TestCredentialSafety(unittest.TestCase):
         assert d["app_key"] == "<redacted>"
         assert d["site"] == "datadoghq.com"
 
-
-# ──────────────────────────────────────────────────────── capabilities
-
+    # ──────────────────────────────────────────────────────── capabilities
 
     def test_implements_table_source(self) -> None:
         client = DatadogClient(client=FakeDatadog())
         assert isinstance(client, TableSource)
-    
-    
+
     def test_implements_event_emitter(self) -> None:
         client = DatadogClient(client=FakeDatadog())
         assert isinstance(client, EventEmitter)
-    
-    
+
     def test_implements_metric_query(self) -> None:
         client = DatadogClient(client=FakeDatadog())
         assert isinstance(client, MetricQuery)
-    
-    
+
     def test_default_resource_is_metrics(self) -> None:
         client = DatadogClient(client=FakeDatadog())
         assert client.resource == "metrics"
-    
-    
+
     def test_resource_must_be_non_empty(self) -> None:
         with self.assertRaisesRegex(ValueError, "resource"):
             DatadogClient(client=FakeDatadog(), resource="")
-    
-    
+
+
 # ─────────────────────────────────────────────────── TableSource adapter
 
 
@@ -275,14 +271,11 @@ class TestEmit(unittest.IsolatedAsyncioTestCase):
         fake = FakeDatadog()
         client = DatadogClient(client=fake)
         await client.submit_metric(
-            "app.requests", [[1700000000, 1]],
+            "app.requests",
+            [[1700000000, 1]],
         )
         body = fake.calls[0][2]["body"]
-        assert body == {
-            "series": [
-                {"metric": "app.requests", "points": [[1700000000, 1]]}
-            ]
-        }
+        assert body == {"series": [{"metric": "app.requests", "points": [[1700000000, 1]]}]}
 
     async def test_submit_metric_rejects_empty_name(self) -> None:
         client = DatadogClient(client=FakeDatadog())
@@ -300,9 +293,7 @@ class TestQuery(unittest.IsolatedAsyncioTestCase):
         client = DatadogClient(client=fake)
         start = datetime(2024, 1, 1, tzinfo=UTC)
         end = datetime(2024, 1, 2, tzinfo=UTC)
-        result = await client.query(
-            "avg:system.cpu.user{*}", start=start, end=end
-        )
+        result = await client.query("avg:system.cpu.user{*}", start=start, end=end)
         assert result == {"series": []}
         method, path, opts = fake.calls[0]
         assert method == "GET"
@@ -333,7 +324,5 @@ class TestQuery(unittest.IsolatedAsyncioTestCase):
         client = DatadogClient(client=fake)
         start = datetime(2024, 6, 1, tzinfo=UTC)
         end = datetime(2024, 6, 2, tzinfo=UTC)
-        result = await client.query_metrics(
-            "system.cpu.user", start=start, end=end
-        )
+        result = await client.query_metrics("system.cpu.user", start=start, end=end)
         assert result == {"series": [{"name": "cpu"}]}

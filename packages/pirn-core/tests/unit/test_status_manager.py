@@ -12,16 +12,14 @@ class _StandaloneTests(unittest.TestCase):
     def test_initial_state_is_pending(self):
         sm = StatusManager(run_id="r")
         assert sm.get("k1") is KnotState.PENDING
-    
-    
+
     def test_transition_records_state(self):
         sm = StatusManager(run_id="r")
         sm.transition("k1", KnotState.RUNNING)
         assert sm.get("k1") is KnotState.RUNNING
         sm.transition("k1", KnotState.SUCCEEDED)
         assert sm.get("k1") is KnotState.SUCCEEDED
-    
-    
+
     def test_events_recorded_in_order(self):
         sm = StatusManager(run_id="r")
         sm.transition("k1", KnotState.RUNNING)
@@ -34,16 +32,14 @@ class _StandaloneTests(unittest.TestCase):
             KnotState.SUCCEEDED,
             KnotState.RUNNING,
         ]
-    
-    
+
     def test_snapshot_reflects_latest(self):
         sm = StatusManager(run_id="r")
         sm.transition("k1", KnotState.RUNNING)
         sm.transition("k2", KnotState.SKIPPED)
         snap = sm.snapshot()
         assert snap == {"k1": KnotState.RUNNING, "k2": KnotState.SKIPPED}
-    
-    
+
     def test_subscriber_receives_events(self):
         sm = StatusManager(run_id="r")
         received = []
@@ -54,21 +50,19 @@ class _StandaloneTests(unittest.TestCase):
             ("k1", KnotState.RUNNING),
             ("k2", KnotState.FAILED),
         ]
-    
-    
+
     def test_subscriber_exception_is_swallowed(self):
         """A bad subscriber must not break the run."""
         sm = StatusManager(run_id="r")
-    
+
         def bad(_event):
             raise RuntimeError("subscriber error")
-    
+
         sm.subscribe(bad)
         # Should not raise.
         sm.transition("k1", KnotState.RUNNING)
         assert sm.get("k1") is KnotState.RUNNING
-    
-    
+
     def test_transition_with_detail(self):
         sm = StatusManager(run_id="r")
         sm.transition("k1", KnotState.SKIPPED, detail="branch_not_selected")

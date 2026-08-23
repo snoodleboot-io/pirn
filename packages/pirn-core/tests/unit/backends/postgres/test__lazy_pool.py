@@ -53,6 +53,7 @@ class TestLazyPoolGet(unittest.IsolatedAsyncioTestCase):
 
     async def test_get_raises_import_error_when_asyncpg_missing(self) -> None:
         from unittest.mock import patch
+
         lp = _LazyPool(dsn="postgresql://user:pass@host/db")
         with patch.dict("sys.modules", {"asyncpg": None}):
             with self.assertRaises(ImportError) as ctx:

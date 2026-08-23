@@ -43,24 +43,21 @@ class FakeSlackClient:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_api_client(self) -> None:
         client = SlackClient(client=FakeSlackClient())
         assert isinstance(client, ApiClient)
-    
-    
+
     def test_construction_requires_config_or_client(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or client="):
             SlackClient()
-    
-    
+
     def test_sensitive_fields_declared(self) -> None:
         cfg = SlackConfig()
         assert "bot_token" in cfg.sensitive_fields
         assert "app_token" in cfg.sensitive_fields
-    
-    
+
+
 # ────────────────────────────────────────────────────────────── send_message
 
 

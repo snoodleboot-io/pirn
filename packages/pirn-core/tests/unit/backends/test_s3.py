@@ -18,6 +18,7 @@ def _make_s3_mock(stored: dict[str, bytes]) -> tuple[Any, Any]:
 
     class _NoSuchKey(Exception):
         pass
+
     _NoSuchKey.__name__ = "NoSuchKey"
 
     async def fake_get_object(**kwargs: Any) -> dict[str, Any]:

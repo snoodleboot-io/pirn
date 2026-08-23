@@ -1,5 +1,4 @@
-"""Tests for :class:`pirn.connectors.observability.opentelemetry_config.OpenTelemetryConfig`.
-"""
+"""Tests for :class:`pirn.connectors.observability.opentelemetry_config.OpenTelemetryConfig`."""
 
 from __future__ import annotations
 

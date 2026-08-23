@@ -41,37 +41,35 @@ class FakeSalesforceClient:
         return self.query_response
 
     def restful(
-        self, path: str, method: str = "GET",
-        params: dict[str, Any] | None = None, json: dict[str, Any] | None = None,
+        self,
+        path: str,
+        method: str = "GET",
+        params: dict[str, Any] | None = None,
+        json: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        self.restful_calls.append(
-            {"path": path, "method": method, "params": params, "json": json}
-        )
+        self.restful_calls.append({"path": path, "method": method, "params": params, "json": json})
         return self.restful_response
 
 
 # ───────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_api_client(self) -> None:
         client = SalesforceClient(client=FakeSalesforceClient())
         assert isinstance(client, ApiClient)
-    
-    
+
     def test_construction_requires_config_or_client(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or client="):
             SalesforceClient()
-    
-    
+
     def test_sensitive_fields_declared(self) -> None:
         cfg = SalesforceConfig()
         assert "password" in cfg.sensitive_fields
         assert "security_token" in cfg.sensitive_fields
         assert "consumer_secret" in cfg.sensitive_fields
-    
-    
+
+
 # ────────────────────────────────────────────────────────── delegation
 
 
@@ -161,31 +159,26 @@ class TestCredentialSafety(unittest.TestCase):
         assert "oauth-shh" not in text
         assert "<redacted>" in text
 
-
-# ───────────────────────────────────────────────────────── capability mixins
-
+    # ───────────────────────────────────────────────────────── capability mixins
 
     def test_implements_table_source_and_record_writer(self) -> None:
         client = SalesforceClient(client=FakeSalesforceClient())
         assert isinstance(client, TableSource)
         assert isinstance(client, RecordWriter)
-    
-    
+
     def test_construction_rejects_empty_soql_query(self) -> None:
         with self.assertRaisesRegex(ValueError, "soql_query"):
             SalesforceClient(client=FakeSalesforceClient(), soql_query="")
-    
-    
+
     def test_construction_rejects_empty_sobject_type(self) -> None:
         with self.assertRaisesRegex(ValueError, "sobject_type"):
             SalesforceClient(client=FakeSalesforceClient(), sobject_type="")
-    
-    
+
     def test_default_sobject_type_is_account(self) -> None:
         client = SalesforceClient(client=FakeSalesforceClient())
         assert client.sobject_type == "Account"
-    
-    
+
+
 class TestFetchPage(unittest.IsolatedAsyncioTestCase):
     async def test_fetch_page_initial_done(self) -> None:
         fake = FakeSalesforceClient()
@@ -193,9 +186,7 @@ class TestFetchPage(unittest.IsolatedAsyncioTestCase):
             "records": [{"Id": "001"}, {"Id": "002"}],
             "done": True,
         }
-        client = SalesforceClient(
-            client=fake, soql_query="SELECT Id FROM Account"
-        )
+        client = SalesforceClient(client=fake, soql_query="SELECT Id FROM Account")
         rows, cursor = await client.fetch_page()
         assert rows == [{"Id": "001"}, {"Id": "002"}]
         assert cursor is None
@@ -208,9 +199,7 @@ class TestFetchPage(unittest.IsolatedAsyncioTestCase):
             "done": False,
             "nextRecordsUrl": "/services/data/v59.0/query/01g000-2000",
         }
-        client = SalesforceClient(
-            client=fake, soql_query="SELECT Id FROM Account"
-        )
+        client = SalesforceClient(client=fake, soql_query="SELECT Id FROM Account")
         rows, cursor = await client.fetch_page()
         assert rows == [{"Id": "001"}]
         assert cursor == "/services/data/v59.0/query/01g000-2000"
@@ -221,18 +210,12 @@ class TestFetchPage(unittest.IsolatedAsyncioTestCase):
             "records": [{"Id": "003"}],
             "done": True,
         }
-        client = SalesforceClient(
-            client=fake, soql_query="SELECT Id FROM Account"
-        )
-        rows, cursor = await client.fetch_page(
-            "/services/data/v59.0/query/01g000-2000"
-        )
+        client = SalesforceClient(client=fake, soql_query="SELECT Id FROM Account")
+        rows, cursor = await client.fetch_page("/services/data/v59.0/query/01g000-2000")
         assert rows == [{"Id": "003"}]
         assert cursor is None
         # When cursor is supplied, it goes through restful (non-SOQL path)
-        assert fake.restful_calls[0]["path"] == (
-            "/services/data/v59.0/query/01g000-2000"
-        )
+        assert fake.restful_calls[0]["path"] == ("/services/data/v59.0/query/01g000-2000")
 
     async def test_fetch_page_without_query_or_cursor_raises(self) -> None:
         client = SalesforceClient(client=FakeSalesforceClient())
@@ -269,9 +252,7 @@ class TestWriteRecords(unittest.IsolatedAsyncioTestCase):
     async def test_write_records_posts_each_record(self) -> None:
         fake = FakeSalesforceClient()
         client = SalesforceClient(client=fake, sobject_type="Contact")
-        count = await client.write_records(
-            [{"Name": "Alice"}, {"Name": "Bob"}]
-        )
+        count = await client.write_records([{"Name": "Alice"}, {"Name": "Bob"}])
         assert count == 2
         assert len(fake.restful_calls) == 2
         assert fake.restful_calls[0]["method"] == "POST"
@@ -279,7 +260,9 @@ class TestWriteRecords(unittest.IsolatedAsyncioTestCase):
         assert fake.restful_calls[0]["json"] == {"Name": "Alice"}
         assert fake.restful_calls[1]["json"] == {"Name": "Bob"}
 
-    async def test_write_records_default_sobject_type_is_account(self,) -> None:
+    async def test_write_records_default_sobject_type_is_account(
+        self,
+    ) -> None:
         fake = FakeSalesforceClient()
         client = SalesforceClient(client=fake)
         count = await client.write_records([{"Name": "Acme"}])

@@ -7,6 +7,7 @@ Run with:
 from __future__ import annotations
 
 import pytest
+
 from pirn.core.hashing import content_hash
 
 

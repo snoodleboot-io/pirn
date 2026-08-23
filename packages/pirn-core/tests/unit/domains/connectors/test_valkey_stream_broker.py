@@ -42,7 +42,13 @@ class StubValkey:
         return "OK"
 
     async def xreadgroup(
-        self, group: str, consumer: str, streams: dict[str, str], *, count: int, block: int,
+        self,
+        group: str,
+        consumer: str,
+        streams: dict[str, str],
+        *,
+        count: int,
+        block: int,
     ) -> list[tuple[str, list[tuple[bytes, dict[bytes, bytes]]]]]:
         # Return all undelivered entries for the first stream argument.
         out: list[tuple[str, list[tuple[bytes, dict[bytes, bytes]]]]] = []
@@ -68,13 +74,12 @@ class StubValkey:
 # ────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_message_broker(self) -> None:
         broker = ValkeyStreamBroker(ValkeyStreamConfig(), client=StubValkey())
         assert isinstance(broker, MessageBroker)
-    
-    
+
+
 # ────────────────────────────────────────────────────────────── publish
 
 
@@ -88,9 +93,7 @@ class TestPublish(unittest.IsolatedAsyncioTestCase):
     async def test_publish_with_key_and_headers(self) -> None:
         stub = StubValkey()
         broker = ValkeyStreamBroker(ValkeyStreamConfig(), client=stub)
-        await broker.publish(
-            "events", b"hello", key=b"user-1", headers={"trace": b"abc"}
-        )
+        await broker.publish("events", b"hello", key=b"user-1", headers={"trace": b"abc"})
         fields = stub.streams["events"][0][1]
         assert fields[b"v"] == b"hello"
         assert fields[b"k"] == b"user-1"
@@ -108,9 +111,7 @@ class TestPublish(unittest.IsolatedAsyncioTestCase):
 class TestConsume(unittest.IsolatedAsyncioTestCase):
     async def test_consume_yields_records_with_value_and_key(self) -> None:
         stub = StubValkey()
-        broker = ValkeyStreamBroker(
-            ValkeyStreamConfig(consumer_group="g1"), client=stub
-        )
+        broker = ValkeyStreamBroker(ValkeyStreamConfig(consumer_group="g1"), client=stub)
         await broker.publish("events", b"a", key=b"k1")
         await broker.publish("events", b"b", key=b"k2")
 
@@ -121,9 +122,7 @@ class TestConsume(unittest.IsolatedAsyncioTestCase):
 
     async def test_consume_acknowledges_after_yield(self) -> None:
         stub = StubValkey()
-        broker = ValkeyStreamBroker(
-            ValkeyStreamConfig(consumer_group="g1"), client=stub
-        )
+        broker = ValkeyStreamBroker(ValkeyStreamConfig(consumer_group="g1"), client=stub)
         await broker.publish("events", b"a")
         async for _ in await broker.consume("events"):
             pass
@@ -139,9 +138,7 @@ class TestConsume(unittest.IsolatedAsyncioTestCase):
 
     async def test_consume_handles_existing_group(self) -> None:
         stub = StubValkey()
-        broker = ValkeyStreamBroker(
-            ValkeyStreamConfig(consumer_group="g1"), client=stub
-        )
+        broker = ValkeyStreamBroker(ValkeyStreamConfig(consumer_group="g1"), client=stub)
         # Pre-create the group so the broker hits the BUSYGROUP path.
         await stub.xgroup_create("events", "g1")
         await broker.publish("events", b"x")
@@ -157,12 +154,8 @@ class TestConsume(unittest.IsolatedAsyncioTestCase):
 class TestHeadersRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_headers_round_trip(self) -> None:
         stub = StubValkey()
-        broker = ValkeyStreamBroker(
-            ValkeyStreamConfig(consumer_group="g"), client=stub
-        )
-        await broker.publish(
-            "t", b"v", headers={"a": b"1", "b": b"2"}
-        )
+        broker = ValkeyStreamBroker(ValkeyStreamConfig(consumer_group="g"), client=stub)
+        await broker.publish("t", b"v", headers={"a": b"1", "b": b"2"})
         async for rec in await broker.consume("t"):
             assert rec.headers == {"a": b"1", "b": b"2"}
 

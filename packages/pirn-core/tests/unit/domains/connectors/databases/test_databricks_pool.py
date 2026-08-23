@@ -17,9 +17,7 @@ from pirn.connectors.databases.databricks_pool import DatabricksPool
 
 
 class FakeDatabricksCursor:
-    def __init__(
-        self, parent: FakeDatabricksClient
-    ) -> None:
+    def __init__(self, parent: FakeDatabricksClient) -> None:
         self._parent = parent
         self._last_query: str | None = None
         self.rowcount = 0
@@ -58,18 +56,16 @@ class FakeDatabricksClient:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_database_connection_pool(self) -> None:
         pool = DatabricksPool(client=FakeDatabricksClient())
         assert isinstance(pool, DatabaseConnectionPool)
-    
-    
+
     def test_construction_requires_config_or_client(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or client="):
             DatabricksPool()
-    
-    
+
+
 # ────────────────────────────────────────────────────────── delegation
 
 
@@ -90,12 +86,8 @@ class TestDelegation(unittest.IsolatedAsyncioTestCase):
     async def test_execute_many_batches(self) -> None:
         fake = FakeDatabricksClient()
         pool = DatabricksPool(client=fake)
-        await pool.execute_many(
-            "INSERT INTO t VALUES (?, ?)", [(1, "a"), (2, "b")]
-        )
-        assert fake.executed_many == [
-            ("INSERT INTO t VALUES (?, ?)", [[1, "a"], [2, "b"]])
-        ]
+        await pool.execute_many("INSERT INTO t VALUES (?, ?)", [(1, "a"), (2, "b")])
+        assert fake.executed_many == [("INSERT INTO t VALUES (?, ?)", [[1, "a"], [2, "b"]])]
 
 
 # ─────────────────────────────────────────────────────────── query safety

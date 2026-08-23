@@ -14,6 +14,7 @@ import asyncio
 import os
 
 import pytest
+
 from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -61,6 +62,7 @@ def test_bench_postgres_lineage_100(benchmark):
         pytest.skip("PIRN_TEST_POSTGRES_URL not set")
 
     import asyncpg
+
     from pirn.backends.postgres.postgres_history import PostgresHistory
 
     async def run():
@@ -80,6 +82,7 @@ def test_bench_postgres_lineage_1000(benchmark):
         pytest.skip("PIRN_TEST_POSTGRES_URL not set")
 
     import asyncpg
+
     from pirn.backends.postgres.postgres_history import PostgresHistory
 
     async def run():

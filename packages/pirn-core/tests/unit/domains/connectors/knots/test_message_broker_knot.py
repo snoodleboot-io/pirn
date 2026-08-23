@@ -13,8 +13,12 @@ from pirn.core.knot_config import KnotConfig
 
 class StubBroker(MessageBroker):
     async def publish(
-        self, topic: str, value: bytes, *,
-        key: bytes | None = None, headers: dict[str, bytes] | None = None,
+        self,
+        topic: str,
+        value: bytes,
+        *,
+        key: bytes | None = None,
+        headers: dict[str, bytes] | None = None,
     ) -> None:
         pass
 
@@ -22,6 +26,7 @@ class StubBroker(MessageBroker):
         async def _empty() -> AsyncIterator[Any]:
             if False:
                 yield None
+
         return _empty()
 
 

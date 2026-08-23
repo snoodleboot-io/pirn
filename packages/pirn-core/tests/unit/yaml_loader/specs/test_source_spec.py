@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.yaml_loader.specs.source_spec import SourceSpec
 from pydantic import ValidationError
+
+from pirn.yaml_loader.specs.source_spec import SourceSpec
 
 
 class TestSourceSpecConstruction(unittest.TestCase):

@@ -103,6 +103,7 @@ class TestKnotConstruction(unittest.TestCase):
 
     def test_plain_knot_is_not_optional(self) -> None:
         from pirn.core.optional import Optional
+
         node = Add(a=self._p("a"), b=self._p("b"), _config=KnotConfig(id="add"))
         self.assertNotIsInstance(node, Optional)
 

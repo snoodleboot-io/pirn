@@ -29,7 +29,13 @@ class FakeHttpx:
         self.closed = False
 
     async def request(
-        self, method: str, url: str, *, params: Any = None, json: Any = None, headers: Any = None,
+        self,
+        method: str,
+        url: str,
+        *,
+        params: Any = None,
+        json: Any = None,
+        headers: Any = None,
     ) -> FakeResponse:
         self.calls.append(
             {
@@ -46,36 +52,29 @@ class FakeHttpx:
         self.closed = True
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_api_client(self) -> None:
         client = DataHubClient(client=FakeHttpx())
         assert isinstance(client, ApiClient)
-    
-    
+
     def test_construction_requires_config_or_client(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or client="):
             DataHubClient()
-    
-    
+
     def test_sensitive_fields_listed(self) -> None:
         assert DataHubConfig.sensitive_fields == ("token",)
-    
-    
+
+
 class TestRequest(unittest.IsolatedAsyncioTestCase):
     async def test_request_builds_full_url_and_returns_json(self) -> None:
         fake = FakeHttpx()
-        cfg = DataHubConfig(
-            gms_url="https://gms.acme.com", token="tok"
-        )
-        fake.responses[
-            ("GET", "https://gms.acme.com/entities")
-        ] = {"entities": [{"urn": "urn:foo"}]}
+        cfg = DataHubConfig(gms_url="https://gms.acme.com", token="tok")
+        fake.responses[("GET", "https://gms.acme.com/entities")] = {
+            "entities": [{"urn": "urn:foo"}]
+        }
         client = DataHubClient(cfg, client=fake)
 
-        result = await client.request(
-            "GET", "/entities", params={"a": 1}
-        )
+        result = await client.request("GET", "/entities", params={"a": 1})
 
         assert result == {"entities": [{"urn": "urn:foo"}]}
         assert fake.calls == [
@@ -122,23 +121,20 @@ class TestLifecycle(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(RuntimeError, "closed"):
             await client.request("GET", "/entities")
 
-
     def test_implements_table_source_and_metadata_catalog(self) -> None:
         client = DataHubClient(client=FakeHttpx())
         assert isinstance(client, TableSource)
         assert isinstance(client, MetadataCatalog)
-    
-    
+
     def test_default_entity_type_is_dataset(self) -> None:
         client = DataHubClient(client=FakeHttpx())
         assert client.entity_type == "dataset"
-    
-    
+
     def test_blank_entity_type_rejected(self) -> None:
         with self.assertRaisesRegex(ValueError, "entity_type"):
             DataHubClient(client=FakeHttpx(), entity_type="")
-    
-    
+
+
 class TestSearchEntities(unittest.IsolatedAsyncioTestCase):
     async def test_returns_entities_and_next_cursor_when_more(self) -> None:
         fake = FakeHttpx()
@@ -149,9 +145,7 @@ class TestSearchEntities(unittest.IsolatedAsyncioTestCase):
         }
         client = DataHubClient(cfg, client=fake)
 
-        rows, cursor = await client.search_entities(
-            "dataset", "*", start=0, count=2
-        )
+        rows, cursor = await client.search_entities("dataset", "*", start=0, count=2)
 
         assert rows == [{"urn": "urn:1"}, {"urn": "urn:2"}]
         assert cursor == "2"
@@ -171,9 +165,7 @@ class TestSearchEntities(unittest.IsolatedAsyncioTestCase):
         }
         client = DataHubClient(cfg, client=fake)
 
-        rows, cursor = await client.search_entities(
-            "dataset", "*", start=1, count=1
-        )
+        rows, cursor = await client.search_entities("dataset", "*", start=1, count=1)
 
         assert rows == [{"urn": "urn:1"}]
         assert cursor is None
@@ -241,12 +233,8 @@ class TestListEntities(unittest.IsolatedAsyncioTestCase):
             )
             page_calls["count"] += 1
             if page_calls["count"] == 1:
-                return _FakeJson(
-                    {"entities": first_page, "total": 150}
-                )
-            return _FakeJson(
-                {"entities": second_page, "total": 150}
-            )
+                return _FakeJson({"entities": first_page, "total": 150})
+            return _FakeJson({"entities": second_page, "total": 150})
 
         fake.request = request_request  # type: ignore[assignment]
         client = DataHubClient(cfg, client=fake)
@@ -273,9 +261,7 @@ class TestListEntities(unittest.IsolatedAsyncioTestCase):
         client = DataHubClient(cfg, client=fake)
 
         results = []
-        async for entity in client.list_entities(
-            "dataset", filter={"platform": "snowflake"}
-        ):
+        async for entity in client.list_entities("dataset", filter={"platform": "snowflake"}):
             results.append(entity)
 
         assert results == [{"urn": "u1", "platform": "snowflake"}]
@@ -285,9 +271,10 @@ class TestDescribeEntity(unittest.IsolatedAsyncioTestCase):
     async def test_describe_calls_entity_get(self) -> None:
         fake = FakeHttpx()
         cfg = DataHubConfig(gms_url="https://gms.acme.com")
-        fake.responses[
-            ("GET", "https://gms.acme.com/entity/urn:foo")
-        ] = {"urn": "urn:foo", "name": "foo"}
+        fake.responses[("GET", "https://gms.acme.com/entity/urn:foo")] = {
+            "urn": "urn:foo",
+            "name": "foo",
+        }
         client = DataHubClient(cfg, client=fake)
 
         result = await client.describe_entity("urn:foo")

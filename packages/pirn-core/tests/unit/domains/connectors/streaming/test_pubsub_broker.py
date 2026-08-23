@@ -32,9 +32,7 @@ class StubPublisher:
         return f"projects/{project}/topics/{topic}"
 
     def publish(self, topic_path: str, data: bytes, **attributes: str) -> StubFuture:
-        self.published.append(
-            {"topic_path": topic_path, "data": data, "attributes": attributes}
-        )
+        self.published.append({"topic_path": topic_path, "data": data, "attributes": attributes})
         return StubFuture()
 
     def close(self) -> None:
@@ -79,20 +77,18 @@ class StubSubscriber:
 # ─────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_message_broker(self) -> None:
         broker = PubSubBroker(
             PubSubConfig(project="p"), publisher=StubPublisher(), subscriber=StubSubscriber([])
         )
         assert isinstance(broker, MessageBroker)
-    
-    
+
     def test_rejects_non_config(self) -> None:
         with self.assertRaisesRegex(TypeError, "must be PubSubConfig"):
             PubSubBroker("nope", publisher=StubPublisher())  # type: ignore[arg-type]
-    
-    
+
+
 # ──────────────────────────────────────────────────────────── publish
 
 
@@ -112,9 +108,7 @@ class TestPublish(unittest.IsolatedAsyncioTestCase):
     async def test_publish_with_key_and_headers(self) -> None:
         pub = StubPublisher()
         broker = PubSubBroker(PubSubConfig(project="p"), publisher=pub)
-        await broker.publish(
-            "events", b"v", key=b"user-1", headers={"trace": b"abc"}
-        )
+        await broker.publish("events", b"v", key=b"user-1", headers={"trace": b"abc"})
         published = pub.published[0]
         assert published["attributes"]["pirn-key"] == "user-1"
         assert published["attributes"]["trace"] == "abc"
@@ -148,9 +142,7 @@ class TestConsume(unittest.IsolatedAsyncioTestCase):
                 ]
             ]
         )
-        broker = PubSubBroker(
-            PubSubConfig(project="p"), publisher=StubPublisher(), subscriber=sub
-        )
+        broker = PubSubBroker(PubSubConfig(project="p"), publisher=StubPublisher(), subscriber=sub)
         out: list[bytes] = []
         async for rec in await broker.consume("my-sub"):
             out.append(rec.message.data)

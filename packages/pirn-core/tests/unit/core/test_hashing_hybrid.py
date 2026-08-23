@@ -16,6 +16,7 @@ from __future__ import annotations
 
 # cross-domain: skipped in per-package isolation, run by the unified suite (SCD-24)
 import pytest as _pytest
+
 _pytest.importorskip("pirn_data")
 pytestmark = _pytest.mark.cross_domain
 
@@ -126,9 +127,7 @@ class TestDataBatchEndToEnd(unittest.TestCase):
             primary_keys=("id",),
         )
         rows = ({"id": 1, "name": "a"}, {"id": 2, "name": "b"})
-        batch = DataBatch(
-            rows=rows, schema=schema, source_uri="memory://t"
-        )
+        batch = DataBatch(rows=rows, schema=schema, source_uri="memory://t")
         # Canonical form is what __pirn_canonical__ returns; the hasher
         # must produce the same digest as hashing that primitive dict
         # directly.

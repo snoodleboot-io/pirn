@@ -15,7 +15,6 @@ from pirn.connectors.file_formats.batch_file_format import (
 from pirn.connectors.file_formats.png_format import (
     PngFormat,
 )
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -79,9 +78,7 @@ class TestPngFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_missing_field_rejected(self) -> None:
         fmt = PngFormat()
         with self.assertRaises(ValueError):
-            await FormatRoundTrip.encode(
-                fmt, [{"width": 4, "height": 4, "mode": "RGB"}]
-            )
+            await FormatRoundTrip.encode(fmt, [{"width": 4, "height": 4, "mode": "RGB"}])
 
     async def test_invalid_width_rejected(self) -> None:
         fmt = PngFormat()

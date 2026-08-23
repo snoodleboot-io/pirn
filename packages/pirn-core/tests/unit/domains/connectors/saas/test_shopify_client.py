@@ -27,11 +27,13 @@ class FakeShopifyConnection:
         self.closed = False
 
     def request(
-        self, method: str, path: str, headers: dict[str, str] | None = None, data: Any = None,
+        self,
+        method: str,
+        path: str,
+        headers: dict[str, str] | None = None,
+        data: Any = None,
     ) -> dict[str, Any]:
-        self.calls.append(
-            {"method": method, "path": path, "headers": headers, "data": data}
-        )
+        self.calls.append({"method": method, "path": path, "headers": headers, "data": data})
         return self.response
 
     def close(self) -> None:
@@ -41,23 +43,20 @@ class FakeShopifyConnection:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_api_client(self) -> None:
         client = ShopifyClient(client=FakeShopifyConnection())
         assert isinstance(client, ApiClient)
-    
-    
+
     def test_construction_requires_config_or_client(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or client="):
             ShopifyClient()
-    
-    
+
     def test_sensitive_fields_declared(self) -> None:
         cfg = ShopifyConfig()
         assert "access_token" in cfg.sensitive_fields
-    
-    
+
+
 # ────────────────────────────────────────────────────────── delegation
 
 
@@ -65,9 +64,7 @@ class TestRequest(unittest.IsolatedAsyncioTestCase):
     async def test_get_appends_query_string_from_params(self) -> None:
         fake = FakeShopifyConnection()
         client = ShopifyClient(client=fake)
-        result = await client.request(
-            "GET", "/admin/api/2024-04/products.json", params={"a": 1}
-        )
+        result = await client.request("GET", "/admin/api/2024-04/products.json", params={"a": 1})
         assert result == fake.response
         assert fake.calls[0]["method"] == "GET"
         assert fake.calls[0]["path"] == "/admin/api/2024-04/products.json?a=1"
@@ -134,7 +131,11 @@ class TestCredentialSafety(unittest.TestCase):
 class FakeShopifyResponse:
     """Mimics a Shopify SDK HTTP response with a body dict and headers."""
 
-    def __init__(self, body: dict[str, Any], headers: dict[str, str] | None = None,) -> None:
+    def __init__(
+        self,
+        body: dict[str, Any],
+        headers: dict[str, str] | None = None,
+    ) -> None:
         self.body = body
         self.headers = headers or {}
 
@@ -148,32 +149,31 @@ class FakeShopifyConnectionWithHeaders:
         self.closed = False
 
     def request(
-        self, method: str, path: str, headers: dict[str, str] | None = None, data: Any = None,
+        self,
+        method: str,
+        path: str,
+        headers: dict[str, str] | None = None,
+        data: Any = None,
     ) -> Any:
-        self.calls.append(
-            {"method": method, "path": path, "headers": headers, "data": data}
-        )
+        self.calls.append({"method": method, "path": path, "headers": headers, "data": data})
         return self.response
 
     def close(self) -> None:
         self.closed = True
 
-
     def test_implements_table_source(self) -> None:
         client = ShopifyClient(client=FakeShopifyConnection())
         assert isinstance(client, TableSource)
-    
-    
+
     def test_default_resource_is_orders(self) -> None:
         client = ShopifyClient(client=FakeShopifyConnection())
         assert client.resource == "orders"
-    
-    
+
     def test_construction_rejects_empty_resource(self) -> None:
         with self.assertRaisesRegex(ValueError, "resource"):
             ShopifyClient(client=FakeShopifyConnection(), resource="")
-    
-    
+
+
 class TestFetchPage(unittest.IsolatedAsyncioTestCase):
     async def test_fetch_page_returns_orders_no_link(self) -> None:
         fake = FakeShopifyConnection()
@@ -185,9 +185,11 @@ class TestFetchPage(unittest.IsolatedAsyncioTestCase):
         assert fake.calls[0]["path"].startswith("/admin/api/")
         assert fake.calls[0]["path"].endswith("/orders.json")
 
-    async def test_fetch_page_extracts_cursor_from_link_header(self,) -> None:
+    async def test_fetch_page_extracts_cursor_from_link_header(
+        self,
+    ) -> None:
         link = (
-            '<https://shop.myshopify.com/admin/api/2024-04/orders.json'
+            "<https://shop.myshopify.com/admin/api/2024-04/orders.json"
             '?page_info=NEXT_TOKEN_42&limit=50>; rel="next"'
         )
         fake_response = FakeShopifyResponse(
@@ -219,9 +221,11 @@ class TestFetchPage(unittest.IsolatedAsyncioTestCase):
         assert cursor is None
         assert fake.calls[0]["path"].endswith("/products.json")
 
-    async def test_fetch_page_link_header_without_next_returns_none(self,) -> None:
+    async def test_fetch_page_link_header_without_next_returns_none(
+        self,
+    ) -> None:
         link = (
-            '<https://shop.myshopify.com/admin/api/2024-04/orders.json'
+            "<https://shop.myshopify.com/admin/api/2024-04/orders.json"
             '?page_info=PREV>; rel="previous"'
         )
         fake_response = FakeShopifyResponse(

@@ -13,10 +13,12 @@ class TestChainedIdentityResolver(unittest.TestCase):
         self.assertEqual(chain.resolve(), "x")
 
     def test_stops_at_first_match(self) -> None:
-        chain = ChainedIdentityResolver([
-            StaticIdentityResolver("first"),
-            StaticIdentityResolver("second"),
-        ])
+        chain = ChainedIdentityResolver(
+            [
+                StaticIdentityResolver("first"),
+                StaticIdentityResolver("second"),
+            ]
+        )
         self.assertEqual(chain.resolve(), "first")
 
     def test_returns_none_when_all_null(self) -> None:

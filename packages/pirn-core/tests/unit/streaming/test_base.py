@@ -60,6 +60,7 @@ class TestStreamingSourceAbstract(unittest.TestCase):
 
     def test_close_raises_not_implemented(self) -> None:
         import asyncio
+
         src = StreamingSource()
         with self.assertRaises(NotImplementedError):
             asyncio.run(src.close())
@@ -92,6 +93,7 @@ class TestRunStream(unittest.IsolatedAsyncioTestCase):
     async def test_close_called_after_stream(self) -> None:
         with Tapestry() as t:
             from pirn.core.parameter import Parameter
+
             Parameter("item", object, _config=KnotConfig(id="item"))
 
         stream = _SimpleStream([1])

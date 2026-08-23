@@ -13,7 +13,6 @@ from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.connectors.file_formats.sdtm_xpt_format import SdtmXptFormat
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -21,6 +20,7 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_xpt_bytes(
     rows: list[dict], column_labels: dict | None = None, file_label: str = ""
@@ -61,6 +61,7 @@ async def _decode(fmt: SdtmXptFormat, payload: bytes) -> list[dict]:
 # Construction
 # ---------------------------------------------------------------------------
 
+
 class TestSdtmXptFormatConstruction(unittest.TestCase):
     def test_is_batch_format(self) -> None:
         assert isinstance(SdtmXptFormat(), BatchFileFormat)
@@ -75,6 +76,7 @@ class TestSdtmXptFormatConstruction(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # PHI sanitisation (SDTM is de-identified; verify metadata handling)
 # ---------------------------------------------------------------------------
+
 
 class TestSdtmXptFormatPhiSanitisation(unittest.IsolatedAsyncioTestCase):
     async def test_first_record_has_metadata(self) -> None:
@@ -109,6 +111,7 @@ class TestSdtmXptFormatPhiSanitisation(unittest.IsolatedAsyncioTestCase):
 # Round-trip
 # ---------------------------------------------------------------------------
 
+
 class TestSdtmXptFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_row_values_preserved(self) -> None:
         rows = [{"SUBJ": "001", "AGE": 30}, {"SUBJ": "002", "AGE": 25}]
@@ -133,6 +136,7 @@ class TestSdtmXptFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
 # Error paths
 # ---------------------------------------------------------------------------
 
+
 class TestSdtmXptFormatErrors(unittest.IsolatedAsyncioTestCase):
     async def test_invalid_payload_raises(self) -> None:
         fmt = SdtmXptFormat()
@@ -149,9 +153,11 @@ class TestSdtmXptFormatErrors(unittest.IsolatedAsyncioTestCase):
 # Missing dependency
 # ---------------------------------------------------------------------------
 
+
 class TestSdtmXptFormatMissingDep(unittest.TestCase):
     def test_missing_pyreadstat_raises(self) -> None:
         import unittest.mock
+
         fmt = SdtmXptFormat()
         with unittest.mock.patch.dict("sys.modules", {"pyreadstat": None}):
             with self.assertRaisesRegex(ImportError, "pirn\\[health\\]"):

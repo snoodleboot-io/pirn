@@ -54,18 +54,16 @@ class FakeAsyncpgPool:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_database_connection_pool(self) -> None:
         pool = PostgresPool(pool=FakeAsyncpgPool())
         assert isinstance(pool, DatabaseConnectionPool)
-    
-    
+
     def test_construction_requires_config_or_pool(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or pool="):
             PostgresPool()
-    
-    
+
+
 # ────────────────────────────────────────────────────────── delegation
 
 
@@ -73,12 +71,8 @@ class TestDelegation(unittest.IsolatedAsyncioTestCase):
     async def test_execute_passes_query_and_args(self) -> None:
         fake = FakeAsyncpgPool()
         pool = PostgresPool(pool=fake)
-        await pool.execute(
-            "INSERT INTO t (x, y) VALUES ($1, $2)", 1, "hello"
-        )
-        assert fake.executed == [
-            ("INSERT INTO t (x, y) VALUES ($1, $2)", (1, "hello"))
-        ]
+        await pool.execute("INSERT INTO t (x, y) VALUES ($1, $2)", 1, "hello")
+        assert fake.executed == [("INSERT INTO t (x, y) VALUES ($1, $2)", (1, "hello"))]
 
     async def test_fetch_all_returns_rows(self) -> None:
         fake = FakeAsyncpgPool()
@@ -200,15 +194,11 @@ class TestConnectErrorScrubs(unittest.IsolatedAsyncioTestCase):
         fake_asyncpg = type("FakeAsyncpg", (), {})()
 
         async def boom(*_: Any, **__: Any) -> None:
-            raise ConnectionError(
-                "could not connect: postgres://alice:secret-pw@db/main timed out"
-            )
+            raise ConnectionError("could not connect: postgres://alice:secret-pw@db/main timed out")
 
         fake_asyncpg.create_pool = boom  # type: ignore[attr-defined]
         with unittest.mock.patch.dict(__import__("sys").modules, {"asyncpg": fake_asyncpg}):
-            pool = PostgresPool(
-                PostgresConfig(dsn="postgres://alice:secret-pw@db/main")
-            )
+            pool = PostgresPool(PostgresConfig(dsn="postgres://alice:secret-pw@db/main"))
             with self.assertRaises(ConnectionError) as exc_info:
                 await pool.acquire()
         msg = str(exc_info.exception)

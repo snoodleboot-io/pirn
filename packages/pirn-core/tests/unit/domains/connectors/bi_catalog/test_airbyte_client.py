@@ -26,7 +26,13 @@ class FakeHttpx:
         self.closed = False
 
     async def request(
-        self, method: str, url: str, *, params: Any = None, json: Any = None, headers: Any = None,
+        self,
+        method: str,
+        url: str,
+        *,
+        params: Any = None,
+        json: Any = None,
+        headers: Any = None,
     ) -> FakeResponse:
         self.calls.append(
             {
@@ -43,22 +49,19 @@ class FakeHttpx:
         self.closed = True
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_api_client(self) -> None:
         client = AirbyteClient(client=FakeHttpx())
         assert isinstance(client, ApiClient)
-    
-    
+
     def test_construction_requires_config_or_client(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or client="):
             AirbyteClient()
-    
-    
+
     def test_sensitive_fields_listed(self) -> None:
         assert AirbyteConfig.sensitive_fields == ("client_secret", "access_token")
-    
-    
+
+
 class TestRequest(unittest.IsolatedAsyncioTestCase):
     async def test_request_builds_full_url_and_returns_json(self) -> None:
         fake = FakeHttpx()
@@ -66,9 +69,7 @@ class TestRequest(unittest.IsolatedAsyncioTestCase):
             base_url="https://api.airbyte.com/v1",
             access_token="tok",
         )
-        fake.responses[
-            ("GET", "https://api.airbyte.com/v1/sources")
-        ] = {"sources": []}
+        fake.responses[("GET", "https://api.airbyte.com/v1/sources")] = {"sources": []}
         client = AirbyteClient(cfg, client=fake)
 
         result = await client.request("GET", "/sources", params={"a": 1})
@@ -86,13 +87,9 @@ class TestRequest(unittest.IsolatedAsyncioTestCase):
 
     async def test_request_post_with_body(self) -> None:
         fake = FakeHttpx()
-        client = AirbyteClient(
-            AirbyteConfig(access_token="tok"), client=fake
-        )
+        client = AirbyteClient(AirbyteConfig(access_token="tok"), client=fake)
 
-        await client.request(
-            "POST", "/sources", body={"name": "s3"}
-        )
+        await client.request("POST", "/sources", body={"name": "s3"})
 
         assert fake.calls[0]["method"] == "POST"
         assert fake.calls[0]["json"] == {"name": "s3"}
@@ -116,22 +113,19 @@ class TestLifecycle(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(RuntimeError, "closed"):
             await client.request("GET", "/sources")
 
-
     def test_implements_table_source(self) -> None:
         client = AirbyteClient(client=FakeHttpx())
         assert isinstance(client, TableSource)
-    
-    
+
     def test_default_resource_is_connections(self) -> None:
         client = AirbyteClient(client=FakeHttpx())
         assert client.resource == "connections"
-    
-    
+
     def test_blank_resource_rejected(self) -> None:
         with self.assertRaisesRegex(ValueError, "resource"):
             AirbyteClient(client=FakeHttpx(), resource="")
-    
-    
+
+
 class TestFetchPage(unittest.IsolatedAsyncioTestCase):
     async def test_fetch_page_posts_to_list_endpoint(self) -> None:
         fake = FakeHttpx()
@@ -139,17 +133,13 @@ class TestFetchPage(unittest.IsolatedAsyncioTestCase):
             base_url="https://api.airbyte.com",
             access_token="tok",
         )
-        fake.responses[
-            ("POST", "https://api.airbyte.com/v1/connections/list")
-        ] = {
+        fake.responses[("POST", "https://api.airbyte.com/v1/connections/list")] = {
             "data": [{"id": "c1"}, {"id": "c2"}],
             "next_cursor": "next-tok",
         }
         client = AirbyteClient(cfg, client=fake)
 
-        rows, cursor = await client.fetch_page(
-            cursor="prev-tok", page_size=20
-        )
+        rows, cursor = await client.fetch_page(cursor="prev-tok", page_size=20)
 
         assert rows == [{"id": "c1"}, {"id": "c2"}]
         assert cursor == "next-tok"
@@ -161,12 +151,10 @@ class TestFetchPage(unittest.IsolatedAsyncioTestCase):
 
     async def test_fetch_page_no_next_cursor_returns_none(self) -> None:
         fake = FakeHttpx()
-        cfg = AirbyteConfig(
-            base_url="https://api.airbyte.com", access_token="tok"
-        )
-        fake.responses[
-            ("POST", "https://api.airbyte.com/v1/connections/list")
-        ] = {"data": [{"id": "c1"}]}
+        cfg = AirbyteConfig(base_url="https://api.airbyte.com", access_token="tok")
+        fake.responses[("POST", "https://api.airbyte.com/v1/connections/list")] = {
+            "data": [{"id": "c1"}]
+        }
         client = AirbyteClient(cfg, client=fake)
 
         _, cursor = await client.fetch_page()
@@ -177,12 +165,10 @@ class TestFetchPage(unittest.IsolatedAsyncioTestCase):
 class TestVendorTypedListings(unittest.IsolatedAsyncioTestCase):
     async def test_list_connections(self) -> None:
         fake = FakeHttpx()
-        cfg = AirbyteConfig(
-            base_url="https://api.airbyte.com", access_token="tok"
-        )
-        fake.responses[
-            ("POST", "https://api.airbyte.com/v1/connections/list")
-        ] = {"data": [{"id": "c1"}]}
+        cfg = AirbyteConfig(base_url="https://api.airbyte.com", access_token="tok")
+        fake.responses[("POST", "https://api.airbyte.com/v1/connections/list")] = {
+            "data": [{"id": "c1"}]
+        }
         client = AirbyteClient(cfg, client=fake)
 
         rows, _ = await client.list_connections(limit=5)
@@ -193,12 +179,10 @@ class TestVendorTypedListings(unittest.IsolatedAsyncioTestCase):
 
     async def test_list_workspaces(self) -> None:
         fake = FakeHttpx()
-        cfg = AirbyteConfig(
-            base_url="https://api.airbyte.com", access_token="tok"
-        )
-        fake.responses[
-            ("POST", "https://api.airbyte.com/v1/workspaces/list")
-        ] = {"data": [{"id": "w1"}]}
+        cfg = AirbyteConfig(base_url="https://api.airbyte.com", access_token="tok")
+        fake.responses[("POST", "https://api.airbyte.com/v1/workspaces/list")] = {
+            "data": [{"id": "w1"}]
+        }
         client = AirbyteClient(cfg, client=fake)
 
         rows, _ = await client.list_workspaces()

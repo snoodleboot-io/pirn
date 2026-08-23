@@ -5,7 +5,6 @@ from __future__ import annotations
 import unittest
 
 from pirn.connectors.file_formats.codecs.gzip_codec import GzipCodec
-
 from tests.unit.domains.connectors.file_formats.codecs._codec_round_trip import (
     CodecRoundTrip,
 )
@@ -34,8 +33,7 @@ class TestGzipCodecRoundTrip(unittest.IsolatedAsyncioTestCase):
         payload = b"hello world " * 100
         compressed = await CodecRoundTrip.compress(GzipCodec(), payload)
         assert len(compressed) < len(payload), (
-            f"gzip should shrink repetitive input; "
-            f"got {len(compressed)} >= {len(payload)}"
+            f"gzip should shrink repetitive input; got {len(compressed)} >= {len(payload)}"
         )
 
     async def test_empty_input(self) -> None:

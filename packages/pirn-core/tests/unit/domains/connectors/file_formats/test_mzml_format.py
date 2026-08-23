@@ -14,7 +14,6 @@ from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.connectors.file_formats.mzml_format import MzmlFormat
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -22,6 +21,7 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_minimal_mzml_bytes() -> bytes:
     """Return a minimal valid mzML document as bytes."""
@@ -79,6 +79,7 @@ async def _decode_bytes(fmt: MzmlFormat, payload: bytes) -> list[dict]:
 # Construction
 # ---------------------------------------------------------------------------
 
+
 class TestMzmlFormatConstruction(unittest.TestCase):
     def test_is_batch_format(self) -> None:
         assert isinstance(MzmlFormat(), BatchFileFormat)
@@ -93,6 +94,7 @@ class TestMzmlFormatConstruction(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # Round-trip
 # ---------------------------------------------------------------------------
+
 
 class TestMzmlFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_decode_record_shape(self) -> None:
@@ -145,6 +147,7 @@ class TestMzmlFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
 # Error paths
 # ---------------------------------------------------------------------------
 
+
 class TestMzmlFormatErrors(unittest.IsolatedAsyncioTestCase):
     async def test_encode_non_bytes_mz_array_raises(self) -> None:
         fmt = MzmlFormat()
@@ -176,6 +179,7 @@ class TestMzmlFormatErrors(unittest.IsolatedAsyncioTestCase):
 # ---------------------------------------------------------------------------
 # Missing dependency guard
 # ---------------------------------------------------------------------------
+
 
 class TestMzmlFormatMissingDep(unittest.TestCase):
     def test_load_pyteomics_raises_on_missing(self) -> None:

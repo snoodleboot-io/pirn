@@ -49,18 +49,16 @@ class FakeClickhouseClient:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_database_connection_pool(self) -> None:
         pool = ClickhousePool(client=FakeClickhouseClient())
         assert isinstance(pool, DatabaseConnectionPool)
-    
-    
+
     def test_construction_requires_config_or_client(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or client="):
             ClickhousePool()
-    
-    
+
+
 # ────────────────────────────────────────────────────────── delegation
 
 
@@ -68,20 +66,14 @@ class TestDelegation(unittest.IsolatedAsyncioTestCase):
     async def test_execute_passes_query_and_params(self) -> None:
         fake = FakeClickhouseClient()
         pool = ClickhousePool(client=fake)
-        await pool.execute(
-            "INSERT INTO t (x) VALUES ({x:Int64})", {"x": 1}
-        )
-        assert fake.commands == [
-            ("INSERT INTO t (x) VALUES ({x:Int64})", {"x": 1})
-        ]
+        await pool.execute("INSERT INTO t (x) VALUES ({x:Int64})", {"x": 1})
+        assert fake.commands == [("INSERT INTO t (x) VALUES ({x:Int64})", {"x": 1})]
 
     async def test_fetch_all_returns_rows(self) -> None:
         fake = FakeClickhouseClient()
         fake.responses["SELECT id FROM t WHERE x = {x:Int64}"] = [(1,), (2,)]
         pool = ClickhousePool(client=fake)
-        rows = await pool.fetch_all(
-            "SELECT id FROM t WHERE x = {x:Int64}", {"x": 99}
-        )
+        rows = await pool.fetch_all("SELECT id FROM t WHERE x = {x:Int64}", {"x": 99})
         assert rows == [(1,), (2,)]
 
     async def test_execute_many_uses_insert(self) -> None:
@@ -98,9 +90,7 @@ class TestQuerySafety(unittest.TestCase):
     def test_rejects_bare_fstring_placeholder(self) -> None:
         pool = ClickhousePool(client=FakeClickhouseClient())
         with self.assertRaisesRegex(ValueError, "interpolation"):
-            pool._reject_inline_interpolation(
-                "SELECT * FROM t WHERE x = {value}"
-            )
+            pool._reject_inline_interpolation("SELECT * FROM t WHERE x = {value}")
 
     def test_rejects_percent_s_placeholder(self) -> None:
         pool = ClickhousePool(client=FakeClickhouseClient())
@@ -109,9 +99,7 @@ class TestQuerySafety(unittest.TestCase):
 
     def test_accepts_typed_clickhouse_placeholder(self) -> None:
         pool = ClickhousePool(client=FakeClickhouseClient())
-        pool._reject_inline_interpolation(
-            "SELECT * FROM t WHERE x = {value:String}"
-        )
+        pool._reject_inline_interpolation("SELECT * FROM t WHERE x = {value:String}")
 
 
 class TestQuerySafetyEnforced(unittest.IsolatedAsyncioTestCase):

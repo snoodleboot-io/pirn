@@ -20,6 +20,7 @@ def _make_azure_mock(stored: dict[str, bytes]) -> MagicMock:
 
         class _BlobNotFound(Exception):
             pass
+
         _BlobNotFound.__name__ = "BlobNotFound"
 
         async def _download() -> AsyncMock:

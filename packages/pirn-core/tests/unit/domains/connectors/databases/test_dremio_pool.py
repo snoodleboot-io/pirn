@@ -102,23 +102,20 @@ class FakeDremioConnection:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_database_connection_pool(self) -> None:
         pool = DremioPool(connection=FakeDremioConnection())
         assert isinstance(pool, DatabaseConnectionPool)
-    
-    
+
     def test_construction_requires_config_or_connection(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or connection="):
             DremioPool()
-    
-    
+
     def test_sensitive_fields_declared(self) -> None:
         cfg = DremioConfig()
         assert "password" in cfg.sensitive_fields
-    
-    
+
+
 # ────────────────────────────────────────────────────────────── acquire/release
 
 

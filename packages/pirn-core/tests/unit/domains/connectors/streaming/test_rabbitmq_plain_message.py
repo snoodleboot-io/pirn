@@ -23,9 +23,7 @@ class TestRabbitMQPlainMessage(unittest.TestCase):
         self.assertIsNone(msg.correlation_id)
 
     def test_headers_stored(self) -> None:
-        msg = RabbitMQPlainMessage(
-            body=b"x", key=None, headers={"x-retry": b"1"}
-        )
+        msg = RabbitMQPlainMessage(body=b"x", key=None, headers={"x-retry": b"1"})
         self.assertEqual(msg.headers, {"x-retry": b"1"})
 
     def test_none_headers_stored_as_none(self) -> None:

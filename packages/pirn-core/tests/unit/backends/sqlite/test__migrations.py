@@ -11,8 +11,7 @@ from pirn.backends.sqlite._migrations import apply_migrations
 def _fresh_conn() -> sqlite3.Connection:
     conn = sqlite3.connect(":memory:")
     conn.execute(
-        "CREATE TABLE pirn_schema_version "
-        "(component TEXT PRIMARY KEY, version INTEGER NOT NULL)"
+        "CREATE TABLE pirn_schema_version (component TEXT PRIMARY KEY, version INTEGER NOT NULL)"
     )
     return conn
 
@@ -43,9 +42,7 @@ class TestApplyMigrations(unittest.TestCase):
 
     def test_existing_version_only_applies_newer_migrations(self) -> None:
         conn = _fresh_conn()
-        conn.execute(
-            "INSERT INTO pirn_schema_version VALUES ('comp', 1)"
-        )
+        conn.execute("INSERT INTO pirn_schema_version VALUES ('comp', 1)")
         called: list[int] = []
 
         def _m1(c: sqlite3.Connection) -> None:
@@ -60,9 +57,7 @@ class TestApplyMigrations(unittest.TestCase):
 
     def test_already_at_target_version_no_migrations_called(self) -> None:
         conn = _fresh_conn()
-        conn.execute(
-            "INSERT INTO pirn_schema_version VALUES ('comp', 5)"
-        )
+        conn.execute("INSERT INTO pirn_schema_version VALUES ('comp', 5)")
         called: list[int] = []
         apply_migrations(conn, "comp", 5, {1: lambda c: called.append(1)})
         self.assertEqual(called, [])

@@ -10,13 +10,13 @@ from typing import Any
 from unittest.mock import patch
 
 import numpy as np
+
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.connectors.file_formats.brainvision_format import (
     BrainVisionFormat,
 )
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -25,25 +25,26 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_channel_records(
     n_channels: int = 3, n_samples: int = 100, sfreq: float = 1000.0
 ) -> list[dict[str, Any]]:
     records = []
     for idx in range(n_channels):
         arr = np.linspace(-50.0, 50.0, n_samples)
-        records.append({
-            "channel_index": idx,
-            "channel_name": f"Cz{idx+1}",
-            "sample_rate": sfreq,
-            "n_samples": n_samples,
-            "data": arr.astype(np.float64).tobytes(),
-        })
+        records.append(
+            {
+                "channel_index": idx,
+                "channel_name": f"Cz{idx + 1}",
+                "sample_rate": sfreq,
+                "n_samples": n_samples,
+                "data": arr.astype(np.float64).tobytes(),
+            }
+        )
     return records
 
 
-async def _decode_bytes(
-    fmt: BrainVisionFormat, payload: bytes
-) -> list[Mapping[str, Any]]:
+async def _decode_bytes(fmt: BrainVisionFormat, payload: bytes) -> list[Mapping[str, Any]]:
     async def _iter():
         yield payload
 
@@ -53,9 +54,7 @@ async def _decode_bytes(
     return records
 
 
-def _make_zip_bundle(
-    n_channels: int = 2, n_samples: int = 50, sfreq: float = 500.0
-) -> bytes:
+def _make_zip_bundle(n_channels: int = 2, n_samples: int = 50, sfreq: float = 500.0) -> bytes:
     """Build a minimal BrainVision zip bundle for testing the fallback decoder."""
     sampling_interval = int(1_000_000 / sfreq)
     vhdr = (
@@ -76,7 +75,7 @@ def _make_zip_bundle(
         "[Channel Infos]\n"
     )
     for idx in range(n_channels):
-        vhdr += f"Ch{idx+1}=Chan{idx+1},,1,µV\n"
+        vhdr += f"Ch{idx + 1}=Chan{idx + 1},,1,µV\n"
 
     vmrk = (
         "Brain Vision Data Exchange Marker File, Version 1.0\n"
@@ -104,6 +103,7 @@ def _make_zip_bundle(
 # Construction
 # ---------------------------------------------------------------------------
 
+
 class TestBrainVisionFormatConstruction(unittest.TestCase):
     def test_is_batch_format(self) -> None:
         assert isinstance(BrainVisionFormat(), BatchFileFormat)
@@ -121,6 +121,7 @@ class TestBrainVisionFormatConstruction(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # PHI sanitisation
 # ---------------------------------------------------------------------------
+
 
 class TestBrainVisionFormatPhiSanitisation(unittest.IsolatedAsyncioTestCase):
     def test_phi_fields_defined(self) -> None:
@@ -150,6 +151,7 @@ class TestBrainVisionFormatPhiSanitisation(unittest.IsolatedAsyncioTestCase):
 # Round-trip
 # ---------------------------------------------------------------------------
 
+
 class TestBrainVisionFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_single_channel(self) -> None:
         records = _make_channel_records(n_channels=1, n_samples=80)
@@ -177,6 +179,7 @@ class TestBrainVisionFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
 # Fallback path (no mne)
 # ---------------------------------------------------------------------------
 
+
 class TestBrainVisionFormatFallback(unittest.IsolatedAsyncioTestCase):
     async def test_fallback_decodes_bundle(self) -> None:
         payload = _make_zip_bundle(n_channels=2, n_samples=40, sfreq=250.0)
@@ -201,6 +204,7 @@ class TestBrainVisionFormatFallback(unittest.IsolatedAsyncioTestCase):
 # ---------------------------------------------------------------------------
 # Errors
 # ---------------------------------------------------------------------------
+
 
 class TestBrainVisionFormatErrors(unittest.IsolatedAsyncioTestCase):
     async def test_encode_empty_raises_value_error(self) -> None:
@@ -228,6 +232,7 @@ class TestBrainVisionFormatErrors(unittest.IsolatedAsyncioTestCase):
 # ---------------------------------------------------------------------------
 # Missing dependency (mne) — format still works via fallback
 # ---------------------------------------------------------------------------
+
 
 class TestBrainVisionFormatMissingDep(unittest.IsolatedAsyncioTestCase):
     async def test_works_without_mne_via_fallback(self) -> None:

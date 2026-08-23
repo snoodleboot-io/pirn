@@ -11,8 +11,9 @@ except ImportError as _e:
 
 from unittest.mock import MagicMock, patch
 
-from pirn.triggers.http import WebhookTrigger
 from starlette.testclient import TestClient
+
+from pirn.triggers.http import WebhookTrigger
 
 # ---------------------------------------------------------------------------
 # Helpers

@@ -52,47 +52,39 @@ class FakeAsyncpgPool:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_database_connection_pool(self) -> None:
         pool = TimescaleDBPool(pool=FakeAsyncpgPool())
         assert isinstance(pool, DatabaseConnectionPool)
-    
-    
+
     def test_construction_requires_config_or_pool(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or pool="):
             TimescaleDBPool()
-    
-    
-# ───────────────────────────────────────────────────────────── config
 
+    # ───────────────────────────────────────────────────────────── config
 
     def test_config_repr_redacts_password(self) -> None:
         cfg = TimescaleDBConfig(host="db.example.com", password="s3cr3t")
         assert "s3cr3t" not in repr(cfg)
         assert "<redacted>" in repr(cfg)
-    
-    
+
     def test_config_repr_scrubs_dsn_password(self) -> None:
         cfg = TimescaleDBConfig(dsn="postgres://alice:hunter2@db/main")
         assert "hunter2" not in repr(cfg)
         assert "<redacted>" in repr(cfg)
-    
-    
-# ───────────────────────────────────────────────────────────── schema property
 
+    # ───────────────────────────────────────────────────────────── schema property
 
     def test_schema_property_default(self) -> None:
         pool = TimescaleDBPool(pool=FakeAsyncpgPool())
         assert pool.schema is None  # no config injected
-    
-    
+
     def test_schema_property_from_config(self) -> None:
         cfg = TimescaleDBConfig(schema="metrics")
         pool = TimescaleDBPool(config=cfg, pool=FakeAsyncpgPool())
         assert pool.schema == "metrics"
-    
-    
+
+
 # ───────────────────────────────────────────────────────────── delegation
 
 
@@ -101,9 +93,7 @@ class TestDelegation(unittest.IsolatedAsyncioTestCase):
         fake = FakeAsyncpgPool()
         pool = TimescaleDBPool(pool=fake)
         await pool.execute("INSERT INTO t (x, y) VALUES ($1, $2)", 1, "hello")
-        assert fake.executed == [
-            ("INSERT INTO t (x, y) VALUES ($1, $2)", (1, "hello"))
-        ]
+        assert fake.executed == [("INSERT INTO t (x, y) VALUES ($1, $2)", (1, "hello"))]
 
     async def test_fetch_all_returns_rows(self) -> None:
         fake = FakeAsyncpgPool()
@@ -119,9 +109,7 @@ class TestDelegation(unittest.IsolatedAsyncioTestCase):
             "INSERT INTO t VALUES ($1, $2)",
             [(1, "a"), (2, "b")],
         )
-        assert fake.executed_many == [
-            ("INSERT INTO t VALUES ($1, $2)", [(1, "a"), (2, "b")])
-        ]
+        assert fake.executed_many == [("INSERT INTO t VALUES ($1, $2)", [(1, "a"), (2, "b")])]
 
     async def test_acquire_release_roundtrip(self) -> None:
         fake = FakeAsyncpgPool()

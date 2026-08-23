@@ -33,18 +33,16 @@ class FakeMixpanelClient:
         self.closed = True
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_api_client(self) -> None:
         client = MixpanelClient(client=FakeMixpanelClient())
         assert isinstance(client, ApiClient)
-    
-    
+
     def test_construction_requires_config_or_client(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or client="):
             MixpanelClient()
-    
-    
+
+
 class TestRequestDispatch(unittest.IsolatedAsyncioTestCase):
     async def test_track_routes_to_track(self) -> None:
         fake = FakeMixpanelClient()
@@ -72,16 +70,12 @@ class TestRequestDispatch(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(ValueError, "distinct_id"):
             await client.request("POST", "/track", body={"event": "x"})
         with self.assertRaisesRegex(ValueError, "distinct_id"):
-            await client.request(
-                "POST", "/track", body={"distinct_id": "u"}
-            )
+            await client.request("POST", "/track", body={"distinct_id": "u"})
 
     async def test_import_routes_to_import_data(self) -> None:
         fake = FakeMixpanelClient()
         client = MixpanelClient(client=fake)
-        await client.request(
-            "POST", "/import", body={"events": [{"event": "x"}]}
-        )
+        await client.request("POST", "/import", body={"events": [{"event": "x"}]})
         assert fake.imported == [{"events": [{"event": "x"}]}]
 
     async def test_unsupported_path_raises(self) -> None:

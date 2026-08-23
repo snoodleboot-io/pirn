@@ -11,6 +11,7 @@ import unittest
 from typing import Any
 
 import pytest
+
 from pirn.connectors.api_client import ApiClient
 from pirn.connectors.capabilities.table_source import TableSource
 from pirn.connectors.saas.google_analytics_client import (
@@ -41,18 +42,16 @@ class FakeGoogleAnalyticsClient:
         self.closed = True
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_api_client(self) -> None:
         client = GoogleAnalyticsClient(client=FakeGoogleAnalyticsClient())
         assert isinstance(client, ApiClient)
-    
-    
+
     def test_construction_requires_config_or_client(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or client="):
             GoogleAnalyticsClient()
-    
-    
+
+
 class TestRequestDispatch(unittest.IsolatedAsyncioTestCase):
     async def test_run_report_passes_body(self) -> None:
         fake = FakeGoogleAnalyticsClient()
@@ -65,12 +64,8 @@ class TestRequestDispatch(unittest.IsolatedAsyncioTestCase):
     async def test_run_realtime_report_routes_correctly(self) -> None:
         fake = FakeGoogleAnalyticsClient()
         client = GoogleAnalyticsClient(client=fake)
-        await client.request(
-            "POST", "runRealtimeReport", body={"property": "properties/9"}
-        )
-        assert fake.run_realtime_report_calls == [
-            {"property": "properties/9"}
-        ]
+        await client.request("POST", "runRealtimeReport", body={"property": "properties/9"})
+        assert fake.run_realtime_report_calls == [{"property": "properties/9"}]
         assert fake.run_report_calls == []
 
     async def test_leading_slash_path_accepted(self) -> None:
@@ -116,10 +111,7 @@ class TestLifecycle(unittest.IsolatedAsyncioTestCase):
 
 class TestConfigSafety(unittest.TestCase):
     def test_sensitive_fields_declared(self) -> None:
-        assert (
-            "service_account_json"
-            in GoogleAnalyticsConfig.sensitive_fields
-        )
+        assert "service_account_json" in GoogleAnalyticsConfig.sensitive_fields
 
     def test_repr_redacts_service_account_json(self) -> None:
         cfg = GoogleAnalyticsConfig(
@@ -139,31 +131,25 @@ class TestConfigSafety(unittest.TestCase):
         assert d["service_account_json"] == "<redacted>"
         assert d["property_id"] == "123"
 
-
-# ────────────────────────────────────────────────────────── capability surface
-
+    # ────────────────────────────────────────────────────────── capability surface
 
     def test_implements_table_source(self) -> None:
         client = GoogleAnalyticsClient(client=FakeGoogleAnalyticsClient())
         assert isinstance(client, TableSource)
-    
-    
+
     def test_construction_rejects_non_mapping_report_request(self) -> None:
         with self.assertRaisesRegex(ValueError, "report_request must be a Mapping"):
             GoogleAnalyticsClient(
                 client=FakeGoogleAnalyticsClient(),
                 report_request=[],  # type: ignore[arg-type]
             )
-    
-    
+
     def test_report_request_property_returns_copy(self) -> None:
         request = {"property": "properties/123"}
-        client = GoogleAnalyticsClient(
-            client=FakeGoogleAnalyticsClient(), report_request=request
-        )
+        client = GoogleAnalyticsClient(client=FakeGoogleAnalyticsClient(), report_request=request)
         assert client.report_request == {"property": "properties/123"}
-    
-    
+
+
 class TestRunReport(unittest.IsolatedAsyncioTestCase):
     async def test_run_report_forwards_body(self) -> None:
         fake = FakeGoogleAnalyticsClient()
@@ -182,7 +168,9 @@ class TestRunReport(unittest.IsolatedAsyncioTestCase):
 
 
 class TestFetchPage(unittest.IsolatedAsyncioTestCase):
-    async def test_fetch_page_uses_report_request_with_pagination(self,) -> None:
+    async def test_fetch_page_uses_report_request_with_pagination(
+        self,
+    ) -> None:
         fake = FakeGoogleAnalyticsClient()
         fake.run_report = lambda req: {  # type: ignore[method-assign]
             "rows": [{"v": i} for i in range(3)],
@@ -212,9 +200,7 @@ class TestFetchPage(unittest.IsolatedAsyncioTestCase):
             report_request={"property": "properties/1"},
         )
 
-        rows, next_cursor = await client.fetch_page(
-            cursor="10", page_size=2
-        )
+        rows, next_cursor = await client.fetch_page(cursor="10", page_size=2)
 
         assert rows == [{"v": 0}, {"v": 1}]
         assert next_cursor == "12"
@@ -250,7 +236,5 @@ class TestFetchPage(unittest.IsolatedAsyncioTestCase):
 
     async def test_fetch_page_without_report_request_raises(self) -> None:
         client = GoogleAnalyticsClient(client=FakeGoogleAnalyticsClient())
-        with pytest.raises(
-            RuntimeError, match="no report_request configured"
-        ):
+        with pytest.raises(RuntimeError, match="no report_request configured"):
             await client.fetch_page()

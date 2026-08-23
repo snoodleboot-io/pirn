@@ -23,6 +23,7 @@ import json
 from pathlib import Path
 
 import pytest
+
 from pirn.connectors.databases.sqlite_config import SqliteConfig
 from pirn.connectors.databases.sqlite_pool import SqlitePool
 from pirn.connectors.knots.database_execute_sink import DatabaseExecuteSink
@@ -43,10 +44,7 @@ from pirn.tapestry import Tapestry
 async def parse_user_records(payload: bytes) -> list[tuple[int, str, str]]:
     """Decode JSON-array payload into (id, name, region) tuples."""
     records = json.loads(payload.decode("utf-8"))
-    return [
-        (int(r["id"]), str(r["name"]), str(r["region"]))
-        for r in records
-    ]
+    return [(int(r["id"]), str(r["name"]), str(r["region"])) for r in records]
 
 
 @pytest.mark.asyncio
@@ -68,7 +66,7 @@ async def test_file_to_sqlite_acceptance_pipeline(tmp_path: Path) -> None:
             json.dumps(
                 [
                     {"id": 1, "name": "alice", "region": "EU"},
-                    {"id": 2, "name": "bob",   "region": "US"},
+                    {"id": 2, "name": "bob", "region": "US"},
                     {"id": 3, "name": "priya", "region": "IN"},
                 ]
             ).encode("utf-8"),
@@ -81,9 +79,7 @@ async def test_file_to_sqlite_acceptance_pipeline(tmp_path: Path) -> None:
                 key="users.json",
                 _config=KnotConfig(id="extract"),
             )
-            rows = parse_user_records(
-                payload=payload, _config=KnotConfig(id="parse")
-            )
+            rows = parse_user_records(payload=payload, _config=KnotConfig(id="parse"))
             DatabaseExecuteSink(
                 pool=pool,
                 query="INSERT INTO users (id, name, region) VALUES (?, ?, ?)",
@@ -94,13 +90,9 @@ async def test_file_to_sqlite_acceptance_pipeline(tmp_path: Path) -> None:
         result = await t.run(RunRequest())
 
         # ── Assert: pipeline succeeded and the table has the rows.
-        assert result.succeeded, [
-            (rec.knot_id, rec.outcome) for rec in result.lineage
-        ]
+        assert result.succeeded, [(rec.knot_id, rec.outcome) for rec in result.lineage]
 
-        loaded = await pool.fetch_all(
-            "SELECT id, name, region FROM users ORDER BY id"
-        )
+        loaded = await pool.fetch_all("SELECT id, name, region FROM users ORDER BY id")
         assert loaded == [
             (1, "alice", "EU"),
             (2, "bob", "US"),

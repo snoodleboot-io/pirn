@@ -26,10 +26,12 @@ class _SimpleBatchFormat(BatchFileFormat):
 
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         import json
+
         return json.loads(payload.decode())
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         import json
+
         return json.dumps(list(records)).encode()
 
 
@@ -52,6 +54,7 @@ class TestBatchFileFormatInterface(unittest.IsolatedAsyncioTestCase):
 
     async def test_read_decodes_records(self) -> None:
         import json
+
         fmt = _SimpleBatchFormat()
         payload = json.dumps([{"a": 1}, {"b": 2}]).encode()
         stream = _bytes_iter(payload)
@@ -65,5 +68,6 @@ class TestBatchFileFormatInterface(unittest.IsolatedAsyncioTestCase):
         byte_iter = await fmt.write(records)
         chunks = [c async for c in byte_iter]
         import json
+
         decoded = json.loads(b"".join(chunks).decode())
         self.assertEqual(decoded, [{"x": 10}])

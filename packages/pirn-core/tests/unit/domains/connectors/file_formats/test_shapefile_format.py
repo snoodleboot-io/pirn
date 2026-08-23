@@ -15,7 +15,6 @@ from pirn.connectors.file_formats.batch_file_format import (
 from pirn.connectors.file_formats.shapefile_format import (
     ShapefileFormat,
 )
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -90,6 +89,4 @@ class TestShapefileFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_encode_rejects_empty_geometry_list(self) -> None:
         fmt = ShapefileFormat()
         with self.assertRaises(ValueError):
-            await FormatRoundTrip.encode(
-                fmt, [{"geometry": [], "name": "x"}]
-            )
+            await FormatRoundTrip.encode(fmt, [{"geometry": [], "name": "x"}])

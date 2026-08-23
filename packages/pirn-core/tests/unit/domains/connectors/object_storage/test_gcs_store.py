@@ -39,9 +39,7 @@ class StubGCSClient:
         self.calls: list[tuple[str, dict[str, Any]]] = []
 
     async def download_stream(self, *, bucket: str, object_name: str) -> _DownloadStream:
-        self.calls.append(
-            ("download", {"bucket": bucket, "object_name": object_name})
-        )
+        self.calls.append(("download", {"bucket": bucket, "object_name": object_name}))
         if (bucket, object_name) not in self.objects:
             raise FileNotFoundError(f"gs://{bucket}/{object_name}: no such object")
         return _DownloadStream(self.objects[(bucket, object_name)])
@@ -61,9 +59,7 @@ class StubGCSClient:
         return {"name": object_name}
 
     async def delete(self, *, bucket: str, object_name: str) -> None:
-        self.calls.append(
-            ("delete", {"bucket": bucket, "object_name": object_name})
-        )
+        self.calls.append(("delete", {"bucket": bucket, "object_name": object_name}))
         self.objects.pop((bucket, object_name), None)
 
     async def list_objects(
@@ -72,18 +68,12 @@ class StubGCSClient:
         params = params or {}
         prefix = params.get("prefix", "")
         page_token = params.get("pageToken")
-        all_keys = sorted(
-            k for (b, k) in self.objects if b == bucket and k.startswith(prefix)
-        )
+        all_keys = sorted(k for (b, k) in self.objects if b == bucket and k.startswith(prefix))
         # Paginate at 2 items per page so we exercise multi-page logic.
         page_size = 2
         start = int(page_token) if page_token else 0
         page = all_keys[start : start + page_size]
-        next_token = (
-            str(start + page_size)
-            if start + page_size < len(all_keys)
-            else None
-        )
+        next_token = str(start + page_size) if start + page_size < len(all_keys) else None
         result: dict[str, Any] = {"items": [{"name": k} for k in page]}
         if next_token is not None:
             result["nextPageToken"] = next_token
@@ -111,33 +101,28 @@ async def _from_chunks(chunks: list[bytes]) -> AsyncIterator[bytes]:
 # ────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_object_store(self) -> None:
         stub = StubGCSClient()
         s = GCSStore(GCSConfig(bucket="b"), client=stub)
         assert isinstance(s, ObjectStore)
-    
-    
+
     def test_construction_requires_bucket(self) -> None:
         with self.assertRaisesRegex(ValueError, "bucket is required"):
             GCSStore(GCSConfig(bucket=None), client=StubGCSClient())
         with self.assertRaisesRegex(ValueError, "bucket is required"):
             GCSStore(GCSConfig(bucket=""), client=StubGCSClient())
-    
-    
+
+
 # ───────────────────────────────────────────────────────────── round-trip
 
 
 class TestRoundTrip(unittest.IsolatedAsyncioTestCase):
-
     async def asyncSetUp(self) -> None:
         self.stub = StubGCSClient()
-        
-        
+
         self.store = GCSStore(GCSConfig(bucket="my-bucket", chunk_size=4), client=self.stub)
-        
-        
+
     async def test_put_then_get(self) -> None:
         store = self.store
         stub = self.stub
@@ -171,14 +156,11 @@ class TestRoundTrip(unittest.IsolatedAsyncioTestCase):
 
 
 class TestList(unittest.IsolatedAsyncioTestCase):
-
     async def asyncSetUp(self) -> None:
         self.stub = StubGCSClient()
-        
-        
+
         self.store = GCSStore(GCSConfig(bucket="my-bucket", chunk_size=4), client=self.stub)
-        
-        
+
     async def test_lists_all_keys_under_prefix(self) -> None:
         store = self.store
         await store.put("users/alice.json", b"{}")
@@ -213,14 +195,11 @@ class TestList(unittest.IsolatedAsyncioTestCase):
 
 
 class TestKeyValidation(unittest.IsolatedAsyncioTestCase):
-
     async def asyncSetUp(self) -> None:
         self.stub = StubGCSClient()
-        
-        
+
         self.store = GCSStore(GCSConfig(bucket="my-bucket", chunk_size=4), client=self.stub)
-        
-        
+
     async def test_rejects_empty_key(self) -> None:
         store = self.store
         with self.assertRaisesRegex(ValueError, "non-empty"):
@@ -267,14 +246,11 @@ class TestLogSafety(unittest.TestCase):
 
 
 class TestErrorPropagation(unittest.IsolatedAsyncioTestCase):
-
     async def asyncSetUp(self) -> None:
         self.stub = StubGCSClient()
-        
-        
+
         self.store = GCSStore(GCSConfig(bucket="my-bucket", chunk_size=4), client=self.stub)
-        
-        
+
     async def test_get_missing_key_raises(self) -> None:
         store = self.store
         with self.assertRaises(FileNotFoundError):
@@ -282,6 +258,7 @@ class TestErrorPropagation(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_bytes_in_iterator(self) -> None:
         store = self.store
+
         async def bad() -> AsyncIterator[bytes]:
             yield "not bytes"  # type: ignore[misc]
 

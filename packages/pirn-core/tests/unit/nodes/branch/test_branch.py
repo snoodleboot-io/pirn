@@ -26,13 +26,17 @@ class TestBranchConstruction(unittest.TestCase):
     def test_rejects_non_knot_input(self) -> None:
         with self.assertRaisesRegex(TypeError, "'input' must be a Knot"):
             with Tapestry():
-                Branch(input=42, selector=lambda v: "a", branches=("a",), _config=KnotConfig(id="br"))
+                Branch(
+                    input=42, selector=lambda v: "a", branches=("a",), _config=KnotConfig(id="br")
+                )
 
     def test_rejects_non_callable_selector(self) -> None:
         with self.assertRaisesRegex(TypeError, "'selector' must be callable"):
             with Tapestry():
                 src = _ValSource(value=1, _config=KnotConfig(id="src"))
-                Branch(input=src, selector="not_callable", branches=("a",), _config=KnotConfig(id="br"))
+                Branch(
+                    input=src, selector="not_callable", branches=("a",), _config=KnotConfig(id="br")
+                )
 
     def test_rejects_empty_branches(self) -> None:
         with self.assertRaisesRegex(TypeError, "at least one branch"):
@@ -44,7 +48,12 @@ class TestBranchConstruction(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, "duplicate"):
             with Tapestry():
                 src = _ValSource(value=1, _config=KnotConfig(id="src"))
-                Branch(input=src, selector=lambda v: "a", branches=("a", "a"), _config=KnotConfig(id="br"))
+                Branch(
+                    input=src,
+                    selector=lambda v: "a",
+                    branches=("a", "a"),
+                    _config=KnotConfig(id="br"),
+                )
 
     def test_requires_config(self) -> None:
         with self.assertRaisesRegex(TypeError, "_config"):
@@ -56,8 +65,10 @@ class TestBranchConstruction(unittest.TestCase):
         with Tapestry():
             src = _ValSource(value=1, _config=KnotConfig(id="src"))
             branch = Branch(
-                input=src, selector=lambda v: "a",
-                branches=("a", "b"), _config=KnotConfig(id="br"),
+                input=src,
+                selector=lambda v: "a",
+                branches=("a", "b"),
+                _config=KnotConfig(id="br"),
             )
         self.assertEqual(branch.branch_names, ("a", "b"))
 
@@ -65,8 +76,10 @@ class TestBranchConstruction(unittest.TestCase):
         with Tapestry():
             src = _ValSource(value=1, _config=KnotConfig(id="src"))
             branch = Branch(
-                input=src, selector=lambda v: "a",
-                branches=("a", "b"), _config=KnotConfig(id="br"),
+                input=src,
+                selector=lambda v: "a",
+                branches=("a", "b"),
+                _config=KnotConfig(id="br"),
             )
         self.assertIsInstance(branch["a"], BranchOutput)
 
@@ -74,8 +87,10 @@ class TestBranchConstruction(unittest.TestCase):
         with Tapestry():
             src = _ValSource(value=1, _config=KnotConfig(id="src"))
             branch = Branch(
-                input=src, selector=lambda v: "a",
-                branches=("a",), _config=KnotConfig(id="br"),
+                input=src,
+                selector=lambda v: "a",
+                branches=("a",),
+                _config=KnotConfig(id="br"),
             )
         with self.assertRaises(KeyError):
             _ = branch["missing"]

@@ -23,9 +23,7 @@ class TestAzureServiceBusStubMessage(unittest.TestCase):
         self.assertIsNone(msg.session_id)
 
     def test_headers_stored_as_application_properties(self) -> None:
-        msg = AzureServiceBusStubMessage(
-            body=b"x", key=None, headers={"x-trace": b"abc"}
-        )
+        msg = AzureServiceBusStubMessage(body=b"x", key=None, headers={"x-trace": b"abc"})
         self.assertEqual(msg.application_properties, {"x-trace": b"abc"})
 
     def test_none_headers_give_none_application_properties(self) -> None:

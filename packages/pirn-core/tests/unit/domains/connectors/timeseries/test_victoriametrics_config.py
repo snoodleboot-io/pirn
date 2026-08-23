@@ -1,5 +1,4 @@
-"""Tests for :class:`pirn.connectors.timeseries.victoriametrics_config.VictoriaMetricsConfig`.
-"""
+"""Tests for :class:`pirn.connectors.timeseries.victoriametrics_config.VictoriaMetricsConfig`."""
 
 from __future__ import annotations
 

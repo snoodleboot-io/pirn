@@ -20,7 +20,6 @@ from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.connectors.file_formats.bdf_format import BdfFormat
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -29,6 +28,7 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_minimal_bdf_bytes(n_channels: int = 2, n_samples: int = 100) -> bytes:
     import pyedflib
 
@@ -36,23 +36,23 @@ def _make_minimal_bdf_bytes(n_channels: int = 2, n_samples: int = 100) -> bytes:
         tmp_path = tmp.name
 
     try:
-        with pyedflib.EdfWriter(
-            tmp_path, n_channels, file_type=pyedflib.FILETYPE_BDF
-        ) as writer:
+        with pyedflib.EdfWriter(tmp_path, n_channels, file_type=pyedflib.FILETYPE_BDF) as writer:
             headers = []
             signals = []
             for idx in range(n_channels):
-                headers.append({
-                    "label": f"EEG{idx+1}",
-                    "dimension": "uV",
-                    "sample_frequency": 512,
-                    "physical_min": -8388608.0,
-                    "physical_max": 8388607.0,
-                    "digital_min": -8388608,
-                    "digital_max": 8388607,
-                    "transducer": "",
-                    "prefilter": "",
-                })
+                headers.append(
+                    {
+                        "label": f"EEG{idx + 1}",
+                        "dimension": "uV",
+                        "sample_frequency": 512,
+                        "physical_min": -8388608.0,
+                        "physical_max": 8388607.0,
+                        "digital_min": -8388608,
+                        "digital_max": 8388607,
+                        "transducer": "",
+                        "prefilter": "",
+                    }
+                )
                 signals.append(np.random.uniform(-1000, 1000, n_samples))
             writer.setSignalHeaders(headers)
             writer.writeSamples(signals)
@@ -75,21 +75,24 @@ def _make_signal_records(n_channels: int = 2, n_samples: int = 512) -> list[dict
     records = []
     for idx in range(n_channels):
         arr = np.linspace(-500.0, 500.0, n_samples)
-        records.append({
-            "signal_index": idx,
-            "label": f"EEG{idx+1}",
-            "sample_rate": 512,
-            "n_samples": n_samples,
-            "physical_min": -8000000.0,
-            "physical_max": 8000000.0,
-            "data": arr.astype(np.float64).tobytes(),
-        })
+        records.append(
+            {
+                "signal_index": idx,
+                "label": f"EEG{idx + 1}",
+                "sample_rate": 512,
+                "n_samples": n_samples,
+                "physical_min": -8000000.0,
+                "physical_max": 8000000.0,
+                "data": arr.astype(np.float64).tobytes(),
+            }
+        )
     return records
 
 
 # ---------------------------------------------------------------------------
 # Construction
 # ---------------------------------------------------------------------------
+
 
 class TestBdfFormatConstruction(unittest.TestCase):
     def test_is_batch_format(self) -> None:
@@ -108,6 +111,7 @@ class TestBdfFormatConstruction(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # PHI sanitisation
 # ---------------------------------------------------------------------------
+
 
 class TestBdfFormatPhiSanitisation(unittest.IsolatedAsyncioTestCase):
     def test_phi_fields_defined(self) -> None:
@@ -130,14 +134,22 @@ class TestBdfFormatPhiSanitisation(unittest.IsolatedAsyncioTestCase):
         records = await _decode_bytes(BdfFormat(), payload)
         assert len(records) == 1
         rec = records[0]
-        for key in ("signal_index", "label", "sample_rate", "n_samples",
-                    "physical_min", "physical_max", "data"):
+        for key in (
+            "signal_index",
+            "label",
+            "sample_rate",
+            "n_samples",
+            "physical_min",
+            "physical_max",
+            "data",
+        ):
             assert key in rec
 
 
 # ---------------------------------------------------------------------------
 # Round-trip
 # ---------------------------------------------------------------------------
+
 
 class TestBdfFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_single_channel(self) -> None:
@@ -176,12 +188,13 @@ class TestBdfFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
         assert len(decoded) == 4
         for idx, rec in enumerate(decoded):
             assert rec["signal_index"] == idx
-            assert rec["label"] == f"EEG{idx+1}"
+            assert rec["label"] == f"EEG{idx + 1}"
 
 
 # ---------------------------------------------------------------------------
 # Errors
 # ---------------------------------------------------------------------------
+
 
 class TestBdfFormatErrors(unittest.IsolatedAsyncioTestCase):
     async def test_encode_empty_raises_value_error(self) -> None:
@@ -209,6 +222,7 @@ class TestBdfFormatErrors(unittest.IsolatedAsyncioTestCase):
 # ---------------------------------------------------------------------------
 # Missing dependency
 # ---------------------------------------------------------------------------
+
 
 class TestBdfFormatMissingDep(unittest.TestCase):
     def test_load_pyedflib_raises_on_missing(self) -> None:

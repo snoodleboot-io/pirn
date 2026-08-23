@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.yaml_loader.specs.gate_spec import GateSpec
 from pydantic import ValidationError
+
+from pirn.yaml_loader.specs.gate_spec import GateSpec
 
 
 class TestGateSpecConstruction(unittest.TestCase):

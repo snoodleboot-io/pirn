@@ -20,7 +20,6 @@ from pirn.connectors.file_formats.batch_file_format import (
 from pirn.connectors.file_formats.jpeg_format import (
     JpegFormat,
 )
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )

@@ -34,27 +34,23 @@ class FakeKdbConnection:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_database_connection_pool(self) -> None:
         pool = KdbPool(connection=FakeKdbConnection())
         assert isinstance(pool, DatabaseConnectionPool)
-    
-    
+
     def test_construction_requires_config_or_connection(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or connection="):
             KdbPool()
-    
-    
-# ───────────────────────────────────────────────────────────── config
 
+    # ───────────────────────────────────────────────────────────── config
 
     def test_config_repr_redacts_password(self) -> None:
         cfg = KdbConfig(password="s3cr3t")
         assert "s3cr3t" not in repr(cfg)
         assert "<redacted>" in repr(cfg)
-    
-    
+
+
 # ───────────────────────────────────────────────────────────── delegation
 
 

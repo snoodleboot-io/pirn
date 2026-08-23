@@ -89,23 +89,20 @@ def make_pool(db_name: str = "testdb") -> tuple[MongoDBPool, FakeMotorClient]:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_database_connection_pool(self) -> None:
         pool, _ = make_pool()
         assert isinstance(pool, DatabaseConnectionPool)
-    
-    
+
     def test_construction_requires_config_or_client(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or client="):
             MongoDBPool()
-    
-    
+
     def test_config_without_database_raises(self) -> None:
         with self.assertRaisesRegex(ValueError, "database must be non-empty"):
             MongoDBPool(config=MongoDBConfig(database=""))
-    
-    
+
+
 # ───────────────────────────────────────────────────────────── operations
 
 

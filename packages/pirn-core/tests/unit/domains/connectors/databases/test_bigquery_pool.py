@@ -44,18 +44,16 @@ class FakeBigqueryClient:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_database_connection_pool(self) -> None:
         pool = BigqueryPool(client=FakeBigqueryClient())
         assert isinstance(pool, DatabaseConnectionPool)
-    
-    
+
     def test_construction_requires_config_or_client(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or client="):
             BigqueryPool()
-    
-    
+
+
 # ────────────────────────────────────────────────────────── delegation
 
 
@@ -86,9 +84,7 @@ class TestDelegation(unittest.IsolatedAsyncioTestCase):
     async def test_execute_many_runs_each_row(self) -> None:
         fake = FakeBigqueryClient()
         pool = BigqueryPool(client=fake)
-        await pool.execute_many(
-            "INSERT INTO t VALUES (@a, @b)", [(1, "a"), (2, "b")]
-        )
+        await pool.execute_many("INSERT INTO t VALUES (@a, @b)", [(1, "a"), (2, "b")])
         assert len(fake.queries) == 2
 
     async def test_acquire_returns_client(self) -> None:
@@ -106,9 +102,7 @@ class TestQuerySafety(unittest.TestCase):
     def test_rejects_fstring_placeholder(self) -> None:
         pool = BigqueryPool(client=FakeBigqueryClient())
         with self.assertRaisesRegex(ValueError, "interpolation"):
-            pool._reject_inline_interpolation(
-                "SELECT * FROM t WHERE x = {value}"
-            )
+            pool._reject_inline_interpolation("SELECT * FROM t WHERE x = {value}")
 
     def test_rejects_percent_s_placeholder(self) -> None:
         pool = BigqueryPool(client=FakeBigqueryClient())

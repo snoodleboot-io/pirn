@@ -45,9 +45,7 @@ class FakeHTTPXClient:
 
     async def get(self, url: str, params: dict[str, str] | None = None) -> FakeHTTPXResponse:
         self.queries.append((params or {}).get("query", ""))
-        return FakeHTTPXResponse(
-            {"data": {"result": self._query_result}}
-        )
+        return FakeHTTPXResponse({"data": {"result": self._query_result}})
 
     async def aclose(self) -> None:
         self.closed = True
@@ -56,27 +54,23 @@ class FakeHTTPXClient:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_database_connection_pool(self) -> None:
         pool = VictoriaMetricsPool(client=FakeHTTPXClient())
         assert isinstance(pool, DatabaseConnectionPool)
-    
-    
+
     def test_construction_requires_config_or_client(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or client="):
             VictoriaMetricsPool()
-    
-    
-# ───────────────────────────────────────────────────────────── config
 
+    # ───────────────────────────────────────────────────────────── config
 
     def test_config_repr_redacts_password(self) -> None:
         cfg = VictoriaMetricsConfig(username="alice", password="s3cr3t")
         assert "s3cr3t" not in repr(cfg)
         assert "<redacted>" in repr(cfg)
-    
-    
+
+
 # ───────────────────────────────────────────────────────────── delegation
 
 
@@ -91,9 +85,7 @@ class TestDelegation(unittest.IsolatedAsyncioTestCase):
         assert 'cpu_usage{host="a"}' in fake.posted[0]["content"]
 
     async def test_fetch_all_returns_result_list(self) -> None:
-        result_data = [
-            {"metric": {"__name__": "cpu_usage"}, "value": [1234567890, "0.9"]}
-        ]
+        result_data = [{"metric": {"__name__": "cpu_usage"}, "value": [1234567890, "0.9"]}]
         fake = FakeHTTPXClient(query_result=result_data)
         pool = VictoriaMetricsPool(client=fake)
         rows = await pool.fetch_all("cpu_usage")

@@ -41,24 +41,21 @@ class FakeHTTPXClient:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_api_client(self) -> None:
         client = PagerDutyClient(client=FakeHTTPXClient())
         assert isinstance(client, ApiClient)
-    
-    
+
     def test_construction_requires_config_or_client(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or client="):
             PagerDutyClient()
-    
-    
+
     def test_sensitive_fields_declared(self) -> None:
         cfg = PagerDutyConfig(api_key="key", routing_key="rkey")
         assert "api_key" in cfg.sensitive_fields
         assert "routing_key" in cfg.sensitive_fields
-    
-    
+
+
 # ────────────────────────────────────────────────────────────── severity validation
 
 
@@ -123,7 +120,9 @@ class TestResolveIncident(unittest.IsolatedAsyncioTestCase):
 class TestListIncidents(unittest.IsolatedAsyncioTestCase):
     async def test_list_incidents_returns_list(self) -> None:
         fake = FakeHTTPXClient()
-        cfg = PagerDutyConfig(api_key="key", routing_key="rkey", base_url="https://api.pagerduty.com")
+        cfg = PagerDutyConfig(
+            api_key="key", routing_key="rkey", base_url="https://api.pagerduty.com"
+        )
         client = PagerDutyClient(config=cfg, client=fake)
         incidents = await client.list_incidents()
         assert isinstance(incidents, list)
@@ -131,7 +130,9 @@ class TestListIncidents(unittest.IsolatedAsyncioTestCase):
 
     async def test_list_incidents_uses_rest_api(self) -> None:
         fake = FakeHTTPXClient()
-        cfg = PagerDutyConfig(api_key="key", routing_key="rkey", base_url="https://api.pagerduty.com")
+        cfg = PagerDutyConfig(
+            api_key="key", routing_key="rkey", base_url="https://api.pagerduty.com"
+        )
         client = PagerDutyClient(config=cfg, client=fake)
         await client.list_incidents(status="acknowledged", limit=10)
         assert fake.calls[0]["method"] == "GET"

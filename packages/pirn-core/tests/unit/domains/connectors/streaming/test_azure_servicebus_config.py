@@ -1,5 +1,4 @@
-"""Tests for :class:`pirn.connectors.streaming.azure_servicebus_config.AzureServiceBusConfig`.
-"""
+"""Tests for :class:`pirn.connectors.streaming.azure_servicebus_config.AzureServiceBusConfig`."""
 
 from __future__ import annotations
 
@@ -28,7 +27,9 @@ class TestAzureServiceBusConfig(unittest.TestCase):
         self.assertIn("connection_string", AzureServiceBusConfig.sensitive_fields)
 
     def test_repr_redacts_connection_string(self) -> None:
-        cfg = AzureServiceBusConfig(connection_string="Endpoint=sb://ns.servicebus.windows.net/;SharedAccessKey=secret;")
+        cfg = AzureServiceBusConfig(
+            connection_string="Endpoint=sb://ns.servicebus.windows.net/;SharedAccessKey=secret;"
+        )
         text = repr(cfg)
         self.assertNotIn("secret", text)
         self.assertIn("<redacted>", text)

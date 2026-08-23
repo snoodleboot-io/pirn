@@ -61,6 +61,7 @@ class TestValKeyTriggerDefaultBuilder(unittest.TestCase):
         raw = '{"c":3}'
         # When msg has no .message attribute getattr falls back
         import pirn.triggers.valkey as _m
+
         # Direct: body = getattr(msg, "message", msg)
         result = _m.ValKeyTrigger._ValKeyTrigger__default_request_builder
         # Not directly testable without .message; skip edge case

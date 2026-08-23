@@ -25,7 +25,9 @@ class FakeStripeClient:
         self.closed = False
 
     def raw_request(
-        self, method: str, path: str,
+        self,
+        method: str,
+        path: str,
         params: dict[str, Any] | None = None,
         body: dict[str, Any] | None = None,
         headers: dict[str, Any] | None = None,
@@ -48,23 +50,20 @@ class FakeStripeClient:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_api_client(self) -> None:
         client = StripeClient(client=FakeStripeClient())
         assert isinstance(client, ApiClient)
-    
-    
+
     def test_construction_requires_config_or_client(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or client="):
             StripeClient()
-    
-    
+
     def test_sensitive_fields_declared(self) -> None:
         cfg = StripeConfig()
         assert "api_key" in cfg.sensitive_fields
-    
-    
+
+
 # ────────────────────────────────────────────────────────── delegation
 
 
@@ -72,9 +71,7 @@ class TestRequest(unittest.IsolatedAsyncioTestCase):
     async def test_get_passes_method_path_params(self) -> None:
         fake = FakeStripeClient()
         client = StripeClient(client=fake)
-        result = await client.request(
-            "GET", "/v1/customers", params={"a": 1}
-        )
+        result = await client.request("GET", "/v1/customers", params={"a": 1})
         assert result == fake.response
         assert fake.calls == [
             {
@@ -89,9 +86,7 @@ class TestRequest(unittest.IsolatedAsyncioTestCase):
     async def test_post_passes_body(self) -> None:
         fake = FakeStripeClient()
         client = StripeClient(client=fake)
-        await client.request(
-            "POST", "/v1/customers", body={"email": "a@b"}
-        )
+        await client.request("POST", "/v1/customers", body={"email": "a@b"})
         assert fake.calls[0]["method"] == "POST"
         assert fake.calls[0]["body"] == {"email": "a@b"}
 

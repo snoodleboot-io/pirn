@@ -46,22 +46,19 @@ class FakeJira:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_api_client(self) -> None:
         client = JiraClient(client=FakeJira())
         assert isinstance(client, ApiClient)
-    
-    
+
     def test_construction_requires_config_or_client(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or client="):
             JiraClient()
-    
-    
+
     def test_sensitive_fields_listed(self) -> None:
         assert JiraConfig.sensitive_fields == ("api_token",)
-    
-    
+
+
 # ────────────────────────────────────────────────────────────── dispatch
 
 
@@ -76,9 +73,7 @@ class TestRequest(unittest.IsolatedAsyncioTestCase):
         )
 
         assert result == {"key": "PIRN-1"}
-        assert fake.calls == [
-            ("GET", "/rest/api/3/issue/PIRN-1", {"fields": "summary"})
-        ]
+        assert fake.calls == [("GET", "/rest/api/3/issue/PIRN-1", {"fields": "summary"})]
 
     async def test_request_dispatches_post(self) -> None:
         fake = FakeJira()
@@ -90,9 +85,7 @@ class TestRequest(unittest.IsolatedAsyncioTestCase):
             body={"fields": {"summary": "bug"}},
         )
 
-        assert fake.calls == [
-            ("POST", "/rest/api/3/issue", {"fields": {"summary": "bug"}})
-        ]
+        assert fake.calls == [("POST", "/rest/api/3/issue", {"fields": {"summary": "bug"}})]
 
     async def test_request_dispatches_put(self) -> None:
         fake = FakeJira()
@@ -172,30 +165,25 @@ class TestCredentialSafety(unittest.TestCase):
         assert d["api_token"] == "<redacted>"
         assert d["username"] == "alice@acme.com"
 
-
-# ────────────────────────────────────────────────────────── capability surface
-
+    # ────────────────────────────────────────────────────────── capability surface
 
     def test_implements_table_source(self) -> None:
         client = JiraClient(client=FakeJira())
         assert isinstance(client, TableSource)
-    
-    
+
     def test_construction_rejects_empty_jql(self) -> None:
         with self.assertRaisesRegex(ValueError, "jql must be a non-empty"):
             JiraClient(client=FakeJira(), jql="")
-    
-    
+
     def test_jql_property_defaults_to_none(self) -> None:
         client = JiraClient(client=FakeJira())
         assert client.jql is None
-    
-    
+
     def test_jql_property_reflects_constructor(self) -> None:
         client = JiraClient(client=FakeJira(), jql="project=PIRN")
         assert client.jql == "project=PIRN"
-    
-    
+
+
 class TestSearch(unittest.IsolatedAsyncioTestCase):
     async def test_search_passes_params_and_advances_cursor(self) -> None:
         fake = FakeJira()
@@ -207,9 +195,7 @@ class TestSearch(unittest.IsolatedAsyncioTestCase):
         }
         client = JiraClient(client=fake)
 
-        rows, next_cursor = await client.search(
-            "project=PIRN", start_at=0, max_results=2
-        )
+        rows, next_cursor = await client.search("project=PIRN", start_at=0, max_results=2)
 
         assert rows == [{"key": "PIRN-1"}, {"key": "PIRN-2"}]
         assert next_cursor == "2"
@@ -232,9 +218,7 @@ class TestSearch(unittest.IsolatedAsyncioTestCase):
         }
         client = JiraClient(client=fake)
 
-        rows, next_cursor = await client.search(
-            "project=PIRN", start_at=4, max_results=2
-        )
+        rows, next_cursor = await client.search("project=PIRN", start_at=4, max_results=2)
 
         assert rows == [{"key": "PIRN-9"}]
         assert next_cursor is None

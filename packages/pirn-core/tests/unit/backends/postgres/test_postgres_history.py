@@ -125,9 +125,7 @@ class _FakeConn:
         if "FROM lineage WHERE knot_id" in sql:
             knot_id = args[0]
             return [
-                {"payload_json": v}
-                for (_, k), v in self._pool._lineage.items()
-                if k == knot_id
+                {"payload_json": v} for (_, k), v in self._pool._lineage.items() if k == knot_id
             ]
         if "FROM runs WHERE actor" in sql:
             actor = args[0]
@@ -136,9 +134,7 @@ class _FakeConn:
         if "JOIN lineage_inputs" in sql:
             input_hash = args[0]
             matching_keys = {
-                (ri, ki)
-                for (ri, ki, _, ih) in self._pool._lineage_inputs
-                if ih == input_hash
+                (ri, ki) for (ri, ki, _, ih) in self._pool._lineage_inputs if ih == input_hash
             }
             return [
                 {"payload_json": self._pool._lineage[(ri, ki)]}

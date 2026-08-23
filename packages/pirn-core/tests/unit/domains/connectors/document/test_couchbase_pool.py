@@ -60,23 +60,20 @@ def make_pool(
 # ───────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_database_connection_pool(self) -> None:
         pool, _ = make_pool()
         assert isinstance(pool, DatabaseConnectionPool)
-    
-    
+
     def test_construction_requires_config_or_cluster(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or cluster="):
             CouchbasePool()
-    
-    
+
     def test_config_requires_non_empty_bucket(self) -> None:
         with self.assertRaisesRegex(ValueError, "bucket must be non-empty"):
             CouchbaseConfig(bucket="")
-    
-    
+
+
 # ───────────────────────────────────────────────────────────── operations
 
 

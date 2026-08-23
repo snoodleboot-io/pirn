@@ -46,17 +46,15 @@ class FakeTracer:
 # ──────────────────────────────────────────────────────────── construction
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_construction_requires_config_or_tracer(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or tracer="):
             OpenTelemetrySpanEmitter()
-    
-    
+
     def test_sensitive_fields_listed(self) -> None:
         assert OpenTelemetryConfig.sensitive_fields == ()
-    
-    
+
+
 # ──────────────────────────────────────────────────────────── emit_span
 
 

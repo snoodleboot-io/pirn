@@ -19,17 +19,20 @@ class StubBroker(MessageBroker):
         self.published: list[dict[str, Any]] = []
 
     async def publish(
-        self, topic: str, value: bytes, *,
-        key: bytes | None = None, headers: dict[str, bytes] | None = None,
+        self,
+        topic: str,
+        value: bytes,
+        *,
+        key: bytes | None = None,
+        headers: dict[str, bytes] | None = None,
     ) -> None:
-        self.published.append(
-            {"topic": topic, "value": value, "key": key, "headers": headers}
-        )
+        self.published.append({"topic": topic, "value": value, "key": key, "headers": headers})
 
     async def consume(self, topic: str, *, group: str | None = None) -> AsyncIterator[Any]:
         async def _empty() -> AsyncIterator[Any]:
             if False:
                 yield None
+
         return _empty()
 
 

@@ -48,24 +48,21 @@ class FakeOrientClient:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
     def test_implements_database_connection_pool(self) -> None:
         pool = OrientDBPool(client=FakeOrientClient())
         assert isinstance(pool, DatabaseConnectionPool)
-    
-    
+
     def test_construction_requires_config_or_client(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or client="):
             OrientDBPool()
-    
-    
+
     def test_config_with_empty_database_raises_value_error(self) -> None:
         cfg = OrientDBConfig(host="localhost", database="")
         with self.assertRaisesRegex(ValueError, "database must be non-empty"):
             OrientDBPool(config=cfg)
-    
-    
+
+
 # ────────────────────────────────────────────────────────────── delegation
 
 

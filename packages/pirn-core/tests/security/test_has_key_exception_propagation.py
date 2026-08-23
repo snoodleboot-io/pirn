@@ -11,6 +11,7 @@ class TestS3HasKeyExceptionPropagation(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
         os.environ["PIRN_ENV"] = "test"
         from pirn.backends._signer import _Signer
+
         self._signer = _Signer.test_signer()
 
     def tearDown(self) -> None:
@@ -62,6 +63,7 @@ class TestGCSHasKeyExceptionPropagation(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
         os.environ["PIRN_ENV"] = "test"
         from pirn.backends._signer import _Signer
+
         self._signer = _Signer.test_signer()
 
     def tearDown(self) -> None:

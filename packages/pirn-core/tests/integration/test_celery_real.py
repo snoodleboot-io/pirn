@@ -18,6 +18,7 @@ import time
 from typing import Any
 
 import pytest
+
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
@@ -56,6 +57,7 @@ worker.start()
         mode="w", suffix=".log", prefix="celery_worker_", delete=False
     )
     import os
+
     worker_env = {**os.environ, "C_FORCE_ROOT": "1"}
     proc = subprocess.Popen(
         [sys.executable, "-c", worker_script, _BROKER],
@@ -99,6 +101,7 @@ class _Double(Knot):
 
 async def test_celery_dispatcher_runs_pipeline(celery_worker):
     from celery import Celery
+
     from pirn.engine.dispatchers.celery_dispatcher import register_celery_worker_task
 
     app = Celery("pirn_test", broker=_BROKER, backend=_BROKER)
@@ -123,6 +126,7 @@ async def test_celery_dispatcher_runs_pipeline(celery_worker):
 
 async def test_celery_dispatcher_result_has_correct_dispatcher_name(celery_worker):
     from celery import Celery
+
     from pirn.engine.dispatchers.celery_dispatcher import (
         CeleryDispatcher,
         register_celery_worker_task,

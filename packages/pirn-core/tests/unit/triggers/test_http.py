@@ -69,6 +69,7 @@ class TestWebhookTriggerStream(unittest.IsolatedAsyncioTestCase):
 
     async def test_handle_request_auth_token_required(self) -> None:
         import pytest
+
         pytest.importorskip("starlette")
         trigger = WebhookTrigger(auth_token="my-secret")
 
@@ -77,13 +78,14 @@ class TestWebhookTriggerStream(unittest.IsolatedAsyncioTestCase):
             client = None
 
             async def body(self):
-                return b'{}'
+                return b"{}"
 
         response = await trigger._handle_request(FakeRequest())
         self.assertEqual(response.status_code, 401)
 
     async def test_handle_request_valid_auth(self) -> None:
         import pytest
+
         pytest.importorskip("starlette")
         trigger = WebhookTrigger(auth_token="my-secret")
 
@@ -92,7 +94,7 @@ class TestWebhookTriggerStream(unittest.IsolatedAsyncioTestCase):
             client = None
 
             async def body(self):
-                return b'{}'
+                return b"{}"
 
         response = await trigger._handle_request(FakeRequest())
         self.assertEqual(response.status_code, 200)

@@ -47,17 +47,15 @@ async def _from_chunks(chunks: list[bytes]) -> AsyncIterator[bytes]:
 
 
 class TestProtocolConformance(unittest.TestCase):
-
     def setUp(self) -> None:
         self._tmp_store = tempfile.TemporaryDirectory()
         tmp_path = Path(self._tmp_store.name)
         cfg = LocalFilesystemConfig(root=tmp_path / "data", chunk_size=8)
         self.store = LocalFilesystemStore(cfg)
-        
-        
 
     def tearDown(self) -> None:
         self._tmp_store.cleanup()
+
     def test_implements_object_store_protocol(self) -> None:
         store = self.store
         assert isinstance(store, ObjectStore)
@@ -67,17 +65,15 @@ class TestProtocolConformance(unittest.TestCase):
 
 
 class TestPutGet(unittest.IsolatedAsyncioTestCase):
-
     async def asyncSetUp(self) -> None:
         self._tmp_store = tempfile.TemporaryDirectory()
         tmp_path = Path(self._tmp_store.name)
         cfg = LocalFilesystemConfig(root=tmp_path / "data", chunk_size=8)
         self.store = LocalFilesystemStore(cfg)
-        
-        
 
     async def asyncTearDown(self) -> None:
         self._tmp_store.cleanup()
+
     async def test_roundtrip_bytes(self) -> None:
         store = self.store
         await store.put("a.txt", b"hello world")
@@ -114,6 +110,7 @@ class TestPutGet(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_bytes_in_iterator(self) -> None:
         store = self.store
+
         async def bad_iter() -> AsyncIterator[bytes]:
             yield b"ok"
             yield "not bytes"  # type: ignore[misc]
@@ -132,17 +129,15 @@ class TestPutGet(unittest.IsolatedAsyncioTestCase):
 
 
 class TestPathSafety(unittest.IsolatedAsyncioTestCase):
-
     async def asyncSetUp(self) -> None:
         self._tmp_store = tempfile.TemporaryDirectory()
         tmp_path = Path(self._tmp_store.name)
         cfg = LocalFilesystemConfig(root=tmp_path / "data", chunk_size=8)
         self.store = LocalFilesystemStore(cfg)
-        
-        
 
     async def asyncTearDown(self) -> None:
         self._tmp_store.cleanup()
+
     async def test_rejects_absolute_path(self) -> None:
         store = self.store
         with self.assertRaisesRegex(ValueError, "absolute"):
@@ -187,17 +182,15 @@ class TestPathSafety(unittest.IsolatedAsyncioTestCase):
 
 
 class TestDelete(unittest.IsolatedAsyncioTestCase):
-
     async def asyncSetUp(self) -> None:
         self._tmp_store = tempfile.TemporaryDirectory()
         tmp_path = Path(self._tmp_store.name)
         cfg = LocalFilesystemConfig(root=tmp_path / "data", chunk_size=8)
         self.store = LocalFilesystemStore(cfg)
-        
-        
 
     async def asyncTearDown(self) -> None:
         self._tmp_store.cleanup()
+
     async def test_delete_removes_file(self) -> None:
         store = self.store
         await store.put("x", b"y")
@@ -215,17 +208,15 @@ class TestDelete(unittest.IsolatedAsyncioTestCase):
 
 
 class TestList(unittest.IsolatedAsyncioTestCase):
-
     async def asyncSetUp(self) -> None:
         self._tmp_store = tempfile.TemporaryDirectory()
         tmp_path = Path(self._tmp_store.name)
         cfg = LocalFilesystemConfig(root=tmp_path / "data", chunk_size=8)
         self.store = LocalFilesystemStore(cfg)
-        
-        
 
     async def asyncTearDown(self) -> None:
         self._tmp_store.cleanup()
+
     async def test_list_empty_root(self) -> None:
         store = self.store
         keys: list[str] = []
@@ -275,6 +266,4 @@ class TestConstruction(unittest.TestCase):
         tmp_path = Path(_td_test_raises_when_root_missing_and_create_root_false.name)
         root = tmp_path / "missing"
         with self.assertRaises(FileNotFoundError):
-            LocalFilesystemStore(
-                LocalFilesystemConfig(root=root, create_root=False)
-            )
+            LocalFilesystemStore(LocalFilesystemConfig(root=root, create_root=False))

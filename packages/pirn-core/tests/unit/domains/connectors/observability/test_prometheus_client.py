@@ -40,7 +40,13 @@ class FakeHttpx:
         self.closed = False
 
     async def request(
-        self, method: str, path: str, *, params: Any = None, json: Any = None, headers: Any = None,
+        self,
+        method: str,
+        path: str,
+        *,
+        params: Any = None,
+        json: Any = None,
+        headers: Any = None,
     ) -> FakeResponse:
         self.calls.append(
             (
@@ -58,22 +64,19 @@ class FakeHttpx:
 # ──────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_api_client(self) -> None:
         client = PrometheusClient(client=FakeHttpx())
         assert isinstance(client, ApiClient)
-    
-    
+
     def test_construction_requires_config_or_client(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or client="):
             PrometheusClient()
-    
-    
+
     def test_sensitive_fields_listed(self) -> None:
         assert PrometheusConfig.sensitive_fields == ("bearer_token",)
-    
-    
+
+
 # ──────────────────────────────────────────────────────────── request
 
 
@@ -172,15 +175,13 @@ class TestCredentialSafety(unittest.TestCase):
         assert d["bearer_token"] == "<redacted>"
         assert d["base_url"] == "http://prometheus:9090"
 
-
-# ──────────────────────────────────────────────────────── capabilities
-
+    # ──────────────────────────────────────────────────────── capabilities
 
     def test_implements_metric_query(self) -> None:
         client = PrometheusClient(client=FakeHttpx())
         assert isinstance(client, MetricQuery)
-    
-    
+
+
 # ─────────────────────────────────────────────────── MetricQuery adapter
 
 

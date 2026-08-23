@@ -28,7 +28,12 @@ class FakeHTTPXClient:
     def set_response(self, method: str, response: dict) -> None:
         self._responses[method.upper()] = response
 
-    async def request(self, method: str, url: str, **kwargs: Any,) -> dict:
+    async def request(
+        self,
+        method: str,
+        url: str,
+        **kwargs: Any,
+    ) -> dict:
         self.calls.append({"method": method, "url": url, **kwargs})
         return self._responses.get(method.upper(), self.default_response)
 
@@ -49,28 +54,24 @@ def _make_config(**kwargs: Any) -> AirtableConfig:
 # ───────────────────────────────────────────────────────────── conformance
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_api_client(self) -> None:
         client = AirtableClient(client=FakeHTTPXClient())
         assert isinstance(client, ApiClient)
-    
-    
+
     def test_implements_table_source(self) -> None:
         client = AirtableClient(client=FakeHTTPXClient())
         assert isinstance(client, TableSource)
-    
-    
+
     def test_construction_requires_config_or_client(self) -> None:
         with self.assertRaisesRegex(TypeError, "config= or client="):
             AirtableClient()
-    
-    
+
     def test_sensitive_fields_declared(self) -> None:
         cfg = _make_config()
         assert "api_key" in cfg.sensitive_fields
-    
-    
+
+
 # ────────────────────────────────────────────────────────────── validation
 
 

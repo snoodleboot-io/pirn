@@ -19,7 +19,6 @@ from pirn.connectors.file_formats.batch_file_format import (
 )
 from pirn.connectors.file_formats.edf_format import EdfFormat
 from pirn.connectors.file_formats.edf_plus_format import EdfPlusFormat
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -28,27 +27,26 @@ from tests.unit.domains.connectors.file_formats._format_round_trip import (
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _make_signal_records(
-    n_channels: int = 2, n_samples: int = 256
-) -> list[dict[str, Any]]:
+
+def _make_signal_records(n_channels: int = 2, n_samples: int = 256) -> list[dict[str, Any]]:
     records = []
     for idx in range(n_channels):
         arr = np.linspace(-10.0, 10.0, n_samples)
-        records.append({
-            "signal_index": idx,
-            "label": f"EEG{idx+1}",
-            "sample_rate": 256,
-            "n_samples": n_samples,
-            "physical_min": -100.0,
-            "physical_max": 100.0,
-            "data": arr.astype(np.float64).tobytes(),
-        })
+        records.append(
+            {
+                "signal_index": idx,
+                "label": f"EEG{idx + 1}",
+                "sample_rate": 256,
+                "n_samples": n_samples,
+                "physical_min": -100.0,
+                "physical_max": 100.0,
+                "data": arr.astype(np.float64).tobytes(),
+            }
+        )
     return records
 
 
-async def _decode_bytes(
-    fmt: EdfPlusFormat, payload: bytes
-) -> list[Mapping[str, Any]]:
+async def _decode_bytes(fmt: EdfPlusFormat, payload: bytes) -> list[Mapping[str, Any]]:
     async def _iter():
         yield payload
 
@@ -61,6 +59,7 @@ async def _decode_bytes(
 # ---------------------------------------------------------------------------
 # Construction
 # ---------------------------------------------------------------------------
+
 
 class TestEdfPlusFormatConstruction(unittest.TestCase):
     def test_is_batch_format(self) -> None:
@@ -82,6 +81,7 @@ class TestEdfPlusFormatConstruction(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # PHI sanitisation
 # ---------------------------------------------------------------------------
+
 
 class TestEdfPlusFormatPhiSanitisation(unittest.IsolatedAsyncioTestCase):
     def test_phi_fields_inherited(self) -> None:
@@ -107,6 +107,7 @@ class TestEdfPlusFormatPhiSanitisation(unittest.IsolatedAsyncioTestCase):
 # Round-trip
 # ---------------------------------------------------------------------------
 
+
 class TestEdfPlusFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
     async def test_round_trip_signals_only(self) -> None:
         records = _make_signal_records(n_channels=2, n_samples=256)
@@ -117,7 +118,7 @@ class TestEdfPlusFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
         assert len(signal_decoded) == 2
         for idx, rec in enumerate(signal_decoded):
             assert rec["signal_index"] == idx
-            assert rec["label"] == f"EEG{idx+1}"
+            assert rec["label"] == f"EEG{idx + 1}"
 
     async def test_round_trip_with_annotations(self) -> None:
         records = _make_signal_records(n_channels=1, n_samples=256)
@@ -139,6 +140,7 @@ class TestEdfPlusFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
 # Errors
 # ---------------------------------------------------------------------------
 
+
 class TestEdfPlusFormatErrors(unittest.IsolatedAsyncioTestCase):
     async def test_encode_empty_raises_value_error(self) -> None:
         fmt = EdfPlusFormat()
@@ -155,6 +157,7 @@ class TestEdfPlusFormatErrors(unittest.IsolatedAsyncioTestCase):
 # ---------------------------------------------------------------------------
 # Missing dependency
 # ---------------------------------------------------------------------------
+
 
 class TestEdfPlusFormatMissingDep(unittest.TestCase):
     def test_load_pyedflib_raises_on_missing(self) -> None:

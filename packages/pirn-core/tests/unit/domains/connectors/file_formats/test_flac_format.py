@@ -14,11 +14,11 @@ except ImportError as _e:
     raise unittest.SkipTest("numpy not installed") from _e
 
 import numpy as np
+
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.connectors.file_formats.flac_format import FlacFormat
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -87,6 +87,7 @@ class TestFlacFormatErrors(unittest.IsolatedAsyncioTestCase):
 class TestFlacFormatMissingDep(unittest.TestCase):
     def test_import_error_message(self) -> None:
         import builtins
+
         real_import = builtins.__import__
 
         def _mock_import(name: str, *args, **kwargs):
@@ -95,6 +96,7 @@ class TestFlacFormatMissingDep(unittest.TestCase):
             return real_import(name, *args, **kwargs)
 
         import unittest.mock
+
         with unittest.mock.patch("builtins.__import__", side_effect=_mock_import):
             with self.assertRaisesRegex(ImportError, "pirn\\[audio\\]"):
                 FlacFormat._load_deps()

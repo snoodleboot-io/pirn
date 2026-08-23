@@ -111,6 +111,7 @@ class TestPostgresStoreLiveOperations(unittest.TestCase):
         self.store._live["k1"] = k1
         with self.assertRaises(ValueError):
             import asyncio
+
             asyncio.run(self.store.aregister(k2))
 
 

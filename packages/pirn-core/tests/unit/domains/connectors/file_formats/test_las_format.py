@@ -17,7 +17,6 @@ from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
 from pirn.connectors.file_formats.las_format import LasFormat
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -75,9 +74,7 @@ class TestLasFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
         decoded = await FormatRoundTrip.decode(fmt, payload)
         assert len(decoded) == 1
         assert decoded[0]["curves"] == record["curves"]
-        for orig_row, dec_row in zip(
-            record["data"], decoded[0]["data"], strict=False
-        ):
+        for orig_row, dec_row in zip(record["data"], decoded[0]["data"], strict=False):
             for o, d in zip(orig_row, dec_row, strict=False):
                 assert abs(o - d) < 1e-4
 
@@ -113,6 +110,7 @@ class TestLasFormatErrors(unittest.IsolatedAsyncioTestCase):
 class TestLasFormatMissingDep(unittest.TestCase):
     def test_import_error_message(self) -> None:
         import unittest.mock
+
         fmt = LasFormat()
         with unittest.mock.patch.dict("sys.modules", {"lasio": None}):
             with self.assertRaisesRegex(ImportError, "pirn\\[oilgas\\]"):

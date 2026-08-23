@@ -19,7 +19,6 @@ from pirn.connectors.file_formats.batch_file_format import (
 from pirn.connectors.file_formats.xlsx_format import (
     XlsxFormat,
 )
-
 from tests.unit.domains.connectors.file_formats._format_round_trip import (
     FormatRoundTrip,
 )
@@ -103,9 +102,7 @@ class TestXlsxFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
             {"id": 1, "name": "alpha"},
             {"id": 2, "name": "beta"},
         ]
-        fmt = XlsxFormat(
-            has_header=False, column_names=("id", "name")
-        )
+        fmt = XlsxFormat(has_header=False, column_names=("id", "name"))
         await FormatRoundTrip.assert_round_trip(fmt, records)
 
     async def test_round_trip_custom_sheet(self) -> None:

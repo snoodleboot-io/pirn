@@ -16,7 +16,10 @@ class StubKinesis:
     """Mirrors the slice of the aioboto3 Kinesis client surface we depend on."""
 
     def __init__(
-        self, *, records: list[dict[str, Any]] | None = None, shards: list[str] | None = None,
+        self,
+        *,
+        records: list[dict[str, Any]] | None = None,
+        shards: list[str] | None = None,
     ) -> None:
         self.put_records: list[dict[str, Any]] = []
         self._records = records or []
@@ -33,13 +36,15 @@ class StubKinesis:
 
     async def describe_stream(self, *, StreamName: str) -> dict[str, Any]:
         return {
-            "StreamDescription": {
-                "Shards": [{"ShardId": shard_id} for shard_id in self._shards]
-            }
+            "StreamDescription": {"Shards": [{"ShardId": shard_id} for shard_id in self._shards]}
         }
 
     async def get_shard_iterator(
-        self, *, StreamName: str, ShardId: str, ShardIteratorType: str,
+        self,
+        *,
+        StreamName: str,
+        ShardId: str,
+        ShardIteratorType: str,
     ) -> dict[str, Any]:
         return {"ShardIterator": f"iter:{ShardId}"}
 
@@ -55,18 +60,16 @@ class StubKinesis:
 # ──────────────────────────────────────────────────────── construction
 
 
-
 class _StandaloneTests(unittest.TestCase):
     def test_implements_message_broker(self) -> None:
         broker = KinesisBroker(KinesisConfig(region="us-east-1"), client=StubKinesis())
         assert isinstance(broker, MessageBroker)
-    
-    
+
     def test_rejects_non_config(self) -> None:
         with self.assertRaisesRegex(TypeError, "must be KinesisConfig"):
             KinesisBroker("not-a-config", client=StubKinesis())  # type: ignore[arg-type]
-    
-    
+
+
 # ─────────────────────────────────────────────────────────────── publish
 
 

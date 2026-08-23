@@ -28,9 +28,7 @@ class TestDsnScrubber(unittest.TestCase):
 
     def test_redacts_signature_param(self) -> None:
         scrubber = DsnScrubber()
-        out = scrubber.scrub(
-            "https://s3.example.com/bucket/key?signature=abcdef&expires=99"
-        )
+        out = scrubber.scrub("https://s3.example.com/bucket/key?signature=abcdef&expires=99")
         assert "abcdef" not in out
 
     def test_idempotent_on_already_redacted_dsn(self) -> None:

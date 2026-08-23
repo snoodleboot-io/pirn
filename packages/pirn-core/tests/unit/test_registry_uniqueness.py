@@ -15,8 +15,9 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-import pirn  # noqa: F401 — import triggers Registry.fill_registry() at package init
 from sweet_tea.registry import Registry
+
+import pirn  # noqa: F401 — import triggers Registry.fill_registry() at package init
 
 
 def _collisions() -> dict[tuple[str, str], set[str]]:
@@ -39,8 +40,7 @@ def test_registry_keys_are_globally_unique() -> None:
         "Duplicate registry keys break bare-name resolution "
         f"(create() raises on >1 match). {len(collisions)} collision(s):\n"
         + "\n".join(
-            f"  ({key!r}, {library!r}) -> "
-            + ", ".join(sorted(classes))
+            f"  ({key!r}, {library!r}) -> " + ", ".join(sorted(classes))
             for (key, library), classes in sorted(collisions.items())
         )
     )
