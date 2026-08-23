@@ -12,8 +12,8 @@ except ImportError as _e:
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
-from pirn_signal.statistical.ar_model_estimator import ARModelEstimator
 
+from pirn_signal.statistical.ar_model_estimator import ARModelEstimator
 from tests.conftest import emit_signal_payload, make_signal_payload
 
 
@@ -39,9 +39,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_emits_dict_with_correct_keys(self) -> None:
         with Tapestry() as t:
             sig = emit_signal_payload(_config=KnotConfig(id="sig"))
-            ARModelEstimator(
-                signal=sig, order=3, method="burg", _config=KnotConfig(id="ar")
-            )
+            ARModelEstimator(signal=sig, order=3, method="burg", _config=KnotConfig(id="ar"))
         result = await t.run(RunRequest())
         out = result.outputs["ar"]
         assert isinstance(out, dict)

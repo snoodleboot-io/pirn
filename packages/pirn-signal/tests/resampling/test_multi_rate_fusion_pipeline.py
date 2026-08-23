@@ -12,9 +12,9 @@ except ImportError as _e:
 import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
+
 from pirn_signal.resampling.multi_rate_fusion_pipeline import MultiRateFusionPipeline
 from pirn_signal.types.signal_payload import SignalPayload
-
 from tests.conftest import make_signal_payload
 
 _SIGNAL_A = make_signal_payload()

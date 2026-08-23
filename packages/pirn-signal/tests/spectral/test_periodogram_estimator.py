@@ -13,11 +13,11 @@ import numpy as np
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_signal.spectral.periodogram_estimator import PeriodogramEstimator
 from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.spectrum_payload import SpectrumPayload
-
 from tests.conftest import emit_signal_payload
 
 

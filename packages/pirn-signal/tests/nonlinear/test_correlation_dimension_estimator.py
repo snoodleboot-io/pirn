@@ -7,11 +7,11 @@ import unittest
 import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
+
 from pirn_signal.nonlinear.correlation_dimension_estimator import (
     CorrelationDimensionEstimator,
 )
 from pirn_signal.types.signal_payload import SignalPayload
-
 from tests.conftest import make_signal_payload
 
 _SIGNAL = make_signal_payload()

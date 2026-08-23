@@ -7,9 +7,9 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_signal.statistical.particle_filter import ParticleFilter
 from pirn_signal.types.signal_payload import SignalPayload
-
 from tests.conftest import emit_signal_payload, make_signal_payload
 
 
@@ -36,7 +36,9 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
             object.__setattr__(k, "_config", KnotConfig(id="pf"))
         signal = make_signal_payload()
         with self.assertRaises((TypeError, ValueError)):
-            await k.process(signal=signal, state_dim=2, particle_count=100, resampling_strategy="bogus")
+            await k.process(
+                signal=signal, state_dim=2, particle_count=100, resampling_strategy="bogus"
+            )
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):

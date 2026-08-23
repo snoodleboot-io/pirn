@@ -14,11 +14,11 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_signal.spectral.cross_spectrum_estimator import CrossSpectrumEstimator
 from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.spectrum_payload import SpectrumPayload
-
 from tests.conftest import emit_signal_payload, emit_signal_payload_b
 
 

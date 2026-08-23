@@ -7,9 +7,9 @@ import unittest
 import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
+
 from pirn_signal.adaptive.echo_canceller import EchoCanceller
 from pirn_signal.types.signal_payload import SignalPayload
-
 from tests.conftest import make_signal_payload
 
 _MIC = make_signal_payload(signal_id="test")

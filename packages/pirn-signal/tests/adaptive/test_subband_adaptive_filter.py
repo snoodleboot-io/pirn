@@ -7,9 +7,9 @@ import unittest
 import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
+
 from pirn_signal.adaptive.subband_adaptive_filter import SubbandAdaptiveFilter
 from pirn_signal.types.signal_payload import SignalPayload
-
 from tests.conftest import make_signal_payload
 
 _SIGNAL = make_signal_payload()
@@ -34,20 +34,28 @@ class TestSubbandAdaptiveFilter(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_subband_count_le_one(self) -> None:
         knot = self._make()
         with pytest.raises(ValueError, match="subband_count"):
-            await knot.process(_SIGNAL, _REF, subband_count=1, filter_length_per_band=8, step_size=0.1)
+            await knot.process(
+                _SIGNAL, _REF, subband_count=1, filter_length_per_band=8, step_size=0.1
+            )
 
     async def test_rejects_non_positive_filter_length_per_band(self) -> None:
         knot = self._make()
         with pytest.raises(ValueError, match="filter_length_per_band"):
-            await knot.process(_SIGNAL, _REF, subband_count=4, filter_length_per_band=0, step_size=0.1)
+            await knot.process(
+                _SIGNAL, _REF, subband_count=4, filter_length_per_band=0, step_size=0.1
+            )
 
     async def test_rejects_non_positive_step_size(self) -> None:
         knot = self._make()
         with pytest.raises(ValueError, match="step_size"):
-            await knot.process(_SIGNAL, _REF, subband_count=4, filter_length_per_band=8, step_size=0)
+            await knot.process(
+                _SIGNAL, _REF, subband_count=4, filter_length_per_band=8, step_size=0
+            )
 
     async def test_emits_signal_frame(self) -> None:
         knot = self._make()
-        out = await knot.process(_SIGNAL, _REF, subband_count=4, filter_length_per_band=8, step_size=0.1)
+        out = await knot.process(
+            _SIGNAL, _REF, subband_count=4, filter_length_per_band=8, step_size=0.1
+        )
         assert isinstance(out, SignalPayload)
         assert out.frame.signal_id == "test:subband-adaptive"

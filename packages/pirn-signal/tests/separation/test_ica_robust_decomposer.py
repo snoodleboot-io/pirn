@@ -18,6 +18,7 @@ import numpy as np
 import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
+
 from pirn_signal.separation.ica_robust_decomposer import ICARobustDecomposer
 from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
@@ -25,7 +26,9 @@ from pirn_signal.types.source_payload import SourcePayload
 
 _rng = np.random.default_rng(0)
 _SIGNAL = SignalPayload(
-    metadata=SignalFrame(signal_id="test", channel_count=8, sample_rate_hz=1000.0, samples_per_channel=1024),
+    metadata=SignalFrame(
+        signal_id="test", channel_count=8, sample_rate_hz=1000.0, samples_per_channel=1024
+    ),
     data=_rng.standard_normal((8, 1024)),
 )
 
