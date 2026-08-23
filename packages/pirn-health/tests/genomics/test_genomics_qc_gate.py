@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
+
 from pirn_health.genomics.genomics_qc_error import GenomicsQCError
 from pirn_health.genomics.genomics_qc_gate import GenomicsQCCheck, GenomicsQCGate
 from pirn_health.types.genomics_record import GenomicsRecord

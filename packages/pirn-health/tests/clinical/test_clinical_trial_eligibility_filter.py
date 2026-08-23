@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
+
 from pirn_health.clinical.clinical_trial_eligibility_filter import (
     ClinicalTrialEligibilityFilter,
 )

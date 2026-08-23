@@ -13,6 +13,7 @@ import numpy as np
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_health.types.health_signal_frame import HealthSignalFrame
 from pirn_health.types.health_signal_payload import HealthSignalPayload
 from pirn_health.wearables.ecg_r_peak_detector import (
@@ -20,7 +21,9 @@ from pirn_health.wearables.ecg_r_peak_detector import (
 )
 
 _ECG_SIGNAL = HealthSignalPayload(
-    metadata=HealthSignalFrame(signal_id="ecg", channel_count=1, sample_rate_hz=360.0, samples_per_channel=1024),
+    metadata=HealthSignalFrame(
+        signal_id="ecg", channel_count=1, sample_rate_hz=360.0, samples_per_channel=1024
+    ),
     data=np.random.default_rng(0).standard_normal((1, 1024)),
 )
 

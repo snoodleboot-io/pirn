@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
+
 from pirn_health.genomics.vcf_filter import VCFFilter
 
 _CFG = KnotConfig(id="f")
@@ -59,8 +60,11 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         knot = self._make_knot()
         rows = [{"QUAL": 20.0, "INFO_AF": 0.1}, {"QUAL": 5.0, "INFO_AF": 0.1}]
         out = await knot.process(
-            rows=rows, min_qual=10.0, max_af=0.5,
-            qual_field="QUAL", af_field="INFO_AF",
+            rows=rows,
+            min_qual=10.0,
+            max_af=0.5,
+            qual_field="QUAL",
+            af_field="INFO_AF",
         )
         assert len(out) == 1
         assert out[0]["QUAL"] == 20.0

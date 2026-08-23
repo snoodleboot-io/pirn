@@ -7,6 +7,7 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.tapestry import Tapestry
+
 from pirn_health.genomics.bam_sort_indexer import BAMSortIndexer
 
 _CFG = KnotConfig(id="b")

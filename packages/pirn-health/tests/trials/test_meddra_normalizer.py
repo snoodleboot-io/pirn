@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
+
 from pirn_health.trials.meddra_normalizer import MedDRANormalizer
 from pirn_health.types.clinical_trial_record import ClinicalTrialRecord
 
@@ -32,6 +33,7 @@ _TERM_TO_PT = {"headache": "Headache"}
 def _make_knot() -> MedDRANormalizer:
     with Tapestry():
         from pirn.core.parameter import Parameter
+
         src = Parameter("rec", tuple, default=_RECORDS, _config=KnotConfig(id="rec"))
         return MedDRANormalizer(
             records=src,

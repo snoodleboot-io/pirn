@@ -6,6 +6,7 @@ import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from pirn.core.knot_config import KnotConfig
+
 from pirn_health.genomics.vcf_merger import VCFMerger
 
 _CFG = KnotConfig(id="m")

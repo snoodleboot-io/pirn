@@ -13,6 +13,7 @@ from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
+
 from pirn_health.trials.propensity_score_matcher_pipeline import (
     PropensityScoreMatcherPipeline,
 )
@@ -32,6 +33,7 @@ def _make_knot(
 ) -> PropensityScoreMatcherPipeline:
     with Tapestry():
         from pirn.core.parameter import Parameter
+
         src = Parameter("c", list, default=_COHORT, _config=KnotConfig(id="c"))
         return PropensityScoreMatcherPipeline(
             cohort=src,

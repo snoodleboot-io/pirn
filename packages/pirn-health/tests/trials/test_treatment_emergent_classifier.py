@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
+
 from pirn_health.trials.treatment_emergent_classifier import (
     TreatmentEmergentClassifier,
 )
@@ -34,6 +35,7 @@ _EXPOSURES = {"S-1": datetime(2026, 4, 15, tzinfo=UTC)}
 def _make_knot() -> TreatmentEmergentClassifier:
     with Tapestry():
         from pirn.core.parameter import Parameter
+
         ev = Parameter("ev", tuple, default=_EVENTS, _config=KnotConfig(id="ev"))
         ex = Parameter("ex", dict, default=_EXPOSURES, _config=KnotConfig(id="ex"))
         return TreatmentEmergentClassifier(

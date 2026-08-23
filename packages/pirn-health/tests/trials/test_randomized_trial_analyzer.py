@@ -7,6 +7,7 @@ from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
+
 from pirn_health.trials.randomized_trial_analyzer import RandomizedTrialAnalyzer
 
 _TRIAL_DATA: list[dict[str, Any]] = [
@@ -20,6 +21,7 @@ _TRIAL_DATA: list[dict[str, Any]] = [
 def _make_knot(analysis_type: str = "itt") -> RandomizedTrialAnalyzer:
     with Tapestry():
         from pirn.core.parameter import Parameter
+
         src = Parameter("d", list, default=_TRIAL_DATA, _config=KnotConfig(id="d"))
         return RandomizedTrialAnalyzer(
             trial_data=src,

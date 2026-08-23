@@ -7,6 +7,7 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.tapestry import Tapestry
+
 from pirn_health.genomics.methylation_array_processor import MethylationArrayProcessor
 
 _CFG = KnotConfig(id="m")

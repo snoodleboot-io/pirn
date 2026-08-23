@@ -13,6 +13,7 @@ from collections.abc import Mapping
 
 import numpy as np
 from pirn.core.knot_config import KnotConfig
+
 from pirn_health.eeg_meg.connectivity_analyzer import (
     ConnectivityAnalyzer,
 )
@@ -21,7 +22,9 @@ from pirn_health.types.health_signal_payload import HealthSignalPayload
 
 _CFG = KnotConfig(id="c")
 _SIGNAL = HealthSignalPayload(
-    metadata=HealthSignalFrame(signal_id="s", channel_count=2, sample_rate_hz=256.0, samples_per_channel=512),
+    metadata=HealthSignalFrame(
+        signal_id="s", channel_count=2, sample_rate_hz=256.0, samples_per_channel=512
+    ),
     data=np.random.default_rng(0).standard_normal((2, 512)),
 )
 _KNOT = ConnectivityAnalyzer(signal=_SIGNAL, channel_names=[], method="plv", _config=_CFG)

@@ -6,6 +6,7 @@ import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from pirn.core.knot_config import KnotConfig
+
 from pirn_health.genomics.bwa_aligner import BWAAligner
 
 _CFG = KnotConfig(id="a")
@@ -36,5 +37,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         mock_proc.returncode = 0
         mock_proc.communicate = AsyncMock(return_value=(b"", b""))
         with patch("asyncio.create_subprocess_exec", AsyncMock(return_value=mock_proc)):
-            out = await knot.process(fastq_path="in.fastq", reference_path="ref.fa", output_bam_path="out.bam")
+            out = await knot.process(
+                fastq_path="in.fastq", reference_path="ref.fa", output_bam_path="out.bam"
+            )
         assert out == "out.bam"

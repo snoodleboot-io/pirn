@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.tapestry import Tapestry
+
 from pirn_health.trials.clinical_event_aggregator import ClinicalEventAggregator
 from pirn_health.types.clinical_trial_record import ClinicalTrialRecord
 

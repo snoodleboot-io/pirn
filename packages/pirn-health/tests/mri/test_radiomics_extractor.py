@@ -6,6 +6,7 @@ import unittest
 from collections.abc import Mapping
 
 from pirn.core.knot_config import KnotConfig
+
 from pirn_health.mri.radiomics_extractor import RadiomicsExtractor
 
 _CFG = KnotConfig(id="r")
@@ -13,7 +14,12 @@ _CFG = KnotConfig(id="r")
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> RadiomicsExtractor:
-        return RadiomicsExtractor(image_path="i.nii.gz", mask_path="m.nii.gz", feature_classes=["firstorder"], _config=_CFG)
+        return RadiomicsExtractor(
+            image_path="i.nii.gz",
+            mask_path="m.nii.gz",
+            feature_classes=["firstorder"],
+            _config=_CFG,
+        )
 
     async def test_rejects_empty(self) -> None:
         knot = self._make_knot()
@@ -32,5 +38,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_returns_mapping(self) -> None:
         knot = self._make_knot()
-        out = await knot.process(image_path="i.nii.gz", mask_path="m.nii.gz", feature_classes=["firstorder"])
+        out = await knot.process(
+            image_path="i.nii.gz", mask_path="m.nii.gz", feature_classes=["firstorder"]
+        )
         assert isinstance(out, Mapping)

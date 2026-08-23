@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
+
 from pirn_health.clinical.omop_cdm_mapper import OMOPCDMMapper
 from pirn_health.types.clinical_record import ClinicalRecord
 
