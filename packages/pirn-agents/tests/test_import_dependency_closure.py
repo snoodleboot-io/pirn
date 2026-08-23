@@ -12,8 +12,10 @@ Nothing is wrong today (PIR-780). The check exists because the failure mode is
 invisible in any environment that happens to have the package installed — which
 every development environment does — so it would be found by a user, not by CI.
 
-Scope note: this asserts nothing about *cost*. Whether the eager fill should
-happen at all is a separate design question, still open on PIR-780.
+Scope note: this asserts nothing about *cost*. That is
+``tests/test_import_cost.py``, which bounds how much the eager fill imports and
+registers, and records where the time actually goes — not, as PIR-780 first
+supposed, in importing the tree.
 """
 
 from __future__ import annotations
