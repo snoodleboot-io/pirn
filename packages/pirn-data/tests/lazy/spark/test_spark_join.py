@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
+
 from pirn_data.lazy.spark.spark_dataframe import SparkDataFrame
 
 try:
@@ -17,6 +18,7 @@ except ImportError as _e:
 
 from pirn.nodes.source import Source
 from pirn.tapestry import Tapestry
+
 from pirn_data.lazy.spark.spark_join import SparkJoin
 
 
@@ -108,9 +110,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
             lsrc = _SparkLeft(_config=KnotConfig(id="left"))
             rsrc = _SparkRight(_config=KnotConfig(id="right"))
             how_knot = emit_how(_config=KnotConfig(id="how"))
-            SparkJoin(
-                left=lsrc, right=rsrc, on="id", how=how_knot, _config=KnotConfig(id="join")
-            )
+            SparkJoin(left=lsrc, right=rsrc, on="id", how=how_knot, _config=KnotConfig(id="join"))
         # Construction with Knot input succeeds — process() tested separately
 
 

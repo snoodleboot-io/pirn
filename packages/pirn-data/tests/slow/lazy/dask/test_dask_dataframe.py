@@ -10,13 +10,14 @@ from datetime import UTC
 
 import dask.dataframe as dd
 import pandas as pd
+
 from pirn_data.lazy.dask.dask_dataframe import DaskDataFrame
 
 
 def _orders_frame() -> dd.DataFrame:
     pdf = pd.DataFrame(
         {
-            "id":     [1, 2, 3, 4],
+            "id": [1, 2, 3, 4],
             "amount": [10.0, 25.0, 5.0, 100.0],
             "region": ["EU", "EU", "EU", "US"],
         }

@@ -15,6 +15,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.frames.pyarrow.pyarrow_data_batch import PyarrowDataBatch
 from pirn_data.frames.pyarrow.pyarrow_filter import PyarrowFilter
 
@@ -28,7 +29,7 @@ async def emit_users() -> PyarrowDataBatch:
     return PyarrowDataBatch(
         table=pa.table(
             {
-                "id":     [1, 2, 3, 4],
+                "id": [1, 2, 3, 4],
                 "active": [True, False, True, False],
                 "region": ["EU", "US", "US", "EU"],
             }
@@ -54,9 +55,7 @@ class TestPyarrowFilter(unittest.IsolatedAsyncioTestCase):
             batch = emit_users(_config=KnotConfig(id="users"))
             PyarrowFilter(
                 batch=batch,
-                predicate=lambda table: pc.equal(
-                    table.column("region"), "EU"
-                ),
+                predicate=lambda table: pc.equal(table.column("region"), "EU"),
                 _config=KnotConfig(id="eu"),
             )
         result = await t.run(RunRequest())
@@ -91,16 +90,12 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            return PyarrowFilter(
-                batch=batch, _config=KnotConfig(id="f"), **kwargs
-            )
+            return PyarrowFilter(batch=batch, _config=KnotConfig(id="f"), **kwargs)
 
     async def test_rejects_neither_expression_nor_predicate(self) -> None:
         k = self._make_knot()
         with self.assertRaisesRegex(TypeError, "provide either"):
-            await k.process(
-                batch=_empty_batch(), expression=None, predicate=None
-            )
+            await k.process(batch=_empty_batch(), expression=None, predicate=None)
 
     async def test_rejects_both_expression_and_predicate(self) -> None:
         k = self._make_knot(expression=pc.field("a"), predicate=lambda t: True)

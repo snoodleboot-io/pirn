@@ -12,6 +12,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.quality.database_table_freshness_check import (
     DatabaseTableFreshnessCheck,
 )
@@ -23,9 +24,7 @@ _MAX_AGE = 3600
 
 async def _make_pool(*, fresh: bool = True) -> SqlitePool:
     p = SqlitePool(SqliteConfig(database=":memory:"))
-    await p.execute(
-        "CREATE TABLE events (id INTEGER PRIMARY KEY, updated_at TEXT NOT NULL)"
-    )
+    await p.execute("CREATE TABLE events (id INTEGER PRIMARY KEY, updated_at TEXT NOT NULL)")
     if fresh:
         ts = datetime.now(UTC).isoformat()
     else:
@@ -36,9 +35,7 @@ async def _make_pool(*, fresh: bool = True) -> SqlitePool:
 
 async def _make_empty_pool() -> SqlitePool:
     p = SqlitePool(SqliteConfig(database=":memory:"))
-    await p.execute(
-        "CREATE TABLE events (id INTEGER PRIMARY KEY, updated_at TEXT NOT NULL)"
-    )
+    await p.execute("CREATE TABLE events (id INTEGER PRIMARY KEY, updated_at TEXT NOT NULL)")
     return p
 
 

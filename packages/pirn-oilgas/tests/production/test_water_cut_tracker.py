@@ -6,6 +6,7 @@ import unittest
 
 import numpy as np
 from pirn.core.knot_config import KnotConfig
+
 from pirn_oilgas.production.water_cut_tracker import WaterCutTracker
 from pirn_oilgas.types.scada_payload import ScadaPayload
 from pirn_oilgas.types.scada_time_series import ScadaTimeSeries

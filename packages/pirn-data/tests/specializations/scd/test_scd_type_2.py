@@ -14,6 +14,7 @@ from pirn.connectors.databases.sqlite_pool import SqlitePool
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.scd.scd_type_2 import ScdType2
 
 
@@ -25,7 +26,6 @@ def _make_pool() -> MagicMock:
 
 
 class TestScdType2Behaviour(unittest.IsolatedAsyncioTestCase):
-
     async def asyncSetUp(self) -> None:
         pool = SqlitePool(SqliteConfig(database=":memory:"))
         await pool.execute(
@@ -75,8 +75,7 @@ class TestScdType2Behaviour(unittest.IsolatedAsyncioTestCase):
             )
         assert (await t.run(RunRequest())).succeeded
         rows = await target_pool.fetch_all(
-            "SELECT id, name, region, valid_to, is_current "
-            "FROM customers ORDER BY id"
+            "SELECT id, name, region, valid_to, is_current FROM customers ORDER BY id"
         )
         assert len(rows) == 2
         for row in rows:
@@ -113,8 +112,7 @@ class TestScdType2Behaviour(unittest.IsolatedAsyncioTestCase):
             )
         assert (await t2.run(RunRequest())).succeeded
         rows = await target_pool.fetch_all(
-            "SELECT id, region, valid_to, is_current "
-            "FROM customers ORDER BY id, valid_from"
+            "SELECT id, region, valid_to, is_current FROM customers ORDER BY id, valid_from"
         )
         assert len(rows) == 3
         old_id_1 = [r for r in rows if r[0] == 1 and r[3] == 0]
@@ -131,7 +129,6 @@ class TestScdType2Behaviour(unittest.IsolatedAsyncioTestCase):
 
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):
-
     def _make_knot(self, **kwargs: Any) -> ScdType2:
         src = _make_pool()
         tgt = _make_pool()

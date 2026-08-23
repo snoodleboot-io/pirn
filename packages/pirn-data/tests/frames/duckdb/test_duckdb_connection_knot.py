@@ -10,6 +10,7 @@ except ImportError as _e:
     raise unittest.SkipTest("duckdb not installed") from _e
 
 from pirn.core.knot_config import KnotConfig
+
 from pirn_data.frames.duckdb.duckdb_connection import DuckDBConnection
 from pirn_data.frames.duckdb.duckdb_connection_knot import DuckDBConnectionKnot
 

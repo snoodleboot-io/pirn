@@ -6,6 +6,7 @@ import unittest
 
 import numpy as np
 from pirn.core.knot_config import KnotConfig
+
 from pirn_oilgas.production.flowline_pressure_modeler import FlowlinePressureModeler
 from pirn_oilgas.types.scada_payload import ScadaPayload
 from pirn_oilgas.types.scada_time_series import ScadaTimeSeries

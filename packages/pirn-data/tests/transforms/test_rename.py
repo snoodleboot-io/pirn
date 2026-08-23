@@ -8,6 +8,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.data_batch import DataBatch
 from pirn_data.data_schema import DataSchema
 from pirn_data.transforms.rename import Rename
@@ -22,7 +23,7 @@ async def emit_users() -> DataBatch:
     )
     rows = (
         {"user_id": 1, "user_name": "alice", "region": "EU"},
-        {"user_id": 2, "user_name": "bob",   "region": None},
+        {"user_id": 2, "user_name": "bob", "region": None},
     )
     return DataBatch(rows=rows, schema=schema)
 
@@ -51,7 +52,7 @@ class TestRename(unittest.IsolatedAsyncioTestCase):
         out: DataBatch = result.outputs["renamed"]
         assert out.rows == (
             {"id": 1, "name": "alice", "region": "EU"},
-            {"id": 2, "name": "bob",   "region": None},
+            {"id": 2, "name": "bob", "region": None},
         )
 
     async def test_updates_schema_columns_pks_and_nullable(self) -> None:

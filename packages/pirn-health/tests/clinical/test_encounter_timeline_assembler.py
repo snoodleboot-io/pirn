@@ -7,6 +7,7 @@ from collections.abc import Mapping
 from datetime import UTC, datetime
 
 from pirn.core.knot_config import KnotConfig
+
 from pirn_health.clinical.encounter_timeline_assembler import (
     EncounterTimelineAssembler,
 )

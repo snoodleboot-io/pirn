@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
+
 from pirn_data.lazy.spark.spark_dataframe import SparkDataFrame
 from pirn_data.lazy.spark.spark_execution_receipt import SparkExecutionReceipt
 
@@ -18,6 +19,7 @@ except ImportError as _e:
 
 from pirn.nodes.source import Source
 from pirn.tapestry import Tapestry
+
 from pirn_data.lazy.spark.spark_write_sink import SparkWriteSink
 
 

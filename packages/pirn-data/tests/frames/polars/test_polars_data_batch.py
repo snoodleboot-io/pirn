@@ -11,6 +11,7 @@ except ImportError as _e:
 from datetime import UTC
 
 import polars as pl
+
 from pirn_data.frames.polars.polars_data_batch import PolarsDataBatch
 
 

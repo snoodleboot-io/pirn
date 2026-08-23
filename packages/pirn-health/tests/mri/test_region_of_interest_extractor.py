@@ -14,6 +14,7 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 from pirn.core.knot_config import KnotConfig
+
 from pirn_health.mri.region_of_interest_extractor import RegionOfInterestExtractor
 
 _CFG = KnotConfig(id="r")
@@ -54,6 +55,8 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_mapping(self) -> None:
         knot = self._make_knot()
         with patch("pirn_health.mri.region_of_interest_extractor.nib", self._mock_nib()):
-            out = await knot.process(nifti_path="x.nii", atlas_label_path="a.nii", roi_labels=[1, 2])
+            out = await knot.process(
+                nifti_path="x.nii", atlas_label_path="a.nii", roi_labels=[1, 2]
+            )
         assert isinstance(out, Mapping)
         assert set(out.keys()) == {1, 2}

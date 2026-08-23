@@ -7,6 +7,7 @@ from typing import Any
 
 import pytest
 from pirn.core.knot_config import KnotConfig
+
 from pirn_oilgas.well.depth_shift_corrector import DepthShiftCorrector
 
 _LOG: list[dict[str, Any]] = [

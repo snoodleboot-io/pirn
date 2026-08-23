@@ -22,9 +22,7 @@ class RecordingFeatureStoreProvider(FeatureStoreProvider):
         self.requested.append((list(entity_keys), list(feature_names)))
         return [dict(key) for key in entity_keys]
 
-    async def write_features(
-        self, features: Iterable[Mapping[str, Any]]
-    ) -> int:
+    async def write_features(self, features: Iterable[Mapping[str, Any]]) -> int:
         rows = [dict(row) for row in features]
         self.written.extend(rows)
         return len(rows)

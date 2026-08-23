@@ -8,6 +8,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_ml.specializations.training.stacking_ensemble_builder import (
     StackingEnsembleBuilder,
 )
@@ -34,7 +35,9 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
             test=DatasetManifest(name="d:test", feature_names=("a",), row_count=20),
         )
         with self.assertRaises((TypeError, ValueError)):
-            await k.process(split=split, base_algorithms=("rf",), meta_algorithm="lr", metrics=("accuracy",))
+            await k.process(
+                split=split, base_algorithms=("rf",), meta_algorithm="lr", metrics=("accuracy",)
+            )
 
     async def test_rejects_empty_meta_algorithm(self) -> None:
         with Tapestry():
@@ -45,7 +48,9 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
             test=DatasetManifest(name="d:test", feature_names=("a",), row_count=20),
         )
         with self.assertRaises((TypeError, ValueError)):
-            await k.process(split=split, base_algorithms=("rf", "dt"), meta_algorithm="", metrics=("accuracy",))
+            await k.process(
+                split=split, base_algorithms=("rf", "dt"), meta_algorithm="", metrics=("accuracy",)
+            )
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

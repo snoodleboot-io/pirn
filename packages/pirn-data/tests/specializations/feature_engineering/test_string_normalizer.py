@@ -9,6 +9,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.feature_engineering.string_normalizer import (
     StringNormalizer,
 )
@@ -42,8 +43,10 @@ class TestStringNormalizer(unittest.IsolatedAsyncioTestCase):
     async def test_lowercase(self) -> None:
         rows = [{"name": "ALICE"}]
         opts = {
-            "lowercase": True, "strip": False,
-            "remove_punctuation": False, "unicode_form": "none",
+            "lowercase": True,
+            "strip": False,
+            "remove_punctuation": False,
+            "unicode_form": "none",
         }
         k = _make_knot(**opts)
         result = await k.process(rows=rows, **_call_args(**opts))
@@ -52,8 +55,10 @@ class TestStringNormalizer(unittest.IsolatedAsyncioTestCase):
     async def test_strip(self) -> None:
         rows = [{"name": "  Alice  "}]
         opts = {
-            "lowercase": False, "strip": True,
-            "remove_punctuation": False, "unicode_form": "none",
+            "lowercase": False,
+            "strip": True,
+            "remove_punctuation": False,
+            "unicode_form": "none",
         }
         k = _make_knot(**opts)
         result = await k.process(rows=rows, **_call_args(**opts))
@@ -62,8 +67,10 @@ class TestStringNormalizer(unittest.IsolatedAsyncioTestCase):
     async def test_remove_punctuation(self) -> None:
         rows = [{"name": "Hello, World!"}]
         opts = {
-            "lowercase": False, "strip": False,
-            "remove_punctuation": True, "unicode_form": "none",
+            "lowercase": False,
+            "strip": False,
+            "remove_punctuation": True,
+            "unicode_form": "none",
         }
         k = _make_knot(**opts)
         result = await k.process(rows=rows, **_call_args(**opts))
@@ -86,8 +93,10 @@ class TestStringNormalizer(unittest.IsolatedAsyncioTestCase):
         nfd = "À"
         rows = [{"name": nfd}]
         opts = {
-            "lowercase": False, "strip": False,
-            "remove_punctuation": False, "unicode_form": "NFC",
+            "lowercase": False,
+            "strip": False,
+            "remove_punctuation": False,
+            "unicode_form": "NFC",
         }
         k = _make_knot(**opts)
         result = await k.process(rows=rows, **_call_args(**opts))

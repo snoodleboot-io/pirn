@@ -15,6 +15,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.frames.polars.polars_aggregate import PolarsAggregate
 from pirn_data.frames.polars.polars_data_batch import PolarsDataBatch
 
@@ -24,8 +25,8 @@ async def emit_orders() -> PolarsDataBatch:
     return PolarsDataBatch(
         frame=pl.DataFrame(
             {
-                "region":   ["EU", "EU", "EU", "US", "US"],
-                "amount":   [10.0, 25.0, 5.0,  100.0, None],
+                "region": ["EU", "EU", "EU", "US", "US"],
+                "amount": [10.0, 25.0, 5.0, 100.0, None],
                 "customer": ["alice", "bob", "alice", "carol", "carol"],
             }
         )
@@ -55,7 +56,9 @@ class TestPolarsAggregate(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         out: PolarsDataBatch = result.outputs["agg"]
-        totals = dict(zip(out.frame["region"].to_list(), out.frame["total"].to_list(), strict=False))
+        totals = dict(
+            zip(out.frame["region"].to_list(), out.frame["total"].to_list(), strict=False)
+        )
         assert totals["EU"] == 40.0
         assert totals["US"] == 100.0
 
@@ -86,7 +89,7 @@ class TestPolarsAggregate(unittest.IsolatedAsyncioTestCase):
                 frame=pl.DataFrame(
                     {
                         "region": ["EU", "EU", "EU", "US"],
-                        "tier":   ["A", "B", "A", "A"],
+                        "tier": ["A", "B", "A", "A"],
                         "amount": [1, 2, 3, 4],
                     }
                 )

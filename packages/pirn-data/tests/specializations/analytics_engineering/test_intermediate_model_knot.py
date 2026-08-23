@@ -11,6 +11,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.analytics_engineering.intermediate_model_knot import (
     IntermediateModelKnot,
 )
@@ -27,15 +28,9 @@ async def _make_pool() -> SqlitePool:
     p = SqlitePool(SqliteConfig(database=":memory:"))
     await p.execute("CREATE TABLE stg_orders (order_id INTEGER, customer_id INTEGER)")
     await p.execute("CREATE TABLE stg_customers (customer_id INTEGER, name TEXT)")
-    await p.execute(
-        "CREATE TABLE int_orders (order_id INTEGER, customer_id INTEGER, name TEXT)"
-    )
-    await p.execute_many(
-        "INSERT INTO stg_orders VALUES (?, ?)", [(1, 10), (2, 11)]
-    )
-    await p.execute_many(
-        "INSERT INTO stg_customers VALUES (?, ?)", [(10, "Alice"), (11, "Bob")]
-    )
+    await p.execute("CREATE TABLE int_orders (order_id INTEGER, customer_id INTEGER, name TEXT)")
+    await p.execute_many("INSERT INTO stg_orders VALUES (?, ?)", [(1, 10), (2, 11)])
+    await p.execute_many("INSERT INTO stg_customers VALUES (?, ?)", [(10, "Alice"), (11, "Bob")])
     return p
 
 

@@ -12,13 +12,13 @@ from pirn.connectors.databases.sqlite_pool import SqlitePool
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.scd.scd_type_4_mini_dimension import (
     ScdType4MiniDimension,
 )
 
 
 class TestConstruction(unittest.IsolatedAsyncioTestCase):
-
     async def asyncSetUp(self) -> None:
         self._tmp_main_pool = tempfile.TemporaryDirectory()
         tmp_path = Path(self._tmp_main_pool.name)
@@ -116,7 +116,6 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
 
 
 class TestScdType4Behaviour(unittest.IsolatedAsyncioTestCase):
-
     async def asyncSetUp(self) -> None:
         self._tmp_main_pool = tempfile.TemporaryDirectory()
         tmp_path = Path(self._tmp_main_pool.name)
@@ -161,16 +160,13 @@ class TestScdType4Behaviour(unittest.IsolatedAsyncioTestCase):
 
     async def asyncTearDown(self) -> None:
         await self.main_pool.close()
-        
-        
+
         self._tmp_main_pool.cleanup()
         await self.mini_pool.close()
-        
-        
+
         self._tmp_mini_pool.cleanup()
         await self.source_pool.close()
-        
-        
+
     async def test_inserts_new_mini_dim_rows(self) -> None:
         source_pool = self.source_pool
         main_pool = self.main_pool
@@ -229,9 +225,7 @@ class TestScdType4Behaviour(unittest.IsolatedAsyncioTestCase):
                 _config=KnotConfig(id="scd4"),
             )
         assert (await t2.run(RunRequest())).succeeded
-        mini_count = await mini_pool.fetch_all(
-            "SELECT COUNT(*) FROM customer_profile"
-        )
+        mini_count = await mini_pool.fetch_all("SELECT COUNT(*) FROM customer_profile")
         assert mini_count[0][0] == 2
 
     async def test_updates_main_dim_fk(self) -> None:
@@ -252,8 +246,6 @@ class TestScdType4Behaviour(unittest.IsolatedAsyncioTestCase):
                 _config=KnotConfig(id="scd4"),
             )
         assert (await t.run(RunRequest())).succeeded
-        fk_rows = await main_pool.fetch_all(
-            "SELECT id, mini_dim_sk FROM customers ORDER BY id"
-        )
+        fk_rows = await main_pool.fetch_all("SELECT id, mini_dim_sk FROM customers ORDER BY id")
         for row in fk_rows:
             assert row[1] is not None

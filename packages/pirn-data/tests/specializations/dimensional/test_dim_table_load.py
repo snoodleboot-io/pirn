@@ -11,6 +11,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.dimensional.dim_table_load import DimTableLoad
 
 _SOURCE_QUERY = "SELECT id, name, region FROM customers"
@@ -64,9 +65,7 @@ async def _make_target_type2() -> SqlitePool:
     return pool
 
 
-def _make_knot(
-    src: SqlitePool, tgt: SqlitePool, **overrides: Any
-) -> DimTableLoad:
+def _make_knot(src: SqlitePool, tgt: SqlitePool, **overrides: Any) -> DimTableLoad:
     defaults: dict[str, Any] = {
         "source_pool": src,
         "source_query": _SOURCE_QUERY,
@@ -109,9 +108,7 @@ class TestDimTableLoad(unittest.IsolatedAsyncioTestCase):
         with Tapestry() as t:
             _make_knot(self.src, self.tgt)
         assert (await t.run(RunRequest())).succeeded
-        await self.src.execute(
-            "UPDATE customers SET region = ? WHERE id = ?", ("APAC", 1)
-        )
+        await self.src.execute("UPDATE customers SET region = ? WHERE id = ?", ("APAC", 1))
         with Tapestry() as t2:
             _make_knot(self.src, self.tgt)
         assert (await t2.run(RunRequest())).succeeded
@@ -126,9 +123,7 @@ class TestDimTableLoad(unittest.IsolatedAsyncioTestCase):
             _make_knot(self.src, tgt2, scd_type=2)
         result = await t.run(RunRequest())
         assert result.succeeded
-        rows = await tgt2.fetch_all(
-            "SELECT id, valid_to, is_current FROM customers ORDER BY id"
-        )
+        rows = await tgt2.fetch_all("SELECT id, valid_to, is_current FROM customers ORDER BY id")
         assert len(rows) == 2
         for row in rows:
             assert row[1] is None
@@ -140,9 +135,7 @@ class TestDimTableLoad(unittest.IsolatedAsyncioTestCase):
         with Tapestry() as t:
             _make_knot(self.src, tgt2, scd_type=2)
         assert (await t.run(RunRequest())).succeeded
-        await self.src.execute(
-            "UPDATE customers SET region = ? WHERE id = ?", ("APAC", 1)
-        )
+        await self.src.execute("UPDATE customers SET region = ? WHERE id = ?", ("APAC", 1))
         with Tapestry() as t2:
             _make_knot(self.src, tgt2, scd_type=2)
         assert (await t2.run(RunRequest())).succeeded

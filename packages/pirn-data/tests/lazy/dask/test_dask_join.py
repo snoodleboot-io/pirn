@@ -16,6 +16,7 @@ from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.nodes.source import Source
 from pirn.tapestry import Tapestry
+
 from pirn_data.lazy.dask.dask_dataframe import DaskDataFrame
 from pirn_data.lazy.dask.dask_join import DaskJoin
 
@@ -60,6 +61,7 @@ class TestDaskJoin(unittest.IsolatedAsyncioTestCase):
         left_data = _batch({"a_id": [1, 2], "val": ["x", "y"]})
         right_data = _batch({"b_id": [1, 3], "info": ["p", "q"]})
         with Tapestry():
+
             class _Src(Source):
                 async def process(self, **_: Any) -> DaskDataFrame:
                     return left_data
@@ -71,13 +73,19 @@ class TestDaskJoin(unittest.IsolatedAsyncioTestCase):
             left_src = _Src(_config=KnotConfig(id="l"))
             right_src = _Src2(_config=KnotConfig(id="r"))
             j = DaskJoin(
-                left=left_src, right=right_src,
-                left_on="a_id", right_on="b_id",
+                left=left_src,
+                right=right_src,
+                left_on="a_id",
+                right_on="b_id",
                 _config=KnotConfig(id="join"),
             )
         result = await j.process(
-            left=left_data, right=right_data,
-            on=None, left_on="a_id", right_on="b_id", how="inner",
+            left=left_data,
+            right=right_data,
+            on=None,
+            left_on="a_id",
+            right_on="b_id",
+            how="inner",
         )
         df = result.frame.compute()
         assert len(df) == 1
@@ -94,7 +102,10 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
             right = emit_right(_config=KnotConfig(id="right"))
             how_knot = emit_how(_config=KnotConfig(id="how"))
             DaskJoin(
-                left=left, right=right, on="id", how=how_knot,
+                left=left,
+                right=right,
+                on="id",
+                how=how_knot,
                 _config=KnotConfig(id="join"),
             )
         result = await t.run(RunRequest())

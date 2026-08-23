@@ -7,6 +7,7 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.tapestry import Tapestry
+
 from pirn_health.genomics.bulk_atac_seq_processor import BulkATACSeqProcessor
 
 _CFG = KnotConfig(id="b")

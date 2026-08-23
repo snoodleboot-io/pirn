@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
+
 from pirn_oilgas.reservoir.monte_carlo_simulator import MonteCarloSimulator
 
 
@@ -34,5 +35,5 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         assert "p90" in out
         # Ordering must hold for any lognormal draw
         assert out["p10"] < out["p50"] < out["p90"]
-        # P50 of a lognormal centred on 100 with σ=0.3 is close to 100
+        # P50 of a lognormal centred on 100 with sigma=0.3 is close to 100
         assert 80.0 < out["p50"] < 120.0

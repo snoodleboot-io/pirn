@@ -14,6 +14,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.frames.polars.polars_data_batch import PolarsDataBatch
 from pirn_data.frames.polars.polars_deduplicate import PolarsDeduplicate
 
@@ -23,9 +24,9 @@ async def emit_with_dups() -> PolarsDataBatch:
     return PolarsDataBatch(
         frame=pl.DataFrame(
             {
-                "id":      [1, 2, 1, 3, 2],
+                "id": [1, 2, 1, 3, 2],
                 "version": [1, 1, 2, 1, 2],
-                "name":    ["a", "b", "a-v2", "c", "b-v2"],
+                "name": ["a", "b", "a-v2", "c", "b-v2"],
             }
         )
     )
@@ -35,7 +36,7 @@ def _dup_batch() -> PolarsDataBatch:
     return PolarsDataBatch(
         frame=pl.DataFrame(
             {
-                "id":   [1, 2, 1],
+                "id": [1, 2, 1],
                 "name": ["a", "b", "a-v2"],
             }
         )
@@ -47,7 +48,9 @@ class TestPolarsDeduplicate(unittest.IsolatedAsyncioTestCase):
         with Tapestry() as t:
             batch = emit_with_dups(_config=KnotConfig(id="batch"))
             PolarsDeduplicate(
-                batch=batch, keys=("id",), _config=KnotConfig(id="dedup"),
+                batch=batch,
+                keys=("id",),
+                _config=KnotConfig(id="dedup"),
             )
         result = await t.run(RunRequest())
         out: PolarsDataBatch = result.outputs["dedup"]
@@ -58,7 +61,8 @@ class TestPolarsDeduplicate(unittest.IsolatedAsyncioTestCase):
         with Tapestry() as t:
             batch = emit_with_dups(_config=KnotConfig(id="batch"))
             PolarsDeduplicate(
-                batch=batch, keys=("id", "version"),
+                batch=batch,
+                keys=("id", "version"),
                 _config=KnotConfig(id="dedup"),
             )
         result = await t.run(RunRequest())

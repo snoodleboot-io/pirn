@@ -7,6 +7,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+
 from pirn_ml.specializations.feature_engineering.ngram_extractor import (
     NGramExtractor,
 )

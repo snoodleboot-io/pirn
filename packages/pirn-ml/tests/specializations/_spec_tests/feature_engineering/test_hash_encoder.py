@@ -8,6 +8,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_ml.specializations.feature_engineering.hash_encoder import (
     HashEncoder,
 )
@@ -54,9 +55,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
             k = HashEncoder.__new__(HashEncoder)
             object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaises((TypeError, ValueError)):
-            await k.process(
-                split=self._make_split(), categorical_column="category", n_components=0
-            )
+            await k.process(split=self._make_split(), categorical_column="category", n_components=0)
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

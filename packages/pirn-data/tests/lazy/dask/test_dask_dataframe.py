@@ -40,7 +40,9 @@ class TestDaskDataFrame(unittest.TestCase):
     def test_with_frame_preserves_metadata(self) -> None:
         frame = _make_dask_frame()
         now = datetime.now(UTC)
-        ddf = DaskDataFrame(frame=frame, backend_name="custom", source_uri="s3://b/k", fetched_at=now)
+        ddf = DaskDataFrame(
+            frame=frame, backend_name="custom", source_uri="s3://b/k", fetched_at=now
+        )
         new_frame = _make_dask_frame()
         ddf2 = ddf.with_frame(new_frame)
         self.assertEqual(ddf2.backend_name, "custom")

@@ -11,6 +11,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.data_vault.data_vault_satellite_loader import (
     DataVaultSatelliteLoader,
 )
@@ -81,9 +82,7 @@ class TestDataVaultSatelliteLoader(unittest.IsolatedAsyncioTestCase):
             _make_knot(self.src, self.tgt)
         result = await t.run(RunRequest())
         assert result.succeeded
-        rows = await self.tgt.fetch_all(
-            "SELECT hub_hk, name, load_end_date FROM sat_customer"
-        )
+        rows = await self.tgt.fetch_all("SELECT hub_hk, name, load_end_date FROM sat_customer")
         assert len(rows) == 1
         assert rows[0] == ("hk_1", "Alice", None)
 

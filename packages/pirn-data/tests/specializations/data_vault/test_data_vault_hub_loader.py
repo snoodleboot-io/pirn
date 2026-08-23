@@ -11,6 +11,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.data_vault.data_vault_hub_loader import (
     DataVaultHubLoader,
 )
@@ -25,10 +26,7 @@ _RECORD_SOURCE = "test_system"
 async def _make_pools() -> tuple[SqlitePool, SqlitePool]:
     src = SqlitePool(SqliteConfig(database=":memory:"))
     await src.execute(
-        "CREATE TABLE raw_customer ("
-        "  hk TEXT NOT NULL,"
-        "  customer_id INTEGER NOT NULL"
-        ")"
+        "CREATE TABLE raw_customer (  hk TEXT NOT NULL,  customer_id INTEGER NOT NULL)"
     )
     await src.execute_many(
         "INSERT INTO raw_customer (hk, customer_id) VALUES (?, ?)",
@@ -127,18 +125,14 @@ class TestDataVaultHubLoader(unittest.IsolatedAsyncioTestCase):
                 _config=KnotConfig(id="hub_full"),
             )
         assert (await t2.run(RunRequest())).succeeded
-        rows = await self.tgt.fetch_all(
-            "SELECT hub_hk FROM hub_customer ORDER BY customer_id"
-        )
+        rows = await self.tgt.fetch_all("SELECT hub_hk FROM hub_customer ORDER BY customer_id")
         assert len(rows) == 2
 
     async def test_load_date_and_record_source_populated(self) -> None:
         with Tapestry() as t:
             _make_knot(self.src, self.tgt)
         assert (await t.run(RunRequest())).succeeded
-        rows = await self.tgt.fetch_all(
-            "SELECT record_source, load_date FROM hub_customer"
-        )
+        rows = await self.tgt.fetch_all("SELECT record_source, load_date FROM hub_customer")
         assert rows[0][0] == _RECORD_SOURCE
         assert rows[0][1] is not None
 

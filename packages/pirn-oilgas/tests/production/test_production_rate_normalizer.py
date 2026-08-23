@@ -6,6 +6,7 @@ import unittest
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
+
 from pirn_oilgas.production.production_rate_normalizer import (
     ProductionRateNormalizer,
 )

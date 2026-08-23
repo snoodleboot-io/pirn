@@ -6,6 +6,7 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
+
 from pirn_oilgas.geospatial.well_location_projector import (
     WellLocationProjector,
 )
@@ -26,17 +27,23 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_empty_well_id(self) -> None:
         knot = _make_knot()
         with self.assertRaisesRegex(ValueError, "well_id"):
-            await knot.process(well_id="", longitude_deg=0.0, latitude_deg=0.0, target_crs="EPSG:32613")
+            await knot.process(
+                well_id="", longitude_deg=0.0, latitude_deg=0.0, target_crs="EPSG:32613"
+            )
 
     async def test_rejects_out_of_range_longitude(self) -> None:
         knot = _make_knot()
         with self.assertRaisesRegex(ValueError, "longitude"):
-            await knot.process(well_id="W", longitude_deg=360.0, latitude_deg=0.0, target_crs="EPSG:32613")
+            await knot.process(
+                well_id="W", longitude_deg=360.0, latitude_deg=0.0, target_crs="EPSG:32613"
+            )
 
     async def test_rejects_out_of_range_latitude(self) -> None:
         knot = _make_knot()
         with self.assertRaisesRegex(ValueError, "latitude"):
-            await knot.process(well_id="W", longitude_deg=0.0, latitude_deg=180.0, target_crs="EPSG:32613")
+            await knot.process(
+                well_id="W", longitude_deg=0.0, latitude_deg=180.0, target_crs="EPSG:32613"
+            )
 
     async def test_rejects_empty_target_crs(self) -> None:
         knot = _make_knot()
@@ -45,6 +52,8 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_returns_projected_location(self) -> None:
         knot = _make_knot()
-        out = await knot.process(well_id="W", longitude_deg=-105.0, latitude_deg=40.0, target_crs="EPSG:32613")
+        out = await knot.process(
+            well_id="W", longitude_deg=-105.0, latitude_deg=40.0, target_crs="EPSG:32613"
+        )
         assert out["well_id"] == "W"
         assert out["crs"] == "EPSG:32613"

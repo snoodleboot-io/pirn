@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
+
 from pirn_health.trials.estimand_aligned_analyzer import EstimandAlignedAnalyzer
 from pirn_health.types.clinical_trial_record import ClinicalTrialRecord
 
@@ -31,6 +32,7 @@ _RECORDS = (
 def _make_knot(strategy: str = "treatment-policy") -> EstimandAlignedAnalyzer:
     with Tapestry():
         from pirn.core.parameter import Parameter
+
         src = Parameter("rec", tuple, default=_RECORDS, _config=KnotConfig(id="rec"))
         return EstimandAlignedAnalyzer(
             records=src,

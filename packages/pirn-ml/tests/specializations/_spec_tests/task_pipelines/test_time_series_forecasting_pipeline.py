@@ -6,10 +6,10 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
+
 from pirn_ml.specializations.task_pipelines.time_series_forecasting_pipeline import (
     TimeSeriesForecastingPipeline,
 )
-
 from tests._stubs.recording_database_pool import RecordingDatabasePool
 
 

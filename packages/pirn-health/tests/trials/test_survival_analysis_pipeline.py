@@ -13,6 +13,7 @@ from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
+
 from pirn_health.trials.survival_analysis_pipeline import SurvivalAnalysisPipeline
 
 _SURVIVAL_DATA: list[dict[str, Any]] = [
@@ -29,6 +30,7 @@ def _make_knot(
 ) -> SurvivalAnalysisPipeline:
     with Tapestry():
         from pirn.core.parameter import Parameter
+
         src = Parameter("d", list, default=_SURVIVAL_DATA, _config=KnotConfig(id="d"))
         return SurvivalAnalysisPipeline(
             survival_data=src,

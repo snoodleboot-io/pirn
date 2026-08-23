@@ -9,6 +9,7 @@ from pirn.connectors.object_store import ObjectStore
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
+
 from pirn_ml.lineage_store import LineageStore
 from pirn_ml.specializations.training.xgboost_trainer_pipeline import (
     XGBoostTrainerPipeline,
@@ -48,7 +49,9 @@ def _make_knot() -> XGBoostTrainerPipeline:
 
 
 def _split() -> SplitManifest:
-    ds = DatasetManifest(name="ds", feature_names=("x",), target_name="y", row_count=10, source_uri="mem://")
+    ds = DatasetManifest(
+        name="ds", feature_names=("x",), target_name="y", row_count=10, source_uri="mem://"
+    )
     return SplitManifest(train=ds, test=ds)
 
 

@@ -6,6 +6,7 @@ import unittest
 from datetime import UTC, datetime
 
 from pirn.core.knot_config import KnotConfig
+
 from pirn_health.clinical._pass_through import _PassThrough
 from pirn_health.types.clinical_record import ClinicalRecord
 

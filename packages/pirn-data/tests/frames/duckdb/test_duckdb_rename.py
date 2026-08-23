@@ -14,6 +14,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.frames.duckdb.duckdb_data_batch import DuckdbDataBatch
 from pirn_data.frames.duckdb.duckdb_rename import DuckdbRename
 
@@ -26,16 +27,12 @@ async def emit_users() -> DuckdbDataBatch:
         "SELECT * FROM (VALUES (1, 'alice', 'EU'), (2, 'bob', 'US')) "
         "AS v(user_id, user_name, region)"
     )
-    return DuckdbDataBatch(
-        relation=connection.table("users"), connection=connection
-    )
+    return DuckdbDataBatch(relation=connection.table("users"), connection=connection)
 
 
 def _make_batch() -> DuckdbDataBatch:
     connection = duckdb.connect(database=":memory:")
-    connection.execute(
-        "CREATE TABLE t AS SELECT * FROM (VALUES (1, 'alice')) AS v(user_id, name)"
-    )
+    connection.execute("CREATE TABLE t AS SELECT * FROM (VALUES (1, 'alice')) AS v(user_id, name)")
     return DuckdbDataBatch(relation=connection.table("t"), connection=connection)
 
 
@@ -94,8 +91,10 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
         with Tapestry():
             batch = upstream(_config=KnotConfig(id="up"))
             return DuckdbRename(
-                batch=batch, mapping={"user_id": "id"},
-                _config=KnotConfig(id="r"), **kwargs,
+                batch=batch,
+                mapping={"user_id": "id"},
+                _config=KnotConfig(id="r"),
+                **kwargs,
             )
 
     async def test_rejects_empty_mapping(self) -> None:

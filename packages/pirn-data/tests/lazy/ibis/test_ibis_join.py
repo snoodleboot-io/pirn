@@ -14,6 +14,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.lazy.ibis.ibis_connection import IbisConnection
 from pirn_data.lazy.ibis.ibis_join import IbisJoin
 from pirn_data.lazy.ibis.ibis_source import IbisSource
@@ -37,11 +38,17 @@ class TestIbisJoin(unittest.IsolatedAsyncioTestCase):
     async def test_inner_join_on_shared_column(self) -> None:
         con = _make_con()
         with Tapestry() as t:
-            users = IbisSource(connection=IbisConnection(con), table="users", _config=KnotConfig(id="users"))
-            orders = IbisSource(connection=IbisConnection(con), table="orders", _config=KnotConfig(id="orders"))
+            users = IbisSource(
+                connection=IbisConnection(con), table="users", _config=KnotConfig(id="users")
+            )
+            orders = IbisSource(
+                connection=IbisConnection(con), table="orders", _config=KnotConfig(id="orders")
+            )
             IbisJoin(
-                left=users, right=orders,
-                predicates=("user_id",), how="inner",
+                left=users,
+                right=orders,
+                predicates=("user_id",),
+                how="inner",
                 _config=KnotConfig(id="joined"),
             )
         result = await t.run(RunRequest())
@@ -52,11 +59,17 @@ class TestIbisJoin(unittest.IsolatedAsyncioTestCase):
     async def test_left_join_keeps_unmatched(self) -> None:
         con = _make_con()
         with Tapestry() as t:
-            users = IbisSource(connection=IbisConnection(con), table="users", _config=KnotConfig(id="users"))
-            orders = IbisSource(connection=IbisConnection(con), table="orders", _config=KnotConfig(id="orders"))
+            users = IbisSource(
+                connection=IbisConnection(con), table="users", _config=KnotConfig(id="users")
+            )
+            orders = IbisSource(
+                connection=IbisConnection(con), table="orders", _config=KnotConfig(id="orders")
+            )
             IbisJoin(
-                left=users, right=orders,
-                predicates=("user_id",), how="left",
+                left=users,
+                right=orders,
+                predicates=("user_id",),
+                how="left",
                 _config=KnotConfig(id="joined"),
             )
         result = await t.run(RunRequest())
@@ -67,10 +80,15 @@ class TestIbisJoin(unittest.IsolatedAsyncioTestCase):
     async def test_predicate_callable(self) -> None:
         con = _make_con()
         with Tapestry() as t:
-            users = IbisSource(connection=IbisConnection(con), table="users", _config=KnotConfig(id="users"))
-            orders = IbisSource(connection=IbisConnection(con), table="orders", _config=KnotConfig(id="orders"))
+            users = IbisSource(
+                connection=IbisConnection(con), table="users", _config=KnotConfig(id="users")
+            )
+            orders = IbisSource(
+                connection=IbisConnection(con), table="orders", _config=KnotConfig(id="orders")
+            )
             IbisJoin(
-                left=users, right=orders,
+                left=users,
+                right=orders,
                 predicates=lambda left, right: left.user_id == right.user_id,
                 how="inner",
                 _config=KnotConfig(id="joined"),
@@ -90,12 +108,18 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
             return "inner"
 
         with Tapestry() as t:
-            users = IbisSource(connection=IbisConnection(con), table="users", _config=KnotConfig(id="users"))
-            orders = IbisSource(connection=IbisConnection(con), table="orders", _config=KnotConfig(id="orders"))
+            users = IbisSource(
+                connection=IbisConnection(con), table="users", _config=KnotConfig(id="users")
+            )
+            orders = IbisSource(
+                connection=IbisConnection(con), table="orders", _config=KnotConfig(id="orders")
+            )
             how_knot = emit_how(_config=KnotConfig(id="how"))
             IbisJoin(
-                left=users, right=orders,
-                predicates=("user_id",), how=how_knot,
+                left=users,
+                right=orders,
+                predicates=("user_id",),
+                how=how_knot,
                 _config=KnotConfig(id="joined"),
             )
         result = await t.run(RunRequest())
@@ -108,10 +132,15 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, **kwargs: object) -> IbisJoin:
         con = _make_con()
         with Tapestry():
-            u = IbisSource(connection=IbisConnection(con), table="users", _config=KnotConfig(id="u"))
-            o = IbisSource(connection=IbisConnection(con), table="orders", _config=KnotConfig(id="o"))
+            u = IbisSource(
+                connection=IbisConnection(con), table="users", _config=KnotConfig(id="u")
+            )
+            o = IbisSource(
+                connection=IbisConnection(con), table="orders", _config=KnotConfig(id="o")
+            )
             return IbisJoin(
-                left=u, right=o,
+                left=u,
+                right=o,
                 predicates=("user_id",),
                 _config=KnotConfig(id="j"),
                 **kwargs,

@@ -6,13 +6,22 @@ import unittest
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
+
 from pirn_oilgas.production.flaring_measurement_processor import (
     FlaringMeasurementProcessor,
 )
 
 _MEASUREMENTS: list[dict[str, Any]] = [
-    {"start_iso": "2026-01-01T00:00:00Z", "end_iso": "2026-01-01T06:00:00Z", "flow_rate_mmscfd": 2.0},
-    {"start_iso": "2026-01-02T00:00:00Z", "end_iso": "2026-01-02T03:00:00Z", "flow_rate_mmscfd": 1.0},
+    {
+        "start_iso": "2026-01-01T00:00:00Z",
+        "end_iso": "2026-01-01T06:00:00Z",
+        "flow_rate_mmscfd": 2.0,
+    },
+    {
+        "start_iso": "2026-01-02T00:00:00Z",
+        "end_iso": "2026-01-02T03:00:00Z",
+        "flow_rate_mmscfd": 1.0,
+    },
 ]
 _COMPOSITION: dict[str, float] = {"co2": 0.05, "ch4": 0.85}
 
@@ -48,7 +57,9 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         knot = self._make_knot()
         with self.assertRaisesRegex(ValueError, "flow_rate_mmscfd"):
             await knot.process(
-                measurements=[{"start_iso": "2026-01-01T00:00:00Z", "end_iso": "2026-01-01T06:00:00Z"}],
+                measurements=[
+                    {"start_iso": "2026-01-01T00:00:00Z", "end_iso": "2026-01-01T06:00:00Z"}
+                ],
                 gas_composition=_COMPOSITION,
                 efficiency_factor=0.98,
             )

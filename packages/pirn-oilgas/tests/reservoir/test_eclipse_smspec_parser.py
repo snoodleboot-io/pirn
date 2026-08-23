@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 
 from pirn.core.knot_config import KnotConfig
+
 from pirn_oilgas.reservoir.eclipse_smspec_parser import EclipseSmspecParser
 from pirn_oilgas.types.scada_time_series import ScadaTimeSeries
 

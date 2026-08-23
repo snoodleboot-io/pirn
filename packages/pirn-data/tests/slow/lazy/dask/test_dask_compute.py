@@ -11,6 +11,7 @@ pytestmark = pytest.mark.slow
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.lazy.dask.dask_compute import DaskCompute
 from pirn_data.lazy.dask.dask_execution_receipt import (
     DaskExecutionReceipt,
@@ -22,7 +23,7 @@ from pirn_data.lazy.dask.dask_source import DaskSource
 def _orders_factory() -> dd.DataFrame:
     pdf = pd.DataFrame(
         {
-            "id":     [1, 2, 3, 4],
+            "id": [1, 2, 3, 4],
             "amount": [10.0, 25.0, 5.0, 100.0],
             "region": ["EU", "EU", "EU", "US"],
         }
@@ -34,7 +35,8 @@ def _orders_factory() -> dd.DataFrame:
 async def test_compute_returns_receipt() -> None:
     with Tapestry() as t:
         src = DaskSource(
-            factory=_orders_factory, backend_name="dask",
+            factory=_orders_factory,
+            backend_name="dask",
             _config=KnotConfig(id="src"),
         )
         eu = DaskFilter(
@@ -103,7 +105,8 @@ def test_construct_rejects_target_without_writer() -> None:
         src = DaskSource(factory=_orders_factory, _config=KnotConfig(id="src"))
         with pytest.raises(TypeError, match="writer is required"):
             DaskCompute(
-                batch=src, target_path="/tmp/x.parquet",
+                batch=src,
+                target_path="/tmp/x.parquet",
                 _config=KnotConfig(id="x"),
             )
 
@@ -113,7 +116,9 @@ def test_construct_rejects_empty_target() -> None:
         src = DaskSource(factory=_orders_factory, _config=KnotConfig(id="src"))
         with pytest.raises(ValueError, match="non-empty"):
             DaskCompute(
-                batch=src, target_path="", writer=lambda f, p: None,
+                batch=src,
+                target_path="",
+                writer=lambda f, p: None,
                 _config=KnotConfig(id="x"),
             )
 

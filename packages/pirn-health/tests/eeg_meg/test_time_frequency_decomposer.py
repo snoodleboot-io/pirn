@@ -7,6 +7,7 @@ from collections.abc import Mapping
 
 import numpy as np
 from pirn.core.knot_config import KnotConfig
+
 from pirn_health.eeg_meg.time_frequency_decomposer import (
     TimeFrequencyDecomposer,
 )
@@ -15,10 +16,14 @@ from pirn_health.types.health_signal_payload import HealthSignalPayload
 
 _CFG = KnotConfig(id="t")
 _SIGNAL = HealthSignalPayload(
-    metadata=HealthSignalFrame(signal_id="s", channel_count=2, sample_rate_hz=256.0, samples_per_channel=512),
+    metadata=HealthSignalFrame(
+        signal_id="s", channel_count=2, sample_rate_hz=256.0, samples_per_channel=512
+    ),
     data=np.random.default_rng(0).standard_normal((2, 512)),
 )
-_KNOT = TimeFrequencyDecomposer(signal=_SIGNAL, frequencies_hz=[10.0], method="morlet", _config=_CFG)
+_KNOT = TimeFrequencyDecomposer(
+    signal=_SIGNAL, frequencies_hz=[10.0], method="morlet", _config=_CFG
+)
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):

@@ -11,6 +11,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.ingestion.watermark_incremental_extract import (
     WatermarkIncrementalExtract,
 )
@@ -23,17 +24,13 @@ _WATERMARK_COLUMN = "loaded_at"
 
 async def _make_pools(with_target_rows: bool = False) -> tuple[SqlitePool, SqlitePool]:
     src = SqlitePool(SqliteConfig(database=":memory:"))
-    await src.execute(
-        "CREATE TABLE events (id INTEGER PRIMARY KEY, loaded_at TEXT)"
-    )
+    await src.execute("CREATE TABLE events (id INTEGER PRIMARY KEY, loaded_at TEXT)")
     await src.execute_many(
         "INSERT INTO events (id, loaded_at) VALUES (?, ?)",
         [(1, "2024-01-01"), (2, "2024-06-01")],
     )
     tgt = SqlitePool(SqliteConfig(database=":memory:"))
-    await tgt.execute(
-        "CREATE TABLE events_copy (id INTEGER PRIMARY KEY, loaded_at TEXT)"
-    )
+    await tgt.execute("CREATE TABLE events_copy (id INTEGER PRIMARY KEY, loaded_at TEXT)")
     if with_target_rows:
         await tgt.execute_many(
             "INSERT INTO events_copy (id, loaded_at) VALUES (?, ?)",
@@ -67,9 +64,7 @@ class TestWatermarkIncrementalExtract(unittest.IsolatedAsyncioTestCase):
             _make_knot(self.src, self.tgt)
         result = await t.run(RunRequest())
         assert result.succeeded
-        rows = await self.tgt.fetch_all(
-            "SELECT id, loaded_at FROM events_copy ORDER BY id"
-        )
+        rows = await self.tgt.fetch_all("SELECT id, loaded_at FROM events_copy ORDER BY id")
         assert rows == [(1, "2024-01-01"), (2, "2024-06-01")]
 
     async def test_incremental_run_only_copies_new_rows(self) -> None:
@@ -86,9 +81,7 @@ class TestWatermarkIncrementalExtract(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         assert result.succeeded
-        rows = await tgt.fetch_all(
-            "SELECT id FROM events_copy ORDER BY id"
-        )
+        rows = await tgt.fetch_all("SELECT id FROM events_copy ORDER BY id")
         assert rows == [(1,), (2,)]
         await src.close()
         await tgt.close()

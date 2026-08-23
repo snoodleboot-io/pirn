@@ -11,6 +11,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.analytics_engineering.staging_model_knot import (
     StagingModelKnot,
 )
@@ -22,9 +23,7 @@ _COLUMN_MAP = {"order_id": "order_id", "cust_id": "customer_id", "amt": "amount"
 
 async def _make_pools() -> tuple[SqlitePool, SqlitePool]:
     src = SqlitePool(SqliteConfig(database=":memory:"))
-    await src.execute(
-        "CREATE TABLE raw_orders (order_id INTEGER, cust_id INTEGER, amt REAL)"
-    )
+    await src.execute("CREATE TABLE raw_orders (order_id INTEGER, cust_id INTEGER, amt REAL)")
     await src.execute_many(
         "INSERT INTO raw_orders VALUES (?, ?, ?)",
         [(1, 10, 99.9), (2, 11, 49.5)],

@@ -13,12 +13,15 @@ import numpy as np
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_health.types.health_signal_frame import HealthSignalFrame
 from pirn_health.types.health_signal_payload import HealthSignalPayload
 from pirn_health.wearables.sleep_stager import SleepStager
 
 _SLEEP_SIGNAL = HealthSignalPayload(
-    metadata=HealthSignalFrame(signal_id="sleep", channel_count=2, sample_rate_hz=256.0, samples_per_channel=512),
+    metadata=HealthSignalFrame(
+        signal_id="sleep", channel_count=2, sample_rate_hz=256.0, samples_per_channel=512
+    ),
     data=np.random.default_rng(0).standard_normal((2, 512)),
 )
 
@@ -57,7 +60,12 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         with Tapestry() as t:
             SleepStager(
                 signal=HealthSignalPayload(
-                    metadata=HealthSignalFrame(signal_id="s", channel_count=2, sample_rate_hz=256.0, samples_per_channel=512),
+                    metadata=HealthSignalFrame(
+                        signal_id="s",
+                        channel_count=2,
+                        sample_rate_hz=256.0,
+                        samples_per_channel=512,
+                    ),
                     data=np.random.default_rng(0).standard_normal((2, 512)),
                 ),
                 epoch_length_sec=30.0,

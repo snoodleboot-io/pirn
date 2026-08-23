@@ -8,6 +8,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
+
 from pirn_ml.image_encoder_provider import ImageEncoderProvider
 from pirn_ml.specializations.feature_engineering.feature_engineering_image_embedding_extractor import (
     FeatureEngineeringImageEmbeddingExtractor,
@@ -46,7 +47,9 @@ class TestConstruction(unittest.TestCase):
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> FeatureEngineeringImageEmbeddingExtractor:
-        k = FeatureEngineeringImageEmbeddingExtractor.__new__(FeatureEngineeringImageEmbeddingExtractor)
+        k = FeatureEngineeringImageEmbeddingExtractor.__new__(
+            FeatureEngineeringImageEmbeddingExtractor
+        )
         object.__setattr__(k, "_config", KnotConfig(id="iee"))
         return k
 

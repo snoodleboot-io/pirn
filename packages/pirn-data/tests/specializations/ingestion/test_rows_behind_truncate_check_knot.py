@@ -9,6 +9,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.ingestion.rows_behind_truncate_check_knot import (
     RowsBehindTruncateCheckKnot,
 )
@@ -54,8 +55,6 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
         with Tapestry() as t:
             r = emit_rows(_config=KnotConfig(id="rows"))
             g = emit_gate(_config=KnotConfig(id="gate"))
-            k = RowsBehindTruncateCheckKnot(
-                rows=r, gate=g, _config=KnotConfig(id="check")
-            )
+            k = RowsBehindTruncateCheckKnot(rows=r, gate=g, _config=KnotConfig(id="check"))
         result = await t.run(RunRequest())
         assert result.outputs[k.config.id] == [{"id": 1}]

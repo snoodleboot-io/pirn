@@ -28,6 +28,7 @@ from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.nodes.gate.gate import Gate
 from pirn.tapestry import Tapestry
+
 from pirn_data.data_batch import DataBatch
 from pirn_data.data_schema import DataSchema
 from pirn_data.quality.row_count_check import RowCountCheck
@@ -44,7 +45,7 @@ _USERS_SCHEMA = DataSchema(
 async def emit_valid_users() -> DataBatch:
     rows = (
         {"id": 1, "name": "alice", "region": "EU"},
-        {"id": 2, "name": "bob",   "region": "US"},
+        {"id": 2, "name": "bob", "region": "US"},
         {"id": 3, "name": "priya", "region": "IN"},
     )
     return DataBatch(rows=rows, schema=_USERS_SCHEMA)
@@ -111,8 +112,8 @@ def _build_pipeline(
             pool=pool,
             query="INSERT INTO users (id, name, region) VALUES (?, ?, ?)",
             rows=rows,
-            schema_ok=schema_ok,        # implicit dep
-            rowcount_ok=rowcount_ok,    # implicit dep
+            schema_ok=schema_ok,  # implicit dep
+            rowcount_ok=rowcount_ok,  # implicit dep
             _config=KnotConfig(id="load"),
         )
     return t
@@ -141,9 +142,7 @@ async def test_happy_path_runs_load_with_all_quality_gates_passing() -> None:
         assert rowcount_report.passed is True
 
         # And the load actually wrote the rows.
-        loaded = await pool.fetch_all(
-            "SELECT id, name, region FROM users ORDER BY id"
-        )
+        loaded = await pool.fetch_all("SELECT id, name, region FROM users ORDER BY id")
         assert loaded == [
             (1, "alice", "EU"),
             (2, "bob", "US"),
@@ -174,9 +173,9 @@ async def test_invalid_batch_halts_load_via_gate() -> None:
         assert schema_report.passed is False
 
         outcomes = {rec.knot_id: rec.outcome for rec in result.lineage}
-        assert outcomes["schema"] == "ok"          # the assessment ran
+        assert outcomes["schema"] == "ok"  # the assessment ran
         assert outcomes["schema_ok"] == "skipped"  # the gate closed
-        assert outcomes["load"] == "skipped"       # the sink never executed
+        assert outcomes["load"] == "skipped"  # the sink never executed
 
         # And the database was never touched.
         loaded = await pool.fetch_all("SELECT COUNT(*) FROM users")

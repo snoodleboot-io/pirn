@@ -10,6 +10,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.feature_engineering.date_part_extractor import (
     DatePartExtractor,
 )
@@ -77,9 +78,7 @@ class TestDatePartExtractor(unittest.IsolatedAsyncioTestCase):
     async def test_tapestry_run(self) -> None:
         rows = [{"ts": datetime(2024, 6, 15)}]
         with Tapestry() as t:
-            DatePartExtractor(
-                rows=rows, column="ts", parts=("year",), _config=KnotConfig(id="dp")
-            )
+            DatePartExtractor(rows=rows, column="ts", parts=("year",), _config=KnotConfig(id="dp"))
         result = await t.run(RunRequest())
         assert result.succeeded
 

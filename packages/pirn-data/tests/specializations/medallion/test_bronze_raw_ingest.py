@@ -11,6 +11,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.medallion.bronze_raw_ingest import (
     BronzeRawIngest,
 )
@@ -23,17 +24,14 @@ _SOURCE_URI = "db://src/customers"
 
 async def _make_pools() -> tuple[SqlitePool, SqlitePool]:
     src = SqlitePool(SqliteConfig(database=":memory:"))
-    await src.execute(
-        "CREATE TABLE customers (id INTEGER PRIMARY KEY, name TEXT)"
-    )
+    await src.execute("CREATE TABLE customers (id INTEGER PRIMARY KEY, name TEXT)")
     await src.execute_many(
         "INSERT INTO customers (id, name) VALUES (?, ?)",
         [(1, "Alice"), (2, "Bob")],
     )
     tgt = SqlitePool(SqliteConfig(database=":memory:"))
     await tgt.execute(
-        "CREATE TABLE bronze_customers "
-        "(id INTEGER, name TEXT, _ingested_at TEXT, _source_uri TEXT)"
+        "CREATE TABLE bronze_customers (id INTEGER, name TEXT, _ingested_at TEXT, _source_uri TEXT)"
     )
     return src, tgt
 
@@ -73,9 +71,7 @@ class TestBronzeRawIngest(unittest.IsolatedAsyncioTestCase):
         with Tapestry() as t:
             _make_knot(self.src, self.tgt)
         await t.run(RunRequest())
-        rows = await self.tgt.fetch_all(
-            "SELECT _ingested_at FROM bronze_customers LIMIT 1"
-        )
+        rows = await self.tgt.fetch_all("SELECT _ingested_at FROM bronze_customers LIMIT 1")
         assert "T" in rows[0][0]
 
     async def test_result_tracks_rows_inserted(self) -> None:

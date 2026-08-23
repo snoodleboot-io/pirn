@@ -15,9 +15,7 @@ from pirn_data.lazy.ray.ray_dataset import RayDataset
 
 
 def _people_dataset():
-    return ray_data.from_items(
-        [{"id": 1, "name": "alice"}, {"id": 2, "name": "bob"}]
-    )
+    return ray_data.from_items([{"id": 1, "name": "alice"}, {"id": 2, "name": "bob"}])
 
 
 class TestRayDataset:

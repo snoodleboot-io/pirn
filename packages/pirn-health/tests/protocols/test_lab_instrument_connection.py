@@ -13,9 +13,7 @@ from pirn_health.protocols.lab_instrument_connection import (
 class TestLabInstrumentConnectionInterface(unittest.IsolatedAsyncioTestCase):
     async def test_fetch_results_raises_not_implemented(self) -> None:
         with self.assertRaisesRegex(NotImplementedError, "fetch_results"):
-            await LabInstrumentConnection().fetch_results(
-                "i1", datetime(2026, 1, 1, tzinfo=UTC)
-            )
+            await LabInstrumentConnection().fetch_results("i1", datetime(2026, 1, 1, tzinfo=UTC))
 
     async def test_close_raises_not_implemented(self) -> None:
         with self.assertRaisesRegex(NotImplementedError, "close"):
@@ -26,6 +24,4 @@ class TestLabInstrumentConnectionInterface(unittest.IsolatedAsyncioTestCase):
             pass
 
         with self.assertRaisesRegex(NotImplementedError, "MyConn"):
-            await MyConn().fetch_results(
-                "i1", datetime(2026, 1, 1, tzinfo=UTC)
-            )
+            await MyConn().fetch_results("i1", datetime(2026, 1, 1, tzinfo=UTC))

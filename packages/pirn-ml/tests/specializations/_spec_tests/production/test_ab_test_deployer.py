@@ -6,6 +6,7 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
+
 from pirn_ml.specializations.production.ab_test_deployer import (
     ABTestDeployer,
 )
@@ -18,12 +19,8 @@ def _fixtures():
     train = DatasetManifest(name="d:train", feature_names=("a",), row_count=80)
     test = DatasetManifest(name="d:test", feature_names=("a",), row_count=20)
     split = SplitManifest(train=train, test=test)
-    model_a = ModelManifest(
-        model_id="ma", algorithm="rf", feature_names=("a",), target_name="y"
-    )
-    model_b = ModelManifest(
-        model_id="mb", algorithm="xgb", feature_names=("a",), target_name="y"
-    )
+    model_a = ModelManifest(model_id="ma", algorithm="rf", feature_names=("a",), target_name="y")
+    model_b = ModelManifest(model_id="mb", algorithm="xgb", feature_names=("a",), target_name="y")
     return model_a, model_b, split
 
 

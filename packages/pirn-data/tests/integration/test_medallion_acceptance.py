@@ -8,6 +8,7 @@ from pirn.connectors.databases.sqlite_pool import SqlitePool
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.medallion.bronze_raw_ingest import (
     BronzeRawIngest,
 )
@@ -38,9 +39,9 @@ async def pool() -> SqlitePool:
         [
             (1, "EU", 10.0),
             (2, "EU", 25.0),
-            (2, "EU", 25.0),     # duplicate; silver dedup kicks in
+            (2, "EU", 25.0),  # duplicate; silver dedup kicks in
             (3, "US", 100.0),
-            (4, "US", -1.0),     # silver filter drops negative amounts
+            (4, "US", -1.0),  # silver filter drops negative amounts
         ],
     )
     await p.execute(
@@ -53,8 +54,7 @@ async def pool() -> SqlitePool:
         "  id INTEGER PRIMARY KEY, region TEXT NOT NULL, amount REAL NOT NULL)"
     )
     await p.execute(
-        "CREATE TABLE gold_region_totals ("
-        "  region TEXT PRIMARY KEY, total_amount REAL NOT NULL)"
+        "CREATE TABLE gold_region_totals (  region TEXT PRIMARY KEY, total_amount REAL NOT NULL)"
     )
     yield p
     await p.close()
@@ -91,9 +91,7 @@ async def test_bronze_silver_gold_pipeline(pool: SqlitePool) -> None:
         )
     r2 = await t2.run(RunRequest())
     assert r2.succeeded
-    silver_rows = await pool.fetch_all(
-        "SELECT id, region, amount FROM silver_orders ORDER BY id"
-    )
+    silver_rows = await pool.fetch_all("SELECT id, region, amount FROM silver_orders ORDER BY id")
     assert silver_rows == [(1, "EU", 10.0), (2, "EU", 25.0), (3, "US", 100.0)]
 
     with Tapestry() as t3:

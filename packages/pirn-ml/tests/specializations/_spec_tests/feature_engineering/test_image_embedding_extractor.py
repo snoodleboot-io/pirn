@@ -8,12 +8,12 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_ml.specializations.feature_engineering.feature_engineering_image_embedding_extractor import (
     FeatureEngineeringImageEmbeddingExtractor,
 )
 from pirn_ml.types.dataset_manifest import DatasetManifest
 from pirn_ml.types.split_manifest import SplitManifest
-
 from tests._stubs.recording_image_encoder_provider import (
     RecordingImageEncoderProvider,
 )
@@ -21,12 +21,8 @@ from tests._stubs.recording_image_encoder_provider import (
 
 @knot
 async def emit_split() -> SplitManifest:
-    train = DatasetManifest(
-        name="d:train", feature_names=("img",), target_name="y", row_count=80
-    )
-    test = DatasetManifest(
-        name="d:test", feature_names=("img",), target_name="y", row_count=20
-    )
+    train = DatasetManifest(name="d:train", feature_names=("img",), target_name="y", row_count=80)
+    test = DatasetManifest(name="d:test", feature_names=("img",), target_name="y", row_count=20)
     return SplitManifest(train=train, test=test)
 
 
@@ -35,14 +31,14 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
         train = DatasetManifest(
             name="d:train", feature_names=("img",), target_name="y", row_count=80
         )
-        test = DatasetManifest(
-            name="d:test", feature_names=("img",), target_name="y", row_count=20
-        )
+        test = DatasetManifest(name="d:test", feature_names=("img",), target_name="y", row_count=20)
         return SplitManifest(train=train, test=test)
 
     async def test_rejects_empty_image_column(self) -> None:
         with Tapestry():
-            k = FeatureEngineeringImageEmbeddingExtractor.__new__(FeatureEngineeringImageEmbeddingExtractor)
+            k = FeatureEngineeringImageEmbeddingExtractor.__new__(
+                FeatureEngineeringImageEmbeddingExtractor
+            )
             object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaises((TypeError, ValueError)):
             await k.process(
@@ -53,7 +49,9 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_encoder(self) -> None:
         with Tapestry():
-            k = FeatureEngineeringImageEmbeddingExtractor.__new__(FeatureEngineeringImageEmbeddingExtractor)
+            k = FeatureEngineeringImageEmbeddingExtractor.__new__(
+                FeatureEngineeringImageEmbeddingExtractor
+            )
             object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaises((TypeError, ValueError)):
             await k.process(

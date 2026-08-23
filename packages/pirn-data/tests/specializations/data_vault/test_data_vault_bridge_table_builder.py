@@ -11,6 +11,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.data_vault.data_vault_bridge_table_builder import (
     DataVaultBridgeTableBuilder,
 )
@@ -37,20 +38,14 @@ _LINK_HK_COL = "link_hk"
 async def _make_vault_pool() -> SqlitePool:
     pool = SqlitePool(SqliteConfig(database=":memory:"))
     await pool.execute(
-        "CREATE TABLE hub_customer ("
-        "  hub_hk TEXT PRIMARY KEY,"
-        "  customer_id INTEGER NOT NULL"
-        ")"
+        "CREATE TABLE hub_customer (  hub_hk TEXT PRIMARY KEY,  customer_id INTEGER NOT NULL)"
     )
     await pool.execute_many(
         "INSERT INTO hub_customer (hub_hk, customer_id) VALUES (?, ?)",
         [("chk_1", 101), ("chk_2", 102)],
     )
     await pool.execute(
-        "CREATE TABLE hub_product ("
-        "  hub_hk TEXT PRIMARY KEY,"
-        "  product_code TEXT NOT NULL"
-        ")"
+        "CREATE TABLE hub_product (  hub_hk TEXT PRIMARY KEY,  product_code TEXT NOT NULL)"
     )
     await pool.execute_many(
         "INSERT INTO hub_product (hub_hk, product_code) VALUES (?, ?)",

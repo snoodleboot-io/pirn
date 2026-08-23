@@ -9,6 +9,7 @@ from typing import Any
 from pirn.connectors.file_format import FileFormat
 from pirn.connectors.object_store import ObjectStore
 from pirn.core.knot_config import KnotConfig
+
 from pirn_data.data_batch import DataBatch
 from pirn_data.data_schema import DataSchema
 from pirn_data.sources.file_source import FileSource

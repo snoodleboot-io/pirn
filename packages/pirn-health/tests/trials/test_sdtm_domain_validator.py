@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
+
 from pirn_health.trials.sdtm_domain_validator import SDTMDomainValidator
 from pirn_health.types.clinical_trial_record import ClinicalTrialRecord
 
@@ -32,6 +33,7 @@ _RECORDS_WITH_BLANKS = (_record(), ClinicalTrialRecord())
 def _make_knot(domain: str = "AE") -> SDTMDomainValidator:
     with Tapestry():
         from pirn.core.parameter import Parameter
+
         src = Parameter("rec", tuple, default=_RECORDS, _config=KnotConfig(id="rec"))
         return SDTMDomainValidator(
             records=src,

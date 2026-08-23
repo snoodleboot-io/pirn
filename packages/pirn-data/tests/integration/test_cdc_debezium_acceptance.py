@@ -19,6 +19,7 @@ from pirn.connectors.message_broker import MessageBroker
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.scd.cdc_debezium import CDCDebezium
 
 
@@ -47,9 +48,7 @@ class _StubBroker(MessageBroker):
     ) -> None:
         raise NotImplementedError("_StubBroker is consume-only")
 
-    async def consume(
-        self, topic: str, *, group: str | None = None
-    ) -> AsyncIterator[Any]:
+    async def consume(self, topic: str, *, group: str | None = None) -> AsyncIterator[Any]:
         envelopes = self._envelopes
 
         async def _iter() -> AsyncIterator[Any]:

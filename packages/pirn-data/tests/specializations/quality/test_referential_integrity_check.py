@@ -11,6 +11,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.quality.referential_integrity_check import (
     ReferentialIntegrityCheck,
 )
@@ -28,9 +29,7 @@ async def _make_pool() -> SqlitePool:
         "INSERT INTO customers (id, name) VALUES (?, ?)",
         [(1, "Alice"), (2, "Bob")],
     )
-    await p.execute(
-        "CREATE TABLE orders (id INTEGER PRIMARY KEY, customer_id INTEGER)"
-    )
+    await p.execute("CREATE TABLE orders (id INTEGER PRIMARY KEY, customer_id INTEGER)")
     await p.execute_many(
         "INSERT INTO orders (id, customer_id) VALUES (?, ?)",
         [(1, 1), (2, 2), (3, 99)],

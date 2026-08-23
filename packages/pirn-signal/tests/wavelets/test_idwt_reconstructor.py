@@ -20,6 +20,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.wavelet_frame import WaveletFrame
 from pirn_signal.types.wavelet_payload import WaveletPayload
@@ -57,9 +58,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_emits_signal_payload(self) -> None:
         with Tapestry() as t:
             wf = emit_wavelet_payload(_config=KnotConfig(id="wf"))
-            IDWTReconstructor(
-                wavelet_frame=wf, wavelet="db4", level=4, _config=KnotConfig(id="i")
-            )
+            IDWTReconstructor(wavelet_frame=wf, wavelet="db4", level=4, _config=KnotConfig(id="i"))
         result = await t.run(RunRequest())
         out = result.outputs["i"]
         assert isinstance(out, SignalPayload)

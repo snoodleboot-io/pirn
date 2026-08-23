@@ -12,14 +12,13 @@ ray_data = pytest.importorskip("ray.data")
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.lazy.ray.ray_dataset import RayDataset
 from pirn_data.lazy.ray.ray_source import RaySource
 
 
 def _people_factory():
-    return ray_data.from_items(
-        [{"id": 1, "name": "alice"}, {"id": 2, "name": "bob"}]
-    )
+    return ray_data.from_items([{"id": 1, "name": "alice"}, {"id": 2, "name": "bob"}])
 
 
 @pytest.mark.asyncio
@@ -59,7 +58,9 @@ def test_construct_rejects_path_without_reader() -> None:
 def test_construct_rejects_empty_path() -> None:
     with pytest.raises(ValueError, match="non-empty"):
         RaySource(
-            path="", reader=ray_data.read_parquet, _config=KnotConfig(id="x"),
+            path="",
+            reader=ray_data.read_parquet,
+            _config=KnotConfig(id="x"),
         )
 
 

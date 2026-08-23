@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
+
 from pirn_oilgas.production.production_forecaster import ProductionForecaster
 from pirn_oilgas.types.scada_payload import ScadaPayload
 

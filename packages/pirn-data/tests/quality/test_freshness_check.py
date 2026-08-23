@@ -9,6 +9,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.data_batch import DataBatch
 from pirn_data.quality.freshness_check import FreshnessCheck
 from pirn_data.quality_report import QualityReport
@@ -16,10 +17,12 @@ from pirn_data.quality_report import QualityReport
 
 def _batch_with_newest(age: timedelta):
     """Factory: a one-row batch whose ``updated_at`` is ``age`` ago."""
+
     @knot
     async def emit() -> DataBatch:
         when = datetime.now(UTC) - age
         return DataBatch(rows=({"id": 1, "updated_at": when},))
+
     return emit
 
 

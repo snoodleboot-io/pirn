@@ -6,6 +6,7 @@ import unittest
 from collections.abc import Mapping
 
 from pirn.core.knot_config import KnotConfig
+
 from pirn_health.mri.cortical_thickness_estimator import CorticalThicknessEstimator
 
 _CFG = KnotConfig(id="c")

@@ -7,6 +7,7 @@ from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
+
 from pirn_health.trials.rwe_cohort_extractor import RWECohortExtractor
 
 _PATIENTS: list[dict[str, Any]] = [
@@ -25,6 +26,7 @@ _PATIENTS: list[dict[str, Any]] = [
 def _make_knot() -> RWECohortExtractor:
     with Tapestry():
         from pirn.core.parameter import Parameter
+
         src = Parameter("p", list, default=_PATIENTS, _config=KnotConfig(id="p"))
         return RWECohortExtractor(
             patient_data=src,

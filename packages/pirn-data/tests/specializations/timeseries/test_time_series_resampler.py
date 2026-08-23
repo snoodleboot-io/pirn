@@ -10,6 +10,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.timeseries.time_series_resampler import (
     TimeSeriesResampler,
 )
@@ -147,8 +148,11 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
             {"ts": datetime(2024, 1, 1, 0, 0, 30), "v": 20},
         ]
         result = await k.process(
-            rows=rows, timestamp_column="ts", value_column="v",
-            frequency_seconds=60, aggregation="mean",
+            rows=rows,
+            timestamp_column="ts",
+            value_column="v",
+            frequency_seconds=60,
+            aggregation="mean",
         )
         assert result[0]["v"] == 15.0
 
@@ -159,8 +163,11 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
             {"ts": datetime(2024, 1, 1, 0, 0, 30), "v": 20},
         ]
         result = await k.process(
-            rows=rows, timestamp_column="ts", value_column="v",
-            frequency_seconds=60, aggregation="last",
+            rows=rows,
+            timestamp_column="ts",
+            value_column="v",
+            frequency_seconds=60,
+            aggregation="last",
         )
         assert result[0]["v"] == 20
 
@@ -171,15 +178,21 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
             {"ts": datetime(2024, 1, 1, 0, 0, 30), "v": 20},
         ]
         result = await k.process(
-            rows=rows, timestamp_column="ts", value_column="v",
-            frequency_seconds=60, aggregation="first",
+            rows=rows,
+            timestamp_column="ts",
+            value_column="v",
+            frequency_seconds=60,
+            aggregation="first",
         )
         assert result[0]["v"] == 10
 
     async def test_empty_input_returns_empty(self) -> None:
         k = self._make_knot()
         result = await k.process(
-            rows=[], timestamp_column="ts", value_column="v",
-            frequency_seconds=60, aggregation="mean",
+            rows=[],
+            timestamp_column="ts",
+            value_column="v",
+            frequency_seconds=60,
+            aggregation="mean",
         )
         assert result == []

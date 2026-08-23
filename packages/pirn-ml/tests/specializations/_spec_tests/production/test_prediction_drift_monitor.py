@@ -8,6 +8,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_ml.specializations.production.prediction_drift_monitor import (
     PredictionDriftMonitor,
 )
@@ -25,18 +26,14 @@ async def emit_split() -> SplitManifest:
 
 @knot
 async def emit_model() -> ModelManifest:
-    return ModelManifest(
-        model_id="m1", algorithm="rf", feature_names=("a",), target_name="y"
-    )
+    return ModelManifest(model_id="m1", algorithm="rf", feature_names=("a",), target_name="y")
 
 
 def _fixtures():
     train = DatasetManifest(name="d:train", feature_names=("a",), row_count=80)
     test = DatasetManifest(name="d:test", feature_names=("a",), row_count=20)
     split = SplitManifest(train=train, test=test)
-    model = ModelManifest(
-        model_id="m1", algorithm="rf", feature_names=("a",), target_name="y"
-    )
+    model = ModelManifest(model_id="m1", algorithm="rf", feature_names=("a",), target_name="y")
     return model, split
 
 

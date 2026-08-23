@@ -6,6 +6,7 @@ import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from pirn.core.knot_config import KnotConfig
+
 from pirn_health.genomics.gatk_caller import GATKCaller
 
 _CFG = KnotConfig(id="g")
@@ -36,5 +37,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         mock_proc.returncode = 0
         mock_proc.communicate = AsyncMock(return_value=(b"", b""))
         with patch("asyncio.create_subprocess_exec", AsyncMock(return_value=mock_proc)):
-            out = await knot.process(bam_path="in.bam", reference_path="ref.fa", output_vcf_path="out.vcf")
+            out = await knot.process(
+                bam_path="in.bam", reference_path="ref.fa", output_vcf_path="out.vcf"
+            )
         assert out == "out.vcf"

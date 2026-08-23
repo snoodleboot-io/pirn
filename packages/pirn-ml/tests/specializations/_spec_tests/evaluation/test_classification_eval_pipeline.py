@@ -8,6 +8,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_ml.specializations.evaluation.classification_eval_pipeline import (
     ClassificationEvalPipeline,
 )
@@ -54,7 +55,6 @@ def _fixtures():  # type: ignore[return]
         model_id="m1", algorithm="logistic", feature_names=("a",), target_name="y"
     )
     return model, split
-
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

@@ -8,6 +8,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_ml.specializations.experiments.hyperband_tuner import (
     HyperbandTuner,
 )
@@ -90,4 +91,3 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
         assert isinstance(out["eval_report"], EvalReportPayload)
         assert isinstance(out["rounds"], int)
         assert out["rounds"] >= 1
-

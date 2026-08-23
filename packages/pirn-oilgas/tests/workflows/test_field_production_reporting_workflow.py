@@ -15,6 +15,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_oilgas.workflows.field_production_reporting_workflow import (
     FieldProductionReportingWorkflow,
 )
@@ -24,7 +25,6 @@ _ROWS = [(datetime(2026, 1, 1, 0, 0, i, tzinfo=UTC), float(100 + i)) for i in ra
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
-
     def _make_knot(self) -> FieldProductionReportingWorkflow:
         return FieldProductionReportingWorkflow(
             oil_rows=Parameter("oil_rows", list, default=_ROWS),

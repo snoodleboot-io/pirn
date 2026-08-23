@@ -16,6 +16,7 @@ from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.nodes.source import Source
 from pirn.tapestry import Tapestry
+
 from pirn_data.lazy.dask.dask_aggregate import DaskAggregate
 from pirn_data.lazy.dask.dask_dataframe import DaskDataFrame
 
@@ -27,9 +28,7 @@ def _make_batch(data: dict) -> DaskDataFrame:
 
 @knot
 async def emit_orders() -> DaskDataFrame:
-    return _make_batch(
-        {"region": ["EU", "EU", "US"], "amount": [10, 20, 5]}
-    )
+    return _make_batch({"region": ["EU", "EU", "US"], "amount": [10, 20, 5]})
 
 
 class TestDaskAggregate(unittest.IsolatedAsyncioTestCase):

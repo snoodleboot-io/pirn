@@ -15,6 +15,7 @@ import numpy as np
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.tapestry import Tapestry
+
 from pirn_health.eeg_meg.eeg_ica_decomposer import EEGICADecomposer
 
 _RNG = np.random.default_rng(0)
@@ -61,7 +62,9 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_positive_max_iter(self) -> None:
         knot_inst = _make_knot()
         with self.assertRaisesRegex(ValueError, "max_iter"):
-            await knot_inst.process(eeg_data=_EEG_DATA, n_components=5, algorithm="fastica", max_iter=0)
+            await knot_inst.process(
+                eeg_data=_EEG_DATA, n_components=5, algorithm="fastica", max_iter=0
+            )
 
     async def test_returns_dict_with_required_keys(self) -> None:
         knot_inst = _make_knot()

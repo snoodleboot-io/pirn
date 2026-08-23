@@ -11,6 +11,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.ingestion.full_refresh_extract import (
     FullRefreshExtract,
 )
@@ -22,17 +23,13 @@ _TARGET_TABLE = "products"
 
 async def _make_pools() -> tuple[SqlitePool, SqlitePool]:
     src = SqlitePool(SqliteConfig(database=":memory:"))
-    await src.execute(
-        "CREATE TABLE products (id INTEGER PRIMARY KEY, sku TEXT NOT NULL)"
-    )
+    await src.execute("CREATE TABLE products (id INTEGER PRIMARY KEY, sku TEXT NOT NULL)")
     await src.execute_many(
         "INSERT INTO products (id, sku) VALUES (?, ?)",
         [(1, "A1"), (2, "A2"), (3, "A3")],
     )
     tgt = SqlitePool(SqliteConfig(database=":memory:"))
-    await tgt.execute(
-        "CREATE TABLE products (id INTEGER PRIMARY KEY, sku TEXT NOT NULL)"
-    )
+    await tgt.execute("CREATE TABLE products (id INTEGER PRIMARY KEY, sku TEXT NOT NULL)")
     return src, tgt
 
 

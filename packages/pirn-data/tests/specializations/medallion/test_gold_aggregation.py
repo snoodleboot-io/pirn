@@ -11,6 +11,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.medallion.gold_aggregation import (
     GoldAggregation,
 )
@@ -25,9 +26,7 @@ _AGGS = {"total": AggregateSpec(source="amount", function="sum")}
 
 async def _make_pools() -> tuple[SqlitePool, SqlitePool]:
     src = SqlitePool(SqliteConfig(database=":memory:"))
-    await src.execute(
-        "CREATE TABLE silver_sales (region TEXT, amount REAL)"
-    )
+    await src.execute("CREATE TABLE silver_sales (region TEXT, amount REAL)")
     await src.execute_many(
         "INSERT INTO silver_sales (region, amount) VALUES (?, ?)",
         [("East", 100.0), ("East", 50.0), ("West", 200.0)],
@@ -63,9 +62,7 @@ class TestGoldAggregation(unittest.IsolatedAsyncioTestCase):
             _make_knot(self.src, self.tgt)
         result = await t.run(RunRequest())
         assert result.succeeded
-        rows = await self.tgt.fetch_all(
-            "SELECT region, total FROM gold_sales ORDER BY region"
-        )
+        rows = await self.tgt.fetch_all("SELECT region, total FROM gold_sales ORDER BY region")
         rows_dict = {r: t for r, t in rows}
         assert rows_dict["East"] == 150.0
         assert rows_dict["West"] == 200.0

@@ -11,6 +11,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.ingestion.truncate_table_knot import (
     TruncateTableKnot,
 )
@@ -59,9 +60,7 @@ class TestTruncateTableKnot(unittest.IsolatedAsyncioTestCase):
         pool = SqlitePool(SqliteConfig(database=":memory:"))
         await pool.execute("CREATE TABLE raw_events (id INTEGER PRIMARY KEY)")
         with Tapestry() as t:
-            TruncateTableKnot(
-                pool=pool, table="raw_events", _config=KnotConfig(id="trunc")
-            )
+            TruncateTableKnot(pool=pool, table="raw_events", _config=KnotConfig(id="trunc"))
         result = await t.run(RunRequest())
         assert result.succeeded
         await pool.close()
@@ -83,9 +82,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
 
         with Tapestry() as t:
             p_knot = emit_pool(_config=KnotConfig(id="pool"))
-            TruncateTableKnot(
-                pool=p_knot, table="orders", _config=KnotConfig(id="trunc")
-            )
+            TruncateTableKnot(pool=p_knot, table="orders", _config=KnotConfig(id="trunc"))
         result = await t.run(RunRequest())
         assert result.succeeded
 

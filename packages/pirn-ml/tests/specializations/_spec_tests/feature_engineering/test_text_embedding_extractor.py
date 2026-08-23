@@ -8,12 +8,12 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_ml.specializations.feature_engineering.text_embedding_extractor import (
     TextEmbeddingExtractor,
 )
 from pirn_ml.types.dataset_manifest import DatasetManifest
 from pirn_ml.types.split_manifest import SplitManifest
-
 from tests._stubs.recording_embedding_provider import (
     RecordingEmbeddingProvider,
 )
@@ -21,12 +21,8 @@ from tests._stubs.recording_embedding_provider import (
 
 @knot
 async def emit_split() -> SplitManifest:
-    train = DatasetManifest(
-        name="d:train", feature_names=("body",), target_name="y", row_count=80
-    )
-    test = DatasetManifest(
-        name="d:test", feature_names=("body",), target_name="y", row_count=20
-    )
+    train = DatasetManifest(name="d:train", feature_names=("body",), target_name="y", row_count=80)
+    test = DatasetManifest(name="d:test", feature_names=("body",), target_name="y", row_count=20)
     return SplitManifest(train=train, test=test)
 
 

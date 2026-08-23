@@ -14,6 +14,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.frames.polars.polars_data_batch import PolarsDataBatch
 from pirn_data.frames.polars.polars_pivot import PolarsPivot
 
@@ -23,9 +24,9 @@ async def emit_long() -> PolarsDataBatch:
     return PolarsDataBatch(
         frame=pl.DataFrame(
             {
-                "user":   ["alice", "alice", "bob",   "bob"],
+                "user": ["alice", "alice", "bob", "bob"],
                 "metric": ["clicks", "views", "clicks", "views"],
-                "value":  [3,         100,    7,        200],
+                "value": [3, 100, 7, 200],
             }
         )
     )
@@ -35,9 +36,9 @@ def _long_batch() -> PolarsDataBatch:
     return PolarsDataBatch(
         frame=pl.DataFrame(
             {
-                "user":   ["alice", "alice"],
+                "user": ["alice", "alice"],
                 "metric": ["clicks", "views"],
-                "value":  [3, 100],
+                "value": [3, 100],
             }
         )
     )
@@ -67,9 +68,9 @@ class TestPolarsPivot(unittest.IsolatedAsyncioTestCase):
             return PolarsDataBatch(
                 frame=pl.DataFrame(
                     {
-                        "user":   ["alice", "alice", "alice"],
+                        "user": ["alice", "alice", "alice"],
                         "metric": ["clicks", "clicks", "views"],
-                        "value":  [1, 2, 5],
+                        "value": [1, 2, 5],
                     }
                 )
             )
@@ -87,7 +88,7 @@ class TestPolarsPivot(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         out: PolarsDataBatch = result.outputs["wide"]
         alice = out.frame.row(0, named=True)
-        assert alice["clicks"] == 3   # 1 + 2
+        assert alice["clicks"] == 3  # 1 + 2
         assert alice["views"] == 5
 
 

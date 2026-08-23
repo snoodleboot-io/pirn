@@ -11,6 +11,7 @@ except ImportError as _e:
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
+
 from pirn_data.data_batch import DataBatch
 from pirn_data.frames.pandas.bridges.data_batch_to_pandas import (
     DataBatchToPandas,

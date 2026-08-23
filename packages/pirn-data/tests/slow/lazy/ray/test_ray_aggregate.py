@@ -11,10 +11,11 @@ ray_data = pytest.importorskip("ray.data")
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+from ray.data.aggregate import Sum
+
 from pirn_data.lazy.ray.ray_aggregate import RayAggregate
 from pirn_data.lazy.ray.ray_dataset import RayDataset
 from pirn_data.lazy.ray.ray_source import RaySource
-from ray.data.aggregate import Sum
 
 
 def _orders_factory():
@@ -78,7 +79,8 @@ def test_construct_rejects_aggregator_with_by() -> None:
             RayAggregate(
                 batch=src,
                 aggregator=lambda ds: ds,
-                by="region", aggs=[Sum("amount")],
+                by="region",
+                aggs=[Sum("amount")],
                 _config=KnotConfig(id="g"),
             )
 
@@ -88,7 +90,9 @@ def test_construct_rejects_empty_by() -> None:
         src = RaySource(factory=_orders_factory, _config=KnotConfig(id="src"))
         with pytest.raises(ValueError, match="non-empty"):
             RayAggregate(
-                batch=src, by="", aggs=[Sum("amount")],
+                batch=src,
+                by="",
+                aggs=[Sum("amount")],
                 _config=KnotConfig(id="g"),
             )
 
@@ -98,5 +102,7 @@ def test_construct_rejects_missing_aggs() -> None:
         src = RaySource(factory=_orders_factory, _config=KnotConfig(id="src"))
         with pytest.raises(TypeError, match="aggs is required"):
             RayAggregate(
-                batch=src, by="region", _config=KnotConfig(id="g"),
+                batch=src,
+                by="region",
+                _config=KnotConfig(id="g"),
             )

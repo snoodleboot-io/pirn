@@ -6,6 +6,7 @@ import unittest
 from collections.abc import Mapping
 
 from pirn.core.knot_config import KnotConfig
+
 from pirn_health.clinical.readmission_risk_scorer import (
     ReadmissionRiskScorer,
 )
@@ -25,9 +26,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             await _KNOT.process(records=["x"])  # type: ignore[list-item]
 
     async def test_returns_per_patient_score_mapping(self) -> None:
-        records = (
-            ClinicalRecord(patient_id="P1", observation_codes=("A", "B", "C")),
-        )
+        records = (ClinicalRecord(patient_id="P1", observation_codes=("A", "B", "C")),)
         out = await _KNOT.process(records=records)
         assert isinstance(out, Mapping)
         assert "P1" in out

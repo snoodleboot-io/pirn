@@ -14,6 +14,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.frames.pyarrow.pyarrow_aggregate import PyarrowAggregate
 from pirn_data.frames.pyarrow.pyarrow_data_batch import PyarrowDataBatch
 
@@ -27,9 +28,9 @@ async def emit_orders() -> PyarrowDataBatch:
     return PyarrowDataBatch(
         table=pa.table(
             {
-                "region":   ["EU", "EU", "EU", "US"],
+                "region": ["EU", "EU", "EU", "US"],
                 "customer": ["alice", "bob", "alice", "carol"],
-                "amount":   [10.0, 25.0, 5.0, 100.0],
+                "amount": [10.0, 25.0, 5.0, 100.0],
             }
         )
     )
@@ -66,8 +67,8 @@ class TestPyarrowAggregate(unittest.IsolatedAsyncioTestCase):
                 batch=batch,
                 by=("region",),
                 aggs={
-                    "total":       ("amount", "sum"),
-                    "n_orders":    ("amount", "count"),
+                    "total": ("amount", "sum"),
+                    "n_orders": ("amount", "count"),
                     "n_customers": ("customer", "count_distinct"),
                 },
                 _config=KnotConfig(id="agg"),
@@ -113,28 +114,20 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, **kwargs: object) -> PyarrowAggregate:
         with Tapestry():
             batch = emit_empty(_config=KnotConfig(id="empty"))
-            return PyarrowAggregate(
-                batch=batch, _config=KnotConfig(id="agg"), **kwargs
-            )
+            return PyarrowAggregate(batch=batch, _config=KnotConfig(id="agg"), **kwargs)
 
     async def test_rejects_string_by(self) -> None:
         k = self._make_knot(by="a", aggs={"total": ("a", "sum")})
         with self.assertRaisesRegex(TypeError, "sequence"):
-            await k.process(
-                batch=_empty_batch(), by="a", aggs={"total": ("a", "sum")}
-            )
+            await k.process(batch=_empty_batch(), by="a", aggs={"total": ("a", "sum")})
 
     async def test_rejects_empty_by(self) -> None:
         k = self._make_knot(by=(), aggs={"total": ("a", "sum")})
         with self.assertRaisesRegex(ValueError, "non-empty"):
-            await k.process(
-                batch=_empty_batch(), by=(), aggs={"total": ("a", "sum")}
-            )
+            await k.process(batch=_empty_batch(), by=(), aggs={"total": ("a", "sum")})
 
     async def test_rejects_unsafe_by_column(self) -> None:
-        k = self._make_knot(
-            by=("region; DROP TABLE t",), aggs={"total": ("a", "sum")}
-        )
+        k = self._make_knot(by=("region; DROP TABLE t",), aggs={"total": ("a", "sum")})
         with self.assertRaisesRegex(ValueError, "plain identifier"):
             await k.process(
                 batch=_empty_batch(),

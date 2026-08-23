@@ -20,6 +20,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.frames.pandas.pandas_data_batch import PandasDataBatch
 from pirn_data.quality_report import QualityReport
 from pirn_data.validation.pandera.pandera_pandas_validator import (
@@ -38,6 +39,7 @@ def _valid_batch_factory():
         return PandasDataBatch(
             frame=pd.DataFrame({"id": [1, 2, 3], "name": ["alice", "bob", "carol"]})
         )
+
     return emit
 
 
@@ -45,17 +47,14 @@ def _invalid_batch_factory():
     @knot
     async def emit() -> PandasDataBatch:
         return PandasDataBatch(
-            frame=pd.DataFrame(
-                {"id": [1, 2, -3, 4], "name": ["alice", "", "carol", "dave"]}
-            )
+            frame=pd.DataFrame({"id": [1, 2, -3, 4], "name": ["alice", "", "carol", "dave"]})
         )
+
     return emit
 
 
 def _make_batch() -> PandasDataBatch:
-    return PandasDataBatch(
-        frame=pd.DataFrame({"id": [1, 2], "name": ["alice", "bob"]})
-    )
+    return PandasDataBatch(frame=pd.DataFrame({"id": [1, 2], "name": ["alice", "bob"]}))
 
 
 class TestPanderaPandasValidator(unittest.IsolatedAsyncioTestCase):
@@ -63,7 +62,8 @@ class TestPanderaPandasValidator(unittest.IsolatedAsyncioTestCase):
         with Tapestry() as t:
             batch = _valid_batch_factory()(_config=KnotConfig(id="users"))
             PanderaPandasValidator(
-                batch=batch, schema=_UsersModel,
+                batch=batch,
+                schema=_UsersModel,
                 _config=KnotConfig(id="validate"),
             )
         result = await t.run(RunRequest())
@@ -75,7 +75,8 @@ class TestPanderaPandasValidator(unittest.IsolatedAsyncioTestCase):
         with Tapestry() as t:
             batch = _invalid_batch_factory()(_config=KnotConfig(id="users"))
             PanderaPandasValidator(
-                batch=batch, schema=_UsersModel,
+                batch=batch,
+                schema=_UsersModel,
                 _config=KnotConfig(id="validate"),
             )
         result = await t.run(RunRequest())
@@ -89,14 +90,15 @@ class TestPanderaPandasValidator(unittest.IsolatedAsyncioTestCase):
     async def test_dataframe_schema_instance_also_accepted(self) -> None:
         schema = pa.DataFrameSchema(
             {
-                "id":   pa.Column(int, pa.Check.gt(0)),
+                "id": pa.Column(int, pa.Check.gt(0)),
                 "name": pa.Column(str, pa.Check.str_length(min_value=1)),
             }
         )
         with Tapestry() as t:
             batch = _valid_batch_factory()(_config=KnotConfig(id="users"))
             PanderaPandasValidator(
-                batch=batch, schema=schema,
+                batch=batch,
+                schema=schema,
                 _config=KnotConfig(id="validate"),
             )
         result = await t.run(RunRequest())

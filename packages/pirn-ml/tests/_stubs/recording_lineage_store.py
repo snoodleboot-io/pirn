@@ -14,9 +14,7 @@ class RecordingLineageStore(LineageStore):
         self.fetches: list[str] = []
         self.closed: bool = False
 
-    async def log_event(
-        self, event_type: str, payload: Mapping[str, Any]
-    ) -> None:
+    async def log_event(self, event_type: str, payload: Mapping[str, Any]) -> None:
         self.events.append((event_type, dict(payload)))
 
     async def fetch_lineage(self, model_id: str) -> Mapping[str, Any]:

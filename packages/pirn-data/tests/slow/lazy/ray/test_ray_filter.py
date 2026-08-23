@@ -12,6 +12,7 @@ ray_data = pytest.importorskip("ray.data")
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.lazy.ray.ray_dataset import RayDataset
 from pirn_data.lazy.ray.ray_filter import RayFilter
 from pirn_data.lazy.ray.ray_source import RaySource
@@ -22,7 +23,7 @@ def _orders_factory():
         [
             {"id": 1, "amount": 10.0, "region": "EU"},
             {"id": 2, "amount": 25.0, "region": "EU"},
-            {"id": 3, "amount": 5.0,  "region": "EU"},
+            {"id": 3, "amount": 5.0, "region": "EU"},
             {"id": 4, "amount": 100.0, "region": "US"},
         ]
     )

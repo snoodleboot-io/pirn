@@ -11,6 +11,7 @@ except ImportError as _e:
 from datetime import UTC
 
 import duckdb
+
 from pirn_data.frames.duckdb.duckdb_data_batch import DuckdbDataBatch
 
 

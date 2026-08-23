@@ -6,6 +6,7 @@ import unittest
 
 import numpy as np
 from pirn.core.knot_config import KnotConfig
+
 from pirn_health.pathology.mitosis_counter import MitosisCounter
 from pirn_health.types.wsi_tile import WSITile
 from pirn_health.types.wsi_tile_payload import WSITilePayload

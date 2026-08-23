@@ -6,6 +6,7 @@ import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from pirn.core.knot_config import KnotConfig
+
 from pirn_health.mri.lesion_segmenter import LesionSegmenter
 
 _CFG = KnotConfig(id="s")
@@ -13,7 +14,12 @@ _CFG = KnotConfig(id="s")
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> LesionSegmenter:
-        return LesionSegmenter(nifti_path="in.nii.gz", model_name="nnunet", output_segmentation_path="seg.nii.gz", _config=_CFG)
+        return LesionSegmenter(
+            nifti_path="in.nii.gz",
+            model_name="nnunet",
+            output_segmentation_path="seg.nii.gz",
+            _config=_CFG,
+        )
 
     async def test_rejects_empty(self) -> None:
         knot = self._make_knot()
@@ -26,5 +32,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         mock_proc.returncode = 0
         mock_proc.communicate = AsyncMock(return_value=(b"", b""))
         with patch("asyncio.create_subprocess_exec", AsyncMock(return_value=mock_proc)):
-            out = await knot.process(nifti_path="in.nii.gz", model_name="nnunet", output_segmentation_path="seg.nii.gz")
+            out = await knot.process(
+                nifti_path="in.nii.gz", model_name="nnunet", output_segmentation_path="seg.nii.gz"
+            )
         assert out == "seg.nii.gz"

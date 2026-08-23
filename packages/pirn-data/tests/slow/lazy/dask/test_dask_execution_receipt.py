@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import FrozenInstanceError
 from datetime import UTC, datetime
 
 import pytest
@@ -40,7 +41,9 @@ class TestDaskExecutionReceipt:
 
     def test_receipt_is_frozen(self) -> None:
         receipt = DaskExecutionReceipt(
-            backend_name="dask", target_path=None, partitions_executed=1,
+            backend_name="dask",
+            target_path=None,
+            partitions_executed=1,
         )
-        with pytest.raises(Exception):
+        with pytest.raises(FrozenInstanceError):
             receipt.backend_name = "other"  # type: ignore[misc]

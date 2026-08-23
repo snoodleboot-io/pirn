@@ -11,6 +11,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.quality.null_rate_monitor import NullRateMonitor
 
 _TABLE = "users"
@@ -19,9 +20,7 @@ _THRESHOLDS = {"email": 0.5, "phone": 0.5}
 
 async def _make_pool() -> SqlitePool:
     p = SqlitePool(SqliteConfig(database=":memory:"))
-    await p.execute(
-        "CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT, phone TEXT)"
-    )
+    await p.execute("CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT, phone TEXT)")
     await p.execute_many(
         "INSERT INTO users (id, email, phone) VALUES (?, ?, ?)",
         [

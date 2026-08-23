@@ -13,6 +13,7 @@ from datetime import UTC, datetime
 import numpy as np
 import pytest
 from pirn.core.knot_factory import knot
+
 from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.spectrum_frame import SpectrumFrame
@@ -55,7 +56,11 @@ def make_signal_payload(
         samples_per_channel=samples_per_channel,
         fetched_at=_FIXED_FETCHED_AT,
     )
-    data = np.zeros((channel_count, samples_per_channel)) if channel_count > 1 else np.zeros(samples_per_channel)
+    data = (
+        np.zeros((channel_count, samples_per_channel))
+        if channel_count > 1
+        else np.zeros(samples_per_channel)
+    )
     return SignalPayload(metadata=frame, data=data)
 
 

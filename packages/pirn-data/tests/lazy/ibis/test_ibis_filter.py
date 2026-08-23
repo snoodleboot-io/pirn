@@ -14,6 +14,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.lazy.ibis.ibis_connection import IbisConnection
 from pirn_data.lazy.ibis.ibis_filter import IbisFilter
 from pirn_data.lazy.ibis.ibis_source import IbisSource
@@ -25,7 +26,7 @@ def _make_orders_con() -> ibis.BaseBackend:
     con.create_table(
         "orders",
         {
-            "id":     [1, 2, 3, 4],
+            "id": [1, 2, 3, 4],
             "amount": [10.0, 25.0, 5.0, 100.0],
             "region": ["EU", "EU", "EU", "US"],
         },
@@ -60,8 +61,10 @@ class TestIbisFilter(unittest.IsolatedAsyncioTestCase):
         con = _make_orders_con()
         with Tapestry() as t:
             src = IbisSource(
-                connection=IbisConnection(con), table="orders",
-                backend_name="duckdb", _config=KnotConfig(id="src"),
+                connection=IbisConnection(con),
+                table="orders",
+                backend_name="duckdb",
+                _config=KnotConfig(id="src"),
             )
             active = IbisFilter(
                 batch=src,
@@ -89,8 +92,10 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
 
         with Tapestry() as t:
             src = IbisSource(
-                connection=IbisConnection(con), table="orders",
-                backend_name="duckdb", _config=KnotConfig(id="src"),
+                connection=IbisConnection(con),
+                table="orders",
+                backend_name="duckdb",
+                _config=KnotConfig(id="src"),
             )
             pred_knot = emit_predicate(_config=KnotConfig(id="pred"))
             IbisFilter(batch=src, predicate=pred_knot, _config=KnotConfig(id="eu"))
@@ -104,7 +109,9 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, **kwargs: object) -> IbisFilter:
         con = _make_orders_con()
         with Tapestry():
-            src = IbisSource(connection=IbisConnection(con), table="orders", _config=KnotConfig(id="src"))
+            src = IbisSource(
+                connection=IbisConnection(con), table="orders", _config=KnotConfig(id="src")
+            )
             return IbisFilter(batch=src, _config=KnotConfig(id="f"), **kwargs)
 
     async def test_rejects_non_callable_predicate(self) -> None:

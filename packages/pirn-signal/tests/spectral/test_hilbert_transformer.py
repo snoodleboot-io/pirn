@@ -13,11 +13,11 @@ import numpy as np
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_signal.spectral.hilbert_transformer import HilbertTransformer
 from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.spectrum_payload import SpectrumPayload
-
 from tests.conftest import emit_signal_payload
 
 
@@ -41,7 +41,9 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
         with Tapestry():
             k = HilbertTransformer.__new__(HilbertTransformer)
             object.__setattr__(k, "_config", KnotConfig(id="x"))
-        signal = _make_signal_payload(signal_id="s", channel_count=2, sample_rate_hz=44100.0, samples=512)
+        signal = _make_signal_payload(
+            signal_id="s", channel_count=2, sample_rate_hz=44100.0, samples=512
+        )
         result = await k.process(signal=signal)
         assert isinstance(result, SpectrumPayload)
         assert result.frame.signal_id == "s:analytic"

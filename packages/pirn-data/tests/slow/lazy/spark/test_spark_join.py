@@ -9,24 +9,19 @@ pytestmark = pytest.mark.slow
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.lazy.spark.spark_dataframe import SparkDataFrame
 from pirn_data.lazy.spark.spark_join import SparkJoin
 from pirn_data.lazy.spark.spark_source import SparkSource
 
 
 def _orders_query() -> str:
-    return (
-        "SELECT * FROM VALUES "
-        "(1, 'EU'), (2, 'EU'), (3, 'US') "
-        "AS t(order_id, region)"
-    )
+    return "SELECT * FROM VALUES (1, 'EU'), (2, 'EU'), (3, 'US') AS t(order_id, region)"
 
 
 def _regions_query() -> str:
     return (
-        "SELECT * FROM VALUES "
-        "('EU', 'Europe'), ('US', 'United States') "
-        "AS t(region, region_name)"
+        "SELECT * FROM VALUES ('EU', 'Europe'), ('US', 'United States') AS t(region, region_name)"
     )
 
 
@@ -62,17 +57,13 @@ async def test_left_right_on_join(_spark_session) -> None:
     with Tapestry() as t:
         orders = SparkSource(
             spark_session=_spark_session,
-            query=(
-                "SELECT * FROM VALUES (1, 'EU'), (2, 'US') "
-                "AS t(order_id, ord_region)"
-            ),
+            query=("SELECT * FROM VALUES (1, 'EU'), (2, 'US') AS t(order_id, ord_region)"),
             _config=KnotConfig(id="orders"),
         )
         regions = SparkSource(
             spark_session=_spark_session,
             query=(
-                "SELECT * FROM VALUES ('EU', 'Europe'), ('US', 'States') "
-                "AS t(reg_region, name)"
+                "SELECT * FROM VALUES ('EU', 'Europe'), ('US', 'States') AS t(reg_region, name)"
             ),
             _config=KnotConfig(id="regions"),
         )

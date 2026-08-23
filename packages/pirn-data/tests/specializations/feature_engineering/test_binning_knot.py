@@ -9,6 +9,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.feature_engineering.binning_knot import BinningKnot
 
 
@@ -64,7 +65,10 @@ class TestBinningKnot(unittest.IsolatedAsyncioTestCase):
         rows = [{"v": 1.0}, {"v": 5.0}, {"v": 9.0}]
         with Tapestry() as t:
             k = BinningKnot(
-                rows=rows, column="v", num_bins=3, strategy="equal_width",
+                rows=rows,
+                column="v",
+                num_bins=3,
+                strategy="equal_width",
                 _config=KnotConfig(id="b"),
             )
         result = await t.run(RunRequest())

@@ -8,6 +8,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_ml.specializations.experiments.time_series_splitter_validator import (
     TimeSeriesSplitterValidator,
 )
@@ -40,9 +41,7 @@ def _make_validator() -> TimeSeriesSplitterValidator:
 
 
 def _dataset_fixture() -> DatasetManifest:
-    return DatasetManifest(
-        name="ts", feature_names=("a", "b"), target_name="y", row_count=120
-    )
+    return DatasetManifest(name="ts", feature_names=("a", "b"), target_name="y", row_count=120)
 
 
 class TestConstruction(unittest.IsolatedAsyncioTestCase):

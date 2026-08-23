@@ -15,6 +15,7 @@ import numpy as np
 import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
+
 from pirn_signal.assemblers.signal_object_store_assembler import SignalObjectStoreAssembler
 from pirn_signal.types.signal_payload import SignalPayload
 
@@ -33,6 +34,7 @@ def _make(signal_id: str = "test-signal") -> SignalObjectStoreAssembler:
 
 def _fake_decode(body: bytes, signal_id: str) -> SignalPayload:
     from pirn_signal.types.signal_frame import SignalFrame
+
     data = np.zeros((2, 512), dtype=np.float32)
     frame = SignalFrame(
         signal_id=signal_id,
@@ -44,7 +46,6 @@ def _fake_decode(body: bytes, signal_id: str) -> SignalPayload:
 
 
 class TestSignalObjectStoreAssembler(unittest.IsolatedAsyncioTestCase):
-
     async def test_returns_signal_payload(self) -> None:
         knot = _make("clip-01")
         with patch(

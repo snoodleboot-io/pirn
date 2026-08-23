@@ -12,6 +12,7 @@ except ImportError as _e:
     raise unittest.SkipTest("dask not installed") from _e
 
 from pirn.core.knot_config import KnotConfig
+
 from pirn_data.lazy.dask.dask_dataframe import DaskDataFrame
 from pirn_data.lazy.dask.dask_source import DaskSource
 
@@ -60,7 +61,9 @@ class TestDaskSourceProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_both_factory_and_path(self) -> None:
         src = DaskSource(factory=_make_frame, _config=KnotConfig(id="src"))
         with self.assertRaises(TypeError):
-            await src.process(factory=_make_frame, path="/tmp/data.parquet", reader=lambda p: _make_frame())
+            await src.process(
+                factory=_make_frame, path="/tmp/data.parquet", reader=lambda p: _make_frame()
+            )
 
     async def test_path_without_reader_raises(self) -> None:
         src = DaskSource(factory=_make_frame, _config=KnotConfig(id="src"))

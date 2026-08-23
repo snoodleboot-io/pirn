@@ -9,6 +9,7 @@ from pirn.connectors.object_store import ObjectStore
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
+
 from pirn_ml.lineage_store import LineageStore
 from pirn_ml.specializations.training.neural_net_trainer_pipeline import (
     NeuralNetTrainerPipeline,
@@ -50,8 +51,12 @@ def _split():
     from pirn_ml.types.split_manifest import SplitManifest
 
     return SplitManifest(
-        train=DatasetManifest(name="tr", feature_names=["x"], target_name="y", row_count=10, source_uri="mem://"),
-        test=DatasetManifest(name="te", feature_names=["x"], target_name="y", row_count=5, source_uri="mem://"),
+        train=DatasetManifest(
+            name="tr", feature_names=["x"], target_name="y", row_count=10, source_uri="mem://"
+        ),
+        test=DatasetManifest(
+            name="te", feature_names=["x"], target_name="y", row_count=5, source_uri="mem://"
+        ),
     )
 
 
@@ -59,7 +64,13 @@ class TestNeuralNetTrainerPipelineValidation(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_invalid_format(self) -> None:
         k = _make_knot()
         with self.assertRaises((ValueError, TypeError)):
-            await k.process(split=_split(), lineage=_StubLineage(), store=_StubStore(), metrics=["val_loss"], format="keras")
+            await k.process(
+                split=_split(),
+                lineage=_StubLineage(),
+                store=_StubStore(),
+                metrics=["val_loss"],
+                format="keras",
+            )
 
     async def test_rejects_wrong_lineage_type(self) -> None:
         k = _make_knot()

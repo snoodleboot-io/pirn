@@ -6,6 +6,7 @@ import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from pirn.core.knot_config import KnotConfig
+
 from pirn_health.mri.nifti_converter import NIfTIConverter
 from pirn_health.types.dicom_payload import DICOMPayload
 from pirn_health.types.dicom_series import DICOMSeries

@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
+
 from pirn_oilgas.seismic.frequency_decomposer import FrequencyDecomposer
 from pirn_oilgas.types.segy_volume import SegyVolume
 

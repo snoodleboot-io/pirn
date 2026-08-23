@@ -8,6 +8,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.data_batch import DataBatch
 from pirn_data.data_profile import DataProfile
 from pirn_data.data_schema import DataSchema
@@ -19,9 +20,9 @@ async def emit_users() -> DataBatch:
     schema = DataSchema(columns={"id": int, "name": str, "region": str})
     rows = (
         {"id": 1, "name": "alice", "region": "EU"},
-        {"id": 2, "name": "bob",   "region": "EU"},
+        {"id": 2, "name": "bob", "region": "EU"},
         {"id": 3, "name": "alice", "region": "US"},
-        {"id": 4, "name": None,    "region": "US"},
+        {"id": 4, "name": None, "region": "US"},
     )
     return DataBatch(rows=rows, schema=schema)
 
@@ -86,7 +87,8 @@ class TestProfiler(unittest.IsolatedAsyncioTestCase):
         with Tapestry() as t:
             batch = emit_users(_config=KnotConfig(id="batch"))
             Profiler(
-                batch=batch, columns=("region",),
+                batch=batch,
+                columns=("region",),
                 _config=KnotConfig(id="profile"),
             )
         result = await t.run(RunRequest())
@@ -119,7 +121,8 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
             batch = emit_users(_config=KnotConfig(id="batch"))
             cols_knot = emit_columns(_config=KnotConfig(id="cols"))
             Profiler(
-                batch=batch, columns=cols_knot,
+                batch=batch,
+                columns=cols_knot,
                 _config=KnotConfig(id="profile"),
             )
         result = await t.run(RunRequest())

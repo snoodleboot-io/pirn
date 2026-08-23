@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
+
 from pirn_oilgas.types.well_path_3d import WellPath3D
 from pirn_oilgas.well.casing_design_evaluator import CasingDesignEvaluator
 

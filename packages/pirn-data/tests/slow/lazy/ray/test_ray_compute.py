@@ -13,6 +13,7 @@ ray_data = pytest.importorskip("ray.data")
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.lazy.ray.ray_compute import RayCompute
 from pirn_data.lazy.ray.ray_execution_receipt import (
     RayExecutionReceipt,
@@ -26,7 +27,7 @@ def _orders_factory():
         [
             {"id": 1, "amount": 10.0, "region": "EU"},
             {"id": 2, "amount": 25.0, "region": "EU"},
-            {"id": 3, "amount": 5.0,  "region": "EU"},
+            {"id": 3, "amount": 5.0, "region": "EU"},
             {"id": 4, "amount": 100.0, "region": "US"},
         ]
     )
@@ -36,7 +37,8 @@ def _orders_factory():
 async def test_compute_returns_receipt() -> None:
     with Tapestry() as t:
         src = RaySource(
-            factory=_orders_factory, backend_name="ray",
+            factory=_orders_factory,
+            backend_name="ray",
             _config=KnotConfig(id="src"),
         )
         eu = RayFilter(
@@ -105,7 +107,8 @@ def test_construct_rejects_target_without_writer() -> None:
         src = RaySource(factory=_orders_factory, _config=KnotConfig(id="src"))
         with pytest.raises(TypeError, match="writer is required"):
             RayCompute(
-                batch=src, target_path="/tmp/x_parquet",
+                batch=src,
+                target_path="/tmp/x_parquet",
                 _config=KnotConfig(id="x"),
             )
 
@@ -115,7 +118,9 @@ def test_construct_rejects_empty_target() -> None:
         src = RaySource(factory=_orders_factory, _config=KnotConfig(id="src"))
         with pytest.raises(ValueError, match="non-empty"):
             RayCompute(
-                batch=src, target_path="", writer=lambda ds, p: None,
+                batch=src,
+                target_path="",
+                writer=lambda ds, p: None,
                 _config=KnotConfig(id="x"),
             )
 

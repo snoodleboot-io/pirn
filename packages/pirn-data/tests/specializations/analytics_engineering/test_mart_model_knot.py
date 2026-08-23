@@ -11,6 +11,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.analytics_engineering.mart_model_knot import (
     MartModelKnot,
 )
@@ -23,9 +24,7 @@ _TARGET_TABLE = "mart_revenue"
 
 async def _make_pool() -> SqlitePool:
     p = SqlitePool(SqliteConfig(database=":memory:"))
-    await p.execute(
-        "CREATE TABLE int_orders (order_id INTEGER, region TEXT, amount REAL)"
-    )
+    await p.execute("CREATE TABLE int_orders (order_id INTEGER, region TEXT, amount REAL)")
     await p.execute("CREATE TABLE mart_revenue (region TEXT, total_revenue REAL)")
     await p.execute_many(
         "INSERT INTO int_orders VALUES (?, ?, ?)",

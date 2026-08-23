@@ -6,15 +6,14 @@ import unittest
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
+
 from pirn_oilgas.seismic.velocity_model_builder import VelocityModelBuilder
 
 _SEMBLANCE: list[dict[str, Any]] = [
     {"x": 0, "y": 0, "time_ms": 1000.0, "velocity_m_s": 2000.0},
     {"x": 1, "y": 0, "time_ms": 2000.0, "velocity_m_s": 2500.0},
 ]
-_WELL_VEL: list[dict[str, Any]] = [
-    {"well_id": "W-1", "depth_m": 1000.0, "velocity_m_s": 2100.0}
-]
+_WELL_VEL: list[dict[str, Any]] = [{"well_id": "W-1", "depth_m": 1000.0, "velocity_m_s": 2100.0}]
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):

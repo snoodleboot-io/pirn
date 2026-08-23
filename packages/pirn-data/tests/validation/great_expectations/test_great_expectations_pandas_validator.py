@@ -25,6 +25,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.frames.pandas.pandas_data_batch import PandasDataBatch
 from pirn_data.quality_report import QualityReport
 from pirn_data.validation.great_expectations.great_expectations_pandas_validator import (
@@ -47,9 +48,7 @@ def _users_suite() -> gx.ExpectationSuite:
     )
     suite.add_expectation(ExpectColumnValuesToNotBeNull(column="name"))
     suite.add_expectation(
-        ExpectColumnValuesToBeInSet(
-            column="role", value_set=["admin", "member", "guest"]
-        )
+        ExpectColumnValuesToBeInSet(column="role", value_set=["admin", "member", "guest"])
     )
     return suite
 
@@ -66,11 +65,13 @@ def _valid_batch_factory():
                 }
             )
         )
+
     return emit
 
 
 def _id_invalid_batch_factory():
     """Single failing column: id violates the >=1 lower bound."""
+
     @knot
     async def emit() -> PandasDataBatch:
         return PandasDataBatch(
@@ -82,11 +83,13 @@ def _id_invalid_batch_factory():
                 }
             )
         )
+
     return emit
 
 
 def _multi_invalid_batch_factory():
     """Two failing columns: id (negative) and role (unknown value)."""
+
     @knot
     async def emit() -> PandasDataBatch:
         return PandasDataBatch(
@@ -98,14 +101,13 @@ def _multi_invalid_batch_factory():
                 }
             )
         )
+
     return emit
 
 
 def _make_batch() -> PandasDataBatch:
     return PandasDataBatch(
-        frame=pd.DataFrame(
-            {"id": [1, 2], "name": ["alice", "bob"], "role": ["admin", "member"]}
-        )
+        frame=pd.DataFrame({"id": [1, 2], "name": ["alice", "bob"], "role": ["admin", "member"]})
     )
 
 
@@ -124,7 +126,9 @@ class TestGreatExpectationsPandasValidator(unittest.IsolatedAsyncioTestCase):
         assert report.row_count == 3
         assert report.failed_checks == ()
 
-    async def test_failing_report_lists_one_check_per_failed_expectation(self,) -> None:
+    async def test_failing_report_lists_one_check_per_failed_expectation(
+        self,
+    ) -> None:
         with Tapestry() as t:
             batch = _id_invalid_batch_factory()(_config=KnotConfig(id="users"))
             GreatExpectationsPandasValidator(

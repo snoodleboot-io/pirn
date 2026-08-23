@@ -8,6 +8,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.data_batch import DataBatch
 from pirn_data.quality.row_count_check import RowCountCheck
 from pirn_data.quality_report import QualityReport
@@ -18,6 +19,7 @@ def _batch_factory(row_count: int):
     async def emit() -> DataBatch:
         rows = tuple({"id": i} for i in range(row_count))
         return DataBatch(rows=rows)
+
     return emit
 
 
@@ -26,7 +28,9 @@ class TestRowCountCheck(unittest.IsolatedAsyncioTestCase):
         with Tapestry() as t:
             batch = _batch_factory(50)(_config=KnotConfig(id="batch"))
             RowCountCheck(
-                batch=batch, min_rows=10, max_rows=100,
+                batch=batch,
+                min_rows=10,
+                max_rows=100,
                 _config=KnotConfig(id="count"),
             )
         result = await t.run(RunRequest())
@@ -38,7 +42,9 @@ class TestRowCountCheck(unittest.IsolatedAsyncioTestCase):
         with Tapestry() as t:
             batch = _batch_factory(2)(_config=KnotConfig(id="batch"))
             RowCountCheck(
-                batch=batch, min_rows=10, _config=KnotConfig(id="count"),
+                batch=batch,
+                min_rows=10,
+                _config=KnotConfig(id="count"),
             )
         result = await t.run(RunRequest())
         report: QualityReport = result.outputs["count"]
@@ -49,7 +55,9 @@ class TestRowCountCheck(unittest.IsolatedAsyncioTestCase):
         with Tapestry() as t:
             batch = _batch_factory(200)(_config=KnotConfig(id="batch"))
             RowCountCheck(
-                batch=batch, min_rows=0, max_rows=100,
+                batch=batch,
+                min_rows=0,
+                max_rows=100,
                 _config=KnotConfig(id="count"),
             )
         result = await t.run(RunRequest())
@@ -61,7 +69,9 @@ class TestRowCountCheck(unittest.IsolatedAsyncioTestCase):
         with Tapestry() as t:
             batch = _batch_factory(10_000)(_config=KnotConfig(id="batch"))
             RowCountCheck(
-                batch=batch, min_rows=1, _config=KnotConfig(id="count"),
+                batch=batch,
+                min_rows=1,
+                _config=KnotConfig(id="count"),
             )
         result = await t.run(RunRequest())
         report: QualityReport = result.outputs["count"]
@@ -78,7 +88,9 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
             batch = _batch_factory(50)(_config=KnotConfig(id="batch"))
             min_knot = emit_min(_config=KnotConfig(id="min"))
             RowCountCheck(
-                batch=batch, min_rows=min_knot, _config=KnotConfig(id="count"),
+                batch=batch,
+                min_rows=min_knot,
+                _config=KnotConfig(id="count"),
             )
         result = await t.run(RunRequest())
         report: QualityReport = result.outputs["count"]
@@ -93,7 +105,9 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
             batch = _batch_factory(50)(_config=KnotConfig(id="batch"))
             max_knot = emit_max(_config=KnotConfig(id="max"))
             RowCountCheck(
-                batch=batch, max_rows=max_knot, _config=KnotConfig(id="count"),
+                batch=batch,
+                max_rows=max_knot,
+                _config=KnotConfig(id="count"),
             )
         result = await t.run(RunRequest())
         report: QualityReport = result.outputs["count"]
@@ -108,9 +122,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
 
         with Tapestry():
             batch = empty(_config=KnotConfig(id="empty"))
-            return RowCountCheck(
-                batch=batch, _config=KnotConfig(id="c"), **kwargs
-            )
+            return RowCountCheck(batch=batch, _config=KnotConfig(id="c"), **kwargs)
 
     async def test_rejects_negative_min(self) -> None:
         k = self._make_knot(min_rows=-1)

@@ -6,15 +6,13 @@ import unittest
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
+
 from pirn_oilgas.well.log_spike_remover import LogSpikeRemover
 
 _SPIKED: list[dict[str, Any]] = [
-    {"depth_ft": float(d), "value": 1.0 if d != 5 else 100.0}
-    for d in range(1, 12)
+    {"depth_ft": float(d), "value": 1.0 if d != 5 else 100.0} for d in range(1, 12)
 ]
-_CLEAN: list[dict[str, Any]] = [
-    {"depth_ft": float(d), "value": 1.0} for d in range(1, 12)
-]
+_CLEAN: list[dict[str, Any]] = [{"depth_ft": float(d), "value": 1.0} for d in range(1, 12)]
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):

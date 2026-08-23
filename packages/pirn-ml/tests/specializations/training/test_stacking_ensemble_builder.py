@@ -8,6 +8,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
+
 from pirn_ml.specializations.training.stacking_ensemble_builder import (
     StackingEnsembleBuilder,
 )
@@ -31,7 +32,9 @@ def _make_knot() -> StackingEnsembleBuilder:
 
 
 def _split() -> SplitManifest:
-    ds = DatasetManifest(name="ds", feature_names=("x",), target_name="y", row_count=10, source_uri="mem://")
+    ds = DatasetManifest(
+        name="ds", feature_names=("x",), target_name="y", row_count=10, source_uri="mem://"
+    )
     return SplitManifest(train=ds, test=ds)
 
 

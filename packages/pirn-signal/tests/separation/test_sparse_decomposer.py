@@ -17,10 +17,10 @@ except ImportError as _e:
 import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
+
 from pirn_signal.separation.sparse_decomposer import SparseDecomposer
 from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.source_payload import SourcePayload
-
 from tests.conftest import make_signal_payload
 
 _SIGNAL = make_signal_payload(channel_count=8)

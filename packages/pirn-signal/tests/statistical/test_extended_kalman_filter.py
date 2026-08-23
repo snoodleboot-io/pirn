@@ -9,11 +9,11 @@ import numpy as np
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_signal.statistical.extended_kalman_filter import (
     ExtendedKalmanFilter,
 )
 from pirn_signal.types.signal_payload import SignalPayload
-
 from tests.conftest import emit_signal_payload, make_signal_payload
 
 

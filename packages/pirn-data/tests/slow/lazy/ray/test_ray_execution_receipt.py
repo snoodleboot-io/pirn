@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import FrozenInstanceError
 from datetime import UTC, datetime
 
 import pytest
@@ -40,5 +41,5 @@ class TestRayExecutionReceipt:
 
     def test_receipt_is_frozen(self) -> None:
         receipt = RayExecutionReceipt(backend_name="ray", target_path=None)
-        with pytest.raises(Exception):
+        with pytest.raises(FrozenInstanceError):
             receipt.backend_name = "other"  # type: ignore[misc]

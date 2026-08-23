@@ -6,12 +6,12 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
+
 from pirn_ml.specializations.training.neural_net_trainer_pipeline import (
     NeuralNetTrainerPipeline,
 )
 from pirn_ml.types.dataset_manifest import DatasetManifest
 from pirn_ml.types.split_manifest import SplitManifest
-
 from tests._stubs.recording_lineage_store import RecordingLineageStore
 from tests._stubs.recording_object_store import RecordingObjectStore
 

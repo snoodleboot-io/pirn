@@ -11,6 +11,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.timeseries.rolling_window_aggregator import (
     RollingWindowAggregator,
 )
@@ -159,8 +160,11 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
         k = self._make_knot()
         rows = [{"ts": _ts(i), "v": float(v)} for i, v in enumerate([3, 1, 4, 1, 5])]
         result = await k.process(
-            rows=rows, timestamp_column="ts", value_column="v",
-            window_size=3, statistic="min",
+            rows=rows,
+            timestamp_column="ts",
+            value_column="v",
+            window_size=3,
+            statistic="min",
         )
         assert result[2]["v_min"] == 1.0
 
@@ -168,15 +172,21 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
         k = self._make_knot()
         rows = [{"ts": _ts(i), "v": float(v)} for i, v in enumerate([2.0, 4.0])]
         result = await k.process(
-            rows=rows, timestamp_column="ts", value_column="v",
-            window_size=2, statistic="std",
+            rows=rows,
+            timestamp_column="ts",
+            value_column="v",
+            window_size=2,
+            statistic="std",
         )
         assert result[1]["v_std"] == pytest.approx(1.0)
 
     async def test_empty_input_returns_empty(self) -> None:
         k = self._make_knot()
         result = await k.process(
-            rows=[], timestamp_column="ts", value_column="v",
-            window_size=3, statistic="mean",
+            rows=[],
+            timestamp_column="ts",
+            value_column="v",
+            window_size=3,
+            statistic="mean",
         )
         assert result == []

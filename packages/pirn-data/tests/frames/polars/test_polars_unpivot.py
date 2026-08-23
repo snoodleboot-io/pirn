@@ -14,6 +14,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.frames.polars.polars_data_batch import PolarsDataBatch
 from pirn_data.frames.polars.polars_unpivot import PolarsUnpivot
 
@@ -23,9 +24,9 @@ async def emit_wide() -> PolarsDataBatch:
     return PolarsDataBatch(
         frame=pl.DataFrame(
             {
-                "user":   ["alice", "bob"],
+                "user": ["alice", "bob"],
                 "clicks": [3, 7],
-                "views":  [100, 200],
+                "views": [100, 200],
             }
         )
     )
@@ -35,9 +36,9 @@ def _wide_batch() -> PolarsDataBatch:
     return PolarsDataBatch(
         frame=pl.DataFrame(
             {
-                "user":   ["alice", "bob"],
+                "user": ["alice", "bob"],
                 "clicks": [3, 7],
-                "views":  [100, 200],
+                "views": [100, 200],
             }
         )
     )
@@ -57,7 +58,7 @@ class TestPolarsUnpivot(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         out: PolarsDataBatch = result.outputs["long"]
-        assert out.row_count == 4   # 2 users x 2 metrics
+        assert out.row_count == 4  # 2 users x 2 metrics
         assert set(out.column_names) == {"user", "metric", "value"}
 
     async def test_default_variable_and_value_names(self) -> None:

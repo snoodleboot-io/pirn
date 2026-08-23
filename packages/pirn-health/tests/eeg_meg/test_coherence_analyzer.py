@@ -13,16 +13,21 @@ from collections.abc import Mapping
 
 import numpy as np
 from pirn.core.knot_config import KnotConfig
+
 from pirn_health.eeg_meg.coherence_analyzer import CoherenceAnalyzer
 from pirn_health.types.health_signal_frame import HealthSignalFrame
 from pirn_health.types.health_signal_payload import HealthSignalPayload
 
 _CFG = KnotConfig(id="c")
 _SIGNAL = HealthSignalPayload(
-    metadata=HealthSignalFrame(signal_id="s", channel_count=2, sample_rate_hz=256.0, samples_per_channel=512),
+    metadata=HealthSignalFrame(
+        signal_id="s", channel_count=2, sample_rate_hz=256.0, samples_per_channel=512
+    ),
     data=np.random.default_rng(0).standard_normal((2, 512)),
 )
-_KNOT = CoherenceAnalyzer(signal=_SIGNAL, channel_pairs=[("ch0", "ch1")], band_low_hz=1.0, band_high_hz=10.0, _config=_CFG)
+_KNOT = CoherenceAnalyzer(
+    signal=_SIGNAL, channel_pairs=[("ch0", "ch1")], band_low_hz=1.0, band_high_hz=10.0, _config=_CFG
+)
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
@@ -32,15 +37,21 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_sequence_pairs(self) -> None:
         with self.assertRaisesRegex(TypeError, "channel_pairs"):
-            await _KNOT.process(signal=_SIGNAL, channel_pairs=42, band_low_hz=1.0, band_high_hz=10.0)  # type: ignore[arg-type]
+            await _KNOT.process(
+                signal=_SIGNAL, channel_pairs=42, band_low_hz=1.0, band_high_hz=10.0
+            )  # type: ignore[arg-type]
 
     async def test_rejects_invalid_pair(self) -> None:
         with self.assertRaisesRegex(TypeError, r"\(str, str\)"):
-            await _KNOT.process(signal=_SIGNAL, channel_pairs=[(1, 2)], band_low_hz=1.0, band_high_hz=10.0)  # type: ignore[list-item]
+            await _KNOT.process(
+                signal=_SIGNAL, channel_pairs=[(1, 2)], band_low_hz=1.0, band_high_hz=10.0
+            )  # type: ignore[list-item]
 
     async def test_rejects_low_ge_high(self) -> None:
         with self.assertRaisesRegex(ValueError, "<"):
-            await _KNOT.process(signal=_SIGNAL, channel_pairs=[], band_low_hz=10.0, band_high_hz=10.0)
+            await _KNOT.process(
+                signal=_SIGNAL, channel_pairs=[], band_low_hz=10.0, band_high_hz=10.0
+            )
 
     async def test_returns_per_pair_mapping(self) -> None:
         out = await _KNOT.process(

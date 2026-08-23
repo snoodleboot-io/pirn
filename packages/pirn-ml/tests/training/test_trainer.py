@@ -8,6 +8,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_ml.training.trainer import Trainer
 from pirn_ml.types.dataset_manifest import DatasetManifest
 from pirn_ml.types.model_manifest import ModelManifest
@@ -44,8 +45,12 @@ class TestTrainerHappyPath(unittest.IsolatedAsyncioTestCase):
 
 class TestTrainerConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_empty_algorithm(self) -> None:
-        train = DatasetManifest(name="d:train", feature_names=("a", "b"), target_name="y", row_count=80)
-        test = DatasetManifest(name="d:test", feature_names=("a", "b"), target_name="y", row_count=20)
+        train = DatasetManifest(
+            name="d:train", feature_names=("a", "b"), target_name="y", row_count=80
+        )
+        test = DatasetManifest(
+            name="d:test", feature_names=("a", "b"), target_name="y", row_count=20
+        )
         split = SplitManifest(train=train, test=test)
         with Tapestry():
             k = Trainer.__new__(Trainer)

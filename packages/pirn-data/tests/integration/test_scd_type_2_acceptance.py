@@ -21,6 +21,7 @@ from pirn.connectors.databases.sqlite_pool import SqlitePool
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.scd.scd_type_2_history import (
     ScdType2History,
 )
@@ -47,8 +48,7 @@ async def pool() -> SqlitePool:
         ")"
     )
     await p.execute_many(
-        "INSERT INTO source_customers (customer_id, region, tier) "
-        "VALUES (?, ?, ?)",
+        "INSERT INTO source_customers (customer_id, region, tier) VALUES (?, ?, ?)",
         [
             (1, "EU", "gold"),
             (2, "US", "silver"),
@@ -62,9 +62,7 @@ def _build_pipeline(pool: SqlitePool) -> Tapestry:
     with Tapestry() as t:
         ScdType2History(
             source_pool=pool,
-            source_query=(
-                "SELECT customer_id, region, tier FROM source_customers"
-            ),
+            source_query=("SELECT customer_id, region, tier FROM source_customers"),
             target_pool=pool,
             target_table="dim_customers_history",
             key_columns=("customer_id",),
@@ -125,7 +123,6 @@ async def test_scd_type_2_history_closes_out_and_inserts_on_change(
         (2, "US", "silver", 1),
     ]
     closed_outs = await pool.fetch_all(
-        "SELECT customer_id FROM dim_customers_history "
-        "WHERE is_current = 0"
+        "SELECT customer_id FROM dim_customers_history WHERE is_current = 0"
     )
     assert closed_outs == [(1,)]

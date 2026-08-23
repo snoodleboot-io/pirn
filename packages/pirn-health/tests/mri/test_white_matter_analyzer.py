@@ -6,6 +6,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from pirn.core.knot_config import KnotConfig
+
 from pirn_health.mri.white_matter_analyzer import WhiteMatterAnalyzer
 
 _CFG = KnotConfig(id="w")
@@ -13,7 +14,9 @@ _CFG = KnotConfig(id="w")
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self) -> WhiteMatterAnalyzer:
-        return WhiteMatterAnalyzer(dwi_nifti_path="x.nii", bvec_path="b", bval_path="v", tracts=["cc"], _config=_CFG)
+        return WhiteMatterAnalyzer(
+            dwi_nifti_path="x.nii", bvec_path="b", bval_path="v", tracts=["cc"], _config=_CFG
+        )
 
     async def test_rejects_empty_path(self) -> None:
         knot = self._make_knot()
@@ -45,11 +48,13 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         mock_model_instance = MagicMock()
         mock_model_instance.fit.return_value = mock_fit
         mock_tensor_model = MagicMock(return_value=mock_model_instance)
-        with patch("pirn_health.mri.white_matter_analyzer.nib", mock_nib), \
-             patch("pirn_health.mri.white_matter_analyzer.gradient_table", mock_gradient_table), \
-             patch("pirn_health.mri.white_matter_analyzer.TensorModel", mock_tensor_model), \
-             patch("pirn_health.mri.white_matter_analyzer._HAS_DIPY", True), \
-             patch("numpy.loadtxt", return_value=MagicMock()):
+        with (
+            patch("pirn_health.mri.white_matter_analyzer.nib", mock_nib),
+            patch("pirn_health.mri.white_matter_analyzer.gradient_table", mock_gradient_table),
+            patch("pirn_health.mri.white_matter_analyzer.TensorModel", mock_tensor_model),
+            patch("pirn_health.mri.white_matter_analyzer._HAS_DIPY", True),
+            patch("numpy.loadtxt", return_value=MagicMock()),
+        ):
             out = await knot.process(
                 dwi_nifti_path="dwi.nii.gz",
                 bvec_path="bvecs",

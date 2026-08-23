@@ -13,6 +13,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.scd.scd_type_7_hybrid import ScdType7Hybrid
 
 _SOURCE_QUERY = "SELECT id, region FROM customers ORDER BY id"
@@ -49,9 +50,7 @@ class TestScdType7Hybrid(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         self.src = await _make_src()
         self._tmp = tempfile.TemporaryDirectory()
-        self.tgt = SqlitePool(
-            SqliteConfig(database=str(Path(self._tmp.name) / "tgt.db"))
-        )
+        self.tgt = SqlitePool(SqliteConfig(database=str(Path(self._tmp.name) / "tgt.db")))
         await self.tgt.execute(
             "CREATE TABLE customers ("
             "  id INTEGER NOT NULL,"
@@ -102,9 +101,7 @@ class TestScdType7Hybrid(unittest.IsolatedAsyncioTestCase):
         with Tapestry() as t2:
             _make_knot(self.src, self.tgt)
         await t2.run(RunRequest())
-        rows = await self.tgt.fetch_all(
-            "SELECT current_region FROM customers WHERE id = 1"
-        )
+        rows = await self.tgt.fetch_all("SELECT current_region FROM customers WHERE id = 1")
         for row in rows:
             assert row[0] == "APAC"
 
@@ -121,9 +118,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         self.src = await _make_src()
         self._tmp = tempfile.TemporaryDirectory()
-        self.tgt = SqlitePool(
-            SqliteConfig(database=str(Path(self._tmp.name) / "tgt.db"))
-        )
+        self.tgt = SqlitePool(SqliteConfig(database=str(Path(self._tmp.name) / "tgt.db")))
         await self.tgt.execute(
             "CREATE TABLE customers ("
             "  id INTEGER NOT NULL,"
@@ -165,9 +160,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         self.src = await _make_src()
         self._tmp = tempfile.TemporaryDirectory()
-        self.tgt = SqlitePool(
-            SqliteConfig(database=str(Path(self._tmp.name) / "tgt.db"))
-        )
+        self.tgt = SqlitePool(SqliteConfig(database=str(Path(self._tmp.name) / "tgt.db")))
         await self.tgt.execute(
             "CREATE TABLE customers ("
             "  id INTEGER NOT NULL,"
@@ -244,11 +237,19 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
             "dim_customer", ("id",), "valid_to", "is_current"
         )
         assert "INSERT INTO dim_customer" in ScdType7Hybrid._insert_query(
-            "dim_customer", ("id", "region"), ("current_region",),
-            "valid_from", "valid_to", "is_current"
+            "dim_customer",
+            ("id", "region"),
+            ("current_region",),
+            "valid_from",
+            "valid_to",
+            "is_current",
         )
         assert "current_region" in ScdType7Hybrid._insert_query(
-            "dim_customer", ("id", "region"), ("current_region",),
-            "valid_from", "valid_to", "is_current"
+            "dim_customer",
+            ("id", "region"),
+            ("current_region",),
+            "valid_from",
+            "valid_to",
+            "is_current",
         )
         _ = k

@@ -14,6 +14,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.lazy.ibis.ibis_connection import IbisConnection
 from pirn_data.lazy.ibis.ibis_source import IbisSource
 from pirn_data.lazy.ibis.ibis_table import IbisTable
@@ -26,7 +27,7 @@ def _make_orders_con() -> ibis.BaseBackend:
         "orders",
         {
             "region": ["EU", "EU", "EU", "US", "US"],
-            "amount": [10.0, 25.0, 5.0,  100.0, 50.0],
+            "amount": [10.0, 25.0, 5.0, 100.0, 50.0],
         },
     )
     return con
@@ -37,14 +38,16 @@ class TestIbisWindow(unittest.IsolatedAsyncioTestCase):
         con = _make_orders_con()
         with Tapestry() as t:
             src = IbisSource(
-                connection=IbisConnection(con), table="orders",
-                backend_name="duckdb", _config=KnotConfig(id="src"),
+                connection=IbisConnection(con),
+                table="orders",
+                backend_name="duckdb",
+                _config=KnotConfig(id="src"),
             )
             IbisWindow(
                 batch=src,
-                windows=lambda table: table.amount.rank()
-                    .over(group_by=table.region)
-                    .name("rank_in_region"),
+                windows=lambda table: (
+                    table.amount.rank().over(group_by=table.region).name("rank_in_region")
+                ),
                 _config=KnotConfig(id="windowed"),
             )
         result = await t.run(RunRequest())
@@ -57,7 +60,8 @@ class TestIbisWindow(unittest.IsolatedAsyncioTestCase):
         con = _make_orders_con()
         with Tapestry() as t:
             src = IbisSource(
-                connection=IbisConnection(con), table="orders",
+                connection=IbisConnection(con),
+                table="orders",
                 _config=KnotConfig(id="src"),
             )
             IbisWindow(
@@ -84,8 +88,10 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
 
         with Tapestry() as t:
             src = IbisSource(
-                connection=IbisConnection(con), table="orders",
-                backend_name="duckdb", _config=KnotConfig(id="src"),
+                connection=IbisConnection(con),
+                table="orders",
+                backend_name="duckdb",
+                _config=KnotConfig(id="src"),
             )
             win_knot = emit_windows(_config=KnotConfig(id="win"))
             IbisWindow(batch=src, windows=win_knot, _config=KnotConfig(id="windowed"))
@@ -98,7 +104,9 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, **kwargs: object) -> IbisWindow:
         con = _make_orders_con()
         with Tapestry():
-            src = IbisSource(connection=IbisConnection(con), table="orders", _config=KnotConfig(id="src"))
+            src = IbisSource(
+                connection=IbisConnection(con), table="orders", _config=KnotConfig(id="src")
+            )
             return IbisWindow(
                 batch=src,
                 windows=lambda t: t.amount.cumsum().name("x"),

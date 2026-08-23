@@ -15,9 +15,7 @@ class RecordingDatabasePool(DatabaseConnectionPool):
         self.queries: list[tuple[str, tuple[Any, ...] | None]] = []
         self.closed: bool = False
 
-    async def fetch_all(
-        self, query: str, params: tuple[Any, ...] | None = None
-    ) -> list[Any]:
+    async def fetch_all(self, query: str, params: tuple[Any, ...] | None = None) -> list[Any]:
         self.queries.append((query, params))
         return list(self._rows)
 

@@ -26,6 +26,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.frames.pandas.pandas_data_batch import PandasDataBatch
 from pirn_data.specialized.eland.eland_dataframe import ElandDataFrame
 from pirn_data.specialized.eland.eland_to_pandas import ElandToPandas
@@ -51,6 +52,7 @@ class TestElandToPandas(unittest.IsolatedAsyncioTestCase):
             return out_df
 
         with unittest.mock.patch.object(ed, "eland_to_pandas", fake_eland_to_pandas):
+
             @knot
             async def emit() -> ElandDataFrame:
                 return ElandDataFrame(frame=_FakeFrame(), source_uri="elasticsearch://x")

@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
+
 from pirn_data.data_batch import DataBatch
 from pirn_data.data_schema import DataSchema
 from pirn_data.lakehouse.lakehouse_table import LakehouseTable

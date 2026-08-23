@@ -11,6 +11,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.specializations.incremental.snapshot_table_appender import (
     SnapshotTableAppender,
 )
@@ -22,9 +23,7 @@ _SRC_COLS = ("id", "name")
 
 async def _make_pools() -> tuple[SqlitePool, SqlitePool]:
     src = SqlitePool(SqliteConfig(database=":memory:"))
-    await src.execute(
-        "CREATE TABLE products (id INTEGER PRIMARY KEY, name TEXT NOT NULL)"
-    )
+    await src.execute("CREATE TABLE products (id INTEGER PRIMARY KEY, name TEXT NOT NULL)")
     await src.execute_many(
         "INSERT INTO products (id, name) VALUES (?, ?)",
         [(1, "Alpha"), (2, "Beta")],

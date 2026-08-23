@@ -14,6 +14,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.data_batch import DataBatch
 from pirn_data.frames.datafusion.bridges.datafusion_to_data_batch import (
     DatafusionToDataBatch,
@@ -29,9 +30,7 @@ async def emit_dfn_batch() -> DatafusionDataBatch:
     frame = ctx.from_pylist(
         [{"id": 1, "name": "a"}, {"id": 2, "name": "b"}, {"id": 3, "name": "c"}]
     )
-    return DatafusionDataBatch(
-        frame=frame, context=ctx, source_uri="memory://x"
-    )
+    return DatafusionDataBatch(frame=frame, context=ctx, source_uri="memory://x")
 
 
 class TestDatafusionToDataBatch(unittest.IsolatedAsyncioTestCase):
@@ -44,7 +43,9 @@ class TestDatafusionToDataBatch(unittest.IsolatedAsyncioTestCase):
         assert out.row_count == 3
         # Order may vary depending on engine; check by set of (id, name).
         assert {(row["id"], row["name"]) for row in out.rows} == {
-            (1, "a"), (2, "b"), (3, "c"),
+            (1, "a"),
+            (2, "b"),
+            (3, "c"),
         }
 
     async def test_propagates_metadata(self) -> None:

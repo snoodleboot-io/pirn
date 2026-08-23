@@ -8,6 +8,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_ml.specializations.experiments.group_kfold_cross_validator import (
     GroupKFoldCrossValidator,
 )
@@ -17,9 +18,7 @@ from pirn_ml.types.eval_report_payload import EvalReportPayload
 
 @knot
 async def emit_dataset() -> DatasetManifest:
-    return DatasetManifest(
-        name="g", feature_names=("x",), target_name="y", row_count=80
-    )
+    return DatasetManifest(name="g", feature_names=("x",), target_name="y", row_count=80)
 
 
 def _make_validator() -> GroupKFoldCrossValidator:

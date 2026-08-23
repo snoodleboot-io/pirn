@@ -9,6 +9,7 @@ pytestmark = pytest.mark.slow
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.lazy.spark.spark_collect_sink import SparkCollectSink
 from pirn_data.lazy.spark.spark_filter import SparkFilter
 from pirn_data.lazy.spark.spark_source import SparkSource
@@ -51,9 +52,7 @@ async def test_collect_respects_max_rows(_spark_session) -> None:
             query=_orders_query(),
             _config=KnotConfig(id="src"),
         )
-        SparkCollectSink(
-            frame=src, max_rows=2, _config=KnotConfig(id="exec")
-        )
+        SparkCollectSink(frame=src, max_rows=2, _config=KnotConfig(id="exec"))
     result = await t.run(RunRequest())
     matching = [e for e in result.exceptions if e.knot_id == "exec"]
     assert matching, "expected SparkCollectSink to record an exception"

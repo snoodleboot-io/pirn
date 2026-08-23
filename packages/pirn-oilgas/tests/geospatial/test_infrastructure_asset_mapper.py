@@ -8,6 +8,7 @@ from typing import Any
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.tapestry import Tapestry
+
 from pirn_oilgas.geospatial.infrastructure_asset_mapper import (
     InfrastructureAssetMapper,
 )

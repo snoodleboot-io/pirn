@@ -7,6 +7,7 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.tapestry import Tapestry
+
 from pirn_health.genomics.gene_set_enrichment_runner import GeneSetEnrichmentRunner
 
 _CFG = KnotConfig(id="g")
@@ -29,21 +30,32 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_invalid_database(self) -> None:
         knot = _make_knot()
         with self.assertRaisesRegex(ValueError, "gene_set_database"):
-            await knot.process(gene_ranks=_RANKS, gene_set_database="invalid_db", method="gsea", fdr_threshold=0.05)
+            await knot.process(
+                gene_ranks=_RANKS, gene_set_database="invalid_db", method="gsea", fdr_threshold=0.05
+            )
 
     async def test_rejects_invalid_method(self) -> None:
         knot = _make_knot()
         with self.assertRaisesRegex(ValueError, "method"):
-            await knot.process(gene_ranks=_RANKS, gene_set_database="hallmark", method="hypergeometric", fdr_threshold=0.05)
+            await knot.process(
+                gene_ranks=_RANKS,
+                gene_set_database="hallmark",
+                method="hypergeometric",
+                fdr_threshold=0.05,
+            )
 
     async def test_rejects_fdr_out_of_range(self) -> None:
         knot = _make_knot()
         with self.assertRaisesRegex(ValueError, "fdr_threshold"):
-            await knot.process(gene_ranks=_RANKS, gene_set_database="hallmark", method="gsea", fdr_threshold=1.5)
+            await knot.process(
+                gene_ranks=_RANKS, gene_set_database="hallmark", method="gsea", fdr_threshold=1.5
+            )
 
     async def test_returns_dict(self) -> None:
         knot = _make_knot()
-        out = await knot.process(gene_ranks=_RANKS, gene_set_database="hallmark", method="gsea", fdr_threshold=0.05)
+        out = await knot.process(
+            gene_ranks=_RANKS, gene_set_database="hallmark", method="gsea", fdr_threshold=0.05
+        )
         assert isinstance(out, dict)
         assert "enriched_sets" in out
         assert "n_significant" in out

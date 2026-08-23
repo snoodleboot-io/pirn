@@ -16,6 +16,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_oilgas.types.las_file import LASFile
 from pirn_oilgas.types.las_payload import LASPayload
 from pirn_oilgas.workflows.wellbore_petrophysics_workflow import (
@@ -31,7 +32,6 @@ def _fake_decode(body: bytes, well_id: str, curves: tuple, depth_unit: str) -> L
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
-
     def _body_param(self) -> Parameter:
         return Parameter("body", bytes, default=b"las-bytes")
 

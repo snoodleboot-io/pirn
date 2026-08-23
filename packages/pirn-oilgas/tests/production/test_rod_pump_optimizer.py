@@ -6,6 +6,7 @@ import unittest
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
+
 from pirn_oilgas.production.rod_pump_optimizer import RodPumpOptimizer
 
 _CARD: dict[str, Any] = {

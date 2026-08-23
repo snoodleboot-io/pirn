@@ -8,6 +8,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
+
 from pirn_ml.specializations.training.semi_supervised_trainer import (
     SemiSupervisedTrainer,
 )
@@ -31,7 +32,9 @@ def _make_knot() -> SemiSupervisedTrainer:
 
 
 def _split() -> SplitManifest:
-    ds = DatasetManifest(name="ds", feature_names=("x",), target_name="y", row_count=10, source_uri="mem://")
+    ds = DatasetManifest(
+        name="ds", feature_names=("x",), target_name="y", row_count=10, source_uri="mem://"
+    )
     return SplitManifest(train=ds, test=ds)
 
 
@@ -39,12 +42,16 @@ class TestSemiSupervisedTrainerValidation(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_negative_unlabeled_row_count(self) -> None:
         k = _make_knot()
         with self.assertRaises((TypeError, ValueError)):
-            await k.process(split=_split(), algorithm="rf", unlabeled_row_count=-1, metrics=["accuracy"])
+            await k.process(
+                split=_split(), algorithm="rf", unlabeled_row_count=-1, metrics=["accuracy"]
+            )
 
     async def test_rejects_non_int_unlabeled_row_count(self) -> None:
         k = _make_knot()
         with self.assertRaises((TypeError, ValueError)):
-            await k.process(split=_split(), algorithm="rf", unlabeled_row_count=100.5, metrics=["accuracy"])  # type: ignore[arg-type]
+            await k.process(
+                split=_split(), algorithm="rf", unlabeled_row_count=100.5, metrics=["accuracy"]
+            )  # type: ignore[arg-type]
 
     async def test_rejects_empty_metrics(self) -> None:
         k = _make_knot()

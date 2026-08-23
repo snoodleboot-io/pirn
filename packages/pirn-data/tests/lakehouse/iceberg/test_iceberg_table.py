@@ -53,7 +53,11 @@ class _HistoryEntry:
 class StubTable:
     """Minimal stand-in for ``pyiceberg.table.Table``."""
 
-    def __init__(self, rows: list[dict[str, Any]] | None = None, snapshot_id: int = 1234,) -> None:
+    def __init__(
+        self,
+        rows: list[dict[str, Any]] | None = None,
+        snapshot_id: int = 1234,
+    ) -> None:
         self._rows = list(rows or [])
         self._snapshot_id = snapshot_id
         self.last_scan_kwargs: dict[str, Any] = {}
@@ -78,9 +82,7 @@ class StubTable:
         self._snapshot_id += 1
 
     def overwrite(self, pa_table: Any, **kwargs: Any) -> None:
-        self.overwritten.append(
-            {"rows": pa_table.to_pylist(), "kwargs": kwargs}
-        )
+        self.overwritten.append({"rows": pa_table.to_pylist(), "kwargs": kwargs})
         self._snapshot_id += 1
 
     def current_snapshot(self) -> _Snapshot:
@@ -123,11 +125,7 @@ def _install_pyiceberg_expressions() -> None:
             self.args = args
 
         def __eq__(self, other: object) -> bool:
-            return (
-                isinstance(other, _Expr)
-                and self.kind == other.kind
-                and self.args == other.args
-            )
+            return isinstance(other, _Expr) and self.kind == other.kind and self.args == other.args
 
         def __repr__(self) -> str:
             return f"{self.kind}{self.args}"
@@ -177,9 +175,7 @@ class TestConstruction(unittest.TestCase):
         assert table.name == "<test-injected>"
 
     def test_name_uses_identifier(self) -> None:
-        cfg = IcebergTableConfig(
-            catalog_name="default", table_identifier="ns.tbl"
-        )
+        cfg = IcebergTableConfig(catalog_name="default", table_identifier="ns.tbl")
         table = IcebergTable(cfg, table=StubTable())
         assert table.name == "ns.tbl"
 
@@ -227,12 +223,15 @@ class TestScan(unittest.IsolatedAsyncioTestCase):
 
     async def test_scan_filter_builds_expression(self) -> None:
         _install_pyiceberg_expressions()
-        self.addCleanup(lambda: [sys.modules.pop("pyiceberg", None), sys.modules.pop("pyiceberg.expressions", None)])
+        self.addCleanup(
+            lambda: [
+                sys.modules.pop("pyiceberg", None),
+                sys.modules.pop("pyiceberg.expressions", None),
+            ]
+        )
         stub = StubTable(rows=[{"id": 1}])
         table = IcebergTable(table=stub)
-        async for _ in await table.scan(
-            filter={"region": "US", "tier": "gold"}
-        ):
+        async for _ in await table.scan(filter={"region": "US", "tier": "gold"}):
             pass
         row_filter = stub.last_scan_kwargs["row_filter"]
         # The expression is an And(EqualTo, EqualTo).
@@ -286,7 +285,12 @@ class TestWrites(unittest.IsolatedAsyncioTestCase):
     async def test_overwrite_passes_filter_expression(self) -> None:
         _stub_pyarrow_module()
         _install_pyiceberg_expressions()
-        self.addCleanup(lambda: [sys.modules.pop("pyiceberg", None), sys.modules.pop("pyiceberg.expressions", None)])
+        self.addCleanup(
+            lambda: [
+                sys.modules.pop("pyiceberg", None),
+                sys.modules.pop("pyiceberg.expressions", None),
+            ]
+        )
         stub = StubTable(snapshot_id=20)
         table = IcebergTable(table=stub)
         snap = await table.overwrite(

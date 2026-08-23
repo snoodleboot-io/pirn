@@ -6,6 +6,7 @@ import unittest
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
+
 from pirn_oilgas.seismic.fk_denoising_knot import FKDenoisingKnot
 
 _GATHER: dict[str, Any] = {
@@ -37,7 +38,9 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_returns_denoised_gather(self) -> None:
         knot = self._make_knot()
-        out = await knot.process(gather=_GATHER, velocity_threshold_m_s=1500.0, taper_width_pct=10.0)
+        out = await knot.process(
+            gather=_GATHER, velocity_threshold_m_s=1500.0, taper_width_pct=10.0
+        )
         assert "denoised_traces" in out
         assert "noise_model" in out
         assert isinstance(out["denoised_traces"], list)

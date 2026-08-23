@@ -28,6 +28,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_data.data_batch import DataBatch
 from pirn_data.frames.polars.bridges.data_batch_to_polars import (
     DataBatchToPolars,
@@ -44,10 +45,10 @@ async def emit_orders() -> DataBatch:
     rows = (
         {"region": "EU", "amount": 10.0, "active": True},
         {"region": "EU", "amount": 25.0, "active": True},
-        {"region": "EU", "amount": 5.0,  "active": False},   # excluded
+        {"region": "EU", "amount": 5.0, "active": False},  # excluded
         {"region": "US", "amount": 100.0, "active": True},
-        {"region": "US", "amount": 50.0,  "active": True},
-        {"region": "US", "amount": 1.0,   "active": False},  # excluded
+        {"region": "US", "amount": 50.0, "active": True},
+        {"region": "US", "amount": 1.0, "active": False},  # excluded
     )
     return DataBatch(rows=rows, source_uri="memory://orders")
 
@@ -62,16 +63,14 @@ async def test_tier1_to_polars_to_tier1_to_sqlite() -> None:
     pool = SqlitePool(SqliteConfig(database=":memory:"))
     try:
         await pool.execute(
-            "CREATE TABLE region_totals ("
-            "  region TEXT PRIMARY KEY, "
-            "  total  REAL NOT NULL"
-            ")"
+            "CREATE TABLE region_totals (  region TEXT PRIMARY KEY,   total  REAL NOT NULL)"
         )
 
         with Tapestry() as t:
             extracted = emit_orders(_config=KnotConfig(id="extract"))
             polars_batch = DataBatchToPolars(
-                batch=extracted, _config=KnotConfig(id="to_polars"),
+                batch=extracted,
+                _config=KnotConfig(id="to_polars"),
             )
             active_only = PolarsFilter(
                 batch=polars_batch,
@@ -85,10 +84,12 @@ async def test_tier1_to_polars_to_tier1_to_sqlite() -> None:
                 _config=KnotConfig(id="totals"),
             )
             tier1_again = PolarsToDataBatch(
-                batch=totals, _config=KnotConfig(id="to_tier1"),
+                batch=totals,
+                _config=KnotConfig(id="to_tier1"),
             )
             rows = project_for_load(
-                batch=tier1_again, _config=KnotConfig(id="project"),
+                batch=tier1_again,
+                _config=KnotConfig(id="project"),
             )
             DatabaseExecuteSink(
                 pool=pool,
@@ -98,13 +99,9 @@ async def test_tier1_to_polars_to_tier1_to_sqlite() -> None:
             )
 
         result = await t.run(RunRequest())
-        assert result.succeeded, [
-            (rec.knot_id, rec.outcome) for rec in result.lineage
-        ]
+        assert result.succeeded, [(rec.knot_id, rec.outcome) for rec in result.lineage]
 
-        loaded = await pool.fetch_all(
-            "SELECT region, total FROM region_totals ORDER BY region"
-        )
+        loaded = await pool.fetch_all("SELECT region, total FROM region_totals ORDER BY region")
         # EU active sum: 10 + 25 = 35
         # US active sum: 100 + 50 = 150
         assert loaded == [("EU", 35.0), ("US", 150.0)]
@@ -112,8 +109,13 @@ async def test_tier1_to_polars_to_tier1_to_sqlite() -> None:
         # Confirm every knot in the pipeline ran.
         outcomes = {rec.knot_id: rec.outcome for rec in result.lineage}
         for knot_id in (
-            "extract", "to_polars", "active", "totals",
-            "to_tier1", "project", "load",
+            "extract",
+            "to_polars",
+            "active",
+            "totals",
+            "to_tier1",
+            "project",
+            "load",
         ):
             assert outcomes[knot_id] == "ok", outcomes
     finally:

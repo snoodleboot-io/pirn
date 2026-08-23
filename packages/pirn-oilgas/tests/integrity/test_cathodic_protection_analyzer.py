@@ -6,6 +6,7 @@ import unittest
 
 import numpy as np
 from pirn.core.knot_config import KnotConfig
+
 from pirn_oilgas.integrity.cathodic_protection_analyzer import (
     CathodicProtectionAnalyzer,
 )

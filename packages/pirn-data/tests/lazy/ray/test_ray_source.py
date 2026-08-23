@@ -12,6 +12,7 @@ except ImportError as _e:
 
 import pytest
 from pirn.core.knot_config import KnotConfig
+
 from pirn_data.lazy.ray.ray_dataset import RayDataset
 from pirn_data.lazy.ray.ray_source import RaySource
 
@@ -62,7 +63,9 @@ class TestRaySourceProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_both(self) -> None:
         src = RaySource(factory=_make_dataset, _config=KnotConfig(id="src"))
         with self.assertRaises(TypeError):
-            await src.process(factory=_make_dataset, path="/tmp/data", reader=lambda p: _make_dataset())
+            await src.process(
+                factory=_make_dataset, path="/tmp/data", reader=lambda p: _make_dataset()
+            )
 
     async def test_path_without_reader_raises(self) -> None:
         src = RaySource(factory=_make_dataset, _config=KnotConfig(id="src"))
