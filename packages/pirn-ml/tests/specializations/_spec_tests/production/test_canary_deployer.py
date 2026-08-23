@@ -8,6 +8,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_ml.specializations.production.canary_deployer import (
     CanaryDeployer,
 )
@@ -25,9 +26,7 @@ async def emit_split() -> SplitManifest:
 
 @knot
 async def emit_current() -> ModelManifest:
-    return ModelManifest(
-        model_id="current", algorithm="rf", feature_names=("a",), target_name="y"
-    )
+    return ModelManifest(model_id="current", algorithm="rf", feature_names=("a",), target_name="y")
 
 
 @knot

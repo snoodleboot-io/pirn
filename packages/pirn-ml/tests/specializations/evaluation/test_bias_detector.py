@@ -9,6 +9,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_ml.specializations.evaluation.bias_detector import BiasDetector
 from pirn_ml.types.dataset_manifest import DatasetManifest
 from pirn_ml.types.model_manifest import ModelManifest
@@ -20,7 +21,9 @@ class _ModelSource(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> ModelManifest:
-        return ModelManifest(model_id="m1", algorithm="logistic", feature_names=("a",), target_name="y")
+        return ModelManifest(
+            model_id="m1", algorithm="logistic", feature_names=("a",), target_name="y"
+        )
 
 
 class _SplitSource(Knot):
@@ -28,7 +31,9 @@ class _SplitSource(Knot):
         super().__init__(_config=_config, **kwargs)
 
     async def process(self, **_: Any) -> SplitManifest:
-        ds = DatasetManifest(name="ds", feature_names=("a", "gender"), target_name="y", row_count=20)
+        ds = DatasetManifest(
+            name="ds", feature_names=("a", "gender"), target_name="y", row_count=20
+        )
         return SplitManifest(train=ds, test=ds)
 
 
@@ -59,7 +64,9 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
         k = _make_knot()
         train = DatasetManifest(name="d:train", feature_names=("a",), row_count=80)
         test = DatasetManifest(name="d:test", feature_names=("a",), row_count=20)
-        model = ModelManifest(model_id="m1", algorithm="logistic", feature_names=("a",), target_name="y")
+        model = ModelManifest(
+            model_id="m1", algorithm="logistic", feature_names=("a",), target_name="y"
+        )
         split = SplitManifest(train=train, test=test)
         with self.assertRaises((TypeError, ValueError)):
             await k.process(model=model, split=split, sensitive_columns=[])

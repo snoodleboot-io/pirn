@@ -8,6 +8,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_ml.specializations.production.model_lineage_tracker import (
     ModelLineageTracker,
 )
@@ -17,7 +18,6 @@ from pirn_ml.types.eval_metrics import EvalMetrics
 from pirn_ml.types.eval_report_payload import EvalReportPayload
 from pirn_ml.types.model_manifest import ModelManifest
 from pirn_ml.types.split_manifest import SplitManifest
-
 from tests._stubs.recording_lineage_store import (
     RecordingLineageStore,
 )
@@ -25,9 +25,7 @@ from tests._stubs.recording_lineage_store import (
 
 @knot
 async def emit_dataset() -> DatasetManifest:
-    return DatasetManifest(
-        name="ds", feature_names=("a",), target_name="y", row_count=100
-    )
+    return DatasetManifest(name="ds", feature_names=("a",), target_name="y", row_count=100)
 
 
 @knot
@@ -39,9 +37,7 @@ async def emit_split() -> SplitManifest:
 
 @knot
 async def emit_model() -> ModelManifest:
-    return ModelManifest(
-        model_id="m1", algorithm="rf", feature_names=("a",), target_name="y"
-    )
+    return ModelManifest(model_id="m1", algorithm="rf", feature_names=("a",), target_name="y")
 
 
 @knot

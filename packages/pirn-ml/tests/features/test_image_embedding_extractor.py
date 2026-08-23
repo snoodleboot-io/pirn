@@ -9,6 +9,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_ml.features.image_embedding_extractor import ImageEmbeddingExtractor
 from pirn_ml.image_encoder_provider import ImageEncoderProvider
 from pirn_ml.types.dataset_manifest import DatasetManifest
@@ -49,7 +50,9 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
             k = ImageEmbeddingExtractor.__new__(ImageEmbeddingExtractor)
             object.__setattr__(k, "_config", KnotConfig(id="ext"))
         with self.assertRaises((TypeError, ValueError)):
-            await k.process(split=self._make_split(), image_column="img", image_encoder="not-an-encoder")  # type: ignore[arg-type]
+            await k.process(
+                split=self._make_split(), image_column="img", image_encoder="not-an-encoder"
+            )  # type: ignore[arg-type]
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):

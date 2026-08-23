@@ -6,6 +6,7 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
+
 from pirn_ml.specializations.production.performance_triggered_retrainer import (
     PerformanceTriggeredRetrainer,
 )
@@ -18,9 +19,7 @@ def _fixtures():
     train = DatasetManifest(name="d:train", feature_names=("a",), row_count=80)
     test = DatasetManifest(name="d:test", feature_names=("a",), row_count=20)
     split = SplitManifest(train=train, test=test)
-    model = ModelManifest(
-        model_id="m1", algorithm="rf", feature_names=("a",), target_name="y"
-    )
+    model = ModelManifest(model_id="m1", algorithm="rf", feature_names=("a",), target_name="y")
     return model, split
 
 

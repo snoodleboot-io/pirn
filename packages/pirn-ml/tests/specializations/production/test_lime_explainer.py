@@ -8,6 +8,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_ml.specializations.production.lime_explainer import (
     LIMEExplainer,
 )
@@ -25,9 +26,7 @@ async def emit_split() -> SplitManifest:
 
 @knot
 async def emit_model() -> ModelManifest:
-    return ModelManifest(
-        model_id="m1", algorithm="logistic", feature_names=("a", "b")
-    )
+    return ModelManifest(model_id="m1", algorithm="logistic", feature_names=("a", "b"))
 
 
 def _make_split() -> SplitManifest:

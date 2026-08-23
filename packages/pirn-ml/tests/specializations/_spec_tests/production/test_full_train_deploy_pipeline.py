@@ -7,11 +7,11 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_ml.specializations.production.full_train_deploy_pipeline import (
     FullTrainDeployPipeline,
 )
 from pirn_ml.types.eval_report_payload import EvalReportPayload
-
 from tests._stubs.recording_database_pool import (
     RecordingDatabasePool,
 )
@@ -61,7 +61,13 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_returns_model_id_and_eval_report(self) -> None:
-        rows = [{"a": 1.0, "y": 0}, {"a": 2.0, "y": 1}, {"a": 3.0, "y": 0}, {"a": 4.0, "y": 1}, {"a": 5.0, "y": 0}] * 4
+        rows = [
+            {"a": 1.0, "y": 0},
+            {"a": 2.0, "y": 1},
+            {"a": 3.0, "y": 0},
+            {"a": 4.0, "y": 1},
+            {"a": 5.0, "y": 0},
+        ] * 4
         lineage = RecordingLineageStore()
         store = RecordingObjectStore()
         with Tapestry() as t:
@@ -85,6 +91,4 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
         assert isinstance(out["eval_report"], EvalReportPayload)
         # Model registered with lineage + object store
         assert any(event[0] == "model_registered" for event in lineage.events)
-        assert any(
-            key.startswith("models/") for key in store.put_calls
-        )
+        assert any(key.startswith("models/") for key in store.put_calls)

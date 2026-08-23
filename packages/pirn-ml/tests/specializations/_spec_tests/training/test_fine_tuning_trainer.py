@@ -8,6 +8,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_ml.specializations.training.fine_tuning_trainer import (
     FineTuningTrainer,
 )
@@ -34,7 +35,9 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
             test=DatasetManifest(name="d:test", feature_names=("x",), row_count=20),
         )
         with self.assertRaises((TypeError, ValueError)):
-            await k.process(split=split, pretrained_model_id="", algorithm="nn", metrics=("accuracy",))
+            await k.process(
+                split=split, pretrained_model_id="", algorithm="nn", metrics=("accuracy",)
+            )
 
     async def test_rejects_negative_frozen_layers(self) -> None:
         with Tapestry():
@@ -45,7 +48,13 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
             test=DatasetManifest(name="d:test", feature_names=("x",), row_count=20),
         )
         with self.assertRaises((TypeError, ValueError)):
-            await k.process(split=split, pretrained_model_id="bert-base", algorithm="nn", metrics=("accuracy",), frozen_layers=-1)
+            await k.process(
+                split=split,
+                pretrained_model_id="bert-base",
+                algorithm="nn",
+                metrics=("accuracy",),
+                frozen_layers=-1,
+            )
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

@@ -21,9 +21,7 @@ class RecordingObjectStore(ObjectStore):
 
         return _iterator()
 
-    async def put(
-        self, key: str, body: AsyncIterator[bytes] | bytes
-    ) -> None:
+    async def put(self, key: str, body: AsyncIterator[bytes] | bytes) -> None:
         self._validate_key(key)
         if isinstance(body, (bytes, bytearray)):
             self.objects[key] = bytes(body)

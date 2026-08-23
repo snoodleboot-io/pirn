@@ -8,6 +8,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_ml.specializations.experiments.time_series_cross_validator import (
     TimeSeriesCrossValidator,
 )
@@ -17,9 +18,7 @@ from pirn_ml.types.eval_report_payload import EvalReportPayload
 
 @knot
 async def emit_dataset() -> DatasetManifest:
-    return DatasetManifest(
-        name="ts", feature_names=("t", "v"), target_name="y", row_count=120
-    )
+    return DatasetManifest(name="ts", feature_names=("t", "v"), target_name="y", row_count=120)
 
 
 def _make_validator() -> TimeSeriesCrossValidator:
@@ -36,9 +35,7 @@ def _make_validator() -> TimeSeriesCrossValidator:
 
 
 def _dataset_fixture() -> DatasetManifest:
-    return DatasetManifest(
-        name="ts", feature_names=("t", "v"), target_name="y", row_count=120
-    )
+    return DatasetManifest(name="ts", feature_names=("t", "v"), target_name="y", row_count=120)
 
 
 class TestConstruction(unittest.IsolatedAsyncioTestCase):
@@ -46,17 +43,13 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
         validator = _make_validator()
         dataset = _dataset_fixture()
         with self.assertRaises((TypeError, ValueError)):
-            await validator.process(
-                dataset=dataset, algorithm="rf", metrics=("rmse",), n_splits=1
-            )
+            await validator.process(dataset=dataset, algorithm="rf", metrics=("rmse",), n_splits=1)
 
     async def test_rejects_empty_algorithm(self) -> None:
         validator = _make_validator()
         dataset = _dataset_fixture()
         with self.assertRaises((TypeError, ValueError)):
-            await validator.process(
-                dataset=dataset, algorithm="", metrics=("rmse",), n_splits=3
-            )
+            await validator.process(dataset=dataset, algorithm="", metrics=("rmse",), n_splits=3)
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

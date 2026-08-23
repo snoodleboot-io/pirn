@@ -8,6 +8,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_ml.specializations.feature_engineering.rolling_statistics_generator import (
     RollingStatisticsGenerator,
 )
@@ -20,9 +21,7 @@ async def emit_split() -> SplitManifest:
     train = DatasetManifest(
         name="ts:train", feature_names=("sales",), target_name="y", row_count=200
     )
-    test = DatasetManifest(
-        name="ts:test", feature_names=("sales",), target_name="y", row_count=50
-    )
+    test = DatasetManifest(name="ts:test", feature_names=("sales",), target_name="y", row_count=50)
     return SplitManifest(train=train, test=test)
 
 
@@ -55,9 +54,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
             k = RollingStatisticsGenerator.__new__(RollingStatisticsGenerator)
             object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaises((TypeError, ValueError)):
-            await k.process(
-                split=self._make_split(), columns=("sales",), statistics=("median",)
-            )
+            await k.process(split=self._make_split(), columns=("sales",), statistics=("median",))
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

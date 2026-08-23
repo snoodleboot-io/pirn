@@ -7,6 +7,7 @@ import unittest
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
+
 from pirn_ml.specializations.task_pipelines.forecasting_pipeline import (
     ForecastingPipeline,
 )

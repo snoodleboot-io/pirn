@@ -8,6 +8,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_ml.specializations.production.prediction_drift_monitor import (
     PredictionDriftMonitor,
 )
@@ -50,9 +51,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
         )
         model = ModelManifest(model_id="m1", algorithm="logistic")
         with self.assertRaisesRegex((TypeError, ValueError), "sigma_threshold"):
-            await k.process(
-                model=model, baseline=baseline, current=current, sigma_threshold=-1.0
-            )
+            await k.process(model=model, baseline=baseline, current=current, sigma_threshold=-1.0)
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

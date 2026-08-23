@@ -8,6 +8,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_ml.specializations.training.self_supervised_pretrainer import (
     SelfSupervisedPretrainer,
 )
@@ -34,7 +35,9 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
             test=DatasetManifest(name="d:test", feature_names=("x",), row_count=20),
         )
         with self.assertRaises((TypeError, ValueError)):
-            await k.process(split=split, pretrain_algorithm="", finetune_algorithm="lr", metrics=("accuracy",))
+            await k.process(
+                split=split, pretrain_algorithm="", finetune_algorithm="lr", metrics=("accuracy",)
+            )
 
     async def test_rejects_empty_finetune_algorithm(self) -> None:
         with Tapestry():
@@ -45,7 +48,9 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
             test=DatasetManifest(name="d:test", feature_names=("x",), row_count=20),
         )
         with self.assertRaises((TypeError, ValueError)):
-            await k.process(split=split, pretrain_algorithm="mae", finetune_algorithm="", metrics=("accuracy",))
+            await k.process(
+                split=split, pretrain_algorithm="mae", finetune_algorithm="", metrics=("accuracy",)
+            )
 
     async def test_rejects_empty_metrics(self) -> None:
         with Tapestry():
@@ -56,7 +61,9 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
             test=DatasetManifest(name="d:test", feature_names=("x",), row_count=20),
         )
         with self.assertRaises((TypeError, ValueError)):
-            await k.process(split=split, pretrain_algorithm="mae", finetune_algorithm="lr", metrics=())
+            await k.process(
+                split=split, pretrain_algorithm="mae", finetune_algorithm="lr", metrics=()
+            )
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

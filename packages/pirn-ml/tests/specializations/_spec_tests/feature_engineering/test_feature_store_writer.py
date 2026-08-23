@@ -8,12 +8,12 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_ml.specializations.feature_engineering.feature_store_writer import (
     FeatureStoreWriter,
 )
 from pirn_ml.types.dataset_manifest import DatasetManifest
 from pirn_ml.types.split_manifest import SplitManifest
-
 from tests._stubs.recording_feature_store_provider import (
     RecordingFeatureStoreProvider,
 )
@@ -21,23 +21,15 @@ from tests._stubs.recording_feature_store_provider import (
 
 @knot
 async def emit_split() -> SplitManifest:
-    train = DatasetManifest(
-        name="d:train", feature_names=("a",), target_name="y", row_count=80
-    )
-    test = DatasetManifest(
-        name="d:test", feature_names=("a",), target_name="y", row_count=20
-    )
+    train = DatasetManifest(name="d:train", feature_names=("a",), target_name="y", row_count=80)
+    test = DatasetManifest(name="d:test", feature_names=("a",), target_name="y", row_count=20)
     return SplitManifest(train=train, test=test)
 
 
 class TestConstruction(unittest.IsolatedAsyncioTestCase):
     def _make_split(self) -> SplitManifest:
-        train = DatasetManifest(
-            name="d:train", feature_names=("a",), target_name="y", row_count=80
-        )
-        test = DatasetManifest(
-            name="d:test", feature_names=("a",), target_name="y", row_count=20
-        )
+        train = DatasetManifest(name="d:train", feature_names=("a",), target_name="y", row_count=80)
+        test = DatasetManifest(name="d:test", feature_names=("a",), target_name="y", row_count=20)
         return SplitManifest(train=train, test=test)
 
     async def test_rejects_non_provider(self) -> None:

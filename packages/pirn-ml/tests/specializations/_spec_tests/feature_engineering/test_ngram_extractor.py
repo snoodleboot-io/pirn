@@ -8,6 +8,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_ml.specializations.feature_engineering.ngram_extractor import (
     NGramExtractor,
 )
@@ -54,9 +55,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
             k = NGramExtractor.__new__(NGramExtractor)
             object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaises((TypeError, ValueError)):
-            await k.process(
-                split=self._make_split(), text_column="review", analyzer="sentence"
-            )
+            await k.process(split=self._make_split(), text_column="review", analyzer="sentence")
 
     async def test_rejects_n_below_one(self) -> None:
         with Tapestry():

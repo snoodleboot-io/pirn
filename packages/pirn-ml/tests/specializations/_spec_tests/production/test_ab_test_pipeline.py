@@ -8,6 +8,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_ml.specializations.production.ab_test_pipeline import (
     ABTestPipeline,
 )
@@ -25,16 +26,12 @@ async def emit_split() -> SplitManifest:
 
 @knot
 async def emit_model_a() -> ModelManifest:
-    return ModelManifest(
-        model_id="a", algorithm="logistic", feature_names=("a",), target_name="y"
-    )
+    return ModelManifest(model_id="a", algorithm="logistic", feature_names=("a",), target_name="y")
 
 
 @knot
 async def emit_model_b() -> ModelManifest:
-    return ModelManifest(
-        model_id="b", algorithm="rf", feature_names=("a",), target_name="y"
-    )
+    return ModelManifest(model_id="b", algorithm="rf", feature_names=("a",), target_name="y")
 
 
 class TestConstruction(unittest.IsolatedAsyncioTestCase):
@@ -46,10 +43,14 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
             train=DatasetManifest(name="tr", feature_names=("a",), row_count=80),
             test=DatasetManifest(name="te", feature_names=("a",), row_count=20),
         )
-        model_a = ModelManifest(model_id="a", algorithm="logistic", feature_names=("a",), target_name="y")
+        model_a = ModelManifest(
+            model_id="a", algorithm="logistic", feature_names=("a",), target_name="y"
+        )
         model_b = ModelManifest(model_id="b", algorithm="rf", feature_names=("a",), target_name="y")
         with self.assertRaises((TypeError, ValueError)):
-            await k.process(model_a=model_a, model_b=model_b, split=split, primary_metric="", alpha=0.05)
+            await k.process(
+                model_a=model_a, model_b=model_b, split=split, primary_metric="", alpha=0.05
+            )
 
     async def test_rejects_alpha_outside_range(self) -> None:
         with Tapestry():
@@ -59,10 +60,14 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
             train=DatasetManifest(name="tr", feature_names=("a",), row_count=80),
             test=DatasetManifest(name="te", feature_names=("a",), row_count=20),
         )
-        model_a = ModelManifest(model_id="a", algorithm="logistic", feature_names=("a",), target_name="y")
+        model_a = ModelManifest(
+            model_id="a", algorithm="logistic", feature_names=("a",), target_name="y"
+        )
         model_b = ModelManifest(model_id="b", algorithm="rf", feature_names=("a",), target_name="y")
         with self.assertRaises((TypeError, ValueError)):
-            await k.process(model_a=model_a, model_b=model_b, split=split, primary_metric="accuracy", alpha=1.5)
+            await k.process(
+                model_a=model_a, model_b=model_b, split=split, primary_metric="accuracy", alpha=1.5
+            )
 
 
 class TestHappyPath(unittest.IsolatedAsyncioTestCase):

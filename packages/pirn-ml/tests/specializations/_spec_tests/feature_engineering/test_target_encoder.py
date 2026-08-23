@@ -8,6 +8,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_ml.specializations.feature_engineering.target_encoder import (
     TargetEncoder,
 )
@@ -17,12 +18,8 @@ from pirn_ml.types.split_manifest import SplitManifest
 
 @knot
 async def emit_split() -> SplitManifest:
-    train = DatasetManifest(
-        name="d:train", feature_names=("city",), target_name="y", row_count=80
-    )
-    test = DatasetManifest(
-        name="d:test", feature_names=("city",), target_name="y", row_count=20
-    )
+    train = DatasetManifest(name="d:train", feature_names=("city",), target_name="y", row_count=80)
+    test = DatasetManifest(name="d:test", feature_names=("city",), target_name="y", row_count=20)
     return SplitManifest(train=train, test=test)
 
 
@@ -41,9 +38,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
             k = TargetEncoder.__new__(TargetEncoder)
             object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaises((TypeError, ValueError)):
-            await k.process(
-                split=self._make_split(), categorical_column="", target_column="y"
-            )
+            await k.process(split=self._make_split(), categorical_column="", target_column="y")
 
     async def test_rejects_negative_smoothing(self) -> None:
         with Tapestry():

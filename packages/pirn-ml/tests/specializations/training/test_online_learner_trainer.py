@@ -8,6 +8,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
+
 from pirn_ml.specializations.training.online_learner_trainer import (
     OnlineLearnerTrainer,
 )
@@ -33,8 +34,12 @@ def _split():
     from pirn_ml.types.split_manifest import SplitManifest
 
     return SplitManifest(
-        train=DatasetManifest(name="tr", feature_names=["x"], target_name="y", row_count=10, source_uri="mem://"),
-        test=DatasetManifest(name="te", feature_names=["x"], target_name="y", row_count=5, source_uri="mem://"),
+        train=DatasetManifest(
+            name="tr", feature_names=["x"], target_name="y", row_count=10, source_uri="mem://"
+        ),
+        test=DatasetManifest(
+            name="te", feature_names=["x"], target_name="y", row_count=5, source_uri="mem://"
+        ),
     )
 
 

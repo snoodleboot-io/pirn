@@ -8,12 +8,12 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_ml.specializations.feature_engineering.feature_store_reader import (
     FeatureStoreReader,
 )
 from pirn_ml.types.dataset_manifest import DatasetManifest
 from pirn_ml.types.split_manifest import SplitManifest
-
 from tests._stubs.recording_feature_store_provider import (
     RecordingFeatureStoreProvider,
 )

@@ -8,6 +8,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_ml.specializations.experiments.baseline_establisher import (
     BaselineEstablisher,
 )
@@ -18,12 +19,8 @@ from pirn_ml.types.split_manifest import SplitManifest
 
 @knot
 async def emit_split() -> SplitManifest:
-    train = DatasetManifest(
-        name="d:train", feature_names=("a", "b"), target_name="y", row_count=80
-    )
-    test = DatasetManifest(
-        name="d:test", feature_names=("a", "b"), target_name="y", row_count=20
-    )
+    train = DatasetManifest(name="d:train", feature_names=("a", "b"), target_name="y", row_count=80)
+    test = DatasetManifest(name="d:test", feature_names=("a", "b"), target_name="y", row_count=20)
     return SplitManifest(train=train, test=test)
 
 
@@ -40,12 +37,8 @@ def _make_establisher() -> BaselineEstablisher:
 
 
 def _split_fixture() -> SplitManifest:
-    train = DatasetManifest(
-        name="d:train", feature_names=("a", "b"), target_name="y", row_count=80
-    )
-    test = DatasetManifest(
-        name="d:test", feature_names=("a", "b"), target_name="y", row_count=20
-    )
+    train = DatasetManifest(name="d:train", feature_names=("a", "b"), target_name="y", row_count=80)
+    test = DatasetManifest(name="d:test", feature_names=("a", "b"), target_name="y", row_count=20)
     return SplitManifest(train=train, test=test)
 
 

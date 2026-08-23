@@ -8,6 +8,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
+
 from pirn_ml.specializations.training.fine_tuning_trainer import (
     FineTuningTrainer,
 )
@@ -33,8 +34,12 @@ def _split():
     from pirn_ml.types.split_manifest import SplitManifest
 
     return SplitManifest(
-        train=DatasetManifest(name="tr", feature_names=["x"], target_name="y", row_count=10, source_uri="mem://"),
-        test=DatasetManifest(name="te", feature_names=["x"], target_name="y", row_count=5, source_uri="mem://"),
+        train=DatasetManifest(
+            name="tr", feature_names=["x"], target_name="y", row_count=10, source_uri="mem://"
+        ),
+        test=DatasetManifest(
+            name="te", feature_names=["x"], target_name="y", row_count=5, source_uri="mem://"
+        ),
     )
 
 
@@ -42,12 +47,20 @@ class TestFineTuningTrainerValidation(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_empty_pretrained_model_id(self) -> None:
         k = _make_knot()
         with self.assertRaises((ValueError, TypeError)):
-            await k.process(split=_split(), pretrained_model_id="", algorithm="nn", metrics=["accuracy"])
+            await k.process(
+                split=_split(), pretrained_model_id="", algorithm="nn", metrics=["accuracy"]
+            )
 
     async def test_rejects_frozen_layers_negative(self) -> None:
         k = _make_knot()
         with self.assertRaises((ValueError, TypeError)):
-            await k.process(split=_split(), pretrained_model_id="base-model", algorithm="nn", metrics=["accuracy"], frozen_layers=-1)
+            await k.process(
+                split=_split(),
+                pretrained_model_id="base-model",
+                algorithm="nn",
+                metrics=["accuracy"],
+                frozen_layers=-1,
+            )
 
     async def test_rejects_empty_metrics(self) -> None:
         k = _make_knot()
