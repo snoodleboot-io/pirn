@@ -122,7 +122,14 @@ class _IterationChainKnot(Knot):
             Updated state value produced by folding this iteration's RunResult.
         """
         from pirn.core.run_request import RunRequest
-        from pirn.tapestry import _current_history, _current_run_id, _current_traceback_filter
+        from pirn.nodes.sub_tapestry import _inherited_emitters
+        from pirn.tapestry import (
+            _current_emitter_error_policy,
+            _current_emitters,
+            _current_history,
+            _current_run_id,
+            _current_traceback_filter,
+        )
 
         loop: LoopSubTapestry = object.__getattribute__(self, "_mutable_loop_sub")  # type: ignore[type-arg]
         iter_tapestry: Tapestry = object.__getattribute__(self, "_mutable_iter_tapestry")
@@ -145,6 +152,24 @@ class _IterationChainKnot(Knot):
             # bounded rather than absent. See PIR-765.
             iter_tapestry._history = outer_history
 
+        # Emitters are inherited from the contextvar alone, with no
+        # construction-time capture to fall back on.  The var is set by the
+        # loop's own inner run, which `SubTapestry._run_inner` already seeded
+        # with the outer subscription, so it is correct at every nesting depth
+        # and needs no threading through `_IterationChainKnot.__init__` the way
+        # `_outer_history` does.  A dispatcher that crosses a process boundary
+        # starts from an empty context and so inherits nothing — which is the
+        # only honest answer for emitters, since an arbitrary emitter is not
+        # transferable to another interpreter.
+        #
+        # Forwarding here is unconditional, so a conversational loop delivers
+        # one `on_run_result` per turn.  That is the intended volume, not an
+        # oversight: see the rationale on `SubTapestry._run_inner` (PIR-834).
+        # The `RunRetention` guard (PIR-765) that bounds history growth has no
+        # emitter analogue, because emitters are always explicitly attached and
+        # their intake is proportional to work the loop actually performed.
+        # Consumers that need a ceiling can filter on `RunResult.parent_run_id`.
+        inherited = _inherited_emitters(iter_tapestry.emitters, _current_emitters.get(None))
         parent_run_id = _current_run_id.get(None)
         result = await iter_tapestry.run(
             RunRequest(),
@@ -152,6 +177,10 @@ class _IterationChainKnot(Knot):
             _parent_knot_id=self.knot_id,
             # Same inheritance as SubTapestry._run_inner — see PIR-725.
             traceback_filter=_current_traceback_filter.get(None),
+            emitters=inherited,
+            emitter_error_policy=(
+                _current_emitter_error_policy.get(None) if inherited is not None else None
+            ),
         )
         if not result.succeeded and not loop._tolerate_iteration_failures:
             from pirn.nodes.sub_tapestry import SubTapestryError
@@ -207,6 +236,20 @@ class LoopSubTapestry(SubTapestry, Generic[S]):
     run.  The loop is fully observable: every iteration appears in run history,
     with its own inputs, outputs, and timing.  Sub-tapestries spawned inside
     an iteration become child runs of the loop run.
+
+    Emitter volume: the enclosing run's emitters are forwarded to the loop run
+    *and* to each iteration's own run, so an open-ended loop delivers roughly
+    one ``on_run_result`` per turn plus the status and lineage events of every
+    knot inside that turn.  That is deliberate.  ``RunRetention`` (PIR-765)
+    bounds history growth because ``InMemoryHistory`` is the *default* backend
+    and would otherwise accumulate turns nobody opted into; there is no default
+    emitter, so every emitter present belongs to an operator who asked to
+    observe this pipeline, and its intake is proportional to work the loop
+    actually performed.  Dropping iteration events instead would reproduce the
+    defect PIR-834 fixed — work that is recorded in history and invisible to
+    spans, metrics and logs — one nesting level down.  An emitter that must cap
+    its own intake can filter on ``RunResult.parent_run_id`` / ``run_path``,
+    which distinguish iteration runs from the loop run and from the outer run.
 
     Subclasses implement:
 
