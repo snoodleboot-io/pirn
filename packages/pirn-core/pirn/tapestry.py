@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from pirn.core.transport.data_transport import DataTransport
     from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
     from pirn.engine.dispatchers.dispatcher import Dispatcher
+    from pirn.recording.replay_session import ReplaySession
 
 
 # ContextVar carrying the active tapestry inside a `with` block.  None when
@@ -239,6 +240,7 @@ class Tapestry:
         extensible: bool = False,
         emitter_error_policy: EmitterErrorPolicy | None = None,
         traceback_filter: Callable[[str], str] | None = None,
+        replay: ReplaySession | None = None,
         _parent_run_id: str | None = None,
         _parent_knot_id: str | None = None,
     ) -> RunResult:
@@ -264,6 +266,18 @@ class Tapestry:
         members afterwards, so a later run that omits ``terminals=``
         executes them whether or not it is extensible — see
         :meth:`terminals`.
+
+        Pass ``replay=`` a ``ReplaySession`` to put the run in replay
+        posture: every knot except ``Parameter`` is served its recorded
+        outcome from that session and this tapestry's ``data_store``
+        instead of being executed, so knots with side effects do not run.
+        There is no matching record posture — recording is what an ordinary
+        run already does.  A recording that cannot be honoured raises a
+        ``ReplayError``; replay never silently falls back to executing.
+
+        Replay is not propagated into ``SubTapestry`` inner runs, and does
+        not need to be: the ``SubTapestry`` knot itself is replayed from the
+        outer recording, so the inner pipeline never starts.
         """
         from pirn.core.knot import Knot as _Knot
         from pirn.core.run_request import RunRequest as _RunRequest
@@ -321,6 +335,7 @@ class Tapestry:
                 parent_knot_id=_parent_knot_id,
                 transport=self._transport,
                 actor=resolved_actor,
+                replay=replay,
             )
         finally:
             _current_run_id.reset(token_run_id)
