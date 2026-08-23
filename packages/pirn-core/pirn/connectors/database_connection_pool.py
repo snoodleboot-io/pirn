@@ -11,6 +11,7 @@ that failed to implement them.
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, Never
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
@@ -45,16 +46,24 @@ class DatabaseConnectionPool(PirnOpaqueValue):
         """Close the pool and release any underlying resources."""
         raise NotImplementedError(f"{type(self).__name__} must implement close()")
 
-    async def fetch_all(self, query: str, *args: Any) -> list[Any]:
-        """Execute *query* and return all rows as a list."""
+    async def fetch_all(self, query: str, parameters: Iterable[Any] | None = None) -> list[Any]:
+        """Execute *query* with *parameters* bound and return all rows as a list.
+
+        *parameters* is one iterable of bind values for a single statement —
+        DB-API's ``cursor.execute(sql, params)`` shape, not a variadic. Drivers
+        that take the values variadically (asyncpg) splat it themselves.
+        """
         raise NotImplementedError(f"{type(self).__name__} must implement fetch_all()")
 
-    async def execute(self, query: str, *args: Any) -> Any:
-        """Execute *query* and return a driver-specific result."""
+    async def execute(self, query: str, parameters: Iterable[Any] | None = None) -> Any:
+        """Execute *query* with *parameters* bound; return a driver-specific result.
+
+        See :meth:`fetch_all` for the shape of *parameters*.
+        """
         raise NotImplementedError(f"{type(self).__name__} must implement execute()")
 
-    async def execute_many(self, query: str, args_seq: Any) -> None:
-        """Execute *query* once per item in *args_seq*."""
+    async def execute_many(self, query: str, parameter_seq: Iterable[Iterable[Any]]) -> None:
+        """Execute *query* once per bind-value iterable in *parameter_seq*."""
         raise NotImplementedError(f"{type(self).__name__} must implement execute_many()")
 
     # Per-engine placeholder grammar. The default regex rejects Python

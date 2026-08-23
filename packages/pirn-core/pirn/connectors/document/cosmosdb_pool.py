@@ -53,16 +53,16 @@ class CosmosDBPool(DatabaseConnectionPool):
         self._closed = True
         self._logger.debug("cosmosdb.close")
 
-    async def execute(self, query: str, *args: Any) -> str:
-        """Upsert an item; ``args[0]`` is the item dict. Returns item id."""
+    async def execute(self, query: str, parameters: Iterable[Any] | None = None) -> str:
+        """Upsert an item; ``parameters`` is the item dict. Returns item id."""
         await self._ensure_container()
         if self._container is None:
             raise RuntimeError("CosmosDBPool: not connected — call connect() first")
-        item = args[0] if args else {}
+        item = parameters if parameters is not None else {}
         result = await self._container.upsert_item(item)
         return str(result.get("id", ""))
 
-    async def fetch_all(self, query: str, *args: Any) -> list[Any]:
+    async def fetch_all(self, query: str, parameters: Iterable[Any] | None = None) -> list[Any]:
         """Execute a SQL query against the container and return all items."""
         await self._ensure_container()
         if self._container is None:
@@ -75,13 +75,13 @@ class CosmosDBPool(DatabaseConnectionPool):
             )
         ]
 
-    async def execute_many(self, query: str, args_seq: Iterable[Iterable[Any]]) -> None:
-        """Upsert each item dict yielded by args_seq."""
+    async def execute_many(self, query: str, parameter_seq: Iterable[Iterable[Any]]) -> None:
+        """Upsert each item dict yielded by parameter_seq."""
         await self._ensure_container()
         if self._container is None:
             raise RuntimeError("CosmosDBPool: not connected — call connect() first")
-        for args in args_seq:
-            item = args if isinstance(args, dict) else (next(iter(args)) if args else {})
+        for row in parameter_seq:
+            item = row if isinstance(row, dict) else (next(iter(row), {}) if row else {})
             await self._container.upsert_item(item)
 
     async def _ensure_container(self) -> None:

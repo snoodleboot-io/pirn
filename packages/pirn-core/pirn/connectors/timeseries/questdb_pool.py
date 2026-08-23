@@ -48,21 +48,21 @@ class QuestDBPool(DatabaseConnectionPool):
         self._closed = True
         self._logger.debug("questdb.close")
 
-    async def execute(self, query: str, *args: Any) -> str:
+    async def execute(self, query: str, parameters: Iterable[Any] | None = None) -> str:
         self._reject_inline_interpolation(query)
         pool = await self._ensure_pool()
-        return await pool.execute(query, *args)
+        return await pool.execute(query, *tuple(parameters or ()))
 
-    async def fetch_all(self, query: str, *args: Any) -> list[Any]:
+    async def fetch_all(self, query: str, parameters: Iterable[Any] | None = None) -> list[Any]:
         self._reject_inline_interpolation(query)
         pool = await self._ensure_pool()
-        rows = await pool.fetch(query, *args)
+        rows = await pool.fetch(query, *tuple(parameters or ()))
         return list(rows)
 
-    async def execute_many(self, query: str, args_seq: Iterable[Iterable[Any]]) -> None:
+    async def execute_many(self, query: str, parameter_seq: Iterable[Iterable[Any]]) -> None:
         self._reject_inline_interpolation(query)
         pool = await self._ensure_pool()
-        await pool.executemany(query, [tuple(a) for a in args_seq])
+        await pool.executemany(query, [tuple(a) for a in parameter_seq])
 
     async def _ensure_pool(self) -> Any:
         if self._closed:

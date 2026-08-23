@@ -54,21 +54,34 @@ class RedshiftPool(DatabaseConnectionPool):
         self._closed = True
         self._logger.debug("redshift.close")
 
-    async def execute(self, query: str, *args: Any) -> str:
-        self._reject_inline_interpolation(query)
-        pool = await self._ensure_pool()
-        return await pool.execute(query, *args)
+    async def execute(self, query: str, parameters: Iterable[Any] | None = None) -> str:
+        """Run a parameterised statement and return the driver status string.
 
-    async def fetch_all(self, query: str, *args: Any) -> list[Any]:
+        asyncpg binds values variadically, so the interface's single
+        *parameters* iterable is splatted here (PIR-833). Before that this pool
+        took ``*args`` directly, which meant a caller written against
+        :class:`DatabaseConnectionPool` — or against any of the nine pools that
+        take one iterable — passed a tuple that asyncpg then read as a single
+        bind value.
+        """
         self._reject_inline_interpolation(query)
         pool = await self._ensure_pool()
-        rows = await pool.fetch(query, *args)
+        return await pool.execute(query, *tuple(parameters or ()))
+
+    async def fetch_all(self, query: str, parameters: Iterable[Any] | None = None) -> list[Any]:
+        """Run a parameterised read and return all rows.
+
+        *parameters* is splatted for asyncpg; see :meth:`execute`.
+        """
+        self._reject_inline_interpolation(query)
+        pool = await self._ensure_pool()
+        rows = await pool.fetch(query, *tuple(parameters or ()))
         return list(rows)
 
-    async def execute_many(self, query: str, args_seq: Iterable[Iterable[Any]]) -> None:
+    async def execute_many(self, query: str, parameter_seq: Iterable[Iterable[Any]]) -> None:
         self._reject_inline_interpolation(query)
         pool = await self._ensure_pool()
-        await pool.executemany(query, [tuple(a) for a in args_seq])
+        await pool.executemany(query, [tuple(p) for p in parameter_seq])
 
     async def _ensure_pool(self) -> Any:
         if self._closed:

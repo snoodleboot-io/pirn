@@ -113,6 +113,10 @@ class SubTapestry(Knot):
 
     _extensible_inner_run: ClassVar[bool] = False
 
+    # ``process`` below is declared in the gradual parameter form; see
+    # ``Knot._dynamic_process_signature`` for why (PIR-833).
+    _dynamic_process_signature: ClassVar[bool] = True
+
     def _resolve_output_key(self, sink: Knot) -> str:
         """Return the ``run_result.outputs`` key to surface as this knot's value.
 
@@ -140,12 +144,17 @@ class SubTapestry(Knot):
     def lineage_extra(self) -> dict[str, Any]:
         return {**super().lineage_extra(), **self._mutable_inner_run_meta}
 
-    async def process(self, **_: Any) -> Knot:
+    async def process(self, *args: Any, **kwargs: Any) -> Knot:
         """Override to declare the inner pipeline and return its terminal knot.
 
         Build any knots inside this method — they auto-register into the
         inner tapestry context the base class has already established.
         Return the sink knot whose output becomes this SubTapestry's output.
+
+        An override still names its own inputs and still must return a
+        ``Knot``: the gradual ``*args`` here relaxes only the parameter half of
+        the override check (PIR-833), and ``__init_subclass__`` refuses an
+        override that actually declares ``*args``.
 
         Raises:
             NotImplementedError: Always; subclasses must override this method.

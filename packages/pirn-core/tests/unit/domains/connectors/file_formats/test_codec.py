@@ -22,9 +22,9 @@ class TestCodecInterface(unittest.IsolatedAsyncioTestCase):
     async def test_compress_stream_raises_not_implemented(self) -> None:
         codec = Codec()
         with self.assertRaises(NotImplementedError):
-            await codec.compress_stream(_bytes_iter(b"data"))
+            codec.compress_stream(_bytes_iter(b"data"))
 
     async def test_decompress_stream_raises_not_implemented(self) -> None:
         codec = Codec()
         with self.assertRaises(NotImplementedError):
-            await codec.decompress_stream(_bytes_iter(b"data"))
+            codec.decompress_stream(_bytes_iter(b"data"))

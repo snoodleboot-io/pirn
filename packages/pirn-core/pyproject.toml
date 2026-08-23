@@ -421,5 +421,11 @@ pythonVersion = "3.12"
 # override pattern and dynamic registry access are intentional (was SCD-03 base).
 reportMissingImports = "none"
 reportMissingModuleSource = "none"
-reportIncompatibleMethodOverride = "none"
+# reportIncompatibleMethodOverride is ON (PIR-833). It used to be "none" in all
+# seven packages, which hid real substitutability breaks among ~730 framework
+# false positives. Those are gone at the source: Knot — and every abstract
+# mid-tree base that only narrows the return type — declares process() in the
+# gradual parameter form (*args, **kwargs), which drops the parameter half of
+# the check for dynamically-bound named inputs and keeps the return half.
+reportIncompatibleMethodOverride = "error"
 reportAttributeAccessIssue = "none"

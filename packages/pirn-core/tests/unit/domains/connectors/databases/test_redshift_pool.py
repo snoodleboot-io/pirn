@@ -70,14 +70,14 @@ class TestDelegation(unittest.IsolatedAsyncioTestCase):
     async def test_execute_passes_query_and_args(self) -> None:
         fake = FakeAsyncpgPool()
         pool = RedshiftPool(pool=fake)
-        await pool.execute("INSERT INTO t (x, y) VALUES ($1, $2)", 1, "hello")
+        await pool.execute("INSERT INTO t (x, y) VALUES ($1, $2)", (1, "hello"))
         assert fake.executed == [("INSERT INTO t (x, y) VALUES ($1, $2)", (1, "hello"))]
 
     async def test_fetch_all_returns_rows(self) -> None:
         fake = FakeAsyncpgPool()
         fake.fetch_responses["SELECT id FROM t WHERE x = $1"] = [(1,), (2,)]
         pool = RedshiftPool(pool=fake)
-        rows = await pool.fetch_all("SELECT id FROM t WHERE x = $1", 99)
+        rows = await pool.fetch_all("SELECT id FROM t WHERE x = $1", (99,))
         assert rows == [(1,), (2,)]
 
     async def test_execute_many_batches(self) -> None:
@@ -123,7 +123,7 @@ class TestQuerySafetyEnforced(unittest.IsolatedAsyncioTestCase):
     async def test_execute_rejects_format_query(self) -> None:
         pool = RedshiftPool(pool=FakeAsyncpgPool())
         with self.assertRaisesRegex(ValueError, "interpolation"):
-            await pool.execute("SELECT %s FROM t", "x")
+            await pool.execute("SELECT %s FROM t", ("x",))
 
     async def test_fetch_all_rejects_format_query(self) -> None:
         pool = RedshiftPool(pool=FakeAsyncpgPool())

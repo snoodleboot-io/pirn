@@ -49,7 +49,7 @@ class VictoriaMetricsPool(DatabaseConnectionPool):
         self._closed = True
         self._logger.debug("victoriametrics.close")
 
-    async def execute(self, query: str, *args: Any) -> str:
+    async def execute(self, query: str, parameters: Iterable[Any] | None = None) -> str:
         """Write metrics in Prometheus exposition format via remote write."""
         await self._ensure_client()
         if self._client is None:
@@ -65,7 +65,7 @@ class VictoriaMetricsPool(DatabaseConnectionPool):
             self._reraise_scrubbed(exc)
         return "OK"
 
-    async def fetch_all(self, query: str, *args: Any) -> list[Any]:
+    async def fetch_all(self, query: str, parameters: Iterable[Any] | None = None) -> list[Any]:
         """Execute a MetricsQL/PromQL instant query."""
         await self._ensure_client()
         if self._client is None:
@@ -81,12 +81,12 @@ class VictoriaMetricsPool(DatabaseConnectionPool):
             self._reraise_scrubbed(exc)
         return list(data.get("data", {}).get("result", []))
 
-    async def execute_many(self, query: str, args_seq: Iterable[Iterable[Any]]) -> None:
+    async def execute_many(self, query: str, parameter_seq: Iterable[Iterable[Any]]) -> None:
         """Write multiple metric lines as a single remote write batch."""
         await self._ensure_client()
         if self._client is None:
             raise RuntimeError("VictoriaMetricsPool: not connected — call connect() first")
-        lines = "\n".join(str(item) for row in args_seq for item in row)
+        lines = "\n".join(str(item) for row in parameter_seq for item in row)
         try:
             response = await self._client.post(
                 "/api/v1/import/prometheus",

@@ -14,7 +14,7 @@ from typing import Any
 class MetadataCatalog:
     """Capability for connectors that expose entity catalogs."""
 
-    async def list_entities(
+    def list_entities(
         self,
         entity_type: str,
         *,
@@ -25,6 +25,12 @@ class MetadataCatalog:
         ``entity_type`` is vendor-specific — e.g., ``"dataset"``,
         ``"dashboard"``, ``"glossaryTerm"``. Concrete implementations
         document the supported types.
+
+        Declared ``def``, not ``async def``: every concrete catalog implements
+        this as an async generator, whose *call* already returns the iterator.
+        An ``async def`` declaration here would tell a caller typed against
+        this capability to ``await`` the call — which raises ``TypeError``
+        against every real client (PIR-833). Call it and iterate the result.
         """
         raise NotImplementedError(f"{type(self).__name__} must implement list_entities()")
 

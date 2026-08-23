@@ -49,23 +49,23 @@ class ArangoDBPool(DatabaseConnectionPool):
         self._closed = True
         self._logger.debug("arangodb.close")
 
-    async def execute(self, query: str, *args: Any) -> str:
+    async def execute(self, query: str, parameters: Iterable[Any] | None = None) -> str:
         """Execute an AQL query; returns cursor result as str."""
         await self._ensure_db()
-        bind_vars = args[0] if args else {}
+        bind_vars = parameters if parameters is not None else {}
         cursor = await asyncio.to_thread(self._db.aql.execute, query, bind_vars=bind_vars)
         return str(cursor)
 
-    async def fetch_all(self, query: str, *args: Any) -> list[Any]:
+    async def fetch_all(self, query: str, parameters: Iterable[Any] | None = None) -> list[Any]:
         """Execute an AQL query and return all result documents."""
         await self._ensure_db()
-        bind_vars = args[0] if args else {}
+        bind_vars = parameters if parameters is not None else {}
         cursor = await asyncio.to_thread(self._db.aql.execute, query, bind_vars=bind_vars)
         return list(cursor)
 
-    async def execute_many(self, query: str, args_seq: Iterable[Iterable[Any]]) -> None:
-        """Execute an AQL query for each bind_vars dict in args_seq."""
-        for bind_vars in args_seq:
+    async def execute_many(self, query: str, parameter_seq: Iterable[Iterable[Any]]) -> None:
+        """Execute an AQL query for each bind_vars dict in parameter_seq."""
+        for bind_vars in parameter_seq:
             await self.execute(query, bind_vars)
 
     async def _ensure_db(self) -> None:

@@ -54,18 +54,20 @@ class OrientDBPool(DatabaseConnectionPool):
         self._closed = True
         self._logger.debug("orientdb.close")
 
-    async def execute(self, query: str, *args: Any) -> str:
+    async def execute(self, query: str, parameters: Iterable[Any] | None = None) -> str:
         client = await self._ensure_client()
         result = await asyncio.to_thread(client.command, query)
         return str(result)
 
-    async def fetch_all(self, query: str, *args: Any) -> list[dict[str, Any]]:
+    async def fetch_all(
+        self, query: str, parameters: Iterable[Any] | None = None
+    ) -> list[dict[str, Any]]:
         client = await self._ensure_client()
         results = await asyncio.to_thread(client.query, query, -1)
         return [r.oRecordData for r in results]
 
-    async def execute_many(self, query: str, args_seq: Iterable[Any]) -> None:
-        for _ in args_seq:
+    async def execute_many(self, query: str, parameter_seq: Iterable[Any]) -> None:
+        for _ in parameter_seq:
             await self.execute(query)
 
     async def _ensure_client(self) -> Any:

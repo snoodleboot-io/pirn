@@ -48,33 +48,33 @@ class KdbPool(DatabaseConnectionPool):
         self._closed = True
         self._logger.debug("kdb.close")
 
-    async def execute(self, query: str, *args: Any) -> str:
+    async def execute(self, query: str, parameters: Iterable[Any] | None = None) -> str:
         await self._ensure_connection()
         if self._connection is None:
             raise RuntimeError("KdbPool: not connected — call connect() first")
         try:
-            result = await asyncio.to_thread(self._connection.sync, query, *args)
+            result = await asyncio.to_thread(self._connection.sync, query, *tuple(parameters or ()))
         except Exception as exc:
             self._reraise_scrubbed(exc)
         return str(result)
 
-    async def fetch_all(self, query: str, *args: Any) -> list[Any]:
+    async def fetch_all(self, query: str, parameters: Iterable[Any] | None = None) -> list[Any]:
         await self._ensure_connection()
         if self._connection is None:
             raise RuntimeError("KdbPool: not connected — call connect() first")
         try:
-            result = await asyncio.to_thread(self._connection.sync, query, *args)
+            result = await asyncio.to_thread(self._connection.sync, query, *tuple(parameters or ()))
         except Exception as exc:
             self._reraise_scrubbed(exc)
         return self._to_rows(result)
 
-    async def execute_many(self, query: str, args_seq: Iterable[Iterable[Any]]) -> None:
+    async def execute_many(self, query: str, parameter_seq: Iterable[Iterable[Any]]) -> None:
         await self._ensure_connection()
         if self._connection is None:
             raise RuntimeError("KdbPool: not connected — call connect() first")
-        for args in args_seq:
+        for row in parameter_seq:
             try:
-                await asyncio.to_thread(self._connection.sync, query, *args)
+                await asyncio.to_thread(self._connection.sync, query, *tuple(row))
             except Exception as exc:
                 self._reraise_scrubbed(exc)
 

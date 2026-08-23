@@ -37,7 +37,7 @@ import copy
 import inspect
 import types as _types
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, Union, get_args, get_origin, get_type_hints
+from typing import TYPE_CHECKING, Any, ClassVar, Union, get_args, get_origin, get_type_hints
 
 from pydantic import TypeAdapter, ValidationError
 
@@ -129,6 +129,19 @@ class Knot:
 
     _reserved_kwargs: frozenset[str] = frozenset({"_config", "tapestry"})
 
+    # Opt-in, per-class: declare ``process`` in the gradual parameter form
+    # ``(*args: Any, **kwargs: Any)`` so a type checker skips the parameter half
+    # of its override check for every subclass, while still checking the return
+    # type (PIR-833).  Only an *abstract* mid-tree base that exists to narrow the
+    # return type should set it — the engine binds named inputs dynamically, so
+    # a concrete knot's parameter list can never be substitutable for its base's
+    # and the diagnostic is a false positive by construction.
+    #
+    # ``__init_subclass__`` reads it from ``cls.__dict__``, never from the MRO,
+    # so the opt-in cannot be inherited: a subclass of an opted-in base is still
+    # refused if it declares ``*args`` in ``process``.
+    _dynamic_process_signature: ClassVar[bool] = False
+
     # Populated by __init_subclass__ for each class that defines process().
     # Maps param name -> scalar type extracted from ``Knot | T`` union hints.
     _coercible_params: dict[str, Any] = {}  # noqa: RUF012
@@ -147,7 +160,7 @@ class Knot:
                     has_var_pos = True
                 if param.kind == inspect.Parameter.VAR_KEYWORD:
                     has_var_kw = True
-            if has_var_pos:
+            if has_var_pos and not cls.__dict__.get("_dynamic_process_signature", False):
                 raise TypeError(
                     f"{cls.__name__}.process may not declare *args; "
                     "pirn calls process() exclusively with keyword arguments"
@@ -427,13 +440,22 @@ class Knot:
 
     # ------------------------------------------------------------- user-impl
 
-    async def process(self, **kwargs: Any) -> Any:
+    async def process(self, *args: Any, **kwargs: Any) -> Any:
         """Implement this.  This is the one method users override.
 
         Type annotations on parameters and return are honoured for
         validation when ``validate_io`` is True.
         The engine always calls process() with keyword arguments; *args
-        is never passed and must not appear in overriding signatures.
+        is never passed and must not appear in overriding signatures —
+        ``__init_subclass__`` refuses any override that declares it.
+
+        The ``*args`` in *this* declaration is a typing device, not a call
+        convention (PIR-833).  A concrete knot names its inputs and the engine
+        binds them dynamically, so no override's parameter list is ever
+        substitutable for this one; the gradual form makes a type checker skip
+        the parameter half of the override check — and only that half, so a
+        concrete knot whose ``process`` returns something its base cannot is
+        still a hard error.  See ``_dynamic_process_signature``.
         """
         raise NotImplementedError(f"{type(self).__name__} must implement process()")
 

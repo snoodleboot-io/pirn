@@ -52,8 +52,8 @@ class CouchDBPool(DatabaseConnectionPool):
         self._closed = True
         self._logger.debug("couchdb.close")
 
-    async def execute(self, query: str, *args: Any) -> str:
-        """Save a document; ``query`` is the doc id, ``args[0]`` is the doc dict.
+    async def execute(self, query: str, parameters: Iterable[Any] | None = None) -> str:
+        """Save a document; ``query`` is the doc id, ``parameters`` is the doc dict.
 
         Returns the document ``_id``.
         """
@@ -61,13 +61,13 @@ class CouchDBPool(DatabaseConnectionPool):
         if self._session is None:
             raise RuntimeError("CouchDBPool: not connected — call connect() first")
         assert self._config is not None
-        doc_data = args[0] if args else {}
+        doc_data = parameters if parameters is not None else {}
         db = await self._session[self._config.database]
         doc = await db.create(query, data=doc_data)
         await doc.save()
         return doc["_id"]
 
-    async def fetch_all(self, query: str, *args: Any) -> list[Any]:
+    async def fetch_all(self, query: str, parameters: Iterable[Any] | None = None) -> list[Any]:
         """Fetch documents via Mango selector; ``query`` is a JSON selector string."""
         await self._ensure_session()
         if self._session is None:
@@ -81,14 +81,14 @@ class CouchDBPool(DatabaseConnectionPool):
         result = await db.find(selector)
         return list(result)
 
-    async def execute_many(self, query: str, args_seq: Iterable[Iterable[Any]]) -> None:
+    async def execute_many(self, query: str, parameter_seq: Iterable[Iterable[Any]]) -> None:
         """Bulk-save documents via _bulk_docs."""
         await self._ensure_session()
         if self._session is None:
             raise RuntimeError("CouchDBPool: not connected — call connect() first")
         assert self._config is not None
         db = await self._session[self._config.database]
-        docs = list(args_seq)
+        docs = list(parameter_seq)
         await db.bulk_docs(docs)
 
     async def _ensure_session(self) -> None:

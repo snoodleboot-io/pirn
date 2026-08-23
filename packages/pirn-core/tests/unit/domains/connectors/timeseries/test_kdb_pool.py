@@ -65,7 +65,7 @@ class TestDelegation(unittest.IsolatedAsyncioTestCase):
     async def test_execute_passes_args(self) -> None:
         fake = FakeKdbConnection(responses={"select from t where sym=$1": "rows"})
         pool = KdbPool(connection=fake)
-        await pool.execute("select from t where sym=$1", "AAPL")
+        await pool.execute("select from t where sym=$1", ("AAPL",))
         assert fake.calls == [("select from t where sym=$1", ("AAPL",))]
 
     async def test_fetch_all_wraps_scalar_in_list(self) -> None:

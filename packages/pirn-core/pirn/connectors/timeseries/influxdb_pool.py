@@ -51,7 +51,7 @@ class InfluxDBPool(DatabaseConnectionPool):
         self._closed = True
         self._logger.debug("influxdb.close")
 
-    async def execute(self, query: str, *args: Any) -> str:
+    async def execute(self, query: str, parameters: Iterable[Any] | None = None) -> str:
         await self._ensure_client()
         lines = [query] if isinstance(query, str) else list(query)
         try:
@@ -64,7 +64,7 @@ class InfluxDBPool(DatabaseConnectionPool):
             self._reraise_scrubbed(exc)
         return "OK"
 
-    async def fetch_all(self, query: str, *args: Any) -> list[Any]:
+    async def fetch_all(self, query: str, parameters: Iterable[Any] | None = None) -> list[Any]:
         await self._ensure_client()
         org = self._config.org if self._config else ""
         try:
@@ -77,9 +77,9 @@ class InfluxDBPool(DatabaseConnectionPool):
                 rows.append(dict(record.values))
         return rows
 
-    async def execute_many(self, query: str, args_seq: Iterable[Iterable[Any]]) -> None:
+    async def execute_many(self, query: str, parameter_seq: Iterable[Iterable[Any]]) -> None:
         await self._ensure_client()
-        lines = list(args_seq)
+        lines = list(parameter_seq)
         try:
             await self._write_api.write(
                 bucket=self._config.bucket if self._config else "",

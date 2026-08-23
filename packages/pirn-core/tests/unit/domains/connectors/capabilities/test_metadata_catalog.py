@@ -11,7 +11,7 @@ class TestMetadataCatalogInterface(unittest.IsolatedAsyncioTestCase):
     async def test_list_entities_raises_not_implemented(self) -> None:
         catalog = MetadataCatalog()
         with self.assertRaises(NotImplementedError):
-            await catalog.list_entities("dataset")
+            catalog.list_entities("dataset")
 
     async def test_describe_entity_raises_not_implemented(self) -> None:
         catalog = MetadataCatalog()

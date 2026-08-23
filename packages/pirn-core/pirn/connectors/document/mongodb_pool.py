@@ -56,25 +56,25 @@ class MongoDBPool(DatabaseConnectionPool):
         self._closed = True
         self._logger.debug("mongodb.close")
 
-    async def execute(self, query: str, *args: Any) -> str:
+    async def execute(self, query: str, parameters: Iterable[Any] | None = None) -> str:
         """Insert a document into ``query`` collection; returns inserted_id."""
         db = await self.acquire()
-        doc = args[0] if args else {}
+        doc = parameters if parameters is not None else {}
         result = await db[query].insert_one(doc)
         return str(result.inserted_id)
 
-    async def fetch_all(self, query: str, *args: Any) -> list[Any]:
+    async def fetch_all(self, query: str, parameters: Iterable[Any] | None = None) -> list[Any]:
         """Fetch all documents from ``query`` collection matching optional filter."""
         db = await self.acquire()
-        filter_doc = args[0] if args else {}
+        filter_doc = parameters if parameters is not None else {}
         cursor = db[query].find(filter_doc)
         rows = await cursor.to_list(length=None)
         return [{k: v for k, v in doc.items() if k != "_id"} for doc in rows]
 
-    async def execute_many(self, query: str, args_seq: Iterable[Iterable[Any]]) -> None:
+    async def execute_many(self, query: str, parameter_seq: Iterable[Iterable[Any]]) -> None:
         """Bulk-insert documents into ``query`` collection."""
         db = await self.acquire()
-        docs = list(args_seq)
+        docs = list(parameter_seq)
         await db[query].insert_many(docs)
 
     async def _ensure_client(self) -> Any:

@@ -97,10 +97,17 @@ class TestDelegation(unittest.IsolatedAsyncioTestCase):
         assert session.ran == [("MATCH (n) DETACH DELETE n", {})]
 
     async def test_execute_rejects_too_many_positional_args(self) -> None:
+        """Arity is enforced by the signature now, not by a hand-rolled guard.
+
+        ``execute`` used to take ``*args`` and raise ``ValueError`` when handed
+        more than one, because the interface it implements took ``*args`` too.
+        Both now take the single ``parameters`` iterable every other pool takes
+        (PIR-833), so a second positional is a plain ``TypeError``.
+        """
         fake = FakeNeo4jDriver()
         pool = Neo4jPool(Neo4jConfig(database="neo4j"), driver=fake)
-        with self.assertRaisesRegex(ValueError, "at most one"):
-            await pool.execute("QUERY", {"a": 1}, {"b": 2})
+        with self.assertRaises(TypeError):
+            await pool.execute("QUERY", {"a": 1}, {"b": 2})  # type: ignore[call-arg]
 
     async def test_fetch_all_returns_records_as_dicts(self) -> None:
         records = [{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}]

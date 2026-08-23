@@ -198,3 +198,40 @@ class TestKnotSubclassValidation(unittest.TestCase):
             class Bad(Knot):
                 async def process(self, x: int) -> int:
                     return x
+
+    def test_dynamic_process_signature_permits_args_on_that_class(self) -> None:
+        """An abstract mid-tree base may declare the gradual parameter form.
+
+        ``*args`` in a ``process`` declaration is a typing device that keeps a
+        type checker from flagging every concrete knot's named inputs as an
+        incompatible override (PIR-833). A base that opts in gets it; nothing
+        about how the engine calls ``process`` changes.
+        """
+
+        class GradualBase(Knot):
+            _dynamic_process_signature = True
+
+            async def process(self, *args: Any, **kwargs: Any) -> int:
+                raise NotImplementedError
+
+        self.assertTrue(GradualBase._dynamic_process_signature)
+
+    def test_dynamic_process_signature_is_not_inherited(self) -> None:
+        """The opt-in is read from the class itself, never from the MRO.
+
+        Otherwise one opted-in base would silently license ``*args`` in every
+        concrete knot beneath it — exactly the author error the guard exists
+        to catch.
+        """
+
+        class GradualBase(Knot):
+            _dynamic_process_signature = True
+
+            async def process(self, *args: Any, **kwargs: Any) -> int:
+                raise NotImplementedError
+
+        with self.assertRaisesRegex(TypeError, "may not declare \\*args"):
+
+            class Concrete(GradualBase):
+                async def process(self, *args: Any, **_: Any) -> int:
+                    return 1
