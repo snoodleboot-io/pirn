@@ -52,7 +52,13 @@ dependencies = [
     "numpy>=2.4.4",
     "pydantic>=2.0",
     "pyyaml>=6.0",
-    "sweet-tea>=0.2.46",
+    # >=0.2.65 for SWE-6: Registry.register used to de-duplicate with
+    # `new_entry not in cls.__registry`, a linear scan of a list of pydantic
+    # models, so filling the registry was quadratic in its (process-wide) size.
+    # That was ~89% of `import pirn_agents` and ~4.8s of a full-workspace
+    # import. 0.2.65 indexes the dedupe; see PIR-780 and the guard in
+    # pirn-agents/tests/test_import_cost.py.
+    "sweet-tea>=0.2.65",
 ]
 
 [project.scripts]
