@@ -23,19 +23,31 @@ A manifest would therefore buy back ~0.14 s of a ~2.2 s import while adding a
 build step and a staleness risk; making the duplicate check O(1) upstream buys
 ~1.40 s and changes no design. The numbers are on PIR-780.
 
+That upstream fix landed: sweet_tea 0.2.65 (SWE-6) indexes the dedupe instead
+of scanning, and pirn-core now requires it. Measured on the same machine after
+the bump::
+
+    import pirn_agents ....................  2927 ms -> 836 ms
+    import all seven domain packages ......  8450 ms -> 3519 ms
+    Entry comparisons on a bare import ....  603 351 -> 0
+
+So this module no longer bounds a known-quadratic cost; it pins the fix. The
+comparison ceiling below is now a *linear* bound, which is what distinguishes
+"the dedupe is indexed" from "the dedupe went back to scanning".
+
 What this module guards, in consequence, is the *inputs* to that cost, all
 measured structurally rather than on the clock (the benchmark suite is excluded
 from the default gate precisely because wall-clock assertions are unreliable on
 a loaded machine — see PIR-810/PIR-777):
 
 * how many modules the eager fill imports,
-* how many entries it registers — the term that gets squared,
-* how many ``Entry`` comparisons the import performs in total.
+* how many entries it registers — the term that used to get squared, and still
+  drives the module walk,
+* how many ``Entry`` comparisons the import performs in total, which must now
+  stay linear in the entry count rather than quadratic.
 
 The bounds are ceilings with headroom, not exact pins: they exist to catch a
-step change, not to be rewritten every time a knot is added. If a fix lands in
-``sweet_tea`` the comparison count collapses toward zero and the ceiling still
-holds, so this test does not have to be touched to accept the improvement.
+step change, not to be rewritten every time a knot is added.
 
 Distinct from ``test_import_dependency_closure``, which asserts *what* a bare
 import may load. This asserts *how much*.
@@ -57,14 +69,14 @@ _MAX_PIRN_AGENTS_MODULES = 975
 _MAX_SPECIALIZATION_MODULES = 340
 _MAX_REGISTRY_ENTRIES = 1375
 
-# n^2/2 at the entry ceiling, so the two bounds bind at the same point rather
-# than one firing first and masking the other. Stated as its own number rather
-# than computed, because the relationship is sweet_tea's implementation detail:
-# if sweet_tea makes the duplicate check O(1) the count collapses and this
-# ceiling still holds, which is the point. It also catches a second filler —
-# re-running fill_registry over an already-filled registry roughly doubles the
-# comparisons without adding a single entry.
-_MAX_ENTRY_COMPARISONS = 950_000
+# Linear in the entry ceiling, not quadratic. sweet_tea >= 0.2.65 keys the
+# duplicate check off a set, so a bare import performs *zero* Entry comparisons;
+# the allowance exists only so an incidental comparison elsewhere does not fail
+# the suite. Anything approaching n^2/2 (~945 000 at the entry ceiling) means the
+# scan is back, whether by a sweet_tea regression or by an environment resolving
+# an older release than pirn-core's floor. It also still catches a second filler:
+# re-running fill_registry over an already-filled registry re-checks every entry.
+_MAX_ENTRY_COMPARISONS = 2 * _MAX_REGISTRY_ENTRIES
 
 # Sanity floors. A probe that observed nothing would make every ceiling above
 # vacuous, and that failure mode is silent.
@@ -167,9 +179,12 @@ class TestImportCost(unittest.TestCase):
         comparisons = self.measured["comparisons"]
         assert comparisons <= _MAX_ENTRY_COMPARISONS, (
             f"filling the registry now performs {comparisons} Entry comparisons, over "
-            f"the {_MAX_ENTRY_COMPARISONS} ceiling. sweet_tea's Registry.register "
-            f"checks for duplicates with `new_entry not in cls.__registry` — a linear "
-            f"scan of pydantic models — so this is n^2/2 in the registry size and is "
-            f"~89 % of the import cost (PIR-780). If it grew, either the tree gained "
-            f"entries or something started re-filling the registry."
+            f"the {_MAX_ENTRY_COMPARISONS} ceiling — which is linear in the entry "
+            f"count, so this says the duplicate check is no longer indexed. "
+            f"sweet_tea < 0.2.65 checked for duplicates with `new_entry not in "
+            f"cls.__registry`, a linear scan of pydantic models, making this n^2/2 in "
+            f"the registry size and ~89 % of the import cost (SWE-6 / PIR-780). Check "
+            f"that the resolved sweet_tea meets pirn-core's floor before assuming the "
+            f"tree grew, and note that re-filling an already-filled registry also "
+            f"re-checks every entry."
         )
