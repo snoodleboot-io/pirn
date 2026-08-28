@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
@@ -246,3 +249,76 @@ async def test_history_query_by_knot_id():
 
     matches = await t.history.query_lineage_by_knot_id("d")
     assert len(matches) == 2
+
+
+# ------------------------------------------------ literal args in lineage (PIR-836)
+
+
+class Scale(Knot):
+    """A knot whose multiplier is a literal constructor argument."""
+
+    def __init__(self, *, x: Knot, factor: int, _config: KnotConfig, **kwargs: Any) -> None:
+        super().__init__(x=x, factor=factor, _config=_config, **kwargs)
+
+    async def process(self, x: int, factor: int, **_: Any) -> int:
+        return x * factor
+
+
+async def _scale_lineage(factor: int):
+    with Tapestry() as t:
+        p = Parameter("x", int, default=3)
+        Scale(x=p, factor=factor, _config=KnotConfig(id="scale"))
+    result = await t.run(RunRequest())
+    return next(rec for rec in result.lineage if rec.knot_id == "scale")
+
+
+async def test_literal_arguments_are_visible_in_lineage():
+    """`Scale(factor=2)` and `Scale(factor=5)` must be distinguishable (PIR-836).
+
+    A literal constructor argument reaches `process()` as an input, but was
+    covered by no lineage hash: `knot_config_hash` describes `KnotConfig`, and
+    `parent_input_hashes` describes only values arriving from a parent. The two
+    invocations below therefore recorded byte-identical `knot_config_hash`,
+    `parent_input_hashes` and `source_hash` while computing 6 and 15 — so
+    "has this knot's configuration changed?" answered "no" when it had.
+    """
+    two = await _scale_lineage(2)
+    five = await _scale_lineage(5)
+
+    # The fields that used to be — and remain — identical.
+    assert two.knot_config_hash == five.knot_config_hash
+    assert two.parent_input_hashes == five.parent_input_hashes
+    assert two.source_hash == five.source_hash
+
+    # The field that now tells them apart.
+    assert two.config_values_hash is not None
+    assert two.config_values_hash != five.config_values_hash
+
+    # And the outputs really did differ, so this is not a distinction without one.
+    assert two.output_hash != five.output_hash
+
+
+async def test_knots_without_literal_arguments_record_no_config_values_hash():
+    # `None` keeps the common row unchanged, and two such knots still match.
+    with Tapestry() as t:
+        p = Parameter("x", int, default=3)
+        double(x=p, _config=KnotConfig(id="d"))
+    result = await t.run(RunRequest())
+
+    row = next(rec for rec in result.lineage if rec.knot_id == "d")
+    assert row.config_values_hash is None
+
+
+async def test_config_values_hash_survives_a_history_round_trip():
+    # The persistent backends store the whole model as a JSON payload, so the
+    # new field must come back rather than being dropped to its default.
+    with Tapestry() as t:
+        p = Parameter("x", int, default=3)
+        Scale(x=p, factor=7, _config=KnotConfig(id="scale"))
+    result = await t.run(RunRequest())
+    written = next(rec for rec in result.lineage if rec.knot_id == "scale")
+
+    reloaded = await t.history.get_run(result.run_id)
+    row = next(rec for rec in reloaded.lineage if rec.knot_id == "scale")
+    assert row.config_values_hash == written.config_values_hash
+    assert row.config_values_hash is not None

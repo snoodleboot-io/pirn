@@ -62,6 +62,11 @@ class KnotLineage(BaseModel):
         extra: Free-form metadata added by the framework or the knot itself,
             e.g. element index for knots inside a ``Map`` body, or the branch
             arm chosen by a ``Branch`` knot.
+        config_values_hash: Content hash of the knot's *literal* constructor
+            arguments — every non-``Knot`` value passed at construction, which
+            ``Knot.__call__`` merges into the ``process()`` kwargs.  ``None``
+            when the knot has none.  See the field for why it is separate from
+            ``knot_config_hash``.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -118,6 +123,35 @@ class KnotLineage(BaseModel):
     # Free-form metadata, e.g. element index for knots inside a Map body,
     # branch name chosen for Branch outputs, etc.
     extra: dict[str, Any] = Field(default_factory=dict)
+
+    # Literal constructor arguments (PIR-836).
+    #
+    # `Scale(x=parent, factor=2)` keeps `factor` in `Knot.config_values`, and
+    # `Knot.__call__` merges it into the `process()` kwargs — so it is an input
+    # in every sense that matters, yet it was covered by no lineage hash:
+    # `knot_config_hash` covers `KnotConfig` (framework settings), and
+    # `parent_input_hashes` covers only values that arrived from a parent.
+    # `Scale(factor=2)` and `Scale(factor=5)` therefore recorded byte-identical
+    # `knot_config_hash`, `parent_input_hashes` AND `source_hash` while
+    # computing different answers, so "has this knot's configuration changed
+    # since the last run?" answered "no" for any knot with a literal argument.
+    #
+    # Deliberately its own field rather than folded into `knot_config_hash` or
+    # `parent_input_hashes`: both are published cross-run join keys, and
+    # widening what they cover would silently change the meaning of every
+    # stored row. Keeping it separate also preserves the distinction between
+    # "this value came from upstream knot X" and "this constant was baked in".
+    #
+    # Caveat, by design rather than oversight: the hash is only as comparable
+    # as `content_hash` can make the literals. A `PirnOpaqueValue` (an LLM
+    # provider, a tool, a connection pool) is identity-keyed, so the same
+    # logical object hashes differently in a different process; a fully opaque
+    # object with no pydantic schema collapses to `sha256:unhashable:<Type>`,
+    # which is EQUAL for two different instances. Consumers that compare this
+    # field for identity of computation — `ReplaySession` is the one in tree —
+    # must treat an `unhashable` marker as "not comparable" rather than as a
+    # match. See `InvocationIdentity`.
+    config_values_hash: str | None = None
 
     # Content-addressed reference to the knot's source code snapshot.
     # None when source was unavailable at capture time (compiled extensions,
