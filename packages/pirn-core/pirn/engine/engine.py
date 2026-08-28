@@ -738,13 +738,10 @@ class Engine:
 
         # Literal constructor arguments reach process() as inputs but are
         # covered by neither ``knot_config_hash`` nor ``parent_input_hashes``.
-        # Record their hash so replay can tell ``Scale(x=p, factor=3)`` from
+        # Record their hash so a reader can tell ``Scale(x=p, factor=3)`` from
         # ``Scale(x=p, factor=5)``, which are otherwise byte-identical in
-        # lineage.  Omitted entirely when the knot has no literal inputs, so
-        # the common row is unchanged.
+        # lineage (PIR-836).  ``None`` when the knot has no literal inputs.
         config_values_hash = InvocationIdentity.config_values_hash(knot)
-        if config_values_hash is not None:
-            extra["config_values_hash"] = config_values_hash
 
         if replayed_from is not None:
             extra["replayed_from_run_id"] = replayed_from
@@ -754,6 +751,7 @@ class Engine:
             knot_id=knot.knot_id,
             knot_class=f"{type(knot).__module__}.{type(knot).__qualname__}",
             knot_config_hash=cfg_hash,
+            config_values_hash=config_values_hash,
             parent_input_hashes=parent_hashes,
             output_hash=output_hash,
             outcome=outcome,
