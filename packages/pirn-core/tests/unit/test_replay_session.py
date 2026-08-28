@@ -52,6 +52,7 @@ def _row(
     config_hash: str = "sha256:cfg",
     parent_input_hashes: dict[str, str] | None = None,
     extra: dict[str, Any] | None = None,
+    config_values_hash: str | None = None,
     error_record_id: str | None = None,
     skip_reason: str | None = None,
 ) -> KnotLineage:
@@ -60,6 +61,7 @@ def _row(
         knot_id=knot_id,
         knot_class="tests.Leaf",
         knot_config_hash=config_hash,
+        config_values_hash=config_values_hash,
         parent_input_hashes=parent_input_hashes or {},
         output_hash=output_hash,
         outcome=outcome,
@@ -297,3 +299,83 @@ def test_row_for_returns_none_for_an_unrecorded_knot() -> None:
     # Act / Assert
     assert session.row_for("leaf") is not None
     assert session.row_for("absent") is None
+
+
+# ---------------------------------------------------------------- PIR-836
+
+
+class WithOpaqueLiteral(Knot):
+    """A knot whose literal argument has no canonical content hash.
+
+    A bare object declares no pydantic schema and no ``__pirn_canonical__``, so
+    ``content_hash`` cannot canonicalise it and emits an ``unhashable`` marker
+    naming only the type — a value every instance of that type shares.
+    """
+
+    def __init__(self, resource: Any, **kwargs: Any) -> None:
+        super().__init__(resource=resource, **kwargs)
+
+    async def process(self, resource: Any, **_: Any) -> int:
+        return 1
+
+
+class _BareResource:
+    """No pydantic schema, no canonical hook — deliberately opaque."""
+
+
+def test_uncomparable_literals_are_not_mistaken_for_a_match() -> None:
+    """Two *different* opaque literals hash alike, so equality proves nothing.
+
+    This is the failure mode that makes ``is_comparable`` necessary: an
+    identity-keyed ``PirnOpaqueValue`` produces a false *mismatch* (safe —
+    replay refuses), but a fully opaque object collapses to
+    ``sha256:unhashable:<Type>`` and produces a false *match*, which would
+    serve a recorded output for a knot configured with a different object.
+    """
+    # Arrange
+    one = WithOpaqueLiteral(resource=_BareResource(), _config=KnotConfig(id="r"))
+    other = WithOpaqueLiteral(resource=_BareResource(), _config=KnotConfig(id="r"))
+
+    # Act
+    hash_one = InvocationIdentity.config_values_hash(one)
+    hash_other = InvocationIdentity.config_values_hash(other)
+
+    # Assert — equal despite describing different objects, hence uncomparable.
+    assert hash_one == hash_other
+    assert not InvocationIdentity.is_comparable(hash_one)
+
+
+def test_hashable_literals_are_comparable() -> None:
+    # Arrange
+    knot = WithLiterals(factor=2, _config=KnotConfig(id="scale"))
+
+    # Act
+    digest = InvocationIdentity.config_values_hash(knot)
+
+    # Assert
+    assert InvocationIdentity.is_comparable(digest)
+
+
+def test_absent_literals_are_comparable() -> None:
+    # Two knots that both have no literals genuinely agree.
+    assert InvocationIdentity.is_comparable(None)
+
+
+async def test_replay_refuses_a_knot_whose_literals_cannot_be_compared() -> None:
+    """Fail loud rather than serve a value the recording cannot vouch for."""
+    # Arrange — the recorded row agrees with this run on every hash, including
+    # the uncomparable one, so the equality check alone would let it through.
+    knot = WithOpaqueLiteral(resource=_BareResource(), _config=KnotConfig(id="r"))
+    recorded = InvocationIdentity.config_values_hash(knot)
+    session = ReplaySession(
+        source_run=_run([_row(knot_id="r", output_hash=None, config_values_hash=recorded)])
+    )
+
+    # Act / Assert
+    with pytest.raises(ReplayMismatchError, match="no canonical content hash"):
+        await session.resolve(
+            knot=knot,
+            knot_config_hash="sha256:cfg",
+            parent_input_hashes={},
+            data_store=InMemoryDataStore(),
+        )

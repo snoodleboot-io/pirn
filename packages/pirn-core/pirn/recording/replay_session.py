@@ -215,7 +215,7 @@ class ReplaySession:
                     f"({row.knot_config_hash!r} -> {knot_config_hash!r})"
                 ),
             )
-        recorded_literals = row.extra.get("config_values_hash")
+        recorded_literals = row.config_values_hash
         current_literals = InvocationIdentity.config_values_hash(knot)
         if recorded_literals != current_literals:
             raise ReplayMismatchError(
@@ -224,6 +224,24 @@ class ReplaySession:
                 reason=(
                     f"the knot's literal constructor arguments changed since the "
                     f"recording ({recorded_literals!r} -> {current_literals!r})"
+                ),
+            )
+        # Equality is not enough. A literal with no canonical form hashes to
+        # ``sha256:unhashable:<Type>``, which every instance of that type
+        # shares — so two knots holding *different* objects compare equal here
+        # and a stale recorded output would be served with no signal (PIR-836).
+        # Refuse instead, consistent with the rest of this class: replay fails
+        # loudly rather than substituting a value it cannot vouch for.
+        if not InvocationIdentity.is_comparable(current_literals):
+            raise ReplayMismatchError(
+                knot_id=knot.knot_id,
+                source_run_id=self._source_run_id,
+                reason=(
+                    f"the knot has a literal constructor argument with no canonical "
+                    f"content hash ({current_literals!r}), so the recording cannot be "
+                    f"shown to describe this invocation — every instance of that type "
+                    f"hashes alike. Pass the value from a parent knot, give its type a "
+                    f"`__pirn_canonical__`, or run without replay"
                 ),
             )
 
