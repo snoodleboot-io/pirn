@@ -122,13 +122,15 @@ class _IterationChainKnot(Knot):
             Updated state value produced by folding this iteration's RunResult.
         """
         from pirn.core.run_request import RunRequest
-        from pirn.nodes.sub_tapestry import _inherited_emitters
+        from pirn.nodes.sub_tapestry import _apply_inherited_value_plane, _inherited_emitters
         from pirn.tapestry import (
+            _current_data_store,
             _current_emitter_error_policy,
             _current_emitters,
             _current_history,
             _current_run_id,
             _current_traceback_filter,
+            _current_transport,
         )
 
         loop: LoopSubTapestry = object.__getattribute__(self, "_mutable_loop_sub")  # type: ignore[type-arg]
@@ -151,6 +153,21 @@ class _IterationChainKnot(Knot):
             # `retention` capability and keeps a bounded window. Recording is
             # bounded rather than absent. See PIR-765.
             iter_tapestry._history = outer_history
+
+        # The value plane is inherited from the contextvars alone, with no
+        # construction-time capture, for the same reason as emitters below: the
+        # vars are set by the loop's own inner run, which
+        # ``SubTapestry._run_inner`` already seeded from the outer run, so they
+        # are correct at every nesting depth.  Without this an iteration's
+        # outputs go to a fresh ``InMemoryDataStore`` that dies with the
+        # iteration, while its lineage rows are recorded in the outer history
+        # and keep naming hashes nobody can resolve (PIR-837).  An iteration
+        # tapestry that named its own transport in ``step()`` keeps it.
+        _apply_inherited_value_plane(
+            iter_tapestry,
+            data_store=_current_data_store.get(None),
+            transport=_current_transport.get(None),
+        )
 
         # Emitters are inherited from the contextvar alone, with no
         # construction-time capture to fall back on.  The var is set by the

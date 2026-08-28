@@ -66,6 +66,28 @@ _current_emitter_error_policy: ContextVar[Any] = ContextVar(
     "pirn_current_emitter_error_policy", default=None
 )
 
+#: The data store the enclosing run is writing knot outputs into.  Inner runs
+#: read this so a value produced inside a ``SubTapestry`` body lands in the same
+#: store as the lineage row that references it.  History was already forwarded
+#: to inner runs and the data store was not, so an inner ``KnotLineage`` row
+#: recorded an ``output_hash`` that resolved against nothing: the record's
+#: lineage half was durable and its value half was written to a throwaway
+#: ``InMemoryDataStore`` discarded when the inner run ended.  See PIR-837.
+#:
+#: ``None`` means "no enclosing run"; the construction-time capture is then the
+#: right answer.  Unlike ``_current_emitters`` there is no empty-but-meaningful
+#: value to distinguish — a run always has exactly one data store.
+_current_data_store: ContextVar[Any] = ContextVar("pirn_current_data_store", default=None)
+
+#: The transport the enclosing run is moving values over.  Inner runs read this
+#: so a pipeline configured with a disk- or object-store-backed transport keeps
+#: that transport inside a ``SubTapestry`` body instead of silently dropping
+#: back to ``InlineTransport`` — which would defeat the memory-pressure reason
+#: the transport was chosen for, precisely where the bulk of the work often
+#: lives.  Unlike the data store this yields to an inner tapestry that chose its
+#: own transport; see ``_apply_inherited_value_plane``.  See PIR-837.
+_current_transport: ContextVar[Any] = ContextVar("pirn_current_transport", default=None)
+
 #: The traceback filter the enclosing run is using.  Inner runs read this so a
 #: filter set once at the top covers the whole tree — without it, an exception
 #: raised inside a SubTapestry is redacted in the outer record but stored
@@ -156,6 +178,15 @@ class Tapestry:
         )
         self._traceback_filter: Callable[[str], str] | None = traceback_filter
         self._transport: DataTransport = transport or InlineTransport()
+        # Whether the caller named this tapestry's transport or took the
+        # default.  An inner run inherits the enclosing run's transport, but
+        # must not overwrite one this tapestry was explicitly given — a
+        # ``LoopSubTapestry`` iteration built as ``Tapestry(transport=...)``
+        # inside ``step()`` chose that transport for a reason.  The default
+        # ``InlineTransport`` cannot be recognised by type: an outer run may
+        # legitimately be inline too, and a concrete-type check would also
+        # clobber an explicitly-passed ``InlineTransport``.  See PIR-837.
+        self._transport_explicit: bool = transport is not None
         self._identity_resolver = identity_resolver or ChainedIdentityResolver(
             [EnvIdentityResolver(), OsIdentityResolver()]
         )
@@ -316,6 +347,11 @@ class Tapestry:
         token_run_id = _current_run_id.set(request.run_id)
         token_store = _current_store.set(self._store if extensible else None)
         token_history = _current_history.set(self._history)
+        # The value plane travels with the history: the store holds the value a
+        # lineage row's output_hash names, so publishing one without the other
+        # is what left inner rows pointing at nothing (PIR-837).
+        token_data_store = _current_data_store.set(self._data_store)
+        token_transport = _current_transport.set(self._transport)
         token_filter = _current_traceback_filter.set(active_filter)
         # Publish this run's emitter subscription so nested runs inherit it, the
         # same way they already inherit history and the traceback filter.
@@ -341,6 +377,8 @@ class Tapestry:
             _current_run_id.reset(token_run_id)
             _current_store.reset(token_store)
             _current_history.reset(token_history)
+            _current_data_store.reset(token_data_store)
+            _current_transport.reset(token_transport)
             _current_traceback_filter.reset(token_filter)
             _current_emitters.reset(token_emitters)
             _current_emitter_error_policy.reset(token_emitter_policy)
