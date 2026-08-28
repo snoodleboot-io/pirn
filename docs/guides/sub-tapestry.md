@@ -264,6 +264,10 @@ The outer tapestry's history backend is captured at construction time and automa
 
 If the `SubTapestry` is constructed outside a `with Tapestry():` block (e.g. dynamically mid-run), it falls back to the `_current_history` context var set by the enclosing `tapestry.run()` call.
 
+The outer tapestry's **data store** travels with its history, so the `output_hash` on an inner knot's lineage row resolves against the same store as an outer knot's. It used to be left behind: the inner tapestry kept the fresh `InMemoryDataStore` it was constructed with, that store was discarded when the inner run ended, and every inner lineage row became a dangling reference — durable lineage pointing at values nobody could fetch (PIR-837). An inner tapestry does not get to keep a data store of its own, because a row recorded in the outer history and a value written somewhere else is exactly that defect.
+
+The outer **transport** is inherited too, so a pipeline configured with `Tapestry(transport=FilesystemTransport(...))` keeps that transport inside a `SubTapestry` body rather than silently dropping back to `InlineTransport` where the bulk of its data often moves. Sharing one transport instance is safe: every `DataTransport` call is keyed by `run_id`, and the inner run has its own, so `begin_run`/`end_run` allocate and release inner-run resources without touching the outer run's. Unlike the data store, a transport is intra-run plumbing that no durable record references — so a `LoopSubTapestry` iteration whose `step()` built `Tapestry(transport=...)` keeps the transport it named.
+
 ---
 
 ## 9. Common mistakes
