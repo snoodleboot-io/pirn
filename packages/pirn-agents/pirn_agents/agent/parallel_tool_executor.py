@@ -39,8 +39,9 @@ import asyncio
 import logging
 import time
 from collections.abc import Awaitable, Callable, Sequence
-from typing import Any
+from typing import Any, ClassVar
 
+from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.managers.exception_record import ExceptionRecord
@@ -84,6 +85,30 @@ class ParallelToolExecutor(AsyncFanoutEngine[ToolResult], Knot):
     raises is caught and logged rather than propagated, so a misbehaving hook
     cannot abort the batch.
     """
+
+    # A tool's exception message routinely carries whatever it was talking to,
+    # including a DSN. The single-call ``ToolExecutor`` has always scrubbed;
+    # this batch path did not, so it wrote live credentials into
+    # ``ToolResult.error`` AND into the ``ExceptionRecord`` that persists to
+    # lineage/history. ``ExceptionRecord`` carries the message twice — in
+    # ``message`` and again inside ``traceback_text`` — so both are scrubbed
+    # (PIR-733).
+    _scrubber: ClassVar[DsnScrubber] = DsnScrubber()
+
+    @classmethod
+    def _scrubbed_record(cls, tool_name: str, exc: BaseException) -> ExceptionRecord:
+        """Return an :class:`ExceptionRecord` with credential markers removed.
+
+        Copies the frozen record rather than reconstructing the exception, which
+        would fail for any exception whose constructor takes more than a message.
+        """
+        raw = ExceptionRecord.for_knot(tool_name, exc)
+        return raw.model_copy(
+            update={
+                "message": cls._scrubber.scrub(raw.message),
+                "traceback_text": cls._scrubber.scrub(raw.traceback_text),
+            }
+        )
 
     def __init__(
         self,
@@ -239,7 +264,7 @@ class ParallelToolExecutor(AsyncFanoutEngine[ToolResult], Knot):
                 result=None,
                 status=ToolStatus.ERROR,
                 error=str(not_found),
-                exception=ExceptionRecord.for_knot(call.tool_name, not_found),
+                exception=type(self)._scrubbed_record(call.tool_name, not_found),
                 latency=time.perf_counter() - start,
             )
         # Precomputed under the guard so the on_timeout builder (which fires only
@@ -267,7 +292,7 @@ class ParallelToolExecutor(AsyncFanoutEngine[ToolResult], Knot):
                 result=None,
                 status=ToolStatus.TIMEOUT,
                 error=str(timeout_error),
-                exception=ExceptionRecord.for_knot(call.tool_name, exc),
+                exception=type(self)._scrubbed_record(call.tool_name, exc),
                 latency=time.perf_counter() - start,
             ),
             # ``error`` is left to derive from the record, so the message and the
@@ -276,7 +301,7 @@ class ParallelToolExecutor(AsyncFanoutEngine[ToolResult], Knot):
                 call_id=call.call_id,
                 result=None,
                 status=ToolStatus.ERROR,
-                exception=ExceptionRecord.for_knot(call.tool_name, exc),
+                exception=type(self)._scrubbed_record(call.tool_name, exc),
                 latency=time.perf_counter() - start,
             ),
         )
