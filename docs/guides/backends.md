@@ -14,7 +14,7 @@ pirn splits persistence into three independent roles. Pick the right implementat
 
 | Backend | TapestryStore | RunHistory | DataStore | Subscribable | Notes |
 |---------|:---:|:---:|:---:|:---:|-------|
-| `InMemoryStore / InMemoryHistory / InMemoryDataStore` | Y | Y | Y | Y | Default. Single-process; lost on exit. Thread-safe via locks. |
+| `InMemoryStore / InMemoryHistory / InMemoryDataStore` | Y | Y | Y | Y | Default. Single-process; lost on exit. Thread-safe via locks. History and values are bounded — see `retention` below. |
 | `SQLiteStore / SQLiteHistory` | Y | Y | — | N | Single-host durable. WAL mode recommended. |
 | `PostgresStore / PostgresHistory` | Y | Y | — | Y | OLTP. Async via `asyncpg`. Connection pooling required. Subscribable via LISTEN/NOTIFY. |
 | `DuckDBHistory` | — | Y | — | N | OLAP queries on lineage. Best as a read-path target. |
@@ -123,7 +123,26 @@ Requires `pip install pirn[postgres]`. Multi-host writes, transactional, replica
 
 ### InMemoryDataStore (default)
 
-No eviction. Suitable for short-lived pipelines and tests.
+Lost on process exit. Suitable for short-lived pipelines and tests.
+
+Being ephemeral, it keeps a **bounded** working set: past `max_values` (default 10,000) the least recently used value is evicted. Reads refresh a value's recency, so a long-running loop's invariant inputs stay resident while genuinely idle values are dropped.
+
+```python
+from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
+
+t = Tapestry(data_store=InMemoryDataStore(max_values=500))
+```
+
+Every backend declares what it keeps through `DataStore.retention`, so a consumer asks the store rather than inferring from its class:
+
+```python
+t.data_store.retention.is_bounded   # True for InMemoryDataStore
+t.data_store.retention.max_values   # 10_000 by default; None means durable
+```
+
+An evicted value is gone the same way a scrubbed one is: `has()` returns `False` and `get()` raises. It raises `ValueEvictedError` (a `KeyError` subclass) rather than a bare `KeyError`, so "this store let it go" is distinguishable from "this was never here". A read never returns `None` in place of a value.
+
+This matters most for `LoopSubTapestry`, which is unbounded by design — a conversational loop produces a fresh set of values every turn, and since PIR-837 those land in the outer tapestry's store. Use a durable `DataStore` when those values must outlive the working set.
 
 ### LocalDiskDataStore
 

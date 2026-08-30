@@ -120,6 +120,18 @@ class DataStoreMemoryStore(MemoryStore):
             The stored mapping, or ``None``. The backend's ``KeyError`` for a
             missing hash is translated to ``None`` per the ``MemoryStore``
             contract.
+
+        Note:
+            That translation covers eviction too. A backend whose
+            ``retention`` declares a ``max_values`` ceiling — the default
+            ``InMemoryDataStore`` does, at 10,000 values — drops its least
+            recently used entries and raises ``ValueEvictedError``, which is a
+            ``KeyError``, so a long session silently reads ``None`` for memory
+            it wrote earlier. That is the ``MemoryStore`` contract working as
+            designed: a memory store reports absence, it does not promise
+            durability the way a lineage row does. Give a session whose memory
+            must survive a durable ``DataStore``, or raise the ceiling. See
+            PIR-839.
         """
         try:
             return await self._data_store.get(self.content_hash(key))

@@ -78,6 +78,21 @@ class TestKeyedSurface:
     async def test_forget_missing_is_noop(self, store: DataStoreMemoryStore) -> None:
         await store.forget("ghost")  # must not raise
 
+    async def test_an_evicted_entry_reads_as_absent(self) -> None:
+        # Arrange — a bounded backend drops its least recently used entries
+        # (PIR-839).  `ValueEvictedError` is a KeyError, so it lands in the
+        # same translation as any other absence.
+        adapter = DataStoreMemoryStore(data_store=InMemoryDataStore(max_values=2))
+        await adapter.store("k1", {"v": 1})
+        await adapter.store("k2", {"v": 2})
+        await adapter.store("k3", {"v": 3})
+
+        # Act / Assert — a MemoryStore reports absence rather than promising
+        # durability, so this is the contract working, not a leak.  A session
+        # whose memory must survive needs a durable DataStore.
+        assert await adapter.retrieve("k1") is None
+        assert await adapter.retrieve("k3") == {"v": 3}
+
     async def test_stores_a_snapshot_not_a_live_reference(
         self, store: DataStoreMemoryStore
     ) -> None:

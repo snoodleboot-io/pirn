@@ -20,6 +20,7 @@ from pirn.core.lineage import KnotLineage
 from pirn.core.ok import Ok
 from pirn.core.run_result import RunResult
 from pirn.core.skipped import Skipped
+from pirn.exceptions.data_integrity_error import DataIntegrityError
 from pirn.managers.exception_record import ExceptionRecord
 from pirn.recording.invocation_identity import InvocationIdentity
 from pirn.recording.replay_mismatch_error import ReplayMismatchError
@@ -272,6 +273,82 @@ async def test_resolve_reports_a_missing_value_separately_from_a_mismatch() -> N
             data_store=InMemoryDataStore(),
         )
     assert caught.value.output_hash == absent
+
+
+async def test_resolve_reports_an_evicted_value_as_unavailable() -> None:
+    # Arrange — the value was written, then dropped when the store hit its
+    # declared ceiling.  The lineage row is untouched and still names it.
+    knot = Leaf(_config=KnotConfig(id="leaf"))
+    config_hash = content_hash(knot.config.model_dump(mode="json"))
+    recorded = content_hash(1234)
+    data_store = InMemoryDataStore(max_values=1)
+    await data_store.put(recorded, 1234)
+    await data_store.put(content_hash("something else"), "something else")
+    session = ReplaySession(
+        source_run=_run([_row(knot_id="leaf", output_hash=recorded, config_hash=config_hash)])
+    )
+
+    # Act / Assert — never a wrong answer, and never a re-execution.
+    with pytest.raises(ReplayValueUnavailableError) as caught:
+        await session.resolve(
+            knot=knot,
+            knot_config_hash=config_hash,
+            parent_input_hashes={},
+            data_store=data_store,
+        )
+    assert caught.value.output_hash == recorded
+    assert "evicted" in str(caught.value)
+
+
+async def test_resolve_does_not_leak_a_bare_key_error_from_the_store() -> None:
+    # Arrange — a store that evicts between `has()` and `get()` used to leak a
+    # KeyError past this method's documented contract.  Reading once closes
+    # the window; this pins the resulting type.
+    knot = Leaf(_config=KnotConfig(id="leaf"))
+    config_hash = content_hash(knot.config.model_dump(mode="json"))
+    recorded = content_hash(1234)
+
+    class _VanishingStore(InMemoryDataStore):
+        async def has(self, content_hash: str) -> bool:
+            return True
+
+    session = ReplaySession(
+        source_run=_run([_row(knot_id="leaf", output_hash=recorded, config_hash=config_hash)])
+    )
+
+    # Act / Assert
+    with pytest.raises(ReplayValueUnavailableError):
+        await session.resolve(
+            knot=knot,
+            knot_config_hash=config_hash,
+            parent_input_hashes={},
+            data_store=_VanishingStore(),
+        )
+
+
+async def test_resolve_does_not_launder_an_integrity_failure_into_a_missing_value() -> None:
+    # Arrange — a store whose bytes failed their signature check is a
+    # different failure and must surface as itself.
+    knot = Leaf(_config=KnotConfig(id="leaf"))
+    config_hash = content_hash(knot.config.model_dump(mode="json"))
+    recorded = content_hash(1234)
+
+    class _TamperedStore(InMemoryDataStore):
+        async def get(self, content_hash: str) -> Any:
+            raise DataIntegrityError("signature mismatch")
+
+    session = ReplaySession(
+        source_run=_run([_row(knot_id="leaf", output_hash=recorded, config_hash=config_hash)])
+    )
+
+    # Act / Assert
+    with pytest.raises(DataIntegrityError):
+        await session.resolve(
+            knot=knot,
+            knot_config_hash=config_hash,
+            parent_input_hashes={},
+            data_store=_TamperedStore(),
+        )
 
 
 def test_verify_executed_accepts_a_matching_output_hash() -> None:

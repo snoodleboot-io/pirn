@@ -36,7 +36,9 @@ class ReplaySession:
     three-way record/replay/passthrough posture that hand-rolled cassettes
     need collapses, in core, to "replay or not".  What is not automatic is
     *durability*: the default ``InMemoryDataStore`` discards the recording
-    with the process, so a recording meant to outlive the run needs a durable
+    with the process, and evicts within it once its declared ``retention``
+    ceiling is reached (PIR-839), so a recording meant to outlive the run —
+    or a long run whose early values must stay replayable — needs a durable
     ``data_store=`` on the ``Tapestry``.
 
     Identity and matching
@@ -159,7 +161,8 @@ class ReplaySession:
             ReplayMismatchError: If the recording does not describe this
                 invocation.
             ReplayValueUnavailableError: If it does, but the value is no
-                longer in *data_store*.
+                longer in *data_store* — scrubbed past its TTL, or evicted by
+                a store whose ``retention`` declares a ceiling.
         """
         knot_id = knot.knot_id
         row = self._require_row(knot_id)
@@ -181,13 +184,27 @@ class ReplaySession:
                     "so there is nothing to serve"
                 ),
             )
-        if not await data_store.has(output_hash):
+        # Read straight through rather than probing with `has()` first.  A
+        # bounded store evicts on other knots' writes (PIR-839), so a
+        # has-then-get pair has a real window in which the value disappears
+        # between the two calls and the `get` raises a bare `KeyError` past
+        # this method's documented contract.  Reading once closes the window,
+        # and the store's own `KeyError` message is the best account of *why*
+        # the value is gone — an evicted value says so, where `has()` returning
+        # `False` cannot tell eviction from a hash that was never written.
+        # Only `KeyError` is caught: a `DataIntegrityError` from a store whose
+        # bytes failed their signature check is a different failure and must
+        # not be laundered into "the value is missing".
+        try:
+            value = await data_store.get(output_hash)
+        except KeyError as absent:
             raise ReplayValueUnavailableError(
                 knot_id=knot_id,
                 source_run_id=self._source_run_id,
                 output_hash=output_hash,
-            )
-        return Ok(value=await data_store.get(output_hash))
+                detail=str(absent) if str(absent) != repr(output_hash) else None,
+            ) from absent
+        return Ok(value=value)
 
     # ------------------------------------------------------------- internals
 

@@ -15,6 +15,7 @@ import pytest
 
 from pirn.backends.base.data_store import DataStore
 from pirn.backends.base.run_history import RunHistory
+from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
@@ -225,6 +226,30 @@ async def test_a_scrubbed_value_fails_loudly_rather_than_re_executing() -> None:
         await tapestry.run(RunRequest(parameters={"x": 7}), replay=session)
     assert caught.value.knot_id == "double"
     assert Doubler.invocations == [7]
+
+
+async def test_an_evicted_value_fails_loudly_rather_than_re_executing() -> None:
+    # Arrange — the store hit its declared retention ceiling and dropped the
+    # recorded output.  Lineage still names it (PIR-839).
+    data_store = InMemoryDataStore(max_values=4)
+    with Tapestry(data_store=data_store) as tapestry:
+        param = Parameter(name="x", type_=int)
+        Doubler(x=param, _config=KnotConfig(id="double"))
+    original = await tapestry.run(RunRequest(parameters={"x": 7}))
+    recorded_row = next(row for row in original.lineage if row.knot_id == "double")
+    assert recorded_row.output_hash is not None
+    for i in range(4):
+        await data_store.put(f"sha256:filler-{i}", i)
+    assert not await data_store.has(recorded_row.output_hash)
+    Doubler.invocations.clear()
+
+    # Act / Assert — replay must not quietly fall back to executing the knot.
+    session = await ReplaySession.from_history(history=tapestry.history, run_id=original.run_id)
+    with pytest.raises(ReplayValueUnavailableError) as caught:
+        await tapestry.run(RunRequest(parameters={"x": 7}), replay=session)
+    assert caught.value.knot_id == "double"
+    assert "evicted" in str(caught.value)
+    assert Doubler.invocations == []
 
 
 async def test_a_recorded_failure_replays_as_a_failure() -> None:
