@@ -14,7 +14,7 @@ pirn splits persistence into three independent roles. Pick the right implementat
 
 | Backend | TapestryStore | RunHistory | DataStore | Subscribable | Notes |
 |---------|:---:|:---:|:---:|:---:|-------|
-| `InMemoryStore / InMemoryHistory / InMemoryDataStore` | Y | Y | Y | Y | Default. Single-process; lost on exit. Thread-safe via locks. |
+| `InMemoryStore / InMemoryHistory / InMemoryDataStore` | Y | Y | Y | Y | Default. Single-process; lost on exit. Thread-safe via locks. History and values are bounded — see `retention` below. |
 | `SQLiteStore / SQLiteHistory` | Y | Y | — | N | Single-host durable. WAL mode recommended. |
 | `PostgresStore / PostgresHistory` | Y | Y | — | Y | OLTP. Async via `asyncpg`. Connection pooling required. Subscribable via LISTEN/NOTIFY. |
 | `DuckDBHistory` | — | Y | — | N | OLAP queries on lineage. Best as a read-path target. |
