@@ -19,26 +19,55 @@ References:
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any, ClassVar
+from typing import Any
 
-from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
+from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_invocation import ToolInvocation
 from pirn_agents.tools.tool_result import ToolResult
 
 
-class ToolExecutor(Knot):
+@knot
+async def _unknown_tool(call: ToolCall) -> ToolResult:
+    """Terminal for a call naming a tool that is not registered.
+
+    A knot rather than an early return because ``process`` now returns the sink
+    of an inner pipeline: both branches have to be nodes so both are recorded.
+    """
+    return ToolResult(
+        call_id=call.call_id,
+        result=None,
+        error=f"unknown tool {call.tool_name!r}",
+    )
+
+
+class ToolExecutor(SubTapestry):
     """Executes a :class:`ToolCall` against the matching :class:`Tool`.
 
-    Exceptions raised by :meth:`Tool.invoke` are caught and surfaced
-    as a :class:`ToolResult` whose ``error`` field is the stringified
-    exception, leaving the caller free to decide how to react.
-    """
+    The dispatch decision — which registered tool does this call name — stays
+    here; the invocation itself is delegated to a
+    :class:`~pirn_agents.tools.tool_invocation.ToolInvocation` returned as the
+    inner pipeline's sink, so the call runs *through the engine* and gets its
+    own ``Result`` and ``KnotLineage`` row instead of being awaited inline
+    (PIR-733).
 
-    _scrubber: ClassVar[DsnScrubber] = DsnScrubber()
+    That is why this is a :class:`~pirn.nodes.sub_tapestry.SubTapestry` rather
+    than a plain ``Knot``: a knot awaited from inside another knot's
+    ``process`` bypasses the engine, which is the very thing this ticket exists
+    to stop. Returning the sink is the sanctioned way to build a node whose body
+    is itself a graph.
+
+    Exceptions raised by :meth:`Tool.invoke` are still surfaced as a
+    :class:`ToolResult` with an ``error`` rather than propagating — that
+    contract is unchanged, and credential scrubbing now happens inside
+    ``ToolInvocation`` so the batch and single-call paths cannot drift apart
+    again.
+    """
 
     def __init__(
         self,
@@ -60,15 +89,19 @@ class ToolExecutor(Knot):
         call: ToolCall,
         tools: Sequence[Tool],
         **_: Any,
-    ) -> ToolResult:
-        """Dispatch a ToolCall to the matching tool and return the result or a captured error.
+    ) -> Knot:
+        """Resolve ``call`` to a tool and return the invocation knot that runs it.
 
         Args:
             call: The tool call specifying the tool name, arguments, and call ID.
             tools: The registered tools available for dispatch.
 
         Returns:
-            A ToolResult with the invocation result or a stringified error if invocation failed.
+            The sink of the inner pipeline: a
+            :class:`~pirn_agents.tools.tool_invocation.ToolInvocation` for a
+            matched tool, or an ``unknown-tool`` terminal otherwise. Its output —
+            a :class:`ToolResult` — becomes this knot's output, so the value
+            callers see is unchanged.
 
         Raises:
             TypeError: If call is not a ToolCall or tools contains non-Tool elements.
@@ -88,17 +121,5 @@ class ToolExecutor(Knot):
         registry = {tool.name: tool for tool in tools}
         tool = registry.get(call.tool_name)
         if tool is None:
-            return ToolResult(
-                call_id=call.call_id,
-                result=None,
-                error=f"unknown tool {call.tool_name!r}",
-            )
-        try:
-            value = await tool.invoke(call.arguments)
-        except Exception as exc:
-            return ToolResult(
-                call_id=call.call_id,
-                result=None,
-                error=f"{type(exc).__name__}: {type(self)._scrubber.scrub(str(exc))}",
-            )
-        return ToolResult(call_id=call.call_id, result=value, error=None)
+            return _unknown_tool(call=call, _config=KnotConfig(id="unknown-tool"))
+        return ToolInvocation(tool=tool, call=call, _config=KnotConfig(id="invoke"))

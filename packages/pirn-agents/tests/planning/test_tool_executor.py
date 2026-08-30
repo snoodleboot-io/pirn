@@ -1,4 +1,13 @@
-"""Unit tests for :class:`ToolExecutor`."""
+"""Unit tests for :class:`ToolExecutor`.
+
+``ToolExecutor`` is a ``SubTapestry`` since PIR-733: ``process`` returns the sink
+of an inner pipeline rather than the result itself, so the outcome tests run a
+real tapestry and read the executor's output. That is the behaviour under test —
+the whole point of the change is that the call goes through the engine — and
+asserting on a directly-awaited ``process`` would no longer exercise it. The
+input-validation tests still call ``process`` directly, because the guards fire
+before any knot is built.
+"""
 
 from __future__ import annotations
 
@@ -6,6 +15,7 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
+from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.planning.tool_executor import ToolExecutor
@@ -27,19 +37,33 @@ def _make_knot(tools: tuple) -> ToolExecutor:
 _CALL = ToolCall(tool_name="search", arguments={"q": "x"}, call_id="c1")
 
 
+async def _execute(tools: tuple) -> ToolResult:
+    """Run a ToolExecutor over ``_CALL`` through the engine and return its output."""
+
+    @knot
+    async def _call_source() -> ToolCall:
+        return _CALL
+
+    with Tapestry() as tapestry:
+        upstream = _call_source(_config=KnotConfig(id="c"))
+        ToolExecutor(call=upstream, tools=tools, _config=KnotConfig(id="x"))
+
+    result = await tapestry.run(RunRequest())
+    assert result.succeeded, result.exceptions
+    return result.outputs["x"]
+
+
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_invokes_matching_tool(self) -> None:
         search = StubTool(name="search", handler="found")
-        k = _make_knot((search,))
-        out: ToolResult = await k.process(call=_CALL, tools=(search,))
+        out = await _execute((search,))
         assert out.error is None
         assert out.result == "found"
         assert out.call_id == "c1"
 
     async def test_unknown_tool_yields_error_result(self) -> None:
         other = StubTool(name="other")
-        k = _make_knot((other,))
-        out: ToolResult = await k.process(call=_CALL, tools=(other,))
+        out = await _execute((other,))
         assert out.error is not None
         assert "search" in out.error
 
@@ -48,8 +72,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             raise RuntimeError("boom")
 
         search = StubTool(name="search", handler=bad_handler)
-        k = _make_knot((search,))
-        out: ToolResult = await k.process(call=_CALL, tools=(search,))
+        out = await _execute((search,))
         assert out.error is not None
         assert "boom" in out.error
 
@@ -67,3 +90,28 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
                 call="not a call",  # type: ignore[arg-type]
                 tools=(search,),
             )
+
+
+class TestRunsThroughTheEngine(unittest.IsolatedAsyncioTestCase):
+    """PIR-733: the invocation is a node now, not an inline await."""
+
+    async def test_the_invocation_gets_its_own_lineage_row(self) -> None:
+        @knot
+        async def _call_source() -> ToolCall:
+            return _CALL
+
+        with Tapestry() as tapestry:
+            upstream = _call_source(_config=KnotConfig(id="c"))
+            ToolExecutor(
+                call=upstream,
+                tools=(StubTool(name="search", handler="found"),),
+                _config=KnotConfig(id="x"),
+            )
+
+        result = await tapestry.run(RunRequest())
+
+        # The executor is a SubTapestry, so the invocation is recorded in the
+        # inner run rather than beside the executor in the outer one.
+        children = await tapestry.history.children_of(result.run_id)
+        inner_knot_ids = {row.knot_id for child in children for row in child.lineage}
+        assert "invoke" in inner_knot_ids, inner_knot_ids
