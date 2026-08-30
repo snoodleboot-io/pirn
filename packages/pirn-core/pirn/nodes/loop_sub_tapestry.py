@@ -163,6 +163,12 @@ class _IterationChainKnot(Knot):
         # iteration, while its lineage rows are recorded in the outer history
         # and keep naming hashes nobody can resolve (PIR-837).  An iteration
         # tapestry that named its own transport in ``step()`` keeps it.
+        #
+        # Inheriting the outer store hands it every turn's values, which on an
+        # open-ended loop never stops.  That growth is bounded the same way the
+        # history growth above is: the store declares a `retention` capability
+        # and evicts to stay within it, so the value plane is bounded rather
+        # than either unbounded or thrown away.  See PIR-839.
         _apply_inherited_value_plane(
             iter_tapestry,
             data_store=_current_data_store.get(None),

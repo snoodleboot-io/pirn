@@ -165,6 +165,55 @@ class TestLoopSubTapestryHistory(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(await history.query_lineage_by_knot_id("incr")), 3)
 
 
+class TestLoopSubTapestryValuePlaneGrowth(unittest.IsolatedAsyncioTestCase):
+    """An open-ended loop must not grow the value plane without limit.
+
+    PIR-837 forwarded the outer ``DataStore`` into inner runs so that inner
+    lineage rows reference values that actually resolve.  That handed every
+    turn's values to the outer store, which on the default
+    ``InMemoryDataStore`` had no ceiling — so a conversational loop, which is
+    unbounded by design, accumulated for the lifetime of the run.
+
+    Bounding the loop is not the answer; ``LoopSubTapestry`` is the
+    open-ended primitive.  The store declares a ``retention`` capability
+    instead.  See PIR-839.
+    """
+
+    async def test_the_stored_value_count_does_not_track_the_turn_count(self) -> None:
+        from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
+
+        # Arrange
+        store = InMemoryDataStore(max_values=6)
+
+        # Act — the same pipeline over an order of magnitude more turns.
+        counts: list[int] = []
+        for target in (5, 50):
+            store = InMemoryDataStore(max_values=6)
+            with Tapestry(data_store=store) as t:
+                src = _InitSource(init_state=0, _config=KnotConfig(id="init"))
+                _CounterLoop(target=target, state=src, _config=KnotConfig(id="loop"))
+            result = await t.run(RunRequest())
+            self.assertTrue(result.succeeded)
+            self.assertEqual(result.outputs["loop"], target)
+            counts.append(len(store._values))
+
+        # Assert — before PIR-839 this was 6 then 51.
+        self.assertEqual(counts, [6, 6])
+
+    async def test_the_default_store_declares_its_ceiling(self) -> None:
+        # Arrange
+        with Tapestry() as t:
+            src = _InitSource(init_state=0, _config=KnotConfig(id="init"))
+            _CounterLoop(target=3, state=src, _config=KnotConfig(id="loop"))
+
+        # Act
+        retention = t.data_store.retention
+
+        # Assert — a consumer can see the trade-off it is making rather than
+        # inferring it from the backend's class.
+        self.assertTrue(retention.is_bounded)
+
+
 class _RecordingLoop(LoopSubTapestry[int]):
     """Records what ``fold`` is handed on each iteration.
 
