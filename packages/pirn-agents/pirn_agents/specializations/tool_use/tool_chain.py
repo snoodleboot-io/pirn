@@ -26,10 +26,10 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.managers.exception_record import ExceptionRecord
 
 from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_error_record import ToolErrorRecord
 from pirn_agents.tools.tool_result import ToolResult
 
 
@@ -88,10 +88,12 @@ class ToolChain(Knot):
                 current_arguments = {"input": raw}
             except Exception as exc:
                 # ``error`` derives from the record, so the two cannot drift.
+                # Scrubbed: a chained tool's failure message carries whatever it
+                # was talking to, and this record persists to lineage (PIR-733).
                 return ToolResult(
                     call_id=current_call_id,
                     result=None,
-                    exception=ExceptionRecord.for_knot(tool.name, exc),
+                    exception=ToolErrorRecord.scrubbed(tool.name, exc),
                 )
 
         if last_result is None:
