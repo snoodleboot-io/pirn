@@ -16,12 +16,11 @@ import time
 from collections.abc import Mapping
 from typing import Any
 
-from pirn.managers.exception_record import ExceptionRecord
-
 from pirn_agents.mcp.mcp_client import McpClient
 from pirn_agents.mcp.mcp_error import McpError
 from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_error_record import ToolErrorRecord
 from pirn_agents.tools.tool_result import ToolResult
 from pirn_agents.tools.tool_status import ToolStatus
 
@@ -150,7 +149,7 @@ class McpTool(Tool):
                 call_id=call.call_id,
                 result=None,
                 status=ToolStatus.ERROR,
-                exception=ExceptionRecord.for_knot(self._name, exc),
+                exception=ToolErrorRecord.scrubbed(self._name, exc),
                 latency=time.perf_counter() - start,
             )
         latency = time.perf_counter() - start

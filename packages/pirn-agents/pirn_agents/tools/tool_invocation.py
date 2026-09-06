@@ -44,29 +44,20 @@ References:
 from __future__ import annotations
 
 import time
-from typing import Any, ClassVar
+from typing import Any
 
-from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.managers.exception_record import ExceptionRecord
 
 from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_error_record import ToolErrorRecord
 from pirn_agents.tools.tool_result import ToolResult
 from pirn_agents.tools.tool_status import ToolStatus
 
 
 class ToolInvocation(Knot):
     """Invoke one :class:`Tool` for one :class:`ToolCall`, inside the engine."""
-
-    # A tool's exception message routinely carries whatever it was talking to,
-    # including a DSN. ``ToolExecutor`` scrubbed it; ``ParallelToolExecutor`` did
-    # not, because it captured the raw ``ExceptionRecord`` — so the *batch* path
-    # wrote live credentials into ``ToolResult.error`` and into the lineage row's
-    # exception record, which persists to history. Scrubbing here fixes both
-    # paths at the boundary rather than leaving it to each caller to remember.
-    _scrubber: ClassVar[DsnScrubber] = DsnScrubber()
 
     def __init__(
         self,
@@ -124,25 +115,12 @@ class ToolInvocation(Knot):
         try:
             value = await tool.invoke(call.arguments)
         except Exception as exc:
-            scrubber = type(self)._scrubber
-            raw = ExceptionRecord.for_knot(call.tool_name, exc)
-            # Both fields carry the message, so scrubbing only ``message`` would
-            # leave the credential in the traceback. The record is frozen, so
-            # this is a copy rather than a mutation; the exception object itself
-            # is never reconstructed, which would fail for any exception whose
-            # constructor takes more than a message.
-            record = raw.model_copy(
-                update={
-                    "message": scrubber.scrub(raw.message),
-                    "traceback_text": scrubber.scrub(raw.traceback_text),
-                }
-            )
             return ToolResult(
                 call_id=call.call_id,
                 result=None,
                 status=ToolStatus.ERROR,
-                error=f"{type(exc).__name__}: {record.message}",
-                exception=record,
+                error=ToolErrorRecord.scrubbed_message(exc),
+                exception=ToolErrorRecord.scrubbed(call.tool_name, exc),
                 latency=time.perf_counter() - start,
             )
         return ToolResult(
