@@ -100,16 +100,36 @@ equal in every process and their recorded calls replay.
 
 A `@tool` function is content-identified only when all of these hold:
 
-- It is a plain module-level function that its module still binds by name. A
-  lambda, closure, bound method, `functools.partial`, callable object, or shadowed
-  definition stays identity-keyed.
-- Any `args_model` is a module-level class.
+- It is a plain function that its module still binds by name. A lambda, a
+  `<locals>` closure, a bound method, a `functools.partial`, a callable object, or
+  a shadowed definition stays identity-keyed.
+- It has no closure and no `__wrapped__`, so a `functools.wraps` decorator (which
+  copies the qualname and can hide config in its closure) keeps the tool
+  identity-keyed.
+- Every default argument value is plain data (`None`, `bool`, `int`, `float`,
+  `str`, or lists, tuples and str-keyed dicts of those). The defaults are part of
+  the hash, because the schema does not carry them.
+- No custom `args_validator` was passed. A validator derived from `args_model` is
+  fine, and any `args_model` must itself have a unique name.
 - Any injected `state` defines `__pirn_canonical__`, so its author has declared
   what identifies it. Plain state, such as a dict or a connection, keeps the tool
   identity-keyed.
+- If it is defined in `__main__`, the running script has a file. The resolved
+  absolute script path is part of the identity, so a different script defining
+  the same name refuses. A REPL, notebook or `python -c` stays identity-keyed.
 
-The function body is not hashed. Editing a function and replaying an older
-recording serves the old result, the same as for a knot's `process`.
+The same naming rules apply to tool classes. A class defined inside a function
+(`<locals>`), a shadowed class, or a `__main__` class with no script file stays
+identity-keyed.
+
+The opt-in is **not inherited**. A subclass of an opted-in tool is identity-keyed
+until it re-declares `content_identity()` with its own configuration.
+
+Accepted limits: the function body and any module globals it reads are not
+hashed. An edited body, or a changed global, at an unchanged module path or script
+path still matches and serves the older result, the same as for a knot's
+`process`. `HttpRequestTool` doesn't hash the proxy or TLS settings `httpx` reads
+from the environment.
 
 `Toolset` and `RouteCandidate` hash through their tools' own identities.
 
@@ -122,7 +142,9 @@ recording serves the old result, the same as for a knot's `process`.
    that has no content form.
 4. Add a case to `tests/tools/test_tool_identity_gate.py`. The gate varies each
    constructor argument and fails if the hash doesn't change. It also fails for
-   any opted-in class anywhere in the workspace that has no case.
+   any opted-in class anywhere in the workspace that has no case, and for any
+   subclass of an opted-in tool that neither re-declares the opt-in nor is listed
+   as intentionally identity-keyed.
 
 ## Security notes
 

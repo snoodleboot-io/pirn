@@ -12,14 +12,23 @@ the run id; ``replay`` loads that run in *this* process and runs the same graph 
 Every tool call that really executes appends a line to ``<workdir>/invocations.log``,
 so the parent can tell a served replay from a re-invocation across the process
 boundary.
+
+``PIRN_REPLAY_TENANT`` differs between the recording and the replaying process. The
+tools that depend on it, or on the mode, are the false matches found in review of
+PR #310: each behaves differently in the two processes while presenting the same
+name, description, schema and qualname, so each must refuse on replay. The
+``main_script`` scenario is replayed from a *copy* of this file at another path,
+standing in for a different script that defines a same-named tool.
 """
 
 from __future__ import annotations
 
 import asyncio
+import functools
 import json
 import os
 import sys
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -35,6 +44,7 @@ from pirn.tapestry import Tapestry
 from pirn_agents.planning.tool_executor import ToolExecutor
 from pirn_agents.tools.calculator.calculator_tool import CalculatorTool
 from pirn_agents.tools.filesystem.read_file_tool import ReadFileTool
+from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_decorator import tool
 from pirn_agents.tools.tool_invocation import ToolInvocation
@@ -60,6 +70,69 @@ def tenant_add(a: int, b: int, state: dict[str, str]) -> int:
     return a + b
 
 
+def scoped(tenant: str) -> Callable[[Callable[..., str]], Callable[..., str]]:
+    """Return a ``functools.wraps`` decorator that binds ``tenant`` in a closure."""
+
+    # design-decision-override: a closure-capturing decorator is the case under test.
+    def decorate(fn: Callable[..., str]) -> Callable[..., str]:
+        # design-decision-override: the wrapper's closure is what must not be hashed away.
+        @functools.wraps(fn)
+        def wrapper(query: str) -> str:
+            return fn(query, tenant)
+
+        return wrapper
+
+    return decorate
+
+
+@tool
+@scoped(os.environ["PIRN_REPLAY_TENANT"])
+def lookup(query: str, tenant: str = "") -> str:
+    """Look up a record for the bound tenant."""
+    _log_invocation("lookup")
+    return f"{tenant}:{query}"
+
+
+@tool
+def tenant_default(query: str, tenant: str = os.environ["PIRN_REPLAY_TENANT"]) -> str:
+    """Look up a record for the default tenant."""
+    _log_invocation("tenant_default")
+    return f"{tenant}:{query}"
+
+
+@tool
+def search(query: str) -> str:
+    """Search the corpus."""
+    _log_invocation("search")
+    return f"served-by:{Path(__file__).name}:{query}"
+
+
+class TenantReadFile(ReadFileTool):
+    """Inherits ``ReadFileTool``'s opt-in and adds behaviour its config does not declare."""
+
+    def __init__(self, *, root: str | Path, tenant: str) -> None:
+        super().__init__(root=root)
+        self._tenant = tenant
+
+    async def invoke(self, arguments: Mapping[str, Any]) -> Mapping[str, Any]:
+        output = dict(await super().invoke(arguments))
+        output["content"] = f"{self._tenant}:{output['content']}"
+        return output
+
+
+def make_scaled(factor: int) -> Tool:
+    """Return a calculator whose class is defined per call, so every class shares a qualname."""
+
+    # design-decision-override: a factory-local class is the case under test.
+    class Scaled(CalculatorTool):
+        async def invoke(self, arguments: Mapping[str, Any]) -> Mapping[str, Any]:
+            output = dict(await super().invoke(arguments))
+            output["result"] = output["result"] * factor
+            return output
+
+    return Scaled()
+
+
 @knot
 async def make_call(**_: Any) -> ToolCall:
     """Emit the tool call from an upstream knot rather than a literal."""
@@ -82,6 +155,7 @@ class ReplayWorker:
             data_store=LocalDiskDataStore(scenario_dir / "values", allow_unsigned=True),
         )
         literal = ToolCall(tool_name="add", arguments={"a": 1, "b": 2}, call_id="c1")
+        query = {"query": "x"}
         with tapestry:
             if scenario == "literal_call":
                 ToolInvocation(tool=add, call=literal, _config=KnotConfig(id="invoke"))
@@ -106,6 +180,26 @@ class ReplayWorker:
             elif scenario == "stateful_tool":
                 call = ToolCall(tool_name="tenant_add", arguments={"a": 1, "b": 2}, call_id="c1")
                 ToolInvocation(tool=tenant_add, call=call, _config=KnotConfig(id="invoke"))
+            elif scenario == "wrapped_closure":
+                call = ToolCall(tool_name="lookup", arguments=query, call_id="c1")
+                ToolInvocation(tool=lookup, call=call, _config=KnotConfig(id="invoke"))
+            elif scenario == "default_argument":
+                call = ToolCall(tool_name="tenant_default", arguments=query, call_id="c1")
+                ToolInvocation(tool=tenant_default, call=call, _config=KnotConfig(id="invoke"))
+            elif scenario == "main_script":
+                call = ToolCall(tool_name="search", arguments=query, call_id="c1")
+                ToolInvocation(tool=search, call=call, _config=KnotConfig(id="invoke"))
+            elif scenario == "inherited_opt_in":
+                (scenario_dir / "note.txt").write_text("shared note")
+                reader = TenantReadFile(root=scenario_dir, tenant=os.environ["PIRN_REPLAY_TENANT"])
+                call = ToolCall(tool_name="read_file", arguments={"path": "note.txt"}, call_id="c1")
+                ToolInvocation(tool=reader, call=call, _config=KnotConfig(id="invoke"))
+            elif scenario == "factory_class":
+                scaled = make_scaled(10 if self._mode == "record" else 1000)
+                call = ToolCall(
+                    tool_name="calculator", arguments={"expression": "2+3"}, call_id="c1"
+                )
+                ToolInvocation(tool=scaled, call=call, _config=KnotConfig(id="invoke"))
             else:
                 raise SystemExit(f"unknown scenario {scenario!r}")
         return tapestry

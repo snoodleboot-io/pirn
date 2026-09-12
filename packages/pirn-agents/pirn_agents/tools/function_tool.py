@@ -10,12 +10,13 @@ from __future__ import annotations
 
 import asyncio
 import inspect
-import sys
 from collections.abc import AsyncIterator, Callable, Mapping
 from typing import Any
 
+from pirn_agents.tools.definition_reference import DefinitionReference
 from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_permissions import ToolPermissions
+from pirn_agents.tools.tool_schema_compiler import ToolSchemaCompiler
 
 
 class FunctionTool(Tool):
@@ -49,6 +50,11 @@ class FunctionTool(Tool):
         self._is_async = is_async
         self._return_schema = dict(return_schema) if return_schema is not None else None
         self._permissions = permissions if permissions is not None else ToolPermissions()
+        # A validator derived here from ``args_model`` is fully described by the
+        # model; one passed in is an arbitrary callable with no content form.
+        self._has_custom_validator = args_validator is not None
+        if args_validator is None and args_model is not None:
+            args_validator = ToolSchemaCompiler().model_validator(args_model)
         self._args_validator = args_validator
         self._is_streaming = is_streaming
         self._state = state
@@ -99,32 +105,51 @@ class FunctionTool(Tool):
 
         The tool stays identity-keyed (``None``) unless all of these hold:
 
-        * ``fn`` is a plain module-level function that resolves back from its
-          module by qualname — not a lambda, closure, bound method, partial,
-          callable object, or a function a later definition has shadowed;
-        * an ``args_validator`` comes with the module-level ``args_model`` it was
-          derived from (an arbitrary validator callable has no content form);
+        * ``fn`` is a plain function with a unique, process-independent name
+          (:class:`~pirn_agents.tools.definition_reference.DefinitionReference`):
+          not a lambda, a ``<locals>`` closure, a bound method, a partial, a
+          callable object, a shadowed definition, or a ``__main__`` function
+          without a script file. A ``__main__`` function is named by the resolved
+          absolute script path, so a different script defining the same name
+          refuses;
+        * ``fn`` has no closure and no ``__wrapped__``. A ``functools.wraps``
+          decorator copies the wrapped qualname, so without this rule a wrapper
+          closing over config (``@scoped(os.environ["TENANT"])``) would hash
+          equal for every value of that config;
+        * every default argument value is plain data (``None``, ``bool``,
+          ``int``, ``float``, ``str``, and lists/tuples/str-keyed dicts of them),
+          and the defaults are hashed — the schema does not carry them;
+        * no custom ``args_validator`` was passed. A validator the tool derives
+          from ``args_model`` is fine, and the model must itself have a unique name;
         * any injected ``state`` defines ``__pirn_canonical__``, so its author has
           declared what identifies it. State without one (a connection, a
           client, a mutable dict) keeps the tool identity-keyed.
 
-        The function body is not digested, matching core, which does not guard a
-        knot's source either (PIR-840, Q7).
+        Accepted limits (PIR-840, Q7): the function body is not digested, and
+        module globals the body reads are not hashed. An edited body, or a
+        changed global, at an unchanged module path or script path still
+        matches, the same as a knot's ``process`` in core replay.
         """
-        fn_reference = self._module_level_reference(self._fn)
+        if self._has_custom_validator or not inspect.isfunction(self._fn):
+            return None
+        if self._fn.__closure__ or "__wrapped__" in vars(self._fn):
+            return None
+        fn_reference = DefinitionReference.of(self._fn, unwrap_binding=self._unwrap_binding)
         if fn_reference is None:
+            return None
+        defaults = self._defaults_identity(self._fn)
+        if defaults is None:
             return None
         model_reference: str | None = None
         if self._args_model is not None:
-            model_reference = self._module_level_reference(self._args_model)
+            model_reference = DefinitionReference.of(self._args_model)
             if model_reference is None:
                 return None
-        elif self._args_validator is not None:
-            return None
         if self._state is not None and not hasattr(type(self._state), "__pirn_canonical__"):
             return None
         return {
             "fn": fn_reference,
+            "defaults": defaults,
             "args_model": model_reference,
             "return_schema": self._return_schema,
             "permissions": self._permissions,
@@ -135,26 +160,32 @@ class FunctionTool(Tool):
         }
 
     @staticmethod
-    def _module_level_reference(target: object) -> str | None:
-        """Return ``module.qualname`` for a module-level function or class, else ``None``.
+    def _unwrap_binding(bound: object) -> object:
+        """Map a module binding to the function it stands for (``@tool`` rebinds names)."""
+        return bound._fn if isinstance(bound, FunctionTool) else bound
 
-        The reference must round-trip: looking ``qualname`` up in the module has
-        to give back ``target`` itself, or a :class:`FunctionTool` wrapping it
-        (``@tool`` rebinds the function's module name to the tool). A qualname
-        containing ``.`` or ``<`` is a method, nested definition, or lambda.
-        """
-        if not (inspect.isfunction(target) or inspect.isclass(target)):
+    @staticmethod
+    def _defaults_identity(fn: Callable[..., Any]) -> dict[str, Any] | None:
+        """Return ``fn``'s default values as plain data, or ``None`` if any has no content form."""
+        positional = list(fn.__defaults__) if fn.__defaults__ is not None else None
+        keyword = dict(fn.__kwdefaults__) if fn.__kwdefaults__ is not None else None
+        if not FunctionTool._is_plain_data([positional, keyword]):
             return None
-        qualname = target.__qualname__
-        if "." in qualname or "<" in qualname:
-            return None
-        module = sys.modules.get(target.__module__)
-        if module is None:
-            return None
-        bound = vars(module).get(qualname)
-        if bound is not target and not (isinstance(bound, FunctionTool) and bound._fn is target):
-            return None
-        return f"{target.__module__}.{qualname}"
+        return {"positional": positional, "keyword": keyword}
+
+    @staticmethod
+    def _is_plain_data(value: object) -> bool:
+        """Return whether ``value`` is JSON-like data whose hash fully describes it."""
+        if value is None or isinstance(value, (bool, int, float, str)):
+            return True
+        if isinstance(value, (list, tuple)):
+            return all(FunctionTool._is_plain_data(item) for item in value)
+        if isinstance(value, dict):
+            return all(
+                isinstance(key, str) and FunctionTool._is_plain_data(item)
+                for key, item in value.items()
+            )
+        return False
 
     def _prepare_call(self, arguments: Mapping[str, Any]) -> tuple[tuple[Any, ...], dict[str, Any]]:
         """Build the positional/keyword arguments for the wrapped function.
