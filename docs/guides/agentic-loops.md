@@ -213,7 +213,7 @@ Because every iteration is a knot:
 
 ## Concurrency and Dispatchers
 
-A `Dispatcher` decides **where** a single knot's coroutine runs — not whether sibling knots overlap.  Concurrency between knots is the engine's job, and it already happens by default: for each ready wave the engine wraps every knot in `asyncio.create_task` (`pirn/engine/engine.py`) and awaits the wave together, so the default `LocalDispatcher` runs a whole wave of ready knots concurrently on the event loop.  Swapping in another dispatcher changes only the execution *location* of each knot; it does not add or remove sibling concurrency.
+A `Dispatcher` decides **where** a single knot's coroutine runs — not whether sibling knots overlap.  Concurrency between knots is the engine's job, and it already happens by default: the engine wraps every knot in `asyncio.create_task` (`pirn/engine/engine.py`) the moment its parents have resolved and the run admits it, so the default `LocalDispatcher` runs every ready knot concurrently on the event loop, and a knot's children start as soon as it finishes rather than when its slowest sibling does (PIR-841).  Swapping in another dispatcher changes only the execution *location* of each knot; it does not add or remove sibling concurrency.
 
 ### Speeding up a nested agent loop
 

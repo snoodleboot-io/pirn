@@ -110,11 +110,11 @@ class TestToolInvocationIsAGraphNode(unittest.IsolatedAsyncioTestCase):
 
 class TestToolInvocationFanOut(unittest.IsolatedAsyncioTestCase):
     async def test_the_engine_schedules_sibling_calls_concurrently(self) -> None:
-        """N invocations under one Aggregator run as one wave, not in series.
+        """N invocations under one Aggregator run concurrently, not in series.
 
-        This is the payoff PIR-733 names: the engine already runs a ready wave
-        concurrently, so fan-out no longer needs a hand-rolled ``asyncio.gather``
-        outside it.
+        This is the payoff PIR-733 names: the engine already runs every ready
+        sibling concurrently, so fan-out no longer needs a hand-rolled
+        ``asyncio.gather`` outside it.
         """
         with Tapestry() as t:
             calls = {

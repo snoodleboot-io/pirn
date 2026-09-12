@@ -368,33 +368,36 @@ The Shed is not part of the public API. It is an engine internal.
 
 `Engine` (`pirn/engine/engine.py:Engine`) owns no state across runs. It is constructed with a `Dispatcher` and its `execute(terminals, request, history, data_store, emitters, extensible_store)` method runs one complete pipeline execution.
 
-**Wave loop:**
+**Admission loop:**
 
 ```
-remaining = all knots in topological order
+tracker = DependencyTracker(shed)          # unresolved-parent counts, levels
+ready   = ReadyQueue(tracker.initially_ready())
+gate    = UnboundedAdmissionGate()         # the default admits everything
 
-while remaining:
-    ready = [k for k in order if k in remaining
-             and all parents in results]
-    
-    for each ready knot:
-        decision = _decide(knot, results)    # error policy
+loop:
+    merge any mid-run-registered knots     # newcomers may be ready at once
+
+    while ready.pop_admissible(gate) -> knot:
+        decision = _decide(knot, results)  # error policy
         if decision is Skipped/Err:
-            record directly, continue
+            record directly; release children into `ready`
         else:
-            create asyncio.Task(_dispatch_with_timing(knot, inputs))
-    
-    for each task:
-        await task → (result, parent_hashes, started_at)
+            materialize inputs; create asyncio.Task(dispatch)
+
+    if nothing is running: stop
+    wait for the next completion (done-callback queue), then for each completed task:
         rebind Err records to live ExceptionManager
-        persist Ok value to DataStore
-        record lineage
-    
-    remaining -= ready
-    merge any mid-run-registered knots
+        persist Ok value to DataStore / transport
+        record lineage (finished_at stamped when the knot finished)
+        tracker.resolve(knot) -> children whose parents are all resolved -> `ready`
+
+sort lineage, exceptions, skipped and outputs by (level, dispatched, topo index)
 ```
 
-Knots within a wave run concurrently via `asyncio.create_task` + individual `await task`. This is wave-level concurrency, not full async fan-out — the engine awaits each task sequentially after the wave. This is correct and simple: knots within a wave have no dependencies on each other, so ordering within the await loop does not matter for correctness.
+A knot is scheduled the moment its own parents have resolved, not when a whole "wave" of unrelated knots has finished: completions are processed one at a time as they happen, so a fast knot's children start while its slow siblings are still running (PIR-841). Each dispatched task reports itself on a completion queue through a done-callback, so the engine wakes once per completion at O(1) cost, and it finds newly ready knots by decrementing their unresolved-parent counts, so a chain of *n* knots costs O(n) scheduling work rather than a rescan of the topological order per step. A knot is decided, materialized and turned into a task only once the run's `AdmissionGate` admits it; the default `UnboundedAdmissionGate` admits every ready knot immediately.
+
+Per-knot records do not depend on completion order. `RunResult.lineage`, `exceptions`, `skipped` and `outputs` are sorted by `(level, dispatched, topological index)`, where `level` is the knot's depth from the roots; for a graph without mid-run registrations that is exactly the order the earlier wave loop produced. `status_events` and live `on_status` delivery are the exception: they follow real state transitions, so sibling knots' events interleave in the order the knots actually start and finish.
 
 **`_decide()`:**
 
@@ -417,12 +420,14 @@ class Dispatcher(Protocol):
 
 **Mid-run extension (`extensible=True`):**
 
-When `extensible_store` is passed to `engine.execute`, the engine subscribes to the store's `subscribe(callback)` method. New knots registered with the store during the run are queued in `pending_new`. Between each wave, the engine calls `_merge_new_knots()` which:
+When `extensible_store` is passed to `engine.execute`, the engine subscribes to the store's `subscribe(callback)` method. New knots registered with the store during the run are queued in `pending_new`. Each time a knot completes, the engine calls `_merge_new_knots()` which:
 
-1. Validates that no new knot's parent has already completed (would break lineage).
+1. Validates that every new knot's parent is already resolved (its result is reused, never re-run), still in the shed, or newly registered alongside it.
 2. Inserts new knots into the shed's dicts directly (bypassing `Shed.from_terminals`).
 3. Re-runs `_bind_parameters` for any new Parameter knots.
-4. Extends `remaining` with new knot ids.
+4. Starts tracking the new knots; any whose parents have all resolved join the ready queue at once.
+
+A merged knot's `level` is at least one past the knot that registered it (read from the registering task's context), so its place in the reported order does not depend on which knot happened to finish first. A knot registered with no known registrar (a plain thread, an external orchestrator, or a Postgres/ValKey delivery) is reported in a final bucket after every knot with a known level, ordered by registration sequence and then knot id. See `docs/architecture/execution-model.md`.
 
 Requires the store to implement `SubscribableStore` (`pirn/backends/base/subscribable_store.py`). `InMemoryStore`, `PostgresStore`, and `ValKeyStore` all implement this protocol (see `docs/subscribable-stores.md`).
 
@@ -476,7 +481,7 @@ The engine wires emitters to `RunContext.status` (a `StatusManager`) at the star
 
 **Lifecycle hooks:**
 
-- `on_status` — fires on each knot state transition (RUNNING → SUCCEEDED/FAILED/SKIPPED). Fired synchronously during the wave loop via the StatusManager subscriber.
+- `on_status` — fires on each knot state transition (RUNNING → SUCCEEDED/FAILED/SKIPPED). Fired synchronously during the admission loop via the StatusManager subscriber, in the order transitions actually happen.
 - `on_lineage` — fired after `history.record_run()`, once per `KnotLineage` record in the `RunResult`.
 - `on_run_result` — fired once per run, after `history.record_run()`.
 
@@ -553,24 +558,24 @@ If no explicit terminals are passed, `Tapestry.terminals()` performs an O(n) sca
 5. Call `_execute_loop`.
 6. In the `finally` block, unsubscribe from the store.
 
-**Step 4: Wave loop — `_execute_loop`**
+**Step 4: Admission loop — `_execute_loop`**
 
 Inside `_execute_loop` (`pirn/engine/engine.py:105`):
 
 1. `_bind_parameters(shed, ctx)` — for each `Parameter` knot in the shed, bind its value from `ctx.parameters` or its default. Raises `RuntimeError` for unbound parameters without defaults.
-2. Compute `order = shed.topological_order()` (Kahn's algorithm, sorted within each wave for determinism).
-3. `remaining = set(order)`.
-4. **Wave iteration:**
+2. Build a `DependencyTracker` over the shed (unresolved-parent counts, levels, `shed.topological_order()` positions) and push the roots onto a `ReadyQueue`.
+3. **Iteration:**
    a. Drain `pending_new` (mid-run extension).
-   b. Compute `ready` — knots in `remaining` whose all parents have entries in `results`.
-   c. For each ready knot: call `_decide()`. If the decision is `Skipped` or synthetic `Err`, record immediately. Otherwise, create an `asyncio.Task` via `_dispatch_with_timing`.
-   d. `await` each task in order, collect `(result, parent_hashes, started_at)`.
+   b. Pop every knot the `AdmissionGate` admits. Call `_decide()`: if the decision is `Skipped` or synthetic `Err`, record it immediately and release its children; otherwise materialize its inputs and create an `asyncio.Task`.
+   c. If nothing is running, stop. Otherwise wait for the next task to report completion on the queue.
+   d. For each completed task, collect `(result, parent_hashes, started_at, finished_at)`.
    e. Call `_rebind_err` to register the `ExceptionRecord` with the live `ExceptionManager`.
    f. If `Ok`: `content_hash(result.value)` + `await data_store.put(hash, value)`.
    g. Update `ctx.status` state machine.
    h. Call `_record_lineage` — builds a `KnotLineage` record and adds it to `ctx`.
-   i. `remaining -= ready`.
-   j. Drain `pending_new` again (knots registered during the wave).
+   i. `tracker.resolve(knot)` — push the children that became ready onto the queue.
+   j. Drain `pending_new` again (knots registered while that knot ran).
+4. Sort `ctx.lineage`, the exception report, `skipped` and outputs by `(level, dispatched, topological index)`.
 
 **Step 5: Per-knot `_decide()` (error policy)**
 
@@ -611,7 +616,7 @@ Records are accumulated in `ctx` (via `ctx.add_lineage(record)`).
 
 **Step 8: `history.record_run()` called**
 
-After the wave loop, `ctx.finalize(outputs)` builds the `RunResult`:
+After the admission loop, `ctx.finalize(outputs)` builds the `RunResult`:
 
 - `outputs: dict[str, Any]` — raw values for `Ok` knots.
 - `lineage: list[KnotLineage]` — all per-knot records.
@@ -637,17 +642,18 @@ for emitter in emitters:
 
 ### Mid-Run Extension
 
-With `extensible=True`, the engine subscribes to the store before the wave loop. Any knot registered with the tapestry while a wave runs is appended to `pending_new`. Between waves, `_merge_new_knots` validates and merges them:
+With `extensible=True`, the engine subscribes to the store before the loop starts. Any knot registered with the tapestry while the run is in flight is appended to `pending_new`. Each time a knot completes, `_merge_new_knots` validates and merges them:
 
-- A new knot whose parent already has a result → `ShedError` (cannot re-run completed knots).
+- A new knot whose parent already has a result is served from that result (the parent is not re-run).
+- A new knot whose parent is neither resolved nor in the shed → `ShedError`.
 - Newly arrived `Parameter` knots are bound immediately.
-- The topological order is recomputed; `remaining` is extended.
+- The tracker starts counting the new knots' unresolved parents; a knot with none is ready at once.
 
 This enables dynamic pipeline construction patterns such as generators that emit new knots based on the outputs of early knots.
 
 ### Distributed Dispatch
 
-When a distributed dispatcher (Celery, Dask, Ray) is used, the engine's wave loop is unchanged. The difference is that `dispatcher.dispatch(knot, inputs)` submits the work to the remote scheduler and awaits the result. The engine still waits for each task in the wave before proceeding.
+When a distributed dispatcher (Celery, Dask, Ray) is used, the engine's admission loop is unchanged. The difference is that `dispatcher.dispatch(knot, inputs)` submits the work to the remote scheduler and awaits the result. Each knot's children are scheduled as soon as that knot's result arrives.
 
 See [Section 6](#6-distributed-execution) for serialization details.
 
@@ -770,7 +776,7 @@ register_celery_worker_task(app)
 
 - Knots run in a separate OS process (the Celery worker).
 - Worker processes must have `pirn` installed and the user's pipeline package importable.
-- The wave-loop structure is unchanged; the engine still awaits each distributed task.
+- The admission-loop structure is unchanged; the engine still awaits each distributed task.
 - Latency per knot increases by the round-trip to the broker + worker + result backend.
 
 ### DaskDispatcher
@@ -1243,10 +1249,10 @@ sequenceDiagram
     E->>E: RunContext(run_id, parameters, ...)
     E->>EM: subscribe on_status to StatusManager
 
-    loop Wave loop
+    loop Admission loop
         E->>E: _bind_parameters(shed, ctx)
-        E->>E: topological_order()
-        E->>E: find ready knots (all parents resolved)
+        E->>E: DependencyTracker(shed)
+        E->>E: pop admitted knots from the ReadyQueue
 
         loop Per ready knot
             E->>E: _decide(knot, results) → inputs | Skipped | Err
@@ -1268,7 +1274,7 @@ sequenceDiagram
             E->>E: _record_lineage → KnotLineage → ctx.add_lineage()
         end
 
-        E->>E: remaining -= ready
+        E->>E: tracker.resolve(knot) → ready children
         opt extensible mode
             E->>E: merge pending_new knots
         end
@@ -1321,7 +1327,9 @@ flowchart TD
 | `pirn/core/parameter.py` | `Parameter` knot (external input binding) |
 | `pirn/core/result.py` | `Ok`, `Err`, `Skipped` |
 | `pirn/tapestry.py` | `Tapestry`, `_CURRENT_TAPESTRY` ContextVar, `current_tapestry()` |
-| `pirn/engine/engine.py` | `Engine`, wave loop, `_decide`, `_dispatch_with_timing`, `_record_lineage` |
+| `pirn/engine/engine.py` | `Engine`, admission loop, `_decide`, `_dispatch_with_timing`, `_record_lineage` |
+| `pirn/engine/scheduling/` | `DependencyTracker` (readiness, levels, reporting order), `ReadyQueue` |
+| `pirn/engine/admission/` | `AdmissionGate`, `UnboundedAdmissionGate`, `AdmissionTicket` |
 | `pirn/engine/shed/shed.py` | `Shed`, `CycleDetector`, BFS construction, topological sort |
 | `pirn/engine/shed/edge.py` | `Edge` |
 | `pirn/engine/shed/shed_error.py` | `ShedError` |

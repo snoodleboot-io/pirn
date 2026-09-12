@@ -40,6 +40,33 @@ class _StandaloneTests(unittest.TestCase):
         rep = em.report()
         assert rep == [a, b]
 
+    def test_sort_by_knot_reorders_the_report(self):
+        # Arrange
+        em = ExceptionManager(run_id="r1")
+        late = em.record("k2", ValueError("late"))
+        early = em.record("k1", ValueError("early"))
+        rank = {"k1": (0,), "k2": (1,)}
+
+        # Act
+        em.sort_by_knot(rank.__getitem__)
+
+        # Assert
+        assert em.report() == [early, late]
+
+    def test_sort_by_knot_keeps_capture_order_within_a_knot(self):
+        # Arrange
+        em = ExceptionManager(run_id="r1")
+        other = em.record("k2", ValueError("other"))
+        first = em.record("k1", ValueError("first"))
+        second = em.record("k1", ValueError("second"))
+        rank = {"k1": (0,), "k2": (1,)}
+
+        # Act
+        em.sort_by_knot(rank.__getitem__)
+
+        # Assert
+        assert em.report() == [first, second, other]
+
     def test_has_failures_and_len(self):
         em = ExceptionManager(run_id="r1")
         assert not em.has_failures()

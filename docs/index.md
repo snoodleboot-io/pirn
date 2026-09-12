@@ -125,7 +125,7 @@ The result carries `outputs` (raw values for each `Ok` knot), `lineage` (one `Kn
 
 <div class="pirn-feature-card">
 <h3><a href="architecture/overview/">Architecture</a></h3>
-<p>Three-layer model, execution wave loop, backend matrix, Mermaid component diagrams.</p>
+<p>Three-layer model, execution loop, backend matrix, Mermaid component diagrams.</p>
 </div>
 
 <div class="pirn-feature-card">

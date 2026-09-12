@@ -36,7 +36,7 @@ A terminal is a "sink" — the engine executes backward from these to pull in al
 1. Collect all reachable knots by id.
 2. Build `edges_by_child` (parent edges per knot) and `children_by_parent` (inverse index).
 3. Run DFS cycle check — raises `ShedError` if a cycle is found.
-4. Compute `topological_order()` via Kahn's algorithm with sorted-within-wave determinism.
+4. Compute `topological_order()` via Kahn's algorithm, breaking ties by knot id for determinism.
 
 The Shed is ephemeral — built fresh for each run, discarded when the run completes.
 
@@ -52,30 +52,38 @@ The Shed is ephemeral — built fresh for each run, discarded when the run compl
 
 Each emitter's `on_status` is wired to the `StatusManager` via a fire-and-forget `asyncio.create_task` wrapper. Exceptions in emitters are swallowed; a broken emitter cannot abort a run.
 
-### Step 6: Wave loop (`_execute_loop`)
+### Step 6: Admission loop (`_execute_loop`)
+
+Parameters are bound first (each `Parameter` knot matched to `RunRequest.parameters` or its default).
 
 ```
-1. Bind parameters (match Parameter knots to RunRequest.parameters or defaults)
-2. topological_order = shed.topological_order()
-3. remaining = set(topological_order)
+tracker = DependencyTracker(shed)          # unresolved-parent counts, levels
+ready   = ReadyQueue(tracker.initially_ready())
+gate    = UnboundedAdmissionGate()         # the default admits everything
 
-while remaining:
-    a. Drain pending_new (mid-run extension)
-    b. ready = knots in remaining whose all parents have results
-    c. For each ready knot:
-         decision = _decide(knot, results)
-         if Skipped or synthetic Err → record directly
-         else → asyncio.create_task(_dispatch_with_timing(knot, inputs))
-    d. Await each task → (result, parent_hashes, started_at)
-    e. _rebind_err → register ExceptionRecord with ExceptionManager
-    f. If Ok → content_hash(value) + data_store.put(hash, value)
-    g. Update StatusManager state machine
-    h. _record_lineage → KnotLineage → ctx.add_lineage()
-    i. remaining -= ready
-    j. Drain pending_new again
+loop:
+    merge any mid-run-registered knots     # newcomers may be ready at once
+
+    while ready.pop_admissible(gate) -> knot:
+        decision = _decide(knot, results)  # error policy
+        if decision is Skipped/Err:
+            record directly; release children into `ready`
+        else:
+            materialize inputs; create asyncio.Task(dispatch)
+
+    if nothing is running: stop
+    wait for the next completion (done-callback queue), then for each completed task:
+        rebind Err records to live ExceptionManager
+        persist Ok value to DataStore / transport
+        record lineage (finished_at stamped when the knot finished)
+        tracker.resolve(knot) -> children whose parents are all resolved -> `ready`
+
+sort lineage, exceptions, skipped and outputs by (level, dispatched, topo index)
 ```
 
-Knots within a wave are independent (no parent–child relationships within the wave). They are dispatched as `asyncio.Task`s and awaited in order. This provides wave-level concurrency: all ready knots in a wave run simultaneously, but the engine awaits each sequentially before proceeding to the next wave. The order of awaiting within a wave does not affect correctness — results are collected into a dict by knot id.
+A knot is scheduled the moment its own parents have resolved, not when a whole "wave" of unrelated knots has finished: completions are processed one at a time as they happen, so a fast knot's children start while its slow siblings are still running (PIR-841). Each dispatched task reports itself on a completion queue through a done-callback, so the engine wakes once per completion at O(1) cost, and it finds newly ready knots by decrementing their unresolved-parent counts, so a chain of *n* knots costs O(n) scheduling work rather than a rescan of the topological order per step. A knot is decided, materialized and turned into a task only once the run's `AdmissionGate` admits it; the default `UnboundedAdmissionGate` admits every ready knot immediately.
+
+Per-knot records do not depend on completion order. `RunResult.lineage`, `exceptions`, `skipped` and `outputs` are sorted by `(level, dispatched, topological index)`, where `level` is the knot's depth from the roots; for a graph without mid-run registrations that is exactly the order the earlier wave loop produced. `status_events` and live `on_status` delivery are the exception: they follow real state transitions, so sibling knots' events interleave in the order the knots actually start and finish.
 
 ### Step 7: `_decide(knot, results)` — error policy
 
@@ -119,13 +127,13 @@ KnotLineage(
     skip_reason=...,                     # if Skipped
     dispatcher=dispatcher.name,
     started_at=started_at,
-    finished_at=datetime.now(UTC),
+    finished_at=finished_at,            # stamped the instant the knot finished
 )
 ```
 
 ### Step 10: `history.record_run()` called
 
-After the wave loop completes, `ctx.finalize(outputs)` builds the `RunResult`:
+After the admission loop completes and per-knot records are sorted, `ctx.finalize(outputs)` builds the `RunResult`:
 
 - `outputs` — raw values for `Ok` knots.
 - `lineage` — all `KnotLineage` records.
@@ -173,8 +181,8 @@ sequenceDiagram
     E->>E: RunContext(run_id, parameters)
     E->>EM: subscribe on_status to StatusManager
 
-    loop Per wave - repeat until no knots remain
-        E->>E: find ready knots (all parents resolved)
+    loop Until no knot is ready or running
+        E->>E: pop knots the AdmissionGate admits
         E->>E: _decide(knot, results) per knot
         alt inputs resolved
             E->>D: dispatcher.dispatch(knot, inputs)
@@ -188,7 +196,7 @@ sequenceDiagram
             E->>E: record directly
         end
         E->>E: _record_lineage per knot
-        E->>E: remaining -= ready
+        E->>E: tracker.resolve(knot) → ready children
     end
 
     E->>E: ctx.finalize(outputs)
@@ -214,18 +222,23 @@ flowchart LR
     G --> H[Shed ready]
 ```
 
-**Kahn's algorithm with sort:** pirn uses sorted ready-queues within each wave to ensure deterministic execution order across runs. Two runs with the same pipeline and parameters always produce knots in the same order.
+**Kahn's algorithm with sort:** ties are broken by knot id, so the topological order is deterministic across runs. The engine uses it, together with each knot's depth, to report lineage, exceptions, skips and outputs in the same order every run, whatever order the knots finished in.
 
 ---
 
 ## Mid-run extension
 
-With `extensible=True`, the engine subscribes to the store before the wave loop. Any knot registered with the tapestry while a wave runs is appended to `pending_new`. Between waves, `_merge_new_knots` validates and merges them:
+With `extensible=True`, the engine subscribes to the store before the loop starts. Any knot registered with the tapestry while the run is in flight is appended to `pending_new`. Each time a knot completes, `_merge_new_knots` validates and merges them:
 
-1. Validate: a new knot whose parent already has a result → `ShedError`.
+1. Validate: a new knot whose parent is neither resolved nor in the shed → `ShedError`. A parent that already has a result is served from it.
 2. Insert new knots into the shed's dicts (bypassing `Shed.from_terminals`).
 3. Bind any new `Parameter` knots immediately.
-4. Extend `remaining` with new knot ids.
+4. Track the new knots; any whose parents have all resolved are ready at once.
+
+**Where a merged knot appears in the reported order.** Scheduling is the same for every newcomer: it starts as soon as its parents have resolved. Only the order of `lineage`, `exceptions`, `skipped` and `outputs` depends on how the knot was registered:
+
+- **Registered from inside a dispatched knot** (the usual case, e.g. `LoopSubTapestry` iterations). The engine reads the registering knot from the task's context and places the newcomer one level past that registrar and past its deepest parent. This matches the order the earlier wave loop produced, and it does not depend on timing.
+- **Registered with no known registrar**, i.e. from a plain thread, `run_in_executor`, an external orchestrator, or a `PostgresStore` / `ValKeyStore` delivery (their notices carry no registering knot). There is no timing-independent level for such a knot. It goes into a final bucket after every knot with a known level, ordered by registration sequence and then by knot id. A knot that a bucket knot registers in turn sits one level past its registrar inside the bucket. The wave loop placed these knots by whichever wave happened to be running when they arrived, so this order intentionally differs from it.
 
 This enables dynamic pipeline patterns such as a knot that decides to spawn N more knots based on its output. Requires a `SubscribableStore` (`InMemoryStore`, `PostgresStore`, and `ValKeyStore` all implement this protocol).
 
@@ -239,15 +252,13 @@ queue = sorted([k for k in knots if in_degree[k] == 0])  # sorted for determinis
 order = []
 
 while queue:
-    batch = list(queue)  # current wave
-    queue.clear()
-    order.extend(batch)
-    for knot_id in batch:
-        for child_id in children_by_parent.get(knot_id, []):
-            in_degree[child_id] -= 1
-            if in_degree[child_id] == 0:
-                queue.append(child_id)
-    queue.sort()  # sort next wave too
+    knot_id = queue.pop(0)  # smallest ready id
+    order.append(knot_id)
+    for child_id in children_by_parent.get(knot_id, []):
+        in_degree[child_id] -= 1
+        if in_degree[child_id] == 0:
+            queue.append(child_id)
+    queue.sort()
 
 return order
 ```

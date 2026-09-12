@@ -19,7 +19,7 @@ distinction matters:
 * ``ToolInvocation`` is one use: it has a ``KnotConfig.id``, it appears in
   lineage, and N of them can be wired as parents of an
   :class:`~pirn.nodes.aggregator.Aggregator` so the *engine* schedules the
-  wave — the same shape PIR-714 used for specialist fan-out.
+  fan-out concurrently — the same shape PIR-714 used for specialist fan-out.
 
 The tool is passed to ``super().__init__`` rather than held on a ``_mutable_``
 slot (which is what :class:`~pirn_agents.specializations.multi_agent.specialist_invocation.SpecialistInvocation`
