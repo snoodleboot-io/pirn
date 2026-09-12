@@ -28,6 +28,14 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
+      # Without this the job dies at `uv build` with exit 127 — every run since
+      # the workflow was added did (PIR-842). Pinned, like every other workflow
+      # that installs uv (PIR-816); see publish.yml for the rationale.
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d  # v10.0.1
+        with:
+          version: "0.12.4"
+
       - name: Build + install pirn-core & pirn-agents
         run: |
           set -euo pipefail
@@ -43,14 +51,20 @@ jobs:
           mkdir -p ../../benchmark-results
           # -m benchmark selects only the benchmark-marked cases; -s streams the
           # `[benchmark]` lines the harness prints so we can harvest them.
-          uv run --no-sync python -m pytest tests -m benchmark -s -o addopts="" \
+          #
+          # The ROOT venv's interpreter, explicitly. `uv run` resolves a venv
+          # relative to the working directory, so from packages/pirn-agents it
+          # created a second, empty .venv and failed with "No module named
+          # pytest" — the previous step installs into ../../.venv (PIR-842).
+          ../../.venv/bin/python -m pytest tests -m benchmark -s -o addopts="" \
             | tee ../../benchmark-results/output.txt
 
       - name: Emit machine-readable report + delta vs baseline
         working-directory: packages/pirn-agents
         run: |
           set -euo pipefail
-          uv run --no-sync python - <<'PY'
+          # Root venv, for the same reason as the step above (PIR-842).
+          ../../.venv/bin/python - <<'PY'
           from pathlib import Path
           from pirn_agents.benchmarks.benchmark_report import BenchmarkReport
           from pirn_agents.benchmarks.benchmark_delta import BenchmarkDelta

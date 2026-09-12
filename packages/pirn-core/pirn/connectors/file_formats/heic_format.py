@@ -126,5 +126,18 @@ class HeicFormat(BatchFileFormat):
                 "HeicFormat requires pillow-heif. Install with `pip install pirn[heic]`."
             ) from exc
         # Idempotent — pillow-heif guards against double registration.
-        pillow_heif.register_heif_opener()
+        #
+        # The ignore is upstream's re-export gap, not ours (PIR-843).
+        # pillow-heif 1.7.0 (2026-09-06) added `py.typed`, which makes pyright
+        # apply PEP 484 re-export rules to it — and its `__init__.py` imports
+        # this symbol plainly, with no `as` alias and no `__all__`, so the
+        # symbol is not a *public* re-export even though it is the documented
+        # entry point and works fine at run time.
+        #
+        # We keep the documented public import rather than reaching into
+        # `pillow_heif.as_plugin`, where the function actually lives: importing
+        # a submodule would type-check but would break at run time if upstream
+        # reorganises internals, which is the worse failure. Drop this once
+        # pillow-heif re-exports properly.
+        pillow_heif.register_heif_opener()  # pyright: ignore[reportPrivateImportUsage]
         return Image
