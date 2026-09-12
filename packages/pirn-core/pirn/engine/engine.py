@@ -224,9 +224,12 @@ class Engine:
         # Mid-run registrations made from inside a dispatched knot, keyed
         # newcomer id -> registering knot id.  Filled by the store subscriber.
         known_registrars: dict[str, str] = registrars if registrars is not None else {}
-        # Level of the knot most recently resolved.  Places a newcomer whose
-        # registering knot is unknown no earlier than that point in the run.
-        last_resolved_level = -1
+        # Deepest level admitted so far -- the wave the old loop would have
+        # been on.  A newcomer whose registering knot is unknown is placed one
+        # past it.  It never decreases, unlike the level of whichever knot
+        # happened to resolve last, which under eager scheduling can be a
+        # shallow straggler (PIR-841).
+        deepest_admitted_level = -1
 
         try:
             while True:
@@ -241,7 +244,7 @@ class Engine:
                         results,
                         ctx,
                         tracker,
-                        fallback_floor=last_resolved_level + 1,
+                        fallback_floor=deepest_admitted_level + 1,
                     )
                     self._enqueue(ready, tracker, newcomers)
 
@@ -252,6 +255,7 @@ class Engine:
                 while (admitted := ready.pop_admissible(gate, shed)) is not None:
                     kid, ticket = admitted
                     knot = shed.knot(kid)
+                    deepest_admitted_level = max(deepest_admitted_level, tracker.level(kid))
                     ctx.status.transition(kid, KnotState.RUNNING)
 
                     decision = self._decide(shed, knot, results, ctx)
@@ -266,7 +270,6 @@ class Engine:
                             # REQUIRE_ALL_PARENTS: synthetic Err.
                             ctx.status.transition(kid, KnotState.FAILED, "missing parent")
                         self._record_lineage(ctx, knot, results, decision, started=ctx.started_at)
-                        last_resolved_level = tracker.level(kid)
                         self._enqueue(ready, tracker, tracker.resolve(kid))
                         continue
 
@@ -347,7 +350,6 @@ class Engine:
                         finished=finished_at,
                         replayed_from=replay.source_run_id if replayed and replay else None,
                     )
-                    last_resolved_level = tracker.level(kid)
                     self._enqueue(ready, tracker, tracker.resolve(kid))
                     if pending_new:
                         newcomers = self._absorb_pending(
@@ -357,16 +359,23 @@ class Engine:
                             results,
                             ctx,
                             tracker,
-                            fallback_floor=last_resolved_level + 1,
+                            fallback_floor=deepest_admitted_level + 1,
                         )
                         self._enqueue(ready, tracker, newcomers)
         except BaseException:
             # The run is aborting: a replay that cannot be served, a setup
             # error in a mid-run merge, or the run itself being cancelled.
-            # Nothing will collect the knots still in flight, so cancel them
-            # rather than leave them running detached from any run.
+            # Cancel the knots still in flight and wait for them to wind down,
+            # so their cleanup has finished before the caller sees the error.
+            #
+            # Only the asyncio side can be interrupted.  A knot running on a
+            # worker thread (``ThreadDispatcher``, a sync ``@knot`` via
+            # ``asyncio.to_thread``) or on a remote worker keeps running until
+            # it returns; its task completes as cancelled at once, so this wait
+            # never blocks on it, but the thread itself is not stopped.
             for task in running:
                 task.cancel()
+            await asyncio.gather(*running, return_exceptions=True)
             raise
 
         # Report per-knot records in an order that depends on the graph alone,
@@ -433,14 +442,18 @@ class Engine:
         known regardless of which knot finished first.  A newcomer with no
         known registrar -- registered from outside any dispatched knot, or
         delivered by a durable store's background listener -- falls back to
-        *fallback_floor*, one past the most recently resolved knot.  Where such
-        a registration lands in the reported order therefore depends on when
-        it arrived, as it always has.
+        *fallback_floor*, one past the deepest level admitted so far.  Where
+        such a registration lands in the reported order therefore depends on
+        when it arrived, as it always has, but never ahead of work already
+        started.
         """
-        # Pop atomically; registrations made during the merge land in
-        # pending_new again and are picked up at the next checkpoint.
-        batch = list(pending_new)
-        pending_new.clear()
+        # Take exactly the registrations present now.  A worker thread may
+        # append while this runs; appends only ever extend the tail, so
+        # deleting the counted prefix keeps them for the next drain.  Copying
+        # and then clearing would drop them.
+        count = len(pending_new)
+        batch = pending_new[:count]
+        del pending_new[:count]
         added = self._merge_new_knots(shed, batch, results, ctx)
         if not added:
             return []

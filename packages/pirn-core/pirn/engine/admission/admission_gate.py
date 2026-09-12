@@ -17,10 +17,15 @@ class AdmissionGate:
     materialized and dispatched only once the gate admits it, so a knot the
     gate refuses costs nothing while it waits: no input reads, no task.
 
-    Admission is non-blocking by design.  ``try_admit`` answers immediately,
-    which lets the engine skip past a refused knot to others that may still
-    fit, and ``wait_for_release`` is the one place a scheduler parks when
-    nothing at all can start.
+    Admission is non-blocking by design: ``try_admit`` answers immediately,
+    and ``wait_for_release`` is the one place a scheduler parks when nothing
+    at all can start.  Today the ready queue is a single FIFO, so a refused
+    head stops admission until capacity frees up; nothing queued behind it is
+    offered in the meantime.
+
+    TODO(PIR-841 slice 2): keep one FIFO per concurrency group (design §6) so
+    a refused head in a saturated group does not block ready knots in other
+    groups.
 
     Implementations inherit and override every method.
     """

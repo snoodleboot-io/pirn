@@ -497,9 +497,17 @@ def _run_id_scope(run_id: str | None) -> Iterator[None]:
 
     ``None`` is a legitimate value: it restores "no run in scope", which
     is what an unowned registration means.
+
+    The block also runs with no dispatching knot in scope.  The notification
+    does not say which knot registered, and the listener task's own context
+    holds whatever knot happened to be executing when ``subscribe()`` started
+    it -- for an inner run, a knot of the outer run -- which would otherwise
+    be reported as the registrar (PIR-841).
     """
     token = _current_run_id.set(run_id)
+    knot_token = _current_dispatching_knot_id.set(None)
     try:
         yield
     finally:
+        _current_dispatching_knot_id.reset(knot_token)
         _current_run_id.reset(token)

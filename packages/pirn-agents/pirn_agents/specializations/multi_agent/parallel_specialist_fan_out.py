@@ -6,8 +6,8 @@ specialist and returns a mapping ``{specialist_name: AgentResponse}``.
 The fan-out is expressed as a graph, not as an ad-hoc ``asyncio.gather``: each
 specialist becomes one :class:`SpecialistInvocation` knot, and all of them are
 wired as the parents of a single :class:`~pirn.nodes.aggregator.Aggregator`.
-The engine then schedules the whole wave concurrently — every ready sibling
-runs in one ``asyncio.gather`` inside the scheduler — so the specialists run
+The engine then runs them concurrently — the scheduler starts every sibling
+as its own task as soon as it is ready (PIR-841) — so the specialists run
 *through* the engine rather than outside it. See PIR-714.
 
 Failure mode is UNCHANGED by this rewrite. If any invocation fails, the inner

@@ -59,7 +59,9 @@ class _RunScopedSubscriber:
     def __call__(self, knot: Knot) -> None:
         registering_run_id = current_run_id()
         if registering_run_id is None or registering_run_id == self._run_id:
-            self._pending_new.append(knot)
             registrar = _current_dispatching_knot_id.get()
             if self._registrars is not None and registrar is not None:
+                # Before queueing: the engine may drain the queue from another
+                # thread the moment the knot is in it.
                 self._registrars[knot.knot_id] = registrar
+            self._pending_new.append(knot)

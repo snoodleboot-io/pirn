@@ -72,7 +72,7 @@ loop:
             materialize inputs; create asyncio.Task(dispatch)
 
     if nothing is running: stop
-    wait for the FIRST task to complete, then for each completed task:
+    wait for the next completion (done-callback queue), then for each completed task:
         rebind Err records to live ExceptionManager
         persist Ok value to DataStore / transport
         record lineage (finished_at stamped when the knot finished)
@@ -81,7 +81,7 @@ loop:
 sort lineage, exceptions, skipped and outputs by (level, dispatched, topo index)
 ```
 
-A knot is scheduled the moment its own parents have resolved, not when a whole "wave" of unrelated knots has finished: completions are processed one at a time as they happen, so a fast knot's children start while its slow siblings are still running (PIR-841). The engine waits on `asyncio.wait(..., FIRST_COMPLETED)` and finds newly ready knots by decrementing their unresolved-parent counts, so a chain of *n* knots costs O(n) scheduling work rather than a rescan of the topological order per step. A knot is decided, materialized and turned into a task only once the run's `AdmissionGate` admits it; the default `UnboundedAdmissionGate` admits every ready knot immediately.
+A knot is scheduled the moment its own parents have resolved, not when a whole "wave" of unrelated knots has finished: completions are processed one at a time as they happen, so a fast knot's children start while its slow siblings are still running (PIR-841). Each dispatched task reports itself on a completion queue through a done-callback, so the engine wakes once per completion at O(1) cost, and it finds newly ready knots by decrementing their unresolved-parent counts, so a chain of *n* knots costs O(n) scheduling work rather than a rescan of the topological order per step. A knot is decided, materialized and turned into a task only once the run's `AdmissionGate` admits it; the default `UnboundedAdmissionGate` admits every ready knot immediately.
 
 Per-knot records do not depend on completion order. `RunResult.lineage`, `exceptions`, `skipped` and `outputs` are sorted by `(level, dispatched, topological index)`, where `level` is the knot's depth from the roots; for a graph without mid-run registrations that is exactly the order the earlier wave loop produced. `status_events` and live `on_status` delivery are the exception: they follow real state transitions, so sibling knots' events interleave in the order the knots actually start and finish.
 

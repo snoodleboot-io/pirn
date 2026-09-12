@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import unittest
 from collections.abc import AsyncIterator
 from typing import Any
@@ -40,6 +41,17 @@ class _SimpleStream(StreamingSource):
 
     async def close(self) -> None:
         self._closed = True
+
+
+class _CancelledRunTapestry:
+    """A tapestry whose run is cancelled, as ``Tapestry.run`` now reports it."""
+
+    def __init__(self) -> None:
+        self.runs = 0
+
+    async def run(self, request: Any) -> None:
+        self.runs += 1
+        raise asyncio.CancelledError
 
 
 class TestStreamingSourceAbstract(unittest.TestCase):
@@ -114,3 +126,22 @@ class TestRunStream(unittest.IsolatedAsyncioTestCase):
         await run_stream(stream, _BrokenTapestry(), on_error=on_err)  # type: ignore
         self.assertEqual(len(errors), 1)
         self.assertEqual(errors[0][0], "x")
+
+    async def test_cancelled_run_propagates_instead_of_reaching_on_error(self) -> None:
+        # Arrange: Tapestry.run raises CancelledError when its run is
+        # cancelled (PIR-841).  A log-and-continue on_error must not be able
+        # to swallow that and keep the stream going.
+        errors: list = []
+
+        async def on_err(value: Any, exc: BaseException) -> None:
+            errors.append((value, exc))
+
+        stream = _SimpleStream(["x", "y"])
+        tapestry = _CancelledRunTapestry()
+
+        # Act / Assert
+        with self.assertRaises(asyncio.CancelledError):
+            await run_stream(stream, tapestry, on_error=on_err)  # type: ignore[arg-type]
+        self.assertEqual(errors, [])
+        self.assertEqual(tapestry.runs, 1)
+        self.assertTrue(stream._closed)

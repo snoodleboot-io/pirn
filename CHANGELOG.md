@@ -63,7 +63,7 @@ All 159 unit test files that exercise optional-dependency code now wrap imports 
 - **Changed order:** `RunResult.status_events` and live `on_status` delivery follow real transitions, so sibling knots' events interleave in the order the knots start and finish.
 - **Fixed:** `KnotLineage.finished_at` is stamped when the knot finishes. Before, a fast knot listed after a slow sibling recorded the sibling's duration.
 - **Mid-run extension:** registrations are merged each time a knot completes instead of between waves. A newcomer is ordered one level past the knot that registered it.
-- **Cancellation:** cancelling a run now cancels its in-flight knots and raises `CancelledError` from `Tapestry.run`. Before, the cancellation reached the one knot being awaited, `Knot.__call__` turned it into an `Err` (PIR-849), and the run returned a failed `RunResult`.
+- **Cancellation:** cancelling a run now cancels its in-flight knots, waits for their asyncio-side cleanup to finish, and raises `CancelledError` from `Tapestry.run`. Knots on worker threads are not interrupted. `streaming.run_stream` now re-raises that cancellation instead of passing it to `on_error`, matching `triggers.run_forever`. Before, the cancellation reached the one knot being awaited, `Knot.__call__` turned it into an `Err` (PIR-849), and the run returned a failed `RunResult`.
 
 #### Agent control knots renamed
 

@@ -16,7 +16,9 @@ event-gated scenarios below deadlock instead of passing slowly.
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import itertools
+import threading
 from collections import defaultdict
 from typing import Any
 
@@ -28,7 +30,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.core.run_result import RunResult
-from pirn.tapestry import Tapestry
+from pirn.tapestry import Tapestry, _current_run_id, current_run_id
 
 
 class _Script:
@@ -45,12 +47,15 @@ class _Script:
         self.delays: dict[str, float] = {}
         self.failures: set[str] = set()
         self.barrier: asyncio.Barrier | None = None
+        self.cleanup_s: float | None = None
+        self.run_id: str | None = None
         self._events: defaultdict[str, asyncio.Event] = defaultdict(asyncio.Event)
 
     def event(self, name: str) -> asyncio.Event:
         return self._events[name]
 
     async def play(self, knot_id: str) -> str:
+        self.run_id = current_run_id()
         self.log.append(f"start:{knot_id}")
         self.event(f"started:{knot_id}").set()
         try:
@@ -63,6 +68,10 @@ class _Script:
         except asyncio.CancelledError:
             self.log.append(f"cancelled:{knot_id}")
             self.event(f"cancelled:{knot_id}").set()
+            if self.cleanup_s is not None:
+                # Cleanup that itself awaits, like closing a connection.
+                await asyncio.sleep(self.cleanup_s)
+            self.log.append(f"cleaned:{knot_id}")
             raise
         self.log.append(f"finish:{knot_id}")
         self.event(f"finished:{knot_id}").set()
@@ -114,6 +123,37 @@ class _Registrar(Knot):
             # so the newcomer is absorbed there rather than at our own.
             await asyncio.sleep(0.05)
         return self.knot_id
+
+
+def _register_late_parentless(script: _Script, target: Tapestry, run_id: str | None) -> None:
+    """Register a parentless ``late`` knot with *run_id* as the ambient run.
+
+    Called in a context that has no dispatching knot: a plain thread, or a
+    fresh ``contextvars.Context`` standing in for a durable store's listener,
+    which restores only the run id from the notice.
+    """
+    token = _current_run_id.set(run_id)
+    try:
+        with target:
+            _Scripted(script=script, _config=KnotConfig(id="late"))
+    finally:
+        _current_run_id.reset(token)
+
+
+async def _register_without_a_registrar(script: _Script, target: Tapestry, via: str) -> None:
+    """After ``r`` has completed, register ``late`` with no registrar in scope."""
+    await script.event("finished:r").wait()
+    # Let the engine process r's completion before the registration lands.
+    await asyncio.sleep(0.02)
+    if via == "thread":
+        worker = threading.Thread(
+            target=_register_late_parentless, args=(script, target, script.run_id)
+        )
+        worker.start()
+        await asyncio.to_thread(worker.join)
+    else:
+        contextvars.Context().run(_register_late_parentless, script, target, script.run_id)
+    script.event("registered").set()
 
 
 async def _run(t: Tapestry, **kwargs: Any) -> RunResult:
@@ -286,6 +326,37 @@ async def test_mid_run_knot_is_ordered_by_its_registrar_not_by_what_finished_fir
     assert [row.knot_id for row in result.lineage] == ["p", "a", "r", "b", "late", "d"]
 
 
+@pytest.mark.parametrize("via", ["thread", "durable_delivery"])
+@pytest.mark.parametrize("sibling_delay_s", [0.0, 0.01, 0.05, 0.15])
+async def test_mid_run_knot_without_a_registrar_is_not_ordered_before_running_work(
+    via: str, sibling_delay_s: float
+) -> None:
+    # Arrange: p -> a -> b -> r, plus s, a slow sibling of a.  Once r (level 3)
+    # has completed, `late` is registered with no dispatching knot in scope --
+    # from a plain thread, or the way a durable store delivers -- and is
+    # absorbed when s (level 1) completes.  It must still be placed after
+    # everything already dispatched, as the wave loop did, however long s
+    # takes.
+    script = _Script()
+    script.waits["s"] = "registered"
+    script.delays["s"] = sibling_delay_s
+    with Tapestry() as t:
+        p = Parameter("x", int, _config=KnotConfig(id="p"))
+        a = _Scripted(x=p, script=script, _config=KnotConfig(id="a"))
+        _Scripted(x=p, script=script, _config=KnotConfig(id="s"))
+        b = _Scripted(x=a, script=script, _config=KnotConfig(id="b"))
+        _Scripted(x=b, script=script, _config=KnotConfig(id="r"))
+    registration = asyncio.create_task(_register_without_a_registrar(script, t, via))
+
+    # Act
+    result = await _run(t, extensible=True)
+    await registration
+
+    # Assert
+    assert result.succeeded
+    assert [row.knot_id for row in result.lineage] == ["p", "a", "s", "b", "r", "late"]
+
+
 # ------------------------------------------------------- unbounded default
 
 
@@ -333,5 +404,23 @@ async def test_cancelling_a_run_cancels_its_in_flight_knots_and_propagates() -> 
     # cancellation of the run.
     with pytest.raises(asyncio.CancelledError):
         await run
-    await asyncio.wait_for(script.event("cancelled:stuck").wait(), timeout=10.0)
+    assert "cancelled:stuck" in script.log
     assert "finish:stuck" not in script.log
+
+
+async def test_in_flight_cleanup_has_finished_when_the_caller_sees_the_timeout() -> None:
+    # Arrange: the stuck knot's cancellation handler awaits before it is done.
+    script = _Script()
+    script.waits["stuck"] = "never"
+    script.cleanup_s = 0.05
+    with Tapestry() as t:
+        p = Parameter("x", int, _config=KnotConfig(id="p"))
+        _Scripted(x=p, script=script, _config=KnotConfig(id="stuck"))
+
+    # Act
+    with pytest.raises(TimeoutError):
+        await asyncio.wait_for(t.run(RunRequest(parameters={"x": 1})), timeout=0.2)
+
+    # Assert: no waiting here -- the engine awaited the cancelled knot before
+    # letting the cancellation out of the run.
+    assert "cleaned:stuck" in script.log

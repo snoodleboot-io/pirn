@@ -6,7 +6,7 @@ import json
 import unittest
 
 from pirn.backends.base.knot_registration_notice import KnotRegistrationNotice
-from pirn.tapestry import _current_run_id, current_run_id
+from pirn.tapestry import _current_dispatching_knot_id, _current_run_id, current_run_id
 
 
 class TestKnotRegistrationNoticeRoundTrip(unittest.TestCase):
@@ -87,3 +87,17 @@ class TestKnotRegistrationNoticeRunScope(unittest.TestCase):
             self.assertEqual(current_run_id(), "stale-run")
         finally:
             _current_run_id.reset(token)
+
+    def test_delivery_carries_no_dispatching_knot(self) -> None:
+        # Arrange: the delivering listener task was started while some knot
+        # was executing, so it inherited that knot's id (PIR-841).
+        token = _current_dispatching_knot_id.set("outer-knot")
+        try:
+            # Act / Assert: the notice names no registering knot, so none is
+            # in scope while subscribers run ...
+            with KnotRegistrationNotice("k1", "run-a").run_scope():
+                self.assertIsNone(_current_dispatching_knot_id.get())
+            # ... and the listener's own context is restored afterwards.
+            self.assertEqual(_current_dispatching_knot_id.get(), "outer-knot")
+        finally:
+            _current_dispatching_knot_id.reset(token)
