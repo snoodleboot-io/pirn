@@ -40,7 +40,7 @@ graph TD
 
 **Layer 1** is where you write pipeline code. Knots, tapestries, parameters, and config are the only objects you need.
 
-**Layer 2** runs when you call `tapestry.run()`. The engine builds an ephemeral execution graph (the Shed), runs knots in topological waves with concurrency within each wave, and produces a `RunResult`.
+**Layer 2** runs when you call `tapestry.run()`. The engine builds an ephemeral execution graph (the Shed), schedules each knot concurrently as soon as its parents have resolved, and produces a `RunResult`.
 
 **Layer 3** is where data lives. All three backends are protocols — swap implementations without touching pipeline code.
 

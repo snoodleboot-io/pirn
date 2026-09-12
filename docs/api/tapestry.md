@@ -81,7 +81,7 @@ from pirn.tapestry import get_current_store
 
 Returns the `TapestryStore` of the currently-executing extensible run, or `None` when called outside an extensible run.
 
-Call this inside a knot's `process()` to register successor knots into the running tapestry. The engine picks them up between waves — this is the mechanism for building dynamic DAGs where the graph structure is determined by runtime output.
+Call this inside a knot's `process()` to register successor knots into the running tapestry. The engine merges them as knots complete and starts each one as soon as its parents have resolved — this is the mechanism for building dynamic DAGs where the graph structure is determined by runtime output.
 
 ```python
 from pirn.tapestry import get_current_store

@@ -54,6 +54,17 @@ All 159 unit test files that exercise optional-dependency code now wrap imports 
 
 ### Changed
 
+#### Engine schedules knots through an admission queue (PIR-841, slice 1)
+
+`pirn/engine/engine.py` no longer runs a graph in waves (dispatch every ready knot, wait for all of them, rescan for the next set). A knot now becomes ready the moment its own parents resolve and starts once the run's `AdmissionGate` admits it; the default `UnboundedAdmissionGate` admits everything, so no run is capped. New classes: `pirn/engine/scheduling/dependency_tracker.py` (`DependencyTracker`), `pirn/engine/scheduling/ready_queue.py` (`ReadyQueue`), and `pirn/engine/admission/` (`AdmissionGate`, `UnboundedAdmissionGate`, `AdmissionTicket`). There is no new public API yet.
+
+- **Eager scheduling.** A child no longer waits for an unrelated slow sibling of its parent. Chains no longer pay an O(n²) ready-set rescan.
+- **Unchanged:** outputs, every lineage hash, and the order of `RunResult.lineage`, `exceptions`, `skipped` and `outputs`. These are now sorted by `(level, dispatched, topological index)`, which reproduces the wave loop's order for any graph without mid-run registrations.
+- **Changed order:** `RunResult.status_events` and live `on_status` delivery follow real transitions, so sibling knots' events interleave in the order the knots start and finish.
+- **Fixed:** `KnotLineage.finished_at` is stamped when the knot finishes. Before, a fast knot listed after a slow sibling recorded the sibling's duration.
+- **Mid-run extension:** registrations are merged each time a knot completes instead of between waves. A newcomer is ordered one level past the knot that registered it.
+- **Cancellation:** cancelling a run now cancels its in-flight knots and raises `CancelledError` from `Tapestry.run`. Before, the cancellation reached the one knot being awaited, `Knot.__call__` turned it into an `Err` (PIR-849), and the run returned a failed `RunResult`.
+
 #### Agent control knots renamed
 
 The four knots in `pirn/domains/agents/control/` were renamed to remove the misleading `Gate` suffix — `Gate` in pirn is a specific framework primitive (predicate pass-through → `Ok` or `Skipped`) and these knots do not extend it:

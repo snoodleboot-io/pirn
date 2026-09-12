@@ -346,8 +346,8 @@ result = await tapestry.run(extensible=True)
 ```
 
 Inside any knot's `process()`, call `get_current_store()` to register
-successor knots into the running tapestry. The engine picks them up
-between waves:
+successor knots into the running tapestry. The engine merges them as
+knots complete, and a newcomer starts as soon as its parents have resolved:
 
 ```python
 from pirn.tapestry import get_current_store
