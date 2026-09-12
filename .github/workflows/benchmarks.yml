@@ -51,14 +51,20 @@ jobs:
           mkdir -p ../../benchmark-results
           # -m benchmark selects only the benchmark-marked cases; -s streams the
           # `[benchmark]` lines the harness prints so we can harvest them.
-          uv run --no-sync python -m pytest tests -m benchmark -s -o addopts="" \
+          #
+          # The ROOT venv's interpreter, explicitly. `uv run` resolves a venv
+          # relative to the working directory, so from packages/pirn-agents it
+          # created a second, empty .venv and failed with "No module named
+          # pytest" — the previous step installs into ../../.venv (PIR-842).
+          ../../.venv/bin/python -m pytest tests -m benchmark -s -o addopts="" \
             | tee ../../benchmark-results/output.txt
 
       - name: Emit machine-readable report + delta vs baseline
         working-directory: packages/pirn-agents
         run: |
           set -euo pipefail
-          uv run --no-sync python - <<'PY'
+          # Root venv, for the same reason as the step above (PIR-842).
+          ../../.venv/bin/python - <<'PY'
           from pathlib import Path
           from pirn_agents.benchmarks.benchmark_report import BenchmarkReport
           from pirn_agents.benchmarks.benchmark_delta import BenchmarkDelta
