@@ -55,6 +55,15 @@ class ReadFileTool(BaseTool):
             "required": ["path"],
         }
 
+    def content_identity(self) -> Mapping[str, Any]:
+        """Opt in to content identity with the resolved root and the max_bytes cap.
+
+        The root is the strictly-resolved absolute path, so the same checkout
+        replays across processes while a different root (or the same root on a
+        machine with another path) is a different tool and refuses (PIR-840).
+        """
+        return {"root": str(self._guard.root), "max_bytes": self._max_bytes}
+
     async def invoke(self, arguments: Mapping[str, Any]) -> Mapping[str, Any]:
         """Read the requested file and return its (possibly truncated) content.
 

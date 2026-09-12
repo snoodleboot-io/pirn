@@ -69,6 +69,61 @@ Under F1 schema-based tool calling, pass a `ToolCall` to `tool.as_tool_result(ca
 each action input as `{"input": ...}`; single-argument base tools accept that as an
 alias for their canonical parameter, so the same tool works both ways.
 
+## Replay identity
+
+A tool used as a knot input (for example by `ToolInvocation` or `ToolExecutor`)
+is part of the lineage row's content hash. Replay compares that hash, so it
+decides whether a recorded tool call can be served instead of running the tool
+again.
+
+By default a tool is **identity-keyed**. Its hash is unique to the instance and
+the process, so a run recorded in one process refuses to replay in another
+(`ReplayMismatchError`). This is the safe direction for any tool whose behaviour
+depends on something the hash can't see, such as a connection, store, client, or
+sandbox.
+
+A tool **opts in** to content identity by overriding `content_identity()` to
+return its declared configuration. Its hash then covers its class, `name`,
+`description`, `parameters_schema` and that configuration, so equal tools hash
+equal in every process and their recorded calls replay.
+
+| Tool | Identity | Declared config |
+|------|----------|-----------------|
+| `CalculatorTool` | content | none |
+| `ReadFileTool` / `WriteFileTool` | content | resolved absolute `root`, `max_bytes` |
+| `ListDirTool` | content | resolved absolute `root`, `max_entries` |
+| `GlobTool` | content | resolved absolute `root`, `max_results` |
+| `HtmlToTextTool` | content | `max_chars` |
+| `HttpRequestTool` | content, **identity if `client` or `resolver` is injected** | sorted `allowed_hosts`, `allow_private`, `max_bytes`, `timeout`, `connect_timeout` |
+| `@tool` functions | content, under the conditions below | function `module.qualname`, `args_model`, `return_schema`, permissions, async/streaming/stateful flags, canonical `state` |
+| `SqlQueryTool`, `RetrieverTool`, `RagTool`, `WebSearchTool`, `McpTool`, `PythonExecTool`, `ShellTool`, `AgentTool`, `StubTool` | identity | — (they hold live resources) |
+
+A `@tool` function is content-identified only when all of these hold:
+
+- It is a plain module-level function that its module still binds by name. A
+  lambda, closure, bound method, `functools.partial`, callable object, or shadowed
+  definition stays identity-keyed.
+- Any `args_model` is a module-level class.
+- Any injected `state` defines `__pirn_canonical__`, so its author has declared
+  what identifies it. Plain state, such as a dict or a connection, keeps the tool
+  identity-keyed.
+
+The function body is not hashed. Editing a function and replaying an older
+recording serves the old result, the same as for a knot's `process`.
+
+`Toolset` and `RouteCandidate` hash through their tools' own identities.
+
+**Rules for opting in a new tool:**
+
+1. Return **every** constructor input that changes behaviour, as JSON-friendly
+   primitives.
+2. Never return a credential, token, header, or URL userinfo/query string.
+3. Return `None` for any instance whose behaviour depends on an injected object
+   that has no content form.
+4. Add a case to `tests/tools/test_tool_identity_gate.py`. The gate varies each
+   constructor argument and fails if the hash doesn't change. It also fails for
+   any opted-in class anywhere in the workspace that has no case.
+
 ## Security notes
 
 ### Filesystem

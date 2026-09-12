@@ -9,6 +9,8 @@ validator, streaming flag, and injected state. It is constructed by the
 from __future__ import annotations
 
 import asyncio
+import inspect
+import sys
 from collections.abc import AsyncIterator, Callable, Mapping
 from typing import Any
 
@@ -37,8 +39,10 @@ class FunctionTool(Tool):
         is_streaming: bool = False,
         state: Any | None = None,
         is_stateful: bool = False,
+        args_model: type | None = None,
     ) -> None:
         self._fn = fn
+        self._args_model = args_model
         self._name = name
         self._description = description
         self._parameters_schema = dict(parameters_schema)
@@ -89,6 +93,68 @@ class FunctionTool(Tool):
     def state(self) -> Any | None:
         """Return the injected state/resource object, or ``None``."""
         return self._state
+
+    def content_identity(self) -> Mapping[str, Any] | None:
+        """Opt in to content identity only when every behavioural input has a stable form.
+
+        The tool stays identity-keyed (``None``) unless all of these hold:
+
+        * ``fn`` is a plain module-level function that resolves back from its
+          module by qualname — not a lambda, closure, bound method, partial,
+          callable object, or a function a later definition has shadowed;
+        * an ``args_validator`` comes with the module-level ``args_model`` it was
+          derived from (an arbitrary validator callable has no content form);
+        * any injected ``state`` defines ``__pirn_canonical__``, so its author has
+          declared what identifies it. State without one (a connection, a
+          client, a mutable dict) keeps the tool identity-keyed.
+
+        The function body is not digested, matching core, which does not guard a
+        knot's source either (PIR-840, Q7).
+        """
+        fn_reference = self._module_level_reference(self._fn)
+        if fn_reference is None:
+            return None
+        model_reference: str | None = None
+        if self._args_model is not None:
+            model_reference = self._module_level_reference(self._args_model)
+            if model_reference is None:
+                return None
+        elif self._args_validator is not None:
+            return None
+        if self._state is not None and not hasattr(type(self._state), "__pirn_canonical__"):
+            return None
+        return {
+            "fn": fn_reference,
+            "args_model": model_reference,
+            "return_schema": self._return_schema,
+            "permissions": self._permissions,
+            "is_async": self._is_async,
+            "streaming": self._is_streaming,
+            "stateful": self._is_stateful,
+            "state": self._state,
+        }
+
+    @staticmethod
+    def _module_level_reference(target: object) -> str | None:
+        """Return ``module.qualname`` for a module-level function or class, else ``None``.
+
+        The reference must round-trip: looking ``qualname`` up in the module has
+        to give back ``target`` itself, or a :class:`FunctionTool` wrapping it
+        (``@tool`` rebinds the function's module name to the tool). A qualname
+        containing ``.`` or ``<`` is a method, nested definition, or lambda.
+        """
+        if not (inspect.isfunction(target) or inspect.isclass(target)):
+            return None
+        qualname = target.__qualname__
+        if "." in qualname or "<" in qualname:
+            return None
+        module = sys.modules.get(target.__module__)
+        if module is None:
+            return None
+        bound = vars(module).get(qualname)
+        if bound is not target and not (isinstance(bound, FunctionTool) and bound._fn is target):
+            return None
+        return f"{target.__module__}.{qualname}"
 
     def _prepare_call(self, arguments: Mapping[str, Any]) -> tuple[tuple[Any, ...], dict[str, Any]]:
         """Build the positional/keyword arguments for the wrapped function.

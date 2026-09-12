@@ -50,6 +50,10 @@ class HtmlToTextTool(BaseTool):
             "required": ["html"],
         }
 
+    def content_identity(self) -> Mapping[str, Any]:
+        """Opt in to content identity: the output cap is the only configuration (PIR-840)."""
+        return {"max_chars": self._max_chars}
+
     async def invoke(self, arguments: Mapping[str, Any]) -> Mapping[str, Any]:
         """Convert the ``html`` argument to text, capped at ``max_chars``.
 

@@ -7,7 +7,9 @@ name lookup, membership, iteration, and a provider-neutral
 
 Like :class:`Tool`, a toolset is opaque to pydantic (see
 :class:`pirn.core.pirn_opaque_value.PirnOpaqueValue`); its audit form is
-the ordered list of tool names, keeping content-addressing stable.
+the ordered list of tool names. Its content hash is the ordered list of the
+tools themselves, so each tool's own identity applies (PIR-840): hashing by
+name alone let ``ReadFileTool(root=A)`` and ``ReadFileTool(root=B)`` collide.
 """
 
 from __future__ import annotations
@@ -99,3 +101,12 @@ class Toolset(PirnOpaqueValue):
     def _pirn_audit_dict(self) -> Any:
         """Return the ordered list of registered tool names."""
         return [tool.name for tool in self._tools]
+
+    def __pirn_canonical__(self) -> Any:
+        """Return the ordered tools, so the content hash uses each tool's own identity.
+
+        The audit form (names only) is not an identity: two toolsets holding
+        differently-configured tools of the same names would hash equal and
+        replay each other's recordings (PIR-840).
+        """
+        return list(self._tools)

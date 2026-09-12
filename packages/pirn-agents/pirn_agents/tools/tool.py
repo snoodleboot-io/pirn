@@ -16,10 +16,19 @@ override points on core ``Knot``/``Emitter``:
   metadata and the human-approval gate (default: inert/unrestricted).
 * :attr:`streaming` / :meth:`stream` / :meth:`collect_stream` — tools that
   yield incremental output (default: not streaming; :meth:`stream` raises).
+* :meth:`content_identity` — the declared configuration that, together with
+  the tool's class, name, description and parameters schema, fully determines
+  what the tool does (default: ``None``, meaning the tool is identity-keyed).
 
 Pydantic treats tools as opaque (see
-:class:`pirn.core.pirn_opaque_value.PirnOpaqueValue`); the default
-identity-keyed serialiser keeps content-addressing cache stable.
+:class:`pirn.core.pirn_opaque_value.PirnOpaqueValue`) and :meth:`_pirn_audit_dict`
+stays the identity-keyed token. What changes per tool is the **content hash**
+that lineage and replay compare (PIR-840): :meth:`__pirn_canonical__` returns
+that identity token unless the tool opts in through :meth:`content_identity`.
+An identity-keyed tool hashes differently in every process, so a recorded run
+replayed elsewhere refuses rather than substituting (a safe false mismatch). An
+opted-in tool hashes the same wherever its class and declared config match, so
+its recorded calls replay across processes.
 """
 
 from __future__ import annotations
@@ -102,6 +111,45 @@ class Tool(PirnOpaqueValue):
     async def collect_stream(self, arguments: Mapping[str, Any]) -> list[Any]:
         """Drain this tool's stream for ``arguments`` into a list of chunks."""
         return [chunk async for chunk in self.stream(arguments)]
+
+    def content_identity(self) -> Mapping[str, Any] | None:
+        """Return the declared config that makes this tool content-identified, or ``None``.
+
+        Default: ``None`` — the tool is identity-keyed, so its content hash is
+        unique to this instance in this process and replay across processes
+        refuses. That is the safe direction for any tool whose behaviour depends
+        on state the hash cannot see (a live connection, a store, a client).
+
+        Override to opt in, returning **every** constructor input that changes
+        what the tool does, as JSON-friendly primitives. Never include a
+        credential, token, or any value that might be one. Returning ``None``
+        from an override (e.g. when a test double or custom client was injected)
+        keeps that instance identity-keyed. A tool that opts in must also be
+        covered by the per-argument gate in
+        ``tests/tools/test_tool_identity_gate.py``.
+        """
+        return None
+
+    def __pirn_canonical__(self) -> Any:
+        """Return the form :func:`pirn.core.hashing.content_hash` hashes.
+
+        When :meth:`content_identity` is ``None`` this is the identity token
+        from :meth:`_pirn_audit_dict`, exactly the value hashed before PIR-840.
+        Otherwise it is the tool's class, name, description, parameters schema
+        and declared config — the class is included so two tools that declare
+        the same triple but behave differently never hash equal.
+        """
+        config = self.content_identity()
+        if config is None:
+            return self._pirn_audit_dict()
+        tool_type = type(self)
+        return {
+            "tool": f"{tool_type.__module__}.{tool_type.__qualname__}",
+            "name": self.name,
+            "description": self.description,
+            "parameters_schema": self.parameters_schema,
+            "config": config,
+        }
 
     def _clear_credentials(self) -> None:
         """Drop any in-memory credential reference held by the tool.
