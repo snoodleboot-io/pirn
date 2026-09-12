@@ -12,8 +12,6 @@ The wrapped broker is accessed via the read-only :attr:`client` property.
 
 from __future__ import annotations
 
-from typing import Any
-
 from pirn.connectors.message_broker import MessageBroker
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
@@ -31,6 +29,3 @@ class MessageBrokerConnection(PirnOpaqueValue):
     @property
     def client(self) -> MessageBroker:
         return self._client
-
-    def _pirn_audit_dict(self) -> Any:
-        return f"<MessageBrokerConnection@{id(self._client):x}>"

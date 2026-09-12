@@ -47,7 +47,7 @@ def _clear_invocations() -> None:
 
 
 @pytest.mark.parametrize("provider_cls", [OpenAICompatibleProvider, AnthropicMessagesProvider])
-def test_providers_with_different_model_and_endpoint_do_not_hash_equal(
+def test_live_providers_with_different_model_and_endpoint_hash_differently(
     provider_cls: type[BaseLLMProvider],
 ) -> None:
     # Arrange
@@ -60,6 +60,18 @@ def test_providers_with_different_model_and_endpoint_do_not_hash_equal(
 
     # Assert
     assert hash_a != hash_b
+
+
+def test_identically_configured_separate_providers_hash_differently() -> None:
+    # Arrange — identity semantics until PIR-840 PR-3 gives providers content identity.
+    first = OpenAICompatibleProvider(model="m-a", base_url="https://a.example/v1")
+    second = OpenAICompatibleProvider(model="m-a", base_url="https://a.example/v1")
+
+    # Act
+    hashes = {content_hash({"llm": first}), content_hash({"llm": second})}
+
+    # Assert
+    assert len(hashes) == 2
 
 
 def test_provider_hash_is_stable_across_calls() -> None:
@@ -88,7 +100,7 @@ def test_provider_audit_dict_output_is_unchanged() -> None:
     assert audit == {"connector": "OpenAICompatibleProvider", "has_credential": True}
 
 
-def test_no_credential_appears_in_provider_canonical_or_hashed_form() -> None:
+def test_no_credential_or_configuration_appears_in_the_provider_canonical_form() -> None:
     # Arrange
     secret = "sk-PIR848-SENTINEL"
     provider = OpenAICompatibleProvider(
@@ -97,15 +109,15 @@ def test_no_credential_appears_in_provider_canonical_or_hashed_form() -> None:
         credential=CredentialRef(secret=secret),
     )
 
-    # Act
-    forms = [
-        json.dumps(provider.__pirn_canonical__()),
-        json.dumps(provider._pirn_audit_dict()),
-        content_hash({"llm": provider}),
-    ]
+    # Act — the canonical form and the token are what content_hash consumes.
+    canonical = json.dumps(provider.__pirn_canonical__())
+    token = provider._pirn_identity_token()
 
     # Assert
-    assert all(secret not in form for form in forms)
+    for form in (canonical, token):
+        assert secret not in form
+        assert "a.example" not in form
+        assert "m-a" not in form
 
 
 async def test_replay_refuses_a_recording_made_with_another_model_and_endpoint() -> None:

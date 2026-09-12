@@ -118,10 +118,12 @@ class ConnectorBase(PirnOpaqueValue):
         identity turns that false match into a false mismatch, which is safe:
         replay refuses instead of substituting.
 
-        The token is the one :class:`PirnOpaqueValue` already emits
-        (``<TypeName@hex_id>``). It holds no configuration, so no credential can
-        reach lineage through it, and it does not change when
-        :meth:`_clear_credentials` runs. A subclass whose behaviour is fully
+        The token is the one :class:`PirnOpaqueValue` emits by default,
+        ``<TypeName@identity_token>``. It is unique per instance even when
+        CPython reuses a freed connector's address (PIR-852). It holds no
+        configuration, so no credential can reach lineage through it, and it
+        does not change when :meth:`_clear_credentials` runs. A copy of a
+        connector is a different instance and gets a different token. A subclass whose behaviour is fully
         determined by secret-free configuration may override this to return that
         configuration instead.
         """

@@ -24,7 +24,7 @@ import json
 from collections.abc import Mapping, Sequence, Set
 from typing import Any
 
-from pydantic import BaseModel, TypeAdapter
+from pydantic import BaseModel, RootModel, TypeAdapter
 
 # Module-level cache to avoid rebuilding ``TypeAdapter`` per
 # ``_canonicalise`` call. Constructing a TypeAdapter walks the type and
@@ -83,7 +83,9 @@ def _canonicalise(value: Any) -> Any:
       primitive (dict / list / str / int / etc.) and ``_canonicalise``
       recurses into the result. This is the preferred form because it is
       cheap (no pydantic round-trip) and makes the canonical shape
-      visible at the call site of the hook.
+      visible at the call site of the hook. It is honoured for values
+      nested inside a pydantic model too (see
+      :func:`_restore_canonical_hooks`), not only at the top level.
     * Pydantic-aware fallback for types declaring
       ``__get_pydantic_core_schema__`` but **not** subclassing
       ``BaseModel`` (e.g. frozen dataclasses backed by
@@ -118,9 +120,10 @@ def _canonicalise(value: Any) -> Any:
                 return opaque_value._pirn_audit_dict()
             return repr(opaque_value)
 
+        dumped = value.model_dump(mode="json", fallback=_opaque_fallback)
         return {
             "__model__": value.__class__.__name__,
-            "data": _canonicalise(value.model_dump(mode="json", fallback=_opaque_fallback)),
+            "data": _canonicalise(_restore_canonical_hooks(value, dumped)),
         }
     # Pydantic-aware fallback for non-``BaseModel`` types declaring a
     # custom core schema. Excludes containers so the dedicated branches
@@ -157,3 +160,110 @@ def _canonicalise(value: Any) -> Any:
         return {"__seq__": [_canonicalise(e) for e in value]}
     # Opaque type — bail.  Caller produces the UNHASHABLE marker.
     raise _UnhashableError
+
+
+def _restore_canonical_hooks(model: BaseModel, dumped: Any) -> Any:
+    """Route every value nested in ``model`` that has a canonical hook back to it.
+
+    ``model_dump`` serialises a nested opaque value through its pydantic
+    serialiser, which is its audit form. For a connector the audit form is a
+    per-class constant, so ``Settings(connector=a)`` and
+    ``Settings(connector=b)`` would dump, and hash, the same (PIR-848).
+
+    Wherever the dump holds such a value, in a field typed as the class, as
+    ``Any``, inside a list, tuple, set or mapping, or in a nested model, this
+    puts the live object back so the outer ``_canonicalise`` reaches its
+    ``__pirn_canonical__``. Everything around it keeps its dumped JSON form. A
+    model holding no hook object is returned untouched and hashes exactly as
+    before. Fields the dump excludes stay excluded.
+
+    Args:
+        model: The model that was dumped.
+        dumped: ``model.model_dump(mode="json")`` output.
+
+    Returns:
+        ``dumped``, or a shallow-rebuilt copy with hook objects restored.
+    """
+    if isinstance(model, RootModel):
+        # A RootModel dumps to its bare root value, which may itself be a dict.
+        return _merge_canonical_hooks(model.root, dumped)
+    if not isinstance(dumped, dict):
+        return dumped
+    restored: dict[str, Any] | None = None
+    # Field values live in the instance ``__dict__``; extras in
+    # ``__pydantic_extra__``. Aliases are looked up only for a hit.
+    for values in (model.__dict__, model.__pydantic_extra__ or {}):
+        for name, raw in values.items():
+            if not _holds_canonical_hook(raw):
+                continue
+            field = type(model).model_fields.get(name)
+            keys = (name,) if field is None else (name, field.serialization_alias, field.alias)
+            for key in keys:
+                if key is not None and key in dumped:
+                    restored = dict(dumped) if restored is None else restored
+                    restored[key] = _merge_canonical_hooks(raw, dumped[key])
+                    break
+    return dumped if restored is None else restored
+
+
+def _merge_canonical_hooks(raw: Any, dumped: Any) -> Any:
+    """Merge one raw value with its dumped form, keeping hook objects live.
+
+    Lists, tuples and string-keyed mappings are walked in step with their dump,
+    so only the hook-holding elements change. A nested model is handed back
+    whole; the ``BaseModel`` branch of ``_canonicalise`` dumps and restores it
+    itself. A set, or a shape the dump no longer mirrors (a custom field
+    serialiser, say), falls back to the raw value, which ``_canonicalise``
+    walks directly.
+    """
+    if not _holds_canonical_hook(raw):
+        return dumped
+    if hasattr(raw, "__pirn_canonical__") or isinstance(raw, BaseModel):
+        return raw
+    if isinstance(raw, (list, tuple)) and isinstance(dumped, list) and len(raw) == len(dumped):
+        return [_merge_canonical_hooks(r, d) for r, d in zip(raw, dumped, strict=True)]
+    if (
+        isinstance(raw, Mapping)
+        and isinstance(dumped, dict)
+        and all(isinstance(k, str) and k in dumped for k in raw)
+    ):
+        return {k: _merge_canonical_hooks(raw[k], d) if k in raw else d for k, d in dumped.items()}
+    return raw
+
+
+def _holds_canonical_hook(value: Any) -> bool:
+    """Whether ``value`` is, or contains, an object defining ``__pirn_canonical__``.
+
+    Walks the same shapes ``_canonicalise`` walks, plus nested model fields.
+    This runs for every model hashed, so primitives and exact builtin
+    containers are tested by type before the comparatively slow ``hasattr``.
+    """
+    if value is None or isinstance(value, (bool, int, float, str, bytes)):
+        return False
+    value_type = type(value)
+    if value_type is list or value_type is tuple or value_type is set or value_type is frozenset:
+        for item in value:
+            if item is None or isinstance(item, (bool, int, float, str, bytes)):
+                continue
+            if _holds_canonical_hook(item):
+                return True
+        return False
+    if value_type is dict:
+        for key, item in value.items():
+            if item is not None and not isinstance(item, (bool, int, float, str, bytes)):
+                if _holds_canonical_hook(item):
+                    return True
+            if not isinstance(key, str) and _holds_canonical_hook(key):
+                return True
+        return False
+    if hasattr(value, "__pirn_canonical__"):
+        return True
+    if isinstance(value, BaseModel):
+        return _holds_canonical_hook(dict(value.__dict__)) or _holds_canonical_hook(
+            dict(value.__pydantic_extra__ or {})
+        )
+    if isinstance(value, Mapping):
+        return _holds_canonical_hook(dict(value))
+    if isinstance(value, (list, tuple, set, frozenset)):
+        return _holds_canonical_hook(list(value))
+    return False

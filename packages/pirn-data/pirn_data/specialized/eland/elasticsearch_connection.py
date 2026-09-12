@@ -30,6 +30,3 @@ class ElasticsearchConnection(PirnOpaqueValue):
     @property
     def client(self) -> Any:
         return self._client
-
-    def _pirn_audit_dict(self) -> Any:
-        return f"<ElasticsearchConnection@{id(self._client):x}>"

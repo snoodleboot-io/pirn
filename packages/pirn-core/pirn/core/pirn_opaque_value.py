@@ -22,7 +22,8 @@ Before this mixin existed, every such type carried its own copy of::
 This mixin centralises that body. Subclasses override
 :meth:`_pirn_audit_dict` to control what primitive form pydantic emits
 when the value is serialised. The default returns an identity-keyed
-token (``<TypeName@hex_id>``) suitable for stateful connectors. Frozen
+token (``<TypeName@identity_token>``, see :meth:`_pirn_identity_token`)
+suitable for stateful connectors. Frozen
 dataclass wrappers (``DataBatch``, ``DataSchema``,
 ``SparkExecutionReceipt``) override the method to emit a flat dict of
 their lineage-relevant fields.
@@ -35,7 +36,11 @@ where even a primitive summary is expensive — can override
 
 from __future__ import annotations
 
-from typing import Any
+import threading
+import uuid
+import weakref
+from functools import partial
+from typing import Any, ClassVar
 
 from pydantic import GetCoreSchemaHandler
 from pydantic_core import CoreSchema, core_schema
@@ -47,21 +52,96 @@ class PirnOpaqueValue:
 
     Subclasses can override :meth:`_pirn_audit_dict` to control what
     primitive form pydantic emits when serialising the value. The
-    default is an identity-style token (``<TypeName@hex_id>``) suitable
-    for stateful connectors. Frozen-dataclass wrappers should override
-    :meth:`_pirn_audit_dict` to emit a primitive dict.
+    default is an identity-style token (``<TypeName@identity_token>``)
+    suitable for stateful connectors. Frozen-dataclass wrappers should
+    override :meth:`_pirn_audit_dict` to emit a primitive dict.
 
     Subclasses that want no serialiser at all can override
     :meth:`__get_pydantic_core_schema__` themselves.
     """
 
+    #: Live instance tokens, keyed by ``id()``. Each entry holds a weak reference
+    #: whose callback removes the entry when the instance is deallocated, which
+    #: CPython does before the address can be handed to a new object. So an
+    #: entry found under ``id(self)`` whose reference still resolves to ``self``
+    #: belongs to ``self``, never to a dead predecessor at the same address.
+    _pirn_identity_registry: ClassVar[dict[int, tuple[str, weakref.ref[Any]]]] = {}
+    _pirn_identity_lock: ClassVar[threading.Lock] = threading.Lock()
+
+    def _pirn_identity_token(self) -> str:
+        """Return a token unique to this instance for the life of the process.
+
+        ``id()`` alone is not an identity: CPython reuses a freed object's
+        address, so a new object could inherit a dead one's token and hash
+        equal to it, which is a false match on replay (PIR-852). The token is a
+        random ``uuid4`` hex, assigned lazily on first read, so subclasses that
+        never call ``super().__init__`` still get one. It carries no
+        configuration.
+
+        It is not stored in the instance's attributes. A ``copy``, a
+        ``deepcopy`` or an unpickled instance is a different object, so it gets
+        its own token rather than inheriting the original's. A mutated copy
+        therefore cannot pass as the object that was recorded.
+
+        Returns:
+            A 32-character lowercase hex string, stable for this instance.
+        """
+        registry = PirnOpaqueValue._pirn_identity_registry
+        key = id(self)
+        entry = registry.get(key)
+        if entry is not None and entry[1]() is self:
+            return entry[0]
+        try:
+            ref = weakref.ref(self, partial(PirnOpaqueValue._pirn_forget_identity, key))
+        except TypeError:
+            return self._pirn_instance_identity_token()
+        candidate = (uuid.uuid4().hex, ref)
+        with PirnOpaqueValue._pirn_identity_lock:
+            entry = registry.get(key)
+            if entry is None or entry[1]() is not self:
+                registry[key] = candidate
+                entry = candidate
+        return entry[0]
+
+    def _pirn_instance_identity_token(self) -> str:
+        """Token fallback for an instance that cannot be weakly referenced.
+
+        Only a subclass that also derives from a variable-size builtin such as
+        ``tuple`` reaches this. The token is kept in the instance ``__dict__``
+        next to the ``id()`` it was minted for. A copy carries the pair over but
+        lives at another address, so the owner check makes it mint its own.
+        """
+        state = self.__dict__.get("_pirn_identity_state")
+        if isinstance(state, tuple) and state[0] == id(self):
+            return str(state[1])
+        token = uuid.uuid4().hex
+        object.__setattr__(self, "_pirn_identity_state", (id(self), token))
+        return token
+
+    @staticmethod
+    def _pirn_forget_identity(key: int, ref: weakref.ref[Any]) -> None:
+        """Weakref callback: drop the registry entry of a deallocated instance.
+
+        It only removes the entry that holds this exact reference, so a
+        reference discarded by a lost first-read race removes nothing. It takes
+        no lock, because it may run inside a garbage collection triggered while
+        the lock is held. It cannot race a new entry at ``key``, since the
+        address is not reused until this deallocation completes.
+        """
+        registry = PirnOpaqueValue._pirn_identity_registry
+        entry = registry.get(key)
+        if entry is not None and entry[1] is ref:
+            registry.pop(key, None)
+
     def _pirn_audit_dict(self) -> Any:
         """Return the primitive form pydantic emits for this value.
 
-        Default: an identity-keyed token. Wrapper dataclasses override
-        to emit a flat dict of their lineage-relevant fields.
+        Default: an identity-keyed token, ``<TypeName@identity_token>``, built
+        from :meth:`_pirn_identity_token` so a reused address never repeats a
+        token. Wrapper dataclasses override to emit a flat dict of their
+        lineage-relevant fields.
         """
-        return f"<{type(self).__name__}@{id(self):x}>"
+        return f"<{type(self).__name__}@{self._pirn_identity_token()}>"
 
     @classmethod
     def __get_pydantic_core_schema__(
