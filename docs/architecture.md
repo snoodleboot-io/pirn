@@ -427,7 +427,7 @@ When `extensible_store` is passed to `engine.execute`, the engine subscribes to 
 3. Re-runs `_bind_parameters` for any new Parameter knots.
 4. Starts tracking the new knots; any whose parents have all resolved join the ready queue at once.
 
-A merged knot's `level` is at least one past the knot that registered it (read from the registering task's context), so its place in the reported order does not depend on which knot happened to finish first.
+A merged knot's `level` is at least one past the knot that registered it (read from the registering task's context), so its place in the reported order does not depend on which knot happened to finish first. A knot registered with no known registrar (a plain thread, an external orchestrator, or a Postgres/ValKey delivery) is reported in a final bucket after every knot with a known level, ordered by registration sequence and then knot id. See `docs/architecture/execution-model.md`.
 
 Requires the store to implement `SubscribableStore` (`pirn/backends/base/subscribable_store.py`). `InMemoryStore`, `PostgresStore`, and `ValKeyStore` all implement this protocol (see `docs/subscribable-stores.md`).
 

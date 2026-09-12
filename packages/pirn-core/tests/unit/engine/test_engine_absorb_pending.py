@@ -69,7 +69,7 @@ class TestAbsorbPendingDrain(unittest.TestCase):
         pending = _RacingPending(first, racer)
 
         # Act
-        ready = Engine()._absorb_pending(shed, pending, {}, {}, ctx, tracker, fallback_floor=0)
+        ready = Engine()._absorb_pending(shed, pending, {}, {}, ctx, tracker)
 
         # Assert: `first` was merged, and `racer` is still queued for the
         # next drain rather than silently discarded.

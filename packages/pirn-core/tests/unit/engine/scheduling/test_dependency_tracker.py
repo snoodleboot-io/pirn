@@ -174,7 +174,7 @@ class TestSortKey(unittest.TestCase):
         self.assertEqual(ordered, ["p", "d", "stranger"])
 
 
-class TestMerge(unittest.TestCase):
+class TestMergeReadiness(unittest.TestCase):
     def test_newcomer_of_a_resolved_parent_is_ready_at_once(self) -> None:
         # Arrange
         shed = _diamond()
@@ -184,11 +184,10 @@ class TestMerge(unittest.TestCase):
         _add_to_shed(shed, _one(x=shed.knot("a"), _config=KnotConfig(id="late")))
 
         # Act
-        ready = tracker.merge({"late"}, {})
+        ready = tracker.merge(["late"], {"late": "a"})
 
         # Assert
         self.assertEqual(ready, ["late"])
-        self.assertEqual(tracker.level("late"), 2)
 
     def test_newcomer_of_an_unresolved_parent_waits_for_it(self) -> None:
         # Arrange
@@ -197,7 +196,7 @@ class TestMerge(unittest.TestCase):
         _add_to_shed(shed, _one(x=shed.knot("d"), _config=KnotConfig(id="late")))
 
         # Act
-        ready = tracker.merge({"late"}, {})
+        ready = tracker.merge(["late"], {"late": "d"})
         tracker.resolve("p")
         tracker.resolve("a")
         tracker.resolve("b")
@@ -206,31 +205,6 @@ class TestMerge(unittest.TestCase):
         # Assert
         self.assertEqual(ready, [])
         self.assertEqual(released, ["late"])
-
-    def test_floor_places_a_parentless_newcomer(self) -> None:
-        # Arrange
-        shed = _diamond()
-        tracker = DependencyTracker(shed)
-        _add_to_shed(shed, _param("late"))
-
-        # Act
-        ready = tracker.merge({"late"}, {"late": 2})
-
-        # Assert
-        self.assertEqual(ready, ["late"])
-        self.assertEqual(tracker.level("late"), 2)
-
-    def test_a_parent_deeper_than_the_floor_wins(self) -> None:
-        # Arrange
-        shed = _diamond()
-        tracker = DependencyTracker(shed)
-        _add_to_shed(shed, _one(x=shed.knot("d"), _config=KnotConfig(id="late")))
-
-        # Act
-        tracker.merge({"late"}, {"late": 1})
-
-        # Assert
-        self.assertEqual(tracker.level("late"), 3)
 
     def test_newcomers_chained_to_each_other_merge_together(self) -> None:
         # Arrange
@@ -243,13 +217,12 @@ class TestMerge(unittest.TestCase):
         _add_to_shed(shed, second)
 
         # Act
-        ready = tracker.merge({"n1", "n2"}, {"n1": 1, "n2": 1})
+        ready = tracker.merge(["n1", "n2"], {"n1": "c", "n2": "c"})
         released = tracker.resolve("n1")
 
         # Assert
         self.assertEqual(ready, ["n1"])
         self.assertEqual(released, ["n2"])
-        self.assertEqual(tracker.level("n2"), 2)
 
     def test_merge_reindexes_topological_positions(self) -> None:
         # Arrange
@@ -258,7 +231,7 @@ class TestMerge(unittest.TestCase):
         _add_to_shed(shed, _param("aaa"))
 
         # Act
-        tracker.merge({"aaa"}, {})
+        tracker.merge(["aaa"], {})
 
         # Assert
         order = shed.topological_order()
@@ -271,8 +244,115 @@ class TestMerge(unittest.TestCase):
         tracker.resolve("p")
 
         # Act
-        ready = tracker.merge({"a"}, {"a": 5})
+        ready = tracker.merge(["a"], {})
 
         # Assert
         self.assertEqual(ready, [])
-        self.assertEqual(tracker.level("a"), 1)
+        self.assertEqual((tracker.tier("a"), tracker.level("a")), (0, 1))
+
+
+class TestMergePlacementWithARegistrar(unittest.TestCase):
+    def test_parentless_newcomer_sits_one_past_its_registrar(self) -> None:
+        # Arrange
+        shed = _diamond()
+        tracker = DependencyTracker(shed)
+        _add_to_shed(shed, _param("late"))
+
+        # Act
+        tracker.merge(["late"], {"late": "a"})
+
+        # Assert
+        self.assertEqual((tracker.tier("late"), tracker.level("late")), (0, 2))
+
+    def test_a_parent_deeper_than_the_registrar_wins(self) -> None:
+        # Arrange
+        shed = _diamond()
+        tracker = DependencyTracker(shed)
+        _add_to_shed(shed, _one(x=shed.knot("d"), _config=KnotConfig(id="late")))
+
+        # Act
+        tracker.merge(["late"], {"late": "p"})
+
+        # Assert
+        self.assertEqual((tracker.tier("late"), tracker.level("late")), (0, 3))
+
+    def test_an_untracked_registrar_counts_as_no_registrar(self) -> None:
+        # Arrange
+        shed = _diamond()
+        tracker = DependencyTracker(shed)
+        _add_to_shed(shed, _param("late"))
+
+        # Act
+        tracker.merge(["late"], {"late": "an-outer-runs-knot"})
+
+        # Assert
+        self.assertEqual(tracker.tier("late"), 1)
+
+
+class TestRegistrarLessBucket(unittest.TestCase):
+    def test_newcomer_without_a_registrar_sorts_after_every_known_level(self) -> None:
+        # Arrange: `late` hangs off the root, but nothing says when it arrived.
+        shed = _diamond()
+        tracker = DependencyTracker(shed)
+        _add_to_shed(shed, _one(x=shed.knot("p"), _config=KnotConfig(id="late")))
+
+        # Act
+        tracker.merge(["late"], {})
+        ordered = sorted(
+            ["late", "d", "c", "p"], key=lambda k: tracker.sort_key(k, dispatched=True)
+        )
+
+        # Assert
+        self.assertEqual(tracker.tier("late"), 1)
+        self.assertEqual(ordered, ["p", "c", "d", "late"])
+
+    def test_bucket_orders_by_registration_sequence_not_id(self) -> None:
+        # Arrange
+        shed = _diamond()
+        tracker = DependencyTracker(shed)
+        _add_to_shed(shed, _param("zzz"))
+        _add_to_shed(shed, _param("aaa"))
+
+        # Act: zzz registered first, in an earlier drain.
+        tracker.merge(["zzz"], {})
+        tracker.merge(["aaa"], {})
+        ordered = sorted(["aaa", "zzz"], key=lambda k: tracker.sort_key(k, dispatched=True))
+
+        # Assert
+        self.assertEqual(ordered, ["zzz", "aaa"])
+
+    def test_knot_registered_by_a_bucket_knot_sits_one_past_it_in_the_bucket(self) -> None:
+        # Arrange
+        shed = _diamond()
+        tracker = DependencyTracker(shed)
+        _add_to_shed(shed, _param("outside"))
+        tracker.merge(["outside"], {})
+        _add_to_shed(shed, _param("second"))
+        _add_to_shed(shed, _param("inner"))
+
+        # Act: `inner` is registered by `outside`; `second` arrives with no
+        # registrar after it.
+        tracker.merge(["inner", "second"], {"inner": "outside"})
+        ordered = sorted(
+            ["inner", "second", "outside", "d"],
+            key=lambda k: tracker.sort_key(k, dispatched=True),
+        )
+
+        # Assert
+        self.assertEqual((tracker.tier("inner"), tracker.level("inner")), (1, 1))
+        self.assertEqual(ordered, ["d", "outside", "second", "inner"])
+
+    def test_known_registrar_with_a_bucket_parent_joins_the_bucket(self) -> None:
+        # Arrange
+        shed = _diamond()
+        tracker = DependencyTracker(shed)
+        outside = _param("outside")
+        _add_to_shed(shed, outside)
+        tracker.merge(["outside"], {})
+        _add_to_shed(shed, _one(x=outside, _config=KnotConfig(id="child")))
+
+        # Act
+        tracker.merge(["child"], {"child": "d"})
+
+        # Assert
+        self.assertEqual((tracker.tier("child"), tracker.level("child")), (1, 1))

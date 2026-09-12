@@ -357,6 +357,65 @@ async def test_mid_run_knot_without_a_registrar_is_not_ordered_before_running_wo
     assert [row.knot_id for row in result.lineage] == ["p", "a", "s", "b", "r", "late"]
 
 
+class _ThreadRegistrar(Knot):
+    """Registers a parentless ``late`` with no registrar in scope, then finishes.
+
+    ``via="thread"`` registers from a plain thread; any other value registers
+    in a fresh context carrying only the run id, as a durable store delivers.
+    """
+
+    def __init__(self, *, script: _Script, target: Tapestry, via: str, **kwargs: Any) -> None:
+        self._script = script
+        self._target = target
+        self._via = via
+        super().__init__(**kwargs)
+
+    async def process(self, **_inputs: Any) -> str:
+        run_id = current_run_id()
+        if self._via == "thread":
+            worker = threading.Thread(
+                target=_register_late_parentless, args=(self._script, self._target, run_id)
+            )
+            worker.start()
+            await asyncio.to_thread(worker.join)
+        else:
+            contextvars.Context().run(_register_late_parentless, self._script, self._target, run_id)
+        return self.knot_id
+
+
+@pytest.mark.parametrize("via", ["thread", "durable_delivery"])
+async def test_registrar_less_newcomer_order_does_not_depend_on_unrelated_progress(
+    via: str,
+) -> None:
+    # Arrange: r (level 1) registers `late` with no registrar in scope while an
+    # unrelated chain c0 -> ... -> c5 makes progress at a varying pace.  How far
+    # the chain has got says nothing about where `late` belongs, so the record
+    # order must be the same at every pace.
+    orders: set[tuple[str, ...]] = set()
+    for chain_delay_s in (0.0, 0.03, 0.1, 0.2):
+        script = _Script()
+        with Tapestry() as t:
+            p = Parameter("x", int, _config=KnotConfig(id="p"))
+            prev: Knot = p
+            for i in range(6):
+                script.delays[f"c{i}"] = chain_delay_s
+                prev = _Scripted(x=prev, script=script, _config=KnotConfig(id=f"c{i}"))
+        with t:
+            _ThreadRegistrar(x=p, script=script, target=t, via=via, _config=KnotConfig(id="r"))
+
+        # Act
+        result = await _run(t, extensible=True)
+
+        # Assert (per pace)
+        assert result.succeeded
+        assert result.outputs["late"] == "late"
+        orders.add(tuple(row.knot_id for row in result.lineage))
+
+    # Assert: one order across every pace -- registrar-less newcomers sort
+    # after every knot with a known level, by registration sequence.
+    assert orders == {("p", "c0", "r", "c1", "c2", "c3", "c4", "c5", "late")}
+
+
 # ------------------------------------------------------- unbounded default
 
 

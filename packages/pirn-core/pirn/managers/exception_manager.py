@@ -58,7 +58,7 @@ class ExceptionManager:
         with self._lock:
             return list(self._records)
 
-    def sort_by_knot(self, key: Callable[[str], tuple[int, ...]]) -> None:
+    def sort_by_knot(self, key: Callable[[str], tuple[int | str, ...]]) -> None:
         """Reorder the captured records by the knot each belongs to.
 
         The sort is stable, so records for the same knot keep the order they

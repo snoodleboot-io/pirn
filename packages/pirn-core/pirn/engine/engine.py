@@ -224,12 +224,6 @@ class Engine:
         # Mid-run registrations made from inside a dispatched knot, keyed
         # newcomer id -> registering knot id.  Filled by the store subscriber.
         known_registrars: dict[str, str] = registrars if registrars is not None else {}
-        # Deepest level admitted so far -- the wave the old loop would have
-        # been on.  A newcomer whose registering knot is unknown is placed one
-        # past it.  It never decreases, unlike the level of whichever knot
-        # happened to resolve last, which under eager scheduling can be a
-        # shallow straggler (PIR-841).
-        deepest_admitted_level = -1
 
         try:
             while True:
@@ -244,7 +238,6 @@ class Engine:
                         results,
                         ctx,
                         tracker,
-                        fallback_floor=deepest_admitted_level + 1,
                     )
                     self._enqueue(ready, tracker, newcomers)
 
@@ -255,7 +248,6 @@ class Engine:
                 while (admitted := ready.pop_admissible(gate, shed)) is not None:
                     kid, ticket = admitted
                     knot = shed.knot(kid)
-                    deepest_admitted_level = max(deepest_admitted_level, tracker.level(kid))
                     ctx.status.transition(kid, KnotState.RUNNING)
 
                     decision = self._decide(shed, knot, results, ctx)
@@ -359,7 +351,6 @@ class Engine:
                             results,
                             ctx,
                             tracker,
-                            fallback_floor=deepest_admitted_level + 1,
                         )
                         self._enqueue(ready, tracker, newcomers)
         except BaseException:
@@ -380,7 +371,8 @@ class Engine:
 
         # Report per-knot records in an order that depends on the graph alone,
         # never on which knot finished first (PIR-841).  For a graph without
-        # mid-run registrations this is exactly the order the wave loop gave.
+        # mid-run registrations this is exactly the order the wave loop gave;
+        # registrar-less newcomers sort last (see ``_absorb_pending``).
         # Every record belongs to a knot with a result, so one key per result
         # covers them all; computed once rather than per comparison site.
         report_key = {kid: tracker.sort_key(kid, kid in dispatched) for kid in results}
@@ -433,19 +425,23 @@ class Engine:
         results: dict[str, Result[Any]],
         ctx: RunContext,
         tracker: DependencyTracker,
-        fallback_floor: int,
     ) -> list[str]:
         """Merge queued mid-run registrations and return those ready at once.
 
-        Each newcomer's level is at least one past the knot that registered
-        it, which is exactly the wave the old loop would have run it in and is
-        known regardless of which knot finished first.  A newcomer with no
-        known registrar -- registered from outside any dispatched knot, or
-        delivered by a durable store's background listener -- falls back to
-        *fallback_floor*, one past the deepest level admitted so far.  Where
-        such a registration lands in the reported order therefore depends on
-        when it arrived, as it always has, but never ahead of work already
-        started.
+        A newcomer registered from inside a dispatched knot is placed one level
+        past that knot, which is exactly the wave the old loop would have run
+        it in and is known regardless of which knot finished first.
+
+        A newcomer with no known registrar -- registered from a plain thread
+        or an external orchestrator, or delivered by a durable store
+        (Postgres, ValKey) whose notices do not say which knot registered --
+        has no position in the graph that timing does not decide.  It is
+        reported in a final bucket after every knot with a known level,
+        ordered by registration sequence and then knot id, so its place in the
+        record order never depends on how far unrelated work has got.  This
+        deliberately differs from the wave loop, whose placement was just as
+        timing-dependent but hidden by coarse waves.  Scheduling is unchanged:
+        the newcomer still starts as soon as its parents have resolved.
         """
         # Take exactly the registrations present now.  A worker thread may
         # append while this runs; appends only ever extend the tail, so
@@ -458,14 +454,13 @@ class Engine:
         if not added:
             return []
         self._bind_parameters(shed, ctx)
-        floors: dict[str, int] = {}
-        for kid in added:
-            registrar = registrars.pop(kid, None)
-            if registrar is not None and tracker.is_tracked(registrar):
-                floors[kid] = tracker.level(registrar) + 1
-            else:
-                floors[kid] = fallback_floor
-        return tracker.merge(added, floors)
+        # Registration order is the batch order: the subscriber appends as
+        # registrations arrive.
+        in_registration_order = [k.knot_id for k in batch if k.knot_id in added]
+        attributed = {
+            kid: registrars.pop(kid) for kid in in_registration_order if kid in registrars
+        }
+        return tracker.merge(in_registration_order, attributed)
 
     async def _invoke_admitted(
         self,
