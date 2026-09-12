@@ -54,6 +54,15 @@ class ListDirTool(BaseTool):
             },
         }
 
+    def content_identity(self) -> Mapping[str, Any]:
+        """Opt in to content identity with the resolved root and the max_entries cap.
+
+        The root is the strictly-resolved absolute path, so the same checkout
+        replays across processes while a different root (or the same root on a
+        machine with another path) is a different tool and refuses (PIR-840).
+        """
+        return {"root": str(self._guard.root), "max_entries": self._max_entries}
+
     async def invoke(self, arguments: Mapping[str, Any]) -> Mapping[str, Any]:
         """List the requested directory, capped at ``max_entries``.
 

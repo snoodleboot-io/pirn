@@ -108,6 +108,7 @@ def _build_tool(
         is_streaming=isasyncgenfunction(fn),
         state=state,
         is_stateful=is_stateful,
+        args_model=args_model,
     )
 
 
