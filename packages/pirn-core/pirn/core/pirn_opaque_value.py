@@ -45,6 +45,8 @@ from typing import Any, ClassVar
 from pydantic import GetCoreSchemaHandler
 from pydantic_core import CoreSchema, core_schema
 
+from pirn.core.pirn_identity_nonce import PirnIdentityNonce
+
 
 class PirnOpaqueValue:
     """Mixin that provides an opaque pydantic core schema with a pluggable
@@ -81,7 +83,9 @@ class PirnOpaqueValue:
         It is not stored in the instance's attributes. A ``copy``, a
         ``deepcopy`` or an unpickled instance is a different object, so it gets
         its own token rather than inheriting the original's. A mutated copy
-        therefore cannot pass as the object that was recorded.
+        therefore cannot pass as the object that was recorded. Instances that
+        cannot be weakly referenced follow
+        :meth:`_pirn_instance_identity_token` instead.
 
         Returns:
             A 32-character lowercase hex string, stable for this instance.
@@ -106,17 +110,28 @@ class PirnOpaqueValue:
     def _pirn_instance_identity_token(self) -> str:
         """Token fallback for an instance that cannot be weakly referenced.
 
-        Only a subclass that also derives from a variable-size builtin such as
-        ``tuple`` reaches this. The token is kept in the instance ``__dict__``
-        next to the ``id()`` it was minted for. A copy carries the pair over but
-        lives at another address, so the owner check makes it mint its own.
+        Only a subclass that also derives from a builtin such as ``tuple``,
+        ``int`` or ``bytes`` reaches this. It never compares ``id()``: an
+        unpickled object can land at the original's freed address.
+
+        * With an instance ``__dict__`` (every such subclass, since this mixin
+          declares no ``__slots__``), the token lives there in a
+          :class:`PirnIdentityNonce`. That holder re-mints on ``pickle`` and
+          ``copy.deepcopy``, so a rebuilt object gets its own token. A shallow
+          ``copy.copy`` shares the instance dict's values and therefore the
+          token. That is the one case where a copy keeps identity.
+        * Without one, the value refuses: every read returns a fresh token, so
+          it never hashes equal to anything, itself included, and replay
+          always raises rather than substituting.
         """
-        state = self.__dict__.get("_pirn_identity_state")
-        if isinstance(state, tuple) and state[0] == id(self):
-            return str(state[1])
-        token = uuid.uuid4().hex
-        object.__setattr__(self, "_pirn_identity_state", (id(self), token))
-        return token
+        state = getattr(self, "__dict__", None)
+        if not isinstance(state, dict):
+            return uuid.uuid4().hex
+        nonce = state.get("_pirn_identity_nonce")
+        if not isinstance(nonce, PirnIdentityNonce):
+            nonce = PirnIdentityNonce()
+            state["_pirn_identity_nonce"] = nonce
+        return nonce.token
 
     @staticmethod
     def _pirn_forget_identity(key: int, ref: weakref.ref[Any]) -> None:

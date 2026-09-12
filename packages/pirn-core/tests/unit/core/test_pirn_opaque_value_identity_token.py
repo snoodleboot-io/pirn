@@ -3,8 +3,9 @@
 The old token was ``hex(id(self))``. CPython reuses a freed object's address, so
 a new object could inherit a dead one's token, hash equal to it and be served
 its recording on replay. These tests pin the replacement: a lazily assigned
-random token that never repeats for a reused address, never survives a copy,
-and holds no configuration.
+random token that never repeats for a reused address, is not inherited by a
+copy or an unpickled object (a shallow copy of a non-weakrefable instance is
+the one documented exception), and holds no configuration.
 """
 
 from __future__ import annotations
@@ -14,6 +15,9 @@ import gc
 import pickle
 import re
 import threading
+from collections.abc import Callable
+
+import pytest
 
 from pirn.core.hashing import content_hash
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
@@ -28,6 +32,16 @@ class Opaque(PirnOpaqueValue):
 
 class OpaqueTuple(PirnOpaqueValue, tuple):
     """A subclass that cannot be weakly referenced (variable-size builtin base)."""
+
+
+class OpaqueInt(PirnOpaqueValue, int):
+    """An ``int``-derived subclass, also not weakly referenceable."""
+
+
+class Slotted:
+    """An object with neither ``__dict__`` nor weak-reference support."""
+
+    __slots__ = ()
 
 
 def test_token_is_stable_across_reads() -> None:
@@ -191,29 +205,121 @@ def test_concurrent_first_reads_agree_on_one_token() -> None:
     assert seen[0] == value._pirn_identity_token()
 
 
-def test_non_weakrefable_subclass_gets_a_stable_token() -> None:
+@pytest.mark.parametrize("build", [lambda: OpaqueTuple((1, 2)), lambda: OpaqueInt(7)])
+def test_non_weakrefable_subclass_gets_a_stable_token(build: Callable[[], PirnOpaqueValue]) -> None:
     # Arrange
-    value = OpaqueTuple((1, 2))
+    value = build()
 
     # Act
     tokens = {value._pirn_identity_token() for _ in range(3)}
 
     # Assert
     assert len(tokens) == 1
+    assert re.fullmatch(r"[0-9a-f]{32}", tokens.pop())
 
 
-def test_non_weakrefable_subclass_copy_gets_its_own_token() -> None:
+def test_two_equal_non_weakrefable_instances_get_different_tokens() -> None:
+    # Arrange
+    first, second = OpaqueTuple((1, 2)), OpaqueTuple((1, 2))
+
+    # Act
+    tokens = {first._pirn_identity_token(), second._pirn_identity_token()}
+
+    # Assert
+    assert len(tokens) == 2
+
+
+@pytest.mark.parametrize("build", [lambda: OpaqueTuple((1, 2)), lambda: OpaqueInt(7)])
+def test_non_weakrefable_unpickled_instance_gets_its_own_token(
+    build: Callable[[], PirnOpaqueValue],
+) -> None:
+    # Arrange
+    original = build()
+    original_token = original._pirn_identity_token()
+
+    # Act
+    restored = pickle.loads(pickle.dumps(original))
+
+    # Assert
+    assert restored == original
+    assert restored._pirn_identity_token() != original_token
+
+
+def test_non_weakrefable_deep_copy_gets_its_own_token() -> None:
     # Arrange
     original = OpaqueTuple((1, 2))
     original_token = original._pirn_identity_token()
 
     # Act
-    duplicate = copy.copy(original)
-    duplicate_token = duplicate._pirn_identity_token()
+    duplicate = copy.deepcopy(original)
 
-    # Assert — copy.copy of a tuple subclass builds a new object at a new address.
-    assert duplicate is not original
-    assert duplicate_token != original_token
+    # Assert
+    assert duplicate._pirn_identity_token() != original_token
+
+
+def test_non_weakrefable_token_never_survives_pickle_free_unpickle_at_the_same_address() -> None:
+    # Arrange — the probe that defeated the id()-owner check: pickle A, free
+    # it, unpickle into (usually) the same address.
+    iterations = 2000
+    reuses = 0
+    collisions = 0
+
+    # Act
+    for _ in range(iterations):
+        reused, collided = _pickle_free_unpickle_once()
+        reuses += reused
+        collisions += collided
+
+    # Assert
+    assert reuses > 0, "no address was reused; the regression loop tested nothing"
+    assert collisions == 0
+
+
+def test_non_weakrefable_shallow_copy_shares_the_token_as_documented() -> None:
+    # Arrange — copy.copy shares the instance dict's values, nonce included.
+    original = OpaqueTuple((1, 2))
+    original_token = original._pirn_identity_token()
+
+    # Act
+    duplicate = copy.copy(original)
+
+    # Assert
+    assert duplicate._pirn_identity_token() == original_token
+
+
+def test_instance_without_a_dict_refuses_with_a_fresh_token_per_read() -> None:
+    # Arrange — unreachable for a real subclass (this mixin has no __slots__),
+    # so the fallback is exercised directly on a slotted object.
+    value = Slotted()
+
+    # Act
+    tokens = {PirnOpaqueValue._pirn_instance_identity_token(value) for _ in range(5)}  # type: ignore[arg-type]
+
+    # Assert — it never matches anything, itself included.
+    assert len(tokens) == 5
+
+
+def _pickle_free_unpickle_once() -> tuple[bool, bool]:
+    """Pickle a tuple-derived value, free it, unpickle it.
+
+    Returns:
+        ``(reused, collided)``: whether the unpickled value landed at the
+        original's address, and whether it came back with the original's token.
+    """
+    original = OpaqueTuple((1, 2))
+    original_address = id(original)
+    original_token = original._pirn_identity_token()
+    payload = pickle.dumps(original)
+    del original
+    # Unpickling allocates temporaries that can take the freed block first and
+    # release it again, so retry (freeing each miss) until the reuse happens.
+    restored = pickle.loads(payload)
+    for _ in range(8):
+        if id(restored) == original_address:
+            break
+        del restored
+        restored = pickle.loads(payload)
+    return id(restored) == original_address, restored._pirn_identity_token() == original_token
 
 
 def _read_token_after_barrier(

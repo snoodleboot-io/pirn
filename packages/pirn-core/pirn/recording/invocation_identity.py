@@ -46,9 +46,11 @@ class InvocationIdentity:
       This covers a :class:`~pirn.connectors.connector_base.ConnectorBase`
       (HTTP LLM and embedding providers, HTTP, MCP and SQL connectors) too,
       whose default ``__pirn_canonical__`` returns the identity token rather
-      than its per-class audit form (PIR-848), including when the connector is
-      nested inside a pydantic model.  A type that defines its own
-      ``__pirn_canonical__`` gets a true content hash instead;
+      than its per-class audit form (PIR-848).  A type that defines its own
+      ``__pirn_canonical__`` gets a true content hash instead.  Known gap
+      (PIR-853): inside a pydantic model literal, a value is hashed through
+      ``model_dump`` and so its audit form, which for a connector is a
+      per-class constant; such a literal can still false-match;
     * a fully opaque object with no pydantic schema canonicalises to
       ``sha256:unhashable:<Type>``, which is **equal for two different
       instances**.  That produces a false *match*, which is not safe: a

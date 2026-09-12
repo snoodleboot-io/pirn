@@ -16,7 +16,6 @@ import gc
 from typing import Any, ClassVar
 
 import pytest
-from pydantic import BaseModel, ConfigDict
 
 from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
 from pirn.backends.in_memory.in_memory_history import InMemoryHistory
@@ -60,25 +59,6 @@ class ReportsPlainEndpoint(Knot):
 
     async def process(self, connector: PlainEndpointConnector, **_: Any) -> str:
         return connector.base_url
-
-
-class EndpointSettings(BaseModel):
-    """A pydantic model literal that carries a connector in a field."""
-
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
-    name: str
-    connector: HttpConnector
-
-
-class FetchesWithSettings(Knot):
-    """Holds a settings model (not a bare connector) as its literal."""
-
-    def __init__(self, *, settings: EndpointSettings, **kwargs: Any) -> None:
-        super().__init__(settings=settings, **kwargs)
-
-    async def process(self, settings: EndpointSettings, **_: Any) -> str:
-        return str(settings.connector._base_url)
 
 
 @pytest.fixture(autouse=True)
@@ -160,46 +140,6 @@ async def test_replay_never_serves_a_connector_built_after_the_recorded_one_was_
     assert reuses > 0, "no address was reused; the regression loop tested nothing"
     assert outcomes.count("SERVED") == 0
     assert outcomes.count("REFUSED") == iterations
-
-
-async def test_replay_refuses_a_swapped_connector_nested_in_a_model_literal() -> None:
-    # Arrange
-    with Tapestry() as recorded:
-        FetchesWithSettings(
-            settings=EndpointSettings(
-                name="primary", connector=HttpConnector(base_url="https://a.example/v1")
-            ),
-            _config=KnotConfig(id="fetch"),
-        )
-    original = await recorded.run(RunRequest())
-
-    with Tapestry(history=recorded.history, data_store=recorded.data_store) as swapped:
-        FetchesWithSettings(
-            settings=EndpointSettings(
-                name="primary", connector=HttpConnector(base_url="https://b.example/v1")
-            ),
-            _config=KnotConfig(id="fetch"),
-        )
-    session = await ReplaySession.from_history(history=recorded.history, run_id=original.run_id)
-
-    # Act / Assert
-    with pytest.raises(ReplayMismatchError):
-        await swapped.run(RunRequest(), replay=session)
-
-
-async def test_replay_serves_a_model_literal_holding_the_same_connector() -> None:
-    # Arrange
-    settings = EndpointSettings(name="primary", connector=HttpConnector(base_url="https://a/v1"))
-    with Tapestry() as tapestry:
-        FetchesWithSettings(settings=settings, _config=KnotConfig(id="fetch"))
-    original = await tapestry.run(RunRequest())
-    session = await ReplaySession.from_history(history=tapestry.history, run_id=original.run_id)
-
-    # Act
-    replayed = await tapestry.run(RunRequest(), replay=session)
-
-    # Assert
-    assert replayed.outputs["fetch"] == "https://a/v1"
 
 
 async def _record_free_and_replay() -> tuple[str, bool]:

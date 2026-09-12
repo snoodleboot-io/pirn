@@ -123,9 +123,14 @@ class ConnectorBase(PirnOpaqueValue):
         CPython reuses a freed connector's address (PIR-852). It holds no
         configuration, so no credential can reach lineage through it, and it
         does not change when :meth:`_clear_credentials` runs. A copy of a
-        connector is a different instance and gets a different token. A subclass whose behaviour is fully
-        determined by secret-free configuration may override this to return that
-        configuration instead.
+        connector is a different instance and gets a different token.
+
+        A subclass whose behaviour is fully determined by secret-free
+        configuration may override this to return that configuration instead.
+
+        Known gap (PIR-853): a connector nested inside a pydantic model is still
+        hashed through ``model_dump``, i.e. through :meth:`_pirn_audit_dict`, so
+        this hook is not reached there.
         """
         return PirnOpaqueValue._pirn_audit_dict(self)
 
