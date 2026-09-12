@@ -48,6 +48,14 @@ class _ExtractionTool(Tool):
         """Return the target model's JSON schema as the tool's parameters."""
         return self._parameters_schema
 
+    def content_identity(self) -> Mapping[str, Any]:
+        """Opt in to content identity: the tool is fully described by its triple.
+
+        ``invoke`` echoes its arguments, so name, description and schema (already
+        in the canonical form) are the whole configuration (PIR-840).
+        """
+        return {}
+
     async def invoke(self, arguments: Mapping[str, Any]) -> Any:
         """Echo ``arguments`` unchanged; the tool is declaration-only."""
         return dict(arguments)
