@@ -13,9 +13,17 @@ backends (``RunHistory``, ``DataStore``), the engine:
    content-addressed input/output hashes.
 5. Persists the final ``RunResult`` via ``RunHistory.record_run``.
 
-Concurrency model: wave-based.  Each iteration finds all knots whose
-parents are resolved and dispatches them concurrently via
-``asyncio.gather``.  Simple, correct, easy to debug.
+Concurrency model: an admission queue (PIR-841).  A knot becomes ready the
+moment its last parent resolves and waits in a ``ReadyQueue`` until the run's
+``AdmissionGate`` admits it; only then is it decided, materialized and
+dispatched as an ``asyncio`` task.  Completions are processed one at a time as
+they happen, so a knot's children start as soon as *their* parents are done,
+never held back by an unrelated slow knot.  The default gate admits everything.
+
+Per-knot records (lineage, exceptions, skips, outputs) are reported in an
+order derived from the graph alone -- ``DependencyTracker.sort_key`` -- so it
+does not depend on completion order.  Status events are the exception: they
+are the live transition stream, and arrive in the order transitions happen.
 """
 
 from __future__ import annotations
@@ -47,13 +55,19 @@ from pirn.core.transport.transport_handle import TransportHandle
 from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
 from pirn.engine._emitter_subscriber import _EmitterSubscriber
 from pirn.engine._run_scoped_subscriber import _RunScopedSubscriber
+from pirn.engine.admission.admission_gate import AdmissionGate
+from pirn.engine.admission.admission_ticket import AdmissionTicket
+from pirn.engine.admission.unbounded_admission_gate import UnboundedAdmissionGate
 from pirn.engine.dispatchers.dispatcher import Dispatcher
 from pirn.engine.dispatchers.local_dispatcher import LocalDispatcher
+from pirn.engine.scheduling.dependency_tracker import DependencyTracker
+from pirn.engine.scheduling.ready_queue import ReadyQueue
 from pirn.engine.shed.shed import Shed
 from pirn.managers.knot_state import KnotState
 from pirn.managers.rebindable_exception import RebindableError
 from pirn.recording.invocation_identity import InvocationIdentity
 from pirn.recording.replay_session import ReplaySession
+from pirn.tapestry import _current_dispatching_knot_id
 
 _log = logging.getLogger(__name__)
 
@@ -103,12 +117,13 @@ class Engine:
 
         # Mid-run extension: subscribe to the store if one was provided.
         # New knots arriving during the run go into ``pending_new`` and
-        # are merged into the shed between waves.  The store is
+        # are merged into the shed as knots complete.  The store is
         # tapestry-scoped and fans every registration to every
         # subscriber, so the callback filters to this run's own
         # registrations -- otherwise concurrent extensible runs execute
         # each other's knots (PIR-808).
         pending_new: list[Knot] = []
+        registrars: dict[str, str] = {}
         subscribe_token = None
         if extensible_store is not None:
             from pirn.backends.base.subscribable_store import SubscribableStore
@@ -120,7 +135,7 @@ class Engine:
                 )
 
             subscribe_token = extensible_store.subscribe(
-                _RunScopedSubscriber(ctx.run_id, pending_new)
+                _RunScopedSubscriber(ctx.run_id, pending_new, registrars)
             )
 
         active_transport: DataTransport = transport or InlineTransport()
@@ -136,6 +151,7 @@ class Engine:
                 emitter_error_policy=emitter_error_policy,
                 transport=active_transport,
                 replay=replay,
+                registrars=registrars,
             )
         finally:
             if extensible_store is not None and subscribe_token is not None:
@@ -153,6 +169,7 @@ class Engine:
         emitter_error_policy: EmitterErrorPolicy = EmitterErrorPolicy.WARN,
         transport: DataTransport | None = None,
         replay: ReplaySession | None = None,
+        registrars: dict[str, str] | None = None,
     ) -> RunResult:
         active_transport: DataTransport = transport or InlineTransport()
         await active_transport.begin_run(ctx.run_id)
@@ -178,143 +195,193 @@ class Engine:
         # begin_run called so we can call end_run on them at cleanup.
         started_transports: dict[int, DataTransport] = {id(active_transport): active_transport}
 
-        order = shed.topological_order()
-        remaining = set(order)
+        # The admission loop (PIR-841).  A knot enters the ready queue the
+        # moment its last parent resolves, and is decided, materialized and
+        # dispatched only once the gate admits it.  Each completion is
+        # processed as soon as it happens: its value is stored, its lineage
+        # recorded, and its children released.  So a child never waits for an
+        # unrelated slow sibling of its parent, which the wave loop this
+        # replaced made it do.
+        tracker = DependencyTracker(shed)
+        ready = ReadyQueue()
+        gate: AdmissionGate = UnboundedAdmissionGate()
+        self._enqueue(ready, tracker, tracker.initially_ready())
 
-        while remaining:
-            # Drain any knots registered mid-run before computing this
-            # wave's ready set.  In extensible mode the store fires
-            # subscribers as side-effects of register(); here we absorb
-            # the queued knots into the shed (with race-checking) and
-            # re-derive order / remaining so newcomers participate in
-            # this wave or later.
-            if pending_new:
-                # Pop atomically; new registrations during merge land in
-                # pending_new again and will be picked up next iteration.
-                batch = list(pending_new)
-                pending_new.clear()
-                added = self._merge_new_knots(shed, batch, results, ctx)
-                if added:
-                    self._bind_parameters(shed, ctx)
-                    order = shed.topological_order()
-                    # Mark ids that completed already as not-remaining.
-                    remaining = {kid for kid in order if kid not in results}
+        # In-flight tasks, each with the knot instance this run actually
+        # dispatched -- kept so lineage is read back off the copy that executed
+        # rather than off the shared graph knot (``Knot.run_scoped_copy``,
+        # PIR-809) -- and the ticket its admission issued.
+        running: dict[
+            asyncio.Task[tuple[Result[Any], dict[str, str], datetime, bool, datetime]],
+            tuple[Knot, AdmissionTicket],
+        ] = {}
+        completions: asyncio.Queue[
+            asyncio.Task[tuple[Result[Any], dict[str, str], datetime, bool, datetime]]
+        ] = asyncio.Queue()
+        # Ids of knots that were dispatched rather than resolved by the engine
+        # without running; part of the reporting order (see ``sort_key``).
+        dispatched: set[str] = set()
+        # Mid-run registrations made from inside a dispatched knot, keyed
+        # newcomer id -> registering knot id.  Filled by the store subscriber.
+        known_registrars: dict[str, str] = registrars if registrars is not None else {}
+        # Level of the knot most recently resolved.  Places a newcomer whose
+        # registering knot is unknown no earlier than that point in the run.
+        last_resolved_level = -1
 
-            ready = [
-                kid
-                for kid in order
-                if kid in remaining and self._all_parents_resolved(shed, kid, results)
-            ]
-            if not ready:
-                # Should never happen for a valid DAG.
-                break
+        try:
+            while True:
+                # Mid-run extension.  A new knot whose parent already completed
+                # is served from that result; a parent that is neither resolved
+                # nor in the shed is a hard error raised by ``_merge_new_knots``.
+                if pending_new:
+                    newcomers = self._absorb_pending(
+                        shed,
+                        pending_new,
+                        known_registrars,
+                        results,
+                        ctx,
+                        tracker,
+                        fallback_floor=last_resolved_level + 1,
+                    )
+                    self._enqueue(ready, tracker, newcomers)
 
-            tasks: dict[str, asyncio.Task[tuple[Result[Any], dict[str, str], datetime, bool]]] = {}
-            # The knot instance this run actually dispatched, kept so lineage
-            # is read back off the copy that executed rather than off the
-            # shared graph knot -- see ``Knot.run_scoped_copy`` (PIR-809).
-            dispatched: dict[str, Knot] = {}
-            for kid in ready:
-                knot = shed.knot(kid)
-                ctx.status.transition(kid, KnotState.RUNNING)
+                # Admit everything the gate allows.  A knot the engine resolves
+                # without dispatching (skipped, or failed for a missing parent)
+                # gives its ticket straight back and may release children into
+                # this same pass.
+                while (admitted := ready.pop_admissible(gate, shed)) is not None:
+                    kid, ticket = admitted
+                    knot = shed.knot(kid)
+                    ctx.status.transition(kid, KnotState.RUNNING)
 
-                decision = self._decide(shed, knot, results, ctx)
+                    decision = self._decide(shed, knot, results, ctx)
 
-                if isinstance(decision, Skipped):
-                    results[kid] = decision
-                    ctx.skipped.append(kid)
-                    ctx.status.transition(kid, KnotState.SKIPPED, decision.reason)
-                    self._record_lineage(ctx, knot, results, decision, started=ctx.started_at)
-                    continue
+                    if isinstance(decision, (Skipped, Err)):
+                        gate.release(ticket)
+                        results[kid] = decision
+                        if isinstance(decision, Skipped):
+                            ctx.skipped.append(kid)
+                            ctx.status.transition(kid, KnotState.SKIPPED, decision.reason)
+                        else:
+                            # REQUIRE_ALL_PARENTS: synthetic Err.
+                            ctx.status.transition(kid, KnotState.FAILED, "missing parent")
+                        self._record_lineage(ctx, knot, results, decision, started=ctx.started_at)
+                        last_resolved_level = tracker.level(kid)
+                        self._enqueue(ready, tracker, tracker.resolve(kid))
+                        continue
 
-                if isinstance(decision, Err):
-                    # REQUIRE_ALL_PARENTS: synthetic Err.
-                    results[kid] = decision
-                    ctx.status.transition(kid, KnotState.FAILED, "missing parent")
-                    self._record_lineage(ctx, knot, results, decision, started=ctx.started_at)
-                    continue
+                    # decision is the resolved input dict.
+                    # Materialize each parent value through the transport before
+                    # dispatching so non-inline transports read from their store.
+                    materialized = await self._materialize(
+                        knot, decision, shed, handles, handle_transports, active_transport
+                    )
+                    # Dispatch a copy so run-derived state the knot stashes for
+                    # ``lineage_extra`` lands on something this run owns.  Several
+                    # knots write that state onto ``self``, and it is read back
+                    # only after the task completes -- long enough for a concurrent
+                    # run to overwrite it on the shared graph knot (PIR-809).
+                    run_knot = knot.run_scoped_copy()
+                    dispatched.add(kid)
+                    task = asyncio.create_task(
+                        self._invoke_admitted(run_knot, materialized, replay, data_store)
+                    )
+                    running[task] = (run_knot, ticket)
+                    task.add_done_callback(completions.put_nowait)
 
-                # decision is the resolved input dict.
-                # Materialize each parent value through the transport before
-                # dispatching so non-inline transports read from their store.
-                materialized = await self._materialize(
-                    knot, decision, shed, handles, handle_transports, active_transport
-                )
-                # Dispatch a copy so run-derived state the knot stashes for
-                # ``lineage_extra`` lands on something this run owns.  Several
-                # knots write that state onto ``self``, and it is read back
-                # only after the await below -- long enough for a concurrent
-                # run to overwrite it on the shared graph knot (PIR-809).
-                run_knot = knot.run_scoped_copy()
-                dispatched[kid] = run_knot
-                tasks[kid] = asyncio.create_task(
-                    self._invoke(run_knot, materialized, replay, data_store)
-                )
+                if not running:
+                    if pending_new:
+                        continue
+                    if ready:
+                        # Refused with nothing in flight to free capacity.
+                        await gate.wait_for_release()
+                        continue
+                    break
 
-            for kid, task in tasks.items():
-                result, parent_hashes, started_at, replayed = await task
-                knot = dispatched[kid]
-                # Re-register placeholder records with the live manager.
-                result = self._rebind_err(result, kid, ctx)
-                results[kid] = result
+                # Each task reports itself on ``completions`` when it finishes,
+                # so waking costs O(1) per completion.  ``asyncio.wait`` would
+                # re-attach a callback to every in-flight task on each wake.
+                done = [await completions.get()]
+                while not completions.empty():
+                    done.append(completions.get_nowait())
+                # Several tasks can finish in one tick; process them in
+                # topological order so the run's side effects are reproducible.
+                for task in sorted(done, key=lambda t: tracker.topo_index(running[t][0].knot_id)):
+                    knot, ticket = running.pop(task)
+                    kid = knot.knot_id
+                    gate.release(ticket)
+                    result, parent_hashes, started_at, replayed, finished_at = task.result()
+                    # Re-register placeholder records with the live manager.
+                    result = self._rebind_err(result, kid, ctx)
+                    results[kid] = result
 
-                if isinstance(result, Ok):
-                    ctx.status.transition(kid, KnotState.SUCCEEDED)
-                    # Persist value to data store keyed by hash.
-                    out_hash = content_hash(result.value)
-                    await data_store.put(out_hash, result.value)
-                    # Write through transport.  Per-knot override takes
-                    # priority; lazy begin_run for newly-seen transports.
-                    knot_transport: DataTransport = knot.config.transport or active_transport
-                    if id(knot_transport) not in started_transports:
-                        await knot_transport.begin_run(ctx.run_id)
-                        started_transports[id(knot_transport)] = knot_transport
-                    handles[kid] = await knot_transport.write(ctx.run_id, kid, result.value)
-                    handle_transports[kid] = knot_transport
-                elif isinstance(result, Skipped):
-                    # A knot that runs but produces Skipped (e.g. a
-                    # BranchOutput whose branch wasn't selected, a Gate
-                    # that closed).  Recorded as skipped, not failed.
-                    ctx.skipped.append(kid)
-                    ctx.status.transition(kid, KnotState.SKIPPED, result.reason)
-                else:
-                    ctx.status.transition(kid, KnotState.FAILED)
+                    if isinstance(result, Ok):
+                        ctx.status.transition(kid, KnotState.SUCCEEDED)
+                        # Persist value to data store keyed by hash.
+                        out_hash = content_hash(result.value)
+                        await data_store.put(out_hash, result.value)
+                        # Write through transport.  Per-knot override takes
+                        # priority; lazy begin_run for newly-seen transports.
+                        knot_transport: DataTransport = knot.config.transport or active_transport
+                        if id(knot_transport) not in started_transports:
+                            await knot_transport.begin_run(ctx.run_id)
+                            started_transports[id(knot_transport)] = knot_transport
+                        handles[kid] = await knot_transport.write(ctx.run_id, kid, result.value)
+                        handle_transports[kid] = knot_transport
+                    elif isinstance(result, Skipped):
+                        # A knot that runs but produces Skipped (e.g. a
+                        # BranchOutput whose branch wasn't selected, a Gate
+                        # that closed).  Recorded as skipped, not failed.
+                        ctx.skipped.append(kid)
+                        ctx.status.transition(kid, KnotState.SKIPPED, result.reason)
+                    else:
+                        ctx.status.transition(kid, KnotState.FAILED)
 
-                self._record_lineage(
-                    ctx,
-                    knot,
-                    results,
-                    result,
-                    parent_hashes=parent_hashes,
-                    started=started_at,
-                    replayed_from=replay.source_run_id if replayed and replay else None,
-                )
+                    self._record_lineage(
+                        ctx,
+                        knot,
+                        results,
+                        result,
+                        parent_hashes=parent_hashes,
+                        started=started_at,
+                        finished=finished_at,
+                        replayed_from=replay.source_run_id if replayed and replay else None,
+                    )
+                    last_resolved_level = tracker.level(kid)
+                    self._enqueue(ready, tracker, tracker.resolve(kid))
+                    if pending_new:
+                        newcomers = self._absorb_pending(
+                            shed,
+                            pending_new,
+                            known_registrars,
+                            results,
+                            ctx,
+                            tracker,
+                            fallback_floor=last_resolved_level + 1,
+                        )
+                        self._enqueue(ready, tracker, newcomers)
+        except BaseException:
+            # The run is aborting: a replay that cannot be served, a setup
+            # error in a mid-run merge, or the run itself being cancelled.
+            # Nothing will collect the knots still in flight, so cancel them
+            # rather than leave them running detached from any run.
+            for task in running:
+                task.cancel()
+            raise
 
-            remaining -= set(ready)
-
-            # Mid-run extension: pull any knots registered during this
-            # wave and merge them into the shed for the next wave.  We
-            # rebuild ``order`` to include the new knots in topological
-            # position.  If a new knot depends on something that already
-            # completed, that's a hard error — re-running the predecessor
-            # would invalidate every consumer's input hash, which is too
-            # costly to do silently.
-            if pending_new:
-                added_ids = self._merge_new_knots(
-                    shed=shed,
-                    new_knots=list(pending_new),
-                    results=results,
-                    ctx=ctx,
-                )
-                pending_new.clear()
-                if added_ids:
-                    # Re-bind parameters for any newly-arrived parameter
-                    # knots.
-                    self._bind_parameters(shed, ctx)
-                    order = shed.topological_order()
-                    remaining |= added_ids
-
-        outputs = {kid: r.value for kid, r in results.items() if isinstance(r, Ok)}
+        # Report per-knot records in an order that depends on the graph alone,
+        # never on which knot finished first (PIR-841).  For a graph without
+        # mid-run registrations this is exactly the order the wave loop gave.
+        # Every record belongs to a knot with a result, so one key per result
+        # covers them all; computed once rather than per comparison site.
+        report_key = {kid: tracker.sort_key(kid, kid in dispatched) for kid in results}
+        ordered_ids = sorted(results, key=report_key.__getitem__)
+        ctx.lineage.sort(key=lambda rec: report_key[rec.knot_id])
+        ctx.skipped.sort(key=report_key.__getitem__)
+        ctx.exceptions.sort_by_knot(lambda kid: tracker.sort_key(kid, kid in dispatched))
+        outputs = {
+            kid: result.value for kid in ordered_ids if isinstance(result := results[kid], Ok)
+        }
 
         run_result = ctx.finalize(outputs)
         for source_rec in ctx.knot_sources.values():
@@ -342,6 +409,75 @@ class Engine:
         return run_result
 
     # ------------------------------------------------------------- helpers
+
+    @staticmethod
+    def _enqueue(ready: ReadyQueue, tracker: DependencyTracker, knot_ids: list[str]) -> None:
+        """Push knots that just became ready onto *ready* as one batch."""
+        if knot_ids:
+            ready.push_batch((tracker.topo_index(kid), kid) for kid in knot_ids)
+
+    def _absorb_pending(
+        self,
+        shed: Shed,
+        pending_new: list[Knot],
+        registrars: dict[str, str],
+        results: dict[str, Result[Any]],
+        ctx: RunContext,
+        tracker: DependencyTracker,
+        fallback_floor: int,
+    ) -> list[str]:
+        """Merge queued mid-run registrations and return those ready at once.
+
+        Each newcomer's level is at least one past the knot that registered
+        it, which is exactly the wave the old loop would have run it in and is
+        known regardless of which knot finished first.  A newcomer with no
+        known registrar -- registered from outside any dispatched knot, or
+        delivered by a durable store's background listener -- falls back to
+        *fallback_floor*, one past the most recently resolved knot.  Where such
+        a registration lands in the reported order therefore depends on when
+        it arrived, as it always has.
+        """
+        # Pop atomically; registrations made during the merge land in
+        # pending_new again and are picked up at the next checkpoint.
+        batch = list(pending_new)
+        pending_new.clear()
+        added = self._merge_new_knots(shed, batch, results, ctx)
+        if not added:
+            return []
+        self._bind_parameters(shed, ctx)
+        floors: dict[str, int] = {}
+        for kid in added:
+            registrar = registrars.pop(kid, None)
+            if registrar is not None and tracker.is_tracked(registrar):
+                floors[kid] = tracker.level(registrar) + 1
+            else:
+                floors[kid] = fallback_floor
+        return tracker.merge(added, floors)
+
+    async def _invoke_admitted(
+        self,
+        knot: Knot,
+        inputs: dict[str, Any],
+        replay: ReplaySession | None,
+        data_store: DataStore,
+    ) -> tuple[Result[Any], dict[str, str], datetime, bool, datetime]:
+        """Run ``_invoke`` as an admitted knot's task and stamp its finish time.
+
+        ``finished_at`` is taken here, the instant the knot's outcome exists,
+        rather than when the engine gets round to processing the completion.
+        The wave loop stamped it on processing, so a fast knot listed after a
+        slow sibling reported the sibling's duration as its own (PIR-841).
+
+        The knot's id is published on ``_current_dispatching_knot_id`` for the
+        life of this task, so a knot this one registers mid-run is attributed
+        to it.  The task runs in its own copy of the context, so the value is
+        never visible to the engine loop or to sibling knots.
+        """
+        _current_dispatching_knot_id.set(knot.knot_id)
+        result, parent_hashes, started_at, replayed = await self._invoke(
+            knot, inputs, replay, data_store
+        )
+        return result, parent_hashes, started_at, replayed, datetime.now(UTC)
 
     async def _materialize(
         self,
@@ -512,12 +648,6 @@ class Engine:
 
         return added
 
-    def _all_parents_resolved(self, shed: Shed, knot_id: str, results: dict[str, Any]) -> bool:
-        for edge in shed.parents_of(knot_id):
-            if edge.parent_id not in results:
-                return False
-        return True
-
     def _decide(
         self,
         shed: Shed,
@@ -669,6 +799,7 @@ class Engine:
         result: Result[Any],
         parent_hashes: dict[str, str] | None = None,
         started: datetime | None = None,
+        finished: datetime | None = None,
         replayed_from: str | None = None,
     ) -> None:
         """Build and stash a KnotLineage for this knot's execution.
@@ -676,6 +807,9 @@ class Engine:
         For knots that didn't actually dispatch (Skipped / synthetic Err),
         ``parent_hashes`` is computed here from the available parent
         results.
+
+        ``finished`` is when the knot's outcome came into existence; it
+        defaults to now, which is exact for a knot resolved without dispatch.
 
         ``replayed_from`` is the run id this outcome was served from when the
         knot was replayed rather than executed; it lands in ``extra`` so a
@@ -759,7 +893,7 @@ class Engine:
             skip_reason=skip_reason,
             dispatcher=ctx.dispatcher_name,
             started_at=started or ctx.started_at,
-            finished_at=datetime.now(UTC),
+            finished_at=finished or datetime.now(UTC),
             extra=extra,
             source_hash=source_record.source_hash if source_record is not None else None,
         )

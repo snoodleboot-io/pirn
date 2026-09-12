@@ -26,7 +26,8 @@ spawned within an iteration become child runs of the loop run.
 
 Each iteration knot, upon completing, calls ``fold`` then ``step`` to plan the
 next iteration and registers it into the running loop tapestry.  The
-extensible engine picks it up in the next wave.  When ``step`` returns
+extensible engine merges it when the iteration's completion is processed and
+starts it at once, since its only parent has just resolved.  When ``step`` returns
 ``None`` a terminal sentinel knot is registered, the run drains, and the
 final state is returned.
 
@@ -288,7 +289,7 @@ class LoopSubTapestry(SubTapestry, Generic[S]):
         2. Zero-iteration short-circuit — if ``step`` returns ``None`` on the
            first call, a ``_LoopTerminal`` seeded with the initial state is
            registered directly in the inner tapestry and returned as the sink.
-           The loop run completes in a single wave.
+           The loop run executes that one knot and completes.
         3. First iteration — otherwise, an ``_IterationChainKnot`` for iteration
            index 1 is created with the iteration tapestry returned by ``step``
            and registered in the inner tapestry.  The initial state is wired in
@@ -302,9 +303,10 @@ class LoopSubTapestry(SubTapestry, Generic[S]):
         6. Plan next — ``step(new_state)`` is called immediately after ``fold``.
            If it returns a ``(tapestry, state)`` pair, a new ``_IterationChainKnot``
            for iteration N+1 is registered into the loop's live store via
-           ``get_current_store()``.  The extensible engine picks it up in the
-           next wave, with the previous iteration knot as its parent edge
-           (encoding the data dependency and ordering).
+           ``get_current_store()``.  The extensible engine merges it as soon as
+           iteration N's completion is processed and starts it straight away,
+           with the previous iteration knot as its parent edge (encoding the
+           data dependency and ordering).
         7. Terminal registration — when ``step`` returns ``None``, a
            ``_LoopTerminal`` knot is registered with the last iteration chain
            knot as its ``state`` parent.  The terminal's ID is the well-known

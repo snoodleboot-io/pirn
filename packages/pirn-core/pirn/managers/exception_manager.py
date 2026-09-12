@@ -58,6 +58,20 @@ class ExceptionManager:
         with self._lock:
             return list(self._records)
 
+    def sort_by_knot(self, key: Callable[[str], tuple[int, ...]]) -> None:
+        """Reorder the captured records by the knot each belongs to.
+
+        The sort is stable, so records for the same knot keep the order they
+        were captured in.  The engine calls this once a run has finished, so
+        ``report()`` follows the graph rather than the order knots happened
+        to fail in (PIR-841).
+
+        Args:
+            key: Maps a record's ``knot_id`` to its sort key.
+        """
+        with self._lock:
+            self._records.sort(key=lambda rec: key(rec.knot_id))
+
     def has_failures(self) -> bool:
         with self._lock:
             return bool(self._records)

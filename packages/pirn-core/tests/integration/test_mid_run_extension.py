@@ -1,7 +1,7 @@
 """Tests for mid-run extension (Tier 4).
 
 The engine's ``extensible_store`` mode subscribes to a tapestry store
-for new-knot events and merges them into the shed between waves.
+for new-knot events and merges them into the shed as knots complete.
 ``Tapestry.run(extensible=True)`` opts in.
 """
 
@@ -141,7 +141,7 @@ async def test_extensible_run_picks_up_knot_added_during_run():
 
 async def test_extensible_run_accepts_knot_whose_parent_finished():
     """A new knot whose parent has already completed is accepted and runs
-    immediately in the next wave, using the cached result.
+    immediately, using the cached result.
 
     This is the sequential chain pattern used by ``LoopSubTapestry``:
     each iteration registers the next *after* the current one finishes,

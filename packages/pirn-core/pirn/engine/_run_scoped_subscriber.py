@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from pirn.tapestry import current_run_id
+from pirn.tapestry import _current_dispatching_knot_id, current_run_id
 
 if TYPE_CHECKING:
     from pirn.core.knot import Knot
@@ -36,13 +36,30 @@ class _RunScopedSubscriber:
     durable stores deliver from a background LISTEN/pub-sub task and so
     carry the registering run in the notification payload and rebind it
     around dispatch, which restores the same invariant (PIR-815).
+
+    When *registrars* is given, an accepted registration made from inside a
+    knot the engine dispatched also records that knot's id under the
+    newcomer's id.  The engine uses it to place the newcomer in the run's
+    reported order relative to the knot that created it rather than to
+    whichever knot finished first (PIR-841).  A registration with no
+    dispatching knot in scope -- an external orchestrator, or a durable
+    store's background delivery -- records nothing.
     """
 
-    def __init__(self, run_id: str, pending_new: list[Knot]) -> None:
+    def __init__(
+        self,
+        run_id: str,
+        pending_new: list[Knot],
+        registrars: dict[str, str] | None = None,
+    ) -> None:
         self._run_id = run_id
         self._pending_new = pending_new
+        self._registrars = registrars
 
     def __call__(self, knot: Knot) -> None:
         registering_run_id = current_run_id()
         if registering_run_id is None or registering_run_id == self._run_id:
             self._pending_new.append(knot)
+            registrar = _current_dispatching_knot_id.get()
+            if self._registrars is not None and registrar is not None:
+                self._registrars[knot.knot_id] = registrar
