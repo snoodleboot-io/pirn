@@ -111,15 +111,19 @@ class PirnOpaqueValue:
         """Token fallback for an instance that cannot be weakly referenced.
 
         Only a subclass that also derives from a builtin such as ``tuple``,
-        ``int`` or ``bytes`` reaches this. It never compares ``id()``: an
-        unpickled object can land at the original's freed address.
+        ``int`` or ``bytes`` reaches this.
 
         * With an instance ``__dict__`` (every such subclass, since this mixin
           declares no ``__slots__``), the token lives there in a
-          :class:`PirnIdentityNonce`. That holder re-mints on ``pickle`` and
-          ``copy.deepcopy``, so a rebuilt object gets its own token. A shallow
-          ``copy.copy`` shares the instance dict's values and therefore the
-          token. That is the one case where a copy keeps identity.
+          :class:`PirnIdentityNonce`. That holder is not inherited by any copy:
+          - ``pickle`` and ``copy.deepcopy`` rebuild it ownerless;
+          - a shallow ``copy.copy``, which shares the holder, fails the
+            holder's owner-``id()`` check, because a copy never shares its
+            live original's address.
+
+          Either way this instance mints its own holder. An ``id()`` alone is
+          never trusted: the check only confirms that a holder already in this
+          instance's own ``__dict__`` was minted here.
         * Without one, the value refuses: every read returns a fresh token, so
           it never hashes equal to anything, itself included, and replay
           always raises rather than substituting.
@@ -128,8 +132,8 @@ class PirnOpaqueValue:
         if not isinstance(state, dict):
             return uuid.uuid4().hex
         nonce = state.get("_pirn_identity_nonce")
-        if not isinstance(nonce, PirnIdentityNonce):
-            nonce = PirnIdentityNonce()
+        if not isinstance(nonce, PirnIdentityNonce) or not nonce.is_owned_by(self):
+            nonce = PirnIdentityNonce(owner_id=id(self))
             state["_pirn_identity_nonce"] = nonce
         return nonce.token
 

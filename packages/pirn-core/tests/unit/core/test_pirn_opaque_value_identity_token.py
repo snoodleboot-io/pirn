@@ -19,6 +19,7 @@ from collections.abc import Callable
 
 import pytest
 
+from pirn.connectors.connector_base import ConnectorBase
 from pirn.core.hashing import content_hash
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
@@ -32,6 +33,10 @@ class Opaque(PirnOpaqueValue):
 
 class OpaqueTuple(PirnOpaqueValue, tuple):
     """A subclass that cannot be weakly referenced (variable-size builtin base)."""
+
+
+class TupleConnector(ConnectorBase, tuple):
+    """A connector that cannot be weakly referenced; config lives in ``__dict__``."""
 
 
 class OpaqueInt(PirnOpaqueValue, int):
@@ -275,16 +280,37 @@ def test_non_weakrefable_token_never_survives_pickle_free_unpickle_at_the_same_a
     assert collisions == 0
 
 
-def test_non_weakrefable_shallow_copy_shares_the_token_as_documented() -> None:
+def test_non_weakrefable_mutated_shallow_copy_does_not_hash_equal_to_the_original() -> None:
     # Arrange — copy.copy shares the instance dict's values, nonce included.
-    original = OpaqueTuple((1, 2))
-    original_token = original._pirn_identity_token()
-
-    # Act
+    # A connector is the realistic case: content_hash reaches the token through
+    # ConnectorBase.__pirn_canonical__ (a bare tuple subclass hashes its items).
+    original = TupleConnector()
+    original.base_url = "https://a.example/v1"
+    original_hash = content_hash({"value": original})
     duplicate = copy.copy(original)
 
+    # Act
+    duplicate.base_url = "https://b.example/v1"
+    duplicate_hash = content_hash({"value": duplicate})
+
     # Assert
-    assert duplicate._pirn_identity_token() == original_token
+    assert duplicate_hash != original_hash
+    assert content_hash({"value": original}) == original_hash
+
+
+def test_mutated_shallow_copy_does_not_hash_equal_to_the_original() -> None:
+    # Arrange — the weakref-registry path: the copy is a new object with no entry.
+    original = Opaque("https://a.example/v1")
+    original_hash = content_hash({"value": original})
+    duplicate = copy.copy(original)
+
+    # Act
+    duplicate.label = "https://b.example/v1"
+    duplicate_hash = content_hash({"value": duplicate})
+
+    # Assert
+    assert duplicate_hash != original_hash
+    assert content_hash({"value": original}) == original_hash
 
 
 def test_instance_without_a_dict_refuses_with_a_fresh_token_per_read() -> None:
