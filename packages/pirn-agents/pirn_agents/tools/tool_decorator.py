@@ -82,11 +82,11 @@ def _build_tool(
     resolved_description = description or raw_doc.split("\n\n")[0].strip() or fn.__name__
     is_stateful = state is not None
 
+    # The validator for ``args_model`` is derived inside FunctionTool, so a tool
+    # built here carries no custom validator and stays eligible for content
+    # identity (PIR-840).
     if args_model is not None:
         parameters_schema: dict[str, Any] = compiler.model_json_schema(args_model)
-        args_validator: Callable[[Mapping[str, Any]], Any] | None = compiler.model_validator(
-            args_model
-        )
     else:
         parameters_schema = compiler.schema_from_signature(
             fn,
@@ -94,7 +94,6 @@ def _build_tool(
             examples=examples,
             exclude=frozenset({"state"}) if is_stateful else frozenset(),
         )
-        args_validator = None
 
     return FunctionTool(
         fn=fn,
@@ -104,7 +103,6 @@ def _build_tool(
         is_async=iscoroutinefunction(fn) or isasyncgenfunction(fn),
         return_schema=compiler.return_schema(fn),
         permissions=permissions,
-        args_validator=args_validator,
         is_streaming=isasyncgenfunction(fn),
         state=state,
         is_stateful=is_stateful,

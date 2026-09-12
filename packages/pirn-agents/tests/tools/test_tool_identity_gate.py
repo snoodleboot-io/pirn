@@ -16,11 +16,15 @@ Two checks:
   so a new constructor argument fails here until someone decides what it does to
   identity.
 * **Coverage ratchet.** Every class in the workspace (``packages/``, ``examples/``,
-  ``scripts/``) that defines ``content_identity``, or inherits from one that does,
-  must have a case below or a named exemption — by exact equality, so removing an
-  opt-in without updating the gate also fails. The scan is whole-workspace and by
-  AST, not by importing one package, because a package-local registry previously
-  missed classes defined elsewhere.
+  ``scripts/``) that defines ``content_identity`` must have a case below or a named
+  exemption — by exact equality, so removing an opt-in without updating the gate
+  also fails. The scan is whole-workspace and by AST, not by importing one package,
+  because a package-local registry previously missed classes defined elsewhere.
+* **Inheritance ratchet.** The opt-in is not inherited (review of PR #310): a
+  subclass of an opted-in tool is identity-keyed unless it re-declares
+  ``content_identity``. Every such subclass in the workspace must be listed as
+  intentionally identity-keyed, so a subclass whose author *expected* to inherit
+  replay is surfaced rather than silently refusing.
 """
 
 from __future__ import annotations
@@ -59,6 +63,18 @@ EXEMPT = frozenset(
     }
 )
 
+#: Subclasses of opted-in tools that do not re-declare ``content_identity`` and are
+#: therefore identity-keyed on purpose. Each is a reproduction of a false match
+#: closed in review of PR #310 (an inherited opt-in, a factory-built class).
+INHERITS_WITHOUT_REDECLARING = frozenset(
+    {
+        "packages/pirn-agents/tests/tools/_cross_process_replay_worker.py::Scaled",
+        "packages/pirn-agents/tests/tools/_cross_process_replay_worker.py::TenantReadFile",
+        "packages/pirn-agents/tests/tools/test_tool_content_identity.py::Scaled",
+        "packages/pirn-agents/tests/tools/test_tool_content_identity.py::_UndeclaredTenantTool",
+    }
+)
+
 #: The root that declares the default facet; every tool inherits from it, so it
 #: must not seed name-based inheritance.
 EXEMPT_ROOT = "packages/pirn-agents/pirn_agents/tools/tool.py::Tool"
@@ -76,6 +92,7 @@ class _GateState:
         self.tenant = tenant
 
     def __pirn_canonical__(self) -> dict[str, str]:
+        """Declare the tenant as this state's whole identity."""
         return {"tenant": self.tenant}
 
 
@@ -227,7 +244,7 @@ class TestOptedInToolsDeclareEveryConstructorArgument(unittest.TestCase):
                     assert content_hash(varied) != reference
 
     def test_every_opted_in_class_in_the_workspace_has_a_case(self) -> None:
-        found = self._opted_in_classes(self._workspace_root())
+        found, _ = self._scan(self._workspace_root())
         covered = {
             finding
             for finding in found
@@ -242,12 +259,23 @@ class TestOptedInToolsDeclareEveryConstructorArgument(unittest.TestCase):
             "a gate case names a class the workspace scan no longer finds opting in"
         )
 
+    def test_every_subclass_that_does_not_redeclare_is_intentionally_identity_keyed(
+        self,
+    ) -> None:
+        _, inheriting = self._scan(self._workspace_root())
+
+        assert inheriting == INHERITS_WITHOUT_REDECLARING, (
+            "a subclass of an opted-in tool does not re-declare content_identity, so it is "
+            "identity-keyed; re-declare it with the subclass's config, or list it here: "
+            f"{sorted(inheriting ^ INHERITS_WITHOUT_REDECLARING)}"
+        )
+
     def test_every_loaded_opted_in_tool_has_a_case(self) -> None:
         """Runtime twin of the AST scan: catches opt-ins reached by dynamic bases."""
         uncovered = [
             f"{tool_type.__module__}.{tool_type.__qualname__}"
             for tool_type in self._all_subclasses(Tool)
-            if tool_type.content_identity is not Tool.content_identity
+            if "content_identity" in vars(tool_type)
             and tool_type not in self.cases()
             and not any(self._is_case_for(entry, tool_type) for entry in EXEMPT)
         ]
@@ -282,8 +310,8 @@ class TestOptedInToolsDeclareEveryConstructorArgument(unittest.TestCase):
         )
 
     @staticmethod
-    def _opted_in_classes(workspace: Path) -> set[str]:
-        """Return ``path::name`` for classes defining or inheriting ``content_identity``.
+    def _scan(workspace: Path) -> tuple[set[str], set[str]]:
+        """Return ``(declaring, inheriting without re-declaring)`` as ``path::name`` sets.
 
         Inheritance is resolved by base-class *name* to a fixed point, which
         over-reports on a name collision — the safe direction for a gate. Only
@@ -316,7 +344,15 @@ class TestOptedInToolsDeclareEveryConstructorArgument(unittest.TestCase):
                 )
             }
             if found == opted_in:
-                return opted_in
+                declaring = {
+                    f"{path}::{node.name}"
+                    for path, nodes in parsed.items()
+                    for node in nodes
+                    if TestOptedInToolsDeclareEveryConstructorArgument._defines_content_identity(
+                        node
+                    )
+                }
+                return declaring, opted_in - declaring
             opted_in = found
             needles = {"content_identity"} | {
                 entry.rsplit("::", 1)[1] for entry in opted_in - {EXEMPT_ROOT}

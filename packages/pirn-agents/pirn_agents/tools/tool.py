@@ -38,6 +38,7 @@ from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
+from pirn_agents.tools.definition_reference import DefinitionReference
 from pirn_agents.tools.tool_declaration import ToolDeclaration
 from pirn_agents.tools.tool_permissions import ToolPermissions
 
@@ -127,24 +128,45 @@ class Tool(PirnOpaqueValue):
         keeps that instance identity-keyed. A tool that opts in must also be
         covered by the per-argument gate in
         ``tests/tools/test_tool_identity_gate.py``.
+
+        The opt-in is **not inherited**: it is honoured only on the class that
+        defines this method itself. A subclass that adds constructor arguments
+        or overrides ``invoke`` stays identity-keyed until it re-declares
+        ``content_identity`` with its own config.
         """
         return None
 
     def __pirn_canonical__(self) -> Any:
         """Return the form :func:`pirn.core.hashing.content_hash` hashes.
 
-        When :meth:`content_identity` is ``None`` this is the identity token
-        from :meth:`_pirn_audit_dict`, exactly the value hashed before PIR-840.
-        Otherwise it is the tool's class, name, description, parameters schema
-        and declared config — the class is included so two tools that declare
-        the same triple but behave differently never hash equal.
+        The tool is content-identified only when all of these hold; otherwise
+        the canonical form is the per-instance identity token:
+
+        * its own class (not a base) defines :meth:`content_identity`;
+        * the class has a unique, process-independent name
+          (:class:`~pirn_agents.tools.definition_reference.DefinitionReference`),
+          so a factory-built ``<locals>`` class, a shadowed class, or a
+          file-less ``__main__`` class stays identity-keyed;
+        * :meth:`content_identity` returns a mapping, not ``None``.
+
+        The content form is the class reference, name, description, parameters
+        schema and declared config. The class is included so two tools that
+        declare the same triple but behave differently never hash equal. The
+        identity token is taken from :class:`PirnOpaqueValue` directly, so a
+        subclass that overrides :meth:`_pirn_audit_dict` with a constant cannot
+        collapse every instance onto one hash.
         """
+        tool_type = type(self)
+        if "content_identity" not in vars(tool_type):
+            return PirnOpaqueValue._pirn_audit_dict(self)
+        reference = DefinitionReference.of(tool_type)
+        if reference is None:
+            return PirnOpaqueValue._pirn_audit_dict(self)
         config = self.content_identity()
         if config is None:
-            return self._pirn_audit_dict()
-        tool_type = type(self)
+            return PirnOpaqueValue._pirn_audit_dict(self)
         return {
-            "tool": f"{tool_type.__module__}.{tool_type.__qualname__}",
+            "tool": reference,
             "name": self.name,
             "description": self.description,
             "parameters_schema": self.parameters_schema,

@@ -8,12 +8,16 @@ rather than substituting a value recorded against a different tool).
 
 from __future__ import annotations
 
+import asyncio
 import functools
+import sys
 import tempfile
+import types
 import unittest
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
+from unittest import mock
 
 from pirn.core.hashing import content_hash
 from pydantic import BaseModel
@@ -71,10 +75,84 @@ class _SameTripleFirstTool(Tool):
 
 
 class _SameTripleSecondTool(_SameTripleFirstTool):
-    """Same triple and config, different behaviour."""
+    """Same triple and config, different behaviour; re-declares the opt-in."""
+
+    def content_identity(self) -> Mapping[str, Any]:
+        return {}
 
     async def invoke(self, arguments: Mapping[str, Any]) -> Any:
         return 2
+
+
+class _UndeclaredTenantTool(_SameTripleFirstTool):
+    """Inherits the opt-in without re-declaring it, and adds undeclared config."""
+
+    def __init__(self, *, tenant: str) -> None:
+        self._tenant = tenant
+
+    async def invoke(self, arguments: Mapping[str, Any]) -> Any:
+        return self._tenant
+
+
+class _ConstantAuditTool(_IdentityOnlyTool):
+    """Overrides the audit form with a constant, as ``ConnectorBase`` does."""
+
+    def _pirn_audit_dict(self) -> Any:
+        return {"tool": "constant"}
+
+
+def _scaled_calculator(factor: int) -> Tool:
+    """Build a calculator from a factory-local class."""
+
+    # design-decision-override: a factory-local class is the case under test.
+    class Scaled(CalculatorTool):
+        async def invoke(self, arguments: Mapping[str, Any]) -> Mapping[str, Any]:
+            output = dict(await super().invoke(arguments))
+            output["result"] = output["result"] * factor
+            return output
+
+    return Scaled()
+
+
+def bind_tenant(tenant: str) -> Any:
+    """Return a ``functools.wraps`` decorator closing over ``tenant``."""
+
+    # design-decision-override: a closure-capturing decorator is the case under test.
+    def decorate(fn: Any) -> Any:
+        # design-decision-override: the wrapper's closure is what must not be hashed away.
+        @functools.wraps(fn)
+        def wrapper(query: str) -> str:
+            return fn(query, tenant)
+
+        return wrapper
+
+    return decorate
+
+
+def tenant_lookup(query: str, tenant: str = "") -> str:
+    """Look up a record for a tenant."""
+    return f"{tenant}:{query}"
+
+
+wrapped_lookup = bind_tenant("prod")(tenant_lookup)
+
+
+def plain_wrapper(query: str) -> str:
+    """A wrapper with no closure that still sets ``__wrapped__``."""
+    return query
+
+
+plain_wrapper.__wrapped__ = tenant_lookup  # type: ignore[attr-defined]
+
+
+def default_tenant(query: str, tenant: str = "prod") -> str:
+    """Look up a record for the default tenant."""
+    return f"{tenant}:{query}"
+
+
+def default_object(query: str, sink: object = object()) -> str:
+    """A default with no content form."""
+    return query
 
 
 class _CanonicalTenant:
@@ -142,15 +220,42 @@ class TestDefaultIsIdentityKeyed(unittest.TestCase):
         assert first.content_identity() is None
         assert content_hash(first) != content_hash(second)
 
-    def test_the_identity_canonical_form_is_the_unchanged_audit_token(self) -> None:
+    def test_an_identity_keyed_tool_hashes_stably_per_instance(self) -> None:
         tool_instance = _IdentityOnlyTool()
 
-        assert _canonical(tool_instance) == tool_instance._pirn_audit_dict()
+        assert content_hash(tool_instance) == content_hash(tool_instance)
+
+    def test_an_audit_override_cannot_collapse_the_identity_hash(self) -> None:
+        """Review of #310: the fallback must not route through a subclass's audit form."""
+        first, second = _ConstantAuditTool(), _ConstantAuditTool()
+
+        assert first._pirn_audit_dict() == second._pirn_audit_dict()
+        assert content_hash(first) != content_hash(second)
 
     def test_opting_in_leaves_the_audit_form_identity_keyed(self) -> None:
-        calculator = CalculatorTool()
+        first, second = CalculatorTool(), CalculatorTool()
 
-        assert calculator._pirn_audit_dict() == f"<CalculatorTool@{id(calculator):x}>"
+        assert first._pirn_audit_dict() != second._pirn_audit_dict()
+
+
+class TestOptInIsNotInheritedOrFactoryBuilt(unittest.TestCase):
+    def test_a_subclass_that_does_not_redeclare_stays_identity_keyed(self) -> None:
+        """Review of #310: an inherited opt-in hid the subclass's extra ``tenant`` argument."""
+        prod, test = _UndeclaredTenantTool(tenant="prod"), _UndeclaredTenantTool(tenant="test")
+
+        assert content_hash(prod) != content_hash(test)
+        assert content_hash(prod) != content_hash(_UndeclaredTenantTool(tenant="prod"))
+
+    def test_a_subclass_that_redeclares_is_content_identified(self) -> None:
+        assert content_hash(_SameTripleSecondTool()) == content_hash(_SameTripleSecondTool())
+
+    def test_classes_defined_in_a_factory_stay_identity_keyed(self) -> None:
+        """Review of #310: every factory-built class shares ``<locals>`` in one qualname."""
+        ten, thousand = _scaled_calculator(10), _scaled_calculator(1000)
+
+        assert type(ten).__qualname__ == type(thousand).__qualname__
+        assert content_hash(ten) != content_hash(thousand)
+        assert content_hash(ten) != content_hash(_scaled_calculator(10))
 
 
 class TestOptedInToolsHashByContent(unittest.TestCase):
@@ -294,6 +399,77 @@ class TestFunctionTools(unittest.TestCase):
         )
 
         assert wrapped.content_identity() is None
+
+    def test_a_custom_validator_beside_a_model_stays_identity_keyed(self) -> None:
+        """Review of #310: only the model name was hashed, so the validator was invisible."""
+        wrapped = FunctionTool(
+            model_add,
+            name="model_add",
+            description="d",
+            parameters_schema={"type": "object"},
+            is_async=False,
+            args_validator=dict,
+            args_model=_AddArguments,
+        )
+
+        assert wrapped.content_identity() is None
+
+    def test_a_model_alone_derives_its_validator(self) -> None:
+        wrapped = FunctionTool(
+            model_add,
+            name="model_add",
+            description="d",
+            parameters_schema={"type": "object"},
+            is_async=False,
+            args_model=_AddArguments,
+        )
+
+        assert asyncio.run(wrapped.invoke({"a": "1", "b": 2})) == 3
+        assert wrapped.content_identity() is not None
+
+    def test_a_wraps_decorator_with_a_closure_stays_identity_keyed(self) -> None:
+        """Review of #310: ``functools.wraps`` copied the qualname past the closure rule."""
+        assert wrapped_lookup.__qualname__ == "tenant_lookup"
+        assert tool(wrapped_lookup).content_identity() is None
+
+    def test_any_wrapped_function_stays_identity_keyed(self) -> None:
+        assert tool(plain_wrapper).content_identity() is None
+
+    def test_primitive_defaults_are_part_of_the_identity(self) -> None:
+        identity = tool(default_tenant).content_identity()
+
+        assert identity is not None
+        assert identity["defaults"] == {"positional": ["prod"], "keyword": None}
+
+    def test_a_default_without_a_content_form_stays_identity_keyed(self) -> None:
+        assert tool(default_object).content_identity() is None
+
+    def test_a_main_module_function_is_keyed_by_the_script_path(self) -> None:
+        """Review of #310: two scripts each defining ``search`` collided as ``__main__.search``."""
+        with tempfile.TemporaryDirectory() as directory:
+            one, two = Path(directory, "one.py"), Path(directory, "two.py")
+            first, second = self._main_identity(one), self._main_identity(two)
+
+        assert first is not None and second is not None
+        assert str(one.resolve()) in first["fn"]
+        assert first["fn"] != second["fn"]
+
+    def test_a_main_module_without_a_file_stays_identity_keyed(self) -> None:
+        """A REPL, notebook, or ``python -c`` has no script path to key by."""
+        assert self._main_identity(None) is None
+
+    @staticmethod
+    def _main_identity(script: Path | None) -> Mapping[str, Any] | None:
+        """Return the identity of a ``search`` tool defined in a stand-in ``__main__``."""
+        main = types.ModuleType("__main__")
+        if script is not None:
+            main.__file__ = str(script)
+        search = types.FunctionType(plain_add.__code__, vars(main), "search")
+        search.__module__ = "__main__"
+        search.__qualname__ = "search"
+        vars(main)["search"] = search
+        with mock.patch.dict(sys.modules, {"__main__": main}):
+            return tool(search).content_identity()
 
 
 class TestContainersUseEachToolsIdentity(unittest.TestCase):

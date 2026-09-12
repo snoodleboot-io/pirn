@@ -98,6 +98,14 @@ class HttpRequestTool(BaseTool):
         identity-keyed. Otherwise every policy scalar is declared; the
         allow-list is sorted because it is only ever used for membership
         (PIR-840).
+
+        Accepted limitation: the ``httpx`` client this tool creates reads
+        ``HTTP_PROXY``/``HTTPS_PROXY``/``NO_PROXY``, ``SSL_CERT_FILE`` and
+        ``SSL_CERT_DIR`` from the environment, and none of that is hashed. A
+        recording made through one proxy or trust store replays in a process
+        configured with another. Environment variables are deliberately not
+        folded in: they are process-wide, often carry credentials (proxy URLs),
+        and would make every replay depend on unrelated shell state.
         """
         if self._client is not None or self._resolver is not None:
             return None
