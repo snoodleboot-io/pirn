@@ -8,6 +8,7 @@ from unittest.mock import patch
 import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
+
 from pirn_oilgas.assemblers.segy_object_store_assembler import SegyObjectStoreAssembler
 from pirn_oilgas.types.segy_volume import SegyVolume
 

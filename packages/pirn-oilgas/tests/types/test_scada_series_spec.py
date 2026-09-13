@@ -6,8 +6,9 @@ import unittest
 from datetime import UTC, datetime
 
 import pytest
-from pirn_oilgas.types.scada_series_spec import ScadaSeriesSpec
 from pydantic import ValidationError
+
+from pirn_oilgas.types.scada_series_spec import ScadaSeriesSpec
 
 _ROWS = [(datetime(2026, 1, 1, tzinfo=UTC), 1.0), (datetime(2026, 1, 1, 0, 1, tzinfo=UTC), 2.0)]
 

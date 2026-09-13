@@ -21,6 +21,7 @@ import numpy as np
 import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
+
 from pirn_oilgas.disassemblers.segy_object_store_disassembler import SegyObjectStoreDisassembler
 from pirn_oilgas.types.segy_payload import SegyPayload
 from pirn_oilgas.types.segy_volume import SegyVolume
