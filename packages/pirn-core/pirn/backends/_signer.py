@@ -10,6 +10,8 @@ import hashlib
 import hmac
 import os
 
+from pirn.exceptions.data_integrity_error import DataIntegrityError
+
 
 class _Signer:
     """Signs and verifies cloudpickle payloads with HMAC-SHA256.
@@ -80,15 +82,15 @@ class _Signer:
     def verify(self, payload: bytes) -> bytes:
         """Verify the HMAC-SHA256 signature and return the raw payload.
 
-        Raises ``ValueError`` if the payload is too short or the signature
-        does not match.
+        Raises ``DataIntegrityError`` (a ``ValueError``) if the payload is
+        too short or the signature does not match.
         """
         # An HMAC failure cannot distinguish malice from damage — that is
         # inherent to the primitive.  Name the likelier causes rather than
         # asserting tampering, so a truncated read or a rotated key does not
         # send an operator into a security investigation.
         if len(payload) < self.__digest_size:
-            raise ValueError(
+            raise DataIntegrityError(
                 f"payload too short to contain a signature "
                 f"({len(payload)} bytes, need at least {self.__digest_size}) — "
                 "the payload is likely truncated or partially written, "
@@ -97,7 +99,7 @@ class _Signer:
         sig, raw = payload[: self.__digest_size], payload[self.__digest_size :]
         expected = hmac.new(self.__key, raw, hashlib.sha256).digest()
         if not hmac.compare_digest(sig, expected):
-            raise ValueError(
+            raise DataIntegrityError(
                 "HMAC signature mismatch — the payload may be corrupt, truncated, "
                 "signed with a different key, or tampered with"
             )
