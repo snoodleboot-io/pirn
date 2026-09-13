@@ -57,6 +57,9 @@ _EXPECTED_EXCLUSIONS = frozenset(
         "pirn_agents.specializations.react.react_step_executor.ReActStepExecutor",
         # Private: the loop body IterativeRetriever drives internally (PIR-856).
         "pirn_agents.specializations.rag._iterative_retrieval_loop._IterativeRetrievalLoop",
+        # Private: the loop body RoundRobinReview drives internally
+        # (ADR agents-speaks-core WS5a).
+        "pirn_agents.specializations.multi_agent._round_robin_loop._RoundRobinLoop",
         # Private: the loop body AgenticRagPipeline drives internally (PIR-856).
         "pirn_agents.specializations.rag._agentic_rag_loop._AgenticRagLoop",
         # Private: the per-candidate step FallbackChain drives internally (PIR-856).
@@ -183,6 +186,7 @@ def test_the_excluded_bases_are_bases_and_the_excluded_private_is_private() -> N
             "pirn_agents.specializations.rag._iterative_retrieval_loop._IterativeRetrievalLoop",
             "pirn_agents.specializations.rag._agentic_rag_loop._AgenticRagLoop",
             "pirn_agents.specializations.routing._candidate_attempt._CandidateAttempt",
+            "pirn_agents.specializations.multi_agent._round_robin_loop._RoundRobinLoop",
         ]
     )
     # Every exclusion falls into exactly one justified category: base,

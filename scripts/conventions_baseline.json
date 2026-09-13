@@ -2,7 +2,7 @@
   "pirn-agents": {
     "filename_mismatch": 0,
     "gate_wrong_base": 5,
-    "knot_init_impure": 3,
+    "knot_init_impure": 4,
     "knot_process_kwargs_name": 5,
     "knot_property": 0,
     "knot_self_assignment": 2,

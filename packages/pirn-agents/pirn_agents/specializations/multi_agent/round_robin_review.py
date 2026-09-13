@@ -4,20 +4,21 @@ A :class:`SubTapestry` that passes a draft :class:`AgentResponse`
 through N reviewer agents in order, each receiving the previous
 agent's output as its input. Returns the final revised response.
 
-Reviewers accept a ``response: AgentResponse`` and produce a revised one. They
-are run through :meth:`_SpecialistInvoker.invoke_specialist`, not by calling ``process()``: a
-:class:`SubTapestry`'s ``process()`` returns the *sink knot* of its inner
-pipeline, and because the loop below guards on ``isinstance(result,
-AgentResponse)`` that Knot failed the guard and **every review was silently
-discarded** (see PIR-769).
+Reviewers accept a ``response: AgentResponse`` and produce a revised one. Each
+round runs through :class:`_ReviewerInvocation`, which itself delegates
+through :meth:`_SpecialistInvoker.invoke_specialist` — the reviewer's
+``__call__``, never its ``process()`` (a :class:`SubTapestry`'s ``process()``
+only *builds* the sink knot of its inner pipeline; calling it directly used to
+mean every review was silently discarded, see PIR-769).
 
 Algorithm
 ---------
 1. Validate inputs.
-2. Iterate over reviewers sequentially; each sees the previous output.
-3. Wrap the final result in a pass-through inner tapestry via
-   :class:`_ResponseEcho` so that the SubTapestry contract is honoured.
-4. Return the final reviewed AgentResponse.
+2. Drive the reviewer sequence with a :class:`_RoundRobinLoop`
+   (``LoopSubTapestry``): each round is one real, individually-traceable
+   ``_ReviewerInvocation`` knot rather than a step inside a hand-rolled Python
+   ``for`` loop (ADR agents-speaks-core WS5a).
+3. Extract the final revised response with :class:`_RoundRobinResponseExtractor`.
 
 Math
 ----
@@ -34,12 +35,14 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
 
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.multi_agent._response_echo import _ResponseEcho
-from pirn_agents.specializations.multi_agent._specialist_invoker import (
-    _SpecialistInvoker,
+from pirn_agents.specializations.multi_agent._round_robin_loop import _RoundRobinLoop
+from pirn_agents.specializations.multi_agent._round_robin_response_extractor import (
+    _RoundRobinResponseExtractor,
 )
+from pirn_agents.specializations.multi_agent._round_robin_state import _RoundRobinState
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
@@ -69,7 +72,8 @@ class RoundRobinReview(AgentPipeline):
             reviewers: A non-empty sequence of SubTapestry reviewer agents.
 
         Returns:
-            The AgentResponse produced by the last reviewer in the sequence.
+            The sink knot whose output is the AgentResponse produced by the
+            last reviewer in the sequence.
 
         Raises:
             ValueError: If reviewers is empty.
@@ -77,12 +81,18 @@ class RoundRobinReview(AgentPipeline):
         reviewer_list = list(reviewers)
         if not reviewer_list:
             raise ValueError("RoundRobinReview: reviewers must be a non-empty sequence")
-        current = response
-        for reviewer in reviewer_list:
-            result = await _SpecialistInvoker.invoke_specialist(reviewer, response=current)
-            if isinstance(result, AgentResponse):
-                current = result
-        return _ResponseEcho(
-            response=current,
+
+        initial = Parameter(
+            "rrr_state",
+            _RoundRobinState,
+            default=_RoundRobinState(response=response, index=0),
+        )
+        loop = _RoundRobinLoop(
+            reviewers=reviewer_list,
+            state=initial,
+            _config=KnotConfig(id="rrr_loop"),
+        )
+        return _RoundRobinResponseExtractor(
+            state=loop,
             _config=KnotConfig(id="final"),
         )
