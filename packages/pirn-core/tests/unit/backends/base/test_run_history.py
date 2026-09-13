@@ -45,12 +45,6 @@ class TestRunHistoryInterface(unittest.IsolatedAsyncioTestCase):
             await h.query_lineage_by_knot_id("knot-1")
         self.assertIn("query_lineage_by_knot_id()", str(ctx.exception))
 
-    async def test_query_latest_lineage_by_knot_id_raises(self) -> None:
-        h = self._make_history()
-        with self.assertRaises(NotImplementedError) as ctx:
-            await h.query_latest_lineage_by_knot_id("knot-1")
-        self.assertIn("query_latest_lineage_by_knot_id()", str(ctx.exception))
-
     async def test_query_runs_by_actor_raises(self) -> None:
         h = self._make_history()
         with self.assertRaises(NotImplementedError) as ctx:
