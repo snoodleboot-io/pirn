@@ -55,6 +55,15 @@ class GlobTool(BaseTool):
             "required": ["pattern"],
         }
 
+    def content_identity(self) -> Mapping[str, Any]:
+        """Opt in to content identity with the resolved root and the max_results cap.
+
+        The root is the strictly-resolved absolute path, so the same checkout
+        replays across processes while a different root (or the same root on a
+        machine with another path) is a different tool and refuses (PIR-840).
+        """
+        return {"root": str(self._guard.root), "max_results": self._max_results}
+
     async def invoke(self, arguments: Mapping[str, Any]) -> Mapping[str, Any]:
         """Return root-relative paths matching ``pattern``, capped at ``max_results``.
 

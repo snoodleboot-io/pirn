@@ -29,13 +29,17 @@ invokes, and as a config value it is covered by the lineage row's
 ``config_values_hash`` (PIR-836) so two invocations of *different* tools are
 distinguishable in provenance.
 
-One consequence of that, stated because it is a real limit rather than an
-oversight: ``Tool`` is identity-keyed, so its content hash differs across
-processes. A recorded run replayed in a new process will find the
-``config_values_hash`` changed and refuse to serve the recorded output
-(``ReplayMismatchError``), rather than silently substituting a value recorded
+Whether that hash is stable across processes depends on the tool (PIR-840). A
+tool is identity-keyed by default, so its content hash differs across
+processes: a recorded run replayed in a new process finds the
+``config_values_hash`` changed and refuses to serve the recorded output
+(``ReplayMismatchError``) rather than silently substituting a value recorded
 against a possibly-different tool. That is the safe direction of the trade —
-see ``InvocationIdentity.is_comparable``.
+see ``InvocationIdentity.is_comparable``. A tool that declares its
+configuration through :meth:`~pirn_agents.tools.tool.Tool.content_identity`
+(the pure and config-only base tools, and qualifying ``@tool`` functions)
+hashes by class and declared config instead, so its recorded calls replay in
+a new process without the tool being invoked again.
 
 References:
     pirn-native — no external references.

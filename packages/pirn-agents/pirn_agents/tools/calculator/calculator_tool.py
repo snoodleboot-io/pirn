@@ -48,6 +48,14 @@ class CalculatorTool(BaseTool):
             "required": ["expression"],
         }
 
+    def content_identity(self) -> Mapping[str, Any]:
+        """Opt in to content identity: the tool has no configuration at all.
+
+        Its behaviour is fixed by its class, so two instances in two processes
+        are the same tool and their recorded calls replay (PIR-840).
+        """
+        return {}
+
     async def invoke(self, arguments: Mapping[str, Any]) -> Mapping[str, Any]:
         """Evaluate the ``expression`` argument and return the numeric result.
 

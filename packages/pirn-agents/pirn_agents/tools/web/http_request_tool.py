@@ -55,6 +55,9 @@ class HttpRequestTool(BaseTool):
         self._guard = SsrfGuard(
             allowed_hosts=allowed_hosts, allow_private=allow_private, resolver=resolver
         )
+        self._allowed_hosts = allowed_hosts
+        self._allow_private = allow_private
+        self._resolver = resolver
         self._max_bytes = max_bytes
         self._timeout = timeout
         self._connect_timeout = connect_timeout
@@ -84,6 +87,36 @@ class HttpRequestTool(BaseTool):
                 },
             },
             "required": ["url"],
+        }
+
+    def content_identity(self) -> Mapping[str, Any] | None:
+        """Opt in to content identity with the fetch policy, unless a client or resolver is injected.
+
+        An injected client or resolver can rewrite what a request returns (a
+        test double, a proxying client, a resolver pointing a host elsewhere)
+        and has no stable content form, so either keeps the instance
+        identity-keyed. Otherwise every policy scalar is declared; the
+        allow-list is sorted because it is only ever used for membership
+        (PIR-840).
+
+        Accepted limitation: the ``httpx`` client this tool creates reads
+        ``HTTP_PROXY``/``HTTPS_PROXY``/``NO_PROXY``, ``SSL_CERT_FILE`` and
+        ``SSL_CERT_DIR`` from the environment, and none of that is hashed. A
+        recording made through one proxy or trust store replays in a process
+        configured with another. Environment variables are deliberately not
+        folded in: they are process-wide, often carry credentials (proxy URLs),
+        and would make every replay depend on unrelated shell state.
+        """
+        if self._client is not None or self._resolver is not None:
+            return None
+        return {
+            "allowed_hosts": (
+                None if self._allowed_hosts is None else sorted(set(self._allowed_hosts))
+            ),
+            "allow_private": self._allow_private,
+            "max_bytes": self._max_bytes,
+            "timeout": self._timeout,
+            "connect_timeout": self._connect_timeout,
         }
 
     async def invoke(self, arguments: Mapping[str, Any]) -> Mapping[str, Any]:
