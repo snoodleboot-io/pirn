@@ -1,5 +1,13 @@
 """``RunCheckpointer`` — persist a run's state at a safe point, content-addressed.
 
+.. deprecated:: ADR agents-speaks-core WS3 part 2
+    The active session model no longer writes a ``RunCheckpoint`` blob — a
+    turn's own ``RunResult`` is already durably recorded, and
+    :class:`~pirn_agents.sessions.run_resumer.RunResumer` projects the current
+    :class:`~pirn_agents.sessions.run_state.RunState` straight from the run
+    chain (:mod:`pirn_agents.sessions.session_chain`). Kept for one cycle for
+    callers still writing explicit checkpoints.
+
 Algorithm:
     1. Content-address the incoming :class:`RunState` into a :class:`RunCheckpoint`.
     2. Load the session's current checkpoint. If its ``checkpoint_id`` already
@@ -11,6 +19,7 @@ Algorithm:
 
 from __future__ import annotations
 
+import warnings
 from typing import Any
 
 from pirn.core.knot import Knot
@@ -49,6 +58,14 @@ class RunCheckpointer(Knot):
         Returns:
             The persisted (or already-present, deduplicated) :class:`RunCheckpoint`.
         """
+        warnings.warn(
+            "RunCheckpointer is deprecated (ADR agents-speaks-core WS3): "
+            "a turn's RunResult is already durably recorded — see "
+            "pirn_agents.sessions.session_chain.SessionChain and "
+            "pirn_agents.sessions.run_resumer.RunResumer.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         checkpoint = RunCheckpoint.create(state)
         existing = await store.load(state.session_id)
         if existing is not None and existing.checkpoint_id == checkpoint.checkpoint_id:

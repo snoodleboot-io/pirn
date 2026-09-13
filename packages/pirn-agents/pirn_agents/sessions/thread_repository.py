@@ -6,9 +6,18 @@ Persists a :class:`ConversationThread` through an injected F4
 payload, a thread survives process restarts: a fresh repository over the same
 durable backend re-reads a prior thread. The repository names no vendor and imports
 no driver — any lazy backend import lives in the concrete ``MemoryStore``.
+
+.. deprecated:: ADR agents-speaks-core WS3 part 2
+    A session's message history is now exactly what
+    :meth:`~pirn_agents.sessions.run_state.RunState.from_chain` projects from
+    its run chain (:mod:`pirn_agents.sessions.session_chain`) — the engine
+    already durably records it, so a separate keyed thread store is
+    redundant. Kept for one cycle for callers still writing explicit threads.
 """
 
 from __future__ import annotations
+
+import warnings
 
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.sessions.conversation_thread import ConversationThread
@@ -28,6 +37,12 @@ class ThreadRepository:
             TypeError: If ``store`` is not a MemoryStore.
             ValueError: If ``key_prefix`` is empty.
         """
+        warnings.warn(
+            "ThreadRepository is deprecated (ADR agents-speaks-core WS3): "
+            "see pirn_agents.sessions.run_state.RunState.from_chain.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if not isinstance(store, MemoryStore):
             raise TypeError(
                 f"ThreadRepository: store must be a MemoryStore, got {type(store).__name__}"

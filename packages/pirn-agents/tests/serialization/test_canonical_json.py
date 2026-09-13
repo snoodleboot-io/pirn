@@ -127,9 +127,15 @@ class TestCanonicalJsonReproducesDurableDigests:
             "Adopting it would orphan every stored checkpoint_id."
         )
 
-    def test_agrees_with_the_checkpoint_hasher(self) -> None:
+    def test_agrees_with_the_legacy_v1_checkpoint_hasher(self) -> None:
+        # ADR "agents speaks core" WS3 part 2: RunCheckpoint.content_hash's
+        # default (format_version=2) moved onto core's content_hash, so this
+        # now compares against the explicit legacy path rather than the
+        # default — CanonicalJson is still the v1 format byte for byte.
         state = _golden_state()
-        assert CanonicalJson.digest(state.to_payload()) == RunCheckpoint.content_hash(state)
+        assert CanonicalJson.digest(state.to_payload()) == RunCheckpoint.content_hash(
+            state, format_version=1
+        )
 
     @pytest.mark.parametrize("name", _payload_names())
     def test_agrees_with_content_digest_on_json_payloads(self, name: str) -> None:

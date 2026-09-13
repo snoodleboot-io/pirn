@@ -1,4 +1,14 @@
-"""``SessionStore`` — the provider-neutral durable-session persistence interface."""
+"""``SessionStore`` — the provider-neutral durable-session persistence interface.
+
+.. deprecated:: ADR agents-speaks-core WS3 part 2
+    A session is a chain of engine runs now (see
+    :mod:`pirn_agents.sessions.session_chain`); the engine's own
+    ``RunHistory``/``DataStore`` already durably record every turn, so nothing
+    needs a separate keyed checkpoint store. This interface and its concrete
+    implementations (:class:`~pirn_agents.sessions.in_memory_session_store.InMemorySessionStore`,
+    :class:`~pirn_agents.sessions.persisted_session_store.PersistedSessionStore`)
+    stay importable for one cycle for callers that have not migrated.
+"""
 
 from __future__ import annotations
 

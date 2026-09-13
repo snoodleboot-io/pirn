@@ -64,19 +64,25 @@ STORE_CLASSES = frozenset(
 # Regenerate by running StoreInventory.discover_lifecycle_importers() from the
 # package root and pasting the sorted keys below.
 
+# ADR agents-speaks-core WS3 part 2 lowered this from 11 to 9: the rewritten
+# sessions/approval_resumer.py and sessions/suspending_approval_check.py no
+# longer import RunState/RunCheckpoint at all (a suspend is now
+# Skipped(reason="awaiting_human"), and resume replays from RunHistory via
+# ReplaySession — see pirn_agents.sessions.session_chain). The remaining nine
+# are one-cycle deprecated shims (sessions/*) plus the determinism
+# CheckpointForker/ForkResult pair, not yet migrated onto
+# pirn.knot_diff.replay_run.
 LIFECYCLE_IMPORTERS = frozenset(
     {
         "batch/batch_checkpointer.py",
         "batch/batch_progress.py",
         "determinism/checkpoint_forker.py",
         "determinism/fork_result.py",
-        "sessions/approval_resumer.py",
         "sessions/in_memory_session_store.py",
         "sessions/persisted_session_store.py",
         "sessions/run_checkpointer.py",
         "sessions/run_resumer.py",
         "sessions/session_store.py",
-        "sessions/suspending_approval_check.py",
     }
 )
 
