@@ -212,6 +212,8 @@ After the admission loop completes and per-knot records are sorted, `ctx.finaliz
 
 `await history.record_run(run_result)` persists the result.
 
+Every row is indexed by `knot_id` across runs, and two queries read that index: `query_lineage_by_knot_id(knot_id)` returns every row the store holds for the id, and `query_latest_lineage_by_knot_id(knot_id)` (ADR agents-speaks-core WS0b) returns just the most recently finished one — by `finished_at`, or `None` for an id never recorded. The latter is the keyed-identity lookup: a knot given a stable id (`item:<batch>:<key>`, a memory writer's key) is asked "what did you last produce?" without paging its whole history, and the answer's `output_hash` resolves in the `DataStore`. All four shipped stores implement it and the backend conformance suite pins the semantics; ties on `finished_at` are broken by the backend (in-memory prefers the row recorded last).
+
 ### Step 11: Emitter hooks fired
 
 After persistence (so emitters see stable state):

@@ -153,7 +153,23 @@ class BigQueryHistory:
         self, knot_id: str
     ) -> list[KnotLineage]:
         ...
+
+    async def query_latest_lineage_by_knot_id(
+        self, knot_id: str
+    ) -> KnotLineage | None:
+        # The most recently finished row for the id (by finished_at), or
+        # None — the keyed-identity lookup (ADR agents-speaks-core WS0b).
+        query = f"""
+            SELECT * FROM `{self._table}`
+            WHERE knot_id = @knot_id
+            ORDER BY finished_at DESC LIMIT 1
+        """
+        ...
 ```
+
+The full contract also has `query_runs_by_actor`, `children_of`, `record_knot_source` /
+`get_knot_source` and the `retention` capability; `packages/pirn-core/tests/integration/
+test_backend_conformance.py` is the executable definition every shipped store passes.
 
 ---
 

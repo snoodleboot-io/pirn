@@ -21,6 +21,7 @@ them.
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from typing import Any
 
@@ -169,6 +170,33 @@ async def test_history_query_by_knot_id_across_runs(history):
     await _run_pipeline(history, 2)
     matches = await history.query_lineage_by_knot_id("d")
     assert len(matches) == 2
+
+
+async def test_history_latest_lineage_by_knot_id_is_the_most_recently_finished(history):
+    """``query_latest_lineage_by_knot_id`` returns the row with the greatest
+    ``finished_at`` across runs -- the second run's, here -- as one record."""
+    # Arrange: a coarse clock could stamp both runs' rows in the same tick,
+    # which would make "latest" a tie the backend breaks arbitrarily.
+    first = await _run_pipeline(history, 1)
+    await asyncio.sleep(0.002)
+    second = await _run_pipeline(history, 2)
+
+    # Act
+    latest = await history.query_latest_lineage_by_knot_id("d")
+
+    # Assert
+    assert latest is not None
+    assert latest.knot_id == "d"
+    assert latest.run_id == second.run_id
+    assert latest.run_id != first.run_id
+    assert latest.finished_at >= max(
+        row.finished_at for row in await history.query_lineage_by_knot_id("d")
+    )
+
+
+async def test_history_latest_lineage_by_knot_id_is_none_for_an_unknown_knot(history):
+    await _run_pipeline(history, 1)
+    assert await history.query_latest_lineage_by_knot_id("never-ran") is None
 
 
 async def test_history_query_by_output_hash_finds_duplicates(history):

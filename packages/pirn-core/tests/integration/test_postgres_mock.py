@@ -224,3 +224,16 @@ async def test_postgres_history_query_by_knot_id_uses_correct_sql():
     assert len(fetches) == 1
     _, args = fetches[0]
     assert args == ("my_knot",)
+
+
+async def test_postgres_history_latest_by_knot_id_orders_by_finished_at_and_limits_to_one():
+    pool = _FakePool()
+    history = PostgresHistory(pool=pool)
+    latest = await history.query_latest_lineage_by_knot_id("my_knot")
+    fetches = [(q, a) for q, a in pool.fetches if "WHERE knot_id" in q]
+    assert len(fetches) == 1
+    query, args = fetches[0]
+    assert "ORDER BY finished_at DESC" in query
+    assert "LIMIT 1" in query
+    assert args == ("my_knot",)
+    assert latest is None

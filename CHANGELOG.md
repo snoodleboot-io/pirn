@@ -22,6 +22,10 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - `Emitter.on_knot_result(knot_id, result, lineage)` — a new no-op-default hook the engine awaits the moment a knot settles, inside the admission loop and before the knot's children are released, with the full `Ok` / `Err` / `Skipped` (the `Err`'s `ExceptionRecord` already re-registered against the run) and the `KnotLineage` row. Knots resolved without dispatch (skipped, missing parent) stream through it too. `EmitterFanout.emit_knot_result` delivers it under the run's `EmitterErrorPolicy`; an emitter without the method is skipped. `LineageRecorder.record_lineage` now returns the record it stashed.
 
+#### Latest lineage by knot id (ADR agents-speaks-core, WS0b)
+
+- `RunHistory.query_latest_lineage_by_knot_id(knot_id) -> KnotLineage | None` — the most recently finished lineage row for a stable knot id (by `finished_at`), on the base interface and the in-memory, SQLite, DuckDB and Postgres stores, pinned by the backend conformance suite. The keyed-identity lookup ("what did this knot last produce?") agents' memory recall and resume-after-crash key on.
+
 #### `@tool` decorator and scalar auto-coercion
 
 - `pirn/domains/agents/tool_decorator.py` — `@tool` decorator converts any sync or async function into a `FunctionTool` (a `Tool` subclass). Name is taken from the function name, description from the first docstring paragraph, and `parameters_schema` from type annotations. Both `Optional[T]` and `list[T]` annotations are handled. Import via `from pirn.domains.agents import tool, FunctionTool`.
