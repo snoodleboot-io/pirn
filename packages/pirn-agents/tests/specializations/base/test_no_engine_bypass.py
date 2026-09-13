@@ -93,7 +93,6 @@ RETURNS_INLINE_SOURCE = frozenset(
         "specializations/self_ask/self_ask_pipeline.py::SelfAskPipeline",
         "specializations/structured_output/json_extractor_pipeline.py::JsonExtractorPipeline",
         "specializations/structured_output/pydantic_validator_pipeline.py::PydanticValidatorPipeline",
-        "specializations/structured_output/retry_on_parse_failure.py::RetryOnParseFailure",
         "specializations/structured_output/yaml_extractor_pipeline.py::YamlExtractorPipeline",
     }
 )

@@ -14,17 +14,19 @@ Algorithm:
        and ``max_retries`` (int).
     2. Validate each argument type; raise ``TypeError`` or ``ValueError``
        on invalid inputs.
-    3. For each attempt index in ``range(max_retries)``:
-       a. Build an inner Tapestry containing an ``_LLMCallKnot``.
-       b. Await ``_run_inner`` to obtain the raw text output.
-       c. Pass the text to ``parser``; if successful return the result.
-       d. On parse failure, append the error to the prompt and retry.
-    4. If all attempts fail, raise ``ValueError`` with the last error.
+    3. Drive the attempts with a :class:`_RetryOnParseFailureLoop`
+       (``LoopSubTapestry``): each attempt is one real, individually-traceable
+       ``_LLMCallKnot`` invocation rather than a step inside a hand-rolled
+       Python ``for`` loop (ADR agents-speaks-core WS5a). ``fold`` calls
+       ``parser`` on each attempt's text and, on failure, builds the next
+       attempt's retry prompt.
+    4. Extract the parsed value with :class:`_RetryResultExtractor`, which
+       raises ``ValueError`` if every attempt was exhausted without parsing.
 
 
 References:
     - :class:`pirn_agents.specializations.structured_output._llm_call_knot._LLMCallKnot`
-    - :class:`pirn.nodes.sub_tapestry.SubTapestry`
+    - :class:`pirn.nodes.loop_sub_tapestry.LoopSubTapestry`
 """
 
 from __future__ import annotations
@@ -34,12 +36,17 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.source import Source
-from pirn.tapestry import Tapestry
+from pirn.core.parameter import Parameter
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.structured_output._llm_call_knot import _LLMCallKnot
+from pirn_agents.specializations.structured_output._retry_on_parse_failure_loop import (
+    _RetryOnParseFailureLoop,
+)
+from pirn_agents.specializations.structured_output._retry_result_extractor import (
+    _RetryResultExtractor,
+)
+from pirn_agents.specializations.structured_output._retry_state import _RetryState
 
 
 class RetryOnParseFailure(AgentPipeline):
@@ -72,7 +79,7 @@ class RetryOnParseFailure(AgentPipeline):
         max_retries: int = 3,
         **_: Any,
     ) -> Knot:
-        """Attempt to get a valid parsed response, retrying with error feedback on failure.
+        """Wire the retry loop and return its parsed-value-extracting sink knot.
 
         Args:
             prompt: The initial prompt sent to the LLM.
@@ -81,12 +88,21 @@ class RetryOnParseFailure(AgentPipeline):
             max_retries: Maximum number of attempts before raising.
 
         Returns:
-            The first successfully parsed value from the parser callable.
+            The sink knot whose output is the first successfully parsed
+            value from the parser callable.
 
         Raises:
             TypeError: If any argument is the wrong type.
-            ValueError: If max_retries is not a positive int, or all attempts are exhausted.
+            ValueError: If max_retries is not a positive int.
         """
+        if not isinstance(prompt, str):
+            raise TypeError(
+                f"RetryOnParseFailure: prompt must be a string, got {type(prompt).__name__}"
+            )
+        if not isinstance(llm, LLMProvider):
+            raise TypeError(
+                f"RetryOnParseFailure: llm must be an LLMProvider, got {type(llm).__name__}"
+            )
         if not callable(parser):
             raise TypeError(
                 f"RetryOnParseFailure: parser must be callable, got {type(parser).__name__}"
@@ -95,39 +111,27 @@ class RetryOnParseFailure(AgentPipeline):
             raise ValueError(
                 f"RetryOnParseFailure: max_retries must be a positive int, got {max_retries!r}"
             )
-        current_prompt = prompt
-        last_error: str = "no attempts were made"
-        parsed_value: Any = None
-        succeeded = False
-        for attempt_index in range(max_retries):
-            with Tapestry() as attempt_tapestry:
-                _LLMCallKnot(
-                    prompt=current_prompt,
-                    llm=llm,
-                    _config=KnotConfig(id=f"call_{attempt_index}"),
-                )
-            inner_result = await self._run_inner(attempt_tapestry)
-            text = inner_result.outputs.get(f"call_{attempt_index}")
-            if not isinstance(text, str):
-                text = str(text) if text is not None else ""
-            try:
-                parsed_value = parser(text)
-                succeeded = True
-                break
-            except Exception as exc:
-                last_error = str(exc)
-                current_prompt = (
-                    f"{prompt}\n\nPrevious attempt failed with: {last_error}\n"
-                    "Please fix the issue and try again."
-                )
-        if not succeeded:
-            raise ValueError(
-                f"RetryOnParseFailure: exhausted {max_retries} attempt(s); last error: {last_error}"
-            )
-        _value = parsed_value
 
-        class _ResultSource(Source):
-            async def process(self, **_: Any) -> Any:
-                return _value
-
-        return _ResultSource(_config=KnotConfig(id="result"))
+        initial = Parameter(
+            "retry_state",
+            _RetryState,
+            default=_RetryState(
+                prompt=prompt,
+                parsed_value=None,
+                succeeded=False,
+                last_error="no attempts were made",
+                attempts=0,
+            ),
+        )
+        loop = _RetryOnParseFailureLoop(
+            original_prompt=prompt,
+            llm=llm,
+            parser=parser,
+            max_retries=max_retries,
+            state=initial,
+            _config=KnotConfig(id="retry_loop"),
+        )
+        return _RetryResultExtractor(
+            state=loop,
+            _config=KnotConfig(id="result"),
+        )
