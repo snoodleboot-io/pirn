@@ -44,6 +44,7 @@ from typing import Any, ClassVar
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents.agent._fanout_runner import _FanoutRunner
 from pirn_agents.agent.async_fanout_engine import AsyncFanoutEngine
 from pirn_agents.exceptions.tool_not_found_error import ToolNotFoundError
 from pirn_agents.exceptions.tool_timeout_error import ToolTimeoutError
@@ -58,32 +59,6 @@ from pirn_agents.tools.tool_invocation_hook import ToolInvocationHook
 from pirn_agents.tools.tool_result import ToolResult
 from pirn_agents.tools.tool_status import ToolStatus
 from pirn_agents.tools.toolset import Toolset
-
-
-class _FanoutRunner(AsyncFanoutEngine[ToolResult]):
-    """Composed — not inherited — per-call retry/timeout mechanics.
-
-    ``ParallelToolExecutor`` is a frozen :class:`~pirn.core.knot.Knot` (Rule 4:
-    no instance state for inputs), so the retry policy, jitter source, and
-    sleep function :class:`AsyncFanoutEngine` needs can no longer live on
-    ``self`` set before ``super().__init__()`` freezes the instance —
-    multiply inheriting ``AsyncFanoutEngine`` alongside ``Knot`` required
-    exactly that ordering. A fresh, short-lived instance of this holder is
-    built inside :meth:`ParallelToolExecutor.process` instead, from that
-    call's resolved config values, so no retry state is ever stored on the
-    knot itself (PIR-856).
-    """
-
-    def __init__(
-        self,
-        *,
-        retry_policy: RetryPolicy,
-        rng: Callable[[], float] | None,
-        sleep: Callable[[float], Awaitable[None]],
-    ) -> None:
-        self._retry_policy = retry_policy
-        self._rng = rng
-        self._sleep = sleep
 
 
 class ParallelToolExecutor(Knot):

@@ -112,6 +112,7 @@ class AsyncFanoutEngine(Generic[R]):
         """
         attempts_made = 0
 
+        # design-decision-override: thunk closes over this call's arguments for RetryPolicy.run
         async def _attempt(attempt: int) -> object:
             nonlocal attempts_made
             attempts_made = attempt + 1
@@ -129,6 +130,7 @@ class AsyncFanoutEngine(Generic[R]):
                 on_success()
             return value
 
+        # design-decision-override: thunk closes over this call's arguments for RetryPolicy.run
         def _is_retryable(exc: BaseException) -> bool:
             # A TimeoutError under a configured budget is terminal, never
             # retried; without a budget it is just another exception.

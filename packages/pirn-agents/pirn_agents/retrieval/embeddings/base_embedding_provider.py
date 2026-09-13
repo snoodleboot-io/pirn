@@ -149,6 +149,7 @@ class BaseEmbeddingProvider(ConnectorBase, EmbeddingProvider):
         ``except Exception``.
         """
 
+        # design-decision-override: thunk closes over this call's arguments for RetryPolicy.run
         async def _attempt(_attempt: int) -> list[list[float]]:
             return await self._embed_batch(batch, model)
 
