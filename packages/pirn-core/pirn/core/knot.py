@@ -36,6 +36,7 @@ import asyncio
 import copy
 import inspect
 import types as _types
+import warnings
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, ClassVar, Union, get_args, get_origin, get_type_hints
 
@@ -176,7 +177,14 @@ class Knot:
             # needing to call any explicit helper.
             try:
                 hints = get_type_hints(cls.__dict__["process"])
-            except Exception:
+            except Exception as exc:
+                warnings.warn(
+                    f"{cls.__name__}.process: get_type_hints() failed ({exc!r}); "
+                    "Knot | T scalar auto-coercion is disabled for this class. "
+                    "This usually means a forward-referenced annotation cannot "
+                    "be resolved (e.g. a name only imported under TYPE_CHECKING).",
+                    stacklevel=2,
+                )
                 hints = {}
             coercible: dict[str, Any] = {}
             for pname, hint in hints.items():
@@ -699,7 +707,15 @@ class Knot:
         process_fn = type(self).process
         try:
             hints = get_type_hints(process_fn, include_extras=True)
-        except Exception:
+        except Exception as exc:
+            warnings.warn(
+                f"{type(self).__name__}.process: get_type_hints() failed ({exc!r}); "
+                "input/output validation is disabled for this class regardless "
+                "of KnotConfig.validate_io. This usually means a forward-"
+                "referenced annotation cannot be resolved (e.g. a name only "
+                "imported under TYPE_CHECKING).",
+                stacklevel=2,
+            )
             hints = {}
 
         coercible = type(self)._coercible_params

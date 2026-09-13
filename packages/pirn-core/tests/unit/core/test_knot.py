@@ -310,3 +310,33 @@ class TestKnotInitSteps(unittest.TestCase):
         config = KnotConfig(id="x")
         result = Add._coerce_scalar_parameters({"a": 1, "b": 2}, config, None)
         self.assertEqual(result, {"a": 1, "b": 2})
+
+
+class TestGetTypeHintsFailureWarns(unittest.TestCase):
+    """core/knot.py:179,561 — an unresolvable annotation must warn, not silently
+
+    disable coercion/validation for the whole class.
+    """
+
+    def test_unresolvable_process_annotation_warns_at_class_creation(self) -> None:
+        with self.assertWarnsRegex(UserWarning, "get_type_hints\\(\\) failed"):
+
+            class _BadHint(Knot):
+                async def process(self, x: _DoesNotExist, **_: Any) -> int:  # noqa: F821
+                    return 1
+
+    def test_unresolvable_process_annotation_warns_when_adapters_are_built(self) -> None:
+        class _BadHintForAdapters(Knot):
+            async def process(self, x: int, **_: Any) -> int:
+                return x
+
+        # Corrupt the cached annotation after class creation so
+        # __init_subclass__'s own warning (covered above) does not fire, and
+        # _build_adapters hits the failure independently at construction time.
+        _BadHintForAdapters.process.__annotations__["x"] = "_StillDoesNotExist"
+
+        with self.assertWarnsRegex(UserWarning, "get_type_hints\\(\\) failed"):
+            _BadHintForAdapters(
+                x=Parameter("x", int, _config=KnotConfig(id="p")),
+                _config=KnotConfig(id="bad"),
+            )
