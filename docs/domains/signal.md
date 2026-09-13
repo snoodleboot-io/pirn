@@ -170,7 +170,7 @@ Spectral analysis knots.
 | `CepstrumAnalyzer` | Real and complex cepstrum analysis |
 | `SpectrogramRenderer` | Mel or linear spectrogram image renderer |
 | `ChirpletDecomposer` | Chirplet transform decomposition |
-| `BispectumAnalyzer` | Bispectrum and bicoherence estimation |
+| `BispectrumAnalyzer` | Bispectrum and bicoherence estimation |
 
 ---
 
@@ -197,8 +197,8 @@ Sample rate conversion knots.
 
 | Knot | Description |
 |---|---|
-| `Upsampler` | Integer upsampling with anti-imaging filter |
-| `Downsampler` | Integer downsampling with anti-aliasing filter |
+| `Upsampler` | Integer zero-stuff upsampling (no reconstruction filter applied) |
+| `Downsampler` | Integer decimation by sample dropping (no anti-aliasing filter applied; filter upstream first) |
 | `Decimator` | Decimation (downsampling without pre-filtering) |
 | `Interpolator` | Arbitrary-ratio interpolation (linear, cubic, sinc) |
 | `PolyphaseResampler` | Polyphase filter bank resampler |
@@ -216,7 +216,7 @@ Adaptive filter knots that update coefficients online.
 | `LMSAdaptiveFilter` | Least Mean Squares (LMS) adaptive filter |
 | `NLMSAdaptiveFilter` | Normalised LMS adaptive filter |
 | `RLSAdaptiveFilter` | Recursive Least Squares (RLS) adaptive filter |
-| `AffinProjectionFilter` | Affine Projection Algorithm (APA) |
+| `AffineProjectionFilter` | Affine Projection Algorithm (APA) |
 | `SubbandAdaptiveFilter` | Subband decomposition + per-band LMS/NLMS |
 | `KalmanFilter` | Scalar Kalman filter (linear, time-invariant) |
 
@@ -292,47 +292,55 @@ High-level audio analysis knots backed by `librosa`.
 
 ```python
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
-from pirn.core.run_request import RunRequest
-from pirn.tapestry import Tapestry
 from pirn_signal.filters.butterworth_filter import ButterworthFilter
 from pirn_signal.spectral.welch_estimator import WelchEstimator
+from pirn_signal.types.signal_payload import SignalPayload
 
-raw_signal = Parameter("signal", bytes, _config=KnotConfig(id="signal"))
+# raw_signal resolves to a SignalPayload at run time (e.g. from
+# SignalObjectStoreAssembler); sample_rate_hz travels with it on the frame.
+raw_signal = Parameter("signal", SignalPayload, _config=KnotConfig(id="signal"))
 
 filtered = ButterworthFilter(
     signal=raw_signal,
     _config=KnotConfig(id="filtered"),
     order=4,
     cutoff_hz=50.0,
-    fs=1000.0,
-    btype="low",
+    band_type="lowpass",
 )
 
 psd = WelchEstimator(
     signal=filtered,
     _config=KnotConfig(id="psd"),
-    fs=1000.0,
-    nperseg=256,
+    segment_length=256,
 )
 ```
 
-### Decoding an audio file and extracting MFCCs
+### Assembling an audio file and extracting MFCCs
 
 ```python
-from pirn.connectors.file_formats.wav_format import WavFormat
+from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
+from pirn_signal.assemblers.signal_object_store_assembler import SignalObjectStoreAssembler
 from pirn_signal.audio.mfcc_extractor import MFCCExtractor
 
-# Outside the pipeline — load bytes from disk/storage
-wav_bytes = Path("recording.wav").read_bytes()
-format_ = WavFormat()
+# `body` resolves to raw bytes at run time — typically from an
+# ObjectStoreReadSource connector knot reading e.g. "recording.wav"
+body = Parameter("body", bytes, _config=KnotConfig(id="body"))
 
-# Decode to pirn records
-records = await format_.decode(wav_bytes)
-# records[0] has sample_rate, n_channels, sampwidth, n_frames, frames
+signal = SignalObjectStoreAssembler(
+    body=body,
+    signal_id="recording",
+    _config=KnotConfig(id="signal"),
+)
 
-# In a pipeline, wire the decoded record to MFCCExtractor
+mfcc = MFCCExtractor(
+    signal=signal,
+    _config=KnotConfig(id="mfcc"),
+    n_mfcc=13,
+    n_fft=2048,
+    hop_length=512,
+)
 ```
 
 ### Wavelet decomposition
@@ -343,8 +351,8 @@ from pirn_signal.wavelets.dwt_decomposer import DWTDecomposer
 decomposed = DWTDecomposer(
     signal=filtered,
     _config=KnotConfig(id="dwt"),
-    wavelet="db4",
-    level=5,
+    wavelet_name="db4",
+    level_count=5,
 )
 ```
 
@@ -352,14 +360,22 @@ decomposed = DWTDecomposer(
 
 ## Types
 
-The `pirn_signal.types` package exposes shared typed containers used across sub-packages:
+The `pirn_signal.types` package exposes shared typed containers used across sub-packages.
+Each `*Frame` is a small, immutable lineage/metadata record; each corresponding
+`*Payload` pairs that frame with the actual array data (`payload.frame` / `payload.data`).
 
-| Type | Fields | Description |
-|---|---|---|
-| `SignalFrame` | `data: bytes`, `sample_rate: float`, `n_channels: int`, `n_samples: int` | Single-channel or multi-channel signal window |
-| `SpectrumFrame` | `frequencies: bytes`, `amplitudes: bytes`, `sample_rate: float` | FFT/PSD result |
-| `WaveletFrame` | `coefficients: bytes`, `wavelet: str`, `level: int` | DWT coefficient output |
-| `SourceFrame` | `components: bytes`, `n_components: int`, `mixing_matrix: bytes` | ICA/NMF decomposition output |
+| Frame | Frame fields | Payload `data` | Description |
+|---|---|---|---|
+| `SignalFrame` | `signal_id: str`, `channel_count: int`, `sample_rate_hz: float`, `samples_per_channel: int`, `fetched_at: datetime` | `np.ndarray`, shaped `(channels, samples)` or `(samples,)` | Time-domain signal |
+| `SpectrumFrame` | `signal_id: str`, `frequency_bins: int`, `frequency_resolution_hz: float` | `np.ndarray`, shaped `(channels, bins)` or `(bins,)` | FFT/PSD/spectrogram result |
+| `WaveletFrame` | `signal_id: str`, `wavelet_name: str`, `scale_count: int` | `list[np.ndarray]`, one array per decomposition level | Wavelet decomposition |
+| `SourceFrame` | `signal_id: str`, `source_count: int`, `mixing_matrix_shape: tuple[int, int]` | `np.ndarray`, shaped `(n_sources, n_samples)` | ICA/PCA/NMF/SSA decomposition |
+| `FeatureFrame` | `signal_id: str`, `channel_count: int`, `feature_names: tuple[str, ...]` | `np.ndarray`, shaped `(channels, n_features)` (or wider for frame-indexed features) | Named per-channel feature set |
+
+`SignalPayload.derive(tag, data, **frame_overrides)` builds a new `SignalPayload` from
+an existing one, tagging `signal_id` with `:{tag}` and inheriting `channel_count` /
+`sample_rate_hz` unless overridden — most filter and transform knots use it instead of
+constructing `SignalFrame` by hand.
 
 ---
 
@@ -391,8 +407,8 @@ Three disassemblers cover the signal domain's output payload types:
 | Disassembler | Input | Output |
 |---|---|---|
 | `SignalObjectStoreDisassembler` | `SignalPayload` | `bytes` |
-| `SpectrumObjectStoreDisassembler` | `SpectrumFrame` | `bytes` |
-| `WaveletObjectStoreDisassembler` | `WaveletFrame` | `bytes` |
+| `SpectrumObjectStoreDisassembler` | `SpectrumPayload` | `bytes` |
+| `WaveletObjectStoreDisassembler` | `WaveletPayload` | `bytes` |
 
 All assemblers and disassemblers live under `pirn_signal/assemblers/` and `pirn_signal/disassemblers/` respectively.
 
