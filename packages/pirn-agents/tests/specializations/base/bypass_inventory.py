@@ -213,3 +213,130 @@ class BypassInventory:
             ):
                 return True
         return False
+
+    # -- ADR agents-speaks-core WS5a (control-flow vocabulary) detectors ----
+
+    @staticmethod
+    def defines_inline_source(process: ast.AST) -> bool:
+        """True if a ``Source`` subclass is defined anywhere in the body.
+
+        Broader than :meth:`returns_inline_source`: that check only counts a
+        nested ``Source`` when it is the knot actually *returned*. This one
+        flags the class definition itself, wherever it sits in the body —
+        including one built and wired as an intermediate node, never
+        returned directly. Every such class exists to re-inject an
+        already-resolved value into the graph, which is exactly what
+        :class:`~pirn.core.parameter.Parameter` is for (see
+        ``evaluator_optimizer_pipeline.py``'s ``Parameter("eo_state", ...)``
+        seed). A locally-defined ``Source`` is never legitimate: if the value
+        is known before the class is defined, it belongs in a ``Parameter``,
+        not a bespoke closure.
+        """
+        for node in ast.walk(process):
+            if isinstance(node, ast.ClassDef) and any(
+                isinstance(base, ast.Name) and base.id == "Source" for base in node.bases
+            ):
+                return True
+        return False
+
+    @staticmethod
+    def is_identity_knot(process: ast.AST) -> bool:
+        """True if ``process()`` does nothing but return one of its own inputs.
+
+        Matches a body whose only non-docstring statement is
+        ``return <param>`` where ``<param>`` names one of ``process``'s own
+        parameters (excluding ``self`` and the ``**_`` catch-all). This is
+        the ``ResolvedValueKnot`` / ``_ResponseEcho`` shape: a knot that
+        computes nothing, existing only to make an already-known value
+        visible as a graph node. ``Parameter`` (a value bound at construction
+        or run start) is the sanctioned way to do that — see
+        ``docs/contributing/`` and PIR-856's ADR agents-speaks-core WS5a.
+
+        Deliberately does not flag a body that *transforms* its input before
+        returning it (e.g. ``return tuple(messages)``) — that is a real,
+        if narrow, computation and not a pure identity pass-through.
+        """
+        if not isinstance(process, ast.AsyncFunctionDef | ast.FunctionDef):
+            return False
+        param_names = {
+            arg.arg
+            for arg in (*process.args.posonlyargs, *process.args.args, *process.args.kwonlyargs)
+            if arg.arg not in ("self", "cls")
+        }
+        body = [stmt for stmt in process.body if not BypassInventory._is_docstring(stmt)]
+        if len(body) != 1:
+            return False
+        (stmt,) = body
+        return (
+            isinstance(stmt, ast.Return)
+            and isinstance(stmt.value, ast.Name)
+            and stmt.value.id in param_names
+        )
+
+    @staticmethod
+    def _is_docstring(stmt: ast.stmt) -> bool:
+        return (
+            isinstance(stmt, ast.Expr)
+            and isinstance(stmt.value, ast.Constant)
+            and isinstance(stmt.value.value, str)
+        )
+
+    @staticmethod
+    def process_returns_any(process: ast.AST) -> bool:
+        """True if ``process()``'s return annotation is (bare) ``Any``.
+
+        Only matches a bare ``Any`` — a subscripted annotation such as
+        ``Knot[Any]`` (not a shape this codebase uses) would not match, nor
+        would a real return type. ``AgentPipeline.process()`` must return a
+        ``Knot`` (the ``SubTapestry`` contract); an ``-> Any`` annotation
+        hides that contract from readers and from pyright.
+        """
+        if not isinstance(process, ast.AsyncFunctionDef | ast.FunctionDef):
+            return False
+        returns = process.returns
+        return isinstance(returns, ast.Name) and returns.id == "Any"
+
+    @staticmethod
+    def discover_agent_pipeline_process_methods() -> dict[str, ast.AST]:
+        """Like :meth:`discover_process_methods`, filtered to ``AgentPipeline``.
+
+        Runtime ``issubclass`` membership, same rationale as
+        :meth:`discover_process_methods`: a renamed base must not silently
+        drop a class out of scope.
+        """
+        from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
+
+        root = Path(pirn_agents.__path__[0])
+        found: dict[str, ast.AST] = {}
+
+        for info in pkgutil.walk_packages(pirn_agents.__path__, pirn_agents.__name__ + "."):
+            module = importlib.import_module(info.name)
+            module_file = getattr(module, "__file__", None)
+            if module_file is None:
+                continue
+            owned = {
+                obj.__qualname__
+                for name in dir(module)
+                if isinstance(obj := getattr(module, name), type)
+                and issubclass(obj, AgentPipeline)
+                and obj.__module__ == info.name
+            }
+            if not owned:
+                continue
+            rel = Path(module_file).relative_to(root)
+            tree = ast.parse(Path(module_file).read_text())
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.ClassDef) or node.name not in owned:
+                    continue
+                process = next(
+                    (
+                        child
+                        for child in node.body
+                        if isinstance(child, ast.FunctionDef | ast.AsyncFunctionDef)
+                        and child.name == "process"
+                    ),
+                    None,
+                )
+                if process is not None:
+                    found[f"{rel}::{node.name}"] = process
+        return dict(sorted(found.items()))

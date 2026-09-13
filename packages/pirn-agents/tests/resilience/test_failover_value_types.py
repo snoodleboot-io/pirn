@@ -1,16 +1,22 @@
 """Mirrored tests for failover value types (PIR-496 / S2).
 
 Covers :class:`FailoverCandidate` validation and the audit-dict projections of
-the trace value objects.
+the trace value objects. ``FailoverAttempt`` now carries a core
+:class:`~pirn.core.result.Result` (Ok/Err/Skipped) rather than the historical
+``FailoverOutcome`` + ``error`` string pair (ADR agents-speaks-core WS5a);
+these tests build the ``Result`` directly.
 """
 
 from __future__ import annotations
 
 import pytest
+from pirn.core.err import Err
+from pirn.core.ok import Ok
+from pirn.core.skipped import Skipped
+from pirn.managers.exception_record import ExceptionRecord
 
 from pirn_agents.resilience.failover_attempt import FailoverAttempt
 from pirn_agents.resilience.failover_candidate import FailoverCandidate
-from pirn_agents.resilience.failover_outcome import FailoverOutcome
 from pirn_agents.resilience.failover_result import FailoverResult
 
 
@@ -39,12 +45,30 @@ class TestCandidateValidation:
 
 
 class TestTraceProjection:
-    def test_attempt_audit_dict(self) -> None:
-        attempt = FailoverAttempt("a", FailoverOutcome.TIMEOUT, "timeout")
+    def test_attempt_audit_dict_for_a_timeout(self) -> None:
+        record = ExceptionRecord.for_knot("a", TimeoutError("timeout"))
+        attempt = FailoverAttempt("a", Err(record=record))
         assert attempt._pirn_audit_dict() == {
             "name": "a",
             "outcome": "timeout",
             "error": "timeout",
+        }
+
+    def test_attempt_audit_dict_for_a_plain_error(self) -> None:
+        record = ExceptionRecord.for_knot("a", RuntimeError("boom"))
+        attempt = FailoverAttempt("a", Err(record=record))
+        assert attempt._pirn_audit_dict() == {
+            "name": "a",
+            "outcome": "error",
+            "error": "boom",
+        }
+
+    def test_attempt_audit_dict_for_a_circuit_open_skip(self) -> None:
+        attempt = FailoverAttempt("a", Skipped(reason="circuit_open"))
+        assert attempt._pirn_audit_dict() == {
+            "name": "a",
+            "outcome": "circuit_open",
+            "error": "circuit_open",
         }
 
     def test_result_audit_dict_projects_attempts(self) -> None:
@@ -52,7 +76,7 @@ class TestTraceProjection:
             succeeded=True,
             chosen="a",
             value="v",
-            attempts=(FailoverAttempt("a", FailoverOutcome.SUCCESS, None),),
+            attempts=(FailoverAttempt("a", Ok(value="v")),),
         )
         audit = result._pirn_audit_dict()
         assert audit["succeeded"] is True

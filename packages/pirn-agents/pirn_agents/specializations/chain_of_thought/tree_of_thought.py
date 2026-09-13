@@ -38,12 +38,12 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
 from pirn.nodes.map_markers import Map
 from pirn.nodes.reduce_ import Reduce
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.base.resolved_value_knot import ResolvedValueKnot
 from pirn_agents.specializations.chain_of_thought._combine_expansions import _CombineExpansions
 from pirn_agents.specializations.chain_of_thought._expand_one_thought import _ExpandOneThought
 from pirn_agents.specializations.chain_of_thought._repeat_beam_for_expansion import (
@@ -132,7 +132,12 @@ class TreeOfThought(AgentPipeline):
         if not isinstance(depth, int) or depth <= 0:
             raise ValueError(f"TreeOfThought: depth must be a positive int, got {depth!r}")
 
-        beam_knot: Knot = ResolvedValueKnot(value=[(prompt, 0.0)], _config=KnotConfig(id="beam_0"))
+        beam_knot: Knot = Parameter(
+            "beam_0",
+            list[tuple[str, float]],
+            default=[(prompt, 0.0)],
+            _config=KnotConfig(id="beam_0"),
+        )
         for round_index in range(depth):
             beam_knot = TreeOfThought._build_round(
                 beam_knot, llm, k_candidates, beam_width, round_index

@@ -90,7 +90,7 @@ class MultiHopRAGPipeline(AgentPipeline):
 
     async def process(
         self, query: str, memory: MemoryStore, llm: LLMProvider, top_k: int, num_hops: int, **_: Any
-    ) -> Any:
+    ) -> Knot:
         """Decompose the query, retrieve context per sub-question, and synthesize a final answer.
 
         Args:

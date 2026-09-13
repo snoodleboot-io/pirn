@@ -7,9 +7,9 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
 
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.base.resolved_value_knot import ResolvedValueKnot
 from pirn_agents.specializations.routing._fallback_chain_state import _FallbackChainState
 from pirn_agents.specializations.routing._fold_candidate_result import _FoldCandidateResult
 from pirn_agents.specializations.routing.route_candidate import RouteCandidate
@@ -66,10 +66,14 @@ class _CandidateAttempt(AgentPipeline):
             The sink knot whose output is the updated chain state.
         """
         if prior.locked:
-            return ResolvedValueKnot(value=prior, _config=KnotConfig(id="locked"))
+            return Parameter(
+                "locked", _FallbackChainState, default=prior, _config=KnotConfig(id="locked")
+            )
         if confidences.get(candidate.name, 0.0) < candidate.min_confidence:
-            return ResolvedValueKnot(
-                value=_FallbackChainState(
+            return Parameter(
+                "skip",
+                _FallbackChainState,
+                default=_FallbackChainState(
                     attempted=prior.attempted, skipped=(*prior.skipped, candidate.name)
                 ),
                 _config=KnotConfig(id="skip"),

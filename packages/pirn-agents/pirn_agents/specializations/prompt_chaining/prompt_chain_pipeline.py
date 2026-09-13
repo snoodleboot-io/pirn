@@ -45,7 +45,7 @@ class PromptChainPipeline(AgentPipeline):
         llm: LLMProvider,
         steps: Sequence[str],
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Run the prompt chain and surface a :class:`PromptChainResult`.
 
         Args:

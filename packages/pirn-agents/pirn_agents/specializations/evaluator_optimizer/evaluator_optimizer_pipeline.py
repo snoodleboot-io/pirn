@@ -74,7 +74,7 @@ class EvaluatorOptimizerPipeline(AgentPipeline):
         max_iterations: int = 3,
         reflection_gate: bool = False,
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Run the accept loop and surface an :class:`EvaluatorOptimizerResult`.
 
         Args:

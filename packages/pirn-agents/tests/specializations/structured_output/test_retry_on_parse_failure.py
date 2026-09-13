@@ -100,12 +100,31 @@ class TestRetryOnParseFailureProcess(unittest.IsolatedAsyncioTestCase):
         assert run.outputs["ropf"] == {"x": 2}
 
     async def test_raises_after_exhausting_retries(self) -> None:
+        # `process()` now returns a loop knot rather than running the retries
+        # itself (ADR agents-speaks-core WS5a) — the exhaustion raise happens
+        # inside `_RetryResultExtractor`, reached only through a real engine
+        # run, so this asserts on the run's recorded failure rather than a
+        # bare synchronous ValueError from `process()`. The outer run only
+        # sees a generic SubTapestryError; the real ValueError is recorded on
+        # the *inner* run (ropf's own inner tapestry), reachable via the
+        # outer lineage row's `inner_run_id`.
         llm = StubLLMProvider(["bad json"] * 5)
-        knot = _make_knot(llm)
-        with self.assertRaisesRegex(ValueError, "exhausted"):
-            await knot.process(
+        with Tapestry() as t:
+            RetryOnParseFailure(
                 prompt="extract JSON",
                 llm=llm,
                 parser=json.loads,
                 max_retries=2,
+                _config=KnotConfig(id="ropf"),
             )
+        run = await t.run(RunRequest())
+        assert not run.succeeded
+        assert "ropf" not in run.outputs
+
+        outer_record = next(row for row in run.lineage if row.knot_id == "ropf")
+        inner_run = await t.history.get_run(outer_record.extra["inner_run_id"])
+        assert not inner_run.succeeded
+        assert any(
+            exc.exc_type == "ValueError" and "exhausted" in exc.message
+            for exc in inner_run.exceptions
+        )

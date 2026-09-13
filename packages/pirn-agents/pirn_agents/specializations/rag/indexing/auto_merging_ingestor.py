@@ -65,7 +65,7 @@ class AutoMergingIngestor(AgentPipeline):
         chunk_overlap: int = 0,
         group_size: int = 4,
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Wire ``_DocumentChunker`` → ``_ParentChildIndexer`` and return the sink.
 
         Args:

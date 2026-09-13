@@ -62,7 +62,7 @@ class PiiRedactorCheck(AgentPipeline):
         response: AgentResponse,
         patterns: Sequence[str] | None = None,
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Redact PII matches from the response content using the configured patterns.
 
         Args:

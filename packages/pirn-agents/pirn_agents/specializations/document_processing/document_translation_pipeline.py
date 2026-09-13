@@ -88,7 +88,7 @@ class DocumentTranslationPipeline(AgentPipeline):
         request_timeout: float = _DocumentSourceReader.request_timeout,
         connect_timeout: float = _DocumentSourceReader.connect_timeout,
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Load, chunk, and translate each chunk into the target language, returning the joined text.
 
         Args:

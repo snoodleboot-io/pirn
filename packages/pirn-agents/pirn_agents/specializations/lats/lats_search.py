@@ -98,7 +98,7 @@ class LatsSearch(AgentPipeline):
         budget: RunBudget,
         max_depth: int = 3,
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Run the budgeted search and surface a :class:`LatsResult`.
 
         Args:

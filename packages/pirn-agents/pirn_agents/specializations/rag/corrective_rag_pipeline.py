@@ -93,7 +93,7 @@ class CorrectiveRAGPipeline(AgentPipeline):
         top_k: int,
         relevance_threshold: float,
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Retrieve, score, correct via fallback if needed, and answer the query using the LLM.
 
         Args:

@@ -68,7 +68,7 @@ class PlanReActPipeline(AgentPipeline):
         max_iterations: int = 4,
         max_steps: int = 5,
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Plan then ReAct per step, surfacing a :class:`PlanReActResult`.
 
         Args:

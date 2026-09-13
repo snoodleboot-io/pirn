@@ -57,11 +57,11 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
 from pirn.nodes.aggregator import Aggregator
 
 from pirn_agents.performance.concurrency_config import ConcurrencyConfig
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.base.resolved_value_knot import ResolvedValueKnot
 from pirn_agents.specializations.multi_agent._assemble_orchestrator_workers_result import (
     _AssembleOrchestratorWorkersResult,
 )
@@ -130,8 +130,10 @@ class OrchestratorWorkers(AgentPipeline):
                 f"OrchestratorWorkers: max_concurrency must be >= 1, got {max_concurrency!r}"
             )
         if not task_tuple:
-            return ResolvedValueKnot(
-                value=OrchestratorWorkersResult(results=(), succeeded=0, total=0),
+            return Parameter(
+                "orchestrator_workers_result",
+                OrchestratorWorkersResult,
+                default=OrchestratorWorkersResult(results=(), succeeded=0, total=0),
                 _config=KnotConfig(id="orchestrator_workers_result"),
             )
 

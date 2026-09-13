@@ -37,12 +37,12 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
 from pirn.nodes.map_markers import Map
 from pirn.nodes.reduce_ import Reduce
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.base.resolved_value_knot import ResolvedValueKnot
 from pirn_agents.specializations.rag._document_compressor import _DocumentCompressor
 from pirn_agents.specializations.rag._drop_empty_compressions import _DropEmptyCompressions
 
@@ -97,9 +97,16 @@ class ContextualCompressor(AgentPipeline):
                 f"ContextualCompressor: llm must be an LLMProvider, got {type(llm).__name__}"
             )
         if not documents:
-            return ResolvedValueKnot(value=[], _config=KnotConfig(id="empty"))
+            return Parameter(
+                "empty", list[Mapping[str, Any]], default=[], _config=KnotConfig(id="empty")
+            )
 
-        documents_knot = ResolvedValueKnot(value=documents, _config=KnotConfig(id="documents"))
+        documents_knot = Parameter(
+            "documents",
+            list[Mapping[str, Any]],
+            default=documents,
+            _config=KnotConfig(id="documents"),
+        )
         compressed = _DocumentCompressor(
             query=query,
             # Core's Map marker is consumed at construction by

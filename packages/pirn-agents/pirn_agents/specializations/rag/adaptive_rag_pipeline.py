@@ -171,7 +171,7 @@ class AdaptiveRAGPipeline(AgentPipeline):
 
     async def process(
         self, query: str, memory: MemoryStore, llm: LLMProvider, top_k: int, **_: Any
-    ) -> Any:
+    ) -> Knot:
         """Classify query complexity and route to the appropriate RAG strategy.
 
         Args:

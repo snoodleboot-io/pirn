@@ -64,7 +64,7 @@ class OutputGuardrailCheck(AgentPipeline):
         deny_patterns: Sequence[str] = (),
         allowed_tool_names: Sequence[str] = (),
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Validate the response against deny patterns and allowed tool names, returning it unchanged on success.
 
         Args:

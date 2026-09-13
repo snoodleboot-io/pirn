@@ -88,7 +88,7 @@ class BrowserAgent(AgentPipeline):
         browser_tool: Tool,
         max_steps: int,
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Run the ReAct loop with the browser tool to accomplish the goal and return the result.
 
         Args:
