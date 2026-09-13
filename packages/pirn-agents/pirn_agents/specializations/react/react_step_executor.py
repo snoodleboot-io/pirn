@@ -75,6 +75,7 @@ from pirn.core.ok import Ok
 from pirn.core.skipped import Skipped
 from pirn.tapestry import Tapestry
 
+from pirn_agents.agent.recorded_llm_call import RecordedLlmCall
 from pirn_agents.exceptions.tool_argument_validation_error import (
     ToolArgumentValidationError,
 )
@@ -214,7 +215,7 @@ class ReActStepExecutor(AgentPipeline):
         tools_by_name = {factory.name: factory for factory in factories}
         prompt = self._render_prompt(context, factories)
         chat_messages = [{"role": "user", "content": prompt}]
-        raw = await llm.chat(chat_messages)
+        raw = await RecordedLlmCall.chat(knot_id=self.knot_id, llm=llm, messages=chat_messages)
         thought_text = self._extract_text(raw)
         thought = AgentMessage(role="assistant", content=thought_text)
         if self._final_answer_marker in thought_text:

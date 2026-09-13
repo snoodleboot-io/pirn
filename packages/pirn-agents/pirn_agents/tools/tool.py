@@ -55,14 +55,18 @@ from __future__ import annotations
 
 import inspect
 import re
+import time
 import warnings
 from collections.abc import AsyncIterator, Mapping
+from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from pirn.core.err import Err
 from pirn.core.knot import Knot
+from pirn.core.ok import Ok
 from pirn.core.result import Result
 
+from pirn_agents.observability.agent_call_recorder import AgentCallRecorder
 from pirn_agents.tools.tool_declaration import ToolDeclaration
 from pirn_agents.tools.tool_error_record import ToolErrorRecord
 from pirn_agents.tools.tool_permissions import ToolPermissions
@@ -87,6 +91,11 @@ class Tool(Knot):
 
     tool_name: ClassVar[str] = ""
     tool_description: ClassVar[str | None] = None
+    #: Set by a container that reports the call itself (``ToolInvocation``),
+    #: so one call yields one ``"tool"`` event, attributed to the container.
+    _call_reported_by_container: ClassVar[ContextVar[bool]] = ContextVar(
+        "_call_reported_by_container", default=False
+    )
     permissions: ClassVar[ToolPermissions] = ToolPermissions()
     streaming: ClassVar[bool] = False
 
@@ -150,16 +159,45 @@ class Tool(Knot):
         DSN, a server URL — and the engine's ``traceback_filter`` reaches only
         the traceback, never ``message``.  Scrubbing here, on the knot itself,
         keeps the guarantee every invocation path used to make individually.
+
+        The call is also reported through
+        :class:`~pirn_agents.observability.agent_call_recorder.AgentCallRecorder`
+        (ADR WS4a) as a ``"tool"`` event under this knot's id — the call id —
+        with the scrubbed message as ``detail`` on failure, so every tool call
+        the engine runs (a fan-out, a ``ToolInvocation``, ``run_call``) is
+        observable on the run's emitters without a hook.  A ``Skipped`` outcome
+        is not a call and is not reported, and a container that reports the
+        call itself (``ToolInvocation``, attributing it to the outer run)
+        claims the report through :attr:`_call_reported_by_container`.
         """
         if not hasattr(self, "_mutable_config"):
             raise TypeError(
                 f"{type(self).__name__} is an invoke-shaped Tool instance, not a knot; wire it "
                 "through Toolset / ToolFactory.of() rather than as a knot input"
             )
+        start = time.perf_counter()
         result = await super().__call__(parent_results)
+        latency = time.perf_counter() - start
         if isinstance(result, Err):
-            return Err(record=ToolErrorRecord.scrubbed_record(result.record))
+            result = Err(record=ToolErrorRecord.scrubbed_record(result.record))
+            await self._record_call(ok=False, latency=latency, detail=result.record.message)
+        elif isinstance(result, Ok):
+            await self._record_call(ok=True, latency=latency)
         return result
+
+    async def _record_call(self, *, ok: bool, latency: float, detail: str | None = None) -> None:
+        """Emit this call's outcome as one ``"tool"`` event (a no-op outside a run)."""
+        if Tool._call_reported_by_container.get():
+            return
+        await AgentCallRecorder.record(
+            knot_id=self.knot_id,
+            kind="tool",
+            ok=ok,
+            latency=latency,
+            detail=detail,
+            tool_name=self.declared_name(),
+            call_id=self.knot_id,
+        )
 
     # ------------------------------------------------------------ envelope
 

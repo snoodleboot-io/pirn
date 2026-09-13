@@ -30,20 +30,24 @@ Algorithm:
 from __future__ import annotations
 
 import inspect
+import time
 from collections.abc import Mapping
 from typing import Any
 
+from pirn.core.err import Err
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.ok import Ok
 from pirn.core.result import Result
 from pirn.core.run_nesting import RunNesting
+from pirn.core.skipped import Skipped
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
 from pirn_agents.agent.agent_nesting_config import AgentNestingConfig
 from pirn_agents.agent.agent_response_mapper import AgentResponseMapper
 from pirn_agents.agent.agent_tool_context import AgentToolContext
+from pirn_agents.observability.agent_call_recorder import AgentCallRecorder
 from pirn_agents.performance.run_budget import RunBudget
 from pirn_agents.performance.run_budget_meter import RunBudgetMeter
 from pirn_agents.tools.tool_factory import ToolFactory
@@ -130,8 +134,20 @@ class AgentToolCall(SubTapestry):
             meter.token.raise_if_cancelled()
             meter.checkpoint()
             meter.spend_iteration()
+        start = time.perf_counter()
         with AgentToolContext.bind(child):
             result = await super().__call__(parent_results)
+        if not isinstance(result, Skipped):
+            await AgentCallRecorder.record(
+                knot_id=self.knot_id,
+                kind="tool",
+                ok=isinstance(result, Ok),
+                latency=time.perf_counter() - start,
+                detail=result.record.message if isinstance(result, Err) else None,
+                tool_name=values.get("tool_name"),
+                call_id=self.knot_id,
+                agent_id=values.get("agent_id"),
+            )
         if meter is not None and isinstance(result, Ok) and isinstance(result.value, AgentResponse):
             tokens = AgentResponseMapper().summarise_tokens(result.value.usage)
             if tokens is not None:

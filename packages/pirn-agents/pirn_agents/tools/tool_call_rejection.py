@@ -12,11 +12,16 @@ failed knot.
 
 from __future__ import annotations
 
+import time
+from collections.abc import Mapping
 from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.result import Result
 
+from pirn_agents.observability.agent_call_recorder import AgentCallRecorder
+from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_call import ToolCall
 
 
@@ -44,6 +49,24 @@ class ToolCallRejection(Knot):
             _config: Framework metadata; ``id`` is the call's knot id.
         """
         super().__init__(call=call, error=error, _config=_config, **kwargs)
+
+    async def __call__(self, parent_results: Mapping[str, Any]) -> Result[Any]:
+        """Run as any knot, then report the refusal as a failed ``"tool"`` call event."""
+        start = time.perf_counter()
+        result = await super().__call__(parent_results)
+        call = self.config_values.get("call")
+        if isinstance(call, ToolCall) and not Tool._call_reported_by_container.get():
+            await AgentCallRecorder.record(
+                knot_id=self.knot_id,
+                kind="tool",
+                ok=False,
+                latency=time.perf_counter() - start,
+                detail=f"{type(self.config_values.get('error')).__name__}: "
+                f"{self.config_values.get('error')}",
+                tool_name=call.tool_name,
+                call_id=call.call_id,
+            )
+        return result
 
     async def process(self, call: ToolCall, error: Any, **_: Any) -> Any:
         """Raise ``error`` so the engine records this call as ``Err``.

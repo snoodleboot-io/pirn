@@ -16,6 +16,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pydantic import Field
 
+from pirn_agents.agent.recorded_llm_call import RecordedLlmCall
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.prompt.prompt_binding import PromptBinding
@@ -98,7 +99,9 @@ class RagTool(Tool):
             },
             {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {question}"},
         ]
-        response = await llm.chat(messages, model=model)
+        response = await RecordedLlmCall.chat(
+            knot_id=self.knot_id, llm=llm, messages=messages, model=model
+        )
         answer = RagTool._extract_text(response)
         return {"question": question, "answer": answer, "sources": sources}
 
