@@ -20,10 +20,9 @@ References:
 from __future__ import annotations
 
 import asyncio
-from typing import Any, cast
+from typing import Any
 
 import numpy as np
-import numpy.typing as npt
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -116,12 +115,28 @@ class MultitaperEstimator(Knot):
                 "MultitaperEstimator requires 'scipy'. Install via pip install pirn-signal[signal]"
             ) from exc
         tapers = windows.dpss(n, time_bandwidth, Kmax=taper_count)
-        # Both operands are real — ``data`` is a real time series and ``dpss``
-        # returns real tapers — so the product is real.  numpy's stubs widen
-        # ``__mul__`` to include ``complexfloating``, which ``rfft`` rejects, so
-        # narrow it here rather than coercing (a coercion would upcast float32
-        # input and change the result's precision).
-        tapered = cast("npt.NDArray[np.floating[Any]]", data[..., np.newaxis, :] * tapers)
+        # dpss's return type is a scipy-internal array-API union, not NDArray[floating];
+        # tapers are always real-valued, so this coercion is exact (unlike coercing
+        # ``data``, which would upcast float32 input and change its precision).
+        tapers_arr = np.asarray(tapers, dtype=np.float64)
+        tapered = MultitaperEstimator._multiply_real(data[..., np.newaxis, :], tapers_arr)
         spectra = np.fft.rfft(tapered, axis=-1)
         pxx = np.mean(np.abs(spectra) ** 2, axis=-2)
         return pxx
+
+    @staticmethod
+    def _multiply_real(
+        data: np.typing.NDArray[np.floating[Any]], tapers: np.typing.NDArray[np.floating[Any]]
+    ) -> np.typing.NDArray[np.floating[Any]]:
+        """Multiply two real arrays with a typed return, narrowing numpy's stubs.
+
+        Both operands are real — ``data`` is a real time series and ``dpss``
+        returns real tapers — so the product is real. numpy's stubs widen
+        ``ndarray.__mul__`` to include ``complexfloating``, which ``rfft``
+        rejects downstream. An explicit return annotation narrows the result
+        without ``typing.cast``; coercing via ``np.asarray(..., dtype=float)``
+        was rejected because it would upcast float32 input and change the
+        result's precision.
+        """
+        result: np.typing.NDArray[np.floating[Any]] = data * tapers
+        return result
