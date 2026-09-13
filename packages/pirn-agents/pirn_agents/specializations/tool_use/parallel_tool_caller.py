@@ -55,8 +55,8 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.nodes.aggregator import Aggregator
-from pirn.nodes.sub_tapestry import SubTapestry
 
+from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_invocation import ToolInvocation
@@ -84,7 +84,7 @@ async def _empty_results() -> list[ToolResult]:
     return []
 
 
-class ParallelToolCaller(SubTapestry):
+class ParallelToolCaller(AgentPipeline):
     """Call multiple tools in parallel, through the engine, and collect their results.
 
     The dispatch decision — which registered tool does each call name — stays

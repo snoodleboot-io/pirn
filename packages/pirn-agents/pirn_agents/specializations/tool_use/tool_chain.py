@@ -55,8 +55,8 @@ from pirn.core.ok import Ok
 from pirn.core.result import Result
 from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.gate.gate import Gate
-from pirn.nodes.sub_tapestry import SubTapestry
 
+from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_invocation import ToolInvocation
@@ -64,7 +64,7 @@ from pirn_agents.tools.tool_result import ToolResult
 from pirn_agents.tools.tool_status import ToolStatus
 
 
-class ToolChain(SubTapestry):
+class ToolChain(AgentPipeline):
     """Execute a sequence of tools, through the engine, passing each output to the next."""
 
     def __init__(
