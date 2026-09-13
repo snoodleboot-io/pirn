@@ -8,7 +8,9 @@ Algorithm:
     1. Receive ``model`` (ModelManifest), ``split`` (SplitManifest), and
        ``time_column`` (str) via process().
     2. Validate time_column is a non-empty string.
-    3. Wire an inner Tapestry with Evaluator using forecasting metrics.
+    3. Wire an inner Tapestry with Evaluator using forecasting metrics
+       (shared with the other ``*_eval_pipeline`` SubTapestries via
+       :class:`~pirn_ml.specializations.evaluation._eval_pipeline_base._EvalPipelineBase`).
     4. Run the inner Tapestry via _run_inner() and decorate the EvalMetadata
        with time_column in its details mapping.
 
@@ -26,9 +28,8 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
-from pirn.nodes.sub_tapestry import SubTapestry
 
-from pirn_ml.evaluation.evaluator import Evaluator
+from pirn_ml.specializations.evaluation._eval_pipeline_base import _EvalPipelineBase
 from pirn_ml.types.eval_metadata import EvalMetadata
 from pirn_ml.types.eval_metrics import EvalMetrics
 from pirn_ml.types.eval_report_payload import EvalReportPayload
@@ -56,10 +57,10 @@ async def _decorate_time_column(
     )
 
 
-class TimeSeriesEvalPipeline(SubTapestry):
+class TimeSeriesEvalPipeline(_EvalPipelineBase):
     """Evaluate a forecasting model with MAPE, sMAPE, and MASE."""
 
-    _forecasting_metrics: ClassVar[tuple[str, ...]] = ("mape", "smape", "mase")
+    _metrics: ClassVar[tuple[str, ...]] = ("mape", "smape", "mase")
 
     def __init__(
         self,
@@ -100,18 +101,8 @@ class TimeSeriesEvalPipeline(SubTapestry):
         """
         if not isinstance(time_column, str) or not time_column:
             raise ValueError("TimeSeriesEvalPipeline: time_column must be a non-empty string")
-        model_node = Parameter(
-            "model", ModelManifest, default=model, _config=KnotConfig(id="model")
-        )
-        split_node = Parameter(
-            "split", SplitManifest, default=split, _config=KnotConfig(id="split")
-        )
-        evaluated = Evaluator(
-            model=model_node,
-            split=split_node,
-            metrics=self._forecasting_metrics,
-            _config=KnotConfig(id="evaluate"),
-        )
+        model_node, split_node = self._wire_model_split(model, split)
+        evaluated = self._evaluate(model_node, split_node, self._metrics)
         time_col_node = Parameter(
             "time_column", str, default=time_column, _config=KnotConfig(id="time_column")
         )
