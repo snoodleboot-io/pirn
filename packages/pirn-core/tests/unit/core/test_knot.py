@@ -235,3 +235,59 @@ class TestKnotSubclassValidation(unittest.TestCase):
             class Concrete(GradualBase):
                 async def process(self, *args: Any, **_: Any) -> int:
                     return 1
+
+
+class TestKnotInitSteps(unittest.TestCase):
+    """Each private step __init__ delegates to is independently testable."""
+
+    def test_extract_framework_kwargs_requires_config(self) -> None:
+        with self.assertRaisesRegex(TypeError, "requires _config"):
+            Add._extract_framework_kwargs({"a": 1, "b": 2})
+
+    def test_extract_framework_kwargs_rejects_wrong_config_type(self) -> None:
+        with self.assertRaisesRegex(TypeError, "must be a KnotConfig instance"):
+            Add._extract_framework_kwargs({"_config": object()})
+
+    def test_extract_framework_kwargs_splits_reserved_names(self) -> None:
+        config = KnotConfig(id="x")
+        result_config, tapestry, remaining = Add._extract_framework_kwargs(
+            {"_config": config, "tapestry": None, "a": 1, "b": 2}
+        )
+        self.assertIs(result_config, config)
+        self.assertIsNone(tapestry)
+        self.assertEqual(remaining, {"a": 1, "b": 2})
+
+    def test_extract_map_markers_no_markers_is_passthrough(self) -> None:
+        config = KnotConfig(id="x")
+        mapped, resolved = Add._extract_map_markers({"a": 1, "b": 2}, config)
+        self.assertEqual(mapped, {})
+        self.assertEqual(resolved, {"a": 1, "b": 2})
+
+    def test_validate_kwargs_against_signature_missing_input(self) -> None:
+        config = KnotConfig(id="x")
+        with self.assertRaisesRegex(TypeError, "missing required"):
+            Add._validate_kwargs_against_signature({"a": 1}, {"a", "b"}, False, config)
+
+    def test_validate_kwargs_against_signature_unknown_kwarg_no_implicit(self) -> None:
+        config = KnotConfig(id="x")
+        with self.assertRaisesRegex(TypeError, "unknown kwarg"):
+            Add._validate_kwargs_against_signature(
+                {"a": 1, "b": 2, "c": 3}, {"a", "b"}, False, config
+            )
+
+    def test_validate_kwargs_against_signature_ok(self) -> None:
+        config = KnotConfig(id="x")
+        # Should not raise.
+        Add._validate_kwargs_against_signature({"a": 1, "b": 2}, {"a", "b"}, False, config)
+
+    def test_partition_parents_and_config(self) -> None:
+        with Tapestry():
+            source = Add(a=1, b=2, _config=KnotConfig(id="src"))
+        parents, config_values = Knot._partition_parents_and_config({"parent": source, "scalar": 5})
+        self.assertEqual(parents, {"parent": source})
+        self.assertEqual(config_values, {"scalar": 5})
+
+    def test_coerce_scalar_parameters_no_coercible_params_is_passthrough(self) -> None:
+        config = KnotConfig(id="x")
+        result = Add._coerce_scalar_parameters({"a": 1, "b": 2}, config, None)
+        self.assertEqual(result, {"a": 1, "b": 2})
