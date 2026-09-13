@@ -89,3 +89,41 @@ flowchart TD
     classDef job fill:#1e3a8a,color:#fff,stroke:#1e293b;
     classDef gate fill:#b45309,color:#fff,stroke:#7c2d12;
 ```
+
+## pyright strict burn-down (PIR-856)
+
+`lint` currently runs each package's own `[tool.pyright]` config, which does
+not set `typeCheckingMode` (pyright's default is `basic`). The house
+convention (`.claude/conventions/languages/python.md`) says "all code must
+pass pyright strict mode before commit", which is aspirational today, not
+enforced — no package's `pyproject.toml` sets `typeCheckingMode = "strict"`.
+
+To measure the gap without flipping the switch, each package was checked
+once with `typeCheckingMode = "strict"` injected into a throwaway copy of its
+`pyproject.toml` (`pyright -p <temp-copy>`, run from inside the package so
+`venvPath`/`venv`/`include` still resolve correctly; the copy was discarded
+afterward — no `pyproject.toml` in the repo was changed). Basic mode is 0
+errors in all seven packages (see the `lint` job); these are the *additional*
+errors strict mode would surface:
+
+| package | strict errors | files affected |
+|---|---:|---:|
+| pirn-core | 1293 | 203 |
+| pirn-agents | 2612 | 574 |
+| pirn-data | 1148 | 191 |
+| pirn-ml | 752 | 132 |
+| pirn-health | 744 | 130 |
+| pirn-oilgas | 427 | 113 |
+| pirn-signal | 1005 | 119 |
+
+The dominant categories across every package are `reportUnknownMemberType` /
+`reportUnknownVariableType` (untyped third-party return values — cloud SDKs,
+`cloudpickle`, DB drivers), `reportMissingTypeStubs` for those same
+dependencies, and `reportPrivateUsage` (framework-internal `_Foo` classes
+imported across module boundaries within the same package, e.g. `_Signer`
+and `_CloudObjectStore` reused by every cloud backend). None of this was
+triaged into false-positive vs. real-fix buckets here — that categorization,
+and any decision to adopt strict mode (globally, per-package, or via a
+narrower `enableTypeIgnoreComments`/per-rule ramp) is a separate, larger
+piece of work than PIR-856's docs/CI-enforcement lane. This table exists so
+that decision can be made from data instead of a guess.
