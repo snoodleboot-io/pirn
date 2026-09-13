@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.tapestry import Tapestry
@@ -41,8 +42,9 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_counter(self) -> None:
         k = _make_knot()
-        with self.assertRaisesRegex(TypeError, "counter"):
-            await k.process(counter="nope", messages=())  # type: ignore[arg-type]
+        result = await k({"counter": "nope", "messages": ()})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
 
 if __name__ == "__main__":

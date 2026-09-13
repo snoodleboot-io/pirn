@@ -68,22 +68,11 @@ class TerminationCheck(Knot):
             True if the response finish reason is "stop" or the iteration limit is reached.
 
         Raises:
-            TypeError: If response is not an AgentResponse or iterations are not ints.
             ValueError: If max_iterations is not a positive int.
         """
-        if not isinstance(response, AgentResponse):
-            raise TypeError(
-                "TerminationCheck: response must be an AgentResponse, "
-                f"got {type(response).__name__}"
-            )
         if not isinstance(max_iterations, int) or max_iterations <= 0:
             raise ValueError(
                 f"TerminationCheck: max_iterations must be a positive int, got {max_iterations!r}"
-            )
-        if not isinstance(current_iteration, int):
-            raise TypeError(
-                "TerminationCheck: current_iteration must be an int, "
-                f"got {type(current_iteration).__name__}"
             )
         if response.finish_reason == FinishReason.STOP.value:
             return True

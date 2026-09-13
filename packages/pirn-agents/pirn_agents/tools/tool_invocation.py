@@ -101,14 +101,11 @@ class ToolInvocation(Knot):
             A :class:`ToolResult` echoing ``call.call_id``, with measured
             ``latency`` and either the tool's value or the captured error.
 
-        Raises:
-            TypeError: If ``tool`` is not a :class:`Tool`, or ``call`` is not a
-                :class:`ToolCall`.
+        Note:
+            ``tool``/``call`` type mismatches are rejected by the framework's
+            ``validate_io`` at the ``__call__`` boundary (a ``ValidationError``
+            wrapped in ``Err``), not by a guard in this method — see PIR-856.
         """
-        if not isinstance(tool, Tool):
-            raise TypeError(f"ToolInvocation: tool must be a Tool, got {type(tool).__name__}")
-        if not isinstance(call, ToolCall):
-            raise TypeError(f"ToolInvocation: call must be a ToolCall, got {type(call).__name__}")
         start = time.perf_counter()
         try:
             value = await tool.invoke(call.arguments)

@@ -83,19 +83,8 @@ class CrossSessionProfileUpdater(Knot):
                 a Mapping, ``store`` is not a MemoryStore, or ``now`` is not a
                 datetime.
         """
-        if not isinstance(key, ProfileKey):
-            raise TypeError(
-                f"CrossSessionProfileUpdater: key must be a ProfileKey, got {type(key).__name__}"
-            )
         if not isinstance(incoming_fields, Mapping):
             raise TypeError("CrossSessionProfileUpdater: incoming_fields must be a Mapping")
-        if not isinstance(store, MemoryStore):
-            raise TypeError(
-                f"CrossSessionProfileUpdater: store must be a MemoryStore, "
-                f"got {type(store).__name__}"
-            )
-        if not isinstance(now, datetime):
-            raise TypeError("CrossSessionProfileUpdater: now must be a datetime")
         existing = await store.retrieve(key.storage_key)
         prior_fields, prior_sessions = self._prior_state(existing)
         merged_fields = merge_profile_fields(prior_fields, incoming_fields)

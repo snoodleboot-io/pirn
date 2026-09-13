@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
@@ -31,8 +32,13 @@ _SCHEMA = ExtractionSchema.create(entity_types=["Person", "Company"], relation_t
 
 def _make_extractor() -> EntityRelationExtractor:
     with Tapestry():
-        knot = EntityRelationExtractor.__new__(EntityRelationExtractor)
-        object.__setattr__(knot, "_config", KnotConfig(id="extract"))
+        knot = EntityRelationExtractor(
+            text="t",
+            llm=_provider(_GOOD_PAYLOAD),
+            schema=_SCHEMA,
+            store=InMemoryGraphStore(),
+            _config=KnotConfig(id="extract"),
+        )
     return knot
 
 
@@ -127,23 +133,24 @@ class TestEntityRelationExtractor(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_bad_schema_type(self) -> None:
         extractor = _make_extractor()
-        with self.assertRaisesRegex(TypeError, "schema must be an ExtractionSchema"):
-            await extractor.process(
-                text="t",
-                llm=_provider(_GOOD_PAYLOAD),
-                schema="nope",  # type: ignore[arg-type]
-                store=InMemoryGraphStore(),
-            )
+        result = await extractor(
+            {
+                "text": "t",
+                "llm": _provider(_GOOD_PAYLOAD),
+                "schema": "nope",
+                "store": InMemoryGraphStore(),
+            }
+        )
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_rejects_bad_store_type(self) -> None:
         extractor = _make_extractor()
-        with self.assertRaisesRegex(TypeError, "store must be a GraphStore"):
-            await extractor.process(
-                text="t",
-                llm=_provider(_GOOD_PAYLOAD),
-                schema=_SCHEMA,
-                store="nope",  # type: ignore[arg-type]
-            )
+        result = await extractor(
+            {"text": "t", "llm": _provider(_GOOD_PAYLOAD), "schema": _SCHEMA, "store": "nope"}
+        )
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_malformed_llm_output_surfaces_error(self) -> None:
         # Native content is not valid JSON and the fallback chat also fails, so

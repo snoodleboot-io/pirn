@@ -51,14 +51,7 @@ class GraphContextBuilder(Knot):
         Returns:
             A one-element list holding the rendered context
             :class:`AgentMessage`.
-
-        Raises:
-            TypeError: If ``subgraph`` is not a :class:`Subgraph`.
         """
-        if not isinstance(subgraph, Subgraph):
-            raise TypeError(
-                f"GraphContextBuilder: subgraph must be a Subgraph, got {type(subgraph).__name__}"
-            )
         content = self._render(subgraph)
         return [AgentMessage(role=role, content=content, name=name)]
 

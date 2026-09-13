@@ -39,12 +39,23 @@ class StubNodeEmbeddingIndex(NodeEmbeddingIndex):
 
 def _make_traversal() -> GraphTraversal:
     with Tapestry():
-        knot = GraphTraversal.__new__(GraphTraversal)
-        object.__setattr__(knot, "_config", KnotConfig(id="t"))
+        knot = GraphTraversal(
+            start_ids=["a"],
+            store=InMemoryGraphStore(),
+            budget=TraversalBudget.create(),
+            edge_types=None,
+            _config=KnotConfig(id="t"),
+        )
     return knot
 
 
 def _make_retriever() -> HybridGraphRetriever:
+    # Not constructed via __init__: HybridGraphRetriever.process() declares
+    # ``traversal: GraphTraversal`` (a bare Knot subclass used as a value
+    # type, not wired through the graph), and pydantic cannot build a
+    # TypeAdapter for a Knot subclass — Knot._build_adapters raises
+    # PydanticSchemaGenerationError unconditionally for this class. See the
+    # PIR-856 note on the isinstance guards in hybrid_graph_retriever.py.
     with Tapestry():
         knot = HybridGraphRetriever.__new__(HybridGraphRetriever)
         object.__setattr__(knot, "_config", KnotConfig(id="hybrid-graph"))

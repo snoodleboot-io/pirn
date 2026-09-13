@@ -73,13 +73,8 @@ class SemanticFactExtractor(Knot):
             A list of factual claim strings extracted from the conversation.
 
         Raises:
-            TypeError: If llm is not an LLMProvider.
             ValueError: If fact_extraction_prompt is not a non-empty string.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"SemanticFactExtractor: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
         if not isinstance(fact_extraction_prompt, str) or not fact_extraction_prompt:
             raise ValueError(
                 "SemanticFactExtractor: fact_extraction_prompt must be a non-empty string"

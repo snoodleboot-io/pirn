@@ -59,15 +59,7 @@ class DecayScorer(Knot):
             The decayed value ``importance * 2 ** (-age / half_life)``.
 
         Raises:
-            TypeError: If ``record`` is not a MemoryRecord or ``now`` is not a
-                datetime.
             ValueError: If ``half_life_seconds`` is not positive.
         """
-        if not isinstance(record, MemoryRecord):
-            raise TypeError(
-                f"DecayScorer: record must be a MemoryRecord, got {type(record).__name__}"
-            )
-        if not isinstance(now, datetime):
-            raise TypeError(f"DecayScorer: now must be a datetime, got {type(now).__name__}")
         age_seconds = (now - record.recency_anchor()).total_seconds()
         return decay_score(record.importance, age_seconds, half_life_seconds)

@@ -12,6 +12,7 @@ import unittest
 from collections.abc import Mapping
 from typing import Any
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
@@ -211,18 +212,21 @@ class TestToolInvocationErrorHandling(unittest.IsolatedAsyncioTestCase):
                 )
 
     async def test_rejects_a_non_tool_in_process(self) -> None:
-        """PIR-856 Rule 3: the ``tool`` guard now lives in ``process()``.
+        """PIR-856: the redundant ``isinstance(tool, Tool)`` guard is gone.
 
-        Exercised directly per the sanctioned remediation pattern (see
-        ``knot-remediation-process.md`` Step 11) since core's own
-        construction-time check (above) would otherwise always fire first for
-        a knot built through the normal constructor path with an invalid
-        literal.
+        ``tool`` is wired as a config value at construction, so a bad
+        literal is caught there (see ``test_rejects_a_non_toolcall`` below
+        for the analogous ``call`` case). Overriding ``tool`` through
+        ``parent_results`` on an already-constructed knot exercises
+        ``validate_io``'s ``process()``-signature validation directly: it
+        rejects the bad value with a ``ValidationError`` exactly like any
+        other declared input, with no per-knot guard required.
         """
         with Tapestry():
             knot = ToolInvocation(tool=_Echo(), call=_call(), _config=KnotConfig(id="inv"))
-        with self.assertRaisesRegex(TypeError, "must be a Tool"):
-            await knot.process(tool="not a tool", call=_call())  # type: ignore[arg-type]
+        result = await knot({"tool": "not a tool", "call": _call()})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_rejects_a_non_toolcall(self) -> None:
         """Core validates a literal config value at construction, not at run time."""

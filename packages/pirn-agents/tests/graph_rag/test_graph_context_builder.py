@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
@@ -16,8 +17,7 @@ from pirn_agents.types.messaging.agent_message import AgentMessage
 
 def _make_builder() -> GraphContextBuilder:
     with Tapestry():
-        knot = GraphContextBuilder.__new__(GraphContextBuilder)
-        object.__setattr__(knot, "_config", KnotConfig(id="ctx"))
+        knot = GraphContextBuilder(subgraph=_subgraph(), _config=KnotConfig(id="ctx"))
     return knot
 
 
@@ -63,8 +63,9 @@ class TestGraphContextBuilder(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_bad_subgraph(self) -> None:
         builder = _make_builder()
-        with self.assertRaisesRegex(TypeError, "subgraph must be a Subgraph"):
-            await builder.process(subgraph="nope")  # type: ignore[arg-type]
+        result = await builder({"subgraph": "nope"})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
 
 if __name__ == "__main__":

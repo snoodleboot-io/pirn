@@ -72,24 +72,7 @@ class SuspendingApprovalCheck(Knot):
         Returns:
             ``None`` when auto-approved (proceed in-run); otherwise a
             :class:`SuspendSignal` whose token resumes the persisted run.
-
-        Raises:
-            TypeError: If ``response`` is not an AgentResponse, ``store`` is not a
-                SessionStore, or ``state`` is not a RunState.
         """
-        if not isinstance(response, AgentResponse):
-            raise TypeError(
-                f"SuspendingApprovalCheck: response must be an AgentResponse, "
-                f"got {type(response).__name__}"
-            )
-        if not isinstance(store, SessionStore):
-            raise TypeError(
-                f"SuspendingApprovalCheck: store must be a SessionStore, got {type(store).__name__}"
-            )
-        if not isinstance(state, RunState):
-            raise TypeError(
-                f"SuspendingApprovalCheck: state must be a RunState, got {type(state).__name__}"
-            )
         if auto_approve:
             return None
         pending = state.with_message(

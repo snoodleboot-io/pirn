@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
@@ -40,10 +41,12 @@ class TestTypedMemoryWriter(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_record(self) -> None:
         knot = _make_knot()
-        with self.assertRaises(TypeError):
-            await knot.process(record="bad", store=RecordingMemoryStore())  # type: ignore[arg-type]
+        result = await knot({"record": "bad", "store": RecordingMemoryStore()})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_rejects_non_store(self) -> None:
         knot = _make_knot()
-        with self.assertRaises(TypeError):
-            await knot.process(record=make_record(id="r1"), store="bad")  # type: ignore[arg-type]
+        result = await knot({"record": make_record(id="r1"), "store": "bad"})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"

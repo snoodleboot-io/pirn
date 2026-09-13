@@ -64,11 +64,6 @@ class PromptRenderKnot(Knot):
                 is not a mapping.
             PromptRenderError: On any strict-mode render failure.
         """
-        if not isinstance(template, PromptTemplate):
-            raise TypeError(
-                "PromptRenderKnot: template must be a PromptTemplate, "
-                f"got {type(template).__name__}"
-            )
         if not isinstance(variables, Mapping):
             raise TypeError(
                 f"PromptRenderKnot: variables must be a mapping, got {type(variables).__name__}"

@@ -71,14 +71,9 @@ class EpisodicMemoryPipeline(SubTapestry):
             The storage key under which the episode was persisted.
 
         Raises:
-            TypeError: If store is not a MemoryStore.
             ValueError: If session_id is not a non-empty string.
             RuntimeError: If the inner writer does not return a key.
         """
-        if not isinstance(store, MemoryStore):
-            raise TypeError(
-                f"EpisodicMemoryPipeline: store must be a MemoryStore, got {type(store).__name__}"
-            )
         if not isinstance(session_id, str) or not session_id:
             raise ValueError(
                 f"EpisodicMemoryPipeline: session_id must be a non-empty string, got {session_id!r}"

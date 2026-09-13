@@ -86,14 +86,6 @@ class IntentClassifier(Knot):
             TypeError: If inputs have wrong types.
             ValueError: If intent_categories is empty or the LLM response matches no intent.
         """
-        if not isinstance(context, AgentContext):
-            raise TypeError(
-                f"IntentClassifier: context must be an AgentContext, got {type(context).__name__}"
-            )
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"IntentClassifier: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
         if not isinstance(intent_categories, Sequence) or isinstance(
             intent_categories, (str, bytes)
         ):

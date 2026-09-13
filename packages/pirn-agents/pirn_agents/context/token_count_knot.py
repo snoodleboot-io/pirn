@@ -55,12 +55,5 @@ class TokenCountKnot(Knot):
 
         Returns:
             The total token count including per-message overhead.
-
-        Raises:
-            TypeError: If ``counter`` is not a TokenCounter.
         """
-        if not isinstance(counter, TokenCounter):
-            raise TypeError(
-                f"TokenCountKnot: counter must be a TokenCounter, got {type(counter).__name__}"
-            )
         return counter.count_messages(messages)

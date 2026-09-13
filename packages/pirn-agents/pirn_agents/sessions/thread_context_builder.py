@@ -49,15 +49,7 @@ class ThreadContextBuilder(Knot):
         Returns:
             One :class:`ContextItem` per turn, in turn order, ready to feed the
             F17 :class:`ContextAssembler`.
-
-        Raises:
-            TypeError: If ``thread`` is not a ConversationThread.
         """
-        if not isinstance(thread, ConversationThread):
-            raise TypeError(
-                f"ThreadContextBuilder: thread must be a ConversationThread, "
-                f"got {type(thread).__name__}"
-            )
         return tuple(
             ContextItem(
                 content=f"{turn.role}: {turn.content}",

@@ -57,22 +57,9 @@ class ApprovalResumer(Knot):
             The resumed :class:`RunState` with the decision recorded.
 
         Raises:
-            TypeError: If any argument is of the wrong type.
             ValueError: If no run is suspended for the token, or the token is
                 stale (already resumed / superseded).
         """
-        if not isinstance(store, SessionStore):
-            raise TypeError(
-                f"ApprovalResumer: store must be a SessionStore, got {type(store).__name__}"
-            )
-        if not isinstance(token, ResumeToken):
-            raise TypeError(
-                f"ApprovalResumer: token must be a ResumeToken, got {type(token).__name__}"
-            )
-        if not isinstance(decision, HumanDecision):
-            raise TypeError(
-                f"ApprovalResumer: decision must be a HumanDecision, got {type(decision).__name__}"
-            )
         checkpoint = await store.load(token.session_id)
         if checkpoint is None:
             raise ValueError(f"ApprovalResumer: no suspended run for session {token.session_id!r}")

@@ -88,10 +88,6 @@ class SessionSummarizer(Knot):
             TypeError: If llm is not an LLMProvider or any message is not an AgentMessage.
             ValueError: If token_threshold is not a positive int.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"SessionSummarizer: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
         if not isinstance(token_threshold, int) or token_threshold <= 0:
             raise ValueError(
                 "SessionSummarizer: token_threshold must be a positive int, "

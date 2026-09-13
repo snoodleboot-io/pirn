@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
@@ -16,8 +17,14 @@ from pirn_agents.retrieval.graph_stores.in_memory_graph_store import InMemoryGra
 
 def _make_traversal() -> GraphTraversal:
     with Tapestry():
-        knot = GraphTraversal.__new__(GraphTraversal)
-        object.__setattr__(knot, "_config", KnotConfig(id="traverse"))
+        knot = GraphTraversal(
+            start_ids=["a"],
+            store=InMemoryGraphStore(),
+            budget=TraversalBudget.create(),
+            direction="both",
+            edge_types=None,
+            _config=KnotConfig(id="traverse"),
+        )
     return knot
 
 
@@ -109,22 +116,18 @@ class TestGraphTraversalNeighborhood(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_bad_store(self) -> None:
         traversal = _make_traversal()
-        with self.assertRaisesRegex(TypeError, "store must be a GraphStore"):
-            await traversal.process(
-                start_ids=["a"],
-                store="nope",  # type: ignore[arg-type]
-                budget=TraversalBudget.create(),
-            )
+        result = await traversal(
+            {"start_ids": ["a"], "store": "nope", "budget": TraversalBudget.create()}
+        )
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_rejects_bad_budget(self) -> None:
         store = await _chain_store()
         traversal = _make_traversal()
-        with self.assertRaisesRegex(TypeError, "budget must be a TraversalBudget"):
-            await traversal.process(
-                start_ids=["a"],
-                store=store,
-                budget="nope",  # type: ignore[arg-type]
-            )
+        result = await traversal({"start_ids": ["a"], "store": store, "budget": "nope"})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
 
 class TestGraphTraversalPathQuery(unittest.IsolatedAsyncioTestCase):

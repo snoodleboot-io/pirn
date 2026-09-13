@@ -84,26 +84,11 @@ class SemanticMemoryUpsert(Knot):
             The number of new or changed facts upserted into the memory store.
 
         Raises:
-            TypeError: If response is not an AgentResponse, llm is not an LLMProvider,
-                or store is not a MemoryStore.
             ValueError: If fact_extraction_prompt is not a non-empty string.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"SemanticMemoryUpsert: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
-        if not isinstance(store, MemoryStore):
-            raise TypeError(
-                f"SemanticMemoryUpsert: store must be a MemoryStore, got {type(store).__name__}"
-            )
         if not isinstance(fact_extraction_prompt, str) or not fact_extraction_prompt:
             raise ValueError(
                 "SemanticMemoryUpsert: fact_extraction_prompt must be a non-empty string"
-            )
-        if not isinstance(response, AgentResponse):
-            raise TypeError(
-                "SemanticMemoryUpsert: response must be an AgentResponse, "
-                f"got {type(response).__name__}"
             )
         instruction = type(self)._fact_extraction_prompt.resolve(fact_extraction_prompt)
         prompt = f"{instruction}\n\nText: {response.content}\n\nReturn one fact per line."

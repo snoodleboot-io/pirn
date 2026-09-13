@@ -100,25 +100,10 @@ class MemoryConsolidator(Knot):
                 are the wrong type, or any element of ``records`` is not a
                 :class:`MemoryRecord`.
         """
-        if not isinstance(summarizer, Summarizer):
-            raise TypeError(
-                f"MemoryConsolidator: summarizer must be a Summarizer, "
-                f"got {type(summarizer).__name__}"
-            )
         grouper = grouper if grouper is not None else NearDuplicateGrouper()
         conflict_policy = (
             conflict_policy if conflict_policy is not None else RecencyTrustConflictPolicy()
         )
-        if not isinstance(grouper, NearDuplicateGrouper):
-            raise TypeError(
-                f"MemoryConsolidator: grouper must be a NearDuplicateGrouper, "
-                f"got {type(grouper).__name__}"
-            )
-        if not isinstance(conflict_policy, ConflictResolutionPolicy):
-            raise TypeError(
-                f"MemoryConsolidator: conflict_policy must be a ConflictResolutionPolicy, "
-                f"got {type(conflict_policy).__name__}"
-            )
         if store is not None and not isinstance(store, MemoryStore):
             raise TypeError(
                 f"MemoryConsolidator: store must be a MemoryStore or None, "

@@ -56,14 +56,9 @@ class TypedMemoryValidator(Knot):
             The validated :class:`MemoryRecord`.
 
         Raises:
-            TypeError: If ``record`` is not a MemoryRecord.
             ValueError: If ``allowed_kinds`` holds a non-kind value, or the
                 record's kind is outside the allowed subset.
         """
-        if not isinstance(record, MemoryRecord):
-            raise TypeError(
-                f"TypedMemoryValidator: record must be a MemoryRecord, got {type(record).__name__}"
-            )
         if allowed_kinds is None:
             return record
         allowed = tuple(allowed_kinds)

@@ -107,8 +107,6 @@ class ToolExecutor(SubTapestry):
             TypeError: If call is not a ToolCall or tools contains non-Tool elements.
             ValueError: If tools is empty.
         """
-        if not isinstance(call, ToolCall):
-            raise TypeError(f"ToolExecutor: call must be a ToolCall, got {type(call).__name__}")
         if not isinstance(tools, Sequence) or isinstance(tools, (str, bytes)):
             raise TypeError("ToolExecutor: tools must be a sequence of Tool instances")
         if not tools:

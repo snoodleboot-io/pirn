@@ -70,10 +70,6 @@ class MemoryWriter(MemoryWriterBase):
             TypeError: If store is not a MemoryStore or value is not a Mapping.
             ValueError: If key is not a non-empty string.
         """
-        if not isinstance(store, MemoryStore):
-            raise TypeError(
-                f"MemoryWriter: store must be a MemoryStore, got {type(store).__name__}"
-            )
         if not isinstance(key, str) or not key:
             raise ValueError(f"MemoryWriter: key must be a non-empty string, got {key!r}")
         if not isinstance(value, Mapping):

@@ -48,19 +48,7 @@ class RunCheckpointer(Knot):
 
         Returns:
             The persisted (or already-present, deduplicated) :class:`RunCheckpoint`.
-
-        Raises:
-            TypeError: If ``store`` is not a SessionStore or ``state`` is not a
-                RunState.
         """
-        if not isinstance(store, SessionStore):
-            raise TypeError(
-                f"RunCheckpointer: store must be a SessionStore, got {type(store).__name__}"
-            )
-        if not isinstance(state, RunState):
-            raise TypeError(
-                f"RunCheckpointer: state must be a RunState, got {type(state).__name__}"
-            )
         checkpoint = RunCheckpoint.create(state)
         existing = await store.load(state.session_id)
         if existing is not None and existing.checkpoint_id == checkpoint.checkpoint_id:

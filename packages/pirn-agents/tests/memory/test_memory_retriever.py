@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.tapestry import Tapestry
@@ -45,8 +46,6 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_memory_store(self) -> None:
         store = StubMemoryStore()
         k = _make_knot(store)
-        with self.assertRaisesRegex(TypeError, "MemoryStore"):
-            await k.process(
-                key="alpha",
-                store="bad",  # type: ignore[arg-type]
-            )
+        result = await k({"key": "alpha", "store": "bad"})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"

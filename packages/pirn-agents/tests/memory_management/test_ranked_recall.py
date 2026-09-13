@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
@@ -106,13 +107,11 @@ class TestRankedRecall(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_weights(self) -> None:
         knot = _make_knot()
-        with self.assertRaises(TypeError):
-            await knot.process(
-                query="q",
-                candidates=_candidates(),
-                now=_NOW,
-                weights="bad",  # type: ignore[arg-type]
-            )
+        result = await knot(
+            {"query": "q", "candidates": _candidates(), "now": _NOW, "weights": "bad"}
+        )
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_rejects_non_reranker(self) -> None:
         knot = _make_knot()

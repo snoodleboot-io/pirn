@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.tapestry import Tapestry
@@ -68,12 +69,11 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
         llm = StubLLMProvider(responses=["billing"])
         k = _make_knot(llm)
-        with self.assertRaisesRegex(TypeError, "LLMProvider"):
-            await k.process(
-                context=_CONTEXT,
-                llm="not-an-llm",  # type: ignore[arg-type]
-                intent_categories=("billing",),
-            )
+        result = await k(
+            {"context": _CONTEXT, "llm": "not-an-llm", "intent_categories": ("billing",)}
+        )
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_rejects_empty_intent_list(self) -> None:
         llm = StubLLMProvider(responses=[])

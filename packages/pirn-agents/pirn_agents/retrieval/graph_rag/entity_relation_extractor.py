@@ -98,21 +98,8 @@ class EntityRelationExtractor(Knot):
             ValueError: If ``text`` is blank, or an extracted entity/relation type
                 is outside the schema, or a relation references an unknown entity.
         """
-        if not isinstance(text, str):
-            raise TypeError(
-                f"EntityRelationExtractor: text must be a str, got {type(text).__name__}"
-            )
         if not text.strip():
             raise ValueError("EntityRelationExtractor: text must be non-empty")
-        if not isinstance(schema, ExtractionSchema):
-            raise TypeError(
-                f"EntityRelationExtractor: schema must be an ExtractionSchema, "
-                f"got {type(schema).__name__}"
-            )
-        if not isinstance(store, GraphStore):
-            raise TypeError(
-                f"EntityRelationExtractor: store must be a GraphStore, got {type(store).__name__}"
-            )
         prompt = self._build_prompt(text, schema)
         decoded = await structured_decode(
             prompt=prompt, llm=llm, model_class=ExtractionResult, max_retries=max_retries

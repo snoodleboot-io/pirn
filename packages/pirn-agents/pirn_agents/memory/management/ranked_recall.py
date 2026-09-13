@@ -98,12 +98,6 @@ class RankedRecall(Knot):
                 is not a datetime.
         """
         weights = weights if weights is not None else RecallWeights()
-        if not isinstance(weights, RecallWeights):
-            raise TypeError(
-                f"RankedRecall: weights must be a RecallWeights, got {type(weights).__name__}"
-            )
-        if not isinstance(now, datetime):
-            raise TypeError(f"RankedRecall: now must be a datetime, got {type(now).__name__}")
         if reranker is not None and not isinstance(reranker, RerankerBackend):
             raise TypeError(
                 f"RankedRecall: reranker must be a RerankerBackend or None, "

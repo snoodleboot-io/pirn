@@ -101,6 +101,16 @@ class HybridGraphRetriever(HybridRetrieverBase):
                 supplied ``embedding_index`` is the wrong type.
             ValueError: If ``top_k`` or ``candidate_multiplier`` is not positive.
         """
+        # PIR-856: kept, not redundant. ``traversal: GraphTraversal`` below is
+        # a bare Knot subclass used as a *value* type (this knot calls
+        # ``traversal.process(...)`` directly rather than wiring it through
+        # the graph as an upstream parent) — pydantic cannot build a
+        # TypeAdapter for a Knot subclass, so ``Knot._build_adapters`` raises
+        # ``PydanticSchemaGenerationError`` unconditionally the moment this
+        # class is constructed through its real ``__init__``. That makes
+        # ``validate_io`` unreachable for every field on this knot (there is
+        # no way to get a live instance to call), so these guards are the
+        # only real protection query_text/store/traversal/budget ever get.
         if not isinstance(query_text, str):
             raise TypeError(
                 f"HybridGraphRetriever: query_text must be a str, got {type(query_text).__name__}"

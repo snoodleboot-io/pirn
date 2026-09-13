@@ -55,8 +55,6 @@ class RunResumer(Knot):
             TypeError: If ``store`` is not a SessionStore or ``session_id`` is not
                 a non-empty str.
         """
-        if not isinstance(store, SessionStore):
-            raise TypeError(f"RunResumer: store must be a SessionStore, got {type(store).__name__}")
         if not isinstance(session_id, str) or not session_id:
             raise TypeError("RunResumer: session_id must be a non-empty str")
         checkpoint = await store.load(session_id)
