@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.chain_of_thought.tree_of_thought import (
@@ -29,28 +30,36 @@ def _make_knot(llm: StubLLMProvider) -> TreeOfThought:
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_agent_response(self) -> None:
         llm = StubLLMProvider(["thought"] * 20 + ["8"] * 20)
-        k = _make_knot(llm)
-        response = await k.process(
-            prompt="Solve this.",
-            llm=llm,
-            k_candidates=2,
-            beam_width=1,
-            depth=1,
-        )
+        with Tapestry() as t:
+            TreeOfThought(
+                prompt="Solve this.",
+                llm=llm,
+                k_candidates=2,
+                beam_width=1,
+                depth=1,
+                _config=KnotConfig(id="tot"),
+            )
+        result = await t.run(RunRequest())
+        assert result.succeeded
+        response = result.outputs["tot"]
         assert isinstance(response, AgentResponse)
         assert len(response.content) > 0
 
     async def test_scores_determine_best_path(self) -> None:
         responses = ["path-A", "path-B", "10", "1"]
         llm = StubLLMProvider(responses)
-        k = _make_knot(llm)
-        response = await k.process(
-            prompt="start",
-            llm=llm,
-            k_candidates=2,
-            beam_width=1,
-            depth=1,
-        )
+        with Tapestry() as t:
+            TreeOfThought(
+                prompt="start",
+                llm=llm,
+                k_candidates=2,
+                beam_width=1,
+                depth=1,
+                _config=KnotConfig(id="tot"),
+            )
+        result = await t.run(RunRequest())
+        assert result.succeeded
+        response = result.outputs["tot"]
         assert isinstance(response, AgentResponse)
         assert "path-A" in response.content
 

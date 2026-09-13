@@ -145,7 +145,10 @@ class BuiltinNameCoverageTests(unittest.TestCase):
         from pirn_agents.specializations.chain_of_thought.step_back_prompting import (
             StepBackPrompting,
         )
-        from pirn_agents.specializations.chain_of_thought.tree_of_thought import TreeOfThought
+        from pirn_agents.specializations.chain_of_thought.tree_of_thought import (
+            _ExpandOneThought,
+            _ScoreCandidate,
+        )
         from pirn_agents.specializations.plan_and_execute.plan_executor import PlanExecutor
         from pirn_agents.specializations.plan_and_execute.plan_revisor import PlanRevisor
         from pirn_agents.specializations.plan_and_execute.task_planner import TaskPlanner
@@ -161,8 +164,8 @@ class BuiltinNameCoverageTests(unittest.TestCase):
             ChainOfThought._system_prompt,
             StepBackPrompting._step_back_system,
             StepBackPrompting._forward_system,
-            TreeOfThought._expansion_system,
-            TreeOfThought._scoring_system,
+            _ExpandOneThought._expansion_system,
+            _ScoreCandidate._scoring_system,
             PlanExecutor._step_system,
             PlanRevisor._revision_system,
             TaskPlanner._planning_system,

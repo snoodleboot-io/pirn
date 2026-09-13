@@ -78,6 +78,15 @@ _PATTERNS: tuple[PatternDescriptor, ...] = (
         f"{_SPEC}.evaluator_optimizer.evaluator_optimizer_pipeline:EvaluatorOptimizerPipeline",
         "task",
     ),
+    # --- chain of thought
+    PatternDescriptor(
+        "tree_of_thought", f"{_SPEC}.chain_of_thought.tree_of_thought:TreeOfThought", "prompt"
+    ),
+    PatternDescriptor(
+        "self_consistency",
+        f"{_SPEC}.chain_of_thought.self_consistency_ensemble:SelfConsistencyEnsemble",
+        "prompt",
+    ),
     # --- guardrails
     PatternDescriptor(
         "fact_check", f"{_SPEC}.guardrails.fact_check_gate:FactCheckGate", "response"

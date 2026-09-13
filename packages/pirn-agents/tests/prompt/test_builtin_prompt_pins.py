@@ -15,6 +15,7 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
+from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.control.reflection_check import ReflectionCheck
@@ -115,9 +116,16 @@ class ChainOfThoughtPromptPins(unittest.IsolatedAsyncioTestCase):
 
     async def test_tree_of_thought_expansion_and_scoring_systems(self) -> None:
         llm = StubLLMProvider(responses=["thought", "5"])
-        with Tapestry():
-            tot = TreeOfThought(prompt="q", llm=llm, _config=KnotConfig(id="tot"))
-        await tot.process(prompt="q", llm=llm, k_candidates=1, beam_width=1, depth=1)
+        with Tapestry() as tapestry:
+            TreeOfThought(
+                prompt="q",
+                llm=llm,
+                k_candidates=1,
+                beam_width=1,
+                depth=1,
+                _config=KnotConfig(id="tot"),
+            )
+        await tapestry.run(RunRequest())
         assert llm.calls[0][0]["content"] == (
             "You are a reasoning assistant. Generate the next reasoning step "
             "that continues the following thought chain."
