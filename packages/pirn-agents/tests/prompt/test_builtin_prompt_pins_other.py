@@ -14,6 +14,8 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
+from pirn.backends.in_memory.in_memory_history import InMemoryHistory
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -23,6 +25,7 @@ from pirn_agents.input.intent_classifier import IntentClassifier
 from pirn_agents.memory.patterns.semantic_memory_pipeline import SemanticMemoryPipeline
 from pirn_agents.memory.patterns.semantic_memory_upsert import SemanticMemoryUpsert
 from pirn_agents.memory.patterns.session_summarizer import SessionSummarizer
+from pirn_agents.memory.stores.keyed_lineage_store import KeyedLineageStore
 from pirn_agents.retrieval.graph_rag.entity_relation_extractor import EntityRelationExtractor
 from pirn_agents.retrieval.graph_rag.extraction_schema import ExtractionSchema
 from pirn_agents.security.llm_injection_classifier import LlmInjectionClassifier
@@ -132,7 +135,10 @@ class MemoryPatternPromptPins(unittest.IsolatedAsyncioTestCase):
 
     async def test_semantic_memory_upsert_fact_extraction_prompt(self) -> None:
         llm = StubLLMProvider(responses=["- a fact"])
-        store = StubMemoryStore()
+        # SemanticMemoryUpsert's dedup reads KeyedLineageStore.latest_output_hash
+        # directly (ADR agents-speaks-core WS3 part 4), a surface StubMemoryStore
+        # (a plain MemoryStore double) does not expose.
+        store = KeyedLineageStore(history=InMemoryHistory(), data_store=InMemoryDataStore())
         knot = _bare(SemanticMemoryUpsert)
         await knot.process(
             response=AgentResponse(content="body"),
