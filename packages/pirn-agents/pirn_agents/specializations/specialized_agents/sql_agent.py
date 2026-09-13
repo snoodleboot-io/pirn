@@ -90,6 +90,12 @@ class SQLAgent(AgentPipeline):
             ``read_only`` is held as plain constructor state rather than being
             forwarded as a knot input, so the policy cannot be driven by another
             knot's output on a pipeline whose data originates in model text.
+            This is a deliberate, documented exception to Knot Design Rule 4
+            (no instance state for inputs) — see
+            ``docs/contributing/knot-design-rules.md`` and PIR-817 — made for
+            this specific security property, not a general license to store
+            inputs on ``self``. ``read_only`` is correspondingly *not* a
+            ``process()`` parameter.
         """
         self._read_only = read_only
         super().__init__(
