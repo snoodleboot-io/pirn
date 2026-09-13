@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from pirn.engine.admission.admission_gate import AdmissionGate
+from pirn.engine.admission.admission_limit_error import AdmissionLimitError
 from pirn.engine.admission.admission_ticket import AdmissionTicket
 
 if TYPE_CHECKING:
@@ -46,3 +47,19 @@ class UnboundedAdmissionGate(AdmissionGate):
         ``try_admit`` never refuses, so there is never a reason to wait; the
         method returns rather than hanging should a caller ask anyway.
         """
+
+    def current_limit(self, group: str | None) -> int | None:
+        """Always ``None``: no budget is bounded."""
+        return None
+
+    def set_limit(self, group: str | None, limit: int) -> None:
+        """Refuse: this gate enforces nothing, so there is nothing to adjust.
+
+        Raises:
+            AdmissionLimitError: Always.  Start the run with
+                ``ConcurrencyLimits`` to get a gate whose caps can move.
+        """
+        raise AdmissionLimitError(
+            "the unbounded gate enforces no limits; run with ConcurrencyLimits "
+            "to adjust a cap at runtime"
+        )

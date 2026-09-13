@@ -326,9 +326,44 @@ raises `UndefinedConcurrencyGroupError` rather than silently running unbounded.
 
 `pirn.engine.admission.admission_gate.AdmissionGate` itself is documented here because it
 is the interface those two built-in implementations satisfy (subclass and override
-`has_capacity`, `try_admit`, `release`, `wait_for_release`) — useful reading if you need
-to understand or test admission behavior, even though wiring a third implementation in
-requires engine-level changes today rather than a public constructor argument.
+`has_capacity`, `try_admit`, `release`, `wait_for_release`, `current_limit`, `set_limit`) —
+useful reading if you need to understand or test admission behavior, even though wiring a
+third implementation in requires engine-level changes today rather than a public
+constructor argument.
+
+### Runtime feedback — `AdmissionObserver` and `set_limit`
+
+The caps are not fixed for the run's life. An `AdmissionObserver` hears every admission and
+release of the run's gate, and every event carries the gate so the observer can move a cap
+in reaction — the seam an adaptive concurrency controller (AIMD over a provider's throttling,
+Little's-law over queue depth and hold time) is written against:
+
+```python
+from pirn.engine.admission.admission_event import AdmissionEvent
+from pirn.engine.admission.admission_observer import AdmissionObserver
+
+
+class BackOffOnThrottle(AdmissionObserver):
+    """Halve the api cap on a throttled failure, creep it back up on success."""
+
+    def on_release(self, event: AdmissionEvent) -> None:
+        if event.group != "api" or event.group_limit is None:
+            return
+        if event.outcome == "err":
+            event.gate.set_limit("api", max(1, event.group_limit // 2))
+        elif event.waiting and event.group_limit < 16:
+            event.gate.set_limit("api", event.group_limit + 1)
+
+
+with Tapestry(concurrency=ConcurrencyLimits(groups={"api": 8}),
+              admission_observers=[BackOffOnThrottle()]) as t:
+    ...
+result = await t.run(request, admission_observers=[...])   # per-run override; [] silences
+```
+
+- `AdmissionEvent` (`kind` `"admit"`/`"release"`, `run_id`, `knot_id`, `group`, `in_flight`, `group_in_flight`, `max_in_flight`, `group_limit`, `waiting` — knots of the same group still queued, `queued_seconds`, `held_seconds`, `outcome` `"ok"`/`"err"`/`"skipped"`/`"aborted"`, `gate`) is built by the engine's `AdmissionFeedback`, the one place that sees the gate's counters, the ready queue's depth, the ready time and the outcome together.
+- `gate.set_limit(group, n)` (`group=None` for the run-wide cap) takes effect for every admission from then on and never touches a ticket already issued: lowering a cap below what is in flight refuses new admissions until enough slots come back. Groups cannot be added mid-run, and the unbounded gate (a run without `ConcurrencyLimits`) refuses with `AdmissionLimitError` — start with limits to steer them. `gate.current_limit(group)` reads the live cap.
+- Hooks run synchronously on the engine's loop between scheduling steps, so keep them quick and never await; an exception raised by a hook is logged at WARNING and ignored — an observer can never break a run. A run with no observers pays nothing.
 
 ---
 

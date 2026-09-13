@@ -109,6 +109,7 @@ await t.run(RunRequest(parameters={"doc": "..."}, concurrency=ConcurrencyLimits(
 - A slot is released when the knot's task finishes, whatever the outcome (result, `Err`, exception or cancellation), when the engine resolves a knot without running it (skipped, missing parent), and for every in-flight knot when a run aborts.
 - Limits govern scheduling only: outputs, lineage hashes and the order of lineage, exceptions, skipped and outputs are the same under any limits. `KnotConfig.concurrency_group` is excluded from `model_dump`, so it never reaches `knot_config_hash`, and recordings made before a knot joined a group still replay.
 - A queued knot stays `PENDING`; `RUNNING` means admitted.
+- **Runtime feedback (WS0).** `Tapestry(admission_observers=[...])` / `run(admission_observers=...)` attach `AdmissionObserver`s that hear every admission and release as an `AdmissionEvent` — queue depth per group, wait, hold time, outcome — and can move a cap mid-run with `event.gate.set_limit(group, n)` (issued tickets untouched; `AdmissionLimitError` for an unknown group, a cap below one, or the unbounded gate). See [Extension Points](extension-points.md#runtime-feedback-admissionobserver-and-set_limit).
 - The effective ceiling is also bounded by the dispatcher (`ThreadDispatcher(max_workers=...)`; a sync `@knot` runs on the default executor, `min(32, cpu + 4)` threads).
 - Not yet: limits are not forwarded into `SubTapestry` / `LoopSubTapestry` inner runs, and `Map` / `ZipMap` / `DictMap` fan out their elements inside one admitted knot (PIR-841 slices 3 and 4).
 

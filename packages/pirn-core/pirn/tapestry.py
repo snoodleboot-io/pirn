@@ -36,6 +36,7 @@ if TYPE_CHECKING:
     from pirn.core.transport.data_transport import DataTransport
     from pirn.emitters.emitter import Emitter
     from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
+    from pirn.engine.admission.admission_observer import AdmissionObserver
     from pirn.engine.dispatchers.dispatcher import Dispatcher
     from pirn.recording.replay_session import ReplaySession
 
@@ -191,6 +192,12 @@ class Tapestry:
         re-entering itself fails with ``NestedRunCycleError`` -- both
         recorded as the container knot's ``Err``.  An inner tapestry
         inherits the cap through the run context and may only tighten it.
+    admission_observers:
+        ``AdmissionObserver``\s told of every admission and release in runs
+        of this tapestry (queue depth, wait, hold time, outcome, and the
+        gate itself so a limit can be adjusted in reaction).  A run's own
+        ``admission_observers=`` replaces the list.  Not forwarded into
+        inner runs, which are not admission-limited yet (PIR-841 slice 3).
     """
 
     def __init__(
@@ -207,6 +214,7 @@ class Tapestry:
         identity_resolver: IdentityResolver | None = None,
         concurrency: ConcurrencyLimits | None = None,
         max_nesting_depth: int | None = None,
+        admission_observers: list[AdmissionObserver] | None = None,
     ) -> None:
         # Defer imports to avoid a circular at module load time.
         from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
@@ -250,6 +258,7 @@ class Tapestry:
                 f"got {max_nesting_depth!r}"
             )
         self._max_nesting_depth: int | None = max_nesting_depth
+        self._admission_observers: list[AdmissionObserver] = list(admission_observers or [])
 
         # Token returned by ContextVar.set, used to reset on __exit__.
         self._token: Any = None
@@ -289,6 +298,11 @@ class Tapestry:
     def max_nesting_depth(self) -> int | None:
         """Cap on nested runs below a run of this tapestry, or ``None`` for no guard."""
         return self._max_nesting_depth
+
+    @property
+    def admission_observers(self) -> list[AdmissionObserver]:
+        """Read-only view of the default admission observers."""
+        return list(self._admission_observers)
 
     # ------------------------------------------------------------- knot ops
 
@@ -342,6 +356,7 @@ class Tapestry:
         emitter_error_policy: EmitterErrorPolicy | None = None,
         traceback_filter: Callable[[str], str] | None = None,
         replay: ReplaySession | None = None,
+        admission_observers: list[AdmissionObserver] | None = None,
         _parent_run_id: str | None = None,
         _parent_knot_id: str | None = None,
         _nesting_key: str | None = None,
@@ -381,6 +396,9 @@ class Tapestry:
         Replay is not propagated into ``SubTapestry`` inner runs, and does
         not need to be: the ``SubTapestry`` knot itself is replayed from the
         outer recording, so the inner pipeline never starts.
+
+        ``admission_observers`` replaces the tapestry's default observers for
+        this run; ``None`` uses the defaults and ``[]`` silences them.
 
         ``_nesting_key`` is internal: a container knot starting this run as an
         inner run passes its nesting key (``SubTapestry._nesting_key``) so the
@@ -470,6 +488,11 @@ class Tapestry:
                     request.concurrency if request.concurrency is not None else self._concurrency
                 ),
                 nesting=nesting,
+                admission_observers=(
+                    list(self._admission_observers)
+                    if admission_observers is None
+                    else list(admission_observers)
+                ),
             )
         finally:
             _current_run_id.reset(token_run_id)

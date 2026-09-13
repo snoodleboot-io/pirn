@@ -11,11 +11,12 @@ class AdmissionTicket:
 
     The ticket is the lifecycle boundary of a single execution: it is issued
     when the gate lets a knot start and returned to the same gate when the knot
-    stops holding capacity, whether it ran, was skipped, or failed.  Anything
-    that must happen *while a knot occupies capacity* -- a future per-call
-    timeout, or a retry that gives its slot back during backoff -- wraps the
-    ticket rather than the dispatch call, so it measures run time and never
-    queue time.
+    stops holding capacity, whether it ran, was skipped, or failed.  A knot's
+    ``KnotConfig.timeout`` and ``retry`` run inside that boundary
+    (``GovernedDispatch``): the slot is held for every attempt and across the
+    backoff between them, so the timeout measures run time and never queue
+    time.  Giving the slot back during backoff and re-admitting is a possible
+    later refinement.
 
     A ticket records the slots its admission took, so that releasing it frees
     exactly what admitting it claimed (PIR-841).

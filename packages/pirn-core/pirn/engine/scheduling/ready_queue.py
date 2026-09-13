@@ -166,6 +166,17 @@ class ReadyQueue:
                 heapq.heappush(self._heads, (fifo[0], group))
         self._parked.clear()
 
+    def waiting_in(self, group: str | None) -> int:
+        """How many ready knots of *group* are still queued.
+
+        Args:
+            group: A concurrency group, or ``None`` for ungrouped knots.
+        """
+        if group is None:
+            return len(self._ungrouped)
+        fifo = self._groups.get(group)
+        return len(fifo) if fifo else 0
+
     def _live_group_head(self) -> tuple[tuple[int, int, str], str] | None:
         heads = self._heads
         while heads:

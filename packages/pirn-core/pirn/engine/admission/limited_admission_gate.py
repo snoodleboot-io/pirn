@@ -10,6 +10,7 @@ from pirn.core.concurrency.undefined_concurrency_group_error import (
     UndefinedConcurrencyGroupError,
 )
 from pirn.engine.admission.admission_gate import AdmissionGate
+from pirn.engine.admission.admission_limit_error import AdmissionLimitError
 from pirn.engine.admission.admission_release_error import AdmissionReleaseError
 from pirn.engine.admission.admission_ticket import AdmissionTicket
 
@@ -50,7 +51,10 @@ class LimitedAdmissionGate(AdmissionGate):
                 ``UnboundedAdmissionGate`` for that instead.
         """
         self._limits = limits
+        # The live caps.  Seeded from ``limits`` and adjusted by
+        # ``set_limit``; ``limits`` itself stays the run's declared value.
         self._max_in_flight = limits.max_in_flight
+        self._group_limits: dict[str, int] = dict(limits.groups)
         self._in_flight = 0
         self._group_in_flight: Counter[str] = Counter()
         # Knot ids holding a slot; guards against a double or foreign release.
@@ -59,8 +63,38 @@ class LimitedAdmissionGate(AdmissionGate):
 
     @property
     def limits(self) -> ConcurrencyLimits:
-        """The limits this gate enforces."""
+        """The limits this gate was built from; ``current_limit`` gives the live caps."""
         return self._limits
+
+    def current_limit(self, group: str | None) -> int | None:
+        """Return the live cap for *group* (``None`` for the run-wide cap)."""
+        if group is None:
+            return self._max_in_flight
+        return self._group_limits.get(group)
+
+    def set_limit(self, group: str | None, limit: int) -> None:
+        """Change the live cap for *group* without touching issued tickets.
+
+        Args:
+            group: A group the run's limits define, or ``None`` for the
+                run-wide cap.
+            limit: The new cap; at least 1.
+
+        Raises:
+            AdmissionLimitError: If *group* is not one the limits define or
+                *limit* is below 1.
+        """
+        if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
+            raise AdmissionLimitError(f"admission limit must be an int >= 1, got {limit!r}")
+        if group is None:
+            self._max_in_flight = limit
+            return
+        if group not in self._group_limits:
+            raise AdmissionLimitError(
+                f"concurrency group {group!r} is not one this run defines "
+                f"({sorted(self._group_limits)}); groups cannot be added mid-run"
+            )
+        self._group_limits[group] = limit
 
     @property
     def in_flight(self) -> int:
@@ -100,7 +134,7 @@ class LimitedAdmissionGate(AdmissionGate):
                 limits define no groups.
         """
         group = knot.config.concurrency_group
-        group_limit = self._limits.group_limit(group)
+        group_limit = self._group_limits.get(group) if group is not None else None
         if group is not None and group_limit is None and self._limits.groups:
             raise UndefinedConcurrencyGroupError(knot.knot_id, group, self._limits.groups)
         if self._max_in_flight is not None and self._in_flight >= self._max_in_flight:
