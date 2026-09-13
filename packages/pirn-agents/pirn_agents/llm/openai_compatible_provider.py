@@ -36,6 +36,17 @@ from pirn_agents.types.messaging.finish_reason import FinishReason
 class OpenAICompatibleProvider(HttpStructuredOutputProvider):
     """Provider speaking the ``chat/completions`` HTTP wire format."""
 
+    def content_identity(self) -> Mapping[str, Any] | None:
+        """Opt this provider into content identity (PIR-840).
+
+        Its constructor adds no arguments to
+        :class:`~pirn_agents.llm.base_llm_provider.BaseLLMProvider`, and its wire
+        format, completions path and fixed headers are fixed by the class, which the
+        canonical form names. The base's config is therefore its whole
+        behaviour-relevant identity. The credential is excluded.
+        """
+        return super().content_identity()
+
     def _tool_adapter(self) -> ProviderAdapter:
         return OpenAICompatibleToolAdapter()
 
