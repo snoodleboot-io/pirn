@@ -10,25 +10,32 @@ routes to:
 
 Algorithm:
     1. Call the LLM with a classification prompt; expect one of SIMPLE,
-       MODERATE, or COMPLEX in the response. Resolve the reply to an arm with
-       :meth:`AdaptiveRAGPipeline._select_complexity_route`, which prefers an exact match and
-       falls back to a most-specific-first substring test.
-    2. **SIMPLE branch** — run a single :class:`LLMChatCall` directly on the
-       query and wrap the result via :class:`RAGResponseBuilder`.
-    3. **COMPLEX branch** — ask the LLM to decompose the query into three
-       sub-questions; retrieve ``top_k`` hits per sub-question via one
-       :class:`MemorySearchRetriever` each, merged by an :class:`Aggregator`
-       so the retrievals are engine-scheduled siblings rather than a Python
-       loop; build a prompt with :class:`RAGPromptBuilder`; call the LLM; wrap
-       via :class:`RAGResponseBuilder`.
-    4. **MODERATE branch** (default) — retrieve ``top_k`` hits for the
-       original query; build prompt; call LLM; wrap via
-       :class:`RAGResponseBuilder`.
-    5. Return the selected arm's sink knot. Every arm is built into the inner
-       tapestry ``SubTapestry.__call__`` already opened, so its knots belong to
-       the run this pipeline reports; only ``classify`` and (on the COMPLEX
-       path) ``decompose`` need their own inner run, because their values are
-       required in Python before the rest of the graph can be built.
+       MODERATE, or COMPLEX in the response. Resolve the reply to a route name
+       with :meth:`AdaptiveRAGPipeline._select_complexity_route`, which prefers
+       an exact match and falls back to a most-specific-first substring test.
+    2. Wire the route through a core :class:`~pirn.nodes.branch.branch.Branch`
+       (ADR agents-speaks-core WS5b) instead of a Python ``if route == ...``:
+       each arm's *entry* knot takes the matching
+       :class:`~pirn.nodes.branch.branch_output.BranchOutput` as an implicit
+       dependency, so the unselected arms' knots are never invoked (skip
+       propagates from the closed branch through the whole arm) rather than
+       merely having their result discarded.
+    3. **SIMPLE arm** — a single :class:`LLMChatCall` directly on the query,
+       gated on ``branch["simple"]``, wrapped via :class:`RAGResponseBuilder`.
+    4. **MODERATE arm** — :class:`MemorySearchRetriever` (gated on
+       ``branch["moderate"]``) retrieves ``top_k`` hits for the original
+       query; build prompt; call LLM; wrap via :class:`RAGResponseBuilder`.
+    5. **COMPLEX arm** — wrapped as its own
+       :class:`~pirn_agents.specializations.rag._complex_rag_arm._ComplexRagArm`
+       (gated on ``branch["complex"]``) because its decompose-then-fan-out
+       shape needs a dynamic sub-question count resolved in Python before the
+       retrieval knots can be built — see that class's docstring for why
+       gating the *knot itself*, not just its entry input, is what makes this
+       arm's decompose call lazy too.
+    6. Fuse the three (mutually-exclusive) arm outcomes with an
+       :class:`Aggregator` under ``ErrorPolicy.RECEIVE_ERRORS`` — exactly one
+       arm resolves ``Ok``, the other two are ``Skipped`` — and return that
+       fused answer wrapped as the pipeline's sink.
 
 References:
     - Adaptive RAG: https://arxiv.org/abs/2403.14403
@@ -38,15 +45,20 @@ from __future__ import annotations
 
 from typing import Any, ClassVar
 
+from pirn.core.err import Err
+from pirn.core.error_policy import ErrorPolicy
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.ok import Ok
+from pirn.core.result import Result
 from pirn.nodes.aggregator import Aggregator
-from pirn.tapestry import Tapestry
+from pirn.nodes.branch.branch import Branch
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
+from pirn_agents.specializations.rag._complex_rag_arm import _ComplexRagArm
 from pirn_agents.specializations.rag.llm_chat_call import LLMChatCall
 from pirn_agents.specializations.rag.memory_search_retriever import (
     MemorySearchRetriever,
@@ -57,35 +69,51 @@ from pirn_agents.specializations.rag.rag_prompt_builder import (
 from pirn_agents.specializations.rag.rag_response_builder import (
     RAGResponseBuilder,
 )
+from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class AdaptiveRAGPipeline(AgentPipeline):
     """Classify query complexity, then route to naive RAG, multi-hop RAG, or direct LLM."""
 
     @staticmethod
-    def _merge_hits(**per_question: Any) -> list[Any]:
-        """Flatten the per-sub-question retrieval results into one hit list.
-
-        Used as an :class:`Aggregator` combine so the multi-hop retrievals
-        are engine-scheduled siblings rather than a Python loop. A plain
-        ``@staticmethod`` (not a closure) so the aggregator carries no
-        captured state.
+    def _route_selector(raw_reply: str) -> str:
+        """``Branch`` selector: map the classifier's raw reply to a route name.
 
         Args:
-            **per_question: One resolved retriever output per sub-question,
-                keyed ``hits_0``, ``hits_1``, … Sorted by key so the merged
-                order follows sub-question order regardless of completion
-                order.
+            raw_reply: The classify knot's resolved (unprocessed) text.
 
         Returns:
-            The concatenated hits.
+            One of ``"simple"``, ``"moderate"`` or ``"complex"``.
         """
-        merged: list[Any] = []
-        for key in sorted(per_question, key=lambda name: int(name.rsplit("_", 1)[1])):
-            hits = per_question[key]
-            if isinstance(hits, list):
-                merged.extend(hits)
-        return merged
+        return AdaptiveRAGPipeline._select_complexity_route(str(raw_reply).strip().upper())
+
+    @staticmethod
+    def _pick_selected_response(**arms: Result[AgentResponse]) -> AgentResponse:
+        """``Aggregator`` combine: return whichever arm's branch was selected.
+
+        Args:
+            **arms: One raw :class:`~pirn.core.result.Result` per arm
+                (``RECEIVE_ERRORS``), keyed by route name — exactly one is
+                ``Ok`` since ``Branch`` selects exactly one arm and every
+                arm's entry knot is gated on its own
+                :class:`~pirn.nodes.branch.branch_output.BranchOutput`.
+
+        Returns:
+            The selected arm's :class:`AgentResponse`.
+
+        Raises:
+            RuntimeError: If the selected arm's own value was ``Err``, or no
+                arm resolved ``Ok`` (an invariant violation).
+        """
+        for name, result in arms.items():
+            if isinstance(result, Ok):
+                return result.value
+            if isinstance(result, Err):
+                raise RuntimeError(
+                    f"AdaptiveRAGPipeline: selected arm {name!r} failed: "
+                    f"{result.record.exc_type}: {result.record.message}"
+                )
+        raise RuntimeError("AdaptiveRAGPipeline: no route arm was selected")
 
     @staticmethod
     def _select_complexity_route(complexity: str) -> str:
@@ -146,15 +174,6 @@ class AdaptiveRAGPipeline(AgentPipeline):
         ),
     )
 
-    _decompose_prompt: ClassVar[PromptBinding] = PromptBinding(
-        name="specializations.rag.adaptive_rag_pipeline.decompose_prompt",
-        default=(
-            "Decompose the following question into exactly three concise "
-            "sub-questions, one per line, no numbering or bullets.\n\n"
-            "Question: {{ query }}"
-        ),
-    )
-
     def __init__(
         self,
         *,
@@ -178,91 +197,79 @@ class AdaptiveRAGPipeline(AgentPipeline):
             query: The user query string to classify and answer.
 
         Returns:
-            An AgentResponse containing the LLM-generated answer.
+            The sink knot whose output is the selected arm's
+            :class:`AgentResponse`.
         """
         classify_prompt = type(self)._classify_prompt.render({"query": query})
-        with Tapestry() as inner_classify:
-            LLMChatCall(
-                prompt=classify_prompt,
-                llm=llm,
-                _config=KnotConfig(id="classify"),
-            )
-        classify_result = await self._run_inner(inner_classify)
-        complexity = str(classify_result.outputs.get("classify", "")).strip().upper()
+        classify = LLMChatCall(
+            prompt=classify_prompt,
+            llm=llm,
+            _config=KnotConfig(id="classify"),
+        )
+        branch = Branch(
+            input=classify,
+            selector=AdaptiveRAGPipeline._route_selector,
+            branches=(
+                type(self)._route_simple,
+                type(self)._route_moderate,
+                type(self)._route_complex,
+            ),
+            _config=KnotConfig(id="route"),
+        )
 
-        route = AdaptiveRAGPipeline._select_complexity_route(complexity)
+        # Every arm below is unconditionally built into this graph, but only
+        # the selected one ever calls its LLM/retrieval: each arm's entry knot
+        # takes the matching BranchOutput as an implicit dependency (a plain
+        # extra kwarg `process()` absorbs via `**_`), so a non-selected arm's
+        # BranchOutput resolves Skipped and the whole arm chain skips with it
+        # (ADR agents-speaks-core WS5b).
+        simple_answer = LLMChatCall(
+            prompt=query,
+            llm=llm,
+            _route_gate=branch[type(self)._route_simple],
+            _config=KnotConfig(id="generate_simple"),
+        )
+        simple_response = RAGResponseBuilder(
+            answer=simple_answer, _config=KnotConfig(id="response_simple")
+        )
 
-        # Each arm is built into the inner tapestry `SubTapestry.__call__` has
-        # already opened, and returns its real sink knot. Previously every arm
-        # opened its own `with Tapestry()`, ran it via `_run_inner`, pulled the
-        # answer out, and handed back a `_ResultSource` closure wrapping the
-        # precomputed value — so the arm's knots were invisible to the run this
-        # pipeline reports. Only the decisions that must be resolved before the
-        # graph can be built still need their own inner run.
-        if route == type(self)._route_simple:
-            answer = LLMChatCall(
-                prompt=query,
-                llm=llm,
-                _config=KnotConfig(id="generate"),
-            )
-            return RAGResponseBuilder(answer=answer, _config=KnotConfig(id="response"))
-
-        if route == type(self)._route_complex:
-            decompose_prompt = type(self)._decompose_prompt.render({"query": query})
-            with Tapestry() as inner_decompose:
-                LLMChatCall(
-                    prompt=decompose_prompt,
-                    llm=llm,
-                    _config=KnotConfig(id="decompose"),
-                )
-            decompose_result = await self._run_inner(inner_decompose)
-            sub_questions_raw = str(decompose_result.outputs.get("decompose", query))
-            sub_questions = [
-                line.strip() for line in sub_questions_raw.splitlines() if line.strip()
-            ][:3]
-            if not sub_questions:
-                sub_questions = [query]
-
-            retrievers = {
-                f"hits_{index}": MemorySearchRetriever(
-                    store=memory,
-                    query=sub_q,
-                    top_k=top_k,
-                    _config=KnotConfig(id=f"sub_retrieve_{index}"),
-                )
-                for index, sub_q in enumerate(sub_questions)
-            }
-            merged = Aggregator(
-                combine=AdaptiveRAGPipeline._merge_hits,
-                _config=KnotConfig(id="merge"),
-                **retrievers,
-            )
-            prompt_knot = RAGPromptBuilder(
-                query=query,
-                retrieved=merged,
-                _config=KnotConfig(id="prompt"),
-            )
-            answer_knot = LLMChatCall(
-                prompt=prompt_knot,
-                llm=llm,
-                _config=KnotConfig(id="generate"),
-            )
-            return RAGResponseBuilder(answer=answer_knot, _config=KnotConfig(id="response"))
-
-        retrieved = MemorySearchRetriever(
+        moderate_retrieved = MemorySearchRetriever(
             store=memory,
             query=query,
             top_k=top_k,
+            _route_gate=branch[type(self)._route_moderate],
             _config=KnotConfig(id="retrieve"),
         )
-        prompt = RAGPromptBuilder(
+        moderate_prompt = RAGPromptBuilder(
             query=query,
-            retrieved=retrieved,
-            _config=KnotConfig(id="prompt"),
+            retrieved=moderate_retrieved,
+            _config=KnotConfig(id="prompt_moderate"),
         )
-        answer = LLMChatCall(
-            prompt=prompt,
+        moderate_answer = LLMChatCall(
+            prompt=moderate_prompt,
             llm=llm,
-            _config=KnotConfig(id="generate"),
+            _config=KnotConfig(id="generate_moderate"),
         )
-        return RAGResponseBuilder(answer=answer, _config=KnotConfig(id="response"))
+        moderate_response = RAGResponseBuilder(
+            answer=moderate_answer, _config=KnotConfig(id="response_moderate")
+        )
+
+        # The complex arm is gated as a whole knot, not just its entry input,
+        # because its dynamic sub-question fan-out needs a nested resolve
+        # inside process() -- see _ComplexRagArm's docstring.
+        complex_response = _ComplexRagArm(
+            query=query,
+            memory=memory,
+            llm=llm,
+            top_k=top_k,
+            route_gate=branch[type(self)._route_complex],
+            _config=KnotConfig(id="response_complex"),
+        )
+
+        return Aggregator(
+            combine=AdaptiveRAGPipeline._pick_selected_response,
+            _config=KnotConfig(id="rag_result", error_policy=ErrorPolicy.RECEIVE_ERRORS),
+            simple=simple_response,
+            moderate=moderate_response,
+            complex=complex_response,
+        )

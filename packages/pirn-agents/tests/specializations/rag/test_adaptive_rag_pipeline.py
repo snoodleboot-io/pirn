@@ -176,19 +176,79 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             )
 
 
+class TestAdaptiveRAGPipelineArmLaziness(unittest.IsolatedAsyncioTestCase):
+    """The unselected arms' LLM calls never fire (ADR agents-speaks-core WS5b).
+
+    ``Branch`` unconditionally wires all three arms into the graph (see
+    ``TestAdaptiveRAGPipelineArmObservability``), so laziness now comes from
+    gating, not from omission. ``StubLLMProvider`` is exhaustive by default
+    (a call past the scripted responses raises), so scripting *exactly* the
+    number of calls the selected arm needs and asserting ``llm.calls`` has
+    that same length, directly, proves the other two arms' generation calls
+    were never attempted — not just that the run happened to succeed.
+    """
+
+    async def test_simple_route_never_calls_moderate_or_complex_generation(self) -> None:
+        memory = StubMemoryStore([{"text": "ctx"}])
+        llm = StubLLMProvider(["SIMPLE", "direct answer"])
+        with Tapestry() as t:
+            AdaptiveRAGPipeline(
+                query="q", memory=memory, llm=llm, _config=KnotConfig(id="adaptive")
+            )
+        run = await t.run(RunRequest())
+        assert run.succeeded
+        # classify + generate_simple only -- generate_moderate/decompose/
+        # generate (complex) never called.
+        assert len(llm.calls) == 2
+        assert memory.search_queries == []
+
+    async def test_moderate_route_never_calls_simple_or_complex_generation(self) -> None:
+        memory = StubMemoryStore([{"text": "ctx"}])
+        llm = StubLLMProvider(["MODERATE", "rag answer"])
+        with Tapestry() as t:
+            AdaptiveRAGPipeline(
+                query="q", memory=memory, llm=llm, top_k=1, _config=KnotConfig(id="adaptive")
+            )
+        run = await t.run(RunRequest())
+        assert run.succeeded
+        # classify + generate_moderate only -- generate_simple/decompose/
+        # generate (complex) never called.
+        assert len(llm.calls) == 2
+        assert len(memory.search_queries) == 1
+
+    async def test_complex_route_never_calls_simple_or_moderate_generation(self) -> None:
+        memory = StubMemoryStore([{"text": "ctx"}])
+        llm = StubLLMProvider(["COMPLEX", "s1\ns2\ns3", "mh answer"])
+        with Tapestry() as t:
+            AdaptiveRAGPipeline(
+                query="q", memory=memory, llm=llm, top_k=1, _config=KnotConfig(id="adaptive")
+            )
+        run = await t.run(RunRequest())
+        assert run.succeeded
+        # classify + decompose + generate (complex) only -- generate_simple/
+        # generate_moderate never called.
+        assert len(llm.calls) == 3
+        assert len(memory.search_queries) == 3
+
+
 class TestAdaptiveRAGPipelineArmObservability(unittest.IsolatedAsyncioTestCase):
-    """The selected arm's knots must belong to the run this pipeline reports.
+    """Every arm's knots must belong to the run this pipeline reports.
 
     Each arm used to open its own `with Tapestry()`, run it via `_run_inner`,
     pull the answer out, and return a `_ResultSource` closure wrapping the
     precomputed value. The pipeline's own inner run therefore contained exactly
     one knot — that closure — on every path, whatever work the arm had done.
-    PIR-715 builds each arm into the inner tapestry `SubTapestry.__call__`
-    already opens and returns its real sink.
 
-    Counts here are the shape of the arm, not a magic number: SIMPLE is
-    generate + response; MODERATE adds retrieve + prompt; COMPLEX is three
-    retrievers + merge + prompt + generate + response.
+    PIR-715 first fixed this by building only the *selected* arm into the
+    inner tapestry `SubTapestry.__call__` already opens. ADR agents-speaks-core
+    WS5b replaced the Python `if route == ...` with a core `Branch`
+    (`route` knot), so now *every* arm is unconditionally wired into the same
+    graph — the inner knot count is the fixed shape of all three arms plus the
+    branch/classify/fuse scaffolding, not a per-arm number — while gating each
+    arm's own entry input on its matching `BranchOutput` keeps only the
+    selected arm's LLM/retrieval calls from actually firing. That is what
+    `searches` (and, implicitly, `StubLLMProvider` not running out of scripted
+    replies) verifies below, not the knot count.
     """
 
     async def _inner_knot_count(self, script: list[str], **kwargs: object) -> tuple[int, int]:
@@ -206,19 +266,26 @@ class TestAdaptiveRAGPipelineArmObservability(unittest.IsolatedAsyncioTestCase):
         assert run.succeeded
         return run.lineage[0].extra["inner_knot_count"], len(memory.search_queries)
 
+    #: classify + route (Branch) + 3 BranchOutputs + generate_simple +
+    #: response_simple + retrieve + prompt_moderate + generate_moderate +
+    #: response_moderate + response_complex (a nested SubTapestry, one knot
+    #: from this run's perspective) + rag_result (Aggregator) == 13, on every
+    #: route: all three arms are always wired into the same graph.
+    _total_arm_knots = 13
+
     async def test_simple_arm_is_recorded(self) -> None:
         count, searches = await self._inner_knot_count(["SIMPLE", "direct answer"])
-        assert count == 2
+        assert count == self._total_arm_knots
         assert searches == 0
 
     async def test_moderate_arm_is_recorded(self) -> None:
         count, searches = await self._inner_knot_count(["MODERATE", "rag answer"], top_k=1)
-        assert count == 4
+        assert count == self._total_arm_knots
         assert searches == 1
 
     async def test_complex_arm_is_recorded(self) -> None:
         count, searches = await self._inner_knot_count(
             ["COMPLEX", "s1\ns2\ns3", "mh answer"], top_k=1
         )
-        assert count == 7
+        assert count == self._total_arm_knots
         assert searches == 3
