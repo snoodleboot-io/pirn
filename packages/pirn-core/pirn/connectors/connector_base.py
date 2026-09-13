@@ -108,11 +108,39 @@ class ConnectorBase(PirnOpaqueValue):
         """Drop the credential reference so the secret becomes GC-able."""
         self._credential = None
 
+    def __pirn_canonical__(self) -> Any:
+        """Return the content-hash form: an identity-keyed token by default.
+
+        :meth:`_pirn_audit_dict` is a per-class constant, so it cannot be the
+        hash. Two connectors of one class aimed at different endpoints, models
+        or databases would hash equal, and replay would serve a recording made
+        against one to a run configured with the other (PIR-848). Keying on
+        identity turns that false match into a false mismatch, which is safe:
+        replay refuses instead of substituting.
+
+        The token is the one :class:`PirnOpaqueValue` emits by default,
+        ``<TypeName@identity_token>``. It is unique per instance even when
+        CPython reuses a freed connector's address (PIR-852). It holds no
+        configuration, so no credential can reach lineage through it, and it
+        does not change when :meth:`_clear_credentials` runs. A copy of a
+        connector is a different instance and gets a different token.
+
+        A subclass whose behaviour is fully determined by secret-free
+        configuration may override this to return that configuration instead.
+
+        Known gap (PIR-853): a connector nested inside a pydantic model is still
+        hashed through ``model_dump``, i.e. through :meth:`_pirn_audit_dict`, so
+        this hook is not reached there.
+        """
+        return PirnOpaqueValue._pirn_audit_dict(self)
+
     def _pirn_audit_dict(self) -> Any:
         """Return a stable, secret-free audit form.
 
         The live client is opaque and the raw secret never appears; only the
         connector type and whether a credential is currently held are emitted.
+        This is an audit form, not an identity: content hashing goes through
+        :meth:`__pirn_canonical__`.
         """
         return {
             "connector": type(self).__name__,

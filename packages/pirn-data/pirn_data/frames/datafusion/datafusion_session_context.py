@@ -11,8 +11,6 @@ The wrapped context is accessed via the read-only :attr:`ctx` property.
 
 from __future__ import annotations
 
-from typing import Any
-
 import datafusion as df
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
@@ -30,6 +28,3 @@ class DatafusionSessionContext(PirnOpaqueValue):
     @property
     def ctx(self) -> df.SessionContext:
         return self._ctx
-
-    def _pirn_audit_dict(self) -> Any:
-        return f"<DatafusionSessionContext@{id(self._ctx):x}>"

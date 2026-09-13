@@ -12,8 +12,6 @@ Analogous to :class:`~pirn_data.frames.datafusion.datafusion_session_context.Dat
 
 from __future__ import annotations
 
-from typing import Any
-
 import duckdb
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
@@ -31,6 +29,3 @@ class DuckDBConnection(PirnOpaqueValue):
     @property
     def conn(self) -> duckdb.DuckDBPyConnection:
         return self._conn
-
-    def _pirn_audit_dict(self) -> Any:
-        return f"<DuckDBConnection@{id(self._conn):x}>"

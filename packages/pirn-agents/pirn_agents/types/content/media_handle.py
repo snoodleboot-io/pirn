@@ -75,15 +75,18 @@ class MediaHandle(PirnOpaqueValue):
     def _pirn_audit_dict(self) -> dict[str, Any]:
         """Return an audit form that keeps raw bytes out of the content hash.
 
-        Inline payloads emit an identity token (``<bytes@hex>``) plus a size, so
-        two handles wrapping equal bytes stay identity-keyed and the bytes are
-        never re-serialised through lineage; references emit their stable
-        ``uri`` descriptor.
+        Inline payloads emit this handle's identity token (``<bytes@token>``)
+        plus a size, so two handles wrapping equal bytes stay identity-keyed and
+        the bytes are never re-serialised through lineage; references emit their
+        stable ``uri`` descriptor. The token comes from
+        :meth:`~pirn.core.pirn_opaque_value.PirnOpaqueValue._pirn_identity_token`,
+        not ``id(self.data)``, because a freed payload's address is reused and
+        would repeat a token (PIR-852).
         """
         if self.data is not None:
             return {
                 "media_type": self.media_type,
-                "inline": f"<bytes@{id(self.data):x}>",
+                "inline": f"<bytes@{self._pirn_identity_token()}>",
                 "size": len(self.data),
             }
         return {"media_type": self.media_type, "uri": self.uri}
