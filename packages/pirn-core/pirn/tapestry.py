@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from pirn.backends.base.run_history import RunHistory
     from pirn.backends.base.tapestry_store import TapestryStore
+    from pirn.core.concurrency.concurrency_limits import ConcurrencyLimits
     from pirn.core.identity.identity_resolver import IdentityResolver
     from pirn.core.knot import Knot
     from pirn.core.run_request import RunRequest
@@ -156,6 +157,15 @@ class Tapestry:
     dispatcher:
         Default dispatcher used for runs that don't override it.  Defaults
         to ``LocalDispatcher``.
+    concurrency:
+        Default ``ConcurrencyLimits`` for runs whose ``RunRequest`` carries
+        none: how many knots may be in flight at once, overall and per
+        ``KnotConfig.concurrency_group``.  ``None`` (the default) is
+        unbounded.  A request's own ``concurrency`` always wins.  Limits are
+        not forwarded into ``SubTapestry`` / ``LoopSubTapestry`` inner runs
+        yet; an inner tapestry applies only its own default (PIR-841 slice 3).
+        The effective ceiling is also bounded by the dispatcher's own
+        capacity, e.g. ``ThreadDispatcher(max_workers=...)``.
     """
 
     def __init__(
@@ -170,6 +180,7 @@ class Tapestry:
         traceback_filter: Callable[[str], str] | None = None,
         transport: DataTransport | None = None,
         identity_resolver: IdentityResolver | None = None,
+        concurrency: ConcurrencyLimits | None = None,
     ) -> None:
         # Defer imports to avoid a circular at module load time.
         from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
@@ -204,6 +215,7 @@ class Tapestry:
         self._identity_resolver = identity_resolver or ChainedIdentityResolver(
             [EnvIdentityResolver(), OsIdentityResolver()]
         )
+        self._concurrency: ConcurrencyLimits | None = concurrency
 
         # Token returned by ContextVar.set, used to reset on __exit__.
         self._token: Any = None
@@ -233,6 +245,11 @@ class Tapestry:
     @property
     def identity_resolver(self) -> IdentityResolver:
         return self._identity_resolver
+
+    @property
+    def concurrency(self) -> ConcurrencyLimits | None:
+        """Concurrency limits for runs whose ``RunRequest`` carries none."""
+        return self._concurrency
 
     # ------------------------------------------------------------- knot ops
 
@@ -387,6 +404,9 @@ class Tapestry:
                 transport=self._transport,
                 actor=resolved_actor,
                 replay=replay,
+                concurrency=(
+                    request.concurrency if request.concurrency is not None else self._concurrency
+                ),
             )
         finally:
             _current_run_id.reset(token_run_id)

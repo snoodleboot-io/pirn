@@ -19,13 +19,14 @@ class AdmissionGate:
 
     Admission is non-blocking by design: ``try_admit`` answers immediately,
     and ``wait_for_release`` is the one place a scheduler parks when nothing
-    at all can start.  Today the ready queue is a single FIFO, so a refused
-    head stops admission until capacity frees up; nothing queued behind it is
-    offered in the meantime.
+    at all can start.  The ready queue keeps one FIFO per concurrency group
+    and offers their heads in readiness order, so a head refused because its
+    group is full does not stop knots of other groups from being offered;
+    only the knots queued behind it in its own group wait (design §6).
 
-    TODO(PIR-841 slice 2): keep one FIFO per concurrency group (design §6) so
-    a refused head in a saturated group does not block ready knots in other
-    groups.
+    A gate must refuse only for reasons shared by the knot's whole group --
+    its group's budget or the run's -- because the queue passes over the
+    rest of a refused head's group.
 
     Implementations inherit and override every method.
     """
