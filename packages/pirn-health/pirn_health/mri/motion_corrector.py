@@ -38,54 +38,6 @@ except ImportError:
     _HAS_DIPY = False
 
 
-def _correct_motion(nifti_path: str, output_nifti_path: str) -> None:
-    if (
-        not _HAS_DIPY
-        or nib is None
-        or MutualInformationMetric is None
-        or AffineRegistration is None
-        or RigidTransform3D is None
-    ):
-        raise ImportError(
-            "nibabel and dipy are required for MotionCorrector — install with: pip install 'pirn[mri]'"
-        )
-    assert MutualInformationMetric is not None
-    assert AffineRegistration is not None
-    assert RigidTransform3D is not None
-    img = nib.load(nifti_path)
-    data = np.asarray(img.dataobj)
-
-    if data.ndim == 3:
-        nib.save(img, output_nifti_path)
-        return
-
-    affine = img.affine
-    reference = data[..., 0]
-    corrected = np.empty_like(data)
-    corrected[..., 0] = reference
-
-    metric = MutualInformationMetric(nbins=32, sampling_proportion=None)
-    affreg = AffineRegistration(
-        metric=metric, level_iters=[10000, 1000, 100], sigmas=[3.0, 1.0, 0.0], factors=[4, 2, 1]
-    )
-    transform = RigidTransform3D()
-
-    for vol in range(1, data.shape[-1]):
-        moving = data[..., vol]
-        mapping = affreg.optimize(
-            reference,
-            moving,
-            transform,
-            None,
-            static_grid2world=affine,
-            moving_grid2world=affine,
-        )
-        corrected[..., vol] = mapping.transform(moving)
-
-    out_img = nib.Nifti1Image(corrected, affine, img.header)
-    nib.save(out_img, output_nifti_path)
-
-
 class MotionCorrector(Knot):
     """Apply motion correction to an MRI NIfTI file."""
 
@@ -128,5 +80,53 @@ class MotionCorrector(Knot):
         ):
             if not isinstance(value, str) or not value:
                 raise ValueError(f"MotionCorrector: {label} must be a non-empty string")
-        await asyncio.to_thread(_correct_motion, nifti_path, output_nifti_path)
+        await asyncio.to_thread(self._correct_motion, nifti_path, output_nifti_path)
         return output_nifti_path
+
+    @staticmethod
+    def _correct_motion(nifti_path: str, output_nifti_path: str) -> None:
+        if (
+            not _HAS_DIPY
+            or nib is None
+            or MutualInformationMetric is None
+            or AffineRegistration is None
+            or RigidTransform3D is None
+        ):
+            raise ImportError(
+                "nibabel and dipy are required for MotionCorrector — install with: pip install 'pirn[mri]'"
+            )
+        assert MutualInformationMetric is not None
+        assert AffineRegistration is not None
+        assert RigidTransform3D is not None
+        img = nib.load(nifti_path)
+        data = np.asarray(img.dataobj)
+
+        if data.ndim == 3:
+            nib.save(img, output_nifti_path)
+            return
+
+        affine = img.affine
+        reference = data[..., 0]
+        corrected = np.empty_like(data)
+        corrected[..., 0] = reference
+
+        metric = MutualInformationMetric(nbins=32, sampling_proportion=None)
+        affreg = AffineRegistration(
+            metric=metric, level_iters=[10000, 1000, 100], sigmas=[3.0, 1.0, 0.0], factors=[4, 2, 1]
+        )
+        transform = RigidTransform3D()
+
+        for vol in range(1, data.shape[-1]):
+            moving = data[..., vol]
+            mapping = affreg.optimize(
+                reference,
+                moving,
+                transform,
+                None,
+                static_grid2world=affine,
+                moving_grid2world=affine,
+            )
+            corrected[..., vol] = mapping.transform(moving)
+
+        out_img = nib.Nifti1Image(corrected, affine, img.header)
+        nib.save(out_img, output_nifti_path)

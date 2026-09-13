@@ -6,9 +6,10 @@ domain knots that consume :class:`~pirn_health.types.dicom_payload.DICOMPayload`
 Algorithm:
     1. Receive ``body`` (raw DICOM bytes) and ``series_id``.
     2. Validate types and values.
-    3. Write the bytes to a temporary directory as ``{series_id}.dcm`` on a thread.
+    3. Parse ``body`` in memory with ``pydicom.dcmread(io.BytesIO(body))`` on a
+       thread — no filesystem I/O; nothing is written to disk.
     4. Return a :class:`DICOMPayload` carrying a :class:`DICOMSeries` metadata stub
-       and the temporary directory path.
+       and the parsed ``pydicom.Dataset``.
 
 References:
     - DICOMweb: https://www.dicomstandard.org/dicomweb
@@ -18,9 +19,8 @@ References:
 from __future__ import annotations
 
 import asyncio
-import tempfile
+import io
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
 
 from pirn.core.assembler import Assembler
@@ -29,17 +29,6 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_health.types.dicom_payload import DICOMPayload
 from pirn_health.types.dicom_series import DICOMSeries
-
-
-def _write_dicom(body: bytes, series_id: str) -> DICOMPayload:
-    temp_dir = tempfile.mkdtemp()
-    dest = Path(temp_dir) / f"{series_id}.dcm"
-    dest.write_bytes(body)
-    series = DICOMSeries(
-        series_uid=series_id,
-        fetched_at=datetime.now(UTC),
-    )
-    return DICOMPayload(metadata=series, data=temp_dir)
 
 
 class DicomPacsAssembler(Assembler):
@@ -61,7 +50,7 @@ class DicomPacsAssembler(Assembler):
         series_id: str,
         **_: Any,
     ) -> DICOMPayload:
-        """Write DICOM bytes to a temp directory and return a :class:`DICOMPayload`.
+        """Parse DICOM bytes in memory and return a :class:`DICOMPayload`.
 
         Args:
             body: Raw DICOM file bytes from an object store or PACS connector.
@@ -69,11 +58,12 @@ class DicomPacsAssembler(Assembler):
 
         Returns:
             :class:`DICOMPayload` carrying a :class:`DICOMSeries` metadata stub and
-            the path to the temporary directory where the ``.dcm`` file was written.
+            the parsed ``pydicom.Dataset``.
 
         Raises:
             TypeError: If ``body`` is not ``bytes`` or ``series_id`` is not a ``str``.
             ValueError: If ``series_id`` is empty.
+            ImportError: If ``pydicom`` is not installed.
         """
         if not isinstance(body, bytes):
             raise TypeError(f"DicomPacsAssembler: body must be bytes, got {type(body).__name__}")
@@ -83,4 +73,19 @@ class DicomPacsAssembler(Assembler):
             )
         if not series_id:
             raise ValueError("DicomPacsAssembler: series_id must be non-empty")
-        return await asyncio.to_thread(_write_dicom, body, series_id)
+        dataset = await asyncio.to_thread(self._parse_dicom, body)
+        series = DICOMSeries(
+            series_uid=series_id,
+            fetched_at=datetime.now(UTC),
+        )
+        return DICOMPayload(metadata=series, data=dataset)
+
+    @staticmethod
+    def _parse_dicom(body: bytes) -> Any:
+        try:
+            import pydicom  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "DicomPacsAssembler requires 'pydicom'. Install via `pip install pirn-health[health]`."
+            ) from exc
+        return pydicom.dcmread(io.BytesIO(body))

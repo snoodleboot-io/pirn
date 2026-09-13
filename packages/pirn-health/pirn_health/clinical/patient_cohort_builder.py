@@ -82,24 +82,19 @@ class PatientCohortBuilder(SubTapestry):
                 raise TypeError(
                     f"PatientCohortBuilder: stage {stage_name!r} criteria must be a Mapping"
                 )
-        current = tuple(records)
         seed = _PassThrough(
-            records=current,
+            records=tuple(records),
             _config=KnotConfig(id="cohort-seed"),
         )
         previous: Knot = seed
         for stage_name, criteria in stages.items():
-            # The filter consumes a sequence directly; tie ordering by
-            # naming the stage with a stable id derived from the user
-            # mapping keys.
-            stage_records = tuple(
-                record
-                for record in current
-                if all(predicate(record) for predicate in criteria.values())
-            )
-            current = stage_records
+            # Chain each stage onto the previous stage's Knot output so the
+            # framework actually resolves and runs every filter in the inner
+            # graph, instead of pre-computing the filtered tuple here and
+            # handing each ClinicalTrialEligibilityFilter an already-final
+            # answer to redundantly re-wrap.
             previous = ClinicalTrialEligibilityFilter(
-                records=stage_records,
+                records=previous,
                 criteria=criteria,
                 _config=KnotConfig(id=f"cohort-stage-{stage_name}"),
             )

@@ -22,12 +22,12 @@ References:
 
 from __future__ import annotations
 
-import hashlib
 from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_health.clinical.phi_hasher import _PhiHasher
 from pirn_health.types.clinical_record import ClinicalRecord
 
 
@@ -70,13 +70,9 @@ class PHIRedactor(Knot):
         if not salt:
             raise ValueError("PHIRedactor: salt must be non-empty")
 
-        def _hash_id(value: str) -> str:
-            digest = hashlib.sha256(f"{salt}|{value}".encode()).hexdigest()
-            return digest[:16]
-
         return ClinicalRecord(
-            patient_id=_hash_id(record.patient_id),
-            encounter_id=_hash_id(record.encounter_id),
+            patient_id=_PhiHasher.hash_identifier(salt, record.patient_id),
+            encounter_id=_PhiHasher.hash_identifier(salt, record.encounter_id),
             observation_codes=record.observation_codes,
             observed_at=record.observed_at,
             source_system=record.source_system,

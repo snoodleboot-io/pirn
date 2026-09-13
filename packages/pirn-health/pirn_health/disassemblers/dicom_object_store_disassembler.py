@@ -6,9 +6,9 @@ and an object store sink connector that expects raw ``bytes``.
 Algorithm:
     1. Receive a :class:`DICOMPayload`.
     2. Validate the payload type.
-    3. On a thread, list all ``.dcm`` files in ``payload.dicom_dir`` and read the first one
-       via ``pydicom``; raise ``ValueError`` if no files are found.
-    4. Return the raw file bytes.
+    3. On a thread, serialise ``payload.dataset`` with
+       ``dataset.save_as(BytesIO())`` — no filesystem I/O.
+    4. Return the resulting ``bytes``.
 
 References:
     - pydicom: https://pydicom.github.io/
@@ -17,27 +17,14 @@ References:
 from __future__ import annotations
 
 import asyncio
-from pathlib import Path
+import io
 from typing import Any
 
-import pydicom
 from pirn.core.disassembler import Disassembler
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_health.types.dicom_payload import DICOMPayload
-
-
-def _read_first_dcm(payload: DICOMPayload) -> bytes:
-    dcm_files = sorted(Path(payload.dicom_dir).glob("*.dcm"))
-    if not dcm_files:
-        raise ValueError(
-            f"DicomObjectStoreDisassembler: no .dcm files found in {payload.dicom_dir!r}"
-        )
-    ds = pydicom.dcmread(str(dcm_files[0]))
-    buf = pydicom.filebase.DicomBytesIO()
-    pydicom.dcmwrite(buf, ds)
-    return buf.getvalue()
 
 
 class DicomObjectStoreDisassembler(Disassembler):
@@ -57,21 +44,34 @@ class DicomObjectStoreDisassembler(Disassembler):
         payload: DICOMPayload,
         **_: Any,
     ) -> bytes:
-        """Read the first DICOM file from the payload directory and return its bytes.
+        """Serialise the payload's parsed dataset back to DICOM bytes.
 
         Args:
-            payload: :class:`DICOMPayload` carrying the staged DICOM directory path.
+            payload: :class:`DICOMPayload` carrying the parsed ``pydicom.Dataset``.
 
         Returns:
-            Raw ``bytes`` of the first ``.dcm`` file found in ``payload.dicom_dir``.
+            Raw ``bytes`` of the DICOM-encoded dataset.
 
         Raises:
-            TypeError: If ``payload`` is not a :class:`DICOMPayload`.
-            ValueError: If no ``.dcm`` files exist in the staged directory.
+            TypeError: If ``payload`` is not a :class:`DICOMPayload`, or its
+                dataset does not support ``save_as`` (e.g. ``pydicom`` was never
+                available to parse it in the first place).
         """
         if not isinstance(payload, DICOMPayload):
             raise TypeError(
                 f"DicomObjectStoreDisassembler: payload must be DICOMPayload, "
                 f"got {type(payload).__name__}"
             )
-        return await asyncio.to_thread(_read_first_dcm, payload)
+        dataset = payload.dataset
+        if not hasattr(dataset, "save_as"):
+            raise TypeError(
+                "DicomObjectStoreDisassembler: payload.dataset must be a pydicom Dataset "
+                f"(support save_as), got {type(dataset).__name__}"
+            )
+        return await asyncio.to_thread(self._serialise, dataset)
+
+    @staticmethod
+    def _serialise(dataset: Any) -> bytes:
+        buf = io.BytesIO()
+        dataset.save_as(buf)
+        return buf.getvalue()

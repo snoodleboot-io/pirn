@@ -32,15 +32,6 @@ from pirn.core.knot_config import KnotConfig
 from pirn_health.types.wsi_tile_payload import WSITilePayload
 
 
-def _count_mitoses(payloads: Sequence[WSITilePayload], confidence_threshold: float) -> int:
-    total = 0
-    for p in payloads:
-        normalized_var = float(np.var(p.pixels.astype(float))) / (255.0**2 + 1e-6)
-        if normalized_var >= confidence_threshold:
-            total += 1
-    return total
-
-
 class MitosisCounter(Knot):
     """Count mitotic figures across the supplied WSI tile payloads."""
 
@@ -84,4 +75,15 @@ class MitosisCounter(Knot):
             raise TypeError("MitosisCounter: confidence_threshold must be numeric")
         if not 0.0 <= float(confidence_threshold) <= 1.0:
             raise ValueError("MitosisCounter: confidence_threshold must be in [0, 1]")
-        return await asyncio.to_thread(_count_mitoses, list(tiles), float(confidence_threshold))
+        return await asyncio.to_thread(
+            self._count_mitoses, list(tiles), float(confidence_threshold)
+        )
+
+    @staticmethod
+    def _count_mitoses(payloads: Sequence[WSITilePayload], confidence_threshold: float) -> int:
+        total = 0
+        for p in payloads:
+            normalized_var = float(np.var(p.pixels.astype(float))) / (255.0**2 + 1e-6)
+            if normalized_var >= confidence_threshold:
+                total += 1
+        return total

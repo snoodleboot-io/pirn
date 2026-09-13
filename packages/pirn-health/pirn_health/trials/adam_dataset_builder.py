@@ -18,12 +18,19 @@ Math:
 
 References:
     - CDISC. (2021). Analysis Data Model (ADaM) Implementation Guide v1.3.
+
+Note:
+    ``_is_stub`` is ``True`` on this knot: it is a functional placeholder
+    for the production implementation described above, not a complete
+    algorithm. It is registered so pipelines can be wired and tested
+    end-to-end before the real implementation lands; do not treat its
+    output as production-quality.
 """
 
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -33,6 +40,8 @@ from pirn_health.types.clinical_trial_record import ClinicalTrialRecord
 
 class ADaMDatasetBuilder(Knot):
     """Project trial records into an ADaM-style row tuple."""
+
+    _is_stub: ClassVar[bool] = True
 
     def __init__(
         self,
@@ -90,6 +99,11 @@ class ADaMDatasetBuilder(Knot):
                 "subject_id": record.subject_id,
             }
             for derived_column, source_field in derivations.items():
+                # getattr is required here: source_field is a caller-supplied
+                # column name from the `derivations` mapping, not a field
+                # known at type-check time — there is no static alternative
+                # that still lets callers point at an arbitrary
+                # ClinicalTrialRecord attribute.
                 row[derived_column] = getattr(record, source_field, None)
             rows.append(row)
         return tuple(rows)

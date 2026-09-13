@@ -14,30 +14,28 @@ Algorithm:
 References:
     - ANTs: https://github.com/ANTsX/ANTs
     - Avants et al. (2011) A reproducible evaluation of ANTs similarity metric performance in brain image registration.
+
+Note:
+    ``_is_stub`` is ``True`` on this knot: it is a functional placeholder
+    for the production implementation described above, not a complete
+    algorithm. It is registered so pipelines can be wired and tested
+    end-to-end before the real implementation lands; do not treat its
+    output as production-quality.
 """
 
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 
-async def _run_subprocess(cmd: list[str]) -> None:
-    proc = await asyncio.create_subprocess_exec(
-        *cmd,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-    _, stderr = await proc.communicate()
-    if proc.returncode != 0:
-        raise RuntimeError(f"{cmd[0]} failed: {stderr.decode()}")
-
-
 class AtlasAligner(Knot):
     """Align an MRI volume to a named atlas."""
+
+    _is_stub: ClassVar[bool] = True
 
     def __init__(
         self,
@@ -94,5 +92,16 @@ class AtlasAligner(Knot):
             "-o",
             output_aligned_path,
         ]
-        await _run_subprocess(cmd)
+        await self._run_subprocess(cmd)
         return output_aligned_path
+
+    @staticmethod
+    async def _run_subprocess(cmd: list[str]) -> None:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        _, stderr = await proc.communicate()
+        if proc.returncode != 0:
+            raise RuntimeError(f"{cmd[0]} failed: {stderr.decode()}")

@@ -32,15 +32,6 @@ from pirn.core.knot_config import KnotConfig
 from pirn_health.types.wsi_tile_payload import WSITilePayload
 
 
-def _count_cells(payloads: Sequence[WSITilePayload]) -> Mapping[tuple[int, int], int]:
-    result: dict[tuple[int, int], int] = {}
-    for p in payloads:
-        variance = float(np.var(p.pixels.astype(float)))
-        count = int(variance * p.tile.width * p.tile.height / (255.0**2 + 1e-6))
-        result[(p.tile.tile_x, p.tile.tile_y)] = count
-    return result
-
-
 class CellDetector(Knot):
     """Detect cells per WSI tile and return per-tile counts."""
 
@@ -80,4 +71,13 @@ class CellDetector(Knot):
                 raise TypeError("CellDetector: every tile must be WSITilePayload")
         if not isinstance(model_name, str) or not model_name:
             raise ValueError("CellDetector: model_name must be a non-empty string")
-        return await asyncio.to_thread(_count_cells, list(tiles))
+        return await asyncio.to_thread(self._count_cells, list(tiles))
+
+    @staticmethod
+    def _count_cells(payloads: Sequence[WSITilePayload]) -> Mapping[tuple[int, int], int]:
+        result: dict[tuple[int, int], int] = {}
+        for p in payloads:
+            variance = float(np.var(p.pixels.astype(float)))
+            count = int(variance * p.tile.width * p.tile.height / (255.0**2 + 1e-6))
+            result[(p.tile.tile_x, p.tile.tile_y)] = count
+        return result

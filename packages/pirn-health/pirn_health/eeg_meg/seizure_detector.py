@@ -30,31 +30,6 @@ from pirn.core.knot_config import KnotConfig
 from pirn_health.types.health_signal_payload import HealthSignalPayload
 
 
-def _detect_seizures(data: np.ndarray, fs: float, threshold: float) -> list[tuple[float, float]]:
-    window_samples = max(1, int(fs))
-    channel_data = data if data.ndim == 1 else data[0]
-    n_samples = len(channel_data)
-    intervals: list[tuple[float, float]] = []
-    in_seizure = False
-    start_sec = 0.0
-    for i in range(0, n_samples, window_samples):
-        window = channel_data[i : i + window_samples]
-        rms = float(np.sqrt(np.mean(window**2)))
-        window_start = i / fs
-        window_end = min((i + window_samples) / fs, n_samples / fs)
-        if rms > threshold:
-            if not in_seizure:
-                in_seizure = True
-                start_sec = window_start
-        else:
-            if in_seizure:
-                in_seizure = False
-                intervals.append((start_sec, window_end))
-    if in_seizure:
-        intervals.append((start_sec, n_samples / fs))
-    return intervals
-
-
 class SeizureDetector(Knot):
     """Detect candidate seizure intervals in an EEG signal."""
 
@@ -100,4 +75,31 @@ class SeizureDetector(Knot):
             raise ValueError("SeizureDetector: threshold must be non-negative")
 
         fs = signal.frame.sample_rate_hz
-        return await asyncio.to_thread(_detect_seizures, signal.data, fs, float(threshold))
+        return await asyncio.to_thread(self._detect_seizures, signal.data, fs, float(threshold))
+
+    @staticmethod
+    def _detect_seizures(
+        data: np.ndarray, fs: float, threshold: float
+    ) -> list[tuple[float, float]]:
+        window_samples = max(1, int(fs))
+        channel_data = data if data.ndim == 1 else data[0]
+        n_samples = len(channel_data)
+        intervals: list[tuple[float, float]] = []
+        in_seizure = False
+        start_sec = 0.0
+        for i in range(0, n_samples, window_samples):
+            window = channel_data[i : i + window_samples]
+            rms = float(np.sqrt(np.mean(window**2)))
+            window_start = i / fs
+            window_end = min((i + window_samples) / fs, n_samples / fs)
+            if rms > threshold:
+                if not in_seizure:
+                    in_seizure = True
+                    start_sec = window_start
+            else:
+                if in_seizure:
+                    in_seizure = False
+                    intervals.append((start_sec, window_end))
+        if in_seizure:
+            intervals.append((start_sec, n_samples / fs))
+        return intervals

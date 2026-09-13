@@ -36,26 +36,6 @@ from pirn.core.knot_config import KnotConfig
 from pirn_health.types.genomics_record import GenomicsRecord
 
 
-def _mean_phred(fastq_path: str) -> float:
-    total: float = 0.0
-    count: int = 0
-    try:
-        with open(fastq_path, encoding="ascii", errors="replace") as fh:
-            while True:
-                header = fh.readline()
-                if not header:
-                    break
-                fh.readline()  # sequence
-                fh.readline()  # +
-                qual = fh.readline().rstrip("\n")
-                for ch in qual:
-                    total += ord(ch) - 33
-                    count += 1
-    except OSError:
-        return 0.0
-    return total / count if count > 0 else 0.0
-
-
 class FastqQualityController(Knot):
     """Compute QC metrics for one FASTQ file."""
 
@@ -101,10 +81,30 @@ class FastqQualityController(Knot):
             raise TypeError("FastqQualityController: sample_id must be a string")
         if not sample_id:
             raise ValueError("FastqQualityController: sample_id must be non-empty")
-        quality_score = await asyncio.to_thread(_mean_phred, fastq_path)
+        quality_score = await asyncio.to_thread(self._mean_phred, fastq_path)
         return GenomicsRecord(
             sample_id=sample_id,
             locus="",
             genotype="",
             quality_score=quality_score,
         )
+
+    @staticmethod
+    def _mean_phred(fastq_path: str) -> float:
+        total: float = 0.0
+        count: int = 0
+        try:
+            with open(fastq_path, encoding="ascii", errors="replace") as fh:
+                while True:
+                    header = fh.readline()
+                    if not header:
+                        break
+                    fh.readline()  # sequence
+                    fh.readline()  # +
+                    qual = fh.readline().rstrip("\n")
+                    for ch in qual:
+                        total += ord(ch) - 33
+                        count += 1
+        except OSError:
+            return 0.0
+        return total / count if count > 0 else 0.0

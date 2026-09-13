@@ -28,35 +28,16 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from scipy import signal as ss
 
 from pirn_health.types.health_signal_payload import HealthSignalPayload
 
+try:
+    from scipy import signal as ss
 
-def _plv(signal_a: np.ndarray, signal_b: np.ndarray) -> float:
-    phase_a = np.angle(np.asarray(ss.hilbert(signal_a)))
-    phase_b = np.angle(np.asarray(ss.hilbert(signal_b)))
-    return float(np.abs(np.mean(np.exp(1j * (phase_a - phase_b)))))
-
-
-def _compute_plv_matrix(
-    data: np.ndarray,
-    channel_names: Sequence[str],
-) -> dict[str, dict[str, float]]:
-    result: dict[str, dict[str, float]] = {ch: {} for ch in channel_names}
-    for row_index, ch_i in enumerate(channel_names):
-        for col_index, ch_j in enumerate(channel_names):
-            if row_index == col_index:
-                result[ch_i][ch_j] = 1.0
-            elif col_index < row_index:
-                result[ch_i][ch_j] = result[ch_j][ch_i]
-            else:
-                if data.ndim > 1 and row_index < data.shape[0] and col_index < data.shape[0]:
-                    plv = _plv(data[row_index], data[col_index])
-                else:
-                    plv = 0.0
-                result[ch_i][ch_j] = plv
-    return result
+    _HAS_SCIPY: bool = True
+except ImportError:
+    ss = None  # type: ignore[assignment]
+    _HAS_SCIPY = False
 
 
 class ConnectivityAnalyzer(Knot):
@@ -110,4 +91,34 @@ class ConnectivityAnalyzer(Knot):
         if method not in ("plv", "coherence", "wpli"):
             raise ValueError("ConnectivityAnalyzer: method must be one of plv/coherence/wpli")
 
-        return await asyncio.to_thread(_compute_plv_matrix, signal.data, channel_names)
+        return await asyncio.to_thread(self._compute_plv_matrix, signal.data, channel_names)
+
+    @staticmethod
+    def _plv(signal_a: np.ndarray, signal_b: np.ndarray) -> float:
+        if not _HAS_SCIPY or ss is None:
+            raise ImportError(
+                "scipy is required for ConnectivityAnalyzer — install with: pip install 'pirn-health[health]'"
+            )
+        phase_a = np.angle(np.asarray(ss.hilbert(signal_a)))
+        phase_b = np.angle(np.asarray(ss.hilbert(signal_b)))
+        return float(np.abs(np.mean(np.exp(1j * (phase_a - phase_b)))))
+
+    @staticmethod
+    def _compute_plv_matrix(
+        data: np.ndarray,
+        channel_names: Sequence[str],
+    ) -> dict[str, dict[str, float]]:
+        result: dict[str, dict[str, float]] = {ch: {} for ch in channel_names}
+        for row_index, ch_i in enumerate(channel_names):
+            for col_index, ch_j in enumerate(channel_names):
+                if row_index == col_index:
+                    result[ch_i][ch_j] = 1.0
+                elif col_index < row_index:
+                    result[ch_i][ch_j] = result[ch_j][ch_i]
+                else:
+                    if data.ndim > 1 and row_index < data.shape[0] and col_index < data.shape[0]:
+                        plv = ConnectivityAnalyzer._plv(data[row_index], data[col_index])
+                    else:
+                        plv = 0.0
+                    result[ch_i][ch_j] = plv
+        return result

@@ -35,18 +35,6 @@ except ImportError:
     _HAS_DIPY = False
 
 
-def _extract_mask(nifti_path: str, output_mask_path: str) -> None:
-    if not _HAS_DIPY or nib is None or median_otsu is None:
-        raise ImportError(
-            "nibabel and dipy are required for BrainMaskExtractor — install with: pip install 'pirn[mri]'"
-        )
-    img = nib.load(nifti_path)
-    data = np.asarray(img.dataobj)
-    _, mask = median_otsu(data)
-    mask_img = nib.Nifti1Image(mask.astype(np.uint8), img.affine, img.header)
-    nib.save(mask_img, output_mask_path)
-
-
 class BrainMaskExtractor(Knot):
     """Produce a binary brain mask from an MRI NIfTI."""
 
@@ -89,5 +77,17 @@ class BrainMaskExtractor(Knot):
         ):
             if not isinstance(value, str) or not value:
                 raise ValueError(f"BrainMaskExtractor: {label} must be a non-empty string")
-        await asyncio.to_thread(_extract_mask, nifti_path, output_mask_path)
+        await asyncio.to_thread(self._extract_mask, nifti_path, output_mask_path)
         return output_mask_path
+
+    @staticmethod
+    def _extract_mask(nifti_path: str, output_mask_path: str) -> None:
+        if not _HAS_DIPY or nib is None or median_otsu is None:
+            raise ImportError(
+                "nibabel and dipy are required for BrainMaskExtractor — install with: pip install 'pirn[mri]'"
+            )
+        img = nib.load(nifti_path)
+        data = np.asarray(img.dataobj)
+        _, mask = median_otsu(data)
+        mask_img = nib.Nifti1Image(mask.astype(np.uint8), img.affine, img.header)
+        nib.save(mask_img, output_mask_path)

@@ -30,44 +30,6 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 
-def _cgm_stats(readings: np.ndarray, low: float, high: float) -> dict[str, float]:
-    """Compute standard CGM statistics from a glucose readings array.
-
-    Args:
-        readings: 1-D array of glucose values in mg/dL.
-        low: Lower bound of target range in mg/dL.
-        high: Upper bound of target range in mg/dL.
-
-    Returns:
-        Dict with mean_glucose, std_glucose, cv, time_in_range_pct,
-        time_below_range_pct, and time_above_range_pct.
-    """
-    if readings.size == 0:
-        return {
-            "mean_glucose": 0.0,
-            "std_glucose": 0.0,
-            "cv": 0.0,
-            "time_in_range_pct": 0.0,
-            "time_below_range_pct": 0.0,
-            "time_above_range_pct": 0.0,
-        }
-    mean_g = float(np.mean(readings))
-    std_g = float(np.std(readings, ddof=1)) if readings.size > 1 else 0.0
-    cv = (std_g / mean_g * 100.0) if mean_g > 0 else 0.0
-    reading_count = readings.size
-    tir = float(np.sum((readings >= low) & (readings <= high)) / reading_count * 100.0)
-    tbr = float(np.sum(readings < low) / reading_count * 100.0)
-    tar = float(np.sum(readings > high) / reading_count * 100.0)
-    return {
-        "mean_glucose": mean_g,
-        "std_glucose": std_g,
-        "cv": cv,
-        "time_in_range_pct": tir,
-        "time_below_range_pct": tbr,
-        "time_above_range_pct": tar,
-    }
-
-
 class GlucoseMonitorProcessor(Knot):
     """Process CGM rows into per-subject glucose metrics."""
 
@@ -128,5 +90,43 @@ class GlucoseMonitorProcessor(Knot):
             dtype=float,
         )
         return await asyncio.to_thread(
-            _cgm_stats, glucose_values, float(target_low_mg_dl), float(target_high_mg_dl)
+            self._cgm_stats, glucose_values, float(target_low_mg_dl), float(target_high_mg_dl)
         )
+
+    @staticmethod
+    def _cgm_stats(readings: np.ndarray, low: float, high: float) -> dict[str, float]:
+        """Compute standard CGM statistics from a glucose readings array.
+
+        Args:
+            readings: 1-D array of glucose values in mg/dL.
+            low: Lower bound of target range in mg/dL.
+            high: Upper bound of target range in mg/dL.
+
+        Returns:
+            Dict with mean_glucose, std_glucose, cv, time_in_range_pct,
+            time_below_range_pct, and time_above_range_pct.
+        """
+        if readings.size == 0:
+            return {
+                "mean_glucose": 0.0,
+                "std_glucose": 0.0,
+                "cv": 0.0,
+                "time_in_range_pct": 0.0,
+                "time_below_range_pct": 0.0,
+                "time_above_range_pct": 0.0,
+            }
+        mean_g = float(np.mean(readings))
+        std_g = float(np.std(readings, ddof=1)) if readings.size > 1 else 0.0
+        cv = (std_g / mean_g * 100.0) if mean_g > 0 else 0.0
+        reading_count = readings.size
+        tir = float(np.sum((readings >= low) & (readings <= high)) / reading_count * 100.0)
+        tbr = float(np.sum(readings < low) / reading_count * 100.0)
+        tar = float(np.sum(readings > high) / reading_count * 100.0)
+        return {
+            "mean_glucose": mean_g,
+            "std_glucose": std_g,
+            "cv": cv,
+            "time_in_range_pct": tir,
+            "time_below_range_pct": tbr,
+            "time_above_range_pct": tar,
+        }

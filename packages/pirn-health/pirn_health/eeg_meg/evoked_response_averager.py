@@ -28,11 +28,6 @@ from pirn_health.types.health_signal_frame import HealthSignalFrame
 from pirn_health.types.health_signal_payload import HealthSignalPayload
 
 
-def _average_epochs(arrays: list[np.ndarray]) -> np.ndarray:
-    """Average a list of epoch arrays along the first (epoch) axis."""
-    return np.mean(arrays, axis=0)
-
-
 class EvokedResponseAverager(Knot):
     """Average a set of epoch :class:`HealthSignalPayload` objects."""
 
@@ -82,7 +77,7 @@ class EvokedResponseAverager(Knot):
             raise ValueError("EvokedResponseAverager: condition must be non-empty string")
 
         arrays = [ep.data for ep in epochs]
-        averaged = await asyncio.to_thread(_average_epochs, arrays)
+        averaged = await asyncio.to_thread(self._average_epochs, arrays)
         first = epochs[0]
         frame = HealthSignalFrame(
             signal_id=f"evoked-{condition}",
@@ -92,3 +87,8 @@ class EvokedResponseAverager(Knot):
             fetched_at=first.frame.fetched_at,
         )
         return HealthSignalPayload(metadata=frame, data=averaged)
+
+    @staticmethod
+    def _average_epochs(arrays: list[np.ndarray]) -> np.ndarray:
+        """Average a list of epoch arrays along the first (epoch) axis."""
+        return np.mean(arrays, axis=0)

@@ -32,60 +32,6 @@ except ImportError:
     _HAS_SITK = False
 
 
-def _register(moving_path: str, fixed_path: str, transform: str, output_path: str) -> None:
-    if not _HAS_SITK or sitk is None:
-        raise ImportError(
-            "SimpleITK is required for ImageRegistrar — install with: pip install 'pirn[mri]'"
-        )
-    fixed = sitk.ReadImage(fixed_path, sitk.sitkFloat32)
-    moving = sitk.ReadImage(moving_path, sitk.sitkFloat32)
-
-    registration = sitk.ImageRegistrationMethod()
-    registration.SetMetricAsMattesMutualInformation(numberOfHistogramBins=50)
-    registration.SetOptimizerAsGradientDescent(
-        learningRate=1.0,
-        numberOfIterations=100,
-        convergenceMinimumValue=1e-6,
-        convergenceWindowSize=10,
-    )
-    registration.SetOptimizerScalesFromPhysicalShift()
-    registration.SetShrinkFactorsPerLevel(shrinkFactors=[4, 2, 1])
-    registration.SetSmoothingSigmasPerLevel(smoothingSigmas=[2, 1, 0])
-    registration.SmoothingSigmasAreSpecifiedInPhysicalUnitsOn()
-    registration.SetInterpolator(sitk.sitkLinear)
-
-    if transform == "syn":
-        initial_tx = sitk.CenteredTransformInitializer(
-            fixed, moving, sitk.Euler3DTransform(), sitk.CenteredTransformInitializerFilter.GEOMETRY
-        )
-        registration.SetInitialTransform(
-            sitk.BSplineTransformInitializer(
-                fixed, transformDomainMeshSize=[8] * fixed.GetDimension()
-            )
-        )
-    else:
-        tx_cls = (
-            sitk.Euler3DTransform()
-            if transform == "rigid"
-            else sitk.AffineTransform(fixed.GetDimension())
-        )
-        initial_tx = sitk.CenteredTransformInitializer(
-            fixed, moving, tx_cls, sitk.CenteredTransformInitializerFilter.GEOMETRY
-        )
-        registration.SetInitialTransform(initial_tx, inPlace=False)
-
-    final_tx = registration.Execute(fixed, moving)
-    resampled = sitk.Resample(
-        moving,
-        fixed,
-        final_tx,
-        sitk.sitkLinear,
-        0.0,
-        moving.GetPixelID(),
-    )
-    sitk.WriteImage(resampled, output_path)
-
-
 class ImageRegistrar(Knot):
     """Register a moving image to a fixed image."""
 
@@ -140,6 +86,63 @@ class ImageRegistrar(Knot):
         if transform not in ("rigid", "affine", "syn"):
             raise ValueError("ImageRegistrar: transform must be one of rigid/affine/syn")
         await asyncio.to_thread(
-            _register, moving_path, fixed_path, transform, output_registered_path
+            self._register, moving_path, fixed_path, transform, output_registered_path
         )
         return output_registered_path
+
+    @staticmethod
+    def _register(moving_path: str, fixed_path: str, transform: str, output_path: str) -> None:
+        if not _HAS_SITK or sitk is None:
+            raise ImportError(
+                "SimpleITK is required for ImageRegistrar — install with: pip install 'pirn[mri]'"
+            )
+        fixed = sitk.ReadImage(fixed_path, sitk.sitkFloat32)
+        moving = sitk.ReadImage(moving_path, sitk.sitkFloat32)
+
+        registration = sitk.ImageRegistrationMethod()
+        registration.SetMetricAsMattesMutualInformation(numberOfHistogramBins=50)
+        registration.SetOptimizerAsGradientDescent(
+            learningRate=1.0,
+            numberOfIterations=100,
+            convergenceMinimumValue=1e-6,
+            convergenceWindowSize=10,
+        )
+        registration.SetOptimizerScalesFromPhysicalShift()
+        registration.SetShrinkFactorsPerLevel(shrinkFactors=[4, 2, 1])
+        registration.SetSmoothingSigmasPerLevel(smoothingSigmas=[2, 1, 0])
+        registration.SmoothingSigmasAreSpecifiedInPhysicalUnitsOn()
+        registration.SetInterpolator(sitk.sitkLinear)
+
+        if transform == "syn":
+            initial_tx = sitk.CenteredTransformInitializer(
+                fixed,
+                moving,
+                sitk.Euler3DTransform(),
+                sitk.CenteredTransformInitializerFilter.GEOMETRY,
+            )
+            registration.SetInitialTransform(
+                sitk.BSplineTransformInitializer(
+                    fixed, transformDomainMeshSize=[8] * fixed.GetDimension()
+                )
+            )
+        else:
+            tx_cls = (
+                sitk.Euler3DTransform()
+                if transform == "rigid"
+                else sitk.AffineTransform(fixed.GetDimension())
+            )
+            initial_tx = sitk.CenteredTransformInitializer(
+                fixed, moving, tx_cls, sitk.CenteredTransformInitializerFilter.GEOMETRY
+            )
+            registration.SetInitialTransform(initial_tx, inPlace=False)
+
+        final_tx = registration.Execute(fixed, moving)
+        resampled = sitk.Resample(
+            moving,
+            fixed,
+            final_tx,
+            sitk.sitkLinear,
+            0.0,
+            moving.GetPixelID(),
+        )
+        sitk.WriteImage(resampled, output_path)

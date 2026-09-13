@@ -33,33 +33,6 @@ from pirn_health.types.health_signal_frame import HealthSignalFrame
 from pirn_health.types.health_signal_payload import HealthSignalPayload
 
 
-def _assemble_meg(
-    body: bytes,
-    signal_id: str,
-    channel_count: int,
-    sample_rate_hz: float,
-    samples_per_channel: int,
-) -> HealthSignalPayload:
-    try:
-        npz = np.load(io.BytesIO(body))
-        keys = list(npz.files)
-        if not keys:
-            raise ValueError("empty npz")
-        data = npz[keys[0]].astype(np.float32)
-        if data.ndim == 1:
-            data = data[np.newaxis, :]
-    except Exception:
-        data = np.zeros((channel_count, samples_per_channel), dtype=np.float32)
-    frame = HealthSignalFrame(
-        signal_id=signal_id,
-        channel_count=channel_count,
-        sample_rate_hz=sample_rate_hz,
-        samples_per_channel=samples_per_channel,
-        fetched_at=datetime.now(UTC),
-    )
-    return HealthSignalPayload(metadata=frame, data=data)
-
-
 class MegObjectStoreAssembler(Assembler):
     """Assemble a :class:`HealthSignalPayload` from raw MEG bytes stored in an object store."""
 
@@ -127,10 +100,37 @@ class MegObjectStoreAssembler(Assembler):
         if not isinstance(samples_per_channel, int) or samples_per_channel <= 0:
             raise ValueError("MegObjectStoreAssembler: samples_per_channel must be a positive int")
         return await asyncio.to_thread(
-            _assemble_meg,
+            self._assemble_meg,
             body,
             signal_id,
             channel_count,
             float(sample_rate_hz),
             samples_per_channel,
         )
+
+    @staticmethod
+    def _assemble_meg(
+        body: bytes,
+        signal_id: str,
+        channel_count: int,
+        sample_rate_hz: float,
+        samples_per_channel: int,
+    ) -> HealthSignalPayload:
+        try:
+            npz = np.load(io.BytesIO(body))
+            keys = list(npz.files)
+            if not keys:
+                raise ValueError("empty npz")
+            data = npz[keys[0]].astype(np.float32)
+            if data.ndim == 1:
+                data = data[np.newaxis, :]
+        except Exception:
+            data = np.zeros((channel_count, samples_per_channel), dtype=np.float32)
+        frame = HealthSignalFrame(
+            signal_id=signal_id,
+            channel_count=channel_count,
+            sample_rate_hz=sample_rate_hz,
+            samples_per_channel=samples_per_channel,
+            fetched_at=datetime.now(UTC),
+        )
+        return HealthSignalPayload(metadata=frame, data=data)

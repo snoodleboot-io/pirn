@@ -15,31 +15,29 @@ Algorithm:
 References:
     - bcftools merge: https://samtools.github.io/bcftools/bcftools.html#merge
     - VCF specification: https://samtools.github.io/hts-specs/VCFv4.3.pdf
+
+Note:
+    ``_is_stub`` is ``True`` on this knot: it is a functional placeholder
+    for the production implementation described above, not a complete
+    algorithm. It is registered so pipelines can be wired and tested
+    end-to-end before the real implementation lands; do not treat its
+    output as production-quality.
 """
 
 from __future__ import annotations
 
 import asyncio
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 
-async def _run_subprocess(cmd: list[str]) -> None:
-    proc = await asyncio.create_subprocess_exec(
-        *cmd,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-    _, stderr = await proc.communicate()
-    if proc.returncode != 0:
-        raise RuntimeError(f"{cmd[0]} failed: {stderr.decode()}")
-
-
 class VCFMerger(Knot):
     """Merge multiple VCF paths into a single cohort VCF."""
+
+    _is_stub: ClassVar[bool] = True
 
     def __init__(
         self,
@@ -85,5 +83,16 @@ class VCFMerger(Knot):
         if not isinstance(output_vcf_path, str) or not output_vcf_path:
             raise ValueError("VCFMerger: output_vcf_path must be a non-empty string")
         cmd = ["bcftools", "merge", *list(vcf_paths), "-o", output_vcf_path]
-        await _run_subprocess(cmd)
+        await self._run_subprocess(cmd)
         return output_vcf_path
+
+    @staticmethod
+    async def _run_subprocess(cmd: list[str]) -> None:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        _, stderr = await proc.communicate()
+        if proc.returncode != 0:
+            raise RuntimeError(f"{cmd[0]} failed: {stderr.decode()}")

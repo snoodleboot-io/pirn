@@ -18,12 +18,19 @@ Math:
 References:
     - LACE Index: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2845681/
     - HL7 FHIR R4 RiskAssessment: https://hl7.org/fhir/R4/riskassessment.html
+
+Note:
+    ``_is_stub`` is ``True`` on this knot: it is a functional placeholder
+    for the production implementation described above, not a complete
+    algorithm. It is registered so pipelines can be wired and tested
+    end-to-end before the real implementation lands; do not treat its
+    output as production-quality.
 """
 
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -33,6 +40,8 @@ from pirn_health.types.clinical_record import ClinicalRecord
 
 class ReadmissionRiskScorer(Knot):
     """Emit a readmission-risk score in [0, 1] per patient."""
+
+    _is_stub: ClassVar[bool] = True
 
     def __init__(
         self,

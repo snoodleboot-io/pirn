@@ -20,37 +20,29 @@ Math:
 References:
     - Argelaguet et al. (2018) Multi-Omics Factor Analysis (MOFA).
     - DIABLO: https://www.bioconductor.org/packages/mixOmics/
+
+Note:
+    ``_is_stub`` is ``True`` on this knot: it is a functional placeholder
+    for the production implementation described above, not a complete
+    algorithm. It is registered so pipelines can be wired and tested
+    end-to-end before the real implementation lands; do not treat its
+    output as production-quality.
 """
 
 from __future__ import annotations
 
 import asyncio
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 
-def _integrate(
-    rna_features: dict[str, Mapping[str, float]],
-    dna_features: dict[str, Mapping[str, float]],
-    epi_features: dict[str, Mapping[str, float]],
-) -> dict[str, dict[str, float]]:
-    """Merge RNA, DNA, and epigenomic features per sample with prefixed keys."""
-    sample_ids = set(rna_features) | set(dna_features) | set(epi_features)
-    result: dict[str, dict[str, float]] = {}
-    for sid in sample_ids:
-        merged: dict[str, float] = {}
-        merged.update({f"rna_{k}": v for k, v in rna_features.get(sid, {}).items()})
-        merged.update({f"dna_{k}": v for k, v in dna_features.get(sid, {}).items()})
-        merged.update({f"epi_{k}": v for k, v in epi_features.get(sid, {}).items()})
-        result[sid] = merged
-    return result
-
-
 class MultiOmicsIntegrator(Knot):
     """Integrate RNA / DNA / epigenomic feature mappings."""
+
+    _is_stub: ClassVar[bool] = True
 
     def __init__(
         self,
@@ -97,5 +89,22 @@ class MultiOmicsIntegrator(Knot):
             if not isinstance(value, Mapping):
                 raise TypeError(f"MultiOmicsIntegrator: {label} must be a Mapping")
         return await asyncio.to_thread(
-            _integrate, dict(rna_features), dict(dna_features), dict(epi_features)
+            self._integrate, dict(rna_features), dict(dna_features), dict(epi_features)
         )
+
+    @staticmethod
+    def _integrate(
+        rna_features: dict[str, Mapping[str, float]],
+        dna_features: dict[str, Mapping[str, float]],
+        epi_features: dict[str, Mapping[str, float]],
+    ) -> dict[str, dict[str, float]]:
+        """Merge RNA, DNA, and epigenomic features per sample with prefixed keys."""
+        sample_ids = set(rna_features) | set(dna_features) | set(epi_features)
+        result: dict[str, dict[str, float]] = {}
+        for sid in sample_ids:
+            merged: dict[str, float] = {}
+            merged.update({f"rna_{k}": v for k, v in rna_features.get(sid, {}).items()})
+            merged.update({f"dna_{k}": v for k, v in dna_features.get(sid, {}).items()})
+            merged.update({f"epi_{k}": v for k, v in epi_features.get(sid, {}).items()})
+            result[sid] = merged
+        return result

@@ -23,40 +23,16 @@ import asyncio
 from typing import Any
 
 import numpy as np
-import scipy.signal
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+try:
+    import scipy.signal
 
-def _ppg_peaks(ppg: np.ndarray, fs: float) -> list[dict[str, Any]]:
-    """Detect peaks in a PPG signal and compute HR per segment.
-
-    Args:
-        ppg: 1-D array of PPG samples.
-        fs: Sampling rate in Hz.
-
-    Returns:
-        List of dicts with hr_bpm and timestamp_sec for each inter-peak segment.
-    """
-    if ppg.size < 4 or fs <= 0:
-        return []
-    low = 0.5
-    high = min(4.0, fs / 2.0 - 0.1)
-    if low >= high:
-        return []
-    sos = scipy.signal.butter(2, [low, high], btype="bandpass", fs=fs, output="sos")
-    filtered = scipy.signal.sosfiltfilt(sos, ppg)
-    min_distance = max(1, int(0.25 * fs))
-    peaks, _ = scipy.signal.find_peaks(filtered, distance=min_distance)
-    if peaks.size < 2:
-        return []
-    results: list[dict[str, Any]] = []
-    for i in range(len(peaks) - 1):
-        ibi_sec = (peaks[i + 1] - peaks[i]) / fs
-        hr_bpm = 60.0 / ibi_sec if ibi_sec > 0 else 0.0
-        timestamp_sec = float(peaks[i]) / fs
-        results.append({"hr_bpm": hr_bpm, "timestamp_sec": timestamp_sec})
-    return results
+    _HAS_SCIPY: bool = True
+except ImportError:
+    scipy = None  # type: ignore[assignment]
+    _HAS_SCIPY = False
 
 
 class PPGHeartRateExtractor(Knot):
@@ -124,4 +100,39 @@ class PPGHeartRateExtractor(Knot):
             )
         raw = ppg_data[channel]
         ppg_array = np.asarray(raw, dtype=float)
-        return await asyncio.to_thread(_ppg_peaks, ppg_array, float(sample_rate_hz))
+        return await asyncio.to_thread(self._ppg_peaks, ppg_array, float(sample_rate_hz))
+
+    @staticmethod
+    def _ppg_peaks(ppg: np.ndarray, fs: float) -> list[dict[str, Any]]:
+        """Detect peaks in a PPG signal and compute HR per segment.
+
+        Args:
+            ppg: 1-D array of PPG samples.
+            fs: Sampling rate in Hz.
+
+        Returns:
+            List of dicts with hr_bpm and timestamp_sec for each inter-peak segment.
+        """
+        if not _HAS_SCIPY or scipy is None:
+            raise ImportError(
+                "scipy is required for PPGHeartRateExtractor — install with: pip install 'pirn-health[health]'"
+            )
+        if ppg.size < 4 or fs <= 0:
+            return []
+        low = 0.5
+        high = min(4.0, fs / 2.0 - 0.1)
+        if low >= high:
+            return []
+        sos = scipy.signal.butter(2, [low, high], btype="bandpass", fs=fs, output="sos")
+        filtered = scipy.signal.sosfiltfilt(sos, ppg)
+        min_distance = max(1, int(0.25 * fs))
+        peaks, _ = scipy.signal.find_peaks(filtered, distance=min_distance)
+        if peaks.size < 2:
+            return []
+        results: list[dict[str, Any]] = []
+        for i in range(len(peaks) - 1):
+            ibi_sec = (peaks[i + 1] - peaks[i]) / fs
+            hr_bpm = 60.0 / ibi_sec if ibi_sec > 0 else 0.0
+            timestamp_sec = float(peaks[i]) / fs
+            results.append({"hr_bpm": hr_bpm, "timestamp_sec": timestamp_sec})
+        return results

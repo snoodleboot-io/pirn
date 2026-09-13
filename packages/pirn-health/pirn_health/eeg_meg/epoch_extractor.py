@@ -27,23 +27,6 @@ from pirn_health.types.health_signal_frame import HealthSignalFrame
 from pirn_health.types.health_signal_payload import HealthSignalPayload
 
 
-def _extract_epochs(
-    data: np.ndarray,
-    fs: float,
-    event_times: Sequence[float],
-    tmin: float,
-    tmax: float,
-) -> list[np.ndarray]:
-    """Slice data around each event time and return a list of epoch arrays."""
-    n_samples = data.shape[-1]
-    epochs: list[np.ndarray] = []
-    for t in event_times:
-        start = max(0, round((t + tmin) * fs))
-        end = min(n_samples, round((t + tmax) * fs))
-        epochs.append(data[..., start:end])
-    return epochs
-
-
 class EpochExtractor(Knot):
     """Extract event-locked epochs from a continuous signal."""
 
@@ -105,7 +88,7 @@ class EpochExtractor(Knot):
 
         fs = signal.frame.sample_rate_hz
         arrays = await asyncio.to_thread(
-            _extract_epochs, signal.data, fs, event_times_sec, float(tmin_sec), float(tmax_sec)
+            self._extract_epochs, signal.data, fs, event_times_sec, float(tmin_sec), float(tmax_sec)
         )
         result: list[HealthSignalPayload] = []
         for idx, arr in enumerate(arrays):
@@ -119,3 +102,20 @@ class EpochExtractor(Knot):
             )
             result.append(HealthSignalPayload(metadata=frame, data=arr))
         return tuple(result)
+
+    @staticmethod
+    def _extract_epochs(
+        data: np.ndarray,
+        fs: float,
+        event_times: Sequence[float],
+        tmin: float,
+        tmax: float,
+    ) -> list[np.ndarray]:
+        """Slice data around each event time and return a list of epoch arrays."""
+        n_samples = data.shape[-1]
+        epochs: list[np.ndarray] = []
+        for t in event_times:
+            start = max(0, round((t + tmin) * fs))
+            end = min(n_samples, round((t + tmax) * fs))
+            epochs.append(data[..., start:end])
+        return epochs

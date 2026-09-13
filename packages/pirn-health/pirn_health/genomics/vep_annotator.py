@@ -14,30 +14,28 @@ Algorithm:
 References:
     - McLaren et al. (2016) The Ensembl Variant Effect Predictor.
     - VEP: https://www.ensembl.org/info/docs/tools/vep/
+
+Note:
+    ``_is_stub`` is ``True`` on this knot: it is a functional placeholder
+    for the production implementation described above, not a complete
+    algorithm. It is registered so pipelines can be wired and tested
+    end-to-end before the real implementation lands; do not treat its
+    output as production-quality.
 """
 
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 
-async def _run_subprocess(cmd: list[str]) -> None:
-    proc = await asyncio.create_subprocess_exec(
-        *cmd,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-    _, stderr = await proc.communicate()
-    if proc.returncode != 0:
-        raise RuntimeError(f"{cmd[0]} failed: {stderr.decode()}")
-
-
 class VEPAnnotator(Knot):
     """Annotate a VCF with VEP and return the annotated VCF path."""
+
+    _is_stub: ClassVar[bool] = True
 
     def __init__(
         self,
@@ -97,5 +95,16 @@ class VEPAnnotator(Knot):
             output_vcf_path,
             "--vcf",
         ]
-        await _run_subprocess(cmd)
+        await self._run_subprocess(cmd)
         return output_vcf_path
+
+    @staticmethod
+    async def _run_subprocess(cmd: list[str]) -> None:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        _, stderr = await proc.communicate()
+        if proc.returncode != 0:
+            raise RuntimeError(f"{cmd[0]} failed: {stderr.decode()}")

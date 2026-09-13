@@ -4,7 +4,7 @@ Processes clinical data — HL7v2 parsing, ICD/SNOMED/RxNorm coding, NLP extract
 
 Clinical knots are stateless transforms: each accepts structured or semi-structured clinical data and emits normalised, coded records. Coding knots (`ICD10CodeValidator`, `RxNormMapper`, `SnomedHierarchyExpander`) are pure lookup-and-validate steps; NLP knots (`ClinicalNLPExtractor`, `NoteSectionSplitter`) extract structured facts from unstructured text.
 
-The `ClinicalDataQualityGate` sits between ingestion and downstream analytics. It raises `ClinicalDataQualityError` when records violate configured thresholds (missing required fields, out-of-range values, invalid codes) so that bad data fails loudly before reaching cohort or risk models. All other knots are unconditional — quality enforcement belongs in the gate.
+The `ClinicalDataQualityCheck` sits between ingestion and downstream analytics (`ClinicalDataQualityGate` is a backward-compatible alias for the same class). It raises `ClinicalDataQualityError` when records violate configured thresholds (missing required fields, out-of-range values, invalid codes) so that bad data fails loudly before reaching cohort or risk models. All other knots are unconditional — quality enforcement belongs in the check.
 
 PHI passes through this layer only as already-redacted fields originating from the connector layer (`Hl7v2Format`, `FhirJsonFormat`, etc.). These knots do not re-introduce raw identifiers.
 
@@ -12,8 +12,9 @@ PHI passes through this layer only as already-redacted fields originating from t
 
 ```
 pirn_health/clinical/
-├── clinical_data_quality_error.py       ClinicalDataQualityError         — typed error for quality gate failures
-├── clinical_data_quality_gate.py        ClinicalDataQualityGate          — quality gate; raises ClinicalDataQualityError on failure
+├── clinical_data_quality_error.py       ClinicalDataQualityError         — typed error for quality check failures
+├── clinical_data_quality_check.py       ClinicalDataQualityCheck         — quality check; raises ClinicalDataQualityError on failure
+├── clinical_data_quality_gate.py        ClinicalDataQualityGate          — backward-compatible alias for ClinicalDataQualityCheck
 ├── clinical_nlp_extractor.py            ClinicalNLPExtractor             — NLP extraction of clinical entities from free text
 ├── clinical_trial_eligibility_filter.py ClinicalTrialEligibilityFilter   — filters patients against trial inclusion/exclusion criteria
 ├── _dedup_rx_cuis.py                    (internal)                        — RxNorm CUI deduplication helper; not a public knot
@@ -91,7 +92,7 @@ cohort = result.outputs["cohort"]
 - `ClinicalNLPExtractor` and `SocialDeterminantsExtractor` load a spaCy model on first call; ensure `en_core_sci_lg` (or configured equivalent) is installed and accessible on the worker.
 - `ICD10CodeValidator` ships a bundled ICD-10-CM code set. The bundled release year is fixed at package build time; update `pirn[clinical]` to get a newer release.
 - `_dedup_rx_cuis.py` is an internal helper module, not a public knot. Do not import or wire it directly.
-- `ClinicalDataQualityGate` raises `ClinicalDataQualityError` — catch it at the tapestry call site if partial cohort results are acceptable.
+- `ClinicalDataQualityCheck` raises `ClinicalDataQualityError` — catch it at the tapestry call site if partial cohort results are acceptable.
 - `EncounterTimelineAssembler` sorts by encounter date; records missing a date field are placed at the end of the timeline with a warning emitted to the knot logger, not a raised exception.
 - Install: `pip install pirn[clinical]`
 
@@ -107,7 +108,7 @@ cohort = result.outputs["cohort"]
 | Extract SDOH from notes | `SocialDeterminantsExtractor` |
 | Build patient cohort | `PatientCohortBuilder` with `ClinicalTrialEligibilityFilter` |
 | Score readmission risk | `ReadmissionRiskScorer` on encounter record |
-| Validate and normalise lab results | `LabResultNormalizer` after `ClinicalDataQualityGate` |
+| Validate and normalise lab results | `LabResultNormalizer` after `ClinicalDataQualityCheck` |
 | Chronological encounter view | `EncounterTimelineAssembler` |
 
 *See also: [health AGENTIC_USE.md](../AGENTIC_USE.md)*

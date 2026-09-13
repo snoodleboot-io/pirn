@@ -30,26 +30,6 @@ from pirn_health.types.health_signal_payload import HealthSignalPayload
 _morlet_w = 6.0
 
 
-def _morlet_wavelet(sample_count: int, width: float, omega: float = 6.0) -> np.ndarray:
-    """Build a complex Morlet wavelet of length sample_count and scale width."""
-    time_array = (
-        np.arange(-(sample_count // 2), sample_count - sample_count // 2, dtype=float) / width
-    )
-    return np.exp(1j * omega * time_array) * np.exp(-0.5 * time_array**2) * np.pi**-0.25
-
-
-def _cwt_power(signal_1d: np.ndarray, fs: float, freq: float) -> float:
-    width = fs / freq * _morlet_w / (2 * np.pi)
-    wavelet = _morlet_wavelet(len(signal_1d), width, omega=_morlet_w)
-    coef = np.convolve(signal_1d, wavelet[::-1], mode="same")
-    return float(np.mean(np.abs(coef) ** 2))
-
-
-def _compute_tf(data: np.ndarray, frequencies_hz: Sequence[float], fs: float) -> dict[float, float]:
-    channel = data[0] if data.ndim > 1 else data
-    return {float(freq_hz): _cwt_power(channel, fs, float(freq_hz)) for freq_hz in frequencies_hz}
-
-
 class TimeFrequencyDecomposer(Knot):
     """Decompose a signal into time-frequency representations."""
 
@@ -104,4 +84,29 @@ class TimeFrequencyDecomposer(Knot):
             )
 
         fs = signal.frame.sample_rate_hz
-        return await asyncio.to_thread(_compute_tf, signal.data, frequencies_hz, fs)
+        return await asyncio.to_thread(self._compute_tf, signal.data, frequencies_hz, fs)
+
+    @staticmethod
+    def _morlet_wavelet(sample_count: int, width: float, omega: float = 6.0) -> np.ndarray:
+        """Build a complex Morlet wavelet of length sample_count and scale width."""
+        time_array = (
+            np.arange(-(sample_count // 2), sample_count - sample_count // 2, dtype=float) / width
+        )
+        return np.exp(1j * omega * time_array) * np.exp(-0.5 * time_array**2) * np.pi**-0.25
+
+    @staticmethod
+    def _cwt_power(signal_1d: np.ndarray, fs: float, freq: float) -> float:
+        width = fs / freq * _morlet_w / (2 * np.pi)
+        wavelet = TimeFrequencyDecomposer._morlet_wavelet(len(signal_1d), width, omega=_morlet_w)
+        coef = np.convolve(signal_1d, wavelet[::-1], mode="same")
+        return float(np.mean(np.abs(coef) ** 2))
+
+    @staticmethod
+    def _compute_tf(
+        data: np.ndarray, frequencies_hz: Sequence[float], fs: float
+    ) -> dict[float, float]:
+        channel = data[0] if data.ndim > 1 else data
+        return {
+            float(freq_hz): TimeFrequencyDecomposer._cwt_power(channel, fs, float(freq_hz))
+            for freq_hz in frequencies_hz
+        }

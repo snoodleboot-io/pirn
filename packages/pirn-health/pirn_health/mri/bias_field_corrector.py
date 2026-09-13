@@ -21,12 +21,19 @@ Math:
 References:
     - Tustison et al. (2010) N4ITK: Improved N3 Bias Correction.
     - SimpleITK: https://simpleitk.readthedocs.io/
+
+Note:
+    ``_is_stub`` is ``True`` on this knot: it is a functional placeholder
+    for the production implementation described above, not a complete
+    algorithm. It is registered so pipelines can be wired and tested
+    end-to-end before the real implementation lands; do not treat its
+    output as production-quality.
 """
 
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -40,19 +47,10 @@ except ImportError:
     _HAS_SITK = False
 
 
-def _apply_n4(nifti_path: str, output_nifti_path: str) -> None:
-    if not _HAS_SITK or sitk is None:
-        raise ImportError(
-            "SimpleITK is required for BiasFieldCorrector — install with: pip install 'pirn[mri]'"
-        )
-    img = sitk.ReadImage(nifti_path, sitk.sitkFloat32)
-    corrector = sitk.N4BiasFieldCorrectionImageFilter()
-    corrected = corrector.Execute(img)
-    sitk.WriteImage(corrected, output_nifti_path)
-
-
 class BiasFieldCorrector(Knot):
     """Apply N4 bias-field correction to an MRI NIfTI file."""
+
+    _is_stub: ClassVar[bool] = True
 
     def __init__(
         self,
@@ -93,5 +91,16 @@ class BiasFieldCorrector(Knot):
         ):
             if not isinstance(value, str) or not value:
                 raise ValueError(f"BiasFieldCorrector: {label} must be a non-empty string")
-        await asyncio.to_thread(_apply_n4, nifti_path, output_nifti_path)
+        await asyncio.to_thread(self._apply_n4, nifti_path, output_nifti_path)
         return output_nifti_path
+
+    @staticmethod
+    def _apply_n4(nifti_path: str, output_nifti_path: str) -> None:
+        if not _HAS_SITK or sitk is None:
+            raise ImportError(
+                "SimpleITK is required for BiasFieldCorrector — install with: pip install 'pirn[mri]'"
+            )
+        img = sitk.ReadImage(nifti_path, sitk.sitkFloat32)
+        corrector = sitk.N4BiasFieldCorrectionImageFilter()
+        corrected = corrector.Execute(img)
+        sitk.WriteImage(corrected, output_nifti_path)

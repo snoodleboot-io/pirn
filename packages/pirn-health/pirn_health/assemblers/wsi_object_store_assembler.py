@@ -24,7 +24,6 @@ import io
 from typing import Any
 
 import numpy as np
-from PIL import Image
 from pirn.core.assembler import Assembler
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -32,20 +31,13 @@ from pirn.core.knot_config import KnotConfig
 from pirn_health.types.wsi_tile import WSITile
 from pirn_health.types.wsi_tile_payload import WSITilePayload
 
+try:
+    from PIL import Image
 
-def _assemble_tile(body: bytes, slide_id: str, tile_index: int) -> WSITilePayload:
-    img = Image.open(io.BytesIO(body)).convert("RGB")
-    pixels = np.array(img, dtype=np.uint8)
-    height, width = pixels.shape[:2]
-    tile = WSITile(
-        slide_id=slide_id,
-        tile_x=tile_index,
-        tile_y=0,
-        level=0,
-        width=width,
-        height=height,
-    )
-    return WSITilePayload(metadata=tile, data=pixels)
+    _HAS_PIL: bool = True
+except ImportError:
+    Image = None  # type: ignore[assignment]
+    _HAS_PIL = False
 
 
 class WsiObjectStoreAssembler(Assembler):
@@ -107,4 +99,23 @@ class WsiObjectStoreAssembler(Assembler):
             )
         if tile_index < 0:
             raise ValueError("WsiObjectStoreAssembler: tile_index must be >= 0")
-        return await asyncio.to_thread(_assemble_tile, body, slide_id, tile_index)
+        return await asyncio.to_thread(self._assemble_tile, body, slide_id, tile_index)
+
+    @staticmethod
+    def _assemble_tile(body: bytes, slide_id: str, tile_index: int) -> WSITilePayload:
+        if not _HAS_PIL or Image is None:
+            raise ImportError(
+                "Pillow is required for WsiObjectStoreAssembler — install with: pip install 'pirn-health[health]'"
+            )
+        img = Image.open(io.BytesIO(body)).convert("RGB")
+        pixels = np.array(img, dtype=np.uint8)
+        height, width = pixels.shape[:2]
+        tile = WSITile(
+            slide_id=slide_id,
+            tile_x=tile_index,
+            tile_y=0,
+            level=0,
+            width=width,
+            height=height,
+        )
+        return WSITilePayload(metadata=tile, data=pixels)

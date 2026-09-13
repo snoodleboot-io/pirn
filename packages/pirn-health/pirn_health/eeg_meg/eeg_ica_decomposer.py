@@ -22,22 +22,14 @@ from typing import Any, ClassVar
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from sklearn.decomposition import FastICA
 
+try:
+    from sklearn.decomposition import FastICA
 
-def _run_ica(data_2d: np.ndarray, n_components: int, max_iter: int) -> dict[str, Any]:
-    """Run FastICA and return mixing/unmixing matrices and component variances."""
-    ica = FastICA(n_components=n_components, max_iter=max_iter, random_state=0)
-    sources: np.ndarray = np.asarray(ica.fit_transform(data_2d.T))  # (n_samples, n_components)
-    mixing: np.ndarray = np.asarray(ica.mixing_)  # (n_channels, n_components)
-    unmixing: np.ndarray = np.asarray(ica.components_)  # (n_components, n_channels)
-    variances = [float(np.var(sources[:, i])) for i in range(n_components)]
-    return {
-        "n_components": n_components,
-        "mixing_matrix": mixing.tolist(),
-        "unmixing_matrix": unmixing.tolist(),
-        "component_variances": variances,
-    }
+    _HAS_SKLEARN: bool = True
+except ImportError:
+    FastICA = None  # type: ignore[assignment]
+    _HAS_SKLEARN = False
 
 
 class EEGICADecomposer(Knot):
@@ -100,4 +92,23 @@ class EEGICADecomposer(Knot):
         if not isinstance(max_iter, int) or max_iter <= 0:
             raise ValueError("EEGICADecomposer: max_iter must be a positive integer")
         data_2d = np.array(eeg_data["data"], dtype=float)  # (n_channels, n_samples)
-        return await asyncio.to_thread(_run_ica, data_2d, n_components, max_iter)
+        return await asyncio.to_thread(self._run_ica, data_2d, n_components, max_iter)
+
+    @staticmethod
+    def _run_ica(data_2d: np.ndarray, n_components: int, max_iter: int) -> dict[str, Any]:
+        """Run FastICA and return mixing/unmixing matrices and component variances."""
+        if not _HAS_SKLEARN or FastICA is None:
+            raise ImportError(
+                "scikit-learn is required for EEGICADecomposer — install with: pip install 'pirn-health[health]'"
+            )
+        ica = FastICA(n_components=n_components, max_iter=max_iter, random_state=0)
+        sources: np.ndarray = np.asarray(ica.fit_transform(data_2d.T))  # (n_samples, n_components)
+        mixing: np.ndarray = np.asarray(ica.mixing_)  # (n_channels, n_components)
+        unmixing: np.ndarray = np.asarray(ica.components_)  # (n_components, n_channels)
+        variances = [float(np.var(sources[:, i])) for i in range(n_components)]
+        return {
+            "n_components": n_components,
+            "mixing_matrix": mixing.tolist(),
+            "unmixing_matrix": unmixing.tolist(),
+            "component_variances": variances,
+        }

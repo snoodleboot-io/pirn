@@ -33,36 +33,6 @@ from pirn.core.knot_config import KnotConfig
 from pirn_health.types.wsi_tile_payload import WSITilePayload
 
 
-def _otsu_threshold(gray: np.ndarray) -> float:
-    hist, _ = np.histogram(gray.ravel(), bins=256, range=(0, 256))
-    hist = hist.astype(float) / hist.sum()
-    best, best_thresh = -1.0, 128.0
-    w0 = 0.0
-    mu0 = 0.0
-    mu_total = float(np.sum(np.arange(256) * hist))
-    for t in range(256):
-        w0 += hist[t]
-        if w0 == 0 or w0 == 1.0:
-            continue
-        mu0 += t * hist[t]
-        mu1 = (mu_total - mu0) / (1.0 - w0)
-        between = w0 * (1.0 - w0) * ((mu0 / w0) - mu1) ** 2
-        if between > best:
-            best, best_thresh = between, float(t)
-    return best_thresh
-
-
-def _segment(payloads: Sequence[WSITilePayload], threshold: float) -> tuple[WSITilePayload, ...]:
-    result = []
-    for p in payloads:
-        gray = np.mean(p.pixels.astype(float), axis=2)
-        tau = _otsu_threshold(gray)
-        tissue_fraction = float(np.mean(gray < tau))
-        if tissue_fraction >= threshold:
-            result.append(p)
-    return tuple(result)
-
-
 class TissueSegmenter(Knot):
     """Identify tissue-containing tiles from a WSI tile payload set."""
 
@@ -104,4 +74,36 @@ class TissueSegmenter(Knot):
             raise TypeError("TissueSegmenter: threshold must be numeric")
         if not 0.0 <= float(threshold) <= 1.0:
             raise ValueError("TissueSegmenter: threshold must be in [0, 1]")
-        return await asyncio.to_thread(_segment, list(tiles), float(threshold))
+        return await asyncio.to_thread(self._segment, list(tiles), float(threshold))
+
+    @staticmethod
+    def _otsu_threshold(gray: np.ndarray) -> float:
+        hist, _ = np.histogram(gray.ravel(), bins=256, range=(0, 256))
+        hist = hist.astype(float) / hist.sum()
+        best, best_thresh = -1.0, 128.0
+        w0 = 0.0
+        mu0 = 0.0
+        mu_total = float(np.sum(np.arange(256) * hist))
+        for t in range(256):
+            w0 += hist[t]
+            if w0 == 0 or w0 == 1.0:
+                continue
+            mu0 += t * hist[t]
+            mu1 = (mu_total - mu0) / (1.0 - w0)
+            between = w0 * (1.0 - w0) * ((mu0 / w0) - mu1) ** 2
+            if between > best:
+                best, best_thresh = between, float(t)
+        return best_thresh
+
+    @staticmethod
+    def _segment(
+        payloads: Sequence[WSITilePayload], threshold: float
+    ) -> tuple[WSITilePayload, ...]:
+        result = []
+        for p in payloads:
+            gray = np.mean(p.pixels.astype(float), axis=2)
+            tau = TissueSegmenter._otsu_threshold(gray)
+            tissue_fraction = float(np.mean(gray < tau))
+            if tissue_fraction >= threshold:
+                result.append(p)
+        return tuple(result)

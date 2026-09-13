@@ -25,61 +25,18 @@ import asyncio
 from typing import Any
 
 import numpy as np
-import scipy.signal
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_health.types.health_signal_payload import HealthSignalPayload
 
+try:
+    import scipy.signal
 
-def _band_power(epoch: np.ndarray, fs: float, low: float, high: float) -> float:
-    """Compute average power in a frequency band using Welch's method."""
-    nperseg = min(epoch.size, max(4, int(fs * 2)))
-    freqs, psd = scipy.signal.welch(epoch, fs=fs, nperseg=nperseg)
-    idx = (freqs >= low) & (freqs <= high)
-    return float(np.trapezoid(psd[idx], freqs[idx])) if idx.any() else 0.0
-
-
-def _stage_epoch(epoch: np.ndarray, fs: float) -> str:
-    """Classify a single EEG epoch into a sleep stage.
-
-    Args:
-        epoch: 1-D array of EEG samples for one epoch.
-        fs: Sampling rate in Hz.
-
-    Returns:
-        Stage label string: ``"N3"``, ``"N2"``, ``"N1"``, or ``"wake"``.
-    """
-    delta = _band_power(epoch, fs, 0.5, 4.0)
-    theta = _band_power(epoch, fs, 4.0, 8.0)
-    alpha = _band_power(epoch, fs, 8.0, 13.0)
-    total = delta + theta + alpha + 1e-12
-    if delta / total > 0.5:
-        return "N3"
-    if theta / total > 0.4:
-        return "N2"
-    if alpha / total > 0.3:
-        return "wake"
-    return "N1"
-
-
-def _stage_all_epochs(data: np.ndarray, fs: float, epoch_samples: int) -> tuple[str, ...]:
-    """Stage all epochs in a signal array.
-
-    Args:
-        data: 1-D EEG array.
-        fs: Sampling rate in Hz.
-        epoch_samples: Number of samples per epoch.
-
-    Returns:
-        Tuple of stage label strings, one per epoch.
-    """
-    n_epochs = max(1, len(data) // epoch_samples)
-    stages: list[str] = []
-    for i in range(n_epochs):
-        epoch = data[i * epoch_samples : (i + 1) * epoch_samples]
-        stages.append(_stage_epoch(epoch, fs))
-    return tuple(stages)
+    _HAS_SCIPY: bool = True
+except ImportError:
+    scipy = None  # type: ignore[assignment]
+    _HAS_SCIPY = False
 
 
 class SleepStager(Knot):
@@ -125,4 +82,58 @@ class SleepStager(Knot):
         eeg = signal.data if signal.data.ndim == 1 else signal.data[0]
         fs = signal.frame.sample_rate_hz
         epoch_samples = max(1, int(epoch_length_sec * fs))
-        return await asyncio.to_thread(_stage_all_epochs, eeg, fs, epoch_samples)
+        return await asyncio.to_thread(self._stage_all_epochs, eeg, fs, epoch_samples)
+
+    @staticmethod
+    def _band_power(epoch: np.ndarray, fs: float, low: float, high: float) -> float:
+        """Compute average power in a frequency band using Welch's method."""
+        if not _HAS_SCIPY or scipy is None:
+            raise ImportError(
+                "scipy is required for SleepStager — install with: pip install 'pirn-health[health]'"
+            )
+        nperseg = min(epoch.size, max(4, int(fs * 2)))
+        freqs, psd = scipy.signal.welch(epoch, fs=fs, nperseg=nperseg)
+        idx = (freqs >= low) & (freqs <= high)
+        return float(np.trapezoid(psd[idx], freqs[idx])) if idx.any() else 0.0
+
+    @staticmethod
+    def _stage_epoch(epoch: np.ndarray, fs: float) -> str:
+        """Classify a single EEG epoch into a sleep stage.
+
+        Args:
+            epoch: 1-D array of EEG samples for one epoch.
+            fs: Sampling rate in Hz.
+
+        Returns:
+            Stage label string: ``"N3"``, ``"N2"``, ``"N1"``, or ``"wake"``.
+        """
+        delta = SleepStager._band_power(epoch, fs, 0.5, 4.0)
+        theta = SleepStager._band_power(epoch, fs, 4.0, 8.0)
+        alpha = SleepStager._band_power(epoch, fs, 8.0, 13.0)
+        total = delta + theta + alpha + 1e-12
+        if delta / total > 0.5:
+            return "N3"
+        if theta / total > 0.4:
+            return "N2"
+        if alpha / total > 0.3:
+            return "wake"
+        return "N1"
+
+    @staticmethod
+    def _stage_all_epochs(data: np.ndarray, fs: float, epoch_samples: int) -> tuple[str, ...]:
+        """Stage all epochs in a signal array.
+
+        Args:
+            data: 1-D EEG array.
+            fs: Sampling rate in Hz.
+            epoch_samples: Number of samples per epoch.
+
+        Returns:
+            Tuple of stage label strings, one per epoch.
+        """
+        n_epochs = max(1, len(data) // epoch_samples)
+        stages: list[str] = []
+        for i in range(n_epochs):
+            epoch = data[i * epoch_samples : (i + 1) * epoch_samples]
+            stages.append(SleepStager._stage_epoch(epoch, fs))
+        return tuple(stages)

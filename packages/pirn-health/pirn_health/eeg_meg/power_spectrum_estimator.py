@@ -24,9 +24,16 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from scipy import signal as ss
 
 from pirn_health.types.health_signal_payload import HealthSignalPayload
+
+try:
+    from scipy import signal as ss
+
+    _HAS_SCIPY: bool = True
+except ImportError:
+    ss = None  # type: ignore[assignment]
+    _HAS_SCIPY = False
 
 _bands = {
     "delta": (0.5, 4.0),
@@ -35,16 +42,6 @@ _bands = {
     "beta": (13.0, 30.0),
     "gamma": (30.0, 100.0),
 }
-
-
-def _compute_band_power(data: np.ndarray, fs: float) -> dict[str, float]:
-    channel = data[0] if data.ndim > 1 else data
-    freqs, psd = ss.welch(channel, fs=fs, axis=-1)
-    result: dict[str, float] = {}
-    for band_name, (low, high) in _bands.items():
-        mask = (freqs >= low) & (freqs <= high)
-        result[band_name] = float(np.trapezoid(psd[mask], freqs[mask])) if mask.any() else 0.0
-    return result
 
 
 class PowerSpectrumEstimator(Knot):
@@ -90,4 +87,18 @@ class PowerSpectrumEstimator(Knot):
             raise ValueError("PowerSpectrumEstimator: method must be one of welch/multitaper")
 
         fs = signal.frame.sample_rate_hz
-        return await asyncio.to_thread(_compute_band_power, signal.data, fs)
+        return await asyncio.to_thread(self._compute_band_power, signal.data, fs)
+
+    @staticmethod
+    def _compute_band_power(data: np.ndarray, fs: float) -> dict[str, float]:
+        if not _HAS_SCIPY or ss is None:
+            raise ImportError(
+                "scipy is required for PowerSpectrumEstimator — install with: pip install 'pirn-health[health]'"
+            )
+        channel = data[0] if data.ndim > 1 else data
+        freqs, psd = ss.welch(channel, fs=fs, axis=-1)
+        result: dict[str, float] = {}
+        for band_name, (low, high) in _bands.items():
+            mask = (freqs >= low) & (freqs <= high)
+            result[band_name] = float(np.trapezoid(psd[mask], freqs[mask])) if mask.any() else 0.0
+        return result
