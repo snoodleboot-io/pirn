@@ -45,6 +45,29 @@ class FetchPrefs(Optional, Knot):
 
 If `process()` raises, the outcome is converted from `Err` to `Skipped`, making failure tolerable for downstream consumers.
 
+**Declaring inputs with a JSON schema instead of a signature.** A capability with no Python signature to introspect — an MCP-declared tool, an OpenAPI operation — declares its inputs with a JSON object schema, and the framework validates it with exactly the machinery a hinted knot gets:
+
+```python
+from pirn.core.knot_factory import KnotFactory, knot
+
+search = KnotFactory.from_schema(
+    "search",
+    {"type": "object",
+     "properties": {"query": {"type": "string", "minLength": 1},
+                    "limit": {"type": "integer", "minimum": 1, "default": 10}},
+     "required": ["query"]},
+    call_remote_search,          # async or sync callable taking the inputs by keyword
+)
+node = search(query=upstream, limit=5, _config=KnotConfig(id="search"))
+
+@knot(input_schema={...})        # the decorator form
+async def lookup(**arguments): ...
+```
+
+The schema's `properties` are the declared inputs (parents or config, like any knot), `required` the ones construction must supply, each `default` fills an omitted input, and each property fragment becomes the `TypeAdapter` `validate_io` applies (`pirn/core/json_schema_type_builder.py` covers scalars, `enum`/`const`, nullable forms, `anyOf`/`oneOf`, arrays, nested objects, local `$ref`s and the numeric/string/array bounds). The generated class carries the schema as `_input_schema_override`, and `input_json_schema()` returns it unchanged.
+
+**The inverse.** Every knot class can render the declaration its hints imply: `MyKnot.input_json_schema()` returns `{"type": "object", "properties": ..., "required": ...}` from the same annotations `validate_io` checks against — `T` for a `Knot | T` input, `Annotated` constraints kept, defaults recorded, `$defs` hoisted — and excludes Knot-typed and `PirnOpaqueValue`-typed inputs (a live resource is wired, never supplied by a caller) and the `**_` catch-all. A model-facing tool declaration derives from this rather than re-introspecting the signature.
+
 ---
 
 ## Custom TapestryStore
