@@ -6,6 +6,7 @@ stub, so escalation, observability, and spend-cap interaction are deterministic.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Awaitable, Callable
 
 import pytest
@@ -196,13 +197,26 @@ class TestSpendCapInteraction:
 
         # BudgetBreachError is now raised inside a nested _AttemptTier knot,
         # so the engine records the failure rather than propagating the
-        # original exception out of t.run() -- the outer knot fails with a
-        # SubTapestryError whose inner run carries the real cause.
+        # original exception out of t.run() -- each level wraps it as a
+        # SubTapestryError whose message names the next run to look in. Three
+        # levels deep (ADR agents-speaks-core WS5b): ModelCascadeRouter's own
+        # inner run contains the _CascadeLoop knot (itself a SubTapestry);
+        # _CascadeLoop's own inner run contains the failing iteration's
+        # _IterationChainKnot (whose SubTapestryError message names the
+        # iteration's own run); that run is where _AttemptTier's raw
+        # BudgetBreachError actually lives.
         run = await t.run(RunRequest())
         assert not run.succeeded
         cascade_row = next(row for row in run.lineage if row.knot_id == "cascade")
-        inner_run = await history.get_run(cascade_row.extra["inner_run_id"])
-        assert any(exc.exc_type == BudgetBreachError.__name__ for exc in inner_run.exceptions)
+        cascade_inner_run = await history.get_run(cascade_row.extra["inner_run_id"])
+        loop_row = next(row for row in cascade_inner_run.lineage if row.knot_id == "cascade_loop")
+        loop_inner_run = await history.get_run(loop_row.extra["inner_run_id"])
+        iteration_exc = next(
+            exc for exc in loop_inner_run.exceptions if exc.exc_type == "SubTapestryError"
+        )
+        iteration_run_id = re.search(r"run_id='([^']+)'", iteration_exc.message).group(1)
+        iteration_run = await history.get_run(iteration_run_id)
+        assert any(exc.exc_type == BudgetBreachError.__name__ for exc in iteration_run.exceptions)
 
     async def test_under_cap_accrues_cost(self) -> None:
         meter = RunBudgetMeter(RunBudget(max_cost=10.0))

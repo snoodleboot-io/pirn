@@ -46,7 +46,7 @@ pirn_agents/
 └── specializations/
     ├── react/               ReActLoop (SubTapestry)
     ├── rag/                 NaiveRAGPipeline, CorrectiveRAGPipeline, HyDERAGPipeline, GraphRAGPipeline
-    ├── multi_agent/         OrchestratorAgent, ParallelSpecialistFanOut, ConsensusAggregator, DebateFramework
+    ├── multi_agent/         OrchestratorAgent, ParallelSpecialistFanOut, ConsensusPipeline, DebateFramework
     ├── memory_patterns/     SemanticMemoryPipeline, EpisodicMemoryPipeline, ProceduralMemoryPipeline, WorkingMemoryPipeline
     ├── guardrails/          InputGuardrailCheck, OutputGuardrailCheck, PiiRedactorCheck, FactCheck
     ├── structured_output/   JsonExtractorPipeline, YamlExtractorPipeline, PydanticValidatorPipeline, EnumClassifierPipeline
@@ -250,14 +250,14 @@ see `examples/llm_agent/agent_loop.py` for this pattern.
 simultaneously (different LLMs, different retrieval strategies, domain
 specialists). Results are gathered and either passed raw or synthesised.
 
-**Knot:** `ParallelSpecialistFanOut` + optional `ConsensusAggregator`.
+**Knot:** `ParallelSpecialistFanOut` + optional `ConsensusPipeline`.
 
 ```python
 from pirn_agents.specializations.multi_agent.parallel_specialist_fan_out import (
     ParallelSpecialistFanOut,
 )
 from pirn_agents.specializations.multi_agent.consensus_aggregator import (
-    ConsensusAggregator,
+    ConsensusPipeline,
 )
 
 fan_out = ParallelSpecialistFanOut(
@@ -270,7 +270,7 @@ fan_out = ParallelSpecialistFanOut(
 )
 # fan_out.run() returns {specialist_name: AgentResponse}
 
-consensus = ConsensusAggregator(
+consensus = ConsensusPipeline(
     responses=fan_out,
     llm=synthesis_llm,
     strategy="llm_synthesis",   # or "majority_vote"
@@ -278,7 +278,7 @@ consensus = ConsensusAggregator(
 )
 ```
 
-For raw gather without synthesis, skip `ConsensusAggregator` and read the
+For raw gather without synthesis, skip `ConsensusPipeline` and read the
 mapping directly from `fan_out`.
 
 ---
@@ -288,7 +288,7 @@ mapping directly from `fan_out`.
 **When to use:** Multiple upstream results (fan-out outputs, RAG chunks, tool
 results) must be merged into a single coherent response.
 
-**Knot:** `ConsensusAggregator` with `strategy="llm_synthesis"`, or
+**Knot:** `ConsensusPipeline` with `strategy="llm_synthesis"`, or
 `ToolResultAggregator` for tool results, or a plain `LLMCall` whose
 `ContextBuilder` receives a list of prior responses.
 
@@ -933,7 +933,7 @@ Patterns compose — pick the pieces you need:
        ├── [ReActLoop + SearchTool]         ← react (research leg)
        ├── [CorrectiveRAGPipeline]          ← RAG (document leg)
        └── [CodeAgent]                      ← specialised agent (code leg)
-   → [ConsensusAggregator]                  ← synthesiser
+   → [ConsensusPipeline]                  ← synthesiser
    → [PiiRedactorCheck → OutputGuardrailCheck] ← supervision (output)
 ```
 

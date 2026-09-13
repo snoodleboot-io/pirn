@@ -36,19 +36,20 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.source import Source
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
+from pirn_agents.specializations.multi_agent._orchestrator_result_normalizer import (
+    _OrchestratorResultNormalizer,
+)
 from pirn_agents.specializations.multi_agent._specialist_invoker import (
     _SpecialistInvoker,
 )
 from pirn_agents.specializations.multi_agent.orchestrator_router import (
     OrchestratorRouter,
 )
-from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class OrchestratorAgent(AgentPipeline):
@@ -96,16 +97,4 @@ class OrchestratorAgent(AgentPipeline):
             chosen_name = next(iter(specialists_dict))
         specialist = specialists_dict[chosen_name]
         raw = await _SpecialistInvoker.invoke_specialist(specialist, task=task)
-        final: AgentResponse = (
-            raw
-            if isinstance(raw, AgentResponse)
-            else AgentResponse(content=str(raw), finish_reason="stop")
-        )
-
-        _final = final
-
-        class _ResultSource(Source):
-            async def process(self, **_: Any) -> AgentResponse:
-                return _final
-
-        return _ResultSource(_config=KnotConfig(id="result"))
+        return _OrchestratorResultNormalizer(raw=raw, _config=KnotConfig(id="result"))

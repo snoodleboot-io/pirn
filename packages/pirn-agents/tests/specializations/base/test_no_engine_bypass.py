@@ -72,41 +72,24 @@ from tests.specializations.base.bypass_inventory import BypassInventory
 AWAITS_CHILD_PROCESS = frozenset(
     {
         "retrieval/graph_rag/hybrid_graph_retriever.py::HybridGraphRetriever",
-        "specializations/lats/lats_search.py::LatsSearch",
-        "specializations/plan_react/plan_react_pipeline.py::PlanReActPipeline",
-        "specializations/reflexion/reflexion_pipeline.py::ReflexionPipeline",
     }
 )
 
 #: Returns a `Source` defined inside `process()` that closes over an
 #: already-computed value. The engine then "runs" a graph of one knot whose job
-#: is to hand back an answer Python already had.
-RETURNS_INLINE_SOURCE = frozenset(
-    {
-        "specializations/lats/lats_search.py::LatsSearch",
-        "specializations/multi_agent/orchestrator_agent.py::OrchestratorAgent",
-        "specializations/plan_react/plan_react_pipeline.py::PlanReActPipeline",
-        "specializations/prompt_chaining/prompt_chain_pipeline.py::PromptChainPipeline",
-        "specializations/rag/flare_active_rag_pipeline.py::FlareActiveRagPipeline",
-        "specializations/rag/multi_hop_rag_pipeline.py::MultiHopRAGPipeline",
-        "specializations/reflexion/reflexion_pipeline.py::ReflexionPipeline",
-        "specializations/self_ask/self_ask_pipeline.py::SelfAskPipeline",
-        "specializations/structured_output/json_extractor_pipeline.py::JsonExtractorPipeline",
-        "specializations/structured_output/pydantic_validator_pipeline.py::PydanticValidatorPipeline",
-        "specializations/structured_output/yaml_extractor_pipeline.py::YamlExtractorPipeline",
-    }
-)
+#: is to hand back an answer Python already had. Empty: `LatsSearch` was the
+#: last member — see `_LatsResultExtractor` (ADR agents-speaks-core WS5b).
+#: Kept as an assertion (not deleted) so a future inline `Source` regresses
+#: loudly.
+RETURNS_INLINE_SOURCE: frozenset[str] = frozenset()
 
 #: `with Tapestry():` opened and never run. Its only effect is to stop the knots
 #: built inside it leaking into the outer graph — so those knots are constructed,
-#: never executed, and invisible.
-UNRUN_TAPESTRY = frozenset(
-    {
-        "specializations/lats/lats_search.py::LatsSearch",
-        "specializations/plan_react/plan_react_pipeline.py::PlanReActPipeline",
-        "specializations/reflexion/reflexion_pipeline.py::ReflexionPipeline",
-    }
-)
+#: never executed, and invisible. Empty: `LatsSearch` was the last member — its
+#: proposer call now runs through `self._run_inner(...)`, per iteration, like
+#: the rest of the package's nested-resolve pipelines (ADR agents-speaks-core
+#: WS5b). Kept as an assertion so a future unrun `Tapestry()` regresses loudly.
+UNRUN_TAPESTRY: frozenset[str] = frozenset()
 
 #: `await <x>.invoke(...)` awaited directly rather than through a
 #: `ToolInvocation` knot. `tools/tool_invocation.py::ToolInvocation` is the one
@@ -143,10 +126,6 @@ LOOP_AWAITS_LLM_OR_TOOL_CALL = frozenset(
         "specializations/document_processing/_chunk_translator.py::_ChunkTranslator",
         "specializations/guardrails/fact_claim_verifier.py::FactClaimVerifier",
         "specializations/plan_and_execute/plan_executor.py::PlanExecutor",
-        "specializations/prompt_chaining/prompt_chain_pipeline.py::PromptChainPipeline",
-        "specializations/rag/flare_active_rag_pipeline.py::FlareActiveRagPipeline",
-        "specializations/reflection/constitutional_filter.py::ConstitutionalFilter",
-        "specializations/self_ask/self_ask_pipeline.py::SelfAskPipeline",
     }
 )
 

@@ -42,26 +42,23 @@ from tests.specializations.base.bypass_inventory import BypassInventory
 # --- known bypasses, frozen (ADR agents-speaks-core WS5a) ------------------
 
 #: A `Source` subclass defined anywhere inside `process()`, not only ones
-#: that are returned. Eleven remain (down from twelve): all exist to
+#: that are returned. All twelve are now fixed; they existed to
 #: re-inject an already-resolved value into the inner graph — the
 #: `Parameter` use case. `RetryOnParseFailure` is fixed — see its
 #: `_RetryResultExtractor`/`_RetryOnParseFailureLoop` (ADR agents-speaks-core
-#: WS5a).
-DEFINES_INLINE_SOURCE = frozenset(
-    {
-        "specializations/lats/lats_search.py::LatsSearch",
-        "specializations/multi_agent/orchestrator_agent.py::OrchestratorAgent",
-        "specializations/plan_react/plan_react_pipeline.py::PlanReActPipeline",
-        "specializations/prompt_chaining/prompt_chain_pipeline.py::PromptChainPipeline",
-        "specializations/rag/flare_active_rag_pipeline.py::FlareActiveRagPipeline",
-        "specializations/rag/multi_hop_rag_pipeline.py::MultiHopRAGPipeline",
-        "specializations/reflexion/reflexion_pipeline.py::ReflexionPipeline",
-        "specializations/self_ask/self_ask_pipeline.py::SelfAskPipeline",
-        "specializations/structured_output/json_extractor_pipeline.py::JsonExtractorPipeline",
-        "specializations/structured_output/pydantic_validator_pipeline.py::PydanticValidatorPipeline",
-        "specializations/structured_output/yaml_extractor_pipeline.py::YamlExtractorPipeline",
-    }
-)
+#: WS5a). `SelfAskPipeline` is fixed — see its `_SelfAskComposer`/
+#: `_SelfAskLoop`; `PromptChainPipeline` is fixed — see its
+#: `_PromptChainResultExtractor`/`_PromptChainLoop`; `OrchestratorAgent` is
+#: fixed — see its `_OrchestratorResultNormalizer`; `JsonExtractorPipeline`/
+#: `YamlExtractorPipeline`/`PydanticValidatorPipeline` are fixed — see their
+#: `*Loop`/`*ResultExtractor` pairs; `ReflexionPipeline` is fixed — see
+#: `_ReflexionLoop`/`_ReflexionResultExtractor`; `PlanReActPipeline` is fixed
+#: — see `_PlanReActResultExtractor`; `FlareActiveRagPipeline` is fixed — see
+#: `_FlareLoop`/`_FlareResultExtractor`; `MultiHopRAGPipeline` is fixed — see
+#: `_MultiHopResultExtractor`; `LatsSearch` is fixed — see
+#: `_LatsResultExtractor` (ADR agents-speaks-core WS5b). Kept as an assertion
+#: (not deleted) so a future inline `Source` regresses loudly.
+DEFINES_INLINE_SOURCE: frozenset[str] = frozenset()
 
 #: `process()` bodies that return one of their own inputs unchanged.
 #: Permanent members (Rule 6 vending Knots — legitimate, not a bypass):

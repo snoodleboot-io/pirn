@@ -9,14 +9,16 @@ is unsure. Retrieval calls are hard-bounded by ``max_retrieval_calls``.
 Algorithm:
     1. Validate ``query`` (str), ``memory`` (:class:`MemoryStore`), ``llm``
        (:class:`LLMProvider`), and the numeric budgets.
-    2. Repeat up to ``max_sentences``:
-       a. Ask the LLM for the next sentence as ``DONE`` or ``CONF=<f>: <text>``.
-       b. Parse the confidence and sentence; stop on ``DONE``.
-       c. If :class:`SentenceConfidenceMonitor` flags it and the retrieval budget
-          remains, retrieve on the tentative sentence and regenerate it grounded
-          in the evidence.
-       d. Append the (possibly regenerated) sentence to the answer.
-    3. Return the assembled answer as an :class:`AgentResponse`.
+    2. Drive the rounds with a
+       :class:`~pirn_agents.specializations.rag._flare_loop._FlareLoop`
+       (``LoopSubTapestry``): each round's generation call is a real,
+       individually-traceable knot, and the conditional retrieval +
+       regeneration call is gated by a core
+       :class:`~pirn.nodes.check.Check`/:class:`~pirn.nodes.gate.gate.Gate`
+       pair rather than a Python ``if`` inside a hand-rolled loop (ADR
+       agents-speaks-core WS5b).
+    3. Extract the assembled answer as an :class:`AgentResponse` with
+       :class:`~pirn_agents.specializations.rag._flare_result_extractor._FlareResultExtractor`.
 
 References:
     - Jiang et al., "Active Retrieval Augmented Generation" (FLARE, EMNLP 2023):
@@ -25,45 +27,23 @@ References:
 
 from __future__ import annotations
 
-import re
-from collections.abc import Mapping
-from typing import Any, ClassVar
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.source import Source
+from pirn.core.parameter import Parameter
 from pydantic import PositiveInt
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
-from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.llm_response_text import LlmResponseText
-from pirn_agents.specializations.rag.sentence_confidence_monitor import SentenceConfidenceMonitor
-from pirn_agents.types.messaging.agent_response import AgentResponse
+from pirn_agents.specializations.rag._flare_loop import _FlareLoop
+from pirn_agents.specializations.rag._flare_result_extractor import _FlareResultExtractor
+from pirn_agents.specializations.rag._flare_state import _FlareState
 
 
 class FlareActiveRagPipeline(AgentPipeline):
     """Generate sentence-by-sentence, retrieving forward on low confidence."""
-
-    _generation_prompt: ClassVar[PromptBinding] = PromptBinding(
-        name="specializations.rag.flare_active_rag_pipeline.generation_prompt",
-        default=(
-            "Answer the question one sentence at a time. Reply with 'DONE' if the answer is "
-            "complete, otherwise reply exactly 'CONF=<0-1>: <the next sentence>' where the number "
-            "is your confidence.\n\nQuestion: {{ query }}\n\nAnswer so far: {{ so_far }}"
-        ),
-    )
-
-    _regeneration_prompt: ClassVar[PromptBinding] = PromptBinding(
-        name="specializations.rag.flare_active_rag_pipeline.regeneration_prompt",
-        default=(
-            "Rewrite the tentative sentence so it is fully supported by the evidence. Reply with "
-            "only the corrected sentence.\n\nQuestion: {{ query }}\n\n"
-            "Tentative sentence: {{ sentence }}\n\n"
-            "Evidence:\n{{ context }}"
-        ),
-    )
 
     def __init__(
         self,
@@ -113,69 +93,22 @@ class FlareActiveRagPipeline(AgentPipeline):
             top_k: Hits fetched per retrieval.
 
         Returns:
-            A source knot whose output is the final :class:`AgentResponse`.
+            The sink knot whose output is the final :class:`AgentResponse`.
         """
-        parts: list[str] = []
-        retrieval_calls = 0
-        for _step in range(max_sentences):
-            reply = LlmResponseText().extract(
-                await llm.chat([{"role": "user", "content": self._generate_prompt(query, parts)}])
-            )
-            reply = reply.strip()
-            if reply.upper().startswith("DONE"):
-                break
-            confidence, sentence = self._parse(reply)
-            if (
-                SentenceConfidenceMonitor.needs_retrieval(confidence, float(confidence_threshold))
-                and retrieval_calls < max_retrieval_calls
-            ):
-                docs = list((await memory.search(sentence, top_k=top_k))[:top_k])
-                retrieval_calls += 1
-                sentence = (
-                    LlmResponseText()
-                    .extract(
-                        await llm.chat(
-                            [
-                                {
-                                    "role": "user",
-                                    "content": self._regenerate_prompt(query, sentence, docs),
-                                }
-                            ]
-                        )
-                    )
-                    .strip()
-                )
-            if sentence:
-                parts.append(sentence)
-        answer = " ".join(parts)
-        final = AgentResponse(content=answer, finish_reason="stop")
-
-        class _ResultSource(Source):
-            async def process(self, **_: Any) -> AgentResponse:
-                return final
-
-        return _ResultSource(_config=KnotConfig(id="result"))
-
-    @staticmethod
-    def _generate_prompt(query: str, parts: list[str]) -> str:
-        """Prompt the LLM for the next sentence with a confidence tag."""
-        so_far = " ".join(parts) if parts else "(nothing yet)"
-        return FlareActiveRagPipeline._generation_prompt.render({"query": query, "so_far": so_far})
-
-    @staticmethod
-    def _regenerate_prompt(query: str, sentence: str, docs: list[Mapping[str, Any]]) -> str:
-        """Prompt the LLM to rewrite a tentative sentence grounded in evidence."""
-        context = "\n".join(str(doc) for doc in docs) or "(no evidence retrieved)"
-        return FlareActiveRagPipeline._regeneration_prompt.render(
-            {"query": query, "sentence": sentence, "context": context}
+        initial = Parameter(
+            "flare_state",
+            _FlareState,
+            default=_FlareState(parts=(), retrieval_calls=0, done=False, index=0),
         )
-
-    @staticmethod
-    def _parse(reply: str) -> tuple[float, str]:
-        """Parse a ``CONF=<f>: <sentence>`` reply into ``(confidence, sentence)``."""
-        match = re.match(r"\s*CONF\s*=\s*([01](?:\.\d+)?)\s*:\s*(.*)", reply, flags=re.DOTALL)
-        if match is None:
-            return 1.0, reply
-        confidence = float(match.group(1))
-        confidence = min(1.0, max(0.0, confidence))
-        return confidence, match.group(2).strip()
+        loop = _FlareLoop(
+            query=query,
+            memory=memory,
+            llm=llm,
+            confidence_threshold=float(confidence_threshold),
+            max_sentences=int(max_sentences),
+            max_retrieval_calls=int(max_retrieval_calls),
+            top_k=int(top_k),
+            state=initial,
+            _config=KnotConfig(id="flare_loop"),
+        )
+        return _FlareResultExtractor(state=loop, _config=KnotConfig(id="result"))

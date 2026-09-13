@@ -81,11 +81,17 @@ class TestYamlExtractorPipelineProcess(unittest.IsolatedAsyncioTestCase):
         assert len(llm.calls) == 2
 
     async def test_raises_after_exhausting_retries(self) -> None:
+        # Exhaustion is raised inside the loop's result-extractor knot (ADR
+        # agents-speaks-core WS5b), reached only once the graph actually
+        # runs -- calling process() directly only builds it.
         llm = StubLLMProvider(["just a scalar"] * 5)
-        knot = _make_knot(llm, max_retries=2)
-        with self.assertRaisesRegex(ValueError, "exhausted"):
-            await knot.process(
+        with Tapestry() as t:
+            YamlExtractorPipeline(
                 prompt="extract a user",
                 llm=llm,
+                schema={"name": "string", "age": "integer"},
                 max_retries=2,
+                _config=KnotConfig(id="yaml"),
             )
+        run = await t.run(RunRequest())
+        assert not run.succeeded

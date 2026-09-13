@@ -1,5 +1,12 @@
 """``ConstitutionalFilter`` — evaluate and revise a response against a set of principles.
 
+A :class:`SubTapestry` that drives the evaluate-and-revise loop with
+:class:`~pirn_agents.specializations.reflection._constitutional_filter_loop._ConstitutionalFilterLoop`
+(a :class:`~pirn.nodes.loop_sub_tapestry.LoopSubTapestry`): each revision
+attempt is a real, individually-traceable ``LLMChatCall`` knot instead of a
+step inside a hand-rolled Python ``for`` loop (ADR agents-speaks-core WS5b;
+PIR-856's imperative-loop inventory).
+
 Algorithm:
     1. Format the principles as a bulleted list.
     2. For each revision attempt (up to ``max_revisions``):
@@ -20,17 +27,22 @@ from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
-from pirn_agents.specializations.llm_response_text import LlmResponseText
-from pirn_agents.specializations.reflection.constitutional_violation_error import (
-    ConstitutionalViolationError,
+from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
+from pirn_agents.specializations.reflection._constitutional_filter_loop import (
+    _ConstitutionalFilterLoop,
 )
+from pirn_agents.specializations.reflection._constitutional_result_extractor import (
+    _ConstitutionalResultExtractor,
+)
+from pirn_agents.specializations.reflection._constitutional_state import _ConstitutionalState
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
-class ConstitutionalFilter(Knot):
+class ConstitutionalFilter(AgentPipeline):
     """Evaluate a response against constitutional principles and revise until compliant.
 
     For each revision attempt the LLM is asked to identify any violations of
@@ -76,8 +88,8 @@ class ConstitutionalFilter(Knot):
         llm: LLMProvider,
         max_revisions: int = 3,
         **_: Any,
-    ) -> AgentResponse:
-        """Evaluate response against principles, revise until compliant or raise on failure.
+    ) -> Knot:
+        """Wire the revision loop and return its compliance-extracting sink knot.
 
         Args:
             response: The AgentResponse to evaluate against the constitutional principles.
@@ -86,34 +98,32 @@ class ConstitutionalFilter(Knot):
             max_revisions: Maximum number of revision attempts before raising.
 
         Returns:
-            A compliant AgentResponse, possibly revised from the original.
+            The sink knot whose output is a compliant :class:`AgentResponse`.
 
         Raises:
             ValueError: If max_revisions is not a positive int.
-            ConstitutionalViolationError: If violations persist after max_revisions attempts.
         """
         if not isinstance(max_revisions, int) or max_revisions <= 0:
             raise ValueError(
                 f"ConstitutionalFilter: max_revisions must be a positive int, got {max_revisions!r}"
             )
         principles_text = "\n".join(f"- {p}" for p in principles)
-        current_content = response.content
 
-        for _i in range(max_revisions):
-            messages = [
-                {"role": "system", "content": type(self)._evaluation_system.resolve()},
-                {
-                    "role": "user",
-                    "content": (f"Principles:\n{principles_text}\n\nResponse:\n{current_content}"),
-                },
-            ]
-            raw = await llm.chat(messages=messages)
-            evaluation = LlmResponseText().extract(raw).strip()
-            if evaluation.upper() == "COMPLIANT":
-                return AgentResponse(content=current_content)
-            current_content = evaluation
-
-        raise ConstitutionalViolationError(
-            "ConstitutionalFilter: response still violates principles after "
-            f"{max_revisions} revision(s)"
+        initial = Parameter(
+            "constitutional_state",
+            _ConstitutionalState,
+            default=_ConstitutionalState(
+                principles_text=principles_text,
+                current_content=response.content,
+                attempts=0,
+                compliant=False,
+            ),
         )
+        loop = _ConstitutionalFilterLoop(
+            llm=llm,
+            evaluation_system=type(self)._evaluation_system.resolve(),
+            max_revisions=max_revisions,
+            state=initial,
+            _config=KnotConfig(id="constitutional_loop"),
+        )
+        return _ConstitutionalResultExtractor(state=loop, _config=KnotConfig(id="result"))

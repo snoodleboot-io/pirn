@@ -6,7 +6,10 @@ hits suitable for downstream context-injection knots in RAG pipelines.
 
 Algorithm:
     1. Validate ``store``, ``top_k``, and ``query`` types.
-    2. ``await store.search(query, top_k=top_k)``.
+    2. ``await store.search(query, top_k=top_k)``, reporting the outcome
+       through
+       :class:`~pirn_agents.observability.agent_call_recorder.AgentCallRecorder`
+       (ADR agents-speaks-core WS4a/WS5b).
     3. Return the result as a ``list[Mapping[str, Any]]``, sliced to
        ``top_k`` in case a store returns more than asked.
 
@@ -16,6 +19,7 @@ References:
 
 from __future__ import annotations
 
+import time
 from collections.abc import Mapping
 from typing import Any
 
@@ -24,6 +28,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.interfaces.retriever import Retriever
 from pirn_agents.memory.stores.memory_store import MemoryStore
+from pirn_agents.observability.agent_call_recorder import AgentCallRecorder
 
 
 class MemorySearchRetriever(Retriever):
@@ -68,5 +73,22 @@ class MemorySearchRetriever(Retriever):
         """
         if not isinstance(top_k, int) or top_k <= 0:
             raise ValueError(f"MemorySearchRetriever: top_k must be a positive int, got {top_k!r}")
-        hits = await store.search(query, top_k=top_k)
+        start = time.perf_counter()
+        try:
+            hits = await store.search(query, top_k=top_k)
+        except Exception as exc:
+            await AgentCallRecorder.record(
+                knot_id=self.knot_id,
+                kind="retrieval",
+                ok=False,
+                latency=time.perf_counter() - start,
+                detail=str(exc),
+            )
+            raise
+        await AgentCallRecorder.record(
+            knot_id=self.knot_id,
+            kind="retrieval",
+            ok=True,
+            latency=time.perf_counter() - start,
+        )
         return list(hits[:top_k])

@@ -18,15 +18,14 @@ aborts or downshifts (declines to escalate to the pricier tier) before blowing
 the spend cap.
 
 ``tiers`` is a resolved value known in full by the time ``process()`` runs, so
-its length is not data-dependent (unlike an agentic loop). ``process()`` builds
-a static chain of one
-:class:`~pirn_agents.specializations.routing._attempt_tier._AttemptTier` knot
-per tier, each folding its decision into the previous tier's accumulated
-:class:`~pirn_agents.specializations.routing._cascade_chain_state._CascadeChainState`.
-Once a tier is accepted, or the spend cap forces a downshift, the state is
-``locked`` and every later ``_AttemptTier`` passes it through unchanged
-without invoking its own tier — the same escalation-stops-here behaviour as
-before, except every tier now gets its own engine ``Result``, history record,
+its length is not data-dependent (unlike an agentic loop), but the chain is
+still driven by a
+:class:`~pirn_agents.specializations.routing._cascade_loop._CascadeLoop`
+(``LoopSubTapestry``) rather than a static unroll (ADR agents-speaks-core
+WS5b): once a tier is accepted, or the spend cap forces a downshift, the
+state is ``locked`` and the loop stops, so a tier past that point is never
+even scheduled — the same escalation-stops-here behaviour as before, except
+every *attempted* tier now gets its own engine ``Result``, history record,
 and lineage, where the original hid all of them behind one knot's hand-rolled
 loop.
 """
@@ -43,8 +42,8 @@ from pirn.core.parameter import Parameter
 from pirn_agents.interfaces.router import Router
 from pirn_agents.performance.spend_cap_policy import SpendCapPolicy
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.routing._attempt_tier import _AttemptTier
 from pirn_agents.specializations.routing._cascade_chain_state import _CascadeChainState
+from pirn_agents.specializations.routing._cascade_loop import _CascadeLoop
 from pirn_agents.specializations.routing._cascade_result import _CascadeResult
 from pirn_agents.specializations.routing.cascade_tier import CascadeTier
 
@@ -131,21 +130,18 @@ class ModelCascadeRouter(AgentPipeline, Router):
         if not callable(confidence):
             raise TypeError("ModelCascadeRouter: confidence must be an async callable")
 
-        chain: Knot = Parameter(
+        initial = Parameter(
             "initial",
             _CascadeChainState,
             default=_CascadeChainState(),
-            _config=KnotConfig(id="initial"),
         )
-        for index, tier in enumerate(tier_tuple):
-            chain = _AttemptTier(
-                prior=chain,
-                tier=tier,
-                index=index,
-                request=request,
-                confidence=confidence,
-                meter=meter,
-                spend_cap_policy=spend_cap_policy,
-                _config=KnotConfig(id=f"attempt_{index}"),
-            )
-        return _CascadeResult(state=chain, _config=KnotConfig(id="result"))
+        loop = _CascadeLoop(
+            request=request,
+            tiers=tier_tuple,
+            confidence=confidence,
+            meter=meter,
+            spend_cap_policy=spend_cap_policy,
+            state=initial,
+            _config=KnotConfig(id="cascade_loop"),
+        )
+        return _CascadeResult(state=loop, _config=KnotConfig(id="result"))

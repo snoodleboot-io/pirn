@@ -23,13 +23,14 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.source import Source
 from pirn.tapestry import Tapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.plan_and_execute.task_planner import TaskPlanner
-from pirn_agents.specializations.plan_react.plan_react_result import PlanReActResult
+from pirn_agents.specializations.plan_react._plan_react_result_extractor import (
+    _PlanReActResultExtractor,
+)
 from pirn_agents.specializations.react.react_loop import ReActLoop
 from pirn_agents.tools.tool_factory import ToolFactory
 from pirn_agents.types.messaging.agent_message import AgentMessage
@@ -79,8 +80,7 @@ class PlanReActPipeline(AgentPipeline):
             max_steps: Cap on the number of plan steps executed.
 
         Returns:
-            A terminal :class:`Source` whose output is the
-            :class:`PlanReActResult`.
+            The sink knot whose output is the :class:`PlanReActResult`.
 
         Raises:
             ValueError: If ``max_iterations`` or ``max_steps`` is not positive.
@@ -93,9 +93,10 @@ class PlanReActPipeline(AgentPipeline):
             raise ValueError(f"PlanReActPipeline: max_steps must be positive, got {max_steps!r}")
         tool_tuple = tuple(tools)
 
-        with Tapestry():
-            planner = TaskPlanner(goal=task, llm=llm, _config=KnotConfig(id="pr_plan"))
-        plan = await planner.process(goal=task, llm=llm)
+        with Tapestry() as plan_inner:
+            TaskPlanner(goal=task, llm=llm, _config=KnotConfig(id="pr_plan"))
+        plan_result = await self._run_inner(plan_inner)
+        plan = plan_result.outputs["pr_plan"]
         steps = tuple(plan.steps[:max_steps]) or (task,)
 
         step_responses: list[AgentResponse] = []
@@ -115,16 +116,8 @@ class PlanReActPipeline(AgentPipeline):
             else:
                 step_responses.append(AgentResponse(content=str(response)))
 
-        final = step_responses[-1] if step_responses else AgentResponse(content="")
-        result = PlanReActResult(
+        return _PlanReActResultExtractor(
             plan=steps,
             step_responses=tuple(step_responses),
-            final=final,
+            _config=KnotConfig(id="plan_react_result"),
         )
-        _result = result
-
-        class _PlanReActResultSource(Source):
-            async def process(self, **_: Any) -> PlanReActResult:
-                return _result
-
-        return _PlanReActResultSource(_config=KnotConfig(id="plan_react_result"))

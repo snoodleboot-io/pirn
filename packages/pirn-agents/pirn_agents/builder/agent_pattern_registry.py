@@ -106,7 +106,7 @@ class AgentPatternRegistry:
         # --- multi-agent
         PatternDescriptor(
             "consensus",
-            f"{_spec}.multi_agent.consensus_aggregator:ConsensusAggregator",
+            f"{_spec}.multi_agent.consensus_pipeline:ConsensusPipeline",
             "responses",
         ),
         PatternDescriptor(
@@ -212,6 +212,12 @@ class AgentPatternRegistry:
         ),
         PatternDescriptor(
             "self_ask", f"{_spec}.self_ask.self_ask_pipeline:SelfAskPipeline", "task"
+        ),
+        # --- reflection
+        PatternDescriptor(
+            "constitutional_filter",
+            f"{_spec}.reflection.constitutional_filter:ConstitutionalFilter",
+            "response",
         ),
         # --- specialized agents
         PatternDescriptor(

@@ -19,7 +19,7 @@ pirn_agents/specializations/multi_agent/
 ├── parallel_specialist_fan_out.py  ParallelSpecialistFanOut    — send same input to N specialist agents in parallel
 ├── specialist_invocation.py        SpecialistInvocation        — run one specialist as a graph node (fan-out parent)
 ├── debate_round_framer.py          DebateRoundFramer           — render one debate round's task from prior rounds
-├── consensus_aggregator.py         ConsensusAggregator         — combine N answers; pick by majority vote or synthesis
+├── consensus_pipeline.py         ConsensusPipeline         — combine N answers; pick by majority vote or synthesis
 ├── consensus_majority_vote_picker.py ConsensusMajorityVotePicker — vote on which answer is most common
 ├── consensus_synthesis_caller.py   ConsensusSynthesisCaller    — call LLM to synthesize N divergent answers
 ├── debate_framework.py             DebateFramework             — structured debate: propose → challenge → defend → judge
@@ -35,7 +35,7 @@ pirn_agents/specializations/multi_agent/
 
 ```python
 from pirn_agents.specializations.multi_agent.parallel_specialist_fan_out import ParallelSpecialistFanOut
-from pirn_agents.specializations.multi_agent.consensus_aggregator import ConsensusAggregator
+from pirn_agents.specializations.multi_agent.consensus_pipeline import ConsensusPipeline
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
@@ -48,7 +48,7 @@ with Tapestry() as t:
         agents=[legal_agent, finance_agent, risk_agent],
         _config=KnotConfig(id="fan-out"),
     )
-    answer    = ConsensusAggregator(
+    answer    = ConsensusPipeline(
         responses=responses,
         llm=synthesis_llm,
         strategy="synthesis",   # or "majority_vote"
@@ -85,7 +85,7 @@ with Tapestry() as t:
 
 - **`OrchestratorAgent` makes an LLM call to decide routing** — this adds latency and one extra token budget. For deterministic routing, use `IntentRouter` from `pirn_agents.specializations.routing` instead.
 - **`DebateFramework` requires at least 2 agents and a `DebateJudge`.** Each debate round adds `N_agents × rounds` LLM calls.
-- **`ConsensusAggregator(strategy="majority_vote")` requires outputs that are comparable strings or enums.** For free-text answers, use `strategy="synthesis"` to call the LLM to reconcile.
+- **`ConsensusPipeline(strategy="majority_vote")` requires outputs that are comparable strings or enums.** For free-text answers, use `strategy="synthesis"` to call the LLM to reconcile.
 
 ---
 
@@ -94,7 +94,7 @@ with Tapestry() as t:
 | Pattern | Entry point |
 |---------|------------|
 | Route to one specialist | `OrchestratorAgent(workers={...}, llm=...)` |
-| Parallel specialists → consensus | `ParallelSpecialistFanOut` + `ConsensusAggregator` |
+| Parallel specialists → consensus | `ParallelSpecialistFanOut` + `ConsensusPipeline` |
 | Sequential review chain | `RoundRobinReview(agents=[...])` |
 | Adversarial debate | `DebateFramework(agents=[...], judge=DebateJudge(...))` |
 | Majority vote | `ConsensusMajorityVotePicker(responses=...)` |

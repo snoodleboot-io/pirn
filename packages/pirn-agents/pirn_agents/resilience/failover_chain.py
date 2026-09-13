@@ -16,27 +16,25 @@ candidates were attempted and why each earlier one fell through.
 The chain is expressed as a graph rather than a hand-rolled
 ``for candidate in candidates`` loop: ``candidates`` is a resolved value known
 in full by the time ``process()`` runs, so its length is not data-dependent —
-unlike an agentic loop, no ``LoopSubTapestry`` is needed. Instead ``process()``
-builds a static chain of one
-:class:`~pirn_agents.resilience._attempt_candidate._AttemptCandidate` knot per
-candidate, each taking the previous candidate's accumulated
-:class:`FailoverResult` as its ``prior`` parent and folding its own outcome
-into it. A candidate whose ``prior`` already succeeded returns it unchanged
-without calling its own ``operation`` — the actual (paid) call is skipped
-exactly as before, and every candidate still gets its own engine ``Result``,
-history record, and lineage (where the original hid all of them behind one
-knot's hand-rolled loop).
+unlike an agentic loop — but the chain is still driven by a
+:class:`~pirn_agents.resilience._failover_loop._FailoverLoop`
+(``LoopSubTapestry``, ADR agents-speaks-core WS5b) rather than a static
+unroll: once a candidate succeeds, the loop stops, so a candidate past that
+point is never even scheduled. Each attempted
+:class:`~pirn_agents.resilience._attempt_candidate._AttemptCandidate` still
+gets its own engine ``Result``, history record, and lineage (where the
+original hid all of them behind one knot's hand-rolled loop).
 
 Algorithm:
     1. Validate ``candidates`` (non-empty, all :class:`FailoverCandidate`) and
        ``breakers`` (a :class:`CircuitBreakerRegistry` or ``None``).
     2. Build the initial (unattempted, unsucceeded) :class:`FailoverResult`.
-    3. Chain one ``_AttemptCandidate`` per candidate: each checks whether the
-       accumulated result already succeeded (pass through unchanged), else
-       consults the candidate's circuit breaker (skip on open), runs the
+    3. Drive one ``_AttemptCandidate`` per attempted candidate: each checks
+       whether the accumulated result already succeeded (stops the loop),
+       else consults the candidate's circuit breaker (skip on open), runs the
        operation under its optional timeout, records the outcome into the
        breaker, and appends a :class:`FailoverAttempt` to the trace.
-    4. The final knot's accumulated :class:`FailoverResult` is the chain's
+    4. The loop's final accumulated :class:`FailoverResult` is the chain's
        output.
 
 References:
@@ -53,7 +51,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.nodes.sub_tapestry import SubTapestry
 
-from pirn_agents.resilience._attempt_candidate import _AttemptCandidate
+from pirn_agents.resilience._failover_loop import _FailoverLoop
 from pirn_agents.resilience.circuit_breaker_registry import CircuitBreakerRegistry
 from pirn_agents.resilience.failover_candidate import FailoverCandidate
 from pirn_agents.resilience.failover_result import FailoverResult
@@ -125,17 +123,14 @@ class FailoverChain(SubTapestry):
                 f"got {type(breakers).__name__}"
             )
 
-        chain: Knot = Parameter(
+        initial = Parameter(
             "initial",
             FailoverResult,
             default=FailoverResult(succeeded=False, chosen=None, value=None, attempts=()),
-            _config=KnotConfig(id="initial"),
         )
-        for index, candidate in enumerate(ordered):
-            chain = _AttemptCandidate(
-                prior=chain,
-                candidate=candidate,
-                breakers=breakers,
-                _config=KnotConfig(id=f"attempt_{index}"),
-            )
-        return chain
+        return _FailoverLoop(
+            candidates=ordered,
+            breakers=breakers,
+            state=initial,
+            _config=KnotConfig(id="failover_loop"),
+        )

@@ -15,15 +15,17 @@ transform has no core primitive of its own). That branch is kept, unchanged,
 so this class stays behaviourally correct for any external caller passing a
 real ``Knot``; only the constant-seed idiom is deprecated.
 
-No runtime ``DeprecationWarning`` is raised (docstring-only deprecation): Knot
-Design Rule 1 forbids any ``__init__`` statement beyond a single
-``super().__init__(...)`` call for a class subclassing ``Knot`` directly
-(``scripts/check_conventions.py``'s ``knot_init_impure`` rule), and a
-``__new__``-based warning is not a workaround — ``Knot.run_scoped_copy`` calls
-``copy.copy(self)`` on every knot before every run, which reconstructs via
-``cls.__new__(cls)`` with no arguments, so a ``__new__`` requiring
-``messages``/``_config`` breaks every run through this knot. Same core-tooling
-gap as ``ResolvedValueKnot``; see its module docstring.
+A runtime ``DeprecationWarning`` is now raised for the deprecated (constant-seed)
+call shape only, via ``Knot._deprecated_since`` / ``Knot._deprecation_notice``
+(ADR agents-speaks-core WS5b): ``_deprecation_notice`` is overridden below to
+inspect whether ``messages`` was wired in as a parent (a real upstream
+``Knot`` — still correct, stays silent) or a config value (the constant-seed
+idiom being deprecated), so the same class can warn for one call shape and not
+the other without ``__init__`` containing anything beyond its required single
+``super().__init__(...)`` call (Rule 1, ``knot-design-rules.md``, enforced by
+``scripts/check_conventions.py``'s ``knot_init_impure`` rule). Same
+core-tooling gap ``ResolvedValueKnot`` names — see its module docstring — now
+resolved by the same seam.
 
 Algorithm:
     1. Receive the resolved ``messages`` collection at process time.
@@ -37,7 +39,8 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Mapping
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -51,8 +54,11 @@ class MessagesPassthrough(Knot):
     Deprecated for seeding a loop from an already-known constant — construct
     a :class:`~pirn.core.parameter.Parameter` directly instead (see the module
     docstring). Still the correct choice when ``messages`` is a genuine
-    upstream ``Knot`` whose list output must be coerced to a tuple.
+    upstream ``Knot`` whose list output must be coerced to a tuple; that call
+    shape does not warn (see :meth:`_deprecation_notice`).
     """
+
+    _deprecated_since: ClassVar[str | None] = "agents-speaks-core WS5a"
 
     def __init__(
         self,
@@ -62,6 +68,20 @@ class MessagesPassthrough(Knot):
         **kwargs: Any,
     ) -> None:
         super().__init__(messages=messages, _config=_config, **kwargs)
+
+    def _deprecation_notice(
+        self, parents: Mapping[str, Knot], config_values: Mapping[str, Any]
+    ) -> str | None:
+        """Warn only for the constant-seed idiom, not a genuine upstream ``Knot``.
+
+        ``messages`` lands in ``parents`` when the caller wired an upstream
+        ``Knot`` (still correct — that branch is not deprecated) and in
+        ``config_values`` when the caller passed an already-known
+        tuple/list (the idiom :class:`~pirn.core.parameter.Parameter` replaces).
+        """
+        if "messages" in parents:
+            return None
+        return type(self)._deprecated_since
 
     async def process(
         self,

@@ -9,13 +9,13 @@ Algorithm:
        (Mapping), and ``max_retries`` (int).
     2. Validate each argument; raise ``TypeError`` or ``ValueError`` on
        invalid inputs.
-    3. For each attempt index in ``range(max_retries)``:
-       a. Build an inner Tapestry with a ``_YamlExtractorAttempt`` knot,
-          passing the accumulated ``prior_error`` for self-correction.
-       b. Await ``_run_inner`` to obtain the attempt outcome.
-       c. If the outcome is a dict, return it immediately.
-       d. Otherwise, record the error string and loop.
-    4. Raise ``ValueError`` after exhausting all attempts.
+    3. Drive the attempts with a ``_YamlExtractorLoop`` (``LoopSubTapestry``):
+       each attempt is one real, individually-traceable
+       ``_YamlExtractorAttempt`` invocation, passing the accumulated
+       ``prior_error`` for self-correction, rather than a step inside a
+       hand-rolled Python ``for`` loop (ADR agents-speaks-core WS5b).
+    4. Extract the parsed mapping with ``_YamlExtractorResultExtractor``,
+       which raises ``ValueError`` if every attempt was exhausted.
 
 
 References:
@@ -30,13 +30,18 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.source import Source
-from pirn.tapestry import Tapestry
+from pirn.core.parameter import Parameter
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.structured_output._yaml_extractor_attempt import (
-    _YamlExtractorAttempt,
+from pirn_agents.specializations.structured_output._yaml_extractor_loop import (
+    _YamlExtractorLoop,
+)
+from pirn_agents.specializations.structured_output._yaml_extractor_result_extractor import (
+    _YamlExtractorResultExtractor,
+)
+from pirn_agents.specializations.structured_output._yaml_extractor_state import (
+    _YamlExtractorState,
 )
 
 
@@ -79,7 +84,8 @@ class YamlExtractorPipeline(AgentPipeline):
             max_retries: Maximum number of attempts before raising.
 
         Returns:
-            A parsed YAML mapping; conforms to the optional schema when one is provided.
+            The sink knot whose output is a parsed YAML mapping; conforms to
+            the optional schema when one is provided.
 
         Raises:
             TypeError: If any argument is the wrong type.
@@ -95,33 +101,20 @@ class YamlExtractorPipeline(AgentPipeline):
                 f"YamlExtractorPipeline: max_retries must be a positive int, got {max_retries!r}"
             )
         resolved_schema: dict[str, Any] | None = dict(schema) if schema is not None else None
-        prior_error = ""
-        last_error = "no attempts were made"
-        result_dict: Mapping[str, Any] | None = None
-        for attempt_index in range(max_retries):
-            with Tapestry() as attempt_tapestry:
-                _YamlExtractorAttempt(
-                    prompt=prompt,
-                    llm=llm,
-                    schema=resolved_schema,
-                    prior_error=prior_error,
-                    _config=KnotConfig(id=f"attempt_{attempt_index}"),
-                )
-            inner_result = await self._run_inner(attempt_tapestry)
-            outcome = inner_result.outputs.get(f"attempt_{attempt_index}")
-            if isinstance(outcome, dict):
-                result_dict = outcome
-                break
-            prior_error = str(outcome) if outcome is not None else "no output"
-            last_error = prior_error
-        if result_dict is None:
-            raise ValueError(
-                f"YamlExtractorPipeline: exhausted {max_retries} attempt(s); last error: {last_error}"
-            )
-        _result = result_dict
 
-        class _ResultSource(Source):
-            async def process(self, **_: Any) -> Mapping[str, Any]:
-                return _result
-
-        return _ResultSource(_config=KnotConfig(id="result"))
+        initial = Parameter(
+            "yaml_extractor_state",
+            _YamlExtractorState,
+            default=_YamlExtractorState(
+                prior_error="", result=None, last_error="no attempts were made", attempts=0
+            ),
+        )
+        loop = _YamlExtractorLoop(
+            prompt=prompt,
+            llm=llm,
+            schema=resolved_schema,
+            max_retries=max_retries,
+            state=initial,
+            _config=KnotConfig(id="yaml_extractor_loop"),
+        )
+        return _YamlExtractorResultExtractor(state=loop, _config=KnotConfig(id="result"))

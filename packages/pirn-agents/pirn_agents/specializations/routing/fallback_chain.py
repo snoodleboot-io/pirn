@@ -4,14 +4,16 @@ Algorithm:
     1. Receive the ``ordered`` candidates (confidence-descending), the tool
        ``arguments``, and the ``confidences`` mapping.
     2. Validate types at process time.
-    3. Build a static chain of one
+    3. Drive the candidates with a
+       :class:`~pirn_agents.specializations.routing._fallback_loop._FallbackLoop`
+       (``LoopSubTapestry``, ADR agents-speaks-core WS5b): each candidate is
+       one real, individually-traceable
        :class:`~pirn_agents.specializations.routing._candidate_attempt._CandidateAttempt`
-       knot per candidate: each skips its candidate (no call attempted) when
-       its confidence is below its ``min_confidence`` floor, or when an
-       earlier candidate already succeeded; otherwise it invokes the
-       candidate's tool via a real
-       :class:`~pirn_agents.tools.tool_invocation.ToolInvocation` and folds
-       the outcome in.
+       invocation, skipping the call (no ``ToolInvocation``) when its
+       confidence is below its ``min_confidence`` floor, or invoking the
+       candidate's tool and folding the outcome in; once a candidate
+       succeeds the loop stops, so a candidate past that point is never even
+       scheduled.
     4. Return a typed :class:`FallbackResult` recording the outcome, the
        candidates attempted, and the candidates skipped.
 
@@ -36,9 +38,9 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.routing._candidate_attempt import _CandidateAttempt
 from pirn_agents.specializations.routing._fallback_chain_result import _FallbackChainResult
 from pirn_agents.specializations.routing._fallback_chain_state import _FallbackChainState
+from pirn_agents.specializations.routing._fallback_loop import _FallbackLoop
 from pirn_agents.specializations.routing.route_candidate import RouteCandidate
 
 
@@ -99,18 +101,16 @@ class FallbackChain(AgentPipeline):
                 f"FallbackChain: confidences must be a Mapping, got {type(confidences).__name__}"
             )
 
-        chain: Knot = Parameter(
+        initial = Parameter(
             "initial",
             _FallbackChainState,
             default=_FallbackChainState(),
-            _config=KnotConfig(id="initial"),
         )
-        for index, candidate in enumerate(candidate_tuple):
-            chain = _CandidateAttempt(
-                prior=chain,
-                candidate=candidate,
-                arguments=arguments,
-                confidences=confidences,
-                _config=KnotConfig(id=f"attempt_{index}"),
-            )
-        return _FallbackChainResult(state=chain, _config=KnotConfig(id="result"))
+        loop = _FallbackLoop(
+            ordered=candidate_tuple,
+            arguments=arguments,
+            confidences=confidences,
+            state=initial,
+            _config=KnotConfig(id="fallback_loop"),
+        )
+        return _FallbackChainResult(state=loop, _config=KnotConfig(id="result"))

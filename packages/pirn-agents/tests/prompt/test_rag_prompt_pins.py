@@ -17,12 +17,15 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
+from pirn_agents.specializations.rag._flare_loop import _FlareLoop
+from pirn_agents.specializations.rag._flare_regenerate_prompt_builder import (
+    _FlareRegeneratePromptBuilder,
+)
 from pirn_agents.specializations.rag.adaptive_rag_pipeline import AdaptiveRAGPipeline
 from pirn_agents.specializations.rag.agentic_rag_pipeline import AgenticRagPipeline
 from pirn_agents.specializations.rag.contextual_chunk_enricher import ContextualChunkEnricher
 from pirn_agents.specializations.rag.contextual_compressor import ContextualCompressor
 from pirn_agents.specializations.rag.draft_verifier import DraftVerifier
-from pirn_agents.specializations.rag.flare_active_rag_pipeline import FlareActiveRagPipeline
 from pirn_agents.specializations.rag.graph_rag_pipeline import GraphRAGPipeline
 from pirn_agents.specializations.rag.hyde_rag_pipeline import HyDERAGPipeline
 from pirn_agents.specializations.rag.indexing._raptor_assembler import _RaptorAssembler
@@ -326,14 +329,22 @@ class RagHelperPromptPins(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_flare_generate_prompt(self) -> None:
-        assert FlareActiveRagPipeline._generate_prompt("Q", []) == (
+        # The generation prompt now renders inside _FlareLoop (ADR
+        # agents-speaks-core WS5b), not on FlareActiveRagPipeline itself.
+        assert _FlareLoop._generate_prompt("Q", ()) == (
             "Answer the question one sentence at a time. Reply with 'DONE' if the answer is "
             "complete, otherwise reply exactly 'CONF=<0-1>: <the next sentence>' where the number "
             "is your confidence.\n\nQuestion: Q\n\nAnswer so far: (nothing yet)"
         )
 
     async def test_flare_regenerate_prompt(self) -> None:
-        assert FlareActiveRagPipeline._regenerate_prompt("Q", "S", []) == (
+        # The regeneration prompt now renders inside _FlareRegeneratePromptBuilder,
+        # a real knot in the round's tapestry (ADR agents-speaks-core WS5b).
+        builder = _FlareRegeneratePromptBuilder(
+            query="Q", sentence="S", docs=[], _config=KnotConfig(id="rp")
+        )
+        prompt = await builder.process(query="Q", sentence="S", docs=[])
+        assert prompt == (
             "Rewrite the tentative sentence so it is fully supported by the evidence. Reply with "
             "only the corrected sentence.\n\nQuestion: Q\n\nTentative sentence: S\n\n"
             "Evidence:\n(no evidence retrieved)"

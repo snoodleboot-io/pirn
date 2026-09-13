@@ -1,10 +1,15 @@
-"""Tests for :class:`ConsensusAggregator`."""
+"""Tests for :class:`ConsensusAggregator` — deprecation shim for :class:`ConsensusPipeline`.
+
+ADR agents-speaks-core WS5b. Behavioral coverage lives in
+``test_consensus_pipeline.py``; this file pins only the shim's two extra
+obligations: it still works, and it warns.
+"""
 
 from __future__ import annotations
 
 import unittest
+import warnings
 
-from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -12,86 +17,43 @@ from pirn.tapestry import Tapestry
 from pirn_agents.specializations.multi_agent.consensus_aggregator import (
     ConsensusAggregator,
 )
+from pirn_agents.specializations.multi_agent.consensus_pipeline import ConsensusPipeline
 from pirn_agents.types.messaging.agent_response import AgentResponse
 from tests.specializations.conftest import StubLLMProvider
 
 
-def _make_knot() -> ConsensusAggregator:
-    with Tapestry():
-        return ConsensusAggregator(
-            responses={"a": AgentResponse(content="x", finish_reason="stop")},
-            llm=StubLLMProvider(["y"]),
-            _config=KnotConfig(id="con"),
-        )
+class TestConsensusAggregatorIsConsensusPipeline(unittest.TestCase):
+    def test_is_a_subclass(self) -> None:
+        assert issubclass(ConsensusAggregator, ConsensusPipeline)
 
 
-class TestConsensusAggregatorProcess(unittest.IsolatedAsyncioTestCase):
-    async def test_majority_vote_returns_most_common_response(self) -> None:
-        llm = StubLLMProvider(["unused-by-majority"])
-        responses = {
-            "a": AgentResponse(content="42", finish_reason="stop"),
-            "b": AgentResponse(content="42", finish_reason="stop"),
-            "c": AgentResponse(content="-1", finish_reason="stop"),
-        }
-        with Tapestry() as t:
-            ConsensusAggregator(
-                responses=responses,
-                llm=llm,
-                strategy="majority_vote",
-                _config=KnotConfig(id="con"),
-            )
-        run = await t.run(RunRequest())
-        assert run.succeeded
-        consensus = run.outputs["con"]
-        assert isinstance(consensus, AgentResponse)
-        assert consensus.content == "42"
-
-    async def test_llm_synthesis_returns_synthesised_text(self) -> None:
+class TestConsensusAggregatorStillWorks(unittest.IsolatedAsyncioTestCase):
+    async def test_forwards_to_consensus_pipeline_behaviour(self) -> None:
         llm = StubLLMProvider(["the synthesis"])
-        responses = {
-            "a": AgentResponse(content="answer A", finish_reason="stop"),
-            "b": AgentResponse(content="answer B", finish_reason="stop"),
-        }
-        with Tapestry() as t:
-            ConsensusAggregator(
-                responses=responses,
-                llm=llm,
-                strategy="llm_synthesis",
-                _config=KnotConfig(id="con"),
-            )
-        run = await t.run(RunRequest())
-        assert run.succeeded
-        consensus = run.outputs["con"]
-        assert isinstance(consensus, AgentResponse)
-        assert consensus.content == "the synthesis"
-
-    async def test_rejects_unsupported_strategy(self) -> None:
-        k = _make_knot()
-        llm = StubLLMProvider(["x"])
-        responses = {"a": AgentResponse(content="x", finish_reason="stop")}
-        with self.assertRaises(ValueError):
-            await k.process(responses=responses, llm=llm, strategy="quorum")
-
-    async def test_rejects_non_llm_provider(self) -> None:
-        k = _make_knot()
-        responses = {"a": AgentResponse(content="x", finish_reason="stop")}
-        result = await k({"responses": responses, "llm": "bad", "strategy": "majority_vote"})
-        assert isinstance(result, Err)
-        assert result.record.exc_type == "ValidationError"
-
-    async def test_tapestry_run_integration(self) -> None:
-        llm = StubLLMProvider(["the synthesis"])
-        responses = {
-            "a": AgentResponse(content="answer A", finish_reason="stop"),
-            "b": AgentResponse(content="answer B", finish_reason="stop"),
-        }
-        with Tapestry() as t:
-            ConsensusAggregator(
-                responses=responses,
-                llm=llm,
-                strategy="llm_synthesis",
-                _config=KnotConfig(id="con"),
-            )
-        result = await t.run(RunRequest())
+        responses = {"a": AgentResponse(content="answer A", finish_reason="stop")}
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            with Tapestry() as t:
+                ConsensusAggregator(
+                    responses=responses,
+                    llm=llm,
+                    strategy="llm_synthesis",
+                    _config=KnotConfig(id="con"),
+                )
+            result = await t.run(RunRequest())
         assert result.succeeded
         assert result.outputs["con"].content == "the synthesis"
+
+
+class TestConsensusAggregatorWarnsOnConstruction(unittest.TestCase):
+    def test_construction_warns(self) -> None:
+        with Tapestry(), warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            ConsensusAggregator(
+                responses={"a": AgentResponse(content="x", finish_reason="stop")},
+                llm=StubLLMProvider(["y"]),
+                _config=KnotConfig(id="con"),
+            )
+        assert len(caught) == 1
+        assert issubclass(caught[0].category, DeprecationWarning)
+        assert "ConsensusAggregator" in str(caught[0].message)

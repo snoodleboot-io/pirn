@@ -18,20 +18,21 @@ package has been migrated to construct ``Parameter`` directly (see
 ``evaluator_optimizer_pipeline.py:109`` for the idiom), so this class now
 exists only as a one-cycle deprecation shim for external callers.
 
-No runtime ``DeprecationWarning`` is raised here (docstring-only deprecation):
-Knot Design Rule 1 (``knot-design-rules.md``) requires ``__init__`` to contain
-nothing but a single ``super().__init__(...)`` call, enforced by
-``scripts/check_conventions.py``'s ``knot_init_impure`` rule for any class
-whose name ends in ``Knot`` — which the deprecated public name must keep — and
-moving a warning into ``__new__`` is not a workaround: ``Knot.run_scoped_copy``
-calls ``copy.copy(self)`` on every knot before every run, which reconstructs
-via ``cls.__new__(cls)`` with no arguments, so a ``__new__`` requiring
-``value``/``_config`` breaks every run through this knot, not just
-construction. Filed as a core-tooling gap in the ADR agents-speaks-core WS5a
-report: there is currently no way to attach a per-construction
-``DeprecationWarning`` to a Knot-shaped deprecation shim.
+A runtime ``DeprecationWarning`` is now raised on every construction, via
+``Knot._deprecated_since`` (ADR agents-speaks-core WS5b): the seam lives in
+``Knot._bootstrap`` — the one place both the standard ``Knot.__init__``
+introspection and ``Parameter``'s hand-rolled construction (which this class
+goes through) converge — so it fires without ``__init__`` containing anything
+beyond its required single ``super().__init__(...)`` call (Rule 1,
+``knot-design-rules.md``, enforced by ``scripts/check_conventions.py``'s
+``knot_init_impure`` rule). This resolves the core-tooling gap the WS5a report
+filed: there was previously no way to attach a per-construction
+``DeprecationWarning`` to a Knot-shaped deprecation shim without a ``__new__``
+override, which would have broken ``Knot.run_scoped_copy``'s
+``copy.copy(self)`` (no-argument reconstruction) on every run, not just
+construction.
 
-ADR: agents-speaks-core WS5a (PIR-856).
+ADR: agents-speaks-core WS5a, WS5b (PIR-856).
 
 References:
     pirn-native — no external references.
@@ -39,7 +40,7 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
@@ -49,13 +50,16 @@ class ResolvedValueKnot(Parameter):
     """Deprecated: construct :class:`pirn.core.parameter.Parameter` directly.
 
     Kept importable as a one-cycle deprecation shim (ADR agents-speaks-core
-    WS5a) — see the module docstring for why it cannot also raise a runtime
-    ``DeprecationWarning``. ``value`` must already be a plain, resolved
-    value — the ``Knot`` half of the historical ``Knot | Any`` signature was
-    never exercised by any in-tree caller and cannot be preserved by a
-    ``Parameter``, which is a graph root with no parents; wire an upstream
-    ``Knot`` directly to its real consumer instead of through this shim.
+    WS5a); every construction now raises a ``DeprecationWarning`` via
+    ``Knot._deprecated_since`` — see the module docstring. ``value`` must
+    already be a plain, resolved value — the ``Knot`` half of the historical
+    ``Knot | Any`` signature was never exercised by any in-tree caller and
+    cannot be preserved by a ``Parameter``, which is a graph root with no
+    parents; wire an upstream ``Knot`` directly to its real consumer instead
+    of through this shim.
     """
+
+    _deprecated_since: ClassVar[str | None] = "agents-speaks-core WS5a"
 
     def __init__(
         self,

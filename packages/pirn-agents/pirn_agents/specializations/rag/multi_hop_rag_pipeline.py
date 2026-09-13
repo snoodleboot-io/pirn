@@ -35,13 +35,15 @@ from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.source import Source
 from pirn.tapestry import Tapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
+from pirn_agents.specializations.rag._multi_hop_result_extractor import (
+    _MultiHopResultExtractor,
+)
 from pirn_agents.specializations.rag.llm_chat_call import LLMChatCall
 from pirn_agents.specializations.rag.memory_search_retriever import (
     MemorySearchRetriever,
@@ -52,7 +54,6 @@ from pirn_agents.specializations.rag.rag_prompt_builder import (
 from pirn_agents.specializations.rag.rag_response_builder import (
     RAGResponseBuilder,
 )
-from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class MultiHopRAGPipeline(AgentPipeline):
@@ -150,14 +151,4 @@ class MultiHopRAGPipeline(AgentPipeline):
             )
         synth_result = await self._run_inner(inner_synth)
         raw = synth_result.outputs.get("response")
-        _resp: AgentResponse = (
-            raw
-            if isinstance(raw, AgentResponse)
-            else AgentResponse(content="", finish_reason="length")
-        )
-
-        class _ResultSource(Source):
-            async def process(self, **_: Any) -> AgentResponse:
-                return _resp
-
-        return _ResultSource(_config=KnotConfig(id="result"))
+        return _MultiHopResultExtractor(raw=raw, _config=KnotConfig(id="result"))

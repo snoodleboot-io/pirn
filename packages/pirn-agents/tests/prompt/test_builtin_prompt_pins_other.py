@@ -540,10 +540,15 @@ class SelfAskPromptPins(unittest.IsolatedAsyncioTestCase):
     """`specializations/self_ask/` prompt text is delivered byte-for-byte."""
 
     async def test_self_ask_pipeline_all_three_systems(self) -> None:
+        # The sub-answer and compose calls happen inside knots the loop/
+        # composer schedule (ADR agents-speaks-core WS5b) -- run the whole
+        # graph rather than calling process() directly, which only reaches
+        # the decompose call.
         llm = StubLLMProvider(responses=["- sub one", "sub answer", "final"])
-        knot = _bare(SelfAskPipeline)
-        with Tapestry():
-            await knot.process(task="big question", llm=llm)
+        with Tapestry() as t:
+            SelfAskPipeline(task="big question", llm=llm, _config=KnotConfig(id="sa"))
+        run = await t.run(RunRequest())
+        assert run.succeeded
         assert llm.calls[0][0]["content"] == (
             "Break the question into the follow-up sub-questions needed to "
             "answer it. List each on its own line prefixed with '- '."
