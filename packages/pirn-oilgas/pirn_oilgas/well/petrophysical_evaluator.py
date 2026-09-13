@@ -45,42 +45,42 @@ _rho_fl = 1.0
 _eps = 1e-9
 
 
-def _compute_curves(
-    curve_data: dict[str, np.ndarray],
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    if "GR" not in curve_data:
-        raise ValueError("PetrophysicalEvaluator: need GR and either RHOB or a PHI curve")
-    gr = curve_data["GR"]
-    vsh = np.clip((gr - _gr_clean) / (_gr_shale - _gr_clean), 0.0, 1.0)
-
-    if "RHOB" in curve_data:
-        phi_d = np.clip((_rho_ma - curve_data["RHOB"]) / (_rho_ma - _rho_fl), 0.0, 1.0)
-        phie = phi_d * (1.0 - vsh)
-    else:
-        phi_curve = next(
-            (curve_data[k] for k in curve_data if k.startswith("PHI_")),
-            None,
-        )
-        if phi_curve is None:
-            raise ValueError("PetrophysicalEvaluator: need GR and either RHOB or a PHI curve")
-        phie = phi_curve * (1.0 - vsh)
-
-    depth_count = len(gr)
-    if "RT" in curve_data:
-        rt = curve_data["RT"]
-        sw = np.clip((1.0 * 0.1 / (phie**2 * rt + _eps)) ** 0.5, 0.0, 1.0)
-    else:
-        sw = np.ones(depth_count, dtype=np.float64)
-
-    return vsh, phie, sw
-
-
 class PetrophysicalEvaluator(Knot):
     """Run a basic petrophysics interpretation pass over a normalised LASPayload.
 
     The result is itself a :class:`LASPayload` whose ``curves`` and
     ``curve_data`` are augmented with the standard interpreted-log mnemonics.
     """
+
+    @staticmethod
+    def _compute_curves(
+        curve_data: dict[str, np.ndarray],
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        if "GR" not in curve_data:
+            raise ValueError("PetrophysicalEvaluator: need GR and either RHOB or a PHI curve")
+        gr = curve_data["GR"]
+        vsh = np.clip((gr - _gr_clean) / (_gr_shale - _gr_clean), 0.0, 1.0)
+
+        if "RHOB" in curve_data:
+            phi_d = np.clip((_rho_ma - curve_data["RHOB"]) / (_rho_ma - _rho_fl), 0.0, 1.0)
+            phie = phi_d * (1.0 - vsh)
+        else:
+            phi_curve = next(
+                (curve_data[k] for k in curve_data if k.startswith("PHI_")),
+                None,
+            )
+            if phi_curve is None:
+                raise ValueError("PetrophysicalEvaluator: need GR and either RHOB or a PHI curve")
+            phie = phi_curve * (1.0 - vsh)
+
+        depth_count = len(gr)
+        if "RT" in curve_data:
+            rt = curve_data["RT"]
+            sw = np.clip((1.0 * 0.1 / (phie**2 * rt + _eps)) ** 0.5, 0.0, 1.0)
+        else:
+            sw = np.ones(depth_count, dtype=np.float64)
+
+        return vsh, phie, sw
 
     def __init__(
         self,
@@ -101,7 +101,9 @@ class PetrophysicalEvaluator(Knot):
         Returns:
             LASPayload with ``VSH``, ``PHIE``, and ``SW`` curves appended.
         """
-        vsh, phie, sw = await asyncio.to_thread(_compute_curves, payload.curve_data)
+        vsh, phie, sw = await asyncio.to_thread(
+            PetrophysicalEvaluator._compute_curves, payload.curve_data
+        )
 
         new_curve_data = {**payload.curve_data, "VSH": vsh, "PHIE": phie, "SW": sw}
         return LASPayload(

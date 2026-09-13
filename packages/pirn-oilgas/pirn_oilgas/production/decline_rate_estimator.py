@@ -37,20 +37,20 @@ from pirn.core.knot_config import KnotConfig
 from pirn_oilgas.types.scada_payload import ScadaPayload
 
 
-def _fit_decline(values: np.ndarray, sample_interval_sec: float) -> float:
-    positive_rates = values[values > 0]
-    if len(positive_rates) < 2:
-        return 0.0
-    time_days = np.arange(len(positive_rates)) * sample_interval_sec / 86400
-    log_q = np.log(positive_rates + 1e-9)
-    slope, _ = np.polyfit(time_days, log_q, 1)
-    di_per_day = -slope
-    di_per_year = di_per_day * 365
-    return float(max(di_per_year, 0.0))
-
-
 class DeclineRateEstimator(Knot):
     """Estimate the local decline rate (per year) of a production series."""
+
+    @staticmethod
+    def _fit_decline(values: np.ndarray, sample_interval_sec: float) -> float:
+        positive_rates = values[values > 0]
+        if len(positive_rates) < 2:
+            return 0.0
+        time_days = np.arange(len(positive_rates)) * sample_interval_sec / 86400
+        log_q = np.log(positive_rates + 1e-9)
+        slope, _ = np.polyfit(time_days, log_q, 1)
+        di_per_day = -slope
+        di_per_year = di_per_day * 365
+        return float(max(di_per_year, 0.0))
 
     def __init__(
         self,
@@ -89,7 +89,7 @@ class DeclineRateEstimator(Knot):
         if not isinstance(window_days, int) or window_days <= 0:
             raise ValueError("DeclineRateEstimator: window_days must be a positive integer")
         return await asyncio.to_thread(
-            _fit_decline,
+            DeclineRateEstimator._fit_decline,
             rate_series.values,
             rate_series.series.sample_interval_sec,
         )

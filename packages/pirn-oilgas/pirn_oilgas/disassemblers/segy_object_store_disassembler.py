@@ -43,36 +43,6 @@ from pirn.core.knot_config import KnotConfig
 from pirn_oilgas.types.segy_payload import SegyPayload
 
 
-def _encode(payload: SegyPayload) -> bytes:
-    import segyio  # optional dependency
-
-    traces: np.ndarray = payload.traces
-    if traces.ndim == 1:
-        traces = traces.reshape(1, -1)
-
-    total_traces, sample_count = traces.shape
-
-    with tempfile.NamedTemporaryFile(suffix=".segy", delete=False) as tmp:
-        tmp_path = tmp.name
-
-    try:
-        spec = segyio.spec()
-        spec.sorting = None
-        spec.format = 1
-        spec.samples = np.arange(sample_count, dtype=np.float32)
-        spec.tracecount = total_traces
-
-        with segyio.create(tmp_path, spec) as segy_file:
-            segy_file.bin.update(tsort=segyio.TraceSortingFormat.UNKNOWN_SORTING)
-            for idx in range(total_traces):
-                segy_file.trace[idx] = traces[idx].astype(np.float32)
-
-        with open(tmp_path, "rb") as raw:
-            return raw.read()
-    finally:
-        os.unlink(tmp_path)
-
-
 class SegyObjectStoreDisassembler(Disassembler):
     """Serialize a :class:`SegyPayload` to raw SEG-Y bytes.
 
@@ -80,6 +50,36 @@ class SegyObjectStoreDisassembler(Disassembler):
     encodes the trace buffer into SEG-Y format bytes suitable for a connector
     sink. Performs no I/O beyond the temporary file used by ``segyio``.
     """
+
+    @staticmethod
+    def _encode(payload: SegyPayload) -> bytes:
+        import segyio  # optional dependency
+
+        traces: np.ndarray = payload.traces
+        if traces.ndim == 1:
+            traces = traces.reshape(1, -1)
+
+        total_traces, sample_count = traces.shape
+
+        with tempfile.NamedTemporaryFile(suffix=".segy", delete=False) as tmp:
+            tmp_path = tmp.name
+
+        try:
+            spec = segyio.spec()
+            spec.sorting = None
+            spec.format = 1
+            spec.samples = np.arange(sample_count, dtype=np.float32)
+            spec.tracecount = total_traces
+
+            with segyio.create(tmp_path, spec) as segy_file:
+                segy_file.bin.update(tsort=segyio.TraceSortingFormat.UNKNOWN_SORTING)
+                for idx in range(total_traces):
+                    segy_file.trace[idx] = traces[idx].astype(np.float32)
+
+            with open(tmp_path, "rb") as raw:
+                return raw.read()
+        finally:
+            os.unlink(tmp_path)
 
     def __init__(
         self,
@@ -113,4 +113,4 @@ class SegyObjectStoreDisassembler(Disassembler):
             )
         if payload.traces.size == 0:
             raise ValueError("SegyObjectStoreDisassembler: payload.traces must be non-empty")
-        return await asyncio.to_thread(_encode, payload)
+        return await asyncio.to_thread(SegyObjectStoreDisassembler._encode, payload)

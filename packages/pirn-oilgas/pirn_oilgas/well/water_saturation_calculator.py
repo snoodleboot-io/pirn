@@ -45,53 +45,55 @@ _porosity_curve_priority = ("PHI_density", "PHI_neutron", "PHI_density_neutron",
 _sw_epsilon = 1e-9
 
 
-def _find_porosity_curve(curve_data: dict[str, np.ndarray]) -> np.ndarray:
-    for name in _porosity_curve_priority:
-        if name in curve_data:
-            return curve_data[name]
-    raise ValueError(
-        "WaterSaturationCalculator: no porosity curve found in curve_data; "
-        "run PorosityCalculator first"
-    )
-
-
-def _archie(
-    phi: np.ndarray,
-    rt: np.ndarray,
-    tortuosity_factor: float,
-    rw: float,
-    cementation_exponent: float,
-    saturation_exponent: float,
-) -> np.ndarray:
-    sw = (tortuosity_factor * rw / (phi**cementation_exponent * rt + _sw_epsilon)) ** (
-        1.0 / saturation_exponent
-    )
-    return np.clip(sw, 0.0, 1.0)
-
-
-def _simandoux(
-    phi: np.ndarray,
-    rt: np.ndarray,
-    vsh: np.ndarray,
-    tortuosity_factor: float,
-    rw: float,
-    cementation_exponent: float,
-    saturation_exponent: float,
-) -> np.ndarray:
-    rsh = 4.0
-    phi_m = phi**cementation_exponent
-    term = vsh / (2.0 * rsh)
-    discriminant = np.maximum(term**2 + phi_m / (tortuosity_factor * rw * rt + _sw_epsilon), 0.0)
-    sw = (
-        phi_m
-        / (tortuosity_factor * rw + _sw_epsilon)
-        / (-term + np.sqrt(discriminant) + _sw_epsilon)
-    )
-    return np.clip(sw, 0.0, 1.0)
-
-
 class WaterSaturationCalculator(Knot):
     """Compute a water-saturation curve using a configured saturation model."""
+
+    @staticmethod
+    def _find_porosity_curve(curve_data: dict[str, np.ndarray]) -> np.ndarray:
+        for name in _porosity_curve_priority:
+            if name in curve_data:
+                return curve_data[name]
+        raise ValueError(
+            "WaterSaturationCalculator: no porosity curve found in curve_data; "
+            "run PorosityCalculator first"
+        )
+
+    @staticmethod
+    def _archie(
+        phi: np.ndarray,
+        rt: np.ndarray,
+        tortuosity_factor: float,
+        rw: float,
+        cementation_exponent: float,
+        saturation_exponent: float,
+    ) -> np.ndarray:
+        sw = (tortuosity_factor * rw / (phi**cementation_exponent * rt + _sw_epsilon)) ** (
+            1.0 / saturation_exponent
+        )
+        return np.clip(sw, 0.0, 1.0)
+
+    @staticmethod
+    def _simandoux(
+        phi: np.ndarray,
+        rt: np.ndarray,
+        vsh: np.ndarray,
+        tortuosity_factor: float,
+        rw: float,
+        cementation_exponent: float,
+        saturation_exponent: float,
+    ) -> np.ndarray:
+        rsh = 4.0
+        phi_m = phi**cementation_exponent
+        term = vsh / (2.0 * rsh)
+        discriminant = np.maximum(
+            term**2 + phi_m / (tortuosity_factor * rw * rt + _sw_epsilon), 0.0
+        )
+        sw = (
+            phi_m
+            / (tortuosity_factor * rw + _sw_epsilon)
+            / (-term + np.sqrt(discriminant) + _sw_epsilon)
+        )
+        return np.clip(sw, 0.0, 1.0)
 
     def __init__(
         self,
@@ -157,7 +159,7 @@ class WaterSaturationCalculator(Knot):
                 raise ValueError(f"WaterSaturationCalculator: {label} must be positive")
 
         curve_data = payload.curve_data
-        phi = _find_porosity_curve(curve_data)
+        phi = WaterSaturationCalculator._find_porosity_curve(curve_data)
 
         if "RT" not in curve_data:
             raise ValueError("WaterSaturationCalculator: 'RT' curve required in curve_data")
@@ -165,11 +167,13 @@ class WaterSaturationCalculator(Knot):
 
         if method == "simandoux":
             vsh = curve_data.get("VSH", np.zeros_like(phi))
-            sw = _simandoux(
+            sw = WaterSaturationCalculator._simandoux(
                 phi, rt, vsh, tortuosity_factor, rw, cementation_exponent, saturation_exponent
             )
         else:
-            sw = _archie(phi, rt, tortuosity_factor, rw, cementation_exponent, saturation_exponent)
+            sw = WaterSaturationCalculator._archie(
+                phi, rt, tortuosity_factor, rw, cementation_exponent, saturation_exponent
+            )
 
         mnemonic = f"SW_{method}"
         new_curve_data = {**curve_data, mnemonic: sw}

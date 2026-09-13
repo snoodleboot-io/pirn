@@ -41,23 +41,23 @@ from pirn_oilgas.types.scada_payload import ScadaPayload
 from pirn_oilgas.types.scada_time_series import ScadaTimeSeries
 
 
-def _darcy_weisbach(
-    values: np.ndarray,
-    pipe_inner_diameter_in: float,
-    pipe_length_ft: float,
-) -> np.ndarray:
-    rho = 62.4
-    D_ft = pipe_inner_diameter_in / 12.0
-    A_ft2 = math.pi * (D_ft / 2) ** 2
-    Q_ft3s = values * 5.615 / 86400
-    velocity = Q_ft3s / (A_ft2 + 1e-12)
-    Re = rho * velocity * D_ft / (1.0 * 6.72e-4)
-    friction_factor = np.where(Re < 2300, 64 / (Re + 1e-9), 0.316 / (Re**0.25 + 1e-9))
-    return friction_factor * (pipe_length_ft / D_ft) * (rho * velocity**2 / 2) / 144
-
-
 class FlowlinePressureModeler(Knot):
     """Predict pressure drop along a flowline from rate and geometry inputs."""
+
+    @staticmethod
+    def _darcy_weisbach(
+        values: np.ndarray,
+        pipe_inner_diameter_in: float,
+        pipe_length_ft: float,
+    ) -> np.ndarray:
+        rho = 62.4
+        D_ft = pipe_inner_diameter_in / 12.0
+        A_ft2 = math.pi * (D_ft / 2) ** 2
+        Q_ft3s = values * 5.615 / 86400
+        velocity = Q_ft3s / (A_ft2 + 1e-12)
+        Re = rho * velocity * D_ft / (1.0 * 6.72e-4)
+        friction_factor = np.where(Re < 2300, 64 / (Re + 1e-9), 0.316 / (Re**0.25 + 1e-9))
+        return friction_factor * (pipe_length_ft / D_ft) * (rho * velocity**2 / 2) / 144
 
     def __init__(
         self,
@@ -111,7 +111,7 @@ class FlowlinePressureModeler(Knot):
             if value <= 0.0:
                 raise ValueError(f"FlowlinePressureModeler: {label} must be positive")
         dP_psi = await asyncio.to_thread(
-            _darcy_weisbach,
+            FlowlinePressureModeler._darcy_weisbach,
             rate_series.values,
             pipe_inner_diameter_in,
             pipe_length_ft,

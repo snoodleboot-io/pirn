@@ -32,37 +32,37 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 
-def _point_in_polygon(px: float, py: float, polygon: list[list[float]]) -> bool:
-    """Ray-casting algorithm for point-in-polygon test (Jordan curve theorem)."""
-    vertex_count = len(polygon)
-    inside = False
-    prev_vertex_idx = vertex_count - 1
-    for curr_vertex_idx in range(vertex_count):
-        xi, yi = polygon[curr_vertex_idx][0], polygon[curr_vertex_idx][1]
-        xj, yj = polygon[prev_vertex_idx][0], polygon[prev_vertex_idx][1]
-        # Ray from (px, py) in +x direction crosses edge (xi,yi)-(xj,yj) when
-        # the edge straddles py and the intersection is to the right of px.
-        if (yi > py) != (yj > py):
-            x_intersect = (xj - xi) * (py - yi) / (yj - yi + 1e-15) + xi
-            if px < x_intersect:
-                inside = not inside
-        prev_vertex_idx = curr_vertex_idx
-    return inside
-
-
-def _dist_to_segment(px: float, py: float, ax: float, ay: float, bx: float, by: float) -> float:
-    """Euclidean distance from point (px, py) to line segment (ax,ay)-(bx,by)."""
-    dx = bx - ax
-    dy = by - ay
-    len_sq = dx * dx + dy * dy
-    if len_sq < 1e-15:
-        return math.hypot(px - ax, py - ay)
-    segment_param = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / len_sq))
-    return math.hypot(px - (ax + segment_param * dx), py - (ay + segment_param * dy))
-
-
 class BoundaryProximityChecker(Knot):
     """Check that a projected location lies inside (or near) a field boundary."""
+
+    @staticmethod
+    def _point_in_polygon(px: float, py: float, polygon: list[list[float]]) -> bool:
+        """Ray-casting algorithm for point-in-polygon test (Jordan curve theorem)."""
+        vertex_count = len(polygon)
+        inside = False
+        prev_vertex_idx = vertex_count - 1
+        for curr_vertex_idx in range(vertex_count):
+            xi, yi = polygon[curr_vertex_idx][0], polygon[curr_vertex_idx][1]
+            xj, yj = polygon[prev_vertex_idx][0], polygon[prev_vertex_idx][1]
+            # Ray from (px, py) in +x direction crosses edge (xi,yi)-(xj,yj) when
+            # the edge straddles py and the intersection is to the right of px.
+            if (yi > py) != (yj > py):
+                x_intersect = (xj - xi) * (py - yi) / (yj - yi + 1e-15) + xi
+                if px < x_intersect:
+                    inside = not inside
+            prev_vertex_idx = curr_vertex_idx
+        return inside
+
+    @staticmethod
+    def _dist_to_segment(px: float, py: float, ax: float, ay: float, bx: float, by: float) -> float:
+        """Euclidean distance from point (px, py) to line segment (ax,ay)-(bx,by)."""
+        dx = bx - ax
+        dy = by - ay
+        len_sq = dx * dx + dy * dy
+        if len_sq < 1e-15:
+            return math.hypot(px - ax, py - ay)
+        segment_param = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / len_sq))
+        return math.hypot(px - (ax + segment_param * dx), py - (ay + segment_param * dy))
 
     def __init__(
         self,
@@ -113,7 +113,7 @@ class BoundaryProximityChecker(Knot):
         within = False
 
         if len(polygon) >= 3:
-            if _point_in_polygon(px, py, polygon):
+            if BoundaryProximityChecker._point_in_polygon(px, py, polygon):
                 within = True
             elif buffer_distance_m > 0.0:
                 vertex_count = len(polygon)
@@ -123,7 +123,10 @@ class BoundaryProximityChecker(Knot):
                         polygon[(vertex_idx + 1) % vertex_count][0],
                         polygon[(vertex_idx + 1) % vertex_count][1],
                     )
-                    if _dist_to_segment(px, py, ax, ay, bx, by) < buffer_distance_m:
+                    if (
+                        BoundaryProximityChecker._dist_to_segment(px, py, ax, ay, bx, by)
+                        < buffer_distance_m
+                    ):
                         within = True
                         break
         elif len(polygon) == 0:

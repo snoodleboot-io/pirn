@@ -34,42 +34,42 @@ from pirn_oilgas.types.las_file import LASFile
 from pirn_oilgas.types.las_payload import LASPayload
 
 
-def _decode(
-    body: bytes,
-    well_id: str,
-    curves: tuple[str, ...],
-    depth_unit: str,
-) -> LASPayload:
-    try:
-        import lasio
-    except ImportError as exc:
-        raise ImportError(
-            "LasObjectStoreAssembler: decoding LAS bytes requires lasio — "
-            "install pirn-oilgas[oilgas]"
-        ) from exc
-
-    las = lasio.read(io.StringIO(body.decode("utf-8", errors="replace")))
-    available = {curve_entry.mnemonic for curve_entry in las.curves}
-    curve_data: dict[str, np.ndarray] = {}
-    for mnemonic in curves:
-        if mnemonic in available:
-            curve_data[mnemonic] = np.asarray(las[mnemonic], dtype=np.float64)
-        else:
-            depth_len = len(las.index) if len(las.index) > 0 else 100
-            curve_data[mnemonic] = np.zeros(depth_len, dtype=np.float64)
-    return LASPayload(
-        metadata=LASFile(
-            well_id=well_id,
-            curves=curves,
-            depth_unit=depth_unit,
-            fetched_at=datetime.now(UTC),
-        ),
-        data=curve_data,
-    )
-
-
 class LasObjectStoreAssembler(Assembler):
     """Assemble a :class:`LASPayload` from raw LAS file bytes."""
+
+    @staticmethod
+    def _decode(
+        body: bytes,
+        well_id: str,
+        curves: tuple[str, ...],
+        depth_unit: str,
+    ) -> LASPayload:
+        try:
+            import lasio
+        except ImportError as exc:
+            raise ImportError(
+                "LasObjectStoreAssembler: decoding LAS bytes requires lasio — "
+                "install pirn-oilgas[oilgas]"
+            ) from exc
+
+        las = lasio.read(io.StringIO(body.decode("utf-8", errors="replace")))
+        available = {curve_entry.mnemonic for curve_entry in las.curves}
+        curve_data: dict[str, np.ndarray] = {}
+        for mnemonic in curves:
+            if mnemonic in available:
+                curve_data[mnemonic] = np.asarray(las[mnemonic], dtype=np.float64)
+            else:
+                depth_len = len(las.index) if len(las.index) > 0 else 100
+                curve_data[mnemonic] = np.zeros(depth_len, dtype=np.float64)
+        return LASPayload(
+            metadata=LASFile(
+                well_id=well_id,
+                curves=curves,
+                depth_unit=depth_unit,
+                fetched_at=datetime.now(UTC),
+            ),
+            data=curve_data,
+        )
 
     def __init__(
         self,
@@ -136,4 +136,6 @@ class LasObjectStoreAssembler(Assembler):
                 )
         if depth_unit not in ("m", "ft"):
             raise ValueError("LasObjectStoreAssembler: depth_unit must be 'm' or 'ft'")
-        return await asyncio.to_thread(_decode, body, well_id, curve_tuple, depth_unit)
+        return await asyncio.to_thread(
+            LasObjectStoreAssembler._decode, body, well_id, curve_tuple, depth_unit
+        )

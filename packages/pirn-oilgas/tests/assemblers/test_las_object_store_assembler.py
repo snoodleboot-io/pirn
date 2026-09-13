@@ -15,7 +15,6 @@ import numpy as np
 import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-
 from pirn_oilgas.assemblers.las_object_store_assembler import LasObjectStoreAssembler
 from pirn_oilgas.types.las_file import LASFile
 from pirn_oilgas.types.las_payload import LASPayload
@@ -51,7 +50,7 @@ class TestLasObjectStoreAssembler(unittest.IsolatedAsyncioTestCase):
     async def test_returns_las_payload(self) -> None:
         knot = _make("W-01")
         with patch(
-            "pirn_oilgas.assemblers.las_object_store_assembler._decode",
+            "pirn_oilgas.assemblers.las_object_store_assembler.LasObjectStoreAssembler._decode",
             side_effect=_fake_decode,
         ):
             result = await knot.process(
@@ -62,7 +61,7 @@ class TestLasObjectStoreAssembler(unittest.IsolatedAsyncioTestCase):
     async def test_metadata_well_id_matches(self) -> None:
         knot = _make("W-01")
         with patch(
-            "pirn_oilgas.assemblers.las_object_store_assembler._decode",
+            "pirn_oilgas.assemblers.las_object_store_assembler.LasObjectStoreAssembler._decode",
             side_effect=_fake_decode,
         ):
             result = await knot.process(
@@ -73,7 +72,7 @@ class TestLasObjectStoreAssembler(unittest.IsolatedAsyncioTestCase):
     async def test_metadata_curves_populated(self) -> None:
         knot = _make("W-01")
         with patch(
-            "pirn_oilgas.assemblers.las_object_store_assembler._decode",
+            "pirn_oilgas.assemblers.las_object_store_assembler.LasObjectStoreAssembler._decode",
             side_effect=_fake_decode,
         ):
             result = await knot.process(

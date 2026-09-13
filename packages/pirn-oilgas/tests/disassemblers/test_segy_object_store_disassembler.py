@@ -83,10 +83,12 @@ def _segy_temp_files() -> set[str]:
 class TestEncodeTempFileCleanup:
     def test_removes_temp_file_on_success(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_fake_segyio(monkeypatch, create=lambda path, spec: _FakeSegyFile(path))
-        from pirn_oilgas.disassemblers.segy_object_store_disassembler import _encode
+        from pirn_oilgas.disassemblers.segy_object_store_disassembler import (
+            SegyObjectStoreDisassembler,
+        )
 
         before = _segy_temp_files()
-        result = _encode(_fake_payload())
+        result = SegyObjectStoreDisassembler._encode(_fake_payload())
 
         assert result == b"fake-segy-bytes"
         assert _segy_temp_files() == before
@@ -96,11 +98,13 @@ class TestEncodeTempFileCleanup:
             raise RuntimeError("segyio boom")
 
         _install_fake_segyio(monkeypatch, create=_broken_create)
-        from pirn_oilgas.disassemblers.segy_object_store_disassembler import _encode
+        from pirn_oilgas.disassemblers.segy_object_store_disassembler import (
+            SegyObjectStoreDisassembler,
+        )
 
         before = _segy_temp_files()
         with pytest.raises(RuntimeError, match="segyio boom"):
-            _encode(_fake_payload())
+            SegyObjectStoreDisassembler._encode(_fake_payload())
 
         assert _segy_temp_files() == before
 
@@ -109,7 +113,7 @@ class TestSegyObjectStoreDisassemblerProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_bytes(self) -> None:
         knot = _make()
         with patch(
-            "pirn_oilgas.disassemblers.segy_object_store_disassembler._encode",
+            "pirn_oilgas.disassemblers.segy_object_store_disassembler.SegyObjectStoreDisassembler._encode",
             return_value=b"segy-bytes",
         ):
             result = await knot.process(payload=_fake_payload())
