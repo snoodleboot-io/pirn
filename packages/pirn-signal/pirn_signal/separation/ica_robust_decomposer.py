@@ -36,18 +36,6 @@ from pirn_signal.types.source_frame import SourceFrame
 from pirn_signal.types.source_payload import SourcePayload
 
 
-def _run_robust_ica(data: np.ndarray, source_count: int) -> np.ndarray:
-    try:
-        from sklearn.decomposition import FastICA  # type: ignore[import-not-found]
-    except ImportError as exc:
-        raise ImportError(
-            "ICARobustDecomposer requires 'scikit-learn'. Install via pip install pirn-signal[separation]"
-        ) from exc
-    ica = FastICA(n_components=source_count, fun="exp", max_iter=500, random_state=0)
-    result: np.ndarray = ica.fit_transform(data.T)  # type: ignore[union-attr]
-    return result.T
-
-
 class ICARobustDecomposer(Knot):
     """Outlier-robust ICA (e.g. JADE / fastICA with robust whitening).
 
@@ -99,7 +87,9 @@ class ICARobustDecomposer(Knot):
             or not 0.0 <= contamination_fraction < 1.0
         ):
             raise ValueError("ICARobustDecomposer: contamination_fraction must lie in [0, 1)")
-        sources = await asyncio.to_thread(_run_robust_ica, signal.data, source_count)
+        sources = await asyncio.to_thread(
+            ICARobustDecomposer._run_robust_ica, signal.data, source_count
+        )
         return SourcePayload(
             metadata=SourceFrame(
                 signal_id=f"{signal.frame.signal_id}:ica_robust",
@@ -108,3 +98,15 @@ class ICARobustDecomposer(Knot):
             ),
             data=np.asarray(sources),
         )
+
+    @staticmethod
+    def _run_robust_ica(data: np.ndarray, source_count: int) -> np.ndarray:
+        try:
+            from sklearn.decomposition import FastICA  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "ICARobustDecomposer requires 'scikit-learn'. Install via pip install pirn-signal[separation]"
+            ) from exc
+        ica = FastICA(n_components=source_count, fun="exp", max_iter=500, random_state=0)
+        result: np.ndarray = ica.fit_transform(data.T)  # type: ignore[union-attr]
+        return result.T

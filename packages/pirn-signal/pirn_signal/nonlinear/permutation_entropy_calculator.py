@@ -39,29 +39,6 @@ from pirn.core.knot_config import KnotConfig
 from pirn_signal.types.signal_payload import SignalPayload
 
 
-def _perm_entropy(signal_array: np.ndarray, pattern_order: int, delay: int) -> tuple[float, float]:
-    """Compute permutation entropy and normalised permutation entropy.
-
-    Returns (permutation_entropy, normalized_entropy).
-    """
-    signal_length = len(signal_array)
-    counts: dict[tuple[int, ...], int] = {}
-    for start_idx in range(0, signal_length - (pattern_order - 1) * delay, 1):
-        sub = signal_array[start_idx : start_idx + pattern_order * delay : delay]
-        if len(sub) < pattern_order:
-            continue
-        pattern = tuple(int(rank) for rank in np.argsort(sub))
-        counts[pattern] = counts.get(pattern, 0) + 1
-    total = sum(counts.values())
-    if total == 0:
-        return 0.0, 0.0
-    probs = np.array([v / total for v in counts.values()])
-    entropy_value = float(-np.sum(probs * np.log(probs + 1e-12)))
-    max_h = math.log(math.factorial(pattern_order))
-    normalized = entropy_value / max_h if max_h > 0 else 0.0
-    return entropy_value, normalized
-
-
 class PermutationEntropyCalculator(Knot):
     """Compute permutation entropy and normalised permutation entropy."""
 
@@ -108,10 +85,35 @@ class PermutationEntropyCalculator(Knot):
             raise ValueError("PermutationEntropyCalculator: delay must be a positive integer")
         signal_array = signal.data[0] if signal.data.ndim > 1 else signal.data
         result: tuple[float, float] = await asyncio.to_thread(
-            _perm_entropy, signal_array.astype(float), order, delay
+            PermutationEntropyCalculator._perm_entropy, signal_array.astype(float), order, delay
         )
         entropy_value = result[0]
         return {
             "value": entropy_value,
             "embedding_dim": order,
         }
+
+    @staticmethod
+    def _perm_entropy(
+        signal_array: np.ndarray, pattern_order: int, delay: int
+    ) -> tuple[float, float]:
+        """Compute permutation entropy and normalised permutation entropy.
+
+        Returns (permutation_entropy, normalized_entropy).
+        """
+        signal_length = len(signal_array)
+        counts: dict[tuple[int, ...], int] = {}
+        for start_idx in range(0, signal_length - (pattern_order - 1) * delay, 1):
+            sub = signal_array[start_idx : start_idx + pattern_order * delay : delay]
+            if len(sub) < pattern_order:
+                continue
+            pattern = tuple(int(rank) for rank in np.argsort(sub))
+            counts[pattern] = counts.get(pattern, 0) + 1
+        total = sum(counts.values())
+        if total == 0:
+            return 0.0, 0.0
+        probs = np.array([v / total for v in counts.values()])
+        entropy_value = float(-np.sum(probs * np.log(probs + 1e-12)))
+        max_h = math.log(math.factorial(pattern_order))
+        normalized = entropy_value / max_h if max_h > 0 else 0.0
+        return entropy_value, normalized

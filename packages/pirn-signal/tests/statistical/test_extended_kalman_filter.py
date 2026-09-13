@@ -47,7 +47,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             )
         stub = np.zeros(1024)
         with patch(
-            "pirn_signal.statistical.extended_kalman_filter._ekf",
+            "pirn_signal.statistical.extended_kalman_filter.ExtendedKalmanFilter._ekf",
             return_value=stub,
         ):
             result = await t.run(RunRequest())

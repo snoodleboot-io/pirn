@@ -45,59 +45,6 @@ _hop_size = 256
 _spectral_floor = 0.002
 
 
-def _spectral_gate(
-    signal_array: np.ndarray, noise_estimate_frames: int, alpha: float
-) -> np.ndarray:
-    """Apply spectral gating via overlap-add STFT frames."""
-    signal_length = len(signal_array)
-    num_frames = max(1, (signal_length - _frame_size) // _hop_size + 1)
-    window = np.hanning(_frame_size)
-
-    frames = np.array(
-        [
-            signal_array[i * _hop_size : i * _hop_size + _frame_size] * window
-            for i in range(num_frames)
-            if i * _hop_size + _frame_size <= signal_length
-        ]
-    )
-    if frames.ndim == 1 or len(frames) == 0:
-        return signal_array
-
-    spectra = np.fft.rfft(frames, axis=1)
-    magnitudes = np.abs(spectra)
-    phases = np.angle(spectra)
-
-    noise_frames = min(noise_estimate_frames, len(frames))
-    noise_floor = np.mean(magnitudes[:noise_frames], axis=0)
-
-    cleaned_mag = np.maximum(
-        magnitudes - alpha * noise_floor,
-        _spectral_floor * magnitudes,
-    )
-    cleaned_spectra = cleaned_mag * np.exp(1j * phases)
-    cleaned_frames = np.fft.irfft(cleaned_spectra, n=_frame_size, axis=1)
-
-    output_signal = np.zeros(signal_length, dtype=np.float32)
-    norm = np.zeros(signal_length, dtype=np.float32)
-    for i, frame in enumerate(cleaned_frames):
-        start = i * _hop_size
-        end = start + _frame_size
-        output_signal[start:end] += frame * window
-        norm[start:end] += window**2
-
-    nz = norm > 1e-8
-    output_signal[nz] /= norm[nz]
-    return output_signal
-
-
-def _denoise_signal(data: np.ndarray, noise_estimate_frames: int, alpha: float) -> np.ndarray:
-    if data.ndim == 1:
-        return _spectral_gate(data, noise_estimate_frames, alpha)
-    return np.stack(
-        [_spectral_gate(channel_data, noise_estimate_frames, alpha) for channel_data in data]
-    )
-
-
 class AudioDenoiser(Knot):
     """Spectral-subtraction noise reduction for audio signals."""
 
@@ -144,7 +91,10 @@ class AudioDenoiser(Knot):
         if not isinstance(over_subtraction_factor, (int, float)) or over_subtraction_factor < 1.0:
             raise ValueError("AudioDenoiser: over_subtraction_factor must be >= 1.0")
         result = await asyncio.to_thread(
-            _denoise_signal, signal.data, noise_estimate_frames, float(over_subtraction_factor)
+            AudioDenoiser._denoise_signal,
+            signal.data,
+            noise_estimate_frames,
+            float(over_subtraction_factor),
         )
         return SignalPayload(
             metadata=SignalFrame(
@@ -154,4 +104,60 @@ class AudioDenoiser(Knot):
                 samples_per_channel=result.shape[-1],
             ),
             data=np.asarray(result),
+        )
+
+    @staticmethod
+    def _spectral_gate(
+        signal_array: np.ndarray, noise_estimate_frames: int, alpha: float
+    ) -> np.ndarray:
+        """Apply spectral gating via overlap-add STFT frames."""
+        signal_length = len(signal_array)
+        num_frames = max(1, (signal_length - _frame_size) // _hop_size + 1)
+        window = np.hanning(_frame_size)
+
+        frames = np.array(
+            [
+                signal_array[i * _hop_size : i * _hop_size + _frame_size] * window
+                for i in range(num_frames)
+                if i * _hop_size + _frame_size <= signal_length
+            ]
+        )
+        if frames.ndim == 1 or len(frames) == 0:
+            return signal_array
+
+        spectra = np.fft.rfft(frames, axis=1)
+        magnitudes = np.abs(spectra)
+        phases = np.angle(spectra)
+
+        noise_frames = min(noise_estimate_frames, len(frames))
+        noise_floor = np.mean(magnitudes[:noise_frames], axis=0)
+
+        cleaned_mag = np.maximum(
+            magnitudes - alpha * noise_floor,
+            _spectral_floor * magnitudes,
+        )
+        cleaned_spectra = cleaned_mag * np.exp(1j * phases)
+        cleaned_frames = np.fft.irfft(cleaned_spectra, n=_frame_size, axis=1)
+
+        output_signal = np.zeros(signal_length, dtype=np.float32)
+        norm = np.zeros(signal_length, dtype=np.float32)
+        for i, frame in enumerate(cleaned_frames):
+            start = i * _hop_size
+            end = start + _frame_size
+            output_signal[start:end] += frame * window
+            norm[start:end] += window**2
+
+        nz = norm > 1e-8
+        output_signal[nz] /= norm[nz]
+        return output_signal
+
+    @staticmethod
+    def _denoise_signal(data: np.ndarray, noise_estimate_frames: int, alpha: float) -> np.ndarray:
+        if data.ndim == 1:
+            return AudioDenoiser._spectral_gate(data, noise_estimate_frames, alpha)
+        return np.stack(
+            [
+                AudioDenoiser._spectral_gate(channel_data, noise_estimate_frames, alpha)
+                for channel_data in data
+            ]
         )

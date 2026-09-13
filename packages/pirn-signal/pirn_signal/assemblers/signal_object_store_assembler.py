@@ -32,26 +32,6 @@ from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
-def _decode(body: bytes, signal_id: str) -> SignalPayload:
-    try:
-        import librosa  # type: ignore[import-not-found]
-    except ImportError as exc:
-        raise ImportError(
-            "SignalObjectStoreAssembler requires 'librosa'. Install via pip install pirn-signal[signal]"
-        ) from exc
-    samples, sample_rate = librosa.load(io.BytesIO(body), sr=None, mono=False)
-    if samples.ndim == 1:
-        samples = samples[np.newaxis, :]
-    frame = SignalFrame(
-        signal_id=signal_id,
-        channel_count=samples.shape[0],
-        sample_rate_hz=float(sample_rate),
-        samples_per_channel=samples.shape[1],
-        fetched_at=datetime.now(UTC),
-    )
-    return SignalPayload(metadata=frame, data=samples)
-
-
 class SignalObjectStoreAssembler(Assembler):
     """Assemble a :class:`SignalPayload` from raw audio bytes.
 
@@ -100,4 +80,24 @@ class SignalObjectStoreAssembler(Assembler):
             )
         if not signal_id:
             raise ValueError("SignalObjectStoreAssembler: signal_id must be non-empty")
-        return await asyncio.to_thread(_decode, body, signal_id)
+        return await asyncio.to_thread(SignalObjectStoreAssembler._decode, body, signal_id)
+
+    @staticmethod
+    def _decode(body: bytes, signal_id: str) -> SignalPayload:
+        try:
+            import librosa  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "SignalObjectStoreAssembler requires 'librosa'. Install via pip install pirn-signal[signal]"
+            ) from exc
+        samples, sample_rate = librosa.load(io.BytesIO(body), sr=None, mono=False)
+        if samples.ndim == 1:
+            samples = samples[np.newaxis, :]
+        frame = SignalFrame(
+            signal_id=signal_id,
+            channel_count=samples.shape[0],
+            sample_rate_hz=float(sample_rate),
+            samples_per_channel=samples.shape[1],
+            fetched_at=datetime.now(UTC),
+        )
+        return SignalPayload(metadata=frame, data=samples)

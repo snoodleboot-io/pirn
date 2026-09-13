@@ -38,18 +38,6 @@ from pirn_signal.types.source_frame import SourceFrame
 from pirn_signal.types.source_payload import SourcePayload
 
 
-def _run_nmf(data: np.ndarray, component_count: int, max_iterations: int) -> np.ndarray:
-    try:
-        from sklearn.decomposition import NMF  # type: ignore[import-not-found]
-    except ImportError as exc:
-        raise ImportError(
-            "NMFDecomposer requires 'scikit-learn'. Install via pip install pirn-signal[separation]"
-        ) from exc
-    abs_data = np.abs(data.T)
-    nmf = NMF(n_components=component_count, max_iter=max_iterations)  # type: ignore[call-overload]
-    return nmf.fit_transform(abs_data).T
-
-
 class NMFDecomposer(Knot):
     """Non-negative matrix factorisation.
 
@@ -97,7 +85,9 @@ class NMFDecomposer(Knot):
             raise ValueError("NMFDecomposer: component_count must be a positive integer")
         if not isinstance(max_iterations, int) or max_iterations <= 0:
             raise ValueError("NMFDecomposer: max_iterations must be a positive integer")
-        components = await asyncio.to_thread(_run_nmf, signal.data, component_count, max_iterations)
+        components = await asyncio.to_thread(
+            NMFDecomposer._run_nmf, signal.data, component_count, max_iterations
+        )
         return SourcePayload(
             metadata=SourceFrame(
                 signal_id=f"{signal.frame.signal_id}:nmf",
@@ -106,3 +96,15 @@ class NMFDecomposer(Knot):
             ),
             data=np.asarray(components),
         )
+
+    @staticmethod
+    def _run_nmf(data: np.ndarray, component_count: int, max_iterations: int) -> np.ndarray:
+        try:
+            from sklearn.decomposition import NMF  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "NMFDecomposer requires 'scikit-learn'. Install via pip install pirn-signal[separation]"
+            ) from exc
+        abs_data = np.abs(data.T)
+        nmf = NMF(n_components=component_count, max_iter=max_iterations)  # type: ignore[call-overload]
+        return nmf.fit_transform(abs_data).T

@@ -32,30 +32,6 @@ from pirn_signal.types.spectrum_frame import SpectrumFrame
 from pirn_signal.types.spectrum_payload import SpectrumPayload
 
 
-def _compute_multitaper(
-    data: np.typing.NDArray[np.floating[Any]],
-    n: int,
-    time_bandwidth: float,
-    taper_count: int,
-) -> np.ndarray:
-    try:
-        from scipy.signal import windows  # type: ignore[import-not-found]
-    except ImportError as exc:
-        raise ImportError(
-            "MultitaperEstimator requires 'scipy'. Install via pip install pirn-signal[signal]"
-        ) from exc
-    tapers = windows.dpss(n, time_bandwidth, Kmax=taper_count)
-    # Both operands are real — ``data`` is a real time series and ``dpss``
-    # returns real tapers — so the product is real.  numpy's stubs widen
-    # ``__mul__`` to include ``complexfloating``, which ``rfft`` rejects, so
-    # narrow it here rather than coercing (a coercion would upcast float32
-    # input and change the result's precision).
-    tapered = cast("npt.NDArray[np.floating[Any]]", data[..., np.newaxis, :] * tapers)
-    spectra = np.fft.rfft(tapered, axis=-1)
-    pxx = np.mean(np.abs(spectra) ** 2, axis=-2)
-    return pxx
-
-
 class MultitaperEstimator(Knot):
     """Multitaper PSD via discrete prolate spheroidal sequences (DPSS)."""
 
@@ -103,7 +79,7 @@ class MultitaperEstimator(Knot):
 
         sample_count = signal.data.shape[-1]
         pxx = await asyncio.to_thread(
-            _compute_multitaper,
+            MultitaperEstimator._compute_multitaper,
             signal.data,
             sample_count,
             float(time_bandwidth),
@@ -125,3 +101,27 @@ class MultitaperEstimator(Knot):
             ),
             data=pxx,
         )
+
+    @staticmethod
+    def _compute_multitaper(
+        data: np.typing.NDArray[np.floating[Any]],
+        n: int,
+        time_bandwidth: float,
+        taper_count: int,
+    ) -> np.ndarray:
+        try:
+            from scipy.signal import windows  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "MultitaperEstimator requires 'scipy'. Install via pip install pirn-signal[signal]"
+            ) from exc
+        tapers = windows.dpss(n, time_bandwidth, Kmax=taper_count)
+        # Both operands are real — ``data`` is a real time series and ``dpss``
+        # returns real tapers — so the product is real.  numpy's stubs widen
+        # ``__mul__`` to include ``complexfloating``, which ``rfft`` rejects, so
+        # narrow it here rather than coercing (a coercion would upcast float32
+        # input and change the result's precision).
+        tapered = cast("npt.NDArray[np.floating[Any]]", data[..., np.newaxis, :] * tapers)
+        spectra = np.fft.rfft(tapered, axis=-1)
+        pxx = np.mean(np.abs(spectra) ** 2, axis=-2)
+        return pxx

@@ -37,25 +37,6 @@ from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
-def _lms_anc(
-    reference_data: np.ndarray,
-    error_data: np.ndarray,
-    filter_length: int,
-    step_size: float,
-) -> np.ndarray:
-    """Run LMS-based active noise control and return the residual error signal."""
-    n_samples = len(reference_data)
-    filter_weights = np.zeros(filter_length)
-    e_out = np.zeros(n_samples)
-    for sample_index in range(filter_length, n_samples):
-        input_buffer = reference_data[sample_index - filter_length : sample_index][::-1]
-        anti_noise_output = filter_weights @ input_buffer
-        residual = error_data[sample_index] - anti_noise_output
-        filter_weights = filter_weights + step_size * residual * input_buffer
-        e_out[sample_index] = residual
-    return e_out
-
-
 class ANCPipeline(Knot):
     """Active noise control pipeline using LMS-based adaptive filtering."""
 
@@ -110,7 +91,9 @@ class ANCPipeline(Knot):
         ref_data = reference.data[0] if reference.data.ndim > 1 else reference.data
         err_data = error.data[0] if error.data.ndim > 1 else error.data
 
-        result = await asyncio.to_thread(_lms_anc, ref_data, err_data, filter_length, step_size)
+        result = await asyncio.to_thread(
+            ANCPipeline._lms_anc, ref_data, err_data, filter_length, step_size
+        )
 
         return SignalPayload(
             metadata=SignalFrame(
@@ -121,3 +104,22 @@ class ANCPipeline(Knot):
             ),
             data=result,
         )
+
+    @staticmethod
+    def _lms_anc(
+        reference_data: np.ndarray,
+        error_data: np.ndarray,
+        filter_length: int,
+        step_size: float,
+    ) -> np.ndarray:
+        """Run LMS-based active noise control and return the residual error signal."""
+        n_samples = len(reference_data)
+        filter_weights = np.zeros(filter_length)
+        e_out = np.zeros(n_samples)
+        for sample_index in range(filter_length, n_samples):
+            input_buffer = reference_data[sample_index - filter_length : sample_index][::-1]
+            anti_noise_output = filter_weights @ input_buffer
+            residual = error_data[sample_index] - anti_noise_output
+            filter_weights = filter_weights + step_size * residual * input_buffer
+            e_out[sample_index] = residual
+        return e_out

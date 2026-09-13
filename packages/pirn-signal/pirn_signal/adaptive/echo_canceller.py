@@ -39,25 +39,6 @@ from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
-def _lms_echo(
-    mic_data: np.ndarray,
-    far_data: np.ndarray,
-    filter_length: int,
-    step_size: float,
-) -> np.ndarray:
-    """Run LMS-based echo cancellation and return the residual (echo-cancelled) signal."""
-    n_samples = len(mic_data)
-    filter_weights = np.zeros(filter_length)
-    e_out = np.zeros(n_samples)
-    for sample_index in range(filter_length, n_samples):
-        far_buffer = far_data[sample_index - filter_length : sample_index][::-1]
-        echo_estimate = filter_weights @ far_buffer
-        residual = mic_data[sample_index] - echo_estimate
-        filter_weights = filter_weights + step_size * residual * far_buffer
-        e_out[sample_index] = residual
-    return e_out
-
-
 class EchoCanceller(Knot):
     """Acoustic echo canceller using LMS adaptive filtering."""
 
@@ -112,7 +93,9 @@ class EchoCanceller(Knot):
         mic_data = microphone.data[0] if microphone.data.ndim > 1 else microphone.data
         far_data = far_end.data[0] if far_end.data.ndim > 1 else far_end.data
 
-        result = await asyncio.to_thread(_lms_echo, mic_data, far_data, filter_length, step_size)
+        result = await asyncio.to_thread(
+            EchoCanceller._lms_echo, mic_data, far_data, filter_length, step_size
+        )
 
         return SignalPayload(
             metadata=SignalFrame(
@@ -123,3 +106,22 @@ class EchoCanceller(Knot):
             ),
             data=result,
         )
+
+    @staticmethod
+    def _lms_echo(
+        mic_data: np.ndarray,
+        far_data: np.ndarray,
+        filter_length: int,
+        step_size: float,
+    ) -> np.ndarray:
+        """Run LMS-based echo cancellation and return the residual (echo-cancelled) signal."""
+        n_samples = len(mic_data)
+        filter_weights = np.zeros(filter_length)
+        e_out = np.zeros(n_samples)
+        for sample_index in range(filter_length, n_samples):
+            far_buffer = far_data[sample_index - filter_length : sample_index][::-1]
+            echo_estimate = filter_weights @ far_buffer
+            residual = mic_data[sample_index] - echo_estimate
+            filter_weights = filter_weights + step_size * residual * far_buffer
+            e_out[sample_index] = residual
+        return e_out

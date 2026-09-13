@@ -32,37 +32,6 @@ from pirn_signal.types.spectrum_frame import SpectrumFrame
 from pirn_signal.types.spectrum_payload import SpectrumPayload
 
 
-def _compute_chirplets(
-    data: np.ndarray,
-    sample_rate: float,
-    chirplet_count: int,
-) -> np.ndarray:
-    try:
-        from scipy import signal as ss  # type: ignore[import-not-found]
-    except ImportError as exc:
-        raise ImportError(
-            "ChirpletDecomposer requires 'scipy'. Install via pip install pirn-signal[signal]"
-        ) from exc
-    sample_count = data.shape[-1]
-    time_axis = (
-        np.arange(sample_count) / sample_rate
-        if sample_rate > 0
-        else np.arange(sample_count, dtype=float)
-    )
-    nyquist = sample_rate / 2.0 if sample_rate > 0 else 0.5
-    freqs = np.linspace(0.0, nyquist, chirplet_count, endpoint=False)
-    window = ss.windows.hann(sample_count)
-    results = []
-    for f0 in freqs:
-        f1 = min(f0 + nyquist / chirplet_count, nyquist)
-        t_end = time_axis[-1] if len(time_axis) > 1 else 1.0
-        chirp_atom = ss.chirp(time_axis, f0=f0, t1=t_end, f1=f1) * window
-        modulated = data * chirp_atom
-        spectrum = np.fft.rfft(modulated, axis=-1)
-        results.append(spectrum[..., 0])
-    return np.stack(results, axis=-1)
-
-
 class ChirpletDecomposer(Knot):
     """Chirplet-transform decomposition for non-stationary signals."""
 
@@ -103,7 +72,7 @@ class ChirpletDecomposer(Knot):
             raise ValueError("ChirpletDecomposer: chirplet_count must be a positive integer")
 
         stacked = await asyncio.to_thread(
-            _compute_chirplets,
+            ChirpletDecomposer._compute_chirplets,
             signal.data,
             signal.frame.sample_rate_hz,
             chirplet_count,
@@ -117,3 +86,34 @@ class ChirpletDecomposer(Knot):
             ),
             data=stacked,
         )
+
+    @staticmethod
+    def _compute_chirplets(
+        data: np.ndarray,
+        sample_rate: float,
+        chirplet_count: int,
+    ) -> np.ndarray:
+        try:
+            from scipy import signal as ss  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "ChirpletDecomposer requires 'scipy'. Install via pip install pirn-signal[signal]"
+            ) from exc
+        sample_count = data.shape[-1]
+        time_axis = (
+            np.arange(sample_count) / sample_rate
+            if sample_rate > 0
+            else np.arange(sample_count, dtype=float)
+        )
+        nyquist = sample_rate / 2.0 if sample_rate > 0 else 0.5
+        freqs = np.linspace(0.0, nyquist, chirplet_count, endpoint=False)
+        window = ss.windows.hann(sample_count)
+        results = []
+        for f0 in freqs:
+            f1 = min(f0 + nyquist / chirplet_count, nyquist)
+            t_end = time_axis[-1] if len(time_axis) > 1 else 1.0
+            chirp_atom = ss.chirp(time_axis, f0=f0, t1=t_end, f1=f1) * window
+            modulated = data * chirp_atom
+            spectrum = np.fft.rfft(modulated, axis=-1)
+            results.append(spectrum[..., 0])
+        return np.stack(results, axis=-1)

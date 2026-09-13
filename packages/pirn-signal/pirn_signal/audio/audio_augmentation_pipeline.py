@@ -35,46 +35,6 @@ from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
-def _apply_augmentations(
-    data: np.ndarray, sr: int, augmentations: tuple[str, ...], seed: int
-) -> np.ndarray:
-    try:
-        import librosa  # type: ignore[import-not-found]
-    except ImportError as exc:
-        raise ImportError(
-            "AudioAugmentationPipeline requires 'librosa'. Install via pip install pirn-signal[signal]"
-        ) from exc
-    rng = np.random.default_rng(seed)
-    mono = data[0] if data.ndim > 1 else data
-    result = mono.copy().astype(np.float32)
-
-    for aug in augmentations:
-        if aug == "add_noise":
-            noise_std = float(rng.uniform(0.001, 0.01))
-            result = result + rng.normal(0, noise_std, size=result.shape).astype(np.float32)
-        elif aug == "pitch_shift":
-            steps = float(rng.uniform(-3.0, 3.0))
-            result = librosa.effects.pitch_shift(result, sr=sr, n_steps=steps)
-        elif aug == "time_stretch":
-            rate = float(rng.uniform(0.85, 1.15))
-            result = librosa.effects.time_stretch(result, rate=rate)
-        elif aug == "time_mask":
-            mask_len = int(rng.integers(1, max(2, len(result) // 10)))
-            start = int(rng.integers(0, max(1, len(result) - mask_len)))
-            result[start : start + mask_len] = 0.0
-        elif aug == "frequency_mask":
-            fft = np.fft.rfft(result)
-            n_bins = len(fft)
-            mask_start = int(rng.integers(0, max(1, n_bins - 1)))
-            mask_end = min(n_bins, mask_start + int(rng.integers(1, max(2, n_bins // 10))))
-            fft[mask_start:mask_end] = 0.0
-            result = np.fft.irfft(fft, n=len(result)).astype(np.float32)
-
-    if data.ndim > 1:
-        return result[np.newaxis, :]
-    return result
-
-
 class AudioAugmentationPipeline(Knot):
     """Apply stochastic augmentations to an audio signal.
 
@@ -131,7 +91,9 @@ class AudioAugmentationPipeline(Knot):
         if not isinstance(seed, int) or seed < 0:
             raise ValueError("AudioAugmentationPipeline: seed must be a non-negative integer")
         sr = int(signal.frame.sample_rate_hz)
-        result = await asyncio.to_thread(_apply_augmentations, signal.data, sr, augmentations, seed)
+        result = await asyncio.to_thread(
+            AudioAugmentationPipeline._apply_augmentations, signal.data, sr, augmentations, seed
+        )
         return SignalPayload(
             metadata=SignalFrame(
                 signal_id=f"{signal.frame.signal_id}:augmented",
@@ -141,3 +103,43 @@ class AudioAugmentationPipeline(Knot):
             ),
             data=np.asarray(result),
         )
+
+    @staticmethod
+    def _apply_augmentations(
+        data: np.ndarray, sr: int, augmentations: tuple[str, ...], seed: int
+    ) -> np.ndarray:
+        try:
+            import librosa  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "AudioAugmentationPipeline requires 'librosa'. Install via pip install pirn-signal[signal]"
+            ) from exc
+        rng = np.random.default_rng(seed)
+        mono = data[0] if data.ndim > 1 else data
+        result = mono.copy().astype(np.float32)
+
+        for aug in augmentations:
+            if aug == "add_noise":
+                noise_std = float(rng.uniform(0.001, 0.01))
+                result = result + rng.normal(0, noise_std, size=result.shape).astype(np.float32)
+            elif aug == "pitch_shift":
+                steps = float(rng.uniform(-3.0, 3.0))
+                result = librosa.effects.pitch_shift(result, sr=sr, n_steps=steps)
+            elif aug == "time_stretch":
+                rate = float(rng.uniform(0.85, 1.15))
+                result = librosa.effects.time_stretch(result, rate=rate)
+            elif aug == "time_mask":
+                mask_len = int(rng.integers(1, max(2, len(result) // 10)))
+                start = int(rng.integers(0, max(1, len(result) - mask_len)))
+                result[start : start + mask_len] = 0.0
+            elif aug == "frequency_mask":
+                fft = np.fft.rfft(result)
+                n_bins = len(fft)
+                mask_start = int(rng.integers(0, max(1, n_bins - 1)))
+                mask_end = min(n_bins, mask_start + int(rng.integers(1, max(2, n_bins // 10))))
+                fft[mask_start:mask_end] = 0.0
+                result = np.fft.irfft(fft, n=len(result)).astype(np.float32)
+
+        if data.ndim > 1:
+            return result[np.newaxis, :]
+        return result

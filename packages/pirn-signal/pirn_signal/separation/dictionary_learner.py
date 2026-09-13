@@ -36,25 +36,6 @@ from pirn_signal.types.source_frame import SourceFrame
 from pirn_signal.types.source_payload import SourcePayload
 
 
-def _run_dictionary_learning(
-    data: np.ndarray, atom_count: int, sparsity_target: int, max_iterations: int
-) -> np.ndarray:
-    try:
-        from sklearn.decomposition import DictionaryLearning  # type: ignore[import-not-found]
-    except ImportError as exc:
-        raise ImportError(
-            "DictionaryLearner requires 'scikit-learn'. Install via pip install pirn-signal[separation]"
-        ) from exc
-    dl = DictionaryLearning(  # type: ignore[call-overload]
-        n_components=atom_count,
-        alpha=int(sparsity_target),  # stubs expect int
-        max_iter=max_iterations,
-        random_state=0,
-    )
-    codes = dl.fit_transform(data.T)  # shape: (n_samples, atom_count)
-    return codes.T  # shape: (atom_count, n_samples)
-
-
 class DictionaryLearner(Knot):
     """Train an over-complete dictionary for sparse coding.
 
@@ -114,7 +95,11 @@ class DictionaryLearner(Knot):
         if not isinstance(max_iterations, int) or max_iterations <= 0:
             raise ValueError("DictionaryLearner: max_iterations must be a positive integer")
         codes = await asyncio.to_thread(
-            _run_dictionary_learning, signal.data, atom_count, sparsity_target, max_iterations
+            DictionaryLearner._run_dictionary_learning,
+            signal.data,
+            atom_count,
+            sparsity_target,
+            max_iterations,
         )
         return SourcePayload(
             metadata=SourceFrame(
@@ -124,3 +109,22 @@ class DictionaryLearner(Knot):
             ),
             data=np.asarray(codes),
         )
+
+    @staticmethod
+    def _run_dictionary_learning(
+        data: np.ndarray, atom_count: int, sparsity_target: int, max_iterations: int
+    ) -> np.ndarray:
+        try:
+            from sklearn.decomposition import DictionaryLearning  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "DictionaryLearner requires 'scikit-learn'. Install via pip install pirn-signal[separation]"
+            ) from exc
+        dl = DictionaryLearning(  # type: ignore[call-overload]
+            n_components=atom_count,
+            alpha=int(sparsity_target),  # stubs expect int
+            max_iter=max_iterations,
+            random_state=0,
+        )
+        codes = dl.fit_transform(data.T)  # shape: (n_samples, atom_count)
+        return codes.T  # shape: (atom_count, n_samples)

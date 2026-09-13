@@ -37,16 +37,6 @@ from pirn.core.knot_config import KnotConfig
 from pirn_signal.types.signal_payload import SignalPayload
 
 
-def _detect_onsets(mono: np.ndarray, sr: int, hop_length: int) -> np.ndarray:
-    try:
-        import librosa  # type: ignore[import-not-found]
-    except ImportError as exc:
-        raise ImportError(
-            "OnsetDetector requires 'librosa'. Install via pip install pirn-signal[signal]"
-        ) from exc
-    return librosa.onset.onset_detect(y=mono, sr=sr, hop_length=hop_length, units="time")
-
-
 class OnsetDetector(Knot):
     """Detect onset times in an audio signal using ``librosa.onset.onset_detect``."""
 
@@ -93,8 +83,18 @@ class OnsetDetector(Knot):
             raise ValueError("OnsetDetector: threshold must be positive")
         mono = signal.data[0] if signal.data.ndim > 1 else signal.data
         sr = int(signal.frame.sample_rate_hz)
-        onsets = await asyncio.to_thread(_detect_onsets, mono, sr, hop_length)
+        onsets = await asyncio.to_thread(OnsetDetector._detect_onsets, mono, sr, hop_length)
         return {
             "onset_times_sec": onsets.tolist(),
             "signal_id": signal.frame.signal_id,
         }
+
+    @staticmethod
+    def _detect_onsets(mono: np.ndarray, sr: int, hop_length: int) -> np.ndarray:
+        try:
+            import librosa  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "OnsetDetector requires 'librosa'. Install via pip install pirn-signal[signal]"
+            ) from exc
+        return librosa.onset.onset_detect(y=mono, sr=sr, hop_length=hop_length, units="time")

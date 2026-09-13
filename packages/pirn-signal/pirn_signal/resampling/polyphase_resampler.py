@@ -37,16 +37,6 @@ from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
-def _resample_poly(data: np.ndarray, up: int, down: int) -> np.ndarray:
-    try:
-        from scipy import signal as ss  # type: ignore[import-not-found]
-    except ImportError as exc:
-        raise ImportError(
-            "PolyphaseResampler requires 'scipy'. Install via pip install pirn-signal[signal]"
-        ) from exc
-    return np.asarray(ss.resample_poly(data, up, down, axis=-1))
-
-
 class PolyphaseResampler(Knot):
     """Polyphase resampler at integer L/M ratio with anti-alias FIR.
 
@@ -102,7 +92,7 @@ class PolyphaseResampler(Knot):
             raise ValueError("PolyphaseResampler: filter_length must be a positive integer")
 
         result = await asyncio.to_thread(
-            _resample_poly, signal.data, upsample_factor, downsample_factor
+            PolyphaseResampler._resample_poly, signal.data, upsample_factor, downsample_factor
         )
         new_rate = (signal.frame.sample_rate_hz * upsample_factor) / downsample_factor
 
@@ -115,3 +105,13 @@ class PolyphaseResampler(Knot):
             ),
             data=result,
         )
+
+    @staticmethod
+    def _resample_poly(data: np.ndarray, up: int, down: int) -> np.ndarray:
+        try:
+            from scipy import signal as ss  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "PolyphaseResampler requires 'scipy'. Install via pip install pirn-signal[signal]"
+            ) from exc
+        return np.asarray(ss.resample_poly(data, up, down, axis=-1))

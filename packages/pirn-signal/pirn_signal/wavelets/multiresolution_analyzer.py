@@ -37,16 +37,6 @@ from pirn_signal.types.wavelet_frame import WaveletFrame
 from pirn_signal.types.wavelet_payload import WaveletPayload
 
 
-def _run_mra(data: np.ndarray, wavelet_name: str, level: int) -> list[np.ndarray]:
-    try:
-        import pywt  # type: ignore[import-not-found]
-    except ImportError as exc:
-        raise ImportError(
-            "MultiresolutionAnalyzer requires 'pywavelets'. Install via pip install pirn-signal[signal]"
-        ) from exc
-    return list(pywt.wavedec(data, wavelet_name, level=level, axis=-1))
-
-
 class MultiresolutionAnalyzer(Knot):
     """Mallat multiresolution decomposition."""
 
@@ -91,10 +81,22 @@ class MultiresolutionAnalyzer(Knot):
             raise ValueError("MultiresolutionAnalyzer: wavelet_name must be a non-empty string")
         if not isinstance(level_count, int) or level_count <= 0:
             raise ValueError("MultiresolutionAnalyzer: level_count must be a positive integer")
-        coeffs = await asyncio.to_thread(_run_mra, signal.data, wavelet_name, level_count)
+        coeffs = await asyncio.to_thread(
+            MultiresolutionAnalyzer._run_mra, signal.data, wavelet_name, level_count
+        )
         frame = WaveletFrame(
             signal_id=signal.frame.signal_id,
             wavelet_name=wavelet_name,
             scale_count=len(coeffs),
         )
         return WaveletPayload(metadata=frame, data=coeffs)
+
+    @staticmethod
+    def _run_mra(data: np.ndarray, wavelet_name: str, level: int) -> list[np.ndarray]:
+        try:
+            import pywt  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "MultiresolutionAnalyzer requires 'pywavelets'. Install via pip install pirn-signal[signal]"
+            ) from exc
+        return list(pywt.wavedec(data, wavelet_name, level=level, axis=-1))

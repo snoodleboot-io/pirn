@@ -39,54 +39,6 @@ from pirn.core.knot_config import KnotConfig
 from pirn_signal.types.signal_payload import SignalPayload
 
 
-def _delay_embed(signal_array: np.ndarray, embedding_dim: int, tau: int) -> np.ndarray:
-    """Build Takens delay embedding matrix of shape (N - (embedding_dim-1)*tau, embedding_dim)."""
-    signal_length = len(signal_array)
-    length = signal_length - (embedding_dim - 1) * tau
-    if length <= 0:
-        return np.empty((0, embedding_dim))
-    return np.array(
-        [
-            signal_array[start_idx : start_idx + embedding_dim * tau : tau]
-            for start_idx in range(length)
-        ]
-    )
-
-
-def _lyapunov(signal_array: np.ndarray, embedding_dim: int, tau: int) -> float:
-    """Largest Lyapunov exponent via Rosenstein algorithm."""
-    embedded = _delay_embed(signal_array, embedding_dim, tau)
-    n_pts = len(embedded)
-    if n_pts < 4:
-        return 0.0
-    divergences = []
-    max_iter = min(50, n_pts // 4)
-    for i in range(n_pts):
-        dists = np.linalg.norm(embedded - embedded[i], axis=1)
-        dists[i] = np.inf
-        # Exclude temporally close neighbours
-        for k in range(max(0, i - tau), min(n_pts, i + tau + 1)):
-            dists[k] = np.inf
-        nn = int(np.argmin(dists))
-        divs = []
-        for step in range(max_iter):
-            if i + step >= n_pts or nn + step >= n_pts:
-                break
-            divergence_dist = float(np.linalg.norm(embedded[i + step] - embedded[nn + step]))
-            if divergence_dist > 0:
-                divs.append(np.log(divergence_dist))
-        if divs:
-            divergences.append(divs)
-    if not divergences:
-        return 0.0
-    min_len = min(len(d) for d in divergences)
-    mean_div = np.mean([d[:min_len] for d in divergences], axis=0)
-    if len(mean_div) < 2:
-        return 0.0
-    coeffs = np.polyfit(np.arange(len(mean_div)), mean_div, 1)
-    return float(coeffs[0])
-
-
 class LyapunovExponentEstimator(Knot):
     """Estimate the largest Lyapunov exponent of a time series."""
 
@@ -133,10 +85,61 @@ class LyapunovExponentEstimator(Knot):
             raise ValueError("LyapunovExponentEstimator: time_delay must be a positive integer")
         signal_array = signal.data[0] if signal.data.ndim > 1 else signal.data
         lam = await asyncio.to_thread(
-            _lyapunov, signal_array.astype(float), embedding_dim, time_delay
+            LyapunovExponentEstimator._lyapunov,
+            signal_array.astype(float),
+            embedding_dim,
+            time_delay,
         )
         return {
             "lyapunov_exponent": lam,
             "embedding_dim": embedding_dim,
             "time_delay": time_delay,
         }
+
+    @staticmethod
+    def _delay_embed(signal_array: np.ndarray, embedding_dim: int, tau: int) -> np.ndarray:
+        """Build Takens delay embedding matrix of shape (N - (embedding_dim-1)*tau, embedding_dim)."""
+        signal_length = len(signal_array)
+        length = signal_length - (embedding_dim - 1) * tau
+        if length <= 0:
+            return np.empty((0, embedding_dim))
+        return np.array(
+            [
+                signal_array[start_idx : start_idx + embedding_dim * tau : tau]
+                for start_idx in range(length)
+            ]
+        )
+
+    @staticmethod
+    def _lyapunov(signal_array: np.ndarray, embedding_dim: int, tau: int) -> float:
+        """Largest Lyapunov exponent via Rosenstein algorithm."""
+        embedded = LyapunovExponentEstimator._delay_embed(signal_array, embedding_dim, tau)
+        n_pts = len(embedded)
+        if n_pts < 4:
+            return 0.0
+        divergences = []
+        max_iter = min(50, n_pts // 4)
+        for i in range(n_pts):
+            dists = np.linalg.norm(embedded - embedded[i], axis=1)
+            dists[i] = np.inf
+            # Exclude temporally close neighbours
+            for k in range(max(0, i - tau), min(n_pts, i + tau + 1)):
+                dists[k] = np.inf
+            nn = int(np.argmin(dists))
+            divs = []
+            for step in range(max_iter):
+                if i + step >= n_pts or nn + step >= n_pts:
+                    break
+                divergence_dist = float(np.linalg.norm(embedded[i + step] - embedded[nn + step]))
+                if divergence_dist > 0:
+                    divs.append(np.log(divergence_dist))
+            if divs:
+                divergences.append(divs)
+        if not divergences:
+            return 0.0
+        min_len = min(len(d) for d in divergences)
+        mean_div = np.mean([d[:min_len] for d in divergences], axis=0)
+        if len(mean_div) < 2:
+            return 0.0
+        coeffs = np.polyfit(np.arange(len(mean_div)), mean_div, 1)
+        return float(coeffs[0])

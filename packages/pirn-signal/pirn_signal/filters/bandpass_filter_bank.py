@@ -35,22 +35,6 @@ from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
-async def _filter_band(
-    data: np.ndarray, low_hz: float, high_hz: float, order: int, fs: float
-) -> np.ndarray:
-    """Design and apply a single bandpass filter, returning the filtered data."""
-    try:
-        from scipy import signal as ss  # type: ignore[import-not-found]
-    except ImportError as exc:
-        raise ImportError(
-            "BandpassFilterBank requires 'scipy'. Install via pip install pirn-signal[signal]"
-        ) from exc
-    sos = await asyncio.to_thread(
-        ss.butter, order, [low_hz, high_hz], btype="bandpass", fs=fs, output="sos"
-    )
-    return np.asarray(await asyncio.to_thread(ss.sosfilt, sos, data, axis=-1))
-
-
 class BandpassFilterBank(Knot):
     """Apply a bank of parallel bandpass filters and return a single SignalPayload."""
 
@@ -114,7 +98,10 @@ class BandpassFilterBank(Knot):
 
         fs = signal.frame.sample_rate_hz
         band_outputs = await asyncio.gather(
-            *[_filter_band(signal.data, low, high, order, fs) for low, high in bands]
+            *[
+                BandpassFilterBank._filter_band(signal.data, low, high, order, fs)
+                for low, high in bands
+            ]
         )
         stacked = np.stack(band_outputs, axis=0)
         return SignalPayload(
@@ -126,3 +113,19 @@ class BandpassFilterBank(Knot):
             ),
             data=stacked,
         )
+
+    @staticmethod
+    async def _filter_band(
+        data: np.ndarray, low_hz: float, high_hz: float, order: int, fs: float
+    ) -> np.ndarray:
+        """Design and apply a single bandpass filter, returning the filtered data."""
+        try:
+            from scipy import signal as ss  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "BandpassFilterBank requires 'scipy'. Install via pip install pirn-signal[signal]"
+            ) from exc
+        sos = await asyncio.to_thread(
+            ss.butter, order, [low_hz, high_hz], btype="bandpass", fs=fs, output="sos"
+        )
+        return np.asarray(await asyncio.to_thread(ss.sosfilt, sos, data, axis=-1))

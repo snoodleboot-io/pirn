@@ -36,17 +36,6 @@ from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
-def _mvdr(data: np.ndarray, steering_vec: np.ndarray) -> np.ndarray:
-    n_samples = data.shape[1]
-    covariance_matrix = (data @ data.conj().T) / n_samples
-    r_inv = np.linalg.inv(covariance_matrix)
-    numerator = r_inv @ steering_vec
-    denominator = steering_vec.conj() @ numerator
-    beamform_weights = numerator / denominator
-    beamformed = beamform_weights.conj() @ data
-    return np.real(beamformed)
-
-
 class BeamformerMVDR(Knot):
     """Apply an MVDR (Capon) beamformer with optional diagonal loading for robustness."""
 
@@ -136,7 +125,7 @@ class BeamformerMVDR(Knot):
             beamform_weights = numerator / denominator
             beamformed = np.real(beamform_weights.conj() @ data)
         else:
-            beamformed = await asyncio.to_thread(_mvdr, data, steering_vec)
+            beamformed = await asyncio.to_thread(BeamformerMVDR._mvdr, data, steering_vec)
         return SignalPayload(
             metadata=SignalFrame(
                 signal_id=f"{signal.frame.signal_id}:mvdr",
@@ -146,3 +135,14 @@ class BeamformerMVDR(Knot):
             ),
             data=beamformed[np.newaxis, :],
         )
+
+    @staticmethod
+    def _mvdr(data: np.ndarray, steering_vec: np.ndarray) -> np.ndarray:
+        n_samples = data.shape[1]
+        covariance_matrix = (data @ data.conj().T) / n_samples
+        r_inv = np.linalg.inv(covariance_matrix)
+        numerator = r_inv @ steering_vec
+        denominator = steering_vec.conj() @ numerator
+        beamform_weights = numerator / denominator
+        beamformed = beamform_weights.conj() @ data
+        return np.real(beamformed)

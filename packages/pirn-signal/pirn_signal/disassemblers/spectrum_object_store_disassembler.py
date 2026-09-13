@@ -29,18 +29,6 @@ from pirn.core.knot_config import KnotConfig
 from pirn_signal.types.spectrum_payload import SpectrumPayload
 
 
-def _encode(payload: SpectrumPayload) -> bytes:
-    buf = io.BytesIO()
-    arrays: dict[str, np.ndarray] = {
-        "data": payload.data,
-        "signal_id": np.array(payload.metadata.signal_id),
-        "frequency_bins": np.array(payload.metadata.frequency_bins),
-        "frequency_resolution_hz": np.array(payload.metadata.frequency_resolution_hz),
-    }
-    np.savez(buf, **arrays)  # type: ignore[arg-type]
-    return buf.getvalue()
-
-
 class SpectrumObjectStoreDisassembler(Disassembler):
     """Serialize a :class:`SpectrumPayload` to raw npz bytes.
 
@@ -81,4 +69,16 @@ class SpectrumObjectStoreDisassembler(Disassembler):
             )
         if payload.data.size == 0:
             raise ValueError("SpectrumObjectStoreDisassembler: payload.data must be non-empty")
-        return await asyncio.to_thread(_encode, payload)
+        return await asyncio.to_thread(SpectrumObjectStoreDisassembler._encode, payload)
+
+    @staticmethod
+    def _encode(payload: SpectrumPayload) -> bytes:
+        buf = io.BytesIO()
+        arrays: dict[str, np.ndarray] = {
+            "data": payload.data,
+            "signal_id": np.array(payload.metadata.signal_id),
+            "frequency_bins": np.array(payload.metadata.frequency_bins),
+            "frequency_resolution_hz": np.array(payload.metadata.frequency_resolution_hz),
+        }
+        np.savez(buf, **arrays)  # type: ignore[arg-type]
+        return buf.getvalue()

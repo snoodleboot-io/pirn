@@ -39,20 +39,6 @@ from pirn.core.knot_config import KnotConfig
 from pirn_signal.types.signal_payload import SignalPayload
 
 
-def _compute_mel_spectrogram(
-    mono: np.ndarray, sr: int, n_mels: int, n_fft: int, hop_length: int
-) -> np.ndarray:
-    try:
-        import librosa  # type: ignore[import-not-found]
-    except ImportError as exc:
-        raise ImportError(
-            "MelSpectrogramExtractor requires 'librosa'. Install via pip install pirn-signal[signal]"
-        ) from exc
-    return librosa.feature.melspectrogram(
-        y=mono, sr=sr, n_mels=n_mels, n_fft=n_fft, hop_length=hop_length
-    )
-
-
 class MelSpectrogramExtractor(Knot):
     """Compute a mel-spectrogram from an audio signal using ``librosa.feature.melspectrogram``."""
 
@@ -107,9 +93,25 @@ class MelSpectrogramExtractor(Knot):
             raise ValueError("MelSpectrogramExtractor: hop_length must not exceed n_fft")
         mono = signal.data[0] if signal.data.ndim > 1 else signal.data
         sr = int(signal.frame.sample_rate_hz)
-        mel = await asyncio.to_thread(_compute_mel_spectrogram, mono, sr, n_mels, n_fft, hop_length)
+        mel = await asyncio.to_thread(
+            MelSpectrogramExtractor._compute_mel_spectrogram, mono, sr, n_mels, n_fft, hop_length
+        )
         return {
             "mel_spectrogram": mel.tolist(),
             "n_mels": n_mels,
             "signal_id": signal.frame.signal_id,
         }
+
+    @staticmethod
+    def _compute_mel_spectrogram(
+        mono: np.ndarray, sr: int, n_mels: int, n_fft: int, hop_length: int
+    ) -> np.ndarray:
+        try:
+            import librosa  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "MelSpectrogramExtractor requires 'librosa'. Install via pip install pirn-signal[signal]"
+            ) from exc
+        return librosa.feature.melspectrogram(
+            y=mono, sr=sr, n_mels=n_mels, n_fft=n_fft, hop_length=hop_length
+        )

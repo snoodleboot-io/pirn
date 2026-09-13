@@ -37,32 +37,6 @@ from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
-def _synchronize(
-    ref_data: np.ndarray,
-    tgt_data: np.ndarray,
-    max_lag: int,
-) -> np.ndarray:
-    try:
-        from scipy import signal as ss  # type: ignore[import-not-found]
-    except ImportError as exc:
-        raise ImportError(
-            "TimeSynchronizer requires 'scipy'. Install via pip install pirn-signal[signal]"
-        ) from exc
-    ref_ch = ref_data[0] if ref_data.ndim > 1 else ref_data
-    tgt_ch = tgt_data[0] if tgt_data.ndim > 1 else tgt_data
-    corr = ss.correlate(ref_ch, tgt_ch, mode="full")
-    center = len(corr) // 2
-    search = corr[center - max_lag : center + max_lag + 1]
-    lag = int(np.argmax(search)) - max_lag
-    if lag >= 0:
-        shifted = np.roll(tgt_data, lag, axis=-1)
-        shifted[..., :lag] = 0.0
-    else:
-        shifted = np.roll(tgt_data, lag, axis=-1)
-        shifted[..., lag:] = 0.0
-    return np.asarray(shifted)
-
-
 class TimeSynchronizer(Knot):
     """Align two signals in time by estimating the offset via cross-correlation.
 
@@ -109,7 +83,9 @@ class TimeSynchronizer(Knot):
         if not isinstance(max_lag_samples, int) or max_lag_samples <= 0:
             raise ValueError("TimeSynchronizer: max_lag_samples must be a positive integer")
 
-        result = await asyncio.to_thread(_synchronize, reference.data, target.data, max_lag_samples)
+        result = await asyncio.to_thread(
+            TimeSynchronizer._synchronize, reference.data, target.data, max_lag_samples
+        )
 
         return SignalPayload(
             metadata=SignalFrame(
@@ -120,3 +96,29 @@ class TimeSynchronizer(Knot):
             ),
             data=result,
         )
+
+    @staticmethod
+    def _synchronize(
+        ref_data: np.ndarray,
+        tgt_data: np.ndarray,
+        max_lag: int,
+    ) -> np.ndarray:
+        try:
+            from scipy import signal as ss  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "TimeSynchronizer requires 'scipy'. Install via pip install pirn-signal[signal]"
+            ) from exc
+        ref_ch = ref_data[0] if ref_data.ndim > 1 else ref_data
+        tgt_ch = tgt_data[0] if tgt_data.ndim > 1 else tgt_data
+        corr = ss.correlate(ref_ch, tgt_ch, mode="full")
+        center = len(corr) // 2
+        search = corr[center - max_lag : center + max_lag + 1]
+        lag = int(np.argmax(search)) - max_lag
+        if lag >= 0:
+            shifted = np.roll(tgt_data, lag, axis=-1)
+            shifted[..., :lag] = 0.0
+        else:
+            shifted = np.roll(tgt_data, lag, axis=-1)
+            shifted[..., lag:] = 0.0
+        return np.asarray(shifted)

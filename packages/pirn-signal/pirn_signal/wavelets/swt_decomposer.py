@@ -35,17 +35,6 @@ from pirn_signal.types.wavelet_frame import WaveletFrame
 from pirn_signal.types.wavelet_payload import WaveletPayload
 
 
-def _run_swt(data: np.ndarray, wavelet: str, level: int) -> list[np.ndarray]:
-    try:
-        import pywt  # type: ignore[import-not-found]
-    except ImportError as exc:
-        raise ImportError(
-            "SWTDecomposer requires 'pywavelets'. Install via pip install pirn-signal[signal]"
-        ) from exc
-    pairs = pywt.swt(data, wavelet, level=level, axis=-1)
-    return [c for pair in pairs for c in pair]
-
-
 class SWTDecomposer(Knot):
     """Decompose a signal using the stationary (undecimated) wavelet transform."""
 
@@ -90,10 +79,21 @@ class SWTDecomposer(Knot):
             raise ValueError("SWTDecomposer: wavelet must be a non-empty string")
         if not isinstance(level, int) or level <= 0:
             raise ValueError("SWTDecomposer: level must be a positive integer")
-        coeffs = await asyncio.to_thread(_run_swt, signal.data, wavelet, level)
+        coeffs = await asyncio.to_thread(SWTDecomposer._run_swt, signal.data, wavelet, level)
         frame = WaveletFrame(
             signal_id=signal.frame.signal_id,
             wavelet_name=wavelet,
             scale_count=len(coeffs),
         )
         return WaveletPayload(metadata=frame, data=coeffs)
+
+    @staticmethod
+    def _run_swt(data: np.ndarray, wavelet: str, level: int) -> list[np.ndarray]:
+        try:
+            import pywt  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "SWTDecomposer requires 'pywavelets'. Install via pip install pirn-signal[signal]"
+            ) from exc
+        pairs = pywt.swt(data, wavelet, level=level, axis=-1)
+        return [c for pair in pairs for c in pair]

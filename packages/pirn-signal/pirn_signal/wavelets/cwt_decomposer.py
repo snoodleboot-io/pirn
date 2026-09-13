@@ -35,21 +35,6 @@ from pirn_signal.types.wavelet_frame import WaveletFrame
 from pirn_signal.types.wavelet_payload import WaveletPayload
 
 
-def _run_cwt(
-    data: np.ndarray, wavelet_name: str, scale_count: int, sample_rate_hz: float
-) -> list[np.ndarray]:
-    try:
-        import pywt  # type: ignore[import-not-found]
-    except ImportError as exc:
-        raise ImportError(
-            "CWTDecomposer requires 'pywavelets'. Install via pip install pirn-signal[signal]"
-        ) from exc
-    scales = np.arange(1, scale_count + 1)
-    sampling_period = 1.0 / sample_rate_hz if sample_rate_hz > 0 else 1.0
-    coeffs, _freqs = pywt.cwt(data, scales, wavelet_name, sampling_period=sampling_period, axis=-1)
-    return [coeffs[i] for i in range(len(scales))]
-
-
 class CWTDecomposer(Knot):
     """Continuous wavelet transform."""
 
@@ -95,7 +80,11 @@ class CWTDecomposer(Knot):
         if not isinstance(scale_count, int) or scale_count <= 0:
             raise ValueError("CWTDecomposer: scale_count must be a positive integer")
         coeff_arrays = await asyncio.to_thread(
-            _run_cwt, signal.data, wavelet_name, scale_count, signal.frame.sample_rate_hz
+            CWTDecomposer._run_cwt,
+            signal.data,
+            wavelet_name,
+            scale_count,
+            signal.frame.sample_rate_hz,
         )
         frame = WaveletFrame(
             signal_id=signal.frame.signal_id,
@@ -103,3 +92,20 @@ class CWTDecomposer(Knot):
             scale_count=len(coeff_arrays),
         )
         return WaveletPayload(metadata=frame, data=coeff_arrays)
+
+    @staticmethod
+    def _run_cwt(
+        data: np.ndarray, wavelet_name: str, scale_count: int, sample_rate_hz: float
+    ) -> list[np.ndarray]:
+        try:
+            import pywt  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "CWTDecomposer requires 'pywavelets'. Install via pip install pirn-signal[signal]"
+            ) from exc
+        scales = np.arange(1, scale_count + 1)
+        sampling_period = 1.0 / sample_rate_hz if sample_rate_hz > 0 else 1.0
+        coeffs, _freqs = pywt.cwt(
+            data, scales, wavelet_name, sampling_period=sampling_period, axis=-1
+        )
+        return [coeffs[i] for i in range(len(scales))]

@@ -38,14 +38,6 @@ from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
-def _frame_signal(data: np.ndarray, frame_size: int, hop_size: int) -> np.ndarray:
-    ch = data[0] if data.ndim > 1 else data
-    n_samples = ch.shape[-1]
-    n_frames = max(0, (n_samples - frame_size) // hop_size + 1)
-    frames = np.stack([ch[i * hop_size : i * hop_size + frame_size] for i in range(n_frames)])
-    return frames
-
-
 class StreamingBufferManager(Knot):
     """Manage frame-based streaming buffers (overlap-add / overlap-save).
 
@@ -99,7 +91,9 @@ class StreamingBufferManager(Knot):
         if hop_size > frame_size:
             raise ValueError("StreamingBufferManager: hop_size must not exceed frame_size")
 
-        frames = await asyncio.to_thread(_frame_signal, signal.data, frame_size, hop_size)
+        frames = await asyncio.to_thread(
+            StreamingBufferManager._frame_signal, signal.data, frame_size, hop_size
+        )
         n_frames = frames.shape[0]
 
         return SignalPayload(
@@ -111,3 +105,11 @@ class StreamingBufferManager(Knot):
             ),
             data=frames,
         )
+
+    @staticmethod
+    def _frame_signal(data: np.ndarray, frame_size: int, hop_size: int) -> np.ndarray:
+        ch = data[0] if data.ndim > 1 else data
+        n_samples = ch.shape[-1]
+        n_frames = max(0, (n_samples - frame_size) // hop_size + 1)
+        frames = np.stack([ch[i * hop_size : i * hop_size + frame_size] for i in range(n_frames)])
+        return frames

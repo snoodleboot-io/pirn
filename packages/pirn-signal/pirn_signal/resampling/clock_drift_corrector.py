@@ -36,16 +36,6 @@ from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
-def _resample_poly(data: np.ndarray, up: int, down: int) -> np.ndarray:
-    try:
-        from scipy import signal as ss  # type: ignore[import-not-found]
-    except ImportError as exc:
-        raise ImportError(
-            "ClockDriftCorrector requires 'scipy'. Install via pip install pirn-signal[signal]"
-        ) from exc
-    return np.asarray(ss.resample_poly(data, up, down, axis=-1))
-
-
 class ClockDriftCorrector(Knot):
     """Compensate for clock drift by resampling to the reference rate.
 
@@ -98,7 +88,7 @@ class ClockDriftCorrector(Knot):
         up = int(reference_rate_hz) // common
         down = int(measured_rate_hz) // common
 
-        result = await asyncio.to_thread(_resample_poly, signal.data, up, down)
+        result = await asyncio.to_thread(ClockDriftCorrector._resample_poly, signal.data, up, down)
 
         return SignalPayload(
             metadata=SignalFrame(
@@ -109,3 +99,13 @@ class ClockDriftCorrector(Knot):
             ),
             data=result,
         )
+
+    @staticmethod
+    def _resample_poly(data: np.ndarray, up: int, down: int) -> np.ndarray:
+        try:
+            from scipy import signal as ss  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "ClockDriftCorrector requires 'scipy'. Install via pip install pirn-signal[signal]"
+            ) from exc
+        return np.asarray(ss.resample_poly(data, up, down, axis=-1))

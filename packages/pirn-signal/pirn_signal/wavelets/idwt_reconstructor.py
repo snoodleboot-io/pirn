@@ -36,16 +36,6 @@ from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.wavelet_payload import WaveletPayload
 
 
-def _run_idwt(coeffs: list[np.ndarray], wavelet: str) -> np.ndarray:
-    try:
-        import pywt  # type: ignore[import-not-found]
-    except ImportError as exc:
-        raise ImportError(
-            "IDWTReconstructor requires 'pywavelets'. Install via pip install pirn-signal[signal]"
-        ) from exc
-    return pywt.waverec(coeffs, wavelet, axis=-1)
-
-
 class IDWTReconstructor(Knot):
     """Reconstruct a time-domain signal from a WaveletPayload via inverse DWT."""
 
@@ -90,7 +80,9 @@ class IDWTReconstructor(Knot):
             raise ValueError("IDWTReconstructor: wavelet must be a non-empty string")
         if not isinstance(level, int) or level <= 0:
             raise ValueError("IDWTReconstructor: level must be a positive integer")
-        reconstructed = await asyncio.to_thread(_run_idwt, wavelet_frame.data, wavelet)
+        reconstructed = await asyncio.to_thread(
+            IDWTReconstructor._run_idwt, wavelet_frame.data, wavelet
+        )
         samples = reconstructed.shape[-1]
         out_frame = SignalFrame(
             signal_id=f"{wavelet_frame.frame.signal_id}:idwt",
@@ -99,3 +91,13 @@ class IDWTReconstructor(Knot):
             samples_per_channel=samples,
         )
         return SignalPayload(metadata=out_frame, data=reconstructed)
+
+    @staticmethod
+    def _run_idwt(coeffs: list[np.ndarray], wavelet: str) -> np.ndarray:
+        try:
+            import pywt  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "IDWTReconstructor requires 'pywavelets'. Install via pip install pirn-signal[signal]"
+            ) from exc
+        return pywt.waverec(coeffs, wavelet, axis=-1)

@@ -37,18 +37,6 @@ from pirn_signal.types.source_frame import SourceFrame
 from pirn_signal.types.source_payload import SourcePayload
 
 
-def _run_ica(data: np.ndarray, source_count: int) -> np.ndarray:
-    try:
-        from sklearn.decomposition import FastICA  # type: ignore[import-not-found]
-    except ImportError as exc:
-        raise ImportError(
-            "ICADecomposer requires 'scikit-learn'. Install via pip install pirn-signal[separation]"
-        ) from exc
-    ica = FastICA(n_components=source_count, random_state=0, max_iter=500)
-    sources: np.ndarray = ica.fit_transform(data.T).T  # type: ignore[union-attr]  # shape: (source_count, samples)
-    return sources
-
-
 class ICADecomposer(Knot):
     """FastICA-style independent component analysis."""
 
@@ -87,7 +75,7 @@ class ICADecomposer(Knot):
         """
         if not isinstance(source_count, int) or source_count <= 0:
             raise ValueError("ICADecomposer: source_count must be a positive integer")
-        sources = await asyncio.to_thread(_run_ica, signal.data, source_count)
+        sources = await asyncio.to_thread(ICADecomposer._run_ica, signal.data, source_count)
         return SourcePayload(
             metadata=SourceFrame(
                 signal_id=f"{signal.frame.signal_id}:ica",
@@ -96,3 +84,15 @@ class ICADecomposer(Knot):
             ),
             data=sources,
         )
+
+    @staticmethod
+    def _run_ica(data: np.ndarray, source_count: int) -> np.ndarray:
+        try:
+            from sklearn.decomposition import FastICA  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "ICADecomposer requires 'scikit-learn'. Install via pip install pirn-signal[separation]"
+            ) from exc
+        ica = FastICA(n_components=source_count, random_state=0, max_iter=500)
+        sources: np.ndarray = ica.fit_transform(data.T).T  # type: ignore[union-attr]  # shape: (source_count, samples)
+        return sources

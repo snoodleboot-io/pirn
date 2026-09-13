@@ -35,23 +35,6 @@ from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
-def _resample_to_rate(
-    data: np.ndarray,
-    src_rate: float,
-    tgt_rate: float,
-) -> np.ndarray:
-    try:
-        from scipy import signal as ss  # type: ignore[import-not-found]
-    except ImportError as exc:
-        raise ImportError(
-            "MultiRateFusionPipeline requires 'scipy'. Install via pip install pirn-signal[signal]"
-        ) from exc
-    common = gcd(int(tgt_rate), int(src_rate))
-    up = int(tgt_rate) // common
-    down = int(src_rate) // common
-    return np.asarray(ss.resample_poly(data, up, down, axis=-1))
-
-
 class MultiRateFusionPipeline(Knot):
     """Fuse two signals sampled at different rates by resampling both to a common output rate.
 
@@ -100,13 +83,13 @@ class MultiRateFusionPipeline(Knot):
 
         ra, rb = await asyncio.gather(
             asyncio.to_thread(
-                _resample_to_rate,
+                MultiRateFusionPipeline._resample_to_rate,
                 signal_a.data,
                 signal_a.frame.sample_rate_hz,
                 float(output_rate_hz),
             ),
             asyncio.to_thread(
-                _resample_to_rate,
+                MultiRateFusionPipeline._resample_to_rate,
                 signal_b.data,
                 signal_b.frame.sample_rate_hz,
                 float(output_rate_hz),
@@ -125,3 +108,20 @@ class MultiRateFusionPipeline(Knot):
             ),
             data=fused,
         )
+
+    @staticmethod
+    def _resample_to_rate(
+        data: np.ndarray,
+        src_rate: float,
+        tgt_rate: float,
+    ) -> np.ndarray:
+        try:
+            from scipy import signal as ss  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "MultiRateFusionPipeline requires 'scipy'. Install via pip install pirn-signal[signal]"
+            ) from exc
+        common = gcd(int(tgt_rate), int(src_rate))
+        up = int(tgt_rate) // common
+        down = int(src_rate) // common
+        return np.asarray(ss.resample_poly(data, up, down, axis=-1))

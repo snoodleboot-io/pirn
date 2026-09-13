@@ -36,14 +36,6 @@ from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
-def _zero_stuff(data: np.ndarray, factor: int) -> np.ndarray:
-    shape = list(data.shape)
-    shape[-1] = shape[-1] * factor
-    out = np.zeros(shape, dtype=data.dtype)
-    out[..., ::factor] = data
-    return out
-
-
 class Upsampler(Knot):
     """Insert zeros between samples by an integer factor."""
 
@@ -83,7 +75,7 @@ class Upsampler(Knot):
         if not isinstance(upsample_factor, int) or upsample_factor <= 1:
             raise ValueError("Upsampler: upsample_factor must be an integer > 1")
 
-        upsampled = await asyncio.to_thread(_zero_stuff, signal.data, upsample_factor)
+        upsampled = await asyncio.to_thread(Upsampler._zero_stuff, signal.data, upsample_factor)
 
         new_frame = SignalFrame(
             signal_id=f"{signal.frame.signal_id}:upsample",
@@ -92,3 +84,11 @@ class Upsampler(Knot):
             samples_per_channel=signal.frame.samples_per_channel * upsample_factor,
         )
         return SignalPayload(metadata=new_frame, data=upsampled)
+
+    @staticmethod
+    def _zero_stuff(data: np.ndarray, factor: int) -> np.ndarray:
+        shape = list(data.shape)
+        shape[-1] = shape[-1] * factor
+        out = np.zeros(shape, dtype=data.dtype)
+        out[..., ::factor] = data
+        return out

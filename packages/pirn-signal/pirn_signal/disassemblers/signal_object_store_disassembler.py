@@ -30,19 +30,6 @@ from pirn.core.knot_config import KnotConfig
 from pirn_signal.types.signal_payload import SignalPayload
 
 
-def _encode(payload: SignalPayload) -> bytes:
-    data: np.ndarray = payload.data
-    if data.ndim == 1:
-        audio = data
-    else:
-        audio = data.T
-    buf = io.BytesIO()
-    sf.write(
-        buf, audio, samplerate=int(payload.metadata.sample_rate_hz), format="WAV", subtype="FLOAT"
-    )
-    return buf.getvalue()
-
-
 class SignalObjectStoreDisassembler(Disassembler):
     """Serialize a :class:`SignalPayload` to raw WAV bytes.
 
@@ -83,4 +70,21 @@ class SignalObjectStoreDisassembler(Disassembler):
             )
         if payload.data.size == 0:
             raise ValueError("SignalObjectStoreDisassembler: payload.data must be non-empty")
-        return await asyncio.to_thread(_encode, payload)
+        return await asyncio.to_thread(SignalObjectStoreDisassembler._encode, payload)
+
+    @staticmethod
+    def _encode(payload: SignalPayload) -> bytes:
+        data: np.ndarray = payload.data
+        if data.ndim == 1:
+            audio = data
+        else:
+            audio = data.T
+        buf = io.BytesIO()
+        sf.write(
+            buf,
+            audio,
+            samplerate=int(payload.metadata.sample_rate_hz),
+            format="WAV",
+            subtype="FLOAT",
+        )
+        return buf.getvalue()

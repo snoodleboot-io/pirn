@@ -36,17 +36,6 @@ from pirn_signal.types.wavelet_frame import WaveletFrame
 from pirn_signal.types.wavelet_payload import WaveletPayload
 
 
-def _run_wp(data: np.ndarray, wavelet_name: str, level: int) -> list[np.ndarray]:
-    try:
-        import pywt  # type: ignore[import-not-found]
-    except ImportError as exc:
-        raise ImportError(
-            "WaveletPacketDecomposer requires 'pywavelets'. Install via pip install pirn-signal[signal]"
-        ) from exc
-    wp = pywt.WaveletPacket(data, wavelet_name, maxlevel=level)
-    return [node.data for node in wp.get_level(level, "freq")]
-
-
 class WaveletPacketDecomposer(Knot):
     """Wavelet-packet decomposition (binary subband tree)."""
 
@@ -91,10 +80,23 @@ class WaveletPacketDecomposer(Knot):
             raise ValueError("WaveletPacketDecomposer: wavelet_name must be a non-empty string")
         if not isinstance(level_count, int) or level_count <= 0:
             raise ValueError("WaveletPacketDecomposer: level_count must be a positive integer")
-        nodes = await asyncio.to_thread(_run_wp, signal.data, wavelet_name, level_count)
+        nodes = await asyncio.to_thread(
+            WaveletPacketDecomposer._run_wp, signal.data, wavelet_name, level_count
+        )
         frame = WaveletFrame(
             signal_id=signal.frame.signal_id,
             wavelet_name=wavelet_name,
             scale_count=len(nodes),
         )
         return WaveletPayload(metadata=frame, data=nodes)
+
+    @staticmethod
+    def _run_wp(data: np.ndarray, wavelet_name: str, level: int) -> list[np.ndarray]:
+        try:
+            import pywt  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "WaveletPacketDecomposer requires 'pywavelets'. Install via pip install pirn-signal[signal]"
+            ) from exc
+        wp = pywt.WaveletPacket(data, wavelet_name, maxlevel=level)
+        return [node.data for node in wp.get_level(level, "freq")]

@@ -42,15 +42,6 @@ from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
-def _das_beamform(data: np.ndarray, delays_samples: np.ndarray) -> np.ndarray:
-    n_ch = data.shape[0]
-    out = np.zeros(data.shape[1])
-    for i in range(n_ch):
-        shift = round(delays_samples[i])
-        out += np.roll(data[i], -shift)
-    return out / n_ch
-
-
 class DelayAndSumBeamformer(Knot):
     """Apply a delay-and-sum beamformer to a multi-element array signal."""
 
@@ -116,7 +107,9 @@ class DelayAndSumBeamformer(Knot):
                 for element_index in range(num_elements)
             ]
         )
-        beamformed = await asyncio.to_thread(_das_beamform, data, delays_samples)
+        beamformed = await asyncio.to_thread(
+            DelayAndSumBeamformer._das_beamform, data, delays_samples
+        )
         return SignalPayload(
             metadata=SignalFrame(
                 signal_id=f"{signal.frame.signal_id}:das",
@@ -126,3 +119,12 @@ class DelayAndSumBeamformer(Knot):
             ),
             data=beamformed[np.newaxis, :],
         )
+
+    @staticmethod
+    def _das_beamform(data: np.ndarray, delays_samples: np.ndarray) -> np.ndarray:
+        n_ch = data.shape[0]
+        out = np.zeros(data.shape[1])
+        for i in range(n_ch):
+            shift = round(delays_samples[i])
+            out += np.roll(data[i], -shift)
+        return out / n_ch
