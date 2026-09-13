@@ -1,5 +1,14 @@
 """``OtelSink`` — an OpenTelemetry-backed :class:`ObservabilitySink` behind a lazy extra.
 
+.. deprecated:: ADR agents-speaks-core WS4a
+    Part of the deprecated Tracer/Span plane; scheduled for deletion after one
+    release cycle. Use ``pirn.emitters.open_telemetry_emitter.
+    OpenTelemetryEmitter`` instead — it already stamps ``pirn.run_id``/
+    ``pirn.knot_id``/``pirn.knot_class`` on every span it produces, and now
+    also renders an :class:`~pirn_agents.observability.agent_call_recorder.AgentCallRecorder`
+    call's ``extra`` fields as ``agents.<key>`` attributes on a span named
+    ``"<kind>:<knot_id>"``.
+
 The one sink that needs a real backend. ``opentelemetry`` is imported lazily
 via :func:`pirn_agents._internal._require._require` at construction time, so ``import
 pirn_agents`` — and importing this very module — stays backend-free; only
@@ -28,6 +37,7 @@ collector-side grouping is unaffected.
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Mapping
 from typing import Any
 
@@ -40,6 +50,9 @@ from pirn_agents.security.secret_redactor import SecretRedactor
 
 class OtelSink(ObservabilitySink):
     """Export pirn spans to an OpenTelemetry tracer, redacting secrets.
+
+    .. deprecated:: ADR agents-speaks-core WS4a
+        See the module docstring.
 
     Construction lazily imports ``opentelemetry``; without the ``otel`` extra
     installed a friendly :class:`ImportError` naming the install command is
@@ -72,6 +85,13 @@ class OtelSink(ObservabilitySink):
                 installed.
             TypeError: If ``redactor`` is not a :class:`SecretRedactor`.
         """
+        warnings.warn(
+            "OtelSink is deprecated (ADR agents-speaks-core WS4a) and "
+            "scheduled for deletion after one release cycle; use "
+            "pirn.emitters.open_telemetry_emitter.OpenTelemetryEmitter instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if redactor is not None and not isinstance(redactor, SecretRedactor):
             raise TypeError("OtelSink: redactor must be a SecretRedactor")
         otel_trace = _require("otel", "opentelemetry.trace")

@@ -1,9 +1,22 @@
-"""``Tracer`` — opens :class:`Span`\\ s around LLM, tool, and retrieval calls."""
+"""``Tracer`` — opens :class:`Span`\\ s around LLM, tool, and retrieval calls.
+
+.. deprecated:: ADR agents-speaks-core WS4a
+    This whole span plane forked a second event bus alongside core's own
+    ``StatusManager``/``Emitter`` stream, and no production call site ever
+    adopted it (see the PIR-856 vocabulary-drift review). Scheduled for
+    deletion after one release cycle. Use
+    :class:`~pirn_agents.observability.agent_call_recorder.AgentCallRecorder`
+    directly in new code; :meth:`Tracer.span` still forwards a finished span
+    into that recorder (when the caller supplied a ``pirn.knot_id`` attribute)
+    so an existing caller's telemetry keeps reaching core's emitters during
+    the deprecation cycle.
+"""
 
 from __future__ import annotations
 
 import logging
 import time
+import warnings
 from collections.abc import AsyncIterator, Callable, Mapping
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
@@ -13,6 +26,7 @@ from uuid import uuid4
 
 from pirn.tapestry import current_run_id
 
+from pirn_agents.observability.agent_call_recorder import AgentCallRecorder
 from pirn_agents.observability.observability_sink import ObservabilitySink
 from pirn_agents.observability.open_span_entry import OpenSpanEntry
 from pirn_agents.observability.span import Span
@@ -76,6 +90,14 @@ class Tracer:
         id_factory: Callable[[], str] | None = None,
         monotonic: Callable[[], float] = time.perf_counter,
     ) -> None:
+        warnings.warn(
+            "Tracer is deprecated (ADR agents-speaks-core WS4a) and scheduled "
+            "for deletion after one release cycle; use AgentCallRecorder "
+            "directly, which reports through the run's own emitters instead "
+            "of a bespoke ObservabilitySink.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self._sink = sink if sink is not None else ObservabilitySink()
         self._id_factory = id_factory if id_factory is not None else (lambda: uuid4().hex)
         self._monotonic = monotonic
@@ -231,17 +253,56 @@ class Tracer:
         :meth:`_prune` only clears the entry out of this context's tuple when
         the body closed the span from somewhere else; the entry is already
         marked closed by then, so this is housekeeping, not correctness.
+
+        After finishing (and reporting to the sink, as before), the span is
+        also forwarded into :class:`AgentCallRecorder` — see
+        :meth:`_forward_to_emitter_path` — for the one-cycle deprecation
+        window.
         """
         span = self.start_span(name=name, kind=kind, attributes=attributes)
         try:
             yield span
         except BaseException:
             span.finish(SpanStatus.ERROR)
+            await self._forward_to_emitter_path(span)
             raise
         else:
             span.finish(SpanStatus.OK)
+            await self._forward_to_emitter_path(span)
         finally:
             self._prune()
+
+    @staticmethod
+    async def _forward_to_emitter_path(span: Span) -> None:
+        """Best-effort forward a finished span into ``AgentCallRecorder``.
+
+        Only when the caller supplied a ``pirn.knot_id`` attribute: core
+        deliberately has no ambient knot identity (see ``current_run_id``'s
+        docstring), so without one there is nothing to attribute the event
+        to and this silently does nothing — exactly the case
+        :class:`~pirn_agents.observability.span_emitting_tool_invocation_hook.SpanEmittingToolInvocationHook`
+        already documents for a caller with no knot identity to give.
+
+        ``run_id`` is not passed through explicitly: ``AgentCallRecorder.
+        record`` sources it itself from :func:`pirn.tapestry.current_run_id`,
+        the same ambient source :meth:`_with_run_id` already stamped it from.
+        """
+        knot_id = span.attributes.get("pirn.knot_id")
+        if not isinstance(knot_id, str):
+            return
+        extra = {
+            key: value
+            for key, value in span.attributes.items()
+            if not key.startswith("pirn.")
+        }
+        await AgentCallRecorder.record(
+            knot_id=knot_id,
+            kind=span.kind.value,
+            ok=span.status is SpanStatus.OK,
+            latency=span.duration or 0.0,
+            detail=span.name,
+            **extra,
+        )
 
     def llm_span(
         self, *, name: str = "llm.call", attributes: Mapping[str, Any] | None = None
