@@ -5,6 +5,9 @@ from __future__ import annotations
 import unittest
 from dataclasses import FrozenInstanceError
 
+from pirn.core.err import Err
+from pirn.core.ok import Ok
+from pirn.core.skipped import Skipped
 from pirn.managers.exception_record import ExceptionRecord
 
 from pirn_agents.tools.tool_result import ToolResult
@@ -139,3 +142,73 @@ class ExceptionRecordFieldTests(unittest.TestCase):
         assert isinstance(payload, dict)
         assert payload["exc_type"] == "ValueError"
         assert payload["message"] == "boom"
+
+
+class ToResultTests(unittest.TestCase):
+    """PIR-856: the smallest behaviour-preserving bridge to Ok | Err | Skipped."""
+
+    def test_ok_status_wraps_the_whole_result_in_ok(self) -> None:
+        result = ToolResult(call_id="c1", result={"a": 1})
+        wrapped = result.to_result()
+        assert isinstance(wrapped, Ok)
+        assert wrapped.value is result
+
+    def test_error_with_a_captured_exception_uses_its_record(self) -> None:
+        try:
+            raise ValueError("boom")
+        except ValueError as exc:
+            record = ExceptionRecord.for_knot("search", exc)
+        result = ToolResult(call_id="c1", result=None, exception=record)
+        wrapped = result.to_result()
+        assert isinstance(wrapped, Err)
+        assert wrapped.record is record
+
+    def test_error_without_an_exception_synthesises_a_record_from_the_message(self) -> None:
+        result = ToolResult(call_id="c1", result=None, error="tool 'x' not found")
+        wrapped = result.to_result()
+        assert isinstance(wrapped, Err)
+        assert wrapped.record.message == "tool 'x' not found"
+
+    def test_a_bare_status_with_no_message_still_synthesises_a_record(self) -> None:
+        result = ToolResult(call_id="c1", result=None, status=ToolStatus.TIMEOUT)
+        wrapped = result.to_result()
+        assert isinstance(wrapped, Err)
+        assert "timeout" in wrapped.record.message
+
+
+class FromResultTests(unittest.TestCase):
+    def test_ok_of_a_tool_result_round_trips_unchanged(self) -> None:
+        original = ToolResult(call_id="c1", result=42, latency=0.1)
+        rebuilt = ToolResult.from_result("c1", Ok(value=original))
+        assert rebuilt is original
+
+    def test_ok_of_a_plain_value_is_wrapped(self) -> None:
+        rebuilt = ToolResult.from_result("c1", Ok(value=42))
+        assert rebuilt.call_id == "c1"
+        assert rebuilt.result == 42
+        assert rebuilt.status is ToolStatus.OK
+
+    def test_err_carries_its_record_through(self) -> None:
+        try:
+            raise RuntimeError("boom")
+        except RuntimeError as exc:
+            record = ExceptionRecord.for_knot("k", exc)
+        rebuilt = ToolResult.from_result("c1", Err(record=record))
+        assert rebuilt.status is ToolStatus.ERROR
+        assert rebuilt.exception is record
+        assert rebuilt.error == "boom"
+
+    def test_skipped_becomes_an_error_result_naming_the_reason(self) -> None:
+        """ToolStatus has no "not run" member; a skip is reported as its own error."""
+        rebuilt = ToolResult.from_result("c1", Skipped(reason="upstream not selected"))
+        assert rebuilt.status is ToolStatus.ERROR
+        assert rebuilt.error is not None
+        assert "upstream not selected" in rebuilt.error
+
+    def test_rejects_a_non_result(self) -> None:
+        with self.assertRaisesRegex(TypeError, "must be Ok, Err, or Skipped"):
+            ToolResult.from_result("c1", "not a result")  # type: ignore[arg-type]
+
+    def test_round_trip_through_to_result_and_back(self) -> None:
+        original = ToolResult(call_id="c1", result="value", latency=0.2)
+        assert ToolResult.from_result("c1", original.to_result()) is original
