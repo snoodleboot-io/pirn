@@ -145,23 +145,32 @@ class JiraClient(ApiClient, TableSource):
         request_params = dict(params) if params is not None else None
         request_body = dict(body) if body is not None else None
 
-        def _run() -> Any:
-            if method_upper == "GET":
-                return client.get(path, params=request_params)
-            if method_upper == "POST":
-                return client.post(path, data=request_body)
-            if method_upper == "PUT":
-                return client.put(path, data=request_body)
-            if method_upper == "DELETE":
-                return client.delete(path)
-            raise ValueError(f"JiraClient: unsupported HTTP method {method!r}")
-
         try:
-            return await asyncio.to_thread(_run)
+            return await asyncio.to_thread(
+                self._sync_request, client, method_upper, path, request_params, request_body
+            )
         except ValueError:
             raise
         except Exception as exc:
             self._reraise_scrubbed(exc)
+
+    @staticmethod
+    def _sync_request(
+        client: Any,
+        method_upper: str,
+        path: str,
+        request_params: dict[str, Any] | None,
+        request_body: dict[str, Any] | None,
+    ) -> Any:
+        if method_upper == "GET":
+            return client.get(path, params=request_params)
+        if method_upper == "POST":
+            return client.post(path, data=request_body)
+        if method_upper == "PUT":
+            return client.put(path, data=request_body)
+        if method_upper == "DELETE":
+            return client.delete(path)
+        raise ValueError(f"JiraClient: unsupported HTTP method {method_upper!r}")
 
     async def close(self) -> None:
         if self._client is not None:

@@ -62,6 +62,7 @@ class FastaFormat(StreamingFileFormat):
     async def read(self, body: AsyncIterator[bytes]) -> AsyncIterator[Mapping[str, Any]]:
         encoding = self._encoding
 
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[Mapping[str, Any]]:
             buffered = bytearray()
             current_seq_id: str | None = None
@@ -135,6 +136,7 @@ class FastaFormat(StreamingFileFormat):
         encoding = self._encoding
         line_width = self._line_width
 
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[bytes]:
             async for record in records:
                 seq_id = record.get("seq_id")

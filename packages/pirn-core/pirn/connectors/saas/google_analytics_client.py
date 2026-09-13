@@ -123,12 +123,12 @@ class GoogleAnalyticsClient(ApiClient, TableSource):
         request_body: dict[str, Any] = dict(body) if body is not None else {}
         operation = self._resolve_operation(path)
         client = await self._ensure_client()
+        return await asyncio.to_thread(self._sync_request, client, operation, request_body)
 
-        def _run() -> Any:
-            sdk_method = getattr(client, operation)
-            return sdk_method(request_body)
-
-        return await asyncio.to_thread(_run)
+    @staticmethod
+    def _sync_request(client: Any, operation: str, request_body: dict[str, Any]) -> Any:
+        sdk_method = getattr(client, operation)
+        return sdk_method(request_body)
 
     async def close(self) -> None:
         if self._client is not None:

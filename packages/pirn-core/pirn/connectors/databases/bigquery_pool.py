@@ -72,12 +72,12 @@ class BigqueryPool(DatabaseConnectionPool):
         self._reject_inline_interpolation(query)
         client = await self._ensure_client()
         job_config = self._build_job_config(parameters)
+        return await asyncio.to_thread(self._sync_execute, client, query, job_config)
 
-        def _run() -> Any:
-            job = client.query(query, job_config=job_config)
-            return job.result()
-
-        return await asyncio.to_thread(_run)
+    @staticmethod
+    def _sync_execute(client: Any, query: str, job_config: Any) -> Any:
+        job = client.query(query, job_config=job_config)
+        return job.result()
 
     async def fetch_all(
         self,
@@ -88,12 +88,12 @@ class BigqueryPool(DatabaseConnectionPool):
         self._reject_inline_interpolation(query)
         client = await self._ensure_client()
         job_config = self._build_job_config(parameters)
+        return await asyncio.to_thread(self._sync_fetch_all, client, query, job_config)
 
-        def _run() -> list[tuple[Any, ...]]:
-            job = client.query(query, job_config=job_config)
-            return [tuple(r) for r in job.result()]
-
-        return await asyncio.to_thread(_run)
+    @staticmethod
+    def _sync_fetch_all(client: Any, query: str, job_config: Any) -> list[tuple[Any, ...]]:
+        job = client.query(query, job_config=job_config)
+        return [tuple(r) for r in job.result()]
 
     async def execute_many(
         self,
@@ -104,14 +104,13 @@ class BigqueryPool(DatabaseConnectionPool):
         self._reject_inline_interpolation(query)
         client = await self._ensure_client()
         rows = [list(p) for p in parameter_seq]
+        await asyncio.to_thread(self._sync_execute_many, client, query, rows)
 
-        def _run() -> None:
-            for params in rows:
-                job_config = self._build_job_config(params)
-                job = client.query(query, job_config=job_config)
-                job.result()
-
-        await asyncio.to_thread(_run)
+    def _sync_execute_many(self, client: Any, query: str, rows: list[Any]) -> None:
+        for params in rows:
+            job_config = self._build_job_config(params)
+            job = client.query(query, job_config=job_config)
+            job.result()
 
     def _build_job_config(self, parameters: Iterable[Any] | None) -> Any:
         """Construct a ``QueryJobConfig`` carrying positional parameters.

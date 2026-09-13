@@ -54,6 +54,7 @@ def connection_config(
     changes in a future Python version.
     """
 
+    # design-decision-override: decorator factory closure over frozen/dataclass_kwargs
     def wrap(target: type[_T]) -> type[_T]:
         decorated = dataclasses.dataclass(frozen=frozen, repr=False, **dataclass_kwargs)(target)
         if "__repr__" in decorated.__dict__:

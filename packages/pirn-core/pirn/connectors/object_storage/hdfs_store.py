@@ -56,6 +56,7 @@ class HDFSStore(ObjectStore):
         path = self._full_path(key)
         chunk_size = self._config.chunk_size
 
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[bytes]:
             data = await client.get(path)
             offset = 0
@@ -95,6 +96,7 @@ class HDFSStore(ObjectStore):
         client = await self._ensure_client()
         base = self._full_path(prefix) if prefix else self._config.base_path
 
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[str]:
             entries = await client.list(base)
             for entry in sorted(entries):

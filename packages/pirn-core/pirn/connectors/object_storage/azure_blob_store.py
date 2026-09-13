@@ -62,6 +62,7 @@ class AzureBlobStore(ObjectStore):
         container = self._config.container
         blob_client = client.get_blob_client(container=container, blob=key)
 
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[bytes]:
             downloader = await blob_client.download_blob()
             async for chunk in downloader.chunks(chunk_size):
@@ -110,6 +111,7 @@ class AzureBlobStore(ObjectStore):
         client = await self._ensure_client()
         container_client = client.get_container_client(container=self._config.container)
 
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[str]:
             kwargs: dict[str, Any] = {}
             if prefix:

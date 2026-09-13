@@ -112,23 +112,26 @@ class DremioPool(DatabaseConnectionPool):
         scheme = "grpc+tls" if config.tls else "grpc+tcp"
         location = f"{scheme}://{config.host}:{config.port}"
 
-        def _connect() -> Any:
-            import base64
-
-            raw = f"{config.username}:{config.password}"
-            encoded = base64.b64encode(raw.encode()).decode()
-            options = flight.FlightCallOptions(  # type: ignore[attr-defined]
-                headers=[(b"authorization", f"Basic {encoded}".encode())]
-            )
-            client = flight.FlightClient(location, generic_options=[])  # type: ignore[attr-defined]
-            client._call_options = options
-            return client
-
         try:
-            conn = await asyncio.to_thread(_connect)
+            conn = await asyncio.to_thread(
+                self._sync_connect, flight, location, config.username, config.password
+            )
         except Exception as exc:
             self._reraise_scrubbed(exc)
         self._logger.debug(
             "dremio.connect", extra={"host": self._config.host, "port": self._config.port}
         )
         return conn
+
+    @staticmethod
+    def _sync_connect(flight: Any, location: str, username: str, password: str) -> Any:
+        import base64
+
+        raw = f"{username}:{password}"
+        encoded = base64.b64encode(raw.encode()).decode()
+        options = flight.FlightCallOptions(  # type: ignore[attr-defined]
+            headers=[(b"authorization", f"Basic {encoded}".encode())]
+        )
+        client = flight.FlightClient(location, generic_options=[])  # type: ignore[attr-defined]
+        client._call_options = options
+        return client

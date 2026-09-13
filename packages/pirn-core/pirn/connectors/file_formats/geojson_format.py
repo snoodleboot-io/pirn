@@ -72,6 +72,7 @@ class GeoJsonFormat(StreamingFileFormat):
                 )
             features = [self._feature_to_record(feature) for feature in raw_features]
 
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[Mapping[str, Any]]:
             for record in features:
                 yield record
@@ -86,6 +87,7 @@ class GeoJsonFormat(StreamingFileFormat):
         document = {"type": "FeatureCollection", "features": feature_dicts}
         payload = json.dumps(document).encode(self._encoding)
 
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[bytes]:
             yield payload
 

@@ -41,6 +41,7 @@ class LocalFilesystemStore(ObjectStore):
         chunk_size = self._config.chunk_size
         f: BinaryIO = await asyncio.to_thread(open, path, "rb")
 
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[bytes]:
             try:
                 while True:
@@ -86,6 +87,7 @@ class LocalFilesystemStore(ObjectStore):
         else:
             base = self._root
 
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[str]:
             if not base.exists() or not base.is_dir():
                 return

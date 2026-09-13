@@ -52,6 +52,7 @@ class GCSStore(ObjectStore):
         chunk_size = self._config.chunk_size
         bucket = self._config.bucket
 
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[bytes]:
             stream = await client.download_stream(bucket=bucket, object_name=key)
             try:
@@ -99,6 +100,7 @@ class GCSStore(ObjectStore):
         client = await self._ensure_client()
         bucket = self._config.bucket
 
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[str]:
             page_token: str | None = None
             while True:

@@ -139,27 +139,24 @@ class OraclePool(DatabaseConnectionPool):
         self._reject_inline_interpolation(query)
         client = await self._ensure_client()
         params = list(parameters or ())
+        return await asyncio.to_thread(self._sync_execute, client, query, params)
 
-        def _run() -> Any:
-            in_transaction_on_entry = self._transaction_in_progress(client)
+    def _sync_execute(self, client: Any, query: str, params: list[Any]) -> Any:
+        in_transaction_on_entry = self._transaction_in_progress(client)
+        try:
+            cursor = client.cursor()
             try:
-                cursor = client.cursor()
-                try:
-                    cursor.execute(query, params)
-                    rowcount = cursor.rowcount
-                finally:
-                    cursor.close()
-            except BaseException:
-                if self._opened_transaction(
-                    client, in_transaction_on_entry, when_unreportable=True
-                ):
-                    self._rollback(client)
-                raise
+                cursor.execute(query, params)
+                rowcount = cursor.rowcount
+            finally:
+                cursor.close()
+        except BaseException:
             if self._opened_transaction(client, in_transaction_on_entry, when_unreportable=True):
-                self._commit(client)
-            return rowcount
-
-        return await asyncio.to_thread(_run)
+                self._rollback(client)
+            raise
+        if self._opened_transaction(client, in_transaction_on_entry, when_unreportable=True):
+            self._commit(client)
+        return rowcount
 
     async def fetch_all(
         self,
@@ -175,27 +172,24 @@ class OraclePool(DatabaseConnectionPool):
         self._reject_inline_interpolation(query)
         client = await self._ensure_client()
         params = list(parameters or ())
+        return await asyncio.to_thread(self._sync_fetch_all, client, query, params)
 
-        def _run() -> list[tuple[Any, ...]]:
-            in_transaction_on_entry = self._transaction_in_progress(client)
+    def _sync_fetch_all(self, client: Any, query: str, params: list[Any]) -> list[tuple[Any, ...]]:
+        in_transaction_on_entry = self._transaction_in_progress(client)
+        try:
+            cursor = client.cursor()
             try:
-                cursor = client.cursor()
-                try:
-                    cursor.execute(query, params)
-                    rows = [tuple(r) for r in cursor.fetchall()]
-                finally:
-                    cursor.close()
-            except BaseException:
-                if self._opened_transaction(
-                    client, in_transaction_on_entry, when_unreportable=False
-                ):
-                    self._rollback(client)
-                raise
+                cursor.execute(query, params)
+                rows = [tuple(r) for r in cursor.fetchall()]
+            finally:
+                cursor.close()
+        except BaseException:
             if self._opened_transaction(client, in_transaction_on_entry, when_unreportable=False):
-                self._commit(client)
-            return rows
-
-        return await asyncio.to_thread(_run)
+                self._rollback(client)
+            raise
+        if self._opened_transaction(client, in_transaction_on_entry, when_unreportable=False):
+            self._commit(client)
+        return rows
 
     async def execute_many(
         self,
@@ -210,27 +204,24 @@ class OraclePool(DatabaseConnectionPool):
         self._reject_inline_interpolation(query)
         client = await self._ensure_client()
         rows = [list(p) for p in parameter_seq]
+        return await asyncio.to_thread(self._sync_execute_many, client, query, rows)
 
-        def _run() -> Any:
-            in_transaction_on_entry = self._transaction_in_progress(client)
+    def _sync_execute_many(self, client: Any, query: str, rows: list[Any]) -> Any:
+        in_transaction_on_entry = self._transaction_in_progress(client)
+        try:
+            cursor = client.cursor()
             try:
-                cursor = client.cursor()
-                try:
-                    cursor.executemany(query, rows)
-                    rowcount = cursor.rowcount
-                finally:
-                    cursor.close()
-            except BaseException:
-                if self._opened_transaction(
-                    client, in_transaction_on_entry, when_unreportable=True
-                ):
-                    self._rollback(client)
-                raise
+                cursor.executemany(query, rows)
+                rowcount = cursor.rowcount
+            finally:
+                cursor.close()
+        except BaseException:
             if self._opened_transaction(client, in_transaction_on_entry, when_unreportable=True):
-                self._commit(client)
-            return rowcount
-
-        return await asyncio.to_thread(_run)
+                self._rollback(client)
+            raise
+        if self._opened_transaction(client, in_transaction_on_entry, when_unreportable=True):
+            self._commit(client)
+        return rowcount
 
     @staticmethod
     def _transaction_in_progress(client: Any) -> bool | None:

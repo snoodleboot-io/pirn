@@ -113,6 +113,7 @@ class AzureServiceBusBroker(MessageBroker):
         client = await self._ensure_client()
         receiver = client.get_queue_receiver(queue_name=topic)
 
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[Any]:
             if hasattr(receiver, "__aenter__"):
                 async with receiver as active_receiver:

@@ -64,6 +64,7 @@ class VcfFormat(StreamingFileFormat):
     async def read(self, body: AsyncIterator[bytes]) -> AsyncIterator[Mapping[str, Any]]:
         encoding = self._encoding
 
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[Mapping[str, Any]]:
             buffered = bytearray()
             saw_column_header = False
@@ -100,6 +101,7 @@ class VcfFormat(StreamingFileFormat):
         encoding = self._encoding
         fileformat = self._fileformat
 
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[bytes]:
             header = f"##fileformat={fileformat}\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n"
             yield header.encode(encoding)

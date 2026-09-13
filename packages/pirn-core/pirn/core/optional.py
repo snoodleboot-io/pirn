@@ -130,6 +130,7 @@ class Optional(metaclass=_OptionalMeta):
         """
         captured = exc
 
+        # design-decision-override: closure over captured exc, used as the process() of the dynamic stub class
         async def process(self: Any, **_: Any) -> Skipped:
             # self is required for Python's method binding even though
             # the stub ignores all inputs — it always emits the same Skipped.

@@ -146,35 +146,49 @@ class ZendeskClient(ApiClient, TableSource, RecordWriter):
         request_body = dict(body) if body is not None else None
         request_headers = dict(headers) if headers is not None else None
 
-        def _run() -> Any:
-            top_level = getattr(client, "request", None)
-            if callable(top_level):
-                return top_level(
-                    method,
-                    path,
-                    params=request_params,
-                    body=request_body,
-                    headers=request_headers,
-                )
-            users = getattr(client, "users", None)
-            call_api = getattr(users, "_call_api", None) if users else None
-            if callable(call_api):
-                return call_api(
-                    method,
-                    path,
-                    params=request_params,
-                    body=request_body,
-                )
-            raise RuntimeError(
-                "ZendeskClient: underlying client exposes no usable request entry-point"
-            )
-
         try:
-            return await asyncio.to_thread(_run)
+            return await asyncio.to_thread(
+                self._sync_request,
+                client,
+                method,
+                path,
+                request_params,
+                request_body,
+                request_headers,
+            )
         except RuntimeError:
             raise
         except Exception as exc:
             self._reraise_scrubbed(exc)
+
+    @staticmethod
+    def _sync_request(
+        client: Any,
+        method: str,
+        path: str,
+        request_params: dict[str, Any] | None,
+        request_body: dict[str, Any] | None,
+        request_headers: dict[str, str] | None,
+    ) -> Any:
+        top_level = getattr(client, "request", None)
+        if callable(top_level):
+            return top_level(
+                method,
+                path,
+                params=request_params,
+                body=request_body,
+                headers=request_headers,
+            )
+        users = getattr(client, "users", None)
+        call_api = getattr(users, "_call_api", None) if users else None
+        if callable(call_api):
+            return call_api(
+                method,
+                path,
+                params=request_params,
+                body=request_body,
+            )
+        raise RuntimeError("ZendeskClient: underlying client exposes no usable request entry-point")
 
     async def close(self) -> None:
         if self._client is not None:

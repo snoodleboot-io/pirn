@@ -56,11 +56,15 @@ class ThreadDispatcher(Dispatcher):
         # `max_workers` and `shutdown()`.
         context = contextvars.copy_context()
         payload = dict(inputs)
+        return await loop.run_in_executor(
+            self._executor, self._run_with_context, context, knot, payload
+        )
 
-        def _run_with_context() -> Result[Any]:
-            return context.run(ThreadDispatcher.__run_in_thread, knot, payload)
-
-        return await loop.run_in_executor(self._executor, _run_with_context)
+    @staticmethod
+    def _run_with_context(
+        context: contextvars.Context, knot: Knot, payload: dict[str, Any]
+    ) -> Result[Any]:
+        return context.run(ThreadDispatcher.__run_in_thread, knot, payload)
 
     def shutdown(self, wait: bool = True) -> None:
         """Shut down the underlying pool.  Safe to call multiple times."""

@@ -147,10 +147,7 @@ class HubSpotClient(ApiClient, TableSource, RecordWriter):
         if headers is not None:
             payload["headers"] = dict(headers)
 
-        def _run() -> Any:
-            return client.api_request(payload)
-
-        return await asyncio.to_thread(_run)
+        return await asyncio.to_thread(client.api_request, payload)
 
     async def close(self) -> None:
         if self._client is not None:

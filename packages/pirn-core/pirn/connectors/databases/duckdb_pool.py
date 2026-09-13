@@ -65,12 +65,12 @@ class DuckdbPool(DatabaseConnectionPool):
         self._reject_inline_interpolation(query)
         connection = await self.acquire()
         params = list(parameters or ())
+        return await asyncio.to_thread(self._sync_fetch_all, connection, query, params)
 
-        def _run() -> list[tuple[Any, ...]]:
-            cursor = connection.execute(query, params)
-            return [tuple(r) for r in cursor.fetchall()]
-
-        return await asyncio.to_thread(_run)
+    @staticmethod
+    def _sync_fetch_all(connection: Any, query: str, params: list[Any]) -> list[tuple[Any, ...]]:
+        cursor = connection.execute(query, params)
+        return [tuple(r) for r in cursor.fetchall()]
 
     async def _open_connection(self) -> Any:
         try:

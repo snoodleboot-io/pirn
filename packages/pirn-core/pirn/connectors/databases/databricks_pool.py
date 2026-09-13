@@ -67,16 +67,16 @@ class DatabricksPool(DatabaseConnectionPool):
         self._reject_inline_interpolation(query)
         client = await self._ensure_client()
         params = list(parameters or ())
+        return await asyncio.to_thread(self._sync_execute, client, query, params)
 
-        def _run() -> Any:
-            cursor = client.cursor()
-            try:
-                cursor.execute(query, params)
-                return cursor.rowcount
-            finally:
-                cursor.close()
-
-        return await asyncio.to_thread(_run)
+    @staticmethod
+    def _sync_execute(client: Any, query: str, params: list[Any]) -> Any:
+        cursor = client.cursor()
+        try:
+            cursor.execute(query, params)
+            return cursor.rowcount
+        finally:
+            cursor.close()
 
     async def fetch_all(
         self,
@@ -86,16 +86,16 @@ class DatabricksPool(DatabaseConnectionPool):
         self._reject_inline_interpolation(query)
         client = await self._ensure_client()
         params = list(parameters or ())
+        return await asyncio.to_thread(self._sync_fetch_all, client, query, params)
 
-        def _run() -> list[tuple[Any, ...]]:
-            cursor = client.cursor()
-            try:
-                cursor.execute(query, params)
-                return [tuple(r) for r in cursor.fetchall()]
-            finally:
-                cursor.close()
-
-        return await asyncio.to_thread(_run)
+    @staticmethod
+    def _sync_fetch_all(client: Any, query: str, params: list[Any]) -> list[tuple[Any, ...]]:
+        cursor = client.cursor()
+        try:
+            cursor.execute(query, params)
+            return [tuple(r) for r in cursor.fetchall()]
+        finally:
+            cursor.close()
 
     async def execute_many(
         self,
@@ -105,16 +105,16 @@ class DatabricksPool(DatabaseConnectionPool):
         self._reject_inline_interpolation(query)
         client = await self._ensure_client()
         rows = [list(p) for p in parameter_seq]
+        return await asyncio.to_thread(self._sync_execute_many, client, query, rows)
 
-        def _run() -> Any:
-            cursor = client.cursor()
-            try:
-                cursor.executemany(query, rows)
-                return cursor.rowcount
-            finally:
-                cursor.close()
-
-        return await asyncio.to_thread(_run)
+    @staticmethod
+    def _sync_execute_many(client: Any, query: str, rows: list[Any]) -> Any:
+        cursor = client.cursor()
+        try:
+            cursor.executemany(query, rows)
+            return cursor.rowcount
+        finally:
+            cursor.close()
 
     async def _ensure_client(self) -> Any:
         if self._closed:

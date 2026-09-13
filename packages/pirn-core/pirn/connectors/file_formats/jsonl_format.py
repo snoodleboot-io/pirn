@@ -43,6 +43,7 @@ class JsonlFormat(StreamingFileFormat):
         encoding = self._encoding
         buffered = bytearray()
 
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[Mapping[str, Any]]:
             async for chunk in body:
                 buffered.extend(chunk)
@@ -77,6 +78,7 @@ class JsonlFormat(StreamingFileFormat):
     async def write(self, records: AsyncIterator[Mapping[str, Any]]) -> AsyncIterator[bytes]:
         encoding = self._encoding
 
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[bytes]:
             async for record in records:
                 line = json.dumps(dict(record)) + "\n"

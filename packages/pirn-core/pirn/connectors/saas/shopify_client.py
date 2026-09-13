@@ -122,16 +122,9 @@ class ShopifyClient(ApiClient, TableSource):
         upper_method = method.upper()
         headers_dict = dict(headers) if headers is not None else {}
         body_dict = dict(body) if body is not None else None
-
-        def _run() -> Any:
-            return client.request(
-                upper_method,
-                full_path,
-                headers=headers_dict,
-                data=body_dict,
-            )
-
-        return await asyncio.to_thread(_run)
+        return await asyncio.to_thread(
+            client.request, upper_method, full_path, headers=headers_dict, data=body_dict
+        )
 
     def _api_version_or_default(self) -> str:
         if self._config is not None and self._config.api_version:
@@ -211,16 +204,9 @@ class ShopifyClient(ApiClient, TableSource):
         full_path = self._build_path(path, params)
         headers_dict = dict(headers) if headers is not None else {}
         body_dict = dict(body) if body is not None else None
-
-        def _run() -> Any:
-            return client.request(
-                upper_method,
-                full_path,
-                headers=headers_dict,
-                data=body_dict,
-            )
-
-        return await asyncio.to_thread(_run)
+        return await asyncio.to_thread(
+            client.request, upper_method, full_path, headers=headers_dict, data=body_dict
+        )
 
     async def close(self) -> None:
         if self._client is not None:
@@ -265,14 +251,17 @@ class ShopifyClient(ApiClient, TableSource):
         access_token = self._config.access_token
         api_version = self._config.api_version
 
-        def _connect() -> Any:
-            session = shopify.Session(shop_url, api_version, access_token)
-            shopify.ShopifyResource.activate_session(session)
-            return shopify.ShopifyResource.connection
-
         try:
-            client = await asyncio.to_thread(_connect)
+            client = await asyncio.to_thread(
+                self._sync_connect, shopify, shop_url, api_version, access_token
+            )
         except Exception as exc:
             self._reraise_scrubbed(exc)
         self._logger.debug("shopify.connect")
         return client
+
+    @staticmethod
+    def _sync_connect(shopify: Any, shop_url: str, api_version: str, access_token: str) -> Any:
+        session = shopify.Session(shop_url, api_version, access_token)
+        shopify.ShopifyResource.activate_session(session)
+        return shopify.ShopifyResource.connection
