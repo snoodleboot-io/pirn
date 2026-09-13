@@ -1,6 +1,6 @@
 # Extension Points
 
-pirn is designed to be extended. Every major subsystem is a protocol — implement the interface, pass it to the `Tapestry` constructor, and the rest of the framework adapts automatically.
+pirn is designed to be extended. Every major subsystem has a base class (subclass and override) — implement the interface, pass it to the `Tapestry` constructor, and the rest of the framework adapts automatically.
 
 ---
 
@@ -49,7 +49,7 @@ If `process()` raises, the outcome is converted from `Err` to `Skipped`, making 
 
 ## Custom TapestryStore
 
-Implement the `TapestryStore` protocol from `pirn.backends`:
+Implement the `TapestryStore` base class from `pirn.backends`:
 
 ```python
 from pirn.backends.base.tapestry_store import TapestryStore
@@ -171,6 +171,66 @@ class GCSDataStore:
 
 ---
 
+## Custom DataTransport
+
+`DataStore` (above) is the content-addressed cache the framework's persistence layer
+reads and writes. `DataTransport` is a separate, lower-level concern: it decides where a
+single knot's output lives *between* the moment the upstream knot produces it and the
+moment the downstream knot consumes it, on one edge of the graph. The executor calls
+`write`/`read` — knot `process()` methods only ever see materialised Python values.
+
+Implement `pirn.core.transport.data_transport.DataTransport`:
+
+```python
+from pirn.core.transport.data_transport import DataTransport
+from pirn.core.transport.transport_handle import TransportHandle
+from typing import Any
+
+
+class RedisTransport(DataTransport):
+    """Stash knot outputs in Redis for the lifetime of one run."""
+
+    def __init__(self, redis_client):
+        self._redis = redis_client
+
+    @property
+    def transport_id(self) -> str:
+        return "redis"
+
+    async def begin_run(self, run_id: str) -> None:
+        pass  # nothing to allocate up front
+
+    async def write(self, run_id: str, knot_id: str, value: Any) -> TransportHandle:
+        key = f"pirn:{run_id}:{knot_id}"
+        raw = pickle.dumps(value)
+        self._redis.set(key, raw)
+        return TransportHandle(
+            transport_id=self.transport_id,
+            key=key,
+            type_name=f"{type(value).__module__}.{type(value).__qualname__}",
+            size_bytes=len(raw),
+        )
+
+    async def read(self, handle: TransportHandle) -> Any:
+        return pickle.loads(self._redis.get(handle.key))
+
+    async def exists(self, handle: TransportHandle) -> bool:
+        return bool(self._redis.exists(handle.key))
+
+    async def end_run(self, run_id: str, *, success: bool) -> None:
+        for key in self._redis.keys(f"pirn:{run_id}:*"):
+            self._redis.delete(key)
+```
+
+Set it tapestry-wide, or override per knot via `KnotConfig.transport`:
+
+```python
+with Tapestry(transport=RedisTransport(redis_client)) as t:
+    ...
+```
+
+---
+
 ## Custom Dispatchers
 
 Implement `pirn.engine.dispatchers.Dispatcher`:
@@ -211,6 +271,77 @@ Or override per-run:
 ```python
 result = await tapestry.run(request, dispatcher=KubernetesJobDispatcher())
 ```
+
+---
+
+## Admission control — AdmissionGate and ConcurrencyLimits
+
+Before a ready knot (all its parents resolved) is dispatched, the engine offers it to an
+`AdmissionGate`, which admits it only while capacity allows. This is how a run caps how
+many knots execute at once, overall or per named group (e.g. "at most 4 concurrent OpenAI
+calls" while everything else in the same run stays unbounded).
+
+The supported extension point is **`ConcurrencyLimits`**, not writing a custom gate
+directly — the engine already builds the right gate from it (`UnboundedAdmissionGate`
+when nothing is set, `LimitedAdmissionGate` otherwise) and there is no `Tapestry(...)`
+parameter to substitute a different gate implementation today:
+
+```python
+from pirn.core.concurrency.concurrency_limits import ConcurrencyLimits
+
+with Tapestry(concurrency=ConcurrencyLimits(max_in_flight=8, groups={"openai": 4})) as t:
+    ...
+
+# or per run, overriding the tapestry default — set on the RunRequest itself:
+request = RunRequest(concurrency=ConcurrencyLimits(groups={"openai": 1}))
+result = await tapestry.run(request)
+```
+
+A knot joins a group via `KnotConfig(concurrency_group="openai")`. Undefined groups fail
+fast: once `ConcurrencyLimits` defines any group, a knot naming a group not in that set
+raises `UndefinedConcurrencyGroupError` rather than silently running unbounded.
+
+`pirn.engine.admission.admission_gate.AdmissionGate` itself is documented here because it
+is the interface those two built-in implementations satisfy (subclass and override
+`has_capacity`, `try_admit`, `release`, `wait_for_release`) — useful reading if you need
+to understand or test admission behavior, even though wiring a third implementation in
+requires engine-level changes today rather than a public constructor argument.
+
+---
+
+## Custom IdentityResolver
+
+`IdentityResolver` supplies the actor string recorded against a run when
+`RunRequest.actor` is not set explicitly — used for audit trails and lineage. The default
+chain tries the environment, then the OS user; override it to integrate with your own
+auth context (a request-scoped user, a service-account token, etc.):
+
+```python
+from pirn.core.identity.identity_resolver import IdentityResolver
+
+
+class RequestContextIdentityResolver(IdentityResolver):
+    """Resolve the actor from a request-scoped context var, if one is set."""
+
+    def __init__(self, context_var):
+        self._context_var = context_var
+
+    def resolve(self) -> str | None:
+        ctx = self._context_var.get(None)
+        return ctx.user_id if ctx is not None else None
+```
+
+Pass it to `Tapestry`:
+
+```python
+with Tapestry(identity_resolver=RequestContextIdentityResolver(current_request_ctx)) as t:
+    ...
+```
+
+`resolve()` returning `None` means "this resolver cannot determine an identity" — the
+engine propagates `None` without raising, it does not fall through to another resolver
+unless you compose one yourself (see `ChainedIdentityResolver`, which the default wiring
+uses to try `EnvIdentityResolver` then `OsIdentityResolver` in order).
 
 ---
 
