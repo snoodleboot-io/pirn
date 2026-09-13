@@ -89,6 +89,9 @@ _EXPECTED_EXCLUSIONS = frozenset(
         # Private: the loop body ReflexionPipeline drives internally
         # (ADR agents-speaks-core WS5b).
         "pirn_agents.specializations.reflexion._reflexion_loop._ReflexionLoop",
+        # Private: the loop body FlareActiveRagPipeline drives internally
+        # (ADR agents-speaks-core WS5b).
+        "pirn_agents.specializations.rag._flare_loop._FlareLoop",
         # Newly promoted to the AgentPipeline family (ADR agents-speaks-core
         # WS5b: was a plain Knot with a hand-rolled revision loop, now a
         # SubTapestry driving _ConstitutionalFilterLoop). Registering it under
@@ -256,6 +259,7 @@ def test_the_excluded_bases_are_bases_and_the_excluded_private_is_private() -> N
             "pirn_agents.specializations.structured_output._pydantic_validator_loop"
             "._PydanticValidatorLoop",
             "pirn_agents.specializations.reflexion._reflexion_loop._ReflexionLoop",
+            "pirn_agents.specializations.rag._flare_loop._FlareLoop",
         ]
     )
     # Every exclusion falls into exactly one justified category: base,

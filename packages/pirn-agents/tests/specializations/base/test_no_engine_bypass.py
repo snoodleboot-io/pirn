@@ -82,8 +82,6 @@ AWAITS_CHILD_PROCESS = frozenset(
 RETURNS_INLINE_SOURCE = frozenset(
     {
         "specializations/lats/lats_search.py::LatsSearch",
-        "specializations/rag/flare_active_rag_pipeline.py::FlareActiveRagPipeline",
-        "specializations/rag/multi_hop_rag_pipeline.py::MultiHopRAGPipeline",
     }
 )
 
@@ -134,7 +132,6 @@ LOOP_AWAITS_LLM_OR_TOOL_CALL = frozenset(
         "specializations/document_processing/_chunk_translator.py::_ChunkTranslator",
         "specializations/guardrails/fact_claim_verifier.py::FactClaimVerifier",
         "specializations/plan_and_execute/plan_executor.py::PlanExecutor",
-        "specializations/rag/flare_active_rag_pipeline.py::FlareActiveRagPipeline",
     }
 )
 
