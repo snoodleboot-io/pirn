@@ -22,13 +22,11 @@ from __future__ import annotations
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 from pirn_agents.memory.management.memory_record import MemoryRecord
-
-_TOKEN = re.compile(r"[a-z0-9]+")
 
 
 @dataclass(frozen=True)
@@ -42,6 +40,10 @@ class NearDuplicateGrouper(PirnOpaqueValue):
         This frozen field is the one declaration of the consolidation
         similarity floor — no caller re-states the number.
     """
+
+    #: Word-token pattern (Rule: no module-level constants). ``ClassVar``
+    #: excludes it from the dataclass's own fields.
+    _token: ClassVar[re.Pattern[str]] = re.compile(r"[a-z0-9]+")
 
     threshold: float = 0.6
 
@@ -87,10 +89,10 @@ class NearDuplicateGrouper(PirnOpaqueValue):
     def _pirn_audit_dict(self) -> dict[str, Any]:
         return {"threshold": self.threshold}
 
-    @staticmethod
-    def _tokenize(text: str) -> frozenset[str]:
+    @classmethod
+    def _tokenize(cls, text: str) -> frozenset[str]:
         """Return the case-folded word-token set of ``text``."""
-        return frozenset(_TOKEN.findall(text.lower()))
+        return frozenset(cls._token.findall(text.lower()))
 
     @staticmethod
     def _jaccard(left: frozenset[str], right: frozenset[str]) -> float:

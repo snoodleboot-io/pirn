@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.connectors.object_storage.s3_config import S3Config
 from pirn.connectors.object_storage.s3_store import S3Store
@@ -32,8 +32,8 @@ from pirn.connectors.object_storage.s3_store import S3Store
 class StreamingS3Store(S3Store):
     """S3 object store whose ``put`` streams a multipart upload."""
 
-    # S3 rejects a non-final part below this size at completion time.
-    _MIN_PART_SIZE: int = 5 * 1024 * 1024
+    #: S3 rejects a non-final part below this size at completion time.
+    _min_part_size: ClassVar[int] = 5 * 1024 * 1024
 
     def __init__(
         self,
@@ -60,9 +60,9 @@ class StreamingS3Store(S3Store):
         """
         super().__init__(config, client=client)
         resolved = part_size if part_size is not None else config.multipart_threshold
-        if resolved < self._MIN_PART_SIZE:
+        if resolved < self._min_part_size:
             raise ValueError(
-                f"StreamingS3Store: part_size must be at least {self._MIN_PART_SIZE} bytes "
+                f"StreamingS3Store: part_size must be at least {self._min_part_size} bytes "
                 f"(S3's minimum for a non-final part), got {resolved!r}"
             )
         self._part_size = resolved

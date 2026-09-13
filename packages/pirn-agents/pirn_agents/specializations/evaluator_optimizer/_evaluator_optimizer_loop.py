@@ -16,7 +16,7 @@ Internal API. See PIR-713.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.gate.gate import Gate
@@ -39,12 +39,6 @@ from pirn_agents.specializations.evaluator_optimizer.llm_judge import LlmJudge
 if TYPE_CHECKING:
     from pirn.core.run_result import RunResult
 
-_GEN_ID = "eo_gen"
-_JUDGE_ID = "eo_judge"
-_GATE_ID = "eo_gate"
-_CONTINUE_ID = "eo_continue"
-_REFLECT_ID = "eo_reflect"
-
 
 def _reject(accepted: bool) -> bool:
     """Open the continue-gate only when the candidate was *not* accepted."""
@@ -53,6 +47,13 @@ def _reject(accepted: bool) -> bool:
 
 class _EvaluatorOptimizerLoop(AgentLoopPipeline[_EvaluatorOptimizerState]):
     """Iterate generate → judge → accept until accepted, stopped, or capped."""
+
+    #: Per-iteration knot ids (Rule: no module-level constants).
+    _gen_id: ClassVar[str] = "eo_gen"
+    _judge_id: ClassVar[str] = "eo_judge"
+    _gate_id: ClassVar[str] = "eo_gate"
+    _continue_id: ClassVar[str] = "eo_continue"
+    _reflect_id: ClassVar[str] = "eo_reflect"
 
     def __init__(
         self,
@@ -92,24 +93,24 @@ class _EvaluatorOptimizerLoop(AgentLoopPipeline[_EvaluatorOptimizerState]):
                 task=self._task,
                 llm=self._llm,
                 feedback=state.feedback,
-                _config=KnotConfig(id=_GEN_ID),
+                _config=KnotConfig(id=self._gen_id),
             )
             verdict = LlmJudge(
                 task=self._task,
                 candidate=candidate,
                 llm=self._llm,
-                _config=KnotConfig(id=_JUDGE_ID),
+                _config=KnotConfig(id=self._judge_id),
             )
             accepted = AcceptCheck(
                 verdict=verdict,
                 threshold=self._threshold,
-                _config=KnotConfig(id=_GATE_ID),
+                _config=KnotConfig(id=self._gate_id),
             )
             if self._reflection_gate:
                 keep_going = Gate(
                     input=accepted,
                     predicate=_reject,
-                    _config=KnotConfig(id=_CONTINUE_ID),
+                    _config=KnotConfig(id=self._continue_id),
                 )
                 response = GatedAgentResponse(
                     content=candidate,
@@ -119,7 +120,7 @@ class _EvaluatorOptimizerLoop(AgentLoopPipeline[_EvaluatorOptimizerState]):
                 ReflectionCheck(
                     response=response,
                     llm=self._llm,
-                    _config=KnotConfig(id=_REFLECT_ID),
+                    _config=KnotConfig(id=self._reflect_id),
                 )
         return iteration, state
 
@@ -133,10 +134,10 @@ class _EvaluatorOptimizerLoop(AgentLoopPipeline[_EvaluatorOptimizerState]):
         Returns:
             A new state carrying the iteration's outcome.
         """
-        candidate = result.outputs.get(_GEN_ID, "")
-        verdict = result.outputs.get(_JUDGE_ID)
+        candidate = result.outputs.get(self._gen_id, "")
+        verdict = result.outputs.get(self._judge_id)
         score = verdict.score if isinstance(verdict, JudgeVerdict) else 0.0
-        accepted = bool(result.outputs.get(_GATE_ID, False))
+        accepted = bool(result.outputs.get(self._gate_id, False))
         iterations = state.iterations + 1
 
         # First iteration always seeds the best; later ones only improve it.
@@ -147,7 +148,7 @@ class _EvaluatorOptimizerLoop(AgentLoopPipeline[_EvaluatorOptimizerState]):
         # Absent when the continue-gate closed (i.e. the candidate was
         # accepted) or when no reflection gate was supplied at all. Only an
         # explicit "do not continue" stops the loop early.
-        keep_going = result.outputs.get(_REFLECT_ID)
+        keep_going = result.outputs.get(self._reflect_id)
         stop = keep_going is False
 
         return _EvaluatorOptimizerState(

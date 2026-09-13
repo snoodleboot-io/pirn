@@ -5,11 +5,9 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
-
-_LEADING_NUMBER = re.compile(r"[-+]?\d*\.?\d+")
 
 
 @dataclass(frozen=True)
@@ -25,6 +23,10 @@ class BenchmarkSample(PirnOpaqueValue):
         "speedup": 7.5}``). Units are stripped at parse time so values stay
         comparable across reports.
     """
+
+    #: Leading numeric portion of a ``k=v`` value (Rule: no module-level
+    #: constants). ``ClassVar`` excludes it from the dataclass's own fields.
+    _leading_number: ClassVar[re.Pattern[str]] = re.compile(r"[-+]?\d*\.?\d+")
 
     name: str
     metrics: Mapping[str, float]
@@ -59,7 +61,7 @@ class BenchmarkSample(PirnOpaqueValue):
             if "=" not in token:
                 continue
             key, raw = token.split("=", 1)
-            match = _LEADING_NUMBER.match(raw)
+            match = cls._leading_number.match(raw)
             if match is None:
                 continue
             metrics[key] = float(match.group())
