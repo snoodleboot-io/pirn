@@ -18,7 +18,7 @@ pip install 'pirn-data[all-frames]'        # every Tier-2 single-machine CPU eng
 pip install 'pirn-data[all-lazy]'          # every Tier-3 push-down engine
 ```
 
-Available extras: `data`, `xarray`, `awkward`, `polars`, `datafusion`, `modin`, `ibis`, `spark`, `ray-data`, `pathway`, `bytewax`, `lance`, `eland`, `delta`, `iceberg`, `hudi`, `pandera`, `great-expectations`, and the `all-frames` / `all-lazy` aggregates.
+Available extras: `data`, `xarray`, `awkward`, `polars`, `datafusion`, `duckdb`, `modin`, `ibis`, `spark`, `dask`, `ray-data`, `pathway`, `bytewax`, `lance`, `eland`, `delta`, `iceberg`, `hudi`, `pandera`, `great-expectations`, and the `all-frames` / `all-lazy` aggregates.
 
 **Registration (ADR-4):** `import pirn_data` self-registers the data-domain knots under `library="pirn"`, so a YAML pipeline can resolve them by bare name. In Python you import the knot classes directly (same effect). To register every installed domain at once, call `pirn.discover_installed_domains()`.
 
@@ -34,16 +34,31 @@ The data domain is organised into six tiers. Each tier is an independent opt-in 
 | Tier | Name | Engine(s) | Extra(s) | Notes |
 |------|------|-----------|----------|-------|
 | **1** | Dict / DataBatch | Pure Python | `pirn-data[data]` | Always-on baseline; every record is a `dict`. |
-| **2** | Native frames (CPU) | Polars, DataFusion, pandas+PyArrow | `pirn-data[polars]`, `pirn-data[datafusion]`, `pirn-data[data]` | Polars is the preferred Tier-2 engine. |
+| **2** | Native frames (CPU) | Polars, DataFusion, DuckDB, pandas+PyArrow | `pirn-data[polars]`, `pirn-data[datafusion]`, `pirn-data[duckdb]`, `pirn-data[data]` | Polars is the preferred Tier-2 engine. |
 | **2-GPU** | Native frames (GPU) | cuDF | user-supplied | CUDA-only; install `cudf-cu12` directly. |
 | **2.5** | Out-of-core / drop-in | Modin | `pirn-data[modin]` | Pandas-compatible, chunked on disk. |
-| **3** | Push-down / lazy | Ibis, Spark, Dask, Ray Data | `pirn-data[ibis]`, `pirn-data[spark]`, etc. | Ibis is the preferred Tier-3 engine. Dask ships with `pirn-core` as a core dispatcher. |
+| **3** | Push-down / lazy | Ibis, Spark, Dask, Ray Data | `pirn-data[ibis]`, `pirn-data[spark]`, `pirn-data[dask]`, `pirn-data[ray-data]` | Ibis is the preferred Tier-3 engine. Dask also ships with `pirn-core` as a core dispatcher (`pirn-core[dask]`); `pirn-data[dask]` installs the same package directly. |
 | **3-stream** | Streaming dataflow | Pathway, Bytewax | `pirn-data[pathway]`, `pirn-data[bytewax]` | Requires Python < 3.14 until upstream catches up. |
 | **4** | Specialised | Lance (vector), Eland (Elasticsearch) | `pirn-data[lance]`, `pirn-data[eland]` | Domain-specific columnar layouts. |
 
 Tier-1 (`DataBatch`) is always included with `pirn-data[data]`. All higher tiers layer on top and are independent — installing `pirn-data[polars]` does not pull in Ibis.
 
 The `pirn-data[all-frames]` convenience extra installs every Tier-2 single-machine CPU engine. The `pirn-data[all-lazy]` convenience extra installs every Tier-3 push-down engine.
+
+### Import policy: tier engines vs. everything else
+
+**Tier-engine subpackages import their engine at module top; everything else lazy-imports.**
+
+Every module under `pirn_data.frames.{engine}` and `pirn_data.lazy.{engine}` (Polars, DataFusion, DuckDB, Ibis, Dask, Ray Data) does a plain top-level `import polars`, `import duckdb`, `import ibis`, and so on. This is deliberate, not an oversight to be cleaned up:
+
+* The engine **is** the subpackage's identity — a module under `frames/polars/` is meaningless without Polars installed.
+* The whole subpackage is opt-in via its own `pirn-data[{engine}]` extra (see the table above), so a top-level import in `frames/polars/*.py` never breaks an installation that only asked for `pirn-data[data]` — that install never imports `pirn_data.frames.polars` in the first place.
+
+Modules under `pirn_data.lakehouse`, `pirn_data.validation`, and `pirn_data.specialized` do the opposite: they lazy-import their vendor SDK from inside `process()` or a helper it calls (see, e.g., `DeltaTable._import_deltalake`, `GreatExpectationsPandasValidator`). Those subpackages lazy-import because a single module often supports more than one optional backend, or is reachable from a code path (construction, validation) that should not require the dependency at all.
+
+**The one exception is `pirn_data.lazy.spark`.** Every `pyspark` import there is deferred into `process()` (or a called helper) as well, because PySpark's JVM bootstrap cost is high enough that even an unrelated knot elsewhere in the process shouldn't pay for it. `SparkDataFrame.frame` is typed `Any` for the same reason — spelling the real type would require importing `pyspark.sql` at module load.
+
+See the `pirn_data.frames` and `pirn_data.lazy` package docstrings for the same policy stated next to the code it governs.
 
 **See also:** [Connectors — Format Matrix](../connectors/index.md), [Architecture Overview](../architecture/overview.md)
 

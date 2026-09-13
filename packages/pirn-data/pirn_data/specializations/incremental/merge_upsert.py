@@ -32,10 +32,10 @@ from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.specializations._pool_merge_knot import _PoolMergeKnot
 
 
-class MergeUpsert(Knot):
+class MergeUpsert(_PoolMergeKnot):
     """Insert new rows and update changed rows; never delete."""
 
     def __init__(
@@ -93,48 +93,31 @@ class MergeUpsert(Knot):
         non_key_columns: Any,
         **_: Any,
     ) -> dict[str, Any]:
-        if not isinstance(source_pool, DatabaseConnectionPool):
-            raise TypeError("MergeUpsert: source_pool must be a DatabaseConnectionPool")
-        if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError("MergeUpsert: target_pool must be a DatabaseConnectionPool")
-        if not isinstance(source_query, str) or not source_query:
-            raise ValueError("MergeUpsert: source_query must be a non-empty string")
-        if not isinstance(target_table, str) or not target_table:
-            raise ValueError("MergeUpsert: target_table must be a non-empty string")
-        IdentifierValidator.validate_column("target_table", target_table)
+        self._validate_pools("MergeUpsert", source_pool=source_pool, target_pool=target_pool)
+        self._validate_non_empty_string("MergeUpsert", "source_query", source_query)
+        self._validate_non_empty_string("MergeUpsert", "target_table", target_table)
+        self._validate_identifier("target_table", target_table)
         key_tuple = tuple(key_columns)
         non_key_tuple = tuple(non_key_columns)
-        IdentifierValidator.validate_columns("key_columns", key_tuple)
-        IdentifierValidator.validate_columns("non_key_columns", non_key_tuple)
+        self._validate_identifier("key_columns", key_tuple)
+        self._validate_identifier("non_key_columns", non_key_tuple)
         overlap = set(key_tuple) & set(non_key_tuple)
         if overlap:
             raise ValueError(
                 f"MergeUpsert: key_columns and non_key_columns overlap on {sorted(overlap)!r}"
             )
-        all_columns = key_tuple + non_key_tuple
         source_rows = await source_pool.fetch_all(source_query)
-        rows_inserted = 0
-        rows_updated = 0
-        for row in source_rows:
-            row_dict = dict(zip(all_columns, row, strict=False))
-            key_values = tuple(row_dict[k] for k in key_tuple)
-            non_key_values = tuple(row_dict[k] for k in non_key_tuple)
-            existing = await target_pool.fetch_all(
-                MergeUpsert._select_existing_query(target_table, key_tuple),
-                key_values,
-            )
-            if existing:
-                await target_pool.execute(
-                    MergeUpsert._update_query(target_table, key_tuple, non_key_tuple),
-                    non_key_values + key_values,
-                )
-                rows_updated += 1
-            else:
-                await target_pool.execute(
-                    MergeUpsert._insert_query(target_table, all_columns),
-                    key_values + non_key_values,
-                )
-                rows_inserted += 1
+        matched = await self._execute_per_row_upsert(
+            source_rows,
+            target_pool,
+            key_tuple,
+            non_key_tuple,
+            MergeUpsert._select_existing_query(target_table, key_tuple),
+            MergeUpsert._update_query(target_table, key_tuple, non_key_tuple),
+            MergeUpsert._insert_query(target_table, key_tuple + non_key_tuple),
+        )
+        rows_updated = sum(matched)
+        rows_inserted = len(matched) - rows_updated
         return {
             "succeeded": True,
             "target_table": target_table,

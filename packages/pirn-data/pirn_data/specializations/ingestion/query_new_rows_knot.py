@@ -82,7 +82,7 @@ class QueryNewRowsKnot(Knot):
             A list of rows returned by the source query.
 
         Raises:
-            TypeError: If ``pool`` is not a ``DatabaseConnectionPool`` or lacks ``fetch_all``.
+            TypeError: If ``pool`` is not a ``DatabaseConnectionPool``.
             ValueError: If identifiers are empty or contain invalid characters.
         """
         if not isinstance(pool, DatabaseConnectionPool):
@@ -100,16 +100,13 @@ class QueryNewRowsKnot(Knot):
         for column in column_tuple:
             if not isinstance(column, str) or not column.replace("_", "").isalnum():
                 raise ValueError(f"QueryNewRowsKnot: column {column!r} must be alphanumeric")
-        fetch_all = getattr(pool, "fetch_all", None)
-        if fetch_all is None:
-            raise TypeError("QueryNewRowsKnot: pool does not support fetch_all()")
         column_list = ", ".join(column_tuple)
         if high_water_mark is None:
             query = f"SELECT {column_list} FROM {table} ORDER BY {watermark_column}"
-            return await fetch_all(query)
+            return await pool.fetch_all(query)
         query = (
             f"SELECT {column_list} FROM {table} "
             f"WHERE {watermark_column} > ? "
             f"ORDER BY {watermark_column}"
         )
-        return await fetch_all(query, (high_water_mark,))
+        return await pool.fetch_all(query, (high_water_mark,))

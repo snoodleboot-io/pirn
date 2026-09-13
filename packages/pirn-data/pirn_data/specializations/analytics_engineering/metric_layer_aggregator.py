@@ -13,6 +13,32 @@ Algorithm:
     4. Return a structured metric record. When ``dimension_columns`` are
        present, ``value`` is a list of per-dimension dicts; otherwise a scalar.
 
+Math:
+    Let :math:`x_1, \\dots, x_N` be ``value_column``'s values across the
+    rows of ``source_table`` (per dimension group, when
+    ``dimension_columns`` is non-empty):
+
+    $$
+    \\text{sum} = \\sum_{i=1}^{N} x_i,
+    \\qquad
+    \\text{count} = N,
+    \\qquad
+    \\text{avg} = \\frac{1}{N} \\sum_{i=1}^{N} x_i
+    $$
+
+    For ``ratio``, with :math:`n_i` the ``numerator_column`` values and
+    :math:`d_i` the ``denominator_column`` values:
+
+    $$
+    \\text{ratio} = \\begin{cases}
+        \\dfrac{\\sum_{i=1}^{N} n_i}{\\sum_{i=1}^{N} d_i} & \\sum_{i=1}^{N} d_i \\neq 0 \\\\
+        \\text{NULL} & \\sum_{i=1}^{N} d_i = 0
+    \\end{cases}
+    $$
+
+    The zero-denominator case is delegated to SQL's ``NULLIF``, matching
+    the aggregation's own null-propagation semantics rather than raising.
+
 References:
     [1] pirn — DatabaseConnectionPool interface:
         pirn/domains/connectors/database_connection_pool.py

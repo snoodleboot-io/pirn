@@ -24,6 +24,7 @@ References:
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 from pirn.core.knot import Knot
@@ -55,22 +56,14 @@ class TextTokenCounter(Knot):
         )
 
     @staticmethod
-    def _make_counter(tiktoken_encoding: str) -> Any:
+    def _make_counter(tiktoken_encoding: str) -> Callable[[str], int]:
         try:
             import tiktoken
 
             enc = tiktoken.get_encoding(tiktoken_encoding)
-
-            def _count(text: str) -> int:
-                return len(enc.encode(text))
-
-            return _count
+            return lambda text: len(enc.encode(text))
         except ImportError:
-
-            def _count(text: str) -> int:  # type: ignore[misc]
-                return len(text.split())
-
-            return _count
+            return lambda text: len(text.split())
 
     async def process(
         self,

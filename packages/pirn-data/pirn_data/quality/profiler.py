@@ -23,6 +23,36 @@ Algorithm:
     3. Return a :class:`DataProfile` containing row count, column count,
        and one :class:`ColumnProfile` per target column.
 
+Math:
+    Let :math:`R` be ``batch.rows`` and, for a target column :math:`c`,
+    let :math:`P = \\{ r \\in R : c \\in r \\}` be the rows where the key is
+    present:
+
+    $$
+    \\text{observed\\_count} = |P|
+    $$
+
+    $$
+    \\text{null\\_count} = |\\{ r \\in P : r[c] = \\text{None} \\}|
+    $$
+
+    Let :math:`V = \\{ r[c] : r \\in P, r[c] \\neq \\text{None} \\}` be the
+    multiset of non-null values:
+
+    $$
+    \\text{distinct\\_count} = |\\text{set}(V)|
+    $$
+
+    $$
+    \\text{top\\_value} = \\underset{v \\in \\text{set}(V)}{\\arg\\max}\\ |\\{ x \\in V : x = v \\}|,
+    \\qquad
+    \\text{top\\_value\\_count} = \\max_{v \\in \\text{set}(V)} |\\{ x \\in V : x = v \\}|
+    $$
+
+    ``min_value``/``max_value`` are the ordinary minimum and maximum of
+    :math:`V`, computed only when every element is one of ``int``,
+    ``float``, ``str``, ``bool``; otherwise both are ``None``.
+
 References:
     [1] Descriptive statistics for data profiling:
         Rahm & Do, "Data Cleaning: Problems and Current Approaches",

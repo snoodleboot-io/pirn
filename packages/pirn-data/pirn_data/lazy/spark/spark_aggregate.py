@@ -127,6 +127,9 @@ class SparkAggregate(Knot):
         by_list = list(by)
         agg_columns = []
         for output_col, (input_col, fn) in aggs.items():
+            # spark_functions is pyspark.sql.functions; look up the named
+            # aggregate function dynamically since fn is a caller-supplied
+            # string (already validated against self._allowed_fns above).
             spark_fn = getattr(spark_functions, fn)
             agg_columns.append(spark_fn(input_col).alias(output_col))
         grouped = frame.frame.groupBy(*by_list)

@@ -77,6 +77,12 @@ class RollingWindowAggregator(Knot):
         variance = sum((v - mean) ** 2 for v in vals) / len(vals)
         return math.sqrt(variance)
 
+    @staticmethod
+    def _as_dt(val: Any) -> datetime:
+        if isinstance(val, datetime):
+            return val
+        return datetime.fromisoformat(str(val))
+
     async def process(
         self,
         *,
@@ -109,12 +115,7 @@ class RollingWindowAggregator(Knot):
 
         output_column = f"{value_column}_{statistic}"
 
-        def _as_dt(val: Any) -> datetime:
-            if isinstance(val, datetime):
-                return val
-            return datetime.fromisoformat(str(val))
-
-        sorted_rows = sorted(rows, key=lambda r: _as_dt(r[timestamp_column]))
+        sorted_rows = sorted(rows, key=lambda r: self._as_dt(r[timestamp_column]))
         window: deque = deque(maxlen=window_size)
         result: list[dict[str, Any]] = []
         for row in sorted_rows:

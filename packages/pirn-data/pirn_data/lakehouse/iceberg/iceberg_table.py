@@ -83,12 +83,7 @@ class IcebergTable(LakehouseTable):
             scan_kwargs["selected_fields"] = tuple(columns)
         scanner = table.scan(**scan_kwargs)
         rows = scanner.to_arrow().to_pylist()
-
-        async def _iter() -> AsyncIterator[Mapping[str, Any]]:
-            for row in rows:
-                yield row
-
-        return _iter()
+        return self._rows_as_async_iterator(rows)
 
     async def append(
         self,
@@ -132,13 +127,8 @@ class IcebergTable(LakehouseTable):
 
     async def history(self) -> AsyncIterator[Mapping[str, Any]]:
         table = self._ensure_table()
-        commits = list(table.history())
-
-        async def _iter() -> AsyncIterator[Mapping[str, Any]]:
-            for commit in commits:
-                yield self._history_entry(commit)
-
-        return _iter()
+        entries = [self._history_entry(commit) for commit in table.history()]
+        return self._rows_as_async_iterator(entries)
 
     async def close(self) -> None:
         self._table = None
@@ -172,6 +162,8 @@ class IcebergTable(LakehouseTable):
         millis = int(ts.timestamp() * 1000)
         chosen: int | None = None
         for entry in table.history():
+            # entry is a pyiceberg history record (namedtuple/model); duck-type
+            # its fields, matching _history_entry below.
             ts_ms = getattr(entry, "timestamp_ms", None)
             snap_id = getattr(entry, "snapshot_id", None)
             if ts_ms is None or snap_id is None:
@@ -233,6 +225,13 @@ class IcebergTable(LakehouseTable):
         async for record in records:
             rows.append(dict(record))
         return rows
+
+    @staticmethod
+    async def _rows_as_async_iterator(
+        rows: list[Mapping[str, Any]],
+    ) -> AsyncIterator[Mapping[str, Any]]:
+        for row in rows:
+            yield row
 
     @staticmethod
     def _import_pyiceberg_catalog() -> Any:

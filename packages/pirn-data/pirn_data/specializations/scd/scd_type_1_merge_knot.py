@@ -39,10 +39,10 @@ from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.specializations._pool_merge_knot import _PoolMergeKnot
 
 
-class ScdType1MergeKnot(Knot):
+class ScdType1MergeKnot(_PoolMergeKnot):
     """Merge a source row stream into a target table by overwriting on change."""
 
     def __init__(
@@ -97,13 +97,12 @@ class ScdType1MergeKnot(Knot):
         column_names: Any,
         **_: Any,
     ) -> dict[str, int]:
-        if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError("ScdType1MergeKnot: target_pool must be a DatabaseConnectionPool")
-        IdentifierValidator.validate_column("target_table", target_table)
+        self._validate_pools("ScdType1MergeKnot", target_pool=target_pool)
+        self._validate_identifier("target_table", target_table)
         primary_key_tuple = tuple(primary_keys)
-        IdentifierValidator.validate_columns("primary_keys", primary_key_tuple)
+        self._validate_identifier("primary_keys", primary_key_tuple)
         column_tuple = tuple(column_names)
-        IdentifierValidator.validate_columns("column_names", column_tuple)
+        self._validate_identifier("column_names", column_tuple)
         missing = [k for k in primary_key_tuple if k not in column_tuple]
         if missing:
             raise ValueError(f"ScdType1MergeKnot: primary_keys not in column_names: {missing}")
@@ -117,28 +116,19 @@ class ScdType1MergeKnot(Knot):
         existing_rows = await target_pool.fetch_all(select_q)
         key_indices = tuple(column_tuple.index(k) for k in primary_key_tuple)
         non_key_indices = tuple(column_tuple.index(c) for c in non_key_columns)
-        existing_by_key: dict[tuple[Any, ...], tuple[Any, ...]] = {}
-        for row in existing_rows:
-            key = tuple(row[i] for i in key_indices)
-            existing_by_key[key] = tuple(row)
+        existing_by_key = ScdType1MergeKnot._index_rows_by_key(existing_rows, key_indices)
         inserts: list[tuple[Any, ...]] = []
         updates: list[tuple[Any, ...]] = []
         for row in materialised:
-            if len(row) != len(column_tuple):
-                raise ValueError(
-                    f"ScdType1MergeKnot: row width {len(row)} does not match "
-                    f"column_names width {len(column_tuple)}"
-                )
+            self._validate_row_width("ScdType1MergeKnot", row, column_tuple)
             key = tuple(row[i] for i in key_indices)
             if key not in existing_by_key:
                 inserts.append(row)
                 continue
             existing = existing_by_key[key]
-            existing_non_keys = tuple(existing[i] for i in non_key_indices)
-            new_non_keys = tuple(row[i] for i in non_key_indices)
-            if existing_non_keys == new_non_keys:
+            if not ScdType1MergeKnot._non_key_values_changed(existing, row, non_key_indices):
                 continue
-            updates.append(new_non_keys + key)
+            updates.append(tuple(row[i] for i in non_key_indices) + key)
         if inserts:
             await target_pool.execute_many(insert_q, inserts)
         if updates and non_key_columns:

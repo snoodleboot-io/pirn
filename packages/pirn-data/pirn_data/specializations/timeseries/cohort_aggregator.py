@@ -70,6 +70,12 @@ class CohortAggregator(Knot):
             **kwargs,
         )
 
+    @staticmethod
+    def _as_dt(val: Any) -> datetime:
+        if isinstance(val, datetime):
+            return val
+        return datetime.fromisoformat(str(val))
+
     async def process(
         self,
         *,
@@ -104,22 +110,17 @@ class CohortAggregator(Knot):
 
         period = timedelta(days=period_days)
 
-        def _as_dt(val: Any) -> datetime:
-            if isinstance(val, datetime):
-                return val
-            return datetime.fromisoformat(str(val))
-
         first_seen: dict[Any, datetime] = {}
         for row in rows:
             user = row.get(user_column)
-            ts = _as_dt(row[timestamp_column])
+            ts = self._as_dt(row[timestamp_column])
             if user not in first_seen or ts < first_seen[user]:
                 first_seen[user] = ts
 
         bucket: dict[tuple[datetime, int], dict] = {}
         for row in rows:
             user = row.get(user_column)
-            ts = _as_dt(row[timestamp_column])
+            ts = self._as_dt(row[timestamp_column])
             cohort_dt = first_seen[user]
             days_since = (ts - cohort_dt).days
             period_idx = int(days_since / period.days)

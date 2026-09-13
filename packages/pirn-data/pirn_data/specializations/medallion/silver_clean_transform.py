@@ -72,18 +72,19 @@ class SilverCleanTransform(Knot):
         return f"INSERT INTO {target_table} ({column_list}) VALUES ({placeholders})"
 
     @staticmethod
-    def _cast_batch(batch: DataBatch, casts: dict[str, type]) -> DataBatch:
-        def cast_row(row: Mapping[str, Any]) -> dict[str, Any]:
-            out: dict[str, Any] = {}
-            for key, value in row.items():
-                if key in casts and value is not None:
-                    target = casts[key]
-                    out[key] = value if isinstance(value, target) else target(value)
-                else:
-                    out[key] = value
-            return out
+    def _cast_row(row: Mapping[str, Any], casts: dict[str, type]) -> dict[str, Any]:
+        out: dict[str, Any] = {}
+        for key, value in row.items():
+            if key in casts and value is not None:
+                target = casts[key]
+                out[key] = value if isinstance(value, target) else target(value)
+            else:
+                out[key] = value
+        return out
 
-        return batch.with_rows(tuple(cast_row(r) for r in batch.rows))
+    @staticmethod
+    def _cast_batch(batch: DataBatch, casts: dict[str, type]) -> DataBatch:
+        return batch.with_rows(tuple(SilverCleanTransform._cast_row(r, casts) for r in batch.rows))
 
     @staticmethod
     def _filter_batch(

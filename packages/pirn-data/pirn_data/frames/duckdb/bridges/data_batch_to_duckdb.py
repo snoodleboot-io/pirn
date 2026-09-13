@@ -54,6 +54,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_data.data_batch import DataBatch
 from pirn_data.frames.duckdb.duckdb_connection import DuckDBConnection
+from pirn_data.frames.duckdb.duckdb_connection_knot import DuckDBConnectionKnot
 from pirn_data.frames.duckdb.duckdb_data_batch import DuckdbDataBatch
 
 
@@ -69,7 +70,7 @@ class DataBatchToDuckdb(Knot):
         self,
         *,
         batch: Knot,
-        connection: Knot | DuckDBConnection | None = None,
+        connection: DuckDBConnectionKnot | None = None,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:

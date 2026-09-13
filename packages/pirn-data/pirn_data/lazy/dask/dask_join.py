@@ -33,7 +33,7 @@ References:
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -44,7 +44,7 @@ from pirn_data.lazy.dask.dask_dataframe import DaskDataFrame
 class DaskJoin(Knot):
     """Binary merge over two :class:`DaskDataFrame` parents."""
 
-    _allowed_how: tuple[str, ...] = (
+    _allowed_how: ClassVar[tuple[str, ...]] = (
         "inner",
         "left",
         "right",

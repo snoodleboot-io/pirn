@@ -53,10 +53,10 @@ from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.specializations._pool_merge_knot import _PoolMergeKnot
 
 
-class ScdType2History(Knot):
+class ScdType2History(_PoolMergeKnot):
     """Maintain full SCD Type 2 history for a dimension table."""
 
     def __init__(
@@ -140,25 +140,20 @@ class ScdType2History(Knot):
         current_flag_column: Any = "is_current",
         **_: Any,
     ) -> dict[str, Any]:
-        if not isinstance(source_pool, DatabaseConnectionPool):
-            raise TypeError("ScdType2History: source_pool must be a DatabaseConnectionPool")
-        if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError("ScdType2History: target_pool must be a DatabaseConnectionPool")
-        if not isinstance(source_query, str) or not source_query:
-            raise ValueError("ScdType2History: source_query must be a non-empty string")
-        if not isinstance(target_table, str) or not target_table:
-            raise ValueError("ScdType2History: target_table must be a non-empty string")
-        IdentifierValidator.validate_column("target_table", target_table)
+        self._validate_pools("ScdType2History", source_pool=source_pool, target_pool=target_pool)
+        self._validate_non_empty_string("ScdType2History", "source_query", source_query)
+        self._validate_non_empty_string("ScdType2History", "target_table", target_table)
+        self._validate_identifier("target_table", target_table)
         for col_label, col_name in (
             ("valid_from_column", valid_from_column),
             ("valid_to_column", valid_to_column),
             ("current_flag_column", current_flag_column),
         ):
-            IdentifierValidator.validate_column(col_label, col_name)
+            self._validate_identifier(col_label, col_name)
         key_tuple = tuple(key_columns)
         tracked_tuple = tuple(tracked_columns)
-        IdentifierValidator.validate_columns("key_columns", key_tuple)
-        IdentifierValidator.validate_columns("tracked_columns", tracked_tuple)
+        self._validate_identifier("key_columns", key_tuple)
+        self._validate_identifier("tracked_columns", tracked_tuple)
         overlap = set(key_tuple) & set(tracked_tuple)
         if overlap:
             raise ValueError(

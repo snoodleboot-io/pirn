@@ -148,6 +148,9 @@ class DebeziumSource(Source):
                 break
 
     def _parse_record(self, record: Any) -> Mapping[str, Any]:
+        # record is a broker-client message object of unknown concrete type;
+        # duck-type its ``.value`` attribute, falling back to the record
+        # itself when the broker client already hands back the raw payload.
         value = getattr(record, "value", record)
         if isinstance(value, (bytes, bytearray)):
             try:

@@ -159,6 +159,9 @@ class GreatExpectationsPandasValidator(Knot):
         on the expectation kind).
         """
         checks: list[QualityCheck] = []
+        # result/outcome/config are great_expectations vendor objects; duck-type
+        # their attributes per the docstring above rather than importing GE's
+        # (optional-dependency) result types just to type-check this method.
         for outcome in getattr(result, "results", []) or []:
             if outcome.success:
                 continue

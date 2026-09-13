@@ -47,10 +47,10 @@ from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.specializations._pool_merge_knot import _PoolMergeKnot
 
 
-class ScdType2MergeKnot(Knot):
+class ScdType2MergeKnot(_PoolMergeKnot):
     """Merge a source row stream into a Type 2 effective-dated target."""
 
     def __init__(
@@ -128,16 +128,15 @@ class ScdType2MergeKnot(Knot):
         current_flag_column: Any,
         **_: Any,
     ) -> dict[str, int]:
-        if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError("ScdType2MergeKnot: target_pool must be a DatabaseConnectionPool")
-        IdentifierValidator.validate_column("target_table", target_table)
+        self._validate_pools("ScdType2MergeKnot", target_pool=target_pool)
+        self._validate_identifier("target_table", target_table)
         primary_key_tuple = tuple(primary_keys)
-        IdentifierValidator.validate_columns("primary_keys", primary_key_tuple)
+        self._validate_identifier("primary_keys", primary_key_tuple)
         column_tuple = tuple(column_names)
-        IdentifierValidator.validate_columns("column_names", column_tuple)
-        IdentifierValidator.validate_column("effective_date_column", effective_date_column)
-        IdentifierValidator.validate_column("expiry_date_column", expiry_date_column)
-        IdentifierValidator.validate_column("current_flag_column", current_flag_column)
+        self._validate_identifier("column_names", column_tuple)
+        self._validate_identifier("effective_date_column", effective_date_column)
+        self._validate_identifier("expiry_date_column", expiry_date_column)
+        self._validate_identifier("current_flag_column", current_flag_column)
         missing = [k for k in primary_key_tuple if k not in column_tuple]
         if missing:
             raise ValueError(f"ScdType2MergeKnot: primary_keys not in column_names: {missing}")
@@ -166,27 +165,18 @@ class ScdType2MergeKnot(Knot):
         existing_rows = await target_pool.fetch_all(select_q)
         key_indices = tuple(column_tuple.index(k) for k in primary_key_tuple)
         non_key_indices = tuple(column_tuple.index(c) for c in non_key_columns)
-        existing_by_key: dict[tuple[Any, ...], tuple[Any, ...]] = {}
-        for row in existing_rows:
-            key = tuple(row[i] for i in key_indices)
-            existing_by_key[key] = tuple(row)
+        existing_by_key = ScdType2MergeKnot._index_rows_by_key(existing_rows, key_indices)
         now = datetime.now(UTC).isoformat()
         inserts: list[tuple[Any, ...]] = []
         expires: list[tuple[Any, ...]] = []
         for row in materialised:
-            if len(row) != len(column_tuple):
-                raise ValueError(
-                    f"ScdType2MergeKnot: row width {len(row)} does not match "
-                    f"column_names width {len(column_tuple)}"
-                )
+            self._validate_row_width("ScdType2MergeKnot", row, column_tuple)
             key = tuple(row[i] for i in key_indices)
             if key not in existing_by_key:
                 inserts.append((*tuple(row), now, None, 1))
                 continue
             existing = existing_by_key[key]
-            existing_non_keys = tuple(existing[i] for i in non_key_indices)
-            new_non_keys = tuple(row[i] for i in non_key_indices)
-            if existing_non_keys == new_non_keys:
+            if not ScdType2MergeKnot._non_key_values_changed(existing, row, non_key_indices):
                 continue
             expires.append((now, *key))
             inserts.append((*tuple(row), now, None, 1))

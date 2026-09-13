@@ -4,6 +4,24 @@ Tier-2 :class:`PyarrowDataBatch`.
 Constructs a PyArrow table from the row dicts. ``source_uri`` and
 ``fetched_at`` are propagated unchanged. Used at the seam where a small
 upstream batch (fixture, glue) feeds into a Tier-2 transform chain.
+
+Algorithm:
+    1. If ``batch.rows`` is empty, build an explicitly empty PyArrow
+       table (``pa.table({})``) — PyArrow has no bare "zero-column,
+       zero-row" constructor, so this stands in for it.
+    2. Otherwise, build the table directly from the row dicts via
+       ``pa.Table.from_pylist``.
+    3. Return a :class:`PyarrowDataBatch` wrapping the table, with
+       ``source_uri`` and ``fetched_at`` copied from the input batch.
+
+    ```text
+    table = pa.table({}) if not batch.rows else pa.Table.from_pylist(list(batch.rows))
+    return PyarrowDataBatch(table=table, source_uri=batch.source_uri, fetched_at=batch.fetched_at)
+    ```
+
+References:
+    [1] Apache Arrow Python — pyarrow.Table.from_pylist:
+        https://arrow.apache.org/docs/python/generated/pyarrow.Table.html#pyarrow.Table.from_pylist
 """
 
 from __future__ import annotations

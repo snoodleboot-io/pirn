@@ -43,6 +43,7 @@ awkward = ["awkward>=2.5"]
 # Tier 2 — single-machine native frames (CPU).
 polars     = ["polars>=0.20"]
 datafusion = ["datafusion>=40.0"]
+duckdb     = ["duckdb>=0.10"]
 
 # Tier 2.5 — out-of-core / drop-in distributed (pinned <3.14 until wheels land).
 modin = ["modin>=0.30; python_version<'3.14'"]
@@ -57,13 +58,17 @@ modin = ["modin>=0.30; python_version<'3.14'"]
 ibis     = ["ibis-framework>=9.0", "pyarrow-hotfix>=0.7", "sqlglot!=30.18.0"]
 spark    = ["pyspark>=4.0"]
 ray-data = ["ray[data]>=2.10"]
+# dask ships as a pirn-core dispatcher dependency (pirn-core[dask]) as well;
+# this extra installs the same package directly so `pirn-data[dask]` alone
+# is sufficient to run pirn_data.lazy.dask, matching every other tier engine.
+dask     = ["dask[distributed]>=2024.1"]
 
 # Tier 3 — streaming dataflow (pinned until upstream ships newer wheels).
 pathway = ["pathway>=0.13; python_version<'3.11'"]
 bytewax = ["bytewax>=0.21; python_version<'3.13'"]
 
 # Tier 4 — specialized.
-lance = ["lance>=1.0"]
+lance = ["pylance>=0.20"]  # the PyPI name "lance" is an empty placeholder; the library ships as pylance and imports as `lance`
 eland = ["eland>=8.13"]
 
 # Lakehouse table formats — see pirn_data/lakehouse/. Hudi's Python ecosystem

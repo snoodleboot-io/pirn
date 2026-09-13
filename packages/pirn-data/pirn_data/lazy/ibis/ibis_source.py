@@ -107,6 +107,9 @@ class IbisSource(Source):
             target: Any = connection
             try:
                 for part in attr_path:
+                    # connection is an ibis backend of unknown concrete
+                    # type; duck-type the name attribute path since it
+                    # differs across Ibis versions (see docstring above).
                     target = getattr(target, part)
                 if isinstance(target, str):
                     return target

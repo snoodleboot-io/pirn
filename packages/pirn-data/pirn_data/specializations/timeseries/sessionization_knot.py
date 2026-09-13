@@ -56,6 +56,12 @@ class SessionizationKnot(Knot):
             **kwargs,
         )
 
+    @staticmethod
+    def _as_dt(val: Any) -> datetime:
+        if isinstance(val, datetime):
+            return val
+        return datetime.fromisoformat(str(val))
+
     async def process(
         self,
         *,
@@ -85,19 +91,14 @@ class SessionizationKnot(Knot):
 
         gap = timedelta(minutes=inactivity_minutes)
 
-        def _as_dt(val: Any) -> datetime:
-            if isinstance(val, datetime):
-                return val
-            return datetime.fromisoformat(str(val))
-
-        sorted_rows = sorted(rows, key=lambda r: _as_dt(r[timestamp_column]))
+        sorted_rows = sorted(rows, key=lambda r: self._as_dt(r[timestamp_column]))
         last_ts: dict[tuple[Any, ...], datetime] = {}
         session_counter: dict[tuple[Any, ...], int] = {}
         session_seq: dict[tuple[Any, ...], int] = {}
         result: list[dict[str, Any]] = []
         for row in sorted_rows:
             entity = tuple(row.get(c) for c in entity_tuple)
-            ts = _as_dt(row[timestamp_column])
+            ts = self._as_dt(row[timestamp_column])
             prev = last_ts.get(entity)
             if prev is None or (ts - prev) > gap:
                 session_counter[entity] = session_counter.get(entity, 0) + 1

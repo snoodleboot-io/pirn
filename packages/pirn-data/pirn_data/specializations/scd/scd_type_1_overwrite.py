@@ -48,10 +48,10 @@ from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.specializations._pool_merge_knot import _PoolMergeKnot
 
 
-class ScdType1Overwrite(Knot):
+class ScdType1Overwrite(_PoolMergeKnot):
     """Upsert dimension rows in place, preserving no history (SCD Type 1)."""
 
     def __init__(
@@ -109,48 +109,31 @@ class ScdType1Overwrite(Knot):
         non_key_columns: Any,
         **_: Any,
     ) -> dict[str, Any]:
-        if not isinstance(source_pool, DatabaseConnectionPool):
-            raise TypeError("ScdType1Overwrite: source_pool must be a DatabaseConnectionPool")
-        if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError("ScdType1Overwrite: target_pool must be a DatabaseConnectionPool")
-        if not isinstance(source_query, str) or not source_query:
-            raise ValueError("ScdType1Overwrite: source_query must be a non-empty string")
-        if not isinstance(target_table, str) or not target_table:
-            raise ValueError("ScdType1Overwrite: target_table must be a non-empty string")
-        IdentifierValidator.validate_column("target_table", target_table)
+        self._validate_pools("ScdType1Overwrite", source_pool=source_pool, target_pool=target_pool)
+        self._validate_non_empty_string("ScdType1Overwrite", "source_query", source_query)
+        self._validate_non_empty_string("ScdType1Overwrite", "target_table", target_table)
+        self._validate_identifier("target_table", target_table)
         key_tuple = tuple(key_columns)
         non_key_tuple = tuple(non_key_columns)
-        IdentifierValidator.validate_columns("key_columns", key_tuple)
-        IdentifierValidator.validate_columns("non_key_columns", non_key_tuple)
+        self._validate_identifier("key_columns", key_tuple)
+        self._validate_identifier("non_key_columns", non_key_tuple)
         overlap = set(key_tuple) & set(non_key_tuple)
         if overlap:
             raise ValueError(
                 f"ScdType1Overwrite: key_columns and non_key_columns overlap on {sorted(overlap)!r}"
             )
-        all_columns = key_tuple + non_key_tuple
         source_rows = await source_pool.fetch_all(source_query)
-        rows_upserted = 0
-        for row in source_rows:
-            row_dict = dict(zip(all_columns, row, strict=False))
-            key_values = tuple(row_dict[k] for k in key_tuple)
-            non_key_values = tuple(row_dict[k] for k in non_key_tuple)
-            existing = await target_pool.fetch_all(
-                ScdType1Overwrite._select_existing_query(target_table, key_tuple),
-                key_values,
-            )
-            if existing:
-                await target_pool.execute(
-                    ScdType1Overwrite._update_query(target_table, key_tuple, non_key_tuple),
-                    non_key_values + key_values,
-                )
-            else:
-                await target_pool.execute(
-                    ScdType1Overwrite._insert_query(target_table, all_columns),
-                    key_values + non_key_values,
-                )
-            rows_upserted += 1
+        matched = await self._execute_per_row_upsert(
+            source_rows,
+            target_pool,
+            key_tuple,
+            non_key_tuple,
+            ScdType1Overwrite._select_existing_query(target_table, key_tuple),
+            ScdType1Overwrite._update_query(target_table, key_tuple, non_key_tuple),
+            ScdType1Overwrite._insert_query(target_table, key_tuple + non_key_tuple),
+        )
         return {
             "succeeded": True,
             "target_table": target_table,
-            "rows_upserted": rows_upserted,
+            "rows_upserted": len(matched),
         }

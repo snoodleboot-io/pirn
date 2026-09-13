@@ -35,7 +35,7 @@ References:
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any, cast
+from typing import Any
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.core.knot import Knot
@@ -165,7 +165,7 @@ class DataVaultSatelliteLoader(Knot):
         IdentifierValidator.validate_column("load_date_column", load_date_column)
         IdentifierValidator.validate_column("load_end_date_column", load_end_date_column)
         IdentifierValidator.validate_column("record_source_column", record_source_column)
-        attr_tuple = tuple(attribute_columns)
+        attr_tuple: tuple[str, ...] = tuple(str(c) for c in attribute_columns)
         IdentifierValidator.validate_columns("attribute_columns", attr_tuple)
         envelope = {
             hub_hash_key_column,
@@ -180,7 +180,11 @@ class DataVaultSatelliteLoader(Knot):
                 f"DataVaultSatelliteLoader: attribute_columns clash with envelope "
                 f"columns: {sorted(clash)!r}"
             )
-        source_columns = cast(tuple[str, ...], (hub_hash_key_column, hash_diff_column, *attr_tuple))
+        source_columns: tuple[str, ...] = (
+            str(hub_hash_key_column),
+            str(hash_diff_column),
+            *attr_tuple,
+        )
         source_rows = await source_pool.fetch_all(source_query)
         load_date = datetime.now(UTC).isoformat()
         rows_inserted = 0

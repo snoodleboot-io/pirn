@@ -21,6 +21,36 @@ Algorithm:
     5. Assign each row to a bin and append ``{column}_bin`` (1-based int).
     6. Return the enriched row list.
 
+Math:
+    Let :math:`x_1, \\dots, x_N` be the values of ``column`` across the
+    input rows, :math:`n` the requested ``num_bins``, and
+    :math:`\\text{lo} = \\min_i x_i`, :math:`\\text{hi} = \\max_i x_i`.
+
+    Equal-width bin edges are uniformly spaced between the extremes:
+
+    $$
+    \\text{width} = \\frac{\\text{hi} - \\text{lo}}{n},
+    \\qquad
+    e_k = \\text{lo} + k \\cdot \\text{width}, \\quad k = 0, \\dots, n
+    $$
+
+    Quantile bin edges use the sample-quantile cut points of the sorted
+    values :math:`x_{(1)} \\le \\dots \\le x_{(N)}`:
+
+    $$
+    e_k = x_{(\\,\\min(\\lfloor k N / n \\rfloor,\\ N-1)\\,)}, \\quad k = 1, \\dots, n-1,
+    \\qquad e_0 = x_{(1)}, \\quad e_n = x_{(N)}
+    $$
+
+    For either strategy, a value :math:`x` is assigned to the 1-based bin:
+
+    $$
+    \\text{bin}(x) = \\begin{cases}
+        i + 1 & e_i \\le x < e_{i+1},\\ i < n - 1 \\\\
+        n     & e_{n-1} \\le x \\le e_n
+    \\end{cases}
+    $$
+
 References:
     [1] pirn — IdentifierValidator (SQL injection guard):
         pirn_data/identifier_validator.py
@@ -39,15 +69,9 @@ from pirn_data.identifier_validator import IdentifierValidator
 class BinningKnot(Knot):
     """Append a ``{column}_bin`` column with 1-based bin assignments.
 
-    Math:
-        Equal-width binning computes a uniform bin width and maps each
-        value to a bin index::
-
-            bin_width = (max - min) / n_bins
-            bin_index = floor((x - min) / bin_width)   # 0-based, then +1
-
-        Bin indices are 1-based. Values at the upper boundary are
-        included in the last bin.
+    See the module docstring's ``Math`` section for the bin-edge and
+    bin-assignment formulae for both the ``equal_width`` and ``quantile``
+    strategies.
     """
 
     def __init__(

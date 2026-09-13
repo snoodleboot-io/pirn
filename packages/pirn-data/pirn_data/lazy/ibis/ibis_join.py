@@ -47,7 +47,7 @@ References:
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 import ibis
 from pirn.core.knot import Knot
@@ -59,7 +59,7 @@ from pirn_data.lazy.ibis.ibis_table import IbisTable
 class IbisJoin(Knot):
     """Binary join over two :class:`IbisTable` parents."""
 
-    _allowed_how: tuple[str, ...] = (
+    _allowed_how: ClassVar[tuple[str, ...]] = (
         "inner",
         "left",
         "right",
