@@ -33,7 +33,6 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -95,14 +94,10 @@ class ANCPipeline(Knot):
             ANCPipeline._lms_anc, ref_data, err_data, filter_length, step_size
         )
 
-        return SignalPayload(
-            metadata=SignalFrame(
-                signal_id=f"{reference.frame.signal_id}:anc",
-                channel_count=1,
-                sample_rate_hz=reference.frame.sample_rate_hz,
-                samples_per_channel=result.shape[0],
-            ),
-            data=result,
+        return reference.derive(
+            "anc",
+            result,
+            channel_count=1,
         )
 
     @staticmethod

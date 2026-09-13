@@ -34,7 +34,6 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -102,14 +101,10 @@ class NLMSAdaptiveFilter(Knot):
             NLMSAdaptiveFilter._nlms, sig_data, ref_data, filter_length, step_size, regularization
         )
 
-        return SignalPayload(
-            metadata=SignalFrame(
-                signal_id=f"{signal.frame.signal_id}:nlms",
-                channel_count=1,
-                sample_rate_hz=signal.frame.sample_rate_hz,
-                samples_per_channel=result.shape[0],
-            ),
-            data=result,
+        return signal.derive(
+            "nlms",
+            result,
+            channel_count=1,
         )
 
     @staticmethod

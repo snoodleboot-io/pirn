@@ -35,7 +35,6 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_signal.resampling._poly_resampling import PolyResampling
-from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -93,12 +92,8 @@ class ArbitraryResamplerPipeline(Knot):
 
         result = await asyncio.to_thread(PolyResampling.resample_poly, signal.data, up, down)
 
-        return SignalPayload(
-            metadata=SignalFrame(
-                signal_id=f"{signal.frame.signal_id}:resampled",
-                channel_count=signal.frame.channel_count,
-                sample_rate_hz=float(output_rate_hz),
-                samples_per_channel=result.shape[-1],
-            ),
-            data=result,
+        return signal.derive(
+            "resampled",
+            result,
+            sample_rate_hz=float(output_rate_hz),
         )

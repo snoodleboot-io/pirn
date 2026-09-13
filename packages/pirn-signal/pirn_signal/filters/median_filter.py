@@ -29,7 +29,6 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -75,14 +74,9 @@ class MedianFilter(Knot):
         filtered = await asyncio.to_thread(
             MedianFilter._apply_median_filter, signal.data, kernel_size
         )
-        return SignalPayload(
-            metadata=SignalFrame(
-                signal_id=f"{signal.frame.signal_id}:median",
-                channel_count=signal.frame.channel_count,
-                sample_rate_hz=signal.frame.sample_rate_hz,
-                samples_per_channel=signal.data.shape[-1],
-            ),
-            data=np.asarray(filtered),
+        return signal.derive(
+            "median",
+            np.asarray(filtered),
         )
 
     @staticmethod

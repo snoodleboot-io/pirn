@@ -31,7 +31,6 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -90,14 +89,10 @@ class Interpolator(Knot):
             Interpolator._interpolate, signal.data, src_rate, float(target_sample_rate_hz), kind
         )
 
-        return SignalPayload(
-            metadata=SignalFrame(
-                signal_id=f"{signal.frame.signal_id}:interp",
-                channel_count=signal.frame.channel_count,
-                sample_rate_hz=float(target_sample_rate_hz),
-                samples_per_channel=result.shape[-1],
-            ),
-            data=result,
+        return signal.derive(
+            "interp",
+            result,
+            sample_rate_hz=float(target_sample_rate_hz),
         )
 
     @staticmethod

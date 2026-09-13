@@ -33,7 +33,6 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_signal.resampling._poly_resampling import PolyResampling
-from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -96,12 +95,8 @@ class PolyphaseResampler(Knot):
         )
         new_rate = (signal.frame.sample_rate_hz * upsample_factor) / downsample_factor
 
-        return SignalPayload(
-            metadata=SignalFrame(
-                signal_id=f"{signal.frame.signal_id}:polyphase",
-                channel_count=signal.frame.channel_count,
-                sample_rate_hz=new_rate,
-                samples_per_channel=result.shape[-1],
-            ),
-            data=result,
+        return signal.derive(
+            "polyphase",
+            result,
+            sample_rate_hz=new_rate,
         )

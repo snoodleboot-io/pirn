@@ -33,7 +33,6 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -87,14 +86,9 @@ class TimeSynchronizer(Knot):
             TimeSynchronizer._synchronize, reference.data, target.data, max_lag_samples
         )
 
-        return SignalPayload(
-            metadata=SignalFrame(
-                signal_id=f"{target.frame.signal_id}:synced",
-                channel_count=target.frame.channel_count,
-                sample_rate_hz=target.frame.sample_rate_hz,
-                samples_per_channel=target.frame.samples_per_channel,
-            ),
-            data=result,
+        return target.derive(
+            "synced",
+            result,
         )
 
     @staticmethod

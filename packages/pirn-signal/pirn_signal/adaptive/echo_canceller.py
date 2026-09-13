@@ -35,7 +35,6 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -97,14 +96,10 @@ class EchoCanceller(Knot):
             EchoCanceller._lms_echo, mic_data, far_data, filter_length, step_size
         )
 
-        return SignalPayload(
-            metadata=SignalFrame(
-                signal_id=f"{microphone.frame.signal_id}:echo_cancelled",
-                channel_count=1,
-                sample_rate_hz=microphone.frame.sample_rate_hz,
-                samples_per_channel=result.shape[0],
-            ),
-            data=result,
+        return microphone.derive(
+            "echo_cancelled",
+            result,
+            channel_count=1,
         )
 
     @staticmethod

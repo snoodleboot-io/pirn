@@ -34,7 +34,6 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -96,14 +95,10 @@ class StreamingBufferManager(Knot):
         )
         n_frames = frames.shape[0]
 
-        return SignalPayload(
-            metadata=SignalFrame(
-                signal_id=f"{signal.frame.signal_id}:framed",
-                channel_count=n_frames,
-                sample_rate_hz=signal.frame.sample_rate_hz,
-                samples_per_channel=frame_size,
-            ),
-            data=frames,
+        return signal.derive(
+            "framed",
+            frames,
+            channel_count=n_frames,
         )
 
     @staticmethod

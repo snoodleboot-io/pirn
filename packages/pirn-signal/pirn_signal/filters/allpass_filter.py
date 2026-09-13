@@ -31,7 +31,6 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -88,12 +87,7 @@ class AllpassFilter(Knot):
         filtered = await asyncio.to_thread(
             ss.lfilter, numerator_coeffs, denominator_coeffs, signal.data, axis=-1
         )
-        return SignalPayload(
-            metadata=SignalFrame(
-                signal_id=f"{signal.frame.signal_id}:allpass",
-                channel_count=signal.frame.channel_count,
-                sample_rate_hz=signal.frame.sample_rate_hz,
-                samples_per_channel=signal.data.shape[-1],
-            ),
-            data=np.asarray(filtered),
+        return signal.derive(
+            "allpass",
+            np.asarray(filtered),
         )

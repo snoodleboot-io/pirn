@@ -30,7 +30,6 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -96,12 +95,7 @@ class ChebyshevType2Filter(Knot):
             ss.cheby2, order, stopband_attenuation_db, cutoff_hz, btype="low", fs=fs, output="sos"
         )
         filtered = await asyncio.to_thread(ss.sosfilt, sos, signal.data, axis=-1)
-        return SignalPayload(
-            metadata=SignalFrame(
-                signal_id=f"{signal.frame.signal_id}:cheby2",
-                channel_count=signal.frame.channel_count,
-                sample_rate_hz=signal.frame.sample_rate_hz,
-                samples_per_channel=signal.data.shape[-1],
-            ),
-            data=np.asarray(filtered),
+        return signal.derive(
+            "cheby2",
+            np.asarray(filtered),
         )
