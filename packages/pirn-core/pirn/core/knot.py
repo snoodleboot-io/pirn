@@ -51,6 +51,7 @@ from pirn.core.map import Map
 from pirn.core.map_type_error import MapTypeError
 from pirn.core.ok import Ok
 from pirn.core.result import Result
+from pirn.core.skipped import Skipped
 from pirn.core.zip_map import ZipMap
 from pirn.managers.exception_record import ExceptionRecord
 
@@ -763,6 +764,15 @@ class Knot:
         name to the upstream value (or, under RECEIVE_ERRORS, the
         upstream Result).  Config values are merged in from
         ``self._mutable_config_values``.
+
+        A ``process()`` that returns a ``Skipped`` is declaring that it
+        deliberately produced no value -- a closed ``Gate``, a non-selected
+        ``Branch`` arm, a denied approval.  The ``Skipped`` is returned as
+        is, never wrapped in ``Ok`` and never checked against the return
+        hint, so the engine records the knot as skipped and its children
+        skip in turn (ADR agents-speaks-core, WS0).  ``Optional`` is the one
+        exception: it keeps its ``Ok(Skipped)`` contract, so a downstream
+        knot of an optional source still receives the ``Skipped`` as a value.
         """
         config = self._mutable_config
         prepared = await self._prepare_inputs(parent_results)
@@ -776,6 +786,9 @@ class Knot:
             if self._is_task_cancellation(exc):
                 raise
             return Err(record=ExceptionRecord.for_knot(config.id, exc))
+
+        if isinstance(result, Skipped):
+            return result
 
         if config.validate_io and self._mutable_output_adapter is not None:
             try:

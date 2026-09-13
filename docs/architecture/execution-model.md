@@ -113,6 +113,10 @@ await t.run(RunRequest(parameters={"doc": "..."}, concurrency=ConcurrencyLimits(
 - The effective ceiling is also bounded by the dispatcher (`ThreadDispatcher(max_workers=...)`; a sync `@knot` runs on the default executor, `min(32, cpu + 4)` threads).
 - Not yet: limits are not forwarded into `SubTapestry` / `LoopSubTapestry` inner runs, and `Map` / `ZipMap` / `DictMap` fan out their elements inside one admitted knot (PIR-841 slices 3 and 4).
 
+#### Loop iterations that await
+
+`LoopSubTapestry` plans and folds through `astep(state)` / `afold(state, result)`, which the framework awaits. The defaults delegate to the sync `step` / `fold` and await the result if it is awaitable, so a loop declares whichever pair it needs — sync, `async def step`/`fold`, or an `astep`/`afold` override — and an iteration can sleep for a backoff, check a remote budget, or ask a model whether to continue without dropping into a Python loop inside `process()` (the PIR-856 `ParallelToolExecutor` deferral's missing piece).
+
 #### Gate decisions: predicate or Check
 
 A `Gate` passes its one `input` through unchanged or produces `Skipped(reason="gate_closed")`. Its decision is either `predicate=`, a callable over the input, or `check=`, a `Check` knot (`pirn/nodes/check.py`) — the predicate half of a gate: a knot with any number of parents whose `process()` answers `bool`, enforced by `Check.__call__` (a non-`bool` verdict is `Err(TypeError)` whatever the return hint). The gate stays single-input on purpose: its output carries the input's identity through lineage, and joining is `Aggregator`'s job. With `check=` the common multi-value case — gate `A` on a verdict computed from `A` and `B` — needs no join: the `Check` reads both, the gate passes `A`. A `Check` that fails or is skipped skips the gate under the default error policy, like any missing parent.
@@ -154,6 +158,8 @@ return result, parent_hashes, started_at
 ```
 
 The dispatcher calls `knot(inputs)` → `knot.__call__` → `knot.process(**kwargs)`. The result is `Ok`, `Err`, or `Skipped` from the knot itself.
+
+**Declaring a skip.** A `process()` that returns a `Skipped` is declaring that it deliberately produced no value — a closed `Gate`, a non-selected `Branch` arm, a denied approval. `Knot.__call__` passes it through bare: never wrapped in `Ok`, never checked against the return hint, so the engine records the knot as skipped (`outcome == "skipped"`, `skip_reason`) and its children skip in turn. `Gate` and `BranchOutput` are written this way; a knot of your own can be too. `Optional` is the one exception and keeps its `Ok(Skipped)` contract — a skip of an optional knot is a *value* its consumers receive, and lineage marks it `extra["optional_skip"]` (PIR-856 deferral resolved in WS0).
 
 **Timeout and retry.** The engine dispatches through `GovernedDispatch` (`pirn/engine/governed_dispatch.py`), which applies two per-knot policies from `KnotConfig` around the dispatcher call — never inside `Knot.__call__`, so dispatchers stay a single `dispatch()` and a retried knot is simply called again:
 

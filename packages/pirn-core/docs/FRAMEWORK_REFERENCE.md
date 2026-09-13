@@ -96,7 +96,7 @@ All subclass `Knot`. These are the graph-shape primitives.
 | `Aggregator` | fan-in of multiple parents |
 | `Reduce` | fold over a collection |
 | `Continuation` | deferred/streaming continuation |
-| `SubTapestry` / `LoopSubTapestry` | nest a tapestry as a node / iterate it |
+| `SubTapestry` / `LoopSubTapestry` | nest a tapestry as a node / iterate it; the loop's `astep` / `afold` are awaited (override them, or declare `step`/`fold` as `async def`) so an iteration can sleep, check a budget or call a model between turns |
 | `Branch` (`branch/`) | conditional path selection; `BranchOutput` |
 | `Gate` (`gate/`) | pass/close gate; decision is `predicate=` (callable) or `check=` (a `Check` knot) |
 | `Check` (`check.py`) | the predicate half of a `Gate`: any parents → `bool`, enforced. **The core name for a boolean verdict knot; agents' `*Check` knots subclass it, not `Knot`.** |
@@ -205,7 +205,7 @@ Model optional facets as `NotImplementedError` capability base classes a concret
 `class X(PirnOpaqueValue): def method(self, ...): raise NotImplementedError(f"{type(self).__name__} must implement method()")`. Inherit `PirnOpaqueValue` iff it holds live/non-pydantic state that crosses the IO boundary.
 
 ### 4.4 Outcome idiom
-Return/branch on `Ok \| Err \| Skipped`. `Err` carries an `ExceptionRecord`. Never define a parallel `{OK, ERROR, SKIPPED}` status enum.
+Return/branch on `Ok \| Err \| Skipped`. `Err` carries an `ExceptionRecord`. Never define a parallel `{OK, ERROR, SKIPPED}` status enum. A `process()` that decides not to produce a value **returns `Skipped(reason=...)`** — `Knot.__call__` passes it through bare and the engine records a skip — rather than raising a sentinel or returning `None`; `Optional` alone yields `Ok(Skipped)`.
 
 ---
 
@@ -245,6 +245,8 @@ Tracked in Linear project **"pirn-agents: OOP/SOLID Standards Remediation"** (PI
 - **§1.1 declared input schema (WS0)** — `KnotFactory.from_schema` / `@knot(input_schema=)` + `Knot._input_schema_override` validate schema-declared inputs through the standard adapters; `Knot.input_json_schema()` is the signature→schema direction. Agents' `ToolSchemaCompiler`, `ArgumentValidator` and `AgentSchemaDeriver` are shadows to migrate.
 - **§3.5 admission feedback (WS0)** — `AdmissionGate.set_limit` / `current_limit` and the `AdmissionObserver` + `AdmissionEvent` seam give an adaptive controller everything it needs from core. Agents' `AdaptiveConcurrencyController`, `ConcurrencyConfig`, `BackpressureSemaphore`, `Bulkhead(Config)`, `AsyncFanoutEngine`, `_FanoutRunner` and `BatchScheduler` are shadows to migrate.
 - **§3.2 Check role (WS0)** — `Check(Knot)` names the boolean-verdict role and `Gate(check=)` consumes it directly; `Gate` stays single-input by design (join with `Aggregator`; a `Check` may read several parents). Agents' `GatedAgentResponse` join is a shadow to migrate where the verdict can be a `Check`.
+- **§3.2 awaitable loop step (WS0)** — `LoopSubTapestry.astep` / `afold`; the sync pair still works. Resolves the core half of the `ParallelToolExecutor` deferral (agents' backoff-between-attempts loop can now be an `AgentLoopPipeline` iteration).
+- **§4.4 bare `Skipped` (WS0, PIR-856 deferral #5)** — a `process()` may return `Skipped`; `Knot.__call__` passes it through, `Gate` / `BranchOutput` do so instead of raising private sentinels (`_GateClosedError` / `_BranchNotSelectedError` deleted), and `Optional` keeps `Ok(Skipped)` via an explicit branch so its lineage contract is unchanged.
 - **PIR-849** — `Knot.__call__`, the fan-out path and `SubTapestry.__call__` let a *task* cancellation propagate (`Knot._is_task_cancellation`, `Task.cancelling()`), while a knot raising `CancelledError` itself is still an `Err`. A cancelled run raises; `wait_for` around a knot raises `TimeoutError`.
 - **§2** — no `typing.Protocol` interface survives in agents; the stateful ones (`VectorBackendClient`, `GraphBackendClient`, `RerankerBackend`, `NodeEmbeddingIndex`) are `PirnOpaqueValue` bases raising `NotImplementedError`. (WS1)
 - **§4.2** — `StatefulTool`/`StreamingTool`/`PermissionedTool` are gone; `stateful`/`state`, `permissions`/`requires_approval` and `streaming`/`stream`/`collect_stream` are default-returning capability members on `Tool`. (WS2·S6)

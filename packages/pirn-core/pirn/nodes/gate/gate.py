@@ -13,8 +13,8 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.skipped import Skipped
 from pirn.nodes.check import Check
-from pirn.nodes.gate._gate_closed_error import _GateClosedError
 
 
 class Gate(Knot):
@@ -46,12 +46,11 @@ class Gate(Knot):
            one, else calls ``predicate(input)``.
         3. Pass-through — if the decision is open, ``input`` is returned
            unchanged and the engine wraps it in ``Ok``.
-        4. Gate closure — otherwise ``_GateClosedError`` is raised inside
-           ``process()``, which the engine would normally wrap as ``Err``.
-        5. Skip conversion — ``Gate.__call__`` intercepts the ``Err`` result
-           produced by step 4.  When the recorded exception type is
-           ``_GateClosedError``, the error is converted to
-           ``Skipped(reason="gate_closed")`` before being returned to the engine.
+        4. Gate closure — otherwise ``process()`` returns
+           ``Skipped(reason="gate_closed")``, which ``Knot.__call__`` passes
+           through bare, so the engine records the gate as skipped.
+        5. Lineage — ``Gate.__call__`` notes whether the gate opened as
+           ``extra["predicate_passed"]``.
         6. A ``Check`` that failed or was skipped never reaches ``process()``:
            under the default error policy the gate itself is skipped, like
            any knot whose parent did not produce a value.
@@ -98,7 +97,7 @@ class Gate(Knot):
         check: bool | None = None,
         **_: Any,
     ) -> Any:
-        """Pass the input through if the decision is open, or raise to signal gate closure.
+        """Pass the input through if the decision is open, else declare the skip.
 
         Args:
             input: Value produced by the upstream knot, evaluated by the predicate.
@@ -107,26 +106,18 @@ class Gate(Knot):
             check: The wired ``Check``'s verdict, when the gate was built with one.
 
         Returns:
-            The input value unchanged when the decision is open.
-
-        Raises:
-            _GateClosedError: If the decision is closed; converted to Skipped by ``__call__``.
+            The input value unchanged when the decision is open, otherwise
+            ``Skipped(reason="gate_closed")``.
         """
         opened = check if check is not None else bool(predicate(input) if predicate else False)
         if opened:
             return input
-        raise _GateClosedError
+        return Skipped(reason="gate_closed")
 
     def lineage_extra(self) -> dict[str, Any]:
         return {**super().lineage_extra(), **self._mutable_execution_extra}
 
     async def __call__(self, parent_results: Any) -> Any:
-        from pirn.core.err import Err as _Err
-        from pirn.core.skipped import Skipped as _Skipped
-
         result = await super().__call__(parent_results)
-        if isinstance(result, _Err) and result.record.exc_type == "_GateClosedError":
-            self._mutable_execution_extra = {"predicate_passed": False}
-            return _Skipped(reason="gate_closed")
-        self._mutable_execution_extra = {"predicate_passed": True}
+        self._mutable_execution_extra = {"predicate_passed": not isinstance(result, Skipped)}
         return result

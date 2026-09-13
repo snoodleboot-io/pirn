@@ -159,14 +159,14 @@ class _IterationChainKnot(Knot):
         # `fold` unchanged — `succeeded is False` with a populated `exceptions`
         # — so the loop itself decides whether that is a retry trigger or a
         # reason to stop.  See PIR-772.
-        new_state = loop.fold(state, result)
+        new_state = await loop.afold(state, result)
 
         store = get_current_store()
         if store is None:
             return new_state
 
         next_idx = iteration_idx + 1
-        next_outcome = loop.step(new_state)
+        next_outcome = await loop.astep(new_state)
         next_knot_id = loop.step_id(new_state, next_idx)
 
         if next_outcome is not None:

@@ -4,7 +4,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.branch._branch_not_selected_error import _BranchNotSelectedError
+from pirn.core.skipped import Skipped
 
 
 class BranchOutput(Knot):
@@ -26,14 +26,10 @@ class BranchOutput(Knot):
            ``process()``.
         3. Match — if ``chosen`` equals this output's own ``branch_name``,
            ``passthrough`` is returned unchanged.
-        4. No match — otherwise ``process()`` raises
-           ``_BranchNotSelectedError``, which the engine would normally wrap
-           as ``Err``.
-        5. Skip conversion — ``BranchOutput.__call__`` intercepts that
-           specific ``Err`` and converts it to
-           ``Skipped(reason="branch_not_selected")`` before returning it to
-           the engine, so downstream knots wired to the non-selected outputs
-           are skipped rather than failed.
+        4. No match — otherwise ``process()`` returns
+           ``Skipped(reason="branch_not_selected")``, which ``Knot.__call__``
+           passes through bare, so downstream knots wired to the
+           non-selected outputs are skipped rather than failed.
     """
 
     def __init__(
@@ -56,30 +52,19 @@ class BranchOutput(Knot):
         self._frozen = True
 
     async def process(self, chosen: str, passthrough: Any, **_: Any) -> Any:  # type: ignore[override]
-        """Return the passthrough value if this branch was selected, or raise to signal it was not.
+        """Return the passthrough value if this branch was selected, else declare the skip.
 
         Args:
             chosen: Branch name selected by the upstream Branch knot.
             passthrough: Original input value forwarded from the Branch's input knot.
 
         Returns:
-            The passthrough value when this branch's name matches the chosen branch.
-
-        Raises:
-            _BranchNotSelectedError: If this branch was not the one selected; converted to Skipped by ``__call__``.
+            The passthrough value when this branch's name matches the chosen
+            branch, otherwise ``Skipped(reason="branch_not_selected")``.
         """
         if chosen == self._mutable_branch_name:
             return passthrough
-        raise _BranchNotSelectedError(self._mutable_branch_name)
-
-    async def __call__(self, parent_results: Any) -> Any:
-        from pirn.core.err import Err as _Err
-        from pirn.core.skipped import Skipped as _Skipped
-
-        result = await super().__call__(parent_results)
-        if isinstance(result, _Err) and result.record.exc_type == "_BranchNotSelectedError":
-            return _Skipped(
-                reason="branch_not_selected",
-                detail={"branch_name": self._mutable_branch_name},
-            )
-        return result
+        return Skipped(
+            reason="branch_not_selected",
+            detail={"branch_name": self._mutable_branch_name},
+        )

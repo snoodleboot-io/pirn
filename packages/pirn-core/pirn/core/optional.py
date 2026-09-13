@@ -143,7 +143,11 @@ class Optional(metaclass=_OptionalMeta):
                 },
             )
 
-        stub_cls = type(class_name, (Knot, _OptionalMarker), {"process": process})
+        stub_cls = type(
+            class_name,
+            (Knot, _OptionalMarker),
+            {"process": process, "__call__": Optional._decorated_call},
+        )
         return stub_cls(_config=config)
 
     async def _decorated_call(self: Any, parent_results: Mapping[str, Any]) -> Any:
@@ -153,6 +157,10 @@ class Optional(metaclass=_OptionalMeta):
         ``process()`` execution, output validation — but intercepts any
         ``Err`` result and converts it to ``Ok(Skipped(...))``, so the
         engine always records this knot as succeeded, never as failed.
+        A ``Skipped`` the knot returned itself (which ``Knot.__call__``
+        passes through bare) is wrapped the same way: an optional knot's
+        contract is ``Ok(Skipped)``, a *value* its consumers receive, and
+        that holds whether the skip came from a failure or a decision.
 
         The original exception is preserved in ``Skipped.detail`` so
         lineage shows *why* the knot skipped (e.g. "file not found",
@@ -174,6 +182,9 @@ class Optional(metaclass=_OptionalMeta):
         # input resolution, calls self.process(), validates output, and
         # returns Ok(value) on success or Err on any exception.
         result = await Knot.__call__(self, parent_results)
+
+        if isinstance(result, Skipped):
+            return Ok(value=result)
 
         if isinstance(result, Err):
             # Convert Err → Ok(Skipped) so the engine records this knot
