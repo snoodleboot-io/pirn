@@ -10,7 +10,9 @@ Algorithm:
        - add_noise: add Gaussian noise at a random SNR.
        - time_mask: zero out a random contiguous time segment.
        - frequency_mask: zero out a random contiguous frequency band.
-    5. Return an augmented SignalFrame with the same metadata.
+    5. Repeat independently for each channel (each with an independently seeded
+       generator derived from the configured seed) and return an augmented
+       SignalPayload with the same metadata.
 
     from uniform distributions; specific formulae depend on the chosen
     augmentation library.
@@ -90,18 +92,28 @@ class AudioAugmentationPipeline(Knot):
         if not isinstance(seed, int) or seed < 0:
             raise ValueError("AudioAugmentationPipeline: seed must be a non-negative integer")
         sr = int(signal.frame.sample_rate_hz)
-        result = await asyncio.to_thread(
-            AudioAugmentationPipeline._apply_augmentations, signal.data, sr, augmentations, seed
+        channels = np.atleast_2d(signal.data)
+        results = await asyncio.gather(
+            *(
+                asyncio.to_thread(
+                    AudioAugmentationPipeline._apply_augmentations, channel, sr, augmentations, seed
+                )
+                for channel in channels
+            )
         )
-        return signal.derive(
-            "augmented",
-            np.asarray(result),
-        )
+        return signal.derive("augmented", np.stack(results, axis=0))
 
     @staticmethod
     def _apply_augmentations(
-        data: np.ndarray, sr: int, augmentations: tuple[str, ...], seed: int
+        channel: np.ndarray, sr: int, augmentations: tuple[str, ...], seed: int
     ) -> np.ndarray:
+        """Apply the configured augmentation recipe to a single channel.
+
+        Every channel is augmented with the same seed, so length-changing
+        augmentations (time_stretch) resize every channel identically and the
+        per-channel results remain stackable; noise and masking are re-drawn
+        per channel from the same seeded recipe.
+        """
         try:
             import librosa  # type: ignore[import-not-found]
         except ImportError as exc:
@@ -109,8 +121,7 @@ class AudioAugmentationPipeline(Knot):
                 "AudioAugmentationPipeline requires 'librosa'. Install via pip install pirn-signal[signal]"
             ) from exc
         rng = np.random.default_rng(seed)
-        mono = data[0] if data.ndim > 1 else data
-        result = mono.copy().astype(np.float32)
+        result = channel.copy().astype(np.float32)
 
         for aug in augmentations:
             if aug == "add_noise":
@@ -134,6 +145,4 @@ class AudioAugmentationPipeline(Knot):
                 fft[mask_start:mask_end] = 0.0
                 result = np.fft.irfft(fft, n=len(result)).astype(np.float32)
 
-        if data.ndim > 1:
-            return result[np.newaxis, :]
         return result

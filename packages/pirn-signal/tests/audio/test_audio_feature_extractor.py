@@ -14,6 +14,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 
 from pirn_signal.audio.audio_feature_extractor import AudioFeatureExtractor
+from pirn_signal.types.feature_payload import FeaturePayload
 from pirn_signal.types.signal_payload import SignalPayload
 from tests.conftest import make_signal_payload
 
@@ -49,9 +50,25 @@ class TestAudioFeatureExtractor(unittest.IsolatedAsyncioTestCase):
         with pytest.raises(ValueError, match="hop_length"):
             await knot.process(_SIGNAL, n_mfcc=13, n_fft=512, hop_length=0)
 
-    async def test_emits_feature_dict(self) -> None:
+    async def test_emits_feature_payload(self) -> None:
         knot = self._make()
         out = await knot.process(_SIGNAL, n_mfcc=13, n_fft=512, hop_length=256)
-        assert isinstance(out, dict)
-        assert "rms_energy" in out
-        assert "zero_crossing_rate" in out
+        assert isinstance(out, FeaturePayload)
+        assert out.frame.feature_names == (
+            "rms_energy",
+            "zero_crossing_rate",
+            "spectral_centroid",
+            "spectral_bandwidth",
+            "spectral_rolloff",
+        )
+        assert out.data.shape[0] == 1
+        assert out.data.shape[1] == 5
+
+    async def test_multichannel_computes_per_channel(self) -> None:
+        knot = self._make()
+        multichannel = make_signal_payload(channel_count=2, samples_per_channel=2048)
+        out = await knot.process(multichannel, n_mfcc=13, n_fft=512, hop_length=256)
+        assert isinstance(out, FeaturePayload)
+        assert out.frame.channel_count == 2
+        assert out.data.shape[0] == 2
+        assert out.data.shape[1] == 5

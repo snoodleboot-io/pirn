@@ -14,6 +14,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 
 from pirn_signal.audio.onset_detector import OnsetDetector
+from pirn_signal.types.feature_payload import FeaturePayload
 from pirn_signal.types.signal_payload import SignalPayload
 from tests.conftest import make_signal_payload
 
@@ -42,9 +43,16 @@ class TestOnsetDetector(unittest.IsolatedAsyncioTestCase):
         with pytest.raises(ValueError, match="threshold"):
             await knot.process(_SIGNAL, hop_length=512, threshold=0.0)
 
-    async def test_emits_mapping(self) -> None:
+    async def test_emits_feature_payload(self) -> None:
         knot = self._make()
         out = await knot.process(_SIGNAL, hop_length=512, threshold=0.5)
-        assert isinstance(out, dict)
-        assert "onset_times_sec" in out
-        assert "signal_id" in out
+        assert isinstance(out, FeaturePayload)
+        assert out.data.shape[0] == 1
+
+    async def test_multichannel_computes_per_channel(self) -> None:
+        knot = self._make()
+        multichannel = make_signal_payload(channel_count=2, samples_per_channel=2048)
+        out = await knot.process(multichannel, hop_length=512, threshold=0.5)
+        assert isinstance(out, FeaturePayload)
+        assert out.frame.channel_count == 2
+        assert out.data.shape[0] == 2

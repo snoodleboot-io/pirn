@@ -10,7 +10,9 @@ Algorithm:
        - structure: segment boundaries via novelty-based structural analysis.
        - harmonic: separate harmonic component via median filtering in STFT domain.
        - percussive: separate percussive component via median filtering in STFT domain.
-    4. Return a mapping with signal_id and the list of computed feature names.
+    4. Repeat independently for each channel and return a FeaturePayload whose
+       object-dtype ``data`` holds the (heterogeneously shaped) computed value
+       for each requested feature, per channel.
 
     librosa algorithms; formulae are defined within those routines.
 
@@ -23,13 +25,14 @@ References:
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Mapping
 from typing import Any, ClassVar
 
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.types.feature_frame import FeatureFrame
+from pirn_signal.types.feature_payload import FeaturePayload
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -73,7 +76,7 @@ class MusicInformationRetriever(Knot):
         signal: SignalPayload,
         feature_set: tuple[str, ...] = ("chroma", "tempo", "key"),
         **_: Any,
-    ) -> Mapping[str, Any]:
+    ) -> FeaturePayload:
         """Extract the configured MIR feature set from the audio signal.
 
         Args:
@@ -81,8 +84,11 @@ class MusicInformationRetriever(Knot):
             feature_set: Non-empty tuple of feature names to compute.
 
         Returns:
-            Mapping containing ``signal_id`` and computed feature arrays/scalars
-            keyed by feature name.
+            FeaturePayload whose object-dtype ``data`` is shaped
+            ``(channel_count, len(feature_set))``: each cell holds the value
+            computed for that feature and channel (an ``np.ndarray`` for
+            array-valued features, a ``float`` for ``tempo``, or a ``str`` for
+            ``key``). ``frame.feature_names`` is ``feature_set``.
 
         Raises:
             ValueError: If feature_set is empty or contains unknown feature names.
@@ -95,17 +101,38 @@ class MusicInformationRetriever(Knot):
                     f"MusicInformationRetriever: unknown feature {feature!r}; "
                     f"allowed: {sorted(self._allowed_features)!r}"
                 )
-        mono = signal.data[0] if signal.data.ndim > 1 else signal.data
         sr = int(signal.frame.sample_rate_hz)
-        features = await asyncio.to_thread(
-            MusicInformationRetriever._compute_mir_features, mono, sr, feature_set
+        channels = np.atleast_2d(signal.data)
+        results = await asyncio.gather(
+            *(
+                asyncio.to_thread(
+                    MusicInformationRetriever._compute_mir_features, channel, sr, feature_set
+                )
+                for channel in channels
+            )
         )
-        return {"signal_id": signal.frame.signal_id, **features}
+        data = np.empty((channels.shape[0], len(feature_set)), dtype=object)
+        for row, feature_values in enumerate(results):
+            for col, feature in enumerate(feature_set):
+                data[row, col] = feature_values[feature]
+        return FeaturePayload(
+            metadata=FeatureFrame(
+                signal_id=f"{signal.frame.signal_id}:mir",
+                channel_count=channels.shape[0],
+                feature_names=feature_set,
+            ),
+            data=data,
+        )
 
     @staticmethod
     def _compute_mir_features(
         mono: np.ndarray, sr: int, feature_set: tuple[str, ...]
     ) -> dict[str, Any]:
+        """Compute the requested MIR features for a single channel.
+
+        Returns a dict keyed by feature name; array-valued features stay as
+        ``np.ndarray`` (no ``.tolist()`` conversion).
+        """
         try:
             import librosa  # type: ignore[import-not-found]
         except ImportError as exc:
@@ -115,17 +142,14 @@ class MusicInformationRetriever(Knot):
         result: dict[str, Any] = {}
 
         if "chroma" in feature_set:
-            chroma = librosa.feature.chroma_stft(y=mono, sr=sr)
-            result["chroma"] = chroma.tolist()
+            result["chroma"] = librosa.feature.chroma_stft(y=mono, sr=sr)
 
         if "spectral_contrast" in feature_set:
-            contrast = librosa.feature.spectral_contrast(y=mono, sr=sr)
-            result["spectral_contrast"] = contrast.tolist()
+            result["spectral_contrast"] = librosa.feature.spectral_contrast(y=mono, sr=sr)
 
         if "tonnetz" in feature_set:
             harmonic = librosa.effects.harmonic(mono)
-            tn = librosa.feature.tonnetz(y=harmonic, sr=sr)
-            result["tonnetz"] = tn.tolist()
+            result["tonnetz"] = librosa.feature.tonnetz(y=harmonic, sr=sr)
 
         if "tempo" in feature_set:
             tempo, _ = librosa.beat.beat_track(y=mono, sr=sr)
@@ -138,16 +162,13 @@ class MusicInformationRetriever(Knot):
             result["key"] = pitch_classes[int(np.argmax(chroma_mean))]
 
         if "harmonic" in feature_set:
-            harmonic = librosa.effects.harmonic(mono)
-            result["harmonic"] = harmonic.tolist()
+            result["harmonic"] = librosa.effects.harmonic(mono)
 
         if "percussive" in feature_set:
-            percussive = librosa.effects.percussive(mono)
-            result["percussive"] = percussive.tolist()
+            result["percussive"] = librosa.effects.percussive(mono)
 
         if "structure" in feature_set:
             mfcc = librosa.feature.mfcc(y=mono, sr=sr, n_mfcc=13)
-            recurrence = librosa.segment.recurrence_matrix(mfcc, mode="affinity")
-            result["structure"] = recurrence.tolist()
+            result["structure"] = librosa.segment.recurrence_matrix(mfcc, mode="affinity")
 
         return result

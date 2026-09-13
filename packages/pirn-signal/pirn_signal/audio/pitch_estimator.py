@@ -8,7 +8,8 @@ Algorithm:
     4. If algorithm == 'pyin': probabilistic YIN — also outputs confidence values.
     5. If algorithm == 'autocorrelation': compute normalised autocorrelation per frame
        and locate the first peak in [f_min_hz, f_max_hz].
-    6. Return a mapping with pitch estimates, confidence, and metadata.
+    6. Repeat independently for each channel and return a FeaturePayload with the
+       f0 trajectory per channel.
 
 Math:
     YIN cumulative mean normalised difference function:
@@ -29,13 +30,14 @@ References:
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Mapping
 from typing import Any
 
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.types.feature_frame import FeatureFrame
+from pirn_signal.types.feature_payload import FeaturePayload
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -68,7 +70,7 @@ class PitchEstimator(Knot):
         f_max_hz: float,
         algorithm: str = "yin",
         **_: Any,
-    ) -> Mapping[str, Any]:
+    ) -> FeaturePayload:
         """Estimate the fundamental frequency trajectory from the audio signal.
 
         Args:
@@ -78,7 +80,8 @@ class PitchEstimator(Knot):
             algorithm: Pitch detection algorithm: ``yin``, ``pyin``, or ``autocorrelation``.
 
         Returns:
-            Mapping containing ``f0_hz`` (list of floats per frame) and ``signal_id``.
+            FeaturePayload with ``data`` shaped ``(channel_count, n_frames)``: the
+            f0 (Hz) trajectory per channel.
 
         Raises:
             ValueError: If f_min_hz, f_max_hz, or algorithm are invalid.
@@ -91,24 +94,25 @@ class PitchEstimator(Knot):
             raise ValueError(
                 "PitchEstimator: algorithm must be 'yin', 'pyin', or 'autocorrelation'"
             )
-        mono = signal.data[0] if signal.data.ndim > 1 else signal.data
         sr = int(signal.frame.sample_rate_hz)
         if algorithm == "yin":
-            f0 = await asyncio.to_thread(
-                PitchEstimator._estimate_pitch_yin, mono, sr, f_min_hz, f_max_hz
-            )
+            estimator = PitchEstimator._estimate_pitch_yin
         elif algorithm == "pyin":
-            f0 = await asyncio.to_thread(
-                PitchEstimator._estimate_pitch_pyin, mono, sr, f_min_hz, f_max_hz
-            )
+            estimator = PitchEstimator._estimate_pitch_pyin
         else:
-            f0 = await asyncio.to_thread(
-                PitchEstimator._estimate_pitch_autocorrelation, mono, sr, f_min_hz, f_max_hz
-            )
-        return {
-            "f0_hz": f0.tolist(),
-            "signal_id": signal.frame.signal_id,
-        }
+            estimator = PitchEstimator._estimate_pitch_autocorrelation
+        channels = np.atleast_2d(signal.data)
+        results = await asyncio.gather(
+            *(asyncio.to_thread(estimator, channel, sr, f_min_hz, f_max_hz) for channel in channels)
+        )
+        return FeaturePayload(
+            metadata=FeatureFrame(
+                signal_id=f"{signal.frame.signal_id}:pitch-{algorithm}",
+                channel_count=channels.shape[0],
+                feature_names=("f0_hz",),
+            ),
+            data=np.stack(results, axis=0),
+        )
 
     @staticmethod
     def _estimate_pitch_yin(mono: np.ndarray, sr: int, fmin: float, fmax: float) -> np.ndarray:

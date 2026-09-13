@@ -14,6 +14,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 
 from pirn_signal.audio.speaker_diarization_pipeline import SpeakerDiarizationPipeline
+from pirn_signal.types.feature_payload import FeaturePayload
 from pirn_signal.types.signal_payload import SignalPayload
 from tests.conftest import make_signal_payload
 
@@ -49,9 +50,19 @@ class TestSpeakerDiarizationPipeline(unittest.IsolatedAsyncioTestCase):
         with pytest.raises(ValueError, match="embedding_model"):
             await knot.process(_SIGNAL, min_speakers=1, max_speakers=4, embedding_model="")
 
-    async def test_emits_segment_list(self) -> None:
+    async def test_emits_feature_payload(self) -> None:
         knot = self._make()
         out = await knot.process(_SIGNAL, min_speakers=1, max_speakers=4, embedding_model="ecapa")
-        assert isinstance(out, dict)
-        assert "speaker_labels" in out
-        assert "num_speakers" in out
+        assert isinstance(out, FeaturePayload)
+        assert out.frame.feature_names == ("speaker_label",)
+        assert out.data.shape[0] == 1
+
+    async def test_multichannel_computes_per_channel(self) -> None:
+        knot = self._make()
+        multichannel = make_signal_payload(channel_count=2, samples_per_channel=2048)
+        out = await knot.process(
+            multichannel, min_speakers=1, max_speakers=4, embedding_model="ecapa"
+        )
+        assert isinstance(out, FeaturePayload)
+        assert out.frame.channel_count == 2
+        assert out.data.shape[0] == 2

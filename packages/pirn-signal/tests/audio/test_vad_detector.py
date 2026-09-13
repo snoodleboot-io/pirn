@@ -9,6 +9,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 
 from pirn_signal.audio.vad_detector import VADDetector
+from pirn_signal.types.feature_payload import FeaturePayload
 from pirn_signal.types.signal_payload import SignalPayload
 from tests.conftest import make_signal_payload
 
@@ -43,8 +44,18 @@ class TestVADDetector(unittest.IsolatedAsyncioTestCase):
         with pytest.raises(ValueError, match="aggressiveness"):
             await knot.process(_SIGNAL, frame_duration_ms=20, aggressiveness=-1)
 
-    async def test_emits_segment_list(self) -> None:
+    async def test_emits_feature_payload(self) -> None:
         knot = self._make()
         out = await knot.process(_SIGNAL, frame_duration_ms=20, aggressiveness=2)
-        assert isinstance(out, dict)
-        assert "voiced_frames" in out
+        assert isinstance(out, FeaturePayload)
+        assert out.frame.feature_names == ("voiced",)
+        assert out.data.shape[0] == 1
+        assert out.data.dtype == bool
+
+    async def test_multichannel_computes_per_channel(self) -> None:
+        knot = self._make()
+        multichannel = make_signal_payload(channel_count=2, samples_per_channel=2048)
+        out = await knot.process(multichannel, frame_duration_ms=20, aggressiveness=2)
+        assert isinstance(out, FeaturePayload)
+        assert out.frame.channel_count == 2
+        assert out.data.shape[0] == 2

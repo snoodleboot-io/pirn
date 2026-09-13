@@ -6,7 +6,8 @@ Algorithm:
     3. Compute the mel-spectrogram with n_fft and hop_length.
     4. Take the log of mel-band energies (log-mel filterbank).
     5. Apply DCT-II to the log-mel energies to obtain n_mfcc cepstral coefficients.
-    6. Return a SpectrumFrame with frequency_bins = n_mfcc.
+    6. Repeat independently for each channel and return a SpectrumPayload with
+       frequency_bins = n_mfcc.
 
 Math:
     DCT-II for MFCCs:
@@ -33,6 +34,8 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_signal.types.signal_payload import SignalPayload
+from pirn_signal.types.spectrum_frame import SpectrumFrame
+from pirn_signal.types.spectrum_payload import SpectrumPayload
 
 
 class MFCCExtractor(Knot):
@@ -64,7 +67,7 @@ class MFCCExtractor(Knot):
         n_fft: int,
         hop_length: int,
         **_: Any,
-    ) -> dict[str, Any]:
+    ) -> SpectrumPayload:
         """Extract MFCC features from the audio signal.
 
         Args:
@@ -74,7 +77,9 @@ class MFCCExtractor(Knot):
             hop_length: Hop size in samples (positive integer, must not exceed n_fft).
 
         Returns:
-            Dictionary with ``mfcc`` (list of lists), ``n_mfcc``, and ``signal_id``.
+            SpectrumPayload with ``data`` shaped ``(channel_count, n_mfcc, n_frames)``.
+            ``frequency_resolution_hz`` is ``0.0``: the cepstral coefficient axis is
+            not a uniform frequency axis.
 
         Raises:
             ValueError: If n_mfcc, n_fft, or hop_length are invalid.
@@ -87,16 +92,24 @@ class MFCCExtractor(Knot):
             raise ValueError("MFCCExtractor: hop_length must be a positive integer")
         if hop_length > n_fft:
             raise ValueError("MFCCExtractor: hop_length must not exceed n_fft")
-        mono = signal.data[0] if signal.data.ndim > 1 else signal.data
         sr = int(signal.frame.sample_rate_hz)
-        mfcc = await asyncio.to_thread(
-            MFCCExtractor._compute_mfcc, mono, sr, n_mfcc, n_fft, hop_length
+        channels = np.atleast_2d(signal.data)
+        results = await asyncio.gather(
+            *(
+                asyncio.to_thread(
+                    MFCCExtractor._compute_mfcc, channel, sr, n_mfcc, n_fft, hop_length
+                )
+                for channel in channels
+            )
         )
-        return {
-            "mfcc": mfcc.tolist(),
-            "n_mfcc": n_mfcc,
-            "signal_id": signal.frame.signal_id,
-        }
+        return SpectrumPayload(
+            metadata=SpectrumFrame(
+                signal_id=f"{signal.frame.signal_id}:mfcc",
+                frequency_bins=n_mfcc,
+                frequency_resolution_hz=0.0,
+            ),
+            data=np.stack(results, axis=0),
+        )
 
     @staticmethod
     def _compute_mfcc(
