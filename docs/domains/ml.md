@@ -200,7 +200,7 @@ Pre-built `SubTapestry` pipelines for common ML patterns.
 | `task_pipelines/` | `BinaryClassificationPipeline`, `MulticlassClassificationPipeline`, `RegressionPipeline`, `ForecastingPipeline`, `NLPPipeline`, `ComputerVisionPipeline` |
 | `training/` | `SklearnTrainerPipeline`, `XGBoostTrainerPipeline`, `NeuralNetTrainerPipeline` |
 | `evaluation/` | `ClassificationEvalPipeline`, `RegressionEvalPipeline`, `RankingEvalPipeline`, `TimeSeriesEvalPipeline`, `WalkForwardValidator` |
-| `experiments/` | `GridSearchTuner`, `BayesianSearchTuner`, `StratifiedKFoldValidator`, `TimeSeriesSplitterValidator`, `AblationStudyPipeline`, `ChampionChallengerGate` |
+| `experiments/` | `GridSearchTuner`, `BayesianSearchTuner`, `StratifiedKFoldValidator`, `TimeSeriesSplitterValidator`, `AblationStudyPipeline`, `ChampionChallengerCheck` |
 | `feature_engineering/` | `FeatureStoreReader`, `FeatureStoreWriter`, `TextEmbeddingExtractor`, `ImageEmbeddingExtractor`, `LagFeatureGenerator`, `TargetEncoder` |
 | `production/` | `FullTrainDeployPipeline`, `ShadowDeploymentPipeline`, `ABTestPipeline`, `ContinuousTrainingPipeline`, `DriftMonitor`, `ModelLineageTracker` |
 
