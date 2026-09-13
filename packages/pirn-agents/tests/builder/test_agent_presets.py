@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+from unittest import mock
 
 from pirn.core.run_request import RunRequest
 from pirn.nodes.sub_tapestry import SubTapestry
@@ -81,6 +82,46 @@ class TestPresetsProviderNeutral(unittest.TestCase):
         with self.assertRaises(TypeError):
             with Tapestry():
                 AgentPresets.research(llm="not-a-provider", input="q")  # type: ignore[arg-type]
+
+
+class TestPresetShapeIsALoadedCorePipelineDocument(unittest.IsolatedAsyncioTestCase):
+    """Each preset's shape comes from pirn_agents/builder/presets/*.yaml (WS6a)."""
+
+    def test_each_preset_document_matches_its_hardcoded_fallback(self) -> None:
+        """The two must agree, or the ImportError fallback silently drifts."""
+        for name in ("research", "rag_chat", "coding"):
+            spec = AgentPresets._preset_spec(name)
+            assert spec.pattern == AgentPresets._fallback_pattern[name]
+            assert spec.options == AgentPresets._fallback_options[name]
+
+    def test_a_preset_builder_carries_the_documents_pattern_and_options(self) -> None:
+        # Arrange / Act
+        builder = AgentPresets.builder_for(
+            "rag_chat", llm=StubLLMProvider(["x"]), memory=StubMemoryStore([]), input="q"
+        )
+
+        # Assert: naive_rag/top_k come from rag_chat.yaml, not a Python literal.
+        assert builder.pattern_name == "naive_rag"
+        assert builder.options == {"top_k": 5}
+
+    def test_falls_back_to_the_hardcoded_shape_when_yaml_is_not_installed(self) -> None:
+        """AgentPresets is a base-install feature -- it must not need the yaml extra."""
+        # Arrange / Act: block `import yaml`, exactly like
+        # test_agent_spec_loader_missing_yaml.py does for AgentSpecLoader.
+        with mock.patch.dict("sys.modules", {"yaml": None}):
+            spec = AgentPresets._preset_spec("coding")
+
+        # Assert: same shape as the YAML document would have given.
+        assert spec.pattern == "react"
+        assert spec.options == {"max_iterations": 8}
+
+    async def test_presets_still_run_without_yaml(self) -> None:
+        llm = StubLLMProvider(["Final Answer: ok"])
+        with mock.patch.dict("sys.modules", {"yaml": None}), Tapestry() as t:
+            agent = AgentPresets.research(llm=llm, input="q", tools=[])
+        run = await t.run(RunRequest())
+        assert run.succeeded, run.exceptions
+        assert run.outputs[agent.knot_id].content == "ok"
 
 
 if __name__ == "__main__":

@@ -1,0 +1,20 @@
+# AgentPresets.research's shape: a ReAct agent, saved as a core pipeline
+# document (ADR agents-speaks-core WS6a). AgentPresets loads this through
+# AgentSpecLoader -- the single authoring path every other declarative agent
+# goes through -- rather than restating the pattern name and default options
+# as Python literals. The live llm/tools the caller supplies at call time are
+# not represented here (a preset's *shape* is static; its providers are not) --
+# see AgentPresets._research_builder.
+name: research_preset
+nodes:
+  - id: seed
+    type: parameter
+    type_: Any
+
+  - id: agent
+    type: knot
+    callable: react
+    parents:
+      messages: seed
+    config:
+      max_iterations: 6
