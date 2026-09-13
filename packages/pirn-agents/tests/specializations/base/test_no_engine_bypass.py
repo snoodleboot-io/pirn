@@ -90,7 +90,6 @@ RETURNS_INLINE_SOURCE = frozenset(
         "specializations/rag/flare_active_rag_pipeline.py::FlareActiveRagPipeline",
         "specializations/rag/multi_hop_rag_pipeline.py::MultiHopRAGPipeline",
         "specializations/reflexion/reflexion_pipeline.py::ReflexionPipeline",
-        "specializations/self_ask/self_ask_pipeline.py::SelfAskPipeline",
         "specializations/structured_output/json_extractor_pipeline.py::JsonExtractorPipeline",
         "specializations/structured_output/pydantic_validator_pipeline.py::PydanticValidatorPipeline",
         "specializations/structured_output/yaml_extractor_pipeline.py::YamlExtractorPipeline",
@@ -149,7 +148,6 @@ LOOP_AWAITS_LLM_OR_TOOL_CALL = frozenset(
         "specializations/prompt_chaining/prompt_chain_pipeline.py::PromptChainPipeline",
         "specializations/rag/flare_active_rag_pipeline.py::FlareActiveRagPipeline",
         "specializations/reflection/constitutional_filter.py::ConstitutionalFilter",
-        "specializations/self_ask/self_ask_pipeline.py::SelfAskPipeline",
     }
 )
 

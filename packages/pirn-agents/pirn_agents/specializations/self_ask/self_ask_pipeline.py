@@ -4,8 +4,14 @@ A :class:`SubTapestry` that:
 
 1. Asks the LLM to decompose the task into follow-up sub-questions (one per
    ``- `` line).
-2. Answers each sub-question with the LLM in turn.
-3. Composes a final answer from the sub-question/answer pairs.
+2. Answers each sub-question with the LLM in turn, via
+   :class:`~pirn_agents.specializations.self_ask._self_ask_loop._SelfAskLoop`
+   (a :class:`~pirn.nodes.loop_sub_tapestry.LoopSubTapestry`) so each
+   sub-answer is a real, individually-traceable engine knot rather than a
+   step inside a hand-rolled Python ``for`` loop (ADR agents-speaks-core
+   WS5b).
+3. Composes a final answer from the sub-question/answer pairs via
+   :class:`~pirn_agents.specializations.self_ask._self_ask_composer._SelfAskComposer`.
 
 The number of sub-questions is naturally bounded by the decomposition; an empty
 decomposition falls back to answering the task directly. Returns a typed
@@ -22,13 +28,15 @@ from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.source import Source
+from pirn.core.parameter import Parameter
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.llm_response_text import LlmResponseText
-from pirn_agents.specializations.self_ask.self_ask_result import SelfAskResult
+from pirn_agents.specializations.self_ask._self_ask_composer import _SelfAskComposer
+from pirn_agents.specializations.self_ask._self_ask_loop import _SelfAskLoop
+from pirn_agents.specializations.self_ask._self_ask_state import _SelfAskState
 
 
 class SelfAskPipeline(AgentPipeline):
@@ -84,7 +92,7 @@ class SelfAskPipeline(AgentPipeline):
             max_subquestions: Upper bound on sub-questions considered.
 
         Returns:
-            A terminal :class:`Source` whose output is the :class:`SelfAskResult`.
+            The sink knot whose output is the :class:`SelfAskResult`.
 
         Raises:
             ValueError: If ``max_subquestions`` is not a positive int.
@@ -110,41 +118,24 @@ class SelfAskPipeline(AgentPipeline):
         if not subquestions:
             subquestions = (task,)
 
-        subanswers: list[str] = []
-        for subquestion in subquestions:
-            answer_raw = await llm.chat(
-                messages=[
-                    {
-                        "role": "system",
-                        "content": type(self)._subanswer_system.resolve(),
-                    },
-                    {"role": "user", "content": subquestion},
-                ]
-            )
-            subanswers.append(LlmResponseText().extract(answer_raw))
-
-        pairs = "\n".join(f"Q: {q}\nA: {a}" for q, a in zip(subquestions, subanswers, strict=True))
-        final_raw = await llm.chat(
-            messages=[
-                {
-                    "role": "system",
-                    "content": type(self)._compose_system.resolve(),
-                },
-                {"role": "user", "content": f"Question:\n{task}\n\n{pairs}"},
-            ]
+        initial = Parameter(
+            "self_ask_state",
+            _SelfAskState,
+            default=_SelfAskState(subquestions=tuple(subquestions), index=0, subanswers=()),
         )
-        result = SelfAskResult(
-            final_answer=LlmResponseText().extract(final_raw),
-            subquestions=tuple(subquestions),
-            subanswers=tuple(subanswers),
+        loop = _SelfAskLoop(
+            llm=llm,
+            subanswer_system=type(self)._subanswer_system.resolve(),
+            state=initial,
+            _config=KnotConfig(id="self_ask_loop"),
         )
-        _result = result
-
-        class _SelfAskResultSource(Source):
-            async def process(self, **_: Any) -> SelfAskResult:
-                return _result
-
-        return _SelfAskResultSource(_config=KnotConfig(id="self_ask_result"))
+        return _SelfAskComposer(
+            task=task,
+            state=loop,
+            llm=llm,
+            compose_system=type(self)._compose_system.resolve(),
+            _config=KnotConfig(id="self_ask_result"),
+        )
 
     @staticmethod
     def _parse_subquestions(text: str) -> tuple[str, ...]:

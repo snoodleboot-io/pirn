@@ -66,6 +66,9 @@ _EXPECTED_EXCLUSIONS = frozenset(
         # (ADR agents-speaks-core WS5a).
         "pirn_agents.specializations.structured_output._retry_on_parse_failure_loop"
         "._RetryOnParseFailureLoop",
+        # Private: the loop body SelfAskPipeline drives internally
+        # (ADR agents-speaks-core WS5b).
+        "pirn_agents.specializations.self_ask._self_ask_loop._SelfAskLoop",
         # Private: the per-candidate step FallbackChain drives internally (PIR-856).
         "pirn_agents.specializations.routing._candidate_attempt._CandidateAttempt",
         # Deprecated *Gate aliases (PIR-856, Knot Design Rule 7): reachable only
@@ -206,6 +209,7 @@ def test_the_excluded_bases_are_bases_and_the_excluded_private_is_private() -> N
             "pirn_agents.specializations.multi_agent._round_robin_loop._RoundRobinLoop",
             "pirn_agents.specializations.structured_output._retry_on_parse_failure_loop"
             "._RetryOnParseFailureLoop",
+            "pirn_agents.specializations.self_ask._self_ask_loop._SelfAskLoop",
         ]
     )
     # Every exclusion falls into exactly one justified category: base,
