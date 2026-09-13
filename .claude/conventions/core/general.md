@@ -115,14 +115,19 @@ If you proceed without session management:
 
 ### REQUIRED FORMAT: `{type}/{ticket-id}-{description}`
 
+This repo's actual prefix is **`feature/`**, not the `feat/` shorthand an earlier
+version of this doc used — verify against `git branch -a` if in doubt.
+`feature/pir-856-docs-ci` and `bugfix/pir-848-connector-identity-hash` are real
+branches from this repo's history.
+
 **Branch Types:**
-- `feat/` - New feature
+- `feature/` - New feature
 - `bugfix/` - Normal bug fix (can wait for next release)
 - `hotfix/` - Urgent bug fix requiring immediate deployment
 
 **Ticket ID:** Required for tracking
-- Jira format: `PROJ-123`
-- GitHub issue: `#456`
+- Linear format: `PIR-123` (this repo's tracker — see the ticket link in your task, or
+  `mcp__linear-server__list_issues` if you have that tool available)
 - If no ticket: create one before branching
 
 **Description:** Kebab-case, 3-5 words
@@ -130,15 +135,16 @@ If you proceed without session management:
 ### Valid Examples:
 
 ✓ **Correct:**
-- `feat/PROJ-123-add-user-authentication`
-- `bugfix/PROJ-124-fix-null-pointer-exception`
-- `hotfix/PROJ-999-critical-security-vulnerability`
+- `feature/pir-123-add-user-authentication`
+- `bugfix/pir-124-fix-null-pointer-exception`
+- `hotfix/pir-999-critical-security-vulnerability`
 
 ✗ **Incorrect (DO NOT USE):**
 - `my-branch` (no ticket, no type)
+- `feat/pir-123-...` (this repo uses `feature/`, not `feat/`)
 - `feature-123` (type not prefix, no ticket)
 - `bugfix_something_here` (underscores, no ticket)
-- `fix/PROJ-123-issue` (use bugfix/ or hotfix/, not fix/)
+- `fix/pir-123-issue` (use bugfix/ or hotfix/, not fix/)
 - `john-fix-auth` (includes author name)
 
 ### Branch Creation:
@@ -151,20 +157,20 @@ git checkout main
 git pull origin main
 
 # Create feature branch with correct naming
-git checkout -b feat/PROJ-123-feature-description
+git checkout -b feature/pir-123-feature-description
 # or for a bug fix:
-git checkout -b bugfix/PROJ-124-fix-description
+git checkout -b bugfix/pir-124-fix-description
 # or for urgent fix:
-git checkout -b hotfix/PROJ-999-urgent-issue
+git checkout -b hotfix/pir-999-urgent-issue
 
 # Verify correct branch
 git branch --show-current
-# Should show: feat/PROJ-123-... or bugfix/PROJ-124-... or hotfix/PROJ-999-...
+# Should show: feature/pir-123-... or bugfix/pir-124-... or hotfix/pir-999-...
 ```
 
 ### When to use which type:
 
-- `feat/` - Always for new features
+- `feature/` - Always for new features
 - `bugfix/` - Normal bug fixes following standard review process
 - `hotfix/` - Critical production bugs, security issues, data loss - requires immediate deployment
 
@@ -175,7 +181,7 @@ After creating or checking out a feature branch:
 ```bash
 # 1. Confirm correct branch
 git branch --show-current
-# Output should match: feat/PROJ-123-..., bugfix/PROJ-124-..., or hotfix/PROJ-999-...
+# Output should match: feature/pir-123-..., bugfix/pir-124-..., or hotfix/pir-999-...
 
 # 2. Confirm base is main (no pre-existing commits)
 git log --oneline main..HEAD
@@ -187,13 +193,13 @@ git log -1 --oneline main
 
 # 4. Status check
 git status
-# Should show: On branch feat/PROJ-123-..., nothing to commit
+# Should show: On branch feature/pir-123-..., nothing to commit
 ```
 
 ### Anti-Patterns (what NOT to do):
 
 - ❌ Creating branches from non-main source
-- ❌ Using `fix/` as type (use `bugfix/` or `hotfix/`)
+- ❌ Using `feat/` or `fix/` as a type (use `feature/`, `bugfix/`, or `hotfix/`)
 - ❌ Creating branches without a ticket ID
 - ❌ Branch names longer than 60 characters
 - ❌ Using other types like `chore/`, `docs/`, `spike/` (not part of your convention)
@@ -283,8 +289,6 @@ Rules:
 # General Conventions
 
 <!-- path: prompticorn/prompts/agents/core/core-conventions.md -->
-{%- import 'macros/naming_conventions.jinja2' as naming -%}
-{%- import 'macros/checklist.jinja2' as checklist -%}
 # Core Conventions
 
 Project coding standards - base conventions for all projects. 
@@ -295,30 +299,45 @@ All mode-specific rules inherit from this file.
 
 ## Repository Structure
 
-Repository type: TODO
+Repository type: multi-language-monorepo. Python only today — every package under
+`packages/` is Python; if a non-Python package is ever added, give it its own
+`core-conventions-[LANG].md` and route to it by the `packages/<dist>/` directory the same
+way Python is routed here, rather than by file extension (a `packages/` monorepo has
+directory boundaries, not `/frontend`, `/backend`, `/shared` boundaries).
 
-### If single-language:
-Include: core-conventions-[LANG].md where [LANG] matches your primary language
-
-### If multi-language-monorepo:
-Define each language area:
-- /frontend      → include: Core Conventions TypeScript
-- /backend       → include: Core Conventions Python
-- /shared        → include: Core Conventions Golang
-
-### If mixed-collocation:
-File extension determines which rules apply:
-- *.ts, *.tsx   → TypeScript rules
-- *.py           → Python rules
-- *.go           → Go rules
+Each top-level directory under `packages/` is one independently-versioned, independently-
+published distribution: `packages/pirn-<domain>/pirn_<domain>/` (the import package name
+replaces the hyphen with an underscore; `packages/pirn-core/pirn/` is the one exception,
+importing as bare `pirn`). See `docs/architecture/overview.md` and
+`docs/architecture/ci-pipelines.md` for how the seven packages relate.
 
 ## File & Folder Structure
 
-src/
-└── TODO
+```
+packages/
+├── pirn-core/
+│   ├── pirn/            ← import root (exception: no pirn_core/)
+│   └── tests/{unit,integration,...}/
+├── pirn-agents/
+│   ├── pirn_agents/
+│   └── tests/
+├── pirn-data/
+│   ├── pirn_data/
+│   └── tests/
+└── ...                  ← pirn-health, pirn-ml, pirn-oilgas, pirn-signal, same shape
+```
 
-Rule: One export per file unless it is a barrel (index.ts).
-Rule: Co-locate tests with source (auth.ts → auth.test.ts).
+Rule: One export per file unless it is a barrel (index.ts) — for Python this is "one
+class per file" (below); Python has no barrel-file equivalent, and `__init__.py`
+re-exports are forbidden outright (`.claude/conventions/languages/python.md`, enforced by
+`scripts/check_no_import_forwarding.py`).
+Rule: Tests mirror source, they are **NOT co-located**. `pirn/backends/azure.py` (or
+`pirn_agents/tool/toolset.py`, etc.) is tested by
+`packages/<pkg>/tests/unit/<same-relative-path>/test_<name>.py` — a change to the source
+tree layout is not automatically a change to the test tree layout, but the two are kept
+parallel by convention. See "Testing" in
+`.claude/conventions/languages/python.md` for the full breakdown (`unit/`, `integration/`,
+`slow/`, `perf/`, etc.).
 
 ### Class Organization Rules
 
@@ -367,7 +386,11 @@ All OOP components must follow SOLID principles:
 
 ## Error Handling
 
-Pattern: TODO
+Pattern: `PirnError` exception hierarchy (`pirn.exceptions.pirn_error.PirnError`) for
+things that raise, plus the `Ok` / `Err` / `Skipped` result types
+(`pirn.core.ok`/`err`/`skipped`) for knot-graph execution outcomes specifically — not the
+third-party `returns` library, which is not a dependency of this codebase. See
+`.claude/conventions/languages/python.md` "Error Handling" for the Python-specific detail.
 
 - Never swallow errors silently
 - Always include context: Error("failed to fetch user: " + userId)
@@ -389,22 +412,25 @@ Testing conventions are language-specific. See your language's conventions file 
 - Test style patterns
 - Mocking approaches
 
-## Database
-
-Database:            TODO           e.g., PostgreSQL, DynamoDB
-ORM/Query:           TODO                e.g., Prisma, SQLAlchemy, GORM
-
 ## Git & PR Conventions
 
-Branch naming:       feat|fix|chore|docs / ticket-id - short-description
-MANDATORY WITHOUT EXCEPTION: Ticket IDs MUST be real and obtained from user-provided files, actual project tickets, or the feature request. 
+Branch naming: `feature/pir-<nnn>-short-description` for new work,
+`bugfix/pir-<nnn>-short-description` for a fix that can wait for the next release,
+`hotfix/pir-<nnn>-short-description` for an urgent production fix. This repository uses
+`feature/`, not the `feat/` shorthand some earlier template text implied — check recent
+branches (`git branch -a`) if in doubt; `feature/pir-856-docs-ci` and
+`bugfix/pir-848-connector-identity-hash` are real examples from this repo's history.
+MANDATORY WITHOUT EXCEPTION: Ticket IDs MUST be real and obtained from user-provided files, actual project tickets, or the feature request.
 DO NOT hallucinate, invent, or use fake ticket IDs like "PROJ-123" or "#456" unless they are explicitly provided in the user's request or associated project documentation.
-Commit style:        TODO  e.g., Conventional Commits, free-form
-PR size:             TODO lines changed (soft limit)
-
-## Deployment
-
-Target:              TODO  e.g., AWS Lambda, Vercel, GKE
+Commit style: Conventional Commits — `type(scope): what and why (PIR-nnn)`, e.g.
+`fix(core): hash connectors by unique instance identity (PIR-848)`. `type` is one of
+`feat`, `fix`, `refactor`, `test`, `docs`, `build`, `chore`; `scope` is the package
+short name without the `pirn-` prefix (`core`, `agents`, `data`, `ml`, `health`,
+`oilgas`, `signal`) or a cross-cutting area (`ci`, `deps`).
+PR size: no hard limit is enforced; per-package CI (`.github/workflows/workspace.yml`)
+scopes review to the packages a PR actually touches via dependency-aware change
+detection, which is the main lever for keeping a PR reviewable — prefer one lane/concern
+per PR over a strict line count.
 
 ---
 
