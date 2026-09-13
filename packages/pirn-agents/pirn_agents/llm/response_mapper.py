@@ -39,6 +39,11 @@ class ResponseMapper:
         self._codec: ToolCallCodec = codec
         self._pricing: ModelPricing | None = pricing
 
+    @property
+    def pricing(self) -> ModelPricing | None:
+        """Return the price sheet this mapper estimates cost with, if any."""
+        return self._pricing
+
     def estimate_cost(self, usage: Mapping[str, int]) -> float | None:
         """Return the estimated cost for ``usage``, or ``None`` without pricing."""
         return self._pricing.estimate_cost(usage) if self._pricing is not None else None

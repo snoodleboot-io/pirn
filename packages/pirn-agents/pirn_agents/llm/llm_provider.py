@@ -7,9 +7,13 @@ this interface; the provider is constructed by the user and passed in
 as a config value.
 
 Pydantic treats providers as opaque (see
-:class:`pirn.core.pirn_opaque_value.PirnOpaqueValue`); the default
-identity-keyed serialiser keeps content-addressing cache stable
-without descending into vendor SDKs.
+:class:`pirn.core.pirn_opaque_value.PirnOpaqueValue`), so a provider built
+directly on this interface (a stub double, a local engine) is identity-keyed:
+its content hash is unique to the instance, and a recorded run replayed in
+another process refuses rather than substituting. HTTP providers derived from
+:class:`pirn_agents.llm.base_llm_provider.BaseLLMProvider` can instead declare a
+credential-free content identity (model, endpoint and request settings) so
+their recorded calls replay across processes (PIR-840).
 """
 
 from __future__ import annotations

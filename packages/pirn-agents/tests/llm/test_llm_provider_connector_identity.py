@@ -5,7 +5,9 @@
 content hash, so ``OpenAICompatibleProvider(model="m-a", base_url=a)`` and
 ``(model="m-b", base_url=b)`` hashed equal and core replay served a recording
 made with one to a run configured with the other.  The ``ConnectorBase`` default
-is now identity-keyed; a content form for providers is PIR-840 PR-3.
+is now identity-keyed.  PIR-840 PR-3 opts the concrete HTTP providers back into a
+credential-free content form (``test_llm_provider_content_identity.py``); a provider
+that cannot be named safely keeps the identity token.
 """
 
 from __future__ import annotations
@@ -62,10 +64,22 @@ def test_live_providers_with_different_model_and_endpoint_hash_differently(
     assert hash_a != hash_b
 
 
-def test_identically_configured_separate_providers_hash_differently() -> None:
-    # Arrange — identity semantics until PIR-840 PR-3 gives providers content identity.
+def test_identically_configured_separate_providers_hash_equal() -> None:
+    # Arrange — PIR-840 PR-3 gives the concrete providers content identity.
     first = OpenAICompatibleProvider(model="m-a", base_url="https://a.example/v1")
     second = OpenAICompatibleProvider(model="m-a", base_url="https://a.example/v1")
+
+    # Act
+    hashes = {content_hash({"llm": first}), content_hash({"llm": second})}
+
+    # Assert
+    assert len(hashes) == 1
+
+
+def test_identically_configured_providers_that_cannot_be_named_hash_differently() -> None:
+    # Arrange — an injected client keeps the PIR-848 identity semantics.
+    first = OpenAICompatibleProvider(model="m-a", base_url="https://a.example/v1", client=object())
+    second = OpenAICompatibleProvider(model="m-a", base_url="https://a.example/v1", client=object())
 
     # Act
     hashes = {content_hash({"llm": first}), content_hash({"llm": second})}
@@ -100,13 +114,14 @@ def test_provider_audit_dict_output_is_unchanged() -> None:
     assert audit == {"connector": "OpenAICompatibleProvider", "has_credential": True}
 
 
-def test_no_credential_or_configuration_appears_in_the_provider_canonical_form() -> None:
-    # Arrange
+def test_no_credential_or_configuration_appears_in_an_identity_keyed_canonical_form() -> None:
+    # Arrange — an injected client keeps the provider identity-keyed.
     secret = "sk-PIR848-SENTINEL"
     provider = OpenAICompatibleProvider(
         model="m-a",
         base_url="https://a.example/v1",
         credential=CredentialRef(secret=secret),
+        client=object(),
     )
 
     # Act — the canonical form and the token are what content_hash consumes.
