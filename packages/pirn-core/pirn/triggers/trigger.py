@@ -2,17 +2,17 @@
 
 from __future__ import annotations
 
-import asyncio
-import logging
-from collections.abc import AsyncIterator, Awaitable, Callable
+from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING
 
+from pirn.triggers._run_driver import _RunDriver
+
 if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
     from pirn.core.run_request import RunRequest
     from pirn.core.run_result import RunResult
     from pirn.tapestry import Tapestry
-
-_logger = logging.getLogger(__name__)
 
 
 # Type aliases for the optional callbacks.
@@ -82,25 +82,18 @@ async def run_forever(
     log-and-continue observer — the obvious thing to write for a daemon —
     must not be able to swallow them and leave the loop running after its
     task was cancelled.
+
+    Thin wrapper around ``_RunDriver.drive``, shared with
+    ``streaming.streaming_source.run_stream``: a trigger's events already
+    are ``RunRequest``s, so ``to_request`` is the identity function, and
+    "close" means ``trigger.close()``.
     """
-    try:
-        async for request in trigger.stream():
-            try:
-                result = await tapestry.run(request)
-            except (asyncio.CancelledError, KeyboardInterrupt, SystemExit):
-                raise
-            except BaseException as exc:
-                if on_error is not None:
-                    await on_error(request, exc)
-                else:
-                    raise
-            else:
-                if on_result is not None:
-                    await on_result(request, result)
-    finally:
-        try:
-            await trigger.close()
-        except Exception:
-            _logger.warning(
-                "run_forever: trigger.close() raised while shutting down", exc_info=True
-            )
+    await _RunDriver.drive(
+        trigger.stream(),
+        tapestry=tapestry,
+        to_request=lambda request: request,
+        close=trigger.close,
+        close_error_context="trigger.close()",
+        on_result=on_result,
+        on_error=on_error,
+    )

@@ -18,14 +18,16 @@ focused.
 
 from __future__ import annotations
 
-import asyncio
-import logging
-from collections.abc import AsyncIterator, Awaitable, Callable
+import functools
+from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any
 
-_logger = logging.getLogger(__name__)
+from pirn.triggers._run_driver import _RunDriver
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
+    from pirn.core.run_request import RunRequest
     from pirn.core.run_result import RunResult
     from pirn.tapestry import Tapestry
 
@@ -59,6 +61,20 @@ class StreamingSource:
         raise NotImplementedError(f"{type(self).__name__} must implement close()")
 
 
+def _bind_stream_value(base_params: dict[str, Any], parameter_name: str, value: Any) -> RunRequest:
+    """Build the ``RunRequest`` for one streamed ``value``.
+
+    Module-level (not a closure) so ``run_stream`` can bind ``base_params``
+    and ``parameter_name`` via ``functools.partial`` instead of nesting a
+    function that captures them.
+    """
+    from pirn.core.run_request import RunRequest
+
+    params = dict(base_params)
+    params[parameter_name] = value
+    return RunRequest(parameters=params)
+
+
 async def run_stream(
     source: StreamingSource,
     tapestry: Tapestry,
@@ -81,31 +97,23 @@ async def run_stream(
     driver inlines a single parameter from the source — implying the
     source is the *primary* input and other parameters are constants
     for the run.
-    """
-    from pirn.core.run_request import RunRequest
 
+    Thin wrapper around ``_RunDriver.drive``, shared with
+    ``triggers.trigger.run_forever``: ``to_request`` binds each value to
+    ``source.parameter_name`` alongside ``extra_parameters``, and "close"
+    means ``source.close()``. A cancelled run ends the stream; it is not a
+    bad value for ``on_error`` to log and skip past (PIR-841) — see the
+    ``asyncio.CancelledError`` re-raise inside ``_RunDriver.drive``.
+    """
     base_params = dict(extra_parameters or {})
-    try:
-        async for value in source.stream():
-            params = dict(base_params)
-            params[source.parameter_name] = value
-            request = RunRequest(parameters=params)
-            try:
-                result = await tapestry.run(request)
-            except (asyncio.CancelledError, KeyboardInterrupt, SystemExit):
-                # A cancelled run ends the stream; it is not a bad value for
-                # on_error to log and skip past (PIR-841).
-                raise
-            except BaseException as exc:
-                if on_error is not None:
-                    await on_error(value, exc)
-                else:
-                    raise
-            else:
-                if on_result is not None:
-                    await on_result(value, result)
-    finally:
-        try:
-            await source.close()
-        except Exception:
-            _logger.warning("run_stream: source.close() raised while shutting down", exc_info=True)
+    to_request = functools.partial(_bind_stream_value, base_params, source.parameter_name)
+
+    await _RunDriver.drive(
+        source.stream(),
+        tapestry=tapestry,
+        to_request=to_request,
+        close=source.close,
+        close_error_context="source.close()",
+        on_result=on_result,
+        on_error=on_error,
+    )
