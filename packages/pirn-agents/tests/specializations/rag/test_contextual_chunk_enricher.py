@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.rag.contextual_chunk_enricher import ContextualChunkEnricher
@@ -21,12 +22,16 @@ def _enricher() -> ContextualChunkEnricher:
 class TestContextualChunkEnricher(unittest.IsolatedAsyncioTestCase):
     async def test_prepends_context(self) -> None:
         llm = StubLLMProvider(["From the intro section."])
-        knot = _enricher()
-        docs = await knot.process(
-            documents=[{"text": "the model has 7B params"}],
-            document_text="A full paper about a 7B model.",
-            llm=llm,
-        )
+        with Tapestry() as tapestry:
+            ContextualChunkEnricher(
+                documents=[{"text": "the model has 7B params"}],
+                document_text="A full paper about a 7B model.",
+                llm=llm,
+                _config=KnotConfig(id="enrich"),
+            )
+        result = await tapestry.run(RunRequest())
+        assert result.succeeded
+        docs = result.outputs["enrich"]
         assert docs[0]["context"] == "From the intro section."
         assert docs[0]["raw_text"] == "the model has 7B params"
         assert docs[0]["text"].startswith("From the intro section.")

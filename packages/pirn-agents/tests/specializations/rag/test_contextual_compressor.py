@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.rag.contextual_compressor import ContextualCompressor
@@ -22,12 +23,19 @@ class TestContextualCompressor(unittest.IsolatedAsyncioTestCase):
     async def test_compresses_and_drops_irrelevant(self) -> None:
         # First doc -> relevant span; second doc -> NONE (dropped).
         llm = StubLLMProvider(["relevant span", "NONE"])
-        knot = _compressor()
-        docs = await knot.process(
-            query="q",
-            documents=[{"id": "1", "text": "long relevant text"}, {"id": "2", "text": "noise"}],
-            llm=llm,
-        )
+        with Tapestry() as tapestry:
+            ContextualCompressor(
+                query="q",
+                documents=[
+                    {"id": "1", "text": "long relevant text"},
+                    {"id": "2", "text": "noise"},
+                ],
+                llm=llm,
+                _config=KnotConfig(id="compress"),
+            )
+        result = await tapestry.run(RunRequest())
+        assert result.succeeded
+        docs = result.outputs["compress"]
         assert len(docs) == 1
         assert docs[0]["id"] == "1"
         assert docs[0]["text"] == "relevant span"
@@ -35,10 +43,16 @@ class TestContextualCompressor(unittest.IsolatedAsyncioTestCase):
 
     async def test_preserves_identity_keys(self) -> None:
         llm = StubLLMProvider(["kept"])
-        knot = _compressor()
-        docs = await knot.process(
-            query="q", documents=[{"id": "x", "score": 0.9, "text": "t"}], llm=llm
-        )
+        with Tapestry() as tapestry:
+            ContextualCompressor(
+                query="q",
+                documents=[{"id": "x", "score": 0.9, "text": "t"}],
+                llm=llm,
+                _config=KnotConfig(id="compress"),
+            )
+        result = await tapestry.run(RunRequest())
+        assert result.succeeded
+        docs = result.outputs["compress"]
         assert docs[0]["id"] == "x"
         assert docs[0]["score"] == 0.9
 
