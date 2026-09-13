@@ -7,7 +7,9 @@ Algorithm:
     4. Solve the linear prediction problem to find the characteristic polynomial.
     5. Find the polynomial roots to obtain the complex modal frequencies (poles).
     6. Solve the Vandermonde system to obtain modal amplitudes.
-    7. Return a mapping with the estimated modes and parameters.
+    7. Repeat independently for each channel and return a FeaturePayload whose
+       data is shaped ``(channel_count, component_count, 2)``, pairing each
+       mode's complex pole and residue (NaN-padded when fewer modes are found).
 
 Math:
     Prony model:
@@ -26,13 +28,14 @@ References:
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Mapping
 from typing import Any
 
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.types.feature_frame import FeatureFrame
+from pirn_signal.types.feature_payload import FeaturePayload
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -59,30 +62,45 @@ class PronyEstimator(Knot):
         signal: SignalPayload,
         component_count: int,
         **_: Any,
-    ) -> Mapping[str, Any]:
-        """Fit damped sinusoidal modes to the signal via Prony's method and return a parameter mapping.
+    ) -> FeaturePayload:
+        """Fit damped sinusoidal modes to the signal via Prony's method.
 
         Args:
             signal: Signal payload to decompose into damped exponential modes.
             component_count: Number of damped exponential modes to fit (positive integer).
 
         Returns:
-            Mapping containing ``poles``, ``residues``, and ``model_order``.
+            FeaturePayload with complex ``data`` shaped
+            ``(channel_count, component_count, 2)``: for each channel, up to
+            ``component_count`` ``(pole, residue)`` pairs, NaN-padded when
+            fewer modes are found.
 
         Raises:
             ValueError: If component_count is not a positive integer.
         """
         if not isinstance(component_count, int) or component_count <= 0:
             raise ValueError("PronyEstimator: component_count must be a positive integer")
-        signal_array = signal.data[0] if signal.data.ndim > 1 else signal.data
-        poles, residues = await asyncio.to_thread(
-            PronyEstimator._prony, signal_array.astype(float), component_count
+        channels = np.atleast_2d(signal.data).astype(float)
+        results = await asyncio.gather(
+            *(
+                asyncio.to_thread(PronyEstimator._prony, channel, component_count)
+                for channel in channels
+            )
         )
-        return {
-            "poles": [str(p) for p in poles],
-            "residues": [str(r) for r in residues],
-            "model_order": component_count,
-        }
+        pad_value = complex(float("nan"), float("nan"))
+        rows = []
+        for poles, residues in results:
+            padded_poles = poles + [pad_value] * (component_count - len(poles))
+            padded_residues = residues + [pad_value] * (component_count - len(residues))
+            rows.append(list(zip(padded_poles, padded_residues, strict=True)))
+        return FeaturePayload(
+            metadata=FeatureFrame(
+                signal_id=f"{signal.frame.signal_id}:prony",
+                channel_count=channels.shape[0],
+                feature_names=("pole", "residue"),
+            ),
+            data=np.asarray(rows, dtype=complex).reshape(channels.shape[0], component_count, 2),
+        )
 
     @staticmethod
     def _prony(signal_array: np.ndarray, num_modes: int) -> tuple[list[complex], list[complex]]:

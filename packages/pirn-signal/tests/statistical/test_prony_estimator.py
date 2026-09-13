@@ -9,6 +9,7 @@ from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_signal.statistical.prony_estimator import PronyEstimator
+from pirn_signal.types.feature_payload import FeaturePayload
 from tests.conftest import emit_signal_payload, make_signal_payload
 
 
@@ -23,7 +24,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
-    async def test_emits_estimator_dict(self) -> None:
+    async def test_emits_feature_payload(self) -> None:
         with Tapestry() as t:
             sig = emit_signal_payload(_config=KnotConfig(id="sig"))
             PronyEstimator(
@@ -33,5 +34,16 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         out = result.outputs["p"]
-        assert "poles" in out
-        assert out["model_order"] == 4
+        assert isinstance(out, FeaturePayload)
+        assert out.frame.feature_names == ("pole", "residue")
+        assert out.data.shape == (1, 4, 2)
+
+    async def test_multichannel_computes_per_channel(self) -> None:
+        with Tapestry():
+            k = PronyEstimator.__new__(PronyEstimator)
+            object.__setattr__(k, "_config", KnotConfig(id="p"))
+        multichannel = make_signal_payload(channel_count=2, samples_per_channel=64)
+        out = await k.process(signal=multichannel, component_count=4)
+        assert isinstance(out, FeaturePayload)
+        assert out.frame.channel_count == 2
+        assert out.data.shape == (2, 4, 2)

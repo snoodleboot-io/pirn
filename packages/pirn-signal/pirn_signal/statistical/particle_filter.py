@@ -10,7 +10,8 @@ Algorithm:
        b. Compute importance weights from the likelihood p(y_k | x_k^i).
        c. Normalise weights.
        d. Apply systematic resampling when the effective sample size drops.
-    5. Return a SignalPayload of particle mean state estimates.
+    5. Repeat independently for each channel and return a SignalPayload of
+       particle mean state estimates.
 
 Math:
     Particle weight update:
@@ -36,7 +37,6 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -98,23 +98,22 @@ class ParticleFilter(Knot):
                 "ParticleFilter: resampling_strategy must be 'multinomial', "
                 "'stratified', 'systematic', or 'residual'"
             )
-        signal_array = signal.data[0] if signal.data.ndim > 1 else signal.data
         process_noise = 1e-2
         measurement_noise = 1e-1
-        filtered = await asyncio.to_thread(
-            ParticleFilter._particle_filter,
-            signal_array.astype(float),
-            particle_count,
-            process_noise,
-            measurement_noise,
+        channels = np.atleast_2d(signal.data).astype(float)
+        filtered = await asyncio.gather(
+            *(
+                asyncio.to_thread(
+                    ParticleFilter._particle_filter,
+                    channel,
+                    particle_count,
+                    process_noise,
+                    measurement_noise,
+                )
+                for channel in channels
+            )
         )
-        frame = SignalFrame(
-            signal_id=f"{signal.frame.signal_id}:particle",
-            channel_count=1,
-            sample_rate_hz=signal.frame.sample_rate_hz,
-            samples_per_channel=len(filtered),
-        )
-        return SignalPayload(metadata=frame, data=filtered)
+        return signal.derive("particle", np.stack(filtered, axis=0))
 
     @staticmethod
     def _systematic_resample(weights: np.ndarray, particle_count: int) -> np.ndarray:

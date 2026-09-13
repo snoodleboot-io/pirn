@@ -7,7 +7,8 @@ Algorithm:
        - ``burg``: Burg's recursive lattice method (minimum forward-backward error).
        - ``yule_walker``: Solve the Yule-Walker equations via the Levinson-Durbin recursion.
        - ``ols``: Ordinary least-squares regression on the lag matrix.
-    4. Return the estimated AR coefficients, model order, method, and residual variance.
+    4. Repeat independently for each channel and return a FeaturePayload with
+       the AR coefficients and residual variance per channel.
 
 Math:
     AR(p) model:
@@ -28,19 +29,21 @@ References:
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.types.feature_frame import FeatureFrame
+from pirn_signal.types.feature_payload import FeaturePayload
 from pirn_signal.types.signal_payload import SignalPayload
 
 
 class ARModelEstimator(Knot):
     """Fit an autoregressive (AR) model to a signal using a configurable estimation method."""
 
-    _valid_methods = frozenset({"burg", "yule_walker", "ols"})
+    _valid_methods: ClassVar[frozenset[str]] = frozenset({"burg", "yule_walker", "ols"})
 
     def __init__(
         self,
@@ -65,7 +68,7 @@ class ARModelEstimator(Knot):
         order: int,
         method: str,
         **_: Any,
-    ) -> dict[str, Any]:
+    ) -> FeaturePayload:
         """Fit an AR model and return the estimated parameters.
 
         Args:
@@ -74,8 +77,8 @@ class ARModelEstimator(Knot):
             method: Estimation method — ``burg``, ``yule_walker``, or ``ols``.
 
         Returns:
-            Dict with keys ``coefficients`` (list[float]), ``order`` (int),
-            ``method`` (str), and ``variance`` (float).
+            FeaturePayload with the AR coefficients (``ar_coeff_0`` .. ``ar_coeff_{order-1}``)
+            and residual ``variance`` per channel.
 
         Raises:
             ValueError: If order or method are invalid.
@@ -84,16 +87,23 @@ class ARModelEstimator(Knot):
             raise ValueError("ARModelEstimator: order must be a positive integer")
         if method not in self._valid_methods:
             raise ValueError("ARModelEstimator: method must be one of 'burg', 'yule_walker', 'ols'")
-        signal_array = signal.data[0] if signal.data.ndim > 1 else signal.data
-        coeffs, var = await asyncio.to_thread(
-            ARModelEstimator._compute_ar, signal_array, order, method
+        channels = np.atleast_2d(signal.data)
+        results = await asyncio.gather(
+            *(
+                asyncio.to_thread(ARModelEstimator._compute_ar, channel, order, method)
+                for channel in channels
+            )
         )
-        return {
-            "coefficients": coeffs,
-            "order": order,
-            "method": method,
-            "variance": var,
-        }
+        rows = [[*coeffs, var] for coeffs, var in results]
+        feature_names = (*(f"ar_coeff_{i}" for i in range(order)), "variance")
+        return FeaturePayload(
+            metadata=FeatureFrame(
+                signal_id=f"{signal.frame.signal_id}:ar-{method}",
+                channel_count=channels.shape[0],
+                feature_names=feature_names,
+            ),
+            data=np.asarray(rows).reshape(channels.shape[0], order + 1),
+        )
 
     @staticmethod
     def _burg(signal_array: np.ndarray, order: int) -> tuple[np.ndarray, float]:

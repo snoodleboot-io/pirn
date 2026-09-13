@@ -7,8 +7,8 @@ Algorithm:
     4. Partition eigenvectors into signal subspace (top signal_subspace_dim) and noise subspace.
     5. Evaluate the MUSIC pseudo-spectrum over a grid of frequency_grid_size points:
        P_MUSIC(f) = 1 / ‖E_n^H a(f)‖².
-    6. Find peaks in the pseudo-spectrum to estimate the sinusoid frequencies.
-    7. Return a mapping with the estimated frequencies and parameters.
+    6. Repeat independently for each channel and return a SpectrumPayload whose
+       ``data`` is the pseudo-spectrum evaluated over the frequency grid.
 
 Math:
     MUSIC pseudo-spectrum:
@@ -26,7 +26,6 @@ References:
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Mapping
 from typing import Any
 
 import numpy as np
@@ -34,6 +33,8 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_signal.types.signal_payload import SignalPayload
+from pirn_signal.types.spectrum_frame import SpectrumFrame
+from pirn_signal.types.spectrum_payload import SpectrumPayload
 
 
 class MUSICEstimator(Knot):
@@ -62,8 +63,8 @@ class MUSICEstimator(Knot):
         signal_subspace_dim: int,
         frequency_grid_size: int,
         **_: Any,
-    ) -> Mapping[str, Any]:
-        """Estimate sinusoid frequencies from the signal via MUSIC and return a parameter mapping.
+    ) -> SpectrumPayload:
+        """Estimate sinusoid frequencies from the signal via MUSIC.
 
         Args:
             signal: Signal payload to estimate frequencies from.
@@ -71,7 +72,8 @@ class MUSICEstimator(Knot):
             frequency_grid_size: Number of frequency grid points in the pseudo-spectrum (positive integer).
 
         Returns:
-            Mapping containing ``pseudospectrum``, ``frequencies_hz``, and ``num_sinusoids``.
+            SpectrumPayload whose ``data`` is the MUSIC pseudo-spectrum evaluated over
+            ``frequency_grid_size`` points spanning ``[0, sample_rate_hz / 2]`` per channel.
 
         Raises:
             ValueError: If signal_subspace_dim or frequency_grid_size are not positive integers.
@@ -80,20 +82,30 @@ class MUSICEstimator(Knot):
             raise ValueError("MUSICEstimator: signal_subspace_dim must be a positive integer")
         if not isinstance(frequency_grid_size, int) or frequency_grid_size <= 0:
             raise ValueError("MUSICEstimator: frequency_grid_size must be a positive integer")
-        signal_array = signal.data[0] if signal.data.ndim > 1 else signal.data
         rate = signal.frame.sample_rate_hz
-        pseudo, freqs = await asyncio.to_thread(
-            MUSICEstimator._music_pseudospectrum,
-            signal_array,
-            signal_subspace_dim,
-            frequency_grid_size,
-            rate,
+        channels = np.atleast_2d(signal.data)
+        results = await asyncio.gather(
+            *(
+                asyncio.to_thread(
+                    MUSICEstimator._music_pseudospectrum,
+                    channel,
+                    signal_subspace_dim,
+                    frequency_grid_size,
+                    rate,
+                )
+                for channel in channels
+            )
         )
-        return {
-            "pseudospectrum": pseudo,
-            "frequencies_hz": freqs,
-            "num_sinusoids": signal_subspace_dim,
-        }
+        pseudospectra = np.asarray([pseudo for pseudo, _ in results])
+        resolution = (rate / 2.0) / (frequency_grid_size - 1) if frequency_grid_size > 1 else 0.0
+        return SpectrumPayload(
+            metadata=SpectrumFrame(
+                signal_id=f"{signal.frame.signal_id}:music-pseudospectrum",
+                frequency_bins=frequency_grid_size,
+                frequency_resolution_hz=resolution,
+            ),
+            data=pseudospectra,
+        )
 
     @staticmethod
     def _music_pseudospectrum(

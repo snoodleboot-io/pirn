@@ -9,7 +9,8 @@ Algorithm:
        b. Compute the Jacobian F_k = ∂f/∂x at x̂(k-1|k-1).
        c. Update: compute the Kalman gain K_k from Jacobian H_k = ∂h/∂x.
        d. Correct the state and covariance estimates.
-    5. Return a SignalPayload of filtered state estimates.
+    5. Repeat independently for each channel and return a SignalPayload of
+       filtered state estimates.
 
 Math:
     EKF predict step:
@@ -34,7 +35,6 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -82,23 +82,22 @@ class ExtendedKalmanFilter(Knot):
             raise ValueError("ExtendedKalmanFilter: state_dim must be a positive integer")
         if not isinstance(observation_dim, int) or observation_dim <= 0:
             raise ValueError("ExtendedKalmanFilter: observation_dim must be a positive integer")
-        signal_array = signal.data[0] if signal.data.ndim > 1 else signal.data
         process_noise = 1e-3
         measurement_noise = 1e-1
-        filtered = await asyncio.to_thread(
-            ExtendedKalmanFilter._ekf,
-            signal_array.astype(float),
-            process_noise,
-            measurement_noise,
-            state_dim,
+        channels = np.atleast_2d(signal.data).astype(float)
+        filtered = await asyncio.gather(
+            *(
+                asyncio.to_thread(
+                    ExtendedKalmanFilter._ekf,
+                    channel,
+                    process_noise,
+                    measurement_noise,
+                    state_dim,
+                )
+                for channel in channels
+            )
         )
-        frame = SignalFrame(
-            signal_id=f"{signal.frame.signal_id}:ekf",
-            channel_count=1,
-            sample_rate_hz=signal.frame.sample_rate_hz,
-            samples_per_channel=len(filtered),
-        )
-        return SignalPayload(metadata=frame, data=filtered)
+        return signal.derive("ekf", np.stack(filtered, axis=0))
 
     @staticmethod
     def _ekf(

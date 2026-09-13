@@ -8,7 +8,8 @@ Algorithm:
     4. Propagate sigma points through the nonlinear state transition function f(x).
     5. Compute the predicted mean and covariance from the propagated sigma points.
     6. Apply the UKF update equations using the observation sigma points and Kalman gain.
-    7. Return a SignalPayload of UKF-filtered state estimates.
+    7. Repeat independently for each channel and return a SignalPayload of
+       UKF-filtered state estimates.
 
 Math:
     Sigma points:
@@ -34,7 +35,6 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -101,26 +101,25 @@ class UnscentedKalmanFilter(Knot):
             raise TypeError("UnscentedKalmanFilter: beta must be a real number")
         if not isinstance(kappa, (int, float)):
             raise TypeError("UnscentedKalmanFilter: kappa must be a real number")
-        signal_array = signal.data[0] if signal.data.ndim > 1 else signal.data
         process_noise = 1e-3
         measurement_noise = 1e-1
-        filtered = await asyncio.to_thread(
-            UnscentedKalmanFilter._ukf,
-            signal_array.astype(float),
-            process_noise,
-            measurement_noise,
-            state_dim,
-            alpha,
-            beta,
-            kappa,
+        channels = np.atleast_2d(signal.data).astype(float)
+        filtered = await asyncio.gather(
+            *(
+                asyncio.to_thread(
+                    UnscentedKalmanFilter._ukf,
+                    channel,
+                    process_noise,
+                    measurement_noise,
+                    state_dim,
+                    alpha,
+                    beta,
+                    kappa,
+                )
+                for channel in channels
+            )
         )
-        frame = SignalFrame(
-            signal_id=f"{signal.frame.signal_id}:ukf",
-            channel_count=1,
-            sample_rate_hz=signal.frame.sample_rate_hz,
-            samples_per_channel=len(filtered),
-        )
-        return SignalPayload(metadata=frame, data=filtered)
+        return signal.derive("ukf", np.stack(filtered, axis=0))
 
     @staticmethod
     def _ukf(

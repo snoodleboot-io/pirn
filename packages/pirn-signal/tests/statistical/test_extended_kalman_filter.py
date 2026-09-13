@@ -54,3 +54,18 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         out = result.outputs["ekf"]
         assert isinstance(out, SignalPayload)
         assert out.frame.signal_id == "test:ekf"
+
+    async def test_multichannel_computes_per_channel(self) -> None:
+        with Tapestry():
+            k = ExtendedKalmanFilter.__new__(ExtendedKalmanFilter)
+            object.__setattr__(k, "_config", KnotConfig(id="ekf"))
+        multichannel = make_signal_payload(channel_count=3, samples_per_channel=256)
+        stub = np.zeros(256)
+        with patch(
+            "pirn_signal.statistical.extended_kalman_filter.ExtendedKalmanFilter._ekf",
+            return_value=stub,
+        ):
+            out = await k.process(signal=multichannel, state_dim=2, observation_dim=1)
+        assert isinstance(out, SignalPayload)
+        assert out.frame.channel_count == 3
+        assert out.data.shape == (3, 256)

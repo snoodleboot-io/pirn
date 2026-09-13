@@ -6,7 +6,9 @@ Algorithm:
     3. Compute the autocorrelation matrix R of order (sinusoid_count + 1).
     4. Find the minimum eigenvector of R (corresponding to the noise subspace).
     5. Solve for sinusoid frequencies as the roots of the minimum eigenvector polynomial.
-    6. Return a mapping with estimated frequencies and parameters.
+    6. Repeat independently for each channel and return a FeaturePayload with
+       the estimated frequencies per channel (NaN-padded when fewer than
+       sinusoid_count frequencies are found).
 
 Math:
     Minimum eigenvector decomposition:
@@ -26,13 +28,14 @@ References:
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Mapping
 from typing import Any
 
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.types.feature_frame import FeatureFrame
+from pirn_signal.types.feature_payload import FeaturePayload
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -59,31 +62,39 @@ class PisarenkoEstimator(Knot):
         signal: SignalPayload,
         sinusoid_count: int,
         **_: Any,
-    ) -> Mapping[str, Any]:
-        """Estimate sinusoid frequencies via Pisarenko harmonic decomposition and return a parameter mapping.
+    ) -> FeaturePayload:
+        """Estimate sinusoid frequencies via Pisarenko harmonic decomposition.
 
         Args:
             signal: Signal payload to estimate harmonic frequencies from.
             sinusoid_count: Number of sinusoidal components to identify (positive integer).
 
         Returns:
-            Mapping containing ``frequencies_hz``, ``sample_rate_hz``, and ``num_sinusoids``.
+            FeaturePayload with up to ``sinusoid_count`` estimated frequencies (Hz)
+            per channel, NaN-padded when fewer are found.
 
         Raises:
             ValueError: If sinusoid_count is not a positive integer.
         """
         if not isinstance(sinusoid_count, int) or sinusoid_count <= 0:
             raise ValueError("PisarenkoEstimator: sinusoid_count must be a positive integer")
-        signal_array = signal.data[0] if signal.data.ndim > 1 else signal.data
         rate = signal.frame.sample_rate_hz
-        freqs = await asyncio.to_thread(
-            PisarenkoEstimator._pisarenko, signal_array, sinusoid_count, rate
+        channels = np.atleast_2d(signal.data)
+        freqs = await asyncio.gather(
+            *(
+                asyncio.to_thread(PisarenkoEstimator._pisarenko, channel, sinusoid_count, rate)
+                for channel in channels
+            )
         )
-        return {
-            "frequencies_hz": freqs,
-            "sample_rate_hz": rate,
-            "num_sinusoids": sinusoid_count,
-        }
+        padded = [f + [float("nan")] * (sinusoid_count - len(f)) for f in freqs]
+        return FeaturePayload(
+            metadata=FeatureFrame(
+                signal_id=f"{signal.frame.signal_id}:pisarenko",
+                channel_count=channels.shape[0],
+                feature_names=tuple(f"freq_{i}" for i in range(sinusoid_count)),
+            ),
+            data=np.asarray(padded).reshape(channels.shape[0], sinusoid_count),
+        )
 
     @staticmethod
     def _pisarenko(
