@@ -23,7 +23,6 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from scipy import signal as ss
 
 from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.spectrum_frame import SpectrumFrame
@@ -66,6 +65,12 @@ class PeriodogramEstimator(Knot):
         Raises:
             ValueError: If window is not a non-empty string.
         """
+        try:
+            from scipy import signal as ss  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "PeriodogramEstimator requires 'scipy'. Install via pip install pirn-signal[signal]"
+            ) from exc
         if not isinstance(window, str) or not window:
             raise ValueError("PeriodogramEstimator: window must be a non-empty string")
 

@@ -27,7 +27,6 @@ import asyncio
 from typing import Any
 
 import numpy as np
-import pywt
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -37,6 +36,12 @@ from pirn_signal.types.wavelet_payload import WaveletPayload
 
 
 def _run_swt(data: np.ndarray, wavelet: str, level: int) -> list[np.ndarray]:
+    try:
+        import pywt  # type: ignore[import-not-found]
+    except ImportError as exc:
+        raise ImportError(
+            "SWTDecomposer requires 'pywavelets'. Install via pip install pirn-signal[signal]"
+        ) from exc
     pairs = pywt.swt(data, wavelet, level=level, axis=-1)
     return [c for pair in pairs for c in pair]
 

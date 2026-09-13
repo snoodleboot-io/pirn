@@ -32,7 +32,6 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from sklearn.decomposition import SparsePCA
 
 from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.source_frame import SourceFrame
@@ -40,6 +39,12 @@ from pirn_signal.types.source_payload import SourcePayload
 
 
 def _run_sparse_pca(data: np.ndarray, atom_count: int, alpha: float) -> np.ndarray:
+    try:
+        from sklearn.decomposition import SparsePCA  # type: ignore[import-not-found]
+    except ImportError as exc:
+        raise ImportError(
+            "SparseDecomposer requires 'scikit-learn'. Install via pip install pirn-signal[separation]"
+        ) from exc
     sparse_pca = SparsePCA(n_components=atom_count, alpha=alpha, random_state=0)  # type: ignore[call-overload]
     return sparse_pca.fit_transform(data.T).T
 

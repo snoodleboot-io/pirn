@@ -26,7 +26,6 @@ import numpy as np
 import numpy.typing as npt
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from scipy.signal import windows
 
 from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.spectrum_frame import SpectrumFrame
@@ -39,6 +38,12 @@ def _compute_multitaper(
     time_bandwidth: float,
     taper_count: int,
 ) -> np.ndarray:
+    try:
+        from scipy.signal import windows  # type: ignore[import-not-found]
+    except ImportError as exc:
+        raise ImportError(
+            "MultitaperEstimator requires 'scipy'. Install via pip install pirn-signal[signal]"
+        ) from exc
     tapers = windows.dpss(n, time_bandwidth, Kmax=taper_count)
     # Both operands are real — ``data`` is a real time series and ``dpss``
     # returns real tapers — so the product is real.  numpy's stubs widen

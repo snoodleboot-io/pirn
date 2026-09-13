@@ -28,7 +28,6 @@ import asyncio
 from typing import Any
 
 import numpy as np
-import pywt
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -38,6 +37,12 @@ from pirn_signal.types.wavelet_payload import WaveletPayload
 
 
 def _run_idwt(coeffs: list[np.ndarray], wavelet: str) -> np.ndarray:
+    try:
+        import pywt  # type: ignore[import-not-found]
+    except ImportError as exc:
+        raise ImportError(
+            "IDWTReconstructor requires 'pywavelets'. Install via pip install pirn-signal[signal]"
+        ) from exc
     return pywt.waverec(coeffs, wavelet, axis=-1)
 
 

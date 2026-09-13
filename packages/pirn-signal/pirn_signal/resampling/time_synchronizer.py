@@ -32,7 +32,6 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from scipy import signal as ss
 
 from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
@@ -43,6 +42,12 @@ def _synchronize(
     tgt_data: np.ndarray,
     max_lag: int,
 ) -> np.ndarray:
+    try:
+        from scipy import signal as ss  # type: ignore[import-not-found]
+    except ImportError as exc:
+        raise ImportError(
+            "TimeSynchronizer requires 'scipy'. Install via pip install pirn-signal[signal]"
+        ) from exc
     ref_ch = ref_data[0] if ref_data.ndim > 1 else ref_data
     tgt_ch = tgt_data[0] if tgt_data.ndim > 1 else tgt_data
     corr = ss.correlate(ref_ch, tgt_ch, mode="full")

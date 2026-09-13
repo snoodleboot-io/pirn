@@ -27,7 +27,6 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from scipy import signal as ss
 
 from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.spectrum_frame import SpectrumFrame
@@ -70,6 +69,12 @@ class BartlettPSDEstimator(Knot):
         Raises:
             ValueError: If num_segments is not a positive integer.
         """
+        try:
+            from scipy import signal as ss  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "BartlettPSDEstimator requires 'scipy'. Install via pip install pirn-signal[signal]"
+            ) from exc
         if not isinstance(num_segments, int) or num_segments <= 0:
             raise ValueError("BartlettPSDEstimator: num_segments must be a positive integer")
 

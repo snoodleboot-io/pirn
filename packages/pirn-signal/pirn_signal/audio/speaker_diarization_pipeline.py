@@ -25,11 +25,9 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-import librosa
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from sklearn.cluster import KMeans
 
 from pirn_signal.types.signal_payload import SignalPayload
 
@@ -42,6 +40,18 @@ def _diarize(
     sr: int,
     num_speakers: int,
 ) -> dict[str, Any]:
+    try:
+        import librosa  # type: ignore[import-not-found]
+    except ImportError as exc:
+        raise ImportError(
+            "SpeakerDiarizationPipeline requires 'librosa'. Install via pip install pirn-signal[signal]"
+        ) from exc
+    try:
+        from sklearn.cluster import KMeans  # type: ignore[import-not-found]
+    except ImportError as exc:
+        raise ImportError(
+            "SpeakerDiarizationPipeline requires 'scikit-learn'. Install via pip install pirn-signal[separation]"
+        ) from exc
     mono = data[0] if data.ndim > 1 else data
     mfcc = librosa.feature.mfcc(y=mono, sr=sr, n_mfcc=_mfcc_n, hop_length=_mfcc_hop)
     features = mfcc.T

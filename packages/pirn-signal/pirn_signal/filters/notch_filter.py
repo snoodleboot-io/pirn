@@ -32,7 +32,6 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from scipy import signal as ss
 
 from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
@@ -78,6 +77,12 @@ class NotchFilter(Knot):
         Raises:
             ValueError: If notch_hz or quality_factor are not positive.
         """
+        try:
+            from scipy import signal as ss  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "NotchFilter requires 'scipy'. Install via pip install pirn-signal[signal]"
+            ) from exc
         if not isinstance(notch_hz, (int, float)) or notch_hz <= 0:
             raise ValueError("NotchFilter: notch_hz must be positive")
         if not isinstance(quality_factor, (int, float)) or quality_factor <= 0:

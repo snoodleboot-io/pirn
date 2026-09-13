@@ -30,7 +30,6 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from sklearn.decomposition import DictionaryLearning
 
 from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.source_frame import SourceFrame
@@ -40,6 +39,12 @@ from pirn_signal.types.source_payload import SourcePayload
 def _run_dictionary_learning(
     data: np.ndarray, atom_count: int, sparsity_target: int, max_iterations: int
 ) -> np.ndarray:
+    try:
+        from sklearn.decomposition import DictionaryLearning  # type: ignore[import-not-found]
+    except ImportError as exc:
+        raise ImportError(
+            "DictionaryLearner requires 'scikit-learn'. Install via pip install pirn-signal[separation]"
+        ) from exc
     dl = DictionaryLearning(  # type: ignore[call-overload]
         n_components=atom_count,
         alpha=int(sparsity_target),  # stubs expect int

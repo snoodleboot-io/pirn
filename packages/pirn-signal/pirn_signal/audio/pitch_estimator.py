@@ -32,7 +32,6 @@ import asyncio
 from collections.abc import Mapping
 from typing import Any
 
-import librosa
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -41,10 +40,22 @@ from pirn_signal.types.signal_payload import SignalPayload
 
 
 def _estimate_pitch_yin(mono: np.ndarray, sr: int, fmin: float, fmax: float) -> np.ndarray:
+    try:
+        import librosa  # type: ignore[import-not-found]
+    except ImportError as exc:
+        raise ImportError(
+            "PitchEstimator requires 'librosa'. Install via pip install pirn-signal[signal]"
+        ) from exc
     return librosa.yin(mono, fmin=fmin, fmax=fmax, sr=sr)
 
 
 def _estimate_pitch_pyin(mono: np.ndarray, sr: int, fmin: float, fmax: float) -> np.ndarray:
+    try:
+        import librosa  # type: ignore[import-not-found]
+    except ImportError as exc:
+        raise ImportError(
+            "PitchEstimator requires 'librosa'. Install via pip install pirn-signal[signal]"
+        ) from exc
     f0, _voiced_flag, _voiced_probs = librosa.pyin(mono, fmin=fmin, fmax=fmax, sr=sr)
     return np.nan_to_num(f0)
 
@@ -52,6 +63,12 @@ def _estimate_pitch_pyin(mono: np.ndarray, sr: int, fmin: float, fmax: float) ->
 def _estimate_pitch_autocorrelation(
     mono: np.ndarray, sr: int, fmin: float, fmax: float
 ) -> np.ndarray:
+    try:
+        import librosa  # type: ignore[import-not-found]
+    except ImportError as exc:
+        raise ImportError(
+            "PitchEstimator requires 'librosa'. Install via pip install pirn-signal[signal]"
+        ) from exc
     frame_size = 2048
     hop = 512
     frames = librosa.util.frame(mono, frame_length=frame_size, hop_length=hop)

@@ -28,7 +28,6 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from scipy.ndimage import median_filter
 
 from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
@@ -36,6 +35,12 @@ from pirn_signal.types.signal_payload import SignalPayload
 
 def _apply_median_filter(data: np.ndarray, kernel_size: int) -> np.ndarray:
     """Apply scipy.ndimage.median_filter with size matched to data shape."""
+    try:
+        from scipy.ndimage import median_filter  # type: ignore[import-not-found]
+    except ImportError as exc:
+        raise ImportError(
+            "MedianFilter requires 'scipy'. Install via pip install pirn-signal[signal]"
+        ) from exc
     if data.ndim == 1:
         return median_filter(data, size=kernel_size)
     return median_filter(data, size=(1, kernel_size))

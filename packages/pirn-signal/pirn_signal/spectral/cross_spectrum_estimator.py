@@ -27,7 +27,6 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from scipy import signal as ss
 
 from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.spectrum_frame import SpectrumFrame
@@ -74,6 +73,12 @@ class CrossSpectrumEstimator(Knot):
         Raises:
             ValueError: If segment_length is invalid or signals have different sample rates.
         """
+        try:
+            from scipy import signal as ss  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "CrossSpectrumEstimator requires 'scipy'. Install via pip install pirn-signal[signal]"
+            ) from exc
         if not isinstance(segment_length, int) or segment_length <= 0:
             raise ValueError("CrossSpectrumEstimator: segment_length must be a positive integer")
         if signal_a.frame.sample_rate_hz != signal_b.frame.sample_rate_hz:

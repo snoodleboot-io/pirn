@@ -34,7 +34,6 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from PyEMD import EEMD
 
 from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.wavelet_frame import WaveletFrame
@@ -42,6 +41,12 @@ from pirn_signal.types.wavelet_payload import WaveletPayload
 
 
 def _eemd_1d(channel: np.ndarray, trials: int, noise_width: float, max_imf: int) -> np.ndarray:
+    try:
+        from PyEMD import EEMD  # type: ignore[import-not-found]
+    except ImportError as exc:
+        raise ImportError(
+            "EEMDDecomposer requires 'EMD-signal'. Install via pip install pirn-signal[emd]"
+        ) from exc
     eemd = EEMD(trials=trials, noise_width=noise_width)
     return eemd.eemd(channel, max_imf=max_imf)
 

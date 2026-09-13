@@ -26,7 +26,6 @@ import asyncio
 from collections.abc import Mapping
 from typing import Any, ClassVar
 
-import librosa
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -37,6 +36,12 @@ from pirn_signal.types.signal_payload import SignalPayload
 def _compute_mir_features(
     mono: np.ndarray, sr: int, feature_set: tuple[str, ...]
 ) -> dict[str, Any]:
+    try:
+        import librosa  # type: ignore[import-not-found]
+    except ImportError as exc:
+        raise ImportError(
+            "MusicInformationRetriever requires 'librosa'. Install via pip install pirn-signal[signal]"
+        ) from exc
     result: dict[str, Any] = {}
 
     if "chroma" in feature_set:

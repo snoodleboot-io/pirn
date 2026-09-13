@@ -28,7 +28,6 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-import librosa
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -38,6 +37,12 @@ from pirn_signal.types.signal_payload import SignalPayload
 
 
 def _resample(data: np.ndarray, orig_sr: int, target_sr: int, res_type: str) -> np.ndarray:
+    try:
+        import librosa  # type: ignore[import-not-found]
+    except ImportError as exc:
+        raise ImportError(
+            "AudioResampler requires 'librosa'. Install via pip install pirn-signal[signal]"
+        ) from exc
     if data.ndim == 1:
         return librosa.resample(data, orig_sr=orig_sr, target_sr=target_sr, res_type=res_type)
     return np.stack(

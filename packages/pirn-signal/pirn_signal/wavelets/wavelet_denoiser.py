@@ -34,7 +34,6 @@ import asyncio
 from typing import Any
 
 import numpy as np
-import pywt
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -43,6 +42,12 @@ from pirn_signal.types.signal_payload import SignalPayload
 
 
 def _run_denoising(data: np.ndarray, wavelet: str, level: int, threshold_mode: str) -> np.ndarray:
+    try:
+        import pywt  # type: ignore[import-not-found]
+    except ImportError as exc:
+        raise ImportError(
+            "WaveletDenoiser requires 'pywavelets'. Install via pip install pirn-signal[signal]"
+        ) from exc
     coeffs = pywt.wavedec(data, wavelet, level=level, axis=-1)
     finest_detail = coeffs[-1]
     sigma = np.median(np.abs(finest_detail)) / 0.6745

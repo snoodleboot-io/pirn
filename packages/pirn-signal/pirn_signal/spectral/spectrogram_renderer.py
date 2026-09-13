@@ -24,7 +24,6 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from scipy import signal as ss
 
 from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.spectrum_frame import SpectrumFrame
@@ -77,6 +76,12 @@ class SpectrogramRenderer(Knot):
         Raises:
             ValueError: If window_length or scaling are invalid.
         """
+        try:
+            from scipy import signal as ss  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "SpectrogramRenderer requires 'scipy'. Install via pip install pirn-signal[signal]"
+            ) from exc
         if not isinstance(window_length, int) or window_length <= 0:
             raise ValueError("SpectrogramRenderer: window_length must be a positive integer")
         if scaling not in self._valid_scalings:

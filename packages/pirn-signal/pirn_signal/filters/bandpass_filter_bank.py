@@ -30,7 +30,6 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from scipy import signal as ss
 
 from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
@@ -40,6 +39,12 @@ async def _filter_band(
     data: np.ndarray, low_hz: float, high_hz: float, order: int, fs: float
 ) -> np.ndarray:
     """Design and apply a single bandpass filter, returning the filtered data."""
+    try:
+        from scipy import signal as ss  # type: ignore[import-not-found]
+    except ImportError as exc:
+        raise ImportError(
+            "BandpassFilterBank requires 'scipy'. Install via pip install pirn-signal[signal]"
+        ) from exc
     sos = await asyncio.to_thread(
         ss.butter, order, [low_hz, high_hz], btype="bandpass", fs=fs, output="sos"
     )

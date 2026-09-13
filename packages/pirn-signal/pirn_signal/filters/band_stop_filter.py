@@ -28,7 +28,6 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from scipy import signal as ss
 
 from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
@@ -74,6 +73,12 @@ class BandStopFilter(Knot):
         Raises:
             ValueError: If cutoff frequencies are invalid.
         """
+        try:
+            from scipy import signal as ss  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "BandStopFilter requires 'scipy'. Install via pip install pirn-signal[signal]"
+            ) from exc
         if not isinstance(low_cutoff_hz, (int, float)) or low_cutoff_hz <= 0:
             raise ValueError("BandStopFilter: low_cutoff_hz must be positive")
         if not isinstance(high_cutoff_hz, (int, float)) or high_cutoff_hz <= 0:

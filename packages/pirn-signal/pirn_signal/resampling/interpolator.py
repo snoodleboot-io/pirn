@@ -30,13 +30,18 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from scipy.interpolate import interp1d
 
 from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
 def _interpolate(data: np.ndarray, src_rate: float, tgt_rate: float, kind: str) -> np.ndarray:
+    try:
+        from scipy.interpolate import interp1d  # type: ignore[import-not-found]
+    except ImportError as exc:
+        raise ImportError(
+            "Interpolator requires 'scipy'. Install via pip install pirn-signal[signal]"
+        ) from exc
     n_in = data.shape[-1]
     n_out = round(n_in * tgt_rate / src_rate)
     t_in = np.arange(n_in) / src_rate

@@ -33,7 +33,6 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from scipy import signal as ss
 
 from pirn_signal.types.signal_payload import SignalPayload
 
@@ -70,6 +69,12 @@ def _burg(signal_array: np.ndarray, order: int) -> tuple[np.ndarray, float]:
 
 def _compute_ar(signal_array: np.ndarray, order: int, method: str) -> tuple[list[float], float]:
     """Dispatch AR estimation to the selected method and return (coefficients, variance)."""
+    try:
+        from scipy import signal as ss  # type: ignore[import-not-found]
+    except ImportError as exc:
+        raise ImportError(
+            "ARModelEstimator requires 'scipy'. Install via pip install pirn-signal[signal]"
+        ) from exc
     if method == "burg":
         coeffs, var = _burg(signal_array, order)
         return list(float(c) for c in coeffs), var

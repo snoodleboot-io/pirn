@@ -31,7 +31,6 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from scipy import signal as ss
 
 from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
@@ -79,6 +78,12 @@ class IIRFilter(Knot):
             ValueError: If numerator or denominator are invalid.
             TypeError: If any coefficient is not a real number.
         """
+        try:
+            from scipy import signal as ss  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "IIRFilter requires 'scipy'. Install via pip install pirn-signal[signal]"
+            ) from exc
         numerator_coeffs = tuple(numerator)
         denominator_coeffs = tuple(denominator)
         if not numerator_coeffs:

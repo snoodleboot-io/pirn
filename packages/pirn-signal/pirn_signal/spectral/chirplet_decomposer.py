@@ -26,7 +26,6 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from scipy import signal as ss
 
 from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.spectrum_frame import SpectrumFrame
@@ -38,6 +37,12 @@ def _compute_chirplets(
     sample_rate: float,
     chirplet_count: int,
 ) -> np.ndarray:
+    try:
+        from scipy import signal as ss  # type: ignore[import-not-found]
+    except ImportError as exc:
+        raise ImportError(
+            "ChirpletDecomposer requires 'scipy'. Install via pip install pirn-signal[signal]"
+        ) from exc
     sample_count = data.shape[-1]
     time_axis = (
         np.arange(sample_count) / sample_rate

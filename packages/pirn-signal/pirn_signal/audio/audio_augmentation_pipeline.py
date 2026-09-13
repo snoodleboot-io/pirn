@@ -27,7 +27,6 @@ from __future__ import annotations
 import asyncio
 from typing import Any, ClassVar
 
-import librosa
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -39,6 +38,12 @@ from pirn_signal.types.signal_payload import SignalPayload
 def _apply_augmentations(
     data: np.ndarray, sr: int, augmentations: tuple[str, ...], seed: int
 ) -> np.ndarray:
+    try:
+        import librosa  # type: ignore[import-not-found]
+    except ImportError as exc:
+        raise ImportError(
+            "AudioAugmentationPipeline requires 'librosa'. Install via pip install pirn-signal[signal]"
+        ) from exc
     rng = np.random.default_rng(seed)
     mono = data[0] if data.ndim > 1 else data
     result = mono.copy().astype(np.float32)

@@ -28,7 +28,6 @@ import asyncio
 from typing import Any
 
 import numpy as np
-import pywt
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -38,6 +37,12 @@ from pirn_signal.types.wavelet_payload import WaveletPayload
 
 
 def _run_dwpt(data: np.ndarray, wavelet_name: str, level: int) -> list[np.ndarray]:
+    try:
+        import pywt  # type: ignore[import-not-found]
+    except ImportError as exc:
+        raise ImportError(
+            "DWPTDecomposer requires 'pywavelets'. Install via pip install pirn-signal[signal]"
+        ) from exc
     wp = pywt.WaveletPacket(data, wavelet_name, maxlevel=level)
     return [node.data for node in wp.get_level(level, "freq")]
 

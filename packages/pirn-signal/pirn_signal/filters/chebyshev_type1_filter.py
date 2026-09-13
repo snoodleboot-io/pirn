@@ -28,7 +28,6 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from scipy import signal as ss
 
 from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
@@ -78,6 +77,12 @@ class ChebyshevType1Filter(Knot):
         Raises:
             ValueError: If order, passband_ripple_db, or cutoff_hz are invalid.
         """
+        try:
+            from scipy import signal as ss  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "ChebyshevType1Filter requires 'scipy'. Install via pip install pirn-signal[signal]"
+            ) from exc
         if not isinstance(order, int) or order <= 0:
             raise ValueError("ChebyshevType1Filter: order must be a positive integer")
         if not isinstance(passband_ripple_db, (int, float)) or passband_ripple_db <= 0:

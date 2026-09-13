@@ -32,7 +32,6 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from sklearn.decomposition import NMF
 
 from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.source_frame import SourceFrame
@@ -40,6 +39,12 @@ from pirn_signal.types.source_payload import SourcePayload
 
 
 def _run_nmf(data: np.ndarray, component_count: int, max_iterations: int) -> np.ndarray:
+    try:
+        from sklearn.decomposition import NMF  # type: ignore[import-not-found]
+    except ImportError as exc:
+        raise ImportError(
+            "NMFDecomposer requires 'scikit-learn'. Install via pip install pirn-signal[separation]"
+        ) from exc
     abs_data = np.abs(data.T)
     nmf = NMF(n_components=component_count, max_iter=max_iterations)  # type: ignore[call-overload]
     return nmf.fit_transform(abs_data).T

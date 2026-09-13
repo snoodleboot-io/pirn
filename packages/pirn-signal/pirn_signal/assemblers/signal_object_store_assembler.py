@@ -23,7 +23,6 @@ import io
 from datetime import UTC, datetime
 from typing import Any
 
-import librosa
 import numpy as np
 from pirn.core.assembler import Assembler
 from pirn.core.knot import Knot
@@ -34,6 +33,12 @@ from pirn_signal.types.signal_payload import SignalPayload
 
 
 def _decode(body: bytes, signal_id: str) -> SignalPayload:
+    try:
+        import librosa  # type: ignore[import-not-found]
+    except ImportError as exc:
+        raise ImportError(
+            "SignalObjectStoreAssembler requires 'librosa'. Install via pip install pirn-signal[signal]"
+        ) from exc
     samples, sample_rate = librosa.load(io.BytesIO(body), sr=None, mono=False)
     if samples.ndim == 1:
         samples = samples[np.newaxis, :]

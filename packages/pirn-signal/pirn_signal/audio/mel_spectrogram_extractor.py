@@ -32,7 +32,6 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-import librosa
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -43,6 +42,12 @@ from pirn_signal.types.signal_payload import SignalPayload
 def _compute_mel_spectrogram(
     mono: np.ndarray, sr: int, n_mels: int, n_fft: int, hop_length: int
 ) -> np.ndarray:
+    try:
+        import librosa  # type: ignore[import-not-found]
+    except ImportError as exc:
+        raise ImportError(
+            "MelSpectrogramExtractor requires 'librosa'. Install via pip install pirn-signal[signal]"
+        ) from exc
     return librosa.feature.melspectrogram(
         y=mono, sr=sr, n_mels=n_mels, n_fft=n_fft, hop_length=hop_length
     )

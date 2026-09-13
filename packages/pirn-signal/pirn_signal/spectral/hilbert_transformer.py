@@ -27,7 +27,6 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from scipy import signal as ss
 
 from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.spectrum_frame import SpectrumFrame
@@ -55,6 +54,12 @@ class HilbertTransformer(Knot):
         Returns:
             SpectrumPayload with complex analytic signal and frequency_bins = samples_per_channel.
         """
+        try:
+            from scipy import signal as ss  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "HilbertTransformer requires 'scipy'. Install via pip install pirn-signal[signal]"
+            ) from exc
         analytic: np.ndarray = await asyncio.to_thread(ss.hilbert, signal.data, axis=-1)  # type: ignore[assignment]
         freq_bins = signal.frame.samples_per_channel
         freq_res = (

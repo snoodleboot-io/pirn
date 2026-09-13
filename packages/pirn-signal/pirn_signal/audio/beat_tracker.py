@@ -32,7 +32,6 @@ import asyncio
 from collections.abc import Mapping
 from typing import Any
 
-import librosa
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -41,6 +40,12 @@ from pirn_signal.types.signal_payload import SignalPayload
 
 
 def _track_beats(mono: np.ndarray, sr: int, hop_length: int) -> tuple[float, np.ndarray]:
+    try:
+        import librosa  # type: ignore[import-not-found]
+    except ImportError as exc:
+        raise ImportError(
+            "BeatTracker requires 'librosa'. Install via pip install pirn-signal[signal]"
+        ) from exc
     tempo, beat_frames = librosa.beat.beat_track(y=mono, sr=sr, hop_length=hop_length)
     return float(np.atleast_1d(tempo)[0]), beat_frames
 

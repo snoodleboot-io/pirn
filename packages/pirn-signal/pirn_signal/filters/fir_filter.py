@@ -28,7 +28,6 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from scipy import signal as ss
 
 from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
@@ -71,6 +70,12 @@ class FIRFilter(Knot):
             ValueError: If coefficients is empty.
             TypeError: If any coefficient is not a real number.
         """
+        try:
+            from scipy import signal as ss  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "FIRFilter requires 'scipy'. Install via pip install pirn-signal[signal]"
+            ) from exc
         coeffs = tuple(coefficients)
         if not coeffs:
             raise ValueError("FIRFilter: coefficients must be non-empty")

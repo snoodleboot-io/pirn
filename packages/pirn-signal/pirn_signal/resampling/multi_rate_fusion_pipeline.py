@@ -30,7 +30,6 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from scipy import signal as ss
 
 from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
@@ -41,6 +40,12 @@ def _resample_to_rate(
     src_rate: float,
     tgt_rate: float,
 ) -> np.ndarray:
+    try:
+        from scipy import signal as ss  # type: ignore[import-not-found]
+    except ImportError as exc:
+        raise ImportError(
+            "MultiRateFusionPipeline requires 'scipy'. Install via pip install pirn-signal[signal]"
+        ) from exc
     common = gcd(int(tgt_rate), int(src_rate))
     up = int(tgt_rate) // common
     down = int(src_rate) // common
