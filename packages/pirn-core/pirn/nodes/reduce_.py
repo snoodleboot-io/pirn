@@ -112,55 +112,56 @@ class Reduce(Knot):
         ]
         n_required = len(required)
         if n_required == 1:
-            self._mutable_form = "whole"
+            form = "whole"
         elif n_required == 2:
-            self._mutable_form = "pairwise"
+            form = "pairwise"
             if initial is Reduce._unset:
                 raise TypeError("Reduce: pairwise combine (2 required args) requires 'initial'")
         else:
             raise TypeError(f"Reduce: 'combine' must take 1 or 2 required args, got {n_required}")
 
-        self._mutable_combine = combine
-        self._mutable_combine_is_async = is_async_callable(combine)
-        self._mutable_initial = initial
-
-        self._mutable_config = _config
-        self._mutable_parents = {"of": of}
-        self._mutable_config_values = {}
-        self._mutable_input_adapters = {}
-        self._mutable_output_adapter = None
-        self._mutable_mapped_inputs: dict = {}
-        self._mutable_fan_out_extra: dict[str, Any] = {}
-
-        from pirn.tapestry import _current_tapestry
-
-        target = tapestry or _current_tapestry.get(None)
-        if target is not None:
-            target.register(self)
+        self._bootstrap(
+            config=_config,
+            parents={"of": of},
+            config_values={"combine": combine, "form": form, "initial": initial},
+            tapestry=tapestry,
+        )
 
         self._frozen = True
 
-    async def process(self, of: list[Any], **_: Any) -> Any:  # type: ignore[override]
+    async def process(
+        self,
+        of: list[Any],
+        combine: Callable[..., Any],
+        form: str,
+        initial: Any,
+        **_: Any,
+    ) -> Any:  # type: ignore[override]
         """Fold the input list into a single value using the configured combine callable.
 
         Args:
             of: List of items produced by the parent knot to reduce.
+            combine: The fold callable, in whole-list or pairwise form
+                (selected by ``form``).
+            form: Either ``"whole"`` (combine receives the entire list) or
+                ``"pairwise"`` (combine is folded across the list).
+            initial: Seed accumulator for the pairwise form; unused for the
+                whole-list form.
 
         Returns:
             Single value resulting from applying combine to the list, either whole-list or pairwise.
         """
-        combine = self._mutable_combine
         # An async combine was previously invoked without awaiting in both
         # forms, so the node emitted a coroutine object as its output instead
         # of the reduced value — silently, since a coroutine is a perfectly
         # good `Any`. See PIR-768.
-        is_async = self._mutable_combine_is_async
-        if self._mutable_form == "whole":
+        is_async = is_async_callable(combine)
+        if form == "whole":
             result = combine(of)
             return await result if is_async else result
         # Pairwise.  Each step is awaited, so the accumulator stays a value
         # rather than becoming a coroutine fed into the next iteration.
-        acc = self._mutable_initial
+        acc = initial
         for item in of:
             result = combine(acc, item)
             acc = await result if is_async else result

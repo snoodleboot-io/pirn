@@ -70,7 +70,7 @@ class TestBranchConstruction(unittest.TestCase):
                 branches=("a", "b"),
                 _config=KnotConfig(id="br"),
             )
-        self.assertEqual(branch.branch_names, ("a", "b"))
+        self.assertEqual(branch.branch_names(), ("a", "b"))
 
     def test_getitem_returns_branch_output(self) -> None:
         with Tapestry():

@@ -100,23 +100,11 @@ class Parameter(Knot):
 
         # Stash all _mutable_ state BEFORE the Knot.__init__ freeze.  We
         # don't call Knot.__init__ because its kwargs introspection would
-        # refuse our parameters; instead we set the same fields it would.
-        self._mutable_config = config
-        self._mutable_parents = {}
-        self._mutable_config_values = {}
-        self._mutable_input_adapters = {}
-        self._mutable_output_adapter = adapter
-        self._mutable_mapped_inputs: dict[str, type] = {}
-        self._mutable_fan_out_extra: dict[str, Any] = {}
+        # refuse our parameters; instead we go through the shared
+        # _bootstrap() helper that stashes the same fields and self-registers.
         self._mutable_spec = spec
         self._mutable_value: Any = _Unset
-
-        # Self-register.
-        from pirn.tapestry import _current_tapestry
-
-        target = tapestry or _current_tapestry.get(None)
-        if target is not None:
-            target.register(self)
+        self._bootstrap(config=config, parents={}, output_adapter=adapter, tapestry=tapestry)
 
         self._frozen = True
 
@@ -148,7 +136,9 @@ class Parameter(Knot):
 
     def bind(self, supplied: Any) -> Any:
         """Validate a supplied value; called by the engine before the run."""
-        return self._mutable_output_adapter.validate_python(supplied)
+        adapter = self._mutable_output_adapter
+        assert adapter is not None, "Parameter always constructs its output_adapter"
+        return adapter.validate_python(supplied)
 
     def bind_value(self, value: Any) -> None:
         """Set the bound value on *this* instance.

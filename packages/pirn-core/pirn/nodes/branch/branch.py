@@ -15,6 +15,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.exceptions.invalid_branch_error import InvalidBranchError
 from pirn.nodes.branch.branch_output import BranchOutput
 
 
@@ -36,7 +37,7 @@ class Branch(Knot):
            output to ``Branch.process()``.
         3. Selection — ``process()`` calls ``selector(input)`` to obtain the
            chosen branch name.  If the returned name is not in
-           ``_mutable_branch_names``, a ``RuntimeError`` is raised.
+           ``branch_names``, an ``InvalidBranchError`` is raised.
         4. Branch output dispatch — the engine calls each ``BranchOutput.process``
            with the ``Branch``'s output (the selected name).  Each
            ``BranchOutput`` compares its own name to the selected name:
@@ -67,23 +68,18 @@ class Branch(Knot):
         if _config is None:
             raise TypeError("Branch requires _config=KnotConfig(id=...)")
 
-        self._mutable_selector = selector
-        self._mutable_branch_names = branches
         self._mutable_execution_extra: dict[str, Any] = {}
-        self._mutable_fan_out_extra: dict[str, Any] = {}
 
-        self._mutable_config = _config
-        self._mutable_parents = {"input": input}
-        self._mutable_config_values = {}
-        self._mutable_input_adapters = {}
-        self._mutable_output_adapter = None
-        self._mutable_mapped_inputs: dict = {}
+        self._bootstrap(
+            config=_config,
+            parents={"input": input},
+            config_values={"selector": selector, "branch_names": branches},
+            tapestry=tapestry,
+        )
 
         from pirn.tapestry import _current_tapestry
 
         target = tapestry or _current_tapestry.get(None)
-        if target is not None:
-            target.register(self)
 
         self._mutable_outputs: dict[str, BranchOutput] = {}
         for name in branches:
@@ -106,9 +102,9 @@ class Branch(Knot):
                 f"available: {list(self._mutable_outputs)}"
             ) from exc
 
-    @property
     def branch_names(self) -> tuple[str, ...]:
-        return self._mutable_branch_names
+        """Return the declared branch names, in construction order."""
+        return self._mutable_config_values["branch_names"]
 
     def lineage_extra(self) -> dict[str, Any]:
         return {**super().lineage_extra(), **self._mutable_execution_extra}
@@ -121,22 +117,30 @@ class Branch(Knot):
             self._mutable_execution_extra = {"selected_branch": result.value}
         return result
 
-    async def process(self, input: Any, **_: Any) -> str:  # type: ignore[override]
+    async def process(
+        self,
+        input: Any,
+        selector: Callable[[Any], str],
+        branch_names: tuple[str, ...],
+        **_: Any,
+    ) -> str:  # type: ignore[override]
         """Apply the selector to the input value and return the name of the chosen branch.
 
         Args:
             input: Value produced by the upstream knot, forwarded unchanged to the selector.
+            selector: Callable that maps the input value to a branch name.
+            branch_names: The declared branch names the selector must choose among.
 
         Returns:
             Name of the branch selected by the selector callable.
 
         Raises:
-            RuntimeError: If the selector returns a name not in the declared branches tuple.
+            InvalidBranchError: If the selector returns a name not in the declared branches tuple.
         """
-        chosen = self._mutable_selector(input)
-        if chosen not in self._mutable_branch_names:
-            raise RuntimeError(
+        chosen = selector(input)
+        if chosen not in branch_names:
+            raise InvalidBranchError(
                 f"Branch {self.knot_id!r}: selector returned {chosen!r}, "
-                f"not in declared branches {self._mutable_branch_names!r}"
+                f"not in declared branches {branch_names!r}"
             )
         return chosen

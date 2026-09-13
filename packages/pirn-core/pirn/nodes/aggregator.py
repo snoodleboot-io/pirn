@@ -80,31 +80,18 @@ class Aggregator(Knot):
                     f"Aggregator: parent {name!r} must be a Knot, got {type(value).__name__}"
                 )
 
-        # Stash combine and the parent set on _mutable_ slots.  We bypass
-        # the standard Knot kwargs introspection because Aggregator's
-        # process() takes **kwargs — but we still want the parents to
-        # show up as parents on the knot, so we wire them manually.
+        # Stash combine on a _mutable_ slot.  We bypass the standard Knot
+        # kwargs introspection because Aggregator's process() takes
+        # **kwargs — but we still want the parents to show up as parents on
+        # the knot, so we wire them manually via _bootstrap.  ``combine``
+        # cannot be declared as a process() parameter (Rule 2's usual fix)
+        # because parent names are dynamic and could collide with it.
         self._mutable_combine = combine
         self._mutable_combine_is_async = is_async_callable(combine)
 
-        # Build the bare _mutable_ state ourselves (mirroring Knot.__init__
-        # post-validation) since we know parents are all Knots and there
-        # are no config values.
         if _config is None:
             raise TypeError("Aggregator requires _config=KnotConfig(id=...)")
-        self._mutable_config = _config
-        self._mutable_parents = dict(parents)
-        self._mutable_config_values = {}
-        self._mutable_input_adapters = {}
-        self._mutable_output_adapter = None
-        self._mutable_mapped_inputs: dict = {}
-        self._mutable_fan_out_extra: dict[str, Any] = {}
-
-        from pirn.tapestry import _current_tapestry
-
-        target = tapestry or _current_tapestry.get(None)
-        if target is not None:
-            target.register(self)
+        self._bootstrap(config=_config, parents=dict(parents), tapestry=tapestry)
 
         self._frozen = True
 

@@ -331,27 +331,79 @@ class Knot:
                         f"config value failed validation: {exc}"
                     ) from exc
 
-        # Stash everything.  All `_mutable_` to bypass the freeze guard.
-        self._mutable_config = config
-        self._mutable_parents = parents
-        self._mutable_config_values = config_values
-        self._mutable_input_adapters = input_adapters
-        self._mutable_output_adapter = output_adapter
-        self._mutable_mapped_inputs: dict[str, type] = mapped_inputs
-        # Populated by _fan_out when this knot executes a map operation;
-        # surfaced via lineage_extra() for lineage enrichment.
-        self._mutable_fan_out_extra: dict[str, Any] = {}
-
-        # Self-register with the active tapestry (if any) or with the
-        # explicitly passed one.  Done last so the knot is fully built
-        # before the tapestry sees it.
-        from pirn.tapestry import _current_tapestry
-
-        target_tapestry = explicit_tapestry or _current_tapestry.get(None)
-        if target_tapestry is not None:
-            target_tapestry.register(self)
+        # Stash everything and self-register with the active tapestry (if
+        # any) or with the explicitly passed one.  Done last so the knot is
+        # fully built before the tapestry sees it.
+        self._bootstrap(
+            config=config,
+            parents=parents,
+            config_values=config_values,
+            input_adapters=input_adapters,
+            output_adapter=output_adapter,
+            mapped_inputs=mapped_inputs,
+            tapestry=explicit_tapestry,
+        )
 
         self._frozen = True
+
+    # ------------------------------------------------------- bootstrap
+
+    def _bootstrap(
+        self,
+        *,
+        config: KnotConfig,
+        parents: Mapping[str, Knot],
+        config_values: Mapping[str, Any] | None = None,
+        input_adapters: Mapping[str, TypeAdapter] | None = None,
+        output_adapter: TypeAdapter | None = None,
+        mapped_inputs: Mapping[str, type] | None = None,
+        tapestry: Tapestry | None = None,
+    ) -> None:
+        """Stash the ``_mutable_`` slots and register with the tapestry.
+
+        Framework primitives that cannot go through the standard
+        ``Knot.__init__`` introspection (``Aggregator``, ``Reduce``, ``Gate``,
+        ``Branch``, ``BranchOutput``, ``Parameter``) construct their own
+        parent/config wiring by hand and previously duplicated the block that
+        stashes it onto ``_mutable_`` slots and self-registers with the
+        active tapestry. Six copies of that block drifted independently as
+        the slot set grew (``_mutable_fan_out_extra`` was added to some but
+        not all). This method is the one place that does it, so a new slot
+        or a change to registration order is written once.
+
+        Callers still set any additional ``_mutable_`` state of their own
+        (e.g. ``Gate``'s ``_mutable_predicate``) and must set
+        ``self._frozen = True`` themselves once construction is complete —
+        this method deliberately does not freeze, since some callers stash
+        further state after calling it.
+
+        Args:
+            config: The knot's framework configuration.
+            parents: Name to parent-knot mapping.
+            config_values: Name to constant-value mapping. Defaults to empty.
+            input_adapters: Name to ``TypeAdapter`` mapping for input
+                validation. Defaults to empty (no input validation).
+            output_adapter: ``TypeAdapter`` for output validation, or
+                ``None`` to skip it.
+            mapped_inputs: Name to marker-type mapping for fan-out (``Map``,
+                ``ZipMap``, ``DictMap``) inputs. Defaults to empty.
+            tapestry: Explicit tapestry to register with. When ``None``, the
+                active context-var tapestry is used, matching the standard
+                ``Knot.__init__`` self-registration behaviour.
+        """
+        self._mutable_config = config
+        self._mutable_parents = dict(parents)
+        self._mutable_config_values = dict(config_values) if config_values else {}
+        self._mutable_input_adapters = dict(input_adapters) if input_adapters else {}
+        self._mutable_output_adapter = output_adapter
+        self._mutable_mapped_inputs = dict(mapped_inputs) if mapped_inputs else {}
+        self._mutable_fan_out_extra: dict[str, Any] = {}
+
+        from pirn.tapestry import _current_tapestry
+
+        target_tapestry = tapestry or _current_tapestry.get(None)
+        if target_tapestry is not None:
+            target_tapestry.register(self)
 
     # ----------------------------------------------------------- lineage
 

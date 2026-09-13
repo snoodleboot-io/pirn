@@ -26,24 +26,13 @@ class BranchOutput(Knot):
         tapestry: Any = None,
     ) -> None:
         self._mutable_branch_name = branch_name
-        self._mutable_fan_out_extra: dict[str, Any] = {}
 
-        self._mutable_config = _config
         original_input = source.parents["input"]
-        self._mutable_parents = {
-            "chosen": source,
-            "passthrough": original_input,
-        }
-        self._mutable_config_values = {}
-        self._mutable_input_adapters = {}
-        self._mutable_output_adapter = None
-        self._mutable_mapped_inputs: dict = {}
-
-        from pirn.tapestry import _current_tapestry
-
-        target = tapestry or _current_tapestry.get(None)
-        if target is not None:
-            target.register(self)
+        self._bootstrap(
+            config=_config,
+            parents={"chosen": source, "passthrough": original_input},
+            tapestry=tapestry,
+        )
 
         self._frozen = True
 
