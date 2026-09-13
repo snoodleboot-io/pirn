@@ -193,14 +193,36 @@ class TestToolInvocationErrorHandling(unittest.IsolatedAsyncioTestCase):
         assert "s3cr3tp4ssw0rd" not in outcome.exception.message
         assert "s3cr3tp4ssw0rd" not in outcome.exception.traceback_text
 
-    async def test_rejects_a_non_tool(self) -> None:
-        with self.assertRaisesRegex(TypeError, "must be a Tool"):
+    async def test_rejects_a_non_tool_at_construction(self) -> None:
+        """Core's own config-value validation rejects a non-Tool at construction.
+
+        ``tool`` is never Knot-valued in this design (see the module
+        docstring), so core validates it eagerly as a config value the moment
+        the knot is built (PIR-856: Rule 3 moved ``ToolInvocation``'s own
+        ``isinstance`` guard into ``process()``; this is core's independent
+        pydantic-level check, not that guard).
+        """
+        with self.assertRaisesRegex(TypeError, "config value failed validation"):
             with Tapestry():
                 ToolInvocation(
                     tool="not a tool",  # type: ignore[arg-type]
                     call=_call(),
                     _config=KnotConfig(id="inv"),
                 )
+
+    async def test_rejects_a_non_tool_in_process(self) -> None:
+        """PIR-856 Rule 3: the ``tool`` guard now lives in ``process()``.
+
+        Exercised directly per the sanctioned remediation pattern (see
+        ``knot-remediation-process.md`` Step 11) since core's own
+        construction-time check (above) would otherwise always fire first for
+        a knot built through the normal constructor path with an invalid
+        literal.
+        """
+        with Tapestry():
+            knot = ToolInvocation(tool=_Echo(), call=_call(), _config=KnotConfig(id="inv"))
+        with self.assertRaisesRegex(TypeError, "must be a Tool"):
+            await knot.process(tool="not a tool", call=_call())  # type: ignore[arg-type]
 
     async def test_rejects_a_non_toolcall(self) -> None:
         """Core validates a literal config value at construction, not at run time."""
