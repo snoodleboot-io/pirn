@@ -87,7 +87,7 @@ class SqlSource(Source):
             raise TypeError("SqlSource: schema must be a DataSchema instance")
         resolved_uri = source_uri or f"sql://{type(pool).__name__}"
         rows_raw = await pool.fetch_all(query)
-        rows = tuple(_normalise_row(r) for r in rows_raw)
+        rows = tuple(self._normalise_row(r) for r in rows_raw)
         return DataBatch(
             rows=rows,
             schema=schema if schema is not None else DataSchema(),
@@ -95,14 +95,14 @@ class SqlSource(Source):
             fetched_at=datetime.now(UTC),
         )
 
-
-def _normalise_row(row: Any) -> dict[str, Any]:
-    if isinstance(row, dict):
-        return row
-    if hasattr(row, "_mapping"):
-        return dict(row._mapping)
-    if hasattr(row, "keys"):
-        return {k: row[k] for k in row.keys()}
-    if hasattr(row, "_fields"):
-        return row._asdict()
-    return dict(enumerate(row))  # type: ignore[arg-type]
+    @staticmethod
+    def _normalise_row(row: Any) -> dict[str, Any]:
+        if isinstance(row, dict):
+            return row
+        if hasattr(row, "_mapping"):
+            return dict(row._mapping)
+        if hasattr(row, "keys"):
+            return {k: row[k] for k in row.keys()}
+        if hasattr(row, "_fields"):
+            return row._asdict()
+        return dict(enumerate(row))  # type: ignore[arg-type]
