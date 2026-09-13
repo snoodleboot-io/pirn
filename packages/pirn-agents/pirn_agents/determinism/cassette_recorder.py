@@ -168,7 +168,7 @@ class CassetteRecorder:
     ) -> Any:
         """RECORD: run ``thunk`` as a single-knot Tapestry run and keep the value."""
         with Tapestry(history=self._history, data_store=self._data_store) as tapestry:
-            _ThunkSource(thunk=thunk, _config=KnotConfig(id=key))
+            _ThunkSource(_config=KnotConfig(id=key)).bind(thunk)
             run = await tapestry.run(RunRequest())
         value = run.outputs[key]
         sequence = sum(1 for entry in self._recorded if entry.key == key)
@@ -197,7 +197,7 @@ class CassetteRecorder:
         self._replay_cursor[key] = cursor + 1
         session = await ReplaySession.from_history(history=self._history, run_id=run_id)
         with Tapestry(history=self._history, data_store=self._data_store) as tapestry:
-            _ThunkSource(thunk=thunk, _config=KnotConfig(id=key))
+            _ThunkSource(_config=KnotConfig(id=key)).bind(thunk)
             run = await tapestry.run(RunRequest(), replay=session)
         return run.outputs[key]
 

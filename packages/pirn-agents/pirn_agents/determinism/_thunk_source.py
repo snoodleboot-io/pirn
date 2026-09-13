@@ -13,21 +13,28 @@ class _ThunkSource(Source):
     """Wraps an arbitrary async thunk so :class:`CassetteRecorder` can run or
     replay it as an ordinary knot.
 
-    The thunk is stashed as private mutable state, never passed through the
-    standard config-value path: a callable has no canonical content hash
-    (``InvocationIdentity`` treats it as ``unhashable``), so tracking it as a
-    literal constructor argument would make ``config_values_hash`` differ —
-    or worse, collapse to the shared "unhashable" marker — between the
-    recording call and every later replay of the same key, which is exactly
-    the shape ``ReplaySession`` refuses to trust (see
-    ``InvocationIdentity.is_comparable``). Structurally this knot always has
-    the same (empty) parent set and the same ``KnotConfig`` for a given key,
-    which is all replay actually needs to compare.
+    The thunk is bound via :meth:`bind` — after construction, not as an
+    ``__init__`` parameter — so the constructor stays the pure ``_config``
+    wiring Knot Design Rule 1 requires (agents-owned knots get no core-lane
+    exemption for framework-internal mutable state the way
+    ``pirn.nodes.gate.Gate``/``WithContinuation`` do). It could not be a
+    tracked config value either way: a callable has no canonical content hash
+    (``InvocationIdentity`` treats it as ``unhashable``), so ``config_values_hash``
+    would collapse to the shared "unhashable" marker for every instance,
+    which ``ReplaySession`` refuses to trust (see
+    ``InvocationIdentity.is_comparable``) — every replay would raise rather
+    than serve the recording. Structurally this knot always has the same
+    (empty) parent set and the same ``KnotConfig`` for a given key, which is
+    all replay actually needs to compare.
     """
 
-    def __init__(self, *, thunk: Callable[[], Awaitable[Any]], _config: KnotConfig) -> None:
+    def __init__(self, *, _config: KnotConfig) -> None:
         super().__init__(_config=_config)
+
+    def bind(self, thunk: Callable[[], Awaitable[Any]]) -> _ThunkSource:
+        """Attach ``thunk`` and return ``self``, for construction one-liners."""
         self._mutable_thunk = thunk
+        return self
 
     async def process(self, **_: Any) -> Any:
         return await self._mutable_thunk()
