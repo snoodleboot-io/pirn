@@ -11,7 +11,6 @@ reaches the canonical form.
 
 from __future__ import annotations
 
-import gc
 import json
 import re
 
@@ -22,6 +21,7 @@ from pirn.connectors.http_connector import HttpConnector
 from pirn.core.hashing import content_hash
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 from pirn.security.credential_ref import CredentialRef
+from tests.unit.core.identity_reuse_subprocess import IdentityReuseSubprocess
 
 
 @pytest.fixture
@@ -149,31 +149,14 @@ def test_no_credential_or_configuration_appears_in_the_canonical_form(
         assert "a.example" not in form
 
 
-def test_freed_connector_hash_never_reappears_for_a_new_connector_at_its_address(
-    sentinel_secret: str,
-) -> None:
+def test_freed_connector_hash_never_reappears_for_a_new_connector_at_its_address() -> None:
     # Arrange — same class, same audit form, different credential; A is freed
-    # and collected before B is built, so B usually lands at A's address.
-    iterations = 250
-    reuses = 0
-    collisions = 0
+    # and collected before B is built. Runs in a clean interpreter, where B
+    # reliably lands at A's address (a coverage-traced suite heap stops reuse).
 
-    # Act — freeze the existing heap so each collection only walks new objects.
-    gc.freeze()
-    try:
-        for _ in range(iterations):
-            freed = ConnectorBase(credential=CredentialRef(secret=sentinel_secret))
-            freed_address = id(freed)
-            freed_hash = content_hash({"connector": freed})
-            del freed
-            gc.collect()
-            fresh = ConnectorBase(credential=CredentialRef(secret="sk-other"))
-            reuses += id(fresh) == freed_address
-            collisions += content_hash({"connector": fresh}) == freed_hash
-            del fresh
-    finally:
-        gc.unfreeze()
+    # Act
+    tally = IdentityReuseSubprocess.run("connector_hash", 200)
 
     # Assert — the loop only proves something if addresses were really reused.
-    assert reuses > 0, "no address was reused; the regression loop tested nothing"
-    assert collisions == 0
+    assert tally["reuses"] > 0, f"no address was reused; the loop tested nothing: {tally}"
+    assert tally["collisions"] == 0, tally

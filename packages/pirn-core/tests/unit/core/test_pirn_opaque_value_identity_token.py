@@ -4,8 +4,11 @@ The old token was ``hex(id(self))``. CPython reuses a freed object's address, so
 a new object could inherit a dead one's token, hash equal to it and be served
 its recording on replay. These tests pin the replacement: a lazily assigned
 random token that never repeats for a reused address, is not inherited by a
-copy or an unpickled object (a shallow copy of a non-weakrefable instance is
-the one documented exception), and holds no configuration.
+copy or an unpickled object, and holds no configuration.
+
+The address-reuse loops run in a subprocess (:class:`IdentityReuseSubprocess`):
+inside a large, coverage-traced test process the allocator stopped reusing
+addresses at all, so an in-process loop could not exercise the hazard.
 """
 
 from __future__ import annotations
@@ -22,6 +25,7 @@ import pytest
 from pirn.connectors.connector_base import ConnectorBase
 from pirn.core.hashing import content_hash
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
+from tests.unit.core.identity_reuse_subprocess import IdentityReuseSubprocess
 
 
 class Opaque(PirnOpaqueValue):
@@ -144,33 +148,14 @@ def test_unpickled_instance_gets_its_own_token() -> None:
 
 
 def test_freed_instance_token_never_reappears_at_a_reused_address() -> None:
-    # Arrange — free A, collect, allocate B, many times.
-    iterations = 300
-    reuses = 0
-    collisions = 0
+    # Arrange — free A, collect, allocate B, many times, in a clean interpreter.
 
-    # Act — freeze the existing heap so each full collection only walks
-    # objects this loop created; otherwise gc.collect() dominates the suite.
-    gc.freeze()
-    try:
-        for _ in range(iterations):
-            freed = Opaque("a")
-            freed_address = id(freed)
-            freed_token = freed._pirn_identity_token()
-            freed_hash = content_hash(freed)
-            del freed
-            gc.collect()
-            fresh = Opaque("b")
-            reuses += id(fresh) == freed_address
-            collisions += fresh._pirn_identity_token() == freed_token
-            collisions += content_hash(fresh) == freed_hash
-            del fresh
-    finally:
-        gc.unfreeze()
+    # Act
+    tally = IdentityReuseSubprocess.run("opaque_hash", 200)
 
     # Assert — the loop only proves something if addresses were really reused.
-    assert reuses > 0, "no address was reused; the regression loop tested nothing"
-    assert collisions == 0
+    assert tally["reuses"] > 0, f"no address was reused; the loop tested nothing: {tally}"
+    assert tally["collisions"] == 0, tally
 
 
 def test_registry_does_not_retain_freed_instances() -> None:
@@ -264,20 +249,14 @@ def test_non_weakrefable_deep_copy_gets_its_own_token() -> None:
 
 def test_non_weakrefable_token_never_survives_pickle_free_unpickle_at_the_same_address() -> None:
     # Arrange — the probe that defeated the id()-owner check: pickle A, free
-    # it, unpickle into (usually) the same address.
-    iterations = 2000
-    reuses = 0
-    collisions = 0
+    # it, unpickle into (usually) the same address, in a clean interpreter.
 
     # Act
-    for _ in range(iterations):
-        reused, collided = _pickle_free_unpickle_once()
-        reuses += reused
-        collisions += collided
+    tally = IdentityReuseSubprocess.run("tuple_pickle", 2000)
 
     # Assert
-    assert reuses > 0, "no address was reused; the regression loop tested nothing"
-    assert collisions == 0
+    assert tally["reuses"] > 0, f"no address was reused; the loop tested nothing: {tally}"
+    assert tally["collisions"] == 0, tally
 
 
 def test_non_weakrefable_mutated_shallow_copy_does_not_hash_equal_to_the_original() -> None:
@@ -323,29 +302,6 @@ def test_instance_without_a_dict_refuses_with_a_fresh_token_per_read() -> None:
 
     # Assert — it never matches anything, itself included.
     assert len(tokens) == 5
-
-
-def _pickle_free_unpickle_once() -> tuple[bool, bool]:
-    """Pickle a tuple-derived value, free it, unpickle it.
-
-    Returns:
-        ``(reused, collided)``: whether the unpickled value landed at the
-        original's address, and whether it came back with the original's token.
-    """
-    original = OpaqueTuple((1, 2))
-    original_address = id(original)
-    original_token = original._pirn_identity_token()
-    payload = pickle.dumps(original)
-    del original
-    # Unpickling allocates temporaries that can take the freed block first and
-    # release it again, so retry (freeing each miss) until the reuse happens.
-    restored = pickle.loads(payload)
-    for _ in range(8):
-        if id(restored) == original_address:
-            break
-        del restored
-        restored = pickle.loads(payload)
-    return id(restored) == original_address, restored._pirn_identity_token() == original_token
 
 
 def _read_token_after_barrier(
