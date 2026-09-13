@@ -258,9 +258,7 @@ class AgentPatternRegistry:
             f"{_spec}.tool_use.parallel_tool_caller:ParallelToolCaller",
             "tool_calls",
         ),
-        PatternDescriptor(
-            "tool_chain", f"{_spec}.tool_use.tool_chain:ToolChain", "initial_call"
-        ),
+        PatternDescriptor("tool_chain", f"{_spec}.tool_use.tool_chain:ToolChain", "initial_call"),
     )
 
     #: Convenience spellings that resolve to a canonical pattern name.

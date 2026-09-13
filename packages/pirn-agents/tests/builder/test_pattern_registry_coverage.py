@@ -149,6 +149,17 @@ _ITERATION_STEPS = frozenset(
     }
 )
 
+#: Deprecated ``*Gate`` alias classes (PIR-856, Knot Design Rule 7): each is a
+#: thin subclass kept importable for one cycle; the registry names the
+#: replacement ``*Check`` class, so the alias itself is never reachable by name.
+_DEPRECATED_ALIASES = frozenset(
+    {
+        "pirn_agents.specializations.guardrails.fact_check_gate.FactCheckGate",
+        "pirn_agents.specializations.guardrails.input_guardrail_gate.InputGuardrailGate",
+        "pirn_agents.specializations.guardrails.output_guardrail_gate.OutputGuardrailGate",
+    }
+)
+
 
 def test_the_excluded_bases_are_bases_and_the_excluded_private_is_private() -> None:
     """The exclusions are justified by what the classes are, not by fiat."""
@@ -164,7 +175,11 @@ def test_the_excluded_bases_are_bases_and_the_excluded_private_is_private() -> N
     # Every exclusion falls into exactly one justified category: base,
     # private loop body, or named iteration step.
     bases = {_qualified(AgentPipeline), _qualified(AgentLoopPipeline)}
-    assert _EXPECTED_EXCLUSIONS == bases | set(private) | _ITERATION_STEPS
+    # Every exclusion falls into exactly one justified category: base,
+    # private loop body, named iteration step, or deprecated alias.
+    assert _EXPECTED_EXCLUSIONS == bases | set(private) | _ITERATION_STEPS | _DEPRECATED_ALIASES
+    for alias in _DEPRECATED_ALIASES:
+        assert alias.rsplit(".", 1)[1].endswith("Gate")
 
 
 # --- resolvability --------------------------------------------------------
