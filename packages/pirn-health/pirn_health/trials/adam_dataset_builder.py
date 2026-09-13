@@ -90,6 +90,11 @@ class ADaMDatasetBuilder(Knot):
                 "subject_id": record.subject_id,
             }
             for derived_column, source_field in derivations.items():
+                # getattr is required here: source_field is a caller-supplied
+                # column name from the `derivations` mapping, not a field
+                # known at type-check time — there is no static alternative
+                # that still lets callers point at an arbitrary
+                # ClinicalTrialRecord attribute.
                 row[derived_column] = getattr(record, source_field, None)
             rows.append(row)
         return tuple(rows)

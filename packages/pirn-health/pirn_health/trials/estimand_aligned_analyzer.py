@@ -27,7 +27,7 @@ References:
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -38,7 +38,7 @@ from pirn_health.types.clinical_trial_record import ClinicalTrialRecord
 class EstimandAlignedAnalyzer(Knot):
     """Project trial records onto a chosen estimand strategy."""
 
-    _supported_strategies: frozenset[str] = frozenset(
+    _supported_strategies: ClassVar[frozenset[str]] = frozenset(
         {
             "treatment-policy",
             "hypothetical",

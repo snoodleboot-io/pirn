@@ -87,6 +87,11 @@ class SDTMDomainValidator(Knot):
                 )
         for record in records:
             for field_name in required_fields:
+                # getattr is required here: field_name is a caller-supplied
+                # column name from `required_fields`, not a field known at
+                # type-check time — there is no static alternative that
+                # still lets callers check an arbitrary ClinicalTrialRecord
+                # attribute for completeness.
                 value = getattr(record, field_name, None)
                 if value in (None, "", 0, ()):
                     return False
