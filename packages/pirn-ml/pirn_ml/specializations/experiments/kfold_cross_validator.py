@@ -7,8 +7,10 @@ the mean and standard deviation across all folds.
 Algorithm:
     1. Receive ``dataset`` (DatasetManifest), ``algorithm``, ``metrics``, and ``k`` via process().
     2. Validate all inputs.
-    3. Wire CrossValidator in an inner Tapestry to produce k folds.
-    4. Wire Trainer + Evaluator per fold in a second inner Tapestry.
+    3. Extract k logical folds via
+       :meth:`~pirn_ml.specializations.experiments._kfold_validator_base._KFoldValidatorBase._extract_folds_via_cross_validator`.
+    4. Wire Trainer + Evaluator per fold (shared wiring in
+       :class:`~pirn_ml.specializations.experiments._kfold_validator_base._KFoldValidatorBase`).
     5. Aggregate per-fold metrics (mean ± std) and return an EvalMetadata.
 
 Math:
@@ -31,22 +33,14 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
-from pirn.nodes.aggregator import Aggregator
-from pirn.nodes.sub_tapestry import SubTapestry
 
-from pirn_ml.data_prep.cross_validator import CrossValidator
-from pirn_ml.evaluation.evaluator import Evaluator
-from pirn_ml.training.trainer import Trainer
+from pirn_ml.specializations.experiments._kfold_validator_base import (
+    _KFoldValidatorBase,
+)
 from pirn_ml.types.dataset_manifest import DatasetManifest
 from pirn_ml.types.eval_metadata import EvalMetadata
 from pirn_ml.types.eval_metrics import EvalMetrics
 from pirn_ml.types.eval_report_payload import EvalReportPayload
-from pirn_ml.types.split_manifest import SplitManifest
-
-
-@knot
-async def _extract_fold(folds: tuple[SplitManifest, ...], index: int) -> SplitManifest:
-    return folds[index]
 
 
 @knot
@@ -86,7 +80,7 @@ async def _aggregate_kfold_reports(
     )
 
 
-class KFoldCrossValidator(SubTapestry):
+class KFoldCrossValidator(_KFoldValidatorBase):
     """K-fold cross-validation that returns mean ± std metrics across folds."""
 
     def __init__(
@@ -149,37 +143,8 @@ class KFoldCrossValidator(SubTapestry):
         dataset_node = Parameter(
             "dataset", DatasetManifest, default=dataset, _config=KnotConfig(id="dataset")
         )
-        folds_node = CrossValidator(
-            dataset=dataset_node,
-            k=k,
-            _config=KnotConfig(id="folds"),
-        )
-        eval_nodes = []
-        for fold_index in range(k):
-            fold_index_node = Parameter(
-                f"fold_index_{fold_index}",
-                int,
-                default=fold_index,
-                _config=KnotConfig(id=f"fold_index_{fold_index}"),
-            )
-            split_node = _extract_fold(
-                folds=folds_node,
-                index=fold_index_node,
-                _config=KnotConfig(id=f"split_{fold_index}"),
-            )
-            model = Trainer(
-                split=split_node,
-                algorithm=algorithm,
-                _config=KnotConfig(id=f"train_{fold_index}"),
-            )
-            eval_nodes.append(
-                Evaluator(
-                    model=model,
-                    split=split_node,
-                    metrics=metric_tuple,
-                    _config=KnotConfig(id=f"evaluate_{fold_index}"),
-                )
-            )
+        fold_nodes = self._extract_folds_via_cross_validator(dataset_node, k)
+        eval_nodes = self._wire_folds(fold_nodes, algorithm, metric_tuple)
         algorithm_node = Parameter(
             "algorithm", str, default=algorithm, _config=KnotConfig(id="algorithm")
         )
@@ -187,11 +152,7 @@ class KFoldCrossValidator(SubTapestry):
             "dataset_name", str, default=dataset.name, _config=KnotConfig(id="dataset_name")
         )
         k_node = Parameter("k", int, default=k, _config=KnotConfig(id="k"))
-        collected = Aggregator(
-            combine=lambda **kw: list(kw.values()),
-            _config=KnotConfig(id="collect"),
-            **{f"r{i}": eval_nodes[i] for i in range(k)},
-        )
+        collected = self._collect(eval_nodes, collect_id="collect")
         return _aggregate_kfold_reports(
             reports=collected,
             algorithm=algorithm_node,

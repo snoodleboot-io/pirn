@@ -8,7 +8,8 @@ Algorithm:
        ``n_splits`` via process().
     2. Validate all inputs.
     3. For each fold, compute expanding train/test row counts and emit split partitions.
-    4. Wire Trainer + Evaluator per fold in an inner Tapestry.
+    4. Wire Trainer + Evaluator per fold (shared wiring in
+       :class:`~pirn_ml.specializations.experiments._kfold_validator_base._KFoldValidatorBase`).
     5. Aggregate per-fold metrics and return an EvalMetadata.
 
 Math:
@@ -31,11 +32,10 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
-from pirn.nodes.aggregator import Aggregator
-from pirn.nodes.sub_tapestry import SubTapestry
 
-from pirn_ml.evaluation.evaluator import Evaluator
-from pirn_ml.training.trainer import Trainer
+from pirn_ml.specializations.experiments._kfold_validator_base import (
+    _KFoldValidatorBase,
+)
 from pirn_ml.types.dataset_manifest import DatasetManifest
 from pirn_ml.types.eval_metadata import EvalMetadata
 from pirn_ml.types.eval_metrics import EvalMetrics
@@ -75,7 +75,7 @@ async def _aggregate_ts_cv_reports(
     )
 
 
-class TimeSeriesCrossValidator(SubTapestry):
+class TimeSeriesCrossValidator(_KFoldValidatorBase):
     """Expanding-window time series CV with configurable number of folds."""
 
     def __init__(
@@ -134,44 +134,11 @@ class TimeSeriesCrossValidator(SubTapestry):
                 raise ValueError(
                     "TimeSeriesCrossValidator: every metric name must be a non-empty string"
                 )
-        eval_nodes = []
-        for fold_index in range(n_splits):
-            train_rows = (fold_index + 1) * max(1, dataset.row_count // (n_splits + 1))
-            test_rows = max(1, dataset.row_count // (n_splits + 1))
-            train_ds = DatasetManifest(
-                name=f"{dataset.name}:ts_train_{fold_index}",
-                feature_names=dataset.feature_names,
-                target_name=dataset.target_name,
-                row_count=train_rows,
-                source_uri=dataset.source_uri,
-            )
-            test_ds = DatasetManifest(
-                name=f"{dataset.name}:ts_test_{fold_index}",
-                feature_names=dataset.feature_names,
-                target_name=dataset.target_name,
-                row_count=test_rows,
-                source_uri=dataset.source_uri,
-            )
-            fold = SplitManifest(train=train_ds, test=test_ds)
-            split_node = Parameter(
-                f"split_{fold_index}",
-                SplitManifest,
-                default=fold,
-                _config=KnotConfig(id=f"split_{fold_index}"),
-            )
-            model = Trainer(
-                split=split_node,
-                algorithm=algorithm,
-                _config=KnotConfig(id=f"train_{fold_index}"),
-            )
-            eval_nodes.append(
-                Evaluator(
-                    model=model,
-                    split=split_node,
-                    metrics=metric_tuple,
-                    _config=KnotConfig(id=f"evaluate_{fold_index}"),
-                )
-            )
+        fold_nodes = [
+            self._expanding_window_fold(dataset, fold_index, n_splits)
+            for fold_index in range(n_splits)
+        ]
+        eval_nodes = self._wire_folds(fold_nodes, algorithm, metric_tuple)
         algorithm_node = Parameter(
             "algorithm", str, default=algorithm, _config=KnotConfig(id="algorithm")
         )
@@ -181,15 +148,37 @@ class TimeSeriesCrossValidator(SubTapestry):
         n_splits_node = Parameter(
             "n_splits", int, default=n_splits, _config=KnotConfig(id="n_splits")
         )
-        collected = Aggregator(
-            combine=lambda **kw: list(kw.values()),
-            _config=KnotConfig(id="collect-reports"),
-            **{f"r{i}": eval_nodes[i] for i in range(n_splits)},
-        )
+        collected = self._collect(eval_nodes, collect_id="collect-reports")
         return _aggregate_ts_cv_reports(
             reports=collected,
             algorithm=algorithm_node,
             dataset_name=dataset_name_node,
             n_splits=n_splits_node,
             _config=KnotConfig(id="aggregate"),
+        )
+
+    @staticmethod
+    def _expanding_window_fold(dataset: DatasetManifest, fold_index: int, n_splits: int) -> Knot:
+        train_rows = (fold_index + 1) * max(1, dataset.row_count // (n_splits + 1))
+        test_rows = max(1, dataset.row_count // (n_splits + 1))
+        train_ds = DatasetManifest(
+            name=f"{dataset.name}:ts_train_{fold_index}",
+            feature_names=dataset.feature_names,
+            target_name=dataset.target_name,
+            row_count=train_rows,
+            source_uri=dataset.source_uri,
+        )
+        test_ds = DatasetManifest(
+            name=f"{dataset.name}:ts_test_{fold_index}",
+            feature_names=dataset.feature_names,
+            target_name=dataset.target_name,
+            row_count=test_rows,
+            source_uri=dataset.source_uri,
+        )
+        fold = SplitManifest(train=train_ds, test=test_ds)
+        return Parameter(
+            f"split_{fold_index}",
+            SplitManifest,
+            default=fold,
+            _config=KnotConfig(id=f"split_{fold_index}"),
         )
