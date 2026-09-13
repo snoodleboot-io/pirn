@@ -58,11 +58,13 @@ class GatedAgentResponse(Knot):
         """
         super().__init__(content=content, gate=gate, _config=_config, **kwargs)
 
-    async def process(self, content: str, **_: Any) -> AgentResponse:
+    async def process(self, content: str, gate: Any = None, **_: Any) -> AgentResponse:
         """Present ``content`` as a response.
 
         Args:
             content: The resolved text.
+            gate: The gate's resolved pass-through value. Unused — only the
+                gate's *skip* propagates; see the class docstring.
 
         Returns:
             An :class:`AgentResponse` carrying ``content``.
