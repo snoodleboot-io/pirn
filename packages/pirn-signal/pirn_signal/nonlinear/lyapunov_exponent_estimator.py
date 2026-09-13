@@ -9,7 +9,8 @@ Algorithm:
        the divergence of the trajectories over time.
     5. Estimate the largest Lyapunov exponent as the mean rate of divergence
        using the Rosenstein algorithm.
-    6. Return a result mapping with the estimated exponent and parameters.
+    6. Repeat independently for each channel and return a FeaturePayload with
+       one Lyapunov exponent per channel.
 
 Math:
     Rosenstein divergence curve:
@@ -29,7 +30,6 @@ References:
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Mapping
 from typing import Any
 
 import numpy as np
@@ -37,6 +37,8 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_signal.nonlinear._delay_embedding import DelayEmbedding
+from pirn_signal.types.feature_frame import FeatureFrame
+from pirn_signal.types.feature_payload import FeaturePayload
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -66,7 +68,7 @@ class LyapunovExponentEstimator(Knot):
         embedding_dim: int,
         time_delay: int,
         **_: Any,
-    ) -> Mapping[str, Any]:
+    ) -> FeaturePayload:
         """Estimate the largest Lyapunov exponent from the signal.
 
         Args:
@@ -75,7 +77,7 @@ class LyapunovExponentEstimator(Knot):
             time_delay: Delay embedding time lag in samples (positive integer).
 
         Returns:
-            Mapping containing ``lyapunov_exponent``, ``embedding_dim``, and ``time_delay``.
+            FeaturePayload with one ``lyapunov_exponent`` value per channel.
 
         Raises:
             ValueError: If embedding_dim or time_delay are invalid.
@@ -84,18 +86,23 @@ class LyapunovExponentEstimator(Knot):
             raise ValueError("LyapunovExponentEstimator: embedding_dim must be a positive integer")
         if not isinstance(time_delay, int) or time_delay <= 0:
             raise ValueError("LyapunovExponentEstimator: time_delay must be a positive integer")
-        signal_array = signal.data[0] if signal.data.ndim > 1 else signal.data
-        lam = await asyncio.to_thread(
-            LyapunovExponentEstimator._lyapunov,
-            signal_array.astype(float),
-            embedding_dim,
-            time_delay,
+        channels = np.atleast_2d(signal.data).astype(float)
+        values = await asyncio.gather(
+            *(
+                asyncio.to_thread(
+                    LyapunovExponentEstimator._lyapunov, channel, embedding_dim, time_delay
+                )
+                for channel in channels
+            )
         )
-        return {
-            "lyapunov_exponent": lam,
-            "embedding_dim": embedding_dim,
-            "time_delay": time_delay,
-        }
+        return FeaturePayload(
+            metadata=FeatureFrame(
+                signal_id=f"{signal.frame.signal_id}:lyapunov-exponent",
+                channel_count=channels.shape[0],
+                feature_names=("lyapunov_exponent",),
+            ),
+            data=np.asarray(values).reshape(channels.shape[0], 1),
+        )
 
     @staticmethod
     def _lyapunov(signal_array: np.ndarray, embedding_dim: int, tau: int) -> float:

@@ -8,7 +8,8 @@ Algorithm:
     4. Build the recurrence matrix R(i, j) = Theta(eps - ||x_i - x_j||).
     5. Compute RQA measures: recurrence rate (RR), determinism (DET),
        average diagonal line length (L), laminarity (LAM), trapping time (TT).
-    6. Return a result mapping with the RQA measures and parameters.
+    6. Repeat independently for each channel and return a FeaturePayload with
+       the RR/DET/LAM measures per channel.
 
 Math:
     Recurrence matrix:
@@ -28,7 +29,6 @@ References:
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Mapping
 from typing import Any
 
 import numpy as np
@@ -36,6 +36,8 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_signal.nonlinear._delay_embedding import DelayEmbedding
+from pirn_signal.types.feature_frame import FeatureFrame
+from pirn_signal.types.feature_payload import FeaturePayload
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -68,7 +70,7 @@ class RecurrenceAnalyzer(Knot):
         time_delay: int,
         recurrence_threshold: float,
         **_: Any,
-    ) -> Mapping[str, Any]:
+    ) -> FeaturePayload:
         """Run recurrence quantification analysis on the signal.
 
         Args:
@@ -78,7 +80,7 @@ class RecurrenceAnalyzer(Knot):
             recurrence_threshold: Distance threshold ε for recurrence (positive float).
 
         Returns:
-            Mapping containing ``rr``, ``det``, ``lam``, ``embedding_dim``, and ``threshold``.
+            FeaturePayload with ``rr``, ``det``, and ``lam`` measures per channel.
 
         Raises:
             ValueError: If embedding_dim, time_delay, or recurrence_threshold are invalid.
@@ -89,21 +91,27 @@ class RecurrenceAnalyzer(Knot):
             raise ValueError("RecurrenceAnalyzer: time_delay must be a positive integer")
         if not isinstance(recurrence_threshold, (int, float)) or recurrence_threshold <= 0:
             raise ValueError("RecurrenceAnalyzer: recurrence_threshold must be positive")
-        signal_array = signal.data[0] if signal.data.ndim > 1 else signal.data
-        rr, det, lam = await asyncio.to_thread(
-            RecurrenceAnalyzer._compute_rqa,
-            signal_array.astype(float),
-            embedding_dim,
-            time_delay,
-            float(recurrence_threshold),
+        channels = np.atleast_2d(signal.data).astype(float)
+        rqa_results = await asyncio.gather(
+            *(
+                asyncio.to_thread(
+                    RecurrenceAnalyzer._compute_rqa,
+                    channel,
+                    embedding_dim,
+                    time_delay,
+                    float(recurrence_threshold),
+                )
+                for channel in channels
+            )
         )
-        return {
-            "rr": rr,
-            "det": det,
-            "lam": lam,
-            "embedding_dim": embedding_dim,
-            "threshold": float(recurrence_threshold),
-        }
+        return FeaturePayload(
+            metadata=FeatureFrame(
+                signal_id=f"{signal.frame.signal_id}:rqa",
+                channel_count=channels.shape[0],
+                feature_names=("rr", "det", "lam"),
+            ),
+            data=np.asarray(rqa_results).reshape(channels.shape[0], 3),
+        )
 
     @staticmethod
     def _recurrence_matrix(

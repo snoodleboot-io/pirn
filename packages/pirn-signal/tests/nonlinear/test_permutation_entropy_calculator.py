@@ -11,10 +11,12 @@ from pirn.core.parameter import Parameter
 from pirn_signal.nonlinear.permutation_entropy_calculator import (
     PermutationEntropyCalculator,
 )
+from pirn_signal.types.feature_payload import FeaturePayload
 from pirn_signal.types.signal_payload import SignalPayload
 from tests.conftest import make_signal_payload
 
 _SIGNAL = make_signal_payload()
+_MULTICHANNEL_SIGNAL = make_signal_payload(channel_count=2, samples_per_channel=256)
 
 
 def _up(name: str = "signal") -> Parameter:
@@ -45,9 +47,16 @@ class TestPermutationEntropyCalculator(unittest.IsolatedAsyncioTestCase):
         with pytest.raises(ValueError, match="delay"):
             await knot.process(_SIGNAL, order=3, delay=0)
 
-    async def test_emits_dict(self) -> None:
+    async def test_emits_feature_payload(self) -> None:
         knot = self._make()
         out = await knot.process(_SIGNAL, order=3, delay=1)
-        assert isinstance(out, dict)
-        assert "value" in out
-        assert "embedding_dim" in out
+        assert isinstance(out, FeaturePayload)
+        assert out.frame.feature_names == ("permutation_entropy",)
+        assert out.data.shape == (1, 1)
+
+    async def test_multichannel_computes_per_channel(self) -> None:
+        knot = self._make()
+        out = await knot.process(_MULTICHANNEL_SIGNAL, order=3, delay=1)
+        assert isinstance(out, FeaturePayload)
+        assert out.frame.channel_count == 2
+        assert out.data.shape == (2, 1)

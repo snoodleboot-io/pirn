@@ -7,7 +7,8 @@ Algorithm:
        Chebyshev distance is less than r (count B).
     4. Repeat for subsequences of length m+1 (count A).
     5. Compute SampEn = -ln(A / B).
-    6. Return a dict with the sample entropy value and the parameters used.
+    6. Repeat independently for each channel and return a FeaturePayload with
+       one sample entropy value per channel.
 
 Math:
     Sample entropy:
@@ -30,10 +31,13 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
+import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_signal.nonlinear._sample_entropy import SampleEntropy
+from pirn_signal.types.feature_frame import FeatureFrame
+from pirn_signal.types.feature_payload import FeaturePayload
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -63,7 +67,7 @@ class SampleEntropyCalculator(Knot):
         template_length: int,
         tolerance: float,
         **_: Any,
-    ) -> dict[str, float]:
+    ) -> FeaturePayload:
         """Compute sample entropy of the signal using template matching.
 
         Args:
@@ -72,7 +76,7 @@ class SampleEntropyCalculator(Knot):
             tolerance: Tolerance for template matching (positive float).
 
         Returns:
-            Dictionary with keys ``value``, ``embedding_dim``, and ``tolerance``.
+            FeaturePayload with one ``sample_entropy`` value per channel.
 
         Raises:
             ValueError: If template_length or tolerance are invalid.
@@ -81,15 +85,18 @@ class SampleEntropyCalculator(Knot):
             raise ValueError("SampleEntropyCalculator: template_length must be a positive integer")
         if not isinstance(tolerance, (int, float)) or tolerance <= 0.0:
             raise ValueError("SampleEntropyCalculator: tolerance must be a positive float")
-        signal_array = signal.data[0] if signal.data.ndim > 1 else signal.data
-        value = await asyncio.to_thread(
-            SampleEntropy.compute,
-            signal_array.astype(float),
-            template_length,
-            float(tolerance),
+        channels = np.atleast_2d(signal.data).astype(float)
+        values = await asyncio.gather(
+            *(
+                asyncio.to_thread(SampleEntropy.compute, channel, template_length, float(tolerance))
+                for channel in channels
+            )
         )
-        return {
-            "value": value,
-            "embedding_dim": template_length,
-            "tolerance": float(tolerance),
-        }
+        return FeaturePayload(
+            metadata=FeatureFrame(
+                signal_id=f"{signal.frame.signal_id}:sample-entropy",
+                channel_count=channels.shape[0],
+                feature_names=("sample_entropy",),
+            ),
+            data=np.asarray(values).reshape(channels.shape[0], 1),
+        )
