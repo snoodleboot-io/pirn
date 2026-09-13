@@ -263,7 +263,7 @@ with closing(urlopen("https://example.com")) as response:
 #### No Nested Class/Function Definitions
 - **NEVER nest class or function definitions** unless:
   1. It is a documented design decision
-  2. It is marked with `#design-decision-override` comment
+  2. It is marked with `# design-decision-override` comment
   3. It solves a specific scoping or closure problem that cannot be solved otherwise
 - Define classes and functions at module level for testability and readability
 - Use factories or partial functions instead of closures when state capture is needed
@@ -284,7 +284,7 @@ def process_data(data: list) -> list:
 
 # Acceptable - nested with explicit design decision override
 def create_handler(config: dict):
-    #design-decision-override: closure captures config without exposing it
+    # design-decision-override: closure captures config without exposing it
     def handler(event: dict) -> None:
         if event["type"] in config["allowed_types"]:
             process_event(event, config["handler_type"])
