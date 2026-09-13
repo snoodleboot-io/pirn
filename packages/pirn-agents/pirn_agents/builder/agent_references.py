@@ -35,6 +35,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from typing import Any
 
+from pirn_agents.builder._constant_thunk import _ConstantThunk
 from pirn_agents.tools.tool import Tool
 
 
@@ -118,3 +119,21 @@ class AgentReferences:
     def __contains__(self, label: object) -> bool:
         """Return whether ``label`` is registered."""
         return label in self._objects
+
+    def as_known_callables(self) -> dict[str, Any]:
+        """Return this table as a ``known_callables`` mapping for core's YAML loader.
+
+        Every registered label becomes a zero-argument callable that returns
+        the live object bound to it — exactly the shape
+        ``pirn.yaml_loader.pipeline_loader.load_pipeline``'s ``known_callables``
+        expects for a ``source`` node's ``callable:`` reference. This is how a
+        core pipeline document supplies a reference (an LLM provider, a memory
+        store, a tool) that cannot be written into YAML text: the document
+        names the label, and this table's caller resolves it to the running
+        object at load time.
+
+        Returns:
+            A fresh mapping, safe to pass straight to ``load_pipeline`` or to
+            merge with other ``known_callables`` entries.
+        """
+        return {label: _ConstantThunk(value, label=label) for label, value in self._objects.items()}
