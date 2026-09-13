@@ -2,24 +2,24 @@
   "pirn-agents": {
     "filename_mismatch": 0,
     "gate_wrong_base": 5,
-    "knot_init_impure": 4,
+    "knot_init_impure": 3,
     "knot_process_kwargs_name": 5,
-    "knot_property": 2,
+    "knot_property": 0,
     "knot_self_assignment": 2,
     "module_level_function": 23,
     "multi_class_file": 0,
-    "nested_def_missing_override": 36
+    "nested_def_missing_override": 30
   },
   "pirn-core": {
-    "filename_mismatch": 34,
+    "filename_mismatch": 1,
     "gate_wrong_base": 3,
     "knot_init_impure": 1,
     "knot_process_kwargs_name": 3,
     "knot_property": 5,
     "knot_self_assignment": 1,
-    "module_level_function": 43,
-    "multi_class_file": 7,
-    "nested_def_missing_override": 86
+    "module_level_function": 37,
+    "multi_class_file": 0,
+    "nested_def_missing_override": 0
   },
   "pirn-data": {
     "filename_mismatch": 1,
@@ -72,8 +72,8 @@
     "knot_process_kwargs_name": 0,
     "knot_property": 0,
     "knot_self_assignment": 0,
-    "module_level_function": 107,
+    "module_level_function": 0,
     "multi_class_file": 0,
-    "nested_def_missing_override": 3
+    "nested_def_missing_override": 0
   }
 }
