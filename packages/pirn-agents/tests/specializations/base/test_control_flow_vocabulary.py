@@ -42,18 +42,18 @@ from tests.specializations.base.bypass_inventory import BypassInventory
 # --- known bypasses, frozen (ADR agents-speaks-core WS5a) ------------------
 
 #: A `Source` subclass defined anywhere inside `process()`, not only ones
-#: that are returned. Nine remain (down from twelve): all exist to
+#: that are returned. Eight remain (down from twelve): all exist to
 #: re-inject an already-resolved value into the inner graph — the
 #: `Parameter` use case. `RetryOnParseFailure` is fixed — see its
 #: `_RetryResultExtractor`/`_RetryOnParseFailureLoop` (ADR agents-speaks-core
 #: WS5a). `SelfAskPipeline` is fixed — see its `_SelfAskComposer`/
 #: `_SelfAskLoop`; `PromptChainPipeline` is fixed — see its
-#: `_PromptChainResultExtractor`/`_PromptChainLoop` (ADR agents-speaks-core
+#: `_PromptChainResultExtractor`/`_PromptChainLoop`; `OrchestratorAgent` is
+#: fixed — see its `_OrchestratorResultNormalizer` (ADR agents-speaks-core
 #: WS5b).
 DEFINES_INLINE_SOURCE = frozenset(
     {
         "specializations/lats/lats_search.py::LatsSearch",
-        "specializations/multi_agent/orchestrator_agent.py::OrchestratorAgent",
         "specializations/plan_react/plan_react_pipeline.py::PlanReActPipeline",
         "specializations/rag/flare_active_rag_pipeline.py::FlareActiveRagPipeline",
         "specializations/rag/multi_hop_rag_pipeline.py::MultiHopRAGPipeline",
