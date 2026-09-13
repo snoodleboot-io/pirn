@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
@@ -15,6 +16,7 @@ from pirn.engine._emitter_subscriber import _EmitterSubscriber
 
 if TYPE_CHECKING:
     from pirn.core.run_context import RunContext
+    from pirn.managers.status_event import StatusEvent
 
 _log = logging.getLogger(__name__)
 
@@ -70,3 +72,41 @@ class EmitterFanout:
                     EmitterFanout.handle_emitter_error,
                 )
             )
+
+    @staticmethod
+    async def emit_status(
+        event: StatusEvent,
+        *,
+        emitters: Sequence[Any] | None = None,
+        policy: EmitterErrorPolicy | None = None,
+    ) -> None:
+        """Deliver one ad hoc ``StatusEvent`` to a run's emitters.
+
+        ``subscribe_emitters_to_status`` exists because ``StatusManager.
+        transition`` is a *synchronous* call made from inside the engine's
+        scheduling loop, so its subscribers must be scheduled as
+        fire-and-forget tasks rather than awaited in place. Code that already
+        runs inside an async knot's ``process()`` — an LLM call, a tool call,
+        a retrieval step, none of which is one of the engine's own per-knot
+        lifecycle transitions — has no such constraint: it can simply await
+        each emitter directly, in order, and this is that path.
+
+        Args:
+            event: The status event to deliver.
+            emitters: The emitters to notify. Defaults to
+                :func:`pirn.tapestry.current_emitters` (the enclosing run's
+                subscription) when ``None`` — pass an explicit empty list to
+                opt out rather than relying on the default resolving to one.
+            policy: How to react to an emitter raising. Defaults to
+                :func:`pirn.tapestry.current_emitter_error_policy` when
+                ``None``.
+        """
+        from pirn.tapestry import current_emitter_error_policy, current_emitters
+
+        active_emitters = emitters if emitters is not None else current_emitters()
+        active_policy = policy if policy is not None else current_emitter_error_policy()
+        for emitter in active_emitters:
+            try:
+                await emitter.on_status(event)
+            except Exception as exc:
+                EmitterFanout.handle_emitter_error(emitter, "on_status", exc, active_policy)

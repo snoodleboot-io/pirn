@@ -547,6 +547,39 @@ def current_run_id() -> str | None:
     return _current_run_id.get(None)
 
 
+def current_emitters() -> list[Emitter]:
+    """Return the enclosing run's emitter list, or ``[]`` outside a run.
+
+    Mirrors :func:`current_run_id`: downstream packages that want to publish
+    an ad hoc event through the run's own emitter subscription — an LLM call,
+    a tool call, a retrieval step, none of which is a per-knot lifecycle
+    transition the engine already reports — had no supported way to reach
+    the run's emitters, only the private ``_current_emitters``. This exposes
+    the same list under a supported name; see
+    :meth:`pirn.engine.emitter_fanout.EmitterFanout.emit_status` for the
+    sanctioned way to deliver an event to it.
+
+    An empty list is returned both outside a run and when the enclosing run
+    was itself given ``emitters=[]`` — an explicit opt-out that a caller
+    reading this accessor must honour rather than falling back to some other
+    source of emitters.
+    """
+    return list(_current_emitters.get(None) or [])
+
+
+def current_emitter_error_policy() -> EmitterErrorPolicy:
+    """Return the enclosing run's emitter error policy.
+
+    Defaults to :attr:`~pirn.emitters.emitter_error_policy.EmitterErrorPolicy.WARN`
+    outside a run, matching :class:`Tapestry`'s own default, so a caller of
+    :func:`current_emitters` always has a sensible policy to pair it with.
+    """
+    from pirn.emitters.emitter_error_policy import EmitterErrorPolicy as _EmitterErrorPolicy
+
+    policy = _current_emitter_error_policy.get(None)
+    return policy if policy is not None else _EmitterErrorPolicy.WARN
+
+
 @contextmanager
 def _run_id_scope(run_id: str | None) -> Iterator[None]:
     """Bind ``current_run_id()`` to ``run_id`` for the duration of the block.

@@ -40,3 +40,18 @@ class TestStatusEvent(unittest.TestCase):
         ev = self._make()
         with self.assertRaises(ValidationError):
             ev.run_id = "other"  # type: ignore[misc]
+
+    def test_extra_defaults_to_empty_dict(self):
+        ev = self._make()
+        self.assertEqual(ev.extra, {})
+
+    def test_extra_stored(self):
+        ev = self._make(extra={"kind": "llm", "model": "gpt", "latency": 0.5})
+        self.assertEqual(ev.extra, {"kind": "llm", "model": "gpt", "latency": 0.5})
+
+    def test_extra_defaults_are_independent_between_instances(self):
+        """A mutable default must not be shared across instances."""
+        a = self._make()
+        b = self._make()
+        a.extra["leaked"] = True
+        self.assertEqual(b.extra, {})
