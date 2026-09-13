@@ -16,10 +16,11 @@ from __future__ import annotations
 import importlib
 import pkgutil
 
-import pirn_ml
 import pytest
 from pirn.core.knot import Knot
 from sweet_tea.registry import Registry
+
+import pirn_ml
 
 
 def _walk_knot_subclasses(package: object) -> tuple[set[str], list[str]]:
