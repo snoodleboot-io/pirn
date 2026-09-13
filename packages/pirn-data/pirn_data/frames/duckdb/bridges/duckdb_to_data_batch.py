@@ -7,6 +7,23 @@ only do this at the boundary where downstream knots actually need the
 dict-based contract (a Tier-1 sink, a small validator, or a debug step).
 For larger relations, prefer routing the :class:`DuckdbDataBatch`
 directly into a Tier-2 sink.
+
+Algorithm:
+    1. Read the relation's column names via ``relation.columns``.
+    2. Fetch every row as a positional tuple via ``relation.fetchall()``.
+    3. Zip each row tuple with the column names to build one dict per row.
+    4. Return a :class:`DataBatch` wrapping the row dicts, with
+       ``source_uri`` and ``fetched_at`` copied from the input batch.
+
+    ```text
+    columns = relation.columns
+    rows    = [dict(zip(columns, row)) for row in relation.fetchall()]
+    return DataBatch(rows=rows, source_uri=batch.source_uri, fetched_at=batch.fetched_at)
+    ```
+
+References:
+    [1] DuckDB Python API — DuckDBPyRelation.fetchall / .columns:
+        https://duckdb.org/docs/api/python/reference/
 """
 
 from __future__ import annotations
