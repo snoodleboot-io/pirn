@@ -122,30 +122,18 @@ class ScdType1Overwrite(_PoolMergeKnot):
             raise ValueError(
                 f"ScdType1Overwrite: key_columns and non_key_columns overlap on {sorted(overlap)!r}"
             )
-        all_columns = key_tuple + non_key_tuple
         source_rows = await source_pool.fetch_all(source_query)
-        rows_upserted = 0
-        for row in source_rows:
-            row_dict = dict(zip(all_columns, row, strict=False))
-            key_values = tuple(row_dict[k] for k in key_tuple)
-            non_key_values = tuple(row_dict[k] for k in non_key_tuple)
-            existing = await target_pool.fetch_all(
-                ScdType1Overwrite._select_existing_query(target_table, key_tuple),
-                key_values,
-            )
-            if existing:
-                await target_pool.execute(
-                    ScdType1Overwrite._update_query(target_table, key_tuple, non_key_tuple),
-                    non_key_values + key_values,
-                )
-            else:
-                await target_pool.execute(
-                    ScdType1Overwrite._insert_query(target_table, all_columns),
-                    key_values + non_key_values,
-                )
-            rows_upserted += 1
+        matched = await self._execute_per_row_upsert(
+            source_rows,
+            target_pool,
+            key_tuple,
+            non_key_tuple,
+            ScdType1Overwrite._select_existing_query(target_table, key_tuple),
+            ScdType1Overwrite._update_query(target_table, key_tuple, non_key_tuple),
+            ScdType1Overwrite._insert_query(target_table, key_tuple + non_key_tuple),
+        )
         return {
             "succeeded": True,
             "target_table": target_table,
-            "rows_upserted": rows_upserted,
+            "rows_upserted": len(matched),
         }

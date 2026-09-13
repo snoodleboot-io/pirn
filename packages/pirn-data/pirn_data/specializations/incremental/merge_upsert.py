@@ -106,30 +106,18 @@ class MergeUpsert(_PoolMergeKnot):
             raise ValueError(
                 f"MergeUpsert: key_columns and non_key_columns overlap on {sorted(overlap)!r}"
             )
-        all_columns = key_tuple + non_key_tuple
         source_rows = await source_pool.fetch_all(source_query)
-        rows_inserted = 0
-        rows_updated = 0
-        for row in source_rows:
-            row_dict = dict(zip(all_columns, row, strict=False))
-            key_values = tuple(row_dict[k] for k in key_tuple)
-            non_key_values = tuple(row_dict[k] for k in non_key_tuple)
-            existing = await target_pool.fetch_all(
-                MergeUpsert._select_existing_query(target_table, key_tuple),
-                key_values,
-            )
-            if existing:
-                await target_pool.execute(
-                    MergeUpsert._update_query(target_table, key_tuple, non_key_tuple),
-                    non_key_values + key_values,
-                )
-                rows_updated += 1
-            else:
-                await target_pool.execute(
-                    MergeUpsert._insert_query(target_table, all_columns),
-                    key_values + non_key_values,
-                )
-                rows_inserted += 1
+        matched = await self._execute_per_row_upsert(
+            source_rows,
+            target_pool,
+            key_tuple,
+            non_key_tuple,
+            MergeUpsert._select_existing_query(target_table, key_tuple),
+            MergeUpsert._update_query(target_table, key_tuple, non_key_tuple),
+            MergeUpsert._insert_query(target_table, key_tuple + non_key_tuple),
+        )
+        rows_updated = sum(matched)
+        rows_inserted = len(matched) - rows_updated
         return {
             "succeeded": True,
             "target_table": target_table,

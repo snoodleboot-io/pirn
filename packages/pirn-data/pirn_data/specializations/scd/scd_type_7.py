@@ -109,10 +109,7 @@ class ScdType7(_PoolMergeKnot):
         key_indices = tuple(column_tuple.index(k) for k in primary_key_tuple)
         non_key_columns = tuple(c for c in column_tuple if c not in primary_key_tuple)
         non_key_indices = tuple(column_tuple.index(c) for c in non_key_columns)
-        existing_by_key: dict[tuple[Any, ...], tuple[Any, ...]] = {}
-        for row in existing_rows:
-            key = tuple(row[i] for i in key_indices)
-            existing_by_key[key] = tuple(row)
+        existing_by_key = ScdType7._index_rows_by_key(existing_rows, key_indices)
         now = datetime.now(UTC).isoformat()
         inserts: list[tuple[Any, ...]] = []
         expires: list[tuple[Any, ...]] = []
@@ -124,9 +121,7 @@ class ScdType7(_PoolMergeKnot):
                 next_surrogate += 1
                 continue
             existing = existing_by_key[key]
-            if tuple(existing[i] for i in non_key_indices) == tuple(
-                row_t[i] for i in non_key_indices
-            ):
+            if not ScdType7._non_key_values_changed(existing, row_t, non_key_indices):
                 continue
             expires.append((now, *key))
             inserts.append((next_surrogate, *row_t, now, None, 1))

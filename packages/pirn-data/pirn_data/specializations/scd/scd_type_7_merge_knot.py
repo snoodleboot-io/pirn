@@ -191,28 +191,19 @@ class ScdType7MergeKnot(_PoolMergeKnot):
         next_surrogate = int(max_surrogate_rows[0][0]) + 1 if max_surrogate_rows else 1
         key_indices = tuple(column_tuple.index(k) for k in primary_key_tuple)
         non_key_indices = tuple(column_tuple.index(c) for c in non_key_columns)
-        existing_by_key: dict[tuple[Any, ...], tuple[Any, ...]] = {}
-        for row in existing_rows:
-            key = tuple(row[i] for i in key_indices)
-            existing_by_key[key] = tuple(row)
+        existing_by_key = ScdType7MergeKnot._index_rows_by_key(existing_rows, key_indices)
         now = datetime.now(UTC).isoformat()
         inserts: list[tuple[Any, ...]] = []
         expires: list[tuple[Any, ...]] = []
         for row in materialised:
-            if len(row) != len(column_tuple):
-                raise ValueError(
-                    f"ScdType7MergeKnot: row width {len(row)} does not match "
-                    f"column_names width {len(column_tuple)}"
-                )
+            self._validate_row_width("ScdType7MergeKnot", row, column_tuple)
             key = tuple(row[i] for i in key_indices)
             if key not in existing_by_key:
                 inserts.append((next_surrogate, *tuple(row), now, None, 1))
                 next_surrogate += 1
                 continue
             existing = existing_by_key[key]
-            existing_non_keys = tuple(existing[i] for i in non_key_indices)
-            new_non_keys = tuple(row[i] for i in non_key_indices)
-            if existing_non_keys == new_non_keys:
+            if not ScdType7MergeKnot._non_key_values_changed(existing, row, non_key_indices):
                 continue
             expires.append((now, *key))
             inserts.append((next_surrogate, *tuple(row), now, None, 1))
