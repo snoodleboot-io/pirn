@@ -413,6 +413,29 @@ jobs:
         # is missing or matches nothing, so a future miswiring fails loudly
         # instead of passing vacuously. Stdlib-only — no install needed.
         run: python scripts/check_no_import_forwarding.py packages/ examples/ scripts/
+      - name: House-convention AST gate (ratcheted, PIR-856)
+        # Stdlib-only, source-only (packages/*/pirn*/**/*.py; tests/ excluded).
+        # Ratcheted against scripts/conventions_baseline.json: fails only when a
+        # package/rule count regresses past its recorded baseline. Re-run with
+        # --write-baseline to lower the baseline once a rule's count drops.
+        run: >
+          python scripts/check_conventions.py
+          packages/pirn-core/pirn packages/pirn-agents/pirn_agents
+          packages/pirn-data/pirn_data packages/pirn-health/pirn_health
+          packages/pirn-ml/pirn_ml packages/pirn-oilgas/pirn_oilgas
+          packages/pirn-signal/pirn_signal
+      - name: No UPPER_SNAKE constants (ratcheted, PIR-856)
+        # Same ratchet semantics as above, over the same package source trees.
+        # pirn-agents currently carries pre-existing violations the agents-rules
+        # PIR-856 lane is fixing concurrently; --baseline keeps this gate green
+        # in the meantime instead of masking it entirely.
+        run: >
+          python scripts/check_no_caps_constants.py
+          packages/pirn-core/pirn packages/pirn-agents/pirn_agents
+          packages/pirn-data/pirn_data packages/pirn-health/pirn_health
+          packages/pirn-ml/pirn_ml packages/pirn-oilgas/pirn_oilgas
+          packages/pirn-signal/pirn_signal
+          --baseline scripts/caps_constants_baseline.json
       - name: Install pytest (base image ships python + uv only)
         # Floor matches every package's own pytest requirement.
         run: uv pip install --system 'pytest>=9.1.0'

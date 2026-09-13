@@ -23,7 +23,7 @@ graph TD
     subgraph L2[Layer 2 - Execution Engine]
         Engine["Engine"]
         Shed["Shed (graph)"]
-        Dispatcher["Dispatcher protocol"]
+        Dispatcher["Dispatcher base class"]
         RunCtx["RunContext / StatusManager"]
     end
 
@@ -31,7 +31,7 @@ graph TD
         TapStore["TapestryStore"]
         History["RunHistory"]
         DataSt["DataStore"]
-        Emitter["Emitter protocol"]
+        Emitter["Emitter base class"]
     end
 
     L1 --> L2
@@ -42,7 +42,7 @@ graph TD
 
 **Layer 2** runs when you call `tapestry.run()`. The engine builds an ephemeral execution graph (the Shed), schedules each knot concurrently as soon as its parents have resolved, and produces a `RunResult`.
 
-**Layer 3** is where data lives. All three backends are protocols — swap implementations without touching pipeline code.
+**Layer 3** is where data lives. All three backends are base classes (subclass and override) — swap implementations without touching pipeline code.
 
 ---
 
@@ -134,7 +134,7 @@ Every value that flows through a pipeline is identified by `sha256:<hex-digest>`
 ```mermaid
 graph TD
     subgraph User[User API]
-        KnotCls["Knot ABC"]
+        KnotCls["Knot base class"]
         KnotDec["@knot decorator"]
         Tap["Tapestry"]
         KnotCfg["KnotConfig / ErrorPolicy"]
@@ -162,15 +162,15 @@ graph TD
     end
 
     subgraph Obs[Observability]
-        EmitterP["Emitter protocol"]
+        EmitterP["Emitter base class"]
         LogE["LogEmitter"]
         OtelE["OpenTelemetryEmitter"]
         KafkaE["KafkaEmitter"]
     end
 
     subgraph Trig[Triggers and Streaming]
-        TrigP["Trigger protocol"]
-        SrcP["StreamingSource protocol"]
+        TrigP["Trigger base class"]
+        SrcP["StreamingSource base class"]
         CronT["CronTrigger"]
         KafkaT["KafkaTrigger"]
         HttpT["WebhookTrigger"]

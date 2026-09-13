@@ -1,16 +1,12 @@
 <!-- path: prompticorn/prompts/agents/core/core-conventions-python.md -->
-{%- import 'macros/naming_conventions.jinja2' as naming -%}
-{%- import 'macros/testing_sections.jinja2' as testing -%}
-{%- import 'macros/coverage_targets.jinja2' as coverage -%}
-{%- import 'macros/code_examples.jinja2' as examples -%}
 # Core Conventions Python
 
-Language:             {{ language }} e.g., Python 3.11+
-Runtime:              {{ runtime }} e.g., CPython 3.11, PyPy
-Package Manager:      {{ package_manager }} e.g., poetry, pip, uv
-Linter:               {{ linter }} e.g., Ruff, flake8
-Formatter:           {{ formatter }} e.g., Ruff, Black
-Abstract Class Style: {{ abstract_class_style }} e.g., abc, interface
+Language:             Python 3.11+ (CI matrix runs 3.11-3.14 per package; see .github/workflows/workspace.yml)
+Runtime:              CPython (no PyPy in the test matrix)
+Package Manager:      uv (per-package pyproject.toml; no shared workspace lockfile — see docs/architecture/ci-pipelines.md)
+Linter:               Ruff 0.15.22 (pinned in .pre-commit-config.yaml and workspace.yml; do not bump without updating both)
+Formatter:           Ruff 0.15.22 (ruff format; same pin as the linter)
+Abstract Class Style: interface (NotImplementedError-raising base classes; no abc.ABC, no typing.Protocol for framework interfaces)
 
 ### Naming Conventions
 
@@ -31,8 +27,14 @@ Environment vars:    UPPER_SNAKE_CASE always
 - Use `typing.TypeAlias` for complex type aliases
 
 ### Error Handling
-- Use exception hierarchies — don't raise generic `Exception`
-- Use `Result` pattern from `returns` library or custom Result type
+- Use exception hierarchies — don't raise generic `Exception`. Domain exceptions extend
+  `PirnError` (`pirn.exceptions.pirn_error.PirnError`), not a bare `Exception` subclass.
+- Use the `Ok` / `Err` / `Skipped` result types (`pirn.core.ok`, `pirn.core.err`,
+  `pirn.core.skipped`) for knot-graph execution outcomes — **not** the third-party
+  `returns` library, which is not a dependency here. `Ok` wraps a successful value,
+  `Err` wraps a caught exception, `Skipped` marks a knot that did not run (e.g. gate
+  closure, an `Optional` knot converting a failure). This is specific to the
+  engine/execution layer; ordinary function calls outside that layer just raise.
 - Never swallow errors silently — always log or re-raise with context
 - Use `contextlib.contextmanager` for resource management
 
@@ -79,13 +81,35 @@ Environment vars:    UPPER_SNAKE_CASE always
 
 ### Testing
 
-[Dynamic content - see template]
-
-TODO
-
-[Dynamic content - see template]
-
-[Dynamic content - see template]
+- Framework: `pytest` + `pytest-asyncio` (`asyncio_mode = "auto"` — no `@pytest.mark.asyncio`
+  needed) + `pytest-cov`. Every package's own `[tool.pytest.ini_options]` sets these; there
+  is no shared root config.
+- Layout: tests are **NOT co-located** with source. Each package mirrors its source tree
+  under `packages/<pkg>/tests/{unit,integration,...}` — e.g.
+  `packages/pirn-core/pirn/backends/azure.py` is tested by
+  `packages/pirn-core/tests/unit/backends/test_azure.py`. Standard subdirectories seen
+  across packages: `unit/`, `integration/`, `slow/`, `perf/`, `security/`, `smoke/`,
+  `end_to_end/`, `mutation/` — not every package uses every one; add a subdirectory only
+  when a test genuinely belongs to that category.
+- Markers: tag anything that is not a fast, isolated unit test — `slow`, `heavy` (large ML
+  deps like torch/tensorflow), `cross_domain` (needs more than one pirn package installed;
+  skipped in per-package CI, run by the `unified` cross-domain suite), `mutation`, or a
+  `needs_<backend>` marker (`needs_postgres`, `needs_valkey`, `needs_kafka`, `needs_s3`,
+  `needs_dask`, `needs_ray`, `needs_celery`) for anything requiring a real external
+  service. `--strict-markers` is on: an unregistered marker fails collection, so add new
+  markers to `[tool.pytest.ini_options] markers` in that package's `pyproject.toml`.
+- Coverage: `pytest --cov=<import_pkg> --cov-report=xml` per package in CI, uploaded to
+  Codecov per package (not aggregated workspace-wide). No hard percentage gate is
+  enforced today; write tests for every branch a change touches rather than chasing a
+  number.
+- Mocking: prefer a small hand-written fake over `unittest.mock` when faking one of this
+  codebase's own interfaces — the NotImplementedError base-class style
+  (`.claude/conventions/languages/python.md` "Abstract Classes and Interfaces" below)
+  makes a minimal fake subclass cheap to write and far more readable at the call site than
+  a `MagicMock` with `.return_value` chains. Reach for `unittest.mock`
+  (`Mock`/`MagicMock`/`AsyncMock`, `monkeypatch`) for third-party clients and I/O boundaries
+  (cloud SDKs, DB drivers, HTTP clients) where writing a fake would mean re-implementing
+  someone else's API surface.
 
 ### Code Style
 - Follow PEP 8 (enforced by Ruff)
@@ -102,7 +126,23 @@ TODO
 - Use `@property.deleter` when cleanup logic is needed on attribute deletion
 - Prevent setting when inappropriate by raising `AttributeError` or `TypeError` in setters
 
-[Dynamic content - see template]
+```python
+class WidgetFormat:
+    def __init__(self, schema_version: int) -> None:
+        self._schema_version = schema_version
+
+    @property
+    def schema_version(self) -> int:
+        """Read-only — fixed at construction, never mutated after."""
+        return self._schema_version
+```
+
+Note the interaction with the Knot rules elsewhere in this repo
+(`docs/contributing/knot-design-rules.md`, Rule 4): a `Knot` subclass must **not** expose
+`@property` fields at all, even read-only ones — that rule is stricter than this general
+Python guideline and takes precedence for anything that subclasses `Knot`. This
+properties guidance applies to ordinary (non-Knot) classes such as the connector/
+file-format classes above.
 
 #### Public/Protected/Private Scoping
 - Use single underscore `_` prefix for protected/internal attributes and methods
@@ -173,7 +213,21 @@ def my_decorator(func):
 - Use `async for` for async iterators
 - Never use `time.sleep()` in async code - use `await asyncio.sleep()`
 
-[Dynamic content - see template]
+```python
+class RedisTransport(DataTransport):
+    """See docs/architecture/extension-points.md for the full DataTransport contract."""
+
+    async def write(self, run_id: str, knot_id: str, value: Any) -> TransportHandle:
+        # Every framework extension point method that does I/O is async, even
+        # backends that are themselves synchronous under the hood — the
+        # executor always awaits, so a sync-only backend still declares async
+        # methods and does its blocking call inline (or via
+        # asyncio.to_thread for a call that would otherwise stall the loop).
+        ...
+
+    async def read(self, handle: TransportHandle) -> Any:
+        ...
+```
 
 #### Context Managers (sync and async)
 - **ALWAYS use context managers** for resource management (files, connections, locks)
@@ -239,32 +293,14 @@ def create_handler(config: dict):
 
 ### Abstract Classes and Interfaces
 
-Selected Style: **{{ abstract_class_style }}**
+Selected Style: **interface** — no `abc.ABC`, no `@abstractmethod`, and no
+`typing.Protocol` for framework interfaces either. Every extension point in this
+codebase (`Knot`, `DataTransport`, `IdentityResolver`, `AdmissionGate`, `Dispatcher`,
+`Emitter`, `Trigger`, the backend base classes under `pirn/backends/base/`, and the
+`FileFormat`/`BatchFileFormat`/`StreamingFileFormat` connector bases) is a plain base
+class whose methods `raise NotImplementedError(...)`. See
+`docs/architecture/extension-points.md` for the real ones; the example below is generic.
 
-{% if config.abstract_class_style == "abc" %}
-#### Using Abstract Base Classes (abc module)
-- Inherit from `abc.ABC` for abstract base classes
-- Use `@abstractmethod` decorator for methods that must be implemented
-- Use `@abstractclassmethod` and `@abstractstaticmethod` where appropriate
-- Type checkers will catch incomplete implementations at static analysis time
-
-```python
-from abc import ABC, abstractmethod
-
-class Repository(ABC):
-    @abstractmethod
-    def get(self, id: str) -> Entity | None:
-        """Retrieve entity by ID. Must be implemented by subclasses."""
-        ...
-
-class SqlRepository(Repository):
-    def get(self, id: str) -> Entity | None:
-        # Concrete implementation
-        return self.session.query(Entity).get(id)
-```
-{% endif %}
-
-{% if config.abstract_class_style == "interface" %}
 #### Using Interface Pattern (Traditional OOP Interfaces)
 - Interfaces are base classes with standard `__init__` containing base details repeated across classes
 - Interface methods raise `NotImplementedError` for methods that must be implemented by subclasses
@@ -337,5 +373,3 @@ def process_data(repo: Repository) -> None:
 - When you want explicit contracts through inheritance
 - For classes that will be instantiated and need base behavior
 - When runtime type checking with inheritance is important
-
-{% endif %}

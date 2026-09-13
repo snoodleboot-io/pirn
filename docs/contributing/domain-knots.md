@@ -12,7 +12,10 @@ Read and follow every convention here — these are enforced by CI:
 
 - One class per file, no exceptions.
 - No module-level constants. Configuration lives as `ClassVar` attributes or constructor parameters.
-- No `Protocol` — use abstract base classes.
+- No `Protocol`, and no `abc.ABC`/`@abstractmethod` either — the house interface style is a
+  plain base class whose methods raise `NotImplementedError` for subclasses to override
+  (see `.claude/conventions/languages/python.md`). `BatchFileFormat` and
+  `StreamingFileFormat` are themselves written this way.
 - Methods belong to classes; no module-level functions (use `@staticmethod` inside the class instead).
 - No nested function definitions that can be expressed as a `@staticmethod`.
 - No bare `except:` — always catch a specific exception type.
@@ -397,17 +400,23 @@ Test class naming: `Test{ClassName}Construction`, `Test{ClassName}Properties`, `
 
 ## Step 6 — Register the Format
 
-### Add to `__init__.py`
+### Nothing to add to `__init__.py`
 
-Open `pirn/connectors/file_formats/__init__.py` and add your class to the `__all__` list and the conditional import block:
+Registration is automatic: package import calls
+`sweet_tea.registry.Registry.fill_registry()`, which walks the whole package tree at
+import time and registers every class it finds, skipping (with a logged warning — PIR-856)
+any module whose import fails because an optional dependency is absent. Your new
+`WidgetFormat` class is discovered and registered the moment its file exists under
+`pirn/connectors/file_formats/` — no edit to `__init__.py` is needed or wanted.
 
-```python
-# In the appropriate section (e.g. "# Scientific" or "# ML artifacts"):
-try:
-    from pirn.connectors.file_formats.widget_format import WidgetFormat
-except ImportError:  # widgetlib not installed
-    pass
-```
+Do **not** add a `try/except ImportError` re-export of your class to `__init__.py`. The
+house convention forbids import forwarding (`.claude/conventions/languages/python.md`,
+enforced by `scripts/check_no_import_forwarding.py`): a package's `__init__.py` must not
+re-export symbols defined elsewhere in the tree, even behind an optional-dependency guard.
+`pirn/connectors/file_formats/__init__.py` carries only a module docstring — check it
+before assuming otherwise. Consumers import your format directly:
+`from pirn.connectors.file_formats.widget_format import WidgetFormat`, or resolve it by
+name through the registry the same way any other knot is resolved from YAML.
 
 ### Add to `pyproject.toml`
 
@@ -463,7 +472,7 @@ Before opening a PR, verify:
 - [ ] `pytest.importorskip("<lib>")` at the top of the test file for optional-dep formats.
 - [ ] `TestConstruction`, `TestProperties`, `TestRoundTrip` classes all present.
 - [ ] Round-trip test covers: basic rows, empty input, single row.
-- [ ] Format class added to `__init__.py` under a `try/except ImportError`.
+- [ ] No `__init__.py` re-export added — registration is automatic via `Registry.fill_registry()`.
 - [ ] Optional extra declared in `pyproject.toml` under `# File format extras`.
 - [ ] `ruff check` passes.
 - [ ] `pyright` passes (no new type errors).

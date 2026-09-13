@@ -1,44 +1,76 @@
 # Version note (PIR-750): ruff is pinned to v0.15.22 to match the CI pin in
 # .github/workflows/workspace.yml. Staying on 0.15.x is deliberate — 0.16.0 formats
-# markdown code blocks, a ~571-file workspace-wide reformat we have not adopted.
+# markdown code blocks, a ~571-file workspace-wide reformat we have not adopted. The
+# `ruff`/`ruff-format`/`pyright` hooks below run out of `.venv/bin/` (see PIR-856
+# layout note) rather than a pinned separate hook environment, so keeping `.venv`'s
+# ruff/pyright versions aligned with the CI pins is what keeps local and CI in
+# lockstep now — there is no `rev:` to bump here anymore.
 #
-# Layout note: the ruff/ruff-format/pyright/no-caps hooks below use `files: ^pirn/`,
-# which does NOT match this monorepo's `packages/<dist>/<import_pkg>/…` layout, so
-# they are effectively inert locally. That is intentional for now: running ruff from
-# the repo root without each package's own `--config` reformats across package
-# boundaries (it once touched 560 files incl. pirn-core). CI runs ruff/pyright
-# per-package with the right config and is the enforcement point. The
-# no-import-forwarding hook uses a layout-independent pattern and DOES run.
+# Layout note (PIR-856): this is a monorepo of `packages/<dist>/<import_pkg>/…`
+# packages, each with its OWN `pyproject.toml` config — there is no shared root
+# config. The hooks below used to match `files: ^pirn/`, which never matches that
+# layout, so they were effectively inert locally (CI was the only real enforcement
+# point). They are now scoped to `^packages/[^/]+/pirn` (matches every package's
+# import root: `pirn`, `pirn_agents`, `pirn_data`, …). `ruff`/`ruff-format`/`pyright`
+# go through small wrapper scripts (`scripts/precommit_ruff.py`,
+# `scripts/precommit_pyright.py`) that group the staged files by the package they
+# live under and invoke the tool once per package with THAT package's own config —
+# running ruff from the repo root without doing this once reformatted 560 files
+# across every package, including pirn-core. `check_conventions.py` and
+# `check_no_caps_constants.py` scan whole package trees rather than individual
+# files, so they run over all seven unconditionally whenever a matching file
+# changed (`pass_filenames: false`) — both are pure-AST and fast. The
+# no-import-forwarding hook uses a layout-independent pattern and always ran.
 repos:
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.22
-    hooks:
-      - id: ruff
-        args: [--fix]
-        files: ^pirn/
-        exclude: ^(tests|examples)/
-      - id: ruff-format
-        files: ^pirn/
-        exclude: ^(tests|examples)/
-
   - repo: local
     hooks:
+      - id: ruff
+        name: ruff (per-package config)
+        entry: python scripts/precommit_ruff.py check
+        language: system
+        types: [python]
+        files: ^packages/[^/]+/pirn
+
+      - id: ruff-format
+        name: ruff format (per-package config)
+        entry: python scripts/precommit_ruff.py format
+        language: system
+        types: [python]
+        files: ^packages/[^/]+/pirn
+
       - id: pyright
-        name: pyright
-        entry: .venv/bin/pyright
+        name: pyright (per-package)
+        entry: python scripts/precommit_pyright.py
+        language: system
+        types: [python]
+        files: ^packages/[^/]+/pirn
+
+      - id: check-conventions
+        name: house-convention AST gate (ratcheted)
+        entry: >
+          python scripts/check_conventions.py
+          packages/pirn-core/pirn packages/pirn-agents/pirn_agents
+          packages/pirn-data/pirn_data packages/pirn-health/pirn_health
+          packages/pirn-ml/pirn_ml packages/pirn-oilgas/pirn_oilgas
+          packages/pirn-signal/pirn_signal
         language: system
         types: [python]
         pass_filenames: false
-        files: ^pirn/
-        exclude: ^(tests|examples)/
+        files: ^packages/[^/]+/pirn
 
       - id: no-caps-constants
-        name: no UPPER_SNAKE constants
-        entry: python scripts/check_no_caps_constants.py
+        name: no UPPER_SNAKE constants (ratcheted)
+        entry: >
+          python scripts/check_no_caps_constants.py
+          packages/pirn-core/pirn packages/pirn-agents/pirn_agents
+          packages/pirn-data/pirn_data packages/pirn-health/pirn_health
+          packages/pirn-ml/pirn_ml packages/pirn-oilgas/pirn_oilgas
+          packages/pirn-signal/pirn_signal
+          --baseline scripts/caps_constants_baseline.json
         language: system
         types: [python]
-        files: ^pirn/
-        exclude: ^(tests|examples)/
+        pass_filenames: false
+        files: ^packages/[^/]+/pirn
 
       - id: no-import-forwarding
         name: no import forwarding in __init__.py
