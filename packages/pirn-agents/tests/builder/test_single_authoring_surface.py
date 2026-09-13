@@ -30,7 +30,9 @@ exist. That is the frozen inventory this ratchet burns down.
 
 from __future__ import annotations
 
+import json
 import unittest
+import warnings
 
 from pirn.core.knot import Knot
 from pirn.nodes.sub_tapestry import SubTapestry
@@ -41,6 +43,7 @@ from sweet_tea.registry import Registry
 from pirn_agents.builder.agent import Agent
 from pirn_agents.builder.agent_pattern_registry import AgentPatternRegistry
 from pirn_agents.builder.agent_spec import AgentSpec
+from pirn_agents.builder.agent_spec_loader import AgentSpecLoader
 
 
 class TestPatternNamesResolveThroughCoreRegistry(unittest.TestCase):
@@ -151,6 +154,60 @@ class TestOneNamespaceOfPatternNames(unittest.TestCase):
         """The registry can hold thousands of unrelated entries; only ours count."""
         # Arrange / Act / Assert: a real, unrelated pirn-core registry key.
         assert "knot" not in Agent.patterns()
+
+
+class TestAgentSpecLoaderAcceptsBothDialects(unittest.TestCase):
+    """``AgentSpecLoader`` reads a core pipeline document, and warns on the old one."""
+
+    def test_a_core_pipeline_document_loads_with_no_warning(self) -> None:
+        # Arrange: exactly the shape to_pipeline_spec() emits.
+        spec = AgentSpec(pattern="react", options={"max_iterations": 4})
+        document = json.dumps(
+            {
+                "name": "agent",
+                "nodes": [
+                    {"id": "agent:seed", "type": "parameter", "type_": "Any"},
+                    {
+                        "id": "agent",
+                        "type": "knot",
+                        "callable": "react",
+                        "config": {"max_iterations": 4},
+                    },
+                ],
+            }
+        )
+
+        # Act
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            restored = AgentSpecLoader.from_json(document)
+
+        # Assert
+        assert restored == spec
+
+    def test_the_legacy_flat_dialect_still_loads_but_warns(self) -> None:
+        # Arrange
+        document = json.dumps({"pattern": "react", "options": {"max_iterations": 4}})
+
+        # Act / Assert
+        with self.assertWarns(DeprecationWarning):
+            spec = AgentSpecLoader.from_json(document)
+        assert spec == AgentSpec(pattern="react", options={"max_iterations": 4})
+
+    def test_a_hand_authored_core_pipeline_document_round_trips_via_to_pipeline_spec(self) -> None:
+        """The exact document to_pipeline_spec() would write, read back losslessly."""
+        # Arrange
+        spec = AgentSpec(pattern="naive_rag", llm="l", memory="m", options={"top_k": 2})
+        pipeline_spec = spec.to_pipeline_spec()
+        document = pipeline_spec.model_dump(mode="json")
+
+        # Act
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            restored = AgentSpecLoader.from_mapping(document)
+
+        # Assert
+        assert restored == spec
 
 
 if __name__ == "__main__":
