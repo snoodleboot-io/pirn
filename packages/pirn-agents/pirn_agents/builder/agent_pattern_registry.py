@@ -259,6 +259,48 @@ class AgentPatternRegistry:
             "tool_calls",
         ),
         PatternDescriptor("tool_chain", f"{_spec}.tool_use.tool_chain:ToolChain", "initial_call"),
+        # --- engine-graph conversions (PIR-856 agents-flow lane)
+        PatternDescriptor("reranker", f"{_spec}.rag.reranker:Reranker", "query"),
+        PatternDescriptor(
+            "contextual_compressor",
+            f"{_spec}.rag.contextual_compressor:ContextualCompressor",
+            "query",
+        ),
+        PatternDescriptor(
+            "contextual_chunk_enricher",
+            f"{_spec}.rag.contextual_chunk_enricher:ContextualChunkEnricher",
+            "documents",
+        ),
+        PatternDescriptor(
+            "fusion_retriever", f"{_spec}.rag.fusion_retriever:FusionRetriever", "queries"
+        ),
+        PatternDescriptor(
+            "sub_question_retriever",
+            f"{_spec}.rag.sub_question_retriever:SubQuestionRetriever",
+            "sub_questions",
+        ),
+        PatternDescriptor(
+            "iterative_retriever", f"{_spec}.rag.iterative_retriever:IterativeRetriever", "query"
+        ),
+        PatternDescriptor(
+            "corrective_router", f"{_spec}.rag.corrective_router:CorrectiveRouter", "query"
+        ),
+        PatternDescriptor(
+            "tree_of_thought", f"{_spec}.chain_of_thought.tree_of_thought:TreeOfThought", "prompt"
+        ),
+        PatternDescriptor(
+            "self_consistency",
+            f"{_spec}.chain_of_thought.self_consistency_ensemble:SelfConsistencyEnsemble",
+            "prompt",
+        ),
+        PatternDescriptor(
+            "model_cascade",
+            f"{_spec}.routing.model_cascade_router:ModelCascadeRouter",
+            "request",
+        ),
+        PatternDescriptor(
+            "fallback_chain", f"{_spec}.routing.fallback_chain:FallbackChain", "ordered"
+        ),
     )
 
     #: Convenience spellings that resolve to a canonical pattern name.

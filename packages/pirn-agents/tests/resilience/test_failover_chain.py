@@ -12,6 +12,8 @@ import asyncio
 
 import pytest
 from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 
 from pirn_agents.resilience.circuit_breaker_config import CircuitBreakerConfig
 from pirn_agents.resilience.circuit_breaker_registry import CircuitBreakerRegistry
@@ -43,47 +45,63 @@ def _hang():
 
 
 class TestConstruction:
-    def test_rejects_empty(self) -> None:
+    async def test_rejects_empty(self) -> None:
+        with Tapestry():
+            chain = FailoverChain(candidates=[], _config=KnotConfig(id="failover"))
         with pytest.raises(ValueError, match="non-empty"):
-            FailoverChain(candidates=[], _config=KnotConfig(id="failover"))
+            await chain.process(candidates=[])
 
-    def test_rejects_non_candidate(self) -> None:
-        with pytest.raises(TypeError, match="FailoverCandidate"):
+    async def test_rejects_non_candidate(self) -> None:
+        # The framework validates a literal (non-Knot) constructor value
+        # against its declared type eagerly, at construction time, so the
+        # bad entry never reaches process().
+        with Tapestry(), pytest.raises(TypeError, match="FailoverCandidate"):
             FailoverChain(candidates=[object()], _config=KnotConfig(id="failover"))  # type: ignore[list-item]
 
-    def test_rejects_bad_breakers(self) -> None:
-        with pytest.raises(TypeError, match="CircuitBreakerRegistry"):
-            FailoverChain(
+    async def test_rejects_bad_breakers(self) -> None:
+        with Tapestry():
+            chain = FailoverChain(
                 candidates=[FailoverCandidate("a", _ok(1))],
-                breakers=object(),
+                breakers=object(),  # type: ignore[arg-type]
                 _config=KnotConfig(id="failover"),
-            )  # type: ignore[arg-type]
+            )
+        with pytest.raises(TypeError, match="CircuitBreakerRegistry"):
+            await chain.process(
+                candidates=[FailoverCandidate("a", _ok(1))],
+                breakers=object(),  # type: ignore[arg-type]
+            )
 
 
 class TestOrdering:
     async def test_first_success_wins_and_stops(self) -> None:
-        chain = FailoverChain(
-            candidates=[
-                FailoverCandidate("primary", _ok("A")),
-                FailoverCandidate("secondary", _ok("B")),
-            ],
-            _config=KnotConfig(id="failover"),
-        )
-        result = await chain.process()
+        with Tapestry() as t:
+            FailoverChain(
+                candidates=[
+                    FailoverCandidate("primary", _ok("A")),
+                    FailoverCandidate("secondary", _ok("B")),
+                ],
+                _config=KnotConfig(id="failover"),
+            )
+        run = await t.run(RunRequest())
+        assert run.succeeded
+        result = run.outputs["failover"]
         assert result.succeeded is True
         assert result.chosen == "primary"
         assert result.value == "A"
         assert [a.name for a in result.attempts] == ["primary"]
 
     async def test_falls_through_error_to_next(self) -> None:
-        chain = FailoverChain(
-            candidates=[
-                FailoverCandidate("primary", _boom("down")),
-                FailoverCandidate("secondary", _ok("B")),
-            ],
-            _config=KnotConfig(id="failover"),
-        )
-        result = await chain.process()
+        with Tapestry() as t:
+            FailoverChain(
+                candidates=[
+                    FailoverCandidate("primary", _boom("down")),
+                    FailoverCandidate("secondary", _ok("B")),
+                ],
+                _config=KnotConfig(id="failover"),
+            )
+        run = await t.run(RunRequest())
+        assert run.succeeded
+        result = run.outputs["failover"]
         assert result.chosen == "secondary"
         assert result.value == "B"
         assert result.attempts[0].outcome is FailoverOutcome.ERROR
@@ -91,14 +109,17 @@ class TestOrdering:
         assert result.attempts[1].outcome is FailoverOutcome.SUCCESS
 
     async def test_all_fail_returns_exhausted_trace(self) -> None:
-        chain = FailoverChain(
-            candidates=[
-                FailoverCandidate("a", _boom("x")),
-                FailoverCandidate("b", _boom("y")),
-            ],
-            _config=KnotConfig(id="failover"),
-        )
-        result = await chain.process()
+        with Tapestry() as t:
+            FailoverChain(
+                candidates=[
+                    FailoverCandidate("a", _boom("x")),
+                    FailoverCandidate("b", _boom("y")),
+                ],
+                _config=KnotConfig(id="failover"),
+            )
+        run = await t.run(RunRequest())
+        assert run.succeeded
+        result = run.outputs["failover"]
         assert result.succeeded is False
         assert result.chosen is None
         assert result.value is None
@@ -110,14 +131,17 @@ class TestOrdering:
 
 class TestTimeout:
     async def test_per_candidate_timeout_reroutes(self) -> None:
-        chain = FailoverChain(
-            candidates=[
-                FailoverCandidate("slow", _hang(), timeout=0.01),
-                FailoverCandidate("fast", _ok("B")),
-            ],
-            _config=KnotConfig(id="failover"),
-        )
-        result = await chain.process()
+        with Tapestry() as t:
+            FailoverChain(
+                candidates=[
+                    FailoverCandidate("slow", _hang(), timeout=0.01),
+                    FailoverCandidate("fast", _ok("B")),
+                ],
+                _config=KnotConfig(id="failover"),
+            )
+        run = await t.run(RunRequest())
+        assert run.succeeded
+        result = run.outputs["failover"]
         assert result.chosen == "fast"
         assert result.attempts[0].outcome is FailoverOutcome.TIMEOUT
 
@@ -126,15 +150,18 @@ class TestCircuitIntegration:
     async def test_skips_open_candidate(self) -> None:
         breakers = CircuitBreakerRegistry(CircuitBreakerConfig(failure_threshold=1))
         await breakers.get("primary").record_failure()  # trip it OPEN
-        chain = FailoverChain(
-            candidates=[
-                FailoverCandidate("primary", _ok("A")),
-                FailoverCandidate("secondary", _ok("B")),
-            ],
-            breakers=breakers,
-            _config=KnotConfig(id="failover"),
-        )
-        result = await chain.process()
+        with Tapestry() as t:
+            FailoverChain(
+                candidates=[
+                    FailoverCandidate("primary", _ok("A")),
+                    FailoverCandidate("secondary", _ok("B")),
+                ],
+                breakers=breakers,
+                _config=KnotConfig(id="failover"),
+            )
+        run = await t.run(RunRequest())
+        assert run.succeeded
+        result = run.outputs["failover"]
         assert result.chosen == "secondary"
         assert result.attempts[0].outcome is FailoverOutcome.CIRCUIT_OPEN
 
@@ -144,24 +171,35 @@ class TestCircuitIntegration:
             FailoverCandidate("primary", _boom("down")),
             FailoverCandidate("secondary", _ok("B")),
         ]
-        first = await FailoverChain(
-            candidates=candidates, breakers=breakers, _config=KnotConfig(id="failover")
-        ).process()
+        with Tapestry() as t1:
+            FailoverChain(
+                candidates=candidates, breakers=breakers, _config=KnotConfig(id="failover")
+            )
+        first_run = await t1.run(RunRequest())
+        assert first_run.succeeded
+        first = first_run.outputs["failover"]
         assert first.attempts[0].outcome is FailoverOutcome.ERROR
         # Second run: primary's breaker is now open, so it is skipped.
-        second = await FailoverChain(
-            candidates=candidates, breakers=breakers, _config=KnotConfig(id="failover")
-        ).process()
+        with Tapestry() as t2:
+            FailoverChain(
+                candidates=candidates, breakers=breakers, _config=KnotConfig(id="failover")
+            )
+        second_run = await t2.run(RunRequest())
+        assert second_run.succeeded
+        second = second_run.outputs["failover"]
         assert second.attempts[0].outcome is FailoverOutcome.CIRCUIT_OPEN
 
     async def test_success_records_into_breaker(self) -> None:
         breakers = CircuitBreakerRegistry(CircuitBreakerConfig(failure_threshold=2))
-        chain = FailoverChain(
-            candidates=[FailoverCandidate("p", _ok("A"))],
-            breakers=breakers,
-            _config=KnotConfig(id="failover"),
-        )
-        result = await chain.process()
+        with Tapestry() as t:
+            FailoverChain(
+                candidates=[FailoverCandidate("p", _ok("A"))],
+                breakers=breakers,
+                _config=KnotConfig(id="failover"),
+            )
+        run = await t.run(RunRequest())
+        assert run.succeeded
+        result = run.outputs["failover"]
         assert result.succeeded is True
         # A recorded success keeps the breaker closed.
         assert breakers.get("p").state.value == "closed"

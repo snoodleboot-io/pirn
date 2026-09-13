@@ -5,15 +5,28 @@ if the evidence looks incomplete — asks the LLM for a sharper follow-up query
 and retrieves again. The loop is hard-bounded by ``max_iterations`` so it always
 terminates, and accumulated hits are deduplicated across rounds.
 
+The loop is expressed as an :class:`~pirn_agents.specializations.base.agent_loop_pipeline.AgentLoopPipeline`
+(see :class:`~pirn_agents.specializations.rag._iterative_retrieval_loop._IterativeRetrievalLoop`)
+rather than a hand-rolled ``for iteration in range(max_iterations)`` that
+awaited ``memory.search`` and ``llm.chat`` directly: each round becomes its own
+iteration tapestry with a ``_RetrievalRound`` knot, a ``_MergeHits``
+knot, and — on every iteration but the last — a ``_DecideFollowUp``
+knot. Both termination decisions (whether more evidence is needed, and the
+hard ``max_iterations`` cap) live inside the loop driver, per
+``agent_loop_pipeline.py``; the follow-up decision is simply omitted from the
+last iteration's tapestry, so it is never built and never paid for, rather
+than being run and its result discarded.
+
 Algorithm:
     1. Validate ``query`` (str), ``memory`` (:class:`MemoryStore`), ``llm``
        (:class:`LLMProvider`), ``max_iterations`` and ``top_k`` (positive ints).
-    2. Start with ``current_query = query``. Repeat up to ``max_iterations``:
-       a. Search ``memory`` for ``top_k`` hits; union them (dedup by id).
-       b. On the final allowed iteration, stop.
-       c. Otherwise ask the LLM to reply ``DONE`` (evidence sufficient) or
-          ``REFINE: <follow-up query>``; on ``REFINE`` set ``current_query`` and
-          loop, on anything else stop.
+    2. Start with ``current_query = query``. Each iteration:
+       a. ``_RetrievalRound`` searches ``memory`` for ``top_k`` hits.
+       b. ``_MergeHits`` unions them into the accumulated set (dedup by id).
+       c. On every iteration but the last, ``_DecideFollowUp`` asks the LLM
+          to reply ``DONE`` (evidence sufficient) or ``REFINE: <follow-up
+          query>``; on ``REFINE`` the loop continues with the new query, on
+          anything else (or on the last iteration) it stops.
     3. Return the accumulated deduplicated documents.
 
 References:
@@ -32,9 +45,14 @@ from pirn_agents.interfaces.retriever import Retriever
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.prompt.prompt_binding import PromptBinding
+from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
+from pirn_agents.specializations.llm_response_text import LlmResponseText
+from pirn_agents.specializations.rag._iterative_retrieval_loop import _IterativeRetrievalLoop
+from pirn_agents.specializations.rag._iterative_retrieval_result import _IterativeRetrievalResult
+from pirn_agents.specializations.rag._iterative_retrieval_state import _IterativeRetrievalState
 
 
-class IterativeRetriever(Retriever):
+class IterativeRetriever(AgentPipeline, Retriever):
     """Retrieve, ask the LLM whether to refine, and loop under a budget."""
 
     _decide_prompt: ClassVar[PromptBinding] = PromptBinding(
@@ -77,8 +95,8 @@ class IterativeRetriever(Retriever):
         max_iterations: int = 3,
         top_k: int = 3,
         **_: Any,
-    ) -> list[Mapping[str, Any]]:
-        """Run the bounded retrieve-and-refine loop and return the union of hits.
+    ) -> Knot:
+        """Build the retrieve-and-refine loop and return its result-extracting sink knot.
 
         Args:
             query: The initial query.
@@ -88,7 +106,8 @@ class IterativeRetriever(Retriever):
             top_k: Hits fetched per round.
 
         Returns:
-            The deduplicated union of documents retrieved across rounds.
+            The sink knot whose output is the deduplicated union of documents
+            retrieved across rounds.
 
         Raises:
             TypeError: If ``query``/``memory``/``llm`` are the wrong type.
@@ -112,23 +131,16 @@ class IterativeRetriever(Retriever):
             )
         if not isinstance(top_k, int) or top_k <= 0:
             raise ValueError(f"IterativeRetriever: top_k must be a positive int, got {top_k!r}")
-        merged: dict[str, Mapping[str, Any]] = {}
-        current_query = query
-        for iteration in range(max_iterations):
-            hits = await self._search(memory, current_query, top_k)
-            for hit in hits:
-                key = self._doc_key(hit)
-                if key not in merged:
-                    enriched = dict(hit)
-                    enriched.setdefault("iteration", iteration)
-                    merged[key] = enriched
-            if iteration == max_iterations - 1:
-                break
-            follow_up = await self._decide(llm, query, merged, current_query)
-            if follow_up is None:
-                break
-            current_query = follow_up
-        return list(merged.values())
+
+        loop = _IterativeRetrievalLoop(
+            memory=memory,
+            llm=llm,
+            max_iterations=max_iterations,
+            top_k=top_k,
+            state=_IterativeRetrievalState(original_query=query, current_query=query),
+            _config=KnotConfig(id="loop"),
+        )
+        return _IterativeRetrievalResult(state=loop, _config=KnotConfig(id="result"))
 
     @staticmethod
     async def _decide(
@@ -147,43 +159,8 @@ class IterativeRetriever(Retriever):
             }
         )
         raw = await llm.chat([{"role": "user", "content": prompt}])
-        reply = IterativeRetriever._extract_text(raw).strip()
+        reply = LlmResponseText().extract(raw).strip()
         if reply.upper().startswith("REFINE:"):
             follow_up = reply.split(":", 1)[1].strip()
             return follow_up or None
         return None
-
-    @staticmethod
-    async def _search(store: MemoryStore, query: str, top_k: int) -> list[Mapping[str, Any]]:
-        """Drain ``store.search`` (awaitable / async-iterable / list) into a list."""
-        candidate = store.search(query, top_k=top_k)
-        if hasattr(candidate, "__await__"):
-            candidate = await candidate  # type: ignore[assignment]
-        if hasattr(candidate, "__aiter__"):
-            collected: list[Mapping[str, Any]] = []
-            async for item in candidate:  # type: ignore[misc]
-                collected.append(item)
-                if len(collected) >= top_k:
-                    break
-            return collected
-        if isinstance(candidate, list):
-            return list(candidate[:top_k])
-        return [item for item in candidate][:top_k]  # type: ignore[misc]
-
-    @staticmethod
-    def _doc_key(hit: Mapping[str, Any]) -> str:
-        """Return a stable identity key for a retrieved hit."""
-        identifier = hit.get("id")
-        if identifier is not None:
-            return str(identifier)
-        return repr(sorted((str(k), str(v)) for k, v in hit.items()))
-
-    @staticmethod
-    def _extract_text(raw: Any) -> str:
-        if isinstance(raw, str):
-            return raw
-        if isinstance(raw, dict):
-            content = raw.get("content")
-            if isinstance(content, str):
-                return content
-        return str(raw)

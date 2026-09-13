@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import unittest
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.memory.stores.memory_store import MemoryStore
@@ -25,15 +26,10 @@ class _PerQueryStore(MemoryStore):
     async def retrieve(self, key: str) -> Mapping[str, Any] | None:
         return None
 
-    async def search(self, query: str, *, top_k: int = 10) -> AsyncIterator[Mapping[str, Any]]:
+    async def search(self, query: str, *, top_k: int = 10) -> Sequence[Mapping[str, Any]]:
         self.search_queries.append(query)
         hits = self._mapping.get(query, [])
-
-        async def _aiter() -> AsyncIterator[Mapping[str, Any]]:
-            for hit in hits[:top_k]:
-                yield hit
-
-        return _aiter()
+        return list(hits[:top_k])
 
     async def forget(self, key: str) -> None:
         return None
@@ -55,25 +51,52 @@ class TestIterativeRetriever(unittest.IsolatedAsyncioTestCase):
             {"start": [{"id": "1", "text": "a"}], "next": [{"id": "2", "text": "b"}]}
         )
         llm = StubLLMProvider(["REFINE: next", "DONE"])
-        knot = _retriever()
-        docs = await knot.process(query="start", memory=store, llm=llm, max_iterations=3, top_k=1)
+        with Tapestry() as tapestry:
+            IterativeRetriever(
+                query="start",
+                memory=store,
+                llm=llm,
+                max_iterations=3,
+                top_k=1,
+                _config=KnotConfig(id="iterate"),
+            )
+        result = await tapestry.run(RunRequest())
+        assert result.succeeded
         assert store.search_queries == ["start", "next"]
-        assert sorted(d["id"] for d in docs) == ["1", "2"]
+        assert sorted(d["id"] for d in result.outputs["iterate"]) == ["1", "2"]
 
     async def test_stops_immediately_on_done(self) -> None:
         store = _PerQueryStore({"start": [{"id": "1"}]})
         llm = StubLLMProvider(["DONE"])
-        knot = _retriever()
-        docs = await knot.process(query="start", memory=store, llm=llm, max_iterations=3, top_k=1)
+        with Tapestry() as tapestry:
+            IterativeRetriever(
+                query="start",
+                memory=store,
+                llm=llm,
+                max_iterations=3,
+                top_k=1,
+                _config=KnotConfig(id="iterate"),
+            )
+        result = await tapestry.run(RunRequest())
+        assert result.succeeded
         assert store.search_queries == ["start"]
-        assert len(docs) == 1
+        assert len(result.outputs["iterate"]) == 1
 
     async def test_bounded_by_max_iterations(self) -> None:
         store = _PerQueryStore({"start": [{"id": "1"}], "again": [{"id": "2"}]})
         # LLM always wants to refine, but the budget caps the loop at 2 rounds.
         llm = StubLLMProvider(["REFINE: again"])
-        knot = _retriever()
-        await knot.process(query="start", memory=store, llm=llm, max_iterations=2, top_k=1)
+        with Tapestry() as tapestry:
+            IterativeRetriever(
+                query="start",
+                memory=store,
+                llm=llm,
+                max_iterations=2,
+                top_k=1,
+                _config=KnotConfig(id="iterate"),
+            )
+        result = await tapestry.run(RunRequest())
+        assert result.succeeded
         assert store.search_queries == ["start", "again"]
 
     async def test_rejects_non_positive_iterations(self) -> None:

@@ -163,13 +163,14 @@ class RagKnotPromptPins(unittest.IsolatedAsyncioTestCase):
 
     async def test_contextual_chunk_enricher_prompt(self) -> None:
         llm = StubLLMProvider(["ctx"])
-        knot = ContextualChunkEnricher(
-            documents=[],
-            document_text="D",
-            llm=llm,
-            _config=KnotConfig(id="enrich"),
-        )
-        await knot.process(documents=[{"text": "C"}], document_text="D", llm=llm)
+        with Tapestry() as tapestry:
+            ContextualChunkEnricher(
+                documents=[{"text": "C"}],
+                document_text="D",
+                llm=llm,
+                _config=KnotConfig(id="enrich"),
+            )
+        await tapestry.run(RunRequest())
         assert llm.calls[0][0]["content"] == (
             "Give a single short sentence that situates the following chunk within the "
             "document, so it can be understood in isolation. Reply with only the sentence.\n\n"
@@ -178,13 +179,14 @@ class RagKnotPromptPins(unittest.IsolatedAsyncioTestCase):
 
     async def test_contextual_compressor_prompt(self) -> None:
         llm = StubLLMProvider(["kept"])
-        knot = ContextualCompressor(
-            query="Q",
-            documents=[],
-            llm=llm,
-            _config=KnotConfig(id="compress"),
-        )
-        await knot.process(query="Q", documents=[{"text": "D"}], llm=llm)
+        with Tapestry() as tapestry:
+            ContextualCompressor(
+                query="Q",
+                documents=[{"text": "D"}],
+                llm=llm,
+                _config=KnotConfig(id="compress"),
+            )
+        await tapestry.run(RunRequest())
         assert llm.calls[0][0]["content"] == (
             "Extract only the sentences from the document that are relevant to the "
             "query. Preserve wording exactly. If nothing is relevant, reply with only "
@@ -254,13 +256,15 @@ class RagKnotPromptPins(unittest.IsolatedAsyncioTestCase):
 
     async def test_reranker_score_prompt(self) -> None:
         llm = StubLLMProvider(["0.5"])
-        knot = Reranker(
-            query="Q",
-            documents=[],
-            llm=llm,
-            _config=KnotConfig(id="rerank"),
-        )
-        await knot.process(query="Q", documents=[{"text": "D"}], llm=llm, top_k=1)
+        with Tapestry() as tapestry:
+            Reranker(
+                query="Q",
+                documents=[{"text": "D"}],
+                llm=llm,
+                top_k=1,
+                _config=KnotConfig(id="rerank"),
+            )
+        await tapestry.run(RunRequest())
         assert llm.calls[0][0]["content"] == (
             "Score the relevance of the following document to the query "
             "on a scale from 0.0 (not relevant) to 1.0 (highly relevant). "

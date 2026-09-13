@@ -4,16 +4,23 @@ Algorithm:
     1. Receive the ``ordered`` candidates (confidence-descending), the tool
        ``arguments``, and the ``confidences`` mapping.
     2. Validate types at process time.
-    3. Walk the candidates in order:
-       - Skip any whose confidence is below its ``min_confidence`` floor
-         (a deterministic low-confidence fallback trigger).
-       - Otherwise invoke its tool; on success return immediately; on a raised
-         exception or non-OK result, fall through to the next candidate.
+    3. Build a static chain of one
+       :class:`~pirn_agents.specializations.routing._candidate_attempt._CandidateAttempt`
+       knot per candidate: each skips its candidate (no call attempted) when
+       its confidence is below its ``min_confidence`` floor, or when an
+       earlier candidate already succeeded; otherwise it invokes the
+       candidate's tool via a real
+       :class:`~pirn_agents.tools.tool_invocation.ToolInvocation` and folds
+       the outcome in.
     4. Return a typed :class:`FallbackResult` recording the outcome, the
        candidates attempted, and the candidates skipped.
 
 By stopping at the first success and skipping sub-threshold candidates the chain
-avoids the wasted invocations a naive "retry every candidate" baseline pays.
+avoids the wasted invocations a naive "retry every candidate" baseline pays —
+and, because each candidate is a real knot, every attempt now gets its own
+engine ``Result``, history record, and lineage, where the original hid all of
+them behind one knot's hand-rolled loop and an ``await tool.invoke(...)`` the
+engine never saw.
 
 References:
     - Anthropic (2024) "Building effective agents" — routing + fallback
@@ -27,13 +34,15 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents.specializations.routing.fallback_result import FallbackResult
+from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
+from pirn_agents.specializations.base.resolved_value_knot import ResolvedValueKnot
+from pirn_agents.specializations.routing._candidate_attempt import _CandidateAttempt
+from pirn_agents.specializations.routing._fallback_chain_result import _FallbackChainResult
+from pirn_agents.specializations.routing._fallback_chain_state import _FallbackChainState
 from pirn_agents.specializations.routing.route_candidate import RouteCandidate
-from pirn_agents.tools.tool_result import ToolResult
-from pirn_agents.tools.tool_status import ToolStatus
 
 
-class FallbackChain(Knot):
+class FallbackChain(AgentPipeline):
     """Try confidence-ordered candidates until one returns a successful result."""
 
     def __init__(
@@ -59,8 +68,8 @@ class FallbackChain(Knot):
         arguments: Mapping[str, Any],
         confidences: Mapping[str, float],
         **_: Any,
-    ) -> FallbackResult:
-        """Dispatch through the ordered candidates and return a typed result.
+    ) -> Knot:
+        """Build the candidate chain and return its result-extracting sink knot.
 
         Args:
             ordered: Candidates in confidence-descending order.
@@ -68,7 +77,7 @@ class FallbackChain(Knot):
             confidences: Confidence per candidate name (missing = 0.0).
 
         Returns:
-            A :class:`FallbackResult` describing the outcome.
+            The sink knot whose output is a :class:`FallbackResult`.
 
         Raises:
             TypeError: If ``ordered`` holds a non-:class:`RouteCandidate` or
@@ -90,34 +99,15 @@ class FallbackChain(Knot):
                 f"FallbackChain: confidences must be a Mapping, got {type(confidences).__name__}"
             )
 
-        attempted: list[str] = []
-        skipped: list[str] = []
-        for candidate in candidate_tuple:
-            if confidences.get(candidate.name, 0.0) < candidate.min_confidence:
-                skipped.append(candidate.name)
-                continue
-            attempted.append(candidate.name)
-            result = await self._invoke(candidate, arguments)
-            if result.status is ToolStatus.OK:
-                return FallbackResult(
-                    succeeded=True,
-                    chosen=candidate.name,
-                    result=result,
-                    attempted=tuple(attempted),
-                    skipped=tuple(skipped),
-                )
-        return FallbackResult(
-            succeeded=False,
-            chosen=None,
-            result=None,
-            attempted=tuple(attempted),
-            skipped=tuple(skipped),
+        chain: Knot = ResolvedValueKnot(
+            value=_FallbackChainState(), _config=KnotConfig(id="initial")
         )
-
-    @staticmethod
-    async def _invoke(candidate: RouteCandidate, arguments: Mapping[str, Any]) -> ToolResult:
-        try:
-            value = await candidate.tool.invoke(arguments)
-        except Exception as exc:
-            return ToolResult(call_id=candidate.name, result=None, error=str(exc))
-        return ToolResult(call_id=candidate.name, result=value, status=ToolStatus.OK)
+        for index, candidate in enumerate(candidate_tuple):
+            chain = _CandidateAttempt(
+                prior=chain,
+                candidate=candidate,
+                arguments=arguments,
+                confidences=confidences,
+                _config=KnotConfig(id=f"attempt_{index}"),
+            )
+        return _FallbackChainResult(state=chain, _config=KnotConfig(id="result"))

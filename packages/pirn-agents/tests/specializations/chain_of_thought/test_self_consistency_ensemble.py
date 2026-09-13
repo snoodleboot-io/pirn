@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.chain_of_thought.self_consistency_ensemble import (
@@ -27,22 +28,31 @@ def _make_knot(llm: StubLLMProvider) -> SelfConsistencyEnsemble:
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_majority_vote_answer(self) -> None:
         llm = StubLLMProvider(["Paris", "Paris", "London"])
-        k = _make_knot(llm)
-        response = await k.process(prompt="Capital of France?", llm=llm, samples=3)
+        with Tapestry() as t:
+            SelfConsistencyEnsemble(
+                prompt="Capital of France?", llm=llm, samples=3, _config=KnotConfig(id="sce")
+            )
+        result = await t.run(RunRequest())
+        assert result.succeeded
+        response = result.outputs["sce"]
         assert isinstance(response, AgentResponse)
         assert response.content == "Paris"
 
     async def test_makes_n_llm_calls(self) -> None:
         llm = StubLLMProvider(["yes"] * 4)
-        k = _make_knot(llm)
-        await k.process(prompt="q", llm=llm, samples=4)
+        with Tapestry() as t:
+            SelfConsistencyEnsemble(prompt="q", llm=llm, samples=4, _config=KnotConfig(id="sce"))
+        result = await t.run(RunRequest())
+        assert result.succeeded
         assert len(llm.calls) == 4
 
     async def test_single_sample_returns_that_answer(self) -> None:
         llm = StubLLMProvider(["only answer"])
-        k = _make_knot(llm)
-        response = await k.process(prompt="q", llm=llm, samples=1)
-        assert response.content == "only answer"
+        with Tapestry() as t:
+            SelfConsistencyEnsemble(prompt="q", llm=llm, samples=1, _config=KnotConfig(id="sce"))
+        result = await t.run(RunRequest())
+        assert result.succeeded
+        assert result.outputs["sce"].content == "only answer"
 
     async def test_rejects_non_llm_provider(self) -> None:
         llm = StubLLMProvider(["x"])

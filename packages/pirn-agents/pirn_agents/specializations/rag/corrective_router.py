@@ -9,13 +9,24 @@ Output: a ``list[Mapping[str, Any]]`` of "documents" that downstream
 prompt-builder knots can format. Tool fallback wraps the tool result
 in a single-doc list of the form ``[{"source": "fallback", "content": ...}]``.
 
+The fallback call is a real
+:class:`~pirn_agents.tools.tool_invocation.ToolInvocation` knot rather than an
+``await fallback_tool.invoke(...)`` inside ``process()``, so the call gets its
+own ``Result``, history record, and lineage. ``process()`` builds one of two
+tiny inner graphs depending on whether ``relevant_docs`` is empty, per the
+``MultiSourceLoader`` pattern in ``docs/guides/sub-tapestry.md`` §4.
+
 Algorithm:
     1. Validate that ``fallback_tool`` is a :class:`Tool` and ``query`` is
        a string.
-    2. If ``relevant_docs`` is non-empty, return a shallow copy of the list
-       unchanged.
-    3. Otherwise invoke ``fallback_tool.invoke({"input": query})`` and
-       return ``[{"source": "fallback", "content": str(result)}]``.
+    2. If ``relevant_docs`` is non-empty, the sink is a
+       :class:`~pirn_agents.specializations.base.resolved_value_knot.ResolvedValueKnot`
+       surfacing a shallow copy of the list unchanged.
+    3. Otherwise the sink is a
+       :class:`~pirn_agents.specializations.rag._fallback_document._FallbackDocument`,
+       downstream of a :class:`~pirn_agents.tools.tool_invocation.ToolInvocation`
+       that calls ``fallback_tool.invoke({"input": query})``; its output is
+       ``[{"source": "fallback", "content": str(result)}]``.
 
 References:
     - Corrective RAG: https://arxiv.org/abs/2401.15884
@@ -30,10 +41,15 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.interfaces.router import Router
+from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
+from pirn_agents.specializations.base.resolved_value_knot import ResolvedValueKnot
+from pirn_agents.specializations.rag._fallback_document import _FallbackDocument
 from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_invocation import ToolInvocation
 
 
-class CorrectiveRouter(Router):
+class CorrectiveRouter(AgentPipeline, Router):
     """Forward relevant docs, or invoke ``fallback_tool`` when none qualify."""
 
     def __init__(
@@ -59,15 +75,19 @@ class CorrectiveRouter(Router):
         relevant_docs: list[Mapping[str, Any]],
         fallback_tool: Tool,
         **_: Any,
-    ) -> list[Mapping[str, Any]]:
-        """Return relevant_docs when non-empty, otherwise invoke the fallback tool and return its result.
+    ) -> Knot:
+        """Build the fallback graph and return the appropriate sink knot.
 
         Args:
-            query: The original user query used as input when the fallback tool is invoked.
-            relevant_docs: The list of documents that survived the relevance gate.
+            query: The original user query used as input when the fallback
+                tool is invoked.
+            relevant_docs: The list of documents that survived the relevance
+                gate.
+            fallback_tool: The tool invoked when ``relevant_docs`` is empty.
 
         Returns:
-            The relevant_docs list if non-empty, otherwise a single-entry list from the fallback tool.
+            The sink knot whose output is ``relevant_docs`` unchanged when
+            non-empty, otherwise a single-entry list from the fallback tool.
 
         Raises:
             TypeError: If query is not a string or fallback_tool is not a Tool.
@@ -80,6 +100,11 @@ class CorrectiveRouter(Router):
         if not isinstance(query, str):
             raise TypeError(f"CorrectiveRouter: query must be a string, got {type(query).__name__}")
         if relevant_docs:
-            return list(relevant_docs)
-        fallback_result = await fallback_tool.invoke({"input": query})
-        return [{"source": "fallback", "content": str(fallback_result)}]
+            return ResolvedValueKnot(value=list(relevant_docs), _config=KnotConfig(id="relevant"))
+        call = ToolCall(
+            tool_name=fallback_tool.name,
+            arguments={"input": query},
+            call_id="corrective_fallback",
+        )
+        invoke = ToolInvocation(tool=fallback_tool, call=call, _config=KnotConfig(id="call"))
+        return _FallbackDocument(tool_result=invoke, _config=KnotConfig(id="fallback"))

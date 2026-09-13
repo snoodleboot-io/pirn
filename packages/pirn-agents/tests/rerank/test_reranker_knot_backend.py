@@ -21,27 +21,28 @@ class TestRerankerKnotBackend(unittest.IsolatedAsyncioTestCase):
     async def test_backend_ranks_documents_top_k(self) -> None:
         docs = [{"text": "low"}, {"text": "high"}, {"text": "mid"}]
         backend = StubReranker([0.2, 0.9, 0.5])
-        knot = Reranker(
-            query="q",
-            documents=docs,
-            reranker=backend,
-            top_k=2,
-            _config=KnotConfig(id="rerank"),
-        )
+        with Tapestry() as tapestry:
+            Reranker(
+                query="q",
+                documents=docs,
+                reranker=backend,
+                top_k=2,
+                _config=KnotConfig(id="rerank"),
+            )
+        result = await tapestry.run(RunRequest())
 
-        reranked = await knot.process(query="q", documents=docs, reranker=backend, top_k=2)
-
-        assert reranked == [{"text": "high"}, {"text": "mid"}]
+        assert result.succeeded
+        assert result.outputs["rerank"] == [{"text": "high"}, {"text": "mid"}]
         assert backend.calls == ["q"]
 
     async def test_backend_path_needs_no_llm(self) -> None:
         docs = [{"text": "a"}, {"text": "b"}]
         backend = StubReranker([0.1, 0.9])
-        knot = Reranker(
-            query="q", documents=docs, reranker=backend, _config=KnotConfig(id="rerank")
-        )
-        reranked = await knot.process(query="q", documents=docs, reranker=backend)
-        assert reranked[0] == {"text": "b"}
+        with Tapestry() as tapestry:
+            Reranker(query="q", documents=docs, reranker=backend, _config=KnotConfig(id="rerank"))
+        result = await tapestry.run(RunRequest())
+        assert result.succeeded
+        assert result.outputs["rerank"][0] == {"text": "b"}
 
     async def test_rejects_non_backend_reranker(self) -> None:
         knot = Reranker(query="q", documents=[], reranker=None, _config=KnotConfig(id="rerank"))

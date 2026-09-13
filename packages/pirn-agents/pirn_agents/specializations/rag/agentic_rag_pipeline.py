@@ -4,18 +4,32 @@ Agentic RAG treats retrieval as an explicit, agent-callable action rather than a
 fixed pipeline stage: the F6 :class:`~pirn_agents.tools.retrieval.rag_tool.RagTool`
 is invoked, its answer is inspected, and — while a budget remains — the LLM may
 issue a follow-up question that drives another tool call. The ``rag_tool`` is
-validated as a standard :class:`~pirn_agents.tools.tool.Tool` (isinstance) and called
-exactly like any other tool in the loop.
+validated as a standard :class:`~pirn_agents.tools.tool.Tool` (isinstance) and
+called exactly like any other tool in the loop.
+
+The loop is expressed as an
+:class:`~pirn_agents.specializations.base.agent_loop_pipeline.AgentLoopPipeline`
+(see :class:`~pirn_agents.specializations.rag._agentic_rag_loop._AgenticRagLoop`)
+rather than a hand-rolled ``for iteration in range(max_iterations)`` that
+awaited ``rag_tool.invoke`` and ``llm.chat`` directly: each round is a real
+:class:`~pirn_agents.tools.tool_invocation.ToolInvocation` knot, so the call
+gets its own ``Result``, history record, and lineage, and can be scheduled,
+cached, and replayed like any other engine knot. The follow-up decision — an
+``await`` — lives inside the round's iteration tapestry rather than in ``step``
+/``fold`` (both synchronous, per ``agent_loop_pipeline.py``), and is simply
+omitted from the last allowed round's tapestry, so it is never built and never
+paid for.
 
 Algorithm:
     1. Validate ``query`` (str), ``rag_tool`` (:class:`Tool`), ``llm``
        (:class:`LLMProvider`), and ``max_iterations`` (positive int).
-    2. Start with ``current_question = query``. Repeat up to ``max_iterations``:
-       a. ``await rag_tool.invoke({"question": current_question})`` and read the
-          ``answer``.
-       b. On the final allowed iteration, finalise with that answer.
-       c. Otherwise ask the LLM to reply ``DONE`` (answer is sufficient) or
-          ``FOLLOWUP: <next question>``; on ``FOLLOWUP`` loop, else finalise.
+    2. Start with ``current_question = query``. Each round:
+       a. A :class:`~pirn_agents.tools.tool_invocation.ToolInvocation` calls
+          ``rag_tool`` with ``current_question`` and reads the ``answer``.
+       b. On the final allowed round, stop.
+       c. Otherwise a ``_FollowUpDecision`` asks the LLM to reply
+          ``DONE`` (answer is sufficient) or ``FOLLOWUP: <next question>``; on
+          ``FOLLOWUP`` the loop continues with the new question, else it stops.
     3. Return the final answer as an :class:`AgentResponse`.
 
 References:
@@ -29,15 +43,16 @@ from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.source import Source
 from pydantic import PositiveInt
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.llm_response_text import LlmResponseText
+from pirn_agents.specializations.rag._agentic_rag_loop import _AgenticRagLoop
+from pirn_agents.specializations.rag._agentic_rag_result import _AgenticRagResult
+from pirn_agents.specializations.rag._agentic_rag_state import _AgenticRagState
 from pirn_agents.tools.tool import Tool
-from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class AgenticRagPipeline(AgentPipeline):
@@ -80,8 +95,8 @@ class AgenticRagPipeline(AgentPipeline):
         llm: LLMProvider,
         max_iterations: PositiveInt = 3,
         **_: Any,
-    ) -> Any:
-        """Drive the RAG tool loop and return the final answer as a source knot.
+    ) -> Knot:
+        """Build the tool-call loop and return its answer-extracting sink knot.
 
         Args:
             query: The user question the agent must answer.
@@ -90,26 +105,17 @@ class AgenticRagPipeline(AgentPipeline):
             max_iterations: Hard upper bound on tool calls (>= 1).
 
         Returns:
-            A source knot whose output is the final :class:`AgentResponse`.
+            The sink knot whose output is the final :class:`AgentResponse`.
         """
-        current_question = query
-        answer = ""
-        for iteration in range(max_iterations):
-            result = await rag_tool.invoke({"question": current_question})
-            answer = self._tool_answer(result)
-            if iteration == max_iterations - 1:
-                break
-            follow_up = await self._next_question(llm, query, answer)
-            if follow_up is None:
-                break
-            current_question = follow_up
-        final = AgentResponse(content=answer, finish_reason="stop")
-
-        class _ResultSource(Source):
-            async def process(self, **_: Any) -> AgentResponse:
-                return final
-
-        return _ResultSource(_config=KnotConfig(id="result"))
+        loop = _AgenticRagLoop(
+            query=query,
+            rag_tool=rag_tool,
+            llm=llm,
+            max_iterations=max_iterations,
+            state=_AgenticRagState(current_question=query),
+            _config=KnotConfig(id="loop"),
+        )
+        return _AgenticRagResult(state=loop, _config=KnotConfig(id="result"))
 
     @staticmethod
     async def _next_question(llm: LLMProvider, query: str, answer: str) -> str | None:

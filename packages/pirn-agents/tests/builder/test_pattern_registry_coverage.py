@@ -55,6 +55,12 @@ _EXPECTED_EXCLUSIONS = frozenset(
         # but not a standalone pattern either: its ``already_terminated``
         # constructor parameter is state only a driving loop can supply.
         "pirn_agents.specializations.react.react_step_executor.ReActStepExecutor",
+        # Private: the loop body IterativeRetriever drives internally (PIR-856).
+        "pirn_agents.specializations.rag._iterative_retrieval_loop._IterativeRetrievalLoop",
+        # Private: the loop body AgenticRagPipeline drives internally (PIR-856).
+        "pirn_agents.specializations.rag._agentic_rag_loop._AgenticRagLoop",
+        # Private: the per-candidate step FallbackChain drives internally (PIR-856).
+        "pirn_agents.specializations.routing._candidate_attempt._CandidateAttempt",
         # Deprecated *Gate aliases (PIR-856, Knot Design Rule 7): reachable only
         # under their replacement *Check name, which is what is registered.
         "pirn_agents.specializations.guardrails.fact_check_gate.FactCheckGate",
@@ -167,11 +173,18 @@ def test_the_excluded_bases_are_bases_and_the_excluded_private_is_private() -> N
     for base in (AgentPipeline, AgentLoopPipeline):
         assert _qualified(base) in _EXPECTED_EXCLUSIONS
         assert base.__module__.startswith("pirn_agents.specializations.base")
-    private = [name for name in _EXPECTED_EXCLUSIONS if name.rsplit(".", 1)[1].startswith("_")]
-    assert private == [
-        "pirn_agents.specializations.evaluator_optimizer._evaluator_optimizer_loop"
-        "._EvaluatorOptimizerLoop"
-    ]
+    private = sorted(
+        name for name in _EXPECTED_EXCLUSIONS if name.rsplit(".", 1)[1].startswith("_")
+    )
+    assert private == sorted(
+        [
+            "pirn_agents.specializations.evaluator_optimizer._evaluator_optimizer_loop"
+            "._EvaluatorOptimizerLoop",
+            "pirn_agents.specializations.rag._iterative_retrieval_loop._IterativeRetrievalLoop",
+            "pirn_agents.specializations.rag._agentic_rag_loop._AgenticRagLoop",
+            "pirn_agents.specializations.routing._candidate_attempt._CandidateAttempt",
+        ]
+    )
     # Every exclusion falls into exactly one justified category: base,
     # private loop body, or named iteration step.
     bases = {_qualified(AgentPipeline), _qualified(AgentLoopPipeline)}

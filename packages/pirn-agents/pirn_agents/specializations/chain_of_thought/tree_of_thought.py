@@ -3,13 +3,29 @@
 Algorithm:
     1. Receive the resolved ``prompt``, ``LLMProvider``, ``k_candidates``, ``beam_width``, and ``depth``.
     2. Validate input types at process time.
-    3. Initialise beam with the prompt as the sole path (score 0.0).
-    4. For each depth level:
-       a. For each live path, generate k_candidates next-thoughts in parallel.
-       b. Score each candidate path using the LLM (numeric 1-10; non-numeric = 0).
-       c. Keep the top beam_width scoring candidates as the new beam.
+    3. Initialise the beam with the prompt as the sole path (score 0.0).
+    4. Build ``depth`` chained rounds (``depth`` is a resolved int, so the
+       rounds are statically unrolled — no data-dependent termination is
+       involved, unlike an agentic loop). Each round:
+       a. ``_RepeatBeamForExpansion`` flattens the current beam into one
+          entry per ``(path, candidate index)`` pair.
+       b. ``_ExpandOneThought`` is fanned out over that flat list with a
+          core :class:`~pirn.nodes.map_markers.Map`, generating one next-thought
+          per entry.
+       c. A :class:`~pirn.nodes.reduce_.Reduce` combines each thought with its
+          parent path into a new candidate.
+       d. ``_ScoreCandidate`` is fanned out over the candidates with
+          another ``Map``, scoring each (numeric 1-10 expected; non-numeric
+          responses score 0).
+       e. A :class:`~pirn.nodes.reduce_.Reduce` sorts by score and keeps the
+          top ``beam_width`` candidates as the next round's beam.
     5. Return the best-scoring path as an ``AgentResponse``.
 
+Every LLM call — expansion and scoring alike — is its own engine-scheduled
+:class:`~pirn.nodes.map_markers.Map` invocation rather than a hand-rolled
+``asyncio.gather``, so each gets its own ``Result``, history record, and
+lineage, and the engine (not a local gather) schedules the concurrency
+(PIR-841).
 
 References:
     - Yao et al. (2023) "Tree of Thoughts: Deliberate Problem Solving with Large Language Models"
@@ -17,19 +33,30 @@ References:
 
 from __future__ import annotations
 
-import asyncio
-from typing import Any, ClassVar
+import functools
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.nodes.map_markers import Map
+from pirn.nodes.reduce_ import Reduce
 
 from pirn_agents.llm.llm_provider import LLMProvider
-from pirn_agents.prompt.prompt_binding import PromptBinding
-from pirn_agents.specializations.llm_response_text import LlmResponseText
-from pirn_agents.types.messaging.agent_response import AgentResponse
+from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
+from pirn_agents.specializations.base.resolved_value_knot import ResolvedValueKnot
+from pirn_agents.specializations.chain_of_thought._combine_expansions import _CombineExpansions
+from pirn_agents.specializations.chain_of_thought._expand_one_thought import _ExpandOneThought
+from pirn_agents.specializations.chain_of_thought._repeat_beam_for_expansion import (
+    _RepeatBeamForExpansion,
+)
+from pirn_agents.specializations.chain_of_thought._score_candidate import _ScoreCandidate
+from pirn_agents.specializations.chain_of_thought._top_beam import _TopBeam
+from pirn_agents.specializations.chain_of_thought._tree_of_thought_result import (
+    _TreeOfThoughtResult,
+)
 
 
-class TreeOfThought(Knot):
+class TreeOfThought(AgentPipeline):
     """Generate K candidates, score them, keep top-M, and expand for D depth levels.
 
     At each depth level:
@@ -42,21 +69,6 @@ class TreeOfThought(Knot):
     After all depth levels the best-scoring path is returned as an
     :class:`AgentResponse`.
     """
-
-    _expansion_system: ClassVar[PromptBinding] = PromptBinding(
-        name="specializations.chain_of_thought.tree_of_thought.expansion_system",
-        default=(
-            "You are a reasoning assistant. Generate the next reasoning step "
-            "that continues the following thought chain."
-        ),
-    )
-    _scoring_system: ClassVar[PromptBinding] = PromptBinding(
-        name="specializations.chain_of_thought.tree_of_thought.scoring_system",
-        default=(
-            "You are a reasoning evaluator. Rate the quality of the following "
-            "reasoning step on a scale from 1 to 10. Reply with a single integer only."
-        ),
-    )
 
     def __init__(
         self,
@@ -87,8 +99,8 @@ class TreeOfThought(Knot):
         beam_width: int,
         depth: int,
         **_: Any,
-    ) -> AgentResponse:
-        """Expand and score reasoning candidates for D depth levels, return the best-path AgentResponse.
+    ) -> Knot:
+        """Build the depth-round expand/score chain and return the result sink knot.
 
         Args:
             prompt: The initial question or problem to reason about.
@@ -98,7 +110,8 @@ class TreeOfThought(Knot):
             depth: Number of depth levels to explore.
 
         Returns:
-            An AgentResponse whose content is the best-scoring reasoning path.
+            The sink knot whose output is an :class:`AgentResponse` carrying
+            the best-scoring reasoning path.
 
         Raises:
             TypeError: If prompt is not a string or llm is not an LLMProvider.
@@ -118,43 +131,60 @@ class TreeOfThought(Knot):
             )
         if not isinstance(depth, int) or depth <= 0:
             raise ValueError(f"TreeOfThought: depth must be a positive int, got {depth!r}")
-        beam: list[tuple[str, float]] = [(prompt, 0.0)]
-        for _i in range(depth):
-            candidates: list[tuple[str, float]] = []
-            expansion_tasks = [
-                self._expand(path, llm, num_candidates=k_candidates) for path, _s in beam
-            ]
-            expanded_batches = await asyncio.gather(*expansion_tasks)
-            for (parent_path, _s), new_thoughts in zip(beam, expanded_batches, strict=False):
-                for thought in new_thoughts:
-                    combined = f"{parent_path}\n{thought}"
-                    candidates.append((combined, 0.0))
-            scored = await asyncio.gather(*[self._score(path, llm) for path, _ in candidates])
-            beam = sorted(
-                zip([p for p, _ in candidates], scored, strict=False),
-                key=lambda pair: pair[1],
-                reverse=True,
-            )[:beam_width]
-        best_path = beam[0][0] if beam else prompt
-        return AgentResponse(content=best_path)
 
-    async def _expand(self, path: str, llm: LLMProvider, num_candidates: int) -> list[str]:
-        messages = [
-            {"role": "system", "content": type(self)._expansion_system.resolve()},
-            {"role": "user", "content": path},
-        ]
-        tasks = [llm.chat(messages=messages) for _ in range(num_candidates)]
-        raws = await asyncio.gather(*tasks)
-        return [LlmResponseText().extract(raw) for raw in raws]
+        beam_knot: Knot = ResolvedValueKnot(value=[(prompt, 0.0)], _config=KnotConfig(id="beam_0"))
+        for round_index in range(depth):
+            beam_knot = TreeOfThought._build_round(
+                beam_knot, llm, k_candidates, beam_width, round_index
+            )
+        return _TreeOfThoughtResult(beam=beam_knot, prompt=prompt, _config=KnotConfig(id="result"))
 
-    async def _score(self, path: str, llm: LLMProvider) -> float:
-        messages = [
-            {"role": "system", "content": type(self)._scoring_system.resolve()},
-            {"role": "user", "content": path},
-        ]
-        raw = await llm.chat(messages=messages)
-        text = LlmResponseText().extract(raw).strip()
-        try:
-            return float(text)
-        except ValueError:
-            return 0.0
+    @staticmethod
+    def _build_round(
+        beam_knot: Knot,
+        llm: LLMProvider,
+        k_candidates: int,
+        beam_width: int,
+        round_index: int,
+    ) -> Knot:
+        """Build one expand-then-score round and return the new beam knot.
+
+        Args:
+            beam_knot: The knot producing the current beam.
+            llm: The provider used for expansion and scoring.
+            k_candidates: Number of candidates to generate per live path.
+            beam_width: Number of top candidates to retain.
+            round_index: This round's 0-based depth index, for unique knot ids.
+
+        Returns:
+            The :class:`~pirn.nodes.reduce_.Reduce` knot producing the next beam.
+        """
+        repeated = _RepeatBeamForExpansion(
+            beam=beam_knot,
+            k_candidates=k_candidates,
+            _config=KnotConfig(id=f"repeat_{round_index}"),
+        )
+        expanded = _ExpandOneThought(
+            # Core's Map marker is consumed at construction by
+            # `knot.py:199-205` and is deliberately not a Knot, so it does not
+            # satisfy the declared `Knot | str`. Inline suppression is the
+            # house idiom for this; see PIR-715/PIR-716.
+            parent_path=Map(repeated),  # pyright: ignore[reportArgumentType]
+            llm=llm,
+            _config=KnotConfig(id=f"expand_{round_index}"),
+        )
+        candidates = Reduce(
+            of=expanded,
+            combine=_CombineExpansions.combine,
+            _config=KnotConfig(id=f"candidates_{round_index}"),
+        )
+        scored = _ScoreCandidate(
+            candidate=Map(candidates),  # pyright: ignore[reportArgumentType]
+            llm=llm,
+            _config=KnotConfig(id=f"score_{round_index}"),
+        )
+        return Reduce(
+            of=scored,
+            combine=functools.partial(_TopBeam.combine, beam_width=beam_width),
+            _config=KnotConfig(id=f"beam_{round_index + 1}"),
+        )

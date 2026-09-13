@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import unittest
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.memory.stores.memory_store import MemoryStore
@@ -27,15 +28,10 @@ class _PerQueryStore(MemoryStore):
     async def retrieve(self, key: str) -> Mapping[str, Any] | None:
         return None
 
-    async def search(self, query: str, *, top_k: int = 10) -> AsyncIterator[Mapping[str, Any]]:
+    async def search(self, query: str, *, top_k: int = 10) -> Sequence[Mapping[str, Any]]:
         self.search_queries.append(query)
         hits = self._mapping.get(query, [])
-
-        async def _aiter() -> AsyncIterator[Mapping[str, Any]]:
-            for hit in hits[:top_k]:
-                yield hit
-
-        return _aiter()
+        return list(hits[:top_k])
 
     async def forget(self, key: str) -> None:
         return None
@@ -59,8 +55,11 @@ class TestFusionRetriever(unittest.IsolatedAsyncioTestCase):
                 "b": [{"id": "1", "text": "shared"}, {"id": "3", "text": "only-b"}],
             }
         )
-        knot = _retriever()
-        results = await knot.process(queries=["a", "b"], store=store, top_k=5)
+        with Tapestry() as tapestry:
+            FusionRetriever(queries=["a", "b"], store=store, top_k=5, _config=KnotConfig(id="fuse"))
+        result = await tapestry.run(RunRequest())
+        assert result.succeeded
+        results = result.outputs["fuse"]
         ids = [r["id"] for r in results]
         # doc 1 is ranked first by both queries -> highest fused score, no dup.
         assert ids[0] == "1"
@@ -71,14 +70,20 @@ class TestFusionRetriever(unittest.IsolatedAsyncioTestCase):
         store = _PerQueryStore(
             {"a": [{"id": str(i)} for i in range(10)]},
         )
-        knot = _retriever()
-        results = await knot.process(queries=["a"], store=store, top_k=3)
-        assert len(results) == 3
+        with Tapestry() as tapestry:
+            FusionRetriever(queries=["a"], store=store, top_k=3, _config=KnotConfig(id="fuse"))
+        result = await tapestry.run(RunRequest())
+        assert result.succeeded
+        assert len(result.outputs["fuse"]) == 3
 
     async def test_empty_queries_returns_empty(self) -> None:
-        knot = _retriever()
-        results = await knot.process(queries=[], store=StubMemoryStore([]), top_k=5)
-        assert results == []
+        with Tapestry() as tapestry:
+            FusionRetriever(
+                queries=[], store=StubMemoryStore([]), top_k=5, _config=KnotConfig(id="fuse")
+            )
+        result = await tapestry.run(RunRequest())
+        assert result.succeeded
+        assert result.outputs["fuse"] == []
 
     async def test_rejects_non_store(self) -> None:
         knot = _retriever()

@@ -60,16 +60,16 @@ class TestFallbackChain(unittest.IsolatedAsyncioTestCase):
             RouteCandidate(name="c", tool=StubTool(name="c", handler="C-ok")),
             RouteCandidate(name="b", tool=StubTool(name="b", handler=_raise)),
         )
-        with Tapestry():
-            chain = FallbackChain(
+        with Tapestry() as t:
+            FallbackChain(
                 ordered=ordered,
                 arguments={"input": "x"},
                 confidences={"c": 0.9, "b": 0.5},
                 _config=KnotConfig(id="fc", validate_io=False),
             )
-        result = await chain.process(
-            ordered=ordered, arguments={"input": "x"}, confidences={"c": 0.9, "b": 0.5}
-        )
+        run = await t.run(RunRequest())
+        assert run.succeeded
+        result = run.outputs["fc"]
         assert isinstance(result, FallbackResult)
         assert result.succeeded is True
         assert result.chosen == "c"
@@ -80,16 +80,16 @@ class TestFallbackChain(unittest.IsolatedAsyncioTestCase):
             RouteCandidate(name="a", tool=StubTool(name="a", handler=_raise)),
             RouteCandidate(name="c", tool=StubTool(name="c", handler="C-ok")),
         )
-        with Tapestry():
-            chain = FallbackChain(
+        with Tapestry() as t:
+            FallbackChain(
                 ordered=ordered,
                 arguments={},
                 confidences={"a": 0.9, "c": 0.9},
                 _config=KnotConfig(id="fc", validate_io=False),
             )
-        result = await chain.process(
-            ordered=ordered, arguments={}, confidences={"a": 0.9, "c": 0.9}
-        )
+        run = await t.run(RunRequest())
+        assert run.succeeded
+        result = run.outputs["fc"]
         assert result.succeeded is True
         assert result.chosen == "c"
         assert result.attempted == ("a", "c")
@@ -99,30 +99,32 @@ class TestFallbackChain(unittest.IsolatedAsyncioTestCase):
             RouteCandidate(name="a", tool=StubTool(name="a", handler="A-ok"), min_confidence=0.8),
             RouteCandidate(name="c", tool=StubTool(name="c", handler="C-ok"), min_confidence=0.2),
         )
-        with Tapestry():
-            chain = FallbackChain(
+        with Tapestry() as t:
+            FallbackChain(
                 ordered=ordered,
                 arguments={},
                 confidences={"a": 0.1, "c": 0.5},
                 _config=KnotConfig(id="fc", validate_io=False),
             )
-        result = await chain.process(
-            ordered=ordered, arguments={}, confidences={"a": 0.1, "c": 0.5}
-        )
+        run = await t.run(RunRequest())
+        assert run.succeeded
+        result = run.outputs["fc"]
         assert result.chosen == "c"
         assert result.skipped == ("a",)
         assert result.attempted == ("c",)
 
     async def test_exhausts_chain(self) -> None:
         ordered = (RouteCandidate(name="a", tool=StubTool(name="a", handler=_raise)),)
-        with Tapestry():
-            chain = FallbackChain(
+        with Tapestry() as t:
+            FallbackChain(
                 ordered=ordered,
                 arguments={},
                 confidences={"a": 0.9},
                 _config=KnotConfig(id="fc", validate_io=False),
             )
-        result = await chain.process(ordered=ordered, arguments={}, confidences={"a": 0.9})
+        run = await t.run(RunRequest())
+        assert run.succeeded
+        result = run.outputs["fc"]
         assert result.succeeded is False
         assert result.chosen is None
 

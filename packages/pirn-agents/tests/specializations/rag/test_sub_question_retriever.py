@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import unittest
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.memory.stores.memory_store import MemoryStore
@@ -25,15 +26,10 @@ class _PerQueryStore(MemoryStore):
     async def retrieve(self, key: str) -> Mapping[str, Any] | None:
         return None
 
-    async def search(self, query: str, *, top_k: int = 10) -> AsyncIterator[Mapping[str, Any]]:
+    async def search(self, query: str, *, top_k: int = 10) -> Sequence[Mapping[str, Any]]:
         self.search_queries.append(query)
         hits = self._mapping.get(query, [])
-
-        async def _aiter() -> AsyncIterator[Mapping[str, Any]]:
-            for hit in hits[:top_k]:
-                yield hit
-
-        return _aiter()
+        return list(hits[:top_k])
 
     async def forget(self, key: str) -> None:
         return None
@@ -57,22 +53,43 @@ class TestSubQuestionRetriever(unittest.IsolatedAsyncioTestCase):
                 "q2": [{"id": "2", "text": "b"}, {"id": "3", "text": "c"}],
             }
         )
-        knot = _retriever()
-        docs = await knot.process(sub_questions=["q1", "q2"], store=store, top_k=5)
-        ids = sorted(d["id"] for d in docs)
+        with Tapestry() as tapestry:
+            SubQuestionRetriever(
+                sub_questions=["q1", "q2"],
+                store=store,
+                top_k=5,
+                _config=KnotConfig(id="retrieve"),
+            )
+        result = await tapestry.run(RunRequest())
+        assert result.succeeded
+        ids = sorted(d["id"] for d in result.outputs["retrieve"])
         assert ids == ["1", "2", "3"]
         assert sorted(store.search_queries) == ["q1", "q2"]
 
     async def test_records_sub_question_provenance(self) -> None:
         store = _PerQueryStore({"only": [{"id": "1", "text": "a"}]})
-        knot = _retriever()
-        docs = await knot.process(sub_questions=["only"], store=store, top_k=5)
-        assert docs[0]["sub_question"] == "only"
+        with Tapestry() as tapestry:
+            SubQuestionRetriever(
+                sub_questions=["only"],
+                store=store,
+                top_k=5,
+                _config=KnotConfig(id="retrieve"),
+            )
+        result = await tapestry.run(RunRequest())
+        assert result.succeeded
+        assert result.outputs["retrieve"][0]["sub_question"] == "only"
 
     async def test_empty_sub_questions(self) -> None:
-        knot = _retriever()
-        docs = await knot.process(sub_questions=[], store=StubMemoryStore([]), top_k=5)
-        assert docs == []
+        with Tapestry() as tapestry:
+            SubQuestionRetriever(
+                sub_questions=[],
+                store=StubMemoryStore([]),
+                top_k=5,
+                _config=KnotConfig(id="retrieve"),
+            )
+        result = await tapestry.run(RunRequest())
+        assert result.succeeded
+        assert result.outputs["retrieve"] == []
 
     async def test_rejects_non_positive_top_k(self) -> None:
         knot = _retriever()
