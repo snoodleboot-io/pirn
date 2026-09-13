@@ -100,8 +100,20 @@ _current_traceback_filter: ContextVar[Any] = ContextVar(
 # ContextVar carrying the store of the currently-executing extensible run.
 # Set only when extensible=True.  Knots can call get_current_store() during
 # process() to register new knots into the running tapestry — the engine
-# picks them up between waves.  None in non-extensible runs.
+# merges them into the run as soon as it processes the next knot completion.
+# None in non-extensible runs.
 _current_store: ContextVar[TapestryStore | None] = ContextVar("pirn_current_store", default=None)
+
+# ContextVar carrying the id of the knot the engine is executing in the current
+# task.  The engine sets it inside each dispatched knot's own task, so it is
+# visible to that knot's process() and to a thread hop made under a copy of the
+# context, and nowhere else.  A mid-run registration reads it to learn which
+# knot registered the newcomer, which fixes where the newcomer sits in the run's
+# reported order regardless of which knot happens to finish first (PIR-841).
+# None outside a dispatched knot.
+_current_dispatching_knot_id: ContextVar[str | None] = ContextVar(
+    "pirn_current_dispatching_knot_id", default=None
+)
 
 
 def get_current_store() -> TapestryStore | None:
@@ -109,7 +121,9 @@ def get_current_store() -> TapestryStore | None:
 
     Returns ``None`` when called outside an extensible run.  Use this inside
     a knot's ``process()`` to register successor knots into the running
-    tapestry — the engine picks them up between waves.
+    tapestry — the engine merges them into the run when it processes the
+    next knot completion, and a newcomer whose parents have all resolved
+    starts straight away.
 
     Registration is permanent: the knot stays in the tapestry after this
     run ends and later runs treat it as an ordinary member.  Give it an
@@ -285,7 +299,8 @@ class Tapestry:
 
         Set ``extensible=True`` to enable mid-run extension: knots
         registered with the tapestry while the run is in flight are
-        merged into the shed at the end of each wave.  Requires a
+        merged into the shed each time a knot completes, and start as
+        soon as their own parents have resolved.  Requires a
         ``TapestryStore`` that implements the ``SubscribableStore``
         protocol — ``InMemoryStore``, ``PostgresStore`` and
         ``ValKeyStore`` do; the SQLite store does not.  Only *this* run's
@@ -482,9 +497,17 @@ def _run_id_scope(run_id: str | None) -> Iterator[None]:
 
     ``None`` is a legitimate value: it restores "no run in scope", which
     is what an unowned registration means.
+
+    The block also runs with no dispatching knot in scope.  The notification
+    does not say which knot registered, and the listener task's own context
+    holds whatever knot happened to be executing when ``subscribe()`` started
+    it -- for an inner run, a knot of the outer run -- which would otherwise
+    be reported as the registrar (PIR-841).
     """
     token = _current_run_id.set(run_id)
+    knot_token = _current_dispatching_knot_id.set(None)
     try:
         yield
     finally:
+        _current_dispatching_knot_id.reset(knot_token)
         _current_run_id.reset(token)

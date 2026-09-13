@@ -18,6 +18,7 @@ focused.
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import TYPE_CHECKING, Any
 
@@ -88,6 +89,10 @@ async def run_stream(
             request = RunRequest(parameters=params)
             try:
                 result = await tapestry.run(request)
+            except (asyncio.CancelledError, KeyboardInterrupt, SystemExit):
+                # A cancelled run ends the stream; it is not a bad value for
+                # on_error to log and skip past (PIR-841).
+                raise
             except BaseException as exc:
                 if on_error is not None:
                     await on_error(value, exc)
