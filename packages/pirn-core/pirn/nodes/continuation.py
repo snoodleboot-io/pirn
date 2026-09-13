@@ -107,10 +107,13 @@ class WithContinuation(Knot):
         **kwargs: Any,
     ) -> None:
         super().__init__(result=result, **kwargs)
-        object.__setattr__(self, "_mutable_fn", fn)
+        # Knot.__setattr__ already exempts any `_mutable_`-prefixed name from
+        # the freeze guard, so a plain assignment is enough here — no need to
+        # bypass __setattr__ via object.__setattr__ as well.
+        self._mutable_fn = fn
         # Built-in end action is always available; user pool entries take
         # precedence if they supply their own "end" knot.
-        object.__setattr__(self, "_mutable_pool", {WithContinuation._end: _EndKnot, **pool})
+        self._mutable_pool = {WithContinuation._end: _EndKnot, **pool}
 
     async def process(self, result: Any, **_: Any) -> Any:  # type: ignore[override]
         """Invoke the continuation function on the upstream result, register successor knots, and return the result.
@@ -124,8 +127,8 @@ class WithContinuation(Knot):
         Raises:
             KeyError: If a continuation-returned action name is not present in the pool.
         """
-        fn: ContinuationFn = object.__getattribute__(self, "_mutable_fn")
-        pool: Pool = object.__getattribute__(self, "_mutable_pool")
+        fn: ContinuationFn = self._mutable_fn
+        pool: Pool = self._mutable_pool
 
         nexts = fn(result)
 

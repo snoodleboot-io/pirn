@@ -599,13 +599,21 @@ class Knot:
 
     # -------------------------------------------------------------- runtime
 
-    async def __call__(self, parent_results: Mapping[str, Any]) -> Result[Any]:
-        """Framework entry point — invoked by the engine.
+    async def _prepare_inputs(
+        self, parent_results: Mapping[str, Any]
+    ) -> dict[str, Any] | Result[Any]:
+        """Merge config values with resolved parent results, then fan-out or validate.
 
-        ``parent_results`` is a mapping from this knot's input parameter
-        name to the upstream value (or, under RECEIVE_ERRORS, the
-        upstream Result).  Config values are merged in from
-        ``self._mutable_config_values``.
+        Shared by ``Knot.__call__`` and ``SubTapestry.__call__``, which
+        otherwise duplicated this exactly.
+
+        Returns:
+            The ``process()`` kwargs (a plain ``dict``) when input
+            preparation succeeds ordinarily. When one or more inputs is a
+            ``Map``/``ZipMap``/``DictMap`` marker, or ``validate_io``
+            catches a bad input, returns an already-terminal ``Result``
+            instead — the caller must return it immediately rather than
+            call ``process()``.
         """
         config = self._mutable_config
         # Assemble the kwargs to process().  Parents override config in
@@ -629,6 +637,22 @@ class Knot:
                 kwargs = self._validate_inputs(kwargs)
             except ValidationError as exc:
                 return Err(record=ExceptionRecord.for_knot(config.id, exc))
+
+        return kwargs
+
+    async def __call__(self, parent_results: Mapping[str, Any]) -> Result[Any]:
+        """Framework entry point — invoked by the engine.
+
+        ``parent_results`` is a mapping from this knot's input parameter
+        name to the upstream value (or, under RECEIVE_ERRORS, the
+        upstream Result).  Config values are merged in from
+        ``self._mutable_config_values``.
+        """
+        config = self._mutable_config
+        prepared = await self._prepare_inputs(parent_results)
+        if not isinstance(prepared, dict):
+            return prepared
+        kwargs = prepared
 
         try:
             result = await self.process(**kwargs)

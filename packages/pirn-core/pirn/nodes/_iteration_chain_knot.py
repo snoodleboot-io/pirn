@@ -42,10 +42,13 @@ class _IterationChainKnot(Knot):
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
-        object.__setattr__(self, "_mutable_loop_sub", _loop_sub)
-        object.__setattr__(self, "_mutable_iter_tapestry", _iter_tapestry)
-        object.__setattr__(self, "_mutable_iteration_idx", _iteration_idx)
-        object.__setattr__(self, "_mutable_outer_history", _outer_history)
+        # Knot.__setattr__ already exempts any `_mutable_`-prefixed name from
+        # the freeze guard, so a plain assignment is enough here — no need to
+        # bypass __setattr__ via object.__setattr__ as well.
+        self._mutable_loop_sub = _loop_sub
+        self._mutable_iter_tapestry = _iter_tapestry
+        self._mutable_iteration_idx = _iteration_idx
+        self._mutable_outer_history = _outer_history
 
     async def process(self, state: Any, **_: Any) -> Any:  # type: ignore[override]
         """Run this iteration's tapestry, fold the result into state, and register the next iteration or terminal knot.
@@ -69,10 +72,10 @@ class _IterationChainKnot(Knot):
             _current_transport,
         )
 
-        loop: LoopSubTapestry = object.__getattribute__(self, "_mutable_loop_sub")  # type: ignore[type-arg]
-        iter_tapestry: Tapestry = object.__getattribute__(self, "_mutable_iter_tapestry")
-        iteration_idx: int = object.__getattribute__(self, "_mutable_iteration_idx")
-        outer_history: Any = object.__getattribute__(self, "_mutable_outer_history")
+        loop: LoopSubTapestry = self._mutable_loop_sub  # type: ignore[type-arg]
+        iter_tapestry: Tapestry = self._mutable_iter_tapestry
+        iteration_idx: int = self._mutable_iteration_idx
+        outer_history: Any = self._mutable_outer_history
 
         if outer_history is None:
             outer_history = _current_history.get(None)

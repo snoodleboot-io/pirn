@@ -35,8 +35,6 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from pydantic import ValidationError
-
 from pirn.core.err import Err
 from pirn.core.knot import Knot
 from pirn.core.ok import Ok
@@ -230,15 +228,15 @@ class SubTapestry(Knot):
         outer_data_store: Any = outer.data_store if outer is not None else None
         outer_transport: Any = outer.transport if outer is not None else None
         super().__init__(**kwargs)
-        # Bypass freeze guard to stash fields that are unknown until after
-        # __init__ completes.  All follow the _mutable_ convention so the
-        # freeze guard allows them.
-        object.__setattr__(self, "_mutable_outer_history", outer_history)
-        object.__setattr__(self, "_mutable_outer_emitters", outer_emitters)
-        object.__setattr__(self, "_mutable_outer_emitter_policy", outer_emitter_policy)
-        object.__setattr__(self, "_mutable_outer_data_store", outer_data_store)
-        object.__setattr__(self, "_mutable_outer_transport", outer_transport)
-        object.__setattr__(self, "_mutable_inner_run_meta", {})
+        # Knot.__setattr__ already exempts any `_mutable_`-prefixed name from
+        # the freeze guard, so a plain assignment is enough here — no need to
+        # bypass __setattr__ via object.__setattr__ as well.
+        self._mutable_outer_history = outer_history
+        self._mutable_outer_emitters = outer_emitters
+        self._mutable_outer_emitter_policy = outer_emitter_policy
+        self._mutable_outer_data_store = outer_data_store
+        self._mutable_outer_transport = outer_transport
+        self._mutable_inner_run_meta = {}
 
     def lineage_extra(self) -> dict[str, Any]:
         return {**super().lineage_extra(), **self._mutable_inner_run_meta}
@@ -270,21 +268,10 @@ class SubTapestry(Knot):
         from pirn.tapestry import Tapestry
 
         config = self._mutable_config
-        kwargs: dict[str, Any] = dict(self._mutable_config_values)
-        kwargs.update(parent_results)
-
-        if self._mutable_mapped_inputs:
-            try:
-                outputs = await self._fan_out(kwargs)
-            except BaseException as exc:
-                return Err(record=ExceptionRecord.for_knot(config.id, exc))
-            return Ok(value=outputs)
-
-        if config.validate_io:
-            try:
-                kwargs = self._validate_inputs(kwargs)
-            except ValidationError as exc:
-                return Err(record=ExceptionRecord.for_knot(config.id, exc))
+        prepared = await self._prepare_inputs(parent_results)
+        if not isinstance(prepared, dict):
+            return prepared
+        kwargs = prepared
 
         # Clear the previous invocation's metadata up front.  It used to be
         # assigned only after the try body succeeded, so a failed inner run left
@@ -387,7 +374,7 @@ class SubTapestry(Knot):
         # correct answer.  See PIR-764.
         outer_history: RunHistory | None = _current_history.get(None)
         if outer_history is None:
-            outer_history = object.__getattribute__(self, "_mutable_outer_history")
+            outer_history = self._mutable_outer_history
         # Inject the outer history into the inner tapestry so inner runs are
         # recorded to the same store and appear in the explorer.
         if outer_history is not None:
@@ -403,10 +390,10 @@ class SubTapestry(Knot):
         # resolve against (PIR-764/PIR-773, PIR-837).
         outer_data_store: Any = _current_data_store.get(None)
         if outer_data_store is None:
-            outer_data_store = object.__getattribute__(self, "_mutable_outer_data_store")
+            outer_data_store = self._mutable_outer_data_store
         outer_transport: Any = _current_transport.get(None)
         if outer_transport is None:
-            outer_transport = object.__getattribute__(self, "_mutable_outer_transport")
+            outer_transport = self._mutable_outer_transport
         self._apply_inherited_value_plane(
             tapestry, data_store=outer_data_store, transport=outer_transport
         )
@@ -425,8 +412,8 @@ class SubTapestry(Knot):
         outer_emitters: list[Any] | None = _current_emitters.get(None)
         outer_emitter_policy: Any = _current_emitter_error_policy.get(None)
         if outer_emitters is None:
-            outer_emitters = object.__getattribute__(self, "_mutable_outer_emitters")
-            outer_emitter_policy = object.__getattribute__(self, "_mutable_outer_emitter_policy")
+            outer_emitters = self._mutable_outer_emitters
+            outer_emitter_policy = self._mutable_outer_emitter_policy
         inner_emitters = self._inherited_emitters(tapestry.emitters, outer_emitters)
         # Only carry the outer policy when emitters actually came with it;
         # otherwise leave the inner tapestry governed by its own default.

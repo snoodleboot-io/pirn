@@ -200,7 +200,7 @@ class LoopSubTapestry(SubTapestry, Generic[S]):
 
         outer_history: Any = _current_history.get(None)
         if outer_history is None:
-            outer_history = object.__getattribute__(self, "_mutable_outer_history")
+            outer_history = self._mutable_outer_history
 
         first_outcome = self.step(state)
         if first_outcome is None:
