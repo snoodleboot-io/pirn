@@ -30,6 +30,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
+import sys
 import warnings
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -103,7 +105,7 @@ class Engine:
         concurrency: ConcurrencyLimits | None = None,
     ) -> RunResult:
         shed = Shed.from_terminals(terminals)
-        self._check_groups(shed, concurrency)
+        self._check_groups(shed, concurrency, extensible=extensible_store is not None)
 
         ctx = RunContext(
             run_id=request.run_id,
@@ -484,13 +486,17 @@ class Engine:
             ready.unpark(ticket.group)
 
     @staticmethod
-    def _check_groups(shed: Shed, limits: ConcurrencyLimits | None) -> None:
+    def _check_groups(shed: Shed, limits: ConcurrencyLimits | None, extensible: bool) -> None:
         """Fail fast on a knot in an undefined group; warn on an unused group.
 
         Only when *limits* define groups: without groups, tags are ignored so
         the same tapestry still runs unbounded or under ``max_in_flight``
         alone.  Checked over the static graph before anything runs; a knot
         registered mid-run is checked by the gate when it is admitted.
+
+        A defined group no static knot is in warns only when the run cannot
+        receive mid-run knots.  An extensible run's newcomers may be exactly
+        the knots that group is for, so there it is only debug-logged.
 
         Raises:
             UndefinedConcurrencyGroupError: For the first knot, in id order,
@@ -507,14 +513,43 @@ class Engine:
                 raise UndefinedConcurrencyGroupError(knot_id, group, limits.groups)
             used.add(group)
         unused = sorted(set(limits.groups) - used)
-        if unused:
-            warnings.warn(
-                f"ConcurrencyLimits define groups {unused} that no knot of this run's "
-                "graph is in, so those caps apply to nothing unless a knot joins "
-                "mid-run; check the group names",
-                UnusedConcurrencyGroupWarning,
-                stacklevel=2,
+        if not unused:
+            return
+        if extensible:
+            _log.debug(
+                "ConcurrencyLimits groups %s match no knot of the static graph; "
+                "mid-run knots may still join them",
+                unused,
             )
+            return
+        Engine._warn_outside_pirn(
+            f"ConcurrencyLimits define groups {unused} that no knot of this run is in, "
+            "so those caps apply to nothing; check the group names",
+            UnusedConcurrencyGroupWarning,
+        )
+
+    @staticmethod
+    def _warn_outside_pirn(message: str, category: type[Warning]) -> None:
+        """Warn, attributed to the first frame outside the pirn package.
+
+        A fixed ``stacklevel`` would point into ``tapestry.py`` or the engine,
+        which says nothing about which call chose the limits; the useful
+        location is the user's call to ``Tapestry.run``.  Python 3.12+ skips
+        the package's frames natively; 3.11 counts them by walking the stack.
+        """
+        package_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + os.sep
+        if sys.version_info >= (3, 12):
+            warnings.warn(message, category, skip_file_prefixes=(package_dir,))
+            return
+        # stacklevel=1 is this function; level 2 is sys._getframe(1).
+        level = 2
+        frame = sys._getframe(1)
+        while frame is not None and os.path.abspath(frame.f_code.co_filename).startswith(
+            package_dir
+        ):
+            level += 1
+            frame = frame.f_back
+        warnings.warn(message, category, stacklevel=level)
 
     @staticmethod
     def _enqueue(

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import sys
 import threading
 import warnings
 from collections import Counter
@@ -548,17 +549,47 @@ async def test_group_tags_are_ignored_when_the_limits_define_no_groups() -> None
     assert gauge.peak == 5
 
 
-async def test_a_limited_group_no_knot_uses_warns_at_run_start() -> None:
-    # Arrange
+@pytest.mark.parametrize("python", ["native", "3.11_stack_walk"])
+async def test_a_limited_group_no_knot_uses_warns_at_run_start(
+    python: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Arrange: also exercise the 3.11 fallback, which has no skip_file_prefixes.
+    if python == "3.11_stack_walk":
+        monkeypatch.setattr(sys, "version_info", (3, 11, 9, "final", 0))
     gauge = _Gauge()
     t = _siblings(gauge, 3, group="openai")
 
+    # Act: awaited directly (no wait_for task), so the caller frame is here.
+    with pytest.warns(UnusedConcurrencyGroupWarning, match="open-ai") as caught:
+        result = await t.run(
+            RunRequest(concurrency=ConcurrencyLimits(groups={"openai": 2, "open-ai": 1}))
+        )
+
+    # Assert: the warning points at the caller of Tapestry.run, not at engine.py.
+    assert result.succeeded
+    assert [w.filename for w in caught if w.category is UnusedConcurrencyGroupWarning] == [__file__]
+
+
+async def test_an_extensible_run_does_not_warn_about_a_group_only_newcomers_use(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    # Arrange: "late" joins group "apx" mid-run, so "apx" is unused only at start.
+    log: list[str] = []
+    with Tapestry() as t:
+        p = Parameter("x", int, default=1, _config=KnotConfig(id="p"))
+    with t:
+        _LateRegistrar(x=p, target=t, log=log, _config=KnotConfig(id="r", concurrency_group="api"))
+    limits = ConcurrencyLimits(groups={"api": 1, "apx": 1})
+
     # Act
-    with pytest.warns(UnusedConcurrencyGroupWarning, match="open-ai"):
-        result = await _run(t, ConcurrencyLimits(groups={"openai": 2, "open-ai": 1}))
+    with caplog.at_level("DEBUG", logger="pirn.engine.engine"), warnings.catch_warnings():
+        warnings.simplefilter("error", UnusedConcurrencyGroupWarning)
+        result = await _run(t, limits, extensible=True)
 
     # Assert
     assert result.succeeded
+    assert "start:late" in log
+    assert any("apx" in rec.getMessage() for rec in caplog.records)
 
 
 async def test_limits_whose_groups_are_all_used_do_not_warn() -> None:
