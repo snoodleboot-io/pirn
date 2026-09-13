@@ -17,7 +17,8 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents.memory.management.memory_kind import MemoryKind, is_memory_kind
+from pirn_agents.memory.management.memory_kind import MemoryKind
+from pirn_agents.memory.management.memory_kind_guard import MemoryKindGuard
 from pirn_agents.memory.management.memory_record import MemoryRecord
 
 
@@ -63,7 +64,7 @@ class TypedMemoryValidator(Knot):
             return record
         allowed = tuple(allowed_kinds)
         for candidate in allowed:
-            if not is_memory_kind(candidate):
+            if not MemoryKindGuard.is_kind(candidate):
                 raise ValueError(
                     f"TypedMemoryValidator: allowed_kinds holds a non-kind {candidate!r}"
                 )

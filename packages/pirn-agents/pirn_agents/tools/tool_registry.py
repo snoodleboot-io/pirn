@@ -27,23 +27,23 @@ from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.toolset import Toolset
 
 
-def _version_key(version: str) -> tuple[tuple[int, str], ...]:
-    """Return a sortable key for a dotted ``version`` string.
-
-    Each dotted part sorts numerically when it is all digits and lexically
-    otherwise, so ``"1.10.0"`` orders after ``"1.9.0"``.
-    """
-    parts: list[tuple[int, str]] = []
-    for part in version.split("."):
-        if part.isdigit():
-            parts.append((int(part), ""))
-        else:
-            parts.append((-1, part))
-    return tuple(parts)
-
-
 class ToolRegistry:
     """A dynamic registry of tools keyed by namespace, name, and version."""
+
+    @staticmethod
+    def _version_key(version: str) -> tuple[tuple[int, str], ...]:
+        """Return a sortable key for a dotted ``version`` string.
+
+        Each dotted part sorts numerically when it is all digits and lexically
+        otherwise, so ``"1.10.0"`` orders after ``"1.9.0"``.
+        """
+        parts: list[tuple[int, str]] = []
+        for part in version.split("."):
+            if part.isdigit():
+                parts.append((int(part), ""))
+            else:
+                parts.append((-1, part))
+        return tuple(parts)
 
     def __init__(self, *, mirror_to_sweet_tea: bool = True) -> None:
         """Create an empty registry.
@@ -88,7 +88,7 @@ class ToolRegistry:
         self._tags[key] = frozenset(tags)
         versions = self._versions.setdefault((namespace, tool.name), [])
         versions.append(version)
-        versions.sort(key=_version_key)
+        versions.sort(key=ToolRegistry._version_key)
         if self._mirror_to_sweet_tea:
             SweetTeaRegistry.register(
                 key=tool.name, class_def=type(tool), library=namespace, label=version
@@ -153,7 +153,9 @@ class ToolRegistry:
             if wanted_tags and not wanted_tags.issubset(self._tags[(ns, name, version)]):
                 continue
             current = chosen.get((ns, name))
-            if current is None or _version_key(version) > _version_key(current[0]):
+            if current is None or ToolRegistry._version_key(version) > ToolRegistry._version_key(
+                current[0]
+            ):
                 chosen[(ns, name)] = (version, tool)
         ordered = [tool for _, (_, tool) in sorted(chosen.items(), key=lambda item: item[0])]
         return Toolset(ordered)

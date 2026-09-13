@@ -1,10 +1,16 @@
 """Curated :class:`~pirn_agents.tools.toolset.Toolset` bundles for the base tools.
 
-Factory functions that group related base tools with sane defaults so callers can
-register a whole capability with one line. Every factory only *constructs* tools —
-no optional backend (``httpx``, ``aiosqlite``) is imported here, so importing this
-module stays backend-free; a backend is imported lazily the first time a tool that
-needs it is invoked.
+Factory methods on :class:`Bundles` group related base tools with sane
+defaults so callers can register a whole capability with one line. Every
+factory only *constructs* tools — no optional backend (``httpx``,
+``aiosqlite``) is imported here, so importing this module stays
+backend-free; a backend is imported lazily the first time a tool that needs
+it is invoked.
+
+The module-level functions below (``calculator_toolset``, ``web_toolset``,
+etc.) are thin documented wrappers kept for the public call sites recorded
+in ``TOOLS.md`` and ``pirn_agents.builder.agent_presets`` — new code may call
+either form; both resolve to :class:`Bundles`.
 
 Example::
 
@@ -40,9 +46,141 @@ from pirn_agents.tools.web.search_backend import SearchBackend
 from pirn_agents.tools.web.web_search_tool import WebSearchTool
 
 
+class Bundles:
+    """Namespace of curated :class:`Toolset` factory methods."""
+
+    @staticmethod
+    def calculator_toolset() -> Toolset:
+        """Return a toolset with the zero-dependency :class:`CalculatorTool`."""
+        return Toolset([CalculatorTool()])
+
+    @staticmethod
+    def web_toolset(
+        *,
+        search_backend: SearchBackend | None = None,
+        allowed_hosts: tuple[str, ...] | None = None,
+        allow_private: bool = False,
+        max_bytes: int = 1_000_000,
+        max_chars: int = 20_000,
+        resolver: Callable[[str], str | Sequence[str]] | None = None,
+    ) -> Toolset:
+        """Return a web toolset: HTTP fetch, HTML-to-text, and optional web search.
+
+        Args:
+            search_backend: When provided, adds a :class:`WebSearchTool` over it;
+                omitted (default) yields fetch + html-to-text only, so no search
+                vendor is assumed.
+            allowed_hosts: Optional host allow-list applied to HTTP fetches.
+            allow_private: Opt-in to allow private/loopback fetch targets.
+            max_bytes: Response-body byte cap for HTTP fetch.
+            max_chars: Output character cap for HTML-to-text.
+            resolver: Optional DNS resolver forwarded to the fetch tool's SSRF guard.
+        """
+        tools: list[Tool] = [
+            HttpRequestTool(
+                allowed_hosts=allowed_hosts,
+                allow_private=allow_private,
+                max_bytes=max_bytes,
+                resolver=resolver,
+            ),
+            HtmlToTextTool(max_chars=max_chars),
+        ]
+        if search_backend is not None:
+            tools.insert(0, WebSearchTool(backend=search_backend))
+        return Toolset(tools)
+
+    @staticmethod
+    def filesystem_toolset(
+        *,
+        root: str,
+        max_bytes: int = 1_000_000,
+        max_entries: int = 1000,
+        include_write: bool = True,
+    ) -> Toolset:
+        """Return a filesystem toolset scoped to ``root``.
+
+        Args:
+            root: Root directory every tool is confined to.
+            max_bytes: Read/write byte cap.
+            max_entries: Listing/glob result cap.
+            include_write: When ``False``, omit :class:`WriteFileTool` for a
+                read-only filesystem view.
+        """
+        tools: list[Tool] = [
+            ReadFileTool(root=root, max_bytes=max_bytes),
+            ListDirTool(root=root, max_entries=max_entries),
+            GlobTool(root=root, max_results=max_entries),
+        ]
+        if include_write:
+            tools.append(WriteFileTool(root=root, max_bytes=max_bytes))
+        return Toolset(tools)
+
+    @staticmethod
+    def data_toolset(
+        *,
+        connector: SqlConnector,
+        read_only: bool = True,
+        max_rows: int = 1000,
+        include_calculator: bool = True,
+    ) -> Toolset:
+        """Return a data toolset: a guarded ``sql_query`` plus an optional calculator.
+
+        Args:
+            connector: The SQL connector the query tool delegates to.
+            read_only: Enforce read-only SQL (default ``True``).
+            max_rows: Row cap applied to query results.
+            include_calculator: Also include :class:`CalculatorTool` (default ``True``).
+        """
+        tools: list[Tool] = [
+            SqlQueryTool(connector=connector, read_only=read_only, max_rows=max_rows)
+        ]
+        if include_calculator:
+            tools.append(CalculatorTool())
+        return Toolset(tools)
+
+    @staticmethod
+    def retrieval_toolset(
+        *,
+        store: MemoryStore,
+        llm: LLMProvider | None = None,
+        top_k: int = 5,
+    ) -> Toolset:
+        """Return a retrieval toolset: a retriever plus an optional RAG tool.
+
+        Args:
+            store: The memory store both tools search.
+            llm: When provided, adds a :class:`RagTool` composing retrieval + this LLM.
+            top_k: Default result count for both tools.
+        """
+        tools: list[Tool] = [RetrieverTool(store=store, top_k=top_k)]
+        if llm is not None:
+            tools.append(RagTool(store=store, llm=llm, top_k=top_k))
+        return Toolset(tools)
+
+    @staticmethod
+    def sandbox_toolset(*, executor: SandboxExecutor, include_shell: bool = True) -> Toolset:
+        """Return a sandbox toolset backed by an (opt-in) :class:`SandboxExecutor`.
+
+        The tools remain disabled unless ``executor`` was constructed with
+        ``enabled=True`` (OD-1).
+
+        Args:
+            executor: The sandbox executor gating and running code/commands.
+            include_shell: Also include :class:`ShellTool` (default ``True``).
+        """
+        tools: list[Tool] = [PythonExecTool(executor=executor)]
+        if include_shell:
+            tools.append(ShellTool(executor=executor))
+        return Toolset(tools)
+
+
 def calculator_toolset() -> Toolset:
-    """Return a toolset with the zero-dependency :class:`CalculatorTool`."""
-    return Toolset([CalculatorTool()])
+    """Return a toolset with the zero-dependency :class:`CalculatorTool`.
+
+    Thin wrapper kept for the documented ``TOOLS.md`` call site; see
+    :meth:`Bundles.calculator_toolset`.
+    """
+    return Bundles.calculator_toolset()
 
 
 def web_toolset(
@@ -56,28 +194,17 @@ def web_toolset(
 ) -> Toolset:
     """Return a web toolset: HTTP fetch, HTML-to-text, and optional web search.
 
-    Args:
-        search_backend: When provided, adds a :class:`WebSearchTool` over it;
-            omitted (default) yields fetch + html-to-text only, so no search
-            vendor is assumed.
-        allowed_hosts: Optional host allow-list applied to HTTP fetches.
-        allow_private: Opt-in to allow private/loopback fetch targets.
-        max_bytes: Response-body byte cap for HTTP fetch.
-        max_chars: Output character cap for HTML-to-text.
-        resolver: Optional DNS resolver forwarded to the fetch tool's SSRF guard.
+    Thin wrapper kept for the documented ``TOOLS.md`` call site; see
+    :meth:`Bundles.web_toolset`.
     """
-    tools: list[Tool] = [
-        HttpRequestTool(
-            allowed_hosts=allowed_hosts,
-            allow_private=allow_private,
-            max_bytes=max_bytes,
-            resolver=resolver,
-        ),
-        HtmlToTextTool(max_chars=max_chars),
-    ]
-    if search_backend is not None:
-        tools.insert(0, WebSearchTool(backend=search_backend))
-    return Toolset(tools)
+    return Bundles.web_toolset(
+        search_backend=search_backend,
+        allowed_hosts=allowed_hosts,
+        allow_private=allow_private,
+        max_bytes=max_bytes,
+        max_chars=max_chars,
+        resolver=resolver,
+    )
 
 
 def filesystem_toolset(
@@ -89,21 +216,12 @@ def filesystem_toolset(
 ) -> Toolset:
     """Return a filesystem toolset scoped to ``root``.
 
-    Args:
-        root: Root directory every tool is confined to.
-        max_bytes: Read/write byte cap.
-        max_entries: Listing/glob result cap.
-        include_write: When ``False``, omit :class:`WriteFileTool` for a
-            read-only filesystem view.
+    Thin wrapper kept for the documented ``TOOLS.md`` call site; see
+    :meth:`Bundles.filesystem_toolset`.
     """
-    tools: list[Tool] = [
-        ReadFileTool(root=root, max_bytes=max_bytes),
-        ListDirTool(root=root, max_entries=max_entries),
-        GlobTool(root=root, max_results=max_entries),
-    ]
-    if include_write:
-        tools.append(WriteFileTool(root=root, max_bytes=max_bytes))
-    return Toolset(tools)
+    return Bundles.filesystem_toolset(
+        root=root, max_bytes=max_bytes, max_entries=max_entries, include_write=include_write
+    )
 
 
 def data_toolset(
@@ -115,16 +233,15 @@ def data_toolset(
 ) -> Toolset:
     """Return a data toolset: a guarded ``sql_query`` plus an optional calculator.
 
-    Args:
-        connector: The SQL connector the query tool delegates to.
-        read_only: Enforce read-only SQL (default ``True``).
-        max_rows: Row cap applied to query results.
-        include_calculator: Also include :class:`CalculatorTool` (default ``True``).
+    Thin wrapper kept for the documented ``TOOLS.md`` call site; see
+    :meth:`Bundles.data_toolset`.
     """
-    tools: list[Tool] = [SqlQueryTool(connector=connector, read_only=read_only, max_rows=max_rows)]
-    if include_calculator:
-        tools.append(CalculatorTool())
-    return Toolset(tools)
+    return Bundles.data_toolset(
+        connector=connector,
+        read_only=read_only,
+        max_rows=max_rows,
+        include_calculator=include_calculator,
+    )
 
 
 def retrieval_toolset(
@@ -135,28 +252,16 @@ def retrieval_toolset(
 ) -> Toolset:
     """Return a retrieval toolset: a retriever plus an optional RAG tool.
 
-    Args:
-        store: The memory store both tools search.
-        llm: When provided, adds a :class:`RagTool` composing retrieval + this LLM.
-        top_k: Default result count for both tools.
+    Thin wrapper kept for the documented ``TOOLS.md`` call site; see
+    :meth:`Bundles.retrieval_toolset`.
     """
-    tools: list[Tool] = [RetrieverTool(store=store, top_k=top_k)]
-    if llm is not None:
-        tools.append(RagTool(store=store, llm=llm, top_k=top_k))
-    return Toolset(tools)
+    return Bundles.retrieval_toolset(store=store, llm=llm, top_k=top_k)
 
 
 def sandbox_toolset(*, executor: SandboxExecutor, include_shell: bool = True) -> Toolset:
     """Return a sandbox toolset backed by an (opt-in) :class:`SandboxExecutor`.
 
-    The tools remain disabled unless ``executor`` was constructed with
-    ``enabled=True`` (OD-1).
-
-    Args:
-        executor: The sandbox executor gating and running code/commands.
-        include_shell: Also include :class:`ShellTool` (default ``True``).
+    Thin wrapper kept for the documented ``TOOLS.md`` call site; see
+    :meth:`Bundles.sandbox_toolset`.
     """
-    tools: list[Tool] = [PythonExecTool(executor=executor)]
-    if include_shell:
-        tools.append(ShellTool(executor=executor))
-    return Toolset(tools)
+    return Bundles.sandbox_toolset(executor=executor, include_shell=include_shell)

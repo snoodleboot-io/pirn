@@ -161,6 +161,37 @@ class StructuredDecoder:
             )
         return instance
 
+    @staticmethod
+    async def decode_once(
+        *,
+        prompt: str,
+        llm: LLMProvider,
+        model_class: type[BaseModel],
+        max_retries: int = 3,
+        tool_name: str = "extract",
+    ) -> BaseModel:
+        """Decode ``prompt`` into a validated ``model_class`` instance (one shot).
+
+        A convenience method constructing a :class:`StructuredDecoder` and
+        running a single decode. See :meth:`decode` for the selection order
+        and fallback behavior.
+
+        Args:
+            prompt: The prompt describing the data to produce.
+            llm: The LLM provider (native paths used when it is a
+                :class:`StructuredOutputProvider`).
+            model_class: The target :class:`pydantic.BaseModel` subclass.
+            max_retries: Retry budget for the extract-validate-retry fallback.
+            tool_name: Name of the synthetic tool used by the forced-tool path.
+
+        Returns:
+            A validated instance of ``model_class``.
+        """
+        decoder = StructuredDecoder(
+            model_class=model_class, max_retries=max_retries, tool_name=tool_name
+        )
+        return await decoder.decode(prompt=prompt, llm=llm)
+
 
 async def structured_decode(
     *,
@@ -172,22 +203,13 @@ async def structured_decode(
 ) -> BaseModel:
     """Decode ``prompt`` into a validated ``model_class`` instance (one shot).
 
-    A convenience wrapper constructing a :class:`StructuredDecoder` and running a
-    single decode. See :meth:`StructuredDecoder.decode` for the selection order
-    and fallback behavior.
-
-    Args:
-        prompt: The prompt describing the data to produce.
-        llm: The LLM provider (native paths used when it is a
-            :class:`StructuredOutputProvider`).
-        model_class: The target :class:`pydantic.BaseModel` subclass.
-        max_retries: Retry budget for the extract-validate-retry fallback.
-        tool_name: Name of the synthetic tool used by the forced-tool path.
-
-    Returns:
-        A validated instance of ``model_class``.
+    Thin wrapper kept for the documented public import path (see
+    ``AGENTIC_USE.md``); see :meth:`StructuredDecoder.decode_once`.
     """
-    decoder = StructuredDecoder(
-        model_class=model_class, max_retries=max_retries, tool_name=tool_name
+    return await StructuredDecoder.decode_once(
+        prompt=prompt,
+        llm=llm,
+        model_class=model_class,
+        max_retries=max_retries,
+        tool_name=tool_name,
     )
-    return await decoder.decode(prompt=prompt, llm=llm)

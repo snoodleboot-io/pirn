@@ -89,7 +89,7 @@ class ConstrainedDecodingMapper:
             return None
         constraint = self.constraint()
         if self._validate_grammar:
-            _grammar_backend.compile_constraint(constraint)
+            _grammar_backend._GrammarBackend.compile(constraint)
         return provider.constrained_decoding_option(constraint)
 
     def json_schema(self) -> Mapping[str, Any]:

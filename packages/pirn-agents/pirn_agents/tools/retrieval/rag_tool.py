@@ -106,7 +106,7 @@ class RagTool(BaseTool):
             {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {question}"},
         ]
         response = await self._llm.chat(messages, model=self._model)
-        answer = _extract_text(response)
+        answer = RagTool._extract_text(response)
         return {"question": question, "answer": answer, "sources": sources}
 
     async def _collect(self, question: str) -> list[dict[str, Any]]:
@@ -128,21 +128,21 @@ class RagTool(BaseTool):
         self._store = None  # type: ignore[assignment]
         self._llm = None  # type: ignore[assignment]
 
-
-def _extract_text(response: Mapping[str, Any]) -> str:
-    """Extract assistant text from a provider-neutral chat response mapping."""
-    content = response.get("content")
-    if isinstance(content, str):
-        return content
-    if isinstance(content, list) and content:
-        first = content[0]
-        if isinstance(first, Mapping):
-            text = first.get("text")
-            if isinstance(text, str):
-                return text
-        if isinstance(first, str):
-            return first
-    text = response.get("text")
-    if isinstance(text, str):
-        return text
-    return str(response)
+    @staticmethod
+    def _extract_text(response: Mapping[str, Any]) -> str:
+        """Extract assistant text from a provider-neutral chat response mapping."""
+        content = response.get("content")
+        if isinstance(content, str):
+            return content
+        if isinstance(content, list) and content:
+            first = content[0]
+            if isinstance(first, Mapping):
+                text = first.get("text")
+                if isinstance(text, str):
+                    return text
+            if isinstance(first, str):
+                return first
+        text = response.get("text")
+        if isinstance(text, str):
+            return text
+        return str(response)

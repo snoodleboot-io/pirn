@@ -33,78 +33,16 @@ from pirn_agents.testing.stub_tool import StubTool
 from pirn_agents.tools.tool import Tool
 
 
-def make_stub_tool(**kwargs: Any) -> StubTool:
-    """Return a :class:`StubTool` configured by ``kwargs`` (factory helper)."""
-    return StubTool(**kwargs)
-
-
-def assert_tool_schema(tool: Tool, expected: Mapping[str, Any]) -> None:
-    """Assert ``tool.parameters_schema`` equals ``expected`` exactly."""
-    actual = dict(tool.parameters_schema)
-    if actual != dict(expected):
-        raise AssertionError(
-            f"tool {tool.name!r} schema mismatch:\n  expected={dict(expected)!r}\n  actual={actual!r}"
-        )
-
-
-def assert_schema_shape(
-    tool: Tool,
-    *,
-    required: Iterable[str] | None = None,
-    properties: Mapping[str, Mapping[str, Any]] | None = None,
-) -> None:
-    """Assert ``tool``'s schema declares ``required`` names and ``properties``.
-
-    ``required`` (when given) must match the schema's required list as a set.
-    Each entry in ``properties`` must appear in the schema's properties and
-    contain at least the given key/values (a subset match), so callers can
-    assert the interesting keys without pinning the whole fragment.
-    """
-    schema = dict(tool.parameters_schema)
-    if required is not None:
-        actual_required = set(schema.get("required", []))
-        if actual_required != set(required):
-            raise AssertionError(
-                f"tool {tool.name!r} required mismatch:\n"
-                f"  expected={set(required)!r}\n  actual={actual_required!r}"
-            )
-    if properties is not None:
-        actual_props = dict(schema.get("properties", {}))
-        for prop_name, expected_fragment in properties.items():
-            if prop_name not in actual_props:
-                raise AssertionError(
-                    f"tool {tool.name!r} missing property {prop_name!r}; "
-                    f"have {sorted(actual_props)!r}"
-                )
-            fragment = dict(actual_props[prop_name])
-            for key, value in expected_fragment.items():
-                if fragment.get(key) != value:
-                    raise AssertionError(
-                        f"tool {tool.name!r} property {prop_name!r} key {key!r} mismatch:\n"
-                        f"  expected={value!r}\n  actual={fragment.get(key)!r}"
-                    )
-
-
-async def invoke_tool(tool: Tool, arguments: Mapping[str, Any]) -> Any:
-    """Drive ``tool.invoke`` and return the result (sync/async tools alike)."""
-    return await tool.invoke(arguments)
-
-
-async def collect_tool_stream(tool: Tool, arguments: Mapping[str, Any]) -> list[Any]:
-    """Drain a streaming ``tool`` for ``arguments`` into a list of chunks.
-
-    Raises
-    ------
-    TypeError
-        If ``tool`` is not a streaming tool.
-    """
-    if not tool.streaming:
-        raise TypeError(f"tool {tool.name!r} is not a streaming tool")
-    return await tool.collect_stream(arguments)
-
-
 class ToolTestHarness:
-    """Bundles one :class:`Tool` with schema assertions and invocation drivers."""
+    """Bundles one :class:`Tool` with schema assertions and invocation drivers.
+
+    The static methods below (prefixed ``_``) are the shared implementation
+    for both the instance API and the module-level free functions
+    (:func:`make_stub_tool`, :func:`assert_tool_schema`,
+    :func:`assert_schema_shape`, :func:`invoke_tool`,
+    :func:`collect_tool_stream`) documented as public API in
+    ``pirn_agents/testing/__init__.py``.
+    """
 
     def __init__(self, tool: Tool) -> None:
         """Wrap ``tool`` for testing.
@@ -125,7 +63,7 @@ class ToolTestHarness:
 
     def assert_schema(self, expected: Mapping[str, Any]) -> None:
         """Assert the tool's schema equals ``expected`` exactly."""
-        assert_tool_schema(self._tool, expected)
+        ToolTestHarness._assert_tool_schema(self._tool, expected)
 
     def assert_schema_shape(
         self,
@@ -134,15 +72,15 @@ class ToolTestHarness:
         properties: Mapping[str, Mapping[str, Any]] | None = None,
     ) -> None:
         """Assert the tool's schema declares ``required`` names and ``properties``."""
-        assert_schema_shape(self._tool, required=required, properties=properties)
+        ToolTestHarness._assert_schema_shape(self._tool, required=required, properties=properties)
 
     async def invoke(self, arguments: Mapping[str, Any]) -> Any:
         """Drive the wrapped tool and return its result."""
-        return await invoke_tool(self._tool, arguments)
+        return await ToolTestHarness._invoke_tool(self._tool, arguments)
 
     async def collect_stream(self, arguments: Mapping[str, Any]) -> list[Any]:
         """Drain the wrapped streaming tool into a list of chunks."""
-        return await collect_tool_stream(self._tool, arguments)
+        return await ToolTestHarness._collect_tool_stream(self._tool, arguments)
 
     async def assert_invokes_to(self, arguments: Mapping[str, Any], expected: Any) -> None:
         """Assert invoking with ``arguments`` returns ``expected``."""
@@ -161,3 +99,130 @@ class ToolTestHarness:
                 f"tool {self._tool.name!r} stream mismatch:\n"
                 f"  expected={expected!r}\n  actual={chunks!r}"
             )
+
+    @staticmethod
+    def _make_stub_tool(**kwargs: Any) -> StubTool:
+        """Return a :class:`StubTool` configured by ``kwargs`` (factory helper)."""
+        return StubTool(**kwargs)
+
+    @staticmethod
+    def _assert_tool_schema(tool: Tool, expected: Mapping[str, Any]) -> None:
+        """Assert ``tool.parameters_schema`` equals ``expected`` exactly."""
+        actual = dict(tool.parameters_schema)
+        if actual != dict(expected):
+            raise AssertionError(
+                f"tool {tool.name!r} schema mismatch:\n"
+                f"  expected={dict(expected)!r}\n  actual={actual!r}"
+            )
+
+    @staticmethod
+    def _assert_schema_shape(
+        tool: Tool,
+        *,
+        required: Iterable[str] | None = None,
+        properties: Mapping[str, Mapping[str, Any]] | None = None,
+    ) -> None:
+        """Assert ``tool``'s schema declares ``required`` names and ``properties``.
+
+        ``required`` (when given) must match the schema's required list as a
+        set. Each entry in ``properties`` must appear in the schema's
+        properties and contain at least the given key/values (a subset
+        match), so callers can assert the interesting keys without pinning
+        the whole fragment.
+        """
+        schema = dict(tool.parameters_schema)
+        if required is not None:
+            actual_required = set(schema.get("required", []))
+            if actual_required != set(required):
+                raise AssertionError(
+                    f"tool {tool.name!r} required mismatch:\n"
+                    f"  expected={set(required)!r}\n  actual={actual_required!r}"
+                )
+        if properties is not None:
+            actual_props = dict(schema.get("properties", {}))
+            for prop_name, expected_fragment in properties.items():
+                if prop_name not in actual_props:
+                    raise AssertionError(
+                        f"tool {tool.name!r} missing property {prop_name!r}; "
+                        f"have {sorted(actual_props)!r}"
+                    )
+                fragment = dict(actual_props[prop_name])
+                for key, value in expected_fragment.items():
+                    if fragment.get(key) != value:
+                        raise AssertionError(
+                            f"tool {tool.name!r} property {prop_name!r} key {key!r} mismatch:\n"
+                            f"  expected={value!r}\n  actual={fragment.get(key)!r}"
+                        )
+
+    @staticmethod
+    async def _invoke_tool(tool: Tool, arguments: Mapping[str, Any]) -> Any:
+        """Drive ``tool.invoke`` and return the result (sync/async tools alike)."""
+        return await tool.invoke(arguments)
+
+    @staticmethod
+    async def _collect_tool_stream(tool: Tool, arguments: Mapping[str, Any]) -> list[Any]:
+        """Drain a streaming ``tool`` for ``arguments`` into a list of chunks.
+
+        Raises
+        ------
+        TypeError
+            If ``tool`` is not a streaming tool.
+        """
+        if not tool.streaming:
+            raise TypeError(f"tool {tool.name!r} is not a streaming tool")
+        return await tool.collect_stream(arguments)
+
+
+def make_stub_tool(**kwargs: Any) -> StubTool:
+    """Return a :class:`StubTool` configured by ``kwargs`` (factory helper).
+
+    Thin wrapper kept for the documented public import path (see
+    ``pirn_agents/testing/__init__.py``); see :meth:`ToolTestHarness._make_stub_tool`.
+    """
+    return ToolTestHarness._make_stub_tool(**kwargs)
+
+
+def assert_tool_schema(tool: Tool, expected: Mapping[str, Any]) -> None:
+    """Assert ``tool.parameters_schema`` equals ``expected`` exactly.
+
+    Thin wrapper kept for the documented public import path; see
+    :meth:`ToolTestHarness._assert_tool_schema`.
+    """
+    ToolTestHarness._assert_tool_schema(tool, expected)
+
+
+def assert_schema_shape(
+    tool: Tool,
+    *,
+    required: Iterable[str] | None = None,
+    properties: Mapping[str, Mapping[str, Any]] | None = None,
+) -> None:
+    """Assert ``tool``'s schema declares ``required`` names and ``properties``.
+
+    Thin wrapper kept for the documented public import path; see
+    :meth:`ToolTestHarness._assert_schema_shape`.
+    """
+    ToolTestHarness._assert_schema_shape(tool, required=required, properties=properties)
+
+
+async def invoke_tool(tool: Tool, arguments: Mapping[str, Any]) -> Any:
+    """Drive ``tool.invoke`` and return the result (sync/async tools alike).
+
+    Thin wrapper kept for the documented public import path; see
+    :meth:`ToolTestHarness._invoke_tool`.
+    """
+    return await ToolTestHarness._invoke_tool(tool, arguments)
+
+
+async def collect_tool_stream(tool: Tool, arguments: Mapping[str, Any]) -> list[Any]:
+    """Drain a streaming ``tool`` for ``arguments`` into a list of chunks.
+
+    Thin wrapper kept for the documented public import path; see
+    :meth:`ToolTestHarness._collect_tool_stream`.
+
+    Raises
+    ------
+    TypeError
+        If ``tool`` is not a streaming tool.
+    """
+    return await ToolTestHarness._collect_tool_stream(tool, arguments)

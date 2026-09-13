@@ -40,11 +40,6 @@ if TYPE_CHECKING:
     from pirn.core.run_result import RunResult
 
 
-def _reject(accepted: bool) -> bool:
-    """Open the continue-gate only when the candidate was *not* accepted."""
-    return not accepted
-
-
 class _EvaluatorOptimizerLoop(AgentLoopPipeline[_EvaluatorOptimizerState]):
     """Iterate generate → judge → accept until accepted, stopped, or capped."""
 
@@ -54,6 +49,11 @@ class _EvaluatorOptimizerLoop(AgentLoopPipeline[_EvaluatorOptimizerState]):
     _gate_id: ClassVar[str] = "eo_gate"
     _continue_id: ClassVar[str] = "eo_continue"
     _reflect_id: ClassVar[str] = "eo_reflect"
+
+    @staticmethod
+    def _reject(accepted: bool) -> bool:
+        """Open the continue-gate only when the candidate was *not* accepted."""
+        return not accepted
 
     def __init__(
         self,
@@ -109,7 +109,7 @@ class _EvaluatorOptimizerLoop(AgentLoopPipeline[_EvaluatorOptimizerState]):
             if self._reflection_gate:
                 keep_going = Gate(
                     input=accepted,
-                    predicate=_reject,
+                    predicate=_EvaluatorOptimizerLoop._reject,
                     _config=KnotConfig(id=self._continue_id),
                 )
                 response = GatedAgentResponse(

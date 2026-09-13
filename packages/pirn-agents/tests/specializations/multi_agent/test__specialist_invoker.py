@@ -1,4 +1,4 @@
-"""Tests for :func:`invoke_specialist`."""
+"""Tests for :meth:`_SpecialistInvoker.invoke_specialist`."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.multi_agent._specialist_invoker import (
-    invoke_specialist,
+    _SpecialistInvoker,
 )
 from pirn_agents.specializations.multi_agent.specialist_invocation_error import (
     SpecialistInvocationError,
@@ -46,14 +46,14 @@ class TestInvokeSpecialist(unittest.IsolatedAsyncioTestCase):
         """The whole point: ``process()`` returns a Knot, ``__call__`` runs it."""
         with Tapestry():
             spec = _EchoSpecialist(_config=KnotConfig(id="echo"))
-        result = await invoke_specialist(spec, task="hello")
+        result = await _SpecialistInvoker.invoke_specialist(spec, task="hello")
         assert isinstance(result, AgentResponse)
         assert result.content == "echo:hello"
 
     async def test_inputs_override_construction_values(self) -> None:
         with Tapestry():
             spec = _EchoSpecialist(task="at-construction", _config=KnotConfig(id="echo2"))
-        result = await invoke_specialist(spec, task="at-call")
+        result = await _SpecialistInvoker.invoke_specialist(spec, task="at-call")
         assert isinstance(result, AgentResponse)
         assert result.content == "echo:at-call"
 
@@ -63,7 +63,7 @@ class TestInvokeSpecialist(unittest.IsolatedAsyncioTestCase):
         with Tapestry():
             spec = _ExplodingSpecialist(_config=KnotConfig(id="boom"))
         with self.assertRaises(SpecialistInvocationError) as ctx:
-            await invoke_specialist(spec, task="anything")
+            await _SpecialistInvoker.invoke_specialist(spec, task="anything")
         assert ctx.exception.specialist_id == "boom"
         assert "specialist blew up" in ctx.exception.reason
 

@@ -17,14 +17,18 @@ from types import ModuleType
 from pirn_agents._internal._require import _require
 
 
-def load_ragas() -> ModuleType:
-    """Import and return the optional ``ragas`` backend module.
+class RagasBackend:
+    """Namespace for the lazy optional-``ragas``-backend loader."""
 
-    Returns:
-        The imported ``ragas`` module.
+    @staticmethod
+    def load() -> ModuleType:
+        """Import and return the optional ``ragas`` backend module.
 
-    Raises:
-        ImportError: If ``ragas`` is not installed. The message names the exact
-            command ``pip install "pirn-agents[ragas]"``.
-    """
-    return _require("ragas", "ragas")
+        Returns:
+            The imported ``ragas`` module.
+
+        Raises:
+            ImportError: If ``ragas`` is not installed. The message names the
+                exact command ``pip install "pirn-agents[ragas]"``.
+        """
+        return _require("ragas", "ragas")

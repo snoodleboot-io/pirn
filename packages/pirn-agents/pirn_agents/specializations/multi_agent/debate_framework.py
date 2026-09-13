@@ -61,20 +61,20 @@ from pirn_agents.specializations.multi_agent.specialist_invocation import (
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
-def _make_round_combine(count: int) -> Any:
-    """Build the combine that orders one round's responses by debater index."""
-
-    # design-decision-override: Aggregator's combine hook takes only the
-    # resolved **responses kwargs, so the per-round debater count can only
-    # reach it by closing over `count` in a factory-built callable.
-    def combine(**responses: AgentResponse) -> list[AgentResponse]:
-        return [responses[f"debater_{index}"] for index in range(count)]
-
-    return combine
-
-
 class DebateFramework(AgentPipeline):
     """Runs multi-round debate, judged by ``judge_llm``."""
+
+    @staticmethod
+    def _make_round_combine(count: int) -> Any:
+        """Build the combine that orders one round's responses by debater index."""
+
+        # design-decision-override: Aggregator's combine hook takes only the
+        # resolved **responses kwargs, so the per-round debater count can only
+        # reach it by closing over `count` in a factory-built callable.
+        def combine(**responses: AgentResponse) -> list[AgentResponse]:
+            return [responses[f"debater_{index}"] for index in range(count)]
+
+        return combine
 
     def __init__(
         self,
@@ -148,7 +148,7 @@ class DebateFramework(AgentPipeline):
                 )
             round_aggregators.append(
                 Aggregator(
-                    combine=_make_round_combine(len(debater_tuple)),
+                    combine=DebateFramework._make_round_combine(len(debater_tuple)),
                     _config=KnotConfig(id=f"debate_round_r{round_index}"),
                     **invocations,
                 )

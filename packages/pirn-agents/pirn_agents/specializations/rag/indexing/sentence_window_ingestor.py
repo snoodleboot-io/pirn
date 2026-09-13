@@ -85,7 +85,7 @@ class SentenceWindowIngestor(Knot):
                 f"SentenceWindowIngestor: window_size must be a non-negative int, "
                 f"got {window_size!r}"
             )
-        sentences = _split_sentences(text)
+        sentences = SentenceWindowIngestor._split_sentences(text)
         if not sentences:
             return 0
         vectors = await embedder.embed(sentences)
@@ -105,8 +105,8 @@ class SentenceWindowIngestor(Knot):
         await store.upsert(records)
         return len(records)
 
-
-def _split_sentences(text: str) -> list[str]:
-    """Split ``text`` into sentences on terminal punctuation, dropping blanks."""
-    pieces = re.split(r"(?<=[.!?])\s+", text.strip())
-    return [piece.strip() for piece in pieces if piece.strip()]
+    @staticmethod
+    def _split_sentences(text: str) -> list[str]:
+        """Split ``text`` into sentences on terminal punctuation, dropping blanks."""
+        pieces = re.split(r"(?<=[.!?])\s+", text.strip())
+        return [piece.strip() for piece in pieces if piece.strip()]

@@ -60,55 +60,120 @@ from pirn_agents.tools.tool_permissions import ToolPermissions
 from pirn_agents.tools.tool_schema_compiler import ToolSchemaCompiler
 
 
-def _build_tool(
-    fn: Callable[..., Any],
-    *,
-    name: str | None,
-    description: str | None,
-    args_model: type | None,
-    arg_docs: Mapping[str, str] | None,
-    examples: Mapping[str, Any] | None,
-    permissions: ToolPermissions,
-    state: Any | None,
-) -> FunctionTool:
-    """Construct a :class:`FunctionTool` from ``fn`` and the decorator options."""
-    if not callable(fn):
-        raise TypeError(f"@tool requires a callable, got {type(fn).__name__}")
-    compiler = ToolSchemaCompiler()
-    if args_model is not None and not compiler.is_arg_model(args_model):
-        raise TypeError("args_model must be a pydantic BaseModel subclass or a dataclass type")
+class ToolDecorator:
+    """Namespace for the ``@tool`` decorator's implementation."""
 
-    raw_doc = inspect.getdoc(fn) or ""
-    resolved_description = description or raw_doc.split("\n\n")[0].strip() or fn.__name__
-    is_stateful = state is not None
+    @staticmethod
+    def build(
+        fn: Callable[..., Any],
+        *,
+        name: str | None,
+        description: str | None,
+        args_model: type | None,
+        arg_docs: Mapping[str, str] | None,
+        examples: Mapping[str, Any] | None,
+        permissions: ToolPermissions,
+        state: Any | None,
+    ) -> FunctionTool:
+        """Construct a :class:`FunctionTool` from ``fn`` and the decorator options."""
+        if not callable(fn):
+            raise TypeError(f"@tool requires a callable, got {type(fn).__name__}")
+        compiler = ToolSchemaCompiler()
+        if args_model is not None and not compiler.is_arg_model(args_model):
+            raise TypeError("args_model must be a pydantic BaseModel subclass or a dataclass type")
 
-    if args_model is not None:
-        parameters_schema: dict[str, Any] = compiler.model_json_schema(args_model)
-        args_validator: Callable[[Mapping[str, Any]], Any] | None = compiler.model_validator(
-            args_model
+        raw_doc = inspect.getdoc(fn) or ""
+        resolved_description = description or raw_doc.split("\n\n")[0].strip() or fn.__name__
+        is_stateful = state is not None
+
+        if args_model is not None:
+            parameters_schema: dict[str, Any] = compiler.model_json_schema(args_model)
+            args_validator: Callable[[Mapping[str, Any]], Any] | None = compiler.model_validator(
+                args_model
+            )
+        else:
+            parameters_schema = compiler.schema_from_signature(
+                fn,
+                arg_docs=arg_docs,
+                examples=examples,
+                exclude=frozenset({"state"}) if is_stateful else frozenset(),
+            )
+            args_validator = None
+
+        return FunctionTool(
+            fn=fn,
+            name=name or fn.__name__,
+            description=resolved_description,
+            parameters_schema=parameters_schema,
+            is_async=iscoroutinefunction(fn) or isasyncgenfunction(fn),
+            return_schema=compiler.return_schema(fn),
+            permissions=permissions,
+            args_validator=args_validator,
+            is_streaming=isasyncgenfunction(fn),
+            state=state,
+            is_stateful=is_stateful,
         )
-    else:
-        parameters_schema = compiler.schema_from_signature(
-            fn,
-            arg_docs=arg_docs,
-            examples=examples,
-            exclude=frozenset({"state"}) if is_stateful else frozenset(),
-        )
-        args_validator = None
 
-    return FunctionTool(
-        fn=fn,
-        name=name or fn.__name__,
-        description=resolved_description,
-        parameters_schema=parameters_schema,
-        is_async=iscoroutinefunction(fn) or isasyncgenfunction(fn),
-        return_schema=compiler.return_schema(fn),
-        permissions=permissions,
-        args_validator=args_validator,
-        is_streaming=isasyncgenfunction(fn),
-        state=state,
-        is_stateful=is_stateful,
-    )
+    @staticmethod
+    def decorate(
+        fn: Callable[..., Any] | None = None,
+        *,
+        name: str | None = None,
+        description: str | None = None,
+        args_model: type | None = None,
+        arg_docs: Mapping[str, str] | None = None,
+        examples: Mapping[str, Any] | None = None,
+        scope: str | None = None,
+        mutating: bool = False,
+        approval_required: bool = False,
+        cost_hint: float | None = None,
+        state: Any | None = None,
+    ) -> FunctionTool | Callable[[Callable[..., Any]], FunctionTool]:
+        """Decorate a function as a pirn :class:`Tool`.
+
+        Used bare (``@tool``) the function's name, docstring, and
+        type-annotated parameters populate ``name``, ``description``, and
+        ``parameters_schema``. Both sync and async functions are accepted;
+        an async-generator function becomes a streaming tool.
+
+        Used with arguments (``@tool(...)``) it additionally accepts:
+
+        * ``args_model`` — a pydantic model or dataclass describing the arguments.
+        * ``arg_docs`` / ``examples`` — per-argument descriptions/examples for the
+          signature-derived schema.
+        * ``scope`` / ``mutating`` / ``approval_required`` / ``cost_hint`` — the
+          tool's :class:`~pirn_agents.tools.tool_permissions.ToolPermissions`.
+        * ``state`` — a resource injected into a reserved ``state`` keyword that
+          persists across invocations.
+        * ``name`` / ``description`` — explicit overrides.
+        """
+        permissions = ToolPermissions(
+            scope=scope,
+            mutating=mutating,
+            approval_required=approval_required,
+            cost_hint=cost_hint,
+        )
+
+        # design-decision-override: the decorator factory — `@tool(...)` must
+        # return the actual decorator, which can only reach the caller's
+        # name/description/permissions/etc. by closing over them.
+        def _decorate(target: Callable[..., Any]) -> FunctionTool:
+            return ToolDecorator.build(
+                target,
+                name=name,
+                description=description,
+                args_model=args_model,
+                arg_docs=arg_docs,
+                examples=examples,
+                permissions=permissions,
+                state=state,
+            )
+
+        if fn is not None:
+            # Bare `@tool` / direct `tool(fn)` call.
+            return _decorate(fn)
+        # Parametrised `@tool(...)` — return the decorator.
+        return _decorate
 
 
 def tool(
@@ -127,21 +192,9 @@ def tool(
 ) -> FunctionTool | Callable[[Callable[..., Any]], FunctionTool]:
     """Decorate a function as a pirn :class:`Tool`.
 
-    Used bare (``@tool``) the function's name, docstring, and type-annotated
-    parameters populate ``name``, ``description``, and ``parameters_schema``.
-    Both sync and async functions are accepted; an async-generator function
-    becomes a streaming tool.
-
-    Used with arguments (``@tool(...)``) it additionally accepts:
-
-    * ``args_model`` — a pydantic model or dataclass describing the arguments.
-    * ``arg_docs`` / ``examples`` — per-argument descriptions/examples for the
-      signature-derived schema.
-    * ``scope`` / ``mutating`` / ``approval_required`` / ``cost_hint`` — the
-      tool's :class:`~pirn_agents.tools.tool_permissions.ToolPermissions`.
-    * ``state`` — a resource injected into a reserved ``state`` keyword that
-      persists across invocations.
-    * ``name`` / ``description`` — explicit overrides.
+    Thin wrapper kept for the pinned public import path (see
+    ``tests/test_ws5_s1_import_surface.py``) and the module docstring's
+    ``@tool`` usage examples; see :meth:`ToolDecorator.decorate`.
 
     Example::
 
@@ -150,30 +203,16 @@ def tool(
             \"\"\"Evaluate a mathematical expression and return the result.\"\"\"
             return str(eval(expression, {"__builtins__": {}}))
     """
-    permissions = ToolPermissions(
+    return ToolDecorator.decorate(
+        fn,
+        name=name,
+        description=description,
+        args_model=args_model,
+        arg_docs=arg_docs,
+        examples=examples,
         scope=scope,
         mutating=mutating,
         approval_required=approval_required,
         cost_hint=cost_hint,
+        state=state,
     )
-
-    # design-decision-override: `tool` is a decorator factory — `@tool(...)`
-    # must return the actual decorator, which can only reach the caller's
-    # name/description/permissions/etc. by closing over them.
-    def _decorate(target: Callable[..., Any]) -> FunctionTool:
-        return _build_tool(
-            target,
-            name=name,
-            description=description,
-            args_model=args_model,
-            arg_docs=arg_docs,
-            examples=examples,
-            permissions=permissions,
-            state=state,
-        )
-
-    if fn is not None:
-        # Bare `@tool` / direct `tool(fn)` call.
-        return _decorate(fn)
-    # Parametrised `@tool(...)` — return the decorator.
-    return _decorate

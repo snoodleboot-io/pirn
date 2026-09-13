@@ -8,7 +8,7 @@ from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
-from pirn_agents.determinism.content_digest import content_digest
+from pirn_agents.determinism.content_digest import ContentDigest
 from pirn_agents.determinism.trace_event_kind import TraceEventKind
 
 
@@ -54,7 +54,7 @@ class TraceEvent(PirnOpaqueValue):
     @property
     def digest(self) -> str:
         """Return the content digest of this event's ``kind``, ``name``, payload."""
-        return content_digest([self.kind.value, self.name, self.payload])
+        return ContentDigest.digest([self.kind.value, self.name, self.payload])
 
     def to_payload(self) -> dict[str, Any]:
         """Return a JSON-friendly mapping of this event."""

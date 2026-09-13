@@ -30,7 +30,7 @@ class CanonicalJson:
 
     This form is what
     :meth:`~pirn_agents.sessions.run_checkpoint.RunCheckpoint.content_hash` and
-    :func:`~pirn_agents.determinism.content_digest.content_digest` already
+    :meth:`~pirn_agents.determinism.content_digest.ContentDigest.digest` already
     produce, so adopting the seam moves nothing already persisted.
 
     The single per-caller decision is

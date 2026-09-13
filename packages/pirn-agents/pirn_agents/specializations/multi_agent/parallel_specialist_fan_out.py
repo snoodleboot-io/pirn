@@ -52,27 +52,28 @@ from pirn_agents.specializations.multi_agent.specialist_invocation import (
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
-def _make_mapping_combine(
-    order: list[tuple[str, str]],
-) -> Any:
-    """Build the aggregator combine that reassembles ``{name: response}``.
-
-    ``order`` pairs each parent kwarg key with its original specialist name, so
-    the mapping is rebuilt in the specialists' registration order regardless of
-    the keys used to wire the parents.
-    """
-
-    # design-decision-override: Aggregator's combine hook takes only the
-    # resolved **responses kwargs, so the parent-key-to-specialist-name mapping
-    # can only reach it by closing over `order` in a factory-built callable.
-    def combine(**responses: AgentResponse) -> dict[str, AgentResponse]:
-        return {name: responses[key] for key, name in order}
-
-    return combine
-
-
 class ParallelSpecialistFanOut(AgentPipeline):
     """Runs every registered specialist concurrently on the same task."""
+
+    @staticmethod
+    def _make_mapping_combine(
+        order: list[tuple[str, str]],
+    ) -> Any:
+        """Build the aggregator combine that reassembles ``{name: response}``.
+
+        ``order`` pairs each parent kwarg key with its original specialist
+        name, so the mapping is rebuilt in the specialists' registration
+        order regardless of the keys used to wire the parents.
+        """
+
+        # design-decision-override: Aggregator's combine hook takes only the
+        # resolved **responses kwargs, so the parent-key-to-specialist-name
+        # mapping can only reach it by closing over `order` in a
+        # factory-built callable.
+        def combine(**responses: AgentResponse) -> dict[str, AgentResponse]:
+            return {name: responses[key] for key, name in order}
+
+        return combine
 
     def __init__(
         self,
@@ -115,7 +116,7 @@ class ParallelSpecialistFanOut(AgentPipeline):
             )
             order.append((key, name))
         return Aggregator(
-            combine=_make_mapping_combine(order),
+            combine=ParallelSpecialistFanOut._make_mapping_combine(order),
             _config=KnotConfig(id="fan_out_aggregate"),
             **parents,
         )

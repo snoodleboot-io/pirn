@@ -11,25 +11,39 @@ import importlib
 from types import ModuleType
 
 
+class _OptionalImport:
+    """Namespace for the shared lazy-import-with-friendly-error helper."""
+
+    @staticmethod
+    def require(extra: str, module: str) -> ModuleType:
+        """Import ``module``, raising a friendly error if its backend is missing.
+
+        Args:
+            extra: The optional-dependency extra that provides ``module`` (e.g.
+                ``"web"`` for the ``httpx`` backend).
+            module: The importable module name (e.g. ``"httpx"``).
+
+        Returns:
+            The imported module.
+
+        Raises:
+            ImportError: If ``module`` cannot be imported. The message names the
+                exact command ``pip install "pirn-agents[{extra}]"``.
+        """
+        try:
+            return importlib.import_module(module)
+        except ImportError as exc:
+            raise ImportError(
+                f"{module!r} is required for this feature; install it with: "
+                f'pip install "pirn-agents[{extra}]"'
+            ) from exc
+
+
 def _require(extra: str, module: str) -> ModuleType:
     """Import ``module``, raising a friendly error if its backend is missing.
 
-    Args:
-        extra: The optional-dependency extra that provides ``module`` (e.g.
-            ``"web"`` for the ``httpx`` backend).
-        module: The importable module name (e.g. ``"httpx"``).
-
-    Returns:
-        The imported module.
-
-    Raises:
-        ImportError: If ``module`` cannot be imported. The message names the
-            exact command ``pip install "pirn-agents[{extra}]"``.
+    Thin wrapper kept for the pinned public import path (see
+    ``tests/test_ws5_s1_import_surface.py``) and its ~20 call sites across the
+    package; see :meth:`_OptionalImport.require`.
     """
-    try:
-        return importlib.import_module(module)
-    except ImportError as exc:
-        raise ImportError(
-            f"{module!r} is required for this feature; install it with: "
-            f'pip install "pirn-agents[{extra}]"'
-        ) from exc
+    return _OptionalImport.require(extra, module)
