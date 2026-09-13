@@ -6,12 +6,17 @@ import asyncio
 import unittest
 from dataclasses import dataclass
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field
 
+from pirn_agents.exceptions.tool_argument_validation_error import (
+    ToolArgumentValidationError,
+)
 from pirn_agents.tools.function_tool import FunctionTool
 from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_decorator import tool
+from pirn_agents.tools.tool_factory import ToolFactory
 from pirn_agents.tools.tool_permissions import ToolPermissions
+from tests.tools.tool_runner import ToolRunner
 
 # ----------------------------------------------------------------- fixtures
 
@@ -58,7 +63,8 @@ class TestBackwardCompatibility(unittest.TestCase):
             return x
 
         assert isinstance(plain, FunctionTool)
-        assert isinstance(plain, Tool)
+        assert isinstance(plain, ToolFactory)
+        assert issubclass(plain.knot_class, Tool)
         assert plain.name == "plain"
 
     def test_bare_decorator_schema_unchanged(self) -> None:
@@ -69,7 +75,10 @@ class TestBackwardCompatibility(unittest.TestCase):
 
         assert plain.parameters_schema == {
             "type": "object",
-            "properties": {"query": {"type": "string"}, "max_results": {"type": "integer"}},
+            "properties": {
+                "query": {"type": "string"},
+                "max_results": {"type": "integer", "default": 5},
+            },
             "required": ["query"],
         }
 
@@ -103,12 +112,12 @@ class TestPydanticArgs(unittest.TestCase):
 
     def test_validates_and_coerces_arguments(self) -> None:
         # "3" is coerced to int 3 by the pydantic model.
-        result = asyncio.run(model_search.invoke({"query": "hi", "max_results": "3"}))
+        result = asyncio.run(ToolRunner.value(model_search, {"query": "hi", "max_results": "3"}))
         assert result == ["hi", "hi", "hi"]
 
-    def test_invalid_arguments_raise(self) -> None:
-        with self.assertRaises(ValidationError):
-            asyncio.run(model_search.invoke({"max_results": 2}))  # missing required query
+    def test_invalid_arguments_are_refused_by_the_declaration(self) -> None:
+        with self.assertRaises(ToolArgumentValidationError):
+            asyncio.run(ToolRunner.value(model_search, {"max_results": 2}))  # missing query
 
 
 class TestDataclassArgs(unittest.TestCase):
@@ -119,7 +128,7 @@ class TestDataclassArgs(unittest.TestCase):
         assert dataclass_lookup.parameters_schema["required"] == ["topic"]
 
     def test_sync_dataclass_invocation(self) -> None:
-        assert asyncio.run(dataclass_lookup.invoke({"topic": "refunds"})) == "refunds:3"
+        assert asyncio.run(ToolRunner.value(dataclass_lookup, {"topic": "refunds"})) == "refunds:3"
 
 
 # ----------------------------------------------------------------- return schema

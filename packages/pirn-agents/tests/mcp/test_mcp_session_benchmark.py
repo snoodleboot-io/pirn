@@ -13,6 +13,7 @@ import time
 
 import pytest
 from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
@@ -20,7 +21,6 @@ from pirn_agents.mcp.mcp_connector import McpConnector
 from pirn_agents.mcp.mcp_toolset import McpToolset
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_status import ToolStatus
-from pirn_agents.tools.toolset import Toolset
 from tests.mcp.stub_mcp import StubMcpTransport
 
 
@@ -38,15 +38,6 @@ class CountingFactory:
         return transport
 
 
-def _make_executor() -> ParallelToolExecutor:
-    with Tapestry():
-        return ParallelToolExecutor(
-            tool_calls=[],
-            toolset=Toolset(),
-            _config=KnotConfig(id="pte", validate_io=False),
-        )
-
-
 @pytest.mark.benchmark
 async def test_concurrent_call_tool_reuses_single_vended_session() -> None:
     factory = CountingFactory()
@@ -62,11 +53,15 @@ async def test_concurrent_call_tool_reuses_single_vended_session() -> None:
         for i in range(n)
     ]
 
+    with Tapestry() as tapestry:
+        ParallelToolExecutor(
+            tool_calls=calls, toolset=toolset, max_concurrency=8, _config=KnotConfig(id="pte")
+        )
     start = time.perf_counter()
-    results = await _make_executor().process(
-        tool_calls=calls, toolset=toolset, max_concurrency=8, timeout=None, retries=0
-    )
+    run = await tapestry.run(RunRequest())
     elapsed = time.perf_counter() - start
+    assert run.succeeded, run.exceptions
+    results = run.outputs["pte"]
 
     assert len(results) == n
     assert all(r.status is ToolStatus.OK for r in results)

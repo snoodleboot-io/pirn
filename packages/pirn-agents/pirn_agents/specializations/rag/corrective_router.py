@@ -44,8 +44,8 @@ from pirn.core.parameter import Parameter
 from pirn_agents.interfaces.router import Router
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.rag._fallback_document import _FallbackDocument
-from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_factory import ToolFactory
 from pirn_agents.tools.tool_invocation import ToolInvocation
 
 
@@ -57,7 +57,7 @@ class CorrectiveRouter(AgentPipeline, Router):
         *,
         query: Knot | str,
         relevant_docs: Knot,
-        fallback_tool: Knot | Tool,
+        fallback_tool: Knot | Any,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
@@ -73,7 +73,7 @@ class CorrectiveRouter(AgentPipeline, Router):
         self,
         query: str,
         relevant_docs: list[Mapping[str, Any]],
-        fallback_tool: Tool,
+        fallback_tool: ToolFactory,
         **_: Any,
     ) -> Knot:
         """Build the fallback graph and return the appropriate sink knot.
@@ -92,11 +92,13 @@ class CorrectiveRouter(AgentPipeline, Router):
         Raises:
             TypeError: If query is not a string or fallback_tool is not a Tool.
         """
-        if not isinstance(fallback_tool, Tool):
+        try:
+            fallback_tool = ToolFactory.of(fallback_tool)
+        except TypeError as exc:
             raise TypeError(
                 "CorrectiveRouter: fallback_tool must be a Tool, "
                 f"got {type(fallback_tool).__name__}"
-            )
+            ) from exc
         if not isinstance(query, str):
             raise TypeError(f"CorrectiveRouter: query must be a string, got {type(query).__name__}")
         if relevant_docs:

@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import unittest
 
+import pytest
+
 from pirn.core.hashing import content_hash
+from pirn.exceptions.pirn_error import PirnError
+from pirn.exceptions.unhashable_value_error import UnhashableValueError
 
 
 class TestContentHash(unittest.TestCase):
@@ -90,3 +94,69 @@ class TestContentHash(unittest.TestCase):
     def test_float_hashes(self) -> None:
         self.assertEqual(content_hash(1.5), content_hash(1.5))
         self.assertNotEqual(content_hash(1.5), content_hash(2.5))
+
+
+class TestContentHashStrict(unittest.TestCase):
+    """``strict=True`` — ADR agents-speaks-core WS2 part 2."""
+
+    def test_strict_defaults_to_false_and_is_unchanged(self) -> None:
+        class Opaque:
+            pass
+
+        h = content_hash(Opaque())
+        self.assertIn("unhashable", h)
+
+    def test_strict_true_raises_on_a_top_level_opaque_value(self) -> None:
+        class Widget:
+            pass
+
+        with pytest.raises(UnhashableValueError) as excinfo:
+            content_hash(Widget(), strict=True)
+        assert excinfo.value.type_name == "Widget"
+
+    def test_strict_true_names_the_innermost_type_in_a_dict(self) -> None:
+        class Widget:
+            pass
+
+        with pytest.raises(UnhashableValueError) as excinfo:
+            content_hash({"a": {"b": Widget()}}, strict=True)
+        assert excinfo.value.type_name == "Widget"
+
+    def test_strict_true_names_the_innermost_type_in_a_list(self) -> None:
+        class Widget:
+            pass
+
+        with pytest.raises(UnhashableValueError) as excinfo:
+            content_hash([1, [2, Widget()]], strict=True)
+        assert excinfo.value.type_name == "Widget"
+
+    def test_strict_true_names_the_innermost_type_in_a_set(self) -> None:
+        class Widget:
+            def __hash__(self) -> int:
+                return 1
+
+        with pytest.raises(UnhashableValueError) as excinfo:
+            content_hash({Widget()}, strict=True)
+        assert excinfo.value.type_name == "Widget"
+
+    def test_strict_true_does_not_affect_a_hashable_value(self) -> None:
+        assert content_hash({"a": 1}, strict=True) == content_hash({"a": 1})
+
+    def test_strict_true_does_not_affect_a_hashable_set(self) -> None:
+        assert content_hash({1, 2, 3}, strict=True) == content_hash({1, 2, 3})
+
+    def test_unhashable_value_error_is_a_pirn_error_and_a_type_error(self) -> None:
+        class Widget:
+            pass
+
+        with pytest.raises(PirnError):
+            content_hash(Widget(), strict=True)
+        with pytest.raises(TypeError):
+            content_hash(Widget(), strict=True)
+
+    def test_unhashable_value_error_message_names_the_type(self) -> None:
+        class Widget:
+            pass
+
+        with pytest.raises(UnhashableValueError, match="Widget"):
+            content_hash(Widget(), strict=True)

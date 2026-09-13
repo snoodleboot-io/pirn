@@ -101,7 +101,7 @@ class ExceptionRecordFieldTests(unittest.TestCase):
 
     def test_error_is_derived_from_the_record_when_not_supplied(self) -> None:
         result = ToolResult(call_id="c1", result=None, exception=self._record())
-        assert result.error == "boom"
+        assert result.error == "ValueError: boom"
         assert result.status is ToolStatus.ERROR
 
     def test_explicit_error_is_preserved_alongside_the_record(self) -> None:
@@ -196,7 +196,7 @@ class FromResultTests(unittest.TestCase):
         rebuilt = ToolResult.from_result("c1", Err(record=record))
         assert rebuilt.status is ToolStatus.ERROR
         assert rebuilt.exception is record
-        assert rebuilt.error == "boom"
+        assert rebuilt.error == "RuntimeError: boom"
 
     def test_skipped_becomes_an_error_result_naming_the_reason(self) -> None:
         """ToolStatus has no "not run" member; a skip is reported as its own error."""

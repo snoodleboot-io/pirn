@@ -36,7 +36,7 @@ from collections.abc import Iterable, Mapping
 from typing import Any
 
 from pirn_agents.builder._constant_thunk import _ConstantThunk
-from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.tool_factory import ToolFactory
 
 
 class AgentReferences:
@@ -79,7 +79,7 @@ class AgentReferences:
         self._objects[label] = value
         return self
 
-    def register_tools(self, tools: Iterable[Tool]) -> AgentReferences:
+    def register_tools(self, tools: Iterable[Any]) -> AgentReferences:
         """Bind each tool under its own ``name``; return ``self`` for chaining.
 
         Tools are the one kind of component a spec labels by an intrinsic
@@ -90,12 +90,14 @@ class AgentReferences:
             TypeError: If any element is not a :class:`Tool`.
         """
         for index, tool in enumerate(tools):
-            if not isinstance(tool, Tool):
+            try:
+                factory = ToolFactory.of(tool)
+            except TypeError as exc:
                 raise TypeError(
                     f"AgentReferences.register_tools: tools[{index}] must be a Tool, "
                     f"got {type(tool).__name__}"
-                )
-            self.register(tool.name, tool)
+                ) from exc
+            self.register(factory.name, factory)
         return self
 
     def resolve(self, label: str) -> Any:

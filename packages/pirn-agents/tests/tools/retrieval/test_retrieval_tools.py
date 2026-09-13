@@ -12,6 +12,7 @@ from pirn_agents.tools.retrieval.retriever_tool import RetrieverTool
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_status import ToolStatus
 from tests.conftest import StubLLMProvider, StubMemoryStore
+from tests.tools.tool_runner import ToolRunner
 
 
 async def _store_with(docs: list[dict[str, str]]) -> StubMemoryStore:
@@ -24,23 +25,24 @@ async def _store_with(docs: list[dict[str, str]]) -> StubMemoryStore:
 class TestRetrieverTool:
     async def test_returns_ranked_results(self) -> None:
         store = await _store_with([{"text": "alpha"}, {"text": "beta"}, {"text": "gamma"}])
-        tool = RetrieverTool(store=store, top_k=2)
-        result = await tool.invoke({"query": "greek"})
+        tool = RetrieverTool.bind(store=store, top_k=2)
+        result = await ToolRunner.value(tool, {"query": "greek"})
         assert result["count"] == 2
         assert result["results"][0]["text"] == "alpha"
         assert store.searched == ["greek"]
 
     async def test_top_k_override(self) -> None:
         store = await _store_with([{"text": str(i)} for i in range(10)])
-        tool = RetrieverTool(store=store, top_k=5)
-        result = await tool.invoke({"query": "q", "top_k": 3})
+        # ADR WS1: ``top_k`` is a tunable default the call may override, not bound policy.
+        tool = RetrieverTool.bind(store=store).defaults(top_k=5)
+        result = await ToolRunner.value(tool, {"query": "q", "top_k": 3})
         assert result["count"] == 3
 
     async def test_as_tool_result_shape(self) -> None:
         store = await _store_with([{"text": "x"}])
-        tool = RetrieverTool(store=store)
+        tool = RetrieverTool.bind(store=store)
         call = ToolCall(tool_name="retriever", arguments={"query": "q"}, call_id="c1")
-        outcome = await tool.as_tool_result(call)
+        outcome = await ToolRunner.view(tool, call)
         assert outcome.status is ToolStatus.OK
         assert outcome.result["count"] == 1
 
@@ -48,15 +50,15 @@ class TestRetrieverTool:
         import pytest
 
         with pytest.raises(TypeError):
-            RetrieverTool(store=object())  # type: ignore[arg-type]
+            RetrieverTool.bind(store=object())  # type: ignore[arg-type]
 
 
 class TestRagTool:
     async def test_composes_retrieval_and_generation(self) -> None:
         store = await _store_with([{"text": "The sky is blue."}])
         llm = StubLLMProvider(["The sky is blue."])
-        tool = RagTool(store=store, llm=llm, top_k=3)
-        result = await tool.invoke({"question": "What color is the sky?"})
+        tool = RagTool.bind(store=store, llm=llm, top_k=3)
+        result = await ToolRunner.value(tool, {"question": "What color is the sky?"})
         assert result["question"] == "What color is the sky?"
         assert result["answer"] == "The sky is blue."
         assert result["sources"] == [{"text": "The sky is blue."}]
@@ -68,8 +70,8 @@ class TestRagTool:
     async def test_handles_no_context(self) -> None:
         store = StubMemoryStore()
         llm = StubLLMProvider(["I don't know."])
-        tool = RagTool(store=store, llm=llm)
-        result = await tool.invoke({"question": "unknown?"})
+        tool = RagTool.bind(store=store, llm=llm)
+        result = await ToolRunner.value(tool, {"question": "unknown?"})
         assert result["sources"] == []
         assert result["answer"] == "I don't know."
 
@@ -77,4 +79,4 @@ class TestRagTool:
         import pytest
 
         with pytest.raises(TypeError):
-            RagTool(store=StubMemoryStore(), llm=object())  # type: ignore[arg-type]
+            RagTool.bind(store=StubMemoryStore(), llm=object())  # type: ignore[arg-type]

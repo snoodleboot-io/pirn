@@ -98,9 +98,7 @@ UNRUN_TAPESTRY: frozenset[str] = frozenset()
 #: `ReActStepExecutor`); these predate this lane and are out of its scope.
 AWAITS_INVOKE = frozenset(
     {
-        "specializations/multi_agent/_worker_invocation.py::_WorkerInvocation",
         "specializations/routing/_attempt_tier.py::_AttemptTier",
-        "tools/tool_invocation.py::ToolInvocation",
     }
 )
 
@@ -114,7 +112,6 @@ AWAITS_INVOKE = frozenset(
 #: reasoning). The rest predate this lane.
 USES_ASYNCIO_GATHER = frozenset(
     {
-        "agent/parallel_tool_executor.py::ParallelToolExecutor",
         "retrieval/hybrid_retriever.py::HybridRetriever",
         "specializations/document_processing/_chunk_embedder_store.py::_ChunkEmbedderStore",
         "specializations/document_processing/_ingestion_runner.py::_IngestionRunner",

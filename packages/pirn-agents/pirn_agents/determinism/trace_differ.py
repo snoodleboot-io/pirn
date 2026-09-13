@@ -2,21 +2,40 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+from pirn.knot_diff import compare_runs
 
 from pirn_agents.determinism.run_trace import RunTrace
 from pirn_agents.determinism.trace_diff import TraceDiff
 from pirn_agents.determinism.trace_event import TraceEvent
 
+if TYPE_CHECKING:
+    from pirn.core.run_result import RunResult
+    from pirn.knot_diff import KnotDiff
+
 
 class TraceDiffer:
-    """Compare two :class:`RunTrace` values step-by-step into a :class:`TraceDiff`.
+    """Compare two recorded runs and report what diverged.
 
-    Steps are aligned by index; a step is *changed* when its ``kind``, ``name`` or
-    content ``digest`` differs, so a payload edit between prompt/model versions
-    surfaces without a brittle raw-value comparison. Length differences become
-    ``added`` / ``removed`` indices.
+    :meth:`diff` compares two :class:`RunTrace` values (from
+    :class:`~pirn_agents.determinism.trajectory_recorder.TrajectoryRecorder`
+    or an exported :class:`~pirn_agents.determinism.trajectory_emitter.TrajectoryEmitter`
+    snapshot) step-by-step, aligned by index. :meth:`diff_runs` (ADR
+    "agents speaks core" WS3 part 3) compares two ``RunResult``s directly via
+    core's ``pirn.knot_diff.compare_runs``, aligned by knot id — the more
+    precise comparison when both runs are real engine runs, since a step's
+    identity is its knot id, not its position.
     """
+
+    def diff_runs(self, left: RunResult, right: RunResult) -> list[KnotDiff]:
+        """Return core's per-knot diff of ``left`` versus ``right``, by knot id.
+
+        A thin pass-through to ``pirn.knot_diff.compare_runs`` — kept here so
+        callers already depending on ``TraceDiffer`` for run comparison do
+        not need a second import for the ``RunResult`` case.
+        """
+        return compare_runs(left, right)
 
     def diff(self, before: RunTrace, after: RunTrace) -> TraceDiff:
         """Return the :class:`TraceDiff` of ``before`` versus ``after``.

@@ -153,7 +153,23 @@ class BigQueryHistory:
         self, knot_id: str
     ) -> list[KnotLineage]:
         ...
+
+    async def query_latest_lineage_by_knot_id(
+        self, knot_id: str
+    ) -> KnotLineage | None:
+        # The most recently finished row for the id (by finished_at), or
+        # None — the keyed-identity lookup (ADR agents-speaks-core WS0b).
+        query = f"""
+            SELECT * FROM `{self._table}`
+            WHERE knot_id = @knot_id
+            ORDER BY finished_at DESC LIMIT 1
+        """
+        ...
 ```
+
+The full contract also has `query_runs_by_actor`, `children_of`, `record_knot_source` /
+`get_knot_source` and the `retention` capability; `packages/pirn-core/tests/integration/
+test_backend_conformance.py` is the executable definition every shipped store passes.
 
 ---
 
@@ -331,6 +347,17 @@ useful reading if you need to understand or test admission behavior, even though
 third implementation in requires engine-level changes today rather than a public
 constructor argument.
 
+**Inner runs share the gate.** A `SubTapestry` body or `LoopSubTapestry` iteration that
+names no limits of its own is metered by the enclosing run's gate — the same instance — so
+the caps above bound the whole run tree, and the container knot itself holds no slot while
+it waits on its inner run (so it may not carry a `concurrency_group`). A container that needs
+a budget or backend of its own overrides it through `SubTapestry._run_inner(dispatcher=,
+concurrency=, admission_observers=)` or the `_inner_dispatcher` / `_inner_concurrency` /
+`_inner_admission_observers` hooks; `RunRequest(concurrency=ConcurrencyLimits())` opts an
+inner run out of the shared budget. The rest of the inherited plane — replay posture,
+identity resolver — and the derivation rules are in
+[Execution Model](execution-model.md#inner-runs-inherit-the-execution-plane).
+
 ### Runtime feedback — `AdmissionObserver` and `set_limit`
 
 The caps are not fixed for the run's life. An `AdmissionObserver` hears every admission and
@@ -405,7 +432,7 @@ uses to try `EnvIdentityResolver` then `OsIdentityResolver` in order).
 
 ## Custom Emitters
 
-Implement three async hooks (all optional — subclass the base and override what you need):
+Implement four async hooks (all optional — subclass the base and override what you need). The three shown below are the per-run streams; the fourth, `on_knot_result(knot_id, result, lineage)`, fires the moment each knot settles with its full `Ok` / `Err` / `Skipped` and lineage row — before the run finishes and before the knot's children start — and is the hook to stream per-item outcomes out of a fan-out (see [Execution Model](execution-model.md#step-11-emitter-hooks-fired)). It is awaited inline under the same `emitter_error_policy`, so keep it to a hand-off:
 
 ```python
 from pirn.emitters.emitter import Emitter

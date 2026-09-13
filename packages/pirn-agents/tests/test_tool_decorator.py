@@ -8,6 +8,8 @@ import unittest
 from pirn_agents.tools.function_tool import FunctionTool
 from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_decorator import tool
+from pirn_agents.tools.tool_factory import ToolFactory
+from tests.tools.tool_runner import ToolRunner
 
 # ----------------------------------------------------------------- fixtures
 
@@ -40,9 +42,10 @@ async def list_param(items: list[str]) -> str:
 
 
 class _StandaloneTests(unittest.TestCase):
-    def test_produces_tool_instance(self):
-        assert isinstance(async_search, Tool)
+    def test_produces_a_tool_capability_over_a_tool_knot_class(self):
+        assert isinstance(async_search, ToolFactory)
         assert isinstance(async_search, FunctionTool)
+        assert issubclass(async_search.knot_class, Tool)
 
     def test_name_from_function(self):
         assert async_search.name == "async_search"
@@ -81,12 +84,15 @@ class _StandaloneTests(unittest.TestCase):
     def test_schema_string_type(self):
         assert async_search.parameters_schema["properties"]["query"] == {"type": "string"}
 
-    def test_schema_integer_type(self):
-        assert async_search.parameters_schema["properties"]["max_results"] == {"type": "integer"}
+    def test_schema_integer_type_with_its_default(self):
+        assert async_search.parameters_schema["properties"]["max_results"] == {
+            "type": "integer",
+            "default": 5,
+        }
 
     def test_schema_optional_nullable(self):
         prop = optional_param.parameters_schema["properties"]["context"]
-        assert prop["type"] == ["string", "null"]
+        assert prop["anyOf"] == [{"type": "string"}, {"type": "null"}]
         assert "context" not in optional_param.parameters_schema.get("required", [])
 
     def test_schema_list_type(self):
@@ -107,15 +113,15 @@ class _StandaloneTests(unittest.TestCase):
     # ----------------------------------------------------------------- invocation
 
     def test_async_function_invoked(self):
-        result = asyncio.run(async_search.invoke({"query": "pirn", "max_results": 3}))
+        result = asyncio.run(ToolRunner.value(async_search, {"query": "pirn", "max_results": 3}))
         assert result == "results:pirn"
 
     def test_sync_function_invoked(self):
-        result = asyncio.run(sync_calc.invoke({"expression": "3 * 7"}))
+        result = asyncio.run(ToolRunner.value(sync_calc, {"expression": "3 * 7"}))
         assert result == "21"
 
     def test_optional_kwarg_omitted(self):
-        result = asyncio.run(optional_param.invoke({"topic": "refund"}))
+        result = asyncio.run(ToolRunner.value(optional_param, {"topic": "refund"}))
         assert result == "refund"
 
     # ----------------------------------------------------------------- error cases

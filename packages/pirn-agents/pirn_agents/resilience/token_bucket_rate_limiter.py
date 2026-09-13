@@ -7,6 +7,13 @@ Tokens refill continuously at :attr:`RateLimiterConfig.refill_rate` up to
 have accrued. An upstream ``Retry-After`` is honoured via :meth:`pause_for`,
 which floors acquisition until the pause elapses.
 
+ADR agents-speaks-core, WS4b: an optional ``on_pause`` callback lets this
+limiter feed an
+:class:`~pirn_agents.batch.adaptive_concurrency_controller.AdaptiveConcurrencyController`
+(or any callable) the same ``Retry-After`` signal it just honoured, so a
+provider throttle backs off both the request rate (this class) and the
+in-flight concurrency (the admission gate) from one observed signal.
+
 Acquisition is serialised behind an :class:`asyncio.Lock`, so concurrent callers
 draw from one shared bucket in FIFO order rather than each keeping a private
 count. The clock and sleep are injected (defaulting to :func:`time.monotonic`
@@ -32,6 +39,7 @@ class TokenBucketRateLimiter:
         *,
         clock: Callable[[], float] | None = None,
         sleep: Callable[[float], Awaitable[None]] | None = None,
+        on_pause: Callable[[float], None] | None = None,
     ) -> None:
         """Build the limiter, starting full at ``capacity``.
 
@@ -41,6 +49,11 @@ class TokenBucketRateLimiter:
             sleep: Async sleep used while waiting; defaults to
                 :func:`asyncio.sleep`. Injected in tests so a fake sleep can
                 advance a manual clock deterministically.
+            on_pause: Called with the pause length every time :meth:`pause_for`
+                extends the deadline, so an admission-side observer (e.g.
+                :class:`~pirn_agents.batch.adaptive_concurrency_controller.AdaptiveConcurrencyController`)
+                can react to the same ``Retry-After`` signal. Not called when
+                the deadline is not extended (an overlapping, shorter pause).
 
         Raises:
             TypeError: If ``config`` is not a :class:`RateLimiterConfig`.
@@ -53,6 +66,7 @@ class TokenBucketRateLimiter:
         self._config = config
         self._clock = clock if clock is not None else time.monotonic
         self._sleep = sleep if sleep is not None else asyncio.sleep
+        self._on_pause = on_pause
         self._tokens = float(config.capacity)
         self._updated_at = self._clock()
         self._paused_until = 0.0
@@ -82,7 +96,11 @@ class TokenBucketRateLimiter:
                 f"TokenBucketRateLimiter: pause seconds must be a non-negative number, "
                 f"got {seconds!r}"
             )
-        self._paused_until = max(self._paused_until, self._clock() + seconds)
+        deadline = self._clock() + seconds
+        if deadline > self._paused_until:
+            self._paused_until = deadline
+            if self._on_pause is not None:
+                self._on_pause(seconds)
 
     def _refill(self) -> None:
         now = self._clock()

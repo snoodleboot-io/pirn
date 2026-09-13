@@ -17,6 +17,7 @@ from collections.abc import AsyncIterator
 import pytest
 
 from pirn_agents.tools.web.http_request_tool import HttpRequestTool
+from tests.tools.tool_runner import ToolRunner
 
 
 class _SlowResponse:
@@ -59,11 +60,11 @@ def _public_resolver(_host: str) -> str:
 async def test_concurrent_fetch_beats_serial() -> None:
     n = 12
     per_call = 0.05
-    tool = HttpRequestTool(client=_SlowClient(per_call), resolver=_public_resolver)
+    tool = HttpRequestTool.bind(client=_SlowClient(per_call), resolver=_public_resolver)
 
     start = time.perf_counter()
     results = await asyncio.gather(
-        *(tool.invoke({"url": f"https://example.com/{i}"}) for i in range(n))
+        *(ToolRunner.value(tool, {"url": f"https://example.com/{i}"}) for i in range(n))
     )
     elapsed = time.perf_counter() - start
 

@@ -1,40 +1,47 @@
-"""Observability interface for individual tool invocations.
+"""``ToolInvocationHook`` — deprecated (one cycle) observability seam around tool calls.
 
-:class:`ToolInvocationHook` is the seam that lets an application observe every
-tool call an executor runs — one ``on_start`` before the tool is invoked and
-one ``on_finish`` after its :class:`~pirn_agents.tools.tool_result.ToolResult`
-is built — without the executor knowing anything about spans, metrics, or logs.
+Since the ADR "agents speaks core" (WS1) a tool call is a knot: its start,
+end, outcome and latency are the ``KnotLineage`` row the engine records and
+the status events the run's emitters already receive — there is no second
+place to observe it from.  The hook stays importable for the cycle;
+:class:`~pirn_agents.agent.parallel_tool_executor.ParallelToolExecutor` still
+fires it (``on_start`` before the graph runs, ``on_finish`` from the combine,
+with a ``0.0`` latency) so an existing subscriber keeps its events, and the
+base class warns when subclassed.
 
-The base class is a genuine, intentional **no-op**: its methods return ``None``
-and do nothing. That is the *default behaviour*, not a placeholder — an executor
-handed no hook (or the base hook) does zero observability work, and passing the
-base class is indistinguishable from passing nothing. Subclasses override the
-two methods to emit tracing spans, counters, or histograms; those overrides are
-what feed the metrics (F10) and tracing (F23) surfaces.
-
-Contract for subclasses
------------------------
-* ``on_start`` fires exactly once per call, immediately before the tool runs.
+Contract for subclasses (unchanged for the cycle)
+-------------------------------------------------
+* ``on_start`` fires exactly once per call, before the batch runs.
 * ``on_finish`` fires exactly once per call, for **every** terminal outcome
-  (ok, error, timeout, tool-not-found), after the result is built.
-* Implementations must be side-effect-free on the result path: an executor is
-  free to swallow any exception a hook raises so observability can never abort
-  or alter tool execution. Hooks should therefore avoid raising, but a raising
-  hook must never be relied upon to change control flow.
+  (ok, error, timeout, tool-not-found), after the view is built.
+* Implementations must be side-effect-free on the result path: the executor
+  swallows any exception a hook raises.
 """
 
 from __future__ import annotations
+
+import warnings
+from typing import Any
 
 from pirn_agents.tools.tool_status import ToolStatus
 
 
 class ToolInvocationHook:
-    """No-op observability hook fired around each tool invocation.
+    """Deprecated no-op observability hook fired around each tool call.
 
     Override :meth:`on_start` and :meth:`on_finish` to emit spans or metrics.
-    The base methods do nothing by design; the unmodified class is the
-    zero-cost default an executor uses when no observability is wired.
+    The base methods do nothing by design.
     """
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        warnings.warn(
+            f"{cls.__qualname__} subclasses ToolInvocationHook, which is deprecated (ADR "
+            "agents-speaks-core WS1): observe tool calls through the run's lineage rows and "
+            "emitters",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
     def on_start(self, *, tool_name: str, args_digest: str, call_id: str) -> None:
         """Signal that a tool is about to be invoked.

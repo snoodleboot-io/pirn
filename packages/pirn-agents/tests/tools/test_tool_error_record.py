@@ -22,6 +22,7 @@ from pirn.tapestry import Tapestry
 from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_error_record import ToolErrorRecord
+from pirn_agents.tools.tool_factory import ToolFactory
 
 _DSN = "postgres://user:s3cr3tp4ssw0rd@host/db"
 _SECRET = "s3cr3tp4ssw0rd"
@@ -98,7 +99,7 @@ class TestEveryInvocationPathRedacts(unittest.IsolatedAsyncioTestCase):
 
         with Tapestry() as t:
             ToolInvocation(
-                tool=_RaisingTool(),
+                tool=ToolFactory.of(_RaisingTool()),
                 call=ToolCall(tool_name="raiser", arguments={}, call_id="c1"),
                 _config=KnotConfig(id="inv"),
             )

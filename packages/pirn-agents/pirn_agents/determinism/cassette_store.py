@@ -1,4 +1,15 @@
-"""``CassetteStore`` — the provider-neutral persistence interface for cassettes."""
+"""``CassetteStore`` — the provider-neutral persistence interface for cassettes.
+
+.. deprecated:: ADR agents-speaks-core WS3 part 3
+    :class:`~pirn_agents.determinism.cassette_recorder.CassetteRecorder`
+    records to and replays from ``RunHistory``/``DataStore`` directly now — a
+    named cassette store is no longer where a live recording lives. This
+    interface (and :class:`~pirn_agents.determinism.in_memory_cassette_store.InMemoryCassetteStore`
+    / :class:`~pirn_agents.determinism.file_cassette_store.FileCassetteStore`)
+    stays importable for a caller that still wants to export/import a
+    portable :class:`~pirn_agents.determinism.cassette.Cassette` snapshot —
+    ``CassetteRecorder(cassette=...)`` accepts one to seed replay from.
+"""
 
 from __future__ import annotations
 

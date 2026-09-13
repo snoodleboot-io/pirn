@@ -9,10 +9,11 @@ state corruption) so a caller can build a clean terminal result.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Mapping
-from typing import Any
+from typing import Any, ClassVar
 
 import pytest
+from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.performance.budget_breach_error import BudgetBreachError
 from pirn_agents.performance.budget_limit import BudgetLimit
@@ -20,6 +21,7 @@ from pirn_agents.performance.cancellation_token import CancellationToken
 from pirn_agents.performance.run_budget import RunBudget
 from pirn_agents.performance.run_budget_meter import RunBudgetMeter
 from pirn_agents.tools.tool import Tool
+from tests.tools.tool_runner import ToolRunner
 
 
 class _FakeClock:
@@ -85,38 +87,29 @@ class TestDeadlineBreach:
 
 
 class _SlowTool(Tool):
-    """Tool that waits on the meter's cancellation token, modelling a loop leg."""
+    """Tool knot that checks the meter's cancellation token, modelling a loop leg."""
 
-    def __init__(self, *, name: str, token: CancellationToken) -> None:
-        self._name = name
-        self._token = token
-        self.completed = False
+    tool_name: ClassVar[str] = "leg"
+    completed: ClassVar[bool] = False
 
-    @property
-    def name(self) -> str:
-        return self._name
+    # ``Any``: the token is a bound collaborator, not a JSON-schemable argument.
+    def __init__(self, *, token: Knot | Any, _config: KnotConfig, **kwargs: Any) -> None:
+        super().__init__(token=token, _config=_config, **kwargs)
 
-    @property
-    def description(self) -> str:
-        return "waits then checks cancellation"
-
-    @property
-    def parameters_schema(self) -> Mapping[str, Any]:
-        return {"type": "object", "properties": {}}
-
-    async def invoke(self, arguments: Mapping[str, Any]) -> Any:
+    async def process(self, token: Any, **_: Any) -> str:
         # Cooperative: if the run was cancelled, unwind cleanly rather than
         # completing and mutating state.
-        self._token.raise_if_cancelled()
-        self.completed = True
-        return self._name
+        token.raise_if_cancelled()
+        _SlowTool.completed = True
+        return "leg"
 
 
 class TestCleanCancellation:
     async def test_breach_cancels_in_flight_leg_without_completion(self) -> None:
         token = CancellationToken()
         meter = RunBudgetMeter(RunBudget(max_iterations=1), token=token)
-        tool = _SlowTool(name="leg", token=token)
+        _SlowTool.completed = False
+        tool = _SlowTool.bind(token=token)
 
         # First iteration is allowed.
         meter.spend_iteration()
@@ -128,8 +121,8 @@ class TestCleanCancellation:
         # unwinds via CancelledError without completing (no partial state), so
         # its side-effecting body never runs.
         with pytest.raises(asyncio.CancelledError):
-            await tool.invoke({})
-        assert tool.completed is False
+            await ToolRunner.value(tool, {})
+        assert _SlowTool.completed is False
 
     async def test_shared_token_wakes_waiting_sibling(self) -> None:
         token = CancellationToken()

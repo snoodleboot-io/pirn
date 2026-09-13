@@ -2,6 +2,22 @@
 
 Extracted out of ``Engine`` (a pure move, PIR-856): neither method reads or
 writes any ``Engine`` instance state, so both are ``@staticmethod``.
+
+Algorithm:
+    Every hook is delivered under the run's ``EmitterErrorPolicy`` through
+    ``handle_emitter_error``: an emitter that raises is ignored, logged at
+    WARNING, or re-raised (``RAISE``), so the same policy governs
+    ``on_status`` (scheduled as a task per transition), ``on_knot_result``
+    (awaited in place the moment a knot settles), and ``on_lineage`` /
+    ``on_run_result`` (awaited after the run is persisted).
+
+    ``emit_knot_result(emitters, policy, knot_id, result, lineage)``:
+
+    1. For each emitter, in registration order, await
+       ``emitter.on_knot_result(knot_id, result, lineage)``.
+    2. An exception from one emitter is routed through
+       ``handle_emitter_error`` and, unless the policy is ``RAISE``, the next
+       emitter is still called.
 """
 
 from __future__ import annotations
@@ -15,6 +31,8 @@ from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
 from pirn.engine._emitter_subscriber import _EmitterSubscriber
 
 if TYPE_CHECKING:
+    from pirn.core.knot_lineage import KnotLineage
+    from pirn.core.result import Result
     from pirn.core.run_context import RunContext
     from pirn.managers.status_event import StatusEvent
 
@@ -72,6 +90,46 @@ class EmitterFanout:
                     EmitterFanout.handle_emitter_error,
                 )
             )
+
+    @staticmethod
+    async def emit_knot_result(
+        emitters: Sequence[Any],
+        policy: EmitterErrorPolicy,
+        knot_id: str,
+        result: Result[Any],
+        lineage: KnotLineage,
+    ) -> None:
+        """Deliver a just-settled knot's outcome to every emitter, in place.
+
+        Called by the engine from its scheduling loop the moment a knot's
+        ``Result`` and lineage row exist — before the knot's children are
+        released and long before the run is persisted — so a consumer can
+        stream per-item outcomes of a fan-out as they happen (ADR
+        agents-speaks-core, WS0b).  Awaited rather than scheduled as a task
+        because ``RAISE`` must be able to abort the run, which a
+        fire-and-forget task cannot do; the cost is that a slow hook delays
+        scheduling, so hooks should hand the outcome off and return.
+
+        Args:
+            emitters: The run's emitters, in registration order.
+            policy: How to react to an emitter raising.
+            knot_id: The settled knot.
+            result: Its ``Ok`` / ``Err`` / ``Skipped``, with the ``Err``'s
+                record already re-registered against this run.
+            lineage: The ``KnotLineage`` row built for it.
+        """
+        for emitter in emitters:
+            # Emitters are duck-typed at this boundary (the engine takes
+            # ``list[Any]``), and one written before this hook existed has no
+            # ``on_knot_result`` at all; that is the one place core reaches
+            # for ``getattr``, so an older emitter keeps working unchanged.
+            hook = getattr(emitter, "on_knot_result", None)
+            if hook is None:
+                continue
+            try:
+                await hook(knot_id, result, lineage)
+            except Exception as exc:
+                EmitterFanout.handle_emitter_error(emitter, "on_knot_result", exc, policy)
 
     @staticmethod
     async def emit_status(

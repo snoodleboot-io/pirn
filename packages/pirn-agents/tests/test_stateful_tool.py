@@ -6,6 +6,7 @@ import unittest
 
 from pirn_agents.testing.stub_tool import StubTool
 from pirn_agents.tools.tool_decorator import tool
+from tests.tools.tool_runner import ToolRunner
 
 
 class TestFunctionToolStateful(unittest.IsolatedAsyncioTestCase):
@@ -20,8 +21,8 @@ class TestFunctionToolStateful(unittest.IsolatedAsyncioTestCase):
 
         assert counter.stateful is True
         assert counter.state is scratch
-        assert await counter.invoke({"amount": 5}) == 5
-        assert await counter.invoke({"amount": 3}) == 8
+        assert await ToolRunner.value(counter, {"amount": 5}) == 5
+        assert await ToolRunner.value(counter, {"amount": 3}) == 8
         assert scratch["count"] == 8
 
     def test_state_excluded_from_schema(self) -> None:
@@ -70,8 +71,8 @@ class TestStubToolStateful(unittest.IsolatedAsyncioTestCase):
             return state["seen"]
 
         stub = StubTool(name="s", state=state, handler=handler)
-        assert await stub.invoke({}) == 1
-        assert await stub.invoke({}) == 2
+        assert await ToolRunner.value(stub, {}) == 1
+        assert await ToolRunner.value(stub, {}) == 2
 
     def test_non_stateful_stub_reports_false(self) -> None:
         stub = StubTool(name="s")

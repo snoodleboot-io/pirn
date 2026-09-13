@@ -67,27 +67,45 @@ class ReplaySession:
         source_run_id: The ``run_id`` this session serves from.
     """
 
-    def __init__(self, *, source_run: RunResult) -> None:
+    def __init__(self, *, source_run: RunResult, allow_new_knots: bool = False) -> None:
         """Index a ``RunResult`` for replay.
 
         Prefer :meth:`from_history`, which loads the run for you.
 
         Args:
             source_run: The completed run to serve recorded outcomes from.
+            allow_new_knots: When ``False`` (the default — unchanged from
+                before this parameter existed), every non-``Parameter`` knot
+                the run dispatches must have a matching recorded row, or the
+                engine raises ``ReplayMismatchError``: a recording that
+                cannot be honoured never falls back to live execution. Pass
+                ``True`` to relax that for knots this recording has no row
+                for at all (as opposed to one with a *different* recorded
+                config or inputs, which still raises either way) — those run
+                live instead of raising. This is for extending a prior run
+                with new terminals that were not part of it, e.g. resuming a
+                suspended HITL run past an approval gate: the knots up to and
+                including the gate replay from the recording, and whatever
+                comes after — genuinely new to this continuation — executes
+                for the first time. See ``Engine._invoke``.
         """
         self._source_run_id: str = source_run.run_id
         self._rows: dict[str, KnotLineage] = {row.knot_id: row for row in source_run.lineage}
         self._exceptions: dict[str, ExceptionRecord] = {
             record.id: record for record in source_run.exceptions
         }
+        self._allow_new_knots = bool(allow_new_knots)
 
     @classmethod
-    async def from_history(cls, *, history: RunHistory, run_id: str) -> ReplaySession:
+    async def from_history(
+        cls, *, history: RunHistory, run_id: str, allow_new_knots: bool = False
+    ) -> ReplaySession:
         """Load a recorded run from *history* and index it for replay.
 
         Args:
             history: The ``RunHistory`` the original run was recorded to.
             run_id: The run to replay.
+            allow_new_knots: See :meth:`__init__`.
 
         Returns:
             A ``ReplaySession`` over that run.
@@ -98,11 +116,16 @@ class ReplaySession:
         source_run: RunResult | None = await history.get_run(run_id)
         if source_run is None:
             raise KeyError(f"run {run_id!r} not found in history; cannot replay it")
-        return cls(source_run=source_run)
+        return cls(source_run=source_run, allow_new_knots=allow_new_knots)
 
     @property
     def source_run_id(self) -> str:
         return self._source_run_id
+
+    @property
+    def allow_new_knots(self) -> bool:
+        """Whether a knot with no recorded row runs live instead of raising."""
+        return self._allow_new_knots
 
     def row_for(self, knot_id: str) -> KnotLineage | None:
         """Return the recorded lineage row for *knot_id*, or ``None``."""

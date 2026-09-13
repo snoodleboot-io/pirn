@@ -204,3 +204,119 @@ class TestInnerRunMetaOnFailure(unittest.IsolatedAsyncioTestCase):
         await t.run(RunRequest())
 
         self.assertEqual(knot.lineage_extra(), {})
+
+
+class _GatedSink(SubTapestry):
+    """Inner pipeline whose sink sits behind a ``Gate`` that ``open`` decides."""
+
+    async def process(self, open: bool, **_: Any) -> Any:
+        from pirn.nodes.gate.gate import Gate
+
+        class _Value(Source):
+            async def process(self, **_kw: Any) -> int:
+                return 7
+
+        value = _Value(_config=KnotConfig(id="value"))
+        return Gate(input=value, predicate=lambda _v: open, _config=KnotConfig(id="gate"))
+
+
+class TestSkippedSinkPassesThrough(unittest.IsolatedAsyncioTestCase):
+    """A sink the inner run skipped makes the container ``Skipped``, not ``Err``."""
+
+    async def test_open_gate_surfaces_the_value(self) -> None:
+        with Tapestry() as t:
+            _GatedSink(open=True, _config=KnotConfig(id="outer"))
+        result = await t.run(RunRequest())
+        self.assertTrue(result.succeeded)
+        self.assertEqual(result.outputs["outer"], 7)
+
+    async def test_closed_gate_skips_the_container_with_the_sinks_reason(self) -> None:
+        with Tapestry() as t:
+            _GatedSink(open=False, _config=KnotConfig(id="outer"))
+        result = await t.run(RunRequest())
+        self.assertTrue(result.succeeded)
+        self.assertIn("outer", result.skipped)
+        self.assertNotIn("outer", result.outputs)
+        row = next(r for r in result.lineage if r.knot_id == "outer")
+        self.assertEqual(row.outcome, "skipped")
+        self.assertEqual(row.skip_reason, "gate_closed")
+
+
+class _CappedNesting(SubTapestry):
+    """Chooses its own inner tapestry: a nesting cap the outer run never set."""
+
+    def _make_inner_tapestry(self) -> Tapestry:
+        return Tapestry(max_nesting_depth=1)
+
+    async def process(self, **_: Any) -> Any:
+        return _Depth2(_config=KnotConfig(id="deeper"))
+
+
+class TestMakeInnerTapestrySeam(unittest.IsolatedAsyncioTestCase):
+    """``_make_inner_tapestry`` lets a container configure the run it starts."""
+
+    async def test_default_is_a_bare_tapestry(self) -> None:
+        with Tapestry():
+            knot = _InnerPipeline(
+                upstream=_DoubleSource(_config=KnotConfig(id="s")), _config=KnotConfig(id="p")
+            )
+        inner = knot._make_inner_tapestry()
+        self.assertIsInstance(inner, Tapestry)
+        self.assertIsNone(inner.max_nesting_depth)
+
+    async def test_override_reaches_the_inner_run(self) -> None:
+        """The cap set by the override refuses the deeper run, as a normal Err."""
+        with Tapestry() as t:
+            _CappedNesting(_config=KnotConfig(id="capped"))
+        result = await t.run(RunRequest())
+        self.assertFalse(result.succeeded)
+        self.assertEqual([rec.exc_type for rec in result.exceptions], ["SubTapestryError"])
+        inner_runs = await t.history.children_of(result.run_id)
+        inner_types = {rec.exc_type for run in inner_runs for rec in run.exceptions}
+        self.assertIn("NestingDepthExceededError", inner_types)
+
+
+class _Explodes(Source):
+    async def process(self, **_: Any) -> int:
+        raise RuntimeError("boom")
+
+
+class _CombinesFailures(SubTapestry):
+    """Sink receives the failed knot's ``Err`` and reports it as a value."""
+
+    _inner_failures_reach_sink = True
+
+    async def process(self, **_: Any) -> Any:
+        from pirn.core.error_policy import ErrorPolicy
+        from pirn.nodes.aggregator import Aggregator
+
+        bad = _Explodes(_config=KnotConfig(id="bad"))
+        return Aggregator(
+            combine=lambda bad: bad.record.exc_type,
+            bad=bad,
+            _config=KnotConfig(id="report", error_policy=ErrorPolicy.RECEIVE_ERRORS),
+        )
+
+
+class _DoesNotCombineFailures(_CombinesFailures):
+    _inner_failures_reach_sink = False
+
+
+class TestInnerFailuresReachSink(unittest.IsolatedAsyncioTestCase):
+    async def test_opted_in_container_surfaces_the_sinks_value(self) -> None:
+        with Tapestry() as t:
+            _CombinesFailures(_config=KnotConfig(id="outer"))
+        result = await t.run(RunRequest())
+        self.assertTrue(result.succeeded, result.exceptions)
+        self.assertEqual(result.outputs["outer"], "RuntimeError")
+        inner_runs = await t.history.children_of(result.run_id)
+        self.assertEqual(
+            {rec.exc_type for run in inner_runs for rec in run.exceptions}, {"RuntimeError"}
+        )
+
+    async def test_default_container_fails_on_an_inner_failure(self) -> None:
+        with Tapestry() as t:
+            _DoesNotCombineFailures(_config=KnotConfig(id="outer"))
+        result = await t.run(RunRequest())
+        self.assertFalse(result.succeeded)
+        self.assertEqual([rec.exc_type for rec in result.exceptions], ["SubTapestryError"])

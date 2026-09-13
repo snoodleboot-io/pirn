@@ -1,18 +1,24 @@
-"""``SuspendingApprovalCheck`` — pause for approval by persisting a resumable run.
+"""``SuspendingApprovalCheck`` — pause a run for approval as an engine-native skip.
 
-Where :class:`~pirn_agents.specializations.human_in_the_loop.approval_check.ApprovalCheck`
-gates *within* a single run (returning a bool), this knot lets a run pause and be
-resumed *later*: on a non-auto-approved response it checkpoints the current
-:class:`RunState` (with the pending response recorded) to a :class:`SessionStore`
-and returns a :class:`SuspendSignal` carrying a :class:`ResumeToken`. It composes
-with, and never modifies, the in-run approval knots.
+ADR "agents speaks core" WS3 part 2 (updated for the WS0 core seam merged to
+main after part 2: `Knot.__call__` now passes a `Skipped` returned directly
+from `process()` through bare — no sentinel-exception/`__call__`-interception
+dance needed; a "denied approval" is explicitly named in `Knot.__call__`'s own
+docstring as the motivating case).
 
-Algorithm:
-    1. Validate the pending ``response``, ``store``, and ``state``.
-    2. If ``auto_approve`` is True, return ``None`` — the in-run fast path
-       approves without suspending (parity with ``ApprovalCheck``).
-    3. Otherwise record the pending response into the state, content-address and
-       persist it, and return a :class:`SuspendSignal` with a resumable token.
+Where
+:class:`~pirn_agents.specializations.human_in_the_loop.approval_check.ApprovalCheck`
+gates *within* a single run (returning a bool), this knot lets the run pause
+*as a run*: on a non-auto-approved response it produces
+``Skipped(reason="awaiting_human")`` — the engine's own "this knot did not
+run" outcome, propagating to every downstream knot the normal way, with no
+separate checkpoint write. The turn's ``RunResult`` (already durably recorded
+by ``RunHistory``/``DataStore`` — the engine does that unconditionally) *is*
+the suspended state; nothing here persists anything of its own.
+
+A caller that needs a resumable handle for the suspended run reads it back
+from the ``RunResult`` afterwards — see
+:meth:`~pirn_agents.sessions.suspend_signal.SuspendSignal.from_run_result`.
 """
 
 from __future__ import annotations
@@ -21,33 +27,24 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.skipped import Skipped
 
-from pirn_agents.sessions.resume_token import ResumeToken
-from pirn_agents.sessions.run_checkpoint import RunCheckpoint
-from pirn_agents.sessions.run_state import RunState
-from pirn_agents.sessions.session_message import SessionMessage
-from pirn_agents.sessions.session_store import SessionStore
-from pirn_agents.sessions.suspend_signal import SuspendSignal
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class SuspendingApprovalCheck(Knot):
-    """Suspend a run at an approval gate, persisting a resumable checkpoint."""
+    """Suspend a run at an approval gate as ``Skipped(reason="awaiting_human")``."""
 
     def __init__(
         self,
         *,
         response: Knot | AgentResponse,
-        store: Knot | SessionStore,
-        state: Knot | RunState,
         auto_approve: Knot | bool = False,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
         super().__init__(
             response=response,
-            store=store,
-            state=state,
             auto_approve=auto_approve,
             _config=_config,
             **kwargs,
@@ -56,29 +53,21 @@ class SuspendingApprovalCheck(Knot):
     async def process(
         self,
         response: AgentResponse,
-        store: SessionStore,
-        state: RunState,
         auto_approve: bool = False,
         **_: Any,
-    ) -> SuspendSignal | None:
-        """Suspend and persist the run, or approve in-run when ``auto_approve``.
+    ) -> Any:
+        """Pass ``response`` through when auto-approved, else declare a suspend.
 
         Args:
             response: The agent response pending approval.
-            store: The session store the paused run is persisted to.
-            state: The run state to checkpoint on suspend.
-            auto_approve: When True, approve immediately and return ``None``.
+            auto_approve: When True, approve immediately and pass through.
 
         Returns:
-            ``None`` when auto-approved (proceed in-run); otherwise a
-            :class:`SuspendSignal` whose token resumes the persisted run.
+            ``response`` unchanged when auto-approved, else
+            ``Skipped(reason="awaiting_human")`` — passed through bare by
+            ``Knot.__call__``, so the engine records this knot (and every
+            downstream knot depending on it) as skipped.
         """
         if auto_approve:
-            return None
-        pending = state.with_message(
-            SessionMessage(role="approval_request", content=response.content)
-        )
-        checkpoint = RunCheckpoint.create(pending)
-        await store.save(pending.session_id, checkpoint)
-        token = ResumeToken(session_id=pending.session_id, checkpoint_id=checkpoint.checkpoint_id)
-        return SuspendSignal(token=token)
+            return response
+        return Skipped(reason="awaiting_human")

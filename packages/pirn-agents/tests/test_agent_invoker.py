@@ -1,12 +1,16 @@
-"""Tests for :class:`pirn_agents.agent.agent_invoker.AgentInvoker`.
+"""Nested agent-as-tool policy: nesting guard, budget propagation, provider reuse (ADR WS1).
 
-Covers the recursion/cycle guard (F7-S3), budget propagation (F7-S4), and
-shared provider reuse (F7-S5) that the shared machinery enforces.
+The depth and cycle guard is core's ``RunNesting`` applied by
+:class:`~pirn_agents.tools.agent_tool_call.AgentToolCall`; budget and provider
+ride :class:`~pirn_agents.agent.agent_tool_context.AgentToolContext` around
+each call.  :class:`AgentInvoker` is the deprecated shim over
+:class:`AgentTool` and is exercised once, for its warning and its result shape.
 """
 
 from __future__ import annotations
 
 import unittest
+import warnings
 
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
@@ -17,13 +21,10 @@ from pirn_agents.agent.agent_tool_context import (
     bind_agent_tool_context,
     current_agent_tool_context,
 )
-from pirn_agents.exceptions.agent_cycle_error import AgentCycleError
-from pirn_agents.exceptions.agent_depth_exceeded_error import (
-    AgentDepthExceededError,
-)
 from pirn_agents.performance.budget_breach_error import BudgetBreachError
 from pirn_agents.performance.run_budget import RunBudget
 from pirn_agents.performance.run_budget_meter import RunBudgetMeter
+from pirn_agents.tools.agent_tool import AgentTool
 from pirn_agents.tools.tool_status import ToolStatus
 from tests.agent_tool_doubles import (
     AGENT_CALLS,
@@ -35,54 +36,81 @@ from tests.agent_tool_doubles import (
 from tests.conftest import StubLLMProvider
 
 
-def _schema() -> dict[str, object]:
-    return {"type": "object", "properties": {"topic": {"type": "string"}}}
-
-
-class TestRecursionGuard(unittest.IsolatedAsyncioTestCase):
+class TestDeprecatedInvokerShim(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
         reset_doubles()
 
-    def _agent(self, id_: str = "agent") -> StubAgent:
+    async def test_warns_and_returns_the_view(self) -> None:
         with Tapestry():
-            return StubAgent(_config=KnotConfig(id=id_))
+            agent = StubAgent(reply="answer", _config=KnotConfig(id="agent"))
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            invoker = AgentInvoker()
+            result = await invoker.invoke(
+                agent, {"topic": "t"}, name="a", schema={"type": "object", "properties": {}}
+            )
+        self.assertTrue(any(issubclass(w.category, DeprecationWarning) for w in caught))
+        self.assertEqual(result.status, ToolStatus.OK)
+        self.assertEqual(result.result.content, "answer:t")
 
-    async def test_raises_depth_error_at_cap(self) -> None:
-        agent = self._agent()
-        at_cap = AgentToolContext(depth=2, stack=("x", "y"), max_depth=2)
+    async def test_rejects_a_non_agent(self) -> None:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            with self.assertRaisesRegex(TypeError, "SubTapestry"):
+                await AgentInvoker().invoke(object(), {}, name="a", schema={})
 
-        with bind_agent_tool_context(at_cap):
-            with self.assertRaises(AgentDepthExceededError):
-                await AgentInvoker().invoke(agent, {"topic": "t"}, name="a", schema=_schema())
 
-    async def test_raises_cycle_error_when_agent_already_active(self) -> None:
-        agent = self._agent()
-        active = AgentToolContext(depth=1, stack=(agent.knot_id,), max_depth=8)
-
-        with bind_agent_tool_context(active):
-            with self.assertRaises(AgentCycleError):
-                await AgentInvoker().invoke(agent, {"topic": "t"}, name="a", schema=_schema())
-
-    async def test_depth_state_not_leaked_after_invocation(self) -> None:
-        agent = self._agent()
-
-        await AgentInvoker().invoke(agent, {"topic": "t"}, name="a", schema=_schema())
-
-        self.assertIsNone(current_agent_tool_context())
+class TestNestingGuard(unittest.IsolatedAsyncioTestCase):
+    def setUp(self) -> None:
+        reset_doubles()
 
     async def test_self_referential_graph_terminates_without_recursing_forever(self) -> None:
-        # A -> B -> A. The re-entry into A is rejected by the cycle guard, so the
-        # graph terminates and the cycle is surfaced rather than hanging.
+        # A -> B -> A. The re-entry into A is refused by core's cycle guard
+        # (the call is keyed by the agent it wraps), so the graph terminates
+        # and the cycle is surfaced rather than hanging.
         with Tapestry():
             a = NestingAgent(_config=KnotConfig(id="A"))
             b = NestingAgent(_config=KnotConfig(id="B"))
         ROUTE_REGISTRY["A"] = b.as_tool()
         ROUTE_REGISTRY["B"] = a.as_tool()
 
-        result = await a.as_tool().invoke({"task": "loop"})
+        result = await a.as_tool().run_view({"task": "loop"})
 
         self.assertIsNotNone(result.result)
-        self.assertIn("AgentCycleError", result.result.content)
+        self.assertIn("NestedRunCycleError", result.result.content)
+        self.assertEqual(len(AGENT_CALLS["A"]), 1)
+
+    async def test_two_instances_of_one_agent_class_may_nest(self) -> None:
+        with Tapestry():
+            a = NestingAgent(_config=KnotConfig(id="A"))
+            b = NestingAgent(_config=KnotConfig(id="B"))
+        ROUTE_REGISTRY["A"] = b.as_tool()  # A -> B (leaf)
+
+        result = await a.as_tool().run_view({"task": "go"})
+
+        self.assertEqual(result.result.content, "A@0->leaf[B]@1")
+
+    async def test_the_depth_cap_is_the_tools_max_depth(self) -> None:
+        # A -> B -> C, each a distinct agent, under a cap of one agent-as-tool frame.
+        with Tapestry():
+            a = NestingAgent(_config=KnotConfig(id="A"))
+            b = NestingAgent(_config=KnotConfig(id="B"))
+            c = NestingAgent(_config=KnotConfig(id="C"))
+        ROUTE_REGISTRY["A"] = b.as_tool()
+        ROUTE_REGISTRY["B"] = c.as_tool()
+
+        result = await AgentTool(a, max_depth=1).run_view({"task": "deep"})
+
+        self.assertIsNotNone(result.result)
+        self.assertIn("NestingDepthExceededError", result.result.content)
+
+    async def test_context_state_not_leaked_after_a_call(self) -> None:
+        with Tapestry():
+            agent = StubAgent(_config=KnotConfig(id="agent"))
+
+        await AgentTool(agent).run_view({"topic": "t"})
+
+        self.assertIsNone(current_agent_tool_context())
 
 
 class TestBudgetPropagation(unittest.IsolatedAsyncioTestCase):
@@ -96,12 +124,12 @@ class TestBudgetPropagation(unittest.IsolatedAsyncioTestCase):
         ROUTE_REGISTRY["A"] = b.as_tool()  # A -> B (leaf)
         meter = RunBudgetMeter(RunBudget(max_iterations=5))
 
-        with bind_agent_tool_context(AgentToolContext(max_depth=8, meter=meter)):
-            result = await a.as_tool().invoke({"task": "go"})
+        with bind_agent_tool_context(AgentToolContext(meter=meter)):
+            result = await a.as_tool().run_view({"task": "go"})
 
         # One iteration spent per nested agent entered, across both levels.
         self.assertEqual(meter.iterations, 2)
-        self.assertEqual(result.result.content, "A@1->leaf[B]@2")
+        self.assertEqual(result.result.content, "A@0->leaf[B]@1")
 
     async def test_inherited_budget_breach_stops_execution(self) -> None:
         # A shared meter already at its iteration cap: entering the agent
@@ -111,11 +139,12 @@ class TestBudgetPropagation(unittest.IsolatedAsyncioTestCase):
         meter = RunBudgetMeter(RunBudget(max_iterations=1))
         meter.spend_iteration()  # meter now at the cap
 
-        with bind_agent_tool_context(AgentToolContext(max_depth=8, meter=meter)):
+        with bind_agent_tool_context(AgentToolContext(meter=meter)):
             with self.assertRaises(BudgetBreachError):
-                await AgentInvoker().invoke(agent, {"topic": "t"}, name="a", schema=_schema())
+                await AgentTool(agent).run_view({"topic": "t"})
         # Cancellation token was flipped by the breach.
         self.assertTrue(meter.token.cancelled)
+        self.assertNotIn("agent", AGENT_CALLS)
 
     async def test_tool_level_token_budget_enforced_from_usage(self) -> None:
         # No ambient meter: the tool's own budget builds one, and the nested
@@ -124,23 +153,15 @@ class TestBudgetPropagation(unittest.IsolatedAsyncioTestCase):
             agent = StubAgent(usage={"total_tokens": 50}, _config=KnotConfig(id="agent"))
 
         with self.assertRaises(BudgetBreachError):
-            await AgentInvoker(budget=RunBudget(max_tokens=10)).invoke(
-                agent,
-                {"topic": "t"},
-                name="a",
-                schema=_schema(),
-            )
+            await AgentTool(agent, budget=RunBudget(max_tokens=10)).run_view({"topic": "t"})
 
     async def test_budget_within_limit_succeeds(self) -> None:
         with Tapestry():
             agent = StubAgent(usage={"total_tokens": 5}, _config=KnotConfig(id="agent"))
 
-        result = await AgentInvoker(budget=RunBudget(max_tokens=100, max_iterations=10)).invoke(
-            agent,
-            {"topic": "t"},
-            name="a",
-            schema=_schema(),
-        )
+        result = await AgentTool(
+            agent, budget=RunBudget(max_tokens=100, max_iterations=10)
+        ).run_view({"topic": "t"})
 
         self.assertEqual(result.status, ToolStatus.OK)
 
@@ -154,9 +175,7 @@ class TestSharedProviderReuse(unittest.IsolatedAsyncioTestCase):
         with Tapestry():
             agent = StubAgent(llm=StubLLMProvider(["other"]), _config=KnotConfig(id="agent"))
 
-        await AgentInvoker(provider=pooled).invoke(
-            agent, {"topic": "t"}, name="a", schema=_schema()
-        )
+        await AgentTool(agent, provider=pooled).run_view({"topic": "t"})
 
         # The nested run reused the pooled provider by identity, not its own.
         self.assertIs(AGENT_CALLS["agent"][0]["llm"], pooled)
@@ -164,26 +183,23 @@ class TestSharedProviderReuse(unittest.IsolatedAsyncioTestCase):
     async def test_provider_inherited_across_nesting_by_identity(self) -> None:
         pooled = StubLLMProvider(["x"])
         with Tapestry():
-            outer = StubAgent(reply="outer", _config=KnotConfig(id="outer"))
             inner = StubAgent(llm=StubLLMProvider(["ownership"]), _config=KnotConfig(id="inner"))
 
-        # outer's provider propagates into inner even though inner was built
-        # with a different provider.
-        context = AgentToolContext(max_depth=8, provider=pooled)
-        with bind_agent_tool_context(context):
-            await AgentInvoker().invoke(inner, {"topic": "deep"}, name="inner", schema=_schema())
+        # The ambient context's provider propagates into inner even though
+        # inner was built with a different provider.
+        with bind_agent_tool_context(AgentToolContext(provider=pooled)):
+            await AgentTool(inner).run_view({"topic": "deep"})
 
         self.assertIs(AGENT_CALLS["inner"][0]["llm"], pooled)
 
-    async def test_same_provider_reused_across_repeated_invocations(self) -> None:
+    async def test_same_provider_reused_across_repeated_calls(self) -> None:
         pooled = StubLLMProvider(["x"])
         with Tapestry():
             agent = StubAgent(_config=KnotConfig(id="agent"))
+        tool = AgentTool(agent, provider=pooled)
 
         for _ in range(3):
-            await AgentInvoker(provider=pooled).invoke(
-                agent, {"topic": "t"}, name="a", schema=_schema()
-            )
+            await tool.run_view({"topic": "t"})
 
         used = {id(call["llm"]) for call in AGENT_CALLS["agent"]}
         self.assertEqual(used, {id(pooled)})

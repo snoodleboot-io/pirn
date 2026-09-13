@@ -18,12 +18,21 @@ Two distinct things are recorded:
   values is a storage-format break needing a migration. See
   ``tests/sessions/test_checkpoint_hash_invariant.py``.
 
-* **The convergence** — :func:`~pirn_agents.caching.content_address.content_address`
+* **The convergence, then divergence** — :func:`~pirn_agents.caching.content_address.content_address`
   used to diverge on two axes, default separators (``", "`` / ``": "``) *and*
   ``ensure_ascii=False``, so it disagreed with the other hashers on every
-  non-trivial payload. PIR-785 moved it onto the seam. Its pre-migration
-  digests are in this file's git history; nothing persisted was keyed by them,
-  because all four of its callers are in-memory caches.
+  non-trivial payload. PIR-785 moved it onto this file's shared
+  ``CanonicalJson``-based seam, and it agreed with ``ContentDigest`` from
+  then until ADR agents-speaks-core WS2 part 2 (2026-09-13): that change
+  moved ``content_address`` onto :func:`pirn.core.hashing.content_hash`
+  instead (``strict=True``, closing the PIR-785 gap a different way — see
+  that module's docstring), while ``ContentDigest``/``CanonicalJson`` stay on
+  the old seam pending WS3. The two hashers therefore *deliberately*
+  disagree again, on a different axis this time (``content_hash`` tags
+  containers with ``__map__``/``__seq__``/``__model__`` markers that
+  ``CanonicalJson``'s bare ``json.dumps`` never wrote) — see
+  ``TestContentAddressCanonicalForm`` for the new pins and
+  ``TestCanonicalFormConvergence`` for what still (and no longer) holds.
 
 Payloads are built from literals inside this file rather than from a shared
 factory, so that editing a fixture elsewhere cannot quietly move a golden value.
@@ -37,6 +46,7 @@ import json
 from typing import Any, ClassVar
 
 import pytest
+from pirn.exceptions.unhashable_value_error import UnhashableValueError
 
 from pirn_agents.caching.content_address import content_address
 from pirn_agents.determinism.content_digest import ContentDigest
@@ -190,30 +200,45 @@ class TestContentDigestCanonicalForm:
 
 
 class TestContentAddressCanonicalForm:
-    """``content_address`` now emits the shared canonical form (PIR-785 / WS8-A3).
+    """``content_address`` now emits ``content_hash``'s canonical form (WS2 part 2).
 
-    Before WS8 it diverged on two axes — default separators *and*
-    ``ensure_ascii=False`` — so it disagreed with every other hasher on every
-    non-trivial payload. Its pre-migration digests are recorded in this file's
-    git history; nothing persisted was keyed by them, because all four callers
-    are in-memory caches (``ResultCache``, ``PromptCache``, ``EmbeddingCache``,
-    ``SemanticResultCache``).
-
-    The pin table is deliberately *not* restated here. These tests assert
-    against ``TestContentDigestCanonicalForm._pins`` so the two hashers cannot
-    drift apart by someone updating one copy of the table and not the other.
+    Re-pinned from the new algorithm: ADR agents-speaks-core WS2 part 2 moved
+    ``content_address`` off the ``CanonicalJson``-based seam
+    ``TestContentDigestCanonicalForm`` pins onto
+    :func:`pirn.core.hashing.content_hash` (``strict=True``), so it no longer
+    shares that table — see ``TestCanonicalFormConvergence`` for exactly what
+    still holds across the two hashers and what does not.
     """
 
-    @pytest.mark.parametrize("name", _payload_names())
-    def test_digest_matches_the_shared_canonical_pin(self, name: str) -> None:
-        _, digest = TestContentDigestCanonicalForm._pins[name]
-        assert content_address(_payloads()[name]) == digest
+    _pins: ClassVar[dict[str, str]] = {
+        "empty_dict": "sha256:1f722262a9334201ce5659c53b547a41ff19d504551da5bc907577a0c2286256",
+        "empty_list": "sha256:5f3a40a2517a4e5f4658888c0a2839e5f60cbd0f8f4b654d6863d21ffbc01c73",
+        "scalar_str": "sha256:ba2df4903a2c14e86dc3bcca58911b44ac1d2514b7227bf6eb08cfb978f55a1b",
+        "scalar_int": "sha256:73475cb40a568e8da8a045ced110137e159f890ac4da883b6b17dc651b3a8049",
+        "scalar_float": "sha256:9f29a130438b81170b92a42650f9a94291ecad60bd47af2a3886e75f7f728725",
+        "scalar_true": "sha256:b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b",
+        "scalar_none": "sha256:74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "flat_dict": "sha256:1a1cb49cdfe2f23d37c744ca222e2fc700318f08b614e98033b0bdec14f2730a",
+        "nested_dict": "sha256:eee0e7952ee4285976bdfdde7b2e1693b98353e6954634d417fc3efea9232873",
+        "list_of_dicts": "sha256:5836e99bd755339269257278b4fe923338cd8af6c6376645a35b634fb5cbd683",
+        "unicode": "sha256:75d7dbc67bbff3b5a868ccb3b8bfe2772f1eae07e833cae2cb425781a6e4ec17",
+        "floats": "sha256:f085c1d7a525ccbf89c7228eb53c508b0f3f1a8586a5deade92680cdd75c369f",
+        "bools_and_null": "sha256:6dff6c9e91c9ecf5d2790fe36961a98dd95fb9fa2491b36f61bceac405e9001f",
+        "empty_containers_nested": (
+            "sha256:e1b627801d6c1e4d42db23d0d61144803a70e8afb588398f86cf7ed7e851afc7"
+        ),
+        "deep_nesting": "sha256:c8c6ad97ce24c54dd12cc395c7ae67ab78f703c2c2e6592fc5c585458a080380",
+    }
 
     @pytest.mark.parametrize("name", _payload_names())
-    def test_digest_is_bare_64_hex(self, name: str) -> None:
+    def test_digest_is_pinned(self, name: str) -> None:
+        assert content_address(_payloads()[name]) == self._pins[name]
+
+    @pytest.mark.parametrize("name", _payload_names())
+    def test_digest_is_sha256_prefixed(self, name: str) -> None:
         digest = content_address(_payloads()[name])
-        assert len(digest) == 64
-        int(digest, 16)
+        assert digest.startswith("sha256:")
+        int(digest.removeprefix("sha256:"), 16)
 
     def test_mapping_key_order_does_not_move_the_digest(self) -> None:
         assert content_address({"a": 1, "b": 2, "c": 3}) == content_address(
@@ -221,33 +246,48 @@ class TestContentAddressCanonicalForm:
         )
 
     def test_non_json_leaf_is_refused(self) -> None:
-        # The PIR-785 fix: no `default=repr` fallback, so a cache key can never
-        # be derived from an object's memory address.
-        with pytest.raises(TypeError):
+        # PIR-785, re-enforced by strict=True: no silent fallback of any kind,
+        # so a cache key can never be derived from an object's memory address.
+        with pytest.raises(UnhashableValueError):
             content_address({"leaf": object()})
 
 
 class TestCanonicalFormConvergence:
-    """All the JSON hashers now answer "what bytes do we hash?" identically."""
+    """What ``content_address`` and ``content_digest`` still agree on, post-WS2.
+
+    Before ADR agents-speaks-core WS2 part 2 these were the *same* hasher
+    (``CanonicalJson``) and every payload produced an identical digest. Now
+    ``content_address`` goes through ``content_hash`` and ``content_digest``
+    does not (see the module docstring), so the digests themselves diverge
+    again — deliberately. What still holds is everything that was never about
+    byte-for-byte digest equality: both refuse an identity-keyed opaque leaf,
+    both are order-independent on mapping keys, and both are ``sha256`` over a
+    canonical form of *some* kind.
+    """
 
     @pytest.mark.parametrize("name", _payload_names())
-    def test_the_hashers_agree_on_every_payload(self, name: str) -> None:
+    def test_the_hashers_now_disagree_on_every_payload(self, name: str) -> None:
+        # The inverse of the pre-WS2-part-2 invariant, asserted explicitly so
+        # a future change that accidentally re-converges the two algorithms
+        # (without updating this file to say so) is caught rather than
+        # silently making this test vacuously true.
         payload = _payloads()[name]
-        assert content_address(payload) == ContentDigest.digest(payload)
+        assert content_address(payload) != ContentDigest.digest(payload)
 
-    def test_separator_form_is_the_tight_one(self) -> None:
-        # The witness for the divergence that used to exist: content_address
-        # produced '{"a": 1}' where every other hasher produced '{"a":1}'.
-        assert json.dumps({"a": 1}, sort_keys=True) == '{"a": 1}'
-        assert json.dumps({"a": 1}, sort_keys=True, separators=(",", ":")) == '{"a":1}'
-        assert content_address({"a": 1}) == hashlib.sha256(b'{"a":1}').hexdigest()
+    def test_both_hashers_are_sha256_over_a_canonical_form(self) -> None:
+        assert content_address({"a": 1}).startswith("sha256:")
+        assert len(ContentDigest.digest({"a": 1})) == 64
+        int(ContentDigest.digest({"a": 1}), 16)
 
-    def test_ensure_ascii_stays_at_its_default(self) -> None:
-        # The second, easier-to-miss axis: an ASCII-only matrix cannot see it.
-        payload = {"k": "café"}
-        assert json.dumps(payload, sort_keys=True, ensure_ascii=False) == '{"k": "café"}'
-        assert json.dumps(payload, sort_keys=True) == '{"k": "caf\\u00e9"}'
-        assert content_address(payload) == ContentDigest.digest(payload)
+    def test_both_hashers_are_order_independent_on_mapping_keys(self) -> None:
+        assert content_address({"a": 1, "b": 2}) == content_address({"b": 2, "a": 1})
+        assert ContentDigest.digest({"a": 1, "b": 2}) == ContentDigest.digest({"b": 2, "a": 1})
+
+    def test_both_hashers_refuse_an_identity_keyed_opaque_leaf(self) -> None:
+        with pytest.raises(TypeError):
+            content_address({"leaf": object()})
+        with pytest.raises(TypeError):
+            ContentDigest.digest({"leaf": object()})
 
     def test_content_digest_and_checkpoint_hash_share_one_canonical_form(self) -> None:
         # The only difference between the two is the opaque-leaf branch

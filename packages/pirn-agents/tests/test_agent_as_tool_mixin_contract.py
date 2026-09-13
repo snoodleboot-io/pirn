@@ -127,7 +127,7 @@ class TestMixinMatchesFreeFunction(unittest.IsolatedAsyncioTestCase):
             agent = StubAgent(reply="did", _config=KnotConfig(id="agent"))
 
         # Act
-        result = await agent.as_tool(name="helper").invoke({"topic": "thing"})
+        result = await agent.as_tool(name="helper").run_view({"topic": "thing"})
 
         # Assert
         self.assertIsNotNone(result.result)

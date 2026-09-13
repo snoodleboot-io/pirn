@@ -42,7 +42,7 @@ class LineageRecorder:
         started: datetime | None = None,
         finished: datetime | None = None,
         replayed_from: str | None = None,
-    ) -> None:
+    ) -> KnotLineage:
         """Build and stash a KnotLineage for this knot's execution.
 
         For knots that didn't actually dispatch (Skipped / synthetic Err),
@@ -55,6 +55,10 @@ class LineageRecorder:
         ``replayed_from`` is the run id this outcome was served from when the
         knot was replayed rather than executed; it lands in ``extra`` so a
         replayed run is distinguishable from a live one after the fact.
+
+        Returns:
+            The record just stashed on ``ctx``, so the engine can hand it to
+            ``Emitter.on_knot_result`` the moment the knot settles (WS0b).
         """
         if parent_hashes is None:
             parent_hashes = {}
@@ -137,3 +141,4 @@ class LineageRecorder:
             source_hash=source_record.source_hash if source_record is not None else None,
         )
         ctx.add_lineage(record)
+        return record

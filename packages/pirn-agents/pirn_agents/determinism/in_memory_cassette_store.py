@@ -1,7 +1,12 @@
-"""``InMemoryCassetteStore`` — a zero-dependency in-process :class:`CassetteStore`."""
+"""``InMemoryCassetteStore`` — a zero-dependency in-process :class:`CassetteStore`.
+
+.. deprecated:: ADR agents-speaks-core WS3 part 3
+    See :mod:`pirn_agents.determinism.cassette_store`.
+"""
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Sequence
 
 from pirn_agents.determinism.cassette import Cassette
@@ -13,6 +18,12 @@ class InMemoryCassetteStore(CassetteStore):
 
     def __init__(self) -> None:
         """Initialise an empty store."""
+        warnings.warn(
+            "InMemoryCassetteStore is deprecated (ADR agents-speaks-core WS3): "
+            "see pirn_agents.determinism.cassette_recorder.CassetteRecorder.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self._cassettes: dict[str, Cassette] = {}
 
     async def save(self, name: str, cassette: Cassette) -> None:

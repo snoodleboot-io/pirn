@@ -12,6 +12,13 @@ obvious from the type names alone (PIR-830)::
     hook     = SpanEmittingToolInvocationHook(tracer, knot_id="tool_executor")
     executor = ParallelToolExecutor(..., hook=hook)
 
+Since the ADR "agents speaks core" (WS1) a tool is a ``Knot`` class: the two
+tools below declare their inputs on ``process()``, the executor constructs one
+tool knot per call, and the engine runs them under the ``"tools"`` concurrency
+group.  The ``hook`` input is deprecated for one cycle — each call's outcome is
+its own lineage row and the run's emitters carry the same events — so this
+example warns when it runs; it is kept so the span attributes stay visible.
+
 Nothing is re-exported from a package barrel to make this shorter: pirn-agents
 forbids import forwarding (enforced in CI by
 ``scripts/check_no_import_forwarding.py``), so every import below is the
@@ -41,12 +48,13 @@ from __future__ import annotations
 import asyncio
 import logging
 import sys
-from collections.abc import Mapping
-from typing import Any
+from typing import Annotated, Any, ClassVar
 
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+from pydantic import Field
 
 from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
 from pirn_agents.observability.logging_sink import LoggingSink
@@ -65,45 +73,28 @@ EXECUTOR_KNOT_ID = "tool_executor"
 
 
 class WeatherTool(Tool):
-    """A stand-in for a real lookup — returns a canned reading."""
+    """Look up the current conditions for a city."""
 
-    @property
-    def name(self) -> str:
-        return "weather"
+    tool_name: ClassVar[str] = "weather"
 
-    @property
-    def description(self) -> str:
-        return "Look up the current conditions for a city."
+    def __init__(self, *, city: Knot | str, _config: KnotConfig, **kwargs: Any) -> None:
+        super().__init__(city=city, _config=_config, **kwargs)
 
-    @property
-    def parameters_schema(self) -> Mapping[str, Any]:
-        return {
-            "type": "object",
-            "properties": {"city": {"type": "string"}},
-            "required": ["city"],
-        }
-
-    async def invoke(self, arguments: Mapping[str, Any]) -> Any:
+    async def process(
+        self, city: Annotated[str, Field(description="The city to report on.")], **_: Any
+    ) -> dict[str, Any]:
+        """A stand-in for a real lookup — returns a canned reading."""
         await asyncio.sleep(0.01)
-        return {"city": arguments.get("city"), "temp_c": 17, "sky": "overcast"}
+        return {"city": city, "temp_c": 17, "sky": "overcast"}
 
 
 class FailingTool(Tool):
-    """Always raises, so the example shows an ERROR span too."""
+    """Pretends to reach a ledger service that is down."""
 
-    @property
-    def name(self) -> str:
-        return "ledger"
+    tool_name: ClassVar[str] = "ledger"
 
-    @property
-    def description(self) -> str:
-        return "Pretends to reach a ledger service that is down."
-
-    @property
-    def parameters_schema(self) -> Mapping[str, Any]:
-        return {"type": "object", "properties": {}}
-
-    async def invoke(self, arguments: Mapping[str, Any]) -> Any:
+    async def process(self, **_: Any) -> Any:
+        """Always raises, so the example shows an ERROR span too."""
         raise RuntimeError("ledger service unreachable")
 
 
@@ -122,10 +113,10 @@ def build_tapestry(hook: SpanEmittingToolInvocationHook) -> Tapestry:
     with Tapestry() as t:
         ParallelToolExecutor(
             tool_calls=calls,
-            toolset=Toolset([WeatherTool(), FailingTool()]),
+            toolset=Toolset([WeatherTool, FailingTool]),
             max_concurrency=3,
             hook=hook,
-            _config=KnotConfig(id=EXECUTOR_KNOT_ID, validate_io=False),
+            _config=KnotConfig(id=EXECUTOR_KNOT_ID),
         )
     return t
 
@@ -137,9 +128,7 @@ def _configure_logging() -> None:
     unpredictably with the ``print`` narration below and makes the output read
     out of order.
     """
-    logging.basicConfig(
-        level=logging.INFO, format="%(message)s", stream=sys.stdout, force=True
-    )
+    logging.basicConfig(level=logging.INFO, format="%(message)s", stream=sys.stdout, force=True)
 
 
 # ----------------------------------------------------------------- main

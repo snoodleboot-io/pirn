@@ -36,7 +36,7 @@ class TestAsToolFunction(unittest.IsolatedAsyncioTestCase):
             agent = StubAgent(reply="did", _config=KnotConfig(id="a"))
 
         tool = agent.as_tool(name="helper")
-        result = await tool.invoke({"topic": "thing"})
+        result = await tool.run_view({"topic": "thing"})
 
         self.assertIsInstance(tool, AgentTool)
         self.assertEqual(result.result.content, "did:thing")

@@ -45,7 +45,7 @@ from pirn_agents.builder.agent_spec import AgentSpec
 from pirn_agents.builder.agent_spec_codec import AgentSpecCodec
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
-from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.tool_factory import ToolFactory
 from pirn_agents.tools.toolset import Toolset
 
 
@@ -87,7 +87,7 @@ class AgentBuilder:
     def __init__(self) -> None:
         """Start an empty builder with no components configured."""
         self._components: dict[str, Any] = {}
-        self._tools: list[Tool] = []
+        self._tools: list[ToolFactory] = []
         self._pattern: str | None = None
         self._options: dict[str, Any] = {}
         self._input: Any = None
@@ -106,7 +106,7 @@ class AgentBuilder:
         self._components["llm"] = provider
         return self
 
-    def tools(self, tools: Toolset | Sequence[Tool]) -> AgentBuilder:
+    def tools(self, tools: Toolset | Sequence[Any]) -> AgentBuilder:
         """Append tools (a :class:`Toolset` or sequence) and return ``self``.
 
         Raises:
@@ -114,7 +114,7 @@ class AgentBuilder:
                 element is not a :class:`Tool`.
         """
         if isinstance(tools, Toolset):
-            candidates: list[Tool] = list(tools)
+            candidates: list[Any] = list(tools)
         elif isinstance(tools, Sequence) and not isinstance(tools, (str, bytes)):
             candidates = list(tools)
         else:
@@ -122,12 +122,15 @@ class AgentBuilder:
                 f"AgentBuilder.tools: expected a Toolset or sequence of Tool, "
                 f"got {type(tools).__name__}"
             )
+        factories: list[ToolFactory] = []
         for index, candidate in enumerate(candidates):
-            if not isinstance(candidate, Tool):
+            try:
+                factories.append(ToolFactory.of(candidate))
+            except TypeError as exc:
                 raise TypeError(
                     f"AgentBuilder.tools: tools[{index}] must be a Tool, got {type(candidate).__name__}"
-                )
-        self._tools.extend(candidates)
+                ) from exc
+        self._tools.extend(factories)
         self._components["tools"] = tuple(self._tools)
         return self
 
@@ -224,7 +227,7 @@ class AgentBuilder:
         return store if isinstance(store, MemoryStore) else None
 
     @property
-    def tool_list(self) -> tuple[Tool, ...]:
+    def tool_list(self) -> tuple[ToolFactory, ...]:
         """The configured tools in order (escape-hatch accessor)."""
         return tuple(self._tools)
 

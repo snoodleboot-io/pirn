@@ -21,6 +21,7 @@ from pirn_agents.tools.sandbox.shell_tool import ShellTool
 from pirn_agents.tools.sandbox.subprocess_sandbox_backend import SubprocessSandboxBackend
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_status import ToolStatus
+from tests.tools.tool_runner import ToolRunner
 
 
 class _StubSandboxBackend(SandboxBackend):
@@ -52,24 +53,24 @@ class TestOptInGate:
             await executor.execute(command=["echo", "hi"])
 
     async def test_python_exec_disabled_yields_error_result(self) -> None:
-        tool = PythonExecTool(executor=SandboxExecutor())
+        tool = PythonExecTool.bind(executor=SandboxExecutor())
         call = ToolCall(tool_name="python_exec", arguments={"code": "print(1)"}, call_id="c")
-        outcome = await tool.as_tool_result(call)
+        outcome = await ToolRunner.view(tool, call)
         assert outcome.status is ToolStatus.ERROR
         assert "disabled" in (outcome.error or "")
 
     async def test_shell_disabled_raises(self) -> None:
-        tool = ShellTool(executor=SandboxExecutor())
+        tool = ShellTool.bind(executor=SandboxExecutor())
         with pytest.raises(SandboxDisabledError):
-            await tool.invoke({"command": "echo hi"})
+            await ToolRunner.value(tool, {"command": "echo hi"})
 
 
 class TestWithStubBackend:
     async def test_python_exec_runs_when_enabled(self) -> None:
         backend = _StubSandboxBackend(_ok_result("hello"))
         executor = SandboxExecutor(enabled=True, backend=backend)
-        tool = PythonExecTool(executor=executor, python_executable="/usr/bin/python3")
-        result = await tool.invoke({"code": "print('hello')"})
+        tool = PythonExecTool.bind(executor=executor, python_executable="/usr/bin/python3")
+        result = await ToolRunner.value(tool, {"code": "print('hello')"})
         assert result["stdout"] == "hello"
         assert result["exit_code"] == 0
         # code is delivered on stdin; interpreter run with isolated flags
@@ -78,20 +79,20 @@ class TestWithStubBackend:
 
     async def test_shell_builds_dash_c_command(self) -> None:
         backend = _StubSandboxBackend(_ok_result())
-        tool = ShellTool(
+        tool = ShellTool.bind(
             executor=SandboxExecutor(enabled=True, backend=backend), shell_path="/bin/sh"
         )
-        await tool.invoke({"command": "echo hi"})
+        await ToolRunner.value(tool, {"command": "echo hi"})
         assert backend.calls[0][0] == ["/bin/sh", "-c", "echo hi"]
 
     async def test_timeout_flag_surfaces_as_result(self) -> None:
         timed_out = SandboxResult(
             stdout="", stderr="", exit_code=None, timed_out=True, truncated=False
         )
-        tool = ShellTool(
+        tool = ShellTool.bind(
             executor=SandboxExecutor(enabled=True, backend=_StubSandboxBackend(timed_out))
         )
-        result = await tool.invoke({"command": "sleep 100"})
+        result = await ToolRunner.value(tool, {"command": "sleep 100"})
         assert result["timed_out"] is True
         assert result["exit_code"] is None
 
@@ -108,16 +109,16 @@ class TestWithStubBackend:
 class TestSubprocessBackendReal:
     async def test_captures_stdout(self) -> None:
         executor = SandboxExecutor(enabled=True, backend=SubprocessSandboxBackend())
-        tool = PythonExecTool(executor=executor)
-        result = await tool.invoke({"code": "print('from-sandbox')"})
+        tool = PythonExecTool.bind(executor=executor)
+        result = await ToolRunner.value(tool, {"code": "print('from-sandbox')"})
         assert result["exit_code"] == 0
         assert "from-sandbox" in result["stdout"]
         assert result["timed_out"] is False
 
     async def test_timeout_kills_long_running_process(self) -> None:
         executor = SandboxExecutor(enabled=True, backend=SubprocessSandboxBackend(), timeout=0.3)
-        tool = PythonExecTool(executor=executor)
-        result = await tool.invoke({"code": "import time; time.sleep(30)"})
+        tool = PythonExecTool.bind(executor=executor)
+        result = await ToolRunner.value(tool, {"code": "import time; time.sleep(30)"})
         assert result["timed_out"] is True
         assert result["exit_code"] is None
 

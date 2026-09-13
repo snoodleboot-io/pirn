@@ -2,9 +2,9 @@
 
 Two hit paths over one store:
 
-* **Exact** — the prompt and its call parameters are content-addressed (reusing
-  the DAG's :func:`~pirn_agents.caching.content_address.content_address`), so an
-  identical ``prompt + params`` call short-circuits the model entirely.
+* **Exact** — the prompt and its call parameters are content-addressed via
+  :func:`pirn.core.hashing.content_hash`, so an identical ``prompt + params``
+  call short-circuits the model entirely.
 * **Semantic** — when a caller-injected embedding function is supplied, a near
   duplicate prompt whose cosine similarity clears ``threshold`` also hits, so
   paraphrases reuse a prior answer.
@@ -16,14 +16,20 @@ droppable with :meth:`invalidate`. No vendor SDK is imported — the embedding
 function is the only backend seam — so the cache stays provider-neutral and
 ``import pirn_agents`` stays backend-free.
 
-Core store: none. Like :class:`~pirn_agents.caching.semantic_result_cache.SemanticResultCache`,
-the semantic path scans every stored embedding for the best cosine match,
-which needs enumeration that :class:`pirn.backends.base.data_store.DataStore`
-deliberately does not provide; this class keeps its own ``dict[str, CacheEntry]``
-index rather than layering on :class:`~pirn_agents.caching.result_cache.ResultCache`
-(ADR agents-speaks-core WS2 — deferred pending an enumerable core store; see
-the WS2 report). The exact-key path still hashes through the shared
-:func:`~pirn_agents.caching.content_address.content_address`.
+ADR agents-speaks-core WS2 part 2: "index = resource, values = DataStore" —
+half-applied here. The embeddings now live in a vended
+:class:`~pirn_agents.caching.similarity_index.SimilarityIndex` resource
+rather than being scanned out of the entries dict directly, exactly like
+:class:`~pirn_agents.caching.semantic_result_cache.SemanticResultCache`'s
+index. The *values* half is **not** moved onto an
+:class:`~pirn.backends.in_memory.in_memory_data_store.InMemoryDataStore`,
+unlike that class: :meth:`invalidate`, :meth:`purge_expired`, and
+:meth:`__len__` are public, synchronous methods, and ``DataStore`` is
+async-only (``put``/``get``/``has``/``scrub``) — routing values through it
+would force those methods async too, a breaking signature change this pass
+is not authorised to make. Values stay in a plain ``dict[str, CacheEntry]``.
+The exact-key path hashes through :func:`pirn.core.hashing.content_hash`
+(``strict=True``) directly.
 """
 
 from __future__ import annotations
@@ -32,9 +38,10 @@ import time
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from typing import Any
 
+from pirn.core.hashing import content_hash
+
 from pirn_agents.caching.cache_entry import CacheEntry
-from pirn_agents.caching.content_address import content_address
-from pirn_agents.evaluation.cosine_similarity import CosineSimilarity
+from pirn_agents.caching.similarity_index import SimilarityIndex
 
 
 class PromptCache:
@@ -76,7 +83,7 @@ class PromptCache:
         self._ttl_seconds = ttl_seconds
         self._max_entries = max_entries
         self._clock = clock
-        self._cosine = CosineSimilarity()
+        self._index = SimilarityIndex()
         self._entries: dict[str, CacheEntry] = {}
         self.hits = 0
         self.semantic_hits = 0
@@ -87,8 +94,10 @@ class PromptCache:
 
     @staticmethod
     def key_for(prompt: str, params: Mapping[str, Any] | None = None) -> str:
-        """Return the content-address key for a ``prompt`` and its ``params``."""
-        return content_address({"prompt": prompt, "params": dict(params) if params else {}})
+        """Return the content-hash key for a ``prompt`` and its ``params``."""
+        return content_hash(
+            {"prompt": prompt, "params": dict(params) if params else {}}, strict=True
+        )
 
     async def get_or_compute(
         self,
@@ -120,7 +129,7 @@ class PromptCache:
             self.hits += 1
             return exact.value
         if exact is not None:
-            del self._entries[key]
+            self._discard(key)
 
         if self._embed is not None:
             query = tuple(float(x) for x in await self._embed(prompt))
@@ -138,42 +147,51 @@ class PromptCache:
 
     def invalidate(self, prompt: str, *, params: Mapping[str, Any] | None = None) -> None:
         """Explicitly drop the exact entry for ``prompt``/``params`` (a no-op if absent)."""
-        self._entries.pop(self.key_for(prompt, params), None)
+        self._discard(self.key_for(prompt, params))
 
     def purge_expired(self) -> int:
         """Evict every expired entry, returning the number removed."""
         now = self._clock()
         stale = [key for key, entry in self._entries.items() if self._is_expired(entry, now)]
         for key in stale:
-            del self._entries[key]
+            self._discard(key)
         return len(stale)
 
     def _best_semantic(self, query: tuple[float, ...], now: float) -> CacheEntry | None:
-        """Return the best non-expired entry whose similarity clears ``threshold``."""
-        best: CacheEntry | None = None
-        best_similarity = self._threshold
-        for entry in self._entries.values():
-            if entry.embedding is None or self._is_expired(entry, now):
+        """Return the best non-expired entry whose similarity clears ``threshold``.
+
+        Walks the index's ranked candidates best-first rather than trusting
+        the top-ranked one outright: the index knows nothing about expiry
+        (that lives on the entry, in ``self._entries``), so a stale top match
+        is discarded and the next-best candidate is tried instead.
+        """
+        for key in self._index.ranked_matches(query, self._threshold):
+            entry = self._entries.get(key)
+            if entry is None:
+                self._index.discard(key)
                 continue
-            similarity = (
-                0.0
-                if len(query) != len(entry.embedding)
-                else self._cosine.compute(query, entry.embedding)
-            )
-            if similarity >= best_similarity:
-                best = entry
-                best_similarity = similarity
-        return best
+            if self._is_expired(entry, now):
+                self._discard(key)
+                continue
+            return entry
+        return None
 
     def _store(self, entry: CacheEntry) -> None:
-        """Insert ``entry`` with optional FIFO eviction of the oldest item."""
+        """Insert ``entry`` (and index its embedding) with optional bounding."""
         if (
             self._max_entries is not None
             and entry.key not in self._entries
             and len(self._entries) >= self._max_entries
         ):
-            del self._entries[next(iter(self._entries))]
+            self._discard(next(iter(self._entries)))
         self._entries[entry.key] = entry
+        if entry.embedding is not None:
+            self._index.put(entry.key, entry.embedding)
+
+    def _discard(self, key: str) -> None:
+        """Remove ``key`` from both the entries dict and the similarity index."""
+        self._entries.pop(key, None)
+        self._index.discard(key)
 
     def _expiry(self, now: float) -> float | None:
         """Return the absolute expiry stamp for an entry created at ``now``."""

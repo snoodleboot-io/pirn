@@ -57,20 +57,23 @@ class TestMemoryStoreInterface(unittest.IsolatedAsyncioTestCase):
 
 
 class TestToolInterfaceProperties(unittest.TestCase):
-    def test_name_raises_not_implemented(self) -> None:
-        with self.assertRaisesRegex(NotImplementedError, "name"):
-            _ = Tool().name
+    def test_tool_is_a_knot_class(self) -> None:
+        from pirn.core.knot import Knot
 
-    def test_description_raises_not_implemented(self) -> None:
-        with self.assertRaisesRegex(NotImplementedError, "description"):
-            _ = Tool().description
+        self.assertTrue(issubclass(Tool, Knot))
 
-    def test_parameters_schema_raises_not_implemented(self) -> None:
-        with self.assertRaisesRegex(NotImplementedError, "parameters_schema"):
-            _ = Tool().parameters_schema
+    def test_declaration_of_the_bare_base_is_empty(self) -> None:
+        declaration = Tool.declaration()
+        self.assertEqual(declaration.name, "tool")
+        self.assertEqual(declaration.parameters, {"type": "object", "properties": {}})
 
 
-class TestToolInterfaceInvoke(unittest.IsolatedAsyncioTestCase):
-    async def test_invoke_raises_not_implemented(self) -> None:
-        with self.assertRaisesRegex(NotImplementedError, "invoke"):
-            await Tool().invoke({})
+class TestToolInterfaceProcess(unittest.IsolatedAsyncioTestCase):
+    async def test_process_raises_not_implemented(self) -> None:
+        from pirn.core.knot_config import KnotConfig
+        from pirn.tapestry import Tapestry
+
+        with Tapestry():
+            bare = Tool(_config=KnotConfig(id="bare"))
+        with self.assertRaisesRegex(NotImplementedError, "process"):
+            await bare.process()

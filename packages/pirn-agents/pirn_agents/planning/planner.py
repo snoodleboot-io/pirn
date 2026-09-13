@@ -23,6 +23,7 @@ from typing import Any, ClassVar
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents.agent.recorded_llm_call import RecordedLlmCall
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.planning.plan import Plan
 from pirn_agents.prompt.prompt_binding import PromptBinding
@@ -96,7 +97,9 @@ class Planner(Knot):
         ]
         for message in context.messages:
             wire_messages.append({"role": message.role, "content": message.content})
-        response = await llm.chat(messages=tuple(wire_messages))
+        response = await RecordedLlmCall.chat(
+            knot_id=self.knot_id, llm=llm, messages=tuple(wire_messages)
+        )
         text = self._extract_text(response)
         return self._parse_plan(text)
 

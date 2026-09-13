@@ -12,11 +12,13 @@ from typing import Any
 
 import pytest
 from pirn.core.knot_config import KnotConfig
+from pirn.core.ok import Ok
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.routing.route_candidate import RouteCandidate
 from pirn_agents.specializations.routing.router_fallback_pipeline import RouterFallbackPipeline
+from pirn_agents.tools.tool_call import ToolCall
 from tests.benchmarks.conftest import BenchmarkRecorder
 from tests.specializations.conftest import StubTool
 
@@ -56,11 +58,11 @@ async def test_router_fallback_fewer_invocations_than_naive(
     naive_invocations = 0
     for candidate in candidates:
         naive_invocations += 1
-        try:
-            await candidate.tool.invoke({"input": "q"})
-        except Exception:
-            continue
-        break
+        outcome = await candidate.tool.run_call(
+            ToolCall(tool_name=candidate.tool.name, arguments={"input": "q"}, call_id="naive")
+        )
+        if isinstance(outcome, Ok):
+            break
 
     assert router_invocations == 1
     assert router_invocations < naive_invocations

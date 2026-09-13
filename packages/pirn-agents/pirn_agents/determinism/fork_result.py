@@ -1,84 +1,76 @@
-"""``ForkResult`` — metadata for a run forked from an F14 checkpoint."""
+"""``ForkResult`` — the outcome of forking a run chain at a recorded point."""
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
-from pirn_agents.sessions.run_checkpoint import RunCheckpoint
+if TYPE_CHECKING:
+    from pirn.core.run_result import RunResult
 
 
-@dataclass(frozen=True)
 class ForkResult(PirnOpaqueValue):
-    """The outcome of forking a run: the new checkpoint plus its provenance.
+    """The new run produced by :meth:`CheckpointForker.fork`, plus its provenance.
 
-    The provenance fields make a forked run unambiguously distinguishable from the
-    original: ``source_session_id`` / ``forked_from_checkpoint_id`` say what it
-    branched from and ``fork_point`` says at which plan step, while
-    ``new_session_id`` names the divergent branch.
+    ADR "agents speaks core" WS3 part 3: a fork is a branch of the session
+    chain, not a persisted checkpoint — ``result`` is already durably
+    recorded by ``RunHistory``/``DataStore`` (the engine does that
+    unconditionally), so this value is a report, not a storage format; it has
+    no ``to_payload``/``from_payload``.
 
     Attributes
     ----------
-    new_session_id:
-        Session id of the forked run.
-    source_session_id:
-        Session id the fork branched from.
-    forked_from_checkpoint_id:
-        Content id of the source checkpoint the fork was taken at.
-    fork_point:
-        Plan step index the fork diverges from (prior steps are preserved).
-    checkpoint:
-        The new :class:`RunCheckpoint` persisted for the forked run.
+    new_run_id:
+        ``run_id`` of the forked (new) run.
+    source_run_id:
+        ``run_id`` the fork branched from.
+    forked_from_output_hash:
+        Content hash of the source knot's output the fork point was taken at
+        (the same shape :class:`~pirn_agents.sessions.resume_token.ResumeToken`
+        uses).
+    result:
+        The forked run's ``RunResult``.
     """
 
-    new_session_id: str
-    source_session_id: str
-    forked_from_checkpoint_id: str
-    fork_point: int
-    checkpoint: RunCheckpoint
+    def __init__(
+        self,
+        *,
+        new_run_id: str,
+        source_run_id: str,
+        forked_from_output_hash: str,
+        result: RunResult,
+    ) -> None:
+        if not isinstance(new_run_id, str) or not new_run_id:
+            raise TypeError("ForkResult: new_run_id must be a non-empty str")
+        if not isinstance(source_run_id, str) or not source_run_id:
+            raise TypeError("ForkResult: source_run_id must be a non-empty str")
+        if not isinstance(forked_from_output_hash, str) or not forked_from_output_hash:
+            raise TypeError("ForkResult: forked_from_output_hash must be a non-empty str")
+        self._new_run_id = new_run_id
+        self._source_run_id = source_run_id
+        self._forked_from_output_hash = forked_from_output_hash
+        self._result = result
 
-    def __post_init__(self) -> None:
-        if not isinstance(self.new_session_id, str) or not self.new_session_id:
-            raise TypeError("ForkResult: new_session_id must be a non-empty str")
-        if not isinstance(self.checkpoint, RunCheckpoint):
-            raise TypeError(
-                f"ForkResult: checkpoint must be a RunCheckpoint, "
-                f"got {type(self.checkpoint).__name__}"
-            )
-        if isinstance(self.fork_point, bool) or not isinstance(self.fork_point, int):
-            raise TypeError("ForkResult: fork_point must be an int")
+    @property
+    def new_run_id(self) -> str:
+        return self._new_run_id
 
-    def to_payload(self) -> dict[str, Any]:
-        """Return a JSON-friendly mapping of the fork provenance and checkpoint."""
-        return {
-            "new_session_id": self.new_session_id,
-            "source_session_id": self.source_session_id,
-            "forked_from_checkpoint_id": self.forked_from_checkpoint_id,
-            "fork_point": self.fork_point,
-            "checkpoint": self.checkpoint.to_payload(),
-        }
+    @property
+    def source_run_id(self) -> str:
+        return self._source_run_id
 
-    @classmethod
-    def from_payload(cls, payload: Any) -> ForkResult:
-        """Reconstruct a fork result from a mapping produced by :meth:`to_payload`.
+    @property
+    def forked_from_output_hash(self) -> str:
+        return self._forked_from_output_hash
 
-        Raises:
-            TypeError: If ``payload`` is not a Mapping.
-        """
-        if not isinstance(payload, Mapping):
-            raise TypeError(
-                f"ForkResult.from_payload: payload must be a Mapping, got {type(payload).__name__}"
-            )
-        return cls(
-            new_session_id=str(payload["new_session_id"]),
-            source_session_id=str(payload["source_session_id"]),
-            forked_from_checkpoint_id=str(payload["forked_from_checkpoint_id"]),
-            fork_point=int(payload["fork_point"]),
-            checkpoint=RunCheckpoint.from_payload(payload["checkpoint"]),
-        )
+    @property
+    def result(self) -> RunResult:
+        return self._result
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
-        return self.to_payload()
+        return {
+            "new_run_id": self._new_run_id,
+            "source_run_id": self._source_run_id,
+            "forked_from_output_hash": self._forked_from_output_hash,
+        }

@@ -1,16 +1,20 @@
-"""``ToolCallValidator`` — validate a :class:`ToolCall` against a :class:`Tool`'s schema.
+"""``ToolCallValidator`` — validate a :class:`ToolCall` against its tool's declaration.
 
-Validates the ToolCall's arguments against the tool's ``parameters_schema``
-before invocation. Raises :exc:`ValueError` on schema mismatch. Returns
-the validated :class:`ToolCall` unchanged on success.
+Validates the ToolCall's arguments against the capability's declared
+``parameters`` before invocation and raises :exc:`ValueError` on a mismatch;
+returns the validated :class:`ToolCall` unchanged on success.
+
+The check is :meth:`ToolFactory.validate_arguments` — the declaration's
+schema applied through core's ``JsonSchemaTypeBuilder`` adapters, the same
+machinery a call knot's ``validate_io`` uses — rather than a hand-written
+JSON-Schema subset (ADR agents-speaks-core, WS1).
 
 Algorithm:
     1. Validate that ``tool_call`` is a :class:`ToolCall`.
     2. Build a name-keyed registry from the supplied ``tools`` sequence.
     3. Look up the tool by name; raise ``ValueError`` if not found.
-    4. Walk the tool's ``parameters_schema`` and check required fields are present,
-       no extra fields exist when ``additionalProperties`` is ``False``, and each
-       value's JSON type matches the schema declaration.
+    4. Ask the capability for every violation (missing required, unknown,
+       mistyped); raise ``ValueError`` naming them when there are any.
     5. Return the original ``tool_call`` unchanged on success.
 
 
@@ -20,24 +24,24 @@ References:
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_factory import ToolFactory
 
 
 class ToolCallValidator(Knot):
-    """Validate a ToolCall's arguments against the tool's parameters_schema."""
+    """Validate a ToolCall's arguments against the tool's declared parameters."""
 
     def __init__(
         self,
         *,
         tool_call: Knot | ToolCall,
-        tools: Knot | Sequence[Tool],
+        tools: Knot | Sequence[Any],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
@@ -46,93 +50,38 @@ class ToolCallValidator(Knot):
     async def process(
         self,
         tool_call: ToolCall,
-        tools: Sequence[Tool],
+        tools: Sequence[ToolFactory],
         **_: Any,
     ) -> ToolCall:
-        """Validate the ToolCall arguments against the registered tool's schema.
+        """Validate the ToolCall arguments against the registered tool's declaration.
 
         Args:
             tool_call: The ToolCall to validate before execution.
-            tools: The sequence of Tool instances to validate against.
+            tools: The capabilities to validate against.
 
         Returns:
             The original ToolCall unchanged when validation passes.
 
         Raises:
-            TypeError: If tool_call is not a ToolCall or any element of tools is not a Tool.
-            ValueError: If the tool is not found or the arguments fail schema validation.
+            TypeError: If tool_call is not a ToolCall or any element of tools is not a capability.
+            ValueError: If the tool is not found or the arguments fail validation.
         """
-        tool_list = list(tools)
-        for index, tool in enumerate(tool_list):
-            if not isinstance(tool, Tool):
+        registry: dict[str, ToolFactory] = {}
+        for index, tool in enumerate(tools):
+            try:
+                factory = ToolFactory.of(tool)
+            except TypeError as exc:
                 raise TypeError(
                     f"ToolCallValidator: tools[{index}] must be a Tool, got {type(tool).__name__}"
-                )
-        tool_registry: dict[str, Tool] = {tool.name: tool for tool in tool_list}
+                ) from exc
+            registry[factory.name] = factory
 
-        tool = tool_registry.get(tool_call.tool_name)
-        if tool is None:
+        factory = registry.get(tool_call.tool_name)
+        if factory is None:
             raise ValueError(f"ToolCallValidator: unknown tool '{tool_call.tool_name}'")
-        schema = tool.parameters_schema
-        self._validate_against_schema(tool_call.arguments, schema, tool_call.tool_name)
+        detail = factory.validate_arguments(tool_call.arguments)
+        if detail:
+            raise ValueError(
+                f"ToolCallValidator: tool '{tool_call.tool_name}' rejected its arguments: {detail}"
+            )
         return tool_call
-
-    def _validate_against_schema(
-        self,
-        arguments: Mapping[str, Any],
-        schema: Mapping[str, Any],
-        tool_name: str,
-    ) -> None:
-        schema_type = schema.get("type")
-        if schema_type == "object":
-            properties = schema.get("properties", {})
-            required = schema.get("required", [])
-            for req_field in required:
-                if req_field not in arguments:
-                    raise ValueError(
-                        f"ToolCallValidator: tool '{tool_name}' requires "
-                        f"argument '{req_field}' which is missing"
-                    )
-            for arg_name, arg_value in arguments.items():
-                if arg_name not in properties:
-                    additional = schema.get("additionalProperties", True)
-                    if additional is False:
-                        raise ValueError(
-                            f"ToolCallValidator: tool '{tool_name}' does not "
-                            f"accept argument '{arg_name}'"
-                        )
-                    continue
-                prop_schema = properties[arg_name]
-                self._validate_type(arg_name, arg_value, prop_schema, tool_name)
-
-    def _validate_type(
-        self,
-        field: str,
-        value: Any,
-        prop_schema: Mapping[str, Any],
-        tool_name: str,
-    ) -> None:
-        expected_type = prop_schema.get("type")
-        if expected_type is None:
-            return
-        type_map: dict[str, type | tuple[type, ...]] = {
-            "string": str,
-            "integer": int,
-            "number": (int, float),
-            "boolean": bool,
-            "array": list,
-            "object": dict,
-        }
-        python_type = type_map.get(expected_type)
-        if python_type is None:
-            return
-        if expected_type == "integer" and isinstance(value, bool):
-            raise ValueError(
-                f"ToolCallValidator: tool '{tool_name}' argument '{field}' "
-                f"must be integer, got bool"
-            )
-        if not isinstance(value, python_type):
-            raise ValueError(
-                f"ToolCallValidator: tool '{tool_name}' argument '{field}' "
-                f"must be {expected_type}, got {type(value).__name__}"
-            )

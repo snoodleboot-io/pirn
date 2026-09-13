@@ -213,6 +213,12 @@ class AgentPatternRegistry:
         PatternDescriptor(
             "self_ask", f"{_spec}.self_ask.self_ask_pipeline:SelfAskPipeline", "task"
         ),
+        # --- reflection
+        PatternDescriptor(
+            "constitutional_filter",
+            f"{_spec}.reflection.constitutional_filter:ConstitutionalFilter",
+            "response",
+        ),
         # --- specialized agents
         PatternDescriptor(
             "browser_agent", f"{_spec}.specialized_agents.browser_agent:BrowserAgent", "goal"

@@ -58,13 +58,20 @@ different case and still reads as empty; see :meth:`keys`.
 from __future__ import annotations
 
 import asyncio
+import warnings
 
 from pirn_agents.memory.stores.key_index_unreadable_error import KeyIndexUnreadableError
 from pirn_agents.memory.stores.memory_store import MemoryStore
 
 
 class MemoryStoreKeyIndex:
-    """A set of keys persisted in one ``MemoryStore`` record, safe to mutate concurrently."""
+    """A set of keys persisted in one ``MemoryStore`` record, safe to mutate concurrently.
+
+    .. deprecated:: ADR agents-speaks-core WS3 part 2
+        Its only consumer,
+        :class:`~pirn_agents.sessions.persisted_session_store.PersistedSessionStore`,
+        is itself deprecated (see :mod:`pirn_agents.sessions.session_chain`).
+    """
 
     def __init__(self, *, store: MemoryStore, index_key: str, field: str = "keys") -> None:
         """Bind the index to a backing store, its record key, and its payload field.
@@ -84,6 +91,12 @@ class MemoryStoreKeyIndex:
             TypeError: If ``store`` is not a :class:`MemoryStore`.
             ValueError: If ``index_key`` or ``field`` is empty.
         """
+        warnings.warn(
+            "MemoryStoreKeyIndex is deprecated (ADR agents-speaks-core WS3): "
+            "its only consumer, PersistedSessionStore, is itself deprecated.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if not isinstance(store, MemoryStore):
             raise TypeError(
                 f"MemoryStoreKeyIndex: store must be a MemoryStore, got {type(store).__name__}"

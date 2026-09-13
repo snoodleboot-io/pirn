@@ -81,49 +81,49 @@ class AnthropicProvider(LLMProvider):
 
 ### Tool
 
-`Tool` (`pirn_agents/tools/tool.py`) is the interface for any capability an agent can call during planning. Inherit from it and implement four members:
+`Tool` (`pirn_agents/tools/tool.py`) is the base class for any capability an agent can call. Since the ADR "agents speaks core" (WS1) **a tool is a `Knot` class**: its call arguments are the inputs declared on `process()`, its execution *is* `process()`, and one call is one tool knot the engine runs — with its own `Ok | Err | Skipped`, lineage row, timeout, retry and concurrency group. The only agents-layer addition is the declaration for the model:
 
 | Member | Kind | Description |
 |--------|------|-------------|
-| `name` | property → `str` | Stable identifier the agent addresses the tool by. |
-| `description` | property → `str` | Human-readable description shown to the LLM when building a plan. |
-| `parameters_schema` | property → `Mapping[str, Any]` | JSON Schema describing accepted arguments. |
-| `invoke` | async method | Execute the tool with `arguments` and return the raw result. |
+| `tool_name` | `ClassVar[str]` | Stable identifier the agent addresses the tool by (default: snake_case of the class name). |
+| class docstring | first paragraph | Human-readable description shown to the LLM. |
+| `process(...)` | async method | Execute the tool; its typed parameters (with `Annotated[..., Field(description=...)]`) *are* the JSON Schema, via `Knot.input_json_schema()`. |
+| `declaration()` | classmethod → `ToolDeclaration` | `name` + `description` + `parameters` — what the model sees. |
 
-Tools are passed as config values to knots that use them (e.g. `ToolRouter`, `ToolExecutor`). Like providers, tools are treated as opaque by pirn's content-addressing.
+A **capability** — what a `Toolset` holds and a knot like `ToolRouter` or `ToolExecutor` takes — is a `ToolFactory` (`pirn_agents/tools/tool_factory.py`): a `KnotFactory` over the tool class with bound collaborators, defaults and a name. `Tool.bind(store=...)` hides a collaborator from the declaration; `.defaults(top_k=3)` keeps an argument callable with a default; `.named("search_notes", description=...)` renames it. `ToolFactory.for_call(call)` constructs the tool knot for one `ToolCall` inside the current tapestry. Like providers, bound collaborators are treated as opaque by pirn's content-addressing.
 
 ```python
+from typing import Annotated, Any, ClassVar
+
+from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
+from pydantic import Field
+
 from pirn_agents.tools.tool import Tool
 
 class WebSearchTool(Tool):
-    def __init__(self, api_key: str) -> None:
-        self._api_key = api_key
+    """Search the web and return a list of result snippets."""
 
-    @property
-    def name(self) -> str:
-        return "web_search"
+    tool_name: ClassVar[str] = "web_search"
 
-    @property
-    def description(self) -> str:
-        return "Search the web and return a list of result snippets."
+    def __init__(self, *, query: Knot | str, client: Knot | Any, _config: KnotConfig, **kwargs: Any) -> None:
+        super().__init__(query=query, client=client, _config=_config, **kwargs)
 
-    @property
-    def parameters_schema(self):
-        return {
-            "type": "object",
-            "properties": {"query": {"type": "string"}},
-            "required": ["query"],
-        }
-
-    async def invoke(self, arguments):
-        # call your search API here
+    async def process(
+        self,
+        query: Annotated[str, Field(description="The search query.")],
+        client: Any,                       # bound once, hidden from the model
+        **_: Any,
+    ) -> list[dict[str, str]]:
+        # call your search API through ``client`` here
         return [{"title": "...", "snippet": "..."}]
 
-    def _clear_credentials(self) -> None:
-        self._api_key = None
+web_search = WebSearchTool.bind(client=my_client)   # a ToolFactory — pass it anywhere a tool is accepted
 ```
 
-For plain functions, use the `@tool` decorator instead of subclassing. It derives `name` from the function name, `description` from the docstring's first paragraph, and `parameters_schema` from type annotations. Both sync and async functions are accepted.
+An `invoke`-shaped subclass (properties `name` / `description` / `parameters_schema` plus `async invoke(arguments)`) still works for one cycle through `ToolFactory.of()` / `Toolset` and emits a `DeprecationWarning`.
+
+For plain functions, use the `@tool` decorator instead of subclassing — it is `@knot` plus a declaration. It derives the name from the function name, the description from the docstring's first paragraph, and the parameters from type annotations. Both sync and async functions are accepted.
 
 ```python
 from pirn_agents.tools.tool_decorator import tool
@@ -142,7 +142,7 @@ def lookup_policy(topic: str) -> str:
 react = ReActLoop(messages=msgs, llm=provider, tools=[web_search, lookup_policy], ...)
 ```
 
-`@tool` produces a `FunctionTool` instance, which is a `Tool` subclass. Use `Tool` subclassing directly when the tool needs constructor-injected dependencies (API keys, HTTP clients, connection pools).
+`@tool` produces a `FunctionTool`, a `ToolFactory` over a generated `Tool` class. Use `Tool` subclassing directly when the tool needs bound dependencies (API keys, HTTP clients, connection pools) or wants to declare `permissions` / `streaming`. An agent becomes a tool with `agent.as_tool()` (`AgentTool`), whose nested run is guarded by core's `RunNesting`.
 
 ### MemoryStore
 
@@ -190,8 +190,8 @@ Knots that handle tool-use reasoning.
 | Knot | Description |
 |------|-------------|
 | `Planner` | Asks an `LLMProvider` for an ordered `Plan` grounded in the current `AgentContext`. Lines starting with `#` are treated as rationale; everything else becomes a numbered step in the `Plan`. |
-| `ToolRouter` | Accepts a single plan step string and a sequence of `Tool`s. Matches the first tool whose `name` appears as a substring of the step (case-insensitive) and returns a `ToolCall`. |
-| `ToolExecutor` | Accepts a `ToolCall` and a sequence of `Tool`s. Invokes the matching tool with `ToolCall.arguments` and returns a `ToolResult`. Exceptions are caught and surfaced as `ToolResult.error` so callers can decide how to react. |
+| `ToolRouter` | Accepts a single plan step string and a sequence of tool capabilities. Matches the first tool whose `name` appears as a substring of the step (case-insensitive) and returns a `ToolCall`. |
+| `ToolExecutor` | Accepts a `ToolCall` and a sequence of tool capabilities. Constructs the matching tool knot for the call and runs it as a nested pipeline; the call's `Err` is surfaced as `ToolResult.error` (the deprecated view of the call's `Result`) so callers can decide how to react. |
 | `ToolResultAggregator` | Collects a sequence of `ToolResult`s into a `{call_id: result}` mapping, ready to splice into the conversation context. |
 
 ### `memory/`
@@ -214,6 +214,23 @@ Knots that decide whether the agent loop should continue, terminate, escalate, o
 | `ReflectionCheck` | Asks an `LLMProvider` whether the current response is good enough to stop. The LLM is prompted to answer `"yes"` (iterate) or `"no"` (stop). |
 | `SafetyCheck` | Checks the message or response body against a deny-list of regex patterns compiled with `re.IGNORECASE`. Returns `True` if no pattern matches (safe to proceed). |
 | `HandoffCheck` | Returns `True` when the response matches any escalation pattern. Wire to a human-in-the-loop or supervisor agent knot. |
+
+### `batch/`
+
+Runs one per-item agent over a dataset through the core engine's own scheduler
+(ADR agents-speaks-core, WS4b) — not a private `asyncio.wait` loop.
+
+| Class | Description |
+|-------|-------------|
+| `MapAgent` | A `SubTapestry` whose inner graph is one `_MapItem` knot per input item joined by a core `Aggregator`. Per-item isolation is `ErrorPolicy.RECEIVE_ERRORS` (a failing item never skips its siblings); bounded concurrency is `KnotConfig(concurrency_group=)` + `ConcurrencyLimits` on the run; per-item timeout/retry is `KnotConfig.timeout`/`KnotConfig.retry` (`GovernedDispatch`'s job). Wire `items=` a parent knot to use it inside a bigger pipeline, or call `.run(inputs)` for the standalone streaming shim described below. |
+| `AdaptiveConcurrencyController` | An `AdmissionObserver`: additively raises the run's group cap on a successful `on_release`, and multiplicatively lowers it when `on_throttle()` is called directly by a rate-limited item (an `AdmissionEvent` carries no exception detail, so the decrease can't be driven from `on_release` alone without also firing on ordinary bugs). |
+| `TokenBucketRateLimiter` (`resilience/`) | A shared async token bucket pacing request *rate*; complements the controller, which paces *concurrency*. Its `on_pause` hook can feed an `AdaptiveConcurrencyController` the same `Retry-After` signal it just honoured. |
+| `RateLimitSignal` | The provider-neutral exception a `run_item` callable raises to report a 429-style throttle; `MapAgent` reacts by pausing the bucket and backing off the controller. |
+| `TriggeredBatch` | Binds a core `Trigger` to a `MapAgent`: each fire fetches fresh inputs, runs the batch, and yields a `BatchProgress` summary. Composes `IntervalTrigger`/`EventTrigger` (themselves thin `Trigger` subclasses — an interval schedule delegates to `CronTrigger`, an event source wraps an `asyncio.Queue`) with no scheduling loop of its own. |
+
+**Resume-after-crash** is a `RunHistory` lineage query, not a checkpoint store: pass the same `history=` (and, for a standalone `.run()`, `data_store=`) to a fresh `MapAgent` and a re-run skips any item whose knot id (`item:<batch_id>:<key>`) already has an `Ok` lineage row. `checkpoint_scope=` on `.run()` (or `TriggeredBatch`'s per-fire scoping) namespaces that id so concurrent or repeated batches don't share a skip-set. `BatchCheckpointer`/`BatchScheduler`/`BatchProgress` — the pre-migration F14-session-store-backed checkpoint stack — are kept, unchanged, as one-cycle `DeprecationWarning` shims for any caller not yet on `history=`.
+
+`MapAgent.run()`'s streaming contract (`async for result in map_agent.run(inputs)`) yields each `BatchItemResult` the instant its item settles, before the `Aggregator` join completes: a `_BatchItemStreamer` emitter turns core's `Emitter.on_knot_result` (ADR WS0b) into the stream, so a failed item's full `ExceptionRecord`, its attempt count and its latency ride along from the lineage row. Closing the stream early or cancelling its consumer cancels the run and its in-flight items. Disclosed trade-off that remains: the input iterable is materialised up front (the resume lookup and the item graph need every key before the run starts), so the pre-migration lazy pull does not apply. The batch's dispatcher, group cap and admission observers reach the inner run through core's per-container overrides (`SubTapestry._inner_dispatcher` / `_inner_concurrency` / `_inner_admission_observers`), and an unset dispatcher inherits the enclosing run's execution plane — nothing assigns an inner tapestry's private fields (ratcheted in `tests/core_seams/test_execution_plane_reach_through.py`).
 
 ### `specializations/`
 
@@ -242,7 +259,7 @@ The `types/` sub-package defines the data classes that flow between agent knots.
 | `AgentContext` | The full conversational state: an ordered tuple of `AgentMessage` plus a free-form `metadata` mapping. |
 | `AgentResponse` | Outcome of one agent turn: `content`, tuple of `ToolCall`s, `finish_reason`, usage stats, raw metadata. |
 | `ToolCall` | A single tool invocation requested by the LLM: `tool_name`, `arguments` mapping, optional `call_id`. |
-| `ToolResult` | The result of executing a `ToolCall`: `call_id`, `tool_name`, `result` (any), optional `error`. |
+| `ToolResult` | Deprecated (one cycle) view of a tool call's `Ok | Err | Skipped`: `call_id`, `result` (any), optional `error`, built by `ToolResult.from_result(call_id, result, lineage)`. |
 | `Plan` | An ordered `tuple` of plan step strings plus an optional `rationale` string. |
 
 ---
@@ -347,6 +364,30 @@ rag = NaiveRAGPipeline(
     _config=KnotConfig(id="rag"),
 )
 ```
+
+---
+
+## Idempotency keys (resilience)
+
+`pirn_agents.resilience.idempotency_key_assigner.IdempotencyKeyAssigner` derives a
+stable key for a retried mutating call from its operation name and arguments, so a
+backend can dedupe a retry instead of applying it twice.
+
+**ADR "agents speaks core" WS2 part 2 (2026-09-13) changed the key format.**
+Keys are now `pirn.core.hashing.content_hash`'s `sha256:`-prefixed digest instead
+of the previous bare 64-hex `CanonicalJson.digest` form. **This is a breaking
+upgrade for any backend keyed by a previously-issued idempotency key**: a request
+already in flight when the upgrade deploys computes a *different* key on retry
+than the one its first attempt registered, so the backend sees it as a new
+operation and applies the mutation again.
+
+Operators upgrading must drain in-flight idempotent requests (let outstanding
+retries exhaust their window, or hold new mutating traffic) before or during the
+deploy, rather than rolling it out under live retry traffic. For one deprecation
+cycle, `IdempotencyKeyAssigner.legacy_key(...)` reproduces the pre-upgrade key for
+a given `(operation, arguments, namespace)`, so an operator reconciling a backend's
+dedupe table across the upgrade window can compute what a pre-upgrade retry would
+have used.
 
 ---
 

@@ -17,6 +17,7 @@ from pirn.connectors.http_connector import HttpConnector
 from pirn_agents.connectors.http_search_connector import HttpSearchConnector
 from pirn_agents.tools.web.search_backend import SearchBackend
 from pirn_agents.tools.web.web_search_tool import WebSearchTool
+from tests.tools.tool_runner import ToolRunner
 
 
 class _FakeResponse:
@@ -110,8 +111,8 @@ class TestHttpSearchConnector:
         adapter = HttpSearchConnector(http=http, endpoint="https://search.example/api")
         assert isinstance(adapter, SearchBackend)
         # WebSearchTool consumes via the SearchBackend interface, not the concrete adapter.
-        tool = WebSearchTool(backend=adapter, max_results=5, snippet_chars=10)
-        result = await tool.invoke({"query": "hello"})
+        tool = WebSearchTool.bind(backend=adapter, result_ceiling=5, snippet_chars=10)
+        result = await ToolRunner.value(tool, {"query": "hello"})
         assert result["count"] == 1
         assert result["results"][0]["snippet"] == "y" * 10
 

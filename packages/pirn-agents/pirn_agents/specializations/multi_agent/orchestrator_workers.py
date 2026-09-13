@@ -69,7 +69,7 @@ from pirn_agents.specializations.multi_agent._worker_invocation import _WorkerIn
 from pirn_agents.specializations.multi_agent.orchestrator_workers_result import (
     OrchestratorWorkersResult,
 )
-from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.tool_factory import ToolFactory
 
 
 class OrchestratorWorkers(AgentPipeline):
@@ -79,7 +79,7 @@ class OrchestratorWorkers(AgentPipeline):
         self,
         *,
         tasks: Knot | Sequence[str],
-        worker: Knot | Tool,
+        worker: Knot | Any,
         max_concurrency: Knot | int = ConcurrencyConfig.max_concurrency,
         _config: KnotConfig,
         **kwargs: Any,
@@ -95,7 +95,7 @@ class OrchestratorWorkers(AgentPipeline):
     async def process(
         self,
         tasks: Sequence[str],
-        worker: Tool,
+        worker: ToolFactory,
         max_concurrency: int = ConcurrencyConfig.max_concurrency,
         **_: Any,
     ) -> Knot:
@@ -115,10 +115,12 @@ class OrchestratorWorkers(AgentPipeline):
             TypeError: If ``worker`` is not a Tool or any task is not a str.
             ValueError: If ``max_concurrency`` is less than 1.
         """
-        if not isinstance(worker, Tool):
+        try:
+            worker = ToolFactory.of(worker)
+        except TypeError as exc:
             raise TypeError(
                 f"OrchestratorWorkers: worker must be a Tool, got {type(worker).__name__}"
-            )
+            ) from exc
         task_tuple = tuple(tasks)
         for index, task in enumerate(task_tuple):
             if not isinstance(task, str):

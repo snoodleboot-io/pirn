@@ -11,7 +11,7 @@ from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.rag.agentic_rag_pipeline import AgenticRagPipeline
-from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.tool_factory import ToolFactory
 from pirn_agents.types.messaging.agent_response import AgentResponse
 from tests.specializations.conftest import StubLLMProvider, StubTool
 
@@ -77,8 +77,8 @@ class TestAgenticRagPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         assert len(tool.invocations) == 2
 
-    async def test_rag_tool_is_a_tool(self) -> None:
-        assert isinstance(_answer_tool(), Tool)
+    async def test_rag_tool_is_a_tool_capability(self) -> None:
+        assert isinstance(_answer_tool(), ToolFactory)
 
     def test_rejects_non_tool(self) -> None:
         with self.assertRaises(TypeError):

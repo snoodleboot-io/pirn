@@ -4,7 +4,7 @@ Every ``Tapestry.run()`` executes under one immutable frame.  A root run's
 frame is depth ``0``; a run started by a container knot (``SubTapestry``,
 ``LoopSubTapestry``'s loop run, each loop iteration) is the *child* of the
 enclosing run's frame: one level deeper, carrying the enclosing run ids and
-the *nesting keys* of the container knot classes on the way down.  The frame
+the *nesting keys* of the container knots on the way down.  The frame
 travels on a context variable, so it is inherited by inner runs wherever the
 container executes — including a ``ThreadDispatcher`` worker, which runs under
 a copy of the caller's context — and is empty on a process-boundary dispatcher
@@ -13,7 +13,7 @@ a copy of the caller's context — and is empty on a process-boundary dispatcher
 The frame is also the nested-run guard (ADR agents-speaks-core, WS0).  When
 any tapestry on the path set ``max_nesting_depth``, entering a run deeper
 than the tightest cap raises ``NestingDepthExceededError``, and a container
-class re-entering itself — its nesting key already on the path — raises
+instance re-entering itself — its nesting key already on the path — raises
 ``NestedRunCycleError`` at once rather than after burning the whole budget.
 Both are raised inside the container knot's execution, so the outer engine
 records them as that knot's ``Err``.  With no cap anywhere on the path the
@@ -94,9 +94,9 @@ class RunNesting:
 
         Args:
             key: Nesting key of the container knot starting the run — its
-                qualified class name — or ``None`` for a run that should
-                count toward depth but not toward cycle detection (a loop
-                iteration).
+                qualified class name and knot id (``SubTapestry._nesting_key``)
+                — or ``None`` for a run that should count toward depth but
+                not toward cycle detection (a loop iteration).
             parent_run_id: Id of the run this frame belongs to, which becomes
                 the innermost entry of the child's ``run_ids``.
             max_depth: The starting tapestry's own ``max_nesting_depth``;

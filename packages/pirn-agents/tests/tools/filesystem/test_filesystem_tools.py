@@ -18,21 +18,22 @@ from pirn_agents.tools.filesystem.read_file_tool import ReadFileTool
 from pirn_agents.tools.filesystem.write_file_tool import WriteFileTool
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_status import ToolStatus
+from tests.tools.tool_runner import ToolRunner
 
 
 class TestReadFile:
     async def test_reads_in_root_file(self, tmp_path: Path) -> None:
         (tmp_path / "hello.txt").write_text("hi there", encoding="utf-8")
-        tool = ReadFileTool(root=tmp_path)
-        result = await tool.invoke({"path": "hello.txt"})
+        tool = ReadFileTool.bind(root=tmp_path)
+        result = await ToolRunner.value(tool, {"path": "hello.txt"})
         assert result["content"] == "hi there"
         assert result["truncated"] is False
         assert result["bytes"] == 8
 
     async def test_truncates_oversized_read(self, tmp_path: Path) -> None:
         (tmp_path / "big.txt").write_text("x" * 5000, encoding="utf-8")
-        tool = ReadFileTool(root=tmp_path, max_bytes=100)
-        result = await tool.invoke({"path": "big.txt"})
+        tool = ReadFileTool.bind(root=tmp_path, max_bytes=100)
+        result = await ToolRunner.value(tool, {"path": "big.txt"})
         assert result["truncated"] is True
         assert len(result["content"]) == 100
         assert result["bytes"] == 5000
@@ -41,14 +42,14 @@ class TestReadFile:
         root = tmp_path / "root"
         root.mkdir()
         (tmp_path / "secret.txt").write_text("secret", encoding="utf-8")
-        tool = ReadFileTool(root=root)
+        tool = ReadFileTool.bind(root=root)
         with pytest.raises(ValueError, match="traversal"):
-            await tool.invoke({"path": "../secret.txt"})
+            await ToolRunner.value(tool, {"path": "../secret.txt"})
 
     async def test_rejects_absolute_path(self, tmp_path: Path) -> None:
-        tool = ReadFileTool(root=tmp_path)
+        tool = ReadFileTool.bind(root=tmp_path)
         with pytest.raises(ValueError, match="absolute"):
-            await tool.invoke({"path": "/etc/passwd"})
+            await ToolRunner.value(tool, {"path": "/etc/passwd"})
 
     async def test_rejects_symlink_escape(self, tmp_path: Path) -> None:
         root = tmp_path / "root"
@@ -57,9 +58,9 @@ class TestReadFile:
         outside.write_text("leak", encoding="utf-8")
         link = root / "link.txt"
         link.symlink_to(outside)
-        tool = ReadFileTool(root=root)
+        tool = ReadFileTool.bind(root=root)
         with pytest.raises(ValueError, match="symlink"):
-            await tool.invoke({"path": "link.txt"})
+            await ToolRunner.value(tool, {"path": "link.txt"})
 
     async def test_rejects_symlinked_directory_component(self, tmp_path: Path) -> None:
         root = tmp_path / "root"
@@ -68,53 +69,55 @@ class TestReadFile:
         outside_dir.mkdir()
         (outside_dir / "f.txt").write_text("leak", encoding="utf-8")
         (root / "d").symlink_to(outside_dir, target_is_directory=True)
-        tool = ReadFileTool(root=root)
+        tool = ReadFileTool.bind(root=root)
         with pytest.raises(ValueError, match="symlink"):
-            await tool.invoke({"path": "d/f.txt"})
+            await ToolRunner.value(tool, {"path": "d/f.txt"})
 
-    def test_nonexistent_root_rejected(self, tmp_path: Path) -> None:
+    async def test_nonexistent_root_rejected(self, tmp_path: Path) -> None:
+        # ADR WS1: the root is a bound input validated when a call runs (Rule 3).
+        tool = ReadFileTool.bind(root=tmp_path / "missing")
         with pytest.raises(ValueError, match="root does not exist"):
-            ReadFileTool(root=tmp_path / "missing")
+            await ToolRunner.value(tool, {"path": "x.txt"})
 
     async def test_missing_file_is_error_result(self, tmp_path: Path) -> None:
-        tool = ReadFileTool(root=tmp_path)
+        tool = ReadFileTool.bind(root=tmp_path)
         call = ToolCall(tool_name="read_file", arguments={"path": "nope.txt"}, call_id="c")
-        outcome = await tool.as_tool_result(call)
+        outcome = await ToolRunner.view(tool, call)
         assert outcome.status is ToolStatus.ERROR
         assert outcome.error is not None
 
 
 class TestWriteFile:
     async def test_writes_in_root(self, tmp_path: Path) -> None:
-        tool = WriteFileTool(root=tmp_path)
-        result = await tool.invoke({"path": "out.txt", "content": "data"})
+        tool = WriteFileTool.bind(root=tmp_path)
+        result = await ToolRunner.value(tool, {"path": "out.txt", "content": "data"})
         assert result["bytes_written"] == 4
         assert (tmp_path / "out.txt").read_text(encoding="utf-8") == "data"
 
     async def test_rejects_oversized_content(self, tmp_path: Path) -> None:
-        tool = WriteFileTool(root=tmp_path, max_bytes=10)
+        tool = WriteFileTool.bind(root=tmp_path, max_bytes=10)
         with pytest.raises(ValueError, match="exceeds max_bytes"):
-            await tool.invoke({"path": "out.txt", "content": "x" * 50})
+            await ToolRunner.value(tool, {"path": "out.txt", "content": "x" * 50})
 
     async def test_rejects_traversal(self, tmp_path: Path) -> None:
         root = tmp_path / "root"
         root.mkdir()
-        tool = WriteFileTool(root=root)
+        tool = WriteFileTool.bind(root=root)
         with pytest.raises(ValueError, match="traversal"):
-            await tool.invoke({"path": "../escape.txt", "content": "x"})
+            await ToolRunner.value(tool, {"path": "../escape.txt", "content": "x"})
 
     async def test_rejects_missing_parent(self, tmp_path: Path) -> None:
-        tool = WriteFileTool(root=tmp_path)
+        tool = WriteFileTool.bind(root=tmp_path)
         with pytest.raises(ValueError, match="parent directory"):
-            await tool.invoke({"path": "no/such/dir/out.txt", "content": "x"})
+            await ToolRunner.value(tool, {"path": "no/such/dir/out.txt", "content": "x"})
 
 
 class TestListDir:
     async def test_lists_entries(self, tmp_path: Path) -> None:
         (tmp_path / "a.txt").write_text("a", encoding="utf-8")
         (tmp_path / "sub").mkdir()
-        tool = ListDirTool(root=tmp_path)
-        result = await tool.invoke({})
+        tool = ListDirTool.bind(root=tmp_path)
+        result = await ToolRunner.value(tool, {})
         names = {e["name"]: e["type"] for e in result["entries"]}
         assert names == {"a.txt": "file", "sub": "dir"}
         assert result["truncated"] is False
@@ -122,8 +125,8 @@ class TestListDir:
     async def test_caps_entry_count(self, tmp_path: Path) -> None:
         for i in range(20):
             (tmp_path / f"f{i}.txt").write_text("x", encoding="utf-8")
-        tool = ListDirTool(root=tmp_path, max_entries=5)
-        result = await tool.invoke({"path": ""})
+        tool = ListDirTool.bind(root=tmp_path, max_entries=5)
+        result = await ToolRunner.value(tool, {"path": ""})
         assert len(result["entries"]) == 5
         assert result["count"] == 20
         assert result["truncated"] is True
@@ -131,9 +134,9 @@ class TestListDir:
     async def test_rejects_traversal(self, tmp_path: Path) -> None:
         root = tmp_path / "root"
         root.mkdir()
-        tool = ListDirTool(root=root)
+        tool = ListDirTool.bind(root=root)
         with pytest.raises(ValueError, match="traversal"):
-            await tool.invoke({"path": ".."})
+            await ToolRunner.value(tool, {"path": ".."})
 
 
 class TestGlob:
@@ -143,15 +146,15 @@ class TestGlob:
         sub = tmp_path / "sub"
         sub.mkdir()
         (sub / "c.py").write_text("x", encoding="utf-8")
-        tool = GlobTool(root=tmp_path)
-        result = await tool.invoke({"pattern": "**/*.py"})
+        tool = GlobTool.bind(root=tmp_path)
+        result = await ToolRunner.value(tool, {"pattern": "**/*.py"})
         assert set(result["matches"]) == {"a.py", "sub/c.py"}
 
     async def test_caps_results(self, tmp_path: Path) -> None:
         for i in range(10):
             (tmp_path / f"f{i}.log").write_text("x", encoding="utf-8")
-        tool = GlobTool(root=tmp_path, max_results=3)
-        result = await tool.invoke({"pattern": "*.log"})
+        tool = GlobTool.bind(root=tmp_path, max_results=3)
+        result = await ToolRunner.value(tool, {"pattern": "*.log"})
         assert len(result["matches"]) == 3
         assert result["count"] == 10
         assert result["truncated"] is True
@@ -163,16 +166,16 @@ class TestGlob:
         outside.write_text("x", encoding="utf-8")
         (root / "link.py").symlink_to(outside)
         (root / "real.py").write_text("x", encoding="utf-8")
-        tool = GlobTool(root=root)
-        result = await tool.invoke({"pattern": "*.py"})
+        tool = GlobTool.bind(root=root)
+        result = await ToolRunner.value(tool, {"pattern": "*.py"})
         assert result["matches"] == ["real.py"]
 
     async def test_rejects_absolute_pattern(self, tmp_path: Path) -> None:
-        tool = GlobTool(root=tmp_path)
+        tool = GlobTool.bind(root=tmp_path)
         with pytest.raises(ValueError, match="absolute"):
-            await tool.invoke({"pattern": "/etc/*"})
+            await ToolRunner.value(tool, {"pattern": "/etc/*"})
 
     async def test_rejects_traversal_pattern(self, tmp_path: Path) -> None:
-        tool = GlobTool(root=tmp_path)
+        tool = GlobTool.bind(root=tmp_path)
         with pytest.raises(ValueError, match="'\\.\\.'"):
-            await tool.invoke({"pattern": "../*"})
+            await ToolRunner.value(tool, {"pattern": "../*"})

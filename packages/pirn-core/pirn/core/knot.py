@@ -142,6 +142,18 @@ class Knot:
         """
         return type(self)._deprecated_since
 
+    # Whether this knot takes a slot of the run's ``AdmissionGate`` while it
+    # executes.  ``True`` for a leaf -- a knot that does its own work.  A
+    # *container* (``SubTapestry``, ``LoopSubTapestry``, a loop iteration)
+    # sets it ``False``: it spends its life waiting on an inner run whose
+    # leaves are admitted individually through the very same gate, so a slot
+    # held by the container would be one its own leaves could deadlock on
+    # under ``max_in_flight`` (ADR agents-speaks-core, WS0b; PIR-841 design
+    # §5.4).  Read by ``ReadyQueue`` at admission; a slot-free knot is
+    # admitted without consulting the gate and its ticket is never released
+    # to it.  A container may therefore not declare a ``concurrency_group``.
+    _holds_admission_slot: ClassVar[bool] = True
+
     @staticmethod
     def _is_knot_cls(candidate: Any) -> bool:
         """Return True if *candidate* is Knot or a subclass of Knot."""

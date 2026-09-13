@@ -55,7 +55,7 @@ from pirn_agents.specializations.rag.rag_response_builder import (
 from pirn_agents.specializations.rag.relevance_check import (
     RelevanceCheck,
 )
-from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.tool_factory import ToolFactory
 
 
 class CorrectiveRAGPipeline(AgentPipeline):
@@ -67,7 +67,7 @@ class CorrectiveRAGPipeline(AgentPipeline):
         query: Knot | str,
         memory: Knot | MemoryStore,
         llm: Knot | LLMProvider,
-        fallback_tool: Knot | Tool,
+        fallback_tool: Knot | Any,
         _config: KnotConfig,
         top_k: Knot | int = 5,
         relevance_threshold: Knot | float = 0.5,
@@ -89,7 +89,7 @@ class CorrectiveRAGPipeline(AgentPipeline):
         query: str,
         memory: MemoryStore,
         llm: LLMProvider,
-        fallback_tool: Tool,
+        fallback_tool: ToolFactory,
         top_k: int,
         relevance_threshold: float,
         **_: Any,

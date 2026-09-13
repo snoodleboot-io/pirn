@@ -14,6 +14,8 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
+from pirn.backends.in_memory.in_memory_history import InMemoryHistory
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -23,6 +25,7 @@ from pirn_agents.input.intent_classifier import IntentClassifier
 from pirn_agents.memory.patterns.semantic_memory_pipeline import SemanticMemoryPipeline
 from pirn_agents.memory.patterns.semantic_memory_upsert import SemanticMemoryUpsert
 from pirn_agents.memory.patterns.session_summarizer import SessionSummarizer
+from pirn_agents.memory.stores.keyed_lineage_store import KeyedLineageStore
 from pirn_agents.retrieval.graph_rag.entity_relation_extractor import EntityRelationExtractor
 from pirn_agents.retrieval.graph_rag.extraction_schema import ExtractionSchema
 from pirn_agents.security.llm_injection_classifier import LlmInjectionClassifier
@@ -80,6 +83,7 @@ from pirn_agents.types.messaging.agent_message import AgentMessage
 from pirn_agents.types.messaging.agent_response import AgentResponse
 from tests.conftest import StubLLMProvider, StubMemoryStore, StubTool
 from tests.specializations.conftest import StubEmbeddingProvider
+from tests.tools.tool_runner import ToolRunner
 
 
 def _bare(cls: type[Knot], knot_id: str = "pin") -> Knot:
@@ -87,6 +91,7 @@ def _bare(cls: type[Knot], knot_id: str = "pin") -> Knot:
     with Tapestry():
         knot = cls.__new__(cls)
         object.__setattr__(knot, "_config", KnotConfig(id=knot_id))
+        object.__setattr__(knot, "_mutable_config", KnotConfig(id=knot_id))
     return knot
 
 
@@ -132,7 +137,10 @@ class MemoryPatternPromptPins(unittest.IsolatedAsyncioTestCase):
 
     async def test_semantic_memory_upsert_fact_extraction_prompt(self) -> None:
         llm = StubLLMProvider(responses=["- a fact"])
-        store = StubMemoryStore()
+        # SemanticMemoryUpsert's dedup reads KeyedLineageStore.latest_output_hash
+        # directly (ADR agents-speaks-core WS3 part 4), a surface StubMemoryStore
+        # (a plain MemoryStore double) does not expose.
+        store = KeyedLineageStore(history=InMemoryHistory(), data_store=InMemoryDataStore())
         knot = _bare(SemanticMemoryUpsert)
         await knot.process(
             response=AgentResponse(content="body"),
@@ -756,8 +764,8 @@ class ToolsPromptPins(unittest.IsolatedAsyncioTestCase):
         llm = StubLLMProvider(responses=["answer"])
         store = StubMemoryStore()
         await store.store("a", {"text": "ants are insects"})
-        tool = RagTool(store=store, llm=llm)
-        await tool.invoke({"question": "what are ants?"})
+        tool = RagTool.bind(store=store, llm=llm)
+        await ToolRunner.value(tool, {"question": "what are ants?"})
         assert llm.calls[0][0]["content"] == (
             "Answer the question using only the provided context. "
             "If the context is insufficient, say so."
@@ -766,6 +774,6 @@ class ToolsPromptPins(unittest.IsolatedAsyncioTestCase):
     async def test_rag_tool_explicit_override_still_wins(self) -> None:
         llm = StubLLMProvider(responses=["answer"])
         store = StubMemoryStore()
-        tool = RagTool(store=store, llm=llm, system_prompt="Be terse.")
-        await tool.invoke({"question": "what are ants?"})
+        tool = RagTool.bind(store=store, llm=llm, system_prompt="Be terse.")
+        await ToolRunner.value(tool, {"question": "what are ants?"})
         assert llm.calls[0][0]["content"] == "Be terse."

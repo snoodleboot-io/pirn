@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from pirn.backends.base.run_history import RunHistory
     from pirn.backends.base.tapestry_store import TapestryStore
     from pirn.core.concurrency.concurrency_limits import ConcurrencyLimits
+    from pirn.core.execution_plane import ExecutionPlane
     from pirn.core.identity.identity_resolver import IdentityResolver
     from pirn.core.knot import Knot
     from pirn.core.run_nesting import RunNesting
@@ -106,13 +107,24 @@ _current_traceback_filter: ContextVar[Any] = ContextVar(
 )
 
 #: The nested-run frame of the enclosing run: its depth, the enclosing run
-#: ids, the container classes on the path, and the tightest
+#: ids, the container knots on the path, and the tightest
 #: ``max_nesting_depth`` set on that path.  ``Tapestry.run`` derives an inner
 #: run's frame from it (``RunNesting.child``), which is where the depth cap and
 #: the re-entry guard are enforced, and publishes the new frame for the run's
 #: duration so knots can read ``RunNesting.current()`` (ADR agents-speaks-core,
 #: WS0).  ``None`` means "no enclosing run": the run about to start is a root.
 _current_nesting: ContextVar[RunNesting | None] = ContextVar("pirn_current_nesting", default=None)
+
+#: The execution plane of the enclosing run -- its dispatcher, admission gate
+#: and limits, admission observers, replay posture and identity resolver.
+#: ``Tapestry.run`` derives an inner run's plane from it (everything the inner
+#: tapestry did not name itself is inherited; the gate by identity, so limits
+#: are one budget across the run tree) and publishes the derived plane for the
+#: run's duration.  Read yours with ``ExecutionPlane.current()``.  ``None``
+#: means "no enclosing run" (ADR agents-speaks-core, WS0b; PIR-841 slice 3).
+_current_execution_plane: ContextVar[ExecutionPlane | None] = ContextVar(
+    "pirn_current_execution_plane", default=None
+)
 
 # ContextVar carrying the store of the currently-executing extensible run.
 # Set only when extensible=True.  Knots can call get_current_store() during
@@ -172,23 +184,30 @@ class Tapestry:
         Defaults to ``InMemoryDataStore``.
     dispatcher:
         Default dispatcher used for runs that don't override it.  Defaults
-        to ``LocalDispatcher``.
+        to ``LocalDispatcher``.  An inner tapestry (a ``SubTapestry`` body,
+        a ``LoopSubTapestry`` iteration) that takes the default inherits the
+        enclosing run's dispatcher instead; one given a dispatcher here
+        keeps it (ADR agents-speaks-core, WS0b).
     concurrency:
         Default ``ConcurrencyLimits`` for runs whose ``RunRequest`` carries
         none: how many knots may be in flight at once, overall and per
         ``KnotConfig.concurrency_group``.  ``None`` (the default) is
-        unbounded.  A request's own ``concurrency`` always wins.  Limits are
-        not forwarded into ``SubTapestry`` / ``LoopSubTapestry`` inner runs
-        yet; an inner tapestry applies only its own default (PIR-841 slice 3).
-        The effective ceiling is also bounded by the dispatcher's own
-        capacity, e.g. ``ThreadDispatcher(max_workers=...)``.
+        unbounded.  A request's own ``concurrency`` always wins.  An inner
+        run that names no limits of its own -- neither here nor on its
+        request -- shares the enclosing run's admission gate, the very same
+        instance, so ``max_in_flight`` and every group cap are one budget
+        across the whole run tree; an inner run that names limits gets a
+        gate of its own, and ``RunRequest(concurrency=ConcurrencyLimits())``
+        is how it opts out of the shared budget explicitly (WS0b).  The
+        effective ceiling is also bounded by the dispatcher's own capacity,
+        e.g. ``ThreadDispatcher(max_workers=...)``.
     max_nesting_depth:
         How many runs may be nested below a run of this tapestry, or
         ``None`` (the default) for no guard.  Every ``SubTapestry`` inner
         run, ``LoopSubTapestry`` loop run and loop iteration counts one
         level.  Setting it turns the nested-run guard on for the whole
         subtree: a run that would exceed the tightest cap on the path fails
-        with ``NestingDepthExceededError``, and a container class
+        with ``NestingDepthExceededError``, and a container knot
         re-entering itself fails with ``NestedRunCycleError`` -- both
         recorded as the container knot's ``Err``.  An inner tapestry
         inherits the cap through the run context and may only tighten it.
@@ -196,8 +215,15 @@ class Tapestry:
         ``AdmissionObserver`` instances told of every admission and release in runs
         of this tapestry (queue depth, wait, hold time, outcome, and the
         gate itself so a limit can be adjusted in reaction).  A run's own
-        ``admission_observers=`` replaces the list.  Not forwarded into
-        inner runs, which are not admission-limited yet (PIR-841 slice 3).
+        ``admission_observers=`` replaces the list.  An inner run that
+        shares the enclosing run's gate also hears its observers -- they
+        belong to the gate they steer -- appended after the inner run's
+        own and de-duplicated by identity (WS0b).
+    identity_resolver:
+        Resolves the actor recorded against a run whose ``RunRequest``
+        carries none.  Defaults to the environment-then-OS chain.  An
+        inner tapestry that takes the default inherits the enclosing run's
+        resolver (WS0b).
     """
 
     def __init__(
@@ -231,6 +257,11 @@ class Tapestry:
         self._history = history or InMemoryHistory()
         self._data_store = data_store or InMemoryDataStore()
         self._dispatcher = dispatcher or LocalDispatcher()
+        # Whether the caller named this tapestry's dispatcher or took the
+        # default.  An inner run inherits the enclosing run's dispatcher, but
+        # must not overwrite one this tapestry was explicitly given -- same
+        # reasoning as ``_transport_explicit`` below (WS0b).
+        self._dispatcher_explicit: bool = dispatcher is not None
         self._emitters: list[Emitter] = list(emitters or [])
         self._emitter_error_policy: _EmitterErrorPolicy = (
             emitter_error_policy or _EmitterErrorPolicy.WARN
@@ -249,6 +280,9 @@ class Tapestry:
         self._identity_resolver = identity_resolver or ChainedIdentityResolver(
             [EnvIdentityResolver(), OsIdentityResolver()]
         )
+        # Same pattern: an inner run inherits the enclosing run's resolver
+        # unless this tapestry was given one of its own (WS0b).
+        self._identity_resolver_explicit: bool = identity_resolver is not None
         self._concurrency: ConcurrencyLimits | None = concurrency
         if max_nesting_depth is not None and (
             isinstance(max_nesting_depth, bool) or max_nesting_depth < 0
@@ -393,16 +427,33 @@ class Tapestry:
         run already does.  A recording that cannot be honoured raises a
         ``ReplayError``; replay never silently falls back to executing.
 
-        Replay is not propagated into ``SubTapestry`` inner runs, and does
-        not need to be: the ``SubTapestry`` knot itself is replayed from the
-        outer recording, so the inner pipeline never starts.
+        Replay posture is inherited by inner runs (ADR agents-speaks-core,
+        WS0b).  In the ordinary case it is moot: the ``SubTapestry`` knot
+        itself is served from the outer recording, so its inner pipeline
+        never starts.  Should an inner run start while the enclosing run is
+        in replay posture, it is served from the recording of the inner run
+        the container's own recorded row names (``extra["inner_run_id"]``),
+        loaded from this tapestry's history; a container with no recorded
+        row runs its inner pipeline live.
+
+        **Execution plane (WS0b).**  A run started inside another run --
+        a ``SubTapestry`` body, a ``LoopSubTapestry`` iteration -- inherits
+        the enclosing run's execution plane for everything it did not name
+        itself: the dispatcher (unless this tapestry was given one), the
+        admission gate and its ``ConcurrencyLimits`` (unless this request or
+        tapestry names limits; the gate is shared *by identity*, so caps are
+        one budget across the run tree), the admission observers (appended
+        to this run's own when the gate is shared), the replay posture and
+        the identity resolver.  Read the plane in force with
+        :meth:`pirn.core.execution_plane.ExecutionPlane.current`.
 
         ``admission_observers`` replaces the tapestry's default observers for
-        this run; ``None`` uses the defaults and ``[]`` silences them.
+        this run; ``None`` uses the defaults and ``[]`` silences this run's
+        own -- inherited observers still hear a shared gate.
 
         ``_nesting_key`` is internal: a container knot starting this run as an
         inner run passes its nesting key (``SubTapestry._nesting_key``) so the
-        nested-run guard can detect the class re-entering itself; a loop
+        nested-run guard can detect the container re-entering itself; a loop
         iteration passes none.  The run's frame is derived from the enclosing
         run's frame *before* anything starts, so a refused run raises here
         and never touches history.
@@ -421,15 +472,32 @@ class Tapestry:
         enclosing = _current_nesting.get(None)
         enclosing_run_id = _current_run_id.get(None)
         if enclosing is None or enclosing_run_id is None:
-            nesting = _RunNesting(max_depth=self._max_nesting_depth)
+            # A root run started by a container outside any engine run (a
+            # SubTapestry awaited directly) still puts that container on
+            # the path, so a re-entry below it is a cycle (ADR WS1).
+            nesting = _RunNesting(
+                path=(_nesting_key,) if _nesting_key is not None else (),
+                max_depth=self._max_nesting_depth,
+            )
         else:
             nesting = enclosing.child(
                 _nesting_key, enclosing_run_id, max_depth=self._max_nesting_depth
             )
 
+        # Execution plane (WS0b): what this run is scheduled on, metered by,
+        # watched by, served from and attributed to -- inherited from the
+        # enclosing run for everything this tapestry did not name itself.
+        plane, limits_inherited = await self._resolve_execution_plane(
+            request=request,
+            dispatcher=dispatcher,
+            admission_observers=admission_observers,
+            replay=replay,
+            parent_knot_id=_parent_knot_id,
+        )
+
         # WHO resolution: explicit RunRequest.actor wins; fall back to resolver.
         resolved_actor = (
-            request.actor if request.actor is not None else self._identity_resolver.resolve()
+            request.actor if request.actor is not None else plane.identity_resolver.resolve()
         )
 
         if terminals is None:
@@ -454,9 +522,10 @@ class Tapestry:
         )
         active_filter = traceback_filter if traceback_filter is not None else self._traceback_filter
 
-        engine = Engine(dispatcher=dispatcher or self._dispatcher)
+        engine = Engine(dispatcher=plane.dispatcher)
         token_run_id = _current_run_id.set(request.run_id)
         token_nesting = _current_nesting.set(nesting)
+        token_plane = _current_execution_plane.set(plane)
         token_store = _current_store.set(self._store if extensible else None)
         token_history = _current_history.set(self._history)
         # The value plane travels with the history: the store holds the value a
@@ -483,20 +552,17 @@ class Tapestry:
                 parent_knot_id=_parent_knot_id,
                 transport=self._transport,
                 actor=resolved_actor,
-                replay=replay,
-                concurrency=(
-                    request.concurrency if request.concurrency is not None else self._concurrency
-                ),
+                replay=plane.replay,
+                concurrency=plane.limits,
                 nesting=nesting,
-                admission_observers=(
-                    list(self._admission_observers)
-                    if admission_observers is None
-                    else list(admission_observers)
-                ),
+                admission_observers=list(plane.admission_observers),
+                gate=plane.gate,
+                limits_inherited=limits_inherited,
             )
         finally:
             _current_run_id.reset(token_run_id)
             _current_nesting.reset(token_nesting)
+            _current_execution_plane.reset(token_plane)
             _current_store.reset(token_store)
             _current_history.reset(token_history)
             _current_data_store.reset(token_data_store)
@@ -504,6 +570,158 @@ class Tapestry:
             _current_traceback_filter.reset(token_filter)
             _current_emitters.reset(token_emitters)
             _current_emitter_error_policy.reset(token_emitter_policy)
+
+    async def _resolve_execution_plane(
+        self,
+        *,
+        request: RunRequest,
+        dispatcher: Dispatcher | None,
+        admission_observers: list[AdmissionObserver] | None,
+        replay: ReplaySession | None,
+        parent_knot_id: str | None,
+    ) -> tuple[ExecutionPlane, bool]:
+        """Resolve the plane a run of this tapestry executes under.
+
+        See ``pirn.core.execution_plane`` for the algorithm.  Each half is
+        resolved the same way: an explicit per-run argument wins, then this
+        tapestry's own explicit setting, then the enclosing run's plane, then
+        this tapestry's default.  The gate and the observers are decided
+        together -- observers belong to the gate they steer, so an inner run
+        that shares the outer gate also hears the outer observers, and one
+        that builds its own gate hears only its own.
+
+        Args:
+            request: The run's request; its ``concurrency`` is the strongest
+                limits setting.
+            dispatcher: The ``run(dispatcher=)`` argument.
+            admission_observers: The ``run(admission_observers=)`` argument.
+            replay: The ``run(replay=)`` argument.
+            parent_knot_id: The container knot starting this run, if any --
+                what an inherited replay posture is keyed on.
+
+        Returns:
+            ``(plane, limits_inherited)``: the plane to publish, and whether
+            its gate is the enclosing run's (so the engine skips the
+            unused-group warning for limits declared for the whole tree).
+        """
+        from pirn.core.execution_plane import ExecutionPlane as _ExecutionPlane
+        from pirn.engine.engine import Engine
+
+        enclosing = _current_execution_plane.get(None)
+        own_limits = request.concurrency if request.concurrency is not None else self._concurrency
+
+        if dispatcher is not None:
+            active_dispatcher = dispatcher
+        elif enclosing is not None and not self._dispatcher_explicit:
+            active_dispatcher = enclosing.dispatcher
+        else:
+            active_dispatcher = self._dispatcher
+
+        own_observers = (
+            list(self._admission_observers)
+            if admission_observers is None
+            else list(admission_observers)
+        )
+        if enclosing is not None and own_limits is None:
+            gate = enclosing.gate
+            limits = enclosing.limits
+            inherited = True
+            observers = self._merged_observers(own_observers, enclosing.admission_observers)
+        else:
+            gate = Engine.gate_for(own_limits)
+            limits = own_limits
+            inherited = False
+            observers = own_observers
+
+        if replay is None and enclosing is not None and enclosing.replay is not None:
+            replay = await self._inherited_replay(enclosing.replay, parent_knot_id)
+
+        if enclosing is not None and not self._identity_resolver_explicit:
+            resolver = enclosing.identity_resolver
+        else:
+            resolver = self._identity_resolver
+
+        plane = _ExecutionPlane(
+            dispatcher=active_dispatcher,
+            gate=gate,
+            limits=limits,
+            admission_observers=tuple(observers),
+            replay=replay,
+            identity_resolver=resolver,
+        )
+        return plane, inherited
+
+    @staticmethod
+    def _merged_observers(
+        own: list[AdmissionObserver], inherited: tuple[AdmissionObserver, ...]
+    ) -> list[AdmissionObserver]:
+        """Combine a run's own observers with the enclosing run's, own first.
+
+        De-duplicated by identity, like ``SubTapestry._inherited_emitters``:
+        the same controller registered at both levels must hear each
+        admission once.
+
+        Args:
+            own: This run's observers, in declared order.
+            inherited: The enclosing plane's observers.
+
+        Returns:
+            The merged list.
+        """
+        merged = list(own)
+        seen = {id(observer) for observer in merged}
+        merged.extend(observer for observer in inherited if id(observer) not in seen)
+        return merged
+
+    async def _inherited_replay(
+        self, outer: ReplaySession, parent_knot_id: str | None
+    ) -> ReplaySession | None:
+        """Derive an inner run's replay session from the enclosing run's.
+
+        The outer session indexes the *outer* run's knots; an inner run's
+        knots are recorded in the inner run the container's lineage row
+        names (``SubTapestry.lineage_extra`` → ``extra["inner_run_id"]``).
+        That recording is loaded from this tapestry's history, which
+        ``SubTapestry._run_inner`` has already pointed at the outer store.
+
+        Args:
+            outer: The enclosing run's session.
+            parent_knot_id: The container knot starting this run.
+
+        Returns:
+            A session over the recorded inner run, or ``None`` when the
+            container has no recorded row, or its row names no inner run
+            (a loop iteration, or a container that failed before recording
+            one) -- the inner run then executes live, matching a session
+            that lets the container itself execute live.
+
+        Raises:
+            ReplayMismatchError: If the row names an inner run the history
+                no longer holds; replay never silently falls back to
+                executing what it was told to serve.
+        """
+        from pirn.recording.replay_mismatch_error import ReplayMismatchError
+        from pirn.recording.replay_session import ReplaySession as _ReplaySession
+
+        if parent_knot_id is None:
+            return None
+        row = outer.row_for(parent_knot_id)
+        if row is None:
+            return None
+        inner_run_id = row.extra.get("inner_run_id")
+        if not isinstance(inner_run_id, str):
+            return None
+        try:
+            return await _ReplaySession.from_history(history=self._history, run_id=inner_run_id)
+        except KeyError as absent:
+            raise ReplayMismatchError(
+                knot_id=parent_knot_id,
+                source_run_id=outer.source_run_id,
+                reason=(
+                    f"the container's recorded row names inner run {inner_run_id!r}, "
+                    "which is no longer in history, so the inner pipeline cannot be replayed"
+                ),
+            ) from absent
 
     def add_emitter(self, emitter: Emitter) -> None:
         """Append an emitter to this tapestry's default emitter list.

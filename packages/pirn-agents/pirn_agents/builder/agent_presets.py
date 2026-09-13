@@ -47,7 +47,6 @@ from pirn_agents.tools.bundles import (
     filesystem_toolset,
     web_toolset,
 )
-from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.toolset import Toolset
 
 
@@ -133,7 +132,7 @@ class AgentPresets:
         *,
         llm: LLMProvider,
         input: object,
-        tools: Toolset | Sequence[Tool] | None = None,
+        tools: Toolset | Sequence[Any] | None = None,
         max_iterations: int = 6,
         name: str | None = None,
     ) -> SubTapestry:
@@ -161,7 +160,7 @@ class AgentPresets:
         *,
         llm: LLMProvider,
         input: object,
-        tools: Toolset | Sequence[Tool] | None = None,
+        tools: Toolset | Sequence[Any] | None = None,
         max_iterations: int = 6,
         name: str | None = None,
     ) -> AgentBuilder:
@@ -225,7 +224,7 @@ class AgentPresets:
         llm: LLMProvider,
         input: object,
         root: str,
-        tools: Toolset | Sequence[Tool] | None = None,
+        tools: Toolset | Sequence[Any] | None = None,
         max_iterations: int = 8,
         name: str | None = None,
     ) -> SubTapestry:
@@ -259,13 +258,13 @@ class AgentPresets:
         llm: LLMProvider,
         input: object,
         root: str,
-        tools: Toolset | Sequence[Tool] | None = None,
+        tools: Toolset | Sequence[Any] | None = None,
         max_iterations: int = 8,
         name: str | None = None,
     ) -> AgentBuilder:
         """Configure the coding recipe; see :meth:`coding` for the arguments."""
         if tools is None:
-            selected: Toolset | Sequence[Tool] = filesystem_toolset(root=root).merge(
+            selected: Toolset | Sequence[Any] = filesystem_toolset(root=root).merge(
                 calculator_toolset()
             )
         else:

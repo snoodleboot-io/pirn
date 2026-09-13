@@ -1,33 +1,36 @@
 """``EmbeddingCache`` — memoise embedding vectors by content hash across providers.
 
 Embedding the same text twice is pure waste: the vector is a deterministic
-function of ``(text, model)``. This cache keys each text by its
-:func:`~pirn_agents.caching.content_address.content_address` (folding in the
-model so different models never collide) and only calls the wrapped embed
-function for texts it has never seen. Re-indexing an overlapping corpus therefore
-collapses to embedding just the *new* texts — the counters
-:attr:`provider_calls` and :attr:`served_from_cache` make that saving
-measurable.
+function of ``(text, model)``. This cache keys each text by
+:func:`pirn.core.hashing.content_hash` (folding in the model so different
+models never collide) and only calls the wrapped embed function for texts it
+has never seen. Re-indexing an overlapping corpus therefore collapses to
+embedding just the *new* texts — the counters :attr:`provider_calls` and
+:attr:`served_from_cache` make that saving measurable.
 
 The wrapped embed function is the sole backend seam — any
 :class:`pirn_agents.retrieval.embeddings.embedding_provider.EmbeddingProvider` ``embed`` (or a
 plain async callable) fits — so the cache is provider-neutral and no vendor SDK
 is imported here.
 
-Core store: none. This is a pure key→vector index (no eviction policy beyond
-FIFO bounding, no ``ResultCache`` shape), so it keeps its own
-``dict[str, tuple[float, ...]]`` rather than a
-:class:`pirn.backends.base.data_store.DataStore` (ADR agents-speaks-core WS2 —
-see :mod:`pirn_agents.caching.semantic_result_cache` for why the other
-embedding-indexed caches in this package make the same choice). Keys still
-hash through the shared :func:`~pirn_agents.caching.content_address.content_address`.
+ADR agents-speaks-core WS2 part 2: this is pure exact-key memoisation (no
+similarity scan anywhere), so unlike
+:class:`~pirn_agents.caching.semantic_result_cache.SemanticResultCache` there
+is no separate "index vs. value" to split across a resource and a
+``DataStore`` — the vector *is* the value. The vectors instead live in a
+vended :class:`~pirn_agents.caching.vector_memo_index.VectorMemoIndex`
+resource rather than a bare private dict, consistent with the other
+embedding-indexed caches in this package. Keys hash through
+:func:`pirn.core.hashing.content_hash` (``strict=True``) directly.
 """
 
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Sequence
 
-from pirn_agents.caching.content_address import content_address
+from pirn.core.hashing import content_hash
+
+from pirn_agents.caching.vector_memo_index import VectorMemoIndex
 
 
 class EmbeddingCache:
@@ -54,18 +57,17 @@ class EmbeddingCache:
                 f"EmbeddingCache: max_entries must be >= 1 or None, got {max_entries!r}"
             )
         self._embed = embed
-        self._max_entries = max_entries
-        self._vectors: dict[str, tuple[float, ...]] = {}
+        self._index = VectorMemoIndex(max_entries=max_entries)
         self.provider_calls = 0
         self.served_from_cache = 0
 
     def __len__(self) -> int:
-        return len(self._vectors)
+        return len(self._index)
 
     @staticmethod
     def key_for(text: str, model: str | None = None) -> str:
         """Return the stable content-hash key for ``text`` under ``model``."""
-        return content_address({"text": text, "model": model})
+        return content_hash({"text": text, "model": model}, strict=True)
 
     async def embed(
         self, texts: Sequence[str], *, model: str | None = None
@@ -92,7 +94,7 @@ class EmbeddingCache:
             raise TypeError("EmbeddingCache.embed: texts must be a sequence of strings, not a str")
         items = list(texts)
         keys = [self.key_for(text, model) for text in items]
-        missing_indices = [i for i, key in enumerate(keys) if key not in self._vectors]
+        missing_indices = [i for i, key in enumerate(keys) if key not in self._index]
 
         if missing_indices:
             to_embed = [items[i] for i in missing_indices]
@@ -105,21 +107,11 @@ class EmbeddingCache:
                     f"{len(fresh_list)} vectors for {len(to_embed)} texts"
                 )
             for index, vector in zip(missing_indices, fresh_list, strict=True):
-                self._store(keys[index], tuple(float(x) for x in vector))
+                self._index.put(keys[index], vector)
 
         self.served_from_cache += len(items) - len(missing_indices)
-        return [self._vectors[key] for key in keys]
+        return [self._index.get(key) for key in keys]
 
     def invalidate(self, text: str, *, model: str | None = None) -> None:
         """Drop the cached vector for ``text``/``model`` (a no-op if absent)."""
-        self._vectors.pop(self.key_for(text, model), None)
-
-    def _store(self, key: str, vector: tuple[float, ...]) -> None:
-        """Insert ``vector`` under ``key`` with optional FIFO eviction."""
-        if (
-            self._max_entries is not None
-            and key not in self._vectors
-            and len(self._vectors) >= self._max_entries
-        ):
-            del self._vectors[next(iter(self._vectors))]
-        self._vectors[key] = vector
+        self._index.discard(self.key_for(text, model))

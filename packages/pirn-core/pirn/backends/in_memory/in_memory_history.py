@@ -169,6 +169,22 @@ class InMemoryHistory(RunHistory):
         with self._lock:
             return list(self._lineage_by_knot.get(knot_id, []))
 
+    async def query_latest_lineage_by_knot_id(self, knot_id: str) -> KnotLineage | None:
+        """Return the most recently finished lineage record for ``knot_id``.
+
+        Args:
+            knot_id: Identifier of the knot whose latest record is requested.
+
+        Returns:
+            The record with the greatest ``finished_at``, or ``None`` if
+            ``knot_id`` has never run.
+        """
+        with self._lock:
+            rows = self._lineage_by_knot.get(knot_id)
+            if not rows:
+                return None
+            return max(rows, key=lambda row: row.finished_at)
+
     async def query_runs_by_actor(self, actor: str) -> list[Any]:
         """Return all runs triggered by ``actor``.
 
