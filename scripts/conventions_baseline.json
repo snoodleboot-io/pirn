@@ -2,13 +2,13 @@
   "pirn-agents": {
     "filename_mismatch": 0,
     "gate_wrong_base": 5,
-    "knot_init_impure": 13,
+    "knot_init_impure": 4,
     "knot_process_kwargs_name": 5,
     "knot_property": 2,
-    "knot_self_assignment": 12,
-    "module_level_function": 62,
+    "knot_self_assignment": 2,
+    "module_level_function": 23,
     "multi_class_file": 0,
-    "nested_def_missing_override": 52
+    "nested_def_missing_override": 36
   },
   "pirn-core": {
     "filename_mismatch": 34,
