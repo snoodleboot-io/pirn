@@ -235,6 +235,9 @@ Tracked in Linear project **"pirn-agents: OOP/SOLID Standards Remediation"** (PI
 
 *Correctly reused (preserve):* `SubTapestry`/`Source`, `PirnOpaqueValue` value objects, `DsnScrubber` composition, HITL suspend/resume (rightly avoids a `Trigger` loop), and raise-site exceptions kept orthogonal to `ExceptionRecord`.
 
+*Resolved by the "agents speaks core" ADR (2026-09-13, separate from the WS1–WS9 remediation project above — its own workstreams are tagged "ADR WS<n>" to avoid confusion with WS1–WS9):*
+- **§3.7 (backends), memory half — ADR WS3:** `MemoryRecord` is now a `Payload[MemoryProvenance, MemoryContent]` (§1.3); a writer knot returns it and the engine content-addresses it into `DataStore` like any other knot output, with no separate keyed write. New `MemoryLineageRecall` knot reads it back via `RunHistory.query_lineage_by_knot_id` + `DataStore.get` — the first `pirn_agents` knot to consume `RunHistory`/`DataStore` directly. `MemoryStore` gained a `retention` capability mirroring `DataStore.retention`/`RunHistory.retention` (§3.7), so eviction is one capability instead of a fourth mechanism; `MemoryEvictor`/`LowValueEvictionPolicy` stay as the explicit scored-eviction knot for a held batch. Still open (deferred, needs a product decision — see the ADR WS3 report in `.prompticorn/sessions/`): sessions (`RunState`/`RunCheckpoint`/`SessionStore` → `RunResult`/`RunHistory`) and determinism (`Cassette*`/`TrajectoryRecorder` → `ReplaySession` adapters).
+
 ---
 
 ## 7. The core / agents boundary
@@ -251,6 +254,8 @@ Tracked in Linear project **"pirn-agents: OOP/SOLID Standards Remediation"** (PI
 - **Fix:** a tool invocation should *be or produce* a `Knot`. That single change makes tool-call determinism/record-replay fall out of the engine's `RunHistory` for free — collapsing three reinventions (tool execution, `ToolResult`, and the `determinism/` cassette stack) onto core. Tracked in WS9·S4.
 
 **Rule of thumb.** A new agents abstraction is legitimate when it *names an LLM-interaction concept core lacks*. It is a smell when it *re-implements execution, outcomes, schema, persistence, or concurrency* core already provides — model those the way core does (a `NotImplementedError` base whose execution is a `Knot`). Ratifying this boundary is WS0's core deliverable.
+
+**Core seam gap found by ADR WS3 (candidate WS0 addition).** Neither `DataStore` (`backends/base/data_store.py`) nor `RunHistory` (`backends/base/run_history.py`) mixes in `PirnOpaqueValue` (§1.3), so no `Knot.process()` can declare either as a typed parameter — `Knot._build_adapters` calls `TypeAdapter(ann)` unconditionally for every declared, non-`Knot` parameter, which raises `PydanticSchemaGenerationError` for a type with no pydantic-core schema. `pirn_agents.memory.memory_lineage_recall.MemoryLineageRecall` is the first knot anywhere in the tree to want either as an input (to query lineage and read the `DataStore` recall depends on); it works around the gap by typing both `Any` and checking `isinstance` by hand. The correct fix is likely in core: mix `PirnOpaqueValue` into `DataStore` and `RunHistory` the way every other live-resource base (`ConnectorBase`, LLM/embedding providers) already does, which needs the standard seven-package gate since both are core interfaces every backend subclasses.
 
 ---
 

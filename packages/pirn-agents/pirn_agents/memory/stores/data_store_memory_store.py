@@ -26,6 +26,22 @@ notion of nearness. Use a ``VectorMemoryStore`` when you need search.
 
 Backend-neutral by construction: nothing here imports a vendor driver, and the
 injected ``DataStore`` owns whatever lazy import it needs.
+
+**Deprecation candidate (ADR "agents speaks core" WS3).** Hashing an arbitrary
+logical ``key`` to fabricate a content hash inverts what a ``DataStore`` hash
+means — it stops identifying a value and starts identifying a caller-chosen
+name (see :meth:`content_hash`). A writer knot that instead simply *returns* a
+:class:`~pirn_agents.memory.management.memory_record.MemoryRecord` needs none
+of this: the engine content-addresses the value itself, and
+:class:`~pirn_agents.memory.memory_lineage_recall.MemoryLineageRecall` reads it
+back via ``RunHistory`` lineage. This adapter stays for its current callers —
+:class:`~pirn_agents.sessions.persisted_session_store.PersistedSessionStore`,
+:class:`~pirn_agents.sessions.thread_repository.ThreadRepository`,
+``SemanticMemoryUpsert``, ``CrossSessionProfileUpdater`` — which are keyed by a
+caller-chosen id (a session id, a thread id) rather than by content, so the
+lineage-based path does not fit them as written; migrating those onto
+``RunResult``/``RunHistory`` is ADR WS3's sessions checkbox (deferred this
+cycle — see the WS3 report).
 """
 
 from __future__ import annotations
@@ -35,6 +51,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 from pirn.backends.base.data_store import DataStore
+from pirn.backends.base.value_retention import ValueRetention
 
 from pirn_agents.memory.stores.memory_store import MemoryStore
 
@@ -71,6 +88,19 @@ class DataStoreMemoryStore(MemoryStore):
     def namespace(self) -> str:
         """The prefix folded into every hashed key."""
         return self._namespace
+
+    @property
+    def retention(self) -> ValueRetention:
+        """Delegate to the wrapped ``DataStore``'s declared ceiling.
+
+        This adapter adds no bound of its own — every key it writes is a
+        write straight through to ``data_store`` — so its retention is
+        exactly the backend's. A bounded backend (e.g. the default
+        ``InMemoryDataStore``) evicts entries from underneath this store the
+        same way it would any other value; see the ``KeyError`` translation
+        note on :meth:`retrieve`.
+        """
+        return self._data_store.retention
 
     def content_hash(self, key: str) -> str:
         """Return the backend key a logical ``key`` maps to.

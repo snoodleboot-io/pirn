@@ -4,10 +4,17 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.backends.base.value_retention import ValueRetention
+
 from pirn_agents.memory.stores.memory_store import MemoryStore
 
 
 class TestMemoryStoreInterface(unittest.IsolatedAsyncioTestCase):
+    def test_retention_defaults_unbounded(self) -> None:
+        store = MemoryStore()
+        assert store.retention == ValueRetention()
+        assert not store.retention.is_bounded
+
     async def test_store_raises_not_implemented(self) -> None:
         store = MemoryStore()
         with self.assertRaises(NotImplementedError):

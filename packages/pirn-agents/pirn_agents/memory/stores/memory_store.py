@@ -17,11 +17,39 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from pirn.backends.base.value_retention import ValueRetention
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 
 class MemoryStore(PirnOpaqueValue):
     """Interface every async memory store must satisfy."""
+
+    @property
+    def retention(self) -> ValueRetention:
+        """Declare how many entries this store promises to keep.
+
+        Mirrors :attr:`pirn.backends.base.data_store.DataStore.retention` and
+        :attr:`pirn.backends.base.run_history.RunHistory.retention`: rather
+        than a caller asking what *class* a store is before deciding whether
+        it needs to bound growth itself, the store declares its own ceiling
+        (``None`` — the default here — for a durable, unbounded backend).
+
+        ADR "agents speaks core" WS3 folds ``MemoryEvictor`` +
+        ``MemoryEvictionPolicy`` eviction into this same capability rather
+        than adding a fourth bounding mechanism alongside ``DataStore``,
+        ``RunHistory``, and the context layer's ``EvictionPolicy``: a store
+        backed by a bounded backend overrides this to report that ceiling
+        (:class:`~pirn_agents.memory.stores.data_store_memory_store.DataStoreMemoryStore`
+        does, delegating to its wrapped ``DataStore``). ``MemoryEvictor`` and
+        :class:`~pirn_agents.memory.management.low_value_eviction_policy.LowValueEvictionPolicy`
+        remain the explicit, importance x recency-scored eviction knot for
+        callers who hold a batch of typed
+        :class:`~pirn_agents.memory.management.memory_record.MemoryRecord` and
+        want to select victims themselves; ``retention`` is the store-level
+        declaration for the generic keyed-mapping path, where no such typed
+        batch exists to score.
+        """
+        return ValueRetention()
 
     async def store(self, key: str, value: Mapping[str, Any]) -> None:
         """Persist ``value`` under ``key``."""
