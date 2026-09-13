@@ -5,8 +5,9 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 
 import pytest
+from pirn.exceptions.unhashable_value_error import UnhashableValueError
 
-from pirn_agents.caching.content_address import content_address
+from pirn_agents.caching.content_address import ContentAddress, content_address
 from pirn_agents.caching.in_memory_result_cache import InMemoryResultCache
 
 
@@ -45,10 +46,32 @@ class TestContentAddress:
         with pytest.raises(TypeError, match="_Request"):
             content_address({"obj": _Request("q")})
 
-    def test_returns_hex_sha256(self) -> None:
+    def test_returns_sha256_prefixed_digest(self) -> None:
+        # ADR agents-speaks-core WS2 part 2: content_address now delegates to
+        # pirn.core.hashing.content_hash, whose format is the sha256:-prefixed
+        # form, not the bare 64-hex digest this returned before the migration.
         key = content_address("x")
-        assert len(key) == 64
-        int(key, 16)  # parses as hex
+        assert key.startswith("sha256:")
+        int(key.removeprefix("sha256:"), 16)  # the remainder parses as hex
+
+
+class TestContentAddressDeprecation:
+    """ADR agents-speaks-core WS2 part 2: a one-cycle deprecated wrapper."""
+
+    def test_content_address_warns_deprecated(self) -> None:
+        with pytest.warns(DeprecationWarning, match="content_hash"):
+            content_address("x")
+
+    def test_content_address_digest_warns_deprecated(self) -> None:
+        with pytest.warns(DeprecationWarning, match="content_hash"):
+            ContentAddress.digest("x")
+
+    def test_raise_is_now_unhashable_value_error(self) -> None:
+        # Still a TypeError (existing `except TypeError` callers keep working)
+        # and still names the offending type, but is now specifically the
+        # core exception the strict-mode migration introduced.
+        with pytest.raises(UnhashableValueError, match="_Request"):
+            content_address({"obj": _Request("q")})
 
 
 class TestContentAddressDoesNotCollide:

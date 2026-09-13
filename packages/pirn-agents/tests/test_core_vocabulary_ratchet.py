@@ -72,18 +72,23 @@ EXCEPTION_ROOTS_WITHOUT_PIRN_ERROR = frozenset(
 
 # --- (b) modules importing CanonicalJson, frozen ----------------------------
 #
-# ADR agents-speaks-core WS2 deferral (see the module docstring on
-# `pirn_agents/serialization/canonical_json.py` and the WS2 report): the
-# actual cut-over to `pirn.core.hashing.content_hash` is not made here
-# because three of these seven callers persist/transmit the bare-hex digest
-# as a durable key with no dual-read migration in place. `caching/content_address.py`
-# is WS2's own lane and is *also* not migrated — see that module's docstring
-# for the separate, correctness-motivated reason (PIR-785).
+# ADR agents-speaks-core WS2 part 2 sanctioned the digest cutover: the
+# `sha256:` prefix core emits IS the format version.
+# `builder/agent_knot_id_factory.py` now calls `pirn.core.hashing.content_hash`
+# directly and is off this list; `caching/content_address.py` migrated too
+# (part 2 added `content_hash`'s `strict=True` mode, which closes the PIR-785
+# gap that blocked it in part 1). `resilience/idempotency_key_assigner.py`
+# ALSO switched its `assign()` derivation to `content_hash`, but stays on this
+# list: it still imports `CanonicalJson` for `legacy_key()`, the one-cycle
+# bridge that reproduces a pre-upgrade key for operators reconciling a
+# backend's dedupe table across the drain window (see its module docstring
+# and "Idempotency keys" in `docs/domains/agents.md`) — remove it once
+# `legacy_key()` itself is retired. `sessions/run_checkpoint.py` is WS3 part
+# 2's (versioned checkpoint migration); `agent/parallel_tool_executor.py` and
+# `evaluation/trajectory_call_key.py` are their own lanes' calls to make.
 CANONICAL_JSON_IMPORTERS = frozenset(
     {
         "agent/parallel_tool_executor.py",
-        "builder/agent_knot_id_factory.py",
-        "caching/content_address.py",
         "determinism/content_digest.py",
         "evaluation/trajectory_call_key.py",
         "resilience/idempotency_key_assigner.py",
