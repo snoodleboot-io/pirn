@@ -51,11 +51,15 @@ from pirn_agents.llm.retry_policy import RetryPolicy
 ROOT = "packages/pirn-agents/pirn_agents/llm/base_llm_provider.py::BaseLLMProvider"
 
 #: Classes that define ``content_identity`` without being a concrete opt-in.
-#: ``BaseLLMProvider`` computes the shared config and cannot be instantiated; the
-#: test doubles exist to exercise the re-declaration rule itself.
+#: The test doubles exist to exercise the re-declaration rule itself.
+#:
+#: ``LLMProviderIdentityMixin`` (the actual AST-level home of
+#: ``content_identity`` since the PIR-856 SRP split) does not need an entry
+#: here: the workspace scan only walks *downward* from ``BaseLLMProvider``
+#: (subclasses), and the mixin is one of its bases, not a subclass, so the
+#: scan never visits it.
 EXEMPT = frozenset(
     {
-        ROOT,
         "packages/pirn-agents/tests/llm/test_llm_provider_content_identity.py"
         "::_RedeclaredOpenAICompatibleProvider",
         "packages/pirn-agents/tests/llm/test_llm_provider_content_identity.py::Local",
@@ -65,6 +69,10 @@ EXEMPT = frozenset(
 #: Subclasses that do not re-declare ``content_identity`` and are therefore
 #: identity-keyed on purpose, with the reason.
 INHERITS_WITHOUT_REDECLARING = {
+    ROOT: (
+        "content_identity lives on LLMProviderIdentityMixin (PIR-856 SRP split); "
+        "BaseLLMProvider computes the shared config and cannot be instantiated directly"
+    ),
     "packages/pirn-agents/pirn_agents/llm/http_structured_output_provider.py"
     "::HttpStructuredOutputProvider": "abstract base; its hooks raise NotImplementedError",
     "packages/pirn-agents/tests/llm/test_base_llm_provider.py::StubLLMProvider": "test double",
