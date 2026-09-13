@@ -72,6 +72,7 @@ from pirn.engine.dispatchers.local_dispatcher import LocalDispatcher
 from pirn.engine.scheduling.dependency_tracker import DependencyTracker
 from pirn.engine.scheduling.ready_queue import ReadyQueue
 from pirn.engine.shed.shed import Shed
+from pirn.exceptions.unbound_parameter_error import UnboundParameterError
 from pirn.managers.knot_state import KnotState
 from pirn.managers.rebindable_exception import RebindableError
 from pirn.recording.invocation_identity import InvocationIdentity
@@ -729,7 +730,7 @@ class Engine:
                 elif knot.has_default:
                     bound = knot.default
                 else:
-                    raise RuntimeError(
+                    raise UnboundParameterError(
                         f"parameter {knot.name!r} has no value supplied and no default"
                     )
                 shed.knots[knot_id] = knot.bound_copy(bound)

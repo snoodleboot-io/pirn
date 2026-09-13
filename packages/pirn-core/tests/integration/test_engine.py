@@ -11,6 +11,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
+from pirn.exceptions.unbound_parameter_error import UnboundParameterError
 from pirn.nodes.aggregator import Aggregator
 from pirn.tapestry import Tapestry
 
@@ -62,7 +63,7 @@ async def test_unbound_parameter_raises():
     with Tapestry() as t:
         p = Parameter("x", int)
         double(x=p, _config=KnotConfig(id="d"))
-    with pytest.raises(RuntimeError, match="parameter"):
+    with pytest.raises(UnboundParameterError, match="parameter"):
         await t.run(RunRequest())  # no value, no default
 
 
