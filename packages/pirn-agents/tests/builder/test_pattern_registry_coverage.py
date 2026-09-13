@@ -55,6 +55,8 @@ _EXPECTED_EXCLUSIONS = frozenset(
         # but not a standalone pattern either: its ``already_terminated``
         # constructor parameter is state only a driving loop can supply.
         "pirn_agents.specializations.react.react_step_executor.ReActStepExecutor",
+        # Private: the loop body IterativeRetriever drives internally (PIR-856).
+        "pirn_agents.specializations.rag.iterative_retriever._IterativeRetrievalLoop",
     }
 )
 
@@ -151,11 +153,16 @@ def test_the_excluded_bases_are_bases_and_the_excluded_private_is_private() -> N
     for base in (AgentPipeline, AgentLoopPipeline):
         assert _qualified(base) in _EXPECTED_EXCLUSIONS
         assert base.__module__.startswith("pirn_agents.specializations.base")
-    private = [name for name in _EXPECTED_EXCLUSIONS if name.rsplit(".", 1)[1].startswith("_")]
-    assert private == [
-        "pirn_agents.specializations.evaluator_optimizer._evaluator_optimizer_loop"
-        "._EvaluatorOptimizerLoop"
-    ]
+    private = sorted(
+        name for name in _EXPECTED_EXCLUSIONS if name.rsplit(".", 1)[1].startswith("_")
+    )
+    assert private == sorted(
+        [
+            "pirn_agents.specializations.evaluator_optimizer._evaluator_optimizer_loop"
+            "._EvaluatorOptimizerLoop",
+            "pirn_agents.specializations.rag.iterative_retriever._IterativeRetrievalLoop",
+        ]
+    )
     # Every exclusion falls into exactly one justified category: base,
     # private loop body, or named iteration step.
     bases = {_qualified(AgentPipeline), _qualified(AgentLoopPipeline)}

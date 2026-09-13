@@ -182,6 +182,29 @@ _PATTERNS: tuple[PatternDescriptor, ...] = (
         f"{_SPEC}.rag.indexing.raptor_tree_builder:RaptorTreeBuilder",
         "text",
     ),
+    # --- retrieval components (WS7/PIR-856: Map+Reduce fan-out rewrite)
+    PatternDescriptor("reranker", f"{_SPEC}.rag.reranker:Reranker", "query"),
+    PatternDescriptor(
+        "contextual_compressor",
+        f"{_SPEC}.rag.contextual_compressor:ContextualCompressor",
+        "query",
+    ),
+    PatternDescriptor(
+        "contextual_chunk_enricher",
+        f"{_SPEC}.rag.contextual_chunk_enricher:ContextualChunkEnricher",
+        "documents",
+    ),
+    PatternDescriptor(
+        "fusion_retriever", f"{_SPEC}.rag.fusion_retriever:FusionRetriever", "queries"
+    ),
+    PatternDescriptor(
+        "sub_question_retriever",
+        f"{_SPEC}.rag.sub_question_retriever:SubQuestionRetriever",
+        "sub_questions",
+    ),
+    PatternDescriptor(
+        "iterative_retriever", f"{_SPEC}.rag.iterative_retriever:IterativeRetriever", "query"
+    ),
     # --- reasoning loops
     PatternDescriptor("react", f"{_SPEC}.react.react_loop:ReActLoop", "messages", _MESSAGES),
     PatternDescriptor(
