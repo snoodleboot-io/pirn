@@ -256,7 +256,7 @@ class TestPostgresHistoryRecordAndQuery(unittest.IsolatedAsyncioTestCase):
 
         latest = await history.query_latest_lineage_by_knot_id("k-keyed")
 
-        self.assertIsNotNone(latest)
+        assert latest is not None
         self.assertEqual(latest.output_hash, "sha256:v2")
 
     async def test_query_latest_lineage_by_knot_id_returns_none_when_absent(self) -> None:

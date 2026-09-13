@@ -80,6 +80,11 @@ class TestRunHistoryDefaultLatestLineage(unittest.IsolatedAsyncioTestCase):
             dispatcher="LocalDispatcher",
             started_at=finished_at,
             finished_at=finished_at,
+            # pyright does not resolve KnotLineage's Field(None, ...)
+            # positional-None defaults as optional -- pass explicitly (same
+            # workaround used across the backend history test suites).
+            error_record_id=None,
+            skip_reason=None,
         )
 
     async def test_returns_the_row_with_the_greatest_finished_at(self) -> None:
