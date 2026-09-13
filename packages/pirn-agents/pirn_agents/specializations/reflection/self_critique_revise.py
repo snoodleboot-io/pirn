@@ -83,18 +83,7 @@ class SelfCritiqueRevise(Knot):
 
         Returns:
             An AgentResponse containing the final revised answer.
-
-        Raises:
-            TypeError: If prompt is not a string or llm is not an LLMProvider.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"SelfCritiqueRevise: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
-        if not isinstance(prompt, str):
-            raise TypeError(
-                f"SelfCritiqueRevise: prompt must be a string, got {type(prompt).__name__}"
-            )
         initial_raw = await llm.chat(
             messages=[
                 {"role": "system", "content": type(self)._generation_system.resolve()},

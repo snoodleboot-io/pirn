@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
@@ -66,24 +67,30 @@ class TestPlanRevisorProcess(unittest.IsolatedAsyncioTestCase):
         llm = StubLLMProvider(["1. step"])
         k = _make_knot(llm)
         plan = Plan(steps=("a",))
-        with self.assertRaises(TypeError):
-            await k.process(
-                original_plan=plan,
-                completed_results="done",
-                failure_reason="failed",
-                llm=42,  # type: ignore[arg-type]
-            )
+        result = await k(
+            {
+                "original_plan": plan,
+                "completed_results": "done",
+                "failure_reason": "failed",
+                "llm": 42,
+            }
+        )
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_rejects_non_plan(self) -> None:
         llm = StubLLMProvider(["1. step"])
         k = _make_knot(llm)
-        with self.assertRaises(TypeError):
-            await k.process(
-                original_plan="not-a-plan",  # type: ignore[arg-type]
-                completed_results="done",
-                failure_reason="failed",
-                llm=llm,
-            )
+        result = await k(
+            {
+                "original_plan": "not-a-plan",
+                "completed_results": "done",
+                "failure_reason": "failed",
+                "llm": llm,
+            }
+        )
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_tapestry_run_integration(self) -> None:
         llm = StubLLMProvider(["1. revised-step-one\n2. revised-step-two"])

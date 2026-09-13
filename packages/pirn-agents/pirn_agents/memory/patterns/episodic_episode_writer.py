@@ -75,10 +75,6 @@ class EpisodicEpisodeWriter(MemoryWriterBase):
             TypeError: If store is not a MemoryStore or any message element is not an AgentMessage.
             ValueError: If session_id is not a non-empty string.
         """
-        if not isinstance(store, MemoryStore):
-            raise TypeError(
-                f"EpisodicEpisodeWriter: store must be a MemoryStore, got {type(store).__name__}"
-            )
         if not isinstance(session_id, str) or not session_id:
             raise ValueError(
                 f"EpisodicEpisodeWriter: session_id must be a non-empty string, got {session_id!r}"

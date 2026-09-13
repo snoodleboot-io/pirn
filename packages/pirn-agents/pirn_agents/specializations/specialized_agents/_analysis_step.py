@@ -79,15 +79,7 @@ class _AnalysisStep(Knot):
 
         Returns:
             An AgentResponse whose content combines the SQL result block with the LLM analysis.
-
-        Raises:
-            TypeError: If sql_response is not an AgentResponse instance.
         """
-        if not isinstance(sql_response, AgentResponse):
-            raise TypeError(
-                "DataAnalystAgent: sql_response must be an AgentResponse, "
-                f"got {type(sql_response).__name__}"
-            )
         chat_messages = [
             {
                 "role": "system",

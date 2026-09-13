@@ -85,8 +85,6 @@ class ToolSelector(Knot):
                 message is not a string.
             ValueError: If tools is empty.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(f"ToolSelector: llm must be an LLMProvider, got {type(llm).__name__}")
         tool_list = list(tools)
         for index, tool in enumerate(tool_list):
             if not isinstance(tool, Tool):
@@ -95,8 +93,6 @@ class ToolSelector(Knot):
                 )
         if not tool_list:
             raise ValueError("ToolSelector: tools must not be empty")
-        if not isinstance(message, str):
-            raise TypeError(f"ToolSelector: message must be a string, got {type(message).__name__}")
         tool_descriptions = "\n".join(f"- {tool.name}: {tool.description}" for tool in tool_list)
         available_names = ", ".join(tool.name for tool in tool_list)
         prompt = type(self)._selection_prompt.render(

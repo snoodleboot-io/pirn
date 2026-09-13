@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
@@ -13,8 +14,9 @@ from tests.specializations.conftest import StubLLMProvider
 
 def _generator() -> SpeculativeDraftGenerator:
     with Tapestry():
-        knot = SpeculativeDraftGenerator.__new__(SpeculativeDraftGenerator)
-        object.__setattr__(knot, "_config", KnotConfig(id="draft"))
+        knot = SpeculativeDraftGenerator(
+            query="q", llm=StubLLMProvider(["x"]), _config=KnotConfig(id="draft")
+        )
     return knot
 
 
@@ -29,5 +31,6 @@ class TestSpeculativeDraftGenerator(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_string_query(self) -> None:
         knot = _generator()
-        with self.assertRaisesRegex(TypeError, "query must be a string"):
-            await knot.process(query=1, llm=StubLLMProvider(["x"]))  # type: ignore[arg-type]
+        result = await knot({"query": 1, "llm": StubLLMProvider(["x"])})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"

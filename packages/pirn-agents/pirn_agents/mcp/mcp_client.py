@@ -139,7 +139,7 @@ class McpClient(PirnOpaqueValue):
     async def list_tools(self) -> list[dict[str, Any]]:
         """Return the server's tool descriptors (``name``/``description``/schema)."""
         result = await self._request("tools/list", {})
-        return _as_dict_list(result.get("tools"))
+        return McpClient._as_dict_list(result.get("tools"))
 
     async def call_tool(self, name: str, arguments: Mapping[str, Any]) -> Mapping[str, Any]:
         """Invoke server tool ``name`` with ``arguments`` and return the raw result.
@@ -167,7 +167,7 @@ class McpClient(PirnOpaqueValue):
     async def list_resources(self) -> list[dict[str, Any]]:
         """Return the server's resource descriptors (``uri``/``name``/...)."""
         result = await self._request("resources/list", {})
-        return _as_dict_list(result.get("resources"))
+        return McpClient._as_dict_list(result.get("resources"))
 
     async def read_resource(self, uri: str) -> Mapping[str, Any]:
         """Read resource ``uri`` and return its raw ``contents`` mapping."""
@@ -178,7 +178,7 @@ class McpClient(PirnOpaqueValue):
     async def list_prompts(self) -> list[dict[str, Any]]:
         """Return the server's prompt descriptors (``name``/``arguments``/...)."""
         result = await self._request("prompts/list", {})
-        return _as_dict_list(result.get("prompts"))
+        return McpClient._as_dict_list(result.get("prompts"))
 
     async def get_prompt(
         self, name: str, arguments: Mapping[str, Any] | None = None
@@ -237,9 +237,9 @@ class McpClient(PirnOpaqueValue):
         """Send a fire-and-forget JSON-RPC notification (no ``id``, no reply)."""
         await self._transport.send({"jsonrpc": "2.0", "method": method, "params": dict(params)})
 
-
-def _as_dict_list(value: Any) -> list[dict[str, Any]]:
-    """Coerce a JSON-RPC list field into a list of plain dicts, dropping non-mappings."""
-    if not isinstance(value, list):
-        return []
-    return [dict(item) for item in value if isinstance(item, Mapping)]
+    @staticmethod
+    def _as_dict_list(value: Any) -> list[dict[str, Any]]:
+        """Coerce a JSON-RPC list field into a list of plain dicts, dropping non-mappings."""
+        if not isinstance(value, list):
+            return []
+        return [dict(item) for item in value if isinstance(item, Mapping)]

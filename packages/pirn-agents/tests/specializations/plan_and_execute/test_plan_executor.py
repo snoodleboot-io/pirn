@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
@@ -57,14 +58,16 @@ class TestPlanExecutorProcess(unittest.IsolatedAsyncioTestCase):
         llm = StubLLMProvider(["r"])
         k = _make_knot(llm)
         plan = Plan(steps=("a",))
-        with self.assertRaises(TypeError):
-            await k.process(plan=plan, llm="bad")  # type: ignore[arg-type]
+        result = await k({"plan": plan, "llm": "bad"})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_rejects_non_plan(self) -> None:
         llm = StubLLMProvider(["r"])
         k = _make_knot(llm)
-        with self.assertRaises(TypeError):
-            await k.process(plan="not-a-plan", llm=llm)  # type: ignore[arg-type]
+        result = await k({"plan": "not-a-plan", "llm": llm})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_tapestry_run_integration(self) -> None:
         llm = StubLLMProvider(["result-one", "result-two", "result-three"])

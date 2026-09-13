@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
@@ -49,8 +50,9 @@ class TestSemanticFactExtractorProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_llm_provider(self) -> None:
         k = _make_knot()
-        with self.assertRaises(TypeError):
-            await k.process(messages=[], llm="bad", fact_extraction_prompt="Extract:")  # type: ignore[arg-type]
+        result = await k({"messages": [], "llm": "bad", "fact_extraction_prompt": "Extract:"})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_rejects_empty_fact_extraction_prompt(self) -> None:
         k = _make_knot()

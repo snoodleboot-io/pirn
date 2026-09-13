@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
@@ -103,14 +104,16 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_process_rejects_non_llm_provider(self) -> None:
         response = AgentResponse(content="hello")
         with Tapestry():
-            k = ConstitutionalFilter.__new__(ConstitutionalFilter)
-            object.__setattr__(k, "_config", KnotConfig(id="x"))
-        with self.assertRaises(TypeError):
-            await k.process(
-                response=response,
+            r = good_response(_config=KnotConfig(id="r"))
+            k = ConstitutionalFilter(
+                response=r,
                 principles=("be safe",),
-                llm="not-an-llm",  # type: ignore[arg-type]
+                llm=StubLLMProvider(["x"]),
+                _config=KnotConfig(id="x"),
             )
+        result = await k({"response": response, "principles": ("be safe",), "llm": "not-an-llm"})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_process_rejects_zero_max_revisions(self) -> None:
         response = AgentResponse(content="hello")

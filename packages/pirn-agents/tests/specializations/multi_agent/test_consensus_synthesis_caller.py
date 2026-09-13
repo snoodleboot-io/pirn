@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -56,10 +57,11 @@ class TestConsensusSynthesisCallerProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_llm_provider(self) -> None:
         k = _make_knot()
-        with self.assertRaises(TypeError):
-            await k.process(
-                responses={"a": AgentResponse(content="x", finish_reason="stop")}, llm="bad"
-            )  # type: ignore[arg-type]
+        result = await k(
+            {"responses": {"a": AgentResponse(content="x", finish_reason="stop")}, "llm": "bad"}
+        )
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_tapestry_run_integration(self) -> None:
         llm = StubLLMProvider(["the synthesis"])

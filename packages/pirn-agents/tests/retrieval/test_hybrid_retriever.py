@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -17,8 +18,13 @@ from tests.vector_stores.conformance import FixedEmbedder
 
 def _make_retriever() -> HybridRetriever:
     with Tapestry():
-        knot = HybridRetriever.__new__(HybridRetriever)
-        object.__setattr__(knot, "_config", KnotConfig(id="hybrid"))
+        knot = HybridRetriever(
+            query="q",
+            store=InMemoryVectorStore(),
+            lexical=_make_bm25(),
+            embedder=FixedEmbedder([1.0, 0.0]),
+            _config=KnotConfig(id="hybrid"),
+        )
     return knot
 
 
@@ -77,13 +83,16 @@ class TestHybridRetriever(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_bad_types(self) -> None:
         retriever = _make_retriever()
-        with self.assertRaisesRegex(TypeError, "store must be a VectorMemoryStore"):
-            await retriever.process(
-                query="q",
-                store="not-a-store",  # type: ignore[arg-type]
-                lexical=_make_bm25(),
-                embedder=FixedEmbedder([1.0, 0.0]),
-            )
+        result = await retriever(
+            {
+                "query": "q",
+                "store": "not-a-store",
+                "lexical": _make_bm25(),
+                "embedder": FixedEmbedder([1.0, 0.0]),
+            }
+        )
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_rejects_non_positive_top_k(self) -> None:
         store = await _make_store()

@@ -79,10 +79,6 @@ class CapabilityRouter(Router):
             TypeError: If task is not a string or llm is not an LLMProvider.
             ValueError: If capabilities is empty or contains invalid keys.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"CapabilityRouter: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
         if not isinstance(capabilities, Mapping) or not capabilities:
             raise ValueError("CapabilityRouter: capabilities must be a non-empty mapping")
         for name, desc in capabilities.items():
@@ -95,8 +91,6 @@ class CapabilityRouter(Router):
                     f"CapabilityRouter: capabilities[{name!r}] must be a "
                     f"string, got {type(desc).__name__}"
                 )
-        if not isinstance(task, str):
-            raise TypeError(f"CapabilityRouter: task must be a string, got {type(task).__name__}")
         agent_lines = "\n".join(f"- {name}: {desc}" for name, desc in capabilities.items())
         prompt = type(self)._routing_prompt.render(
             {"agents": agent_lines, "task": task},

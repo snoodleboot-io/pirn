@@ -64,14 +64,8 @@ class ResponseFormatter(Knot):
             The formatted string representation of the response.
 
         Raises:
-            TypeError: If response is not an AgentResponse instance.
             ValueError: If format is not a supported format string.
         """
-        if not isinstance(response, AgentResponse):
-            raise TypeError(
-                "ResponseFormatter: response must be an AgentResponse, "
-                f"got {type(response).__name__}"
-            )
         if format not in type(self).supported_formats:
             raise ValueError(
                 "ResponseFormatter: format must be one of "

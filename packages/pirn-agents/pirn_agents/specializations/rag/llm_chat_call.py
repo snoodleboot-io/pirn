@@ -72,11 +72,8 @@ class LLMChatCall(Knot):
             The extracted text content from the LLM response.
 
         Raises:
-            TypeError: If llm is not an LLMProvider or prompt is not a string.
             ValueError: If max_tokens is not a positive int or temperature is not a number.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(f"LLMChatCall: llm must be an LLMProvider, got {type(llm).__name__}")
         if max_tokens is not None and (not isinstance(max_tokens, int) or max_tokens <= 0):
             raise ValueError(
                 f"LLMChatCall: max_tokens must be a positive int or None, got {max_tokens!r}"
@@ -85,8 +82,6 @@ class LLMChatCall(Knot):
             raise ValueError(
                 f"LLMChatCall: temperature must be a number or None, got {temperature!r}"
             )
-        if not isinstance(prompt, str):
-            raise TypeError(f"LLMChatCall: prompt must be a string, got {type(prompt).__name__}")
         actual_temperature = float(temperature) if temperature is not None else None
         chat_messages: list[dict[str, Any]] = []
         if system:

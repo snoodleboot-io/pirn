@@ -80,10 +80,6 @@ class DebateJudge(Knot):
         Raises:
             ValueError: If final_round is empty.
         """
-        if not isinstance(judge_llm, LLMProvider):
-            raise TypeError(
-                f"DebateJudge: judge_llm must be an LLMProvider, got {type(judge_llm).__name__}"
-            )
         responses = tuple(final_round)
         if not responses:
             raise ValueError("DebateJudge: final_round must contain at least one response")

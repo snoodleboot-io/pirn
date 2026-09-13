@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -48,8 +49,9 @@ class TestPromptChainPipeline(unittest.IsolatedAsyncioTestCase):
             await knot.process(task="q", llm=llm, steps=())
 
     async def test_rejects_non_llm(self) -> None:
+        llm = StubLLMProvider(["x"])
         with Tapestry():
-            knot = PromptChainPipeline.__new__(PromptChainPipeline)
-            object.__setattr__(knot, "_config", KnotConfig(id="pc"))
-        with self.assertRaises(TypeError):
-            await knot.process(task="q", llm="bad", steps=("a",))  # type: ignore[arg-type]
+            knot = PromptChainPipeline(task="q", llm=llm, steps=("a",), _config=KnotConfig(id="pc"))
+        result = await knot({"task": "q", "llm": "bad", "steps": ("a",)})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"

@@ -6,6 +6,7 @@ import unittest
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -95,10 +96,12 @@ class TestReflexionPipeline(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_memory_store(self) -> None:
         llm = StubLLMProvider(["a", "PASS"])
         with Tapestry():
-            knot = ReflexionPipeline.__new__(ReflexionPipeline)
-            object.__setattr__(knot, "_config", KnotConfig(id="rx"))
-        with self.assertRaises(TypeError):
-            await knot.process(task="q", llm=llm, memory="bad")  # type: ignore[arg-type]
+            knot = ReflexionPipeline(
+                task="q", llm=llm, memory=DictMemoryStore(), _config=KnotConfig(id="rx")
+            )
+        result = await knot({"task": "q", "llm": llm, "memory": "bad"})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_rejects_non_positive_iterations(self) -> None:
         llm = StubLLMProvider(["a", "PASS"])

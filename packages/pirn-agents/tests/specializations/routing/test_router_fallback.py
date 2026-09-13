@@ -6,6 +6,7 @@ import unittest
 from collections.abc import Mapping
 from typing import Any
 
+import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -44,13 +45,17 @@ class TestCandidateRouter(unittest.IsolatedAsyncioTestCase):
         assert [c.name for c in ordered] == ["c", "b", "a"]
 
     async def test_rejects_non_mapping_confidences(self) -> None:
+        # Not converted to the await-knot(...)/ValidationError shape: this
+        # knot is constructed with validate_io=False in production
+        # (RouterFallbackPipeline), so process() carries its own isinstance
+        # guard as the only real protection.
         with Tapestry():
             router = CandidateRouter(
                 candidates=_cands(),
                 confidences={},
                 _config=KnotConfig(id="r", validate_io=False),
             )
-        with self.assertRaises(TypeError):
+        with pytest.raises(TypeError, match="confidences"):
             await router.process(candidates=_cands(), confidences="bad")  # type: ignore[arg-type]
 
 

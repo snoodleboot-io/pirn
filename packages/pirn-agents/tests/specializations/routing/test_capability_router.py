@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
@@ -68,12 +69,15 @@ class TestCapabilityRouterProcess(unittest.IsolatedAsyncioTestCase):
                 capabilities={"data_agent": "data analysis"},
                 _config=KnotConfig(id="capr"),
             )
-        with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
-            await knot.process(
-                task="analyse data",
-                llm="not-a-provider",  # type: ignore[arg-type]
-                capabilities={"data_agent": "data analysis"},
-            )
+        result = await knot(
+            {
+                "task": "analyse data",
+                "llm": "not-a-provider",
+                "capabilities": {"data_agent": "data analysis"},
+            }
+        )
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_rejects_empty_capabilities(self) -> None:
         llm = StubLLMProvider(["agent_a"])
@@ -96,9 +100,6 @@ class TestCapabilityRouterProcess(unittest.IsolatedAsyncioTestCase):
                 capabilities={"alpha": "does stuff"},
                 _config=KnotConfig(id="capr"),
             )
-        with self.assertRaises(TypeError):
-            await knot.process(
-                task=123,  # type: ignore[arg-type]
-                llm=llm,
-                capabilities={"alpha": "does stuff"},
-            )
+        result = await knot({"task": 123, "llm": llm, "capabilities": {"alpha": "does stuff"}})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"

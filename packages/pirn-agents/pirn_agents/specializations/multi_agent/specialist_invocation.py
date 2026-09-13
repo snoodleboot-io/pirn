@@ -2,7 +2,7 @@
 
 A single-specialist knot: it invokes exactly one specialist (a
 :class:`~pirn.nodes.sub_tapestry.SubTapestry`) through the engine entry point
-(:func:`invoke_specialist`, i.e. the specialist's ``__call__`` — never its
+(:meth:`_SpecialistInvoker.invoke_specialist`, i.e. the specialist's ``__call__`` — never its
 ``process()``; see PIR-769) and returns that specialist's answer normalised to
 an :class:`AgentResponse`.
 
@@ -39,7 +39,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.specializations.multi_agent._specialist_invoker import (
-    invoke_specialist,
+    _SpecialistInvoker,
 )
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
@@ -74,7 +74,7 @@ class SpecialistInvocation(Knot):
             wrapped in one with ``finish_reason="stop"``, exactly as the old
             fan-out sites normalised their gathered results.
         """
-        raw = await invoke_specialist(self._mutable_specialist, task=task)
+        raw = await _SpecialistInvoker.invoke_specialist(self._mutable_specialist, task=task)
         if isinstance(raw, AgentResponse):
             return raw
         return AgentResponse(content=str(raw), finish_reason="stop")

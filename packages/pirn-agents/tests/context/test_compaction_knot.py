@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.tapestry import Tapestry
@@ -48,8 +49,9 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_strategy(self) -> None:
         k = _make_knot()
-        with self.assertRaisesRegex(TypeError, "strategy"):
-            await k.process(strategy="nope", request=_request())  # type: ignore[arg-type]
+        result = await k({"strategy": "nope", "request": _request()})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_rejects_non_request(self) -> None:
         k = _make_knot()

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
@@ -67,8 +68,9 @@ class TestSessionSummarizerProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_llm_provider(self) -> None:
         k = _make_knot()
-        with self.assertRaises(TypeError):
-            await k.process(messages=[], llm="bad", token_threshold=1000)  # type: ignore[arg-type]
+        result = await k({"messages": [], "llm": "bad", "token_threshold": 1000})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_rejects_zero_token_threshold(self) -> None:
         k = _make_knot()

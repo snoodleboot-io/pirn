@@ -61,7 +61,7 @@ class McpResourceAdapter:
                 f"McpResourceAdapter.read_text: uri must be a non-empty string, got {uri!r}"
             )
         raw = await self._client.read_resource(uri)
-        return _resource_to_text(uri, raw)
+        return McpResourceAdapter._resource_to_text(uri, raw)
 
     async def as_context_messages(
         self,
@@ -137,21 +137,21 @@ class McpResourceAdapter:
         descriptors = await self.list_resources()
         return [descriptor["uri"] for descriptor in descriptors if descriptor.get("uri")]
 
+    @staticmethod
+    def _resource_to_text(uri: str, raw: Mapping[str, Any]) -> str:
+        """Extract and join the text blocks of an MCP ``resources/read`` payload.
 
-def _resource_to_text(uri: str, raw: Mapping[str, Any]) -> str:
-    """Extract and join the text blocks of an MCP ``resources/read`` payload.
-
-    Binary (``blob``) entries are skipped — they are not injectable as text — but
-    a structurally malformed payload raises :class:`McpError`.
-    """
-    contents = raw.get("contents")
-    if not isinstance(contents, list):
-        raise McpError(f"MCP resource {uri!r} returned malformed contents: {contents!r}")
-    parts: list[str] = []
-    for entry in contents:
-        if not isinstance(entry, Mapping):
-            raise McpError(f"MCP resource {uri!r} has a non-mapping content entry: {entry!r}")
-        text = entry.get("text")
-        if isinstance(text, str):
-            parts.append(text)
-    return "\n".join(parts)
+        Binary (``blob``) entries are skipped — they are not injectable as
+        text — but a structurally malformed payload raises :class:`McpError`.
+        """
+        contents = raw.get("contents")
+        if not isinstance(contents, list):
+            raise McpError(f"MCP resource {uri!r} returned malformed contents: {contents!r}")
+        parts: list[str] = []
+        for entry in contents:
+            if not isinstance(entry, Mapping):
+                raise McpError(f"MCP resource {uri!r} has a non-mapping content entry: {entry!r}")
+            text = entry.get("text")
+            if isinstance(text, str):
+                parts.append(text)
+        return "\n".join(parts)

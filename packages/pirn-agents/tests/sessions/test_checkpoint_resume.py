@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
@@ -57,8 +58,9 @@ class TestRunCheckpointer:
         assert (await store.load("s1")) == second
 
     async def test_rejects_non_store(self) -> None:
-        with pytest.raises(TypeError):
-            await _checkpointer().process(store="bad", state=make_run_state())  # type: ignore[arg-type]
+        result = await _checkpointer()({"store": "bad", "state": make_run_state()})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
 
 class TestRunResumer:

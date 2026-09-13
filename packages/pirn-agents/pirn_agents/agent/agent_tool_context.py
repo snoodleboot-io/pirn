@@ -18,7 +18,7 @@ sibling invocation reads the parent context, not a mutated one.
 from __future__ import annotations
 
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import AbstractContextManager, contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 
@@ -102,6 +102,26 @@ class AgentToolContext:
             provider=self.provider if provider is None else provider,
         )
 
+    @staticmethod
+    def current() -> AgentToolContext | None:
+        """Return the active :class:`AgentToolContext`, or ``None`` at the root."""
+        return _current_agent_tool_context.get()
+
+    @staticmethod
+    @contextmanager
+    def bind(context: AgentToolContext) -> Iterator[None]:
+        """Bind ``context`` as the active context for the duration of the block.
+
+        Restores the prior context on exit so nesting state never leaks past
+        the invocation that established it, even when an exception unwinds
+        the stack.
+        """
+        token = _current_agent_tool_context.set(context)
+        try:
+            yield
+        finally:
+            _current_agent_tool_context.reset(token)
+
 
 _current_agent_tool_context: ContextVar[AgentToolContext | None] = ContextVar(
     "_current_agent_tool_context", default=None
@@ -109,19 +129,18 @@ _current_agent_tool_context: ContextVar[AgentToolContext | None] = ContextVar(
 
 
 def current_agent_tool_context() -> AgentToolContext | None:
-    """Return the active :class:`AgentToolContext`, or ``None`` at the root."""
-    return _current_agent_tool_context.get()
+    """Return the active :class:`AgentToolContext`, or ``None`` at the root.
+
+    Thin wrapper kept for the documented public import path (see
+    ``tests/test_ws5_s1_import_surface.py``); see :meth:`AgentToolContext.current`.
+    """
+    return AgentToolContext.current()
 
 
-@contextmanager
-def bind_agent_tool_context(context: AgentToolContext) -> Iterator[None]:
+def bind_agent_tool_context(context: AgentToolContext) -> AbstractContextManager[None]:
     """Bind ``context`` as the active context for the duration of the block.
 
-    Restores the prior context on exit so nesting state never leaks past the
-    invocation that established it, even when an exception unwinds the stack.
+    Thin wrapper kept for the documented public import path (see
+    ``tests/test_ws5_s1_import_surface.py``); see :meth:`AgentToolContext.bind`.
     """
-    token = _current_agent_tool_context.set(context)
-    try:
-        yield
-    finally:
-        _current_agent_tool_context.reset(token)
+    return AgentToolContext.bind(context)

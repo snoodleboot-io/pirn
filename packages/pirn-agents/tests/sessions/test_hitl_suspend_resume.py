@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
@@ -73,12 +74,11 @@ class TestSuspend:
         assert await store.load("sess-1") is None
 
     async def test_rejects_non_response(self) -> None:
-        with pytest.raises(TypeError):
-            await _suspender().process(
-                response="bad",  # type: ignore[arg-type]
-                store=InMemorySessionStore(),
-                state=make_run_state(),
-            )
+        result = await _suspender()(
+            {"response": "bad", "store": InMemorySessionStore(), "state": make_run_state()}
+        )
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
 
 class TestResume:

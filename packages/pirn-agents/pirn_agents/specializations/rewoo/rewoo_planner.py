@@ -79,20 +79,7 @@ class ReWooPlanner(Knot):
 
         Returns:
             An ordered tuple of :class:`ToolCall`s, one per parsed plan line.
-
-        Raises:
-            TypeError: If ``goal``/``tool_descriptions`` are not strings or
-                ``llm`` is not an :class:`LLMProvider`.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(f"ReWooPlanner: llm must be an LLMProvider, got {type(llm).__name__}")
-        if not isinstance(goal, str):
-            raise TypeError(f"ReWooPlanner: goal must be a string, got {type(goal).__name__}")
-        if not isinstance(tool_descriptions, str):
-            raise TypeError(
-                "ReWooPlanner: tool_descriptions must be a string, got "
-                f"{type(tool_descriptions).__name__}"
-            )
         planning_system = type(self)._planning_system.resolve()
         user = f"Goal:\n{goal}\n\nAvailable tools:\n{tool_descriptions}"
         raw = await llm.chat(

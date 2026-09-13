@@ -5,7 +5,7 @@ through N reviewer agents in order, each receiving the previous
 agent's output as its input. Returns the final revised response.
 
 Reviewers accept a ``response: AgentResponse`` and produce a revised one. They
-are run through :func:`invoke_specialist`, not by calling ``process()``: a
+are run through :meth:`_SpecialistInvoker.invoke_specialist`, not by calling ``process()``: a
 :class:`SubTapestry`'s ``process()`` returns the *sink knot* of its inner
 pipeline, and because the loop below guards on ``isinstance(result,
 AgentResponse)`` that Knot failed the guard and **every review was silently
@@ -38,7 +38,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.multi_agent._response_echo import _ResponseEcho
 from pirn_agents.specializations.multi_agent._specialist_invoker import (
-    invoke_specialist,
+    _SpecialistInvoker,
 )
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
@@ -72,20 +72,14 @@ class RoundRobinReview(AgentPipeline):
             The AgentResponse produced by the last reviewer in the sequence.
 
         Raises:
-            TypeError: If response is not an AgentResponse instance.
             ValueError: If reviewers is empty.
         """
         reviewer_list = list(reviewers)
         if not reviewer_list:
             raise ValueError("RoundRobinReview: reviewers must be a non-empty sequence")
-        if not isinstance(response, AgentResponse):
-            raise TypeError(
-                "RoundRobinReview: response must be an AgentResponse, "
-                f"got {type(response).__name__}"
-            )
         current = response
         for reviewer in reviewer_list:
-            result = await invoke_specialist(reviewer, response=current)
+            result = await _SpecialistInvoker.invoke_specialist(reviewer, response=current)
             if isinstance(result, AgentResponse):
                 current = result
         return _ResponseEcho(

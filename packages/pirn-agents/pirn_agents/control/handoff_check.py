@@ -67,13 +67,8 @@ class HandoffCheck(Knot):
             True if the response content matches any escalation pattern, False otherwise.
 
         Raises:
-            TypeError: If response is not an AgentResponse or patterns is not a sequence.
             ValueError: If escalation_patterns is empty or contains invalid patterns.
         """
-        if not isinstance(response, AgentResponse):
-            raise TypeError(
-                f"HandoffCheck: response must be an AgentResponse, got {type(response).__name__}"
-            )
         compiled = self._pattern_compiler.compile_patterns(
             escalation_patterns,
             owner="HandoffCheck",

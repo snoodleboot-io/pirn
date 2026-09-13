@@ -43,6 +43,24 @@ class ApprovalHook:
         """
         return True
 
+    @staticmethod
+    async def authorize(
+        tool: Tool,
+        arguments: Mapping[str, Any],
+        hook: ApprovalHook | None = None,
+    ) -> bool:
+        """Return whether a call to ``tool`` with ``arguments`` may proceed.
+
+        Tools whose permissions do not require approval are allowed
+        immediately without invoking ``hook``. Tools that require approval
+        are routed through ``hook`` (or an auto-approving default when
+        ``hook`` is ``None``).
+        """
+        if not tool.requires_approval():
+            return True
+        resolved = hook if hook is not None else ApprovalHook()
+        return await resolved.request_approval(tool_name=tool.name, arguments=arguments)
+
 
 async def authorize_tool_call(
     tool: Tool,
@@ -51,11 +69,7 @@ async def authorize_tool_call(
 ) -> bool:
     """Return whether a call to ``tool`` with ``arguments`` may proceed.
 
-    Tools whose permissions do not require approval are allowed immediately
-    without invoking ``hook``. Tools that require approval are routed through
-    ``hook`` (or an auto-approving default when ``hook`` is ``None``).
+    Thin wrapper kept for the pinned public import path (see
+    ``tests/test_ws5_s1_import_surface.py``); see :meth:`ApprovalHook.authorize`.
     """
-    if not tool.requires_approval():
-        return True
-    resolved = hook if hook is not None else ApprovalHook()
-    return await resolved.request_approval(tool_name=tool.name, arguments=arguments)
+    return await ApprovalHook.authorize(tool, arguments, hook)

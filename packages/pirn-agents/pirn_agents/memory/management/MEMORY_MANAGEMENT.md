@@ -11,7 +11,8 @@ reranker, store) is caller-injected; the defaults are pure-python.
 pirn_agents/memory_management/
 │
 │  ── S5 Typed records + provenance (foundation) ──
-├── memory_kind.py                  MemoryKind (Literal) + is_memory_kind()
+├── memory_kind.py                  MemoryKind (Literal)
+├── memory_kind_guard.py            MemoryKindGuard.is_kind()
 ├── memory_provenance.py            MemoryProvenance   — source/timestamp/trust/derivation
 ├── memory_record.py                MemoryRecord       — typed record; to_payload/from_payload
 ├── typed_memory_validator.py       TypedMemoryValidator — schema gate (knot)
@@ -34,7 +35,7 @@ pirn_agents/memory_management/
 │  ── S3 Cross-session profiles ──
 ├── profile_key.py                  ProfileKey                 — subject-scoped key (F14 seam)
 ├── entity_profile.py               EntityProfile              — durable per-subject state
-├── profile_merge.py                merge_profile_fields()     — deep merge, no clobber
+├── profile_merge.py                ProfileMerge.merge_fields() — deep merge, no clobber
 ├── cross_session_profile_updater.py CrossSessionProfileUpdater — load/merge/persist (knot)
 │
 │  ── S4 Ranked recall ──

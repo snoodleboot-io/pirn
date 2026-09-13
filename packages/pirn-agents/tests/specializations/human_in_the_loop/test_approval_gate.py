@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
@@ -36,5 +37,6 @@ class TestApprovalCheckProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_agent_response(self) -> None:
         k = _make_knot()
-        with self.assertRaises(TypeError):
-            await k.process(response="not-a-response", auto_approve=False)  # type: ignore[arg-type]
+        result = await k({"response": "not-a-response", "auto_approve": False})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"

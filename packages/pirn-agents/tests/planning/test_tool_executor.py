@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
@@ -85,11 +86,9 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_tool_call(self) -> None:
         search = StubTool(name="search")
         k = _make_knot((search,))
-        with self.assertRaises(TypeError):
-            await k.process(
-                call="not a call",  # type: ignore[arg-type]
-                tools=(search,),
-            )
+        result = await k({"call": "not a call", "tools": (search,)})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
 
 class TestRunsThroughTheEngine(unittest.IsolatedAsyncioTestCase):

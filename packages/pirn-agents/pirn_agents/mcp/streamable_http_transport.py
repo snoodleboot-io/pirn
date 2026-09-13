@@ -73,14 +73,14 @@ class StreamableHttpTransport(McpTransport):
             raise RuntimeError("StreamableHttpTransport.send: transport is not open")
         mcp = _require("mcp", "mcp")
         rpc = mcp.types.JSONRPCMessage.model_validate(dict(message))  # type: ignore[attr-defined]
-        await self._write.send(_wrap_session_message(mcp, rpc))
+        await self._write.send(StreamableHttpTransport._wrap_session_message(mcp, rpc))
 
     async def receive(self) -> Mapping[str, Any]:
         """Read the next SDK frame and normalise it to a plain mapping."""
         if self._read is None:
             raise RuntimeError("StreamableHttpTransport.receive: transport is not open")
         frame = await self._read.receive()
-        return _frame_to_mapping(frame)
+        return StreamableHttpTransport._frame_to_mapping(frame)
 
     async def close(self) -> None:
         """Exit the session context and drop references, idempotently."""
@@ -91,19 +91,19 @@ class StreamableHttpTransport(McpTransport):
         if stack is not None:
             await stack.aclose()
 
+    @staticmethod
+    def _wrap_session_message(mcp: Any, rpc: Any) -> Any:
+        """Wrap a ``JSONRPCMessage`` in a ``SessionMessage`` when the SDK expects one."""
+        session_message = getattr(mcp.types, "SessionMessage", None)
+        if session_message is not None:
+            return session_message(message=rpc)
+        return rpc
 
-def _wrap_session_message(mcp: Any, rpc: Any) -> Any:
-    """Wrap a ``JSONRPCMessage`` in a ``SessionMessage`` when the SDK expects one."""
-    session_message = getattr(mcp.types, "SessionMessage", None)
-    if session_message is not None:
-        return session_message(message=rpc)
-    return rpc
-
-
-def _frame_to_mapping(frame: Any) -> Mapping[str, Any]:
-    """Convert an SDK stream frame (``SessionMessage`` or ``JSONRPCMessage``) to a dict."""
-    if isinstance(frame, BaseException):
-        raise frame
-    message = getattr(frame, "message", frame)
-    dumped = message.model_dump(by_alias=True, mode="json", exclude_none=True)
-    return dict(dumped)
+    @staticmethod
+    def _frame_to_mapping(frame: Any) -> Mapping[str, Any]:
+        """Convert an SDK stream frame (``SessionMessage`` or ``JSONRPCMessage``) to a dict."""
+        if isinstance(frame, BaseException):
+            raise frame
+        message = getattr(frame, "message", frame)
+        dumped = message.model_dump(by_alias=True, mode="json", exclude_none=True)
+        return dict(dumped)

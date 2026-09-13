@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
@@ -33,8 +34,9 @@ class TestToolSelectorValidation(unittest.IsolatedAsyncioTestCase):
         tools = [StubTool(name="search")]
         llm = StubLLMProvider(["search"])
         sel = _make_selector("msg", tools, llm)
-        with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
-            await sel.process(message="msg", tools=tools, llm="bad")  # type: ignore[arg-type]
+        result = await sel({"message": "msg", "tools": tools, "llm": "bad"})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_rejects_non_tool_in_list(self) -> None:
         tools = [StubTool(name="search")]

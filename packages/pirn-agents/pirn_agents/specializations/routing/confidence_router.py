@@ -55,16 +55,7 @@ class ConfidenceRouter(Router):
 
         Returns:
             'primary' if score is at or above threshold, 'fallback' otherwise.
-
-        Raises:
-            TypeError: If score or threshold is not numeric.
         """
-        if not isinstance(score, (int, float)):
-            raise TypeError(f"ConfidenceRouter: score must be a float, got {type(score).__name__}")
-        if not isinstance(threshold, (int, float)):
-            raise TypeError(
-                f"ConfidenceRouter: threshold must be a float, got {type(threshold).__name__}"
-            )
         if float(score) >= float(threshold):
             return "primary"
         return "fallback"

@@ -11,7 +11,7 @@ routes to:
 Algorithm:
     1. Call the LLM with a classification prompt; expect one of SIMPLE,
        MODERATE, or COMPLEX in the response. Resolve the reply to an arm with
-       :func:`_select_complexity_route`, which prefers an exact match and
+       :meth:`AdaptiveRAGPipeline._select_complexity_route`, which prefers an exact match and
        falls back to a most-specific-first substring test.
     2. **SIMPLE branch** — run a single :class:`LLMChatCall` directly on the
        query and wrap the result via :class:`RAGResponseBuilder`.
@@ -59,71 +59,74 @@ from pirn_agents.specializations.rag.rag_response_builder import (
 )
 
 
-def _merge_hits(**per_question: Any) -> list[Any]:
-    """Flatten the per-sub-question retrieval results into one hit list.
-
-    Used as an :class:`Aggregator` combine so the multi-hop retrievals are
-    engine-scheduled siblings rather than a Python loop. Module-level and plain
-    (not a closure) so the aggregator carries no captured state.
-
-    Args:
-        **per_question: One resolved retriever output per sub-question, keyed
-            ``hits_0``, ``hits_1``, … Sorted by key so the merged order follows
-            sub-question order regardless of completion order.
-
-    Returns:
-        The concatenated hits.
-    """
-    merged: list[Any] = []
-    for key in sorted(per_question, key=lambda name: int(name.rsplit("_", 1)[1])):
-        hits = per_question[key]
-        if isinstance(hits, list):
-            merged.extend(hits)
-    return merged
-
-
-def _select_complexity_route(complexity: str) -> str:
-    """Map a classifier reply to the name of the arm that should answer it.
-
-    The classification prompt asks for a single bare word, so an exact match
-    is tried first and the well-behaved reply never depends on substring
-    semantics at all. Padded replies are common enough to need a fallback,
-    and that fallback tests COMPLEX before SIMPLE.
-
-    The ordering is load-bearing. Both fallback tests are substring tests, so
-    a reply naming *both* labels — ``"COMPLEX (not simple)"`` — matches either
-    one, and whichever is tried first wins. Substring matching cannot resolve
-    that, and neither can whole-word matching; the reply is genuinely
-    ambiguous. COMPLEX is chosen because the two mistakes are not
-    symmetrical: routing a simple query through multi-hop costs latency and
-    tokens, whereas routing a complex query to the direct arm returns a wrong
-    answer with ``succeeded=True``. Before PIR-770 SIMPLE was tried first, so
-    the ladder failed in the expensive direction.
-
-    An unrecognised reply routes to MODERATE. That is the documented default,
-    not a consequence of the ordering.
-
-    Args:
-        complexity: The classifier reply, already stripped and upper-cased.
-
-    Returns:
-        One of ``"simple"``, ``"moderate"`` or ``"complex"``.
-    """
-    if complexity == "COMPLEX":
-        return AdaptiveRAGPipeline._route_complex
-    if complexity == "SIMPLE":
-        return AdaptiveRAGPipeline._route_simple
-    if complexity == "MODERATE":
-        return AdaptiveRAGPipeline._route_moderate
-    if "COMPLEX" in complexity:
-        return AdaptiveRAGPipeline._route_complex
-    if "SIMPLE" in complexity:
-        return AdaptiveRAGPipeline._route_simple
-    return AdaptiveRAGPipeline._route_moderate
-
-
 class AdaptiveRAGPipeline(AgentPipeline):
     """Classify query complexity, then route to naive RAG, multi-hop RAG, or direct LLM."""
+
+    @staticmethod
+    def _merge_hits(**per_question: Any) -> list[Any]:
+        """Flatten the per-sub-question retrieval results into one hit list.
+
+        Used as an :class:`Aggregator` combine so the multi-hop retrievals
+        are engine-scheduled siblings rather than a Python loop. A plain
+        ``@staticmethod`` (not a closure) so the aggregator carries no
+        captured state.
+
+        Args:
+            **per_question: One resolved retriever output per sub-question,
+                keyed ``hits_0``, ``hits_1``, … Sorted by key so the merged
+                order follows sub-question order regardless of completion
+                order.
+
+        Returns:
+            The concatenated hits.
+        """
+        merged: list[Any] = []
+        for key in sorted(per_question, key=lambda name: int(name.rsplit("_", 1)[1])):
+            hits = per_question[key]
+            if isinstance(hits, list):
+                merged.extend(hits)
+        return merged
+
+    @staticmethod
+    def _select_complexity_route(complexity: str) -> str:
+        """Map a classifier reply to the name of the arm that should answer it.
+
+        The classification prompt asks for a single bare word, so an exact
+        match is tried first and the well-behaved reply never depends on
+        substring semantics at all. Padded replies are common enough to need
+        a fallback, and that fallback tests COMPLEX before SIMPLE.
+
+        The ordering is load-bearing. Both fallback tests are substring
+        tests, so a reply naming *both* labels — ``"COMPLEX (not simple)"``
+        — matches either one, and whichever is tried first wins. Substring
+        matching cannot resolve that, and neither can whole-word matching;
+        the reply is genuinely ambiguous. COMPLEX is chosen because the two
+        mistakes are not symmetrical: routing a simple query through
+        multi-hop costs latency and tokens, whereas routing a complex query
+        to the direct arm returns a wrong answer with ``succeeded=True``.
+        Before PIR-770 SIMPLE was tried first, so the ladder failed in the
+        expensive direction.
+
+        An unrecognised reply routes to MODERATE. That is the documented
+        default, not a consequence of the ordering.
+
+        Args:
+            complexity: The classifier reply, already stripped and upper-cased.
+
+        Returns:
+            One of ``"simple"``, ``"moderate"`` or ``"complex"``.
+        """
+        if complexity == "COMPLEX":
+            return AdaptiveRAGPipeline._route_complex
+        if complexity == "SIMPLE":
+            return AdaptiveRAGPipeline._route_simple
+        if complexity == "MODERATE":
+            return AdaptiveRAGPipeline._route_moderate
+        if "COMPLEX" in complexity:
+            return AdaptiveRAGPipeline._route_complex
+        if "SIMPLE" in complexity:
+            return AdaptiveRAGPipeline._route_simple
+        return AdaptiveRAGPipeline._route_moderate
 
     #: Route names the classifier resolves to (Rule: no module-level constants).
     _route_simple: ClassVar[str] = "simple"
@@ -187,7 +190,7 @@ class AdaptiveRAGPipeline(AgentPipeline):
         classify_result = await self._run_inner(inner_classify)
         complexity = str(classify_result.outputs.get("classify", "")).strip().upper()
 
-        route = _select_complexity_route(complexity)
+        route = AdaptiveRAGPipeline._select_complexity_route(complexity)
 
         # Each arm is built into the inner tapestry `SubTapestry.__call__` has
         # already opened, and returns its real sink knot. Previously every arm
@@ -230,7 +233,7 @@ class AdaptiveRAGPipeline(AgentPipeline):
                 for index, sub_q in enumerate(sub_questions)
             }
             merged = Aggregator(
-                combine=_merge_hits,
+                combine=AdaptiveRAGPipeline._merge_hits,
                 _config=KnotConfig(id="merge"),
                 **retrievers,
             )

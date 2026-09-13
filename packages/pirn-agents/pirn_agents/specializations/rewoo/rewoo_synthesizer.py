@@ -84,12 +84,6 @@ class ReWooSynthesizer(Knot):
         Raises:
             TypeError: If any input has the wrong type.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"ReWooSynthesizer: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
-        if not isinstance(goal, str):
-            raise TypeError(f"ReWooSynthesizer: goal must be a string, got {type(goal).__name__}")
         plan_tuple = tuple(plan)
         results_tuple = tuple(results)
         for index, call in enumerate(plan_tuple):

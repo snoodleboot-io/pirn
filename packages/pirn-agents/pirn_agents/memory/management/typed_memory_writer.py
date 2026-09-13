@@ -50,18 +50,6 @@ class TypedMemoryWriter(MemoryWriterBase):
 
         Returns:
             The key (the record ``id``) under which the payload was stored.
-
-        Raises:
-            TypeError: If ``record`` is not a MemoryRecord or ``store`` is not a
-                MemoryStore.
         """
-        if not isinstance(record, MemoryRecord):
-            raise TypeError(
-                f"TypedMemoryWriter: record must be a MemoryRecord, got {type(record).__name__}"
-            )
-        if not isinstance(store, MemoryStore):
-            raise TypeError(
-                f"TypedMemoryWriter: store must be a MemoryStore, got {type(store).__name__}"
-            )
         await store.store(record.id, record.to_payload())
         return record.id

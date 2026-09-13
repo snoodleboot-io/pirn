@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
@@ -48,8 +49,9 @@ class TestToolResultFormatterHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_tool_result(self) -> None:
         tool_result = ToolResult(call_id="c1", result="x")
         fmt = _make_formatter(tool_result)
-        with self.assertRaisesRegex(TypeError, "tool_result"):
-            await fmt.process(tool_result="not-a-result")  # type: ignore[arg-type]
+        result = await fmt({"tool_result": "not-a-result"})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_formats_list_result_as_json(self) -> None:
         tool_result = ToolResult(call_id="c4", result=[1, 2, 3])

@@ -62,18 +62,7 @@ class SpeculativeDraftGenerator(Knot):
 
         Returns:
             The drafted answer text.
-
-        Raises:
-            TypeError: If ``query`` is not a string or ``llm`` is not an LLMProvider.
         """
-        if not isinstance(query, str):
-            raise TypeError(
-                f"SpeculativeDraftGenerator: query must be a string, got {type(query).__name__}"
-            )
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"SpeculativeDraftGenerator: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
         prompt = type(self)._draft_prompt.render({"query": query})
         raw = await llm.chat([{"role": "user", "content": prompt}])
         return LlmResponseText().extract(raw)

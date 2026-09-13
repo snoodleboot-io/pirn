@@ -20,22 +20,27 @@ from typing import Any
 from pirn_agents._internal._require import _require
 
 
-def compile_constraint(constraint: Mapping[str, Any]) -> dict[str, Any]:
-    """Compile/validate a decoding ``constraint`` via the optional backend.
+class _GrammarBackend:
+    """Namespace for the lazy grammar-compilation backend."""
 
-    Args:
-        constraint: A generated grammar/regex constraint mapping.
+    @staticmethod
+    def compile(constraint: Mapping[str, Any]) -> dict[str, Any]:
+        """Compile/validate a decoding ``constraint`` via the optional backend.
 
-    Returns:
-        A small record naming the backend that accepted the constraint plus the
-        constraint itself, suitable for logging or attaching to a request.
+        Args:
+            constraint: A generated grammar/regex constraint mapping.
 
-    Raises:
-        ImportError: If the ``grammar`` backend is not installed; the message
-            names the exact ``pip install "pirn-agents[grammar]"`` command.
-    """
-    module = _require("grammar", "outlines")
-    return {
-        "backend": getattr(module, "__name__", "outlines"),
-        "constraint": dict(constraint),
-    }
+        Returns:
+            A small record naming the backend that accepted the constraint plus
+            the constraint itself, suitable for logging or attaching to a
+            request.
+
+        Raises:
+            ImportError: If the ``grammar`` backend is not installed; the message
+                names the exact ``pip install "pirn-agents[grammar]"`` command.
+        """
+        module = _require("grammar", "outlines")
+        return {
+            "backend": getattr(module, "__name__", "outlines"),
+            "constraint": dict(constraint),
+        }

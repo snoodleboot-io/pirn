@@ -4,7 +4,7 @@ The S3 profile knot. In one ``process`` pass it reads the existing profile for a
 :class:`~pirn_agents.memory.management.profile_key.ProfileKey` through the standard
 :meth:`~pirn_agents.memory.stores.memory_store.MemoryStore.retrieve` interface, folds in the new
 session's fields with
-:func:`~pirn_agents.memory.management.profile_merge.merge_profile_fields` (so
+:meth:`~pirn_agents.memory.management.profile_merge.ProfileMerge.merge_fields` (so
 unrelated existing fields are never clobbered), records the contributing session
 id, refreshes provenance, and writes the merged
 :class:`~pirn_agents.memory.management.entity_profile.EntityProfile` back under the
@@ -25,7 +25,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn_agents.memory.management.entity_profile import EntityProfile
 from pirn_agents.memory.management.memory_provenance import MemoryProvenance
 from pirn_agents.memory.management.profile_key import ProfileKey
-from pirn_agents.memory.management.profile_merge import merge_profile_fields
+from pirn_agents.memory.management.profile_merge import ProfileMerge
 from pirn_agents.memory.stores.memory_store import MemoryStore
 
 
@@ -83,22 +83,11 @@ class CrossSessionProfileUpdater(Knot):
                 a Mapping, ``store`` is not a MemoryStore, or ``now`` is not a
                 datetime.
         """
-        if not isinstance(key, ProfileKey):
-            raise TypeError(
-                f"CrossSessionProfileUpdater: key must be a ProfileKey, got {type(key).__name__}"
-            )
         if not isinstance(incoming_fields, Mapping):
             raise TypeError("CrossSessionProfileUpdater: incoming_fields must be a Mapping")
-        if not isinstance(store, MemoryStore):
-            raise TypeError(
-                f"CrossSessionProfileUpdater: store must be a MemoryStore, "
-                f"got {type(store).__name__}"
-            )
-        if not isinstance(now, datetime):
-            raise TypeError("CrossSessionProfileUpdater: now must be a datetime")
         existing = await store.retrieve(key.storage_key)
         prior_fields, prior_sessions = self._prior_state(existing)
-        merged_fields = merge_profile_fields(prior_fields, incoming_fields)
+        merged_fields = ProfileMerge.merge_fields(prior_fields, incoming_fields)
         session_ids = self._extend_sessions(prior_sessions, key.session_id)
         profile = EntityProfile(
             key=ProfileKey(namespace=key.namespace, subject_id=key.subject_id),

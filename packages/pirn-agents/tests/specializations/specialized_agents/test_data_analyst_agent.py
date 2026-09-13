@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -28,8 +29,9 @@ class TestDataAnalystAgentProcess(unittest.IsolatedAsyncioTestCase):
             pool=pool,
             _config=KnotConfig(id="analyst"),
         )
-        with self.assertRaisesRegex(TypeError, "pool must be a DatabaseConnectionPool"):
-            await agent.process(question="how many users?", llm=llm, pool="not-a-pool")  # type: ignore[arg-type]
+        result = await agent({"question": "how many users?", "llm": llm, "pool": "not-a-pool"})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_rejects_non_string_schema(self) -> None:
         llm = StubLLMProvider(["SELECT 1", "ok"])

@@ -66,15 +66,8 @@ class LLMCall(Knot):
             The raw response mapping returned by the LLM provider.
 
         Raises:
-            TypeError: If context is not an AgentContext or llm is not an LLMProvider.
             ValueError: If model is an empty string.
         """
-        if not isinstance(context, AgentContext):
-            raise TypeError(
-                f"LLMCall: context must be an AgentContext, got {type(context).__name__}"
-            )
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(f"LLMCall: llm must be an LLMProvider, got {type(llm).__name__}")
         if model is not None and (not isinstance(model, str) or not model):
             raise ValueError(f"LLMCall: model must be a non-empty string or None, got {model!r}")
         wire_messages = tuple(

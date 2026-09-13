@@ -1,6 +1,6 @@
 """Missing-backend test for the optional flat ``ragas`` extra seam.
 
-Asserts that :func:`load_ragas` raises the shared friendly ImportError (naming
+Asserts that :meth:`RagasBackend.load` raises the shared friendly ImportError (naming
 the exact ``pip install`` command) when the backend is absent, without importing
 it at module import time. Uses ``patch.dict`` on ``sys.modules`` so the test is
 deterministic regardless of whether ``ragas`` happens to be installed.
@@ -14,7 +14,7 @@ from collections.abc import Sequence
 from typing import Any
 from unittest.mock import patch
 
-from pirn_agents.evaluation.ragas_backend import load_ragas
+from pirn_agents.evaluation.ragas_backend import RagasBackend
 
 _real_import = builtins.__import__
 
@@ -36,7 +36,7 @@ class LoadRagasTests(unittest.TestCase):
         with patch.dict("sys.modules", {"ragas": None}):
             with patch("builtins.__import__", side_effect=_import_without_ragas):
                 with self.assertRaises(ImportError) as ctx:
-                    load_ragas()
+                    RagasBackend.load()
         assert 'pip install "pirn-agents[ragas]"' in str(ctx.exception)
 
 

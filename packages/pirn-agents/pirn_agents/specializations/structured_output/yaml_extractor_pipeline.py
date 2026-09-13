@@ -85,10 +85,6 @@ class YamlExtractorPipeline(AgentPipeline):
             TypeError: If any argument is the wrong type.
             ValueError: If max_retries is not a positive int, or all attempts are exhausted.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"YamlExtractorPipeline: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
         if schema is not None and not isinstance(schema, Mapping):
             raise TypeError(
                 "YamlExtractorPipeline: schema must be a Mapping or None, "
@@ -97,10 +93,6 @@ class YamlExtractorPipeline(AgentPipeline):
         if not isinstance(max_retries, int) or max_retries <= 0:
             raise ValueError(
                 f"YamlExtractorPipeline: max_retries must be a positive int, got {max_retries!r}"
-            )
-        if not isinstance(prompt, str):
-            raise TypeError(
-                f"YamlExtractorPipeline: prompt must be a string, got {type(prompt).__name__}"
             )
         resolved_schema: dict[str, Any] | None = dict(schema) if schema is not None else None
         prior_error = ""

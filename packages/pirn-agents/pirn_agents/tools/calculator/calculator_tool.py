@@ -1,6 +1,6 @@
 """``CalculatorTool`` — safe arithmetic evaluation as a base :class:`Tool`.
 
-Wraps :func:`~pirn_agents.tools.calculator._safe_evaluator.evaluate_expression`
+Wraps :meth:`~pirn_agents.tools.calculator._safe_evaluator._SafeEvaluator.evaluate`
 (a zero-dependency, ``ast``-based evaluator that never calls ``eval``/``exec``)
 in the F1 :class:`~pirn_agents.tools.tool.Tool` protocol. Invalid or malicious input
 raises :class:`ValueError`, which :meth:`~pirn_agents.tools.base_tool.BaseTool.as_tool_result`
@@ -13,7 +13,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from pirn_agents.tools.base_tool import BaseTool
-from pirn_agents.tools.calculator._safe_evaluator import evaluate_expression
+from pirn_agents.tools.calculator._safe_evaluator import _SafeEvaluator
 
 
 class CalculatorTool(BaseTool):
@@ -66,5 +66,5 @@ class CalculatorTool(BaseTool):
         """
         self._require_mapping(self.name, arguments)
         expression = self._string_argument(self.name, arguments, "expression")
-        value = evaluate_expression(expression)
+        value = _SafeEvaluator.evaluate(expression)
         return {"expression": expression, "result": value}

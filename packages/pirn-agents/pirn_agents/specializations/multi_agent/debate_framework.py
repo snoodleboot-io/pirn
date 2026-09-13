@@ -61,20 +61,20 @@ from pirn_agents.specializations.multi_agent.specialist_invocation import (
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
-def _make_round_combine(count: int) -> Any:
-    """Build the combine that orders one round's responses by debater index."""
-
-    # design-decision-override: Aggregator's combine hook takes only the
-    # resolved **responses kwargs, so the per-round debater count can only
-    # reach it by closing over `count` in a factory-built callable.
-    def combine(**responses: AgentResponse) -> list[AgentResponse]:
-        return [responses[f"debater_{index}"] for index in range(count)]
-
-    return combine
-
-
 class DebateFramework(AgentPipeline):
     """Runs multi-round debate, judged by ``judge_llm``."""
+
+    @staticmethod
+    def _make_round_combine(count: int) -> Any:
+        """Build the combine that orders one round's responses by debater index."""
+
+        # design-decision-override: Aggregator's combine hook takes only the
+        # resolved **responses kwargs, so the per-round debater count can only
+        # reach it by closing over `count` in a factory-built callable.
+        def combine(**responses: AgentResponse) -> list[AgentResponse]:
+            return [responses[f"debater_{index}"] for index in range(count)]
+
+        return combine
 
     def __init__(
         self,
@@ -116,10 +116,6 @@ class DebateFramework(AgentPipeline):
             TypeError: If judge_llm is not an LLMProvider, a debater is not a
                 SubTapestry, or topic is not a string.
         """
-        if not isinstance(judge_llm, LLMProvider):
-            raise TypeError(
-                f"DebateFramework: judge_llm must be an LLMProvider, got {type(judge_llm).__name__}"
-            )
         debater_tuple = tuple(debaters)
         if len(debater_tuple) < 2:
             raise ValueError(
@@ -133,8 +129,6 @@ class DebateFramework(AgentPipeline):
                 )
         if not isinstance(rounds, int) or rounds <= 0:
             raise ValueError(f"DebateFramework: rounds must be a positive int, got {rounds!r}")
-        if not isinstance(topic, str):
-            raise TypeError(f"DebateFramework: topic must be a string, got {type(topic).__name__}")
 
         round_aggregators: list[Knot] = []
         for round_index in range(rounds):
@@ -154,7 +148,7 @@ class DebateFramework(AgentPipeline):
                 )
             round_aggregators.append(
                 Aggregator(
-                    combine=_make_round_combine(len(debater_tuple)),
+                    combine=DebateFramework._make_round_combine(len(debater_tuple)),
                     _config=KnotConfig(id=f"debate_round_r{round_index}"),
                     **invocations,
                 )

@@ -72,18 +72,8 @@ class GraphTraversal(Knot):
             The collected :class:`Subgraph` (nodes + internal edges).
 
         Raises:
-            TypeError: If ``store`` is not a :class:`GraphStore` or ``budget`` is
-                not a :class:`TraversalBudget`.
             ValueError: If ``start_ids`` is empty.
         """
-        if not isinstance(store, GraphStore):
-            raise TypeError(
-                f"GraphTraversal: store must be a GraphStore, got {type(store).__name__}"
-            )
-        if not isinstance(budget, TraversalBudget):
-            raise TypeError(
-                f"GraphTraversal: budget must be a TraversalBudget, got {type(budget).__name__}"
-            )
         seeds = list(start_ids)
         if not seeds:
             raise ValueError("GraphTraversal: start_ids must be non-empty")

@@ -16,25 +16,27 @@ from collections.abc import Mapping
 from typing import Any
 
 
-def matches_metadata_filter(
-    metadata: Mapping[str, Any], metadata_filter: Mapping[str, Any] | None
-) -> bool:
-    """Return whether ``metadata`` satisfies every entry of ``metadata_filter``.
+class MetadataMatch:
+    """Namespace for the shared metadata-filter matching predicate."""
 
-    Args:
-        metadata: The record's metadata mapping.
-        metadata_filter: The filter mapping, or ``None`` for "match everything".
+    @staticmethod
+    def matches(metadata: Mapping[str, Any], metadata_filter: Mapping[str, Any] | None) -> bool:
+        """Return whether ``metadata`` satisfies every entry of ``metadata_filter``.
 
-    Returns:
-        ``True`` if the filter is ``None``/empty or every predicate holds.
-    """
-    if not metadata_filter:
-        return True
-    for key, expected in metadata_filter.items():
-        actual = metadata.get(key)
-        if isinstance(expected, list | tuple | set):
-            if actual not in expected:
+        Args:
+            metadata: The record's metadata mapping.
+            metadata_filter: The filter mapping, or ``None`` for "match everything".
+
+        Returns:
+            ``True`` if the filter is ``None``/empty or every predicate holds.
+        """
+        if not metadata_filter:
+            return True
+        for key, expected in metadata_filter.items():
+            actual = metadata.get(key)
+            if isinstance(expected, list | tuple | set):
+                if actual not in expected:
+                    return False
+            elif actual != expected:
                 return False
-        elif actual != expected:
-            return False
-    return True
+        return True

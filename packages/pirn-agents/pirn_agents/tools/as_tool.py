@@ -18,6 +18,48 @@ from pirn_agents.performance.run_budget import RunBudget
 from pirn_agents.tools.agent_tool import AgentTool
 
 
+class AsTool:
+    """Namespace for the functional agent-as-tool wrapper."""
+
+    @staticmethod
+    def wrap(
+        agent: SubTapestry,
+        *,
+        name: str | None = None,
+        description: str | None = None,
+        input_schema: Mapping[str, Any] | None = None,
+        provider: LLMProvider | None = None,
+        budget: RunBudget | None = None,
+        max_depth: int = AgentNestingConfig.max_depth,
+    ) -> AgentTool:
+        """Wrap ``agent`` as an :class:`AgentTool` with no hand-written adapter.
+
+        Args:
+            agent: The ``SubTapestry`` agent to expose as a tool.
+            name: Override tool name; defaults from the agent.
+            description: Override tool description; defaults from the agent.
+            input_schema: Explicit parameters schema; derived from the agent when
+                omitted.
+            provider: A pooled provider nested agents should reuse.
+            budget: A budget enforced across the (possibly nested) run.
+            max_depth: Maximum agent-as-tool nesting depth; defaults to the shared
+                :class:`~pirn_agents.agent.agent_nesting_config.AgentNestingConfig`
+                cap.
+
+        Returns:
+            An :class:`AgentTool` ready to drop into any ``Tool`` slot.
+        """
+        return AgentTool(
+            agent,
+            name=name,
+            description=description,
+            input_schema=input_schema,
+            provider=provider,
+            budget=budget,
+            max_depth=max_depth,
+        )
+
+
 def as_tool(
     agent: SubTapestry,
     *,
@@ -30,22 +72,12 @@ def as_tool(
 ) -> AgentTool:
     """Wrap ``agent`` as an :class:`AgentTool` with no hand-written adapter.
 
-    Args:
-        agent: The ``SubTapestry`` agent to expose as a tool.
-        name: Override tool name; defaults from the agent.
-        description: Override tool description; defaults from the agent.
-        input_schema: Explicit parameters schema; derived from the agent when
-            omitted.
-        provider: A pooled provider nested agents should reuse.
-        budget: A budget enforced across the (possibly nested) run.
-        max_depth: Maximum agent-as-tool nesting depth; defaults to the shared
-            :class:`~pirn_agents.agent.agent_nesting_config.AgentNestingConfig`
-            cap.
-
-    Returns:
-        An :class:`AgentTool` ready to drop into any ``Tool`` slot.
+    Thin wrapper kept for the pinned public import path (see
+    ``tests/test_ws5_s1_import_surface.py``) and the
+    :meth:`~pirn_agents.tools.agent_as_tool_mixin.AgentAsToolMixin.as_tool`
+    delegation; see :meth:`AsTool.wrap`.
     """
-    return AgentTool(
+    return AsTool.wrap(
         agent,
         name=name,
         description=description,

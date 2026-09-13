@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
@@ -43,8 +44,9 @@ class TestMetadataExtractorProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_string_document(self) -> None:
         llm = StubLLMProvider(["{}"])
         k = _make_knot(llm)
-        with self.assertRaises(TypeError):
-            await k.process(document=42, llm=llm)  # type: ignore[arg-type]
+        result = await k({"document": 42, "llm": llm})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_handles_json_embedded_in_prose(self) -> None:
         reply = 'Here is your answer: {"title": "X", "author": null, "date": null, "summary": null}'

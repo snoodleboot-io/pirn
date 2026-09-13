@@ -12,38 +12,51 @@ from __future__ import annotations
 
 import inspect
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from typing import Any
 
 
-@asynccontextmanager
-async def connector_lifespan(*connectors: Any) -> AsyncIterator[tuple[Any, ...]]:
+class ConnectorLifespan:
+    """Namespace for the pooled-connector teardown context manager."""
+
+    @staticmethod
+    @asynccontextmanager
+    async def manage(*connectors: Any) -> AsyncIterator[tuple[Any, ...]]:
+        """Yield ``connectors`` and deterministically close them all on exit.
+
+        Args:
+            *connectors: The pooled connectors to manage for the run.
+
+        Yields:
+            The same connectors as a tuple, for convenient unpacking.
+
+        The connectors are closed in reverse construction order in a
+        ``finally`` so a raised exception still tears every pooled client
+        down; each connector's error during close is suppressed after the
+        others are closed so one failure cannot leak the rest.
+        """
+        try:
+            yield connectors
+        finally:
+            errors: list[BaseException] = []
+            for connector in reversed(connectors):
+                closer = getattr(connector, "close", None)
+                if not callable(closer):
+                    continue
+                try:
+                    result = closer()
+                    if inspect.isawaitable(result):
+                        await result
+                except BaseException as exc:
+                    errors.append(exc)
+            if errors:
+                raise errors[0]
+
+
+def connector_lifespan(*connectors: Any) -> AbstractAsyncContextManager[tuple[Any, ...]]:
     """Yield ``connectors`` and deterministically close them all on exit.
 
-    Args:
-        *connectors: The pooled connectors to manage for the run.
-
-    Yields:
-        The same connectors as a tuple, for convenient unpacking.
-
-    The connectors are closed in reverse construction order in a ``finally`` so a
-    raised exception still tears every pooled client down; each connector's
-    error during close is suppressed after the others are closed so one failure
-    cannot leak the rest.
+    Thin wrapper kept for the pinned public import path (see
+    ``tests/test_ws5_s1_import_surface.py``); see :meth:`ConnectorLifespan.manage`.
     """
-    try:
-        yield connectors
-    finally:
-        errors: list[BaseException] = []
-        for connector in reversed(connectors):
-            closer = getattr(connector, "close", None)
-            if not callable(closer):
-                continue
-            try:
-                result = closer()
-                if inspect.isawaitable(result):
-                    await result
-            except BaseException as exc:
-                errors.append(exc)
-        if errors:
-            raise errors[0]
+    return ConnectorLifespan.manage(*connectors)

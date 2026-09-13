@@ -6,6 +6,7 @@ import unittest
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
@@ -68,5 +69,6 @@ class TestFactClaimVerifierProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_agent_response(self) -> None:
         store = _HitStore(supported=())
         k = _make_knot(store)
-        with self.assertRaises(TypeError):
-            await k.process(response="not-a-response", claims=[], store=store)  # type: ignore[arg-type]
+        result = await k({"response": "not-a-response", "claims": [], "store": store})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"

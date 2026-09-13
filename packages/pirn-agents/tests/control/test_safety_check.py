@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.tapestry import Tapestry
@@ -62,8 +63,6 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_wrong_type(self) -> None:
         k = _make_knot()
-        with self.assertRaises(TypeError):
-            await k.process(
-                message="not a message",  # type: ignore[arg-type]
-                deny_patterns=("x",),
-            )
+        result = await k({"message": "not a message", "deny_patterns": ("x",)})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"

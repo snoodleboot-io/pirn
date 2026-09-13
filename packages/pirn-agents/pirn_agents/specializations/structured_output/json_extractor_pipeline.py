@@ -89,10 +89,6 @@ class JsonExtractorPipeline(AgentPipeline):
             TypeError: If llm is not an LLMProvider or prompt is not a string.
             ValueError: If schema is not a Mapping, max_retries not positive, or all attempts exhausted.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"JsonExtractorPipeline: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
         if not isinstance(schema, Mapping):
             raise TypeError(
                 f"JsonExtractorPipeline: schema must be a Mapping, got {type(schema).__name__}"
@@ -100,10 +96,6 @@ class JsonExtractorPipeline(AgentPipeline):
         if not isinstance(max_retries, int) or max_retries <= 0:
             raise ValueError(
                 f"JsonExtractorPipeline: max_retries must be a positive int, got {max_retries!r}"
-            )
-        if not isinstance(prompt, str):
-            raise TypeError(
-                f"JsonExtractorPipeline: prompt must be a string, got {type(prompt).__name__}"
             )
         schema_dict = dict(schema)
         prior_error = ""

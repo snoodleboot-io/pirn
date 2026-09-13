@@ -58,14 +58,7 @@ class ChainOfThought(Knot):
 
         Returns:
             An AgentResponse whose content contains the full reasoning chain.
-
-        Raises:
-            TypeError: If prompt is not a string or llm is not an LLMProvider.
         """
-        if not isinstance(prompt, str):
-            raise TypeError(f"ChainOfThought: prompt must be a string, got {type(prompt).__name__}")
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(f"ChainOfThought: llm must be an LLMProvider, got {type(llm).__name__}")
         messages = [
             {"role": "system", "content": type(self)._system_prompt.resolve()},
             {"role": "user", "content": prompt},

@@ -72,18 +72,8 @@ class ProceduralMemoryWriter(MemoryWriterBase):
             The storage key under which the procedure was persisted.
 
         Raises:
-            TypeError: If agent_response is not an AgentResponse or store is not a MemoryStore.
             ValueError: If task_description is not a non-empty string.
         """
-        if not isinstance(store, MemoryStore):
-            raise TypeError(
-                f"ProceduralMemoryWriter: store must be a MemoryStore, got {type(store).__name__}"
-            )
-        if not isinstance(agent_response, AgentResponse):
-            raise TypeError(
-                "ProceduralMemoryWriter: agent_response must be an "
-                f"AgentResponse, got {type(agent_response).__name__}"
-            )
         if not isinstance(task_description, str) or not task_description:
             raise ValueError("ProceduralMemoryWriter: task_description must be a non-empty string")
         digest = hashlib.sha1(task_description.encode("utf-8")).hexdigest()

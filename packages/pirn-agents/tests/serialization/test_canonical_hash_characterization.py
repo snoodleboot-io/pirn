@@ -12,7 +12,7 @@ Two distinct things are recorded:
   separators=(",", ":")``, ``ensure_ascii`` at its default, UTF-8, bare 64-hex
   output. This is what
   :meth:`~pirn_agents.sessions.run_checkpoint.RunCheckpoint.content_hash` and
-  :func:`~pirn_agents.determinism.content_digest.content_digest` already
+  :meth:`~pirn_agents.determinism.content_digest.ContentDigest.digest` already
   produce, and it is the form the WS8 seam adopts. Its pins are *durable*:
   cassette keys and checkpoint ids are derived from it, so moving one of these
   values is a storage-format break needing a migration. See
@@ -39,7 +39,7 @@ from typing import Any, ClassVar
 import pytest
 
 from pirn_agents.caching.content_address import content_address
-from pirn_agents.determinism.content_digest import content_digest
+from pirn_agents.determinism.content_digest import ContentDigest
 
 
 def _payloads() -> dict[str, Any]:
@@ -155,7 +155,7 @@ class TestContentDigestCanonicalForm:
     @pytest.mark.parametrize("name", _payload_names())
     def test_digest_is_unchanged(self, name: str) -> None:
         _, digest = self._pins[name]
-        assert content_digest(_payloads()[name]) == digest
+        assert ContentDigest.digest(_payloads()[name]) == digest
 
     @pytest.mark.parametrize("name", _payload_names())
     def test_digest_is_sha256_of_the_pinned_canonical_string(self, name: str) -> None:
@@ -165,24 +165,28 @@ class TestContentDigestCanonicalForm:
 
     @pytest.mark.parametrize("name", _payload_names())
     def test_digest_is_bare_64_hex(self, name: str) -> None:
-        digest = content_digest(_payloads()[name])
+        digest = ContentDigest.digest(_payloads()[name])
         assert len(digest) == 64
         int(digest, 16)
 
     def test_mapping_key_order_does_not_move_the_digest(self) -> None:
-        assert content_digest({"a": 1, "b": 2, "c": 3}) == content_digest({"c": 3, "a": 1, "b": 2})
+        assert ContentDigest.digest({"a": 1, "b": 2, "c": 3}) == ContentDigest.digest(
+            {"c": 3, "a": 1, "b": 2}
+        )
 
     def test_nested_mapping_key_order_does_not_move_the_digest(self) -> None:
-        assert content_digest({"o": {"z": 1, "a": 2}}) == content_digest({"o": {"a": 2, "z": 1}})
+        assert ContentDigest.digest({"o": {"z": 1, "a": 2}}) == ContentDigest.digest(
+            {"o": {"a": 2, "z": 1}}
+        )
 
     def test_list_order_does_move_the_digest(self) -> None:
         # Sequences are ordered data, not sets: reordering them is a real change.
-        assert content_digest([1, 2]) != content_digest([2, 1])
+        assert ContentDigest.digest([1, 2]) != ContentDigest.digest([2, 1])
 
     def test_non_json_leaf_currently_falls_back_to_str(self) -> None:
         # Characterization only. The WS8 seam's default policy is RAISE; this
         # records what `default=str` does today so the migration is visible.
-        assert content_digest({"leaf": {1, 2}}) == content_digest({"leaf": str({1, 2})})
+        assert ContentDigest.digest({"leaf": {1, 2}}) == ContentDigest.digest({"leaf": str({1, 2})})
 
 
 class TestContentAddressCanonicalForm:
@@ -229,7 +233,7 @@ class TestCanonicalFormConvergence:
     @pytest.mark.parametrize("name", _payload_names())
     def test_the_hashers_agree_on_every_payload(self, name: str) -> None:
         payload = _payloads()[name]
-        assert content_address(payload) == content_digest(payload)
+        assert content_address(payload) == ContentDigest.digest(payload)
 
     def test_separator_form_is_the_tight_one(self) -> None:
         # The witness for the divergence that used to exist: content_address
@@ -243,7 +247,7 @@ class TestCanonicalFormConvergence:
         payload = {"k": "café"}
         assert json.dumps(payload, sort_keys=True, ensure_ascii=False) == '{"k": "café"}'
         assert json.dumps(payload, sort_keys=True) == '{"k": "caf\\u00e9"}'
-        assert content_address(payload) == content_digest(payload)
+        assert content_address(payload) == ContentDigest.digest(payload)
 
     def test_content_digest_and_checkpoint_hash_share_one_canonical_form(self) -> None:
         # The only difference between the two is the opaque-leaf branch
@@ -257,7 +261,7 @@ class TestCanonicalFormConvergence:
         # The split is still the opaque leaf, but it now falls where the leaf
         # renders content rather than wherever `str` happened to succeed.
         #
-        # This assertion used to read `len(content_digest({"leaf": object()})) == 64`
+        # This assertion used to read `len(ContentDigest.digest({"leaf": object()})) == 64`
         # — it pinned the PIR-785 hazard rather than a contract. A bare `object()`
         # has no content-derived __str__, so that digest was its memory address
         # and differed on the next run; a cassette keyed by it could never
@@ -265,13 +269,13 @@ class TestCanonicalFormConvergence:
         # is now refused at record time.
         identity_leaf = {"leaf": object()}
         with pytest.raises(TypeError):
-            content_digest(identity_leaf)
+            ContentDigest.digest(identity_leaf)
         with pytest.raises(TypeError):
             json.dumps(identity_leaf, sort_keys=True, separators=(",", ":"))
 
         # A leaf that renders content is still the branch the checkpoint hasher
         # does not have: content_digest accepts it, bare json.dumps does not.
         content_leaf = {"leaf": decimal.Decimal("1.25")}
-        assert len(content_digest(content_leaf)) == 64
+        assert len(ContentDigest.digest(content_leaf)) == 64
         with pytest.raises(TypeError):
             json.dumps(content_leaf, sort_keys=True, separators=(",", ":"))

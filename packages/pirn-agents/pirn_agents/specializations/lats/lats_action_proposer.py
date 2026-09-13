@@ -62,17 +62,7 @@ class LatsActionProposer(Knot):
 
         Returns:
             A tuple of candidate next-action strings (deduplicated, in order).
-
-        Raises:
-            TypeError: If ``task`` is not a string or ``llm`` is not an
-                :class:`LLMProvider`.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"LatsActionProposer: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
-        if not isinstance(task, str):
-            raise TypeError(f"LatsActionProposer: task must be a string, got {type(task).__name__}")
         taken = " -> ".join(trajectory) if trajectory else "(none yet)"
         system = type(self)._system_prompt.resolve()
         user = f"Task:\n{task}\n\nActions taken so far: {taken}"

@@ -11,6 +11,19 @@ Algorithm:
     3. Select the content with the highest count (first-seen wins ties).
     4. Return the first :class:`AgentResponse` whose content matches.
 
+Math:
+    Given :math:`n` responses with distinct content values
+    :math:`c_1, \\dots, c_m` and vote counts :math:`\\text{count}(c_j)` (the
+    number of responses whose content equals :math:`c_j`):
+
+    $$
+    c^{*} = \\operatorname*{arg\\,max}_{c_j} \\ \\text{count}(c_j)
+    $$
+
+    Ties in :math:`\\text{count}` are broken by the smallest first-seen index
+    among the tied :math:`c_j` — :class:`collections.Counter.most_common`
+    preserves insertion order for equal counts, and the input is walked in
+    the caller-supplied ``responses`` order.
 
 References:
     pirn-native — no external references.

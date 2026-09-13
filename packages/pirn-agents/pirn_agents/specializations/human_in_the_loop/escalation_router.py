@@ -13,6 +13,13 @@ Algorithm:
     4. Cast confidence to float and compare against threshold.
     5. Return the response unchanged if confidence >= threshold, else return None.
 
+Math:
+    $$
+    \\text{pass\\_through} = \\begin{cases}
+        \\text{response} & \\text{confidence} \\geq \\text{threshold} \\\\
+        \\text{None (escalate)} & \\text{confidence} < \\text{threshold} \\ \\text{or absent}
+    \\end{cases}
+    $$
 
 References:
     - Madaan et al. (2023) "Self-Refine: Iterative Refinement with Self-Feedback"
@@ -55,15 +62,7 @@ class EscalationRouter(Router):
 
         Returns:
             The original AgentResponse if confidence >= threshold, else None to indicate escalation.
-
-        Raises:
-            TypeError: If response is not an AgentResponse instance.
         """
-        if not isinstance(response, AgentResponse):
-            raise TypeError(
-                "EscalationRouter: response must be an AgentResponse, "
-                f"got {type(response).__name__}"
-            )
         confidence = response.usage.get("confidence")
         if confidence is None:
             return None

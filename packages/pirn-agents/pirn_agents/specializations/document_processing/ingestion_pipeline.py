@@ -94,28 +94,8 @@ class IngestionPipeline(AgentPipeline):
             :class:`IngestionReport`.
 
         Raises:
-            TypeError: If any injected component is the wrong type.
             ValueError: If ``max_concurrency`` is less than 1.
         """
-        if not isinstance(source_connector, SourceConnector):
-            raise TypeError(
-                "IngestionPipeline: source_connector must be a SourceConnector, "
-                f"got {type(source_connector).__name__}"
-            )
-        if not isinstance(loader, Loader):
-            raise TypeError(
-                f"IngestionPipeline: loader must be a Loader, got {type(loader).__name__}"
-            )
-        if not isinstance(chunking_strategy, ChunkingStrategy):
-            raise TypeError(
-                "IngestionPipeline: chunking_strategy must be a ChunkingStrategy, "
-                f"got {type(chunking_strategy).__name__}"
-            )
-        if not isinstance(upserter, IncrementalUpserter):
-            raise TypeError(
-                "IngestionPipeline: upserter must be an IncrementalUpserter, "
-                f"got {type(upserter).__name__}"
-            )
         if max_concurrency < 1:
             raise ValueError(
                 f"IngestionPipeline: max_concurrency must be >= 1, got {max_concurrency}"

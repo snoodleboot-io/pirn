@@ -19,7 +19,7 @@ from typing import Any
 import numpy as np
 
 from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
-from pirn_agents.retrieval.vector_stores.metadata_match import matches_metadata_filter
+from pirn_agents.retrieval.vector_stores.metadata_match import MetadataMatch
 from pirn_agents.retrieval.vector_stores.vector_backend_client import VectorBackendClient
 from pirn_agents.retrieval.vector_stores.vector_memory_store import VectorMemoryStore
 from pirn_agents.retrieval.vector_stores.vector_record import VectorRecord
@@ -70,7 +70,7 @@ class FakeVectorBackendClient(VectorBackendClient):
         query_norm = float(np.linalg.norm(query)) or 1.0
         scored: list[tuple[float, dict[str, Any]]] = []
         for point in self._points.values():
-            if not matches_metadata_filter(point["metadata"], metadata_filter):
+            if not MetadataMatch.matches(point["metadata"], metadata_filter):
                 continue
             candidate = np.asarray(point["vector"], dtype=np.float64)
             denom = (float(np.linalg.norm(candidate)) or 1.0) * query_norm

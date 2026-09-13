@@ -70,14 +70,8 @@ class SafetyCheck(Knot):
             True if no deny pattern matches the content, False otherwise.
 
         Raises:
-            TypeError: If message or patterns have wrong types.
             ValueError: If deny_patterns is empty or contains invalid patterns.
         """
-        if not isinstance(message, (AgentMessage, AgentResponse)):
-            raise TypeError(
-                "SafetyCheck: message must be an AgentMessage or AgentResponse, "
-                f"got {type(message).__name__}"
-            )
         compiled = self._pattern_compiler.compile_patterns(
             deny_patterns,
             owner="SafetyCheck",

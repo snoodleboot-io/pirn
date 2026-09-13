@@ -75,14 +75,8 @@ class WorkingMemoryWindowWriter(MemoryWriterBase):
             A tuple of the most recent AgentMessage entries after trimming to max_size.
 
         Raises:
-            TypeError: If store is not a MemoryStore or new_message is not an AgentMessage.
             ValueError: If session_id is not a non-empty string or max_size is not a positive int.
         """
-        if not isinstance(store, MemoryStore):
-            raise TypeError(
-                "WorkingMemoryWindowWriter: store must be a MemoryStore, "
-                f"got {type(store).__name__}"
-            )
         if not isinstance(session_id, str) or not session_id:
             raise ValueError(
                 "WorkingMemoryWindowWriter: session_id must be a non-empty "
@@ -91,11 +85,6 @@ class WorkingMemoryWindowWriter(MemoryWriterBase):
         if not isinstance(max_size, int) or max_size <= 0:
             raise ValueError(
                 f"WorkingMemoryWindowWriter: max_size must be a positive int, got {max_size!r}"
-            )
-        if not isinstance(new_message, AgentMessage):
-            raise TypeError(
-                "WorkingMemoryWindowWriter: new_message must be an "
-                f"AgentMessage, got {type(new_message).__name__}"
             )
         key = f"working:{session_id}"
         existing = await store.retrieve(key)

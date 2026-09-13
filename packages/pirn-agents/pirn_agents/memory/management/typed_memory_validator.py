@@ -17,7 +17,8 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents.memory.management.memory_kind import MemoryKind, is_memory_kind
+from pirn_agents.memory.management.memory_kind import MemoryKind
+from pirn_agents.memory.management.memory_kind_guard import MemoryKindGuard
 from pirn_agents.memory.management.memory_record import MemoryRecord
 
 
@@ -56,19 +57,14 @@ class TypedMemoryValidator(Knot):
             The validated :class:`MemoryRecord`.
 
         Raises:
-            TypeError: If ``record`` is not a MemoryRecord.
             ValueError: If ``allowed_kinds`` holds a non-kind value, or the
                 record's kind is outside the allowed subset.
         """
-        if not isinstance(record, MemoryRecord):
-            raise TypeError(
-                f"TypedMemoryValidator: record must be a MemoryRecord, got {type(record).__name__}"
-            )
         if allowed_kinds is None:
             return record
         allowed = tuple(allowed_kinds)
         for candidate in allowed:
-            if not is_memory_kind(candidate):
+            if not MemoryKindGuard.is_kind(candidate):
                 raise ValueError(
                     f"TypedMemoryValidator: allowed_kinds holds a non-kind {candidate!r}"
                 )

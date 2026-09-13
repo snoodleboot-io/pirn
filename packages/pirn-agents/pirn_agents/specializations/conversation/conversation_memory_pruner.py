@@ -8,6 +8,19 @@ Algorithm:
     5. If no prunable message remains, stop (system messages are preserved).
     6. Return the pruned list.
 
+Math:
+    With :math:`T = \\sum_{m \\in \\text{messages}} \\text{len}(m.\\text{content})`
+    (character count as the token proxy):
+
+    $$
+    \\text{prune} = T > \\text{token\\_budget}
+    $$
+
+    Each pruning step drops the oldest remaining non-system message and
+    recomputes :math:`T`; the loop stops once :math:`T \\leq
+    \\text{token\\_budget}` or no non-system message remains, whichever comes
+    first — a history made entirely of system messages is returned unpruned
+    even if it exceeds the budget.
 
 References:
     - OpenAI documentation on managing conversation context windows.

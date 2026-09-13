@@ -22,7 +22,8 @@ from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
-from pirn_agents.memory.management.memory_kind import MemoryKind, is_memory_kind
+from pirn_agents.memory.management.memory_kind import MemoryKind
+from pirn_agents.memory.management.memory_kind_guard import MemoryKindGuard
 from pirn_agents.memory.management.memory_provenance import MemoryProvenance
 
 
@@ -64,7 +65,7 @@ class MemoryRecord(PirnOpaqueValue):
     def __post_init__(self) -> None:
         if not isinstance(self.id, str) or not self.id:
             raise TypeError("MemoryRecord: id must be a non-empty str")
-        if not is_memory_kind(self.kind):
+        if not MemoryKindGuard.is_kind(self.kind):
             raise ValueError(f"MemoryRecord: kind must be a MemoryKind, got {self.kind!r}")
         if not isinstance(self.content, str):
             raise TypeError(
@@ -124,7 +125,7 @@ class MemoryRecord(PirnOpaqueValue):
             )
         raw_last = payload.get("last_accessed")
         kind = payload["kind"]
-        if not is_memory_kind(kind):
+        if not MemoryKindGuard.is_kind(kind):
             raise ValueError(f"MemoryRecord.from_payload: invalid kind {kind!r}")
         return cls(
             id=str(payload["id"]),

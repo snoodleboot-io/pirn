@@ -64,18 +64,9 @@ class MemorySearchRetriever(Retriever):
             A list of up to top_k matching memory entries as Mapping objects.
 
         Raises:
-            TypeError: If store is not a MemoryStore or query is not a string.
             ValueError: If top_k is not a positive int.
         """
-        if not isinstance(store, MemoryStore):
-            raise TypeError(
-                f"MemorySearchRetriever: store must be a MemoryStore, got {type(store).__name__}"
-            )
         if not isinstance(top_k, int) or top_k <= 0:
             raise ValueError(f"MemorySearchRetriever: top_k must be a positive int, got {top_k!r}")
-        if not isinstance(query, str):
-            raise TypeError(
-                f"MemorySearchRetriever: query must be a string, got {type(query).__name__}"
-            )
         hits = await store.search(query, top_k=top_k)
         return list(hits[:top_k])

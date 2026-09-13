@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
@@ -15,8 +16,12 @@ from tests.specializations.conftest import StubEmbeddingProvider
 
 def _retriever() -> SelfQueryRetriever:
     with Tapestry():
-        knot = SelfQueryRetriever.__new__(SelfQueryRetriever)
-        object.__setattr__(knot, "_config", KnotConfig(id="retrieve"))
+        knot = SelfQueryRetriever(
+            query_spec={"query": "q", "metadata_filter": {}},
+            store=InMemoryVectorStore(embedder=StubEmbeddingProvider(dimension=4)),
+            embedder=StubEmbeddingProvider(dimension=4),
+            _config=KnotConfig(id="retrieve"),
+        )
     return knot
 
 
@@ -63,10 +68,13 @@ class TestSelfQueryRetriever(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_vector_store(self) -> None:
         knot = _retriever()
-        with self.assertRaisesRegex(TypeError, "store must be a VectorMemoryStore"):
-            await knot.process(
-                query_spec={"query": "x", "metadata_filter": {}},
-                store="nope",  # type: ignore[arg-type]
-                embedder=StubEmbeddingProvider(dimension=4),
-                top_k=5,
-            )
+        result = await knot(
+            {
+                "query_spec": {"query": "x", "metadata_filter": {}},
+                "store": "nope",
+                "embedder": StubEmbeddingProvider(dimension=4),
+                "top_k": 5,
+            }
+        )
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"

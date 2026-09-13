@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime, timedelta
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
@@ -53,20 +54,26 @@ class TestMemoryEvictor(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_policy(self) -> None:
         knot = _make_knot()
-        with self.assertRaises(TypeError):
-            await knot.process(
-                records=[],
-                policy="bad",  # type: ignore[arg-type]
-                store=RecordingMemoryStore(),
-                now=datetime(2026, 1, 1, tzinfo=UTC),
-            )
+        result = await knot(
+            {
+                "records": [],
+                "policy": "bad",
+                "store": RecordingMemoryStore(),
+                "now": datetime(2026, 1, 1, tzinfo=UTC),
+            }
+        )
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_rejects_non_store(self) -> None:
         knot = _make_knot()
-        with self.assertRaises(TypeError):
-            await knot.process(
-                records=[],
-                policy=TtlEvictionPolicy(ttl_seconds=1),
-                store="bad",  # type: ignore[arg-type]
-                now=datetime(2026, 1, 1, tzinfo=UTC),
-            )
+        result = await knot(
+            {
+                "records": [],
+                "policy": TtlEvictionPolicy(ttl_seconds=1),
+                "store": "bad",
+                "now": datetime(2026, 1, 1, tzinfo=UTC),
+            }
+        )
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"

@@ -87,10 +87,6 @@ class RetryOnParseFailure(AgentPipeline):
             TypeError: If any argument is the wrong type.
             ValueError: If max_retries is not a positive int, or all attempts are exhausted.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"RetryOnParseFailure: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
         if not callable(parser):
             raise TypeError(
                 f"RetryOnParseFailure: parser must be callable, got {type(parser).__name__}"
@@ -98,10 +94,6 @@ class RetryOnParseFailure(AgentPipeline):
         if not isinstance(max_retries, int) or max_retries <= 0:
             raise ValueError(
                 f"RetryOnParseFailure: max_retries must be a positive int, got {max_retries!r}"
-            )
-        if not isinstance(prompt, str):
-            raise TypeError(
-                f"RetryOnParseFailure: prompt must be a string, got {type(prompt).__name__}"
             )
         current_prompt = prompt
         last_error: str = "no attempts were made"

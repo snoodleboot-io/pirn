@@ -289,6 +289,9 @@ async def test_rejects_non_tool_call() -> None:
 
 
 async def test_rejects_non_toolset() -> None:
+    # Not converted to the await-knot(...)/ValidationError shape: this knot is
+    # constructed with validate_io=False in production (ReWooPipeline), so
+    # process() carries its own isinstance guard as the only real protection.
     executor = _make_executor()
     with pytest.raises(TypeError):
         await executor.process(

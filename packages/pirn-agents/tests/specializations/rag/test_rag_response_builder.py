@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
+from pirn.core.err import Err
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -53,10 +54,11 @@ class TestRAGResponseBuilderProcess(unittest.IsolatedAsyncioTestCase):
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_process_rejects_non_string_answer(self) -> None:
         with Tapestry():
-            k = RAGResponseBuilder.__new__(RAGResponseBuilder)
-            object.__setattr__(k, "_config", KnotConfig(id="x"))
-        with self.assertRaises(TypeError):
-            await k.process(answer=42)  # type: ignore[arg-type]
+            src = _AnswerSource("hello", _config=KnotConfig(id="src"))
+            k = RAGResponseBuilder(answer=src, _config=KnotConfig(id="x"))
+        result = await k({"answer": 42})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_process_returns_agent_response(self) -> None:
         with Tapestry():

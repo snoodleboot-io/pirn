@@ -13,9 +13,17 @@ Algorithm
 4. Otherwise call LLM with a summarization prompt.
 5. Return ``[summary_message, last_original_message]``.
 
-Math
-----
-``total_tokens = sum(len(msg.content.split()) for msg in messages)``
+Math:
+    Approximate token count is the sum of each message's whitespace-split
+    word count:
+
+    $$
+    \\text{total\\_tokens} = \\sum_{m \\in \\text{messages}} \\text{len}(\\text{split}(m.\\text{content}))
+    $$
+
+    $$
+    \\text{compress} = \\text{total\\_tokens} > \\text{token\\_threshold}
+    $$
 
 References
 ----------
@@ -88,10 +96,6 @@ class SessionSummarizer(Knot):
             TypeError: If llm is not an LLMProvider or any message is not an AgentMessage.
             ValueError: If token_threshold is not a positive int.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"SessionSummarizer: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
         if not isinstance(token_threshold, int) or token_threshold <= 0:
             raise ValueError(
                 "SessionSummarizer: token_threshold must be a positive int, "

@@ -66,18 +66,7 @@ class OutcomeSimulator(Knot):
 
         Returns:
             A SimulationResult with best_case, neutral_case, and worst_case fields.
-
-        Raises:
-            TypeError: If action is not a string or llm is not an LLMProvider.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"OutcomeSimulator: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
-        if not isinstance(action, str):
-            raise TypeError(
-                f"OutcomeSimulator: action must be a string, got {type(action).__name__}"
-            )
         messages = [
             {"role": "system", "content": type(self)._simulation_system.resolve()},
             {"role": "user", "content": action},

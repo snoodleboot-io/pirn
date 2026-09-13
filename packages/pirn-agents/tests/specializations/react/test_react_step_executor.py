@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -81,13 +82,16 @@ class TestReActStepExecutorProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
         llm = StubLLMProvider(["Final Answer: done"])
         knot = self._make(llm)
-        with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
-            await knot.process(
-                context=[AgentMessage(role="user", content="hi")],
-                llm="not-a-provider",  # type: ignore[arg-type]
-                tools=(),
-                already_terminated=False,
-            )
+        result = await knot(
+            {
+                "context": [AgentMessage(role="user", content="hi")],
+                "llm": "not-a-provider",
+                "tools": (),
+                "already_terminated": False,
+            }
+        )
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_rejects_non_tool(self) -> None:
         llm = StubLLMProvider(["Final Answer: done"])
@@ -138,13 +142,16 @@ class TestReActStepExecutorProcess(unittest.IsolatedAsyncioTestCase):
         """Short-circuiting must not weaken the type contract."""
         llm = StubLLMProvider(["unused"])
         knot = self._make(llm)
-        with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
-            await knot.process(
-                context=[AgentMessage(role="user", content="hi")],
-                llm="not-a-provider",  # type: ignore[arg-type]
-                tools=(),
-                already_terminated=True,
-            )
+        result = await knot(
+            {
+                "context": [AgentMessage(role="user", content="hi")],
+                "llm": "not-a-provider",
+                "tools": (),
+                "already_terminated": True,
+            }
+        )
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_unregistered_action_reports_without_invoking_anything(self) -> None:
         """No matching tool means nothing to invoke — a direct terminal, not a ToolInvocation."""

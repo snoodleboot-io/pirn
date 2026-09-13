@@ -10,7 +10,7 @@ A :class:`SubTapestry` that:
 Specialists are expected to accept a ``task: str`` kwarg. As
 :class:`SubTapestry` instances their ``process()`` returns the *sink knot*
 of their inner pipeline, so they must be invoked via
-:func:`invoke_specialist` — calling ``process()`` directly hands back an
+:meth:`_SpecialistInvoker.invoke_specialist` — calling ``process()`` directly hands back an
 unexecuted :class:`Knot` (see PIR-769). They run as sub-pipelines outside
 the orchestrator's inner :class:`Tapestry`; only the routing decision is
 recorded as an inner knot.
@@ -21,7 +21,7 @@ Algorithm:
        with the specialist names.
     3. Execute via ``self._run_inner(inner)`` to obtain the routing decision.
     4. Look up the chosen specialist by name; fall back to the first on mismatch.
-    5. Run the specialist via :func:`invoke_specialist` and normalise the value
+    5. Run the specialist via :meth:`_SpecialistInvoker.invoke_specialist` and normalise the value
        it produced to an :class:`AgentResponse`.
 
 
@@ -43,7 +43,7 @@ from pirn.tapestry import Tapestry
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.multi_agent._specialist_invoker import (
-    invoke_specialist,
+    _SpecialistInvoker,
 )
 from pirn_agents.specializations.multi_agent.orchestrator_router import (
     OrchestratorRouter,
@@ -79,18 +79,9 @@ class OrchestratorAgent(AgentPipeline):
 
         Returns:
             The AgentResponse produced by the selected specialist.
-
-        Raises:
-            TypeError: If task is not a string.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"OrchestratorAgent: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
         if not isinstance(specialists, Mapping) or not specialists:
             raise ValueError("OrchestratorAgent: specialists must be a non-empty mapping")
-        if not isinstance(task, str):
-            raise TypeError(f"OrchestratorAgent: task must be a string, got {type(task).__name__}")
         specialists_dict: dict[str, SubTapestry] = dict(specialists)  # type: ignore[arg-type]
         with Tapestry() as route_inner:
             OrchestratorRouter(
@@ -104,7 +95,7 @@ class OrchestratorAgent(AgentPipeline):
         if not isinstance(chosen_name, str):
             chosen_name = next(iter(specialists_dict))
         specialist = specialists_dict[chosen_name]
-        raw = await invoke_specialist(specialist, task=task)
+        raw = await _SpecialistInvoker.invoke_specialist(specialist, task=task)
         final: AgentResponse = (
             raw
             if isinstance(raw, AgentResponse)

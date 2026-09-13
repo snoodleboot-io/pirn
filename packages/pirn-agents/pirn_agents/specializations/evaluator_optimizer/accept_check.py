@@ -11,6 +11,11 @@ Algorithm:
     1. Receive a :class:`JudgeVerdict` and a numeric ``threshold``.
     2. Validate types at process time.
     3. Return ``True`` when ``verdict.score >= threshold``.
+
+Math:
+    $$
+    \\text{accepted} = \\text{verdict.score} \\geq \\text{threshold}
+    $$
 """
 
 from __future__ import annotations
@@ -55,10 +60,6 @@ class AcceptCheck(Knot):
             TypeError: If ``verdict`` is not a :class:`JudgeVerdict` or
                 ``threshold`` is not numeric.
         """
-        if not isinstance(verdict, JudgeVerdict):
-            raise TypeError(
-                f"AcceptCheck: verdict must be a JudgeVerdict, got {type(verdict).__name__}"
-            )
         if not isinstance(threshold, (int, float)) or isinstance(threshold, bool):
             raise TypeError(
                 f"AcceptCheck: threshold must be numeric, got {type(threshold).__name__}"

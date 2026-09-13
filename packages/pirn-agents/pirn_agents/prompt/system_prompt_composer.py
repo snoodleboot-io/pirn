@@ -76,10 +76,6 @@ class SystemPromptComposer(Knot):
                 "SystemPromptComposer: layers must be a sequence of "
                 f"SystemPromptLayer, got {type(layers).__name__}"
             )
-        if not isinstance(separator, str):
-            raise TypeError(
-                f"SystemPromptComposer: separator must be a str, got {type(separator).__name__}"
-            )
         indexed: list[tuple[int, int, SystemPromptLayer]] = []
         for index, layer in enumerate(layers):
             if not isinstance(layer, SystemPromptLayer):

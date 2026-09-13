@@ -72,20 +72,8 @@ class RaptorRetriever(Retriever):
             Node mappings ``{"id", "text", "level", "score"}`` in rank order.
 
         Raises:
-            TypeError: If ``query``/``store``/``embedder`` are the wrong type.
             ValueError: If ``top_k`` is not a positive integer.
         """
-        if not isinstance(query, str):
-            raise TypeError(f"RaptorRetriever: query must be a string, got {type(query).__name__}")
-        if not isinstance(store, VectorMemoryStore):
-            raise TypeError(
-                f"RaptorRetriever: store must be a VectorMemoryStore, got {type(store).__name__}"
-            )
-        if not isinstance(embedder, EmbeddingProvider):
-            raise TypeError(
-                f"RaptorRetriever: embedder must be an EmbeddingProvider, "
-                f"got {type(embedder).__name__}"
-            )
         if not isinstance(top_k, int) or top_k <= 0:
             raise ValueError(f"RaptorRetriever: top_k must be a positive int, got {top_k!r}")
         vectors = await embedder.embed([query])

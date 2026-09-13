@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
@@ -104,5 +105,6 @@ class TestThreadContextReconstruction:
         ]
 
     async def test_rejects_non_thread(self) -> None:
-        with pytest.raises(TypeError):
-            await _builder().process(thread="bad")  # type: ignore[arg-type]
+        result = await _builder()({"thread": "bad"})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"

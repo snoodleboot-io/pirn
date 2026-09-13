@@ -27,29 +27,33 @@ from pirn_agents.specializations.multi_agent.specialist_invocation_error import 
 )
 
 
-async def invoke_specialist(specialist: SubTapestry, **inputs: Any) -> Any:
-    """Run ``specialist`` to completion and return the value it produced.
+class _SpecialistInvoker:
+    """Namespace for the through-``__call__`` specialist invocation helper."""
 
-    Args:
-        specialist: The specialist pipeline to delegate to.
-        **inputs: Inputs to supply to the specialist, overriding the values it
-            was constructed with. These reach ``process()`` as keyword
-            arguments, exactly as the engine would supply parent results.
+    @staticmethod
+    async def invoke_specialist(specialist: SubTapestry, **inputs: Any) -> Any:
+        """Run ``specialist`` to completion and return the value it produced.
 
-    Returns:
-        The specialist's output — the value its sink knot produced.
+        Args:
+            specialist: The specialist pipeline to delegate to.
+            **inputs: Inputs to supply to the specialist, overriding the values
+                it was constructed with. These reach ``process()`` as keyword
+                arguments, exactly as the engine would supply parent results.
 
-    Raises:
-        SpecialistInvocationError: If the specialist failed or was skipped.
-            Neither outcome carries a value, so there is nothing to return and
-            the caller must not proceed as though there were.
-    """
-    result = await specialist(inputs)
-    if isinstance(result, Ok):
-        return result.value
-    if isinstance(result, Skipped):
-        raise SpecialistInvocationError(specialist.knot_id, f"skipped ({result.reason})")
-    raise SpecialistInvocationError(
-        specialist.knot_id,
-        f"{result.record.exc_type}: {result.record.message}",
-    )
+        Returns:
+            The specialist's output — the value its sink knot produced.
+
+        Raises:
+            SpecialistInvocationError: If the specialist failed or was skipped.
+                Neither outcome carries a value, so there is nothing to return
+                and the caller must not proceed as though there were.
+        """
+        result = await specialist(inputs)
+        if isinstance(result, Ok):
+            return result.value
+        if isinstance(result, Skipped):
+            raise SpecialistInvocationError(specialist.knot_id, f"skipped ({result.reason})")
+        raise SpecialistInvocationError(
+            specialist.knot_id,
+            f"{result.record.exc_type}: {result.record.message}",
+        )

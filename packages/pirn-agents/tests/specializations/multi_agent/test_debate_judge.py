@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -52,8 +53,9 @@ class TestDebateJudgeProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_llm_provider(self) -> None:
         k = _make_knot()
-        with self.assertRaises(TypeError):
-            await k.process(topic="t", final_round=[_resp("x")], judge_llm="bad")  # type: ignore[arg-type]
+        result = await k({"topic": "t", "final_round": [_resp("x")], "judge_llm": "bad"})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_tapestry_run_integration(self) -> None:
         llm = StubLLMProvider(["1"])

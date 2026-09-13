@@ -74,15 +74,6 @@ class SelfQueryRetriever(Retriever):
                 is not a mapping.
             ValueError: If ``top_k`` is not a positive integer.
         """
-        if not isinstance(store, VectorMemoryStore):
-            raise TypeError(
-                f"SelfQueryRetriever: store must be a VectorMemoryStore, got {type(store).__name__}"
-            )
-        if not isinstance(embedder, EmbeddingProvider):
-            raise TypeError(
-                f"SelfQueryRetriever: embedder must be an EmbeddingProvider, "
-                f"got {type(embedder).__name__}"
-            )
         if not isinstance(query_spec, Mapping):
             raise TypeError(
                 f"SelfQueryRetriever: query_spec must be a Mapping, got {type(query_spec).__name__}"

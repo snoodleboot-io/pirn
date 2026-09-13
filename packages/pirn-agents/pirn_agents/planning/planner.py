@@ -84,15 +84,8 @@ class Planner(Knot):
             A Plan containing the ordered steps and optional rationale.
 
         Raises:
-            TypeError: If context is not an AgentContext or llm is not an LLMProvider.
             ValueError: If the LLM response produces no plan steps.
         """
-        if not isinstance(context, AgentContext):
-            raise TypeError(
-                f"Planner: context must be an AgentContext, got {type(context).__name__}"
-            )
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(f"Planner: llm must be an LLMProvider, got {type(llm).__name__}")
         wire_messages: list[dict[str, str]] = [
             {
                 "role": "system",

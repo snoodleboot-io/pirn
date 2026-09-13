@@ -107,20 +107,9 @@ class HybridRetriever(HybridRetrieverBase):
             ValueError: If ``top_k`` or ``candidate_multiplier`` is not a
                 positive integer.
         """
-        if not isinstance(query, str):
-            raise TypeError(f"HybridRetriever: query must be a str, got {type(query).__name__}")
-        if not isinstance(store, VectorMemoryStore):
-            raise TypeError(
-                f"HybridRetriever: store must be a VectorMemoryStore, got {type(store).__name__}"
-            )
         if not isinstance(lexical, Bm25Index):
             raise TypeError(
                 f"HybridRetriever: lexical must be a Bm25Index, got {type(lexical).__name__}"
-            )
-        if not isinstance(embedder, EmbeddingProvider):
-            raise TypeError(
-                f"HybridRetriever: embedder must be an EmbeddingProvider, "
-                f"got {type(embedder).__name__}"
             )
         if not isinstance(top_k, int) or top_k <= 0:
             raise ValueError(f"HybridRetriever: top_k must be a positive int, got {top_k!r}")

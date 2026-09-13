@@ -93,18 +93,9 @@ class SemanticMemoryPipeline(SubTapestry):
             The number of facts extracted and persisted.
 
         Raises:
-            TypeError: If llm is not an LLMProvider or store is not a MemoryStore.
             ValueError: If fact_extraction_prompt is not a non-empty string.
             RuntimeError: If the inner write knot does not return a count.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"SemanticMemoryPipeline: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
-        if not isinstance(store, MemoryStore):
-            raise TypeError(
-                f"SemanticMemoryPipeline: store must be a MemoryStore, got {type(store).__name__}"
-            )
         if not isinstance(fact_extraction_prompt, str) or not fact_extraction_prompt:
             raise ValueError(
                 "SemanticMemoryPipeline: fact_extraction_prompt must be a non-empty string"

@@ -62,14 +62,9 @@ class MemoryRetriever(Retriever):
             The mapping stored under the given key.
 
         Raises:
-            TypeError: If store is not a MemoryStore.
             ValueError: If key is not a non-empty string.
             KeyError: If no entry exists for the given key.
         """
-        if not isinstance(store, MemoryStore):
-            raise TypeError(
-                f"MemoryRetriever: store must be a MemoryStore, got {type(store).__name__}"
-            )
         if not isinstance(key, str) or not key:
             raise ValueError(f"MemoryRetriever: key must be a non-empty string, got {key!r}")
         value = await store.retrieve(key)

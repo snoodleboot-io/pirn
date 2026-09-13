@@ -95,18 +95,22 @@ class McpPromptTemplate:
                 f"McpPromptTemplate.render: missing required argument(s): {sorted(missing)}"
             )
         return [
-            AgentMessage(role=role, content=_substitute(body, provided), name=self._name)
+            AgentMessage(
+                role=role,
+                content=McpPromptTemplate._substitute(body, provided),
+                name=self._name,
+            )
             for role, body in self._message_templates
         ]
 
+    @staticmethod
+    def _substitute(body: str, arguments: Mapping[str, str]) -> str:
+        """Replace each ``{name}`` token in ``body`` with its argument value.
 
-def _substitute(body: str, arguments: Mapping[str, str]) -> str:
-    """Replace each ``{name}`` token in ``body`` with its argument value.
-
-    A plain token replace (not ``str.format``) is used so literal braces in the
-    body — e.g. an embedded JSON example — are left untouched.
-    """
-    rendered = body
-    for name, value in arguments.items():
-        rendered = rendered.replace("{" + name + "}", value)
-    return rendered
+        A plain token replace (not ``str.format``) is used so literal braces in
+        the body — e.g. an embedded JSON example — are left untouched.
+        """
+        rendered = body
+        for name, value in arguments.items():
+            rendered = rendered.replace("{" + name + "}", value)
+        return rendered

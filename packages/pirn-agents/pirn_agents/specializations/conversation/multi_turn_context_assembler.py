@@ -7,6 +7,20 @@ Algorithm:
     4. Iterate in reverse, accumulating messages until ``max_tokens`` is exhausted.
     5. Reverse the accumulated window and return as role/content dicts.
 
+Math:
+    Approximate token cost is one character per token:
+    :math:`\\text{cost}(m) = \\text{len}(m.\\text{content})`. Walking the last
+    ``max_turns`` messages newest-first with running budget :math:`b_0 =
+    \\text{max\\_tokens}`:
+
+    $$
+    b_i = b_{i-1} - \\text{cost}(m_i)
+    $$
+
+    A message is included while :math:`b_{i-1} - \\text{cost}(m_i) \\geq 0`;
+    the first message that would drive the budget negative stops the walk
+    (that message and every older one are excluded), so the kept window is a
+    contiguous, newest-first prefix of ``recent`` — never a partial message.
 
 References:
     - Standard sliding-window context truncation for LLM APIs.

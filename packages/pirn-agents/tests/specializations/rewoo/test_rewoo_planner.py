@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -61,15 +62,22 @@ class TestReWooPlannerProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_llm_provider(self) -> None:
         with Tapestry():
-            knot = ReWooPlanner.__new__(ReWooPlanner)
-            object.__setattr__(knot, "_config", KnotConfig(id="plan"))
-        with self.assertRaises(TypeError):
-            await knot.process(goal="g", llm="bad", tool_descriptions="")  # type: ignore[arg-type]
+            knot = ReWooPlanner(
+                goal="g",
+                llm=StubLLMProvider(["1. search: x"]),
+                tool_descriptions="",
+                _config=KnotConfig(id="plan"),
+            )
+        result = await knot({"goal": "g", "llm": "bad", "tool_descriptions": ""})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_rejects_non_string_goal(self) -> None:
         llm = StubLLMProvider(["1. search: x"])
         with Tapestry():
-            knot = ReWooPlanner.__new__(ReWooPlanner)
-            object.__setattr__(knot, "_config", KnotConfig(id="plan"))
-        with self.assertRaises(TypeError):
-            await knot.process(goal=1, llm=llm, tool_descriptions="")  # type: ignore[arg-type]
+            knot = ReWooPlanner(
+                goal="g", llm=llm, tool_descriptions="", _config=KnotConfig(id="plan")
+            )
+        result = await knot({"goal": 1, "llm": llm, "tool_descriptions": ""})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"

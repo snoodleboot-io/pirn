@@ -76,24 +76,8 @@ class _ParentChildIndexer(Knot):
             The number of child records upserted.
 
         Raises:
-            TypeError: If ``embedder``/``store`` are the wrong type or ``doc_id``
-                is not a string.
             ValueError: If ``group_size`` is not a positive integer.
         """
-        if not isinstance(embedder, EmbeddingProvider):
-            raise TypeError(
-                f"_ParentChildIndexer: embedder must be an EmbeddingProvider, "
-                f"got {type(embedder).__name__}"
-            )
-        if not isinstance(store, VectorMemoryStore):
-            raise TypeError(
-                f"_ParentChildIndexer: store must be a VectorMemoryStore, "
-                f"got {type(store).__name__}"
-            )
-        if not isinstance(doc_id, str):
-            raise TypeError(
-                f"_ParentChildIndexer: doc_id must be a string, got {type(doc_id).__name__}"
-            )
         if not isinstance(group_size, int) or group_size <= 0:
             raise ValueError(
                 f"_ParentChildIndexer: group_size must be a positive int, got {group_size!r}"

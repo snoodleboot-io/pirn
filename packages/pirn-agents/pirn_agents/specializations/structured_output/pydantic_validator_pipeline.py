@@ -89,10 +89,6 @@ class PydanticValidatorPipeline(AgentPipeline):
                 or prompt is not a string.
             ValueError: If max_retries is not positive or all attempts are exhausted.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"PydanticValidatorPipeline: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
         if not isinstance(model_class, type) or not issubclass(model_class, BaseModel):
             raise TypeError(
                 "PydanticValidatorPipeline: model_class must be a BaseModel "
@@ -102,10 +98,6 @@ class PydanticValidatorPipeline(AgentPipeline):
             raise ValueError(
                 "PydanticValidatorPipeline: max_retries must be a positive int, "
                 f"got {max_retries!r}"
-            )
-        if not isinstance(prompt, str):
-            raise TypeError(
-                f"PydanticValidatorPipeline: prompt must be a string, got {type(prompt).__name__}"
             )
         schema = self._derive_schema(model_class)
         prior_error = ""

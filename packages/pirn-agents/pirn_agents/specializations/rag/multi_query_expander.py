@@ -79,17 +79,8 @@ class MultiQueryExpander(Knot):
             An ordered, de-duplicated list of query strings, length <= ``num_queries``.
 
         Raises:
-            TypeError: If ``query`` is not a string or ``llm`` is not an LLMProvider.
             ValueError: If ``num_queries`` is not a positive integer.
         """
-        if not isinstance(query, str):
-            raise TypeError(
-                f"MultiQueryExpander: query must be a string, got {type(query).__name__}"
-            )
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"MultiQueryExpander: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
         if not isinstance(num_queries, int) or num_queries <= 0:
             raise ValueError(
                 f"MultiQueryExpander: num_queries must be a positive int, got {num_queries!r}"

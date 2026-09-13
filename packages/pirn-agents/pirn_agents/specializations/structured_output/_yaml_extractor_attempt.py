@@ -95,14 +95,7 @@ class _YamlExtractorAttempt(Knot):
 
         Returns:
             The parsed YAML mapping on success, or an error description string on failure.
-
-        Raises:
-            TypeError: If prompt is not a string.
         """
-        if not isinstance(prompt, str):
-            raise TypeError(
-                f"YamlExtractorPipeline: prompt must be a string, got {type(prompt).__name__}"
-            )
         schema_dict: dict[str, Any] | None = dict(schema) if schema is not None else None
         system_lines = [type(self)._system_prompt.resolve()]
         if schema_dict is not None:

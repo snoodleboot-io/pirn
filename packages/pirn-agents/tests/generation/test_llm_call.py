@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.tapestry import Tapestry
@@ -43,23 +44,17 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_agent_context(self) -> None:
         llm = StubLLMProvider(responses=["x"])
         k = _make_knot(llm)
-        with self.assertRaises(TypeError):
-            await k.process(
-                context="not a context",  # type: ignore[arg-type]
-                llm=llm,
-                model=None,
-            )
+        result = await k({"context": "not a context", "llm": llm, "model": None})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_rejects_non_llm_provider(self) -> None:
         llm = StubLLMProvider(responses=["x"])
         k = _make_knot(llm)
         context = AgentContext(messages=())
-        with self.assertRaisesRegex(TypeError, "LLMProvider"):
-            await k.process(
-                context=context,
-                llm="bad",  # type: ignore[arg-type]
-                model=None,
-            )
+        result = await k({"context": context, "llm": "bad", "model": None})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_rejects_empty_model_string(self) -> None:
         llm = StubLLMProvider(responses=["x"])

@@ -73,13 +73,8 @@ class ProceduralMemoryPipeline(SubTapestry):
             The storage key under which the procedure was persisted.
 
         Raises:
-            TypeError: If store is not a MemoryStore.
             RuntimeError: If the inner writer does not return a key.
         """
-        if not isinstance(store, MemoryStore):
-            raise TypeError(
-                f"ProceduralMemoryPipeline: store must be a MemoryStore, got {type(store).__name__}"
-            )
         return ProceduralMemoryWriter(
             agent_response=agent_response,
             task_description=task_description,

@@ -8,7 +8,7 @@ from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
-from pirn_agents.determinism.content_digest import content_digest
+from pirn_agents.determinism.content_digest import ContentDigest
 from pirn_agents.determinism.interaction_kind import InteractionKind
 
 
@@ -52,7 +52,7 @@ class CassetteEntry(PirnOpaqueValue):
     @staticmethod
     def key_for(request: Any) -> str:
         """Return the content-digest key for a request ``payload``."""
-        return content_digest(request)
+        return ContentDigest.digest(request)
 
     def to_payload(self) -> dict[str, Any]:
         """Return a JSON-friendly mapping of this entry."""

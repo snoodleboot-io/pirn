@@ -49,14 +49,7 @@ class ApprovalCheck(Knot):
 
         Returns:
             True if approved (always True when auto_approve=True), False otherwise.
-
-        Raises:
-            TypeError: If response is not an AgentResponse instance.
         """
-        if not isinstance(response, AgentResponse):
-            raise TypeError(
-                f"ApprovalCheck: response must be an AgentResponse, got {type(response).__name__}"
-            )
         if auto_approve:
             return True
         return False

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -53,20 +54,22 @@ class TestEnumClassifierAttemptProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_string_prompt(self) -> None:
         llm = StubLLMProvider(["positive"])
-        knot = _EnumClassifierAttempt.__new__(_EnumClassifierAttempt)
-        with self.assertRaises(TypeError):
-            await knot.process(
-                prompt=42,  # type: ignore[arg-type]
-                llm=llm,
-                labels=["positive"],
+        with Tapestry():
+            knot = _EnumClassifierAttempt(
+                prompt="p", llm=llm, labels=["positive"], _config=KnotConfig(id="eca2")
             )
+        result = await knot({"prompt": 42, "llm": llm, "labels": ["positive"]})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_process_rejects_non_string_prompt(self) -> None:
         llm = StubLLMProvider(["positive"])
         with Tapestry():
-            k = _EnumClassifierAttempt.__new__(_EnumClassifierAttempt)
-            object.__setattr__(k, "_config", KnotConfig(id="x"))
-        with self.assertRaises(TypeError):
-            await k.process(prompt=42, llm=llm, labels=["positive", "negative"])  # type: ignore[arg-type]
+            k = _EnumClassifierAttempt(
+                prompt="p", llm=llm, labels=["positive", "negative"], _config=KnotConfig(id="x")
+            )
+        result = await k({"prompt": 42, "llm": llm, "labels": ["positive", "negative"]})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"

@@ -104,12 +104,6 @@ class RelevanceCheck(Knot):
                 scorer is not callable or None, or any retrieved element is not a Mapping.
             ValueError: If threshold is outside [0.0, 1.0].
         """
-        if not isinstance(query, str):
-            raise TypeError(f"RelevanceCheck: query must be a string, got {type(query).__name__}")
-        if not isinstance(threshold, (int, float)):
-            raise TypeError(
-                f"RelevanceCheck: threshold must be a number, got {type(threshold).__name__}"
-            )
         if not 0.0 <= float(threshold) <= 1.0:
             raise ValueError(f"RelevanceCheck: threshold must be in [0.0, 1.0], got {threshold!r}")
         if scorer is not None and not callable(scorer):

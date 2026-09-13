@@ -56,18 +56,5 @@ class CompactionKnot(Knot):
 
         Returns:
             The :class:`CompactionResult`.
-
-        Raises:
-            TypeError: If ``strategy`` is not a CompactionStrategy or ``request``
-                is not a CompactionRequest.
         """
-        if not isinstance(strategy, CompactionStrategy):
-            raise TypeError(
-                "CompactionKnot: strategy must be a CompactionStrategy, "
-                f"got {type(strategy).__name__}"
-            )
-        if not isinstance(request, CompactionRequest):
-            raise TypeError(
-                f"CompactionKnot: request must be a CompactionRequest, got {type(request).__name__}"
-            )
         return await strategy.compact(request)

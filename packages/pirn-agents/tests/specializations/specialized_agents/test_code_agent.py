@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -25,8 +26,9 @@ class TestCodeAgentProcess(unittest.IsolatedAsyncioTestCase):
             llm=llm,
             _config=KnotConfig(id="code"),
         )
-        with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
-            await agent.process(task="write a function", llm="not-a-provider")  # type: ignore[arg-type]
+        result = await agent({"task": "write a function", "llm": "not-a-provider"})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_rejects_empty_language(self) -> None:
         llm = StubLLMProvider(["def f(): pass"])

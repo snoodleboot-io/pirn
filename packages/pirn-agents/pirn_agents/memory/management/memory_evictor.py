@@ -71,14 +71,6 @@ class MemoryEvictor(Knot):
             TypeError: If ``policy`` is not a MemoryEvictionPolicy or ``store`` is
                 not a MemoryStore.
         """
-        if not isinstance(policy, MemoryEvictionPolicy):
-            raise TypeError(
-                f"MemoryEvictor: policy must be a MemoryEvictionPolicy, got {type(policy).__name__}"
-            )
-        if not isinstance(store, MemoryStore):
-            raise TypeError(
-                f"MemoryEvictor: store must be a MemoryStore, got {type(store).__name__}"
-            )
         victims = policy.select(tuple(records), now=now, capacity=capacity)
         evicted: list[str] = []
         for record in victims:

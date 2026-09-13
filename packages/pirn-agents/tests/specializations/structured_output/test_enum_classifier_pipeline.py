@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -24,13 +25,14 @@ class TestEnumClassifierPipelineValidation(unittest.IsolatedAsyncioTestCase):
             await knot.process(prompt="classify", llm=llm, labels=())
 
     async def test_rejects_non_llm_provider(self) -> None:
-        knot = EnumClassifierPipeline.__new__(EnumClassifierPipeline)
-        with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
-            await knot.process(
-                prompt="classify",
-                llm="not-a-provider",  # type: ignore[arg-type]
-                labels=("a", "b"),
+        llm = StubLLMProvider(["a"])
+        with Tapestry():
+            knot = EnumClassifierPipeline(
+                prompt="classify", llm=llm, labels=("a", "b"), _config=KnotConfig(id="ecp")
             )
+        result = await knot({"prompt": "classify", "llm": "not-a-provider", "labels": ("a", "b")})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
 
 class TestEnumClassifierPipelineHappyPath(unittest.IsolatedAsyncioTestCase):

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -21,16 +22,25 @@ from tests.specializations.conftest import (
 class TestBrowserAgentConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_tool(self) -> None:
         llm = StubLLMProvider(["Final Answer: done"])
+        tool = StubTool(name="browser")
         with Tapestry():
-            k = BrowserAgent.__new__(BrowserAgent)
-            object.__setattr__(k, "_config", KnotConfig(id="browser"))
-        with self.assertRaises((TypeError, ValueError)):
-            await k.process(
+            k = BrowserAgent(
                 goal="open page",
                 llm=llm,
-                browser_tool="not-a-tool",  # type: ignore[arg-type]
+                browser_tool=tool,
                 max_steps=10,
+                _config=KnotConfig(id="browser"),
             )
+        result = await k(
+            {
+                "goal": "open page",
+                "llm": llm,
+                "browser_tool": "not-a-tool",
+                "max_steps": 10,
+            }
+        )
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_rejects_zero_max_steps(self) -> None:
         llm = StubLLMProvider(["Final Answer: done"])

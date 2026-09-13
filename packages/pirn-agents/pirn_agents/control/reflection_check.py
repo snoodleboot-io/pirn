@@ -79,18 +79,7 @@ class ReflectionCheck(Knot):
 
         Returns:
             True if the LLM indicates the agent should iterate again, False otherwise.
-
-        Raises:
-            TypeError: If response is not an AgentResponse or llm is not an LLMProvider.
         """
-        if not isinstance(response, AgentResponse):
-            raise TypeError(
-                f"ReflectionCheck: response must be an AgentResponse, got {type(response).__name__}"
-            )
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"ReflectionCheck: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
         wire_messages = (
             {
                 "role": "system",

@@ -7,6 +7,20 @@ measuring age from the record's recency anchor (``last_accessed`` when set, else
 ``created_at``). The half-life is a construction-time config, so the same knot
 expresses fast-forgetting working memory (short half-life) or durable semantic
 memory (long half-life). The score feeds eviction and ranked recall.
+
+Math:
+    Given the record's ``importance`` in :math:`[0, 1]`, its age at ``now`` in
+    seconds, and the configured ``half_life_seconds`` (must be positive):
+
+    $$
+    \\text{value} = \\text{importance} \\cdot 2^{-\\,\\text{age\\_seconds} / \\text{half\\_life\\_seconds}}
+    $$
+
+    A record at age zero keeps its full importance; after one half-life its
+    value halves, and so on. A negative age (a recency anchor in the future,
+    e.g. clock skew) is not separately clamped here — see
+    :func:`~pirn_agents.memory.management.decay_function.decay_score` for the
+    shared primitive's own edge-case handling.
 """
 
 from __future__ import annotations
@@ -59,15 +73,7 @@ class DecayScorer(Knot):
             The decayed value ``importance * 2 ** (-age / half_life)``.
 
         Raises:
-            TypeError: If ``record`` is not a MemoryRecord or ``now`` is not a
-                datetime.
             ValueError: If ``half_life_seconds`` is not positive.
         """
-        if not isinstance(record, MemoryRecord):
-            raise TypeError(
-                f"DecayScorer: record must be a MemoryRecord, got {type(record).__name__}"
-            )
-        if not isinstance(now, datetime):
-            raise TypeError(f"DecayScorer: now must be a datetime, got {type(now).__name__}")
         age_seconds = (now - record.recency_anchor()).total_seconds()
         return decay_score(record.importance, age_seconds, half_life_seconds)

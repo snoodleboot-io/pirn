@@ -70,15 +70,7 @@ class FactClaimVerifier(Knot):
 
         Returns:
             The original AgentResponse if all claims are supported, or a copy with an unverified-claims warning appended.
-
-        Raises:
-            TypeError: If response is not an AgentResponse instance.
         """
-        if not isinstance(response, AgentResponse):
-            raise TypeError(
-                "FactClaimVerifier: response must be an AgentResponse, "
-                f"got {type(response).__name__}"
-            )
         unverified: list[str] = []
         for claim in claims:
             if not isinstance(claim, str) or not claim:

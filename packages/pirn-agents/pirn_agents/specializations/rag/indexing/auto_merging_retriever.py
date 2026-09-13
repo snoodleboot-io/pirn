@@ -15,6 +15,19 @@ Algorithm:
        ``retrieved_leaves / sibling_count >= merge_threshold``; otherwise keep
        the individual leaves.
     5. Return up to ``top_k`` results ordered by score.
+
+Math:
+    For a parent with ``sibling_count`` :math:`n` leaf children (floored at 1
+    when the store did not record a count), of which ``retrieved_leaves``
+    :math:`k` were among the over-fetched matches:
+
+    $$
+    \\text{merge} = \\frac{k}{n} \\geq \\text{merge\\_threshold}
+    $$
+
+    ``merge_threshold`` is validated to :math:`(0, 1]`, so a threshold of
+    ``1.0`` merges only when every sibling was retrieved and a threshold near
+    ``0`` merges on a single retrieved leaf.
 """
 
 from __future__ import annotations
@@ -81,24 +94,9 @@ class AutoMergingRetriever(Retriever):
             Up to ``top_k`` result mappings, each a merged parent or a precise leaf.
 
         Raises:
-            TypeError: If ``query``/``store``/``embedder`` are the wrong type.
             ValueError: If ``top_k``/``candidate_multiplier`` are not positive ints
                 or ``merge_threshold`` is outside ``(0, 1]``.
         """
-        if not isinstance(query, str):
-            raise TypeError(
-                f"AutoMergingRetriever: query must be a string, got {type(query).__name__}"
-            )
-        if not isinstance(store, VectorMemoryStore):
-            raise TypeError(
-                f"AutoMergingRetriever: store must be a VectorMemoryStore, "
-                f"got {type(store).__name__}"
-            )
-        if not isinstance(embedder, EmbeddingProvider):
-            raise TypeError(
-                f"AutoMergingRetriever: embedder must be an EmbeddingProvider, "
-                f"got {type(embedder).__name__}"
-            )
         if not isinstance(top_k, int) or top_k <= 0:
             raise ValueError(f"AutoMergingRetriever: top_k must be a positive int, got {top_k!r}")
         if not isinstance(candidate_multiplier, int) or candidate_multiplier <= 0:

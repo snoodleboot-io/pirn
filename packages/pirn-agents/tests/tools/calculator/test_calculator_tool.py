@@ -11,7 +11,7 @@ import math
 
 import pytest
 
-from pirn_agents.tools.calculator._safe_evaluator import evaluate_expression
+from pirn_agents.tools.calculator._safe_evaluator import _SafeEvaluator
 from pirn_agents.tools.calculator.calculator_tool import CalculatorTool
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_status import ToolStatus
@@ -41,11 +41,11 @@ class TestSafeEvaluator:
         ],
     )
     def test_valid_arithmetic(self, expression: str, expected: float) -> None:
-        assert evaluate_expression(expression) == pytest.approx(expected)
+        assert _SafeEvaluator.evaluate(expression) == pytest.approx(expected)
 
     def test_division_by_zero_raises(self) -> None:
         with pytest.raises(ZeroDivisionError):
-            evaluate_expression("1 / 0")
+            _SafeEvaluator.evaluate("1 / 0")
 
     @pytest.mark.parametrize(
         "payload",
@@ -70,23 +70,23 @@ class TestSafeEvaluator:
     )
     def test_malicious_payloads_rejected(self, payload: str) -> None:
         with pytest.raises((ValueError, TypeError)):
-            evaluate_expression(payload)
+            _SafeEvaluator.evaluate(payload)
 
     def test_exponent_guard_blocks_runaway_power(self) -> None:
         with pytest.raises(ValueError, match="exponent too large"):
-            evaluate_expression("9 ** 9999")
+            _SafeEvaluator.evaluate("9 ** 9999")
 
     def test_non_string_rejected(self) -> None:
         with pytest.raises(TypeError):
-            evaluate_expression(123)  # type: ignore[arg-type]
+            _SafeEvaluator.evaluate(123)  # type: ignore[arg-type]
 
     def test_empty_rejected(self) -> None:
         with pytest.raises(ValueError):
-            evaluate_expression("   ")
+            _SafeEvaluator.evaluate("   ")
 
     def test_boolean_literal_rejected(self) -> None:
         with pytest.raises(ValueError):
-            evaluate_expression("True + 1")
+            _SafeEvaluator.evaluate("True + 1")
 
 
 class TestCalculatorTool:

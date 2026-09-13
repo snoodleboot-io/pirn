@@ -74,18 +74,7 @@ class StepBackPrompting(Knot):
 
         Returns:
             An AgentResponse containing the final answer informed by the step-back reasoning.
-
-        Raises:
-            TypeError: If prompt is not a string or llm is not an LLMProvider.
         """
-        if not isinstance(prompt, str):
-            raise TypeError(
-                f"StepBackPrompting: prompt must be a string, got {type(prompt).__name__}"
-            )
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"StepBackPrompting: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
         step_back_messages = [
             {"role": "system", "content": type(self)._step_back_system.resolve()},
             {"role": "user", "content": prompt},

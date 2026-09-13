@@ -132,17 +132,6 @@ class SQLAgent(AgentPipeline):
         """
         if not isinstance(question, str) or not question:
             raise TypeError(f"SQLAgent: question must be a non-empty string, got {question!r}")
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(f"SQLAgent: llm must be an LLMProvider, got {type(llm).__name__}")
-        if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError(
-                f"SQLAgent: pool must be a DatabaseConnectionPool, got {type(pool).__name__}"
-            )
-        if not isinstance(schema_description, str):
-            raise TypeError(
-                "SQLAgent: schema_description must be a string, "
-                f"got {type(schema_description).__name__}"
-            )
         sql = _SQLGenerator(
             question=question,
             llm=llm,

@@ -85,19 +85,8 @@ class ReflexionPipeline(AgentPipeline):
             :class:`ReflexionResult`.
 
         Raises:
-            TypeError: If ``llm``/``memory``/``task`` have the wrong type.
             ValueError: If ``max_iterations`` is not a positive int.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"ReflexionPipeline: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
-        if not isinstance(memory, MemoryStore):
-            raise TypeError(
-                f"ReflexionPipeline: memory must be a MemoryStore, got {type(memory).__name__}"
-            )
-        if not isinstance(task, str):
-            raise TypeError(f"ReflexionPipeline: task must be a string, got {type(task).__name__}")
         if not isinstance(max_iterations, int) or max_iterations <= 0:
             raise ValueError(
                 f"ReflexionPipeline: max_iterations must be a positive int, got {max_iterations!r}"

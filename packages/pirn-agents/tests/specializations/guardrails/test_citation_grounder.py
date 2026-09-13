@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
@@ -47,5 +48,6 @@ class TestCitationGrounderProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_agent_response(self) -> None:
         llm = StubLLMProvider(["x"])
         k = _make_knot(llm)
-        with self.assertRaises(TypeError):
-            await k.process(response="not a response", sources=["src"], llm=llm)  # type: ignore[arg-type]
+        result = await k({"response": "not a response", "sources": ["src"], "llm": llm})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"

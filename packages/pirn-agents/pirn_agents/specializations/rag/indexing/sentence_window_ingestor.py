@@ -78,34 +78,14 @@ class SentenceWindowIngestor(Knot):
             The number of sentence records upserted.
 
         Raises:
-            TypeError: If ``text``/``doc_id`` are not strings or ``embedder``/
-                ``store`` are the wrong type.
             ValueError: If ``window_size`` is negative.
         """
-        if not isinstance(text, str):
-            raise TypeError(
-                f"SentenceWindowIngestor: text must be a string, got {type(text).__name__}"
-            )
-        if not isinstance(embedder, EmbeddingProvider):
-            raise TypeError(
-                f"SentenceWindowIngestor: embedder must be an EmbeddingProvider, "
-                f"got {type(embedder).__name__}"
-            )
-        if not isinstance(store, VectorMemoryStore):
-            raise TypeError(
-                f"SentenceWindowIngestor: store must be a VectorMemoryStore, "
-                f"got {type(store).__name__}"
-            )
-        if not isinstance(doc_id, str):
-            raise TypeError(
-                f"SentenceWindowIngestor: doc_id must be a string, got {type(doc_id).__name__}"
-            )
         if not isinstance(window_size, int) or window_size < 0:
             raise ValueError(
                 f"SentenceWindowIngestor: window_size must be a non-negative int, "
                 f"got {window_size!r}"
             )
-        sentences = _split_sentences(text)
+        sentences = SentenceWindowIngestor._split_sentences(text)
         if not sentences:
             return 0
         vectors = await embedder.embed(sentences)
@@ -125,8 +105,8 @@ class SentenceWindowIngestor(Knot):
         await store.upsert(records)
         return len(records)
 
-
-def _split_sentences(text: str) -> list[str]:
-    """Split ``text`` into sentences on terminal punctuation, dropping blanks."""
-    pieces = re.split(r"(?<=[.!?])\s+", text.strip())
-    return [piece.strip() for piece in pieces if piece.strip()]
+    @staticmethod
+    def _split_sentences(text: str) -> list[str]:
+        """Split ``text`` into sentences on terminal punctuation, dropping blanks."""
+        pieces = re.split(r"(?<=[.!?])\s+", text.strip())
+        return [piece.strip() for piece in pieces if piece.strip()]

@@ -20,33 +20,49 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 
+class ReciprocalRankFusion:
+    """Namespace for the Reciprocal Rank Fusion merge primitive."""
+
+    @staticmethod
+    def fuse(rankings: Sequence[Sequence[str]], *, k: int = 60) -> list[tuple[str, float]]:
+        """Fuse several ranked id lists into one via Reciprocal Rank Fusion.
+
+        Args:
+            rankings: Each inner sequence is an ordered list of ids (most relevant
+                first) from one retriever.
+            k: The RRF damping constant; larger ``k`` flattens the contribution of
+                top ranks. Must be a positive integer.
+
+        Returns:
+            ``(id, fused_score)`` pairs ordered by descending fused score. Ties
+            break by first appearance across the input rankings, giving a
+            stable order.
+
+        Raises:
+            ValueError: If ``k`` is not a positive integer.
+        """
+        if not isinstance(k, int) or k <= 0:
+            raise ValueError(f"k must be a positive int, got {k!r}")
+        fused: dict[str, float] = {}
+        first_seen: dict[str, int] = {}
+        order = 0
+        for ranking in rankings:
+            for rank, identifier in enumerate(ranking):
+                fused[identifier] = fused.get(identifier, 0.0) + 1.0 / (k + rank)
+                if identifier not in first_seen:
+                    first_seen[identifier] = order
+                    order += 1
+        return sorted(fused.items(), key=lambda pair: (-pair[1], first_seen[pair[0]]))
+
+
 def reciprocal_rank_fusion(
     rankings: Sequence[Sequence[str]], *, k: int = 60
 ) -> list[tuple[str, float]]:
     """Fuse several ranked id lists into one via Reciprocal Rank Fusion.
 
-    Args:
-        rankings: Each inner sequence is an ordered list of ids (most relevant
-            first) from one retriever.
-        k: The RRF damping constant; larger ``k`` flattens the contribution of
-            top ranks. Must be a positive integer.
-
-    Returns:
-        ``(id, fused_score)`` pairs ordered by descending fused score. Ties break
-        by first appearance across the input rankings, giving a stable order.
-
-    Raises:
-        ValueError: If ``k`` is not a positive integer.
+    Thin wrapper kept for the pinned public import path (see
+    ``tests/retrieval/test_retrieval_import_surface.py``) and the
+    ``fusion_retriever.py``/``hybrid_retriever.py``/``hybrid_graph_retriever.py``
+    call sites; see :meth:`ReciprocalRankFusion.fuse`.
     """
-    if not isinstance(k, int) or k <= 0:
-        raise ValueError(f"k must be a positive int, got {k!r}")
-    fused: dict[str, float] = {}
-    first_seen: dict[str, int] = {}
-    order = 0
-    for ranking in rankings:
-        for rank, identifier in enumerate(ranking):
-            fused[identifier] = fused.get(identifier, 0.0) + 1.0 / (k + rank)
-            if identifier not in first_seen:
-                first_seen[identifier] = order
-                order += 1
-    return sorted(fused.items(), key=lambda pair: (-pair[1], first_seen[pair[0]]))
+    return ReciprocalRankFusion.fuse(rankings, k=k)

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 from pydantic import BaseModel, ValidationError
@@ -37,11 +38,9 @@ class TestSchemaEnforcerProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_agent_response(self) -> None:
         knot = _make_knot()
-        with self.assertRaises(TypeError):
-            await knot.process(
-                response="not-a-response",  # type: ignore[arg-type]
-                model_class=_PersonModel,
-            )
+        result = await knot({"response": "not-a-response", "model_class": _PersonModel})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_validates_valid_json_against_model(self) -> None:
         knot = _make_knot()

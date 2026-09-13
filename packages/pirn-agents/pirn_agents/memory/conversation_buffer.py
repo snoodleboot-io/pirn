@@ -68,11 +68,6 @@ class ConversationBuffer(Knot):
             TypeError: If new_message or history elements are not AgentMessage instances.
             ValueError: If max_size is not a positive int.
         """
-        if not isinstance(new_message, AgentMessage):
-            raise TypeError(
-                "ConversationBuffer: new_message must be an AgentMessage, "
-                f"got {type(new_message).__name__}"
-            )
         if not isinstance(history, Sequence) or isinstance(history, (str, bytes)):
             raise TypeError(
                 "ConversationBuffer: history must be a sequence of AgentMessage, "

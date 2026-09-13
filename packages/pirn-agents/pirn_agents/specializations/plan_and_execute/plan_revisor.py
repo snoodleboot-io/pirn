@@ -84,16 +84,7 @@ class PlanRevisor(Knot):
 
         Returns:
             A revised Plan containing the remaining steps to complete the goal.
-
-        Raises:
-            TypeError: If original_plan is not a Plan instance.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(f"PlanRevisor: llm must be an LLMProvider, got {type(llm).__name__}")
-        if not isinstance(original_plan, Plan):
-            raise TypeError(
-                f"PlanRevisor: original_plan must be a Plan, got {type(original_plan).__name__}"
-            )
         original_steps_text = "\n".join(
             f"{i + 1}. {step}" for i, step in enumerate(original_plan.steps)
         )

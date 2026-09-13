@@ -18,6 +18,28 @@ Algorithm:
        the frontier. Track the best node seen.
     4. Return a typed :class:`LatsResult` with the best trajectory found.
 
+Math:
+    The frontier is a min-heap keyed on :math:`-\\text{value}(n)` (Python's
+    :mod:`heapq` is min-first, so negating simulates a max-heap), broken by an
+    insertion-order counter so nodes of equal value pop FIFO rather than by an
+    unstable trajectory-tuple comparison:
+
+    $$
+    \\text{priority}(n) = \\bigl(-\\text{value}(n),\\ \\text{insertion\\_index}(n)\\bigr)
+    $$
+
+    ``best`` tracks the single highest-value node seen across the whole
+    search, independent of the frontier's current contents:
+
+    $$
+    \\text{best} \\leftarrow \\text{child} \\quad \\text{if } \\text{value}(\\text{child}) > \\text{value}(\\text{best})
+    $$
+
+    Search halts when the frontier empties, a node reaches ``max_depth``
+    without producing a still-frontier-worthy child, or the budget meter
+    raises :class:`~pirn_agents.performance.budget_breach_error.BudgetBreachError`
+    on ``spend_iteration()`` — whichever comes first.
+
 References:
     - Zhou et al. (2024) "Language Agent Tree Search" https://arxiv.org/abs/2310.04406
 """
@@ -90,20 +112,8 @@ class LatsSearch(AgentPipeline):
             A terminal :class:`Source` whose output is the :class:`LatsResult`.
 
         Raises:
-            TypeError: If any input has the wrong type.
             ValueError: If ``max_depth`` < 1 or the budget bounds no dimension.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(f"LatsSearch: llm must be an LLMProvider, got {type(llm).__name__}")
-        if not isinstance(task, str):
-            raise TypeError(f"LatsSearch: task must be a string, got {type(task).__name__}")
-        if not isinstance(value_model, TrajectoryValueModel):
-            raise TypeError(
-                "LatsSearch: value_model must be a TrajectoryValueModel, got "
-                f"{type(value_model).__name__}"
-            )
-        if not isinstance(budget, RunBudget):
-            raise TypeError(f"LatsSearch: budget must be a RunBudget, got {type(budget).__name__}")
         if not isinstance(max_depth, int) or max_depth < 1:
             raise ValueError(f"LatsSearch: max_depth must be a positive int, got {max_depth!r}")
         if budget.max_iterations is None and budget.deadline_seconds is None:

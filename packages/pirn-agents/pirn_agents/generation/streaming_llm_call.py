@@ -67,7 +67,6 @@ class StreamingLLMCall(Knot):
             fragments from the LLM provider.
 
         Raises:
-            TypeError: If context is not an AgentContext or llm is not an LLMProvider.
             ValueError: If model is an empty string.
         """
         # Return type elided to ``Any`` because pydantic's ``TypeAdapter``
@@ -81,14 +80,6 @@ class StreamingLLMCall(Knot):
         # awaited — which the interface's own ``async def`` declaration invited
         # — and that raises ``TypeError`` against any real provider; only test
         # doubles that returned an iterator from a coroutine made it work.
-        if not isinstance(context, AgentContext):
-            raise TypeError(
-                f"StreamingLLMCall: context must be an AgentContext, got {type(context).__name__}"
-            )
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"StreamingLLMCall: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
         if model is not None and (not isinstance(model, str) or not model):
             raise ValueError(
                 f"StreamingLLMCall: model must be a non-empty string or None, got {model!r}"

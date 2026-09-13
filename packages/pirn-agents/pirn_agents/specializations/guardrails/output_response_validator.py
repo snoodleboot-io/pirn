@@ -77,7 +77,6 @@ class OutputResponseValidator(Knot):
             The original AgentResponse if all checks pass.
 
         Raises:
-            TypeError: If response is not an AgentResponse instance.
             ValueError: If the response content matches a deny pattern or a tool call references a disallowed tool.
         """
         deny_compiled = tuple(
@@ -87,11 +86,6 @@ class OutputResponseValidator(Knot):
             for i, raw in enumerate(deny_patterns)
         )
         allowed_set = frozenset(allowed_tool_names)
-        if not isinstance(response, AgentResponse):
-            raise TypeError(
-                "OutputResponseValidator: response must be an AgentResponse, "
-                f"got {type(response).__name__}"
-            )
         match = await self._pattern_compiler.search_any(deny_compiled, response.content)
         if match is not None:
             raise ValueError(

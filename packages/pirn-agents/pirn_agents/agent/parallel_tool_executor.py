@@ -176,6 +176,10 @@ class ParallelToolExecutor(Knot):
                     f"ParallelToolExecutor: tool_calls[{index}] must be a "
                     f"ToolCall, got {type(call).__name__}"
                 )
+        # PIR-856: kept, not redundant. ReWooPipeline wires this knot with
+        # KnotConfig(validate_io=False) (rewoo_pipeline.py), so
+        # `validate_io`'s pydantic check never runs for that caller — this
+        # guard is the only protection ``toolset`` gets there.
         if not isinstance(toolset, Toolset):
             raise TypeError(
                 f"ParallelToolExecutor: toolset must be a Toolset, got {type(toolset).__name__}"

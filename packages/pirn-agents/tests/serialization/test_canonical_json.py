@@ -20,7 +20,7 @@ from typing import Any, ClassVar
 
 import pytest
 
-from pirn_agents.determinism.content_digest import content_digest
+from pirn_agents.determinism.content_digest import ContentDigest
 from pirn_agents.serialization.canonical_json import CanonicalJson
 from pirn_agents.serialization.opaque_policy import OpaquePolicy
 from pirn_agents.sessions.execution_cursor import ExecutionCursor
@@ -134,7 +134,7 @@ class TestCanonicalJsonReproducesDurableDigests:
     @pytest.mark.parametrize("name", _payload_names())
     def test_agrees_with_content_digest_on_json_payloads(self, name: str) -> None:
         # content_digest keys every cassette entry; the seam must be a drop-in.
-        assert CanonicalJson.digest(_payloads()[name]) == content_digest(_payloads()[name])
+        assert CanonicalJson.digest(_payloads()[name]) == ContentDigest.digest(_payloads()[name])
 
 
 class TestCanonicalJsonEncoding:
@@ -349,15 +349,17 @@ class TestContentDigestRejectsIdentityKeyedRequests:
             pass
 
         with pytest.raises(TypeError, match="memory address"):
-            content_digest({"prompt": "hi", "handle": Handle()})
+            ContentDigest.digest({"prompt": "hi", "handle": Handle()})
 
     @pytest.mark.parametrize("name", _stable_leaf_names())
     def test_a_request_carrying_a_content_rendering_leaf_still_digests(self, name: str) -> None:
         payload = {"prompt": "hi", "leaf": _stable_opaque_leaves()[name]}
-        assert len(content_digest(payload)) == 64
+        assert len(ContentDigest.digest(payload)) == 64
 
     @pytest.mark.parametrize("name", _stable_leaf_names())
     def test_recorded_digests_do_not_move(self, name: str) -> None:
         # The migration guarantee stated at the seam callers actually use.
         payload = {"prompt": "hi", "leaf": _stable_opaque_leaves()[name]}
-        assert content_digest(payload) == CanonicalJson.digest(payload, policy=OpaquePolicy.STR)
+        assert ContentDigest.digest(payload) == CanonicalJson.digest(
+            payload, policy=OpaquePolicy.STR
+        )

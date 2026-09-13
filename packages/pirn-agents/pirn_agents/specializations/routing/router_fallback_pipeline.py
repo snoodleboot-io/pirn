@@ -82,11 +82,6 @@ class RouterFallbackPipeline(AgentPipeline):
                     f"RouterFallbackPipeline: candidates[{index}] must be a RouteCandidate, got "
                     f"{type(candidate).__name__}"
                 )
-        if not isinstance(confidences, Mapping):
-            raise TypeError(
-                "RouterFallbackPipeline: confidences must be a Mapping, got "
-                f"{type(confidences).__name__}"
-            )
         if not isinstance(arguments, Mapping):
             raise TypeError(
                 "RouterFallbackPipeline: arguments must be a Mapping, got "

@@ -70,24 +70,8 @@ class SentenceConfidenceMonitor(Knot):
             ``True`` when ``confidence < threshold``.
 
         Raises:
-            TypeError: If ``sentence`` is not a string or the scores are not numbers.
             ValueError: If ``confidence`` or ``threshold`` is outside [0, 1].
         """
-        if not isinstance(sentence, str):
-            raise TypeError(
-                f"SentenceConfidenceMonitor: sentence must be a string, "
-                f"got {type(sentence).__name__}"
-            )
-        if not isinstance(confidence, (int, float)):
-            raise TypeError(
-                f"SentenceConfidenceMonitor: confidence must be a number, "
-                f"got {type(confidence).__name__}"
-            )
-        if not isinstance(threshold, (int, float)):
-            raise TypeError(
-                f"SentenceConfidenceMonitor: threshold must be a number, "
-                f"got {type(threshold).__name__}"
-            )
         if not 0.0 <= float(confidence) <= 1.0:
             raise ValueError(
                 f"SentenceConfidenceMonitor: confidence must be in [0, 1], got {confidence!r}"

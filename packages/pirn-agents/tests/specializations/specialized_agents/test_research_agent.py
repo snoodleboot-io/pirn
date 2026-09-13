@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -28,8 +29,9 @@ class TestResearchAgentProcess(unittest.IsolatedAsyncioTestCase):
             search_tool=tool,
             _config=KnotConfig(id="research"),
         )
-        with self.assertRaisesRegex(TypeError, "search_tool must be a Tool"):
-            await agent.process(topic="quantum", llm=llm, search_tool="not-a-tool")  # type: ignore[arg-type]
+        result = await agent({"topic": "quantum", "llm": llm, "search_tool": "not-a-tool"})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_rejects_zero_max_searches(self) -> None:
         llm = StubLLMProvider(["Final Answer: ok"])

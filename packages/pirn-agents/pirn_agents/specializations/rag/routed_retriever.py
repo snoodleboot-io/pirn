@@ -66,15 +66,8 @@ class RoutedRetriever(Retriever):
             The retrieved documents, each tagged with a ``route`` key.
 
         Raises:
-            TypeError: If ``routes`` is not a RouteTable or ``query`` is not a string.
             ValueError: If ``top_k`` is not a positive integer.
         """
-        if not isinstance(routes, RouteTable):
-            raise TypeError(
-                f"RoutedRetriever: routes must be a RouteTable, got {type(routes).__name__}"
-            )
-        if not isinstance(query, str):
-            raise TypeError(f"RoutedRetriever: query must be a string, got {type(query).__name__}")
         if not isinstance(top_k, int) or top_k <= 0:
             raise ValueError(f"RoutedRetriever: top_k must be a positive int, got {top_k!r}")
         selected = route if routes.has(route) else routes.route_names()[0]

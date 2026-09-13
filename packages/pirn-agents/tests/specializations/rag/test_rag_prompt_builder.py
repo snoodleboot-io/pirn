@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
+from pirn.core.err import Err
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -38,12 +39,15 @@ class TestRAGPromptBuilderProcess(unittest.IsolatedAsyncioTestCase):
             retrieved=_RetrievedSource([], _config=KnotConfig(id="src")),
             _config=KnotConfig(id="rpb"),
         )
-        with self.assertRaises(TypeError):
-            await knot.process(
-                query=42,  # type: ignore[arg-type]
-                retrieved=[],
-                instruction="Answer the question using the retrieved context.",
-            )
+        result = await knot(
+            {
+                "query": 42,
+                "retrieved": [],
+                "instruction": "Answer the question using the retrieved context.",
+            }
+        )
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_builds_prompt_with_context(self) -> None:
         hits = [{"text": "relevant doc"}]

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -14,11 +15,12 @@ from tests.specializations.conftest import StubLLMProvider
 
 class TestLLMChatCallConstruction(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
+        llm = StubLLMProvider([])
         with Tapestry():
-            k = LLMChatCall.__new__(LLMChatCall)
-            object.__setattr__(k, "_config", KnotConfig(id="lcc"))
-        with self.assertRaises((TypeError, ValueError)):
-            await k.process(prompt="hello", llm="bad")  # type: ignore[arg-type]
+            k = LLMChatCall(prompt="hello", llm=llm, _config=KnotConfig(id="lcc"))
+        result = await k({"prompt": "hello", "llm": "bad"})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_rejects_non_positive_max_tokens(self) -> None:
         llm = StubLLMProvider([])

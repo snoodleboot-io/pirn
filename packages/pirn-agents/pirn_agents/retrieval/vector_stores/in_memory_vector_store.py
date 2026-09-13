@@ -22,7 +22,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
-from pirn_agents.retrieval.vector_stores.metadata_match import matches_metadata_filter
+from pirn_agents.retrieval.vector_stores.metadata_match import MetadataMatch
 from pirn_agents.retrieval.vector_stores.vector_match import VectorMatch
 from pirn_agents.retrieval.vector_stores.vector_memory_store import VectorMemoryStore
 from pirn_agents.retrieval.vector_stores.vector_record import VectorRecord
@@ -104,7 +104,7 @@ class InMemoryVectorStore(VectorMemoryStore):
         candidates = [
             record
             for record in self._records.values()
-            if matches_metadata_filter(record.metadata, metadata_filter)
+            if MetadataMatch.matches(record.metadata, metadata_filter)
         ]
         candidates = self._select_candidates(candidates)
         if not candidates:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
@@ -49,8 +50,9 @@ class TestEpisodicMemoryRetrieverProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_memory_store(self) -> None:
         k = _make_knot()
-        with self.assertRaises(TypeError):
-            await k.process(context="ctx", store="bad", top_k=5)  # type: ignore[arg-type]
+        result = await k({"context": "ctx", "store": "bad", "top_k": 5})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_rejects_zero_top_k(self) -> None:
         k = _make_knot()

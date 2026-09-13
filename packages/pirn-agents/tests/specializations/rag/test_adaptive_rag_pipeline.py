@@ -10,7 +10,6 @@ from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.rag.adaptive_rag_pipeline import (
     AdaptiveRAGPipeline,
-    _select_complexity_route,
 )
 from pirn_agents.types.messaging.agent_response import AgentResponse
 from tests.specializations.conftest import (
@@ -131,16 +130,16 @@ class TestSelectComplexityRoute(unittest.TestCase):
     """Direct coverage of the selector, which sees an upper-cased reply."""
 
     def test_exact_labels(self) -> None:
-        assert _select_complexity_route("SIMPLE") == "simple"
-        assert _select_complexity_route("MODERATE") == "moderate"
-        assert _select_complexity_route("COMPLEX") == "complex"
+        assert AdaptiveRAGPipeline._select_complexity_route("SIMPLE") == "simple"
+        assert AdaptiveRAGPipeline._select_complexity_route("MODERATE") == "moderate"
+        assert AdaptiveRAGPipeline._select_complexity_route("COMPLEX") == "complex"
 
     def test_exact_match_wins_over_substring_ordering(self) -> None:
-        assert _select_complexity_route("SIMPLE") == "simple"
+        assert AdaptiveRAGPipeline._select_complexity_route("SIMPLE") == "simple"
 
     def test_padded_single_label(self) -> None:
-        assert _select_complexity_route("THE ANSWER IS COMPLEX.") == "complex"
-        assert _select_complexity_route("THIS ONE IS SIMPLE.") == "simple"
+        assert AdaptiveRAGPipeline._select_complexity_route("THE ANSWER IS COMPLEX.") == "complex"
+        assert AdaptiveRAGPipeline._select_complexity_route("THIS ONE IS SIMPLE.") == "simple"
 
     def test_hedged_reply_naming_both_labels_resolves_to_complex(self) -> None:
         """A reply naming both labels is irreducibly ambiguous — COMPLEX wins.
@@ -152,12 +151,12 @@ class TestSelectComplexityRoute(unittest.TestCase):
         complex query to the direct arm returns a wrong answer. This is the
         recorded decision, not an accident of ordering — see PIR-770.
         """
-        assert _select_complexity_route("COMPLEX (NOT SIMPLE)") == "complex"
-        assert _select_complexity_route("SIMPLE, NOT COMPLEX") == "complex"
+        assert AdaptiveRAGPipeline._select_complexity_route("COMPLEX (NOT SIMPLE)") == "complex"
+        assert AdaptiveRAGPipeline._select_complexity_route("SIMPLE, NOT COMPLEX") == "complex"
 
     def test_unrecognised_reply_falls_back_to_moderate(self) -> None:
-        assert _select_complexity_route("") == "moderate"
-        assert _select_complexity_route("BANANA") == "moderate"
+        assert AdaptiveRAGPipeline._select_complexity_route("") == "moderate"
+        assert AdaptiveRAGPipeline._select_complexity_route("BANANA") == "moderate"
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):

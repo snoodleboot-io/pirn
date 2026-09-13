@@ -30,22 +30,22 @@ from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_result import ToolResult
 
 
-def _default_name(agent: SubTapestry) -> str:
-    """Derive a snake_case tool name from the agent's class name."""
-    class_name = type(agent).__name__
-    return re.sub(r"(?<!^)(?=[A-Z])", "_", class_name).lower()
-
-
-def _default_description(agent: SubTapestry, name: str) -> str:
-    """Derive a description from the agent's class docstring, or a generic line."""
-    doc = (type(agent).__doc__ or "").strip()
-    if doc:
-        return doc.split("\n\n")[0].strip()
-    return f"Run the {name} agent as a tool."
-
-
 class AgentTool(Tool):
     """A :class:`Tool` that runs a wrapped :class:`SubTapestry` agent."""
+
+    @staticmethod
+    def _default_name(agent: SubTapestry) -> str:
+        """Derive a snake_case tool name from the agent's class name."""
+        class_name = type(agent).__name__
+        return re.sub(r"(?<!^)(?=[A-Z])", "_", class_name).lower()
+
+    @staticmethod
+    def _default_description(agent: SubTapestry, name: str) -> str:
+        """Derive a description from the agent's class docstring, or a generic line."""
+        doc = (type(agent).__doc__ or "").strip()
+        if doc:
+            return doc.split("\n\n")[0].strip()
+        return f"Run the {name} agent as a tool."
 
     def __init__(
         self,
@@ -82,9 +82,11 @@ class AgentTool(Tool):
         if not isinstance(max_depth, int) or isinstance(max_depth, bool) or max_depth <= 0:
             raise TypeError(f"AgentTool: max_depth must be a positive int, got {max_depth!r}")
         self._agent = agent
-        self._name = name if name is not None else _default_name(agent)
+        self._name = name if name is not None else AgentTool._default_name(agent)
         self._description = (
-            description if description is not None else _default_description(agent, self._name)
+            description
+            if description is not None
+            else AgentTool._default_description(agent, self._name)
         )
         self._schema: dict[str, Any] = (
             dict(input_schema)

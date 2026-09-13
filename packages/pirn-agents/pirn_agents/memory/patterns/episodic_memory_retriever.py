@@ -62,20 +62,11 @@ class EpisodicMemoryRetriever(Retriever):
             A list of matching memory entry Mappings up to top_k results.
 
         Raises:
-            TypeError: If context is not a string or store is not a MemoryStore.
             ValueError: If top_k is not a positive int.
         """
-        if not isinstance(store, MemoryStore):
-            raise TypeError(
-                f"EpisodicMemoryRetriever: store must be a MemoryStore, got {type(store).__name__}"
-            )
         if not isinstance(top_k, int) or top_k <= 0:
             raise ValueError(
                 f"EpisodicMemoryRetriever: top_k must be a positive int, got {top_k!r}"
-            )
-        if not isinstance(context, str):
-            raise TypeError(
-                f"EpisodicMemoryRetriever: context must be a string, got {type(context).__name__}"
             )
         hits = await store.search(context, top_k=top_k)
         return list(hits[:top_k])

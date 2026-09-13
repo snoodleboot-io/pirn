@@ -78,14 +78,9 @@ class WorkingMemoryPipeline(SubTapestry):
             A tuple of the most recent AgentMessage instances trimmed to max_size.
 
         Raises:
-            TypeError: If store is not a MemoryStore.
             ValueError: If session_id is not a non-empty string or max_size is not a positive int.
             RuntimeError: If the inner window writer does not return a tuple.
         """
-        if not isinstance(store, MemoryStore):
-            raise TypeError(
-                f"WorkingMemoryPipeline: store must be a MemoryStore, got {type(store).__name__}"
-            )
         if not isinstance(session_id, str) or not session_id:
             raise ValueError(
                 f"WorkingMemoryPipeline: session_id must be a non-empty string, got {session_id!r}"

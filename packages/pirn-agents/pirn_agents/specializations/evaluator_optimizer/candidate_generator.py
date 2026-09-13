@@ -57,21 +57,7 @@ class CandidateGenerator(Knot):
 
         Returns:
             The candidate answer text.
-
-        Raises:
-            TypeError: If ``task``/``feedback`` are not strings or ``llm`` is not
-                an :class:`LLMProvider`.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"CandidateGenerator: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
-        if not isinstance(task, str):
-            raise TypeError(f"CandidateGenerator: task must be a string, got {type(task).__name__}")
-        if not isinstance(feedback, str):
-            raise TypeError(
-                f"CandidateGenerator: feedback must be a string, got {type(feedback).__name__}"
-            )
         system = type(self)._system_prompt.resolve()
         user = task if not feedback else f"{task}\n\nImprove on this feedback:\n{feedback}"
         raw = await llm.chat(

@@ -6,6 +6,7 @@ import unittest
 from collections.abc import Mapping
 from typing import Any
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
@@ -63,8 +64,9 @@ class TestEpisodicEpisodeWriterProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_memory_store(self) -> None:
         k = _make_knot()
-        with self.assertRaises(TypeError):
-            await k.process(messages=[], session_id="s", store="bad")  # type: ignore[arg-type]
+        result = await k({"messages": [], "session_id": "s", "store": "bad"})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_rejects_empty_session_id(self) -> None:
         k = _make_knot()

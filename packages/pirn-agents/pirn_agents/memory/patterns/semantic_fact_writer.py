@@ -66,10 +66,6 @@ class SemanticFactWriter(MemoryWriterBase):
         Raises:
             TypeError: If store is not a MemoryStore or any fact is not a string.
         """
-        if not isinstance(store, MemoryStore):
-            raise TypeError(
-                f"SemanticFactWriter: store must be a MemoryStore, got {type(store).__name__}"
-            )
         count = 0
         now = datetime.now(UTC).isoformat()
         for fact in facts:

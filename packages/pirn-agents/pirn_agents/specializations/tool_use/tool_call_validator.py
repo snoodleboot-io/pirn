@@ -70,10 +70,6 @@ class ToolCallValidator(Knot):
                 )
         tool_registry: dict[str, Tool] = {tool.name: tool for tool in tool_list}
 
-        if not isinstance(tool_call, ToolCall):
-            raise TypeError(
-                f"ToolCallValidator: tool_call must be a ToolCall, got {type(tool_call).__name__}"
-            )
         tool = tool_registry.get(tool_call.tool_name)
         if tool is None:
             raise ValueError(f"ToolCallValidator: unknown tool '{tool_call.tool_name}'")

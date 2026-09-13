@@ -175,10 +175,6 @@ class ReActStepExecutor(AgentPipeline):
         Raises:
             TypeError: If llm is not an LLMProvider or any tool is not a Tool.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"ReActStepExecutor: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
         tool_tuple = tuple(tools)
         for index, candidate in enumerate(tool_tuple):
             if not isinstance(candidate, Tool):
