@@ -81,49 +81,49 @@ class AnthropicProvider(LLMProvider):
 
 ### Tool
 
-`Tool` (`pirn_agents/tools/tool.py`) is the interface for any capability an agent can call during planning. Inherit from it and implement four members:
+`Tool` (`pirn_agents/tools/tool.py`) is the base class for any capability an agent can call. Since the ADR "agents speaks core" (WS1) **a tool is a `Knot` class**: its call arguments are the inputs declared on `process()`, its execution *is* `process()`, and one call is one tool knot the engine runs — with its own `Ok | Err | Skipped`, lineage row, timeout, retry and concurrency group. The only agents-layer addition is the declaration for the model:
 
 | Member | Kind | Description |
 |--------|------|-------------|
-| `name` | property → `str` | Stable identifier the agent addresses the tool by. |
-| `description` | property → `str` | Human-readable description shown to the LLM when building a plan. |
-| `parameters_schema` | property → `Mapping[str, Any]` | JSON Schema describing accepted arguments. |
-| `invoke` | async method | Execute the tool with `arguments` and return the raw result. |
+| `tool_name` | `ClassVar[str]` | Stable identifier the agent addresses the tool by (default: snake_case of the class name). |
+| class docstring | first paragraph | Human-readable description shown to the LLM. |
+| `process(...)` | async method | Execute the tool; its typed parameters (with `Annotated[..., Field(description=...)]`) *are* the JSON Schema, via `Knot.input_json_schema()`. |
+| `declaration()` | classmethod → `ToolDeclaration` | `name` + `description` + `parameters` — what the model sees. |
 
-Tools are passed as config values to knots that use them (e.g. `ToolRouter`, `ToolExecutor`). Like providers, tools are treated as opaque by pirn's content-addressing.
+A **capability** — what a `Toolset` holds and a knot like `ToolRouter` or `ToolExecutor` takes — is a `ToolFactory` (`pirn_agents/tools/tool_factory.py`): a `KnotFactory` over the tool class with bound collaborators, defaults and a name. `Tool.bind(store=...)` hides a collaborator from the declaration; `.defaults(top_k=3)` keeps an argument callable with a default; `.named("search_notes", description=...)` renames it. `ToolFactory.for_call(call)` constructs the tool knot for one `ToolCall` inside the current tapestry. Like providers, bound collaborators are treated as opaque by pirn's content-addressing.
 
 ```python
+from typing import Annotated, Any, ClassVar
+
+from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
+from pydantic import Field
+
 from pirn_agents.tools.tool import Tool
 
 class WebSearchTool(Tool):
-    def __init__(self, api_key: str) -> None:
-        self._api_key = api_key
+    """Search the web and return a list of result snippets."""
 
-    @property
-    def name(self) -> str:
-        return "web_search"
+    tool_name: ClassVar[str] = "web_search"
 
-    @property
-    def description(self) -> str:
-        return "Search the web and return a list of result snippets."
+    def __init__(self, *, query: Knot | str, client: Knot | Any, _config: KnotConfig, **kwargs: Any) -> None:
+        super().__init__(query=query, client=client, _config=_config, **kwargs)
 
-    @property
-    def parameters_schema(self):
-        return {
-            "type": "object",
-            "properties": {"query": {"type": "string"}},
-            "required": ["query"],
-        }
-
-    async def invoke(self, arguments):
-        # call your search API here
+    async def process(
+        self,
+        query: Annotated[str, Field(description="The search query.")],
+        client: Any,                       # bound once, hidden from the model
+        **_: Any,
+    ) -> list[dict[str, str]]:
+        # call your search API through ``client`` here
         return [{"title": "...", "snippet": "..."}]
 
-    def _clear_credentials(self) -> None:
-        self._api_key = None
+web_search = WebSearchTool.bind(client=my_client)   # a ToolFactory — pass it anywhere a tool is accepted
 ```
 
-For plain functions, use the `@tool` decorator instead of subclassing. It derives `name` from the function name, `description` from the docstring's first paragraph, and `parameters_schema` from type annotations. Both sync and async functions are accepted.
+An `invoke`-shaped subclass (properties `name` / `description` / `parameters_schema` plus `async invoke(arguments)`) still works for one cycle through `ToolFactory.of()` / `Toolset` and emits a `DeprecationWarning`.
+
+For plain functions, use the `@tool` decorator instead of subclassing — it is `@knot` plus a declaration. It derives the name from the function name, the description from the docstring's first paragraph, and the parameters from type annotations. Both sync and async functions are accepted.
 
 ```python
 from pirn_agents.tools.tool_decorator import tool
@@ -142,7 +142,7 @@ def lookup_policy(topic: str) -> str:
 react = ReActLoop(messages=msgs, llm=provider, tools=[web_search, lookup_policy], ...)
 ```
 
-`@tool` produces a `FunctionTool` instance, which is a `Tool` subclass. Use `Tool` subclassing directly when the tool needs constructor-injected dependencies (API keys, HTTP clients, connection pools).
+`@tool` produces a `FunctionTool`, a `ToolFactory` over a generated `Tool` class. Use `Tool` subclassing directly when the tool needs bound dependencies (API keys, HTTP clients, connection pools) or wants to declare `permissions` / `streaming`. An agent becomes a tool with `agent.as_tool()` (`AgentTool`), whose nested run is guarded by core's `RunNesting`.
 
 ### MemoryStore
 
@@ -190,8 +190,8 @@ Knots that handle tool-use reasoning.
 | Knot | Description |
 |------|-------------|
 | `Planner` | Asks an `LLMProvider` for an ordered `Plan` grounded in the current `AgentContext`. Lines starting with `#` are treated as rationale; everything else becomes a numbered step in the `Plan`. |
-| `ToolRouter` | Accepts a single plan step string and a sequence of `Tool`s. Matches the first tool whose `name` appears as a substring of the step (case-insensitive) and returns a `ToolCall`. |
-| `ToolExecutor` | Accepts a `ToolCall` and a sequence of `Tool`s. Invokes the matching tool with `ToolCall.arguments` and returns a `ToolResult`. Exceptions are caught and surfaced as `ToolResult.error` so callers can decide how to react. |
+| `ToolRouter` | Accepts a single plan step string and a sequence of tool capabilities. Matches the first tool whose `name` appears as a substring of the step (case-insensitive) and returns a `ToolCall`. |
+| `ToolExecutor` | Accepts a `ToolCall` and a sequence of tool capabilities. Constructs the matching tool knot for the call and runs it as a nested pipeline; the call's `Err` is surfaced as `ToolResult.error` (the deprecated view of the call's `Result`) so callers can decide how to react. |
 | `ToolResultAggregator` | Collects a sequence of `ToolResult`s into a `{call_id: result}` mapping, ready to splice into the conversation context. |
 
 ### `memory/`
@@ -259,7 +259,7 @@ The `types/` sub-package defines the data classes that flow between agent knots.
 | `AgentContext` | The full conversational state: an ordered tuple of `AgentMessage` plus a free-form `metadata` mapping. |
 | `AgentResponse` | Outcome of one agent turn: `content`, tuple of `ToolCall`s, `finish_reason`, usage stats, raw metadata. |
 | `ToolCall` | A single tool invocation requested by the LLM: `tool_name`, `arguments` mapping, optional `call_id`. |
-| `ToolResult` | The result of executing a `ToolCall`: `call_id`, `tool_name`, `result` (any), optional `error`. |
+| `ToolResult` | Deprecated (one cycle) view of a tool call's `Ok | Err | Skipped`: `call_id`, `result` (any), optional `error`, built by `ToolResult.from_result(call_id, result, lineage)`. |
 | `Plan` | An ordered `tuple` of plan step strings plus an optional `rationale` string. |
 
 ---

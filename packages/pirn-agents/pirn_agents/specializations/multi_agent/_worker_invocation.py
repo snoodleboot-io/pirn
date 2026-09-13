@@ -7,10 +7,12 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents.tools.tool import Tool
-from pirn_agents.tools.tool_error_record import ToolErrorRecord
+from pirn_agents.exceptions.tool_argument_validation_error import (
+    ToolArgumentValidationError,
+)
+from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_factory import ToolFactory
 from pirn_agents.tools.tool_result import ToolResult
-from pirn_agents.tools.tool_status import ToolStatus
 
 
 class _WorkerInvocation(Knot):
@@ -33,7 +35,7 @@ class _WorkerInvocation(Knot):
         self,
         *,
         task: Knot | str,
-        worker: Knot | Tool,
+        worker: Knot | Any,
         semaphore: Any,
         _config: KnotConfig,
         **kwargs: Any,
@@ -43,7 +45,7 @@ class _WorkerInvocation(Knot):
     async def process(
         self,
         task: str,
-        worker: Tool,
+        worker: ToolFactory,
         semaphore: Any,
         **_: Any,
     ) -> ToolResult:
@@ -61,17 +63,11 @@ class _WorkerInvocation(Knot):
             :class:`ToolResult` with :attr:`ToolStatus.ERROR` when the call
             raised.
         """
+        factory = ToolFactory.of(worker)
+        call = ToolCall(tool_name=factory.name, arguments={"task": task}, call_id=task)
         async with semaphore:
             try:
-                raw = await worker.invoke({"task": task})
-            except Exception as exc:
-                return ToolResult(
-                    call_id=task,
-                    result=None,
-                    status=ToolStatus.ERROR,
-                    error=ToolErrorRecord.scrubbed_message(exc),
-                    exception=ToolErrorRecord.scrubbed(worker.name, exc),
-                )
-        if isinstance(raw, ToolResult):
-            return raw
-        return ToolResult(call_id=task, result=raw, status=ToolStatus.OK)
+                outcome = await factory.run_call(call)
+            except ToolArgumentValidationError as exc:
+                return ToolResult(call_id=task, result=None, error=str(exc))
+        return ToolResult.from_result(task, outcome)

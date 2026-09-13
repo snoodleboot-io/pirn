@@ -1,13 +1,13 @@
 """``ToolSelector`` — LLM-driven tool selection from a list of available tools.
 
-Given a user message and a list of :class:`Tool` instances, calls the LLM
+Given a user message and a list of tool capabilities, calls the LLM
 to select the most appropriate tool(s) and returns a list of selected tool
 names.
 
 Algorithm:
     1. Receive resolved ``message``, ``tools``, and ``llm`` at process time.
     2. Validate ``llm`` is an :class:`LLMProvider`.
-    3. Validate each entry in ``tools`` is a :class:`Tool`; reject empty sequence.
+    3. Validate each entry in ``tools`` is a tool capability; reject empty sequence.
     4. Validate ``message`` is a string.
     5. Build a prompt listing available tool names and descriptions.
     6. Call ``llm.chat`` with the prompt.
@@ -29,10 +29,11 @@ from typing import Any, ClassVar
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents.agent.recorded_llm_call import RecordedLlmCall
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.llm_response_text import LlmResponseText
-from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.tool_factory import ToolFactory
 
 
 class ToolSelector(Knot):
@@ -56,7 +57,7 @@ class ToolSelector(Knot):
         self,
         *,
         message: Knot | str,
-        tools: Knot | Sequence[Tool],
+        tools: Knot | Sequence[Any],
         llm: Knot | LLMProvider,
         _config: KnotConfig,
         **kwargs: Any,
@@ -66,7 +67,7 @@ class ToolSelector(Knot):
     async def process(
         self,
         message: str,
-        tools: Sequence[Tool],
+        tools: Sequence[ToolFactory],
         llm: LLMProvider,
         **_: Any,
     ) -> list[str]:
@@ -74,23 +75,25 @@ class ToolSelector(Knot):
 
         Args:
             message: The user message string describing the task.
-            tools: The sequence of available Tool instances.
+            tools: The available tool capabilities.
             llm: The LLM provider used to perform tool selection.
 
         Returns:
             A list of tool name strings selected by the LLM.
 
         Raises:
-            TypeError: If llm is not an LLMProvider, any tool is not a Tool, or
+            TypeError: If llm is not an LLMProvider, any tool is not a capability, or
                 message is not a string.
             ValueError: If tools is empty.
         """
-        tool_list = list(tools)
-        for index, tool in enumerate(tool_list):
-            if not isinstance(tool, Tool):
+        tool_list: list[ToolFactory] = []
+        for index, tool in enumerate(tools):
+            try:
+                tool_list.append(ToolFactory.of(tool))
+            except TypeError as exc:
                 raise TypeError(
                     f"ToolSelector: tools[{index}] must be a Tool, got {type(tool).__name__}"
-                )
+                ) from exc
         if not tool_list:
             raise ValueError("ToolSelector: tools must not be empty")
         tool_descriptions = "\n".join(f"- {tool.name}: {tool.description}" for tool in tool_list)
@@ -102,7 +105,9 @@ class ToolSelector(Knot):
                 "message": message,
             },
         )
-        raw = await llm.chat([{"role": "user", "content": prompt}])
+        raw = await RecordedLlmCall.chat(
+            knot_id=self.knot_id, llm=llm, messages=[{"role": "user", "content": prompt}]
+        )
         text = LlmResponseText().extract(raw).strip()
         if not text or text.upper() == "NONE":
             return []

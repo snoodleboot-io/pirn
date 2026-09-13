@@ -13,10 +13,10 @@ from __future__ import annotations
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
+from pirn.core.run_nesting import RunNesting
 from pirn.nodes.source import Source
 from pirn.nodes.sub_tapestry import SubTapestry
 
-from pirn_agents.agent.agent_tool_context import current_agent_tool_context
 from pirn_agents.tools.agent_as_tool_mixin import AgentAsToolMixin
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
@@ -75,9 +75,8 @@ class StubAgent(AgentAsToolMixin, SubTapestry):
         usage: Any = None,
         **_: Any,
     ) -> Any:
-        context = current_agent_tool_context()
         AGENT_CALLS.setdefault(self.knot_id, []).append(
-            {"topic": topic, "llm": llm, "depth": context.depth if context else -1}
+            {"topic": topic, "llm": llm, "depth": RunNesting.current().depth}
         )
         if fail:
             raise RuntimeError(f"boom:{topic}")
@@ -100,14 +99,13 @@ class NestingAgent(AgentAsToolMixin, SubTapestry):
 
     async def process(self, task: str = "", **_: Any) -> Any:
         me = self.knot_id
-        context = current_agent_tool_context()
-        depth = context.depth if context else -1
+        depth = RunNesting.current().depth
         AGENT_CALLS.setdefault(me, []).append({"topic": task, "llm": None, "depth": depth})
         next_tool = ROUTE_REGISTRY.get(me)
         if next_tool is None:
             response = AgentResponse(content=f"leaf[{me}]@{depth}")
         else:
-            inner = await next_tool.invoke({"task": task})
+            inner = await next_tool.run_view({"task": task})
             body = inner.result.content if inner.result is not None else inner.error
             response = AgentResponse(content=f"{me}@{depth}->{body}")
         return _source_returning(response)

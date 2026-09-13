@@ -1,7 +1,7 @@
 """``RagTool`` — retrieval-augmented generation behind a single tool call.
 
-Composes an injected :class:`~pirn_agents.memory.stores.memory_store.MemoryStore` (retrieval)
-and an injected :class:`~pirn_agents.llm.llm_provider.LLMProvider` (generation)
+Composes a bound :class:`~pirn_agents.memory.stores.memory_store.MemoryStore` (retrieval)
+and a bound :class:`~pirn_agents.llm.llm_provider.LLMProvider` (generation)
 so an agent can call RAG as one explicit tool — the seed for F9's agentic RAG.
 Provider-neutral for both the store and the LLM; no vendor SDK is imported at
 module load.
@@ -10,16 +10,23 @@ module load.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, ClassVar
+from typing import Annotated, Any, ClassVar
 
+from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
+from pydantic import Field
+
+from pirn_agents.agent.recorded_llm_call import RecordedLlmCall
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.prompt.prompt_binding import PromptBinding
-from pirn_agents.tools.base_tool import BaseTool
+from pirn_agents.tools.tool import Tool
 
 
-class RagTool(BaseTool):
-    """Answer a question by retrieving context and prompting an LLM with it."""
+class RagTool(Tool):
+    """Answer a question with retrieval-augmented generation over the knowledge store."""
+
+    tool_name: ClassVar[str] = "rag"
 
     _system_prompt_binding: ClassVar[PromptBinding] = PromptBinding(
         name="tools.retrieval.rag_tool.system_prompt",
@@ -32,87 +39,71 @@ class RagTool(BaseTool):
     def __init__(
         self,
         *,
+        question: Knot | str,
+        store: Knot | MemoryStore,
+        llm: Knot | LLMProvider,
+        top_k: Knot | int = 5,
+        model: Knot | str | None = None,
+        system_prompt: Knot | str | None = None,
+        _config: KnotConfig,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(
+            question=question,
+            store=store,
+            llm=llm,
+            top_k=top_k,
+            model=model,
+            system_prompt=system_prompt,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        question: Annotated[str, Field(description="The question to answer.")],
         store: MemoryStore,
         llm: LLMProvider,
         top_k: int = 5,
         model: str | None = None,
         system_prompt: str | None = None,
-    ) -> None:
-        """Bind the tool to a store, an LLM, and generation defaults.
+        **_: Any,
+    ) -> Mapping[str, Any]:
+        """Retrieve context, prompt the LLM, and return the answer plus sources.
 
         Args:
-            store: The injected :class:`MemoryStore` providing context.
-            llm: The injected :class:`LLMProvider` generating the answer.
+            question: The question to answer.
+            store: The :class:`MemoryStore` providing context; bound once.
+            llm: The :class:`LLMProvider` generating the answer; bound once.
             top_k: Number of context records retrieved per question.
             model: Optional model identifier forwarded to the LLM.
             system_prompt: Optional system instruction prepended to the prompt.
-
-        Raises:
-            TypeError: If ``store``/``llm`` are not the expected interfaces.
-            ValueError: If ``top_k`` is not positive.
-        """
-        if not isinstance(store, MemoryStore):
-            raise TypeError(f"rag: store must be a MemoryStore, got {type(store).__name__}")
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(f"rag: llm must be an LLMProvider, got {type(llm).__name__}")
-        if top_k <= 0:
-            raise ValueError(f"rag: top_k must be positive, got {top_k}")
-        self._store: MemoryStore = store
-        self._llm: LLMProvider = llm
-        self._top_k = top_k
-        self._model = model
-        self._system_prompt: str | None = system_prompt or None
-
-    @property
-    def name(self) -> str:
-        """Return the stable tool identifier ``"rag"``."""
-        return "rag"
-
-    @property
-    def description(self) -> str:
-        """Return the human-readable description shown to the planner."""
-        return "Answer a question with retrieval-augmented generation over the knowledge store."
-
-    @property
-    def parameters_schema(self) -> Mapping[str, Any]:
-        """Return the JSON Schema for the ``question`` argument."""
-        return {
-            "type": "object",
-            "properties": {
-                "question": {"type": "string", "description": "The question to answer."}
-            },
-            "required": ["question"],
-        }
-
-    async def invoke(self, arguments: Mapping[str, Any]) -> Mapping[str, Any]:
-        """Retrieve context, prompt the LLM, and return the answer plus sources.
 
         Returns:
             ``{"question", "answer", "sources": [mapping...]}``.
 
         Raises:
-            TypeError: If ``arguments`` is not a mapping.
-            ValueError: If ``question`` is missing/empty.
+            ValueError: If ``question`` is empty or ``top_k`` is not positive.
         """
-        self._require_mapping(self.name, arguments)
-        question = self._string_argument(self.name, arguments, "question")
-        sources = await self._collect(question)
+        if not question:
+            raise ValueError("rag: 'question' must be a non-empty string")
+        if top_k <= 0:
+            raise ValueError(f"rag: top_k must be positive, got {top_k}")
+        hits = await store.search(question, top_k=top_k)
+        sources = [dict(item) for item in list(hits)[:top_k]]
         context = self._format_context(sources)
         messages = [
             {
                 "role": "system",
-                "content": type(self)._system_prompt_binding.resolve(self._system_prompt),
+                "content": type(self)._system_prompt_binding.resolve(system_prompt or None),
             },
             {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {question}"},
         ]
-        response = await self._llm.chat(messages, model=self._model)
+        response = await RecordedLlmCall.chat(
+            knot_id=self.knot_id, llm=llm, messages=messages, model=model
+        )
         answer = RagTool._extract_text(response)
         return {"question": question, "answer": answer, "sources": sources}
-
-    async def _collect(self, question: str) -> list[dict[str, Any]]:
-        """Search the store and return up to ``top_k`` hits as an ordered list."""
-        hits = await self._store.search(question, top_k=self._top_k)
-        return [dict(item) for item in list(hits)[: self._top_k]]
 
     @staticmethod
     def _format_context(sources: list[dict[str, Any]]) -> str:
@@ -122,11 +113,6 @@ class RagTool(BaseTool):
             text = source.get("text") or source.get("content") or source
             lines.append(f"[{index}] {text}")
         return "\n".join(lines) if lines else "(no context retrieved)"
-
-    def _clear_credentials(self) -> None:
-        """Drop the store and LLM references so they become garbage-collectable."""
-        self._store = None  # type: ignore[assignment]
-        self._llm = None  # type: ignore[assignment]
 
     @staticmethod
     def _extract_text(response: Mapping[str, Any]) -> str:

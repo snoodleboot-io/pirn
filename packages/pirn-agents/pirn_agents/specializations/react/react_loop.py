@@ -71,7 +71,7 @@ from pirn_agents.specializations.react.react_step_executor import (
 from pirn_agents.specializations.react.react_termination_check import (
     ReActTerminationCheck,
 )
-from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.tool_factory import ToolFactory
 from pirn_agents.types.messaging.agent_message import AgentMessage
 
 
@@ -83,7 +83,7 @@ class ReActLoop(AgentPipeline):
         *,
         messages: Knot | tuple[AgentMessage, ...] | list[AgentMessage],
         llm: Knot | LLMProvider,
-        tools: Knot | Sequence[Tool],
+        tools: Knot | Sequence[Any],
         max_iterations: Knot | int = 10,
         _config: KnotConfig,
         **kwargs: Any,
@@ -101,7 +101,7 @@ class ReActLoop(AgentPipeline):
         self,
         messages: tuple[AgentMessage, ...] | list[AgentMessage],
         llm: LLMProvider,
-        tools: Sequence[Tool],
+        tools: Sequence[ToolFactory],
         max_iterations: int = 10,
         **_: Any,
     ) -> Knot:
@@ -124,12 +124,14 @@ class ReActLoop(AgentPipeline):
             raise ValueError(
                 f"ReActLoop: max_iterations must be a positive int, got {max_iterations!r}"
             )
-        tool_tuple = tuple(tools)
-        for index, candidate in enumerate(tool_tuple):
-            if not isinstance(candidate, Tool):
+        tool_tuple: tuple[ToolFactory, ...] = ()
+        for index, candidate in enumerate(tools):
+            try:
+                tool_tuple = (*tool_tuple, ToolFactory.of(candidate))
+            except TypeError as exc:
                 raise TypeError(
                     f"ReActLoop: tools[{index}] must be a Tool, got {type(candidate).__name__}"
-                )
+                ) from exc
         seed_messages = tuple(messages)
         seed = Parameter(
             "seed_messages",

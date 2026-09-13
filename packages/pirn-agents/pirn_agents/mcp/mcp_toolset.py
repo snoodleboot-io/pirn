@@ -1,10 +1,10 @@
-"""``McpToolset`` — discover an MCP server's tools and build an F1 ``Toolset``.
+"""``McpToolset`` — discover an MCP server's tools and build a ``Toolset``.
 
 Discovery calls ``tools/list`` through the client, wraps each descriptor in an
-:class:`~pirn_agents.mcp.mcp_tool.McpTool`, and assembles them into an F1
-:class:`~pirn_agents.tools.toolset.Toolset` — the same ordered, uniquely-named registry
-any knot accepts. :meth:`refresh` re-runs discovery so a long-lived agent can
-pick up tools a server adds mid-run.
+:class:`~pirn_agents.mcp.mcp_tool.McpTool` (a schema-declared tool capability),
+and assembles them into a :class:`~pirn_agents.tools.toolset.Toolset` — the
+same ordered, uniquely-named registry any knot accepts. :meth:`refresh`
+re-runs discovery so a long-lived agent can pick up tools a server adds mid-run.
 """
 
 from __future__ import annotations
@@ -15,14 +15,14 @@ from pirn_agents.tools.toolset import Toolset
 
 
 class McpToolset:
-    """Populate an F1 :class:`Toolset` from an MCP server's advertised tools."""
+    """Populate a :class:`Toolset` from an MCP server's advertised tools."""
 
     def __init__(self, *, client: McpClient) -> None:
         """Bind the toolset builder to a live client.
 
         Args:
             client: The :class:`McpClient` whose session backs discovery and the
-                resulting tools' invocations.
+                resulting tools' calls.
 
         Raises:
             TypeError: If ``client`` is not an :class:`McpClient`.
@@ -32,7 +32,7 @@ class McpToolset:
         self._client: McpClient = client
 
     async def discover(self) -> Toolset:
-        """List the server's tools and return them as an F1 :class:`Toolset`.
+        """List the server's tools and return them as a :class:`Toolset`.
 
         Returns:
             A :class:`Toolset` with one :class:`McpTool` per advertised tool, in

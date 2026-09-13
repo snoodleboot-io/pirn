@@ -1,14 +1,16 @@
 """Handoff/swarm integration + Pattern 16 doc example (F7-S6).
 
-Asserts that tool-style agent calls and handoff-style calls share the same
-underlying :class:`~pirn_agents.agent.agent_invoker.AgentInvoker` machinery, that a
-swarm of agents-as-tools works inside a single ReAct loop, and that the rewritten
+Asserts that tool-style agent calls and handoff-style calls (through the
+deprecated :class:`~pirn_agents.agent.agent_invoker.AgentInvoker` shim) run the
+same :class:`~pirn_agents.tools.agent_tool.AgentTool`, that a swarm of
+agents-as-tools works inside a single ReAct loop, and that the rewritten
 Pattern 16 example runs end-to-end (so the doc cannot silently drift).
 """
 
 from __future__ import annotations
 
 import unittest
+import warnings
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -30,19 +32,21 @@ class TestSharedMachinery(unittest.IsolatedAsyncioTestCase):
         reset_doubles()
 
     async def test_tool_style_and_handoff_style_agree(self) -> None:
-        # Tool-style: dispatch via AgentTool.invoke.
+        # Tool-style: one call of the agent-as-tool capability.
         with Tapestry():
             agent = StubAgent(reply="answer", _config=KnotConfig(id="agent"))
         tool = agent.as_tool()
-        tool_style = await tool.invoke({"topic": "same"})
+        tool_style = await tool.run_view({"topic": "same"})
 
-        # Handoff-style: the same shared runner a transfer/swarm path would use.
-        handoff_style = await AgentInvoker().invoke(
-            agent,
-            {"topic": "same"},
-            name=tool.name,
-            schema=tool.parameters_schema,
-        )
+        # Handoff-style: the deprecated shim a transfer/swarm path used, over the same tool.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            handoff_style = await AgentInvoker().invoke(
+                agent,
+                {"topic": "same"},
+                name=tool.name,
+                schema=tool.parameters_schema,
+            )
 
         self.assertEqual(tool_style.result.content, handoff_style.result.content)
         self.assertEqual(tool_style.result.content, "answer:same")

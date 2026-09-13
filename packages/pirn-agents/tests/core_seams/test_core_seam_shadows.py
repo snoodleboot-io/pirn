@@ -41,8 +41,6 @@ RETRY_TIMEOUT = frozenset(
 NESTING = frozenset(
     {
         "agent/agent_invoker.py::AgentInvoker",
-        "agent/agent_nesting_config.py::AgentNestingConfig",
-        "agent/agent_tool_context.py::AgentToolContext",
         "exceptions/agent_cycle_error.py::AgentCycleError",
         "exceptions/agent_depth_exceeded_error.py::AgentDepthExceededError",
         "exceptions/agent_recursion_error.py::AgentRecursionError",
@@ -69,9 +67,17 @@ ADMISSION_FEEDBACK = frozenset(
     }
 )
 
-CHECK_ROLE = frozenset({"specializations/base/gated_agent_response.py::GatedAgentResponse"})
+CHECK_ROLE = frozenset(
+    {
+        "specializations/base/gated_agent_response.py::GatedAgentResponse",
+    }
+)
 
-ASYNC_LOOP_STEP = frozenset({"agent/parallel_tool_executor.py::ParallelToolExecutor"})
+ASYNC_LOOP_STEP = frozenset(
+    {
+        "agent/parallel_tool_executor.py::ParallelToolExecutor",
+    }
+)
 
 
 class TestCoreSeamShadowsAreFrozen(unittest.TestCase):

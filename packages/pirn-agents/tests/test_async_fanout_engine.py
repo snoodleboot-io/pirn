@@ -1,141 +1,42 @@
-"""Direct tests for the shared :class:`AsyncFanoutEngine` per-item mechanics.
+"""``AsyncFanoutEngine`` is a deprecated, machinery-free shim (ADR agents-speaks-core WS1).
 
-The base is exercised end-to-end through ``ParallelToolExecutor`` and ``MapAgent``,
-but as a shared primitive its retry/timeout/hook contract is pinned here against a
-minimal subclass, independent of either engine's scheduling.
+``ParallelToolExecutor`` fans out as one tool knot per call under an
+``Aggregator`` and ``MapAgent`` runs on core's ``Map``/``Aggregator`` (WS4b),
+so nothing composes the per-item retry/timeout/drain loop any more.  The
+name stays importable for one cycle; constructing a subclass warns and the
+old mechanics are gone.
 """
 
 from __future__ import annotations
 
-import asyncio
+import warnings
 
-import pytest
-
+from pirn_agents.agent._fanout_runner import _FanoutRunner
 from pirn_agents.agent.async_fanout_engine import AsyncFanoutEngine
 from pirn_agents.llm.retry_policy import RetryPolicy
 
 
 class _Engine(AsyncFanoutEngine[str]):
-    """Minimal concrete engine wiring only the mixin's required attributes."""
-
-    def __init__(self) -> None:
-        self._retry_policy = RetryPolicy(base_delay=0.0)
-        self._rng = None
-        self._sleep = asyncio.sleep
+    """A subclass the way the two engines used to be built."""
 
 
-def _builders() -> dict[str, object]:
-    return {
-        "on_ok": lambda value, attempts: f"ok:{value}:{attempts}",
-        "on_timeout": lambda exc, attempts: f"timeout:{type(exc).__name__}:{attempts}",
-        "on_error": lambda exc, attempts: f"error:{exc}:{attempts}",
-    }
+class TestDeprecatedShim:
+    def test_constructing_a_subclass_warns(self) -> None:
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            _Engine()
+        assert any(issubclass(w.category, DeprecationWarning) for w in caught)
 
+    def test_the_machinery_is_gone(self) -> None:
+        for name in ("run_with_retries", "drain_on_cancel", "_with_timeout"):
+            assert not hasattr(AsyncFanoutEngine, name), name
 
-class TestRunWithRetries:
-    async def test_success_first_try(self) -> None:
-        async def _invoke() -> object:
-            return "v"
+    def test_the_fanout_runner_shim_still_warns(self) -> None:
+        async def _sleep(_: float) -> None:
+            return None
 
-        result = await _Engine().run_with_retries(_invoke, timeout=None, retries=2, **_builders())
-        assert result == "ok:v:1"
-
-    async def test_retries_then_succeeds(self) -> None:
-        calls = 0
-
-        async def _invoke() -> object:
-            nonlocal calls
-            calls += 1
-            if calls < 3:
-                raise RuntimeError("flaky")
-            return "v"
-
-        result = await _Engine().run_with_retries(_invoke, timeout=None, retries=2, **_builders())
-        assert result == "ok:v:3"  # attempts counts the successful try
-
-    async def test_exhausts_retries_to_error(self) -> None:
-        async def _invoke() -> object:
-            raise RuntimeError("boom")
-
-        result = await _Engine().run_with_retries(_invoke, timeout=None, retries=1, **_builders())
-        assert result == "error:boom:2"  # initial + 1 retry
-
-    async def test_timeout_is_terminal_not_retried(self) -> None:
-        attempts = 0
-
-        async def _invoke() -> object:
-            nonlocal attempts
-            attempts += 1
-            await asyncio.sleep(1)
-            return "never"
-
-        result = await _Engine().run_with_retries(_invoke, timeout=0.01, retries=5, **_builders())
-        # The timing-out exception reaches the builder — it is never dropped.
-        assert result == "timeout:TimeoutError:1"
-        assert attempts == 1  # a timeout is never retried
-
-    async def test_timeouterror_is_retryable_when_no_budget(self) -> None:
-        # Without a timeout budget, a raw TimeoutError is just another exception.
-        calls = 0
-
-        async def _invoke() -> object:
-            nonlocal calls
-            calls += 1
-            if calls < 2:
-                raise TimeoutError("transient")
-            return "v"
-
-        result = await _Engine().run_with_retries(_invoke, timeout=None, retries=2, **_builders())
-        assert result == "ok:v:2"
-
-    async def test_hooks_fire_in_order(self) -> None:
-        events: list[str] = []
-
-        async def _invoke() -> object:
-            events.append("invoke")
-            if len(events) < 3:  # before_attempt + invoke, then fails first round
-                raise RuntimeError("x")
-            return "v"
-
-        async def _before() -> None:
-            events.append("before")
-
-        result = await _Engine().run_with_retries(
-            _invoke,
-            timeout=None,
-            retries=3,
-            before_attempt=_before,
-            on_exception=lambda exc: events.append(f"exc:{exc}"),
-            on_success=lambda: events.append("success"),
-            **_builders(),
-        )
-        assert result.startswith("ok:")
-        # before precedes each invoke; on_exception fires per failure; success once.
-        assert events[0] == "before"
-        assert events.count("before") == 2
-        assert "exc:x" in events
-        assert events[-1] == "success"
-
-    async def test_cancelled_error_propagates(self) -> None:
-        async def _invoke() -> object:
-            raise asyncio.CancelledError()
-
-        with pytest.raises(asyncio.CancelledError):
-            await _Engine().run_with_retries(_invoke, timeout=None, retries=3, **_builders())
-
-
-class TestDrainOnCancel:
-    async def test_cancels_and_awaits_every_task(self) -> None:
-        started = asyncio.Event()
-
-        async def _long() -> str:
-            started.set()
-            await asyncio.sleep(10)
-            return "done"
-
-        tasks = [asyncio.ensure_future(_long()) for _ in range(3)]
-        await started.wait()
-
-        await _Engine().drain_on_cancel(tasks)
-
-        assert all(task.cancelled() for task in tasks)
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            runner = _FanoutRunner(retry_policy=RetryPolicy(base_delay=0.0), rng=None, sleep=_sleep)
+        assert isinstance(runner, AsyncFanoutEngine)
+        assert any(issubclass(w.category, DeprecationWarning) for w in caught)

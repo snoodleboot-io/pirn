@@ -17,6 +17,7 @@ from pirn.security.egress_error import EgressError
 from pirn.security.egress_policy import EgressPolicy
 
 from pirn_agents.tools.web.http_request_tool import HttpRequestTool
+from tests.tools.tool_runner import ToolRunner
 
 
 def _resolver(mapping: Mapping[str, str]) -> Any:
@@ -114,7 +115,7 @@ async def test_egress_policy_guards_http_request_tool() -> None:
     # Arrange — the policy pre-screens URLs before the F6 tool runs.
     resolver = _resolver({"api.example.com": "93.184.216.34", "internal": "10.0.0.9"})
     policy = EgressPolicy(resolver=resolver)
-    tool = HttpRequestTool(client=_FakeClient(), resolver=resolver)
+    tool = HttpRequestTool.bind(client=_FakeClient(), resolver=resolver)
 
     # Act / Assert — a private URL is blocked by the policy; the tool never runs.
     with pytest.raises(EgressError):
@@ -122,6 +123,6 @@ async def test_egress_policy_guards_http_request_tool() -> None:
 
     # An allowed public URL passes the policy and the tool returns its body.
     policy("https://api.example.com/data")
-    result = await tool.invoke({"url": "https://api.example.com/data"})
+    result = await ToolRunner.value(tool, {"url": "https://api.example.com/data"})
     assert result["status"] == 200
     assert result["text"] == "ok"

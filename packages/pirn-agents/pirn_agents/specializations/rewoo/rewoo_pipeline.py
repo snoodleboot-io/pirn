@@ -13,7 +13,7 @@ ReWOO run costs exactly two LLM round-trips regardless of tool count — the lat
 and token win over sequential ReAct, which pays one round-trip per step.
 
 Algorithm:
-    1. Validate ``goal`` (str), ``llm`` (LLMProvider), ``tools`` (each a Tool),
+    1. Validate ``goal`` (str), ``llm`` (LLMProvider), ``tools`` (each a tool capability),
        and ``max_concurrency`` (>= 1).
     2. Build a :class:`Toolset` and a newline tool-description block.
     3. Wire planner → executor → synthesiser and return the synthesiser sink.
@@ -36,7 +36,7 @@ from pirn_agents.performance.concurrency_config import ConcurrencyConfig
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.rewoo.rewoo_planner import ReWooPlanner
 from pirn_agents.specializations.rewoo.rewoo_synthesizer import ReWooSynthesizer
-from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.tool_factory import ToolFactory
 from pirn_agents.tools.toolset import Toolset
 
 
@@ -48,7 +48,7 @@ class ReWooPipeline(AgentPipeline):
         *,
         goal: Knot | str,
         llm: Knot | LLMProvider,
-        tools: Knot | Sequence[Tool],
+        tools: Knot | Sequence[Any],
         max_concurrency: Knot | int = ConcurrencyConfig.max_concurrency,
         _config: KnotConfig,
         **kwargs: Any,
@@ -66,7 +66,7 @@ class ReWooPipeline(AgentPipeline):
         self,
         goal: str,
         llm: LLMProvider,
-        tools: Sequence[Tool],
+        tools: Sequence[ToolFactory],
         max_concurrency: int = ConcurrencyConfig.max_concurrency,
         **_: Any,
     ) -> Knot:
@@ -85,19 +85,21 @@ class ReWooPipeline(AgentPipeline):
             :class:`ReWooResult`.
 
         Raises:
-            TypeError: If ``llm`` is not an LLMProvider or any tool is not a Tool.
+            TypeError: If ``llm`` is not an LLMProvider or any tool is not a capability.
             ValueError: If ``max_concurrency`` is less than 1.
         """
         if not isinstance(max_concurrency, int) or max_concurrency < 1:
             raise ValueError(
                 f"ReWooPipeline: max_concurrency must be >= 1, got {max_concurrency!r}"
             )
-        tool_tuple = tuple(tools)
-        for index, candidate in enumerate(tool_tuple):
-            if not isinstance(candidate, Tool):
+        tool_tuple: tuple[ToolFactory, ...] = ()
+        for index, candidate in enumerate(tools):
+            try:
+                tool_tuple = (*tool_tuple, ToolFactory.of(candidate))
+            except TypeError as exc:
                 raise TypeError(
                     f"ReWooPipeline: tools[{index}] must be a Tool, got {type(candidate).__name__}"
-                )
+                ) from exc
         toolset = Toolset(tool_tuple)
         tool_descriptions = "\n".join(f"- {tool.name}: {tool.description}" for tool in tool_tuple)
         planner = ReWooPlanner(
@@ -111,7 +113,6 @@ class ReWooPipeline(AgentPipeline):
             toolset=toolset,
             max_concurrency=max_concurrency,
             timeout=None,
-            retries=0,
             _config=KnotConfig(id="rewoo_exec", validate_io=False),
         )
         return ReWooSynthesizer(

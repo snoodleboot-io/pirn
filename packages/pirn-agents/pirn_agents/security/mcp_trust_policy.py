@@ -27,7 +27,7 @@ from typing import Any
 from pirn_agents.agent.approval_hook import ApprovalHook, authorize_tool_call
 from pirn_agents.security.mcp_trust_decision import McpTrustDecision
 from pirn_agents.security.mcp_trust_error import McpTrustError
-from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.tool_factory import ToolFactory
 from pirn_agents.tools.tool_permissions import ToolPermissions
 
 
@@ -142,7 +142,7 @@ class McpTrustPolicy:
 
     async def authorize(
         self,
-        tool: Tool,
+        tool: ToolFactory,
         arguments: Mapping[str, Any],
         *,
         server: str,

@@ -15,6 +15,7 @@ from pirn_agents.tools.calculator._safe_evaluator import _SafeEvaluator
 from pirn_agents.tools.calculator.calculator_tool import CalculatorTool
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_status import ToolStatus
+from tests.tools.tool_runner import ToolRunner
 
 
 class TestSafeEvaluator:
@@ -91,7 +92,7 @@ class TestSafeEvaluator:
 
 class TestCalculatorTool:
     def test_schema_shape(self) -> None:
-        tool = CalculatorTool()
+        tool = CalculatorTool.factory()
         assert tool.name == "calculator"
         schema = tool.parameters_schema
         assert schema["type"] == "object"
@@ -99,19 +100,19 @@ class TestCalculatorTool:
         assert schema["required"] == ["expression"]
 
     async def test_invoke_returns_result_mapping(self) -> None:
-        tool = CalculatorTool()
-        result = await tool.invoke({"expression": "6 * 7"})
+        tool = CalculatorTool.factory()
+        result = await ToolRunner.value(tool, {"expression": "6 * 7"})
         assert result == {"expression": "6 * 7", "result": 42}
 
     async def test_invoke_accepts_input_alias(self) -> None:
-        tool = CalculatorTool()
-        result = await tool.invoke({"input": "1 + 1"})
+        tool = CalculatorTool.factory()
+        result = await ToolRunner.value(tool, {"input": "1 + 1"})
         assert result["result"] == 2
 
     async def test_as_tool_result_ok(self) -> None:
-        tool = CalculatorTool()
+        tool = CalculatorTool.factory()
         call = ToolCall(tool_name="calculator", arguments={"expression": "2 + 2"}, call_id="c1")
-        outcome = await tool.as_tool_result(call)
+        outcome = await ToolRunner.view(tool, call)
         assert outcome.status is ToolStatus.OK
         assert outcome.call_id == "c1"
         assert outcome.result["result"] == 4
@@ -119,23 +120,23 @@ class TestCalculatorTool:
         assert outcome.latency is not None
 
     async def test_as_tool_result_error_is_structured(self) -> None:
-        tool = CalculatorTool()
+        tool = CalculatorTool.factory()
         call = ToolCall(
             tool_name="calculator",
             arguments={"expression": "__import__('os')"},
             call_id="c2",
         )
-        outcome = await tool.as_tool_result(call)
+        outcome = await ToolRunner.view(tool, call)
         assert outcome.status is ToolStatus.ERROR
         assert outcome.result is None
         assert outcome.error is not None
 
     async def test_as_tool_result_rejects_non_toolcall(self) -> None:
-        tool = CalculatorTool()
+        tool = CalculatorTool.factory()
         with pytest.raises(TypeError):
-            await tool.as_tool_result({"arguments": {}})  # type: ignore[arg-type]
+            await ToolRunner.view(tool, {"arguments": {}})  # type: ignore[arg-type]
 
     async def test_invoke_rejects_non_mapping(self) -> None:
-        tool = CalculatorTool()
+        tool = CalculatorTool.factory()
         with pytest.raises(TypeError):
-            await tool.invoke("2 + 2")  # type: ignore[arg-type]
+            await ToolRunner.value(tool, "2 + 2")  # type: ignore[arg-type]

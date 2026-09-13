@@ -84,11 +84,11 @@ EXCEPTION_ROOTS_WITHOUT_PIRN_ERROR = frozenset(
 # backend's dedupe table across the drain window (see its module docstring
 # and "Idempotency keys" in `docs/domains/agents.md`) — remove it once
 # `legacy_key()` itself is retired. `sessions/run_checkpoint.py` is WS3 part
-# 2's (versioned checkpoint migration); `agent/parallel_tool_executor.py` and
-# `evaluation/trajectory_call_key.py` are their own lanes' calls to make.
+# 2's (versioned checkpoint migration); `agent/parallel_tool_executor.py`
+# dropped it with WS1 (the executor no longer digests arguments itself);
+# `evaluation/trajectory_call_key.py` is its own lane's call to make.
 CANONICAL_JSON_IMPORTERS = frozenset(
     {
-        "agent/parallel_tool_executor.py",
         "determinism/content_digest.py",
         "evaluation/trajectory_call_key.py",
         "resilience/idempotency_key_assigner.py",

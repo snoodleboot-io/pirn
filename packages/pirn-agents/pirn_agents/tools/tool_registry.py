@@ -1,16 +1,18 @@
-"""``ToolRegistry`` — a discoverable, namespaced, versioned registry of tools.
+"""``ToolRegistry`` — a discoverable, namespaced, versioned registry of tool capabilities.
 
-The registry is the lookup layer of the tool SDK: tools register under a
-``(namespace, name, version)`` key and are retrieved in **O(1)** by that key, or
-by ``(namespace, name)`` with automatic resolution to the latest version. From
-the registry a :class:`~pirn_agents.tools.toolset.Toolset` can be *composed* by
-querying a namespace and/or tags, so an agent's available tools are assembled
-dynamically rather than hand-listed.
+The registry is the lookup layer of the tool SDK: capabilities register under
+a ``(namespace, name, version)`` key and are retrieved in **O(1)** by that key,
+or by ``(namespace, name)`` with automatic resolution to the latest version.
+From the registry a :class:`~pirn_agents.tools.toolset.Toolset` can be
+*composed* by querying a namespace and/or tags, so an agent's available tools
+are assembled dynamically rather than hand-listed.
 
-The registry layers over :class:`sweet_tea.registry.Registry`: every registered
-tool's concrete type is mirrored into the shared sweet_tea registry (keyed by
-tool name, with the namespace as ``library`` and the version as ``label``) so
-tools participate in the same discovery mechanism as the rest of the knot
+Every entry is a :class:`~pirn_agents.tools.tool_factory.ToolFactory`;
+anything :meth:`ToolFactory.of` accepts is normalised on registration.  The
+registry layers over :class:`sweet_tea.registry.Registry`: every registered
+capability's knot class is mirrored into the shared sweet_tea registry (keyed
+by tool name, with the namespace as ``library`` and the version as ``label``)
+so tools participate in the same discovery mechanism as the rest of the knot
 library, while instance-level lookup stays a direct dict access here.
 
 Versions are compared as dotted numeric tuples (``"1.10.0" > "1.9.0"``) with a
@@ -20,15 +22,16 @@ lexical fallback for non-numeric labels.
 from __future__ import annotations
 
 from collections.abc import Iterable
+from typing import Any
 
 from sweet_tea.registry import Registry as SweetTeaRegistry
 
-from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.tool_factory import ToolFactory
 from pirn_agents.tools.toolset import Toolset
 
 
 class ToolRegistry:
-    """A dynamic registry of tools keyed by namespace, name, and version."""
+    """A dynamic registry of tool capabilities keyed by namespace, name, and version."""
 
     @staticmethod
     def _version_key(version: str) -> tuple[tuple[int, str], ...]:
@@ -49,19 +52,19 @@ class ToolRegistry:
         """Create an empty registry.
 
         Args:
-            mirror_to_sweet_tea: When ``True`` (default) each registered tool's
-                type is also registered with the shared
+            mirror_to_sweet_tea: When ``True`` (default) each registered
+                capability's knot class is also registered with the shared
                 :class:`sweet_tea.registry.Registry` for cross-library
                 discovery. Set ``False`` to keep registration purely local.
         """
-        self._by_key: dict[tuple[str, str, str], Tool] = {}
+        self._by_key: dict[tuple[str, str, str], ToolFactory] = {}
         self._versions: dict[tuple[str, str], list[str]] = {}
         self._tags: dict[tuple[str, str, str], frozenset[str]] = {}
         self._mirror_to_sweet_tea = mirror_to_sweet_tea
 
     def register(
         self,
-        tool: Tool,
+        tool: Any,
         *,
         namespace: str = "default",
         version: str = "1.0.0",
@@ -72,32 +75,31 @@ class ToolRegistry:
         Raises
         ------
         TypeError
-            If ``tool`` is not a :class:`Tool`.
+            If ``tool`` is not a tool capability :meth:`ToolFactory.of` accepts.
         ValueError
             If the ``(namespace, name, version)`` key is already registered.
         """
-        if not isinstance(tool, Tool):
-            raise TypeError(f"tool must be a Tool, got {type(tool).__name__}")
-        key = (namespace, tool.name, version)
+        factory = ToolFactory.of(tool)
+        key = (namespace, factory.name, version)
         if key in self._by_key:
             raise ValueError(
                 f"tool already registered: namespace={namespace!r} "
-                f"name={tool.name!r} version={version!r}"
+                f"name={factory.name!r} version={version!r}"
             )
-        self._by_key[key] = tool
+        self._by_key[key] = factory
         self._tags[key] = frozenset(tags)
-        versions = self._versions.setdefault((namespace, tool.name), [])
+        versions = self._versions.setdefault((namespace, factory.name), [])
         versions.append(version)
         versions.sort(key=ToolRegistry._version_key)
         if self._mirror_to_sweet_tea:
             SweetTeaRegistry.register(
-                key=tool.name, class_def=type(tool), library=namespace, label=version
+                key=factory.name, class_def=factory.knot_class, library=namespace, label=version
             )
 
     def get(
         self, name: str, *, namespace: str = "default", version: str | None = None
-    ) -> Tool | None:
-        """Return a registered tool, or ``None`` when no match exists.
+    ) -> ToolFactory | None:
+        """Return a registered capability, or ``None`` when no match exists.
 
         With ``version`` given the lookup is an exact O(1) key hit; without it
         the latest registered version in ``namespace`` is resolved.
@@ -146,7 +148,7 @@ class ToolRegistry:
         unique names. Tools are ordered by ``(namespace, name)``.
         """
         wanted_tags = frozenset(tags) if tags is not None else frozenset()
-        chosen: dict[tuple[str, str], tuple[str, Tool]] = {}
+        chosen: dict[tuple[str, str], tuple[str, ToolFactory]] = {}
         for (ns, name, version), tool in self._by_key.items():
             if namespace is not None and ns != namespace:
                 continue

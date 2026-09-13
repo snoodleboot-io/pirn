@@ -20,7 +20,7 @@ from pirn_agents.mcp.mcp_client import McpClient
 from pirn_agents.mcp.mcp_connector import McpConnector
 from pirn_agents.mcp.mcp_tool import McpTool
 from pirn_agents.mcp.mcp_transport import McpTransport
-from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.tool_factory import ToolFactory
 
 
 class TestMcpClientOpaqueBoundary(unittest.TestCase):
@@ -43,7 +43,7 @@ class TestMcpClientOpaqueBoundary(unittest.TestCase):
         # Arrange / Act / Assert: the intended boundary carriers are opaque too.
         self.assertTrue(issubclass(McpConnector, ConnectorBase))
         self.assertTrue(issubclass(McpConnector, PirnOpaqueValue))
-        self.assertTrue(issubclass(McpTool, Tool))
+        self.assertTrue(issubclass(McpTool, ToolFactory))
         self.assertTrue(issubclass(McpTool, PirnOpaqueValue))
 
 

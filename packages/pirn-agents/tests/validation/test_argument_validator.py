@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import unittest
+import warnings
 from collections.abc import Mapping
 from typing import Any
 
@@ -55,8 +56,21 @@ def _call(arguments: Mapping[str, Any]) -> ToolCall:
 
 
 class TestArgumentValidator(unittest.TestCase):
+    """The deprecated shim forwards to ``ToolFactory.validate_arguments`` (ADR WS1)."""
+
     def setUp(self) -> None:
-        self.validator = ArgumentValidator()
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            self.validator = ArgumentValidator()
+
+    def test_constructing_the_shim_warns(self) -> None:
+        # ``catch_warnings`` rather than ``assertWarns``: the latter walks
+        # ``sys.modules`` for ``__warningregistry__`` and trips the lazy
+        # ``__getattr__`` of any third-party package an earlier test imported.
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            ArgumentValidator()
+        assert any(issubclass(w.category, DeprecationWarning) for w in caught)
 
     def test_valid_args_return_none(self) -> None:
         result = self.validator.validate(_call({"x": 1, "y": "hi"}), StubTool())

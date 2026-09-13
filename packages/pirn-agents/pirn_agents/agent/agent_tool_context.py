@@ -1,18 +1,19 @@
-"""``AgentToolContext`` — ambient per-invocation state for agent-as-tool nesting.
+"""``AgentToolContext`` — what an agent-as-tool call carries that core's nesting frame does not.
 
-One immutable context value is threaded through nested agent-as-tool calls via a
-private :class:`contextvars.ContextVar` (mirroring the framework's own
-``pirn.tapestry._current_tapestry`` pattern). Because a nested :class:`AgentTool`
-is dispatched deep inside another agent's ReAct loop — through code paths that do
-not forward any explicit state — a context var is the only way to propagate the
-recursion depth, the active call stack (for cycle detection), the shared
-:class:`~pirn_agents.performance.run_budget_meter.RunBudgetMeter`, and the shared
-pooled :class:`~pirn_agents.llm.llm_provider.LLMProvider` down the tree.
+Core's :class:`~pirn.core.run_nesting.RunNesting` frame already travels with
+every nested run: depth, the enclosing run ids, the container-class path, and
+the tightest depth cap — and it is core that refuses an over-deep run or a
+container re-entering itself (ADR agents-speaks-core, WS0/WS1).  Two things
+are agents-only policy and still need to reach a nested agent through code
+paths that forward no explicit state: the shared
+:class:`~pirn_agents.performance.run_budget_meter.RunBudgetMeter` a whole
+tree of agent-as-tool calls spends from, and the pooled
+:class:`~pirn_agents.llm.llm_provider.LLMProvider` nested agents reuse by
+identity.  ``AgentToolContext`` is a ``RunNesting`` frame extended with those
+two, bound on a context variable around each agent-as-tool call.
 
 The value is immutable: entering a nested agent produces a *new* child context
-via :meth:`AgentToolContext.child`, which enforces the depth cap and cycle
-check before returning. State therefore never leaks across unrelated calls — a
-sibling invocation reads the parent context, not a mutated one.
+via :meth:`child`, so state never leaks across unrelated calls.
 """
 
 from __future__ import annotations
@@ -20,32 +21,24 @@ from __future__ import annotations
 from collections.abc import Iterator
 from contextlib import AbstractContextManager, contextmanager
 from contextvars import ContextVar
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+
+from pirn.core.run_nesting import RunNesting
 
 from pirn_agents.agent.agent_nesting_config import AgentNestingConfig
-from pirn_agents.exceptions.agent_cycle_error import AgentCycleError
-from pirn_agents.exceptions.agent_depth_exceeded_error import (
-    AgentDepthExceededError,
-)
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.performance.run_budget_meter import RunBudgetMeter
 
 
-@dataclass(frozen=True)
-class AgentToolContext:
-    """Immutable snapshot of the active agent-as-tool nesting state.
+@dataclass(frozen=True, slots=True)
+class AgentToolContext(RunNesting):
+    """Immutable snapshot of the active agent-as-tool state: a nesting frame plus policy.
 
     Attributes
     ----------
-    depth:
-        Number of agent-as-tool frames currently active (``0`` at the root).
-    stack:
-        Agent identity keys active from outermost to innermost, used for cycle
-        detection.
-    max_depth:
-        The maximum permitted nesting depth for this subtree, defaulting to the
-        shared :class:`~pirn_agents.agent.agent_nesting_config.AgentNestingConfig`
-        cap.
+    depth, run_ids, path, max_depth:
+        The core nesting frame this context was bound under (see
+        :class:`RunNesting`); ``depth`` is ``0`` at the root.
     meter:
         Shared budget accountant threaded through every nested call, or ``None``
         when the caller configured no budget.
@@ -54,58 +47,77 @@ class AgentToolContext:
         provider is being propagated.
     """
 
-    depth: int = 0
-    stack: tuple[str, ...] = ()
-    max_depth: int = AgentNestingConfig.max_depth
+    max_depth: int | None = AgentNestingConfig.max_depth
     meter: RunBudgetMeter | None = None
-    provider: LLMProvider | None = field(default=None)
+    provider: LLMProvider | None = None
+
+    @property
+    def stack(self) -> tuple[str, ...]:
+        """The nesting keys on the path (the pre-ADR name for :attr:`path`)."""
+        return self.path
 
     def child(
         self,
-        key: str,
+        key: str | None = None,
+        parent_run_id: str | None = None,
         *,
+        max_depth: int | None = None,
         meter: RunBudgetMeter | None = None,
         provider: LLMProvider | None = None,
     ) -> AgentToolContext:
-        """Return the child context for entering agent ``key``.
+        """Return the context for entering one more agent-as-tool call.
 
-        Enforces the guards *before* returning, so an unsafe frame is never
-        created: a ``key`` already on :attr:`stack` raises
-        :class:`AgentCycleError`, and exceeding :attr:`max_depth` raises
-        :class:`AgentDepthExceededError`. ``meter``/``provider`` default to the
-        inherited values so a shared budget and pooled provider flow downward
-        unchanged unless a nested tool explicitly overrides them.
+        The frame half follows :meth:`RunNesting.child` — one level deeper,
+        *key* on the path — and so raises core's ``NestedRunCycleError`` /
+        ``NestingDepthExceededError`` when a cap is active.  ``meter`` and
+        ``provider`` default to the inherited values so a shared budget and
+        pooled provider flow downward unchanged unless a nested tool
+        explicitly overrides them.
 
         Args:
-            key: Stable identity of the agent about to be entered.
+            key: Nesting key of the call being entered, or ``None`` for one
+                that should not count toward cycle detection.
+            parent_run_id: The enclosing run's id, when known.
+            max_depth: A tighter cap to apply from here down.
             meter: Override budget meter; inherits :attr:`meter` when ``None``.
             provider: Override pooled provider; inherits :attr:`provider` when
                 ``None``.
-
-        Returns:
-            A new :class:`AgentToolContext` one level deeper.
-
-        Raises:
-            AgentCycleError: If ``key`` is already active on the stack.
-            AgentDepthExceededError: If the child depth exceeds ``max_depth``.
         """
-        if key in self.stack:
-            raise AgentCycleError(key, self.stack)
-        next_depth = self.depth + 1
-        if next_depth > self.max_depth:
-            raise AgentDepthExceededError(next_depth, self.max_depth)
+        frame = RunNesting.child(self, key, parent_run_id or "", max_depth=max_depth)
         return AgentToolContext(
-            depth=next_depth,
-            stack=(*self.stack, key),
-            max_depth=self.max_depth,
+            depth=frame.depth,
+            run_ids=frame.run_ids,
+            path=frame.path,
+            max_depth=frame.max_depth,
             meter=self.meter if meter is None else meter,
             provider=self.provider if provider is None else provider,
         )
 
     @staticmethod
-    def current() -> AgentToolContext | None:
-        """Return the active :class:`AgentToolContext`, or ``None`` at the root."""
+    def from_current_frame(
+        *, meter: RunBudgetMeter | None = None, provider: LLMProvider | None = None
+    ) -> AgentToolContext:
+        """A context over the nesting frame of the run executing right now."""
+        frame = RunNesting.current()
+        return AgentToolContext(
+            depth=frame.depth,
+            run_ids=frame.run_ids,
+            path=frame.path,
+            max_depth=frame.max_depth,
+            meter=meter,
+            provider=provider,
+        )
+
+    @staticmethod
+    def bound() -> AgentToolContext | None:
+        """Return the bound :class:`AgentToolContext`, or ``None`` when none is bound."""
         return _current_agent_tool_context.get()
+
+    @staticmethod
+    def current() -> AgentToolContext:
+        """The active context: the bound one, else a policy-free view of the running frame."""
+        bound = _current_agent_tool_context.get()
+        return bound if bound is not None else AgentToolContext.from_current_frame()
 
     @staticmethod
     @contextmanager
@@ -132,9 +144,9 @@ def current_agent_tool_context() -> AgentToolContext | None:
     """Return the active :class:`AgentToolContext`, or ``None`` at the root.
 
     Thin wrapper kept for the documented public import path (see
-    ``tests/test_ws5_s1_import_surface.py``); see :meth:`AgentToolContext.current`.
+    ``tests/test_ws5_s1_import_surface.py``); see :meth:`AgentToolContext.bound`.
     """
-    return AgentToolContext.current()
+    return AgentToolContext.bound()
 
 
 def bind_agent_tool_context(context: AgentToolContext) -> AbstractContextManager[None]:

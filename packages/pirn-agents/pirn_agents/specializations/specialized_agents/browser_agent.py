@@ -44,7 +44,7 @@ from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.react.react_loop import ReActLoop
-from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.tool_factory import ToolFactory
 from pirn_agents.types.messaging.agent_message import AgentMessage
 
 
@@ -67,7 +67,7 @@ class BrowserAgent(AgentPipeline):
         *,
         goal: Knot | str,
         llm: Knot | LLMProvider,
-        browser_tool: Knot | Tool,
+        browser_tool: Knot | Any,
         max_steps: Knot | int,
         _config: KnotConfig,
         **kwargs: Any,
@@ -85,7 +85,7 @@ class BrowserAgent(AgentPipeline):
         self,
         goal: str,
         llm: LLMProvider,
-        browser_tool: Tool,
+        browser_tool: ToolFactory,
         max_steps: int,
         **_: Any,
     ) -> Knot:

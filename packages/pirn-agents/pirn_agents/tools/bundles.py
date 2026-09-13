@@ -2,10 +2,10 @@
 
 Factory methods on :class:`Bundles` group related base tools with sane
 defaults so callers can register a whole capability with one line. Every
-factory only *constructs* tools — no optional backend (``httpx``,
-``aiosqlite``) is imported here, so importing this module stays
-backend-free; a backend is imported lazily the first time a tool that needs
-it is invoked.
+factory only *binds* tools — ``ReadFileTool.bind(root=...)`` — so no optional
+backend (``httpx``, ``aiosqlite``) is imported here and importing this module
+stays backend-free; a backend is imported lazily the first time a call that
+needs it runs.
 
 The module-level functions below (``calculator_toolset``, ``web_toolset``,
 etc.) are thin documented wrappers kept for the public call sites recorded
@@ -38,7 +38,7 @@ from pirn_agents.tools.sandbox.sandbox_executor import SandboxExecutor
 from pirn_agents.tools.sandbox.shell_tool import ShellTool
 from pirn_agents.tools.sql.sql_connector import SqlConnector
 from pirn_agents.tools.sql.sql_query_tool import SqlQueryTool
-from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.tool_factory import ToolFactory
 from pirn_agents.tools.toolset import Toolset
 from pirn_agents.tools.web.html_to_text_tool import HtmlToTextTool
 from pirn_agents.tools.web.http_request_tool import HttpRequestTool
@@ -52,7 +52,7 @@ class Bundles:
     @staticmethod
     def calculator_toolset() -> Toolset:
         """Return a toolset with the zero-dependency :class:`CalculatorTool`."""
-        return Toolset([CalculatorTool()])
+        return Toolset([CalculatorTool])
 
     @staticmethod
     def web_toolset(
@@ -76,17 +76,17 @@ class Bundles:
             max_chars: Output character cap for HTML-to-text.
             resolver: Optional DNS resolver forwarded to the fetch tool's SSRF guard.
         """
-        tools: list[Tool] = [
-            HttpRequestTool(
+        tools: list[ToolFactory] = [
+            HttpRequestTool.bind(
                 allowed_hosts=allowed_hosts,
                 allow_private=allow_private,
                 max_bytes=max_bytes,
                 resolver=resolver,
             ),
-            HtmlToTextTool(max_chars=max_chars),
+            HtmlToTextTool.bind(max_chars=max_chars),
         ]
         if search_backend is not None:
-            tools.insert(0, WebSearchTool(backend=search_backend))
+            tools.insert(0, WebSearchTool.bind(backend=search_backend))
         return Toolset(tools)
 
     @staticmethod
@@ -106,13 +106,13 @@ class Bundles:
             include_write: When ``False``, omit :class:`WriteFileTool` for a
                 read-only filesystem view.
         """
-        tools: list[Tool] = [
-            ReadFileTool(root=root, max_bytes=max_bytes),
-            ListDirTool(root=root, max_entries=max_entries),
-            GlobTool(root=root, max_results=max_entries),
+        tools: list[ToolFactory] = [
+            ReadFileTool.bind(root=root, max_bytes=max_bytes),
+            ListDirTool.bind(root=root, max_entries=max_entries),
+            GlobTool.bind(root=root, max_results=max_entries),
         ]
         if include_write:
-            tools.append(WriteFileTool(root=root, max_bytes=max_bytes))
+            tools.append(WriteFileTool.bind(root=root, max_bytes=max_bytes))
         return Toolset(tools)
 
     @staticmethod
@@ -131,11 +131,11 @@ class Bundles:
             max_rows: Row cap applied to query results.
             include_calculator: Also include :class:`CalculatorTool` (default ``True``).
         """
-        tools: list[Tool] = [
-            SqlQueryTool(connector=connector, read_only=read_only, max_rows=max_rows)
+        tools: list[ToolFactory] = [
+            SqlQueryTool.bind(connector=connector, read_only=read_only, max_rows=max_rows)
         ]
         if include_calculator:
-            tools.append(CalculatorTool())
+            tools.append(CalculatorTool.factory())
         return Toolset(tools)
 
     @staticmethod
@@ -152,9 +152,9 @@ class Bundles:
             llm: When provided, adds a :class:`RagTool` composing retrieval + this LLM.
             top_k: Default result count for both tools.
         """
-        tools: list[Tool] = [RetrieverTool(store=store, top_k=top_k)]
+        tools: list[ToolFactory] = [RetrieverTool.bind(store=store).defaults(top_k=top_k)]
         if llm is not None:
-            tools.append(RagTool(store=store, llm=llm, top_k=top_k))
+            tools.append(RagTool.bind(store=store, llm=llm).defaults(top_k=top_k))
         return Toolset(tools)
 
     @staticmethod
@@ -168,9 +168,9 @@ class Bundles:
             executor: The sandbox executor gating and running code/commands.
             include_shell: Also include :class:`ShellTool` (default ``True``).
         """
-        tools: list[Tool] = [PythonExecTool(executor=executor)]
+        tools: list[ToolFactory] = [PythonExecTool.bind(executor=executor)]
         if include_shell:
-            tools.append(ShellTool(executor=executor))
+            tools.append(ShellTool.bind(executor=executor))
         return Toolset(tools)
 
 

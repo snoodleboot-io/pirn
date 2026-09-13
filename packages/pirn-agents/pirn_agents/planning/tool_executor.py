@@ -1,79 +1,71 @@
-"""``ToolExecutor`` — invoke a single :class:`ToolCall` against the matching tool.
+"""``ToolExecutor`` — run a single :class:`ToolCall` against the matching tool capability.
+
+The call arrives from an upstream knot (a planner, a
+:class:`~pirn_agents.planning.tool_router.ToolRouter`), so the dispatch — which
+registered capability does the call name — happens in ``process()`` once the
+call is resolved, and the call itself is a tool knot constructed there
+(``factory.for_call(call)``) and returned as the inner pipeline's sink (ADR
+agents-speaks-core, WS1).  The call therefore runs *through the engine*, under
+its own id, with its own ``Result`` and lineage row in the inner run.
+
+Its output is, for one deprecation cycle, the :class:`ToolResult` *view* of
+that outcome — an ``Aggregator`` over the call knot with
+``error_policy=RECEIVE_ERRORS`` builds it through the single
+:meth:`ToolResult.from_result` — so consumers of the pre-ADR shape keep
+working.  A call naming an unregistered tool, or whose arguments the
+declaration refuses, is a :class:`ToolCallRejection` recorded as that call's
+own ``Err`` (``ToolNotFoundError`` / ``ToolArgumentValidationError``).
 
 Algorithm:
-    1. Receive the resolved ``ToolCall`` and ``tools`` sequence.
-    2. Validate input types at process time.
-    3. Build a registry mapping tool names to tool instances.
-    4. Look up the tool by ``call.tool_name``; if not found, return an error ``ToolResult``.
-    5. Invoke ``tool.invoke(call.arguments)``; catch any exception and surface as an error result.
-    6. Return a successful ``ToolResult`` with the invocation result.
-
+    1. Receive the resolved ``call`` and ``tools`` (each validated into a
+       :class:`ToolFactory`).
+    2. Build a name-keyed registry; look up ``call.tool_name``.
+    3. A match constructs ``factory.for_call(call)``; a miss or refused
+       arguments construct a ``ToolCallRejection`` under the call's id.
+    4. Return the view-building ``Aggregator`` as the sink.
 
 References:
-    - :class:`pirn_agents.tools.tool.Tool`
+    - :class:`pirn_agents.tools.tool_factory.ToolFactory`
     - :class:`pirn_agents.tools.tool_call.ToolCall`
     - :class:`pirn_agents.tools.tool_result.ToolResult`
-    - :class:`pirn.connectors.dsn_scrubber.DsnScrubber`
 """
 
 from __future__ import annotations
 
+import functools
 from collections.abc import Sequence
 from typing import Any
 
+from pirn.core.error_policy import ErrorPolicy
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.result import Result
+from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.sub_tapestry import SubTapestry
+from pirn.tapestry import Tapestry
 
-from pirn_agents.tools.tool import Tool
+from pirn_agents.exceptions.tool_argument_validation_error import (
+    ToolArgumentValidationError,
+)
+from pirn_agents.exceptions.tool_not_found_error import ToolNotFoundError
+from pirn_agents.security.secret_redactor import SecretRedactor
 from pirn_agents.tools.tool_call import ToolCall
-from pirn_agents.tools.tool_invocation import ToolInvocation
+from pirn_agents.tools.tool_call_rejection import ToolCallRejection
+from pirn_agents.tools.tool_factory import ToolFactory
 from pirn_agents.tools.tool_result import ToolResult
 
 
-@knot
-async def _unknown_tool(call: ToolCall) -> ToolResult:
-    """Terminal for a call naming a tool that is not registered.
-
-    A knot rather than an early return because ``process`` now returns the sink
-    of an inner pipeline: both branches have to be nodes so both are recorded.
-    """
-    return ToolResult(
-        call_id=call.call_id,
-        result=None,
-        error=f"unknown tool {call.tool_name!r}",
-    )
-
-
 class ToolExecutor(SubTapestry):
-    """Executes a :class:`ToolCall` against the matching :class:`Tool`.
+    """Executes a :class:`ToolCall` against the matching tool capability, through the engine."""
 
-    The dispatch decision — which registered tool does this call name — stays
-    here; the invocation itself is delegated to a
-    :class:`~pirn_agents.tools.tool_invocation.ToolInvocation` returned as the
-    inner pipeline's sink, so the call runs *through the engine* and gets its
-    own ``Result`` and ``KnotLineage`` row instead of being awaited inline
-    (PIR-733).
-
-    That is why this is a :class:`~pirn.nodes.sub_tapestry.SubTapestry` rather
-    than a plain ``Knot``: a knot awaited from inside another knot's
-    ``process`` bypasses the engine, which is the very thing this ticket exists
-    to stop. Returning the sink is the sanctioned way to build a node whose body
-    is itself a graph.
-
-    Exceptions raised by :meth:`Tool.invoke` are still surfaced as a
-    :class:`ToolResult` with an ``error`` rather than propagating — that
-    contract is unchanged, and credential scrubbing now happens inside
-    ``ToolInvocation`` so the batch and single-call paths cannot drift apart
-    again.
-    """
+    # The sink receives the call knot's ``Err`` and reports it in the view.
+    _inner_failures_reach_sink = True
 
     def __init__(
         self,
         *,
         call: Knot,
-        tools: Knot | Sequence[Tool],
+        tools: Knot | Sequence[Any],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
@@ -84,40 +76,57 @@ class ToolExecutor(SubTapestry):
             **kwargs,
         )
 
+    def _make_inner_tapestry(self) -> Tapestry:
+        """A tapestry whose fallback ``traceback_filter`` redacts secrets."""
+        return Tapestry(traceback_filter=SecretRedactor.default_traceback_filter())
+
     async def process(
         self,
         call: ToolCall,
-        tools: Sequence[Tool],
+        tools: Sequence[ToolFactory],
         **_: Any,
     ) -> Knot:
-        """Resolve ``call`` to a tool and return the invocation knot that runs it.
+        """Resolve ``call`` to a capability and return the sink that runs it.
 
         Args:
             call: The tool call specifying the tool name, arguments, and call ID.
-            tools: The registered tools available for dispatch.
+            tools: The registered capabilities available for dispatch.
 
         Returns:
-            The sink of the inner pipeline: a
-            :class:`~pirn_agents.tools.tool_invocation.ToolInvocation` for a
-            matched tool, or an ``unknown-tool`` terminal otherwise. Its output —
-            a :class:`ToolResult` — becomes this knot's output, so the value
-            callers see is unchanged.
+            The sink of the inner pipeline: an ``Aggregator`` over the call
+            knot (or a ``ToolCallRejection``) whose output — a
+            :class:`ToolResult` view — becomes this knot's output.
 
         Raises:
-            TypeError: If call is not a ToolCall or tools contains non-Tool elements.
+            TypeError: If tools is not a sequence of tool capabilities.
             ValueError: If tools is empty.
         """
         if not isinstance(tools, Sequence) or isinstance(tools, (str, bytes)):
-            raise TypeError("ToolExecutor: tools must be a sequence of Tool instances")
+            raise TypeError("ToolExecutor: tools must be a sequence of tool capabilities")
         if not tools:
             raise ValueError("ToolExecutor: tools must be non-empty")
-        for index, tool in enumerate(tools):
-            if not isinstance(tool, Tool):
-                raise TypeError(
-                    f"ToolExecutor: tools[{index}] must be a Tool, got {type(tool).__name__}"
-                )
-        registry = {tool.name: tool for tool in tools}
-        tool = registry.get(call.tool_name)
-        if tool is None:
-            return _unknown_tool(call=call, _config=KnotConfig(id="unknown-tool"))
-        return ToolInvocation(tool=tool, call=call, _config=KnotConfig(id="invoke"))
+        registry = {factory.name: factory for factory in (ToolFactory.of(t) for t in tools)}
+        knot_id = ToolFactory.knot_id_for(call.call_id)
+        factory = registry.get(call.tool_name)
+        call_knot: Knot
+        if factory is None:
+            call_knot = ToolCallRejection(
+                call=call,
+                error=ToolNotFoundError(call.tool_name, call.call_id),
+                _config=KnotConfig(id=knot_id),
+            )
+        else:
+            try:
+                call_knot = factory.for_call(call)
+            except ToolArgumentValidationError as exc:
+                call_knot = ToolCallRejection(call=call, error=exc, _config=KnotConfig(id=knot_id))
+        return Aggregator(
+            combine=functools.partial(self._view, call.call_id),
+            outcome=call_knot,
+            _config=KnotConfig(id="outcome", error_policy=ErrorPolicy.RECEIVE_ERRORS),
+        )
+
+    @staticmethod
+    def _view(call_id: str, *, outcome: Result[Any]) -> ToolResult:
+        """Build the deprecated view from the call knot's ``Result``."""
+        return ToolResult.from_result(call_id, outcome)

@@ -16,6 +16,7 @@ from collections.abc import AsyncIterator, Mapping
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
@@ -48,14 +49,13 @@ class StubTool(Tool):
         return {"tool": self._name, "echo": dict(arguments)}
 
 
-def _make_executor() -> ParallelToolExecutor:
-    """Build an executor inside a throwaway tapestry context."""
-    with Tapestry():
-        return ParallelToolExecutor(
-            tool_calls=[],
-            toolset=Toolset(),
-            _config=KnotConfig(id="stcp-int", validate_io=False),
-        )
+async def _execute(calls: list[ToolCall], toolset: Toolset) -> tuple[Any, ...]:
+    """Run the executor over ``calls`` in a fresh tapestry and return its views."""
+    with Tapestry() as t:
+        ParallelToolExecutor(tool_calls=calls, toolset=toolset, _config=KnotConfig(id="stcp-int"))
+    run = await t.run(RunRequest())
+    assert run.succeeded, run.exceptions
+    return run.outputs["stcp-int"]
 
 
 async def test_streamed_calls_execute_through_parallel_executor() -> None:
@@ -72,14 +72,7 @@ async def test_streamed_calls_execute_through_parallel_executor() -> None:
     async for call in parser.parse(stream()):
         parsed.append(call)
 
-    executor = _make_executor()
-    results = await executor.process(
-        tool_calls=parsed,
-        toolset=toolset,
-        max_concurrency=8,
-        timeout=None,
-        retries=0,
-    )
+    results = await _execute(parsed, toolset)
 
     assert len(results) == 2
     assert all(r.status is ToolStatus.OK for r in results)
@@ -101,24 +94,13 @@ async def test_dispatch_starts_before_stream_completes() -> None:
 
     parser = StreamingToolCallParser()
     toolset = Toolset([StubTool("alpha"), StubTool("beta")])
-    executor = _make_executor()
 
     dispatched: list[asyncio.Task[tuple[Any, ...]]] = []
     iterator = parser.parse(gated_stream())
 
     first = await anext(iterator)
     # Dispatch immediately, before draining the rest of the stream.
-    dispatched.append(
-        asyncio.create_task(
-            executor.process(
-                tool_calls=[first],
-                toolset=toolset,
-                max_concurrency=8,
-                timeout=None,
-                retries=0,
-            )
-        )
-    )
+    dispatched.append(asyncio.create_task(_execute([first], toolset)))
     first_results = await dispatched[0]
     assert not gate.is_set()  # stream still suspended; dispatch already done
     assert len(first_results) == 1

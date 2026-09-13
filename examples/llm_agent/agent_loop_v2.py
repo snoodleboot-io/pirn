@@ -47,6 +47,7 @@ from pirn.core.parameter import Parameter
 from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry, get_current_store
+
 from pirn_agents.generation.llm_call import LLMCall
 from pirn_agents.generation.output_parser import OutputParser
 from pirn_agents.input.context_builder import ContextBuilder
@@ -56,6 +57,7 @@ from pirn_agents.planning.tool_executor import ToolExecutor
 from pirn_agents.planning.tool_router import ToolRouter
 from pirn_agents.specializations.react.react_loop import ReActLoop
 from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.tool_factory import ToolFactory
 from pirn_agents.types.messaging.agent_message import AgentMessage
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
@@ -127,34 +129,36 @@ class StubLLMProvider(LLMProvider):
 
 
 class StubTool(Tool):
-    """Deterministic tool double that returns canned output."""
+    """Deterministic tool knot that formats a bound template with the call's input.
+
+    A tool is a ``Knot`` class (ADR "agents speaks core", WS1): ``input`` (the
+    ReAct shape) or ``step`` (the plan-step shape ``ToolRouter`` emits) is the
+    call argument and ``result_template`` is bound once per capability with
+    :meth:`Tool.bind`; ``named()`` then gives each bound capability its own
+    name and description for the model.
+    """
 
     def __init__(
         self,
         *,
-        name: str,
-        description: str,
-        result_template: str,
+        input: Knot | str = "",
+        step: Knot | str = "",
+        result_template: Knot | str,
+        _config: KnotConfig,
+        **kwargs: Any,
     ) -> None:
-        self._name = name
-        self._description = description
-        self._template = result_template
+        super().__init__(
+            input=input,
+            step=step,
+            result_template=result_template,
+            _config=_config,
+            **kwargs,
+        )
 
-    @property
-    def name(self) -> str:
-        return self._name
-
-    @property
-    def description(self) -> str:
-        return self._description
-
-    @property
-    def parameters_schema(self) -> Mapping[str, Any]:
-        return {"type": "object", "properties": {"input": {"type": "string"}}}
-
-    async def invoke(self, arguments: Mapping[str, Any]) -> Any:
-        arg = next(iter(arguments.values()), "") if arguments else ""
-        return self._template.format(arg=arg)
+    async def process(
+        self, input: str = "", step: str = "", result_template: str = "", **_: Any
+    ) -> str:
+        return result_template.format(arg=input or step)
 
 
 # ----------------------------------------------------------------- shared tools / LLM
@@ -182,25 +186,19 @@ class PlannerStubLLMProvider(StubLLMProvider):
 _LLM = StubLLMProvider(seed=42)
 _PLANNER_LLM = PlannerStubLLMProvider(seed=0)
 
-_SEARCH_TOOL = StubTool(
-    name="search",
-    description="Search for information on a topic.",
+_SEARCH_TOOL = StubTool.bind(
     result_template="Search result for '{arg}': found 3 relevant documents "
     "covering historical context, current status, and future outlook.",
+).named("search", description="Search for information on a topic.")
+_CALCULATE_TOOL = StubTool.bind(result_template="calculate({arg}) = 6125.00").named(
+    "calculate", description="Evaluate a mathematical expression."
 )
-_CALCULATE_TOOL = StubTool(
-    name="calculate",
-    description="Evaluate a mathematical expression.",
-    result_template="calculate({arg}) = 6125.00",
-)
-_LOOKUP_TOOL = StubTool(
-    name="lookup",
-    description="Look up a fact in the knowledge base.",
+_LOOKUP_TOOL = StubTool.bind(
     result_template="lookup('{arg}'): policy states standard 30-day processing "
     "window; exceptions require manager approval.",
-)
+).named("lookup", description="Look up a fact in the knowledge base.")
 
-_ALL_TOOLS: tuple[Tool, ...] = (_SEARCH_TOOL, _CALCULATE_TOOL, _LOOKUP_TOOL)
+_ALL_TOOLS: tuple[ToolFactory, ...] = (_SEARCH_TOOL, _CALCULATE_TOOL, _LOOKUP_TOOL)
 
 
 # ----------------------------------------------------------------- state models
@@ -274,7 +272,9 @@ def plan_next_actions(ctx: SessionContext) -> list[PlannedAction]:
     if any(w in task for w in ["calculat", "percent", "interest", "cost", "plan"]):
         actions.append(PlannedAction("planner", "compute"))
 
-    if any(w in task for w in ["write", "draft", "email", "report", "summarise", "summary"]):
+    if any(
+        w in task for w in ["write", "draft", "email", "report", "summarise", "summary"]
+    ):
         actions.append(PlannedAction("llm_task", "draft"))
 
     if any(w in task for w in ["weather", "forecast", "advisory"]):
@@ -317,7 +317,9 @@ def _seed_messages(ctx: SessionContext, system: str) -> tuple[AgentMessage, ...]
 class LLMTaskRunner(SubTapestry):
     """ContextBuilder → LLMCall → OutputParser inner pipeline."""
 
-    async def process(self, ctx: SessionContext, action: PlannedAction, **_: Any) -> Knot:
+    async def process(
+        self, ctx: SessionContext, action: PlannedAction, **_: Any
+    ) -> Knot:
         msgs = _seed_messages(
             ctx,
             system="You are a helpful assistant. Answer the user's question clearly and concisely.",
@@ -336,7 +338,9 @@ class LLMTaskRunner(SubTapestry):
 class ReActRunner(SubTapestry):
     """ReActLoop inner pipeline — reason + act with stub tools."""
 
-    async def process(self, ctx: SessionContext, action: PlannedAction, **_: Any) -> Knot:
+    async def process(
+        self, ctx: SessionContext, action: PlannedAction, **_: Any
+    ) -> Knot:
         msgs = _seed_messages(
             ctx,
             system=(
@@ -384,7 +388,9 @@ class PlannerRunner(SubTapestry):
     step string from the ``Plan`` before passing it to ``ToolRouter``.
     """
 
-    async def process(self, ctx: SessionContext, action: PlannedAction, **_: Any) -> Knot:
+    async def process(
+        self, ctx: SessionContext, action: PlannedAction, **_: Any
+    ) -> Knot:
         msgs = _seed_messages(
             ctx,
             system=(
@@ -400,7 +406,9 @@ class PlannerRunner(SubTapestry):
             _config=KnotConfig(id="msgs"),
         )
         context_k = ContextBuilder(messages=msgs_param, _config=KnotConfig(id="ctx"))
-        plan_k = Planner(context=context_k, llm=_PLANNER_LLM, _config=KnotConfig(id="plan"))
+        plan_k = Planner(
+            context=context_k, llm=_PLANNER_LLM, _config=KnotConfig(id="plan")
+        )
         step_k = _PlanFirstStep(plan=plan_k, _config=KnotConfig(id="step"))
         router_k = ToolRouter(
             step=step_k,
@@ -426,7 +434,9 @@ class AgentPlanner(Knot):
     """
 
     async def process(self, ctx: SessionContext, **_: Any) -> SessionContext:
-        new_ctx = ctx.evolve(iteration=ctx.iteration + 1, msg_iteration=ctx.msg_iteration + 1)
+        new_ctx = ctx.evolve(
+            iteration=ctx.iteration + 1, msg_iteration=ctx.msg_iteration + 1
+        )
         actions = plan_next_actions(new_ctx)
 
         store = get_current_store()
@@ -511,7 +521,9 @@ class AgentDecider(Knot):
         enough = len(msg_steps) >= 2 and rng.random() < 0.55
 
         if synthesised or enough or new_ctx.msg_iteration >= MAX_ITERATIONS_PER_MSG:
-            best = max(step_results, key=lambda s: len(s.response.content), default=None)
+            best = max(
+                step_results, key=lambda s: len(s.response.content), default=None
+            )
             summary = best.response.content[:120] if best else "Completed."
             new_ctx = new_ctx.evolve(
                 responses=(*new_ctx.responses, summary),
@@ -551,7 +563,9 @@ class _SessionFinalizer(Knot):
 # ----------------------------------------------------------------- tapestry
 
 
-def build_tapestry(*, initial_ctx: SessionContext | None = None, history=None) -> Tapestry:
+def build_tapestry(
+    *, initial_ctx: SessionContext | None = None, history=None
+) -> Tapestry:
     t = Tapestry(history=history)
     seed_ctx = initial_ctx or make_session()
     t.store.register(
@@ -602,14 +616,18 @@ async def main() -> None:
 
     if not result.succeeded:
         exc = result.exceptions[0] if result.exceptions else None
-        print(f"FAILED: {exc.knot_id if exc else '?'}: {exc.message[:120] if exc else ''}")
+        print(
+            f"FAILED: {exc.knot_id if exc else '?'}: {exc.message[:120] if exc else ''}"
+        )
         history.close()
         return
 
     final: SessionContext = result.outputs[SESSION_COMPLETE_ID]
     print(f"{len(final.messages)} messages · {final.iteration} total iterations\n")
 
-    for i, (msg, response) in enumerate(zip(final.messages, final.responses, strict=True)):
+    for i, (msg, response) in enumerate(
+        zip(final.messages, final.responses, strict=True)
+    ):
         msg_steps = [s for s in final.scratchpad if s.msg_idx == i]
         steps_summary = "  ".join(
             f"{_TYPE_ICON.get(s.action_type, '·')}{s.name}" for s in msg_steps

@@ -10,9 +10,9 @@ concurrent calls.
 :meth:`run` additionally owns the retry *loop* itself — the previously
 hand-rolled ``while True`` drivers in
 :class:`~pirn_agents.llm.http_transport.HttpTransport`,
-:class:`~pirn_agents.retrieval.embeddings.base_embedding_provider.BaseEmbeddingProvider`,
-:class:`~pirn_agents.agent.async_fanout_engine.AsyncFanoutEngine`, and
-:class:`~pirn_agents.mcp.mcp_connector.McpConnector` all delegate to it now, so
+:class:`~pirn_agents.retrieval.embeddings.base_embedding_provider.BaseEmbeddingProvider`
+and :class:`~pirn_agents.mcp.mcp_connector.McpConnector` all delegate to it now
+(the retired ``AsyncFanoutEngine`` did too), so
 there is one place that decides "was this exception retryable, and how long do
 we wait" (PIR-856).
 """

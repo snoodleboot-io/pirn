@@ -80,12 +80,21 @@ class _Other(SubTapestry):
 
 
 class _ViaOther(SubTapestry):
-    """Re-enters its own class through a different container in between."""
+    """Re-enters itself — same class, same knot id — through another container."""
 
     async def process(self, again: bool, **_: Any) -> Knot:
         if not again:
             return _Other(_config=KnotConfig(id="other"))
-        return _ViaOther(again=False, _config=KnotConfig(id="via"))
+        return _ViaOther(again=False, _config=KnotConfig(id="top"))
+
+
+class _ViaOtherSibling(SubTapestry):
+    """Nests another instance of its own class under a *different* knot id."""
+
+    async def process(self, again: bool, **_: Any) -> Knot:
+        if not again:
+            return _Other(_config=KnotConfig(id="other"))
+        return _ViaOtherSibling(again=False, _config=KnotConfig(id="sibling"))
 
 
 class _InnerLoop(LoopSubTapestry[int]):
@@ -219,8 +228,9 @@ async def test_an_inner_tapestry_can_only_tighten_the_cap() -> None:
     assert await _child_error_types(t, "r0") == ["NestingDepthExceededError"]
 
 
-async def test_a_container_re_entering_its_class_is_a_cycle_when_guarded() -> None:
-    # Arrange: _ViaOther -> _ViaOther is refused at depth 2, well under the cap.
+async def test_a_container_re_entering_itself_is_a_cycle_when_guarded() -> None:
+    # Arrange: _ViaOther("top") -> _ViaOther("top") is refused at depth 2,
+    # well under the cap.
     with Tapestry(max_nesting_depth=10) as t:
         _ViaOther(again=True, _config=KnotConfig(id="top"))
 
@@ -230,6 +240,21 @@ async def test_a_container_re_entering_its_class_is_a_cycle_when_guarded() -> No
     # Assert
     assert not result.succeeded
     assert await _child_error_types(t, "r0") == ["NestedRunCycleError"]
+
+
+async def test_another_instance_of_the_same_class_is_not_a_cycle() -> None:
+    # Arrange: the nesting key carries the knot id (ADR WS1), so a container
+    # nesting a *different* instance of its own class — an agent handing a
+    # task to another agent of the same class — is allowed under a cap.
+    with Tapestry(max_nesting_depth=10) as t:
+        _ViaOtherSibling(again=True, _config=KnotConfig(id="top"))
+
+    # Act
+    result = await t.run(RunRequest(run_id="r0"))
+
+    # Assert
+    assert result.succeeded, result.exceptions
+    assert result.outputs["top"] == 3
 
 
 async def test_re_entry_is_allowed_without_a_cap() -> None:

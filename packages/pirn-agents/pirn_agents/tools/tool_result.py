@@ -1,4 +1,15 @@
-"""The outcome of a single :class:`ToolCall`."""
+"""``ToolResult`` — the deprecated, one-cycle view of a tool call's ``Result``.
+
+Since the ADR "agents speaks core" (WS1) a tool call is a knot, and its outcome
+is the engine's ``Ok | Err | Skipped`` plus the ``KnotLineage`` row the run
+records under the call's id — that is what a codec, a synthesiser or a
+session reads now.  ``ToolResult`` remains for one deprecation cycle as a
+*view* over that pair for callers that still expect the pre-ADR shape: every
+executor builds it through the single :meth:`from_result`, and nothing else
+constructs one.  ``latency`` is derived from the lineage row's timestamps
+when a row is given and is ``None`` otherwise; ``tokens`` is a caller-supplied
+annotation a bare ``Result`` never carries.
+"""
 
 from __future__ import annotations
 
@@ -6,6 +17,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from pirn.core.err import Err
+from pirn.core.knot_lineage import KnotLineage
 from pirn.core.ok import Ok
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 from pirn.core.result import Result
@@ -17,7 +29,7 @@ from pirn_agents.tools.tool_status import ToolStatus
 
 @dataclass(frozen=True)
 class ToolResult(PirnOpaqueValue):
-    """Result returned by invoking a tool.
+    """Deprecated view of one tool call's ``Result`` (build it with :meth:`from_result`).
 
     Attributes
     ----------
@@ -31,15 +43,9 @@ class ToolResult(PirnOpaqueValue):
         left unset, so the two never disagree.
     exception:
         The captured :class:`ExceptionRecord` when the failure came from a
-        python exception; ``None`` otherwise. The tool path used to keep only
-        the stringified message, so a caller could see *that* a tool failed but
-        not the type or the traceback — the low-fidelity reporting the batch
-        path shed in PIR-724 (PIR-794).
-
-        It stays optional because not every failure has an exception behind it:
-        an MCP tool reporting a protocol-level error, for instance, has a
-        message and nothing to capture. Such a caller passes ``error`` alone
-        rather than fabricating a record.
+        python exception; ``None`` otherwise — an MCP tool reporting a
+        protocol-level error has a message and nothing to capture, and such a
+        caller passes ``error`` alone rather than fabricating a record.
     status:
         Terminal disposition of the invocation. Defaults to
         :attr:`ToolStatus.OK`; when left at the default and ``error`` is
@@ -48,7 +54,8 @@ class ToolResult(PirnOpaqueValue):
         always preserved.
     latency:
         Wall-clock duration of the invocation in seconds, or ``None`` when
-        not measured.
+        not measured (a view built from a bare ``Result`` has no row to read
+        it from).
     tokens:
         Token count attributable to the invocation, or ``None`` when not
         measured.
@@ -67,15 +74,9 @@ class ToolResult(PirnOpaqueValue):
 
         Frozen-safe: uses ``object.__setattr__`` to mutate the fields.
 
-        ``error`` is filled from the record rather than being a read-only
-        property, unlike
-        :attr:`~pirn_agents.batch.batch_item_result.BatchItemResult.error`.
-        That type could make it derived because it was built that way from the
-        start; here ``error`` is long-standing public API set directly by many
-        call sites, some of which have no exception object to offer. Deriving it
-        only when it was not supplied keeps both kinds of caller working and
-        still leaves one message when a record IS given.
-
+        ``error`` is filled from the record's ``"<type>: <message>"`` when it
+        was not supplied — the shape every executor reported before the view
+        existed — so the message and the record cannot drift apart.
         ``status`` is only ever promoted from the default ``OK`` to ``ERROR``,
         so an explicitly supplied ``TIMEOUT`` is never overwritten.
 
@@ -89,7 +90,9 @@ class ToolResult(PirnOpaqueValue):
                 f"got {type(self.exception).__name__}"
             )
         if self.error is None and self.exception is not None:
-            object.__setattr__(self, "error", self.exception.message)
+            object.__setattr__(
+                self, "error", f"{self.exception.exc_type}: {self.exception.message}"
+            )
         if self.error is not None and self.status == ToolStatus.OK:
             object.__setattr__(self, "status", ToolStatus.ERROR)
 
@@ -109,19 +112,12 @@ class ToolResult(PirnOpaqueValue):
     def to_result(self) -> Result[ToolResult]:
         """Return the core ``Ok | Err | Skipped`` view of this outcome.
 
-        This is a bridging step (WS3·S1 is deferred — see the note at
-        :meth:`pirn_agents.tools.tool_invocation.ToolInvocation.process`), not
-        a migration: :class:`ToolResult` remains the value every existing
-        caller sees. Nothing here loses information — an :attr:`ToolStatus.OK`
-        or :attr:`ToolStatus.ERROR` result maps one-to-one onto ``Ok``/``Err``.
-
         Returns:
             ``Ok(value=self)`` for :attr:`ToolStatus.OK`; otherwise
             ``Err(record=...)``, using :attr:`exception` when the failure came
             from a captured python exception, or a synthetic
             :class:`~pirn.managers.exception_record.ExceptionRecord` built from
-            :attr:`error` (or the status name, if ``error`` is unset — a bare
-            :attr:`ToolStatus.TIMEOUT` from a caller that never populated it)
+            :attr:`error` (or the status name, if ``error`` is unset)
             otherwise. ``Skipped`` is never produced: :class:`ToolStatus` has
             no "not run" member, so there is nothing in ``self`` that would map
             to it.
@@ -133,40 +129,64 @@ class ToolResult(PirnOpaqueValue):
         message = self.error if self.error is not None else f"tool status {self.status.value}"
         return Err(record=ExceptionRecord.for_knot(self.call_id, RuntimeError(message)))
 
-    @classmethod
-    def from_result(cls, call_id: str, result: Result[Any]) -> ToolResult:
-        """Build a :class:`ToolResult` from a core ``Ok | Err | Skipped``.
+    @staticmethod
+    def latency_of(lineage: KnotLineage | None) -> float | None:
+        """Seconds between a lineage row's ``started_at`` and ``finished_at``, or ``None``."""
+        if lineage is None:
+            return None
+        return (lineage.finished_at - lineage.started_at).total_seconds()
 
-        The inverse of :meth:`to_result`, for callers that hold a core
-        ``Result`` (e.g. a :class:`~pirn.core.knot.Knot` output) and need the
-        :class:`ToolResult` shape the rest of this package expects.
+    @classmethod
+    def from_result(
+        cls,
+        call_id: str,
+        result: Result[Any],
+        lineage: KnotLineage | None = None,
+        *,
+        tokens: int | None = None,
+    ) -> ToolResult:
+        """Build the view of one call's core ``Result`` — the one builder every path uses.
 
         Args:
             call_id: The originating :class:`~pirn_agents.tools.tool_call.ToolCall`'s
-                identifier, echoed onto the returned :class:`ToolResult` (a
-                core ``Result`` carries no call id of its own).
-            result: The core result to convert.
+                identifier (a core ``Result`` carries no call id of its own).
+            result: The call knot's ``Ok | Err | Skipped``.
+            lineage: The call knot's lineage row, when the caller has it;
+                supplies ``latency``.
+            tokens: Token usage attributable to the call, when known.
 
         Returns:
-            ``result.value`` unchanged when it is already a :class:`ToolResult`
-            (round-tripping :meth:`to_result`'s ``Ok`` case exactly); otherwise
-            a fresh :attr:`ToolStatus.OK` result wrapping a non-``ToolResult``
-            ``Ok`` value, an :attr:`ToolStatus.ERROR` result carrying ``Err``'s
-            record, or an :attr:`ToolStatus.ERROR` result describing the skip
-            when given a ``Skipped`` — :class:`ToolStatus` has no "not run"
+            ``result.value`` unchanged when it is already a :class:`ToolResult`;
+            otherwise an ``OK`` view of an ``Ok`` value, an ``ERROR`` view
+            carrying ``Err``'s record — ``TIMEOUT`` when the record is core's
+            ``KnotTimeoutError``, i.e. the call outlived ``KnotConfig.timeout``
+            — or an ``ERROR`` view describing a ``Skipped`` (a denied
+            approval, an upstream skip): :class:`ToolStatus` has no "not run"
             member, so a skip is reported as its own kind of error rather than
             silently reclassified as one the caller did not make.
 
         Raises:
             TypeError: If ``result`` is not an ``Ok``, ``Err``, or ``Skipped``.
         """
+        latency = cls.latency_of(lineage)
         if isinstance(result, Ok):
             if isinstance(result.value, ToolResult):
                 return result.value
-            return cls(call_id=call_id, result=result.value, status=ToolStatus.OK)
-        if isinstance(result, Err):
             return cls(
-                call_id=call_id, result=None, status=ToolStatus.ERROR, exception=result.record
+                call_id=call_id,
+                result=result.value,
+                status=ToolStatus.OK,
+                latency=latency,
+                tokens=tokens,
+            )
+        if isinstance(result, Err):
+            timed_out = result.record.exc_type == "KnotTimeoutError"
+            return cls(
+                call_id=call_id,
+                result=None,
+                status=ToolStatus.TIMEOUT if timed_out else ToolStatus.ERROR,
+                exception=result.record,
+                latency=latency,
             )
         if isinstance(result, Skipped):
             return cls(
@@ -174,6 +194,7 @@ class ToolResult(PirnOpaqueValue):
                 result=None,
                 status=ToolStatus.ERROR,
                 error=f"skipped: {result.reason}",
+                latency=latency,
             )
         raise TypeError(
             f"ToolResult.from_result: result must be Ok, Err, or Skipped, got {type(result).__name__}"

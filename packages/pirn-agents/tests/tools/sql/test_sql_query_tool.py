@@ -26,6 +26,7 @@ from pirn_agents.tools.sql.sql_query_tool import SqlQueryTool
 from pirn_agents.tools.sql.sqlite_connector import SqliteConnector
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_status import ToolStatus
+from tests.tools.tool_runner import ToolRunner
 
 
 class _StubSqlConnector(SqlConnector):
@@ -59,61 +60,63 @@ class TestReadOnlyEnforcement:
         ],
     )
     async def test_rejects_writes(self, query: str) -> None:
-        tool = SqlQueryTool(connector=_StubSqlConnector(["a"], [[1]]))
+        tool = SqlQueryTool.bind(connector=_StubSqlConnector(["a"], [[1]]))
         with pytest.raises(ValueError):
-            await tool.invoke({"query": query})
+            await ToolRunner.value(tool, {"query": query})
 
     async def test_allows_select_and_with(self) -> None:
         connector = _StubSqlConnector(["n"], [[1]])
-        tool = SqlQueryTool(connector=connector)
-        await tool.invoke({"query": "SELECT n FROM t"})
-        await tool.invoke({"query": "WITH c AS (SELECT 1) SELECT * FROM c"})
+        tool = SqlQueryTool.bind(connector=connector)
+        await ToolRunner.value(tool, {"query": "SELECT n FROM t"})
+        await ToolRunner.value(tool, {"query": "WITH c AS (SELECT 1) SELECT * FROM c"})
         assert len(connector.calls) == 2
 
     async def test_keyword_in_string_literal_is_allowed(self) -> None:
         connector = _StubSqlConnector(["label"], [["please delete me"]])
-        tool = SqlQueryTool(connector=connector)
-        result = await tool.invoke({"query": "SELECT label FROM t WHERE label = 'delete from x'"})
+        tool = SqlQueryTool.bind(connector=connector)
+        result = await ToolRunner.value(
+            tool, {"query": "SELECT label FROM t WHERE label = 'delete from x'"}
+        )
         assert result["row_count"] == 1
 
     async def test_write_allowed_when_read_only_disabled(self) -> None:
         connector = _StubSqlConnector([], [])
-        tool = SqlQueryTool(connector=connector, read_only=False)
-        await tool.invoke({"query": "UPDATE t SET x = 1"})
+        tool = SqlQueryTool.bind(connector=connector, read_only=False)
+        await ToolRunner.value(tool, {"query": "UPDATE t SET x = 1"})
         assert connector.calls[-1][0] == "UPDATE t SET x = 1"
 
 
 class TestRowCapAndShape:
     async def test_caps_rows_and_flags_truncation(self) -> None:
         rows = [[i] for i in range(100)]
-        tool = SqlQueryTool(connector=_StubSqlConnector(["n"], rows), max_rows=10)
-        result = await tool.invoke({"query": "SELECT n FROM t"})
+        tool = SqlQueryTool.bind(connector=_StubSqlConnector(["n"], rows), max_rows=10)
+        result = await ToolRunner.value(tool, {"query": "SELECT n FROM t"})
         assert result["row_count"] == 10
         assert result["truncated"] is True
         assert result["columns"] == ["n"]
         assert result["rows"][0] == [0]
 
     async def test_no_truncation_under_cap(self) -> None:
-        tool = SqlQueryTool(connector=_StubSqlConnector(["n"], [[1], [2]]), max_rows=10)
-        result = await tool.invoke({"query": "SELECT n FROM t"})
+        tool = SqlQueryTool.bind(connector=_StubSqlConnector(["n"], [[1], [2]]), max_rows=10)
+        result = await ToolRunner.value(tool, {"query": "SELECT n FROM t"})
         assert result["truncated"] is False
         assert result["row_count"] == 2
 
     async def test_parameters_passed_through(self) -> None:
         connector = _StubSqlConnector(["n"], [[1]])
-        tool = SqlQueryTool(connector=connector)
-        await tool.invoke({"query": "SELECT n FROM t WHERE n = ?", "parameters": [1]})
+        tool = SqlQueryTool.bind(connector=connector)
+        await ToolRunner.value(tool, {"query": "SELECT n FROM t WHERE n = ?", "parameters": [1]})
         assert connector.calls[-1][1] == [1]
 
     async def test_as_tool_result_error_on_write(self) -> None:
-        tool = SqlQueryTool(connector=_StubSqlConnector(["n"], [[1]]))
+        tool = SqlQueryTool.bind(connector=_StubSqlConnector(["n"], [[1]]))
         call = ToolCall(tool_name="sql_query", arguments={"query": "DROP TABLE t"}, call_id="c")
-        outcome = await tool.as_tool_result(call)
+        outcome = await ToolRunner.view(tool, call)
         assert outcome.status is ToolStatus.ERROR
 
     def test_rejects_non_connector(self) -> None:
         with pytest.raises(TypeError):
-            SqlQueryTool(connector=object())  # type: ignore[arg-type]
+            SqlQueryTool.bind(connector=object())  # type: ignore[arg-type]
 
 
 class TestSqliteConnector:
@@ -122,8 +125,8 @@ class TestSqliteConnector:
         connection.execute("CREATE TABLE t (id int, name text)")
         connection.execute("INSERT INTO t VALUES (1, 'a'), (2, 'b')")
         connection.commit()
-        tool = SqlQueryTool(connector=SqliteConnector(connection=connection))
-        result = await tool.invoke({"query": "SELECT id, name FROM t ORDER BY id"})
+        tool = SqlQueryTool.bind(connector=SqliteConnector(connection=connection))
+        result = await ToolRunner.value(tool, {"query": "SELECT id, name FROM t ORDER BY id"})
         assert result["columns"] == ["id", "name"]
         assert result["rows"] == [[1, "a"], [2, "b"]]
         connection.close()
@@ -361,14 +364,17 @@ class TestAiosqliteConnectorDurability:
         assert self._rows_on_disk(database) == [(1, "new")]
 
     async def test_a_write_through_the_tool_persists(self, tmp_path: Any) -> None:
-        # The reachable path: SqlQueryTool(read_only=False) -> AiosqliteConnector.
+        # The reachable path: SqlQueryTool.bind(read_only=False) -> AiosqliteConnector.
         pytest.importorskip("aiosqlite")
         database = str(tmp_path / "via_tool.db")
-        tool = SqlQueryTool(connector=AiosqliteConnector(database=database), read_only=False)
+        tool = SqlQueryTool.bind(connector=AiosqliteConnector(database=database), read_only=False)
 
-        await tool.invoke({"query": "CREATE TABLE widget (id INTEGER PRIMARY KEY, name TEXT)"})
-        await tool.invoke(
-            {"query": "INSERT INTO widget (id, name) VALUES (?, ?)", "parameters": [1, "kept"]}
+        await ToolRunner.value(
+            tool, {"query": "CREATE TABLE widget (id INTEGER PRIMARY KEY, name TEXT)"}
+        )
+        await ToolRunner.value(
+            tool,
+            {"query": "INSERT INTO widget (id, name) VALUES (?, ?)", "parameters": [1, "kept"]},
         )
 
         assert self._rows_on_disk(database) == [(1, "kept")]
@@ -437,10 +443,10 @@ class TestSqlServiceConnectorIsASqlConnector:
     async def test_end_to_end_through_the_tool(self) -> None:
         pool = _FakeColumnAwarePool(["id", "name"], [[1, "a"], [2, "b"]])
         connector = SqlServiceConnector(pool=pool)
-        tool = SqlQueryTool(connector=connector)
+        tool = SqlQueryTool.bind(connector=connector)
 
-        result = await tool.invoke(
-            {"query": "SELECT id, name FROM t WHERE id > ?", "parameters": [0]}
+        result = await ToolRunner.value(
+            tool, {"query": "SELECT id, name FROM t WHERE id > ?", "parameters": [0]}
         )
 
         assert result["columns"] == ["id", "name"]
@@ -452,7 +458,7 @@ class TestSqlServiceConnectorIsASqlConnector:
 
     async def test_tool_surfaces_connector_read_only_rejection(self) -> None:
         connector = SqlServiceConnector(pool=_FakeColumnAwarePool([], []))
-        tool = SqlQueryTool(connector=connector, read_only=False)
+        tool = SqlQueryTool.bind(connector=connector, read_only=False)
         with pytest.raises(ValueError):
-            await tool.invoke({"query": "DROP TABLE t"})
+            await ToolRunner.value(tool, {"query": "DROP TABLE t"})
         await connector.close()

@@ -13,8 +13,7 @@ with ``pirn.run_id``/``pirn.knot_id`` and the agents-domain attributes
 from __future__ import annotations
 
 import logging
-from collections.abc import Mapping
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -58,19 +57,14 @@ class _FakeOtelTracer:
 
 
 class _StubTool(Tool):
-    @property
-    def name(self) -> str:
-        return "search"
+    """stub search"""
 
-    @property
-    def description(self) -> str:
-        return "stub search"
+    tool_name: ClassVar[str] = "search"
 
-    @property
-    def parameters_schema(self) -> Mapping[str, Any]:
-        return {"type": "object"}
+    def __init__(self, *, q: Knot | str, _config: KnotConfig, **kwargs: Any) -> None:
+        super().__init__(q=q, _config=_config, **kwargs)
 
-    async def invoke(self, arguments: Mapping[str, Any]) -> Any:
+    async def process(self, q: str, **_: Any) -> dict[str, int]:
         return {"hits": 3}
 
 
@@ -95,7 +89,7 @@ class TestOpenTelemetryEmitterRendersAgentCalls:
         with Tapestry(emitters=[OpenTelemetryEmitter(tracer=tracer)]) as t:
             llm = _LLMCallKnot(_config=KnotConfig(id="llm-call"))
             tool = ToolInvocation(
-                tool=_StubTool(),
+                tool=_StubTool,
                 call=ToolCall(tool_name="search", arguments={"q": "hi"}, call_id="c1"),
                 _config=KnotConfig(id="tool-call"),
             )
@@ -132,7 +126,7 @@ class TestLogEmitterLogsAgentCalls:
         with Tapestry(emitters=[emitter]) as t:
             llm = _LLMCallKnot(_config=KnotConfig(id="llm-call"))
             tool = ToolInvocation(
-                tool=_StubTool(),
+                tool=_StubTool,
                 call=ToolCall(tool_name="search", arguments={"q": "hi"}, call_id="c1"),
                 _config=KnotConfig(id="tool-call"),
             )

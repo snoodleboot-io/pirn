@@ -52,7 +52,7 @@ from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.specializations.rag._agentic_rag_loop import _AgenticRagLoop
 from pirn_agents.specializations.rag._agentic_rag_result import _AgenticRagResult
 from pirn_agents.specializations.rag._agentic_rag_state import _AgenticRagState
-from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.tool_factory import ToolFactory
 
 
 class AgenticRagPipeline(AgentPipeline):
@@ -73,7 +73,7 @@ class AgenticRagPipeline(AgentPipeline):
         self,
         *,
         query: Knot | str,
-        rag_tool: Knot | Tool,
+        rag_tool: Knot | Any,
         llm: Knot | LLMProvider,
         _config: KnotConfig,
         max_iterations: Knot | int = 3,
@@ -91,7 +91,7 @@ class AgenticRagPipeline(AgentPipeline):
     async def process(
         self,
         query: str,
-        rag_tool: Tool,
+        rag_tool: ToolFactory,
         llm: LLMProvider,
         max_iterations: PositiveInt = 3,
         **_: Any,
