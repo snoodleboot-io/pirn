@@ -42,7 +42,7 @@ from tests.specializations.base.bypass_inventory import BypassInventory
 # --- known bypasses, frozen (ADR agents-speaks-core WS5a) ------------------
 
 #: A `Source` subclass defined anywhere inside `process()`, not only ones
-#: that are returned. One remains (down from twelve): it exists to
+#: that are returned. All twelve are now fixed; they existed to
 #: re-inject an already-resolved value into the inner graph — the
 #: `Parameter` use case. `RetryOnParseFailure` is fixed — see its
 #: `_RetryResultExtractor`/`_RetryOnParseFailureLoop` (ADR agents-speaks-core
@@ -55,12 +55,10 @@ from tests.specializations.base.bypass_inventory import BypassInventory
 #: `_ReflexionLoop`/`_ReflexionResultExtractor`; `PlanReActPipeline` is fixed
 #: — see `_PlanReActResultExtractor`; `FlareActiveRagPipeline` is fixed — see
 #: `_FlareLoop`/`_FlareResultExtractor`; `MultiHopRAGPipeline` is fixed — see
-#: `_MultiHopResultExtractor` (ADR agents-speaks-core WS5b).
-DEFINES_INLINE_SOURCE = frozenset(
-    {
-        "specializations/lats/lats_search.py::LatsSearch",
-    }
-)
+#: `_MultiHopResultExtractor`; `LatsSearch` is fixed — see
+#: `_LatsResultExtractor` (ADR agents-speaks-core WS5b). Kept as an assertion
+#: (not deleted) so a future inline `Source` regresses loudly.
+DEFINES_INLINE_SOURCE: frozenset[str] = frozenset()
 
 #: `process()` bodies that return one of their own inputs unchanged.
 #: Permanent members (Rule 6 vending Knots — legitimate, not a bypass):

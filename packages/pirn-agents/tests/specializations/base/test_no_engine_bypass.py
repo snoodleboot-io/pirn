@@ -72,27 +72,24 @@ from tests.specializations.base.bypass_inventory import BypassInventory
 AWAITS_CHILD_PROCESS = frozenset(
     {
         "retrieval/graph_rag/hybrid_graph_retriever.py::HybridGraphRetriever",
-        "specializations/lats/lats_search.py::LatsSearch",
     }
 )
 
 #: Returns a `Source` defined inside `process()` that closes over an
 #: already-computed value. The engine then "runs" a graph of one knot whose job
-#: is to hand back an answer Python already had.
-RETURNS_INLINE_SOURCE = frozenset(
-    {
-        "specializations/lats/lats_search.py::LatsSearch",
-    }
-)
+#: is to hand back an answer Python already had. Empty: `LatsSearch` was the
+#: last member — see `_LatsResultExtractor` (ADR agents-speaks-core WS5b).
+#: Kept as an assertion (not deleted) so a future inline `Source` regresses
+#: loudly.
+RETURNS_INLINE_SOURCE: frozenset[str] = frozenset()
 
 #: `with Tapestry():` opened and never run. Its only effect is to stop the knots
 #: built inside it leaking into the outer graph — so those knots are constructed,
-#: never executed, and invisible.
-UNRUN_TAPESTRY = frozenset(
-    {
-        "specializations/lats/lats_search.py::LatsSearch",
-    }
-)
+#: never executed, and invisible. Empty: `LatsSearch` was the last member — its
+#: proposer call now runs through `self._run_inner(...)`, per iteration, like
+#: the rest of the package's nested-resolve pipelines (ADR agents-speaks-core
+#: WS5b). Kept as an assertion so a future unrun `Tapestry()` regresses loudly.
+UNRUN_TAPESTRY: frozenset[str] = frozenset()
 
 #: `await <x>.invoke(...)` awaited directly rather than through a
 #: `ToolInvocation` knot. `tools/tool_invocation.py::ToolInvocation` is the one

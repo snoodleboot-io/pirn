@@ -52,7 +52,6 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.source import Source
 from pirn.tapestry import Tapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
@@ -60,9 +59,9 @@ from pirn_agents.performance.budget_breach_error import BudgetBreachError
 from pirn_agents.performance.run_budget import RunBudget
 from pirn_agents.performance.run_budget_meter import RunBudgetMeter
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
+from pirn_agents.specializations.lats._lats_result_extractor import _LatsResultExtractor
 from pirn_agents.specializations.lats.lats_action_proposer import LatsActionProposer
 from pirn_agents.specializations.lats.lats_node import LatsNode
-from pirn_agents.specializations.lats.lats_result import LatsResult
 from pirn_agents.specializations.lats.trajectory_value_model import TrajectoryValueModel
 
 
@@ -109,7 +108,7 @@ class LatsSearch(AgentPipeline):
             max_depth: Maximum trajectory length before a node is terminal.
 
         Returns:
-            A terminal :class:`Source` whose output is the :class:`LatsResult`.
+            The sink knot whose output is the :class:`LatsResult`.
 
         Raises:
             ValueError: If ``max_depth`` < 1 or the budget bounds no dimension.
@@ -120,11 +119,6 @@ class LatsSearch(AgentPipeline):
             raise ValueError(
                 "LatsSearch: budget must bound node count (max_iterations) or time "
                 "(deadline_seconds); an unbounded search is not allowed"
-            )
-
-        with Tapestry():
-            proposer = LatsActionProposer(
-                task=task, llm=llm, _config=KnotConfig(id="lats_proposer")
             )
 
         meter = RunBudgetMeter(budget)
@@ -146,7 +140,19 @@ class LatsSearch(AgentPipeline):
             nodes_expanded += 1
             if node.depth >= max_depth:
                 continue
-            actions = await proposer.process(task=task, llm=llm, trajectory=node.trajectory)
+            # Each expansion is its own inner run (ADR agents-speaks-core WS5b):
+            # LatsActionProposer's LLM call gets a real Result, history record,
+            # and lineage, instead of its process() being awaited by hand
+            # against a Tapestry that was opened and never run.
+            with Tapestry() as propose_inner:
+                LatsActionProposer(
+                    task=task,
+                    llm=llm,
+                    trajectory=node.trajectory,
+                    _config=KnotConfig(id="propose"),
+                )
+            propose_result = await self._run_inner(propose_inner)
+            actions = propose_result.outputs["propose"]
             for action in actions:
                 child_trajectory = (*node.trajectory, action)
                 child_value = await value_model.score(task, child_trajectory)
@@ -159,16 +165,9 @@ class LatsSearch(AgentPipeline):
                     best = child
                 heapq.heappush(frontier, (-child_value, next(counter), child))
 
-        result = LatsResult(
-            best_trajectory=best.trajectory,
-            best_value=best.value,
+        return _LatsResultExtractor(
+            best=best,
             nodes_expanded=nodes_expanded,
             budget_exhausted=budget_exhausted,
+            _config=KnotConfig(id="lats_result"),
         )
-        _result = result
-
-        class _LatsResultSource(Source):
-            async def process(self, **_: Any) -> LatsResult:
-                return _result
-
-        return _LatsResultSource(_config=KnotConfig(id="lats_result"))
