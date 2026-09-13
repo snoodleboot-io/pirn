@@ -59,13 +59,13 @@ from pirn.core.error_policy import ErrorPolicy
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_retry_policy import KnotRetryPolicy
+from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry, current_tapestry
 
 from pirn_agents.batch._map_item import _MapItem
-from pirn_agents.batch._resumed_batch import _ResumedBatch
 from pirn_agents.batch.adaptive_concurrency_controller import AdaptiveConcurrencyController
 from pirn_agents.batch.batch_item_result import BatchItemResult
 from pirn_agents.batch.batch_item_status import BatchItemStatus
@@ -386,7 +386,14 @@ class MapAgent(SubTapestry):
             order.append((parent_key, index, key))
         combine = MapAgent._make_combine(len(items), order, resumed)
         if not parents:
-            return _ResumedBatch(resumed=combine(), _config=KnotConfig(id=f"{batch_id}:aggregate"))
+            # Nothing left to run: the pre-computed result list re-enters the graph
+            # as a plain core Parameter (the sanctioned shape for a constant sink).
+            return Parameter(
+                f"{batch_id}:aggregate",
+                list,
+                default=combine(),
+                _config=KnotConfig(id=f"{batch_id}:aggregate"),
+            )
         return Aggregator(
             combine=combine,
             _config=KnotConfig(id=f"{batch_id}:aggregate", error_policy=ErrorPolicy.RECEIVE_ERRORS),
