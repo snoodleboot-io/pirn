@@ -228,6 +228,11 @@ _PATTERNS: tuple[PatternDescriptor, ...] = (
         f"{_SPEC}.routing.router_fallback_pipeline:RouterFallbackPipeline",
         "candidates",
     ),
+    PatternDescriptor(
+        "model_cascade",
+        f"{_SPEC}.routing.model_cascade_router:ModelCascadeRouter",
+        "request",
+    ),
     PatternDescriptor("self_ask", f"{_SPEC}.self_ask.self_ask_pipeline:SelfAskPipeline", "task"),
     # --- specialized agents
     PatternDescriptor(
