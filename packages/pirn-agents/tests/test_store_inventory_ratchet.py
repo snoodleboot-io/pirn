@@ -47,6 +47,12 @@ STORE_CLASSES = frozenset(
         "determinism/file_cassette_store.py::FileCassetteStore",
         "determinism/in_memory_cassette_store.py::InMemoryCassetteStore",
         "memory/stores/data_store_memory_store.py::DataStoreMemoryStore",
+        # ADR agents-speaks-core WS3 part 4: the keyed-identity primitive every
+        # other keyed store (DataStoreMemoryStore, SemanticMemoryUpsert,
+        # CrossSessionProfileUpdater, ThreadRepository/PersistedSessionStore's
+        # shims) now delegates to — a caller-chosen key is a knot id, backed by
+        # RunHistory/DataStore, not a hashed row in a KV table.
+        "memory/stores/keyed_lineage_store.py::KeyedLineageStore",
         "memory/stores/memory_store.py::MemoryStore",
         "retrieval/vector_stores/chroma_memory_store.py::ChromaMemoryStore",
         "retrieval/vector_stores/in_memory_vector_store.py::InMemoryVectorStore",
