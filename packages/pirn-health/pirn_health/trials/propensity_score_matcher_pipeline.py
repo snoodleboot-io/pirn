@@ -2,7 +2,9 @@
 
 Algorithm:
     1. Validate treatment_col, covariates, matching_ratio, and caliper.
-    2. Estimate propensity scores via logistic regression on covariates.
+    2. Estimate propensity scores via logistic regression on covariates. If the
+       logistic regression fails to fit (e.g. singular covariate matrix), raise
+       ``ValueError`` rather than silently matching on a stale/default score.
     3. Greedily match each treated patient to up to matching_ratio controls within caliper.
     4. Compute standardized mean differences (SMD) per covariate.
     5. Return matched pairs and SMD statistics.
@@ -90,8 +92,10 @@ def _run_psm(
             lr = LogisticRegression(max_iter=500, random_state=0)
             lr.fit(covariate_matrix, treatment_labels)
             ps = lr.predict_proba(covariate_matrix)[:, 1]
-        except Exception:
-            pass
+        except Exception as exc:
+            raise ValueError(
+                f"PropensityScoreMatcherPipeline: propensity model failed to fit: {exc}"
+            ) from exc
 
     used_controls: set[int] = set()
     matched_pairs: list[dict[str, Any]] = []
@@ -192,7 +196,8 @@ class PropensityScoreMatcherPipeline(Knot):
 
         Raises:
             ValueError: If treatment_col is empty, covariates is empty,
-                matching_ratio < 1, or caliper <= 0.
+                matching_ratio < 1, or caliper <= 0; or if the underlying
+                logistic regression fails to fit.
             TypeError: If matching_ratio is not int or caliper is not numeric.
         """
         if not isinstance(treatment_col, str) or not treatment_col:

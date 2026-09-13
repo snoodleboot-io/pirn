@@ -10,6 +10,7 @@ except ImportError as _e:
     raise unittest.SkipTest("sklearn not installed") from _e
 
 from typing import Any
+from unittest.mock import MagicMock, patch
 
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
@@ -115,3 +116,21 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             caliper=0.1,
         )
         assert out["n_treated"] == 1
+
+    async def test_propensity_fit_failure_raises_value_error(self) -> None:
+        knot = _make_knot()
+        mock_lr_instance = MagicMock()
+        mock_lr_instance.fit.side_effect = RuntimeError("singular matrix")
+        mock_lr_cls = MagicMock(return_value=mock_lr_instance)
+        with patch(
+            "pirn_health.trials.propensity_score_matcher_pipeline.LogisticRegression",
+            mock_lr_cls,
+        ):
+            with self.assertRaisesRegex(ValueError, "propensity model failed to fit"):
+                await knot.process(
+                    cohort=_COHORT,
+                    treatment_col="treated",
+                    covariates=("age", "sex"),
+                    matching_ratio=1,
+                    caliper=0.1,
+                )
