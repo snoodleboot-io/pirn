@@ -8,7 +8,8 @@ Algorithm:
        - ``dfa``: Detrended fluctuation analysis with linear detrending.
        - ``wavelet``: Wavelet-based LRD estimator from spectral slope.
     4. Fit the log-log slope to obtain the Hurst exponent H ∈ (0, 1).
-    5. Return a result mapping with the estimated exponent and method.
+    5. Repeat independently for each channel and return a FeaturePayload with
+       one Hurst exponent per channel.
 
 Math:
     Rescaled-range scaling:
@@ -25,13 +26,14 @@ References:
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Mapping
 from typing import Any, ClassVar
 
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.types.feature_frame import FeatureFrame
+from pirn_signal.types.feature_payload import FeaturePayload
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -60,7 +62,7 @@ class HurstExponentEstimator(Knot):
         signal: SignalPayload,
         method: str = "rs",
         **_: Any,
-    ) -> Mapping[str, Any]:
+    ) -> FeaturePayload:
         """Estimate the Hurst exponent of the signal using the configured method.
 
         Args:
@@ -69,21 +71,28 @@ class HurstExponentEstimator(Knot):
                 (detrended fluctuation analysis), or ``wavelet``.
 
         Returns:
-            Mapping containing ``hurst_exponent`` and ``signal_id``.
+            FeaturePayload with one ``hurst_exponent`` value per channel.
 
         Raises:
             ValueError: If method is not one of the valid options.
         """
         if method not in self._valid_methods:
             raise ValueError("HurstExponentEstimator: method must be 'rs', 'dfa', or 'wavelet'")
-        signal_array = signal.data[0] if signal.data.ndim > 1 else signal.data
-        hurst_value = await asyncio.to_thread(
-            HurstExponentEstimator._compute_hurst, signal_array.astype(float), method
+        channels = np.atleast_2d(signal.data).astype(float)
+        values = await asyncio.gather(
+            *(
+                asyncio.to_thread(HurstExponentEstimator._compute_hurst, channel, method)
+                for channel in channels
+            )
         )
-        return {
-            "hurst_exponent": hurst_value,
-            "signal_id": signal.frame.signal_id,
-        }
+        return FeaturePayload(
+            metadata=FeatureFrame(
+                signal_id=f"{signal.frame.signal_id}:hurst-exponent",
+                channel_count=channels.shape[0],
+                feature_names=("hurst_exponent",),
+            ),
+            data=np.asarray(values).reshape(channels.shape[0], 1),
+        )
 
     @staticmethod
     def _hurst_rs(signal_array: np.ndarray) -> float:

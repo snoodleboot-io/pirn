@@ -6,7 +6,8 @@ Algorithm:
     3. Verify that reference and error have matching sample rates.
     4. For each sample: compute anti-noise output y(n) = w^T * x(n).
     5. Update filter weights: w(n+1) = w(n) + step_size * e(n) * x(n).
-    6. Return a SignalPayload containing the anti-noise output (error signal).
+    6. Repeat independently for each channel and return a SignalPayload
+       containing the per-channel anti-noise output (error signal).
 
 Math:
     LMS weight update:
@@ -33,7 +34,6 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -88,22 +88,19 @@ class ANCPipeline(Knot):
         if reference.frame.sample_rate_hz != error.frame.sample_rate_hz:
             raise ValueError("ANCPipeline: reference and error sample_rate_hz must match")
 
-        ref_data = reference.data[0] if reference.data.ndim > 1 else reference.data
-        err_data = error.data[0] if error.data.ndim > 1 else error.data
+        ref_channels = np.atleast_2d(reference.data)
+        err_channels = np.atleast_2d(error.data)
+        if ref_channels.shape[0] != err_channels.shape[0]:
+            raise ValueError("ANCPipeline: reference and error must have the same channel count")
 
-        result = await asyncio.to_thread(
-            ANCPipeline._lms_anc, ref_data, err_data, filter_length, step_size
+        results = await asyncio.gather(
+            *(
+                asyncio.to_thread(ANCPipeline._lms_anc, ref, err, filter_length, step_size)
+                for ref, err in zip(ref_channels, err_channels, strict=True)
+            )
         )
 
-        return SignalPayload(
-            metadata=SignalFrame(
-                signal_id=f"{reference.frame.signal_id}:anc",
-                channel_count=1,
-                sample_rate_hz=reference.frame.sample_rate_hz,
-                samples_per_channel=result.shape[0],
-            ),
-            data=result,
-        )
+        return reference.derive("anc", np.stack(results, axis=0))
 
     @staticmethod
     def _lms_anc(

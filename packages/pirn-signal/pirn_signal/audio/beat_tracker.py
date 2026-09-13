@@ -8,7 +8,9 @@ Algorithm:
     4. Estimate tempo by autocorrelating the novelty function and finding
        the dominant periodicity in [tempo_min_bpm, tempo_max_bpm].
     5. Locate beat times by dynamic programming over the novelty function.
-    6. Return a mapping containing tempo and beat frame indices.
+    6. Repeat independently for each channel and return a FeaturePayload with
+       the tempo and beat frame indices per channel (NaN-padded to the largest
+       beat count found).
 
 Math:
     Beat period in samples:
@@ -29,13 +31,14 @@ References:
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Mapping
 from typing import Any
 
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.types.feature_frame import FeatureFrame
+from pirn_signal.types.feature_payload import FeaturePayload
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -68,7 +71,7 @@ class BeatTracker(Knot):
         tempo_min_bpm: float = 30.0,
         tempo_max_bpm: float = 240.0,
         **_: Any,
-    ) -> Mapping[str, Any]:
+    ) -> FeaturePayload:
         """Estimate tempo and beat times from the input signal.
 
         Args:
@@ -78,7 +81,9 @@ class BeatTracker(Knot):
             tempo_max_bpm: Maximum tempo in BPM (must exceed tempo_min_bpm).
 
         Returns:
-            Mapping containing ``tempo_bpm``, ``beat_frames``, and ``signal_id``.
+            FeaturePayload with ``data`` shaped ``(channel_count, 1 + max_beat_count)``:
+            column 0 is ``tempo_bpm``, the remaining columns are beat frame indices
+            per channel, NaN-padded to the largest beat count found across channels.
 
         Raises:
             ValueError: If hop_length, tempo_min_bpm, or tempo_max_bpm are invalid.
@@ -89,14 +94,27 @@ class BeatTracker(Knot):
             raise ValueError("BeatTracker: tempo_min_bpm must be positive")
         if not isinstance(tempo_max_bpm, (int, float)) or tempo_max_bpm <= tempo_min_bpm:
             raise ValueError("BeatTracker: tempo_max_bpm must exceed tempo_min_bpm")
-        mono = signal.data[0] if signal.data.ndim > 1 else signal.data
         sr = int(signal.frame.sample_rate_hz)
-        tempo, beat_frames = await asyncio.to_thread(BeatTracker._track_beats, mono, sr, hop_length)
-        return {
-            "tempo_bpm": tempo,
-            "beat_frames": beat_frames.tolist(),
-            "signal_id": signal.frame.signal_id,
-        }
+        channels = np.atleast_2d(signal.data)
+        results = await asyncio.gather(
+            *(
+                asyncio.to_thread(BeatTracker._track_beats, channel, sr, hop_length)
+                for channel in channels
+            )
+        )
+        max_beats = max((len(beat_frames) for _, beat_frames in results), default=0)
+        rows = [
+            [tempo, *beat_frames, *([float("nan")] * (max_beats - len(beat_frames)))]
+            for tempo, beat_frames in results
+        ]
+        return FeaturePayload(
+            metadata=FeatureFrame(
+                signal_id=f"{signal.frame.signal_id}:beats",
+                channel_count=channels.shape[0],
+                feature_names=("tempo_bpm", *(f"beat_frame_{i}" for i in range(max_beats))),
+            ),
+            data=np.asarray(rows).reshape(channels.shape[0], 1 + max_beats),
+        )
 
     @staticmethod
     def _track_beats(mono: np.ndarray, sr: int, hop_length: int) -> tuple[float, np.ndarray]:

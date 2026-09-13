@@ -6,8 +6,8 @@ Algorithm:
     3. Segment the audio into non-overlapping frames of frame_duration_ms milliseconds.
     4. For each frame: compute energy and zero-crossing rate.
     5. Apply an aggressiveness-level threshold to classify frames as speech or silence.
-    6. Merge adjacent frames with the same label into contiguous segments.
-    7. Return a list of segment dicts with start_sec, end_sec, and is_speech.
+    6. Repeat independently for each channel and return a FeaturePayload with the
+       per-frame voiced/unvoiced classification per channel.
 
 Math:
     Frame duration in seconds:
@@ -36,6 +36,8 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.types.feature_frame import FeatureFrame
+from pirn_signal.types.feature_payload import FeaturePayload
 from pirn_signal.types.signal_payload import SignalPayload
 
 _default_frame_size = 512
@@ -69,7 +71,7 @@ class VADDetector(Knot):
         frame_duration_ms: int,
         aggressiveness: int,
         **_: Any,
-    ) -> dict[str, Any]:
+    ) -> FeaturePayload:
         """Detect voiced and unvoiced frames in the signal.
 
         Args:
@@ -79,7 +81,8 @@ class VADDetector(Knot):
                 the energy threshold, classifying more frames as unvoiced.
 
         Returns:
-            Dictionary with ``voiced_frames`` (list[bool]) and ``signal_id``.
+            FeaturePayload with boolean ``data`` shaped ``(channel_count, n_frames)``:
+            the per-frame voiced classification per channel.
 
         Raises:
             ValueError: If frame_duration_ms or aggressiveness are invalid.
@@ -90,11 +93,28 @@ class VADDetector(Knot):
             raise ValueError("VADDetector: aggressiveness must be an integer in [0, 3]")
         threshold_db = -40.0
         sr = signal.frame.sample_rate_hz
-        result = await asyncio.to_thread(
-            VADDetector._run_vad, signal.data, threshold_db, frame_duration_ms, aggressiveness, sr
+        channels = np.atleast_2d(signal.data)
+        results = await asyncio.gather(
+            *(
+                asyncio.to_thread(
+                    VADDetector._run_vad,
+                    channel,
+                    threshold_db,
+                    frame_duration_ms,
+                    aggressiveness,
+                    sr,
+                )
+                for channel in channels
+            )
         )
-        result["signal_id"] = signal.frame.signal_id
-        return result
+        return FeaturePayload(
+            metadata=FeatureFrame(
+                signal_id=f"{signal.frame.signal_id}:vad",
+                channel_count=channels.shape[0],
+                feature_names=("voiced",),
+            ),
+            data=np.stack(results, axis=0),
+        )
 
     @staticmethod
     def _energy_vad(
@@ -112,14 +132,14 @@ class VADDetector(Knot):
 
     @staticmethod
     def _run_vad(
-        data: np.ndarray,
+        channel: np.ndarray,
         threshold_db: float,
         frame_duration_ms: int,
         aggressiveness: int,
         sr: float,
-    ) -> dict[str, Any]:
-        mono = data[0] if data.ndim > 1 else data
+    ) -> np.ndarray:
+        """Classify a single channel's frames as voiced/unvoiced, returned as a bool array."""
         frame_size = max(1, int(sr * frame_duration_ms / 1000.0))
         effective_threshold = threshold_db - aggressiveness * 3.0
-        voiced_frames = VADDetector._energy_vad(mono, effective_threshold, frame_size)
-        return {"voiced_frames": voiced_frames}
+        voiced_frames = VADDetector._energy_vad(channel, effective_threshold, frame_size)
+        return np.asarray(voiced_frames, dtype=bool)

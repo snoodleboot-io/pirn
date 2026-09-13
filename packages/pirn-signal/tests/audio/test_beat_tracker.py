@@ -14,6 +14,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 
 from pirn_signal.audio.beat_tracker import BeatTracker
+from pirn_signal.types.feature_payload import FeaturePayload
 from pirn_signal.types.signal_payload import SignalPayload
 from tests.conftest import make_signal_payload
 
@@ -47,9 +48,17 @@ class TestBeatTracker(unittest.IsolatedAsyncioTestCase):
         with pytest.raises(ValueError, match="tempo_max_bpm"):
             await knot.process(_SIGNAL, hop_length=512, tempo_min_bpm=120.0, tempo_max_bpm=60.0)
 
-    async def test_emits_mapping(self) -> None:
+    async def test_emits_feature_payload(self) -> None:
         knot = self._make()
         out = await knot.process(_SIGNAL, hop_length=512)
-        assert isinstance(out, dict)
-        assert "tempo_bpm" in out
-        assert "beat_frames" in out
+        assert isinstance(out, FeaturePayload)
+        assert out.frame.feature_names[0] == "tempo_bpm"
+        assert out.data.shape[0] == 1
+
+    async def test_multichannel_computes_per_channel(self) -> None:
+        knot = self._make()
+        multichannel = make_signal_payload(channel_count=2, samples_per_channel=4096)
+        out = await knot.process(multichannel, hop_length=512)
+        assert isinstance(out, FeaturePayload)
+        assert out.frame.channel_count == 2
+        assert out.data.shape[0] == 2

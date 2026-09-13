@@ -8,7 +8,8 @@ Algorithm:
        a. Compute gain vector: k(n) = lambda^{-1} P(n-1) x(n) / (1 + lambda^{-1} x^T P(n-1) x(n)).
        b. Update weights: w(n) = w(n-1) + k(n) * e(n) where e(n) = d(n) - w^T(n-1) x(n).
        c. Update P: P(n) = lambda^{-1} (P(n-1) - k(n) x^T(n) P(n-1)).
-    5. Return a SignalPayload of the RLS error signal.
+    5. Repeat independently for each channel and return a SignalPayload of the
+       per-channel RLS error signal.
 
 Math:
     RLS Kalman gain and weight update:
@@ -33,7 +34,6 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -88,22 +88,23 @@ class RLSAdaptiveFilter(Knot):
         if signal.frame.sample_rate_hz != reference.frame.sample_rate_hz:
             raise ValueError("RLSAdaptiveFilter: signal and reference sample rates must match")
 
-        sig_data = signal.data[0] if signal.data.ndim > 1 else signal.data
-        ref_data = reference.data[0] if reference.data.ndim > 1 else reference.data
+        sig_channels = np.atleast_2d(signal.data)
+        ref_channels = np.atleast_2d(reference.data)
+        if sig_channels.shape[0] != ref_channels.shape[0]:
+            raise ValueError(
+                "RLSAdaptiveFilter: signal and reference must have the same channel count"
+            )
 
-        result = await asyncio.to_thread(
-            RLSAdaptiveFilter._rls, sig_data, ref_data, filter_length, forgetting_factor
+        results = await asyncio.gather(
+            *(
+                asyncio.to_thread(
+                    RLSAdaptiveFilter._rls, sig, ref, filter_length, forgetting_factor
+                )
+                for sig, ref in zip(sig_channels, ref_channels, strict=True)
+            )
         )
 
-        return SignalPayload(
-            metadata=SignalFrame(
-                signal_id=f"{signal.frame.signal_id}:rls",
-                channel_count=1,
-                sample_rate_hz=signal.frame.sample_rate_hz,
-                samples_per_channel=result.shape[0],
-            ),
-            data=result,
-        )
+        return signal.derive("rls", np.stack(results, axis=0))
 
     @staticmethod
     def _rls(

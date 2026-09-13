@@ -50,3 +50,18 @@ class TestRLSAdaptiveFilter(unittest.IsolatedAsyncioTestCase):
         out = await knot.process(_SIGNAL, _REF, filter_length=8, forgetting_factor=0.99)
         assert isinstance(out, SignalPayload)
         assert out.frame.signal_id == "test:rls"
+
+    async def test_rejects_mismatched_channel_counts(self) -> None:
+        knot = self._make()
+        multichannel = make_signal_payload(channel_count=2, samples_per_channel=1024)
+        with pytest.raises(ValueError, match="channel count"):
+            await knot.process(multichannel, _REF, filter_length=8, forgetting_factor=0.99)
+
+    async def test_multichannel_computes_per_channel(self) -> None:
+        knot = self._make()
+        sig = make_signal_payload(channel_count=2, samples_per_channel=32)
+        ref = make_signal_payload(signal_id="reference", channel_count=2, samples_per_channel=32)
+        out = await knot.process(sig, ref, filter_length=8, forgetting_factor=0.99)
+        assert isinstance(out, SignalPayload)
+        assert out.frame.channel_count == 2
+        assert out.data.shape == (2, 32)

@@ -7,8 +7,9 @@ Algorithm:
     4. Compute zero-crossing rate.
     5. Compute spectral centroid from the STFT magnitude spectrum.
     6. Compute spectral bandwidth from the centroid.
-    7. Compute MFCC coefficients and take the mean over time.
-    8. Return a dictionary with all five feature values.
+    7. Compute spectral rolloff.
+    8. Repeat independently for each channel and return a FeaturePayload with
+       all five per-frame feature curves per channel.
 
 Math:
     Spectral centroid:
@@ -31,21 +32,31 @@ References:
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.types.feature_frame import FeatureFrame
+from pirn_signal.types.feature_payload import FeaturePayload
 from pirn_signal.types.signal_payload import SignalPayload
 
 
 class AudioFeatureExtractor(Knot):
-    """Extract a dictionary of standard audio features from a signal.
+    """Extract standard audio features from a signal.
 
     Features: RMS energy, zero-crossing rate, spectral centroid,
     spectral bandwidth, and spectral rolloff.
     """
+
+    _feature_names: ClassVar[tuple[str, ...]] = (
+        "rms_energy",
+        "zero_crossing_rate",
+        "spectral_centroid",
+        "spectral_bandwidth",
+        "spectral_rolloff",
+    )
 
     def __init__(
         self,
@@ -73,7 +84,7 @@ class AudioFeatureExtractor(Knot):
         n_fft: int,
         hop_length: int,
         **_: Any,
-    ) -> dict[str, Any]:
+    ) -> FeaturePayload:
         """Extract standard audio features from the signal.
 
         Args:
@@ -83,9 +94,9 @@ class AudioFeatureExtractor(Knot):
             hop_length: Hop size in samples (positive integer).
 
         Returns:
-            Dictionary with keys ``rms_energy``, ``zero_crossing_rate``,
-            ``spectral_centroid``, ``spectral_bandwidth``, and ``spectral_rolloff``
-            as lists of float values per frame.
+            FeaturePayload with ``data`` shaped ``(channel_count, 5, n_frames)`` — one
+            curve per channel for each of ``rms_energy``, ``zero_crossing_rate``,
+            ``spectral_centroid``, ``spectral_bandwidth``, and ``spectral_rolloff``.
 
         Raises:
             ValueError: If n_mfcc, n_fft, or hop_length are invalid.
@@ -96,14 +107,28 @@ class AudioFeatureExtractor(Knot):
             raise ValueError("AudioFeatureExtractor: n_fft must be a positive integer")
         if not isinstance(hop_length, int) or hop_length <= 0:
             raise ValueError("AudioFeatureExtractor: hop_length must be a positive integer")
-        mono = signal.data[0] if signal.data.ndim > 1 else signal.data
         sr = int(signal.frame.sample_rate_hz)
-        return await asyncio.to_thread(
-            AudioFeatureExtractor._extract_features, mono, sr, n_fft, hop_length
+        channels = np.atleast_2d(signal.data)
+        results = await asyncio.gather(
+            *(
+                asyncio.to_thread(
+                    AudioFeatureExtractor._extract_features, channel, sr, n_fft, hop_length
+                )
+                for channel in channels
+            )
+        )
+        return FeaturePayload(
+            metadata=FeatureFrame(
+                signal_id=f"{signal.frame.signal_id}:audio-features",
+                channel_count=channels.shape[0],
+                feature_names=AudioFeatureExtractor._feature_names,
+            ),
+            data=np.stack(results, axis=0),
         )
 
     @staticmethod
-    def _extract_features(mono: np.ndarray, sr: int, n_fft: int, hop_length: int) -> dict[str, Any]:
+    def _extract_features(mono: np.ndarray, sr: int, n_fft: int, hop_length: int) -> np.ndarray:
+        """Compute the five feature curves for a single channel, stacked as (5, n_frames)."""
         try:
             import librosa  # type: ignore[import-not-found]
         except ImportError as exc:
@@ -121,10 +146,4 @@ class AudioFeatureExtractor(Knot):
         rolloff = librosa.feature.spectral_rolloff(
             y=mono, sr=sr, n_fft=n_fft, hop_length=hop_length
         )
-        return {
-            "rms_energy": rms[0].tolist(),
-            "zero_crossing_rate": zcr[0].tolist(),
-            "spectral_centroid": centroid[0].tolist(),
-            "spectral_bandwidth": bandwidth[0].tolist(),
-            "spectral_rolloff": rolloff[0].tolist(),
-        }
+        return np.stack([rms[0], zcr[0], centroid[0], bandwidth[0], rolloff[0]], axis=0)

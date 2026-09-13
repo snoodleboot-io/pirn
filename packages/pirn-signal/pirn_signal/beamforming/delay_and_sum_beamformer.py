@@ -9,7 +9,7 @@ Algorithm:
     4. Fractionally delay each element signal by tau_i (via sinc interpolation or
        nearest-sample approximation).
     5. Sum all delayed element signals and normalise by num_elements.
-    6. Return a single-channel beamformed SignalFrame.
+    6. Return a single-channel beamformed SignalPayload.
 
 Math:
     Delay for element $i$:
@@ -38,7 +38,6 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -72,7 +71,7 @@ class DelayAndSumBeamformer(Knot):
         steering_angle_deg: float,
         **_: Any,
     ) -> SignalPayload:
-        """Apply the delay-and-sum beamformer and return the beamformed SignalFrame.
+        """Apply the delay-and-sum beamformer and return the beamformed SignalPayload.
 
         Args:
             signal: The multi-element array input signal payload.
@@ -110,14 +109,10 @@ class DelayAndSumBeamformer(Knot):
         beamformed = await asyncio.to_thread(
             DelayAndSumBeamformer._das_beamform, data, delays_samples
         )
-        return SignalPayload(
-            metadata=SignalFrame(
-                signal_id=f"{signal.frame.signal_id}:das",
-                channel_count=1,
-                sample_rate_hz=signal.frame.sample_rate_hz,
-                samples_per_channel=signal.frame.samples_per_channel,
-            ),
-            data=beamformed[np.newaxis, :],
+        return signal.derive(
+            "das",
+            beamformed[np.newaxis, :],
+            channel_count=1,
         )
 
     @staticmethod

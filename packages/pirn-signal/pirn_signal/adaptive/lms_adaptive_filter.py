@@ -7,7 +7,8 @@ Algorithm:
     4. For each sample n: compute output y(n) = w^T(n) * x(n).
     5. Compute error: e(n) = d(n) - y(n) where d(n) is the reference sample.
     6. Update weights: w(n+1) = w(n) + step_size * e(n) * x(n).
-    7. Return a SignalPayload of the error signal.
+    7. Repeat independently for each channel and return a SignalPayload of the
+       per-channel error signal.
 
 Math:
     LMS weight update (Widrow-Hoff):
@@ -33,7 +34,6 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -88,22 +88,21 @@ class LMSAdaptiveFilter(Knot):
         if signal.frame.sample_rate_hz != reference.frame.sample_rate_hz:
             raise ValueError("LMSAdaptiveFilter: signal and reference sample rates must match")
 
-        sig_data = signal.data[0] if signal.data.ndim > 1 else signal.data
-        ref_data = reference.data[0] if reference.data.ndim > 1 else reference.data
+        sig_channels = np.atleast_2d(signal.data)
+        ref_channels = np.atleast_2d(reference.data)
+        if sig_channels.shape[0] != ref_channels.shape[0]:
+            raise ValueError(
+                "LMSAdaptiveFilter: signal and reference must have the same channel count"
+            )
 
-        result = await asyncio.to_thread(
-            LMSAdaptiveFilter._lms, sig_data, ref_data, filter_length, step_size
+        results = await asyncio.gather(
+            *(
+                asyncio.to_thread(LMSAdaptiveFilter._lms, sig, ref, filter_length, step_size)
+                for sig, ref in zip(sig_channels, ref_channels, strict=True)
+            )
         )
 
-        return SignalPayload(
-            metadata=SignalFrame(
-                signal_id=f"{signal.frame.signal_id}:lms",
-                channel_count=1,
-                sample_rate_hz=signal.frame.sample_rate_hz,
-                samples_per_channel=result.shape[0],
-            ),
-            data=result,
-        )
+        return signal.derive("lms", np.stack(results, axis=0))
 
     @staticmethod
     def _lms(

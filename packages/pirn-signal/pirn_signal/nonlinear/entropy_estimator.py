@@ -5,12 +5,12 @@ Algorithm:
     2. Validate entropy_kind (one of ``sample``, ``approximate``, ``permutation``,
        ``spectral``) and embedding_dim (positive integer).
     3. Embed the time series in m-dimensional space (where applicable).
-    4. Compute the selected entropy measure:
+    4. Independently for each channel, compute the selected entropy measure:
        - ``sample``: SampEn via template matching with tolerance r.
        - ``approximate``: ApEn via similar template matching.
        - ``permutation``: PermEn via ordinal pattern ranking.
        - ``spectral``: SpEn via normalised power spectral entropy.
-    5. Return a result mapping with the entropy value and parameters.
+    5. Return a FeaturePayload with one entropy value per channel.
 
 Math:
     Sample entropy:
@@ -32,7 +32,6 @@ References:
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Mapping
 from typing import Any, ClassVar
 
 import numpy as np
@@ -41,6 +40,8 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_signal.nonlinear._ordinal_pattern_entropy import OrdinalPatternEntropy
 from pirn_signal.nonlinear._sample_entropy import SampleEntropy
+from pirn_signal.types.feature_frame import FeatureFrame
+from pirn_signal.types.feature_payload import FeaturePayload
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -74,7 +75,7 @@ class EntropyEstimator(Knot):
         entropy_kind: str,
         embedding_dim: int,
         **_: Any,
-    ) -> Mapping[str, Any]:
+    ) -> FeaturePayload:
         """Compute the configured entropy measure from the signal.
 
         Args:
@@ -83,7 +84,7 @@ class EntropyEstimator(Knot):
             embedding_dim: Embedding dimension for template matching (positive integer).
 
         Returns:
-            Mapping containing ``signal_id``, ``entropy_kind``, ``value``, and ``embedding_dim``.
+            FeaturePayload with one ``entropy_kind`` value per channel.
 
         Raises:
             ValueError: If entropy_kind or embedding_dim are invalid.
@@ -95,19 +96,23 @@ class EntropyEstimator(Knot):
             )
         if not isinstance(embedding_dim, int) or embedding_dim <= 0:
             raise ValueError("EntropyEstimator: embedding_dim must be a positive integer")
-        signal_array = signal.data[0] if signal.data.ndim > 1 else signal.data
-        value = await asyncio.to_thread(
-            EntropyEstimator._compute_entropy,
-            signal_array.astype(float),
-            entropy_kind,
-            embedding_dim,
+        channels = np.atleast_2d(signal.data).astype(float)
+        values = await asyncio.gather(
+            *(
+                asyncio.to_thread(
+                    EntropyEstimator._compute_entropy, channel, entropy_kind, embedding_dim
+                )
+                for channel in channels
+            )
         )
-        return {
-            "signal_id": signal.frame.signal_id,
-            "entropy_kind": entropy_kind,
-            "value": value,
-            "embedding_dim": embedding_dim,
-        }
+        return FeaturePayload(
+            metadata=FeatureFrame(
+                signal_id=f"{signal.frame.signal_id}:{entropy_kind}-entropy",
+                channel_count=channels.shape[0],
+                feature_names=(entropy_kind,),
+            ),
+            data=np.asarray(values).reshape(channels.shape[0], 1),
+        )
 
     @staticmethod
     def _approx_entropy_phi(signal_array: np.ndarray, m_val: int, tolerance: float) -> float:

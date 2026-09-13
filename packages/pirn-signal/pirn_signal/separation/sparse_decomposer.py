@@ -7,7 +7,7 @@ Algorithm:
     3. Initialize a dictionary with atom_count atoms.
     4. Apply the selected pursuit algorithm to find at most sparsity_target
        non-zero coefficients representing each signal column.
-    5. Return a SourceFrame with the sparse codes.
+    5. Return a SourcePayload with the sparse codes.
 
 Math:
     Sparse coding problem (OMP formulation):

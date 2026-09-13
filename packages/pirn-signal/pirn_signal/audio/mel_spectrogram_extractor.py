@@ -8,7 +8,8 @@ Algorithm:
     5. Apply a mel filterbank matrix M in R^{n_mels x (n_fft/2+1)} to obtain
        mel-band energies.
     6. Optionally convert to dB: S_mel_db = 10 log10(S_mel).
-    7. Return a SpectrumFrame with frequency_bins = n_mels.
+    7. Repeat independently for each channel and return a SpectrumPayload with
+       frequency_bins = n_mels.
 
 Math:
     Mel filterbank output:
@@ -37,6 +38,8 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_signal.types.signal_payload import SignalPayload
+from pirn_signal.types.spectrum_frame import SpectrumFrame
+from pirn_signal.types.spectrum_payload import SpectrumPayload
 
 
 class MelSpectrogramExtractor(Knot):
@@ -68,7 +71,7 @@ class MelSpectrogramExtractor(Knot):
         n_fft: int,
         hop_length: int,
         **_: Any,
-    ) -> dict[str, Any]:
+    ) -> SpectrumPayload:
         """Compute a mel-spectrogram from the audio signal.
 
         Args:
@@ -78,7 +81,8 @@ class MelSpectrogramExtractor(Knot):
             hop_length: Hop size in samples (positive integer, must not exceed n_fft).
 
         Returns:
-            Dictionary with ``mel_spectrogram`` (list of lists), ``n_mels``, and ``signal_id``.
+            SpectrumPayload with ``data`` shaped ``(channel_count, n_mels, n_frames)``.
+            ``frequency_resolution_hz`` is ``0.0``: the mel scale is non-uniform in Hz.
 
         Raises:
             ValueError: If n_mels, n_fft, or hop_length are invalid.
@@ -91,16 +95,29 @@ class MelSpectrogramExtractor(Knot):
             raise ValueError("MelSpectrogramExtractor: hop_length must be a positive integer")
         if hop_length > n_fft:
             raise ValueError("MelSpectrogramExtractor: hop_length must not exceed n_fft")
-        mono = signal.data[0] if signal.data.ndim > 1 else signal.data
         sr = int(signal.frame.sample_rate_hz)
-        mel = await asyncio.to_thread(
-            MelSpectrogramExtractor._compute_mel_spectrogram, mono, sr, n_mels, n_fft, hop_length
+        channels = np.atleast_2d(signal.data)
+        results = await asyncio.gather(
+            *(
+                asyncio.to_thread(
+                    MelSpectrogramExtractor._compute_mel_spectrogram,
+                    channel,
+                    sr,
+                    n_mels,
+                    n_fft,
+                    hop_length,
+                )
+                for channel in channels
+            )
         )
-        return {
-            "mel_spectrogram": mel.tolist(),
-            "n_mels": n_mels,
-            "signal_id": signal.frame.signal_id,
-        }
+        return SpectrumPayload(
+            metadata=SpectrumFrame(
+                signal_id=f"{signal.frame.signal_id}:mel-spectrogram",
+                frequency_bins=n_mels,
+                frequency_resolution_hz=0.0,
+            ),
+            data=np.stack(results, axis=0),
+        )
 
     @staticmethod
     def _compute_mel_spectrogram(

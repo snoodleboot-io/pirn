@@ -14,6 +14,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 
 from pirn_signal.audio.pitch_estimator import PitchEstimator
+from pirn_signal.types.feature_payload import FeaturePayload
 from pirn_signal.types.signal_payload import SignalPayload
 from tests.conftest import make_signal_payload
 
@@ -48,9 +49,17 @@ class TestPitchEstimator(unittest.IsolatedAsyncioTestCase):
         with pytest.raises(ValueError, match="algorithm"):
             await knot.process(_SIGNAL, f_min_hz=80.0, f_max_hz=400.0, algorithm="bad")
 
-    async def test_emits_mapping(self) -> None:
+    async def test_emits_feature_payload(self) -> None:
         knot = self._make()
         out = await knot.process(_SIGNAL, f_min_hz=80.0, f_max_hz=400.0)
-        assert isinstance(out, dict)
-        assert "f0_hz" in out
-        assert "signal_id" in out
+        assert isinstance(out, FeaturePayload)
+        assert out.frame.feature_names == ("f0_hz",)
+        assert out.data.shape[0] == 1
+
+    async def test_multichannel_computes_per_channel(self) -> None:
+        knot = self._make()
+        multichannel = make_signal_payload(channel_count=2, samples_per_channel=2048)
+        out = await knot.process(multichannel, f_min_hz=80.0, f_max_hz=400.0)
+        assert isinstance(out, FeaturePayload)
+        assert out.frame.channel_count == 2
+        assert out.data.shape[0] == 2

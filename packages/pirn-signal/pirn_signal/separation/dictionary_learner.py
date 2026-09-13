@@ -7,7 +7,7 @@ Algorithm:
     3. Initialize the dictionary with atom_count atoms of the same length as the signal frame.
     4. Alternate between sparse coding (OMP/LASSO) and dictionary update (MOD/K-SVD)
        until max_iterations is reached or convergence.
-    5. Return a SourceFrame containing the learned dictionary (mixing_matrix_shape).
+    5. Return a SourcePayload containing the learned dictionary (mixing_matrix_shape).
 
 Math:
     K-SVD dictionary update objective:

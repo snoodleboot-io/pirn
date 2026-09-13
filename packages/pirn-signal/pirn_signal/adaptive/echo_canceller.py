@@ -8,7 +8,8 @@ Algorithm:
     5. For each sample n: estimate echo y(n) = w^T * x_far(n).
     6. Compute error: e(n) = mic(n) - y(n).
     7. Update weights: w(n+1) = w(n) + step_size * e(n) * x_far(n).
-    8. Return a SignalPayload with the estimated echo removed.
+    8. Repeat independently for each channel and return a SignalPayload with
+       the estimated echo removed per channel.
 
 Math:
     LMS weight update for echo path modelling:
@@ -35,7 +36,6 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -90,22 +90,21 @@ class EchoCanceller(Knot):
         if microphone.frame.sample_rate_hz != far_end.frame.sample_rate_hz:
             raise ValueError("EchoCanceller: microphone and far_end sample rates must match")
 
-        mic_data = microphone.data[0] if microphone.data.ndim > 1 else microphone.data
-        far_data = far_end.data[0] if far_end.data.ndim > 1 else far_end.data
+        mic_channels = np.atleast_2d(microphone.data)
+        far_channels = np.atleast_2d(far_end.data)
+        if mic_channels.shape[0] != far_channels.shape[0]:
+            raise ValueError(
+                "EchoCanceller: microphone and far_end must have the same channel count"
+            )
 
-        result = await asyncio.to_thread(
-            EchoCanceller._lms_echo, mic_data, far_data, filter_length, step_size
+        results = await asyncio.gather(
+            *(
+                asyncio.to_thread(EchoCanceller._lms_echo, mic, far, filter_length, step_size)
+                for mic, far in zip(mic_channels, far_channels, strict=True)
+            )
         )
 
-        return SignalPayload(
-            metadata=SignalFrame(
-                signal_id=f"{microphone.frame.signal_id}:echo_cancelled",
-                channel_count=1,
-                sample_rate_hz=microphone.frame.sample_rate_hz,
-                samples_per_channel=result.shape[0],
-            ),
-            data=result,
-        )
+        return microphone.derive("echo_cancelled", np.stack(results, axis=0))
 
     @staticmethod
     def _lms_echo(

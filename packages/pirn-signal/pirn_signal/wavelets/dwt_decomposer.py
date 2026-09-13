@@ -5,7 +5,7 @@ Algorithm:
     2. Validate wavelet_name (non-empty string) and level_count (positive integer).
     3. Apply the two-band quadrature mirror filter bank iteratively to the
        approximation subband for level_count levels.
-    4. Return a WaveletFrame with level_count decomposition levels (one approximation
+    4. Return a WaveletPayload with level_count decomposition levels (one approximation
        subband plus level_count detail subbands).
 
 Math:

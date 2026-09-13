@@ -7,7 +7,7 @@ Algorithm:
        coefficient matrix H (component_count x samples_per_channel) non-negatively.
     4. Apply multiplicative update rules to minimise the Frobenius-norm reconstruction
        error ||V - WH||_F subject to W, H >= 0.
-    5. Return a SourceFrame with the estimated components.
+    5. Return a SourcePayload with the estimated components.
 
 Math:
     NMF multiplicative update:

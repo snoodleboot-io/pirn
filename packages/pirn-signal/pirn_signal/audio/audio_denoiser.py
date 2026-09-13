@@ -9,7 +9,7 @@ Algorithm:
        |S_hat(k, f)| = max(|X(k, f)| - alpha * |N(f)|, beta * |X(k, f)|)
        where alpha = over_subtraction_factor and beta is a spectral floor constant.
     6. Reconstruct the signal via inverse STFT.
-    7. Return a denoised SignalFrame.
+    7. Return a denoised SignalPayload.
 
 Math:
     Spectral subtraction magnitude update:
@@ -37,7 +37,6 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 _frame_size = 512
@@ -96,14 +95,9 @@ class AudioDenoiser(Knot):
             noise_estimate_frames,
             float(over_subtraction_factor),
         )
-        return SignalPayload(
-            metadata=SignalFrame(
-                signal_id=f"{signal.frame.signal_id}:denoised",
-                channel_count=signal.frame.channel_count,
-                sample_rate_hz=signal.frame.sample_rate_hz,
-                samples_per_channel=result.shape[-1],
-            ),
-            data=np.asarray(result),
+        return signal.derive(
+            "denoised",
+            np.asarray(result),
         )
 
     @staticmethod

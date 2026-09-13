@@ -6,7 +6,7 @@ Algorithm:
     3. Design a Lagrange interpolation FIR filter of length filter_order + 1
        centered at the fractional delay.
     4. Convolve the signal with the Lagrange FIR coefficients.
-    5. Return a SignalFrame delayed by delay_samples samples (same rate and length).
+    5. Return a SignalPayload delayed by delay_samples samples (same rate and length).
 
 Math:
     Lagrange interpolation coefficients at fractional delay $\\delta$:
@@ -29,7 +29,6 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -88,14 +87,9 @@ class FractionalDelayFilter(Knot):
             filter_order,
         )
 
-        return SignalPayload(
-            metadata=SignalFrame(
-                signal_id=f"{signal.frame.signal_id}:frac_delayed",
-                channel_count=signal.frame.channel_count,
-                sample_rate_hz=signal.frame.sample_rate_hz,
-                samples_per_channel=signal.frame.samples_per_channel,
-            ),
-            data=result,
+        return signal.derive(
+            "frac_delayed",
+            result,
         )
 
     @staticmethod

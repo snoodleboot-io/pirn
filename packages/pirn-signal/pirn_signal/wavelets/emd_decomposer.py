@@ -10,7 +10,7 @@ Algorithm:
        d. Repeat until the result satisfies the IMF criteria.
     4. Subtract the extracted IMF from the signal and repeat for subsequent IMFs.
     5. Stop when fewer than two extrema remain or max_imf_count is reached.
-    6. Return a WaveletFrame with max_imf_count IMF scales.
+    6. Return a WaveletPayload with max_imf_count IMF scales.
 
 Math:
     IMF sifting criterion:

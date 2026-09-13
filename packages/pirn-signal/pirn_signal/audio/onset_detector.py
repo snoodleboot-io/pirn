@@ -7,7 +7,8 @@ Algorithm:
     4. Derive the onset strength function: O(k) = sum_f max(0, |X(k,f)| - |X(k-1,f)|).
     5. Pick-peak the onset strength function with a threshold multiplied by its mean.
     6. Convert peak frame indices to times in seconds.
-    7. Return a mapping with onset times and metadata.
+    7. Repeat independently for each channel and return a FeaturePayload with the
+       onset times per channel (NaN-padded to the largest onset count found).
 
 Math:
     Spectral flux onset strength:
@@ -27,13 +28,14 @@ References:
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Mapping
 from typing import Any
 
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.types.feature_frame import FeatureFrame
+from pirn_signal.types.feature_payload import FeaturePayload
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -63,7 +65,7 @@ class OnsetDetector(Knot):
         hop_length: int,
         threshold: float = 0.5,
         **_: Any,
-    ) -> Mapping[str, Any]:
+    ) -> FeaturePayload:
         """Detect onset times in the audio signal.
 
         Args:
@@ -72,7 +74,9 @@ class OnsetDetector(Knot):
             threshold: Peak-picking threshold multiplier (must be positive).
 
         Returns:
-            Mapping containing ``onset_times_sec`` (list of floats) and ``signal_id``.
+            FeaturePayload with ``data`` shaped ``(channel_count, max_onset_count)``:
+            onset times in seconds per channel, NaN-padded to the largest onset
+            count found across channels.
 
         Raises:
             ValueError: If hop_length or threshold are invalid.
@@ -81,13 +85,27 @@ class OnsetDetector(Knot):
             raise ValueError("OnsetDetector: hop_length must be a positive integer")
         if not isinstance(threshold, (int, float)) or threshold <= 0:
             raise ValueError("OnsetDetector: threshold must be positive")
-        mono = signal.data[0] if signal.data.ndim > 1 else signal.data
         sr = int(signal.frame.sample_rate_hz)
-        onsets = await asyncio.to_thread(OnsetDetector._detect_onsets, mono, sr, hop_length)
-        return {
-            "onset_times_sec": onsets.tolist(),
-            "signal_id": signal.frame.signal_id,
-        }
+        channels = np.atleast_2d(signal.data)
+        onset_lists = await asyncio.gather(
+            *(
+                asyncio.to_thread(OnsetDetector._detect_onsets, channel, sr, hop_length)
+                for channel in channels
+            )
+        )
+        max_onsets = max((len(onsets) for onsets in onset_lists), default=0)
+        padded = [
+            np.concatenate([onsets, np.full(max_onsets - len(onsets), np.nan)])
+            for onsets in onset_lists
+        ]
+        return FeaturePayload(
+            metadata=FeatureFrame(
+                signal_id=f"{signal.frame.signal_id}:onsets",
+                channel_count=channels.shape[0],
+                feature_names=tuple(f"onset_{i}" for i in range(max_onsets)),
+            ),
+            data=np.asarray(padded).reshape(channels.shape[0], max_onsets),
+        )
 
     @staticmethod
     def _detect_onsets(mono: np.ndarray, sr: int, hop_length: int) -> np.ndarray:

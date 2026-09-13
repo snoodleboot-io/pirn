@@ -26,11 +26,10 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_signal.types.signal_frame import SignalFrame
+from pirn_signal.filters._butterworth_design import ButterworthDesign
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -79,12 +78,6 @@ class ButterworthFilter(Knot):
         Raises:
             ValueError: If order, band_type, or cutoff_hz are invalid.
         """
-        try:
-            from scipy import signal as ss  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "ButterworthFilter requires 'scipy'. Install via pip install pirn-signal[signal]"
-            ) from exc
         if not isinstance(order, int) or order <= 0:
             raise ValueError("ButterworthFilter: order must be a positive integer")
         if band_type not in {"lowpass", "highpass", "bandpass", "bandstop"}:
@@ -107,22 +100,10 @@ class ButterworthFilter(Knot):
                 raise ValueError("ButterworthFilter: cutoff_hz must be a positive scalar")
 
         fs = signal.frame.sample_rate_hz
-        btype_map = {
-            "lowpass": "low",
-            "highpass": "high",
-            "bandpass": "bandpass",
-            "bandstop": "bandstop",
-        }
-        sos = await asyncio.to_thread(
-            ss.butter, order, cutoff_hz, btype=btype_map[band_type], fs=fs, output="sos"
+        filtered = await asyncio.to_thread(
+            ButterworthDesign.design_and_apply, signal.data, order, cutoff_hz, band_type, fs
         )
-        filtered = await asyncio.to_thread(ss.sosfilt, sos, signal.data, axis=-1)
-        return SignalPayload(
-            metadata=SignalFrame(
-                signal_id=f"{signal.frame.signal_id}:butter-{band_type}",
-                channel_count=signal.frame.channel_count,
-                sample_rate_hz=signal.frame.sample_rate_hz,
-                samples_per_channel=signal.data.shape[-1],
-            ),
-            data=np.asarray(filtered),
+        return signal.derive(
+            f"butter-{band_type}",
+            filtered,
         )

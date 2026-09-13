@@ -10,10 +10,23 @@ Algorithm:
        - add_noise: add Gaussian noise at a random SNR.
        - time_mask: zero out a random contiguous time segment.
        - frequency_mask: zero out a random contiguous frequency band.
-    5. Return an augmented SignalFrame with the same metadata.
+    5. Repeat independently for each channel (each with an independently seeded
+       generator derived from the configured seed) and return an augmented
+       SignalPayload with the same metadata.
 
-    from uniform distributions; specific formulae depend on the chosen
-    augmentation library.
+Math:
+    Additive Gaussian noise at a random standard deviation $\\sigma \\sim U(0.001, 0.01)$:
+
+    $$x'[n] = x[n] + \\mathcal{N}(0, \\sigma^2)$$
+
+    Time and frequency masking (SpecAugment-style) zero a contiguous span:
+
+    $$x'[n] = 0, \\quad n \\in [n_0, n_0 + L)$$
+
+    where $L$ is drawn as a random fraction of the signal (or spectrum) length and
+    $n_0$ is drawn uniformly over the remaining valid range. Pitch shift and time
+    stretch amounts are drawn uniformly from $[-3, 3]$ semitones and $[0.85, 1.15]$
+    respectively; their formulae are defined within ``librosa.effects``.
 
 References:
     - Park, D.S. et al. (2019). "SpecAugment: A Simple Data Augmentation Method
@@ -31,7 +44,6 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -91,23 +103,28 @@ class AudioAugmentationPipeline(Knot):
         if not isinstance(seed, int) or seed < 0:
             raise ValueError("AudioAugmentationPipeline: seed must be a non-negative integer")
         sr = int(signal.frame.sample_rate_hz)
-        result = await asyncio.to_thread(
-            AudioAugmentationPipeline._apply_augmentations, signal.data, sr, augmentations, seed
+        channels = np.atleast_2d(signal.data)
+        results = await asyncio.gather(
+            *(
+                asyncio.to_thread(
+                    AudioAugmentationPipeline._apply_augmentations, channel, sr, augmentations, seed
+                )
+                for channel in channels
+            )
         )
-        return SignalPayload(
-            metadata=SignalFrame(
-                signal_id=f"{signal.frame.signal_id}:augmented",
-                channel_count=signal.frame.channel_count,
-                sample_rate_hz=signal.frame.sample_rate_hz,
-                samples_per_channel=result.shape[-1],
-            ),
-            data=np.asarray(result),
-        )
+        return signal.derive("augmented", np.stack(results, axis=0))
 
     @staticmethod
     def _apply_augmentations(
-        data: np.ndarray, sr: int, augmentations: tuple[str, ...], seed: int
+        channel: np.ndarray, sr: int, augmentations: tuple[str, ...], seed: int
     ) -> np.ndarray:
+        """Apply the configured augmentation recipe to a single channel.
+
+        Every channel is augmented with the same seed, so length-changing
+        augmentations (time_stretch) resize every channel identically and the
+        per-channel results remain stackable; noise and masking are re-drawn
+        per channel from the same seeded recipe.
+        """
         try:
             import librosa  # type: ignore[import-not-found]
         except ImportError as exc:
@@ -115,8 +132,7 @@ class AudioAugmentationPipeline(Knot):
                 "AudioAugmentationPipeline requires 'librosa'. Install via pip install pirn-signal[signal]"
             ) from exc
         rng = np.random.default_rng(seed)
-        mono = data[0] if data.ndim > 1 else data
-        result = mono.copy().astype(np.float32)
+        result = channel.copy().astype(np.float32)
 
         for aug in augmentations:
             if aug == "add_noise":
@@ -140,6 +156,4 @@ class AudioAugmentationPipeline(Knot):
                 fft[mask_start:mask_end] = 0.0
                 result = np.fft.irfft(fft, n=len(result)).astype(np.float32)
 
-        if data.ndim > 1:
-            return result[np.newaxis, :]
         return result

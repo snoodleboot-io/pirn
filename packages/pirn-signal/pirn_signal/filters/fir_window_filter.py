@@ -7,6 +7,17 @@ Algorithm:
     4. Apply via ``scipy.signal.lfilter(h, [1.0], data)``.
     5. Return a filtered SignalPayload.
 
+Math:
+    Windowed-sinc lowpass FIR design, with $M$ = num_taps - 1 and normalised
+    cutoff $f_c$ = cutoff_hz / (sample_rate_hz / 2):
+
+    $$h[n] = w[n] \\cdot f_c \\cdot \\operatorname{sinc}\\!\\left(f_c (n - M/2)\\right), \\quad n = 0, \\ldots, M$$
+
+    where $w[n]$ is the chosen window function and $\\operatorname{sinc}(x) = \\sin(\\pi x) / (\\pi x)$.
+    The filtered output is the direct-form convolution:
+
+    $$y[n] = \\sum_{k=0}^{M} h[k] \\, x[n-k]$$
+
 References:
     - scipy.signal.firwin: https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.firwin.html
 """
@@ -20,7 +31,6 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -28,7 +38,7 @@ class FIRWindowFilter(Knot):
     """Window-method FIR filter."""
 
     _valid_windows: ClassVar[frozenset[str]] = frozenset(
-        {"hamming", "hann", "blackman", "kaiser", "flattop"}
+        {"hamming", "hann", "blackman", "bartlett", "kaiser", "flattop"}
     )
 
     def __init__(
@@ -95,12 +105,7 @@ class FIRWindowFilter(Knot):
             ss.lfilter, tap_weights, np.array([1.0]), signal.data, axis=-1
         )
 
-        return SignalPayload(
-            metadata=SignalFrame(
-                signal_id=f"{signal.frame.signal_id}:fir-window",
-                channel_count=signal.frame.channel_count,
-                sample_rate_hz=signal.frame.sample_rate_hz,
-                samples_per_channel=signal.frame.samples_per_channel,
-            ),
-            data=np.asarray(filtered),
+        return signal.derive(
+            "fir-window",
+            np.asarray(filtered),
         )

@@ -61,3 +61,28 @@ class TestBeamformerMVDR(unittest.IsolatedAsyncioTestCase):
         )
         assert isinstance(out, SignalPayload)
         assert out.frame.signal_id == "test:mvdr"
+
+    async def test_rejects_non_positive_speed_of_sound(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="speed_of_sound"):
+            await knot.process(
+                _SIGNAL,
+                num_elements=8,
+                element_spacing_m=0.05,
+                steering_angle_deg=30.0,
+                speed_of_sound=0.0,
+            )
+
+    async def test_diagonal_loading_and_custom_speed_of_sound(self) -> None:
+        knot = self._make()
+        out = await knot.process(
+            _SIGNAL,
+            num_elements=8,
+            element_spacing_m=0.05,
+            steering_angle_deg=30.0,
+            diagonal_loading=0.1,
+            speed_of_sound=1500.0,
+        )
+        assert isinstance(out, SignalPayload)
+        assert out.frame.channel_count == 1
+        assert out.data.shape == (1, 1024)

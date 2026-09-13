@@ -63,3 +63,13 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         out = result.outputs["ukf"]
         assert isinstance(out, SignalPayload)
         assert out.frame.signal_id == "test:ukf"
+
+    async def test_multichannel_computes_per_channel(self) -> None:
+        with Tapestry():
+            k = UnscentedKalmanFilter.__new__(UnscentedKalmanFilter)
+            object.__setattr__(k, "_config", KnotConfig(id="ukf"))
+        multichannel = make_signal_payload(channel_count=2, samples_per_channel=32)
+        out = await k.process(signal=multichannel, state_dim=2, observation_dim=1)
+        assert isinstance(out, SignalPayload)
+        assert out.frame.channel_count == 2
+        assert out.data.shape == (2, 32)

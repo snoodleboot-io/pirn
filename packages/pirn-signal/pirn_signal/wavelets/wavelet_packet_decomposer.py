@@ -7,7 +7,7 @@ Algorithm:
        detail subbands at each level (unlike the standard DWT which only splits the
        approximation subband).
     4. Produce 2^level_count leaf nodes, each containing coefficients for one subband.
-    5. Return a WaveletFrame with 2^level_count subbands.
+    5. Return a WaveletPayload with 2^level_count subbands.
 
 Math:
     Wavelet packet subband at node $(j, n)$:

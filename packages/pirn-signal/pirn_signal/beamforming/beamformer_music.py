@@ -9,7 +9,8 @@ Algorithm:
     5. For each scan angle theta in [start, stop, step]:
        a. Construct the steering vector a(theta) ∈ C^{num_elements}.
        b. Compute MUSIC pseudo-spectrum: P(theta) = 1 / (a^H E_n E_n^H a).
-    6. Return a SpectrumFrame with frequency_bins = number of scan angles.
+    6. Return a single-channel SignalPayload whose data is the MUSIC pseudo-spectrum
+       over the scan-angle grid (frequency_grid_size points).
 
 Math:
     MUSIC pseudo-spectrum:
@@ -35,7 +36,6 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -113,14 +113,11 @@ class BeamformerMUSIC(Knot):
             speed_of_sound,
             center_freq,
         )
-        return SignalPayload(
-            metadata=SignalFrame(
-                signal_id=f"{signal.frame.signal_id}:music",
-                channel_count=1,
-                sample_rate_hz=1.0,
-                samples_per_channel=n_grid,
-            ),
-            data=spectrum[np.newaxis, :],
+        return signal.derive(
+            "music",
+            spectrum[np.newaxis, :],
+            channel_count=1,
+            sample_rate_hz=1.0,
         )
 
     @staticmethod

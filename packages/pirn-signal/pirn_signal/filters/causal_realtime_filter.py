@@ -27,11 +27,10 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_signal.types.signal_frame import SignalFrame
+from pirn_signal.filters._butterworth_design import ButterworthDesign
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -79,12 +78,6 @@ class CausalRealtimeFilter(Knot):
         Raises:
             ValueError: If filter_type, order, or cutoff_hz are invalid.
         """
-        try:
-            from scipy import signal as ss  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "CausalRealtimeFilter requires 'scipy'. Install via pip install pirn-signal[signal]"
-            ) from exc
         if filter_type not in {"lowpass", "highpass", "bandpass", "bandstop"}:
             raise ValueError(
                 "CausalRealtimeFilter: filter_type must be one of "
@@ -108,23 +101,11 @@ class CausalRealtimeFilter(Knot):
             if not isinstance(cutoff_hz, (int, float)) or cutoff_hz <= 0:
                 raise ValueError("CausalRealtimeFilter: cutoff_hz must be a positive scalar")
 
-        btype_map = {
-            "lowpass": "low",
-            "highpass": "high",
-            "bandpass": "bandpass",
-            "bandstop": "bandstop",
-        }
         fs = signal.frame.sample_rate_hz
-        sos = await asyncio.to_thread(
-            ss.butter, order, cutoff_hz, btype=btype_map[filter_type], fs=fs, output="sos"
+        filtered = await asyncio.to_thread(
+            ButterworthDesign.design_and_apply, signal.data, order, cutoff_hz, filter_type, fs
         )
-        filtered = await asyncio.to_thread(ss.sosfilt, sos, signal.data, axis=-1)
-        return SignalPayload(
-            metadata=SignalFrame(
-                signal_id=f"{signal.frame.signal_id}:causal-{filter_type}",
-                channel_count=signal.frame.channel_count,
-                sample_rate_hz=signal.frame.sample_rate_hz,
-                samples_per_channel=signal.data.shape[-1],
-            ),
-            data=np.asarray(filtered),
+        return signal.derive(
+            f"causal-{filter_type}",
+            filtered,
         )

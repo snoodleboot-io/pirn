@@ -6,7 +6,7 @@ Algorithm:
     3. Partition the signal into overlapping frames of length frame_size spaced
        by hop_size samples using overlap-add or overlap-save framing.
     4. Manage the ring buffer state to handle frame boundaries across calls.
-    5. Return a SignalFrame representing the current buffered output.
+    5. Return a SignalPayload representing the current buffered output.
 
 Math:
     Number of complete frames from $N$ input samples:
@@ -34,7 +34,6 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -96,14 +95,10 @@ class StreamingBufferManager(Knot):
         )
         n_frames = frames.shape[0]
 
-        return SignalPayload(
-            metadata=SignalFrame(
-                signal_id=f"{signal.frame.signal_id}:framed",
-                channel_count=n_frames,
-                sample_rate_hz=signal.frame.sample_rate_hz,
-                samples_per_channel=frame_size,
-            ),
-            data=frames,
+        return signal.derive(
+            "framed",
+            frames,
+            channel_count=n_frames,
         )
 
     @staticmethod

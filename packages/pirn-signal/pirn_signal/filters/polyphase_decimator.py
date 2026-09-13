@@ -31,7 +31,6 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -90,12 +89,8 @@ class PolyphaseDecimator(Knot):
             ss.decimate, signal.data, decimation_factor, ftype="fir", zero_phase=True, axis=-1
         )
         new_rate = signal.frame.sample_rate_hz / decimation_factor
-        return SignalPayload(
-            metadata=SignalFrame(
-                signal_id=f"{signal.frame.signal_id}:polyphase-dec",
-                channel_count=signal.frame.channel_count,
-                sample_rate_hz=new_rate,
-                samples_per_channel=decimated.shape[-1],
-            ),
-            data=np.asarray(decimated),
+        return signal.derive(
+            "polyphase-dec",
+            np.asarray(decimated),
+            sample_rate_hz=new_rate,
         )

@@ -7,7 +7,7 @@ Algorithm:
     4. Compute the covariance matrix and its eigendecomposition.
     5. Project the signal onto the top component_count eigenvectors.
     6. If whiten is True, scale each component by 1 / sqrt(eigenvalue).
-    7. Return a SourceFrame with the principal components.
+    7. Return a SourcePayload with the principal components.
 
 Math:
     Covariance eigendecomposition:

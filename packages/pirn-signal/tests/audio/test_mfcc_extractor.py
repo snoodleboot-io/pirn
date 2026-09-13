@@ -15,6 +15,7 @@ from pirn.core.parameter import Parameter
 
 from pirn_signal.audio.mfcc_extractor import MFCCExtractor
 from pirn_signal.types.signal_payload import SignalPayload
+from pirn_signal.types.spectrum_payload import SpectrumPayload
 from tests.conftest import make_signal_payload
 
 _SIGNAL = make_signal_payload()
@@ -49,8 +50,18 @@ class TestMFCCExtractor(unittest.IsolatedAsyncioTestCase):
         with pytest.raises(ValueError, match="hop_length"):
             await knot.process(_SIGNAL, n_mfcc=13, n_fft=256, hop_length=512)
 
-    async def test_emits_spectrum_frame(self) -> None:
+    async def test_emits_spectrum_payload(self) -> None:
         knot = self._make()
         out = await knot.process(_SIGNAL, n_mfcc=13, n_fft=512, hop_length=256)
-        assert isinstance(out, dict)
-        assert out["n_mfcc"] == 13
+        assert isinstance(out, SpectrumPayload)
+        assert out.frame.frequency_bins == 13
+        assert out.data.shape[0] == 1
+        assert out.data.shape[1] == 13
+
+    async def test_multichannel_computes_per_channel(self) -> None:
+        knot = self._make()
+        multichannel = make_signal_payload(channel_count=2, samples_per_channel=2048)
+        out = await knot.process(multichannel, n_mfcc=13, n_fft=512, hop_length=256)
+        assert isinstance(out, SpectrumPayload)
+        assert out.data.shape[0] == 2
+        assert out.data.shape[1] == 13

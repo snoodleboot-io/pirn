@@ -31,7 +31,6 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -99,14 +98,10 @@ class MultiRateFusionPipeline(Knot):
         n_out = min(ra.shape[-1], rb.shape[-1])
         fused = (ra[..., :n_out] + rb[..., :n_out]) / 2.0
 
-        return SignalPayload(
-            metadata=SignalFrame(
-                signal_id=f"{signal_a.frame.signal_id}:fused",
-                channel_count=signal_a.frame.channel_count,
-                sample_rate_hz=float(output_rate_hz),
-                samples_per_channel=n_out,
-            ),
-            data=fused,
+        return signal_a.derive(
+            "fused",
+            fused,
+            sample_rate_hz=float(output_rate_hz),
         )
 
     @staticmethod

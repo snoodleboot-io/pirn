@@ -7,7 +7,7 @@ Algorithm:
        ratio output_rate_hz / input_rate_hz using a precision multiplier.
     4. Reduce L/M by their GCD to find the minimal polyphase decomposition.
     5. Apply ``scipy.signal.resample_poly`` with the reduced L/M factors.
-    6. Return a SignalFrame at the target rate with proportionally scaled sample count.
+    6. Return a SignalPayload at the target rate with proportionally scaled sample count.
 
 Math:
     Sample count conversion:
@@ -35,7 +35,6 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_signal.resampling._poly_resampling import PolyResampling
-from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -93,12 +92,8 @@ class ArbitraryResamplerPipeline(Knot):
 
         result = await asyncio.to_thread(PolyResampling.resample_poly, signal.data, up, down)
 
-        return SignalPayload(
-            metadata=SignalFrame(
-                signal_id=f"{signal.frame.signal_id}:resampled",
-                channel_count=signal.frame.channel_count,
-                sample_rate_hz=float(output_rate_hz),
-                samples_per_channel=result.shape[-1],
-            ),
-            data=result,
+        return signal.derive(
+            "resampled",
+            result,
+            sample_rate_hz=float(output_rate_hz),
         )

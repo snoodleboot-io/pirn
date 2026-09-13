@@ -8,7 +8,8 @@ Algorithm:
     4. For each subband k: run an LMS adaptive filter of length filter_length_per_band
        with the given step_size.
     5. Concatenate the per-band error outputs to reconstruct the full signal.
-    6. Return a SignalPayload of the reconstructed, adapted output.
+    6. Repeat independently for each channel and return a SignalPayload of the
+       reconstructed, per-channel adapted output.
 
 Math:
     Per-band LMS update:
@@ -33,7 +34,6 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -96,27 +96,28 @@ class SubbandAdaptiveFilter(Knot):
         if signal.frame.sample_rate_hz != reference.frame.sample_rate_hz:
             raise ValueError("SubbandAdaptiveFilter: signal and reference sample rates must match")
 
-        sig_data = signal.data[0] if signal.data.ndim > 1 else signal.data
-        ref_data = reference.data[0] if reference.data.ndim > 1 else reference.data
+        sig_channels = np.atleast_2d(signal.data)
+        ref_channels = np.atleast_2d(reference.data)
+        if sig_channels.shape[0] != ref_channels.shape[0]:
+            raise ValueError(
+                "SubbandAdaptiveFilter: signal and reference must have the same channel count"
+            )
 
-        result = await asyncio.to_thread(
-            SubbandAdaptiveFilter._subband_lms,
-            sig_data,
-            ref_data,
-            subband_count,
-            filter_length_per_band,
-            step_size,
+        results = await asyncio.gather(
+            *(
+                asyncio.to_thread(
+                    SubbandAdaptiveFilter._subband_lms,
+                    sig,
+                    ref,
+                    subband_count,
+                    filter_length_per_band,
+                    step_size,
+                )
+                for sig, ref in zip(sig_channels, ref_channels, strict=True)
+            )
         )
 
-        return SignalPayload(
-            metadata=SignalFrame(
-                signal_id=f"{signal.frame.signal_id}:subband-adaptive",
-                channel_count=1,
-                sample_rate_hz=signal.frame.sample_rate_hz,
-                samples_per_channel=result.shape[0],
-            ),
-            data=result,
-        )
+        return signal.derive("subband-adaptive", np.stack(results, axis=0))
 
     @staticmethod
     def _lms_band(

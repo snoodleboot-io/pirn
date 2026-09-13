@@ -7,7 +7,7 @@ Algorithm:
     3. Apply robust whitening (e.g. MCD-based covariance estimation) to
        downweight outliers before ICA.
     4. Run JADE or robust FastICA with the whitened data.
-    5. Return a SourceFrame with the robustly estimated independent components.
+    5. Return a SourcePayload with the robustly estimated independent components.
 
 Math:
     Minimum Covariance Determinant (MCD) robust covariance:

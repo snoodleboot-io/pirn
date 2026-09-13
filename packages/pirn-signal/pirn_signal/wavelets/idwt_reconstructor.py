@@ -1,13 +1,13 @@
 """``IDWTReconstructor`` — inverse discrete wavelet transform.
 
 Algorithm:
-    1. Receive the WaveletFrame, wavelet, and level.
+    1. Receive the WaveletPayload, wavelet, and level.
     2. Validate wavelet (non-empty string) and level (positive integer).
     3. Apply the synthesis filter bank at each level, upsampling and filtering
        the approximation and detail subbands.
     4. Sum the approximation and detail outputs at each scale to reconstruct
        the signal at the next coarser level.
-    5. Return a SignalFrame with samples_per_channel = scale_count * 2^level.
+    5. Return a SignalPayload with samples_per_channel = scale_count * 2^level.
 
 Math:
     Two-channel synthesis at level $j$:

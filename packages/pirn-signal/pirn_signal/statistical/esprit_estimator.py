@@ -6,7 +6,9 @@ Algorithm:
     3. Compute the autocorrelation matrix of the signal.
     4. Compute the eigendecomposition and partition into signal and noise subspaces.
     5. Solve the ESPRIT rotational invariance equation to obtain frequency estimates.
-    6. Return a mapping with the estimated frequencies and parameters.
+    6. Repeat independently for each channel and return a FeaturePayload with
+       the estimated frequencies per channel (NaN-padded when fewer than
+       signal_subspace_dim frequencies are found).
 
 Math:
     Signal subspace partition:
@@ -28,13 +30,14 @@ References:
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Mapping
 from typing import Any
 
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.types.feature_frame import FeatureFrame
+from pirn_signal.types.feature_payload import FeaturePayload
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -61,31 +64,39 @@ class ESPRITEstimator(Knot):
         signal: SignalPayload,
         signal_subspace_dim: int,
         **_: Any,
-    ) -> Mapping[str, Any]:
-        """Estimate sinusoid frequencies from the signal via ESPRIT and return a parameter mapping.
+    ) -> FeaturePayload:
+        """Estimate sinusoid frequencies from the signal via ESPRIT.
 
         Args:
             signal: Signal payload to estimate frequencies from.
             signal_subspace_dim: Dimension of the signal subspace (positive integer).
 
         Returns:
-            Mapping containing ``frequencies_hz``, ``sample_rate_hz``, and ``num_sinusoids``.
+            FeaturePayload with up to ``signal_subspace_dim`` estimated frequencies
+            (Hz) per channel, NaN-padded when fewer are found.
 
         Raises:
             ValueError: If signal_subspace_dim is not a positive integer.
         """
         if not isinstance(signal_subspace_dim, int) or signal_subspace_dim <= 0:
             raise ValueError("ESPRITEstimator: signal_subspace_dim must be a positive integer")
-        signal_array = signal.data[0] if signal.data.ndim > 1 else signal.data
         rate = signal.frame.sample_rate_hz
-        freqs = await asyncio.to_thread(
-            ESPRITEstimator._esprit, signal_array, signal_subspace_dim, rate
+        channels = np.atleast_2d(signal.data)
+        freqs = await asyncio.gather(
+            *(
+                asyncio.to_thread(ESPRITEstimator._esprit, channel, signal_subspace_dim, rate)
+                for channel in channels
+            )
         )
-        return {
-            "frequencies_hz": freqs,
-            "sample_rate_hz": rate,
-            "num_sinusoids": signal_subspace_dim,
-        }
+        padded = [f + [float("nan")] * (signal_subspace_dim - len(f)) for f in freqs]
+        return FeaturePayload(
+            metadata=FeatureFrame(
+                signal_id=f"{signal.frame.signal_id}:esprit",
+                channel_count=channels.shape[0],
+                feature_names=tuple(f"freq_{i}" for i in range(signal_subspace_dim)),
+            ),
+            data=np.asarray(padded).reshape(channels.shape[0], signal_subspace_dim),
+        )
 
     @staticmethod
     def _esprit(signal_array: np.ndarray, num_sinusoids: int, sample_rate_hz: float) -> list[float]:

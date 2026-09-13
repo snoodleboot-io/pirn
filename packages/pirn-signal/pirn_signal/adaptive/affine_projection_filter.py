@@ -8,7 +8,8 @@ Algorithm:
        w(n+1) = w(n) + step_size * X^T * (X * X^T + delta*I)^{-1} * e(n)
        where e(n) is the projection-order error vector.
     5. Apply updated weights to produce the filtered output.
-    6. Return a SignalPayload with the APA error signal.
+    6. Repeat independently for each channel and return a SignalPayload with
+       the per-channel APA error signal.
 
 Math:
     Weight update equation:
@@ -36,7 +37,6 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 _apf_delta = 1e-6
@@ -99,27 +99,28 @@ class AffineProjectionFilter(Knot):
         if signal.frame.sample_rate_hz != reference.frame.sample_rate_hz:
             raise ValueError("AffineProjectionFilter: signal and reference sample rates must match")
 
-        sig_data = signal.data[0] if signal.data.ndim > 1 else signal.data
-        ref_data = reference.data[0] if reference.data.ndim > 1 else reference.data
+        sig_channels = np.atleast_2d(signal.data)
+        ref_channels = np.atleast_2d(reference.data)
+        if sig_channels.shape[0] != ref_channels.shape[0]:
+            raise ValueError(
+                "AffineProjectionFilter: signal and reference must have the same channel count"
+            )
 
-        result = await asyncio.to_thread(
-            AffineProjectionFilter._apf,
-            sig_data,
-            ref_data,
-            filter_length,
-            projection_order,
-            step_size,
+        results = await asyncio.gather(
+            *(
+                asyncio.to_thread(
+                    AffineProjectionFilter._apf,
+                    sig,
+                    ref,
+                    filter_length,
+                    projection_order,
+                    step_size,
+                )
+                for sig, ref in zip(sig_channels, ref_channels, strict=True)
+            )
         )
 
-        return SignalPayload(
-            metadata=SignalFrame(
-                signal_id=f"{signal.frame.signal_id}:apa",
-                channel_count=1,
-                sample_rate_hz=signal.frame.sample_rate_hz,
-                samples_per_channel=result.shape[0],
-            ),
-            data=result,
-        )
+        return signal.derive("apa", np.stack(results, axis=0))
 
     @staticmethod
     def _apf(

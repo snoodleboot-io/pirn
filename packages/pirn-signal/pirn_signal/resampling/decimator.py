@@ -5,7 +5,7 @@ Algorithm:
     2. Validate decimation_factor (integer > 1).
     3. Apply a lowpass anti-aliasing filter with cutoff at fs / (2 * decimation_factor).
     4. Keep every Mth sample from the filtered signal.
-    5. Return a SignalFrame at the reduced sample rate with the proportionally smaller sample count.
+    5. Return a SignalPayload at the reduced sample rate with the proportionally smaller sample count.
 
 Math:
     Decimated sample rate:

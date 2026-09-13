@@ -7,7 +7,8 @@ Algorithm:
     4. Update step: K = P(n|n-1) / (P(n|n-1) + R).
     5. Correct state: x̂(n|n) = x̂(n|n-1) + K (z(n) - x̂(n|n-1)).
     6. Update covariance: P(n|n) = (1 - K) P(n|n-1).
-    7. Return a SignalPayload of Kalman-filtered state estimates.
+    7. Repeat independently for each channel and return a SignalPayload of
+       Kalman-filtered state estimates per channel.
 
 Math:
     Scalar Kalman gain and state update:
@@ -35,7 +36,6 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -84,21 +84,18 @@ class KalmanFilter(Knot):
         if not isinstance(measurement_noise, (int, float)) or measurement_noise <= 0:
             raise ValueError("KalmanFilter: measurement_noise must be positive")
 
-        signal_array = signal.data[0] if signal.data.ndim > 1 else signal.data
+        channels = np.atleast_2d(signal.data)
 
-        result = await asyncio.to_thread(
-            KalmanFilter._kalman_1d, signal_array, float(process_noise), float(measurement_noise)
+        results = await asyncio.gather(
+            *(
+                asyncio.to_thread(
+                    KalmanFilter._kalman_1d, channel, float(process_noise), float(measurement_noise)
+                )
+                for channel in channels
+            )
         )
 
-        return SignalPayload(
-            metadata=SignalFrame(
-                signal_id=f"{signal.frame.signal_id}:kalman",
-                channel_count=1,
-                sample_rate_hz=signal.frame.sample_rate_hz,
-                samples_per_channel=result.shape[0],
-            ),
-            data=result,
-        )
+        return signal.derive("kalman", np.stack(results, axis=0))
 
     @staticmethod
     def _kalman_1d(

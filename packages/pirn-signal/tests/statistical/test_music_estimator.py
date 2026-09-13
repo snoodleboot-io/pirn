@@ -9,6 +9,7 @@ from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_signal.statistical.music_estimator import MUSICEstimator
+from pirn_signal.types.spectrum_payload import SpectrumPayload
 from tests.conftest import emit_signal_payload, make_signal_payload
 
 
@@ -31,7 +32,7 @@ class TestConstruction(unittest.IsolatedAsyncioTestCase):
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
-    async def test_emits_estimator_dict(self) -> None:
+    async def test_emits_spectrum_payload(self) -> None:
         with Tapestry() as t:
             sig = emit_signal_payload(_config=KnotConfig(id="sig"))
             MUSICEstimator(
@@ -42,5 +43,15 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         out = result.outputs["m"]
-        assert "pseudospectrum" in out
-        assert out["num_sinusoids"] == 2
+        assert isinstance(out, SpectrumPayload)
+        assert out.frame.frequency_bins == 128
+        assert out.data.shape == (1, 128)
+
+    async def test_multichannel_computes_per_channel(self) -> None:
+        with Tapestry():
+            k = MUSICEstimator.__new__(MUSICEstimator)
+            object.__setattr__(k, "_config", KnotConfig(id="m"))
+        multichannel = make_signal_payload(channel_count=2, samples_per_channel=64)
+        out = await k.process(signal=multichannel, signal_subspace_dim=2, frequency_grid_size=16)
+        assert isinstance(out, SpectrumPayload)
+        assert out.data.shape == (2, 16)

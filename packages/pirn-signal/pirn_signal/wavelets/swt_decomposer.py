@@ -6,7 +6,7 @@ Algorithm:
     3. Apply the à-trous algorithm: at each level, convolve with the appropriately
        zero-inserted (upsampled) filter coefficients but do NOT downsample.
     4. All subbands retain the original signal length.
-    5. Return a WaveletFrame with scale_count equal to level.
+    5. Return a WaveletPayload with scale_count equal to level.
 
 Math:
     SWT at level $j$ (à-trous filter):

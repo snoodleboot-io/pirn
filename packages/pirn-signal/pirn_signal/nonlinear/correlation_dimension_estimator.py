@@ -9,7 +9,8 @@ Algorithm:
        points closer than r (the correlation integral C(r)).
     5. Estimate the correlation dimension as the slope of log(C(r)) vs. log(r)
        in the scaling region.
-    6. Return a result mapping with the estimated dimension and parameters.
+    6. Repeat independently for each channel and return a FeaturePayload with
+       one correlation dimension per channel.
 
 Math:
     Correlation integral:
@@ -29,7 +30,6 @@ References:
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Mapping
 from typing import Any
 
 import numpy as np
@@ -37,6 +37,8 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_signal.nonlinear._delay_embedding import DelayEmbedding
+from pirn_signal.types.feature_frame import FeatureFrame
+from pirn_signal.types.feature_payload import FeaturePayload
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -69,7 +71,7 @@ class CorrelationDimensionEstimator(Knot):
         radius_min: float,
         radius_max: float,
         **_: Any,
-    ) -> Mapping[str, Any]:
+    ) -> FeaturePayload:
         """Estimate the Grassberger-Procaccia correlation dimension from the signal.
 
         Args:
@@ -79,7 +81,7 @@ class CorrelationDimensionEstimator(Knot):
             radius_max: Maximum radius for correlation integral (must exceed radius_min).
 
         Returns:
-            Mapping containing ``correlation_dimension``, ``embedding_dim``, and ``max_radius``.
+            FeaturePayload with one ``correlation_dimension`` value per channel.
 
         Raises:
             ValueError: If embedding_dim, radius_min, or radius_max are invalid.
@@ -92,18 +94,26 @@ class CorrelationDimensionEstimator(Knot):
             raise ValueError("CorrelationDimensionEstimator: radius_min must be positive")
         if not isinstance(radius_max, (int, float)) or radius_max <= radius_min:
             raise ValueError("CorrelationDimensionEstimator: radius_max must exceed radius_min")
-        signal_array = signal.data[0] if signal.data.ndim > 1 else signal.data
-        dim = await asyncio.to_thread(
-            CorrelationDimensionEstimator._corr_dim,
-            signal_array.astype(float),
-            embedding_dim,
-            float(radius_max),
+        channels = np.atleast_2d(signal.data).astype(float)
+        dims = await asyncio.gather(
+            *(
+                asyncio.to_thread(
+                    CorrelationDimensionEstimator._corr_dim,
+                    channel,
+                    embedding_dim,
+                    float(radius_max),
+                )
+                for channel in channels
+            )
         )
-        return {
-            "correlation_dimension": dim,
-            "embedding_dim": embedding_dim,
-            "max_radius": float(radius_max),
-        }
+        return FeaturePayload(
+            metadata=FeatureFrame(
+                signal_id=f"{signal.frame.signal_id}:correlation-dimension",
+                channel_count=channels.shape[0],
+                feature_names=("correlation_dimension",),
+            ),
+            data=np.asarray(dims).reshape(channels.shape[0], 1),
+        )
 
     @staticmethod
     def _corr_dim(signal_array: np.ndarray, embedding_dim: int, r_max: float) -> float:
