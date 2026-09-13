@@ -151,20 +151,24 @@ class Tool(PirnOpaqueValue):
 
         The content form is the class reference, name, description, parameters
         schema and declared config. The class is included so two tools that
-        declare the same triple but behave differently never hash equal. The
-        identity token is taken from :class:`PirnOpaqueValue` directly, so a
-        subclass that overrides :meth:`_pirn_audit_dict` with a constant cannot
-        collapse every instance onto one hash.
+        declare the same triple but behave differently never hash equal.
+
+        The identity form is ``<TypeName@token>``, where the token comes from
+        :meth:`PirnOpaqueValue._pirn_identity_token` called on the base class
+        directly. That token is unique per instance even when CPython reuses a
+        freed tool's address (PIR-852). Calling the base implementations means
+        a subclass that overrides :meth:`_pirn_audit_dict` (or the token
+        accessor) with a constant cannot collapse every instance onto one hash.
         """
         tool_type = type(self)
         if "content_identity" not in vars(tool_type):
-            return PirnOpaqueValue._pirn_audit_dict(self)
+            return self._identity_canonical()
         reference = DefinitionReference.of(tool_type)
         if reference is None:
-            return PirnOpaqueValue._pirn_audit_dict(self)
+            return self._identity_canonical()
         config = self.content_identity()
         if config is None:
-            return PirnOpaqueValue._pirn_audit_dict(self)
+            return self._identity_canonical()
         return {
             "tool": reference,
             "name": self.name,
@@ -172,6 +176,10 @@ class Tool(PirnOpaqueValue):
             "parameters_schema": self.parameters_schema,
             "config": config,
         }
+
+    def _identity_canonical(self) -> str:
+        """Return the per-instance identity form, built from the core token accessor."""
+        return f"<{type(self).__name__}@{PirnOpaqueValue._pirn_identity_token(self)}>"
 
     def _clear_credentials(self) -> None:
         """Drop any in-memory credential reference held by the tool.

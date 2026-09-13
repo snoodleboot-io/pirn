@@ -3,7 +3,7 @@
 A run is recorded in one Python process and replayed in a **different** one, with
 different ``PYTHONHASHSEED`` values, over a ``SQLiteHistory`` and a
 ``LocalDiskDataStore`` on disk. This is the case identity-keyed tools could never
-satisfy: an in-process test cannot tell a content hash from an ``id()`` token,
+satisfy: an in-process test cannot tell a content hash from a per-instance identity token,
 because both are stable inside one interpreter.
 
 The work runs in :mod:`_cross_process_replay_worker`; every scenario is recorded in
