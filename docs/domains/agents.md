@@ -215,6 +215,23 @@ Knots that decide whether the agent loop should continue, terminate, escalate, o
 | `SafetyCheck` | Checks the message or response body against a deny-list of regex patterns compiled with `re.IGNORECASE`. Returns `True` if no pattern matches (safe to proceed). |
 | `HandoffCheck` | Returns `True` when the response matches any escalation pattern. Wire to a human-in-the-loop or supervisor agent knot. |
 
+### `batch/`
+
+Runs one per-item agent over a dataset through the core engine's own scheduler
+(ADR agents-speaks-core, WS4b) — not a private `asyncio.wait` loop.
+
+| Class | Description |
+|-------|-------------|
+| `MapAgent` | A `SubTapestry` whose inner graph is one `_MapItem` knot per input item joined by a core `Aggregator`. Per-item isolation is `ErrorPolicy.RECEIVE_ERRORS` (a failing item never skips its siblings); bounded concurrency is `KnotConfig(concurrency_group=)` + `ConcurrencyLimits` on the run; per-item timeout/retry is `KnotConfig.timeout`/`KnotConfig.retry` (`GovernedDispatch`'s job). Wire `items=` a parent knot to use it inside a bigger pipeline, or call `.run(inputs)` for the standalone streaming shim described below. |
+| `AdaptiveConcurrencyController` | An `AdmissionObserver`: additively raises the run's group cap on a successful `on_release`, and multiplicatively lowers it when `on_throttle()` is called directly by a rate-limited item (an `AdmissionEvent` carries no exception detail, so the decrease can't be driven from `on_release` alone without also firing on ordinary bugs). |
+| `TokenBucketRateLimiter` (`resilience/`) | A shared async token bucket pacing request *rate*; complements the controller, which paces *concurrency*. Its `on_pause` hook can feed an `AdaptiveConcurrencyController` the same `Retry-After` signal it just honoured. |
+| `RateLimitSignal` | The provider-neutral exception a `run_item` callable raises to report a 429-style throttle; `MapAgent` reacts by pausing the bucket and backing off the controller. |
+| `TriggeredBatch` | Binds a core `Trigger` to a `MapAgent`: each fire fetches fresh inputs, runs the batch, and yields a `BatchProgress` summary. Composes `IntervalTrigger`/`EventTrigger` (themselves thin `Trigger` subclasses — an interval schedule delegates to `CronTrigger`, an event source wraps an `asyncio.Queue`) with no scheduling loop of its own. |
+
+**Resume-after-crash** is a `RunHistory` lineage query, not a checkpoint store: pass the same `history=` (and, for a standalone `.run()`, `data_store=`) to a fresh `MapAgent` and a re-run skips any item whose knot id (`item:<batch_id>:<key>`) already has an `Ok` lineage row. `checkpoint_scope=` on `.run()` (or `TriggeredBatch`'s per-fire scoping) namespaces that id so concurrent or repeated batches don't share a skip-set. `BatchCheckpointer`/`BatchScheduler`/`BatchProgress` — the pre-migration F14-session-store-backed checkpoint stack — are kept, unchanged, as one-cycle `DeprecationWarning` shims for any caller not yet on `history=`.
+
+Disclosed trade-off: `MapAgent.run()`'s streaming contract (`async for result in map_agent.run(inputs)`) is preserved, but it now runs the whole batch as one engine run and yields the joined result list at the end, rather than streaming each result the instant it settles with the input pulled lazily. A future workstream can restore incremental streaming with a per-item `Emitter` (see the `MapAgent` module docstring for what that needs from core).
+
 ### `specializations/`
 
 Pre-built `SubTapestry` pipelines for common agent patterns.
