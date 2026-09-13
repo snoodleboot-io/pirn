@@ -160,7 +160,7 @@ class StripeClient(ApiClient, TableSource):
 
     async def _ensure_client(self) -> Any:
         if self._closed:
-            raise RuntimeError("StripeClient is closed")
+            raise self._closed_error("StripeClient")
         if self._client is None:
             self._client = await self._create_client()
         return self._client
@@ -173,7 +173,7 @@ class StripeClient(ApiClient, TableSource):
                 "StripeClient requires stripe; install via `pip install pirn[stripe]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError("StripeClient: missing config and no injected client")
+            raise self._missing_config_error("StripeClient", "client")
         if self._config.api_key is None:
             raise ValueError("StripeClient: config.api_key is required")
 

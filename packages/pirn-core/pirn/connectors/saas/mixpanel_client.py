@@ -131,7 +131,7 @@ class MixpanelClient(ApiClient, EventEmitter):
 
     async def _ensure_client(self) -> Any:
         if self._closed:
-            raise RuntimeError("MixpanelClient is closed")
+            raise self._closed_error("MixpanelClient")
         if self._client is None:
             self._client = await self._create_client()
         return self._client
@@ -144,7 +144,7 @@ class MixpanelClient(ApiClient, EventEmitter):
                 "MixpanelClient requires mixpanel; install via `pip install pirn[mixpanel]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError("MixpanelClient: missing config and no injected client")
+            raise self._missing_config_error("MixpanelClient", "client")
         if self._config.project_token is None:
             raise RuntimeError("MixpanelClient: config.project_token is required")
         try:

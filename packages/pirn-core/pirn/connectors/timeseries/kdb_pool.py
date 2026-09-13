@@ -98,13 +98,13 @@ class KdbPool(DatabaseConnectionPool):
 
     async def _ensure_connection(self) -> None:
         if self._closed:
-            raise RuntimeError("KdbPool is closed")
+            raise self._closed_error("KdbPool")
         if self._connection is None:
             self._connection = await self._create_connection()
 
     async def _create_connection(self) -> Any:
         if self._config is None:
-            raise RuntimeError("KdbPool: missing config and no injected connection")
+            raise self._missing_config_error("KdbPool", "connection")
         try:
             connection = await asyncio.to_thread(self._connect_sync, self._config)
         except Exception as exc:

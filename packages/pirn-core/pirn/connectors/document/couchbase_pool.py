@@ -75,7 +75,7 @@ class CouchbasePool(DatabaseConnectionPool):
 
     async def _ensure_cluster(self) -> None:
         if self._closed:
-            raise RuntimeError("CouchbasePool is closed")
+            raise self._closed_error("CouchbasePool")
         if self._cluster is None:
             self._cluster = await asyncio.to_thread(self._create_cluster)
 
@@ -89,7 +89,7 @@ class CouchbasePool(DatabaseConnectionPool):
                 "CouchbasePool requires couchbase; install via pip install pirn[couchbase]"
             ) from exc
         if self._config is None:
-            raise RuntimeError("CouchbasePool: missing config and no injected cluster")
+            raise self._missing_config_error("CouchbasePool", "cluster")
 
         try:
             auth = PasswordAuthenticator(

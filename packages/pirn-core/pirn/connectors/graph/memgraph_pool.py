@@ -64,7 +64,7 @@ class MemgraphPool(DatabaseConnectionPool):
 
     async def _ensure_connection(self) -> Any:
         if self._closed:
-            raise RuntimeError("MemgraphPool is closed")
+            raise self._closed_error("MemgraphPool")
         if self._connection is None:
             self._connection = await self._create_connection()
         return self._connection
@@ -77,7 +77,7 @@ class MemgraphPool(DatabaseConnectionPool):
                 "MemgraphPool requires gqlalchemy; install via pip install pirn[memgraph]"
             ) from exc
         if self._config is None:
-            raise RuntimeError("MemgraphPool: missing config and no injected connection")
+            raise self._missing_config_error("MemgraphPool", "connection")
         try:
             conn = gqlalchemy.Memgraph(
                 host=self._config.host,

@@ -149,7 +149,7 @@ class TwilioClient(ApiClient, RecordWriter):
 
     async def _ensure_client(self) -> Any:
         if self._closed:
-            raise RuntimeError("TwilioClient is closed")
+            raise self._closed_error("TwilioClient")
         if self._client is None:
             self._client = await self._create_client()
         return self._client
@@ -162,7 +162,7 @@ class TwilioClient(ApiClient, RecordWriter):
                 "TwilioClient requires the twilio SDK; install via `pip install pirn[twilio]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError("TwilioClient: missing config and no injected client")
+            raise self._missing_config_error("TwilioClient", "client")
 
         kwargs: dict[str, Any] = {}
         if self._config.region is not None:

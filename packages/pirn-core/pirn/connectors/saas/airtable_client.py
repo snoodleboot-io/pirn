@@ -179,7 +179,7 @@ class AirtableClient(ApiClient, TableSource):
 
     def _validate_config(self) -> None:
         if self._closed:
-            raise RuntimeError("AirtableClient is closed")
+            raise self._closed_error("AirtableClient")
         if self._config is None:
             return
         missing = [
@@ -200,7 +200,7 @@ class AirtableClient(ApiClient, TableSource):
 
     async def _create_client(self) -> Any:
         if self._config is None:
-            raise RuntimeError("AirtableClient: missing config and no injected client")
+            raise self._missing_config_error("AirtableClient", "client")
         self._validate_config()
         self._logger.debug("airtable.connect")
         return self._build_httpx_client("airtable", quoted=False, timeout=self._config.timeout)

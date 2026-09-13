@@ -91,7 +91,7 @@ class InfluxDBPool(DatabaseConnectionPool):
 
     async def _ensure_client(self) -> None:
         if self._closed:
-            raise RuntimeError("InfluxDBPool is closed")
+            raise self._closed_error("InfluxDBPool")
         if self._client is None:
             self._client = await self._create_client()
         if self._write_api is None:
@@ -109,7 +109,7 @@ class InfluxDBPool(DatabaseConnectionPool):
                 "InfluxDBPool requires influxdb-client; install via pip install pirn[influxdb]"
             ) from exc
         if self._config is None:
-            raise RuntimeError("InfluxDBPool: missing config and no injected client")
+            raise self._missing_config_error("InfluxDBPool", "client")
         try:
             client = InfluxDBClientAsync(
                 url=self._config.url,

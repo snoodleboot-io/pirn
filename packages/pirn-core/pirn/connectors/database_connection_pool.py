@@ -15,6 +15,8 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, Never
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
+from pirn.exceptions.connector_closed_error import ConnectorClosedError
+from pirn.exceptions.connector_config_error import ConnectorConfigError
 
 if TYPE_CHECKING:
     from pirn.connectors.dsn_scrubber import DsnScrubber
@@ -99,6 +101,27 @@ class DatabaseConnectionPool(PirnOpaqueValue):
         ``close()`` benefit; default deployments are unaffected.
         """
         self._config = None
+
+    @staticmethod
+    def _closed_error(class_name: str) -> ConnectorClosedError:
+        """Build the typed error for "used after close" — call sites ``raise`` it.
+
+        One place for the message so every pool reports a closed
+        connection the same way. Mirrors
+        :meth:`pirn.connectors.connector_base.ConnectorBase._closed_error`
+        for the pool hierarchy, which does not share ``ConnectorBase``.
+        """
+        return ConnectorClosedError(f"{class_name} is closed")
+
+    @staticmethod
+    def _missing_config_error(class_name: str, resource: str) -> ConnectorConfigError:
+        """Build the typed error for "no config and no injected *resource*".
+
+        Mirrors
+        :meth:`pirn.connectors.connector_base.ConnectorBase._missing_config_error`
+        for the pool hierarchy.
+        """
+        return ConnectorConfigError(f"{class_name}: missing config and no injected {resource}")
 
     def _reject_inline_interpolation(self, query: str) -> None:
         """Reject Python-string interpolation markers in raw SQL.

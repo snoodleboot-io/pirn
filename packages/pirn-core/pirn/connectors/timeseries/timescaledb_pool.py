@@ -70,7 +70,7 @@ class TimescaleDBPool(DatabaseConnectionPool):
 
     async def _ensure_pool(self) -> Any:
         if self._closed:
-            raise RuntimeError("TimescaleDBPool is closed")
+            raise self._closed_error("TimescaleDBPool")
         if self._pool is None:
             self._pool = await self._create_pool()
         return self._pool
@@ -83,7 +83,7 @@ class TimescaleDBPool(DatabaseConnectionPool):
                 "TimescaleDBPool requires asyncpg; install via `pip install pirn[timescaledb]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError("TimescaleDBPool: missing config and no injected pool")
+            raise self._missing_config_error("TimescaleDBPool", "pool")
 
         kwargs: dict[str, Any] = {
             "min_size": self._config.min_size,

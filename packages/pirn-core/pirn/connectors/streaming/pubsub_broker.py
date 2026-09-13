@@ -140,14 +140,14 @@ class PubSubBroker(MessageBroker):
 
     async def _ensure_publisher(self) -> Any:
         if self._closed:
-            raise RuntimeError("PubSubBroker is closed")
+            raise self._closed_error("PubSubBroker")
         if self._publisher is None:
             self._publisher = await self._build_publisher()
         return self._publisher
 
     async def _ensure_subscriber(self) -> Any:
         if self._closed:
-            raise RuntimeError("PubSubBroker is closed")
+            raise self._closed_error("PubSubBroker")
         if self._subscriber is None:
             self._subscriber = await self._build_subscriber()
         return self._subscriber

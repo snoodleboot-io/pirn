@@ -242,7 +242,7 @@ class ShopifyClient(ApiClient, TableSource):
 
     async def _ensure_client(self) -> Any:
         if self._closed:
-            raise RuntimeError("ShopifyClient is closed")
+            raise self._closed_error("ShopifyClient")
         if self._client is None:
             self._client = await self._create_client()
         return self._client
@@ -255,7 +255,7 @@ class ShopifyClient(ApiClient, TableSource):
                 "ShopifyClient requires ShopifyAPI; install via `pip install pirn[shopify]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError("ShopifyClient: missing config and no injected client")
+            raise self._missing_config_error("ShopifyClient", "client")
         if self._config.shop_url is None:
             raise ValueError("ShopifyClient: config.shop_url is required")
         if self._config.access_token is None:

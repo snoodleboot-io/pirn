@@ -222,7 +222,7 @@ class DatadogClient(ApiClient, TableSource, EventEmitter, MetricQuery):
 
     async def _ensure_client(self) -> Any:
         if self._closed:
-            raise RuntimeError("DatadogClient is closed")
+            raise self._closed_error("DatadogClient")
         if self._client is None:
             self._client = await self._create_client()
         return self._client
@@ -240,7 +240,7 @@ class DatadogClient(ApiClient, TableSource, EventEmitter, MetricQuery):
                 "DatadogClient requires datadog-api-client; install via `pip install pirn[datadog]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError("DatadogClient: missing config and no injected client")
+            raise self._missing_config_error("DatadogClient", "client")
 
         assert self._config is not None  # guarded by RuntimeError above
 

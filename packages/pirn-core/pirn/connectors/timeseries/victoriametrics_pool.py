@@ -99,7 +99,7 @@ class VictoriaMetricsPool(DatabaseConnectionPool):
 
     async def _ensure_client(self) -> None:
         if self._closed:
-            raise RuntimeError("VictoriaMetricsPool is closed")
+            raise self._closed_error("VictoriaMetricsPool")
         if self._client is None:
             self._client = await self._create_client()
 
@@ -112,7 +112,7 @@ class VictoriaMetricsPool(DatabaseConnectionPool):
                 "`pip install pirn[victoriametrics]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError("VictoriaMetricsPool: missing config and no injected client")
+            raise self._missing_config_error("VictoriaMetricsPool", "client")
         auth = None
         if self._config.username is not None:
             auth = (self._config.username, self._config.password or "")

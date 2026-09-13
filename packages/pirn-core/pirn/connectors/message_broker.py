@@ -8,6 +8,8 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
+from pirn.exceptions.connector_closed_error import ConnectorClosedError
+from pirn.exceptions.connector_config_error import ConnectorConfigError
 
 
 class MessageBroker(PirnOpaqueValue):
@@ -41,6 +43,27 @@ class MessageBroker(PirnOpaqueValue):
         ``headers`` attributes.
         """
         raise NotImplementedError(f"{type(self).__name__} must implement consume()")
+
+    @staticmethod
+    def _closed_error(class_name: str) -> ConnectorClosedError:
+        """Build the typed error for "used after close" — call sites ``raise`` it.
+
+        Mirrors
+        :meth:`pirn.connectors.connector_base.ConnectorBase._closed_error`
+        for the ``MessageBroker`` hierarchy, which does not share
+        ``ConnectorBase``.
+        """
+        return ConnectorClosedError(f"{class_name} is closed")
+
+    @staticmethod
+    def _missing_config_error(class_name: str, resource: str) -> ConnectorConfigError:
+        """Build the typed error for "no config and no injected *resource*".
+
+        Mirrors
+        :meth:`pirn.connectors.connector_base.ConnectorBase._missing_config_error`
+        for the ``MessageBroker`` hierarchy.
+        """
+        return ConnectorConfigError(f"{class_name}: missing config and no injected {resource}")
 
     def _clear_credentials(self) -> None:
         """Drop the in-memory credential reference held by the broker.

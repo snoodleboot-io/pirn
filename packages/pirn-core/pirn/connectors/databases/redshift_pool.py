@@ -85,7 +85,7 @@ class RedshiftPool(DatabaseConnectionPool):
 
     async def _ensure_pool(self) -> Any:
         if self._closed:
-            raise RuntimeError("RedshiftPool is closed")
+            raise self._closed_error("RedshiftPool")
         if self._pool is None:
             self._pool = await self._create_pool()
         return self._pool
@@ -98,7 +98,7 @@ class RedshiftPool(DatabaseConnectionPool):
                 "RedshiftPool requires asyncpg; install via `pip install pirn[redshift]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError("RedshiftPool: missing config and no injected pool")
+            raise self._missing_config_error("RedshiftPool", "pool")
 
         kwargs: dict[str, Any] = {
             "min_size": self._config.min_size,

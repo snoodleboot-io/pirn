@@ -125,7 +125,7 @@ class TeamsClient(ApiClient):
 
     async def _create_client(self) -> Any:
         if self._config is None:
-            raise RuntimeError("TeamsClient: missing config and no injected client")
+            raise self._missing_config_error("TeamsClient", "client")
         if not self._config.webhook_url:
             raise ValueError("TeamsClient: config.webhook_url must be non-empty")
         self._logger.debug("teams.connect")

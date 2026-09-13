@@ -304,7 +304,7 @@ class OraclePool(DatabaseConnectionPool):
 
     async def _ensure_client(self) -> Any:
         if self._closed:
-            raise RuntimeError("OraclePool is closed")
+            raise self._closed_error("OraclePool")
         if self._client is None:
             self._client = await self._create_client()
         return self._client
@@ -317,7 +317,7 @@ class OraclePool(DatabaseConnectionPool):
                 "OraclePool requires oracledb; install via `pip install pirn[oracle]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError("OraclePool: missing config and no injected client")
+            raise self._missing_config_error("OraclePool", "client")
 
         # `connect`, not `create_pool` (PIR-824). This path used to build an
         # `oracledb.ConnectionPool`, which exposes acquire/release/close/drop

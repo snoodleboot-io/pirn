@@ -78,7 +78,7 @@ class Neo4jPool(DatabaseConnectionPool):
 
     async def _ensure_driver(self) -> Any:
         if self._closed:
-            raise RuntimeError("Neo4jPool is closed")
+            raise self._closed_error("Neo4jPool")
         if self._driver is None:
             self._driver = await self._create_driver()
         return self._driver
@@ -91,7 +91,7 @@ class Neo4jPool(DatabaseConnectionPool):
                 "Neo4jPool requires neo4j; install via pip install pirn[neo4j]"
             ) from exc
         if self._config is None:
-            raise RuntimeError("Neo4jPool: missing config and no injected driver")
+            raise self._missing_config_error("Neo4jPool", "driver")
         try:
             driver = neo4j.AsyncGraphDatabase.driver(
                 self._config.uri,

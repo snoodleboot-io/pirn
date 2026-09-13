@@ -66,7 +66,7 @@ class QuestDBPool(DatabaseConnectionPool):
 
     async def _ensure_pool(self) -> Any:
         if self._closed:
-            raise RuntimeError("QuestDBPool is closed")
+            raise self._closed_error("QuestDBPool")
         if self._pool is None:
             self._pool = await self._create_pool()
         return self._pool
@@ -79,7 +79,7 @@ class QuestDBPool(DatabaseConnectionPool):
                 "QuestDBPool requires asyncpg; install via `pip install pirn[questdb]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError("QuestDBPool: missing config and no injected pool")
+            raise self._missing_config_error("QuestDBPool", "pool")
         try:
             pool = await asyncpg.create_pool(
                 host=self._config.host,

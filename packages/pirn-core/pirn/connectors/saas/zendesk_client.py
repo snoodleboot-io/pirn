@@ -188,7 +188,7 @@ class ZendeskClient(ApiClient, TableSource, RecordWriter):
 
     async def _ensure_client(self) -> Any:
         if self._closed:
-            raise RuntimeError("ZendeskClient is closed")
+            raise self._closed_error("ZendeskClient")
         if self._client is None:
             self._client = await self._create_client()
         return self._client
@@ -201,7 +201,7 @@ class ZendeskClient(ApiClient, TableSource, RecordWriter):
                 "ZendeskClient requires zenpy; install via `pip install pirn[zendesk]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError("ZendeskClient: missing config and no injected client")
+            raise self._missing_config_error("ZendeskClient", "client")
 
         creds: dict[str, Any] = {}
         if self._config.subdomain is not None:

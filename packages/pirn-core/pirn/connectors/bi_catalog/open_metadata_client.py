@@ -190,7 +190,7 @@ class OpenMetadataClient(ApiClient, TableSource, MetadataCatalog):
 
     async def _create_client(self) -> Any:
         if self._config is None:
-            raise RuntimeError("OpenMetadataClient: missing config and no injected client")
+            raise self._missing_config_error("OpenMetadataClient", "client")
         if self._config.host_url is None:
             raise RuntimeError("OpenMetadataClient: config.host_url is required")
         if self._config.jwt_token is None:

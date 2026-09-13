@@ -175,7 +175,7 @@ class JiraClient(ApiClient, TableSource):
 
     async def _ensure_client(self) -> Any:
         if self._closed:
-            raise RuntimeError("JiraClient is closed")
+            raise self._closed_error("JiraClient")
         if self._client is None:
             self._client = await self._create_client()
         return self._client
@@ -188,7 +188,7 @@ class JiraClient(ApiClient, TableSource):
                 "JiraClient requires atlassian-python-api; install via `pip install pirn[jira]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError("JiraClient: missing config and no injected client")
+            raise self._missing_config_error("JiraClient", "client")
 
         kwargs: dict[str, Any] = {"cloud": self._config.cloud}
         if self._config.url is not None:

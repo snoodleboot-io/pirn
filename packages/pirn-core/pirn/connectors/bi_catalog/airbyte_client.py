@@ -149,7 +149,7 @@ class AirbyteClient(ApiClient, TableSource):
 
     async def _create_client(self) -> Any:
         if self._config is None:
-            raise RuntimeError("AirbyteClient: missing config and no injected client")
+            raise self._missing_config_error("AirbyteClient", "client")
         if self._config.access_token is None:
             raise RuntimeError(
                 "AirbyteClient: config.access_token is required (OAuth2 "

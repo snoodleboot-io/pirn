@@ -79,7 +79,7 @@ class MongoDBPool(DatabaseConnectionPool):
 
     async def _ensure_client(self) -> Any:
         if self._closed:
-            raise RuntimeError("MongoDBPool is closed")
+            raise self._closed_error("MongoDBPool")
         if self._client is None:
             self._client = await self._create_client()
         return self._client
@@ -92,7 +92,7 @@ class MongoDBPool(DatabaseConnectionPool):
                 "MongoDBPool requires motor; install via pip install pirn[mongodb]"
             ) from exc
         if self._config is None:
-            raise RuntimeError("MongoDBPool: missing config and no injected client")
+            raise self._missing_config_error("MongoDBPool", "client")
 
         uri = self._config.uri
         if uri == type(self)._default_uri and (self._config.username or self._config.password):

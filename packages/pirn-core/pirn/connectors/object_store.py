@@ -9,6 +9,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
+from pirn.exceptions.connector_closed_error import ConnectorClosedError
 
 
 class ObjectStore(PirnOpaqueValue):
@@ -39,6 +40,17 @@ class ObjectStore(PirnOpaqueValue):
     async def list(self, prefix: str = "") -> AsyncIterator[str]:
         """Yield all keys under ``prefix`` in lexicographic order."""
         raise NotImplementedError(f"{type(self).__name__} must implement list()")
+
+    @staticmethod
+    def _closed_error(class_name: str) -> ConnectorClosedError:
+        """Build the typed error for "used after close" — call sites ``raise`` it.
+
+        Mirrors
+        :meth:`pirn.connectors.connector_base.ConnectorBase._closed_error`
+        for the ``ObjectStore`` hierarchy, which does not share
+        ``ConnectorBase``.
+        """
+        return ConnectorClosedError(f"{class_name} is closed")
 
     def _validate_key(self, key: str) -> None:
         """Reject keys that would cause path-traversal or invalid byte issues.

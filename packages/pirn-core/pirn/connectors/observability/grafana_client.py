@@ -229,7 +229,7 @@ class GrafanaClient(ApiClient, TableSource, MetricQuery):
 
     async def _create_client(self) -> Any:
         if self._config is None:
-            raise RuntimeError("GrafanaClient: missing config and no injected client")
+            raise self._missing_config_error("GrafanaClient", "client")
         if self._config.base_url is None:
             raise RuntimeError("GrafanaClient: config.base_url is required")
 

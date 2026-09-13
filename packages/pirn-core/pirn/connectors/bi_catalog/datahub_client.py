@@ -184,7 +184,7 @@ class DataHubClient(ApiClient, TableSource, MetadataCatalog):
 
     async def _create_client(self) -> Any:
         if self._config is None:
-            raise RuntimeError("DataHubClient: missing config and no injected client")
+            raise self._missing_config_error("DataHubClient", "client")
         if self._config.gms_url is None:
             raise RuntimeError("DataHubClient: config.gms_url is required")
         kwargs: dict[str, Any] = {}

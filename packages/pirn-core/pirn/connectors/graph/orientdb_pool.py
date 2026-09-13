@@ -72,7 +72,7 @@ class OrientDBPool(DatabaseConnectionPool):
 
     async def _ensure_client(self) -> Any:
         if self._closed:
-            raise RuntimeError("OrientDBPool is closed")
+            raise self._closed_error("OrientDBPool")
         if self._client is None:
             self._client = await self._create_client()
         return self._client
@@ -85,7 +85,7 @@ class OrientDBPool(DatabaseConnectionPool):
                 "OrientDBPool requires pyorient; install via pip install pirn[orientdb]"
             ) from exc
         if self._config is None:
-            raise RuntimeError("OrientDBPool: missing config and no injected client")
+            raise self._missing_config_error("OrientDBPool", "client")
         try:
             client = await asyncio.to_thread(
                 pyorient.OrientDB, self._config.host, self._config.port
