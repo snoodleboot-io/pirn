@@ -42,6 +42,8 @@ def _make_run_result(
     *,
     run_id: str = "run-1",
     lineage: list[KnotLineage] | None = None,
+    parent_run_id: str | None = None,
+    parent_knot_id: str | None = None,
 ) -> Any:
     from pirn.core.run_result import RunResult
 
@@ -55,6 +57,8 @@ def _make_run_result(
         finished_at=now,
         dispatcher="LocalDispatcher",
         actor="tester",
+        parent_run_id=parent_run_id,
+        parent_knot_id=parent_knot_id,
     )
 
 
@@ -63,6 +67,7 @@ class _FakePool:
 
     def __init__(self) -> None:
         self._runs: dict[str, str] = {}  # run_id -> payload_json
+        self._runs_parent: dict[str, str | None] = {}  # run_id -> parent_run_id
         self._lineage: dict[tuple[str, str], str] = {}  # (run_id, knot_id) -> payload_json
         self._lineage_inputs: list[tuple[str, str, str, str]] = []
         self._schema_version: dict[str, int] = {}
@@ -84,8 +89,10 @@ class _FakeConn:
         elif "INSERT INTO runs" in sql and "ON CONFLICT" in sql:
             run_id = args[0]
             payload_json = args[-1]
-            # Store payload (last arg)
+            parent_run_id = args[-3]
+            # Store payload (last arg) and parent_run_id (third-from-last arg).
             self._pool._runs[run_id] = payload_json
+            self._pool._runs_parent[run_id] = parent_run_id
         elif "ALTER TABLE" in sql:
             pass  # schema migration no-op
 
@@ -131,6 +138,13 @@ class _FakeConn:
             actor = args[0]
             # We don't track actor separately in fake — return all
             return [{"payload_json": v} for v in self._pool._runs.values()]
+        if "FROM runs WHERE parent_run_id" in sql:
+            parent_run_id = args[0]
+            return [
+                {"payload_json": self._pool._runs[run_id]}
+                for run_id, p in self._pool._runs_parent.items()
+                if p == parent_run_id
+            ]
         if "JOIN lineage_inputs" in sql:
             input_hash = args[0]
             matching_keys = {
@@ -208,6 +222,29 @@ class TestPostgresHistoryRecordAndQuery(unittest.IsolatedAsyncioTestCase):
         records = await history.query_lineage_by_knot_id("k-xyz")
         self.assertEqual(len(records), 1)
         self.assertEqual(records[0].knot_id, "k-xyz")
+
+    async def test_children_of_returns_runs_with_matching_parent(self) -> None:
+        history = _make_history()
+        await history.record_run(_make_run_result(run_id="parent-1"))
+        await history.record_run(
+            _make_run_result(run_id="child-1", parent_run_id="parent-1", parent_knot_id="sub")
+        )
+        await history.record_run(
+            _make_run_result(run_id="child-2", parent_run_id="parent-1", parent_knot_id="sub")
+        )
+        await history.record_run(_make_run_result(run_id="unrelated"))
+
+        children = await history.children_of("parent-1")
+
+        self.assertEqual({c.run_id for c in children}, {"child-1", "child-2"})
+
+    async def test_children_of_returns_empty_for_run_with_no_children(self) -> None:
+        history = _make_history()
+        await history.record_run(_make_run_result(run_id="lonely"))
+
+        children = await history.children_of("lonely")
+
+        self.assertEqual(children, [])
 
 
 class TestPostgresHistoryInheritance(unittest.TestCase):

@@ -183,6 +183,24 @@ async def test_history_query_by_output_hash_finds_duplicates(history):
     assert len(d_records) == 2
 
 
+async def test_history_children_of_finds_child_runs_by_parent_run_id(history):
+    """A run recorded with ``_parent_run_id`` is returned by ``children_of``."""
+    parent = await _run_pipeline(history, 1)
+    with Tapestry(history=history) as t:
+        p = Parameter("x", int, _config=KnotConfig(id="x"))
+        _f(x=p, _config=KnotConfig(id="d"))
+    child = await t.run(RunRequest(parameters={"x": 2}), _parent_run_id=parent.run_id)
+
+    children = await history.children_of(parent.run_id)
+
+    assert {c.run_id for c in children} == {child.run_id}
+
+
+async def test_history_children_of_returns_empty_for_run_with_no_children(history):
+    result = await _run_pipeline(history, 3)
+    assert await history.children_of(result.run_id) == []
+
+
 async def test_history_query_by_input_hash_finds_consumers(history):
     """A value produced in run A and consumed in run B is reachable by
     input-hash query."""

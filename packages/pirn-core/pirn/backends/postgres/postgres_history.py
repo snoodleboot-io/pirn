@@ -64,7 +64,7 @@ class PostgresHistory(RunHistory):
             pirn_version TEXT NOT NULL
         );
     """
-    _schema_version = 3
+    _schema_version = 4
 
     def __init__(self, *, pool: Any = None, dsn: str | None = None) -> None:
         """Initialise the history store.
@@ -114,6 +114,8 @@ class PostgresHistory(RunHistory):
                 await self.__migrate_v2(conn)
             elif v + 1 == 3:
                 await self.__migrate_v3(conn)
+            elif v + 1 == 4:
+                await self.__migrate_v4(conn)
         await conn.execute(
             """INSERT INTO pirn_schema_version (component, version)
                VALUES ($1, $2)
@@ -142,6 +144,13 @@ class PostgresHistory(RunHistory):
                )"""
         )
 
+    @staticmethod
+    async def __migrate_v4(conn: Any) -> None:
+        """Add nesting columns for SubTapestry parent linking."""
+        await conn.execute("ALTER TABLE runs ADD COLUMN IF NOT EXISTS parent_run_id TEXT")
+        await conn.execute("ALTER TABLE runs ADD COLUMN IF NOT EXISTS parent_knot_id TEXT")
+        await conn.execute("CREATE INDEX IF NOT EXISTS idx_runs_parent ON runs(parent_run_id)")
+
     async def record_run(self, result: Any) -> None:
         """Persist a run result and all associated lineage records.
 
@@ -160,8 +169,9 @@ class PostgresHistory(RunHistory):
                 await conn.execute(
                     """INSERT INTO runs
                        (run_id, succeeded, started_at, finished_at, dispatcher,
-                        actor, trigger, environment_json, runtime_info_json, payload_json)
-                       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb)
+                        actor, trigger, environment_json, runtime_info_json,
+                        parent_run_id, parent_knot_id, payload_json)
+                       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb)
                        ON CONFLICT (run_id) DO UPDATE SET
                          succeeded = EXCLUDED.succeeded,
                          started_at = EXCLUDED.started_at,
@@ -171,6 +181,8 @@ class PostgresHistory(RunHistory):
                          trigger = EXCLUDED.trigger,
                          environment_json = EXCLUDED.environment_json,
                          runtime_info_json = EXCLUDED.runtime_info_json,
+                         parent_run_id = EXCLUDED.parent_run_id,
+                         parent_knot_id = EXCLUDED.parent_knot_id,
                          payload_json = EXCLUDED.payload_json""",
                     result.run_id,
                     result.succeeded,
@@ -181,6 +193,8 @@ class PostgresHistory(RunHistory):
                     result.trigger,
                     json.dumps(result.environment),
                     json.dumps(result.runtime_info),
+                    result.parent_run_id,
+                    result.parent_knot_id,
                     result.model_dump_json(),
                 )
                 if result.lineage:
@@ -308,6 +322,25 @@ class PostgresHistory(RunHistory):
         pool = await self._pool.get()
         async with pool.acquire() as conn:
             rows = await conn.fetch("SELECT payload_json FROM runs WHERE actor = $1", actor)
+        from pirn.core.run_result import RunResult
+
+        return [RunResult.model_validate_json(r["payload_json"]) for r in rows]
+
+    async def children_of(self, run_id: str) -> list[Any]:
+        """Return all runs whose ``parent_run_id`` matches ``run_id``.
+
+        Args:
+            run_id: UUID of the parent run.
+
+        Returns:
+            List of ``RunResult`` objects for all child runs, possibly empty.
+        """
+        await self._ensure_init()
+        pool = await self._pool.get()
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT payload_json FROM runs WHERE parent_run_id = $1", run_id
+            )
         from pirn.core.run_result import RunResult
 
         return [RunResult.model_validate_json(r["payload_json"]) for r in rows]
