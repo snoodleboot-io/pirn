@@ -26,6 +26,11 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - `RunHistory.query_latest_lineage_by_knot_id(knot_id) -> KnotLineage | None` — the most recently finished lineage row for a stable knot id (by `finished_at`), on the base interface and the in-memory, SQLite, DuckDB and Postgres stores, pinned by the backend conformance suite. The keyed-identity lookup ("what did this knot last produce?") agents' memory recall and resume-after-crash key on.
 
+#### pirn-agents on the WS0b seams
+
+- `MapAgent` no longer assigns its inner tapestry's private `_concurrency` / `_dispatcher` / `_admission_observers` (`_apply_run_settings` is gone); it overrides `SubTapestry._inner_dispatcher` / `_inner_concurrency` / `_inner_admission_observers` instead, and `tests/core_seams/test_execution_plane_reach_through.py` ratchets the reach-through inventory at empty.
+- `MapAgent.run()` yields each `BatchItemResult` the instant its item settles again (resumed items first, then completion order), via the new `_BatchItemStreamer` emitter over `Emitter.on_knot_result`; the streamed result carries the item's attempt count and latency from its lineage row. Closing the stream early or cancelling its consumer cancels the run.
+
 #### `@tool` decorator and scalar auto-coercion
 
 - `pirn/domains/agents/tool_decorator.py` — `@tool` decorator converts any sync or async function into a `FunctionTool` (a `Tool` subclass). Name is taken from the function name, description from the first docstring paragraph, and `parameters_schema` from type annotations. Both `Optional[T]` and `list[T]` annotations are handled. Import via `from pirn.domains.agents import tool, FunctionTool`.
