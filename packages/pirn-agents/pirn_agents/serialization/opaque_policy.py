@@ -1,4 +1,4 @@
-"""``OpaquePolicy`` — what canonical encoding does with a non-JSON leaf."""
+"""``OpaquePolicy`` — legacy guidance for a non-JSON leaf (ADR agents-speaks-core WS2)."""
 
 from __future__ import annotations
 
@@ -10,6 +10,27 @@ from typing import Any
 class OpaquePolicy(Enum):
     """How :class:`~pirn_agents.serialization.canonical_json.CanonicalJson`
     handles a value the JSON encoder cannot represent.
+
+    .. deprecated::
+        This enum is a **parallel policy** to the contract
+        :mod:`pirn.core.hashing` already has for the same problem: a type
+        that wants control over how it hashes/serialises when it is not
+        itself JSON-representable implements
+        :meth:`~pirn.core.pirn_opaque_value.PirnOpaqueValue._pirn_audit_dict`
+        (or, for a non-``PirnOpaqueValue`` type, gives ``pydantic`` a
+        ``__get_pydantic_core_schema__``) — a **type-level, always-on**
+        decision — rather than asking every *caller* to pick a fallback at
+        each hash site. :func:`~pirn.core.hashing.content_hash` honours
+        ``_pirn_audit_dict`` automatically; it never needs an
+        ``OpaquePolicy`` argument.
+
+        This enum remains, unchanged, only because
+        :class:`~pirn_agents.serialization.canonical_json.CanonicalJson` — the
+        one caller-supplied-fallback design it exists for — is itself kept
+        for one deprecation cycle (see that class's docstring). Do not add a
+        new caller-supplied-policy parameter modelled on this enum anywhere
+        else; give the opaque type a ``_pirn_audit_dict()`` instead. See
+        :meth:`default_audit_dict` for a starting point when writing one.
 
     This is the only axis on which callers legitimately differ, so it is an
     explicit argument rather than a ``json.dumps`` flag buried in each call
@@ -55,6 +76,47 @@ class OpaquePolicy(Enum):
     STR = "str"
     REPR_CONTENT = "repr_content"
     STR_CONTENT = "str_content"
+
+    @staticmethod
+    def default_audit_dict(value: Any) -> dict[str, Any]:
+        """Return a minimal, content-derived audit dict for an opaque ``value``.
+
+        A starting point for a type's own
+        :meth:`~pirn.core.pirn_opaque_value.PirnOpaqueValue._pirn_audit_dict`
+        — the ADR-aligned replacement for reaching for an ``OpaquePolicy``
+        fallback at hash time (see the class docstring). Call this from
+        ``_pirn_audit_dict`` when the type has no lineage-relevant fields of
+        its own to flatten and a type-tagged, content-derived ``repr`` is
+        enough to distinguish one instance's content from another's:
+
+        .. code-block:: python
+
+            def _pirn_audit_dict(self) -> dict[str, Any]:
+                return OpaquePolicy.default_audit_dict(self)
+
+        Prefer flattening the type's actual fields into the dict instead (as
+        :class:`~pirn_agents.batch.batch_item_result.BatchItemResult` does)
+        whenever those fields exist — this helper is for the remaining case
+        of a value with no such fields, where ``repr`` is already how the
+        type distinguishes its instances.
+
+        Raises:
+            TypeError: If ``value``'s ``repr`` is the default
+                ``object.__repr__`` identity form (embeds a memory address),
+                mirroring the hazard :attr:`REPR_CONTENT` guards against —
+                such a dict would key different instances alike or the same
+                instance differently across a retry.
+        """
+        rendered = repr(value)
+        if rendered == object.__repr__(value):
+            raise TypeError(
+                f"OpaquePolicy.default_audit_dict: refusing a value of type "
+                f"{type(value).__name__}; it renders as {rendered!r}, which is "
+                f"its memory address rather than its content. Give the type a "
+                f"content-derived __repr__, or write a _pirn_audit_dict() that "
+                f"flattens its actual fields instead of delegating here."
+            )
+        return {"__type__": type(value).__name__, "repr": rendered}
 
     def fallback(self) -> Callable[[Any], str]:
         """Return the ``json.dumps`` ``default=`` hook implementing this policy.

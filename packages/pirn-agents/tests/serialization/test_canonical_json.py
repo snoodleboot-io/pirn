@@ -207,6 +207,40 @@ class TestCanonicalJsonEncoding:
         assert len({CanonicalJson.digest({"a": [1, {"b": 2}]}) for _ in range(5)}) == 1
 
 
+class TestCanonicalJsonDeprecation:
+    """ADR agents-speaks-core WS2: the class is a one-cycle shim, not deleted.
+
+    The actual cut-over of ``digest`` to ``pirn.core.hashing.content_hash`` is
+    deferred (see the module docstring and the WS2 report) because three
+    existing callers persist/transmit this exact bare-hex digest as a durable
+    key. Until that migration lands, both methods keep their current bytes
+    and only warn.
+    """
+
+    def test_encode_warns_deprecated(self) -> None:
+        with pytest.warns(DeprecationWarning, match="CanonicalJson.encode"):
+            CanonicalJson.encode({"a": 1})
+
+    def test_digest_warns_deprecated(self) -> None:
+        with pytest.warns(DeprecationWarning, match="CanonicalJson.digest"):
+            CanonicalJson.digest({"a": 1})
+
+    def test_digest_still_matches_sha256_of_encode_despite_the_warning(self) -> None:
+        # The warning is informational only -- it must not change the bytes.
+        with pytest.warns(DeprecationWarning):
+            encoded = CanonicalJson.encode({"a": [1, {"b": 2}]})
+        with pytest.warns(DeprecationWarning):
+            digest = CanonicalJson.digest({"a": [1, {"b": 2}]})
+        assert digest == hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+    def test_digest_emits_exactly_one_warning(self) -> None:
+        # digest() shares its raw encoding step with encode() via a private
+        # helper specifically so one public call emits one warning, not two.
+        with pytest.warns(DeprecationWarning) as record:
+            CanonicalJson.digest({"a": 1})
+        assert len(record) == 1
+
+
 class TestOpaquePolicy:
     """The opaque-leaf branch is explicit, and defaults to refusing."""
 
@@ -259,6 +293,36 @@ class TestOpaquePolicy:
 
         first = CanonicalJson.encode({"o": Bare()}, policy=OpaquePolicy.REPR)
         assert "0x" in first
+
+
+class TestOpaquePolicyDefaultAuditDict:
+    """``default_audit_dict`` — the ADR-aligned starting point for ``_pirn_audit_dict``."""
+
+    def test_returns_a_type_tagged_content_dict(self) -> None:
+        assert OpaquePolicy.default_audit_dict(decimal.Decimal("1.25")) == {
+            "__type__": "Decimal",
+            "repr": "Decimal('1.25')",
+        }
+
+    def test_two_equal_values_produce_equal_dicts(self) -> None:
+        assert OpaquePolicy.default_audit_dict({1, 2}) == OpaquePolicy.default_audit_dict({2, 1})
+
+    def test_refuses_a_value_with_no_content_derived_repr(self) -> None:
+        class Bare:
+            pass
+
+        with pytest.raises(TypeError, match="memory address"):
+            OpaquePolicy.default_audit_dict(Bare())
+
+    def test_refuses_a_subclass_that_inherits_the_default_repr(self) -> None:
+        class Bare:
+            pass
+
+        class Derived(Bare):
+            pass
+
+        with pytest.raises(TypeError):
+            OpaquePolicy.default_audit_dict(Derived())
 
 
 class TestContentOnlyPolicies:
