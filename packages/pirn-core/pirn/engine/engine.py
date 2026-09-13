@@ -325,8 +325,13 @@ class Engine:
                             ctx.status.transition(kid, KnotState.FAILED, "missing parent")
                             feedback.released(unplaced, "err", ready.waiting_in(unplaced.group))
                         unplaced = None
-                        LineageRecorder.record_lineage(
+                        row = LineageRecorder.record_lineage(
                             ctx, knot, results, decision, started=ctx.started_at
+                        )
+                        # The knot settled without running; stream its outcome
+                        # now, like any other (WS0b).
+                        await EmitterFanout.emit_knot_result(
+                            emitters, emitter_error_policy, kid, decision, row
                         )
                         self._enqueue(ready, tracker, shed, tracker.resolve(kid), feedback)
                         continue
@@ -416,7 +421,7 @@ class Engine:
                     else:
                         ctx.status.transition(kid, KnotState.FAILED)
 
-                    LineageRecorder.record_lineage(
+                    row = LineageRecorder.record_lineage(
                         ctx,
                         knot,
                         results,
@@ -425,6 +430,12 @@ class Engine:
                         started=started_at,
                         finished=finished_at,
                         replayed_from=replay.source_run_id if replayed and replay else None,
+                    )
+                    # Stream the settled outcome to the emitters now, before
+                    # any child is released: a consumer of a fan-out sees each
+                    # item as it finishes rather than after the join (WS0b).
+                    await EmitterFanout.emit_knot_result(
+                        emitters, emitter_error_policy, kid, result, row
                     )
                     self._enqueue(ready, tracker, shed, tracker.resolve(kid), feedback)
                     if pending_new:

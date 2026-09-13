@@ -18,6 +18,10 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `LimitedAdmissionGate` is thread-safe (lock-guarded counters, waiters woken on their own loop) for inner runs under `ThreadDispatcher`, and tracks tickets by identity rather than knot id. The engine wakes on a shared-gate release while it has refused knots queued, not only on its own completions.
 - `SubTapestry._run_inner(dispatcher=, concurrency=, admission_observers=)` and the overridable `_inner_dispatcher()` / `_inner_concurrency()` / `_inner_admission_observers()` hooks are the per-container overrides. `Engine._gate_for` is now public `Engine.gate_for`.
 
+#### Per-item streaming from a fan-out (ADR agents-speaks-core, WS0b)
+
+- `Emitter.on_knot_result(knot_id, result, lineage)` — a new no-op-default hook the engine awaits the moment a knot settles, inside the admission loop and before the knot's children are released, with the full `Ok` / `Err` / `Skipped` (the `Err`'s `ExceptionRecord` already re-registered against the run) and the `KnotLineage` row. Knots resolved without dispatch (skipped, missing parent) stream through it too. `EmitterFanout.emit_knot_result` delivers it under the run's `EmitterErrorPolicy`; an emitter without the method is skipped. `LineageRecorder.record_lineage` now returns the record it stashed.
+
 #### `@tool` decorator and scalar auto-coercion
 
 - `pirn/domains/agents/tool_decorator.py` — `@tool` decorator converts any sync or async function into a `FunctionTool` (a `Tool` subclass). Name is taken from the function name, description from the first docstring paragraph, and `parameters_schema` from type annotations. Both `Optional[T]` and `list[T]` annotations are handled. Import via `from pirn.domains.agents import tool, FunctionTool`.

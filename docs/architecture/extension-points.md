@@ -416,7 +416,7 @@ uses to try `EnvIdentityResolver` then `OsIdentityResolver` in order).
 
 ## Custom Emitters
 
-Implement three async hooks (all optional — subclass the base and override what you need):
+Implement four async hooks (all optional — subclass the base and override what you need). The three shown below are the per-run streams; the fourth, `on_knot_result(knot_id, result, lineage)`, fires the moment each knot settles with its full `Ok` / `Err` / `Skipped` and lineage row — before the run finishes and before the knot's children start — and is the hook to stream per-item outcomes out of a fan-out (see [Execution Model](execution-model.md#step-11-emitter-hooks-fired)). It is awaited inline under the same `emitter_error_policy`, so keep it to a hand-off:
 
 ```python
 from pirn.emitters.emitter import Emitter

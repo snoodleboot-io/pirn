@@ -223,6 +223,8 @@ for emitter in emitters:
     await emitter.on_run_result(run_result)
 ```
 
+One hook fires earlier. **`Emitter.on_knot_result(knot_id, result, lineage)`** (ADR agents-speaks-core WS0b) is awaited by the engine inside the admission loop the moment a knot settles — right after its `KnotLineage` row is built and before its children are released — with the knot's full `Result`: the `Ok` value, the `Err`'s `ExceptionRecord` (already re-registered against this run), or the `Skipped` reason. Knots the engine resolves without dispatching (skipped, missing parent) stream through it too. It is the live per-knot stream `on_lineage` is not: a consumer of a fan-out (an `Aggregator` over per-item knots, a `Map` over `SubTapestry` bodies) sees each item as it finishes, in completion order, while the join is still waiting for the rest. The hook is awaited in place rather than scheduled as a task so the run's `EmitterErrorPolicy` applies exactly as it does to `on_lineage` — `IGNORE`, `WARN`, or `RAISE`, which aborts the run — so a hook should hand the outcome to a queue and return. The default is a no-op, and an emitter written before the hook existed (no `on_knot_result` at all) is skipped.
+
 ### Step 12: `RunResult` returned
 
 `tapestry.run()` returns the `RunResult` to the caller.
