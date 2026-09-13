@@ -85,10 +85,8 @@ RETURNS_INLINE_SOURCE = frozenset(
     {
         "specializations/lats/lats_search.py::LatsSearch",
         "specializations/multi_agent/orchestrator_agent.py::OrchestratorAgent",
-        "specializations/multi_agent/orchestrator_workers.py::OrchestratorWorkers",
         "specializations/plan_react/plan_react_pipeline.py::PlanReActPipeline",
         "specializations/prompt_chaining/prompt_chain_pipeline.py::PromptChainPipeline",
-        "specializations/rag/agentic_rag_pipeline.py::AgenticRagPipeline",
         "specializations/rag/flare_active_rag_pipeline.py::FlareActiveRagPipeline",
         "specializations/rag/multi_hop_rag_pipeline.py::MultiHopRAGPipeline",
         "specializations/reflexion/reflexion_pipeline.py::ReflexionPipeline",
@@ -118,9 +116,8 @@ UNRUN_TAPESTRY = frozenset(
 #: `ReActStepExecutor`); these predate this lane and are out of its scope.
 AWAITS_INVOKE = frozenset(
     {
-        "specializations/rag/agentic_rag_pipeline.py::AgenticRagPipeline",
-        "specializations/rag/corrective_router.py::CorrectiveRouter",
-        "specializations/routing/model_cascade_router.py::ModelCascadeRouter",
+        "specializations/multi_agent/orchestrator_workers.py::_WorkerInvocation",
+        "specializations/routing/model_cascade_router.py::_AttemptTier",
         "tools/tool_invocation.py::ToolInvocation",
     }
 )
@@ -137,13 +134,8 @@ USES_ASYNCIO_GATHER = frozenset(
     {
         "agent/parallel_tool_executor.py::ParallelToolExecutor",
         "retrieval/hybrid_retriever.py::HybridRetriever",
-        "specializations/chain_of_thought/self_consistency_ensemble.py::SelfConsistencyEnsemble",
-        "specializations/chain_of_thought/tree_of_thought.py::TreeOfThought",
         "specializations/document_processing/_chunk_embedder_store.py::_ChunkEmbedderStore",
         "specializations/document_processing/_ingestion_runner.py::_IngestionRunner",
-        "specializations/multi_agent/orchestrator_workers.py::OrchestratorWorkers",
-        "specializations/rag/fusion_retriever.py::FusionRetriever",
-        "specializations/rag/sub_question_retriever.py::SubQuestionRetriever",
     }
 )
 
@@ -155,13 +147,8 @@ LOOP_AWAITS_LLM_OR_TOOL_CALL = frozenset(
         "specializations/document_processing/_chunk_translator.py::_ChunkTranslator",
         "specializations/plan_and_execute/plan_executor.py::PlanExecutor",
         "specializations/prompt_chaining/prompt_chain_pipeline.py::PromptChainPipeline",
-        "specializations/rag/agentic_rag_pipeline.py::AgenticRagPipeline",
-        "specializations/rag/contextual_chunk_enricher.py::ContextualChunkEnricher",
-        "specializations/rag/contextual_compressor.py::ContextualCompressor",
         "specializations/rag/flare_active_rag_pipeline.py::FlareActiveRagPipeline",
-        "specializations/rag/reranker.py::Reranker",
         "specializations/reflection/constitutional_filter.py::ConstitutionalFilter",
-        "specializations/routing/model_cascade_router.py::ModelCascadeRouter",
         "specializations/self_ask/self_ask_pipeline.py::SelfAskPipeline",
     }
 )
