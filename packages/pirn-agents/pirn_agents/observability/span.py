@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import time
 from collections.abc import Callable, Mapping
 from typing import TYPE_CHECKING, Any
@@ -97,14 +98,18 @@ class Span:
     def add_event(self, name: str, **attributes: Any) -> None:
         """Record a named point-in-time event and report it to the sink.
 
-        A sink exception is swallowed so observability can never abort the
-        traced operation.
+        A sink exception is logged at WARNING and otherwise swallowed so
+        observability can never abort the traced operation.
         """
         self.events.append((name, attributes))
         try:
             self._sink.on_event(self, name, attributes)
         except Exception:
-            pass
+            logging.getLogger(__name__).warning(
+                "span.sink_on_event_failed",
+                exc_info=True,
+                extra={"span_id": self.span_id, "event_name": name},
+            )
 
     def finish(self, status: SpanStatus = SpanStatus.OK) -> None:
         """Close the span with ``status`` and report it; idempotent.
@@ -113,8 +118,8 @@ class Span:
         re-finished by a surrounding context manager — which also means the
         ``on_close`` owner callback fires exactly once, keeping the tracer's
         nesting stack balanced. Both the owner callback and the sink call are
-        best-effort: exceptions are swallowed so observability can never abort
-        the traced operation.
+        best-effort: exceptions are logged at WARNING and otherwise swallowed
+        so observability can never abort the traced operation.
         """
         if self.end_time is not None:
             return
@@ -124,8 +129,16 @@ class Span:
             try:
                 self._on_close(self)
             except Exception:
-                pass
+                logging.getLogger(__name__).warning(
+                    "span.on_close_failed",
+                    exc_info=True,
+                    extra={"span_id": self.span_id},
+                )
         try:
             self._sink.on_finish(self)
         except Exception:
-            pass
+            logging.getLogger(__name__).warning(
+                "span.sink_on_finish_failed",
+                exc_info=True,
+                extra={"span_id": self.span_id},
+            )
