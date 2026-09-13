@@ -68,6 +68,12 @@ class TimeSeriesResampler(Knot):
         since = (dt - epoch).total_seconds()
         return epoch + timedelta(seconds=(since // freq_s) * freq_s)
 
+    @staticmethod
+    def _as_dt(val: Any) -> datetime:
+        if isinstance(val, datetime):
+            return val
+        return datetime.fromisoformat(str(val))
+
     async def process(
         self,
         *,
@@ -101,15 +107,10 @@ class TimeSeriesResampler(Knot):
 
         frequency = timedelta(seconds=frequency_seconds)
 
-        def _as_dt(val: Any) -> datetime:
-            if isinstance(val, datetime):
-                return val
-            return datetime.fromisoformat(str(val))
-
         buckets: dict[datetime, list[Any]] = {}
         bucket_order: list[datetime] = []
         for row in rows:
-            ts = _as_dt(row[timestamp_column])
+            ts = self._as_dt(row[timestamp_column])
             bucket = TimeSeriesResampler._floor(ts, frequency)
             if bucket not in buckets:
                 buckets[bucket] = []

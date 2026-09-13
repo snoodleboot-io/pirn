@@ -65,6 +65,13 @@ class LakehouseTableSink(Sink):
             **kwargs,
         )
 
+    @staticmethod
+    async def _rows_as_async_iterator(
+        rows: tuple[Mapping[str, Any], ...],
+    ) -> AsyncIterator[Mapping[str, Any]]:
+        for row in rows:
+            yield row
+
     async def process(
         self,
         *,
@@ -84,12 +91,10 @@ class LakehouseTableSink(Sink):
         if mode == "merge" and not (merge_on and list(merge_on)):
             raise ValueError("LakehouseTableSink: mode='merge' requires non-empty merge_on")
 
-        async def _records() -> AsyncIterator[Mapping[str, Any]]:
-            for row in batch.rows:
-                yield row
-
         if mode == "append":
-            return await table.append(_records())
+            return await table.append(self._rows_as_async_iterator(batch.rows))
         if mode == "overwrite":
-            return await table.overwrite(_records(), partition_filter=partition_filter)
-        return await table.merge(_records(), on=merge_on)
+            return await table.overwrite(
+                self._rows_as_async_iterator(batch.rows), partition_filter=partition_filter
+            )
+        return await table.merge(self._rows_as_async_iterator(batch.rows), on=merge_on)

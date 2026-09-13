@@ -54,6 +54,12 @@ class WindowedDeduplicator(Knot):
             **kwargs,
         )
 
+    @staticmethod
+    def _as_dt(val: Any) -> datetime:
+        if isinstance(val, datetime):
+            return val
+        return datetime.fromisoformat(str(val))
+
     async def process(
         self,
         *,
@@ -72,17 +78,12 @@ class WindowedDeduplicator(Knot):
             raise ValueError("WindowedDeduplicator: window_minutes must be a positive number")
         window = timedelta(minutes=window_minutes)
 
-        def _as_dt(val: Any) -> datetime:
-            if isinstance(val, datetime):
-                return val
-            return datetime.fromisoformat(str(val))
-
-        sorted_rows = sorted(rows, key=lambda r: _as_dt(r[timestamp_column]))
+        sorted_rows = sorted(rows, key=lambda r: self._as_dt(r[timestamp_column]))
         last_seen: dict[tuple[Any, ...], datetime] = {}
         result: list[dict[str, Any]] = []
         for row in sorted_rows:
             key = tuple(row.get(c) for c in key_tuple)
-            ts = _as_dt(row[timestamp_column])
+            ts = self._as_dt(row[timestamp_column])
             prev = last_seen.get(key)
             if prev is None or (ts - prev) >= window:
                 result.append(row)

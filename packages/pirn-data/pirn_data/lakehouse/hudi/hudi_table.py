@@ -90,12 +90,7 @@ class HudiTable(LakehouseTable):
             rows = self._scan_parquet(columns)
         if filter:
             rows = [row for row in rows if self._row_matches(row, filter)]
-
-        async def _iter() -> AsyncIterator[Mapping[str, Any]]:
-            for row in rows:
-                yield row
-
-        return _iter()
+        return self._rows_as_async_iterator(rows)
 
     async def append(
         self,
@@ -140,12 +135,7 @@ class HudiTable(LakehouseTable):
             commits = list(self._table.history())
         else:
             commits = self._read_commit_timeline()
-
-        async def _iter() -> AsyncIterator[Mapping[str, Any]]:
-            for commit in commits:
-                yield commit
-
-        return _iter()
+        return self._rows_as_async_iterator(commits)
 
     async def close(self) -> None:
         self._table = None
@@ -211,3 +201,10 @@ class HudiTable(LakehouseTable):
             if row.get(key) != value:
                 return False
         return True
+
+    @staticmethod
+    async def _rows_as_async_iterator(
+        rows: list[dict[str, Any]] | list[Mapping[str, Any]],
+    ) -> AsyncIterator[Mapping[str, Any]]:
+        for row in rows:
+            yield row

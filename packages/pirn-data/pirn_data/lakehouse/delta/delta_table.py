@@ -72,12 +72,7 @@ class DeltaTable(LakehouseTable):
             kwargs["columns"] = list(columns)
         table = dt.to_pyarrow_table(**kwargs)
         rows = table.to_pylist()
-
-        async def _iter() -> AsyncIterator[Mapping[str, Any]]:
-            for row in rows:
-                yield row
-
-        return _iter()
+        return self._rows_as_async_iterator(rows)
 
     async def append(
         self,
@@ -145,12 +140,7 @@ class DeltaTable(LakehouseTable):
     async def history(self) -> AsyncIterator[Mapping[str, Any]]:
         dt = self._ensure_dt()
         commits = list(dt.history())
-
-        async def _iter() -> AsyncIterator[Mapping[str, Any]]:
-            for commit in commits:
-                yield commit
-
-        return _iter()
+        return self._rows_as_async_iterator(commits)
 
     async def close(self) -> None:
         self._dt = None
@@ -223,6 +213,13 @@ class DeltaTable(LakehouseTable):
         async for record in records:
             rows.append(dict(record))
         return rows
+
+    @staticmethod
+    async def _rows_as_async_iterator(
+        rows: list[dict[str, Any]],
+    ) -> AsyncIterator[Mapping[str, Any]]:
+        for row in rows:
+            yield row
 
     @staticmethod
     def _import_deltalake() -> Any:

@@ -71,6 +71,12 @@ class DatePartExtractor(Knot):
             return dt.weekday()
         return (dt.month - 1) // 3 + 1
 
+    @staticmethod
+    def _as_dt(val: Any) -> datetime:
+        if isinstance(val, datetime):
+            return val
+        return datetime.fromisoformat(str(val))
+
     async def process(
         self,
         *,
@@ -90,15 +96,10 @@ class DatePartExtractor(Knot):
                 f"allowed: {sorted(self._valid_parts)!r}"
             )
 
-        def _as_dt(val: Any) -> datetime:
-            if isinstance(val, datetime):
-                return val
-            return datetime.fromisoformat(str(val))
-
         result: list[dict[str, Any]] = []
         for row in rows:
             new_row = dict(row)
-            dt = _as_dt(row[column])
+            dt = self._as_dt(row[column])
             for part in parts_tuple:
                 new_row[f"{column}_{part}"] = self._extract(dt, part)
             result.append(new_row)

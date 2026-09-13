@@ -88,6 +88,12 @@ class LateArrivingEventHandler(Knot):
             return sum(vals)
         return sum(vals) / len(vals)
 
+    @staticmethod
+    def _as_dt(val: Any) -> datetime:
+        if isinstance(val, datetime):
+            return val
+        return datetime.fromisoformat(str(val))
+
     async def process(
         self,
         *,
@@ -128,18 +134,13 @@ class LateArrivingEventHandler(Knot):
         bucket_td = timedelta(seconds=bucket_seconds)
         lateness_td = timedelta(seconds=allowed_lateness_seconds)
 
-        def _as_dt(val: Any) -> datetime:
-            if isinstance(val, datetime):
-                return val
-            return datetime.fromisoformat(str(val))
-
         buckets: dict[datetime, list[Any]] = {}
         result: list[dict[str, Any]] = []
         watermark: datetime | None = None
         corrections: dict[datetime, dict[str, Any]] = {}
 
         for row in rows:
-            ts = _as_dt(row[timestamp_column])
+            ts = self._as_dt(row[timestamp_column])
             if watermark is None or ts > watermark:
                 watermark = ts
             bucket = LateArrivingEventHandler._floor(ts, bucket_td)

@@ -63,6 +63,13 @@ class FileSink(Sink):
             **kwargs,
         )
 
+    @staticmethod
+    async def _rows_as_async_iterator(
+        rows: tuple[Mapping[str, Any], ...],
+    ) -> AsyncIterator[Mapping[str, Any]]:
+        for row in rows:
+            yield row
+
     async def process(
         self,
         *,
@@ -79,11 +86,7 @@ class FileSink(Sink):
         if not isinstance(key, str) or not key:
             raise ValueError("FileSink: key must be a non-empty string")
 
-        async def _records() -> AsyncIterator[Mapping[str, Any]]:
-            for row in batch.rows:
-                yield row
-
-        body_chunks = await format.write(_records())
+        body_chunks = await format.write(self._rows_as_async_iterator(batch.rows))
         chunks: list[bytes] = []
         async for chunk in body_chunks:
             chunks.append(chunk)
