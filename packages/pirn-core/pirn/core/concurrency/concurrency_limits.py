@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping
-from types import MappingProxyType
 from typing import Annotated, ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
+
+from pirn.core.concurrency.group_limits import GroupLimits
 
 
 class ConcurrencyLimits(BaseModel):
@@ -23,12 +24,25 @@ class ConcurrencyLimits(BaseModel):
     calls run at once while every other knot in the same run stays unbounded.
     With both set, the tighter of the two applies to a grouped knot.
 
-    A knot naming a group these limits do not list is bounded only by
-    ``max_in_flight``; naming an unlisted group is not an error, so one graph
-    can run under limits that care about some of its groups and not others.
+    Undefined groups fail fast.  When these limits define *any* group, a knot
+    whose ``concurrency_group`` is not one of them makes the run raise
+    ``UndefinedConcurrencyGroupError`` -- at run start for the static graph,
+    at admission for a knot registered mid-run -- because a typo such as
+    ``"open_ai"`` for ``"openai"`` would otherwise silently lift the cap.
+    When the limits define no groups, group tags are ignored, so a tapestry
+    whose knots carry groups still runs under ``max_in_flight`` alone or
+    unbounded.  A defined group that no knot of the static graph names only
+    warns (``UnusedConcurrencyGroupWarning``): knots may still join it mid-run.
 
     Every field defaults to "no limit", so ``ConcurrencyLimits()`` is
     unbounded and behaves exactly as passing no limits at all.
+
+    Known limitation (PIR-841 slice 2): a container knot -- ``SubTapestry``,
+    ``LoopSubTapestry`` -- holds one slot for as long as its inner run lasts,
+    and the inner run is not bound by these limits.  An open-ended
+    ``LoopSubTapestry`` therefore occupies its slot for its whole life and,
+    under a small ``max_in_flight``, can starve its siblings.  Slice 3 makes
+    containers slot-free and forwards the limits into inner runs.
 
     Limits are a plain serialisable value: a trigger can decode them from a
     webhook body or queue message straight onto ``RunRequest.concurrency``.
@@ -52,7 +66,7 @@ class ConcurrencyLimits(BaseModel):
         description="Most knots of the run in flight at once; None means unbounded.",
     )
     groups: Mapping[str, Annotated[int, Field(ge=1, strict=True)]] = Field(
-        default_factory=lambda: MappingProxyType({}),
+        default_factory=GroupLimits,
         description="Group name -> most knots of that group in flight at once.",
     )
 
@@ -83,11 +97,13 @@ class ConcurrencyLimits(BaseModel):
     @field_validator("groups", mode="after")
     @classmethod
     def _freeze_groups(cls, groups: Mapping[str, int]) -> Mapping[str, int]:
-        # Copy, then wrap read-only: a frozen value must not change because
+        # Copy into a read-only mapping: a frozen value must not change because
         # the caller mutated the dict it was built from, or through ``groups``.
+        # ``GroupLimits`` rather than ``MappingProxyType``, which cannot be
+        # pickled or deep-copied and would make ``RunRequest`` unpicklable.
         for name in groups:
             cls.validate_group_name(name)
-        return MappingProxyType(dict(groups))
+        return GroupLimits(groups)
 
     @field_serializer("groups")
     def _serialize_groups(self, groups: Mapping[str, int]) -> dict[str, int]:

@@ -21,12 +21,17 @@ from __future__ import annotations
 import asyncio
 import functools
 import threading
+import warnings
 from collections import Counter
 from typing import Any
 
 import pytest
 
 from pirn.core.concurrency.concurrency_limits import ConcurrencyLimits
+from pirn.core.concurrency.undefined_concurrency_group_error import (
+    UndefinedConcurrencyGroupError,
+)
+from pirn.core.concurrency.unused_concurrency_group_warning import UnusedConcurrencyGroupWarning
 from pirn.core.error_policy import ErrorPolicy
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -473,17 +478,99 @@ async def test_global_and_group_caps_hold_together() -> None:
     assert gauge.group_peaks["api"] == 2
 
 
-async def test_a_group_the_limits_do_not_define_is_bounded_only_globally() -> None:
-    # Arrange: design §11 Q5 -- naming an undefined group is not an error.
+async def test_a_group_the_limits_do_not_define_fails_the_run_before_anything_runs() -> None:
+    # Arrange: decision "fail fast on undefined group" -- a typo ("open_ai"
+    # for "openai") must not silently run every API call at once.
+    log: list[str] = []
+    with Tapestry() as t:
+        p = Parameter("x", int, default=1, _config=KnotConfig(id="p"))
+        for i in range(12):
+            _Waiter(
+                x=p,
+                log=log,
+                events={},
+                _config=KnotConfig(id=f"llm{i:02d}", concurrency_group="open_ai"),
+            )
+
+    # Act / Assert
+    with pytest.raises(UndefinedConcurrencyGroupError) as caught:
+        await _run(t, ConcurrencyLimits(groups={"openai": 4}))
+    assert caught.value.group == "open_ai"
+    assert caught.value.defined_groups == ("openai",)
+    assert "llm00" in str(caught.value)
+    assert log == []
+
+
+async def test_a_knot_registered_mid_run_in_an_undefined_group_fails_at_admission() -> None:
+    # Arrange: the static graph is valid; the newcomer is not.
+    log: list[str] = []
+    with Tapestry() as t:
+        p = Parameter("x", int, default=1, _config=KnotConfig(id="p"))
+    with t:
+        _LateRegistrar(x=p, target=t, log=log, _config=KnotConfig(id="r", concurrency_group="api"))
+
+    # Act / Assert
+    with pytest.raises(UndefinedConcurrencyGroupError) as caught:
+        await _run(t, ConcurrencyLimits(groups={"api": 1}), extensible=True)
+    assert caught.value.knot_id == "late"
+    assert "start:late" not in log
+
+
+class _LateRegistrar(Knot):
+    """Registers a ``late`` knot in the undefined group ``apx`` mid-run."""
+
+    def __init__(self, *, target: Tapestry, log: list[str], **kwargs: Any) -> None:
+        self._target = target
+        self._log = log
+        super().__init__(**kwargs)
+
+    async def process(self, **_inputs: Any) -> str:
+        with self._target:
+            _Waiter(
+                x=self,
+                log=self._log,
+                events={},
+                _config=KnotConfig(id="late", concurrency_group="apx"),
+            )
+        return self.knot_id
+
+
+async def test_group_tags_are_ignored_when_the_limits_define_no_groups() -> None:
+    # Arrange: the same tagged tapestry runs under a global cap alone.
     gauge = _Gauge(hold_global=5)
     t = _siblings(gauge, 20, group="unlisted")
 
     # Act
-    result = await _run(t, ConcurrencyLimits(max_in_flight=5, groups={"api": 1}))
+    result = await _run(t, ConcurrencyLimits(max_in_flight=5))
 
     # Assert
     assert result.succeeded
     assert gauge.peak == 5
+
+
+async def test_a_limited_group_no_knot_uses_warns_at_run_start() -> None:
+    # Arrange
+    gauge = _Gauge()
+    t = _siblings(gauge, 3, group="openai")
+
+    # Act
+    with pytest.warns(UnusedConcurrencyGroupWarning, match="open-ai"):
+        result = await _run(t, ConcurrencyLimits(groups={"openai": 2, "open-ai": 1}))
+
+    # Assert
+    assert result.succeeded
+
+
+async def test_limits_whose_groups_are_all_used_do_not_warn() -> None:
+    # Arrange
+    gauge = _Gauge()
+    t = _siblings(gauge, 3, group="openai")
+
+    # Act / Assert
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UnusedConcurrencyGroupWarning)
+        result = await _run(t, ConcurrencyLimits(groups={"openai": 2}))
+    assert result.succeeded
 
 
 # ---------------------------------------------------- fairness and starvation
@@ -876,11 +963,11 @@ def _fingerprint(result: RunResult) -> dict[str, Any]:
     [
         ConcurrencyLimits(max_in_flight=1),
         ConcurrencyLimits(max_in_flight=3),
-        ConcurrencyLimits(groups={"api": 1}),
+        ConcurrencyLimits(groups={"api": 1, "db": 100}),
         ConcurrencyLimits(groups={"api": 1, "db": 1}),
         ConcurrencyLimits(max_in_flight=2, groups={"api": 1, "db": 2}),
     ],
-    ids=["global1", "global3", "api1", "api1_db1", "global2_api1_db2"],
+    ids=["global1", "global3", "api1_db100", "api1_db1", "global2_api1_db2"],
 )
 async def test_limits_do_not_change_record_order_or_hashes(limits: ConcurrencyLimits) -> None:
     # Arrange

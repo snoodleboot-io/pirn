@@ -26,10 +26,23 @@ class AdmissionGate:
 
     A gate must refuse only for reasons shared by the knot's whole group --
     its group's budget or the run's -- because the queue passes over the
-    rest of a refused head's group.
+    rest of a refused head's group.  With run-wide capacity available
+    (``has_capacity``), a refusal means the group is full: the queue parks
+    that group and offers it again only once a slot of the group is released
+    (the engine tells the queue, using ``AdmissionTicket.group``).
 
     Implementations inherit and override every method.
     """
+
+    def has_capacity(self) -> bool:
+        """Whether the run-wide budget could admit any knot at all.
+
+        The ready queue asks this before offering anything, so a full run
+        costs one call per admission attempt rather than one refusal per
+        queued group.  ``True`` does not promise ``try_admit`` succeeds: the
+        knot's own group may still be full.
+        """
+        raise NotImplementedError(f"{type(self).__name__} must implement has_capacity()")
 
     def try_admit(self, knot: Knot) -> AdmissionTicket | None:
         """Admit *knot* if capacity allows.

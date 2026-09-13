@@ -6,6 +6,9 @@ import asyncio
 import unittest
 
 from pirn.core.concurrency.concurrency_limits import ConcurrencyLimits
+from pirn.core.concurrency.undefined_concurrency_group_error import (
+    UndefinedConcurrencyGroupError,
+)
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.engine.admission.admission_gate import AdmissionGate
@@ -118,17 +121,60 @@ class TestLimitedAdmissionGateGroupCap(unittest.TestCase):
         self.assertEqual(second, AdmissionTicket(knot_id="b", group="api"))
         self.assertEqual(gate.in_flight_in("api"), 1)
 
-    def test_a_group_the_limits_do_not_name_is_bounded_only_globally(self) -> None:
-        # Arrange: design §11 Q5 -- an undefined group is not an error.
-        gate = LimitedAdmissionGate(ConcurrencyLimits(max_in_flight=3, groups={"api": 1}))
+    def test_a_group_the_limits_do_not_define_raises(self) -> None:
+        # Arrange: a typo ("open_ai" for "openai") must not silently lift a cap.
+        gate = LimitedAdmissionGate(ConcurrencyLimits(max_in_flight=3, groups={"openai": 1}))
+
+        # Act / Assert
+        with self.assertRaises(UndefinedConcurrencyGroupError) as caught:
+            gate.try_admit(_knot("llm0", "open_ai"))
+        message = str(caught.exception)
+        self.assertIn("llm0", message)
+        self.assertIn("open_ai", message)
+        self.assertIn("openai", message)
+        self.assertEqual(caught.exception.knot_id, "llm0")
+        self.assertEqual(caught.exception.group, "open_ai")
+        self.assertEqual(caught.exception.defined_groups, ("openai",))
+        self.assertEqual(gate.in_flight, 0)
+
+    def test_group_tags_are_ignored_when_the_limits_define_no_groups(self) -> None:
+        # Arrange: the same tagged graph may run under a global cap alone.
+        gate = LimitedAdmissionGate(ConcurrencyLimits(max_in_flight=3))
 
         # Act
-        tickets = _admit_all(gate, *(_knot(f"u{i}", "unlisted") for i in range(4)))
+        tickets = _admit_all(gate, *(_knot(f"u{i}", "anything") for i in range(4)))
 
         # Assert
         self.assertEqual([t is not None for t in tickets], [True, True, True, False])
         self.assertEqual(tickets[0], AdmissionTicket(knot_id="u0"))
-        self.assertEqual(gate.in_flight_in("unlisted"), 0)
+
+    def test_undefined_group_error_is_a_pirn_error(self) -> None:
+        self.assertTrue(issubclass(UndefinedConcurrencyGroupError, PirnError))
+
+
+class TestLimitedAdmissionGateCapacity(unittest.TestCase):
+    def test_has_capacity_until_the_global_cap_is_full(self) -> None:
+        # Arrange
+        gate = LimitedAdmissionGate(ConcurrencyLimits(max_in_flight=1))
+
+        # Act
+        before = gate.has_capacity()
+        ticket = gate.try_admit(_knot("a"))
+
+        # Assert
+        assert ticket is not None
+        self.assertTrue(before)
+        self.assertFalse(gate.has_capacity())
+        gate.release(ticket)
+        self.assertTrue(gate.has_capacity())
+
+    def test_a_group_only_gate_always_has_global_capacity(self) -> None:
+        # Arrange
+        gate = LimitedAdmissionGate(ConcurrencyLimits(groups={"api": 1}))
+        gate.try_admit(_knot("a", "api"))
+
+        # Act / Assert
+        self.assertTrue(gate.has_capacity())
 
 
 class TestLimitedAdmissionGateBothCaps(unittest.TestCase):

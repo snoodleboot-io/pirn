@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.concurrency.concurrency_limits import ConcurrencyLimits
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.engine.admission.admission_gate import AdmissionGate
 from pirn.engine.admission.admission_ticket import AdmissionTicket
+from pirn.engine.admission.limited_admission_gate import LimitedAdmissionGate
 from pirn.engine.admission.unbounded_admission_gate import UnboundedAdmissionGate
 from pirn.engine.scheduling.ready_queue import ReadyQueue
 from pirn.engine.shed.shed import Shed
@@ -17,10 +19,14 @@ from pirn.engine.shed.shed import Shed
 class _RefuseIds(AdmissionGate):
     """Test double: refuses the named knots, admits the rest."""
 
-    def __init__(self, refused: set[str]) -> None:
+    def __init__(self, refused: set[str], *, full: bool = False) -> None:
         self.refused = refused
+        self.full = full
         self.offered: list[str] = []
         self.offered_knots: list[Knot] = []
+
+    def has_capacity(self) -> bool:
+        return not self.full
 
     def try_admit(self, knot: Knot) -> AdmissionTicket | None:
         self.offered.append(knot.knot_id)
@@ -28,6 +34,33 @@ class _RefuseIds(AdmissionGate):
         if knot.knot_id in self.refused:
             return None
         return AdmissionTicket(knot_id=knot.knot_id)
+
+
+class _CountingGate(LimitedAdmissionGate):
+    """A real limited gate that counts how many knots it was offered."""
+
+    def __init__(self, limits: ConcurrencyLimits) -> None:
+        super().__init__(limits)
+        self.offers = 0
+
+    def try_admit(self, knot: Knot) -> AdmissionTicket | None:
+        self.offers += 1
+        return super().try_admit(knot)
+
+
+def _grouped_shed(groups: int, per_group: int) -> tuple[Shed, list[tuple[int, str, str | None]]]:
+    knots: list[Knot] = []
+    entries: list[tuple[int, str, str | None]] = []
+    for g in range(groups):
+        for j in range(per_group):
+            kid = f"g{g}_{j}"
+            knots.append(
+                Parameter(
+                    "x", int, default=1, _config=KnotConfig(id=kid, concurrency_group=f"g{g}")
+                )
+            )
+            entries.append((len(entries), kid, f"g{g}"))
+    return Shed.from_terminals(knots), entries
 
 
 def _shed(*knot_ids: str) -> Shed:
@@ -131,6 +164,7 @@ class TestReadyQueueRefusal(unittest.TestCase):
         gate = _RefuseIds({"a"})
         queue.pop_admissible(gate, shed)
         gate.refused.clear()
+        queue.unpark_all()
 
         # Act
         popped = _drain(queue, gate, shed)
@@ -185,6 +219,7 @@ class TestReadyQueueGroups(unittest.TestCase):
         # Act
         refused = queue.pop_admissible(gate, shed)
         gate.refused.clear()
+        queue.unpark("api")
         popped = _drain(queue, gate, shed)
 
         # Assert: a1 never overtook the refused a0.
@@ -249,3 +284,103 @@ class TestReadyQueueGroups(unittest.TestCase):
         self.assertEqual(popped, ["b"])
         self.assertEqual(gate.offered, ["b"])
         self.assertFalse(queue)
+
+
+class TestReadyQueueScaling(unittest.TestCase):
+    """Admission cost must not grow with the number of groups (PIR-841 review).
+
+    Offers are counted rather than timed: a queue that rescans every group
+    head on each admission offers O(groups) knots per admission.
+    """
+
+    def test_a_full_run_offers_nothing(self) -> None:
+        # Arrange
+        queue = ReadyQueue()
+        shed, entries = _grouped_shed(50, 2)
+        queue.push_batch(entries)
+        gate = _RefuseIds(set(), full=True)
+
+        # Act
+        admitted = queue.pop_admissible(gate, shed)
+
+        # Assert
+        self.assertIsNone(admitted)
+        self.assertEqual(gate.offered, [])
+
+    def test_saturated_groups_are_offered_once_until_unparked(self) -> None:
+        # Arrange: 1000 groups of 2, each capped at 1.
+        groups = 1000
+        queue = ReadyQueue()
+        shed, entries = _grouped_shed(groups, 2)
+        queue.push_batch(entries)
+        gate = _CountingGate(ConcurrencyLimits(groups={f"g{g}": 1 for g in range(groups)}))
+
+        # Act: admit everything the caps allow.
+        first = _drain(queue, gate, shed)
+
+        # Assert: one admission per group, and each group's refused second
+        # knot offered at most once -- not once per admission.
+        self.assertEqual(len(first), groups)
+        self.assertLessEqual(gate.offers, 2 * groups)
+        refused_offers = gate.offers
+
+        # Act: nothing changed, so asking again offers nothing.
+        again = queue.pop_admissible(gate, shed)
+
+        # Assert
+        self.assertIsNone(again)
+        self.assertEqual(gate.offers, refused_offers)
+
+    def test_releasing_a_group_slot_re_offers_only_that_group(self) -> None:
+        # Arrange
+        groups = 1000
+        queue = ReadyQueue()
+        shed, entries = _grouped_shed(groups, 2)
+        queue.push_batch(entries)
+        gate = _CountingGate(ConcurrencyLimits(groups={f"g{g}": 1 for g in range(groups)}))
+        tickets = {}
+        while (admitted := queue.pop_admissible(gate, shed)) is not None:
+            tickets[admitted[0]] = admitted[1]
+        before = gate.offers
+
+        # Act
+        gate.release(tickets["g500_0"])
+        queue.unpark("g500")
+        admitted = queue.pop_admissible(gate, shed)
+
+        # Assert
+        assert admitted is not None
+        self.assertEqual(admitted[0], "g500_1")
+        self.assertEqual(gate.offers - before, 1)
+
+    def test_a_push_to_a_parked_group_is_not_offered_until_unparked(self) -> None:
+        # Arrange
+        queue = ReadyQueue()
+        shed = _shed("a0", "a1", "a2")
+        queue.push_batch([(0, "a0", "api")])
+        gate = _RefuseIds({"a0"})
+        queue.pop_admissible(gate, shed)
+
+        # Act
+        queue.push_batch([(1, "a1", "api")])
+        gate.refused.clear()
+        parked = queue.pop_admissible(gate, shed)
+        queue.unpark("api")
+        popped = _drain(queue, gate, shed)
+
+        # Assert
+        self.assertIsNone(parked)
+        self.assertEqual(popped, ["a0", "a1"])
+
+    def test_unbounded_admission_across_many_groups_keeps_readiness_order(self) -> None:
+        # Arrange: interleave 500 groups; readiness order must survive.
+        queue = ReadyQueue()
+        shed, entries = _grouped_shed(500, 2)
+        for entry in reversed(entries):
+            queue.push_batch([entry])
+
+        # Act
+        popped = _drain(queue, UnboundedAdmissionGate(), shed)
+
+        # Assert: pushed last-first as separate batches, so they come out so.
+        self.assertEqual(popped, [kid for _, kid, _ in reversed(entries)])

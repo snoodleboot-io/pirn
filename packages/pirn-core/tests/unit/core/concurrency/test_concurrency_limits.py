@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import copy
+import pickle
 import unittest
 
 from pydantic import ValidationError
 
 from pirn.core.concurrency.concurrency_limits import ConcurrencyLimits
+from pirn.core.run_request import RunRequest
 
 
 class TestConcurrencyLimitsDefaults(unittest.TestCase):
@@ -137,6 +140,62 @@ class TestConcurrencyLimitsSerialization(unittest.TestCase):
         # Assert
         self.assertEqual(restored.max_in_flight, 8)
         self.assertEqual(dict(restored.groups), {"api": 4})
+
+    def test_pickles(self) -> None:
+        # Arrange: RunRequest pickles (queue triggers, process dispatchers), so
+        # limits carried on it must too -- including the empty default.
+        for limits in (ConcurrencyLimits(), ConcurrencyLimits(max_in_flight=8, groups={"api": 4})):
+            with self.subTest(limits=limits):
+                # Act
+                restored = pickle.loads(pickle.dumps(limits))
+
+                # Assert
+                self.assertEqual(restored, limits)
+                self.assertEqual(dict(restored.groups), dict(limits.groups))
+
+    def test_deep_copies(self) -> None:
+        # Arrange
+        limits = ConcurrencyLimits(max_in_flight=2, groups={"api": 1})
+
+        # Act
+        copied = copy.deepcopy(limits)
+
+        # Assert
+        self.assertEqual(copied, limits)
+
+    def test_model_copy_deep_round_trips(self) -> None:
+        # Arrange
+        limits = ConcurrencyLimits(groups={"api": 3})
+
+        # Act
+        copied = limits.model_copy(deep=True)
+
+        # Assert
+        self.assertEqual(copied.group_limit("api"), 3)
+        self.assertEqual(copied, limits)
+
+    def test_a_run_request_carrying_limits_pickles_and_deep_copies(self) -> None:
+        # Arrange
+        request = RunRequest(concurrency=ConcurrencyLimits(max_in_flight=4, groups={"api": 2}))
+
+        # Act
+        pickled = pickle.loads(pickle.dumps(request))
+        deep = copy.deepcopy(request)
+        model_deep = request.model_copy(deep=True)
+
+        # Assert
+        for restored in (pickled, deep, model_deep):
+            self.assertEqual(restored.concurrency, request.concurrency)
+        self.assertEqual(pickle.loads(pickle.dumps(RunRequest())).concurrency, None)
+
+    def test_groups_are_hashable_and_read_only_after_a_round_trip(self) -> None:
+        # Arrange
+        restored = pickle.loads(pickle.dumps(ConcurrencyLimits(groups={"api": 2})))
+
+        # Act / Assert
+        with self.assertRaises(TypeError):
+            restored.groups["api"] = 9  # type: ignore[index]
+        self.assertEqual(hash(restored.groups), hash(ConcurrencyLimits(groups={"api": 2}).groups))
 
     def test_equal_limits_compare_equal(self) -> None:
         self.assertEqual(

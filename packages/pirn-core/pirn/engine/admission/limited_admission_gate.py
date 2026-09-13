@@ -6,6 +6,9 @@ import asyncio
 from collections import Counter
 from typing import TYPE_CHECKING
 
+from pirn.core.concurrency.undefined_concurrency_group_error import (
+    UndefinedConcurrencyGroupError,
+)
 from pirn.engine.admission.admission_gate import AdmissionGate
 from pirn.engine.admission.admission_release_error import AdmissionReleaseError
 from pirn.engine.admission.admission_ticket import AdmissionTicket
@@ -64,6 +67,14 @@ class LimitedAdmissionGate(AdmissionGate):
         """How many admitted knots have not been released."""
         return self._in_flight
 
+    def has_capacity(self) -> bool:
+        """Whether the run-wide budget has a free slot.
+
+        ``False`` only when ``max_in_flight`` is set and reached; a full group
+        does not count, because knots of other groups could still start.
+        """
+        return self._max_in_flight is None or self._in_flight < self._max_in_flight
+
     def in_flight_in(self, group: str) -> int:
         """How many admitted knots hold a slot of *group*.
 
@@ -82,11 +93,18 @@ class LimitedAdmissionGate(AdmissionGate):
         Returns:
             A ticket recording the slots taken, or ``None`` -- holding
             nothing -- if either budget is full.
+
+        Raises:
+            UndefinedConcurrencyGroupError: If the limits define groups and
+                *knot*'s group is not one of them.  Tags are ignored when the
+                limits define no groups.
         """
-        if self._max_in_flight is not None and self._in_flight >= self._max_in_flight:
-            return None
         group = knot.config.concurrency_group
         group_limit = self._limits.group_limit(group)
+        if group is not None and group_limit is None and self._limits.groups:
+            raise UndefinedConcurrencyGroupError(knot.knot_id, group, self._limits.groups)
+        if self._max_in_flight is not None and self._in_flight >= self._max_in_flight:
+            return None
         held_group: str | None = None
         if group is not None and group_limit is not None:
             if self._group_in_flight[group] >= group_limit:
