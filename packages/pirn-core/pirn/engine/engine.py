@@ -112,9 +112,26 @@ class Engine:
         concurrency: ConcurrencyLimits | None = None,
         nesting: RunNesting | None = None,
         admission_observers: list[AdmissionObserver] | None = None,
+        gate: AdmissionGate | None = None,
+        limits_inherited: bool = False,
     ) -> RunResult:
+        """Run the shed rooted at *terminals* and return its ``RunResult``.
+
+        ``gate`` is the admission gate this run is metered by.  ``Tapestry.run``
+        passes the one it resolved -- built from *concurrency* for a run with
+        limits of its own, or the enclosing run's very instance for an inner
+        run that declared none (ADR agents-speaks-core, WS0b) -- and sets
+        ``limits_inherited`` in the second case so the group check below can
+        tell an inherited group nobody here uses from a misnamed one.  When
+        ``gate`` is ``None`` the engine builds one from *concurrency*.
+        """
         shed = Shed.from_terminals(terminals)
-        self._check_groups(shed, concurrency, extensible=extensible_store is not None)
+        self._check_groups(
+            shed,
+            concurrency,
+            extensible=extensible_store is not None,
+            inherited=limits_inherited,
+        )
 
         ctx = RunContext(
             run_id=request.run_id,
@@ -173,7 +190,7 @@ class Engine:
                 transport=active_transport,
                 replay=replay,
                 registrars=registrars,
-                gate=self._gate_for(concurrency),
+                gate=gate if gate is not None else self.gate_for(concurrency),
                 admission_observers=admission_observers,
             )
         finally:
@@ -281,11 +298,13 @@ class Engine:
                 # gives its ticket straight back and may release children into
                 # this same pass.
                 #
-                # TODO(PIR-841 slice 3): container knots (SubTapestry,
-                # LoopSubTapestry) are admitted here like leaves and hold their
-                # slot for their inner run's whole life, so an open-ended loop
-                # can starve siblings under a small cap.  Design §5.4.2 makes
-                # them slot-free once limits are forwarded into inner runs.
+                # Container knots (SubTapestry, LoopSubTapestry, a loop
+                # iteration) are slot-free: the queue admits them without the
+                # gate and their ticket is never released to it.  Their inner
+                # runs share this very gate (ADR agents-speaks-core, WS0b), so
+                # every slot holder is a leaf that is actually running and an
+                # open-ended loop under a small cap cannot starve its siblings
+                # by sitting on a slot while it waits for its own leaves.
                 while (admitted := ready.pop_admissible(gate, shed)) is not None:
                     kid, unplaced = admitted
                     knot = shed.knot(kid)
@@ -306,8 +325,13 @@ class Engine:
                             ctx.status.transition(kid, KnotState.FAILED, "missing parent")
                             feedback.released(unplaced, "err", ready.waiting_in(unplaced.group))
                         unplaced = None
-                        LineageRecorder.record_lineage(
+                        row = LineageRecorder.record_lineage(
                             ctx, knot, results, decision, started=ctx.started_at
+                        )
+                        # The knot settled without running; stream its outcome
+                        # now, like any other (WS0b).
+                        await EmitterFanout.emit_knot_result(
+                            emitters, emitter_error_policy, kid, decision, row
                         )
                         self._enqueue(ready, tracker, shed, tracker.resolve(kid), feedback)
                         continue
@@ -347,9 +371,16 @@ class Engine:
                 # Each task reports itself on ``completions`` when it finishes,
                 # so waking costs O(1) per completion.  ``asyncio.wait`` would
                 # re-attach a callback to every in-flight task on each wake.
-                done = [await completions.get()]
-                while not completions.empty():
-                    done.append(completions.get_nowait())
+                # While ready knots sit refused behind a full gate, also wake
+                # on a release: the gate is shared with the enclosing and
+                # sibling runs (WS0b), so the slot they need may be freed by
+                # a completion this run never sees.
+                done = await self._next_completions(completions, gate, waiting=bool(ready))
+                if not done:
+                    # Woken by a release, possibly of another run's group
+                    # slot: nothing here knows which, so re-offer them all.
+                    ready.unpark_all()
+                    continue
                 # Several tasks can finish in one tick; process them in
                 # topological order so the run's side effects are reproducible.
                 for task in sorted(done, key=lambda t: tracker.topo_index(running[t][0].knot_id)):
@@ -390,7 +421,7 @@ class Engine:
                     else:
                         ctx.status.transition(kid, KnotState.FAILED)
 
-                    LineageRecorder.record_lineage(
+                    row = LineageRecorder.record_lineage(
                         ctx,
                         knot,
                         results,
@@ -399,6 +430,12 @@ class Engine:
                         started=started_at,
                         finished=finished_at,
                         replayed_from=replay.source_run_id if replayed and replay else None,
+                    )
+                    # Stream the settled outcome to the emitters now, before
+                    # any child is released: a consumer of a fan-out sees each
+                    # item as it finishes rather than after the join (WS0b).
+                    await EmitterFanout.emit_knot_result(
+                        emitters, emitter_error_policy, kid, result, row
                     )
                     self._enqueue(ready, tracker, shed, tracker.resolve(kid), feedback)
                     if pending_new:
@@ -424,25 +461,27 @@ class Engine:
             # never blocks on it, but the thread itself is not stopped.
             #
             # Every slot still held comes back to the gate, so nothing waiting
-            # on it -- a nested run sharing the budget, once PIR-841 slice 3
-            # lands -- is left parked behind an aborted run.
+            # on it -- a nested run sharing the budget (ADR agents-speaks-core,
+            # WS0b) -- is left parked behind an aborted run.
             try:
                 for task in running:
                     task.cancel()
                 await asyncio.gather(*running, return_exceptions=True)
             finally:
-                # TODO(PIR-841 slice 3): a knot on a worker thread
-                # (ThreadDispatcher, sync @knot) is still running when its
-                # cancelled task completes, yet its slot is released here.
-                # Harmless while every gate is per run, since the run is over;
-                # a gate shared across runs (slice 3 chaining) would admit a
-                # new knot beside that still-running thread and over-admit.
+                # Known limitation: a knot on a worker thread (ThreadDispatcher,
+                # sync @knot) is still running when its cancelled task
+                # completes, yet its slot is released here.  Harmless for a
+                # root run, since the run is over; a gate shared with an
+                # enclosing run that carries on may briefly admit one knot
+                # beside that still-running thread.
                 for _, held in running.values():
-                    gate.release(held)
+                    if held.held:
+                        gate.release(held)
                     feedback.released(held, "aborted", 0)
                 running.clear()
                 if unplaced is not None:
-                    gate.release(unplaced)
+                    if unplaced.held:
+                        gate.release(unplaced)
                     feedback.released(unplaced, "aborted", 0)
             raise
 
@@ -493,12 +532,63 @@ class Engine:
     # ------------------------------------------------------------- helpers
 
     @staticmethod
-    def _gate_for(limits: ConcurrencyLimits | None) -> AdmissionGate:
+    async def _next_completions(
+        completions: asyncio.Queue[asyncio.Task[Any]],
+        gate: AdmissionGate,
+        *,
+        waiting: bool,
+    ) -> list[asyncio.Task[Any]]:
+        """Wait for the next completed task(s), or for a gate release.
+
+        With nothing refused (``waiting`` is ``False``) this is exactly the
+        original wait on the completion queue.  With ready knots refused
+        behind the gate it also returns -- empty -- when the gate reports a
+        release, so a run sharing its gate with an enclosing or sibling run
+        (WS0b) re-offers its queue when *their* completion frees the slot.
+        Without this an inner run with one leaf in flight and one refused
+        waited on its own completion alone, while the sibling that could
+        have freed the slot waited on it in turn.
+
+        Args:
+            completions: The run's completion queue.
+            gate: The run's (possibly shared) admission gate.
+            waiting: Whether ready knots are queued refused.
+
+        Returns:
+            Every task that has completed by the time one does, or ``[]``
+            when woken by a release instead.
+        """
+        if not waiting:
+            first = await completions.get()
+        else:
+            getter = asyncio.ensure_future(completions.get())
+            release = asyncio.ensure_future(gate.wait_for_release())
+            try:
+                await asyncio.wait({getter, release}, return_when=asyncio.FIRST_COMPLETED)
+            finally:
+                # A cancelled ``Queue.get`` leaves the queue untouched and
+                # re-notifies other getters; a cancelled waiter is skipped by
+                # the gate's ``_resolve_waiter``.
+                for pending in (getter, release):
+                    if not pending.done():
+                        pending.cancel()
+            if not getter.done() or getter.cancelled():
+                await asyncio.gather(getter, return_exceptions=True)
+                return []
+            first = getter.result()
+        done = [first]
+        while not completions.empty():
+            done.append(completions.get_nowait())
+        return done
+
+    @staticmethod
+    def gate_for(limits: ConcurrencyLimits | None) -> AdmissionGate:
         """Return the admission gate that enforces *limits* for one run.
 
         No limits, or limits that constrain nothing, get the lock-free
         ``UnboundedAdmissionGate``, so an unlimited run pays nothing for the
-        feature.
+        feature.  ``Tapestry.run`` builds a run's gate here before publishing
+        it on the run's ``ExecutionPlane`` for inner runs to share.
         """
         if limits is None or limits.is_unbounded:
             return UnboundedAdmissionGate()
@@ -518,15 +608,24 @@ class Engine:
         """Return *ticket*'s slots and re-offer whatever they could now admit.
 
         A freed slot can admit a knot of the ticket's own group, which the
-        queue parked when it was full, and any ungrouped knot.
+        queue parked when it was full, and any ungrouped knot.  A slot-free
+        ticket (a container knot's) holds nothing the gate could take back,
+        but its completion may still have released children, so the queue is
+        re-offered either way.
         """
-        gate.release(ticket)
+        if ticket.held:
+            gate.release(ticket)
         ready.unpark(None)
         if ticket.group is not None:
             ready.unpark(ticket.group)
 
     @staticmethod
-    def _check_groups(shed: Shed, limits: ConcurrencyLimits | None, extensible: bool) -> None:
+    def _check_groups(
+        shed: Shed,
+        limits: ConcurrencyLimits | None,
+        extensible: bool,
+        inherited: bool = False,
+    ) -> None:
         """Fail fast on a knot in an undefined group; warn on an unused group.
 
         Only when *limits* define groups: without groups, tags are ignored so
@@ -535,8 +634,13 @@ class Engine:
         registered mid-run is checked by the gate when it is admitted.
 
         A defined group no static knot is in warns only when the run cannot
-        receive mid-run knots.  An extensible run's newcomers may be exactly
-        the knots that group is for, so there it is only debug-logged.
+        receive knots it has not seen: an extensible run's newcomers, or the
+        inner leaves of a container knot (``SubTapestry``, ``LoopSubTapestry``)
+        in the graph, may be exactly the knots that group is for -- inner runs
+        share this run's gate (WS0b) -- so there it is only debug-logged.
+        Limits an inner run *inherited* from the enclosing run are never
+        warned about either: they were declared for the whole run tree, and
+        the knots of a group may well all live in a sibling run.
 
         Raises:
             UndefinedConcurrencyGroupError: For the first knot, in id order,
@@ -545,20 +649,24 @@ class Engine:
         if limits is None or not limits.groups:
             return
         used: set[str] = set()
+        has_container = False
         for knot_id in sorted(shed.knots):
-            group = shed.knots[knot_id].config.concurrency_group
+            knot = shed.knots[knot_id]
+            if not type(knot)._holds_admission_slot:
+                has_container = True
+            group = knot.config.concurrency_group
             if group is None:
                 continue
             if group not in limits.groups:
                 raise UndefinedConcurrencyGroupError(knot_id, group, limits.groups)
             used.add(group)
         unused = sorted(set(limits.groups) - used)
-        if not unused:
+        if not unused or inherited:
             return
-        if extensible:
+        if extensible or has_container:
             _log.debug(
                 "ConcurrencyLimits groups %s match no knot of the static graph; "
-                "mid-run knots may still join them",
+                "mid-run knots or the inner runs of a container may still join them",
                 unused,
             )
             return

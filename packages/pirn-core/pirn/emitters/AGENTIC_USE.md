@@ -4,7 +4,9 @@
 
 ## Mental model
 
-An emitter is an async observer. The engine calls its three hooks — `on_status`, `on_lineage`, `on_run_result` — at defined points during every run. Emitters are passed to `Tapestry(emitters=[...])` and may be composed freely; all registered emitters fire for every event. Exceptions raised inside any emitter hook are caught and isolated — the run continues regardless.
+An emitter is an async observer. The engine calls its four hooks — `on_status`, `on_knot_result`, `on_lineage`, `on_run_result` — at defined points during every run. Emitters are passed to `Tapestry(emitters=[...])` and may be composed freely; all registered emitters fire for every event. Exceptions raised inside any emitter hook are caught and isolated under the tapestry's `emitter_error_policy` (`WARN` by default) — the run continues regardless unless the policy is `RAISE`.
+
+`on_knot_result(knot_id, result, lineage)` (ADR agents-speaks-core, WS0b) is the live per-knot stream: awaited the moment a knot settles, inside the engine loop and before the knot's children start, with the full `Ok` / `Err` / `Skipped` and its lineage row. `on_lineage` sees the same row later, after the run is persisted and in the run's reported order. Use `on_knot_result` to stream each item of a fan-out out as it finishes; keep it to a hand-off (a queue put), since it is awaited in place.
 
 ---
 
@@ -76,7 +78,7 @@ All hooks are `async` but they run on the same event loop as the pipeline. A hoo
 
 ### Expecting emitter ordering to match knot execution order
 
-`on_status` and `on_lineage` are fired as knots complete. Because knots run concurrently, events from different knots may arrive interleaved. Do not assume that lineage records arrive in topological order.
+`on_status` and `on_knot_result` are fired as knots run and settle; `on_lineage` and `on_run_result` are fired once the run has been persisted. Because knots run concurrently, `on_status` and `on_knot_result` events from different knots arrive interleaved in completion order; `on_lineage` records arrive in the run's reported (graph) order. Do not assume that the live streams arrive in topological order.
 
 ---
 
@@ -100,7 +102,7 @@ All hooks are `async` but they run on the same event loop as the pipeline. A hoo
 | Publish to Kafka | `Tapestry(emitters=[KafkaEmitter(topic=..., producer=...)])` |
 | POST to webhook | `Tapestry(emitters=[WebhookEmitter(url=...)])` |
 | Publish to Valkey | `Tapestry(emitters=[ValKeyEmitter(channel=..., client=...)])` |
-| Custom emitter | subclass `Emitter`; override `on_status`, `on_lineage`, or `on_run_result` |
+| Custom emitter | subclass `Emitter`; override `on_status`, `on_knot_result`, `on_lineage`, or `on_run_result` |
 | Compose emitters | `Tapestry(emitters=[emitter_a, emitter_b, ...])` |
 
 ---

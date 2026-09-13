@@ -23,8 +23,12 @@ a core :class:`~pirn.nodes.aggregator.Aggregator`:
   is ``item:<batch_id>:<key>``, stable across runs, so a re-run with the same
   ``history=`` skips any item whose id already has an ``Ok`` lineage row. No
   checkpoint store is written or read.
-* **Dispatcher choice** (Local/Thread/Ray/Dask) and **adaptive admission
-  feedback** are the inner run's own ``dispatcher=``/``admission_observers=``.
+* **Dispatcher choice** (Local/Thread/Ray/Dask), the **group cap** and
+  **adaptive admission feedback** reach the inner run through core's own
+  per-container overrides — ``SubTapestry._inner_dispatcher`` /
+  ``_inner_concurrency`` / ``_inner_admission_observers`` (ADR WS0b) — and an
+  unset dispatcher inherits the enclosing run's execution plane, like every
+  other ``SubTapestry``.
 
 Two ways to use it, matching the two things a ``Knot`` can be:
 
@@ -34,23 +38,23 @@ Two ways to use it, matching the two things a ``Knot`` can be:
    combined.
 2. **Standalone** — :meth:`run` is the one-cycle deprecation shim preserving
    the pre-migration ``async for result in map_agent.run(inputs)`` contract:
-   it builds a throwaway ``Tapestry``, runs the same item/aggregator graph to
-   completion, and yields each ``BatchItemResult``.
+   it builds a throwaway ``Tapestry``, runs the same item/aggregator graph,
+   and yields each ``BatchItemResult`` **the instant its item settles**,
+   before the join completes — an
+   :class:`~pirn_agents.batch._batch_item_streamer._BatchItemStreamer`
+   emitter turns core's ``Emitter.on_knot_result`` (ADR WS0b) into the
+   stream, so the ``Err``'s full ``ExceptionRecord``, the attempt count and
+   the latency ride along from the lineage row.
 
-   Trade-off, disclosed: the pre-migration :meth:`run` streamed each result
-   the instant it settled and pulled the input iterable lazily, so a batch
-   never had to be resident in memory at once. An ``Aggregator`` only
-   produces its combined value once *every* parent has settled, so this
-   :meth:`run` now yields its whole batch at the end of one engine run
-   instead of incrementally, and materialises ``inputs`` up front. A future
-   workstream restoring incremental streaming needs either a per-item
-   ``Emitter`` that also resolves each ``Err``'s full ``ExceptionRecord``
-   mid-run (today only available from the final ``RunResult.exceptions``) or
-   a ``LoopSubTapestry``-based redesign; see the ADR proposal's WS4 note.
+   Trade-off, disclosed: ``inputs`` is still materialised up front — the
+   resume lookup and the item graph need every key before the run starts —
+   so the pre-migration lazy pull of the input iterable does not apply.
 """
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterable
 from typing import TYPE_CHECKING, Any
 
@@ -63,8 +67,9 @@ from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry, current_tapestry
+from pirn.tapestry import Tapestry
 
+from pirn_agents.batch._batch_item_streamer import _BatchItemStreamer
 from pirn_agents.batch._map_item import _MapItem
 from pirn_agents.batch.adaptive_concurrency_controller import AdaptiveConcurrencyController
 from pirn_agents.batch.batch_item_result import BatchItemResult
@@ -200,11 +205,12 @@ class MapAgent(SubTapestry):
         self._mutable_admission_observers = list(admission_observers or [])
         self._mutable_history = history
         self._mutable_data_store = data_store
+        self._mutable_live_items = 0
 
     # ------------------------------------------------ engine-invoked path
 
     async def process(self, items: Any = None, **_: Any) -> Knot:
-        """Build the per-item + aggregator graph and apply this run's admission settings.
+        """Build the per-item + aggregator graph for this run.
 
         Args:
             items: The resolved dataset — whatever the constructor's
@@ -215,7 +221,6 @@ class MapAgent(SubTapestry):
             The ``Aggregator`` (or, when every item already resumed, a tiny
             pass-through sink) whose output is ``list[BatchItemResult]``.
         """
-        inner = current_tapestry()
         item_list = list(items) if items is not None else []
         history = (
             self._mutable_history
@@ -223,37 +228,31 @@ class MapAgent(SubTapestry):
             else self._mutable_outer_history
         )
         resumed = await self._resume_lookup(item_list, self._mutable_batch_id, history)
-        if inner is not None:
-            self._apply_run_settings(inner, live_items=len(item_list) - len(resumed))
+        # Read by ``_inner_concurrency`` once the graph is built: a group cap
+        # with nothing left to run is left undeclared, since naming an unused
+        # group only warns (``UnusedConcurrencyGroupWarning``) but is needless
+        # noise for the common "everything already resumed" case.
+        self._mutable_live_items = len(item_list) - len(resumed)
         return self._build_graph(item_list, self._mutable_batch_id, resumed)
 
-    def _apply_run_settings(self, tapestry: Tapestry, *, live_items: int) -> None:
-        """Point *tapestry* at this batch's dispatcher, group cap, and observers.
+    # ------------------------------------ inner-run overrides (core seams)
 
-        ``SubTapestry`` forwards the enclosing run's history/data store/
-        emitters into its inner tapestry automatically (``_run_inner``), but
-        not its dispatcher or concurrency limits — those are set here,
-        directly on the inner tapestry this knot's ``process()`` is already
-        running inside, the same way ``SubTapestry`` itself reaches into a
-        tapestry's private fields to forward the value plane.
+    def _inner_dispatcher(self) -> Dispatcher | None:
+        """This batch's dispatcher; ``None`` inherits the enclosing run's (WS0b)."""
+        return self._mutable_dispatcher
 
-        Args:
-            tapestry: The inner tapestry to configure.
-            live_items: How many items will actually be dispatched (total
-                minus resumed). A concurrency group with nothing left to run
-                is left undeclared, since naming an unused group only warns
-                (``UnusedConcurrencyGroupWarning``) but is needless noise for
-                the common "everything already resumed" case.
-        """
-        if live_items > 0:
-            tapestry._concurrency = ConcurrencyLimits(
-                groups={self._mutable_concurrency_group: self._effective_group_limit()}
-            )
-        if self._mutable_dispatcher is not None:
-            tapestry._dispatcher = self._mutable_dispatcher
+    def _inner_concurrency(self) -> ConcurrencyLimits | None:
+        """The group cap the items are admitted under, or ``None`` when nothing runs."""
+        if self._mutable_live_items <= 0:
+            return None
+        return ConcurrencyLimits(
+            groups={self._mutable_concurrency_group: self._effective_group_limit()}
+        )
+
+    def _inner_admission_observers(self) -> list[AdmissionObserver] | None:
+        """The batch's observers (controller included); ``None`` when there are none."""
         observers = self._observers_for_run()
-        if observers:
-            tapestry._admission_observers = observers
+        return observers or None
 
     def _effective_group_limit(self) -> int:
         if self._mutable_controller is not None:
@@ -271,12 +270,17 @@ class MapAgent(SubTapestry):
     async def run(
         self, inputs: Iterable[object], *, checkpoint_scope: str | None = None
     ) -> AsyncIterator[BatchItemResult]:
-        """Run the agent over ``inputs`` to completion, yielding each item's result.
+        """Run the agent over ``inputs``, yielding each item's result as it settles.
 
         One-cycle deprecation shim preserving the pre-migration streaming
-        contract (see the module docstring for the disclosed streaming
-        trade-off). Builds a throwaway ``Tapestry``, runs the item/aggregator
-        graph once, and yields the combined ``list[BatchItemResult]``.
+        contract. Builds a throwaway ``Tapestry`` with a
+        :class:`~pirn_agents.batch._batch_item_streamer._BatchItemStreamer`
+        emitter attached, starts the item/aggregator graph as a task, and
+        yields a ``BatchItemResult`` the moment core's
+        ``Emitter.on_knot_result`` reports the item knot settled (ADR WS0b) —
+        resumed items first, then live items in completion order. Closing the
+        generator early (``break``, ``aclose``) or cancelling its consumer
+        cancels the run, and with it every in-flight item.
 
         Args:
             inputs: The dataset to map over. Materialised eagerly (a
@@ -306,29 +310,74 @@ class MapAgent(SubTapestry):
         )
         history = self._mutable_history
         resumed = await self._resume_lookup(items, batch_id, history)
+        for index in sorted(resumed):
+            yield resumed[index]
+
+        live: dict[str, tuple[int, str]] = {}
+        for index, item in enumerate(items):
+            if index not in resumed:
+                key = self._key_for(index, item)
+                live[MapAgent._item_knot_id(batch_id, key)] = (index, key)
+        queue: asyncio.Queue[BatchItemResult | None] = asyncio.Queue()
+        streamer = _BatchItemStreamer(items_by_knot_id=live, queue=queue)
         run_tapestry = Tapestry(
             history=history,
             data_store=self._mutable_data_store,
             dispatcher=self._mutable_dispatcher,
+            emitters=[streamer],
         )
-        live_items = len(items) - len(resumed)
         run_concurrency = (
             ConcurrencyLimits(
                 groups={self._mutable_concurrency_group: self._effective_group_limit()}
             )
-            if live_items > 0
+            if live
             else None
         )
         with run_tapestry:
-            sink = self._build_graph(items, batch_id, resumed)
-            run_result = await run_tapestry.run(
+            self._build_graph(items, batch_id, resumed)
+        # One task: the engine run itself, so the stream below can be drained
+        # while the engine schedules the items.  Every item is still admitted,
+        # dispatched, timed out and retried by the engine, not here.
+        run_task = asyncio.create_task(
+            run_tapestry.run(
                 RunRequest(concurrency=run_concurrency),
                 admission_observers=self._observers_for_run(),
             )
+        )
+        run_task.add_done_callback(MapAgent._signal_run_over(queue))
+        try:
+            while True:
+                settled = await queue.get()
+                if settled is None:
+                    break
+                yield settled
+        except BaseException:
+            # The consumer stopped (cancelled, or closed the generator): stop
+            # the run too, and wait for its in-flight items to wind down so
+            # nothing keeps running behind a consumer that has gone away.
+            run_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await run_task
+            await run_tapestry.close()
+            raise
+        # Surface a run-level failure (a refused group, a replay mismatch)
+        # rather than ending the stream quietly short.
+        await run_task
         await run_tapestry.close()
-        combined: list[BatchItemResult] = run_result.outputs[sink.knot_id]
-        for item_result in combined:
-            yield item_result
+
+    @staticmethod
+    def _signal_run_over(
+        queue: asyncio.Queue[BatchItemResult | None],
+    ) -> Callable[[asyncio.Future[Any]], None]:
+        """Build the done-callback that ends the stream once the run task finishes."""
+
+        # ``add_done_callback`` takes a one-argument callable and the queue
+        # can only reach it by closure; the same shape as ``_make_combine``.
+        # design-decision-override
+        def signal(_: asyncio.Future[Any]) -> None:
+            queue.put_nowait(None)
+
+        return signal
 
     # ------------------------------------------------------------- shared
 
