@@ -1,11 +1,16 @@
-"""An immutable, ordered registry of uniquely-named :class:`Tool`s.
+"""An immutable, ordered registry of uniquely-named tool capabilities.
 
-A :class:`Toolset` gathers the tools an agent may call into a single,
-order-preserving collection keyed by unique ``name``. It offers
-name lookup, membership, iteration, and a provider-neutral
+A :class:`Toolset` gathers the capabilities an agent may call into a single,
+order-preserving collection keyed by unique ``name``. Every entry is a
+:class:`~pirn_agents.tools.tool_factory.ToolFactory`; anything
+:meth:`ToolFactory.of` accepts — a ``Tool`` class, a ``@tool``/``@knot``
+factory, a configured knot, or (deprecated) an ``invoke``-shaped ``Tool``
+instance — is normalised on the way in, so ``Toolset([CalculatorTool,
+ReadFileTool.bind(root="/srv")])`` and ``toolset.get("read_file")`` speak one
+type.  It offers name lookup, membership, iteration, and a provider-neutral
 :meth:`schema` export that a downstream codec adapts per LLM provider.
 
-Like :class:`Tool`, a toolset is opaque to pydantic (see
+Like a factory, a toolset is opaque to pydantic (see
 :class:`pirn.core.pirn_opaque_value.PirnOpaqueValue`); its audit form is
 the ordered list of tool names, keeping content-addressing stable.
 """
@@ -17,47 +22,52 @@ from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
-from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_declaration import ToolDeclaration
+from pirn_agents.tools.tool_factory import ToolFactory
 
 
 class Toolset(PirnOpaqueValue):
-    """An ordered collection of :class:`Tool`s with unique names."""
+    """An ordered collection of :class:`ToolFactory` capabilities with unique names."""
 
-    def __init__(self, tools: Sequence[Tool] = ()) -> None:
+    def __init__(self, tools: Sequence[Any] = ()) -> None:
         """Build a toolset from ``tools``, preserving order.
 
         Raises
         ------
         TypeError
-            If any element is not a :class:`Tool`; the message names the
-            offending index and its actual type.
+            If any element is not a capability :meth:`ToolFactory.of` accepts;
+            the message names the offending index and its actual type.
         ValueError
             If two tools share the same ``name``; the message names the
             duplicate.
         """
-        ordered: list[Tool] = []
-        by_name: dict[str, Tool] = {}
-        for index, tool in enumerate(tools):
-            if not isinstance(tool, Tool):
-                raise TypeError(f"tools[{index}] must be a Tool, got {type(tool).__name__}")
-            if tool.name in by_name:
-                raise ValueError(f"duplicate tool name: {tool.name!r}")
-            by_name[tool.name] = tool
-            ordered.append(tool)
-        self._tools: tuple[Tool, ...] = tuple(ordered)
-        self._by_name: dict[str, Tool] = by_name
+        ordered: list[ToolFactory] = []
+        by_name: dict[str, ToolFactory] = {}
+        for index, candidate in enumerate(tools):
+            try:
+                factory = ToolFactory.of(candidate)
+            except TypeError as exc:
+                raise TypeError(
+                    f"tools[{index}] must be a tool capability (a Tool class, a ToolFactory or "
+                    f"a knot), got {type(candidate).__name__}"
+                ) from exc
+            if factory.name in by_name:
+                raise ValueError(f"duplicate tool name: {factory.name!r}")
+            by_name[factory.name] = factory
+            ordered.append(factory)
+        self._tools: tuple[ToolFactory, ...] = tuple(ordered)
+        self._by_name: dict[str, ToolFactory] = by_name
 
-    def get(self, name: str) -> Tool | None:
-        """Return the tool registered under ``name``, or ``None``."""
+    def get(self, name: str) -> ToolFactory | None:
+        """Return the capability registered under ``name``, or ``None``."""
         return self._by_name.get(name)
 
     def __contains__(self, name: object) -> bool:
         """Return whether a tool named ``name`` is registered."""
         return name in self._by_name
 
-    def __iter__(self) -> Iterator[Tool]:
-        """Iterate tools in insertion order."""
+    def __iter__(self) -> Iterator[ToolFactory]:
+        """Iterate capabilities in insertion order."""
         return iter(self._tools)
 
     def __len__(self) -> int:

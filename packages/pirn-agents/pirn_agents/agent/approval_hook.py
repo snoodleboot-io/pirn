@@ -9,9 +9,11 @@ those overrides are what the security (F11) and human-in-the-loop (F14)
 surfaces will supply.
 
 The module-level :func:`authorize_tool_call` coroutine is the guard callers run
-before executing a tool: it consults the tool's permission metadata and only
-routes through the hook when approval is actually required, so unrestricted
-tools pay nothing.
+before executing a tool: it consults the capability's permission metadata and
+only routes through the hook when approval is actually required, so
+unrestricted tools pay nothing.  In a graph, the same decision is a
+:class:`~pirn.nodes.check.Check` feeding a core ``Gate`` in front of the tool
+knot, so a denied call is ``Skipped`` (ADR agents-speaks-core, WS1).
 """
 
 from __future__ import annotations
@@ -19,7 +21,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.tool_factory import ToolFactory
 
 
 class ApprovalHook:
@@ -45,25 +47,26 @@ class ApprovalHook:
 
     @staticmethod
     async def authorize(
-        tool: Tool,
+        tool: Any,
         arguments: Mapping[str, Any],
         hook: ApprovalHook | None = None,
     ) -> bool:
         """Return whether a call to ``tool`` with ``arguments`` may proceed.
 
-        Tools whose permissions do not require approval are allowed
-        immediately without invoking ``hook``. Tools that require approval
+        Capabilities whose permissions do not require approval are allowed
+        immediately without invoking ``hook``. Those that require approval
         are routed through ``hook`` (or an auto-approving default when
         ``hook`` is ``None``).
         """
-        if not tool.requires_approval():
+        factory = ToolFactory.of(tool)
+        if not factory.requires_approval():
             return True
         resolved = hook if hook is not None else ApprovalHook()
-        return await resolved.request_approval(tool_name=tool.name, arguments=arguments)
+        return await resolved.request_approval(tool_name=factory.name, arguments=arguments)
 
 
 async def authorize_tool_call(
-    tool: Tool,
+    tool: Any,
     arguments: Mapping[str, Any],
     hook: ApprovalHook | None = None,
 ) -> bool:
