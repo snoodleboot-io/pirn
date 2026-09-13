@@ -6,9 +6,11 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 
-from pirn_health.clinical.clinical_data_quality_gate import (
+from pirn_health.clinical.clinical_data_quality_check import (
     ClinicalDataQualityCheck,
     ClinicalDataQualityError,
+)
+from pirn_health.clinical.clinical_data_quality_gate import (
     ClinicalDataQualityGate,
 )
 from pirn_health.types.clinical_record import ClinicalRecord
@@ -50,5 +52,5 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(ClinicalDataQualityError):
             await knot.process(records=records, min_completeness=0.5)
 
-    def test_alias_is_same_class(self) -> None:
+    def test_gate_alias_import_path_still_resolves(self) -> None:
         assert ClinicalDataQualityGate is ClinicalDataQualityCheck

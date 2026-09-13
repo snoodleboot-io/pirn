@@ -4,7 +4,7 @@ Processes NGS data through alignment, variant calling, expression quantification
 
 Each knot wraps a single bioinformatics tool or algorithm stage. Knots consume and produce file-path strings or in-memory byte buffers; they never open connections to sequence databases or LIMS systems. Pipeline topology is expressed as a pirn `Tapestry` — wire knots together rather than calling tools in sequence with subprocess.
 
-The `GenomicsQcGate` knot acts as a quality checkpoint. It raises `GenomicsQCError` on quality failures so the tapestry fails loudly rather than propagating low-quality data silently. All other knots are unconditional transforms — quality decisions belong in the gate, not scattered across stages.
+The `GenomicsQCCheck` knot acts as a quality checkpoint (`GenomicsQCGate` is a backward-compatible alias for the same class). It raises `GenomicsQCError` on quality failures so the tapestry fails loudly rather than propagating low-quality data silently. All other knots are unconditional transforms — quality decisions belong in the check, not scattered across stages.
 
 ## Source map
 
@@ -23,7 +23,8 @@ pirn_health/genomics/
 ├── gatk_caller.py                  GATKCaller                      — variant calling via GATK HaplotypeCaller
 ├── gene_set_enrichment_runner.py   GeneSetEnrichmentRunner         — GSEA/fgsea enrichment analysis
 ├── genomics_qc_error.py            GenomicsQCError                 — typed error for QC gate failures
-├── genomics_qc_gate.py             GenomicsQcGate                  — quality gate; raises GenomicsQCError on failure
+├── genomics_qc_check.py            GenomicsQCCheck                 — quality check; raises GenomicsQCError on failure
+├── genomics_qc_gate.py             GenomicsQCGate                  — backward-compatible alias for GenomicsQCCheck
 ├── gvcf_combiner.py                GVCFCombiner                    — merges per-sample gVCFs for joint genotyping
 ├── methylation_array_processor.py  MethylationArrayProcessor       — Illumina EPIC/450K array normalisation
 ├── multi_omics_integrator.py       MultiOmicsIntegrator            — integrates expression, methylation, and variant data
@@ -105,7 +106,7 @@ vcf_bytes = result.outputs["gatk"]
 - All knots require the wrapped tool binary on `PATH` (bwa, samtools, gatk, STAR, etc.); pirn does not bundle or manage tool installations. Use `pirn[genomics]` for Python SDK dependencies only.
 - `GATKCaller` spawns a JVM subprocess. Ensure `JAVA_HOME` is set and at least 4 GB of heap is available (`-Xmx4g` is the default; override via `KnotConfig.extra`).
 - `SingleCellClusterer` loads a full `AnnData` object into memory. For large atlases (>500k cells) ensure the worker has sufficient RAM before wiring this knot.
-- `GenomicsQcGate` raises `GenomicsQCError` — catch it at the tapestry call site if downstream steps should proceed on partial data rather than halt.
+- `GenomicsQCCheck` raises `GenomicsQCError` — catch it at the tapestry call site if downstream steps should proceed on partial data rather than halt.
 - `MultiOmicsIntegrator` expects all omics layers to be pre-aligned to the same sample identifiers. Mismatched sample IDs cause a `ValueError` at process time, not at wiring time.
 - Install: `pip install pirn[genomics]`
 

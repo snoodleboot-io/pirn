@@ -6,8 +6,9 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 
+from pirn_health.genomics.genomics_qc_check import GenomicsQCCheck
 from pirn_health.genomics.genomics_qc_error import GenomicsQCError
-from pirn_health.genomics.genomics_qc_gate import GenomicsQCCheck, GenomicsQCGate
+from pirn_health.genomics.genomics_qc_gate import GenomicsQCGate
 from pirn_health.types.genomics_record import GenomicsRecord
 
 _CFG = KnotConfig(id="g")
@@ -45,5 +46,5 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(GenomicsQCError):
             await knot.process(records=(_RECORD_LOW,), min_quality=10.0)
 
-    def test_alias_points_to_check(self) -> None:
+    def test_gate_alias_import_path_still_resolves(self) -> None:
         assert GenomicsQCGate is GenomicsQCCheck
