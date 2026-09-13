@@ -22,7 +22,7 @@ source of truth.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.backends.base.data_store import DataStore
 from pirn.backends.base.run_history import RunHistory
@@ -36,13 +36,13 @@ from pirn_agents.sessions.human_decision import HumanDecision
 from pirn_agents.sessions.human_decision_identity_resolver import HumanDecisionIdentityResolver
 from pirn_agents.sessions.resume_token import ResumeToken
 
-#: Default RunRequest.parameters key the decision is bound under; the graph's
-#: downstream-of-the-gate knots must declare a matching Parameter.
-DEFAULT_DECISION_PARAMETER = "human_decision"
-
 
 class ApprovalResumer(Knot):
     """Resume a suspended run, injecting the operator's decision as a Parameter."""
+
+    #: Default RunRequest.parameters key the decision is bound under; the graph's
+    #: downstream-of-the-gate knots must declare a matching Parameter.
+    _default_decision_parameter: ClassVar[str] = "human_decision"
 
     def __init__(
         self,
@@ -53,7 +53,7 @@ class ApprovalResumer(Knot):
         token: Knot | ResumeToken,
         decision: Knot | HumanDecision,
         response_knot_id: Knot | str,
-        decision_parameter_name: Knot | str = DEFAULT_DECISION_PARAMETER,
+        decision_parameter_name: Knot | str = _default_decision_parameter,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
@@ -77,7 +77,7 @@ class ApprovalResumer(Knot):
         token: ResumeToken,
         decision: HumanDecision,
         response_knot_id: str,
-        decision_parameter_name: str = DEFAULT_DECISION_PARAMETER,
+        decision_parameter_name: str = _default_decision_parameter,
         **_: Any,
     ) -> Any:
         """Resume ``token``'s run past its suspend point with ``decision`` bound.

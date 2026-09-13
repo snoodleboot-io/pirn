@@ -15,7 +15,7 @@ is the read-model projected from the chain (:meth:`RunState.from_chain`).
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 if TYPE_CHECKING:
     from pirn.backends.base.run_history import RunHistory
@@ -23,12 +23,12 @@ if TYPE_CHECKING:
     from pirn.core.run_result import RunResult
     from pirn.tapestry import Tapestry
 
-#: The parameter name a turn's ``RunRequest`` carries the session id under.
-SESSION_ID_PARAMETER = "session_id"
-
 
 class SessionChain:
     """Run and enumerate a session's turns as a ``parent_run_id`` chain."""
+
+    #: The parameter name a turn's ``RunRequest`` carries the session id under.
+    session_id_parameter: ClassVar[str] = "session_id"
 
     @staticmethod
     async def run_turn(
@@ -44,7 +44,7 @@ class SessionChain:
         Args:
             tapestry: The tapestry to run the turn's graph against.
             request: The turn's ``RunRequest``. A copy carrying ``session_id``
-                under :data:`SESSION_ID_PARAMETER` is what actually runs — the
+                under :attr:`SessionChain.session_id_parameter` is what actually runs — the
                 caller's ``request.parameters`` are preserved alongside it.
             session_id: The session this turn belongs to. Non-empty.
             previous_run_id: The prior turn's ``run_id``, or ``None`` for the
@@ -67,7 +67,9 @@ class SessionChain:
                 f"got {type(previous_run_id).__name__}"
             )
         stamped = request.model_copy(
-            update={"parameters": {**request.parameters, SESSION_ID_PARAMETER: session_id}}
+            update={
+                "parameters": {**request.parameters, SessionChain.session_id_parameter: session_id}
+            }
         )
         return await tapestry.run(
             stamped,

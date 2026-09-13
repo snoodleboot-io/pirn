@@ -19,7 +19,7 @@ from pirn.nodes.source import Source
 from pirn.tapestry import Tapestry
 
 from pirn_agents.sessions.run_state import RunState
-from pirn_agents.sessions.session_chain import SESSION_ID_PARAMETER, SessionChain
+from pirn_agents.sessions.session_chain import SessionChain
 from pirn_agents.sessions.session_message import SessionMessage
 
 
@@ -54,7 +54,7 @@ class TestSessionChainRunTurn:
     async def test_stamps_session_id_into_a_declared_parameter(self) -> None:
         history = InMemoryHistory()
         with Tapestry(history=history) as tapestry:
-            Parameter(name=SESSION_ID_PARAMETER, type_=str)
+            Parameter(name=SessionChain.session_id_parameter, type_=str)
             _MessageSource(
                 message=SessionMessage(role="user", content="hi"),
                 _config=KnotConfig(id="session_message"),
@@ -63,7 +63,7 @@ class TestSessionChainRunTurn:
                 tapestry, RunRequest(), session_id="s1", previous_run_id=None
             )
         assert result.succeeded
-        assert result.outputs[f"param:{SESSION_ID_PARAMETER}"] == "s1"
+        assert result.outputs[f"param:{SessionChain.session_id_parameter}"] == "s1"
 
     async def test_first_turn_has_no_parent(self) -> None:
         history = InMemoryHistory()

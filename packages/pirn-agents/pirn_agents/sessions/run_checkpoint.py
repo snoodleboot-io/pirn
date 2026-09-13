@@ -28,18 +28,13 @@ from __future__ import annotations
 import warnings
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.hashing import content_hash
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 from pirn_agents.serialization.canonical_json import CanonicalJson
 from pirn_agents.sessions.run_state import RunState
-
-#: Format versions :meth:`RunCheckpoint.content_hash` understands.
-_KNOWN_FORMAT_VERSIONS = (1, 2)
-#: The version newly created checkpoints use.
-CURRENT_FORMAT_VERSION = 2
 
 
 @dataclass(frozen=True)
@@ -59,12 +54,17 @@ class RunCheckpoint(PirnOpaqueValue):
         The captured :class:`RunState`.
     format_version:
         Which digest algorithm produced ``checkpoint_id`` — see the module
-        docstring. Defaults to :data:`CURRENT_FORMAT_VERSION`.
+        docstring. Defaults to :data:`RunCheckpoint.current_format_version`.
     """
+
+    #: Format versions :meth:`RunCheckpoint.content_hash` understands.
+    _known_format_versions: ClassVar[tuple[int, ...]] = (1, 2)
+    #: The version newly created checkpoints use.
+    current_format_version: ClassVar[int] = 2
 
     checkpoint_id: str
     state: RunState
-    format_version: int = CURRENT_FORMAT_VERSION
+    format_version: int = current_format_version
 
     def __post_init__(self) -> None:
         if not isinstance(self.checkpoint_id, str) or not self.checkpoint_id:
@@ -73,9 +73,9 @@ class RunCheckpoint(PirnOpaqueValue):
             raise TypeError(
                 f"RunCheckpoint: state must be a RunState, got {type(self.state).__name__}"
             )
-        if self.format_version not in _KNOWN_FORMAT_VERSIONS:
+        if self.format_version not in RunCheckpoint._known_format_versions:
             raise ValueError(
-                f"RunCheckpoint: format_version must be one of {_KNOWN_FORMAT_VERSIONS}, "
+                f"RunCheckpoint: format_version must be one of {RunCheckpoint._known_format_versions}, "
                 f"got {self.format_version!r}"
             )
         warnings.warn(
@@ -88,7 +88,7 @@ class RunCheckpoint(PirnOpaqueValue):
         )
 
     @staticmethod
-    def content_hash(state: RunState, *, format_version: int = CURRENT_FORMAT_VERSION) -> str:
+    def content_hash(state: RunState, *, format_version: int = current_format_version) -> str:
         """Return the digest of ``state``'s canonical JSON payload.
 
         Args:
@@ -107,12 +107,12 @@ class RunCheckpoint(PirnOpaqueValue):
             return content_hash(state.to_payload())
         raise ValueError(
             f"RunCheckpoint.content_hash: format_version must be one of "
-            f"{_KNOWN_FORMAT_VERSIONS}, got {format_version!r}"
+            f"{RunCheckpoint._known_format_versions}, got {format_version!r}"
         )
 
     @classmethod
     def create(
-        cls, state: RunState, *, format_version: int = CURRENT_FORMAT_VERSION
+        cls, state: RunState, *, format_version: int = current_format_version
     ) -> RunCheckpoint:
         """Build a checkpoint whose id is the content hash of ``state``.
 

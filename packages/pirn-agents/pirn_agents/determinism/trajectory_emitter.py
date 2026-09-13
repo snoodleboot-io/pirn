@@ -12,7 +12,7 @@ no missed steps.
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from pirn.emitters.emitter import Emitter
 
@@ -25,14 +25,6 @@ from pirn_agents.determinism.trace_event_kind import TraceEventKind
 if TYPE_CHECKING:
     from pirn.core.knot_lineage import KnotLineage
 
-#: Default classifier: a best-effort guess from the knot's class name.
-#: Callers with real knowledge of their graph should pass their own.
-_DEFAULT_KIND_HINTS: tuple[tuple[str, TraceEventKind], ...] = (
-    ("llm", TraceEventKind.LLM_CALL),
-    ("tool", TraceEventKind.TOOL_CALL),
-    ("retriev", TraceEventKind.RETRIEVAL),
-)
-
 
 class TrajectoryEmitter(Emitter):
     """Materialises every knot's ``KnotLineage`` into a per-run :class:`RunTrace`.
@@ -42,6 +34,14 @@ class TrajectoryEmitter(Emitter):
     from that run's lineage. One instance may observe many runs — traces are
     kept separately by ``run_id``.
     """
+
+    #: Default classifier: a best-effort guess from the knot's class name.
+    #: Callers with real knowledge of their graph should pass their own.
+    _default_kind_hints: ClassVar[tuple[tuple[str, TraceEventKind], ...]] = (
+        ("llm", TraceEventKind.LLM_CALL),
+        ("tool", TraceEventKind.TOOL_CALL),
+        ("retriev", TraceEventKind.RETRIEVAL),
+    )
 
     def __init__(
         self,
@@ -96,7 +96,7 @@ class TrajectoryEmitter(Emitter):
     def _default_classify(record: KnotLineage) -> TraceEventKind:
         """A best-effort guess from ``record.knot_class``'s name."""
         name = record.knot_class.lower()
-        for hint, kind in _DEFAULT_KIND_HINTS:
+        for hint, kind in TrajectoryEmitter._default_kind_hints:
             if hint in name:
                 return kind
         return TraceEventKind.OUTPUT

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
@@ -29,16 +29,6 @@ from pirn_agents.sessions.session_tool_result import SessionToolResult
 
 if TYPE_CHECKING:
     from pirn.core.run_result import RunResult
-
-#: Default RunResult.outputs key a turn's message-producing knot is expected
-#: to use, read by :meth:`RunState.from_chain`.
-DEFAULT_MESSAGE_OUTPUT_KEY = "session_message"
-#: Default RunResult.outputs key a turn's tool-result-producing knot is
-#: expected to use, read by :meth:`RunState.from_chain`.
-DEFAULT_TOOL_RESULT_OUTPUT_KEY = "session_tool_result"
-#: Default RunResult.outputs key a turn's plan-step-producing knot is
-#: expected to use, read by :meth:`RunState.from_chain`.
-DEFAULT_PLAN_STEP_OUTPUT_KEY = "session_plan_step"
 
 
 @dataclass(frozen=True)
@@ -69,6 +59,16 @@ class RunState(PirnOpaqueValue):
         ``completed_steps[-1]`` (exposed as :attr:`last_run_id`) is the run to
         resume from.
     """
+
+    #: Default RunResult.outputs key a turn's message-producing knot is expected
+    #: to use, read by :meth:`RunState.from_chain`.
+    default_message_output_key: ClassVar[str] = "session_message"
+    #: Default RunResult.outputs key a turn's tool-result-producing knot is
+    #: expected to use, read by :meth:`RunState.from_chain`.
+    default_tool_result_output_key: ClassVar[str] = "session_tool_result"
+    #: Default RunResult.outputs key a turn's plan-step-producing knot is
+    #: expected to use, read by :meth:`RunState.from_chain`.
+    default_plan_step_output_key: ClassVar[str] = "session_plan_step"
 
     session_id: str
     messages: tuple[SessionMessage, ...] = field(default_factory=tuple)
@@ -105,9 +105,9 @@ class RunState(PirnOpaqueValue):
         *,
         session_id: str,
         turns: Sequence[RunResult],
-        message_output_key: str = DEFAULT_MESSAGE_OUTPUT_KEY,
-        tool_result_output_key: str = DEFAULT_TOOL_RESULT_OUTPUT_KEY,
-        plan_step_output_key: str = DEFAULT_PLAN_STEP_OUTPUT_KEY,
+        message_output_key: str = default_message_output_key,
+        tool_result_output_key: str = default_tool_result_output_key,
+        plan_step_output_key: str = default_plan_step_output_key,
     ) -> RunState:
         """Project a ``RunState`` from a session's chain of turn ``RunResult``s.
 
