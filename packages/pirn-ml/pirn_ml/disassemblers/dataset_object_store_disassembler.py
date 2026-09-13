@@ -33,16 +33,6 @@ from pirn.core.knot_config import KnotConfig
 from pirn_ml.types.dataset_payload import DatasetPayload
 
 
-def _serialize(payload: DatasetPayload) -> bytes:
-    buf = io.BytesIO()
-    features = payload.features
-    arrays: dict[str, Any] = {"feature_matrix": features.feature_matrix}
-    if features.target_vector is not None:
-        arrays["target_vector"] = features.target_vector
-    np.savez(buf, **arrays)
-    return buf.getvalue()
-
-
 class DatasetObjectStoreDisassembler(Disassembler):
     """Serialise a :class:`DatasetPayload` to numpy npz bytes for object-store persistence.
 
@@ -81,4 +71,14 @@ class DatasetObjectStoreDisassembler(Disassembler):
                 f"DatasetObjectStoreDisassembler: payload must be DatasetPayload, "
                 f"got {type(payload).__name__}"
             )
-        return await asyncio.to_thread(_serialize, payload)
+        return await asyncio.to_thread(DatasetObjectStoreDisassembler._serialize, payload)
+
+    @staticmethod
+    def _serialize(payload: DatasetPayload) -> bytes:
+        buf = io.BytesIO()
+        features = payload.features
+        arrays: dict[str, Any] = {"feature_matrix": features.feature_matrix}
+        if features.target_vector is not None:
+            arrays["target_vector"] = features.target_vector
+        np.savez(buf, **arrays)
+        return buf.getvalue()
