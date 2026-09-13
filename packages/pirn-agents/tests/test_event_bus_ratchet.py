@@ -122,9 +122,7 @@ class TestDetectorIsDiscriminating(unittest.TestCase):
         assert hit == frozenset({"Tracer"})
 
     def test_multiple_deprecated_names_are_all_captured(self) -> None:
-        hit = self._scan(
-            "from pirn_agents.observability.span import Span, SpanKind, SpanStatus\n"
-        )
+        hit = self._scan("from pirn_agents.observability.span import Span, SpanKind, SpanStatus\n")
         assert hit == frozenset({"Span", "SpanKind", "SpanStatus"})
 
     def test_unrelated_module_import_does_not_trip(self) -> None:

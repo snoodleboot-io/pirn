@@ -137,9 +137,7 @@ async def test_hook_without_a_knot_id_forwards_nothing() -> None:
         class _Node(Knot):
             async def process(self, **_: object) -> str:
                 hook.on_start(tool_name="search", args_digest="d1", call_id="c1")
-                hook.on_finish(
-                    tool_name="search", call_id="c1", status=ToolStatus.OK, latency=0.1
-                )
+                hook.on_finish(tool_name="search", call_id="c1", status=ToolStatus.OK, latency=0.1)
                 return "done"
 
         node = _Node(_config=KnotConfig(id="executor"))

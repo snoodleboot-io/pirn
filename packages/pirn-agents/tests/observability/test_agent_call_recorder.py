@@ -12,7 +12,6 @@ import unittest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.emitters.emitter import Emitter
 from pirn.managers.knot_state import KnotState

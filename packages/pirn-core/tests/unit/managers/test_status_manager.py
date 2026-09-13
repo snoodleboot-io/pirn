@@ -34,9 +34,7 @@ class TestStatusManager(unittest.TestCase):
         self.assertEqual(ev.extra, {})
 
     def test_transition_with_extra(self):
-        ev = self.mgr.transition(
-            "k1", KnotState.SUCCEEDED, extra={"kind": "llm", "latency": 0.2}
-        )
+        ev = self.mgr.transition("k1", KnotState.SUCCEEDED, extra={"kind": "llm", "latency": 0.2})
         self.assertEqual(ev.extra, {"kind": "llm", "latency": 0.2})
 
     def test_events_accumulate(self):

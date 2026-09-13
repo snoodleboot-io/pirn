@@ -83,9 +83,7 @@ class TestLogEmitterEvents(unittest.IsolatedAsyncioTestCase):
         emitter = LogEmitter(logger=logger)
         await emitter.on_status(_make_status_event(extra={"kind": "llm", "latency": 0.1}))
         _, kwargs = logger.info.call_args
-        self.assertEqual(
-            kwargs["extra"]["pirn_extra"], {"kind": "llm", "latency": 0.1}
-        )
+        self.assertEqual(kwargs["extra"]["pirn_extra"], {"kind": "llm", "latency": 0.1})
 
     async def test_on_lineage_logs_info(self) -> None:
         logger = MagicMock(spec=logging.Logger)

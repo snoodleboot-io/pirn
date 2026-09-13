@@ -147,9 +147,7 @@ class TestLogEmitterLogsAgentCalls:
             result = await t.run(RunRequest())
 
         assert result.succeeded
-        agent_records = [
-            r for r in caplog.records if getattr(r, "pirn_extra", None)
-        ]
+        agent_records = [r for r in caplog.records if getattr(r, "pirn_extra", None)]
         kinds = {r.pirn_extra["kind"] for r in agent_records}
         assert kinds == {"llm", "tool"}
 

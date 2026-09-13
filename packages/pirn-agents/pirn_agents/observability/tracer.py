@@ -291,9 +291,7 @@ class Tracer:
         if not isinstance(knot_id, str):
             return
         extra = {
-            key: value
-            for key, value in span.attributes.items()
-            if not key.startswith("pirn.")
+            key: value for key, value in span.attributes.items() if not key.startswith("pirn.")
         }
         await AgentCallRecorder.record(
             knot_id=knot_id,

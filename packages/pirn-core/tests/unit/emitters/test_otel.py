@@ -117,9 +117,7 @@ class TestOpenTelemetryEmitterEvents(unittest.IsolatedAsyncioTestCase):
         tracer.start_span = MagicMock(return_value=span)
         emitter = OpenTelemetryEmitter(tracer=tracer)
         await emitter.on_status(
-            _status_event(
-                extra={"kind": "llm", "model": "gpt-x", "tokens": 42, "latency": 0.25}
-            )
+            _status_event(extra={"kind": "llm", "model": "gpt-x", "tokens": 42, "latency": 0.25})
         )
         tracer.start_span.assert_called_once()
         args, kwargs = tracer.start_span.call_args

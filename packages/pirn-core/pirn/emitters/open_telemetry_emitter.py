@@ -109,9 +109,7 @@ class OpenTelemetryEmitter(Emitter):
         finally:
             latency = extra.get("latency")
             end_ns = (
-                start_ns + int(latency * 1e9)
-                if isinstance(latency, (int, float))
-                else start_ns
+                start_ns + int(latency * 1e9) if isinstance(latency, (int, float)) else start_ns
             )
             span.end(end_time=end_ns)
 
