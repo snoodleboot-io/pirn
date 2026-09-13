@@ -224,7 +224,7 @@ Tracked in Linear project **"pirn-agents: OOP/SOLID Standards Remediation"** (PI
 - **§3.5 ignored:** no `Dispatcher` is ever wired; inner `Tapestry()`s default to `LocalDispatcher`; `MapAgent` can't reach Ray/Dask/Thread. → WS7·S7.
 - **§3.7 ignored:** connectors don't use `TableSource`/`RecordWriter`; `ConnectorBase`/`HttpConnector` reinvent `ApiClient`. → WS8·S3.
 - **§3.7 (backends) ignored:** four parallel KV stores reinvent `DataStore`; determinism reinvents `RunHistory`; no durable backends. → WS8·S1/S2.
-- **§3.6 reinvented:** the `observability/` Span plane forks `Emitter`/`OpenTelemetryEmitter`/`LogEmitter` and carries no `run_id`/`knot_id`, so agent spans can't correlate to core lineage. → WS8·S5.
+- **§3.6 reinvented:** the `observability/` Span plane forks `Emitter`/`OpenTelemetryEmitter`/`LogEmitter` and carries no `run_id`/`knot_id`, so agent spans can't correlate to core lineage. *Resolved by ADR agents-speaks-core WS4a — see below.*
 - **§3.6 (managers) unwired:** the secret-redaction layer is built but never attached to `ExceptionManager.traceback_filter`/loggers; approvals ignore `IdentityResolver`. → WS8·S6.
 
 *Resolved since the sweep (do not re-open):*
@@ -232,6 +232,7 @@ Tracked in Linear project **"pirn-agents: OOP/SOLID Standards Remediation"** (PI
 - **§4.2** — `StatefulTool`/`StreamingTool`/`PermissionedTool` are gone; `stateful`/`state`, `permissions`/`requires_approval` and `streaming`/`stream`/`collect_stream` are default-returning capability members on `Tool`. (WS2·S6)
 - **§3.7** — agents' `BlobStore` is gone; `StreamingS3Store` and `ObjectStoreSourceConnector` build on core's `ObjectStore`, keeping `_validate_key`. (WS3·S2)
 - **§3.3** — `BatchTrigger` is deleted, `IntervalTrigger` delegates to `CronTrigger` with no schedule loop of its own, `EventTrigger` subclasses core `Trigger`, and `TriggeredBatch` adopts `run_forever`'s ownership and cancellation semantics. (WS8·S4)
+- **§3.6 — ADR agents-speaks-core WS4a:** the second event bus is collapsed. `StatusEvent` gained a typed `extra: dict[str, Any]` field (core touch, `pirn/managers/status_event.py`); `pirn.tapestry` gained public `current_emitters()`/`current_emitter_error_policy()` accessors (mirroring `current_run_id()`); `EmitterFanout.emit_status` (core touch, `pirn/engine/emitter_fanout.py`) fans an ad hoc `StatusEvent` out to a run's emitters from inside an async `process()`. `OpenTelemetryEmitter.on_status`/`LogEmitter.on_status` (core touch) now render a non-empty `extra` as, respectively, a `"<kind>:<knot_id>"` span with `agents.<key>` attributes and a `pirn_extra` log field. Agents' `AgentCallRecorder` (`pirn_agents/observability/agent_call_recorder.py`) is the one call LLM/tool/retrieval call sites use; `ToolInvocation` already calls it for every engine-scheduled tool call. `Tracer`/`Span`/`SpanKind`/`SpanStatus`/`OpenSpanEntry`/`ObservabilitySink`/`OtelSink`/`LoggingSink`/`SpanEmittingToolInvocationHook` are one-cycle deprecated shims (`DeprecationWarning` on construction) that still forward into `AgentCallRecorder`, then scheduled for deletion.
 
 *Correctly reused (preserve):* `SubTapestry`/`Source`, `PirnOpaqueValue` value objects, `DsnScrubber` composition, HITL suspend/resume (rightly avoids a `Trigger` loop), and raise-site exceptions kept orthogonal to `ExceptionRecord`.
 
