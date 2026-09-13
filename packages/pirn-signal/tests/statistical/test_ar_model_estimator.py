@@ -12,8 +12,8 @@ except ImportError as _e:
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
-from pirn_signal.statistical.ar_model_estimator import ARModelEstimator
 
+from pirn_signal.statistical.ar_model_estimator import ARModelEstimator
 from tests.conftest import emit_signal_payload, make_signal_payload
 
 

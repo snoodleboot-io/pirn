@@ -12,9 +12,9 @@ except ImportError as _e:
 import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
+
 from pirn_signal.audio.audio_resampler import AudioResampler
 from pirn_signal.types.signal_payload import SignalPayload
-
 from tests.conftest import make_signal_payload
 
 _SIGNAL = make_signal_payload()

@@ -13,6 +13,7 @@ from datetime import UTC, datetime
 import numpy as np
 import pytest
 from pirn.core.knot_factory import knot
+
 from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.spectrum_frame import SpectrumFrame

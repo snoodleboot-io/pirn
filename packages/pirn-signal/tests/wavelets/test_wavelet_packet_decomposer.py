@@ -17,11 +17,11 @@ except ImportError as _e:
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
+
 from pirn_signal.types.wavelet_payload import WaveletPayload
 from pirn_signal.wavelets.wavelet_packet_decomposer import (
     WaveletPacketDecomposer,
 )
-
 from tests.conftest import emit_signal_payload
 
 

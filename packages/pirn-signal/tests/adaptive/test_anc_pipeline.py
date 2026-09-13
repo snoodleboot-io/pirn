@@ -7,9 +7,9 @@ import unittest
 import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
+
 from pirn_signal.adaptive.anc_pipeline import ANCPipeline
 from pirn_signal.types.signal_payload import SignalPayload
-
 from tests.conftest import make_signal_payload
 
 _REF = make_signal_payload(signal_id="test")

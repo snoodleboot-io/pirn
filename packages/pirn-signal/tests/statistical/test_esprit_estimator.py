@@ -7,8 +7,8 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
-from pirn_signal.statistical.esprit_estimator import ESPRITEstimator
 
+from pirn_signal.statistical.esprit_estimator import ESPRITEstimator
 from tests.conftest import emit_signal_payload, make_signal_payload
 
 
