@@ -232,7 +232,7 @@ from pirn_ml.data_prep.train_test_split import TrainTestSplit
 from pirn_ml.features.scaler import Scaler
 from pirn_ml.training.trainer import Trainer
 from pirn_ml.evaluation.evaluator import Evaluator
-from pirn_ml.evaluation.metric_gate import MetricCheck
+from pirn_ml.evaluation.metric_check import MetricCheck
 
 from sklearn.linear_model import LogisticRegression
 
