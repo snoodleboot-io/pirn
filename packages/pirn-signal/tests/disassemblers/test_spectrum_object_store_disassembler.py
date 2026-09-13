@@ -9,6 +9,7 @@ import numpy as np
 import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
+
 from pirn_signal.disassemblers.spectrum_object_store_disassembler import (
     SpectrumObjectStoreDisassembler,
 )

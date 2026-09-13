@@ -11,6 +11,7 @@ pytest.importorskip("soundfile")
 import numpy as np
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
+
 from pirn_signal.disassemblers.signal_object_store_disassembler import (
     SignalObjectStoreDisassembler,
 )
