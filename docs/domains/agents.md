@@ -350,6 +350,30 @@ rag = NaiveRAGPipeline(
 
 ---
 
+## Idempotency keys (resilience)
+
+`pirn_agents.resilience.idempotency_key_assigner.IdempotencyKeyAssigner` derives a
+stable key for a retried mutating call from its operation name and arguments, so a
+backend can dedupe a retry instead of applying it twice.
+
+**ADR "agents speaks core" WS2 part 2 (2026-09-13) changed the key format.**
+Keys are now `pirn.core.hashing.content_hash`'s `sha256:`-prefixed digest instead
+of the previous bare 64-hex `CanonicalJson.digest` form. **This is a breaking
+upgrade for any backend keyed by a previously-issued idempotency key**: a request
+already in flight when the upgrade deploys computes a *different* key on retry
+than the one its first attempt registered, so the backend sees it as a new
+operation and applies the mutation again.
+
+Operators upgrading must drain in-flight idempotent requests (let outstanding
+retries exhaust their window, or hold new mutating traffic) before or during the
+deploy, rather than rolling it out under live retry traffic. For one deprecation
+cycle, `IdempotencyKeyAssigner.legacy_key(...)` reproduces the pre-upgrade key for
+a given `(operation, arguments, namespace)`, so an operator reconciling a backend's
+dedupe table across the upgrade window can compute what a pre-upgrade retry would
+have used.
+
+---
+
 ## Install
 
 ```bash

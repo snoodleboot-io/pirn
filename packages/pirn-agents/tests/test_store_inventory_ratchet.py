@@ -38,6 +38,10 @@ STORE_CLASSES = frozenset(
         "caching/in_memory_result_cache.py::InMemoryResultCache",
         "caching/result_cache.py::ResultCache",
         "caching/semantic_result_cache.py::SemanticResultCache",
+        # ADR agents-speaks-core WS2: a vended similarity INDEX (a PirnOpaqueValue
+        # resource like the vector backends); it maps embeddings to content_hash
+        # keys and holds no values — values live in core DataStore. Not a KV store.
+        "caching/vector_memo_index.py::VectorMemoIndex",
         "connectors/streaming_s3_store.py::StreamingS3Store",
         "determinism/cassette_store.py::CassetteStore",
         "determinism/file_cassette_store.py::FileCassetteStore",

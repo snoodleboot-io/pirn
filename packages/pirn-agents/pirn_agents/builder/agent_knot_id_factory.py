@@ -7,6 +7,22 @@ pattern, provider/tool references, and options — never from wall-clock time or
 randomness, so building the same spec twice yields the same id. Stable ids keep
 lineage records human-readable and reproducible across runs, and let generated
 graphs share the engine's content-addressed cache exactly like hand-wired ones.
+
+ADR agents-speaks-core WS2 part 2 - breaking id-format change, sanctioned:
+:meth:`derive` now digests the structural signature via
+:func:`pirn.core.hashing.content_hash` (``strict=True``) instead of
+:class:`~pirn_agents.serialization.canonical_json.CanonicalJson`. The
+signature is always plain JSON-safe data (strings, lists, dicts) built by
+this factory itself, so ``strict=True`` here is behaviourally identical to
+the previous default ``OpaquePolicy.RAISE`` - both refuse a non-JSON value
+in ``options``/``components`` outright rather than digesting a different
+form of it. What does change is the 12-hex-char slice's content: it is now
+taken from ``content_hash``'s digest (after stripping its ``sha256:``
+prefix) rather than ``CanonicalJson``'s bare digest, so every generated
+knot id changes value across this upgrade - see the CHANGELOG entry.
+Acceptable at this package's current 0.x version: a generated id is a
+derived cache/lineage key, not data an operator persists across an upgrade
+boundary the way an idempotency key is.
 """
 
 from __future__ import annotations
@@ -15,7 +31,7 @@ import re
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from pirn_agents.serialization.canonical_json import CanonicalJson
+from pirn.core.hashing import content_hash
 
 
 class AgentKnotIdFactory:
@@ -85,6 +101,6 @@ class AgentKnotIdFactory:
         # alignment for graphs that have not changed at all.
         if components:
             signature["components"] = dict(components)
-        digest = CanonicalJson.digest(signature)[:12]
+        digest = content_hash(signature, strict=True).removeprefix("sha256:")[:12]
         safe_pattern = re.sub(r"[^a-zA-Z0-9_\-.]", "_", pattern)
         return f"agent.{safe_pattern}.{digest}"

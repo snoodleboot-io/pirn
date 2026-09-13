@@ -15,6 +15,16 @@ the whole suite still green. Both outputs escape the process:
 These pins were recorded *before* the hashers were moved onto
 :class:`~pirn_agents.serialization.canonical_json.CanonicalJson`, so they prove
 the move was byte-identical rather than merely plausible.
+
+ADR agents-speaks-core WS2 part 2 (2026-09-13) intentionally moved the
+:class:`~pirn_agents.resilience.idempotency_key_assigner.IdempotencyKeyAssigner`
+pins: it now derives keys via :func:`pirn.core.hashing.content_hash` instead
+of ``CanonicalJson``, a sanctioned, breaking format change (the ``sha256:``
+prefix core emits IS the new format version — see that module's docstring
+and "Idempotency keys" in ``docs/domains/agents.md`` for the operational
+note). The pins below are the *post*-migration values, re-recorded from the
+new algorithm, so this file keeps doing its job: catching any *further,
+unintended* drift from here on.
 """
 
 from __future__ import annotations
@@ -25,8 +35,6 @@ import pytest
 
 from pirn_agents.builder.agent_knot_id_factory import AgentKnotIdFactory
 from pirn_agents.resilience.idempotency_key_assigner import IdempotencyKeyAssigner
-from pirn_agents.serialization.canonical_json import CanonicalJson
-from pirn_agents.serialization.opaque_policy import OpaquePolicy
 
 
 def _idempotency_calls() -> dict[str, tuple[str, dict[str, Any]]]:
@@ -66,12 +74,12 @@ class TestIdempotencyKeyPins:
     """A derived idempotency key must survive a retry, so it must never drift."""
 
     _pins: ClassVar[dict[str, str]] = {
-        "no_args": "0d1a975269bd6e28bc859ad6d82af0b658c8f9ef2439f2f190cd379a3054c85d",
-        "flat": "887b157b5f766f58e907fee41f6ef4b9096724023abef9e760758d097223109f",
-        "unordered": "887b157b5f766f58e907fee41f6ef4b9096724023abef9e760758d097223109f",
-        "nested": "27ce0ce439e47c73a01add8902ce908f843fa4957a1a0d1215246649a11b9a54",
-        "unicode": "8babb184f82a7b8cada1fae6ba25fc8ab7d83fa1d1b0f73a3948c228a4a3c4bc",
-        "literals": "6c28ad3db490d7981ee142fd7affc368bc81663a8fb89d4663e9cb3209f0b666",
+        "no_args": "sha256:68d593816f599ddb6029d5db366bb9f55c90e99dfff7a6b69198c0583c4f35ed",
+        "flat": "sha256:4d031fac325465aa52f245adf4efc2b3f51462a1fb1bb6a9483e1c5b9622c70f",
+        "unordered": "sha256:4d031fac325465aa52f245adf4efc2b3f51462a1fb1bb6a9483e1c5b9622c70f",
+        "nested": "sha256:d0c2c343838cdbc5516c1c1aef6d44cd53aa476f0410cbc9ba71294fcbffd1ce",
+        "unicode": "sha256:a525262ad80e05270f7f0a73834fa588b995b3d55b495c05662374f26642b3fc",
+        "literals": "sha256:9db6e67fb965796153915a88268236b6161e1eec4936fdc0d51f95896abfa843",
     }
 
     @pytest.mark.parametrize("name", sorted(_idempotency_calls()))
@@ -87,32 +95,47 @@ class TestIdempotencyKeyPins:
     def test_namespaced_key_is_unchanged(self) -> None:
         assert IdempotencyKeyAssigner(namespace="tenant-a").assign(
             operation="charge", arguments={"amount": 1}
-        ) == ("tenant-a:fbe6e950a8b99ac65471c91a2bd37308420afe872ee664a7b636af67d976c4a2")
+        ) == ("tenant-a:sha256:9ac572bcde7e30fa2de4cbf3c921638895ab76fbb6cb1dbefda5c8491d7ead4d")
 
     def test_key_order_does_not_move_the_key(self) -> None:
         assert self._pins["flat"] == self._pins["unordered"]
 
-    def test_derivation_uses_the_shared_canonical_form(self) -> None:
-        # The assigner hashes {"operation": ..., "arguments": ...} under the
-        # REPR policy; spelling that out here is what makes the collapse in
-        # PIR-726 verifiable rather than asserted.
+    def test_derivation_uses_content_hash(self) -> None:
+        # The assigner hashes {"operation": ..., "arguments": ...} through
+        # content_hash directly for JSON-native arguments; spelling that out
+        # here is what makes the ADR WS2 part 2 migration verifiable rather
+        # than asserted.
+        from pirn.core.hashing import content_hash
+
         operation, arguments = _idempotency_calls()["nested"]
-        assert IdempotencyKeyAssigner().assign(
-            operation=operation, arguments=arguments
-        ) == CanonicalJson.digest(
-            {"operation": operation, "arguments": arguments}, policy=OpaquePolicy.REPR
+        assert IdempotencyKeyAssigner().assign(operation=operation, arguments=arguments) == (
+            content_hash({"operation": operation, "arguments": arguments}, strict=True)
+        )
+
+    def test_legacy_key_reproduces_the_pre_migration_pin(self) -> None:
+        # The pre-migration pins this class used to carry, now reachable only
+        # through legacy_key() -- proves the one-cycle compatibility path
+        # actually reproduces what a pre-upgrade caller would have seen.
+        operation, arguments = _idempotency_calls()["flat"]
+        assert (
+            IdempotencyKeyAssigner.legacy_key(operation=operation, arguments=arguments)
+            == "887b157b5f766f58e907fee41f6ef4b9096724023abef9e760758d097223109f"
         )
 
 
 class TestAgentKnotIdPins:
     """A generated knot id keys lineage records and engine cache entries."""
 
+    # ADR agents-speaks-core WS2 part 2 (2026-09-13) intentionally moved these
+    # pins: AgentKnotIdFactory now digests via pirn.core.hashing.content_hash
+    # instead of CanonicalJson (see that module's docstring and the
+    # CHANGELOG). Re-recorded from the new algorithm.
     _pins: ClassVar[dict[str, str]] = {
-        "minimal": "agent.react.fa8c5a6156e8",
-        "llm_only": "agent.react.35af7bdf9a07",
-        "full": "agent.react.260b32caf467",
-        "with_components": "agent.rag.38421bf92179",
-        "unicode_option": "agent.react.2d766a4189d2",
+        "minimal": "agent.react.fce3a462fd64",
+        "llm_only": "agent.react.51704811bccf",
+        "full": "agent.react.4c6352ea6988",
+        "with_components": "agent.rag.ef2c0271996e",
+        "unicode_option": "agent.react.1c7b47d57547",
     }
 
     @pytest.mark.parametrize("name", sorted(_knot_derivations()))
@@ -122,10 +145,12 @@ class TestAgentKnotIdPins:
             "continuity and their engine cache alignment."
         )
 
-    def test_digest_is_the_first_twelve_hex_of_the_canonical_digest(self) -> None:
+    def test_digest_is_the_first_twelve_hex_of_the_content_hash_digest(self) -> None:
         # Pins the truncation as well as the canonicalisation: the factory
-        # takes the shared 64-hex digest and slices it, rather than hashing
-        # differently.
+        # takes content_hash's digest (minus its sha256: prefix) and slices
+        # it, rather than hashing differently.
+        from pirn.core.hashing import content_hash
+
         signature: dict[str, Any] = {
             "pattern": "react",
             "llm": None,
@@ -133,7 +158,8 @@ class TestAgentKnotIdPins:
             "tools": [],
             "options": {},
         }
-        assert self._pins["minimal"].endswith(CanonicalJson.digest(signature)[:12])
+        expected_suffix = content_hash(signature, strict=True).removeprefix("sha256:")[:12]
+        assert self._pins["minimal"].endswith(expected_suffix)
 
     def test_components_key_is_absent_when_empty(self) -> None:
         # An always-present "components" key would change the canonical form

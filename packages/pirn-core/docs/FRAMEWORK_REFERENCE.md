@@ -87,6 +87,7 @@ class LLMProvider(PirnOpaqueValue):
 | `RunNesting` | value-object | — | `core/run_nesting.py` — where a run sits in the nested-run tree (`depth`, enclosing `run_ids`, container `path`, tightest `max_depth`); `RunNesting.current()` inside a knot. `Tapestry(max_nesting_depth=n)` turns the guard on: `NestingDepthExceededError` / `NestedRunCycleError` as the container knot's `Err`. **Do not carry a recursion counter through agent code.** |
 | `ErrorPolicy` | enum/policy | — | how upstream `Err` propagates (`RECEIVE_ERRORS` etc.) |
 | `IdentityResolver` | interface-base | — | `core/identity/` — `resolve()` who's running; `chained/env/os/static/null` implementations |
+| `content_hash(value, *, strict=False)` | function | — | `core/hashing.py`, backed by `_ContentHasher` — the one content-addressing seam (`sha256:`-prefixed). Default is best-effort: an opaque leaf degrades to a `sha256:unhashable:<type>` sentinel. `strict=True` raises `UnhashableValueError` (`PirnError, TypeError`) naming the innermost offending type instead — for a caller (a cache key, a dedup key) where the sentinel's silent collision risk is unacceptable, not just an inconvenience. (ADR agents-speaks-core WS2 part 2) |
 
 ### 3.2 Nodes — `nodes/`
 All subclass `Knot`. These are the graph-shape primitives.
