@@ -30,6 +30,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 
 
 class SelfQueryFilterExtractor(Knot):
@@ -96,7 +97,7 @@ class SelfQueryFilterExtractor(Knot):
         fields = ", ".join(filterable_fields) if filterable_fields else "(none)"
         prompt = type(self)._extraction_prompt.render({"fields": fields, "query": query})
         raw = await llm.chat([{"role": "user", "content": prompt}])
-        semantic_query, metadata_filter = self._parse(self._extract_text(raw), query)
+        semantic_query, metadata_filter = self._parse(LlmResponseText().extract(raw), query)
         allowed = set(filterable_fields)
         clean_filter = {k: v for k, v in metadata_filter.items() if k in allowed}
         return {"query": semantic_query, "metadata_filter": clean_filter}
@@ -115,13 +116,3 @@ class SelfQueryFilterExtractor(Knot):
         raw_filter = parsed.get("filter")
         metadata_filter = dict(raw_filter) if isinstance(raw_filter, dict) else {}
         return semantic_query, metadata_filter
-
-    @staticmethod
-    def _extract_text(raw: Any) -> str:
-        if isinstance(raw, str):
-            return raw
-        if isinstance(raw, dict):
-            content = raw.get("content")
-            if isinstance(content, str):
-                return content
-        return str(raw)

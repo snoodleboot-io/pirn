@@ -38,6 +38,7 @@ from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.specializations.rag.sentence_confidence_monitor import SentenceConfidenceMonitor
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
@@ -117,7 +118,7 @@ class FlareActiveRagPipeline(AgentPipeline):
         parts: list[str] = []
         retrieval_calls = 0
         for _step in range(max_sentences):
-            reply = self._extract_text(
+            reply = LlmResponseText().extract(
                 await llm.chat([{"role": "user", "content": self._generate_prompt(query, parts)}])
             )
             reply = reply.strip()
@@ -130,16 +131,20 @@ class FlareActiveRagPipeline(AgentPipeline):
             ):
                 docs = list((await memory.search(sentence, top_k=top_k))[:top_k])
                 retrieval_calls += 1
-                sentence = self._extract_text(
-                    await llm.chat(
-                        [
-                            {
-                                "role": "user",
-                                "content": self._regenerate_prompt(query, sentence, docs),
-                            }
-                        ]
+                sentence = (
+                    LlmResponseText()
+                    .extract(
+                        await llm.chat(
+                            [
+                                {
+                                    "role": "user",
+                                    "content": self._regenerate_prompt(query, sentence, docs),
+                                }
+                            ]
+                        )
                     )
-                ).strip()
+                    .strip()
+                )
             if sentence:
                 parts.append(sentence)
         answer = " ".join(parts)
@@ -174,13 +179,3 @@ class FlareActiveRagPipeline(AgentPipeline):
         confidence = float(match.group(1))
         confidence = min(1.0, max(0.0, confidence))
         return confidence, match.group(2).strip()
-
-    @staticmethod
-    def _extract_text(raw: Any) -> str:
-        if isinstance(raw, str):
-            return raw
-        if isinstance(raw, dict):
-            content = raw.get("content")
-            if isinstance(content, str):
-                return content
-        return str(raw)

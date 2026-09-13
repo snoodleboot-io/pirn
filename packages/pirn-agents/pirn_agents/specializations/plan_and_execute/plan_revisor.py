@@ -25,6 +25,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.planning.plan import Plan
 from pirn_agents.prompt.prompt_binding import PromptBinding
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 
 
 class PlanRevisor(Knot):
@@ -106,7 +107,7 @@ class PlanRevisor(Knot):
             {"role": "user", "content": user_content},
         ]
         raw = await llm.chat(messages=messages)
-        rationale = self._extract_text(raw)
+        rationale = LlmResponseText().extract(raw)
         steps = self._parse_steps(rationale)
         return Plan(steps=tuple(steps), rationale=rationale)
 
@@ -122,19 +123,3 @@ class PlanRevisor(Knot):
                 if step:
                     steps.append(step)
         return steps
-
-    @staticmethod
-    def _extract_text(raw: Any) -> str:
-        if isinstance(raw, str):
-            return raw
-        if isinstance(raw, dict):
-            content = raw.get("content")
-            if isinstance(content, str):
-                return content
-            if isinstance(content, list) and content:
-                first = content[0]
-                if isinstance(first, dict):
-                    text = first.get("text")
-                    if isinstance(text, str):
-                        return text
-        return str(raw)

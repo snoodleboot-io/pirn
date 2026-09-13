@@ -25,6 +25,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
@@ -100,7 +101,7 @@ class SelfCritiqueRevise(Knot):
                 {"role": "user", "content": prompt},
             ]
         )
-        initial = self._extract_text(initial_raw)
+        initial = LlmResponseText().extract(initial_raw)
 
         critique_raw = await llm.chat(
             messages=[
@@ -108,7 +109,7 @@ class SelfCritiqueRevise(Knot):
                 {"role": "user", "content": initial},
             ]
         )
-        critique = self._extract_text(critique_raw)
+        critique = LlmResponseText().extract(critique_raw)
 
         revision_raw = await llm.chat(
             messages=[
@@ -123,21 +124,5 @@ class SelfCritiqueRevise(Knot):
                 },
             ]
         )
-        revised = self._extract_text(revision_raw)
+        revised = LlmResponseText().extract(revision_raw)
         return AgentResponse(content=revised)
-
-    @staticmethod
-    def _extract_text(raw: Any) -> str:
-        if isinstance(raw, str):
-            return raw
-        if isinstance(raw, dict):
-            content = raw.get("content")
-            if isinstance(content, str):
-                return content
-            if isinstance(content, list) and content:
-                first = content[0]
-                if isinstance(first, dict):
-                    text = first.get("text")
-                    if isinstance(text, str):
-                        return text
-        return str(raw)

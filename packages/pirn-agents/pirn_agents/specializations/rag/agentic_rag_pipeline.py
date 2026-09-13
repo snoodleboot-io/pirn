@@ -35,6 +35,7 @@ from pydantic import PositiveInt
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.tools.tool import Tool
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
@@ -115,7 +116,7 @@ class AgenticRagPipeline(AgentPipeline):
         """Ask the LLM for a follow-up question, or ``None`` when the answer suffices."""
         prompt = AgenticRagPipeline._next_question_prompt.render({"query": query, "answer": answer})
         raw = await llm.chat([{"role": "user", "content": prompt}])
-        reply = AgenticRagPipeline._extract_text(raw).strip()
+        reply = LlmResponseText().extract(raw).strip()
         if reply.upper().startswith("FOLLOWUP:"):
             follow_up = reply.split(":", 1)[1].strip()
             return follow_up or None
@@ -129,13 +130,3 @@ class AgenticRagPipeline(AgentPipeline):
             if isinstance(answer, str):
                 return answer
         return str(result)
-
-    @staticmethod
-    def _extract_text(raw: Any) -> str:
-        if isinstance(raw, str):
-            return raw
-        if isinstance(raw, dict):
-            content = raw.get("content")
-            if isinstance(content, str):
-                return content
-        return str(raw)

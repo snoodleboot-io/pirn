@@ -24,6 +24,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.planning.plan import Plan
 from pirn_agents.prompt.prompt_binding import PromptBinding
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
@@ -84,23 +85,7 @@ class PlanExecutor(Knot):
                 {"role": "user", "content": user_content},
             ]
             raw = await llm.chat(messages=messages)
-            result = self._extract_text(raw)
+            result = LlmResponseText().extract(raw)
             step_results.append(result)
         combined = "\n".join(f"Step {i + 1}: {r}" for i, r in enumerate(step_results))
         return AgentResponse(content=combined)
-
-    @staticmethod
-    def _extract_text(raw: Any) -> str:
-        if isinstance(raw, str):
-            return raw
-        if isinstance(raw, dict):
-            content = raw.get("content")
-            if isinstance(content, str):
-                return content
-            if isinstance(content, list) and content:
-                first = content[0]
-                if isinstance(first, dict):
-                    text = first.get("text")
-                    if isinstance(text, str):
-                        return text
-        return str(raw)

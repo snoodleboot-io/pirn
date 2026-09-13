@@ -26,6 +26,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 
 
 class SubQuestionDecomposer(Knot):
@@ -97,17 +98,7 @@ class SubQuestionDecomposer(Knot):
         )
         raw = await llm.chat([{"role": "user", "content": prompt}])
         sub_questions = [
-            line.strip() for line in self._extract_text(raw).splitlines() if line.strip()
+            line.strip() for line in LlmResponseText().extract(raw).splitlines() if line.strip()
         ]
         capped = sub_questions[:max_sub_questions]
         return capped if capped else [query]
-
-    @staticmethod
-    def _extract_text(raw: Any) -> str:
-        if isinstance(raw, str):
-            return raw
-        if isinstance(raw, dict):
-            content = raw.get("content")
-            if isinstance(content, str):
-                return content
-        return str(raw)
