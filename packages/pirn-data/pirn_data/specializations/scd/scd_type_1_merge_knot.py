@@ -39,10 +39,10 @@ from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.specializations._pool_merge_knot import _PoolMergeKnot
 
 
-class ScdType1MergeKnot(Knot):
+class ScdType1MergeKnot(_PoolMergeKnot):
     """Merge a source row stream into a target table by overwriting on change."""
 
     def __init__(
@@ -97,13 +97,12 @@ class ScdType1MergeKnot(Knot):
         column_names: Any,
         **_: Any,
     ) -> dict[str, int]:
-        if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError("ScdType1MergeKnot: target_pool must be a DatabaseConnectionPool")
-        IdentifierValidator.validate_column("target_table", target_table)
+        self._validate_pools("ScdType1MergeKnot", target_pool=target_pool)
+        self._validate_identifier("target_table", target_table)
         primary_key_tuple = tuple(primary_keys)
-        IdentifierValidator.validate_columns("primary_keys", primary_key_tuple)
+        self._validate_identifier("primary_keys", primary_key_tuple)
         column_tuple = tuple(column_names)
-        IdentifierValidator.validate_columns("column_names", column_tuple)
+        self._validate_identifier("column_names", column_tuple)
         missing = [k for k in primary_key_tuple if k not in column_tuple]
         if missing:
             raise ValueError(f"ScdType1MergeKnot: primary_keys not in column_names: {missing}")

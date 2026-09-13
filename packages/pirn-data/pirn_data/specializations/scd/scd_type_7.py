@@ -38,11 +38,11 @@ from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.specializations._pool_merge_knot import _PoolMergeKnot
 from pirn_data.specializations.scd.scd_type_7_merge_knot import ScdType7MergeKnot
 
 
-class ScdType7(Knot):
+class ScdType7(_PoolMergeKnot):
     """Perform a Type 7 SCD merge: surrogate-keyed history with current-row flag."""
 
     def __init__(
@@ -152,21 +152,17 @@ class ScdType7(Knot):
         current_flag_column: Any = "is_current",
         **_: Any,
     ) -> dict[str, Any]:
-        if not isinstance(source_pool, DatabaseConnectionPool):
-            raise TypeError("ScdType7: source_pool must be a DatabaseConnectionPool")
-        if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError("ScdType7: target_pool must be a DatabaseConnectionPool")
-        if not isinstance(source_query, str) or not source_query:
-            raise ValueError("ScdType7: source_query must be a non-empty string")
-        IdentifierValidator.validate_column("target_table", target_table)
+        self._validate_pools("ScdType7", source_pool=source_pool, target_pool=target_pool)
+        self._validate_non_empty_string("ScdType7", "source_query", source_query)
+        self._validate_identifier("target_table", target_table)
         primary_key_tuple = tuple(primary_keys)
-        IdentifierValidator.validate_columns("primary_keys", primary_key_tuple)
+        self._validate_identifier("primary_keys", primary_key_tuple)
         column_tuple = tuple(column_names)
-        IdentifierValidator.validate_columns("column_names", column_tuple)
-        IdentifierValidator.validate_column("surrogate_key_column", surrogate_key_column)
-        IdentifierValidator.validate_column("effective_date_column", effective_date_column)
-        IdentifierValidator.validate_column("expiry_date_column", expiry_date_column)
-        IdentifierValidator.validate_column("current_flag_column", current_flag_column)
+        self._validate_identifier("column_names", column_tuple)
+        self._validate_identifier("surrogate_key_column", surrogate_key_column)
+        self._validate_identifier("effective_date_column", effective_date_column)
+        self._validate_identifier("expiry_date_column", expiry_date_column)
+        self._validate_identifier("current_flag_column", current_flag_column)
         missing = [k for k in primary_key_tuple if k not in column_tuple]
         if missing:
             raise ValueError(f"ScdType7: primary_keys not in column_names: {missing}")

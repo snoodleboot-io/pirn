@@ -59,9 +59,10 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.specializations._pool_merge_knot import _PoolMergeKnot
 
 
-class ScdType7Hybrid(Knot):
+class ScdType7Hybrid(_PoolMergeKnot):
     """Maintain SCD Type 7 (current + history columns on every row)."""
 
     def __init__(
@@ -165,25 +166,20 @@ class ScdType7Hybrid(Knot):
         current_flag_column: Any = "is_current",
         **_: Any,
     ) -> dict[str, Any]:
-        if not isinstance(source_pool, DatabaseConnectionPool):
-            raise TypeError("ScdType7Hybrid: source_pool must be a DatabaseConnectionPool")
-        if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError("ScdType7Hybrid: target_pool must be a DatabaseConnectionPool")
-        if not isinstance(source_query, str) or not source_query:
-            raise ValueError("ScdType7Hybrid: source_query must be a non-empty string")
-        if not isinstance(target_table, str) or not target_table:
-            raise ValueError("ScdType7Hybrid: target_table must be a non-empty string")
-        IdentifierValidator.validate_column("target_table", target_table)
+        self._validate_pools("ScdType7Hybrid", source_pool=source_pool, target_pool=target_pool)
+        self._validate_non_empty_string("ScdType7Hybrid", "source_query", source_query)
+        self._validate_non_empty_string("ScdType7Hybrid", "target_table", target_table)
+        self._validate_identifier("target_table", target_table)
         for col_label, col_name in (
             ("valid_from_column", valid_from_column),
             ("valid_to_column", valid_to_column),
             ("current_flag_column", current_flag_column),
         ):
-            IdentifierValidator.validate_column(col_label, col_name)
+            self._validate_identifier(col_label, col_name)
         key_tuple = tuple(key_columns)
         tracked_tuple = tuple(tracked_columns)
-        IdentifierValidator.validate_columns("key_columns", key_tuple)
-        IdentifierValidator.validate_columns("tracked_columns", tracked_tuple)
+        self._validate_identifier("key_columns", key_tuple)
+        self._validate_identifier("tracked_columns", tracked_tuple)
         if not isinstance(current_columns, Mapping):
             raise TypeError("ScdType7Hybrid: current_columns must be a Mapping[str, str]")
         missing = [c for c in tracked_tuple if c not in current_columns]

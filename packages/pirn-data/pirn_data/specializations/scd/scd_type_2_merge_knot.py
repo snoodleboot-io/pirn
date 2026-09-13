@@ -47,10 +47,10 @@ from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.specializations._pool_merge_knot import _PoolMergeKnot
 
 
-class ScdType2MergeKnot(Knot):
+class ScdType2MergeKnot(_PoolMergeKnot):
     """Merge a source row stream into a Type 2 effective-dated target."""
 
     def __init__(
@@ -128,16 +128,15 @@ class ScdType2MergeKnot(Knot):
         current_flag_column: Any,
         **_: Any,
     ) -> dict[str, int]:
-        if not isinstance(target_pool, DatabaseConnectionPool):
-            raise TypeError("ScdType2MergeKnot: target_pool must be a DatabaseConnectionPool")
-        IdentifierValidator.validate_column("target_table", target_table)
+        self._validate_pools("ScdType2MergeKnot", target_pool=target_pool)
+        self._validate_identifier("target_table", target_table)
         primary_key_tuple = tuple(primary_keys)
-        IdentifierValidator.validate_columns("primary_keys", primary_key_tuple)
+        self._validate_identifier("primary_keys", primary_key_tuple)
         column_tuple = tuple(column_names)
-        IdentifierValidator.validate_columns("column_names", column_tuple)
-        IdentifierValidator.validate_column("effective_date_column", effective_date_column)
-        IdentifierValidator.validate_column("expiry_date_column", expiry_date_column)
-        IdentifierValidator.validate_column("current_flag_column", current_flag_column)
+        self._validate_identifier("column_names", column_tuple)
+        self._validate_identifier("effective_date_column", effective_date_column)
+        self._validate_identifier("expiry_date_column", expiry_date_column)
+        self._validate_identifier("current_flag_column", current_flag_column)
         missing = [k for k in primary_key_tuple if k not in column_tuple]
         if missing:
             raise ValueError(f"ScdType2MergeKnot: primary_keys not in column_names: {missing}")
