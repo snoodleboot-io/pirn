@@ -70,6 +70,7 @@ _PIPELINE_CLASSES: list[tuple[str, str]] = [
     ("pirn_agents.specializations.guardrails.input_guardrail_check", "InputGuardrailCheck"),
     ("pirn_agents.specializations.guardrails.output_guardrail_check", "OutputGuardrailCheck"),
     ("pirn_agents.specializations.guardrails.pii_redactor_check", "PiiRedactorCheck"),
+    ("pirn_agents.specializations.reflection.constitutional_filter", "ConstitutionalFilter"),
     ("pirn_agents.specializations.lats.lats_search", "LatsSearch"),
     ("pirn_agents.specializations.multi_agent.consensus_pipeline", "ConsensusPipeline"),
     ("pirn_agents.specializations.multi_agent.debate_framework", "DebateFramework"),

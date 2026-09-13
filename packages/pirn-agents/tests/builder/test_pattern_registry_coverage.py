@@ -72,6 +72,17 @@ _EXPECTED_EXCLUSIONS = frozenset(
         # Private: the loop body PromptChainPipeline drives internally
         # (ADR agents-speaks-core WS5b).
         "pirn_agents.specializations.prompt_chaining._prompt_chain_loop._PromptChainLoop",
+        # Private: the loop body ConstitutionalFilter drives internally
+        # (ADR agents-speaks-core WS5b).
+        "pirn_agents.specializations.reflection._constitutional_filter_loop"
+        "._ConstitutionalFilterLoop",
+        # Newly promoted to the AgentPipeline family (ADR agents-speaks-core
+        # WS5b: was a plain Knot with a hand-rolled revision loop, now a
+        # SubTapestry driving _ConstitutionalFilterLoop). Registering it under
+        # a builder pattern name is a new-pattern decision for the lane that
+        # owns agent_pattern_registry.py's row set, not made here -- this
+        # lane's mandate is the control-flow shape, not the authoring surface.
+        "pirn_agents.specializations.reflection.constitutional_filter.ConstitutionalFilter",
         # Private: the per-candidate step FallbackChain drives internally (PIR-856).
         "pirn_agents.specializations.routing._candidate_attempt._CandidateAttempt",
         # Deprecated *Gate aliases (PIR-856, Knot Design Rule 7): reachable only
@@ -192,6 +203,17 @@ _DEPRECATED_RENAMES = frozenset(
     }
 )
 
+#: Public, non-deprecated classes newly promoted into the AgentPipeline family
+#: (ADR agents-speaks-core WS5b) whose builder-registry name, if any, is a
+#: new-pattern authoring decision left to the lane that owns
+#: agent_pattern_registry.py's row set -- this lane's mandate is the
+#: control-flow shape, not the authoring surface.
+_NEWLY_PROMOTED_UNREGISTERED = frozenset(
+    {
+        "pirn_agents.specializations.reflection.constitutional_filter.ConstitutionalFilter",
+    }
+)
+
 
 def test_the_excluded_bases_are_bases_and_the_excluded_private_is_private() -> None:
     """The exclusions are justified by what the classes are, not by fiat."""
@@ -214,15 +236,23 @@ def test_the_excluded_bases_are_bases_and_the_excluded_private_is_private() -> N
             "._RetryOnParseFailureLoop",
             "pirn_agents.specializations.self_ask._self_ask_loop._SelfAskLoop",
             "pirn_agents.specializations.prompt_chaining._prompt_chain_loop._PromptChainLoop",
+            "pirn_agents.specializations.reflection._constitutional_filter_loop"
+            "._ConstitutionalFilterLoop",
         ]
     )
     # Every exclusion falls into exactly one justified category: base,
     # private loop body, or named iteration step.
     bases = {_qualified(AgentPipeline), _qualified(AgentLoopPipeline)}
     # Every exclusion falls into exactly one justified category: base,
-    # private loop body, named iteration step, or deprecated alias/rename.
+    # private loop body, named iteration step, deprecated alias/rename, or
+    # newly promoted and not yet registered.
     assert _EXPECTED_EXCLUSIONS == (
-        bases | set(private) | _ITERATION_STEPS | _DEPRECATED_ALIASES | _DEPRECATED_RENAMES
+        bases
+        | set(private)
+        | _ITERATION_STEPS
+        | _DEPRECATED_ALIASES
+        | _DEPRECATED_RENAMES
+        | _NEWLY_PROMOTED_UNREGISTERED
     )
     for alias in _DEPRECATED_ALIASES:
         assert alias.rsplit(".", 1)[1].endswith("Gate")

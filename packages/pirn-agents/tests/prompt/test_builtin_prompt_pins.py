@@ -190,21 +190,21 @@ class ReflectionPromptPins(unittest.IsolatedAsyncioTestCase):
     """`specializations/reflection/` prompt text is delivered byte-for-byte."""
 
     async def test_constitutional_filter_evaluation_system(self) -> None:
+        # The evaluation call happens inside a knot the loop schedules (ADR
+        # agents-speaks-core WS5b) -- run the whole graph rather than calling
+        # process() directly, which only builds it.
         llm = StubLLMProvider(responses=["COMPLIANT"])
-        with Tapestry():
+        with Tapestry() as t:
             upstream = _stub_response(_config=KnotConfig(id="r2"))
-            cf = ConstitutionalFilter(
+            ConstitutionalFilter(
                 response=upstream,
                 principles=("Be helpful.",),
                 llm=llm,
+                max_revisions=1,
                 _config=KnotConfig(id="cf"),
             )
-        await cf.process(
-            response=AgentResponse(content="answer"),
-            principles=("Be helpful.",),
-            llm=llm,
-            max_revisions=1,
-        )
+        run = await t.run(RunRequest())
+        assert run.succeeded
         assert llm.calls[0][0]["content"] == (
             "You are a constitutional AI reviewer. Evaluate the response against "
             "the principles listed below. If the response violates any principle, "
