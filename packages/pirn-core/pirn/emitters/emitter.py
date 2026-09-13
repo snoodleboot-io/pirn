@@ -65,6 +65,10 @@ class Emitter:
     async def close(self) -> None:
         """Release any held resources (connections, buffers, file handles).
 
-        Called by the runtime when it is done with this emitter.
-        Implementations should be idempotent and must not raise.
+        Called by :meth:`~pirn.tapestry.Tapestry.close` for every emitter
+        registered on that tapestry — either explicitly, or automatically
+        on exit from ``async with Tapestry() as t:``.  A plain synchronous
+        ``with Tapestry() as t:`` cannot await this and must call
+        ``await t.close()`` itself. Implementations should be idempotent and
+        must not raise.
         """

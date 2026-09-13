@@ -27,6 +27,19 @@ class _RecordingEmitter(Emitter):
         self.run_results.append(result)
 
 
+class _ClosableEmitter(Emitter):
+    """Tracks whether ``close()`` was called, optionally raising from it."""
+
+    def __init__(self, *, raise_on_close: bool = False) -> None:
+        self.closed = False
+        self._raise_on_close = raise_on_close
+
+    async def close(self) -> None:
+        self.closed = True
+        if self._raise_on_close:
+            raise RuntimeError("boom")
+
+
 # (tapestry, emitter) queued for a knot to register while a run is in flight.
 _pending_emitter: list[tuple[Tapestry, Emitter]] = []
 
@@ -161,6 +174,46 @@ class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
         # e2 is not e1 even if they're the same type.
         with self.assertRaisesRegex(ValueError, "not registered"):
             t.remove_emitter(e2)
+
+    async def test_close_closes_every_registered_emitter(self):
+        t = Tapestry()
+        e1 = _ClosableEmitter()
+        e2 = _ClosableEmitter()
+        t.add_emitter(e1)
+        t.add_emitter(e2)
+
+        await t.close()
+
+        assert e1.closed
+        assert e2.closed
+
+    async def test_close_isolates_one_emitters_failure_from_the_rest(self):
+        t = Tapestry()
+        failing = _ClosableEmitter(raise_on_close=True)
+        healthy = _ClosableEmitter()
+        t.add_emitter(failing)
+        t.add_emitter(healthy)
+
+        await t.close()  # must not raise
+
+        assert failing.closed
+        assert healthy.closed
+
+    async def test_async_with_closes_emitters_on_exit(self):
+        e = _ClosableEmitter()
+        async with Tapestry() as t:
+            t.add_emitter(e)
+            assert not e.closed
+        assert e.closed
+
+    async def test_sync_with_does_not_close_emitters(self):
+        """Plain ``with`` cannot await; emitters stay open until close() is awaited explicitly."""
+        e = _ClosableEmitter()
+        with Tapestry() as t:
+            t.add_emitter(e)
+        assert not e.closed
+        await t.close()
+        assert e.closed
 
     def test_emitters_property_returns_copy(self):
         from pirn.emitters.log_emitter import LogEmitter

@@ -15,10 +15,13 @@ is an internal collaborator, not something users construct directly.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any
+
+_logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from pirn.backends.base.data_store import DataStore
@@ -459,6 +462,27 @@ class Tapestry:
         """
         return self._emitter_error_policy
 
+    async def close(self) -> None:
+        """Close every registered emitter, releasing held resources.
+
+        Called by the runtime when using ``async with Tapestry() as t:``
+        (see :meth:`__aexit__`); callers of the plain synchronous
+        ``with Tapestry() as t:`` form must await this explicitly, since a
+        synchronous ``__exit__`` cannot await an emitter's async ``close()``.
+
+        Each emitter is closed independently: one emitter raising does not
+        stop the others from being closed, and every failure is logged at
+        WARNING rather than propagated — mirroring the "must not raise"
+        contract already documented on :meth:`Emitter.close`.
+        """
+        for emitter in self._emitters:
+            try:
+                await emitter.close()
+            except Exception:
+                _logger.warning(
+                    "Tapestry.close: emitter %r raised while closing", emitter.name, exc_info=True
+                )
+
     # ----------------------------------------------------------- with-block
 
     def __enter__(self) -> Tapestry:
@@ -472,6 +496,22 @@ class Tapestry:
         token, self._token = self._token, None
         if token is not None:
             _current_tapestry.reset(token)
+
+    async def __aenter__(self) -> Tapestry:
+        """Async form of :meth:`__enter__`; identical contextvar wiring."""
+        return self.__enter__()
+
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        """Async form of :meth:`__exit__` that also closes every emitter.
+
+        Runs :meth:`close` before restoring the contextvar so a knot
+        constructed from inside an emitter's ``close()`` (unusual, but not
+        forbidden) still sees this tapestry as current.
+        """
+        try:
+            await self.close()
+        finally:
+            self.__exit__(exc_type, exc_val, exc_tb)
 
     def __repr__(self) -> str:
         return f"<Tapestry knots={len(self._store.all())}>"
