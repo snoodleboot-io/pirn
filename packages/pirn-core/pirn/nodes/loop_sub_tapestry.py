@@ -11,6 +11,13 @@ The pattern separates into two pure functions that the framework threads togethe
         Integrate the iteration's outcome into state.  The returned value is
         passed to the next ``step`` call.
 
+    Either may be awaitable.  Override ``astep`` / ``afold`` (``async def``)
+    when planning or folding needs to await -- a backoff sleep before the
+    next attempt, a budget check against a remote meter, a model call that
+    decides whether to continue -- or simply declare ``step`` / ``fold`` as
+    ``async def``: the framework awaits whatever they return.  The sync
+    forms keep working unchanged (ADR agents-speaks-core, WS0).
+
         By default ``result`` is always a *successful* run — a failed iteration
         raises before ``fold`` is reached.  Set the class-level
         ``_tolerate_iteration_failures = True`` to receive failed runs too, which
@@ -51,6 +58,7 @@ Example::
 
 from __future__ import annotations
 
+import inspect
 from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar
 
 from pirn.core.knot import Knot
@@ -93,11 +101,16 @@ class LoopSubTapestry(SubTapestry, Generic[S]):
     - ``step(state: S) -> tuple[Tapestry, S] | None``
     - ``fold(state: S, result: RunResult) -> S``
 
+    or their awaitable forms ``astep`` / ``afold``, which the framework
+    calls; the defaults delegate to ``step`` / ``fold`` and await the
+    result if it is awaitable, so a subclass may declare either pair, sync
+    or ``async``.
+
     The base class owns the iteration loop, history injection, and run
     recording.  Subclasses never call ``_run_inner`` directly.
 
     Algorithm:
-        1. Bootstrap — ``process()`` calls ``step(initial_state)`` to decide
+        1. Bootstrap — ``process()`` awaits ``astep(initial_state)`` to decide
            whether any iterations are needed.
         2. Zero-iteration short-circuit — if ``step`` returns ``None`` on the
            first call, a ``_LoopTerminal`` seeded with the initial state is
@@ -111,9 +124,9 @@ class LoopSubTapestry(SubTapestry, Generic[S]):
            tapestry in extensible mode (``_extensible_inner_run = True``).  The
            engine executes iteration 1 and waits for more knots.
         5. Fold — when iteration N completes, ``_IterationChainKnot.process``
-           calls ``fold(state, run_result)`` to integrate the iteration's outputs
-           into the accumulated state.
-        6. Plan next — ``step(new_state)`` is called immediately after ``fold``.
+           awaits ``afold(state, run_result)`` to integrate the iteration's
+           outputs into the accumulated state.
+        6. Plan next — ``astep(new_state)`` is awaited immediately after the fold.
            If it returns a ``(tapestry, state)`` pair, a new ``_IterationChainKnot``
            for iteration N+1 is registered into the loop's live store via
            ``get_current_store()``.  The extensible engine merges it as soon as
@@ -153,12 +166,55 @@ class LoopSubTapestry(SubTapestry, Generic[S]):
         return self._terminal_id
 
     def step(self, state: S) -> tuple[Tapestry, S] | None:
-        """Build the next iteration's graph, or return None to terminate."""
-        raise NotImplementedError(f"{type(self).__name__} must implement step()")
+        """Build the next iteration's graph, or return None to terminate.
+
+        Override this, or ``astep`` when planning must await.  May itself be
+        declared ``async def``; the framework awaits the result either way.
+        """
+        raise NotImplementedError(f"{type(self).__name__} must implement step() or astep()")
 
     def fold(self, state: S, result: RunResult) -> S:
-        """Integrate an iteration's result into state."""
-        raise NotImplementedError(f"{type(self).__name__} must implement fold()")
+        """Integrate an iteration's result into state.
+
+        Override this, or ``afold`` when folding must await.  May itself be
+        declared ``async def``; the framework awaits the result either way.
+        """
+        raise NotImplementedError(f"{type(self).__name__} must implement fold() or afold()")
+
+    async def astep(self, state: S) -> tuple[Tapestry, S] | None:
+        """Awaitable ``step``: what the framework calls to plan the next iteration.
+
+        The default delegates to ``step`` and awaits its result when that is
+        awaitable, so a subclass overrides whichever form it needs.
+
+        Args:
+            state: The state to plan from.
+
+        Returns:
+            ``(tapestry, state)`` for the next iteration, or ``None`` to end.
+        """
+        outcome: Any = self.step(state)
+        if inspect.isawaitable(outcome):
+            outcome = await outcome
+        return outcome
+
+    async def afold(self, state: S, result: RunResult) -> S:
+        """Awaitable ``fold``: what the framework calls to integrate an iteration.
+
+        The default delegates to ``fold`` and awaits its result when that is
+        awaitable, so a subclass overrides whichever form it needs.
+
+        Args:
+            state: The state the iteration was planned from.
+            result: The iteration run's result.
+
+        Returns:
+            The state the next ``astep`` receives.
+        """
+        folded: Any = self.fold(state, result)
+        if inspect.isawaitable(folded):
+            folded = await folded
+        return folded
 
     def step_id(self, state: S, idx: int) -> str:
         """Return the knot ID for the upcoming step at *idx* (1-based).
@@ -202,7 +258,7 @@ class LoopSubTapestry(SubTapestry, Generic[S]):
         if outer_history is None:
             outer_history = self._mutable_outer_history
 
-        first_outcome = self.step(state)
+        first_outcome = await self.astep(state)
         if first_outcome is None:
             return _LoopTerminal(
                 state=state,

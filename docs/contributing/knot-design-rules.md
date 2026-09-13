@@ -241,12 +241,16 @@ because its sole responsibility is to own and return it.
 
 The framework exposes a `Gate` primitive (`pirn.nodes.gate.gate.Gate`) that halts or
 passes a pipeline based on a predicate. Knots that assess data and emit a `QualityReport`
-are not Gates — they are checks. Name them accordingly:
+are not Gates — they are checks. Name them accordingly. A check whose verdict is a plain
+`bool` has a core base for the role: `Check` (`pirn.nodes.check.Check`), whose output
+contract is exactly `True`/`False`, and which a `Gate` takes directly as its decision
+(`Gate(input=value, check=verdict, ...)`) — no joined value and no lambda needed.
 
 | Pattern | Correct | Wrong |
 |---------|---------|-------|
 | Quality assessment Knot | `RowCountCheck` | `RowCountGate` |
-| Framework halt primitive | `Gate(input=report, predicate=...)` | — |
+| Boolean verdict feeding a Gate | `class AcceptCheck(Check)` | `AcceptGate` |
+| Framework halt primitive | `Gate(input=report, predicate=...)` or `Gate(input=value, check=verdict)` | — |
 
 ---
 

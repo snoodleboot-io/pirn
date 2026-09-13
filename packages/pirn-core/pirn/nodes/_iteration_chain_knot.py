@@ -135,6 +135,10 @@ class _IterationChainKnot(Knot):
             iter_tapestry.emitters, _current_emitters.get(None)
         )
         parent_run_id = _current_run_id.get(None)
+        # No ``_nesting_key``: an iteration run counts one level of nesting
+        # depth but adds nothing to the guard's path -- the loop's own class is
+        # already there, and a loop inside another loop's iteration is not a
+        # cycle (``RunNesting``).
         result = await iter_tapestry.run(
             RunRequest(),
             _parent_run_id=parent_run_id,
@@ -155,14 +159,14 @@ class _IterationChainKnot(Knot):
         # `fold` unchanged — `succeeded is False` with a populated `exceptions`
         # — so the loop itself decides whether that is a retry trigger or a
         # reason to stop.  See PIR-772.
-        new_state = loop.fold(state, result)
+        new_state = await loop.afold(state, result)
 
         store = get_current_store()
         if store is None:
             return new_state
 
         next_idx = iteration_idx + 1
-        next_outcome = loop.step(new_state)
+        next_outcome = await loop.astep(new_state)
         next_knot_id = loop.step_id(new_state, next_idx)
 
         if next_outcome is not None:

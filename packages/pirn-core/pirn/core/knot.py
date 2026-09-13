@@ -35,6 +35,7 @@ from __future__ import annotations
 import asyncio
 import copy
 import inspect
+import json
 import types as _types
 import warnings
 from collections.abc import Mapping
@@ -44,11 +45,13 @@ from pydantic import TypeAdapter, ValidationError
 
 from pirn.core.dict_map import DictMap
 from pirn.core.err import Err
+from pirn.core.json_schema_type_builder import JsonSchemaTypeBuilder
 from pirn.core.knot_config import KnotConfig
 from pirn.core.map import Map
 from pirn.core.map_type_error import MapTypeError
 from pirn.core.ok import Ok
 from pirn.core.result import Result
+from pirn.core.skipped import Skipped
 from pirn.core.zip_map import ZipMap
 from pirn.managers.exception_record import ExceptionRecord
 
@@ -87,6 +90,18 @@ class Knot:
     # Populated by __init_subclass__ for each class that defines process().
     # Maps param name -> scalar type extracted from ``Knot | T`` union hints.
     _coercible_params: dict[str, Any] = {}  # noqa: RUF012
+
+    # A JSON object schema declaring the inputs of a knot that has no Python
+    # signature to introspect -- an MCP-declared tool, an OpenAPI operation
+    # (ADR agents-speaks-core, WS0).  When set, the schema's ``properties``
+    # are the declared inputs, its ``required`` the ones construction must
+    # supply, its ``default``s fill the rest, and each property's fragment is
+    # turned into the ``TypeAdapter`` that ``validate_io`` applies
+    # (``JsonSchemaTypeBuilder``), so a schema-declared knot is validated by
+    # exactly the machinery a hinted one is.  ``process`` is then
+    # ``(self, **kwargs)`` and receives the validated inputs by name.  Set by
+    # ``KnotFactory.from_schema``; ``input_json_schema()`` returns it as is.
+    _input_schema_override: ClassVar[Mapping[str, Any] | None] = None
 
     @staticmethod
     def _is_knot_cls(candidate: Any) -> bool:
@@ -197,13 +212,24 @@ class Knot:
         config, explicit_tapestry, kwargs = self._extract_framework_kwargs(kwargs)
         mapped_inputs, kwargs = self._extract_map_markers(kwargs, config)
 
-        # Validate the remaining kwargs against process()'s signature.
+        # Validate the remaining kwargs against process()'s signature -- or,
+        # for a schema-declared knot, against the declared schema.
         # follow_wrapped=True: for @knot classes, inspect the user's original
         # function so declared input names reflect its real parameter names.
         sig = self._process_signature()
-        declared = self._declared_input_names(sig)
+        schema = type(self)._input_schema_override
+        if schema is not None:
+            declared = JsonSchemaTypeBuilder.declared(schema)
+            required = JsonSchemaTypeBuilder.required(schema)
+        else:
+            declared = self._declared_input_names(sig)
+            required = declared
         accepts_implicit = self._has_var_keyword(sig)
-        self._validate_kwargs_against_signature(kwargs, declared, accepts_implicit, config)
+        self._validate_kwargs_against_signature(
+            kwargs, declared, accepts_implicit, config, required=required
+        )
+        if schema is not None:
+            kwargs = {**JsonSchemaTypeBuilder.defaults(schema), **kwargs}
 
         kwargs = self._coerce_scalar_parameters(kwargs, config, explicit_tapestry)
         parents, config_values = self._partition_parents_and_config(kwargs)
@@ -320,12 +346,16 @@ class Knot:
         declared: set[str],
         accepts_implicit: bool,
         config: KnotConfig,
+        required: set[str] | None = None,
     ) -> None:
         """Reject unknown or missing kwargs against process()'s declared inputs.
 
         Extra Knot-valued kwargs are implicit parents (ordering dependencies
         whose output is not used directly) when ``process()`` accepts
-        ``**kwargs``; extra non-Knot ones are always errors.
+        ``**kwargs``; extra non-Knot ones are always errors.  *required* is
+        the subset of *declared* that must be supplied; it defaults to all of
+        them, and a schema-declared knot narrows it to the schema's
+        ``required`` list.
         """
         unknown = set(kwargs) - declared - cls._reserved_kwargs
         if unknown:
@@ -345,7 +375,7 @@ class Knot:
                     "To wire implicit dependencies add '**_: Any' to process()"
                 )
 
-        missing = declared - set(kwargs)
+        missing = (declared if required is None else required) - set(kwargs)
         if missing:
             raise TypeError(
                 f"{cls.__name__}({config.id!r}): missing required input(s) {sorted(missing)!r}"
@@ -484,6 +514,11 @@ class Knot:
         self._mutable_output_adapter = output_adapter
         self._mutable_mapped_inputs = dict(mapped_inputs) if mapped_inputs else {}
         self._mutable_fan_out_extra: dict[str, Any] = {}
+        # Written by the engine onto the run-scoped copy it dispatched --
+        # e.g. the attempt count under ``KnotConfig.retry`` -- and merged into
+        # ``lineage_extra``.  Always reassigned, never mutated in place, so a
+        # shallow ``run_scoped_copy`` never shares it with the graph knot.
+        self._mutable_dispatch_extra: dict[str, Any] = {}
 
         from pirn.tapestry import _current_tapestry
 
@@ -509,7 +544,7 @@ class Knot:
         Called by the engine after ``__call__`` returns; the returned dict is
         merged into ``KnotLineage.extra``.
         """
-        return dict(self._mutable_fan_out_extra)
+        return {**self._mutable_fan_out_extra, **self._mutable_dispatch_extra}
 
     def run_scoped_copy(self) -> Knot:
         """Return a copy of this knot for one run to execute and mutate.
@@ -548,6 +583,86 @@ class Knot:
             untouched.
         """
         return copy.copy(self)
+
+    # ------------------------------------------------------------ schema
+
+    @classmethod
+    def input_json_schema(cls) -> dict[str, Any]:
+        """Return the JSON schema of this knot's ``process()`` inputs.
+
+        The inverse of ``_input_schema_override``: the same hints
+        ``_build_adapters`` validates with, rendered as one object schema.
+        This is what a model-facing declaration of the knot derives from
+        (ADR agents-speaks-core, WS0).
+
+        Algorithm:
+            1. A schema-declared knot returns its declaration unchanged.
+            2. Otherwise, for each named ``process()`` parameter (``self``,
+               ``*args`` and ``**_`` excluded), take the validation
+               annotation ``_build_adapters`` would use -- ``T`` for a
+               ``Knot | T`` hint -- and skip it when it is Knot-typed or a
+               ``PirnOpaqueValue`` (a live resource is wired, never
+               supplied by a caller); an unannotated parameter is ``{}``.
+            3. Render each remaining annotation with
+               ``TypeAdapter(...).json_schema()``, hoisting any ``$defs``
+               to the top level, and record a JSON-serialisable default.
+            4. Parameters without a default are ``required``.
+
+        Returns:
+            ``{"type": "object", "properties": {...}, "required": [...]}``
+            plus ``"$defs"`` when a property's schema needs them.
+        """
+        override = cls._input_schema_override
+        if override is not None:
+            return json.loads(json.dumps(override))
+        sig = cls._process_signature()
+        hints = cls._process_hints(sig)
+        properties: dict[str, Any] = {}
+        required: list[str] = []
+        defs: dict[str, Any] = {}
+        for name, annotation in cls._input_annotations(sig, hints).items():
+            if cls._is_wired_only(annotation):
+                continue
+            fragment: dict[str, Any] = (
+                {} if annotation is Any else TypeAdapter(annotation).json_schema()
+            )
+            defs.update(fragment.pop("$defs", {}))
+            default = sig.parameters[name].default
+            if default is inspect.Parameter.empty:
+                required.append(name)
+            elif cls._is_json_value(default):
+                fragment["default"] = default
+            properties[name] = fragment
+        schema: dict[str, Any] = {"type": "object", "properties": properties, "required": required}
+        if defs:
+            schema["$defs"] = defs
+        return schema
+
+    @staticmethod
+    def _is_json_value(value: Any) -> bool:
+        try:
+            json.dumps(value)
+        except (TypeError, ValueError):
+            return False
+        return True
+
+    @classmethod
+    def _is_wired_only(cls, annotation: Any) -> bool:
+        """Whether *annotation* names something only a parent knot can supply."""
+        from pirn.core.pirn_opaque_value import PirnOpaqueValue  # local: avoids a cycle
+
+        members = (
+            get_args(annotation)
+            if get_origin(annotation) in (Union, _types.UnionType)
+            else (annotation,)
+        )
+        concrete = [m for m in members if m is not type(None)]
+        if not concrete:
+            return False
+        return all(
+            cls._is_knot_cls(m) or (isinstance(m, type) and issubclass(m, PirnOpaqueValue))
+            for m in concrete
+        )
 
     # ----------------------------------------------------------- properties
 
@@ -629,6 +744,8 @@ class Knot:
             try:
                 outputs = await self._fan_out(kwargs)
             except BaseException as exc:
+                if self._is_task_cancellation(exc):
+                    raise
                 return Err(record=ExceptionRecord.for_knot(config.id, exc))
             return Ok(value=outputs)
 
@@ -647,6 +764,15 @@ class Knot:
         name to the upstream value (or, under RECEIVE_ERRORS, the
         upstream Result).  Config values are merged in from
         ``self._mutable_config_values``.
+
+        A ``process()`` that returns a ``Skipped`` is declaring that it
+        deliberately produced no value -- a closed ``Gate``, a non-selected
+        ``Branch`` arm, a denied approval.  The ``Skipped`` is returned as
+        is, never wrapped in ``Ok`` and never checked against the return
+        hint, so the engine records the knot as skipped and its children
+        skip in turn (ADR agents-speaks-core, WS0).  ``Optional`` is the one
+        exception: it keeps its ``Ok(Skipped)`` contract, so a downstream
+        knot of an optional source still receives the ``Skipped`` as a value.
         """
         config = self._mutable_config
         prepared = await self._prepare_inputs(parent_results)
@@ -657,7 +783,12 @@ class Knot:
         try:
             result = await self.process(**kwargs)
         except BaseException as exc:
+            if self._is_task_cancellation(exc):
+                raise
             return Err(record=ExceptionRecord.for_knot(config.id, exc))
+
+        if isinstance(result, Skipped):
+            return result
 
         if config.validate_io and self._mutable_output_adapter is not None:
             try:
@@ -668,6 +799,41 @@ class Knot:
         return Ok(value=result)
 
     # -------------------------------------------------------------- helpers
+
+    @staticmethod
+    def _is_task_cancellation(exc: BaseException) -> bool:
+        """Whether *exc* is the running task being cancelled, not a knot's own raise.
+
+        ``__call__`` turns every exception a knot raises into ``Err`` so the
+        engine can record it.  ``asyncio.CancelledError`` is the one exception
+        that is not the knot's to report: when the *task* is being cancelled
+        -- the run was cancelled, or a ``KnotConfig.timeout`` expired -- the
+        cancellation must reach the awaiting caller, or ``asyncio.wait_for``
+        sees a knot that "finished" with an ``Err`` and never raises
+        ``TimeoutError``, and a cancelled run returns a failed ``RunResult``
+        instead of raising (PIR-849).
+
+        A knot that raises ``CancelledError`` *itself*, with no cancellation
+        pending on its task, is reporting an outcome like any other exception
+        and still becomes ``Err``.  ``Task.cancelling()`` tells the two apart:
+        it counts the cancel requests the task has received and not yet
+        ``uncancel()``-led, so it is positive only for a real cancellation.
+        A task-less context (a knot awaited outside asyncio's task machinery)
+        cannot be cancelled and reports ``False``.
+
+        Args:
+            exc: The exception caught by a ``__call__`` boundary.
+
+        Returns:
+            ``True`` when *exc* must propagate, ``False`` when it is an ``Err``.
+        """
+        if not isinstance(exc, asyncio.CancelledError):
+            return False
+        try:
+            task = asyncio.current_task()
+        except RuntimeError:  # no running loop: nothing can be cancelling us
+            return False
+        return task is not None and task.cancelling() > 0
 
     @classmethod
     def _process_signature(cls) -> inspect.Signature:
@@ -698,13 +864,11 @@ class Knot:
             names.add(name)
         return names
 
-    def _build_adapters(
-        self,
-        sig: inspect.Signature,
-    ) -> tuple[dict[str, TypeAdapter], TypeAdapter | None]:
-        """Build Pydantic ``TypeAdapter``s once at construction time.
+    @classmethod
+    def _process_hints(cls, sig: inspect.Signature) -> dict[str, Any]:
+        """Resolve ``process()``'s type hints, keeping ``Annotated`` extras.
 
-        We introspect ``type(self).process`` (the unbound method) so that
+        We introspect ``cls.process`` (the unbound method) so that
         ``inspect.signature`` follows ``__wrapped__`` for ``@knot``-
         generated subclasses.  See Phase 1 commit history for the
         justification.
@@ -717,22 +881,32 @@ class Knot:
         domain in its signature instead of re-checking it by hand in
         ``process``.
         """
-        process_fn = type(self).process
         try:
-            hints = get_type_hints(process_fn, include_extras=True)
+            return get_type_hints(cls.process, include_extras=True)
         except Exception as exc:
             warnings.warn(
-                f"{type(self).__name__}.process: get_type_hints() failed ({exc!r}); "
+                f"{cls.__name__}.process: get_type_hints() failed ({exc!r}); "
                 "input/output validation is disabled for this class regardless "
                 "of KnotConfig.validate_io. This usually means a forward-"
                 "referenced annotation cannot be resolved (e.g. a name only "
                 "imported under TYPE_CHECKING).",
-                stacklevel=2,
+                stacklevel=3,
             )
-            hints = {}
+            return {}
 
-        coercible = type(self)._coercible_params
-        input_adapters: dict[str, TypeAdapter] = {}
+    @classmethod
+    def _input_annotations(cls, sig: inspect.Signature, hints: Mapping[str, Any]) -> dict[str, Any]:
+        """Name -> validation annotation for each named ``process()`` input.
+
+        Shared by ``_build_adapters`` (what ``validate_io`` checks against)
+        and ``input_json_schema`` (what a declaration advertises), so the two
+        can never disagree.  For a ``Knot | T`` param the engine resolves the
+        parent before calling ``process()``, so the runtime value is always
+        ``T``, not ``Knot``: the annotation is ``T`` (``None``-preserving).
+        An unannotated parameter maps to ``Any``.
+        """
+        coercible = cls._coercible_params
+        annotations: dict[str, Any] = {}
         for name, param in sig.parameters.items():
             if name == "self":
                 continue
@@ -743,14 +917,36 @@ class Knot:
                 continue
             ann = hints.get(name, param.annotation)
             if ann is inspect.Parameter.empty:
+                annotations[name] = Any
                 continue
-            # For ``Knot | T`` params the engine resolves the parent before
-            # calling process(), so the runtime value is always T, not Knot.
-            # Validate against T so pydantic doesn't try to schema Knot.
             coerce_result = coercible.get(name)
             if coerce_result is not None:
                 ann = coerce_result[1]  # adapter_type (non-Knot, None-preserving)
-            input_adapters[name] = TypeAdapter(ann)
+            annotations[name] = ann
+        return annotations
+
+    def _build_adapters(
+        self,
+        sig: inspect.Signature,
+    ) -> tuple[dict[str, TypeAdapter], TypeAdapter | None]:
+        """Build Pydantic ``TypeAdapter``s once at construction time.
+
+        Input adapters come from ``_input_annotations`` -- one per annotated
+        parameter -- or, for a schema-declared knot, from the declared
+        schema's properties (``JsonSchemaTypeBuilder``).  The output adapter
+        comes from the return hint either way.
+        """
+        hints = self._process_hints(sig)
+        schema = type(self)._input_schema_override
+        input_adapters: dict[str, TypeAdapter]
+        if schema is not None:
+            input_adapters = JsonSchemaTypeBuilder.input_adapters(schema)
+        else:
+            input_adapters = {
+                name: TypeAdapter(ann)
+                for name, ann in self._input_annotations(sig, hints).items()
+                if ann is not Any or name in hints
+            }
 
         ret = hints.get("return", sig.return_annotation)
         _is_knot_type = (

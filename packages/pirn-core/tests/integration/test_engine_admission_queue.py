@@ -457,10 +457,10 @@ async def test_cancelling_a_run_cancels_its_in_flight_knots_and_propagates() -> 
 
     # Assert: the run itself raises.  The wave loop awaited the knot's task
     # directly, so a cancellation reached the knot, where ``Knot.__call__``
-    # converts ``CancelledError`` into an ``Err`` (PIR-849), and the run
-    # returned a failed RunResult instead.  ``Knot.__call__`` still swallows
-    # it -- that is PIR-849's to fix -- but the engine no longer hides the
-    # cancellation of the run.
+    # used to convert ``CancelledError`` into an ``Err``, and the run
+    # returned a failed RunResult instead.  ``Knot.__call__`` now lets a
+    # task cancellation propagate (PIR-849) and the engine no longer hides
+    # the cancellation of the run.
     with pytest.raises(asyncio.CancelledError):
         await run
     assert "cancelled:stuck" in script.log

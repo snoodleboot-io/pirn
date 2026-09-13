@@ -52,6 +52,7 @@ from pirn.core.ok import Ok
 from pirn.core.parameter import Parameter
 from pirn.core.result import Result
 from pirn.core.run_context import RunContext
+from pirn.core.run_nesting import RunNesting
 from pirn.core.run_request import RunRequest
 from pirn.core.run_result import RunResult
 from pirn.core.skipped import Skipped
@@ -61,12 +62,15 @@ from pirn.core.transport.transport_handle import TransportHandle
 from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
 from pirn.engine._run_scoped_subscriber import _RunScopedSubscriber
 from pirn.engine.admission.admission_gate import AdmissionGate
+from pirn.engine.admission.admission_observer import AdmissionObserver
 from pirn.engine.admission.admission_ticket import AdmissionTicket
 from pirn.engine.admission.limited_admission_gate import LimitedAdmissionGate
 from pirn.engine.admission.unbounded_admission_gate import UnboundedAdmissionGate
+from pirn.engine.admission_feedback import AdmissionFeedback
 from pirn.engine.dispatchers.dispatcher import Dispatcher
 from pirn.engine.dispatchers.local_dispatcher import LocalDispatcher
 from pirn.engine.emitter_fanout import EmitterFanout
+from pirn.engine.governed_dispatch import GovernedDispatch
 from pirn.engine.lineage_recorder import LineageRecorder
 from pirn.engine.scheduling.dependency_tracker import DependencyTracker
 from pirn.engine.scheduling.ready_queue import ReadyQueue
@@ -85,6 +89,10 @@ class Engine:
 
     def __init__(self, dispatcher: Dispatcher | None = None) -> None:
         self._dispatcher = dispatcher or LocalDispatcher()
+        # Every dispatch goes through the governed path, which applies the
+        # knot's ``KnotConfig.timeout`` and ``KnotConfig.retry`` around the
+        # dispatcher (ADR agents-speaks-core, WS0).
+        self._governed = GovernedDispatch(self._dispatcher)
 
     async def execute(
         self,
@@ -102,6 +110,8 @@ class Engine:
         actor: str | None = None,
         replay: ReplaySession | None = None,
         concurrency: ConcurrencyLimits | None = None,
+        nesting: RunNesting | None = None,
+        admission_observers: list[AdmissionObserver] | None = None,
     ) -> RunResult:
         shed = Shed.from_terminals(terminals)
         self._check_groups(shed, concurrency, extensible=extensible_store is not None)
@@ -116,6 +126,7 @@ class Engine:
             parent_knot_id=parent_knot_id,
             actor=actor,
             trigger=request.trigger,
+            nesting=nesting,
         )
 
         # Wire emitters' on_status to the StatusManager.  Async emitters
@@ -163,6 +174,7 @@ class Engine:
                 replay=replay,
                 registrars=registrars,
                 gate=self._gate_for(concurrency),
+                admission_observers=admission_observers,
             )
         finally:
             if extensible_store is not None and subscribe_token is not None:
@@ -182,6 +194,7 @@ class Engine:
         replay: ReplaySession | None = None,
         registrars: dict[str, str] | None = None,
         gate: AdmissionGate | None = None,
+        admission_observers: list[AdmissionObserver] | None = None,
     ) -> RunResult:
         active_transport: DataTransport = transport or InlineTransport()
         await active_transport.begin_run(ctx.run_id)
@@ -218,7 +231,12 @@ class Engine:
         ready = ReadyQueue()
         if gate is None:
             gate = UnboundedAdmissionGate()
-        self._enqueue(ready, tracker, shed, tracker.initially_ready())
+        # Admission feedback (WS0): every admission and release is reported to
+        # the run's observers with queue depth, wait, hold time and outcome,
+        # so an adaptive controller can steer ``gate.set_limit``.  Silent and
+        # free when nobody is listening.
+        feedback = AdmissionFeedback(ctx.run_id, gate, admission_observers or ())
+        self._enqueue(ready, tracker, shed, tracker.initially_ready(), feedback)
 
         # In-flight tasks, each with the knot instance this run actually
         # dispatched -- kept so lineage is read back off the copy that executed
@@ -256,7 +274,7 @@ class Engine:
                         ctx,
                         tracker,
                     )
-                    self._enqueue(ready, tracker, shed, newcomers)
+                    self._enqueue(ready, tracker, shed, newcomers, feedback)
 
                 # Admit everything the gate allows.  A knot the engine resolves
                 # without dispatching (skipped, or failed for a missing parent)
@@ -272,23 +290,26 @@ class Engine:
                     kid, unplaced = admitted
                     knot = shed.knot(kid)
                     ctx.status.transition(kid, KnotState.RUNNING)
+                    feedback.admitted(kid, unplaced, ready.waiting_in(unplaced.group))
 
                     decision = self._decide(shed, knot, results, ctx)
 
                     if isinstance(decision, (Skipped, Err)):
                         self._release(gate, ready, unplaced)
-                        unplaced = None
                         results[kid] = decision
                         if isinstance(decision, Skipped):
                             ctx.skipped.append(kid)
                             ctx.status.transition(kid, KnotState.SKIPPED, decision.reason)
+                            feedback.released(unplaced, "skipped", ready.waiting_in(unplaced.group))
                         else:
                             # REQUIRE_ALL_PARENTS: synthetic Err.
                             ctx.status.transition(kid, KnotState.FAILED, "missing parent")
+                            feedback.released(unplaced, "err", ready.waiting_in(unplaced.group))
+                        unplaced = None
                         LineageRecorder.record_lineage(
                             ctx, knot, results, decision, started=ctx.started_at
                         )
-                        self._enqueue(ready, tracker, shed, tracker.resolve(kid))
+                        self._enqueue(ready, tracker, shed, tracker.resolve(kid), feedback)
                         continue
 
                     # decision is the resolved input dict.
@@ -343,6 +364,9 @@ class Engine:
                     # Re-register placeholder records with the live manager.
                     result = self._rebind_err(result, kid, ctx)
                     results[kid] = result
+                    feedback.released(
+                        ticket, self._outcome_name(result), ready.waiting_in(ticket.group)
+                    )
 
                     if isinstance(result, Ok):
                         ctx.status.transition(kid, KnotState.SUCCEEDED)
@@ -376,7 +400,7 @@ class Engine:
                         finished=finished_at,
                         replayed_from=replay.source_run_id if replayed and replay else None,
                     )
-                    self._enqueue(ready, tracker, shed, tracker.resolve(kid))
+                    self._enqueue(ready, tracker, shed, tracker.resolve(kid), feedback)
                     if pending_new:
                         newcomers = self._absorb_pending(
                             shed,
@@ -386,7 +410,7 @@ class Engine:
                             ctx,
                             tracker,
                         )
-                        self._enqueue(ready, tracker, shed, newcomers)
+                        self._enqueue(ready, tracker, shed, newcomers, feedback)
         except BaseException:
             # The run is aborting: a replay that cannot be served, a setup
             # error in a mid-run merge, or the run itself being cancelled.
@@ -415,9 +439,11 @@ class Engine:
                 # new knot beside that still-running thread and over-admit.
                 for _, held in running.values():
                     gate.release(held)
+                    feedback.released(held, "aborted", 0)
                 running.clear()
                 if unplaced is not None:
                     gate.release(unplaced)
+                    feedback.released(unplaced, "aborted", 0)
             raise
 
         # Report per-knot records in an order that depends on the graph alone,
@@ -477,6 +503,15 @@ class Engine:
         if limits is None or limits.is_unbounded:
             return UnboundedAdmissionGate()
         return LimitedAdmissionGate(limits)
+
+    @staticmethod
+    def _outcome_name(result: Result[Any]) -> str:
+        """The outcome vocabulary lineage uses, for admission feedback."""
+        if isinstance(result, Ok):
+            return "ok"
+        if isinstance(result, Skipped):
+            return "skipped"
+        return "err"
 
     @staticmethod
     def _release(gate: AdmissionGate, ready: ReadyQueue, ticket: AdmissionTicket) -> None:
@@ -558,7 +593,11 @@ class Engine:
 
     @staticmethod
     def _enqueue(
-        ready: ReadyQueue, tracker: DependencyTracker, shed: Shed, knot_ids: list[str]
+        ready: ReadyQueue,
+        tracker: DependencyTracker,
+        shed: Shed,
+        knot_ids: list[str],
+        feedback: AdmissionFeedback,
     ) -> None:
         """Push knots that just became ready onto *ready* as one batch."""
         if knot_ids:
@@ -566,6 +605,7 @@ class Engine:
                 (tracker.topo_index(kid), kid, shed.knots[kid].config.concurrency_group)
                 for kid in knot_ids
             )
+            feedback.enqueued(knot_ids)
 
     def _absorb_pending(
         self,
@@ -880,13 +920,20 @@ class Engine:
         Returns ``(result, parent_input_hashes, started_at)``.  The hashes
         are computed before dispatch so they reflect what the knot
         actually consumed.
+
+        The dispatch runs under the knot's ``timeout`` and ``retry`` policy
+        (``GovernedDispatch``).  ``started_at`` is the first attempt's start;
+        under a retry policy the attempt count is stashed on the run-scoped
+        knot for ``lineage_extra`` to report as ``extra["attempts"]``.
         """
         # For RECEIVE_ERRORS knots the inputs may be Result objects; we
         # hash them as they are (they're already canonicalisable).  For
         # other policies inputs are raw values.
         parent_hashes = {name: content_hash(value) for name, value in inputs.items()}
         started_at = datetime.now(UTC)
-        result = await self._dispatcher.dispatch(knot, inputs)
+        result, attempts = await self._governed.dispatch(knot, inputs)
+        if knot.config.retry is not None:
+            knot._mutable_dispatch_extra = {"attempts": attempts}
         return result, parent_hashes, started_at
 
     def _rebind_err(

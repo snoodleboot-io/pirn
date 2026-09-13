@@ -30,6 +30,8 @@ A knot is constructed with **keyword arguments that are introspected against its
 - Framework metadata travels through one reserved kwarg: `_config=KnotConfig(id=...)`. The `id` is **required** — nothing is auto-generated.
 - `process()` **must** accept `**_: Any` (enforced by `Knot.__init_subclass__`) and **must not** declare `*args`. The engine calls `process()` with keyword arguments only.
 
+**A schema can stand in for the signature.** `KnotFactory.from_schema(name, input_schema, process)` / `@knot(input_schema=...)` declare the inputs of a knot that has no Python signature (an MCP-declared tool) with a JSON object schema; `Knot._input_schema_override` carries it and `JsonSchemaTypeBuilder` turns each property into the `TypeAdapter` `validate_io` applies. The inverse, `Knot.input_json_schema()`, renders any knot's hinted inputs as the same kind of schema — the source for model-facing declarations.
+
 **The `Knot | T` union is load-bearing.** When a `process()` parameter is hinted `Knot | T`, passing a scalar `T` causes the framework to auto-wrap it in a `Parameter(default=value)` **graph node** (`core/knot.py`, the `_coercible_params` path). This is what turns an externally-constructed resource into a first-class node with lineage — rather than invisible config. This is the entire basis of the **vending-knot idiom** (§4.1).
 
 ### 1.2 Knots don't guard their own types
@@ -77,8 +79,12 @@ class LLMProvider(PirnOpaqueValue):
 | `Ok[T]` / `Err` / `Skipped` | value-object | — | the outcome algebra; `Result = Ok[T] \| Err \| Skipped` (`core/result.py`). **Everything that can succeed/fail/skip uses this — do not invent parallel status enums.** |
 | `PirnOpaqueValue` | mixin | — | `is_instance_schema` + `_pirn_audit_dict()`; the live-value contract |
 | `Parameter` | concrete Knot | `Knot` | wraps a scalar as a graph node (the `Knot \| T` coercion target) |
-| `KnotConfig` | config | — | `id` (required), `validate_io`, `error_policy`, `transport` |
-| `RunRequest` / `RunResult` / `RunContext` | value-object | — | a run's input/output/ambient context |
+| `KnotFactory` / `@knot` | factory | — | `core/knot_factory.py` — a function's signature becomes a Knot's input contract; `from_schema(name, input_schema, process)` / `@knot(input_schema=)` do the same from a JSON object schema |
+| `JsonSchemaTypeBuilder` | helper | — | `core/json_schema_type_builder.py` — JSON-schema fragment → Python type for `TypeAdapter` (scalars, enum/const, nullable, anyOf/oneOf, arrays, objects as `TypedDict`, local `$ref`, bounds). **Do not write a second schema→validator or signature→schema compiler.** |
+| `KnotConfig` | config | — | `id` (required), `validate_io`, `error_policy`, `transport`, `concurrency_group`, `timeout`, `retry` |
+| `KnotRetryPolicy` | value-object | — | `core/knot_retry_policy.py` — frozen backoff schedule (`max_attempts`, `base_delay`, `max_delay`, `multiplier`, `jitter`, `max_retry_after`) plus `is_retryable` / `retry_after` predicates over the failed attempt's `ExceptionRecord`. Set on `KnotConfig.retry`; the **engine** runs the loop (§3.5). **Do not write a retry loop inside a knot.** |
+| `RunRequest` / `RunResult` / `RunContext` | value-object | — | a run's input/output/ambient context; `RunContext.nesting` is the run's `RunNesting` frame |
+| `RunNesting` | value-object | — | `core/run_nesting.py` — where a run sits in the nested-run tree (`depth`, enclosing `run_ids`, container `path`, tightest `max_depth`); `RunNesting.current()` inside a knot. `Tapestry(max_nesting_depth=n)` turns the guard on: `NestingDepthExceededError` / `NestedRunCycleError` as the container knot's `Err`. **Do not carry a recursion counter through agent code.** |
 | `ErrorPolicy` | enum/policy | — | how upstream `Err` propagates (`RECEIVE_ERRORS` etc.) |
 | `IdentityResolver` | interface-base | — | `core/identity/` — `resolve()` who's running; `chained/env/os/static/null` implementations |
 
@@ -90,9 +96,10 @@ All subclass `Knot`. These are the graph-shape primitives.
 | `Aggregator` | fan-in of multiple parents |
 | `Reduce` | fold over a collection |
 | `Continuation` | deferred/streaming continuation |
-| `SubTapestry` / `LoopSubTapestry` | nest a tapestry as a node / iterate it |
+| `SubTapestry` / `LoopSubTapestry` | nest a tapestry as a node / iterate it; the loop's `astep` / `afold` are awaited (override them, or declare `step`/`fold` as `async def`) so an iteration can sleep, check a budget or call a model between turns |
 | `Branch` (`branch/`) | conditional path selection; `BranchOutput` |
-| `Gate` (`gate/`) | pass/close predicate gate |
+| `Gate` (`gate/`) | pass/close gate; decision is `predicate=` (callable) or `check=` (a `Check` knot) |
+| `Check` (`check.py`) | the predicate half of a `Gate`: any parents → `bool`, enforced. **The core name for a boolean verdict knot; agents' `*Check` knots subclass it, not `Knot`.** |
 | `Map` / `ZipMap` / `DictMap` (`map_markers.py`) | fan-out markers on a `process()` input → per-element execution |
 
 **Idiom:** distribution is declarative — annotate an input with a `Map`/`ZipMap`/`DictMap` marker and the framework runs `process()` once per element (`Knot._fan_out`).
@@ -122,9 +129,14 @@ All subclass `Knot`. These are the graph-shape primitives.
 |---|---|---|
 | `Dispatcher` (`dispatchers/dispatcher.py`) | interface-base | submits knot execution to a backend; `local`/`thread`/`ray`/`dask`/`celery` impls |
 | `Engine` (`engine.py`) | engine | drives `Knot.__call__`, applies `ErrorPolicy`, subscribes emitters |
+| `GovernedDispatch` (`governed_dispatch.py`) | engine | the dispatch path between `Engine` and `Dispatcher`: applies `KnotConfig.timeout` (`asyncio.wait_for` → `Err(KnotTimeoutError)`) and `KnotConfig.retry` (re-dispatch after backoff on the loop; attempt count → `KnotLineage.extra["attempts"]`). Dispatchers stay one `dispatch()`; `Knot.__call__` stays one attempt |
 | `Shed` / `Edge` (`shed/`) | engine | the resolved execution graph the engine walks |
+| `AdmissionGate` (`admission/`) | interface-base | `has_capacity` / `try_admit` / `release` / `wait_for_release` plus `current_limit(group)` / `set_limit(group, n)` for live caps; `UnboundedAdmissionGate` / `LimitedAdmissionGate` impls, `ConcurrencyLimits` is the public knob |
+| `AdmissionObserver` / `AdmissionEvent` (`admission/`) | interface-base / value-object | hears every admission and release (queue depth, wait, hold, outcome, the gate); attach via `Tapestry(admission_observers=)`. `AdmissionFeedback` (`engine/`) builds the events. **An adaptive concurrency controller is an observer calling `event.gate.set_limit`, not a semaphore of its own.** |
 
 **Idiom:** choose parallelism by swapping a `Dispatcher`, not by changing knots. Agent batch/fleet execution should compose or subclass a dispatcher, not re-implement a bounded-concurrency loop.
+
+**Idiom (resilience):** a per-call timeout or retry is `KnotConfig(timeout=..., retry=KnotRetryPolicy(...))` on the knot, honoured by the engine. A knot that wraps its own body in `wait_for` or a `while True` retry re-implements the engine and loses the attempt count from lineage.
 
 ### 3.6 Emitters + Managers — `emitters/`, `managers/`
 | Type | Kind | Contract |
@@ -193,7 +205,7 @@ Model optional facets as `NotImplementedError` capability base classes a concret
 `class X(PirnOpaqueValue): def method(self, ...): raise NotImplementedError(f"{type(self).__name__} must implement method()")`. Inherit `PirnOpaqueValue` iff it holds live/non-pydantic state that crosses the IO boundary.
 
 ### 4.4 Outcome idiom
-Return/branch on `Ok \| Err \| Skipped`. `Err` carries an `ExceptionRecord`. Never define a parallel `{OK, ERROR, SKIPPED}` status enum.
+Return/branch on `Ok \| Err \| Skipped`. `Err` carries an `ExceptionRecord`. Never define a parallel `{OK, ERROR, SKIPPED}` status enum. A `process()` that decides not to produce a value **returns `Skipped(reason=...)`** — `Knot.__call__` passes it through bare and the engine records a skip — rather than raising a sentinel or returning `None`; `Optional` alone yields `Ok(Skipped)`.
 
 ---
 
@@ -228,6 +240,14 @@ Tracked in Linear project **"pirn-agents: OOP/SOLID Standards Remediation"** (PI
 - **§3.6 (managers) unwired:** the secret-redaction layer is built but never attached to `ExceptionManager.traceback_filter`/loggers; approvals ignore `IdentityResolver`. → WS8·S6.
 
 *Resolved since the sweep (do not re-open):*
+- **§3.5 / §4.4 (ADR agents-speaks-core, WS0)** — core owns per-knot timeout and retry: `KnotConfig.timeout` → `Err(KnotTimeoutError)`, `KnotConfig.retry: KnotRetryPolicy` run by `GovernedDispatch`, attempts in lineage. Agents' `llm/retry_policy.py::RetryPolicy` and `exceptions/tool_timeout_error.py::ToolTimeoutError` are now shadows to migrate (ratchet: `tests/core_seams/test_core_seam_shadows.py`). Named `KnotRetryPolicy` because the registry keys every class by bare name and agents' `RetryPolicy` already holds `retrypolicy`.
+- **§3.1 nested runs (WS0)** — core owns the nested-run depth and cycle guard: `RunNesting` on every run, `Tapestry(max_nesting_depth=)`, inherited and only tightened by inner tapestries; `run_path` now really is `/{outer}/{inner}`. Agents' `AgentNestingConfig` / `AgentToolContext` / `AgentInvoker` and the `AgentRecursionError` family are shadows to migrate.
+- **§1.1 declared input schema (WS0)** — `KnotFactory.from_schema` / `@knot(input_schema=)` + `Knot._input_schema_override` validate schema-declared inputs through the standard adapters; `Knot.input_json_schema()` is the signature→schema direction. Agents' `ToolSchemaCompiler`, `ArgumentValidator` and `AgentSchemaDeriver` are shadows to migrate.
+- **§3.5 admission feedback (WS0)** — `AdmissionGate.set_limit` / `current_limit` and the `AdmissionObserver` + `AdmissionEvent` seam give an adaptive controller everything it needs from core. Agents' `AdaptiveConcurrencyController`, `ConcurrencyConfig`, `BackpressureSemaphore`, `Bulkhead(Config)`, `AsyncFanoutEngine`, `_FanoutRunner` and `BatchScheduler` are shadows to migrate.
+- **§3.2 Check role (WS0)** — `Check(Knot)` names the boolean-verdict role and `Gate(check=)` consumes it directly; `Gate` stays single-input by design (join with `Aggregator`; a `Check` may read several parents). Agents' `GatedAgentResponse` join is a shadow to migrate where the verdict can be a `Check`.
+- **§3.2 awaitable loop step (WS0)** — `LoopSubTapestry.astep` / `afold`; the sync pair still works. Resolves the core half of the `ParallelToolExecutor` deferral (agents' backoff-between-attempts loop can now be an `AgentLoopPipeline` iteration).
+- **§4.4 bare `Skipped` (WS0, PIR-856 deferral #5)** — a `process()` may return `Skipped`; `Knot.__call__` passes it through, `Gate` / `BranchOutput` do so instead of raising private sentinels (`_GateClosedError` / `_BranchNotSelectedError` deleted), and `Optional` keeps `Ok(Skipped)` via an explicit branch so its lineage contract is unchanged.
+- **PIR-849** — `Knot.__call__`, the fan-out path and `SubTapestry.__call__` let a *task* cancellation propagate (`Knot._is_task_cancellation`, `Task.cancelling()`), while a knot raising `CancelledError` itself is still an `Err`. A cancelled run raises; `wait_for` around a knot raises `TimeoutError`.
 - **§2** — no `typing.Protocol` interface survives in agents; the stateful ones (`VectorBackendClient`, `GraphBackendClient`, `RerankerBackend`, `NodeEmbeddingIndex`) are `PirnOpaqueValue` bases raising `NotImplementedError`. (WS1)
 - **§4.2** — `StatefulTool`/`StreamingTool`/`PermissionedTool` are gone; `stateful`/`state`, `permissions`/`requires_approval` and `streaming`/`stream`/`collect_stream` are default-returning capability members on `Tool`. (WS2·S6)
 - **§3.7** — agents' `BlobStore` is gone; `StreamingS3Store` and `ObjectStoreSourceConnector` build on core's `ObjectStore`, keeping `_validate_key`. (WS3·S2)

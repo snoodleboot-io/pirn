@@ -109,8 +109,28 @@ await t.run(RunRequest(parameters={"doc": "..."}, concurrency=ConcurrencyLimits(
 - A slot is released when the knot's task finishes, whatever the outcome (result, `Err`, exception or cancellation), when the engine resolves a knot without running it (skipped, missing parent), and for every in-flight knot when a run aborts.
 - Limits govern scheduling only: outputs, lineage hashes and the order of lineage, exceptions, skipped and outputs are the same under any limits. `KnotConfig.concurrency_group` is excluded from `model_dump`, so it never reaches `knot_config_hash`, and recordings made before a knot joined a group still replay.
 - A queued knot stays `PENDING`; `RUNNING` means admitted.
+- **Runtime feedback (WS0).** `Tapestry(admission_observers=[...])` / `run(admission_observers=...)` attach `AdmissionObserver`s that hear every admission and release as an `AdmissionEvent` — queue depth per group, wait, hold time, outcome — and can move a cap mid-run with `event.gate.set_limit(group, n)` (issued tickets untouched; `AdmissionLimitError` for an unknown group, a cap below one, or the unbounded gate). See [Extension Points](extension-points.md#runtime-feedback-admissionobserver-and-set_limit).
 - The effective ceiling is also bounded by the dispatcher (`ThreadDispatcher(max_workers=...)`; a sync `@knot` runs on the default executor, `min(32, cpu + 4)` threads).
 - Not yet: limits are not forwarded into `SubTapestry` / `LoopSubTapestry` inner runs, and `Map` / `ZipMap` / `DictMap` fan out their elements inside one admitted knot (PIR-841 slices 3 and 4).
+
+#### Loop iterations that await
+
+`LoopSubTapestry` plans and folds through `astep(state)` / `afold(state, result)`, which the framework awaits. The defaults delegate to the sync `step` / `fold` and await the result if it is awaitable, so a loop declares whichever pair it needs — sync, `async def step`/`fold`, or an `astep`/`afold` override — and an iteration can sleep for a backoff, check a remote budget, or ask a model whether to continue without dropping into a Python loop inside `process()` (the PIR-856 `ParallelToolExecutor` deferral's missing piece).
+
+#### Gate decisions: predicate or Check
+
+A `Gate` passes its one `input` through unchanged or produces `Skipped(reason="gate_closed")`. Its decision is either `predicate=`, a callable over the input, or `check=`, a `Check` knot (`pirn/nodes/check.py`) — the predicate half of a gate: a knot with any number of parents whose `process()` answers `bool`, enforced by `Check.__call__` (a non-`bool` verdict is `Err(TypeError)` whatever the return hint). The gate stays single-input on purpose: its output carries the input's identity through lineage, and joining is `Aggregator`'s job. With `check=` the common multi-value case — gate `A` on a verdict computed from `A` and `B` — needs no join: the `Check` reads both, the gate passes `A`. A `Check` that fails or is skipped skips the gate under the default error policy, like any missing parent.
+
+#### Nested runs and the nesting guard
+
+Every `SubTapestry` inner run, `LoopSubTapestry` loop run and loop iteration is a real run with its own id, recorded with `parent_run_id` / `parent_knot_id`, and now with a `run_path` that lists the enclosing runs (`/{outer}/{inner}`). Each run executes under an immutable `RunNesting` frame (`pirn/core/run_nesting.py`) carried on a context variable: its `depth` (0 for a root run), the enclosing `run_ids`, the `path` of container classes between the root and it, and the tightest `max_depth` set on that path. A knot reads its own frame with `RunNesting.current()`; the engine keeps it on `RunContext.nesting`.
+
+The frame is also the guard. `Tapestry(max_nesting_depth=n)` caps how many runs may nest below a run of that tapestry; inner tapestries inherit the cap through the context and may only tighten it. When a cap is active on the path, `Tapestry.run` derives the inner frame *before* anything starts (`RunNesting.child`) and refuses:
+
+- a run that would exceed the cap → `NestingDepthExceededError`;
+- a container class re-entering itself — its nesting key (qualified class name, `SubTapestry._nesting_key`) already on the path → `NestedRunCycleError`, raised at the first re-entry rather than after burning the whole budget.
+
+Both are `PirnError`s raised inside the container knot that tried to start the run, so the enclosing engine records them as that knot's `Err` and the refused run never touches history. Loop iterations count one level of depth but add no key: the loop's own class is already on the path, and a loop nested inside another loop's iteration is not a cycle. With no cap anywhere on the path the guard is off and nesting is unbounded — exactly the behaviour before the frame existed. The frame survives a `ThreadDispatcher` hop (context copy) and is empty on a process-boundary dispatcher, where nothing ambient survives.
 
 Per-knot records do not depend on completion order. `RunResult.lineage`, `exceptions`, `skipped` and `outputs` are sorted by `(level, dispatched, topological index)`, where `level` is the knot's depth from the roots; for a graph without mid-run registrations that is exactly the order the earlier wave loop produced. `status_events` and live `on_status` delivery are the exception: they follow real state transitions, so sibling knots' events interleave in the order the knots actually start and finish.
 
@@ -138,6 +158,17 @@ return result, parent_hashes, started_at
 ```
 
 The dispatcher calls `knot(inputs)` → `knot.__call__` → `knot.process(**kwargs)`. The result is `Ok`, `Err`, or `Skipped` from the knot itself.
+
+**Declaring a skip.** A `process()` that returns a `Skipped` is declaring that it deliberately produced no value — a closed `Gate`, a non-selected `Branch` arm, a denied approval. `Knot.__call__` passes it through bare: never wrapped in `Ok`, never checked against the return hint, so the engine records the knot as skipped (`outcome == "skipped"`, `skip_reason`) and its children skip in turn. `Gate` and `BranchOutput` are written this way; a knot of your own can be too. `Optional` is the one exception and keeps its `Ok(Skipped)` contract — a skip of an optional knot is a *value* its consumers receive, and lineage marks it `extra["optional_skip"]` (PIR-856 deferral resolved in WS0).
+
+**Timeout and retry.** The engine dispatches through `GovernedDispatch` (`pirn/engine/governed_dispatch.py`), which applies two per-knot policies from `KnotConfig` around the dispatcher call — never inside `Knot.__call__`, so dispatchers stay a single `dispatch()` and a retried knot is simply called again:
+
+- `KnotConfig(timeout=seconds)` runs each attempt under `asyncio.wait_for`; on expiry the attempt is cancelled and the knot's result is `Err(KnotTimeoutError)`. The timeout bounds one attempt, not the retry budget, and a knot on a worker thread or remote worker is not stopped — the engine records the timeout and moves on.
+- `KnotConfig(retry=KnotRetryPolicy(...))` re-dispatches an attempt that ended in `Err` (a raised exception, a failed output validation, a timeout) with the same inputs, sleeping on the event loop between attempts: capped exponential backoff with full jitter, or a `retry_after` hint from the `ExceptionRecord` capped by `max_retry_after`. `is_retryable` decides on the record — the only thing every dispatcher hands back — and `max_attempts` counts the first attempt. `Skipped` is never retried; a real cancellation is never retried. The attempt count is recorded as `KnotLineage.extra["attempts"]`. The admission slot is held across backoff.
+
+Both fields are excluded from `model_dump`, like `concurrency_group`: they describe resilience, not computation, so no `knot_config_hash` changes and every existing recording still replays.
+
+**Cancellation.** `Knot.__call__` turns every exception `process()` raises into `Err`, with one exception: a cancellation of the *task* running the knot propagates (PIR-849). `Knot._is_task_cancellation` tells the two apart with `Task.cancelling()` — positive only while a cancel request is pending on the task. So a run that is cancelled raises `CancelledError` out of `tapestry.run()` (the engine cancels and awaits its in-flight tasks first, and every admission slot comes back), a `KnotConfig.timeout` can expire as `TimeoutError` inside `asyncio.wait_for`, and a knot that raises `CancelledError` *itself*, with no cancellation pending, is still recorded as an ordinary `Err`. `SubTapestry.__call__` and the `Map`/`ZipMap`/`DictMap` fan-out path apply the same rule.
 
 ### Step 9: Lineage capture per knot
 

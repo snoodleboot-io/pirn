@@ -104,7 +104,9 @@ class SubTapestry(Knot):
            ``run_result.outputs`` using the key returned by
            ``_resolve_output_key(sink)`` and wrap it in ``Ok``.
         10. Error wrapping — any exception escaping steps 3-9 is caught and
-            wrapped in ``Err`` so the outer engine sees a normal knot failure.
+            wrapped in ``Err`` so the outer engine sees a normal knot failure,
+            except a cancellation of the task itself, which propagates
+            (``Knot._is_task_cancellation``, PIR-849).
     """
 
     _extensible_inner_run: ClassVar[bool] = False
@@ -112,6 +114,15 @@ class SubTapestry(Knot):
     # ``process`` below is declared in the gradual parameter form; see
     # ``Knot._dynamic_process_signature`` for why (PIR-833).
     _dynamic_process_signature: ClassVar[bool] = True
+
+    def _nesting_key(self) -> str:
+        """Return the key the nested-run guard tracks this container by.
+
+        The qualified class name: a nested run whose path already holds it
+        is this class re-entering itself, which ``RunNesting.child`` refuses
+        when a ``max_nesting_depth`` is active (``NestedRunCycleError``).
+        """
+        return f"{type(self).__module__}.{type(self).__qualname__}"
 
     def _resolve_output_key(self, sink: Knot) -> str:
         """Return the ``run_result.outputs`` key to surface as this knot's value.
@@ -303,6 +314,12 @@ class SubTapestry(Knot):
             self._record_inner_run_meta(run_result)
             output = run_result.outputs[self._resolve_output_key(sink)]
         except BaseException as exc:
+            # A real cancellation of this task propagates, like ``Knot.__call__``
+            # (PIR-849): the inner run has already been cancelled and wound
+            # down by its own engine, and the outer engine must see the
+            # cancellation rather than a failed result.
+            if self._is_task_cancellation(exc):
+                raise
             return Err(record=ExceptionRecord.for_knot(config.id, exc))
 
         return Ok(value=output)
@@ -433,6 +450,7 @@ class SubTapestry(Knot):
             RunRequest(),
             _parent_run_id=parent_run_id,
             _parent_knot_id=self.knot_id,
+            _nesting_key=self._nesting_key(),
             extensible=extensible,
             traceback_filter=_current_traceback_filter.get(None),
             emitters=inner_emitters,

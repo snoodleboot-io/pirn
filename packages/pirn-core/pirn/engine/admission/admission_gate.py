@@ -31,6 +31,12 @@ class AdmissionGate:
     that group and offers it again only once a slot of the group is released
     (the engine tells the queue, using ``AdmissionTicket.group``).
 
+    A gate's limits may be adjusted while the run is live (``set_limit``,
+    ADR agents-speaks-core WS0): the new cap applies to every admission from
+    then on and never touches a ticket already issued, so an adaptive
+    controller -- an ``AdmissionObserver`` reacting to throttled outcomes or
+    a growing queue -- can steer the run without stopping it.
+
     Implementations inherit and override every method.
     """
 
@@ -71,3 +77,32 @@ class AdmissionGate:
         is running could free capacity on completion.
         """
         raise NotImplementedError(f"{type(self).__name__} must implement wait_for_release()")
+
+    def current_limit(self, group: str | None) -> int | None:
+        """Return the cap in force for *group* right now.
+
+        Args:
+            group: A concurrency group, or ``None`` for the run-wide cap.
+
+        Returns:
+            The cap, or ``None`` when that budget is unbounded.
+        """
+        raise NotImplementedError(f"{type(self).__name__} must implement current_limit()")
+
+    def set_limit(self, group: str | None, limit: int) -> None:
+        """Change the cap for *group* for every admission from now on.
+
+        Tickets already issued are untouched: lowering a cap below what is
+        in flight simply refuses new admissions until enough slots come
+        back, and raising it lets the next release admit more.
+
+        Args:
+            group: A group the run's limits define, or ``None`` for the
+                run-wide cap.
+            limit: The new cap; at least 1.
+
+        Raises:
+            AdmissionLimitError: If the gate enforces no limits, *group* is
+                not one it defines, or *limit* is below 1.
+        """
+        raise NotImplementedError(f"{type(self).__name__} must implement set_limit()")

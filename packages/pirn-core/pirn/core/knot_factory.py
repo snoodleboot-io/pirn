@@ -9,10 +9,11 @@ from __future__ import annotations
 
 import asyncio
 import functools
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from inspect import iscoroutinefunction
 from typing import Any
 
+from pirn.core.json_schema_type_builder import JsonSchemaTypeBuilder
 from pirn.core.knot import Knot
 
 
@@ -82,9 +83,73 @@ class KnotFactory:
         )
         return cls(fn=fn, knot_class=knot_cls)
 
+    @classmethod
+    def from_schema(
+        cls,
+        name: str,
+        input_schema: Mapping[str, Any],
+        process: Callable[..., Any],
+        *,
+        description: str | None = None,
+    ) -> KnotFactory:
+        """Build a KnotFactory whose inputs are declared by a JSON schema.
+
+        For a capability that has no Python signature to introspect -- an
+        MCP-declared tool, an OpenAPI operation -- the schema plays the role
+        ``process()``'s hints play for a hinted knot (ADR agents-speaks-core,
+        WS0): its ``properties`` are the declared inputs, ``required`` the
+        ones construction must supply, each property's ``default`` fills an
+        omitted input, and each fragment becomes the ``TypeAdapter`` that
+        ``validate_io`` applies.  ``process`` receives the validated inputs
+        by keyword, exactly as a hinted knot does.
+
+        Args:
+            name: The generated knot class's name.
+            input_schema: A JSON object schema (``type: object`` with a
+                ``properties`` mapping).
+            process: ``async`` or sync callable taking the inputs by keyword;
+                a sync callable runs via ``asyncio.to_thread``.
+            description: Docstring for the generated class; defaults to
+                ``process.__doc__``.
+
+        Returns:
+            A factory constructing instances of the generated class.
+
+        Raises:
+            TypeError: If *input_schema* is not an object schema, names a
+                framework-reserved property, or requires an undeclared one.
+        """
+        schema = JsonSchemaTypeBuilder.validate_input_schema(
+            input_schema, reserved=Knot._reserved_kwargs
+        )
+        make_process = (
+            cls.__make_async_process if iscoroutinefunction(process) else cls.__make_sync_process
+        )
+        knot_cls = type(
+            name,
+            (Knot,),
+            {
+                "process": make_process(process),
+                "__module__": process.__module__,
+                "__qualname__": name,
+                "__doc__": description if description is not None else process.__doc__,
+                "_input_schema_override": schema,
+            },
+        )
+        return cls(fn=process, knot_class=knot_cls)
+
+    @staticmethod
+    def _decorate_with_schema(
+        input_schema: Mapping[str, Any], fn: Callable[..., Any]
+    ) -> KnotFactory:
+        """``@knot(input_schema=...)``'s decorator body: the function's name names the knot."""
+        return KnotFactory.from_schema(fn.__name__, input_schema, fn)
+
 
 def knot(
     func: Callable[..., Any] | None = None,
+    *,
+    input_schema: Mapping[str, Any] | None = None,
 ) -> Any:
     """Promote a function into a Knot factory.
 
@@ -104,7 +169,19 @@ def knot(
     The factory exposes the original function as ``.fn`` for introspection,
     and the generated Knot subclass as ``.knot_class`` for explicit
     instantiation if needed.
+
+    Pass ``input_schema=`` to declare the inputs with a JSON object schema
+    instead of the function's signature (``KnotFactory.from_schema``)::
+
+        @knot(input_schema={"type": "object", "properties": {"q": {"type": "string"}},
+                            "required": ["q"]})
+        async def search(**arguments: Any) -> list[str]:
+            ...
     """
+    if input_schema is not None:
+        if func is not None:
+            return KnotFactory.from_schema(func.__name__, input_schema, func)
+        return functools.partial(KnotFactory._decorate_with_schema, input_schema)
     if func is not None:
         return KnotFactory.create(func)
     return KnotFactory.create
