@@ -21,12 +21,15 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 from collections.abc import Mapping, Sequence, Set
 from typing import Any, ClassVar
 
 from pydantic import BaseModel, TypeAdapter
 
 from pirn.core._unhashable_error import _UnhashableError
+
+_logger = logging.getLogger(__name__)
 
 
 class _ContentHasher:
@@ -152,7 +155,12 @@ class _ContentHasher:
             except Exception:
                 # Fall through to the container/Mapping/Sequence branches
                 # below; if those also fail we end up at ``_UnhashableError``.
-                pass
+                _logger.warning(
+                    "_ContentHasher: TypeAdapter.dump_python failed for %s; "
+                    "falling back to container/repr canonicalisation",
+                    value_type,
+                    exc_info=True,
+                )
         if isinstance(value, Mapping):
             # Sort by str(key) for determinism.  Keys must serialise to strings
             # in JSON anyway.

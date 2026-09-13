@@ -112,10 +112,21 @@ class SmartTransport(DataTransport):
                 serialiser = self._registry.get(value)
                 return len(serialiser.serialise(value))
             except Exception:
-                pass
+                _log.warning(
+                    "SmartTransport: registry serialiser for %s raised while probing "
+                    "size; falling back to pickle",
+                    type(value).__name__,
+                    exc_info=True,
+                )
         try:
             return len(pickle.dumps(value, protocol=5))
         except Exception:
+            _log.warning(
+                "SmartTransport: pickling %s to probe size raised; treating size as 0 "
+                "(routes to the fast transport)",
+                type(value).__name__,
+                exc_info=True,
+            )
             return 0
 
     def _transport_for_handle(self, handle: TransportHandle) -> DataTransport:

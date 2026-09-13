@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from threading import Lock
 from typing import TYPE_CHECKING
@@ -11,6 +12,8 @@ from pirn.exceptions.duplicate_knot_error import DuplicateKnotError
 
 if TYPE_CHECKING:
     from pirn.core.knot import Knot
+
+_logger = logging.getLogger(__name__)
 
 
 class InMemoryStore(TapestryStore, SubscribableStore):
@@ -53,7 +56,11 @@ class InMemoryStore(TapestryStore, SubscribableStore):
             try:
                 cb(knot)
             except Exception:
-                pass
+                _logger.warning(
+                    "InMemoryStore: subscriber callback raised for knot %r",
+                    knot.knot_id,
+                    exc_info=True,
+                )
 
     def get(self, knot_id: str) -> Knot | None:
         """Return the ``Knot`` for ``knot_id``, or ``None``.

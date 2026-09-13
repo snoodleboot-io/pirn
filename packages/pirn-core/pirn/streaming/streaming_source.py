@@ -19,8 +19,11 @@ focused.
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import TYPE_CHECKING, Any
+
+_logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from pirn.core.run_result import RunResult
@@ -105,4 +108,4 @@ async def run_stream(
         try:
             await source.close()
         except Exception:
-            pass
+            _logger.warning("run_stream: source.close() raised while shutting down", exc_info=True)

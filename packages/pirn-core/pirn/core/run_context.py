@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.metadata
+import logging
 import socket
 import sys
 from collections.abc import Callable
@@ -12,6 +13,8 @@ from pirn.core.knot_source_record import KnotSourceRecord
 from pirn.core.run_result import RunResult
 from pirn.managers.exception_manager import ExceptionManager
 from pirn.managers.status_manager import StatusManager
+
+_logger = logging.getLogger(__name__)
 
 
 class RunContext:
@@ -88,6 +91,11 @@ class RunContext:
             )
             return result.stdout.strip() if result.returncode == 0 else ""
         except Exception:
+            _logger.warning(
+                "RunContext: resolving the VCS commit via `git rev-parse` raised; "
+                "runtime_info.vcs_commit will be empty",
+                exc_info=True,
+            )
             return ""
 
     def add_lineage(self, record: KnotLineage) -> None:

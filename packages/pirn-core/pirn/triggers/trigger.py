@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import TYPE_CHECKING
 
@@ -10,6 +11,8 @@ if TYPE_CHECKING:
     from pirn.core.run_request import RunRequest
     from pirn.core.run_result import RunResult
     from pirn.tapestry import Tapestry
+
+_logger = logging.getLogger(__name__)
 
 
 # Type aliases for the optional callbacks.
@@ -98,4 +101,6 @@ async def run_forever(
         try:
             await trigger.close()
         except Exception:
-            pass
+            _logger.warning(
+                "run_forever: trigger.close() raised while shutting down", exc_info=True
+            )

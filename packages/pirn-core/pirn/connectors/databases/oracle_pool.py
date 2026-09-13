@@ -21,6 +21,8 @@ from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.databases.oracle_config import OracleConfig
 from pirn.connectors.dsn_scrubber import DsnScrubber
 
+_logger = logging.getLogger(__name__)
+
 
 class OraclePool(DatabaseConnectionPool):
     """Single-client Oracle pool driven through ``asyncio.to_thread``.
@@ -246,6 +248,10 @@ class OraclePool(DatabaseConnectionPool):
         except Exception:
             # Any driver error reading the flag means the same thing here: the
             # client cannot answer, so ownership is undecidable.
+            _logger.warning(
+                "OraclePool: reading transaction_in_progress raised; treating as undecidable",
+                exc_info=True,
+            )
             return None
         return bool(flag) if isinstance(flag, bool) else None
 
