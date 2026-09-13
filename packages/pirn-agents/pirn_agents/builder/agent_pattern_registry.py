@@ -234,6 +234,13 @@ _PATTERNS: tuple[PatternDescriptor, ...] = (
         f"{_SPEC}.structured_output.yaml_extractor_pipeline:YamlExtractorPipeline",
         "prompt",
     ),
+    # --- tool use
+    PatternDescriptor(
+        "parallel_tool_call",
+        f"{_SPEC}.tool_use.parallel_tool_caller:ParallelToolCaller",
+        "tool_calls",
+    ),
+    PatternDescriptor("tool_chain", f"{_SPEC}.tool_use.tool_chain:ToolChain", "initial_call"),
 )
 
 #: Convenience spellings that resolve to a canonical pattern name.

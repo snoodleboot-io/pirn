@@ -49,6 +49,12 @@ _EXPECTED_EXCLUSIONS = frozenset(
         # Private: the loop body EvaluatorOptimizerPipeline drives internally.
         "pirn_agents.specializations.evaluator_optimizer._evaluator_optimizer_loop"
         "._EvaluatorOptimizerLoop",
+        # Iteration step: the per-turn body ReActLoop (registered as "react")
+        # drives internally, one per unrolled turn. Not private by name (it
+        # predates this exclusion set and is directly unit-tested on its own),
+        # but not a standalone pattern either: its ``already_terminated``
+        # constructor parameter is state only a driving loop can supply.
+        "pirn_agents.specializations.react.react_step_executor.ReActStepExecutor",
     }
 )
 
@@ -127,6 +133,18 @@ def test_the_exclusion_set_is_exactly_what_is_excluded() -> None:
     assert actually_excluded == set(_EXPECTED_EXCLUSIONS)
 
 
+#: Iteration-step exclusions: public classes still excluded because a
+#: constructor parameter is state only a driving loop can supply (so a caller
+#: could construct one but never usefully drive it standalone). Named
+#: explicitly, like the private list below, so this category cannot be
+#: widened in silence either.
+_ITERATION_STEPS = frozenset(
+    {
+        "pirn_agents.specializations.react.react_step_executor.ReActStepExecutor",
+    }
+)
+
+
 def test_the_excluded_bases_are_bases_and_the_excluded_private_is_private() -> None:
     """The exclusions are justified by what the classes are, not by fiat."""
     # Arrange / Act / Assert.
@@ -138,6 +156,10 @@ def test_the_excluded_bases_are_bases_and_the_excluded_private_is_private() -> N
         "pirn_agents.specializations.evaluator_optimizer._evaluator_optimizer_loop"
         "._EvaluatorOptimizerLoop"
     ]
+    # Every exclusion falls into exactly one justified category: base,
+    # private loop body, or named iteration step.
+    bases = {_qualified(AgentPipeline), _qualified(AgentLoopPipeline)}
+    assert _EXPECTED_EXCLUSIONS == bases | set(private) | _ITERATION_STEPS
 
 
 # --- resolvability --------------------------------------------------------
