@@ -77,7 +77,8 @@ class LLMProvider(PirnOpaqueValue):
 | `Ok[T]` / `Err` / `Skipped` | value-object | — | the outcome algebra; `Result = Ok[T] \| Err \| Skipped` (`core/result.py`). **Everything that can succeed/fail/skip uses this — do not invent parallel status enums.** |
 | `PirnOpaqueValue` | mixin | — | `is_instance_schema` + `_pirn_audit_dict()`; the live-value contract |
 | `Parameter` | concrete Knot | `Knot` | wraps a scalar as a graph node (the `Knot \| T` coercion target) |
-| `KnotConfig` | config | — | `id` (required), `validate_io`, `error_policy`, `transport` |
+| `KnotConfig` | config | — | `id` (required), `validate_io`, `error_policy`, `transport`, `concurrency_group`, `timeout`, `retry` |
+| `KnotRetryPolicy` | value-object | — | `core/knot_retry_policy.py` — frozen backoff schedule (`max_attempts`, `base_delay`, `max_delay`, `multiplier`, `jitter`, `max_retry_after`) plus `is_retryable` / `retry_after` predicates over the failed attempt's `ExceptionRecord`. Set on `KnotConfig.retry`; the **engine** runs the loop (§3.5). **Do not write a retry loop inside a knot.** |
 | `RunRequest` / `RunResult` / `RunContext` | value-object | — | a run's input/output/ambient context |
 | `ErrorPolicy` | enum/policy | — | how upstream `Err` propagates (`RECEIVE_ERRORS` etc.) |
 | `IdentityResolver` | interface-base | — | `core/identity/` — `resolve()` who's running; `chained/env/os/static/null` implementations |
@@ -122,9 +123,12 @@ All subclass `Knot`. These are the graph-shape primitives.
 |---|---|---|
 | `Dispatcher` (`dispatchers/dispatcher.py`) | interface-base | submits knot execution to a backend; `local`/`thread`/`ray`/`dask`/`celery` impls |
 | `Engine` (`engine.py`) | engine | drives `Knot.__call__`, applies `ErrorPolicy`, subscribes emitters |
+| `GovernedDispatch` (`governed_dispatch.py`) | engine | the dispatch path between `Engine` and `Dispatcher`: applies `KnotConfig.timeout` (`asyncio.wait_for` → `Err(KnotTimeoutError)`) and `KnotConfig.retry` (re-dispatch after backoff on the loop; attempt count → `KnotLineage.extra["attempts"]`). Dispatchers stay one `dispatch()`; `Knot.__call__` stays one attempt |
 | `Shed` / `Edge` (`shed/`) | engine | the resolved execution graph the engine walks |
 
 **Idiom:** choose parallelism by swapping a `Dispatcher`, not by changing knots. Agent batch/fleet execution should compose or subclass a dispatcher, not re-implement a bounded-concurrency loop.
+
+**Idiom (resilience):** a per-call timeout or retry is `KnotConfig(timeout=..., retry=KnotRetryPolicy(...))` on the knot, honoured by the engine. A knot that wraps its own body in `wait_for` or a `while True` retry re-implements the engine and loses the attempt count from lineage.
 
 ### 3.6 Emitters + Managers — `emitters/`, `managers/`
 | Type | Kind | Contract |
@@ -228,6 +232,8 @@ Tracked in Linear project **"pirn-agents: OOP/SOLID Standards Remediation"** (PI
 - **§3.6 (managers) unwired:** the secret-redaction layer is built but never attached to `ExceptionManager.traceback_filter`/loggers; approvals ignore `IdentityResolver`. → WS8·S6.
 
 *Resolved since the sweep (do not re-open):*
+- **§3.5 / §4.4 (ADR agents-speaks-core, WS0)** — core owns per-knot timeout and retry: `KnotConfig.timeout` → `Err(KnotTimeoutError)`, `KnotConfig.retry: KnotRetryPolicy` run by `GovernedDispatch`, attempts in lineage. Agents' `llm/retry_policy.py::RetryPolicy` and `exceptions/tool_timeout_error.py::ToolTimeoutError` are now shadows to migrate (ratchet: `tests/core_seams/test_core_seam_shadows.py`). Named `KnotRetryPolicy` because the registry keys every class by bare name and agents' `RetryPolicy` already holds `retrypolicy`.
+- **PIR-849** — `Knot.__call__`, the fan-out path and `SubTapestry.__call__` let a *task* cancellation propagate (`Knot._is_task_cancellation`, `Task.cancelling()`), while a knot raising `CancelledError` itself is still an `Err`. A cancelled run raises; `wait_for` around a knot raises `TimeoutError`.
 - **§2** — no `typing.Protocol` interface survives in agents; the stateful ones (`VectorBackendClient`, `GraphBackendClient`, `RerankerBackend`, `NodeEmbeddingIndex`) are `PirnOpaqueValue` bases raising `NotImplementedError`. (WS1)
 - **§4.2** — `StatefulTool`/`StreamingTool`/`PermissionedTool` are gone; `stateful`/`state`, `permissions`/`requires_approval` and `streaming`/`stream`/`collect_stream` are default-returning capability members on `Tool`. (WS2·S6)
 - **§3.7** — agents' `BlobStore` is gone; `StreamingS3Store` and `ObjectStoreSourceConnector` build on core's `ObjectStore`, keeping `_validate_key`. (WS3·S2)

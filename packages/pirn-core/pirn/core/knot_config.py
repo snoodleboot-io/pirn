@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from pirn.core.concurrency.concurrency_limits import ConcurrencyLimits
 from pirn.core.error_policy import ErrorPolicy
+from pirn.core.knot_retry_policy import KnotRetryPolicy
 
 if TYPE_CHECKING:
     pass
@@ -46,6 +47,14 @@ class KnotConfig(BaseModel):
         concurrency_group: The concurrency group the knot is admitted under,
             or ``None``.  Excluded from ``model_dump`` so it does not appear
             in lineage hashes.
+        timeout: Seconds one dispatch of the knot may take before the engine
+            cancels it and records ``Err(KnotTimeoutError)``; ``None`` (the
+            default) for no limit.  Bounds each attempt, not the retry
+            budget.  Excluded from ``model_dump``.
+        retry: A ``KnotRetryPolicy`` the engine applies when a dispatch ends
+            in ``Err``, or ``None`` (the default) for a single attempt.  The
+            attempt count lands in ``KnotLineage.extra["attempts"]``.
+            Excluded from ``model_dump``.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid", arbitrary_types_allowed=True)
@@ -119,3 +128,29 @@ class KnotConfig(BaseModel):
         if group is None:
             return None
         return ConcurrencyLimits.validate_group_name(group)
+
+    timeout: Annotated[float, Field(gt=0)] | None = Field(default=None, exclude=True)
+    """Seconds one attempt of this knot may run (ADR agents-speaks-core, WS0).
+
+    The engine runs each dispatch under ``asyncio.wait_for``; on expiry the
+    attempt is cancelled and the knot's result is ``Err(KnotTimeoutError)``.
+    A knot executing on a worker thread or a remote worker is not stopped —
+    the engine records the timeout and moves on, as on run cancellation.
+
+    Excluded from ``model_dump`` for the same reason as ``concurrency_group``:
+    how long a knot may take says nothing about what it computes, so it must
+    not reach ``knot_config_hash`` or invalidate existing recordings.
+    """
+    retry: Annotated[KnotRetryPolicy | None, Field(default=None, exclude=True)] = None
+    """How the engine re-dispatches this knot after an ``Err`` (WS0).
+
+    ``None`` means one attempt.  With a policy, an attempt that ends in
+    ``Err`` — a raised exception, a failed output validation, a timeout — is
+    re-dispatched with the same inputs after the policy's backoff, until an
+    attempt succeeds, the policy's ``is_retryable`` rejects the failure, or
+    ``max_attempts`` is spent.  The loop lives in the engine's dispatch path
+    (``GovernedDispatch``), never inside ``Knot.__call__``.
+
+    Excluded from ``model_dump``: a retry policy carries callables and, like
+    ``timeout``, describes resilience rather than computation.
+    """

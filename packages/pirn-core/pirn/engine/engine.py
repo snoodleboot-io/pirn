@@ -67,6 +67,7 @@ from pirn.engine.admission.unbounded_admission_gate import UnboundedAdmissionGat
 from pirn.engine.dispatchers.dispatcher import Dispatcher
 from pirn.engine.dispatchers.local_dispatcher import LocalDispatcher
 from pirn.engine.emitter_fanout import EmitterFanout
+from pirn.engine.governed_dispatch import GovernedDispatch
 from pirn.engine.lineage_recorder import LineageRecorder
 from pirn.engine.scheduling.dependency_tracker import DependencyTracker
 from pirn.engine.scheduling.ready_queue import ReadyQueue
@@ -85,6 +86,10 @@ class Engine:
 
     def __init__(self, dispatcher: Dispatcher | None = None) -> None:
         self._dispatcher = dispatcher or LocalDispatcher()
+        # Every dispatch goes through the governed path, which applies the
+        # knot's ``KnotConfig.timeout`` and ``KnotConfig.retry`` around the
+        # dispatcher (ADR agents-speaks-core, WS0).
+        self._governed = GovernedDispatch(self._dispatcher)
 
     async def execute(
         self,
@@ -880,13 +885,20 @@ class Engine:
         Returns ``(result, parent_input_hashes, started_at)``.  The hashes
         are computed before dispatch so they reflect what the knot
         actually consumed.
+
+        The dispatch runs under the knot's ``timeout`` and ``retry`` policy
+        (``GovernedDispatch``).  ``started_at`` is the first attempt's start;
+        under a retry policy the attempt count is stashed on the run-scoped
+        knot for ``lineage_extra`` to report as ``extra["attempts"]``.
         """
         # For RECEIVE_ERRORS knots the inputs may be Result objects; we
         # hash them as they are (they're already canonicalisable).  For
         # other policies inputs are raw values.
         parent_hashes = {name: content_hash(value) for name, value in inputs.items()}
         started_at = datetime.now(UTC)
-        result = await self._dispatcher.dispatch(knot, inputs)
+        result, attempts = await self._governed.dispatch(knot, inputs)
+        if knot.config.retry is not None:
+            knot._mutable_dispatch_extra = {"attempts": attempts}
         return result, parent_hashes, started_at
 
     def _rebind_err(

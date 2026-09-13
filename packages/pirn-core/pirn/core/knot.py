@@ -484,6 +484,11 @@ class Knot:
         self._mutable_output_adapter = output_adapter
         self._mutable_mapped_inputs = dict(mapped_inputs) if mapped_inputs else {}
         self._mutable_fan_out_extra: dict[str, Any] = {}
+        # Written by the engine onto the run-scoped copy it dispatched --
+        # e.g. the attempt count under ``KnotConfig.retry`` -- and merged into
+        # ``lineage_extra``.  Always reassigned, never mutated in place, so a
+        # shallow ``run_scoped_copy`` never shares it with the graph knot.
+        self._mutable_dispatch_extra: dict[str, Any] = {}
 
         from pirn.tapestry import _current_tapestry
 
@@ -509,7 +514,7 @@ class Knot:
         Called by the engine after ``__call__`` returns; the returned dict is
         merged into ``KnotLineage.extra``.
         """
-        return dict(self._mutable_fan_out_extra)
+        return {**self._mutable_fan_out_extra, **self._mutable_dispatch_extra}
 
     def run_scoped_copy(self) -> Knot:
         """Return a copy of this knot for one run to execute and mutate.
