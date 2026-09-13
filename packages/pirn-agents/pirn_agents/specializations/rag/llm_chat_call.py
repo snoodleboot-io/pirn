@@ -12,7 +12,10 @@ Algorithm:
     2. Optionally prepend a system message when ``system`` is non-empty.
     3. Append a user message containing ``prompt``.
     4. Call ``llm.chat(messages, **chat_kwargs)`` forwarding
-       ``max_tokens`` and ``temperature`` only when provided.
+       ``max_tokens`` and ``temperature`` only when provided, reporting the
+       outcome through
+       :class:`~pirn_agents.observability.agent_call_recorder.AgentCallRecorder`
+       (ADR agents-speaks-core WS4a/WS5b).
     5. Extract and return the text content from the raw response via
        ``_extract_text``.
 
@@ -22,12 +25,14 @@ References:
 
 from __future__ import annotations
 
+import time
 from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.observability.agent_call_recorder import AgentCallRecorder
 
 
 class LLMChatCall(Knot):
@@ -92,7 +97,24 @@ class LLMChatCall(Knot):
             chat_kwargs["max_tokens"] = max_tokens
         if actual_temperature is not None:
             chat_kwargs["temperature"] = actual_temperature
-        response = await llm.chat(chat_messages, **chat_kwargs)
+        start = time.perf_counter()
+        try:
+            response = await llm.chat(chat_messages, **chat_kwargs)
+        except Exception as exc:
+            await AgentCallRecorder.record(
+                knot_id=self.knot_id,
+                kind="llm",
+                ok=False,
+                latency=time.perf_counter() - start,
+                detail=str(exc),
+            )
+            raise
+        await AgentCallRecorder.record(
+            knot_id=self.knot_id,
+            kind="llm",
+            ok=True,
+            latency=time.perf_counter() - start,
+        )
         return self._extract_text(response)
 
     @staticmethod

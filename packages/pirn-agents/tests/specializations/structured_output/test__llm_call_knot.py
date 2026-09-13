@@ -40,10 +40,12 @@ class TestLLMCallKnotProcess(unittest.IsolatedAsyncioTestCase):
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_process_returns_llm_text(self) -> None:
+        # AgentCallRecorder.record() (ADR agents-speaks-core WS5b) reads
+        # self.knot_id, which requires a fully-bootstrapped knot -- construct
+        # normally rather than via __new__ + a bare _config attribute.
         llm = StubLLMProvider(["direct result"])
         with Tapestry():
-            k = _LLMCallKnot.__new__(_LLMCallKnot)
-            object.__setattr__(k, "_config", KnotConfig(id="x"))
+            k = _LLMCallKnot(prompt="ask something", llm=llm, _config=KnotConfig(id="x"))
         result = await k.process(prompt="ask something", llm=llm)
         assert isinstance(result, str)
         assert result == "direct result"
