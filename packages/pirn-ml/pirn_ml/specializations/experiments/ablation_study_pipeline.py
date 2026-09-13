@@ -27,7 +27,7 @@ References:
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -53,7 +53,7 @@ async def _combine_ablation_reports(
 class AblationStudyPipeline(SubTapestry):
     """Train a full + per-feature-group leave-out arm; collect reports."""
 
-    _full_arm_name: str = "full"
+    _full_arm_name: ClassVar[str] = "full"
 
     def __init__(
         self,

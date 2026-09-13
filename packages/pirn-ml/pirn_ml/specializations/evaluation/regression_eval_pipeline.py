@@ -13,7 +13,7 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -28,7 +28,7 @@ from pirn_ml.types.split_manifest import SplitManifest
 class RegressionEvalPipeline(SubTapestry):
     """Evaluate a regressor with RMSE, MAE, R-squared, and MAPE."""
 
-    _regression_metrics: tuple[str, ...] = (
+    _regression_metrics: ClassVar[tuple[str, ...]] = (
         "rmse",
         "mae",
         "r2",

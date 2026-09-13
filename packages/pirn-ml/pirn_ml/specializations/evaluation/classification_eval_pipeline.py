@@ -23,7 +23,7 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -38,7 +38,7 @@ from pirn_ml.types.split_manifest import SplitManifest
 class ClassificationEvalPipeline(SubTapestry):
     """Evaluate a classifier with the canonical classification metric set."""
 
-    _classification_metrics: tuple[str, ...] = (
+    _classification_metrics: ClassVar[tuple[str, ...]] = (
         "accuracy",
         "precision",
         "recall",

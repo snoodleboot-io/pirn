@@ -20,7 +20,7 @@ References:
 from __future__ import annotations
 
 from types import MappingProxyType
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -59,7 +59,7 @@ async def _decorate_time_column(
 class TimeSeriesEvalPipeline(SubTapestry):
     """Evaluate a forecasting model with MAPE, sMAPE, and MASE."""
 
-    _forecasting_metrics: tuple[str, ...] = ("mape", "smape", "mase")
+    _forecasting_metrics: ClassVar[tuple[str, ...]] = ("mape", "smape", "mase")
 
     def __init__(
         self,

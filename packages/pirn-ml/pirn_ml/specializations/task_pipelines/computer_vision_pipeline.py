@@ -25,7 +25,7 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.connectors.database_connection_pool import (
     DatabaseConnectionPool,
@@ -47,7 +47,7 @@ from pirn_ml.training.trainer import Trainer
 class ComputerVisionPipeline(SubTapestry):
     """End-to-end image classification SubTapestry."""
 
-    _classification_metrics: tuple[str, ...] = (
+    _classification_metrics: ClassVar[tuple[str, ...]] = (
         "accuracy",
         "precision",
         "recall",

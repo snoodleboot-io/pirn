@@ -25,7 +25,7 @@ References:
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.connectors.database_connection_pool import (
     DatabaseConnectionPool,
@@ -44,7 +44,7 @@ from pirn_ml.training.trainer import Trainer
 class MulticlassClassificationPipeline(SubTapestry):
     """End-to-end multiclass classification SubTapestry."""
 
-    _multiclass_metrics: tuple[str, ...] = (
+    _multiclass_metrics: ClassVar[tuple[str, ...]] = (
         "accuracy",
         "precision_macro",
         "recall_macro",

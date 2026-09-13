@@ -42,7 +42,7 @@ from pirn_ml.training.trainer import Trainer
 class ClusteringPipeline(SubTapestry):
     """Scale features, fit a clustering model, and evaluate with silhouette score."""
 
-    _clustering_metrics: tuple[str, ...] = ("silhouette", "davies_bouldin", "inertia")
+    _clustering_metrics: ClassVar[tuple[str, ...]] = ("silhouette", "davies_bouldin", "inertia")
     valid_algorithms: ClassVar[frozenset[str]] = frozenset({"kmeans", "dbscan", "gmm"})
 
     def __init__(

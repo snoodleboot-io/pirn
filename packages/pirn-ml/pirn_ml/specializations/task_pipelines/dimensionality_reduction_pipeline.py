@@ -42,7 +42,7 @@ from pirn_ml.training.trainer import Trainer
 class DimensionalityReductionPipeline(SubTapestry):
     """Scale, reduce dimensionality, and evaluate reconstruction quality."""
 
-    _reduction_metrics: tuple[str, ...] = (
+    _reduction_metrics: ClassVar[tuple[str, ...]] = (
         "explained_variance",
         "reconstruction_error",
         "trustworthiness",

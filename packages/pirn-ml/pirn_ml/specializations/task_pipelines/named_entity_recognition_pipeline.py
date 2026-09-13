@@ -21,7 +21,7 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.connectors.database_connection_pool import (
     DatabaseConnectionPool,
@@ -39,7 +39,7 @@ from pirn_ml.training.trainer import Trainer
 class NamedEntityRecognitionPipeline(SubTapestry):
     """Tokenise text, run NER inference, and evaluate entity extraction."""
 
-    _ner_metrics: tuple[str, ...] = ("precision", "recall", "f1")
+    _ner_metrics: ClassVar[tuple[str, ...]] = ("precision", "recall", "f1")
 
     def __init__(
         self,

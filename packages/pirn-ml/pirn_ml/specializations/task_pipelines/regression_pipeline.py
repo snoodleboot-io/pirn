@@ -24,7 +24,7 @@ References:
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.connectors.database_connection_pool import (
     DatabaseConnectionPool,
@@ -43,7 +43,7 @@ from pirn_ml.training.trainer import Trainer
 class RegressionPipeline(SubTapestry):
     """End-to-end regression SubTapestry."""
 
-    _regression_metrics: tuple[str, ...] = ("rmse", "mae", "r2", "mape")
+    _regression_metrics: ClassVar[tuple[str, ...]] = ("rmse", "mae", "r2", "mape")
 
     def __init__(
         self,
