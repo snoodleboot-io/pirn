@@ -4,8 +4,9 @@
 without embedding any provider-specific knowledge. It converts a
 :class:`pirn_agents.tools.toolset.Toolset` into native tool declarations, decodes
 a provider's assistant message into :class:`pirn_agents.tools.tool_call.ToolCall`
-values, and encodes :class:`pirn_agents.tools.tool_result.ToolResult` values
-back into native tool-result messages.
+values, and encodes each call's outcome — the engine's ``Ok | Err | Skipped``
+recorded under the call's id, with its ``KnotLineage`` row — back into native
+tool-result messages (ADR agents-speaks-core, WS1).
 
 Every provider-specific decision — the exact JSON shape of a tool
 declaration, where tool calls live inside an assistant message, how a
@@ -27,10 +28,17 @@ import json
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from pirn.core.err import Err
+from pirn.core.knot_lineage import KnotLineage
+from pirn.core.ok import Ok
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
+from pirn.core.result import Result
+from pirn.core.run_result import RunResult
+from pirn.core.skipped import Skipped
 
 from pirn_agents.llm.provider_adapter import ProviderAdapter
 from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_factory import ToolFactory
 from pirn_agents.tools.tool_result import ToolResult
 from pirn_agents.tools.toolset import Toolset
 
@@ -82,25 +90,84 @@ class ToolCallCodec(PirnOpaqueValue):
             for raw in self._adapter.extract_tool_calls(provider_msg)
         ]
 
-    def encode_results(self, results: Sequence[ToolResult]) -> list[Any]:
-        """Encode tool results into native tool-result messages.
-
-        The neutral content is the error string when the result carries an
-        error, otherwise the produced value coerced to a JSON-safe form.
+    def encode_results(
+        self,
+        results: Sequence[ToolResult] | Mapping[str, Result[Any]],
+        *,
+        lineage: Sequence[KnotLineage] = (),
+    ) -> list[Any]:
+        """Encode each call's outcome into a native tool-result message.
 
         Args:
-            results: The tool results to hand back to the provider.
+            results: Either ``{call_id: Ok | Err | Skipped}`` — the engine's
+                outcome for each call knot, keyed by the call's id — or, for
+                one deprecation cycle, a sequence of :class:`ToolResult` views.
+            lineage: The run's lineage rows; the row recorded under a call's
+                knot id supplies its latency to the view.  Optional.
 
         Returns:
-            One provider-native tool-result message per result, in order.
+            One provider-native tool-result message per result, in order.  The
+            neutral content is the error string for an ``Err`` (``"<type>:
+            <message>"``), ``"skipped: <reason>"`` for a ``Skipped``, and the
+            produced value coerced to a JSON-safe form for an ``Ok``.
         """
+        views = self.views(results, lineage=lineage)
         native: list[Any] = []
-        for result in results:
-            content = result.error if result.error is not None else self._jsonable(result.result)
+        for view in views:
+            content = view.error if view.error is not None else self._jsonable(view.result)
             native.append(
-                self._adapter.result_to_native({"call_id": result.call_id, "content": content})
+                self._adapter.result_to_native({"call_id": view.call_id, "content": content})
             )
         return native
+
+    @classmethod
+    def views(
+        cls,
+        results: Sequence[ToolResult] | Mapping[str, Result[Any]],
+        *,
+        lineage: Sequence[KnotLineage] = (),
+    ) -> list[ToolResult]:
+        """The :class:`ToolResult` view of each outcome, built through ``from_result``."""
+        if isinstance(results, Mapping):
+            rows = {row.knot_id: row for row in lineage}
+            return [
+                ToolResult.from_result(call_id, result, rows.get(ToolFactory.knot_id_for(call_id)))
+                for call_id, result in results.items()
+            ]
+        return list(results)
+
+    @staticmethod
+    def outcomes_of(run: RunResult, calls: Sequence[ToolCall]) -> dict[str, Result[Any]]:
+        """Read each call's ``Ok | Err | Skipped`` back out of a finished run.
+
+        A call ran under ``ToolFactory.knot_id_for(call.call_id)``; its value
+        is in ``run.outputs``, its failure in ``run.exceptions`` (by the
+        lineage row's ``error_record_id``), and a skip in ``run.skipped``.
+
+        Args:
+            run: The run the call knots executed in.
+            calls: The calls to read back, in the order the results should
+                come out.
+
+        Returns:
+            ``{call_id: Result}`` in the order of *calls*; a call the run does
+            not know is ``Skipped(reason="not_run")``.
+        """
+        rows = {row.knot_id: row for row in run.lineage}
+        records = {record.id: record for record in run.exceptions}
+        outcomes: dict[str, Result[Any]] = {}
+        for call in calls:
+            knot_id = ToolFactory.knot_id_for(call.call_id)
+            row = rows.get(knot_id)
+            if knot_id in run.outputs:
+                outcomes[call.call_id] = Ok(value=run.outputs[knot_id])
+            elif row is not None and row.error_record_id in records:
+                outcomes[call.call_id] = Err(record=records[row.error_record_id])
+            elif row is not None and row.outcome == "skipped":
+                outcomes[call.call_id] = Skipped(reason=row.skip_reason or "skipped")
+            else:
+                outcomes[call.call_id] = Skipped(reason="not_run")
+        return outcomes
 
     def _parse_arguments(self, arguments: Any) -> Mapping[str, Any]:
         """Return ``arguments`` as a mapping, parsing a JSON string if given.

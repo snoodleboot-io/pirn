@@ -14,6 +14,11 @@ import unittest
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from pirn.core.err import Err
+from pirn.core.ok import Ok
+from pirn.core.skipped import Skipped
+from pirn.managers.exception_record import ExceptionRecord
+
 from pirn_agents.llm.provider_adapter import ProviderAdapter
 from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_call import ToolCall
@@ -163,6 +168,28 @@ class TestDecodeCalls(unittest.TestCase):
         calls = codec.decode_calls(provider.respond())
 
         assert calls[0].arguments == {"q": "dogs"}
+
+
+class TestEncodeCoreResults(unittest.TestCase):
+    """The codec reads each call's ``Ok | Err | Skipped`` keyed by call id (ADR WS1)."""
+
+    def test_ok_err_and_skipped_map_to_native_messages(self) -> None:
+        codec = ToolCallCodec(StubAdapter())
+        record = ExceptionRecord.for_knot("c2", RuntimeError("boom"))
+
+        native = codec.encode_results(
+            {
+                "c1": Ok(value={"echo": 1}),
+                "c2": Err(record=record),
+                "c3": Skipped(reason="gate_closed"),
+            }
+        )
+
+        assert native == [
+            {"role": "tool", "tool_call_id": "c1", "content": {"echo": 1}},
+            {"role": "tool", "tool_call_id": "c2", "content": "RuntimeError: boom"},
+            {"role": "tool", "tool_call_id": "c3", "content": "skipped: gate_closed"},
+        ]
 
 
 class TestEncodeResults(unittest.TestCase):
