@@ -112,6 +112,17 @@ await t.run(RunRequest(parameters={"doc": "..."}, concurrency=ConcurrencyLimits(
 - The effective ceiling is also bounded by the dispatcher (`ThreadDispatcher(max_workers=...)`; a sync `@knot` runs on the default executor, `min(32, cpu + 4)` threads).
 - Not yet: limits are not forwarded into `SubTapestry` / `LoopSubTapestry` inner runs, and `Map` / `ZipMap` / `DictMap` fan out their elements inside one admitted knot (PIR-841 slices 3 and 4).
 
+#### Nested runs and the nesting guard
+
+Every `SubTapestry` inner run, `LoopSubTapestry` loop run and loop iteration is a real run with its own id, recorded with `parent_run_id` / `parent_knot_id`, and now with a `run_path` that lists the enclosing runs (`/{outer}/{inner}`). Each run executes under an immutable `RunNesting` frame (`pirn/core/run_nesting.py`) carried on a context variable: its `depth` (0 for a root run), the enclosing `run_ids`, the `path` of container classes between the root and it, and the tightest `max_depth` set on that path. A knot reads its own frame with `RunNesting.current()`; the engine keeps it on `RunContext.nesting`.
+
+The frame is also the guard. `Tapestry(max_nesting_depth=n)` caps how many runs may nest below a run of that tapestry; inner tapestries inherit the cap through the context and may only tighten it. When a cap is active on the path, `Tapestry.run` derives the inner frame *before* anything starts (`RunNesting.child`) and refuses:
+
+- a run that would exceed the cap → `NestingDepthExceededError`;
+- a container class re-entering itself — its nesting key (qualified class name, `SubTapestry._nesting_key`) already on the path → `NestedRunCycleError`, raised at the first re-entry rather than after burning the whole budget.
+
+Both are `PirnError`s raised inside the container knot that tried to start the run, so the enclosing engine records them as that knot's `Err` and the refused run never touches history. Loop iterations count one level of depth but add no key: the loop's own class is already on the path, and a loop nested inside another loop's iteration is not a cycle. With no cap anywhere on the path the guard is off and nesting is unbounded — exactly the behaviour before the frame existed. The frame survives a `ThreadDispatcher` hop (context copy) and is empty on a process-boundary dispatcher, where nothing ambient survives.
+
 Per-knot records do not depend on completion order. `RunResult.lineage`, `exceptions`, `skipped` and `outputs` are sorted by `(level, dispatched, topological index)`, where `level` is the knot's depth from the roots; for a graph without mid-run registrations that is exactly the order the earlier wave loop produced. `status_events` and live `on_status` delivery are the exception: they follow real state transitions, so sibling knots' events interleave in the order the knots actually start and finish.
 
 ### Step 7: `_decide(knot, results)` — error policy

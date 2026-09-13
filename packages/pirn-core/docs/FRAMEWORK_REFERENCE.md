@@ -79,7 +79,8 @@ class LLMProvider(PirnOpaqueValue):
 | `Parameter` | concrete Knot | `Knot` | wraps a scalar as a graph node (the `Knot \| T` coercion target) |
 | `KnotConfig` | config | — | `id` (required), `validate_io`, `error_policy`, `transport`, `concurrency_group`, `timeout`, `retry` |
 | `KnotRetryPolicy` | value-object | — | `core/knot_retry_policy.py` — frozen backoff schedule (`max_attempts`, `base_delay`, `max_delay`, `multiplier`, `jitter`, `max_retry_after`) plus `is_retryable` / `retry_after` predicates over the failed attempt's `ExceptionRecord`. Set on `KnotConfig.retry`; the **engine** runs the loop (§3.5). **Do not write a retry loop inside a knot.** |
-| `RunRequest` / `RunResult` / `RunContext` | value-object | — | a run's input/output/ambient context |
+| `RunRequest` / `RunResult` / `RunContext` | value-object | — | a run's input/output/ambient context; `RunContext.nesting` is the run's `RunNesting` frame |
+| `RunNesting` | value-object | — | `core/run_nesting.py` — where a run sits in the nested-run tree (`depth`, enclosing `run_ids`, container `path`, tightest `max_depth`); `RunNesting.current()` inside a knot. `Tapestry(max_nesting_depth=n)` turns the guard on: `NestingDepthExceededError` / `NestedRunCycleError` as the container knot's `Err`. **Do not carry a recursion counter through agent code.** |
 | `ErrorPolicy` | enum/policy | — | how upstream `Err` propagates (`RECEIVE_ERRORS` etc.) |
 | `IdentityResolver` | interface-base | — | `core/identity/` — `resolve()` who's running; `chained/env/os/static/null` implementations |
 
@@ -233,6 +234,7 @@ Tracked in Linear project **"pirn-agents: OOP/SOLID Standards Remediation"** (PI
 
 *Resolved since the sweep (do not re-open):*
 - **§3.5 / §4.4 (ADR agents-speaks-core, WS0)** — core owns per-knot timeout and retry: `KnotConfig.timeout` → `Err(KnotTimeoutError)`, `KnotConfig.retry: KnotRetryPolicy` run by `GovernedDispatch`, attempts in lineage. Agents' `llm/retry_policy.py::RetryPolicy` and `exceptions/tool_timeout_error.py::ToolTimeoutError` are now shadows to migrate (ratchet: `tests/core_seams/test_core_seam_shadows.py`). Named `KnotRetryPolicy` because the registry keys every class by bare name and agents' `RetryPolicy` already holds `retrypolicy`.
+- **§3.1 nested runs (WS0)** — core owns the nested-run depth and cycle guard: `RunNesting` on every run, `Tapestry(max_nesting_depth=)`, inherited and only tightened by inner tapestries; `run_path` now really is `/{outer}/{inner}`. Agents' `AgentNestingConfig` / `AgentToolContext` / `AgentInvoker` and the `AgentRecursionError` family are shadows to migrate.
 - **PIR-849** — `Knot.__call__`, the fan-out path and `SubTapestry.__call__` let a *task* cancellation propagate (`Knot._is_task_cancellation`, `Task.cancelling()`), while a knot raising `CancelledError` itself is still an `Err`. A cancelled run raises; `wait_for` around a knot raises `TimeoutError`.
 - **§2** — no `typing.Protocol` interface survives in agents; the stateful ones (`VectorBackendClient`, `GraphBackendClient`, `RerankerBackend`, `NodeEmbeddingIndex`) are `PirnOpaqueValue` bases raising `NotImplementedError`. (WS1)
 - **§4.2** — `StatefulTool`/`StreamingTool`/`PermissionedTool` are gone; `stateful`/`state`, `permissions`/`requires_approval` and `streaming`/`stream`/`collect_stream` are default-returning capability members on `Tool`. (WS2·S6)

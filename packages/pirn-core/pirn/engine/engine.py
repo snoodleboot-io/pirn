@@ -52,6 +52,7 @@ from pirn.core.ok import Ok
 from pirn.core.parameter import Parameter
 from pirn.core.result import Result
 from pirn.core.run_context import RunContext
+from pirn.core.run_nesting import RunNesting
 from pirn.core.run_request import RunRequest
 from pirn.core.run_result import RunResult
 from pirn.core.skipped import Skipped
@@ -107,6 +108,7 @@ class Engine:
         actor: str | None = None,
         replay: ReplaySession | None = None,
         concurrency: ConcurrencyLimits | None = None,
+        nesting: RunNesting | None = None,
     ) -> RunResult:
         shed = Shed.from_terminals(terminals)
         self._check_groups(shed, concurrency, extensible=extensible_store is not None)
@@ -121,6 +123,7 @@ class Engine:
             parent_knot_id=parent_knot_id,
             actor=actor,
             trigger=request.trigger,
+            nesting=nesting,
         )
 
         # Wire emitters' on_status to the StatusManager.  Async emitters

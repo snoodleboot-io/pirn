@@ -135,6 +135,10 @@ class _IterationChainKnot(Knot):
             iter_tapestry.emitters, _current_emitters.get(None)
         )
         parent_run_id = _current_run_id.get(None)
+        # No ``_nesting_key``: an iteration run counts one level of nesting
+        # depth but adds nothing to the guard's path -- the loop's own class is
+        # already there, and a loop inside another loop's iteration is not a
+        # cycle (``RunNesting``).
         result = await iter_tapestry.run(
             RunRequest(),
             _parent_run_id=parent_run_id,

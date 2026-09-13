@@ -115,6 +115,15 @@ class SubTapestry(Knot):
     # ``Knot._dynamic_process_signature`` for why (PIR-833).
     _dynamic_process_signature: ClassVar[bool] = True
 
+    def _nesting_key(self) -> str:
+        """Return the key the nested-run guard tracks this container by.
+
+        The qualified class name: a nested run whose path already holds it
+        is this class re-entering itself, which ``RunNesting.child`` refuses
+        when a ``max_nesting_depth`` is active (``NestedRunCycleError``).
+        """
+        return f"{type(self).__module__}.{type(self).__qualname__}"
+
     def _resolve_output_key(self, sink: Knot) -> str:
         """Return the ``run_result.outputs`` key to surface as this knot's value.
 
@@ -441,6 +450,7 @@ class SubTapestry(Knot):
             RunRequest(),
             _parent_run_id=parent_run_id,
             _parent_knot_id=self.knot_id,
+            _nesting_key=self._nesting_key(),
             extensible=extensible,
             traceback_filter=_current_traceback_filter.get(None),
             emitters=inner_emitters,

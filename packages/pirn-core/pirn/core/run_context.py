@@ -10,6 +10,7 @@ from typing import Any
 
 from pirn.core.knot_lineage import KnotLineage
 from pirn.core.knot_source_record import KnotSourceRecord
+from pirn.core.run_nesting import RunNesting
 from pirn.core.run_result import RunResult
 from pirn.managers.exception_manager import ExceptionManager
 from pirn.managers.status_manager import StatusManager
@@ -32,6 +33,7 @@ class RunContext:
         trigger: str | None = None,
         parent_run_id: str | None = None,
         parent_knot_id: str | None = None,
+        nesting: RunNesting | None = None,
     ) -> None:
         self.run_id = run_id
         self.terminals_requested = terminals_requested
@@ -51,6 +53,9 @@ class RunContext:
         self.started_at = datetime.now(UTC)
         self.parent_run_id = parent_run_id
         self.parent_knot_id = parent_knot_id
+        # Where this run sits in the nested-run tree (depth, enclosing run
+        # ids, container path, active cap).  A root run's frame by default.
+        self.nesting: RunNesting = nesting if nesting is not None else RunNesting()
 
         # 7 W's — Who, Where, Why
         self.actor = actor
@@ -107,7 +112,7 @@ class RunContext:
     def finalize(self, outputs: dict[str, Any]) -> RunResult:
         return RunResult(
             run_id=self.run_id,
-            run_path=f"/{self.run_id}",
+            run_path=self.nesting.run_path(self.run_id),
             parent_run_id=self.parent_run_id,
             parent_knot_id=self.parent_knot_id,
             terminals_requested=self.terminals_requested,

@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from pirn.core.concurrency.concurrency_limits import ConcurrencyLimits
     from pirn.core.identity.identity_resolver import IdentityResolver
     from pirn.core.knot import Knot
+    from pirn.core.run_nesting import RunNesting
     from pirn.core.run_request import RunRequest
     from pirn.core.run_result import RunResult
     from pirn.core.transport.data_transport import DataTransport
@@ -103,6 +104,15 @@ _current_traceback_filter: ContextVar[Any] = ContextVar(
     "pirn_current_traceback_filter", default=None
 )
 
+#: The nested-run frame of the enclosing run: its depth, the enclosing run
+#: ids, the container classes on the path, and the tightest
+#: ``max_nesting_depth`` set on that path.  ``Tapestry.run`` derives an inner
+#: run's frame from it (``RunNesting.child``), which is where the depth cap and
+#: the re-entry guard are enforced, and publishes the new frame for the run's
+#: duration so knots can read ``RunNesting.current()`` (ADR agents-speaks-core,
+#: WS0).  ``None`` means "no enclosing run": the run about to start is a root.
+_current_nesting: ContextVar[RunNesting | None] = ContextVar("pirn_current_nesting", default=None)
+
 # ContextVar carrying the store of the currently-executing extensible run.
 # Set only when extensible=True.  Knots can call get_current_store() during
 # process() to register new knots into the running tapestry — the engine
@@ -171,6 +181,16 @@ class Tapestry:
         yet; an inner tapestry applies only its own default (PIR-841 slice 3).
         The effective ceiling is also bounded by the dispatcher's own
         capacity, e.g. ``ThreadDispatcher(max_workers=...)``.
+    max_nesting_depth:
+        How many runs may be nested below a run of this tapestry, or
+        ``None`` (the default) for no guard.  Every ``SubTapestry`` inner
+        run, ``LoopSubTapestry`` loop run and loop iteration counts one
+        level.  Setting it turns the nested-run guard on for the whole
+        subtree: a run that would exceed the tightest cap on the path fails
+        with ``NestingDepthExceededError``, and a container class
+        re-entering itself fails with ``NestedRunCycleError`` -- both
+        recorded as the container knot's ``Err``.  An inner tapestry
+        inherits the cap through the run context and may only tighten it.
     """
 
     def __init__(
@@ -186,6 +206,7 @@ class Tapestry:
         transport: DataTransport | None = None,
         identity_resolver: IdentityResolver | None = None,
         concurrency: ConcurrencyLimits | None = None,
+        max_nesting_depth: int | None = None,
     ) -> None:
         # Defer imports to avoid a circular at module load time.
         from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
@@ -221,6 +242,14 @@ class Tapestry:
             [EnvIdentityResolver(), OsIdentityResolver()]
         )
         self._concurrency: ConcurrencyLimits | None = concurrency
+        if max_nesting_depth is not None and (
+            isinstance(max_nesting_depth, bool) or max_nesting_depth < 0
+        ):
+            raise ValueError(
+                f"Tapestry: max_nesting_depth must be a non-negative int or None, "
+                f"got {max_nesting_depth!r}"
+            )
+        self._max_nesting_depth: int | None = max_nesting_depth
 
         # Token returned by ContextVar.set, used to reset on __exit__.
         self._token: Any = None
@@ -255,6 +284,11 @@ class Tapestry:
     def concurrency(self) -> ConcurrencyLimits | None:
         """Concurrency limits for runs whose ``RunRequest`` carries none."""
         return self._concurrency
+
+    @property
+    def max_nesting_depth(self) -> int | None:
+        """Cap on nested runs below a run of this tapestry, or ``None`` for no guard."""
+        return self._max_nesting_depth
 
     # ------------------------------------------------------------- knot ops
 
@@ -310,6 +344,7 @@ class Tapestry:
         replay: ReplaySession | None = None,
         _parent_run_id: str | None = None,
         _parent_knot_id: str | None = None,
+        _nesting_key: str | None = None,
     ) -> RunResult:
         """Execute the tapestry against a ``RunRequest``.
 
@@ -346,13 +381,33 @@ class Tapestry:
         Replay is not propagated into ``SubTapestry`` inner runs, and does
         not need to be: the ``SubTapestry`` knot itself is replayed from the
         outer recording, so the inner pipeline never starts.
+
+        ``_nesting_key`` is internal: a container knot starting this run as an
+        inner run passes its nesting key (``SubTapestry._nesting_key``) so the
+        nested-run guard can detect the class re-entering itself; a loop
+        iteration passes none.  The run's frame is derived from the enclosing
+        run's frame *before* anything starts, so a refused run raises here
+        and never touches history.
         """
         from pirn.core.knot import Knot as _Knot
+        from pirn.core.run_nesting import RunNesting as _RunNesting
         from pirn.core.run_request import RunRequest as _RunRequest
         from pirn.engine.engine import Engine
         from pirn.exceptions.tapestry_error import TapestryError
 
         request = request or _RunRequest()
+
+        # Nested-run frame (WS0).  A root run starts its own frame; an inner
+        # run derives its frame from the enclosing run's, which is where the
+        # depth cap and the re-entry guard fire.
+        enclosing = _current_nesting.get(None)
+        enclosing_run_id = _current_run_id.get(None)
+        if enclosing is None or enclosing_run_id is None:
+            nesting = _RunNesting(max_depth=self._max_nesting_depth)
+        else:
+            nesting = enclosing.child(
+                _nesting_key, enclosing_run_id, max_depth=self._max_nesting_depth
+            )
 
         # WHO resolution: explicit RunRequest.actor wins; fall back to resolver.
         resolved_actor = (
@@ -383,6 +438,7 @@ class Tapestry:
 
         engine = Engine(dispatcher=dispatcher or self._dispatcher)
         token_run_id = _current_run_id.set(request.run_id)
+        token_nesting = _current_nesting.set(nesting)
         token_store = _current_store.set(self._store if extensible else None)
         token_history = _current_history.set(self._history)
         # The value plane travels with the history: the store holds the value a
@@ -413,9 +469,11 @@ class Tapestry:
                 concurrency=(
                     request.concurrency if request.concurrency is not None else self._concurrency
                 ),
+                nesting=nesting,
             )
         finally:
             _current_run_id.reset(token_run_id)
+            _current_nesting.reset(token_nesting)
             _current_store.reset(token_store)
             _current_history.reset(token_history)
             _current_data_store.reset(token_data_store)
