@@ -56,3 +56,20 @@ class TestANCPipeline(unittest.IsolatedAsyncioTestCase):
         out = await knot.process(_REF, _ERR, step_size=0.01, filter_length=32)
         assert isinstance(out, SignalPayload)
         assert out.frame.sample_rate_hz == 1000.0
+
+    async def test_rejects_mismatched_channel_counts(self) -> None:
+        knot = self._make()
+        multichannel = make_signal_payload(
+            signal_id="test", channel_count=2, samples_per_channel=1024
+        )
+        with pytest.raises(ValueError, match="channel count"):
+            await knot.process(multichannel, _ERR, step_size=0.01, filter_length=32)
+
+    async def test_multichannel_computes_per_channel(self) -> None:
+        knot = self._make()
+        ref = make_signal_payload(signal_id="test", channel_count=2, samples_per_channel=64)
+        err = make_signal_payload(signal_id="reference", channel_count=2, samples_per_channel=64)
+        out = await knot.process(ref, err, step_size=0.01, filter_length=32)
+        assert isinstance(out, SignalPayload)
+        assert out.frame.channel_count == 2
+        assert out.data.shape == (2, 64)
