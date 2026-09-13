@@ -93,7 +93,7 @@ class CouchDBPool(DatabaseConnectionPool):
 
     async def _ensure_session(self) -> None:
         if self._closed:
-            raise RuntimeError("CouchDBPool is closed")
+            raise self._closed_error("CouchDBPool")
         if self._session is None:
             self._session = await self._create_session()
 
@@ -105,7 +105,7 @@ class CouchDBPool(DatabaseConnectionPool):
                 "CouchDBPool requires aiocouch; install via pip install pirn[couchdb]"
             ) from exc
         if self._config is None:
-            raise RuntimeError("CouchDBPool: missing config and no injected session")
+            raise self._missing_config_error("CouchDBPool", "session")
 
         try:
             session = aiocouch.CouchDB(

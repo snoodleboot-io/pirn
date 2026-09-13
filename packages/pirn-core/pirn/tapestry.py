@@ -21,6 +21,7 @@ from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from pirn.backends.base.data_store import DataStore
     from pirn.backends.base.run_history import RunHistory
     from pirn.backends.base.tapestry_store import TapestryStore
     from pirn.core.concurrency.concurrency_limits import ConcurrencyLimits
@@ -29,6 +30,7 @@ if TYPE_CHECKING:
     from pirn.core.run_request import RunRequest
     from pirn.core.run_result import RunResult
     from pirn.core.transport.data_transport import DataTransport
+    from pirn.emitters.base import Emitter
     from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
     from pirn.engine.dispatchers.dispatcher import Dispatcher
     from pirn.recording.replay_session import ReplaySession
@@ -173,9 +175,9 @@ class Tapestry:
         *,
         store: TapestryStore | None = None,
         history: RunHistory | None = None,
-        data_store: Any = None,  # DataStore protocol; deferred import
+        data_store: DataStore | None = None,
         dispatcher: Dispatcher | None = None,
-        emitters: list[Any] | None = None,
+        emitters: list[Emitter] | None = None,
         emitter_error_policy: EmitterErrorPolicy | None = None,
         traceback_filter: Callable[[str], str] | None = None,
         transport: DataTransport | None = None,
@@ -197,7 +199,7 @@ class Tapestry:
         self._history = history or InMemoryHistory()
         self._data_store = data_store or InMemoryDataStore()
         self._dispatcher = dispatcher or LocalDispatcher()
-        self._emitters: list[Any] = list(emitters or [])
+        self._emitters: list[Emitter] = list(emitters or [])
         self._emitter_error_policy: _EmitterErrorPolicy = (
             emitter_error_policy or _EmitterErrorPolicy.WARN
         )
@@ -298,7 +300,7 @@ class Tapestry:
         *,
         terminals: list[Knot] | Knot | None = None,
         dispatcher: Dispatcher | None = None,
-        emitters: list[Any] | None = None,
+        emitters: list[Emitter] | None = None,
         extensible: bool = False,
         emitter_error_policy: EmitterErrorPolicy | None = None,
         traceback_filter: Callable[[str], str] | None = None,
@@ -345,6 +347,7 @@ class Tapestry:
         from pirn.core.knot import Knot as _Knot
         from pirn.core.run_request import RunRequest as _RunRequest
         from pirn.engine.engine import Engine
+        from pirn.exceptions.tapestry_error import TapestryError
 
         request = request or _RunRequest()
 
@@ -361,7 +364,7 @@ class Tapestry:
             chosen = list(terminals)
 
         if not chosen:
-            raise ValueError(
+            raise TapestryError(
                 "tapestry has no knots / no terminals to run; construct knots "
                 "inside `with Tapestry() as t:` or pass `terminals=`."
             )
@@ -418,7 +421,7 @@ class Tapestry:
             _current_emitters.reset(token_emitters)
             _current_emitter_error_policy.reset(token_emitter_policy)
 
-    def add_emitter(self, emitter: Any) -> None:
+    def add_emitter(self, emitter: Emitter) -> None:
         """Append an emitter to this tapestry's default emitter list.
 
         Subsequent ``run()`` calls will fan run events to this emitter
@@ -426,19 +429,22 @@ class Tapestry:
         """
         self._emitters.append(emitter)
 
-    def remove_emitter(self, emitter: Any) -> None:
+    def remove_emitter(self, emitter: Emitter) -> None:
         """Remove an emitter by identity (not equality).
 
-        Raises ``ValueError`` if the emitter is not registered.
+        Raises ``TapestryError`` (a ``ValueError``) if the emitter is not
+        registered.
         """
+        from pirn.exceptions.tapestry_error import TapestryError
+
         for i, e in enumerate(self._emitters):
             if e is emitter:
                 del self._emitters[i]
                 return
-        raise ValueError("emitter not registered with this tapestry")
+        raise TapestryError("emitter not registered with this tapestry")
 
     @property
-    def emitters(self) -> list[Any]:
+    def emitters(self) -> list[Emitter]:
         """Read-only view of the currently registered emitters."""
         return list(self._emitters)
 

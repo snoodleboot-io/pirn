@@ -94,7 +94,7 @@ class GoogleChatClient(ApiClient):
 
     async def _create_client(self) -> Any:
         if self._config is None:
-            raise RuntimeError("GoogleChatClient: missing config and no injected client")
+            raise self._missing_config_error("GoogleChatClient", "client")
         if not self._config.webhook_url:
             raise ValueError("GoogleChatClient: config.webhook_url must be non-empty")
         self._logger.debug("google_chat.connect")

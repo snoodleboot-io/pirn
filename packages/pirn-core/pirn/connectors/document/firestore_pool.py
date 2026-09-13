@@ -93,7 +93,7 @@ class FirestorePool(DatabaseConnectionPool):
 
     async def _ensure_client(self) -> None:
         if self._closed:
-            raise RuntimeError("FirestorePool is closed")
+            raise self._closed_error("FirestorePool")
         if self._client is None:
             self._client = await self._create_client()
 
@@ -106,7 +106,7 @@ class FirestorePool(DatabaseConnectionPool):
                 "install via pip install pirn[firestore]"
             ) from exc
         if self._config is None:
-            raise RuntimeError("FirestorePool: missing config and no injected client")
+            raise self._missing_config_error("FirestorePool", "client")
 
         try:
             credentials = None

@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from pirn.exceptions.pirn_error import PirnError
 
-class ReplayError(Exception):
+
+class ReplayError(PirnError):
     """A replay could not serve a recorded outcome and refused to execute.
 
     Replay never falls back to live execution.  A run started in replay

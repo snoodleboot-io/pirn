@@ -163,7 +163,7 @@ class GoogleAnalyticsClient(ApiClient, TableSource):
 
     async def _ensure_client(self) -> Any:
         if self._closed:
-            raise RuntimeError("GoogleAnalyticsClient is closed")
+            raise self._closed_error("GoogleAnalyticsClient")
         if self._client is None:
             self._client = await self._create_client()
         return self._client
@@ -179,7 +179,7 @@ class GoogleAnalyticsClient(ApiClient, TableSource):
                 "via `pip install pirn[google-analytics]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError("GoogleAnalyticsClient: missing config and no injected client")
+            raise self._missing_config_error("GoogleAnalyticsClient", "client")
 
         kwargs: dict[str, Any] = {}
         if self._config.service_account_json is not None:

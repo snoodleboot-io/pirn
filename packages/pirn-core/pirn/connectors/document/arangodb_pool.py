@@ -70,7 +70,7 @@ class ArangoDBPool(DatabaseConnectionPool):
 
     async def _ensure_db(self) -> None:
         if self._closed:
-            raise RuntimeError("ArangoDBPool is closed")
+            raise self._closed_error("ArangoDBPool")
         if self._db is None:
             self._db = await asyncio.to_thread(self._create_db)
 
@@ -82,7 +82,7 @@ class ArangoDBPool(DatabaseConnectionPool):
                 "ArangoDBPool requires python-arango; install via pip install pirn[arangodb]"
             ) from exc
         if self._config is None:
-            raise RuntimeError("ArangoDBPool: missing config and no injected db")
+            raise self._missing_config_error("ArangoDBPool", "db")
 
         try:
             client = ArangoClient(

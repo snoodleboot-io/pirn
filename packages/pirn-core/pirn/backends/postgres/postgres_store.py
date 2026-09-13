@@ -11,6 +11,7 @@ from pirn.backends.base.subscribable_store import SubscribableStore
 from pirn.backends.base.tapestry_snapshot import TapestrySnapshot
 from pirn.backends.base.tapestry_store import TapestryStore
 from pirn.backends.postgres._lazy_pool import _LazyPool
+from pirn.exceptions.duplicate_knot_error import DuplicateKnotError
 
 _logger = logging.getLogger(__name__)
 
@@ -117,12 +118,12 @@ class PostgresStore(TapestryStore, SubscribableStore):
             knot: The knot to register.
 
         Raises:
-            ValueError: If a different ``Knot`` instance with the same
+            DuplicateKnotError: If a different ``Knot`` instance with the same
                 ``knot_id`` is already registered.
         """
         existing = self._live.get(knot.knot_id)
         if existing is not None and existing is not knot:
-            raise ValueError(
+            raise DuplicateKnotError(
                 f"knot id {knot.knot_id!r} already registered with a different instance"
             )
         self._live[knot.knot_id] = knot

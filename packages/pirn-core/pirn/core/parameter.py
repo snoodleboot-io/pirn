@@ -48,6 +48,24 @@ class Parameter(Knot):
             ``AttributeError`` when accessed on a parameter with no default.
         spec: The ``ParameterSpec`` describing this parameter for schema
             export and documentation.
+
+    Algorithm:
+        1. Construction — a ``TypeAdapter`` for ``type_`` is built once and
+           stored as the knot's output adapter; no parent/config
+           introspection runs, since ``Parameter`` has no declared inputs.
+        2. Binding (per run) — before the engine dispatches any work,
+           ``Engine._bind_parameters`` looks up ``RunRequest.parameters[name]``.
+           If present, the value is validated via :meth:`bind`. If absent and
+           a default was declared, the default is used unvalidated (it was
+           supplied by the pipeline author, not an external caller). If
+           neither is available, resolution defers to ``process()``.
+        3. Run-scoped copy — the bound value is written onto a *copy* of this
+           ``Parameter`` (:meth:`bound_copy`), never onto the shared graph
+           knot, so concurrent runs sharing one ``Tapestry`` do not overwrite
+           each other's bindings (PIR-802).
+        4. Resolution — ``process()`` returns the bound value if one was set
+           on this instance, else the declared default, else raises
+           ``UnboundParameterError``.
     """
 
     def __init__(
@@ -100,23 +118,11 @@ class Parameter(Knot):
 
         # Stash all _mutable_ state BEFORE the Knot.__init__ freeze.  We
         # don't call Knot.__init__ because its kwargs introspection would
-        # refuse our parameters; instead we set the same fields it would.
-        self._mutable_config = config
-        self._mutable_parents = {}
-        self._mutable_config_values = {}
-        self._mutable_input_adapters = {}
-        self._mutable_output_adapter = adapter
-        self._mutable_mapped_inputs: dict[str, type] = {}
-        self._mutable_fan_out_extra: dict[str, Any] = {}
+        # refuse our parameters; instead we go through the shared
+        # _bootstrap() helper that stashes the same fields and self-registers.
         self._mutable_spec = spec
         self._mutable_value: Any = _Unset
-
-        # Self-register.
-        from pirn.tapestry import _current_tapestry
-
-        target = tapestry or _current_tapestry.get(None)
-        if target is not None:
-            target.register(self)
+        self._bootstrap(config=config, parents={}, output_adapter=adapter, tapestry=tapestry)
 
         self._frozen = True
 
@@ -148,7 +154,9 @@ class Parameter(Knot):
 
     def bind(self, supplied: Any) -> Any:
         """Validate a supplied value; called by the engine before the run."""
-        return self._mutable_output_adapter.validate_python(supplied)
+        adapter = self._mutable_output_adapter
+        assert adapter is not None, "Parameter always constructs its output_adapter"
+        return adapter.validate_python(supplied)
 
     def bind_value(self, value: Any) -> None:
         """Set the bound value on *this* instance.

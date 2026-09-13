@@ -160,7 +160,7 @@ class PrometheusClient(ApiClient, MetricQuery):
 
     async def _create_client(self) -> Any:
         if self._config is None:
-            raise RuntimeError("PrometheusClient: missing config and no injected client")
+            raise self._missing_config_error("PrometheusClient", "client")
         if self._config.base_url is None:
             raise RuntimeError("PrometheusClient: config.base_url is required")
 

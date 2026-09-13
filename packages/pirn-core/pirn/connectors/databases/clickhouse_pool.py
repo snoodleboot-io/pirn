@@ -140,7 +140,7 @@ class ClickhousePool(DatabaseConnectionPool):
 
     async def _ensure_client(self) -> Any:
         if self._closed:
-            raise RuntimeError("ClickhousePool is closed")
+            raise self._closed_error("ClickhousePool")
         if self._client is None:
             self._client = await self._create_client()
         return self._client
@@ -154,7 +154,7 @@ class ClickhousePool(DatabaseConnectionPool):
                 "`pip install pirn[clickhouse]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError("ClickhousePool: missing config and no injected client")
+            raise self._missing_config_error("ClickhousePool", "client")
 
         kwargs: dict[str, Any] = {
             "host": self._config.host,

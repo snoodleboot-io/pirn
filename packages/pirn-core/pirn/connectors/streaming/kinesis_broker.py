@@ -123,7 +123,7 @@ class KinesisBroker(MessageBroker):
 
     async def _ensure_client(self) -> Any:
         if self._closed:
-            raise RuntimeError("KinesisBroker is closed")
+            raise self._closed_error("KinesisBroker")
         if self._client is None:
             self._client = await self._build_client()
         return self._client

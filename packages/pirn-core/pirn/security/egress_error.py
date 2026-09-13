@@ -8,8 +8,10 @@ handlers keep working unchanged.
 
 from __future__ import annotations
 
+from pirn.exceptions.pirn_error import PirnError
 
-class EgressError(ValueError):
+
+class EgressError(PirnError, ValueError):
     """Raised when an egress policy blocks an outbound URL.
 
     Parameters

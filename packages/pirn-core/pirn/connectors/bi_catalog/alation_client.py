@@ -188,7 +188,7 @@ class AlationClient(ApiClient, TableSource, MetadataCatalog):
 
     async def _create_client(self) -> Any:
         if self._config is None:
-            raise RuntimeError("AlationClient: missing config and no injected client")
+            raise self._missing_config_error("AlationClient", "client")
         if self._config.base_url is None:
             raise RuntimeError("AlationClient: config.base_url is required")
         if self._config.refresh_token is None:

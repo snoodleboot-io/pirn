@@ -207,7 +207,7 @@ class SalesforceClient(ApiClient, TableSource, RecordWriter):
 
     async def _ensure_client(self) -> Any:
         if self._closed:
-            raise RuntimeError("SalesforceClient is closed")
+            raise self._closed_error("SalesforceClient")
         if self._client is None:
             self._client = await self._create_client()
         return self._client
@@ -221,7 +221,7 @@ class SalesforceClient(ApiClient, TableSource, RecordWriter):
                 "`pip install pirn[salesforce]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError("SalesforceClient: missing config and no injected client")
+            raise self._missing_config_error("SalesforceClient", "client")
 
         kwargs: dict[str, Any] = {"domain": self._config.domain}
         for name in (

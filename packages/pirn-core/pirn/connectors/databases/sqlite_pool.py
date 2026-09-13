@@ -62,7 +62,7 @@ class SqlitePool(DatabaseConnectionPool):
 
     async def acquire(self) -> Any:
         if self._closed:
-            raise RuntimeError("SqlitePool is closed")
+            raise self._closed_error("SqlitePool")
         if self._connection is None:
             self._connection = await self._open_connection()
         return self._connection

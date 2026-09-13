@@ -36,6 +36,7 @@ import asyncio
 import copy
 import inspect
 import types as _types
+import warnings
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, ClassVar, Union, get_args, get_origin, get_type_hints
 
@@ -176,7 +177,14 @@ class Knot:
             # needing to call any explicit helper.
             try:
                 hints = get_type_hints(cls.__dict__["process"])
-            except Exception:
+            except Exception as exc:
+                warnings.warn(
+                    f"{cls.__name__}.process: get_type_hints() failed ({exc!r}); "
+                    "Knot | T scalar auto-coercion is disabled for this class. "
+                    "This usually means a forward-referenced annotation cannot "
+                    "be resolved (e.g. a name only imported under TYPE_CHECKING).",
+                    stacklevel=2,
+                )
                 hints = {}
             coercible: dict[str, Any] = {}
             for pname, hint in hints.items():
@@ -188,24 +196,76 @@ class Knot:
             cls._coercible_params = coercible
 
     def __init__(self, **kwargs: Any) -> None:
-        # Pull framework-reserved kwargs out first.
+        config, explicit_tapestry, kwargs = self._extract_framework_kwargs(kwargs)
+        mapped_inputs, kwargs = self._extract_map_markers(kwargs, config)
+
+        # Validate the remaining kwargs against process()'s signature.
+        # follow_wrapped=True: for @knot classes, inspect the user's original
+        # function so declared input names reflect its real parameter names.
+        sig = self._process_signature()
+        declared = self._declared_input_names(sig)
+        accepts_implicit = self._has_var_keyword(sig)
+        self._validate_kwargs_against_signature(kwargs, declared, accepts_implicit, config)
+
+        kwargs = self._coerce_scalar_parameters(kwargs, config, explicit_tapestry)
+        parents, config_values = self._partition_parents_and_config(kwargs)
+
+        # Build adapters for input/output validation now (one-time cost).
+        input_adapters, output_adapter = self._build_adapters(sig)
+        config_values = self._validate_config_values(config_values, input_adapters, config)
+
+        # Stash everything and self-register with the active tapestry (if
+        # any) or with the explicitly passed one.  Done last so the knot is
+        # fully built before the tapestry sees it.
+        self._bootstrap(
+            config=config,
+            parents=parents,
+            config_values=config_values,
+            input_adapters=input_adapters,
+            output_adapter=output_adapter,
+            mapped_inputs=mapped_inputs,
+            tapestry=explicit_tapestry,
+        )
+
+        self._frozen = True
+
+    # --------------------------------------------------- __init__ steps
+
+    @classmethod
+    def _extract_framework_kwargs(
+        cls, kwargs: dict[str, Any]
+    ) -> tuple[KnotConfig, Tapestry | None, dict[str, Any]]:
+        """Pull ``_config`` and ``tapestry`` out of the constructor kwargs.
+
+        Returns the validated ``KnotConfig``, the explicit tapestry (or
+        ``None``), and the remaining kwargs with both reserved names removed.
+        """
+        kwargs = dict(kwargs)
         config: KnotConfig = kwargs.pop("_config", None)  # type: ignore[assignment]  # None is narrowed to KnotConfig two lines below
         if config is None:
             raise TypeError(
-                f"{type(self).__name__} requires _config=KnotConfig(id=...).  "
+                f"{cls.__name__} requires _config=KnotConfig(id=...).  "
                 "Pirn requires explicit knot ids; nothing is auto-generated."
             )
         if not isinstance(config, KnotConfig):
             raise TypeError(
-                f"{type(self).__name__}: _config must be a KnotConfig instance, "
+                f"{cls.__name__}: _config must be a KnotConfig instance, "
                 f"got {type(config).__name__}"
             )
-
         explicit_tapestry: Tapestry | None = kwargs.pop("tapestry", None)
+        return config, explicit_tapestry, kwargs
 
-        # Detect and extract distribution markers (Map, ZipMap, DictMap) first,
-        # before signature validation, so markers on declared inputs are treated
-        # as Knot parents rather than non-Knot config errors.
+    @classmethod
+    def _extract_map_markers(
+        cls, kwargs: dict[str, Any], config: KnotConfig
+    ) -> tuple[dict[str, type], dict[str, Any]]:
+        """Detect and extract distribution markers (``Map``, ``ZipMap``, ``DictMap``).
+
+        Done before signature validation so markers on declared inputs are
+        treated as Knot parents rather than non-Knot config errors. Returns
+        the name -> marker-type mapping and the kwargs with each marker
+        replaced by its underlying source knot.
+        """
         mapped_inputs: dict[str, type] = {}
         marker_sources: dict[str, Any] = {}
         resolved_kwargs: dict[str, Any] = {}
@@ -216,95 +276,127 @@ class Knot:
                 resolved_kwargs[name] = value.source
             else:
                 resolved_kwargs[name] = value
-        kwargs = resolved_kwargs
 
-        # Validate marker consistency.
         if mapped_inputs:
-            marker_types = set(mapped_inputs.values())
-            if len(marker_types) > 1:
-                raise TypeError(
-                    f"{type(self).__name__}({config.id!r}): cannot mix "
-                    "Map, ZipMap, and DictMap markers on the same knot"
-                )
-            sole_type = next(iter(marker_types))
-            if sole_type is Map and len(mapped_inputs) > 1:
-                raise TypeError(
-                    f"{type(self).__name__}({config.id!r}): multiple Map-annotated "
-                    "inputs would produce a cross-product; use ZipMap to zip "
-                    "multiple collections element-wise"
-                )
-            if sole_type is DictMap and len(mapped_inputs) != 2:
-                raise TypeError(
-                    f"{type(self).__name__}({config.id!r}): DictMap requires exactly "
-                    "two annotated inputs (key-receiver and value-receiver)"
-                )
-            if sole_type is DictMap:
-                dict_sources = list(marker_sources.values())
-                if dict_sources[0] is not dict_sources[1]:
-                    raise TypeError(
-                        f"{type(self).__name__}({config.id!r}): both DictMap inputs "
-                        "must reference the same source knot"
-                    )
+            cls._validate_marker_consistency(mapped_inputs, marker_sources, config)
 
-        # Validate the remaining kwargs against process()'s signature.
-        # follow_wrapped=True: for @knot classes, inspect the user's original
-        # function so declared input names reflect its real parameter names.
-        sig = self._process_signature()
-        declared = self._declared_input_names(sig)
-        accepts_implicit = self._has_var_keyword(sig)
+        return mapped_inputs, resolved_kwargs
 
-        # Partition unknown kwargs: extra Knot-valued ones are implicit parents
-        # (ordering dependencies whose output is not used directly); extra
-        # non-Knot ones are always errors.
-        unknown = set(kwargs) - declared - Knot._reserved_kwargs
+    @classmethod
+    def _validate_marker_consistency(
+        cls,
+        mapped_inputs: dict[str, type],
+        marker_sources: dict[str, Any],
+        config: KnotConfig,
+    ) -> None:
+        marker_types = set(mapped_inputs.values())
+        if len(marker_types) > 1:
+            raise TypeError(
+                f"{cls.__name__}({config.id!r}): cannot mix "
+                "Map, ZipMap, and DictMap markers on the same knot"
+            )
+        sole_type = next(iter(marker_types))
+        if sole_type is Map and len(mapped_inputs) > 1:
+            raise TypeError(
+                f"{cls.__name__}({config.id!r}): multiple Map-annotated "
+                "inputs would produce a cross-product; use ZipMap to zip "
+                "multiple collections element-wise"
+            )
+        if sole_type is DictMap and len(mapped_inputs) != 2:
+            raise TypeError(
+                f"{cls.__name__}({config.id!r}): DictMap requires exactly "
+                "two annotated inputs (key-receiver and value-receiver)"
+            )
+        if sole_type is DictMap:
+            dict_sources = list(marker_sources.values())
+            if dict_sources[0] is not dict_sources[1]:
+                raise TypeError(
+                    f"{cls.__name__}({config.id!r}): both DictMap inputs "
+                    "must reference the same source knot"
+                )
+
+    @classmethod
+    def _validate_kwargs_against_signature(
+        cls,
+        kwargs: dict[str, Any],
+        declared: set[str],
+        accepts_implicit: bool,
+        config: KnotConfig,
+    ) -> None:
+        """Reject unknown or missing kwargs against process()'s declared inputs.
+
+        Extra Knot-valued kwargs are implicit parents (ordering dependencies
+        whose output is not used directly) when ``process()`` accepts
+        ``**kwargs``; extra non-Knot ones are always errors.
+        """
+        unknown = set(kwargs) - declared - cls._reserved_kwargs
         if unknown:
             if accepts_implicit:
                 bad_config = {k for k in unknown if not isinstance(kwargs[k], Knot)}
                 if bad_config:
                     raise TypeError(
-                        f"{type(self).__name__}({config.id!r}): unknown non-Knot "
+                        f"{cls.__name__}({config.id!r}): unknown non-Knot "
                         f"kwarg(s) {sorted(bad_config)!r}; only Knot parents may "
                         "be passed as implicit dependencies"
                     )
                 # Remaining unknowns are all Knot-valued — accepted as implicit parents.
             else:
                 raise TypeError(
-                    f"{type(self).__name__}({config.id!r}): unknown kwarg(s) "
+                    f"{cls.__name__}({config.id!r}): unknown kwarg(s) "
                     f"{sorted(unknown)!r}; declared inputs are {sorted(declared)!r}. "
                     "To wire implicit dependencies add '**_: Any' to process()"
                 )
 
-        # Reject missing explicit inputs.
         missing = declared - set(kwargs)
         if missing:
             raise TypeError(
-                f"{type(self).__name__}({config.id!r}): missing required "
-                f"input(s) {sorted(missing)!r}"
+                f"{cls.__name__}({config.id!r}): missing required input(s) {sorted(missing)!r}"
             )
 
-        # Auto-coerce scalars for params annotated ``Knot | T``.
-        # Wraps the scalar in a Parameter(default=value) so it becomes a real
-        # graph node with lineage, rather than invisible config.
-        coercible = type(self)._coercible_params
-        if coercible:
-            from pirn.core.parameter import Parameter  # local: avoids circular import
+    @classmethod
+    def _coerce_scalar_parameters(
+        cls,
+        kwargs: dict[str, Any],
+        config: KnotConfig,
+        explicit_tapestry: Tapestry | None,
+    ) -> dict[str, Any]:
+        """Auto-coerce scalars for params annotated ``Knot | T``.
 
-            for pname, (coerce_type, _adapter_type) in coercible.items():
-                if pname not in kwargs:
-                    continue
-                value = kwargs[pname]
-                if value is None or isinstance(value, Knot):
-                    continue
-                kwargs[pname] = Parameter(
-                    name=f"{config.id}__{pname}",
-                    type_=coerce_type,
-                    default=value,
-                    _config=KnotConfig(id=f"auto:{config.id}:{pname}"),
-                    tapestry=explicit_tapestry,
-                )
+        Wraps the scalar in a ``Parameter(default=value)`` so it becomes a
+        real graph node with lineage, rather than invisible config.
+        """
+        coercible = cls._coercible_params
+        if not coercible:
+            return kwargs
 
-        # Partition kwargs: explicit parents/configs (named in process) and
-        # implicit parents (extra Knot kwargs absorbed by **_).
+        from pirn.core.parameter import Parameter  # local: avoids circular import
+
+        kwargs = dict(kwargs)
+        for pname, (coerce_type, _adapter_type) in coercible.items():
+            if pname not in kwargs:
+                continue
+            value = kwargs[pname]
+            if value is None or isinstance(value, Knot):
+                continue
+            kwargs[pname] = Parameter(
+                name=f"{config.id}__{pname}",
+                type_=coerce_type,
+                default=value,
+                _config=KnotConfig(id=f"auto:{config.id}:{pname}"),
+                tapestry=explicit_tapestry,
+            )
+        return kwargs
+
+    @staticmethod
+    def _partition_parents_and_config(
+        kwargs: dict[str, Any],
+    ) -> tuple[dict[str, Knot], dict[str, Any]]:
+        """Split kwargs into Knot-valued parents and plain config values.
+
+        Explicit parents/configs (named in ``process()``) and implicit
+        parents (extra Knot kwargs absorbed by ``**_``) are both partitioned
+        the same way: by whether the value is a ``Knot``.
+        """
         parents: dict[str, Knot] = {}
         config_values: dict[str, Any] = {}
         for name, value in kwargs.items():
@@ -312,46 +404,94 @@ class Knot:
                 parents[name] = value  # explicit and implicit parents both stored here
             else:
                 config_values[name] = value
+        return parents, config_values
 
-        # Build adapters for input/output validation now (one-time cost).
-        input_adapters, output_adapter = self._build_adapters(sig)
+    @classmethod
+    def _validate_config_values(
+        cls,
+        config_values: dict[str, Any],
+        input_adapters: dict[str, TypeAdapter],
+        config: KnotConfig,
+    ) -> dict[str, Any]:
+        """Validate config values against their declared types eagerly.
 
-        # Validate config values against their declared types eagerly —
-        # they're constants, so we can check them at construction time.
-        if config.validate_io:
-            for name, value in config_values.items():
-                adapter = input_adapters.get(name)
-                if adapter is None:
-                    continue
-                try:
-                    config_values[name] = adapter.validate_python(value)
-                except ValidationError as exc:
-                    raise TypeError(
-                        f"{type(self).__name__}({config.id!r}).{name}: "
-                        f"config value failed validation: {exc}"
-                    ) from exc
+        They're constants, so this can happen at construction time rather
+        than waiting for the first run.
+        """
+        if not config.validate_io:
+            return config_values
 
-        # Stash everything.  All `_mutable_` to bypass the freeze guard.
+        config_values = dict(config_values)
+        for name, value in config_values.items():
+            adapter = input_adapters.get(name)
+            if adapter is None:
+                continue
+            try:
+                config_values[name] = adapter.validate_python(value)
+            except ValidationError as exc:
+                raise TypeError(
+                    f"{cls.__name__}({config.id!r}).{name}: config value failed validation: {exc}"
+                ) from exc
+        return config_values
+
+    # ------------------------------------------------------- bootstrap
+
+    def _bootstrap(
+        self,
+        *,
+        config: KnotConfig,
+        parents: Mapping[str, Knot],
+        config_values: Mapping[str, Any] | None = None,
+        input_adapters: Mapping[str, TypeAdapter] | None = None,
+        output_adapter: TypeAdapter | None = None,
+        mapped_inputs: Mapping[str, type] | None = None,
+        tapestry: Tapestry | None = None,
+    ) -> None:
+        """Stash the ``_mutable_`` slots and register with the tapestry.
+
+        Framework primitives that cannot go through the standard
+        ``Knot.__init__`` introspection (``Aggregator``, ``Reduce``, ``Gate``,
+        ``Branch``, ``BranchOutput``, ``Parameter``) construct their own
+        parent/config wiring by hand and previously duplicated the block that
+        stashes it onto ``_mutable_`` slots and self-registers with the
+        active tapestry. Six copies of that block drifted independently as
+        the slot set grew (``_mutable_fan_out_extra`` was added to some but
+        not all). This method is the one place that does it, so a new slot
+        or a change to registration order is written once.
+
+        Callers still set any additional ``_mutable_`` state of their own
+        (e.g. ``Gate``'s ``_mutable_predicate``) and must set
+        ``self._frozen = True`` themselves once construction is complete —
+        this method deliberately does not freeze, since some callers stash
+        further state after calling it.
+
+        Args:
+            config: The knot's framework configuration.
+            parents: Name to parent-knot mapping.
+            config_values: Name to constant-value mapping. Defaults to empty.
+            input_adapters: Name to ``TypeAdapter`` mapping for input
+                validation. Defaults to empty (no input validation).
+            output_adapter: ``TypeAdapter`` for output validation, or
+                ``None`` to skip it.
+            mapped_inputs: Name to marker-type mapping for fan-out (``Map``,
+                ``ZipMap``, ``DictMap``) inputs. Defaults to empty.
+            tapestry: Explicit tapestry to register with. When ``None``, the
+                active context-var tapestry is used, matching the standard
+                ``Knot.__init__`` self-registration behaviour.
+        """
         self._mutable_config = config
-        self._mutable_parents = parents
-        self._mutable_config_values = config_values
-        self._mutable_input_adapters = input_adapters
+        self._mutable_parents = dict(parents)
+        self._mutable_config_values = dict(config_values) if config_values else {}
+        self._mutable_input_adapters = dict(input_adapters) if input_adapters else {}
         self._mutable_output_adapter = output_adapter
-        self._mutable_mapped_inputs: dict[str, type] = mapped_inputs
-        # Populated by _fan_out when this knot executes a map operation;
-        # surfaced via lineage_extra() for lineage enrichment.
+        self._mutable_mapped_inputs = dict(mapped_inputs) if mapped_inputs else {}
         self._mutable_fan_out_extra: dict[str, Any] = {}
 
-        # Self-register with the active tapestry (if any) or with the
-        # explicitly passed one.  Done last so the knot is fully built
-        # before the tapestry sees it.
         from pirn.tapestry import _current_tapestry
 
-        target_tapestry = explicit_tapestry or _current_tapestry.get(None)
+        target_tapestry = tapestry or _current_tapestry.get(None)
         if target_tapestry is not None:
             target_tapestry.register(self)
-
-        self._frozen = True
 
     # ----------------------------------------------------------- lineage
 
@@ -558,7 +698,15 @@ class Knot:
         process_fn = type(self).process
         try:
             hints = get_type_hints(process_fn, include_extras=True)
-        except Exception:
+        except Exception as exc:
+            warnings.warn(
+                f"{type(self).__name__}.process: get_type_hints() failed ({exc!r}); "
+                "input/output validation is disabled for this class regardless "
+                "of KnotConfig.validate_io. This usually means a forward-"
+                "referenced annotation cannot be resolved (e.g. a name only "
+                "imported under TYPE_CHECKING).",
+                stacklevel=2,
+            )
             hints = {}
 
         coercible = type(self)._coercible_params

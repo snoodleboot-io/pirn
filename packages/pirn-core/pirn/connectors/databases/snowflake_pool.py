@@ -131,7 +131,7 @@ class SnowflakePool(DatabaseConnectionPool):
 
     async def _ensure_client(self) -> Any:
         if self._closed:
-            raise RuntimeError("SnowflakePool is closed")
+            raise self._closed_error("SnowflakePool")
         if self._client is None:
             self._client = await self._create_client()
         return self._client
@@ -145,7 +145,7 @@ class SnowflakePool(DatabaseConnectionPool):
                 "`pip install pirn[snowflake]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError("SnowflakePool: missing config and no injected client")
+            raise self._missing_config_error("SnowflakePool", "client")
 
         kwargs: dict[str, Any] = {}
         for name in (

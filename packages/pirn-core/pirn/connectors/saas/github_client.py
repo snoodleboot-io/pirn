@@ -183,7 +183,7 @@ class GitHubClient(ApiClient, TableSource):
 
     async def _ensure_client(self) -> Any:
         if self._closed:
-            raise RuntimeError("GitHubClient is closed")
+            raise self._closed_error("GitHubClient")
         if self._client is None:
             self._client = await self._create_client()
         return self._client
@@ -196,7 +196,7 @@ class GitHubClient(ApiClient, TableSource):
                 "GitHubClient requires PyGithub; install via `pip install pirn[github]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError("GitHubClient: missing config and no injected client")
+            raise self._missing_config_error("GitHubClient", "client")
 
         kwargs: dict[str, Any] = {"base_url": self._config.base_url}
         if self._config.token is not None:

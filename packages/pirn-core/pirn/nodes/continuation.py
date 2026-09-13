@@ -106,6 +106,31 @@ class WithContinuation(Knot):
 
     The continuation always creates at least one successor — termination is
     explicit via ``Next("end")``, which registers a built-in ``_EndKnot``.
+
+    Algorithm:
+        1. Resolution — the engine resolves the wrapped knot and passes its
+           output as ``result`` to ``process()``.
+        2. Invocation — ``process()`` calls the continuation function
+           ``fn(result)``, which returns a ``list[Next]`` describing every
+           successor to spawn.
+        3. Non-empty guard — an empty return list is a caller error (there is
+           no defined successor); this raises via an assertion rather than
+           silently ending the flow, since a forgotten ``Next("end")`` should
+           not read as "everything finished".
+        4. Store availability — if no extensible store is active (a
+           non-extensible run, or a stray call outside a run), spawning is
+           silently skipped and ``result`` is returned unchanged; the
+           continuation still ran, but its successors are dropped.
+        5. Pool lookup — for each ``Next`` entry, its ``action`` name is
+           looked up in the pool (the built-in ``"end"`` action always maps to
+           ``_EndKnot`` unless the caller's pool overrides it). An unknown
+           action raises ``KeyError`` naming the available actions.
+        6. Spawn — the resolved knot class is constructed with ``nxt.inputs``
+           as constructor kwargs and a derived or caller-supplied id, then
+           registered with the running store so the engine picks it up
+           mid-run.
+        7. Pass-through — ``process()`` returns ``result`` unchanged; spawning
+           successors is a side effect, not a transformation of the value.
     """
 
     # Built-in action name — always available without registering in a pool.

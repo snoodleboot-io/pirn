@@ -164,7 +164,7 @@ class HubSpotClient(ApiClient, TableSource, RecordWriter):
 
     async def _ensure_client(self) -> Any:
         if self._closed:
-            raise RuntimeError("HubSpotClient is closed")
+            raise self._closed_error("HubSpotClient")
         if self._client is None:
             self._client = await self._create_client()
         return self._client
@@ -177,7 +177,7 @@ class HubSpotClient(ApiClient, TableSource, RecordWriter):
                 "HubSpotClient requires hubspot-api-client; install via `pip install pirn[hubspot]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError("HubSpotClient: missing config and no injected client")
+            raise self._missing_config_error("HubSpotClient", "client")
 
         kwargs: dict[str, Any] = {}
         if self._config.access_token is not None:

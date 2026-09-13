@@ -17,6 +17,8 @@ from typing import Any
 from pirn.connectors.observability.opentelemetry_config import (
     OpenTelemetryConfig,
 )
+from pirn.exceptions.connector_closed_error import ConnectorClosedError
+from pirn.exceptions.connector_config_error import ConnectorConfigError
 
 
 class OpenTelemetrySpanEmitter:
@@ -76,7 +78,7 @@ class OpenTelemetrySpanEmitter:
 
     async def _ensure_tracer(self) -> Any:
         if self._closed:
-            raise RuntimeError("OpenTelemetrySpanEmitter is closed")
+            raise ConnectorClosedError("OpenTelemetrySpanEmitter is closed")
         if self._tracer is None:
             self._tracer = await self._create_tracer()
         return self._tracer
@@ -104,7 +106,9 @@ class OpenTelemetrySpanEmitter:
             ) from exc
 
         if self._config is None:
-            raise RuntimeError("OpenTelemetrySpanEmitter: missing config and no injected tracer")
+            raise ConnectorConfigError(
+                "OpenTelemetrySpanEmitter: missing config and no injected tracer"
+            )
 
         resource_attrs: dict[str, Any] = {}
         if self._config.service_name is not None:

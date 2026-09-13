@@ -18,6 +18,8 @@ from types import ModuleType
 from typing import Any, ClassVar
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
+from pirn.exceptions.connector_closed_error import ConnectorClosedError
+from pirn.exceptions.connector_config_error import ConnectorConfigError
 from pirn.security.credential_ref import CredentialRef
 
 
@@ -107,6 +109,28 @@ class ConnectorBase(PirnOpaqueValue):
     def _clear_credentials(self) -> None:
         """Drop the credential reference so the secret becomes GC-able."""
         self._credential = None
+
+    @staticmethod
+    def _closed_error(class_name: str) -> ConnectorClosedError:
+        """Build the typed error for "used after close" — call sites ``raise`` it.
+
+        One place for the message so every connector reports a closed
+        client the same way. Returns rather than raises so a call site
+        keeps its own ``raise`` statement, which is what a type checker and
+        a reader both expect at the point control actually leaves the
+        function.
+        """
+        return ConnectorClosedError(f"{class_name} is closed")
+
+    @staticmethod
+    def _missing_config_error(class_name: str, resource: str) -> ConnectorConfigError:
+        """Build the typed error for "no config and no injected *resource*".
+
+        *resource* names the backend object the connector needed and had
+        neither a config to build nor an injected instance of (e.g.
+        ``"client"``, ``"pool"``, ``"driver"``).
+        """
+        return ConnectorConfigError(f"{class_name}: missing config and no injected {resource}")
 
     def __pirn_canonical__(self) -> Any:
         """Return the content-hash form: an identity-keyed token by default.

@@ -217,7 +217,7 @@ class MssqlPool(DatabaseConnectionPool):
 
     async def _ensure_pool(self) -> Any:
         if self._closed:
-            raise RuntimeError("MssqlPool is closed")
+            raise self._closed_error("MssqlPool")
         if self._pool is None:
             self._pool = await self._create_pool()
         return self._pool
@@ -230,7 +230,7 @@ class MssqlPool(DatabaseConnectionPool):
                 "MssqlPool requires aioodbc; install via `pip install pirn[mssql]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError("MssqlPool: missing config and no injected pool")
+            raise self._missing_config_error("MssqlPool", "pool")
 
         kwargs: dict[str, Any] = {
             "dsn": self._config.build_dsn(),

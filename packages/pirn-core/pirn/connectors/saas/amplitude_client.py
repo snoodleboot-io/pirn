@@ -147,7 +147,7 @@ class AmplitudeClient(ApiClient, EventEmitter):
 
     async def _ensure_client(self) -> Any:
         if self._closed:
-            raise RuntimeError("AmplitudeClient is closed")
+            raise self._closed_error("AmplitudeClient")
         if self._client is None:
             self._client = await self._create_client()
         return self._client
@@ -161,7 +161,7 @@ class AmplitudeClient(ApiClient, EventEmitter):
                 "`pip install pirn[amplitude]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError("AmplitudeClient: missing config and no injected client")
+            raise self._missing_config_error("AmplitudeClient", "client")
         if self._config.api_key is None:
             raise RuntimeError("AmplitudeClient: config.api_key is required")
         try:

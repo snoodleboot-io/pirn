@@ -146,7 +146,7 @@ class FivetranClient(ApiClient, TableSource):
     async def _create_client(self) -> Any:
         httpx = self._import_httpx("fivetran")
         if self._config is None:
-            raise RuntimeError("FivetranClient: missing config and no injected client")
+            raise self._missing_config_error("FivetranClient", "client")
         if self._config.api_key is None or self._config.api_secret is None:
             raise RuntimeError("FivetranClient: config.api_key and config.api_secret are required")
         try:

@@ -79,7 +79,7 @@ class PostgresPool(DatabaseConnectionPool):
 
     async def _ensure_pool(self) -> Any:
         if self._closed:
-            raise RuntimeError("PostgresPool is closed")
+            raise self._closed_error("PostgresPool")
         if self._pool is None:
             self._pool = await self._create_pool()
         return self._pool
@@ -92,7 +92,7 @@ class PostgresPool(DatabaseConnectionPool):
                 "PostgresPool requires asyncpg; install via `pip install pirn[postgres]`"
             ) from exc
         if self._config is None:
-            raise RuntimeError("PostgresPool: missing config and no injected pool")
+            raise self._missing_config_error("PostgresPool", "pool")
 
         kwargs: dict[str, Any] = {
             "min_size": self._config.min_size,

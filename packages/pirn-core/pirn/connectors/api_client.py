@@ -27,6 +27,8 @@ from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, Never
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
+from pirn.exceptions.connector_closed_error import ConnectorClosedError
+from pirn.exceptions.connector_config_error import ConnectorConfigError
 
 if TYPE_CHECKING:
     from pirn.connectors.dsn_scrubber import DsnScrubber
@@ -147,10 +149,10 @@ class ApiClient(PirnOpaqueValue):
         :meth:`_create_client` on first access and pool it for reuse.
 
         Raises:
-            RuntimeError: If the client has already been closed.
+            ConnectorClosedError: If the client has already been closed.
         """
         if self._closed:
-            raise RuntimeError(f"{type(self).__name__} is closed")
+            raise self._closed_error(type(self).__name__)
         if self._client is None:
             self._client = await self._create_client()
         return self._client
@@ -175,6 +177,27 @@ class ApiClient(PirnOpaqueValue):
         single line.
         """
         raise type(exc)(self._scrubber.scrub(str(exc))) from None
+
+    @staticmethod
+    def _closed_error(class_name: str) -> ConnectorClosedError:
+        """Build the typed error for "used after close" — call sites ``raise`` it.
+
+        One place for the message so every ``ApiClient`` reports a closed
+        client the same way. Mirrors
+        :meth:`pirn.connectors.connector_base.ConnectorBase._closed_error`
+        for the ``ApiClient`` hierarchy, which does not share ``ConnectorBase``.
+        """
+        return ConnectorClosedError(f"{class_name} is closed")
+
+    @staticmethod
+    def _missing_config_error(class_name: str, resource: str) -> ConnectorConfigError:
+        """Build the typed error for "no config and no injected *resource*".
+
+        Mirrors
+        :meth:`pirn.connectors.connector_base.ConnectorBase._missing_config_error`
+        for the ``ApiClient`` hierarchy.
+        """
+        return ConnectorConfigError(f"{class_name}: missing config and no injected {resource}")
 
     def _clear_credentials(self) -> None:
         """Drop the in-memory credential reference held by the client.

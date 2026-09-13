@@ -31,7 +31,7 @@ class DuckdbPool(DatabaseConnectionPool):
 
     async def acquire(self) -> Any:
         if self._closed:
-            raise RuntimeError("DuckdbPool is closed")
+            raise self._closed_error("DuckdbPool")
         if self._connection is None:
             self._connection = await self._open_connection()
         return self._connection

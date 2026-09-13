@@ -136,7 +136,7 @@ class DiscordClient(ApiClient):
 
     async def _create_client(self) -> Any:
         if self._config is None:
-            raise RuntimeError("DiscordClient: missing config and no injected client")
+            raise self._missing_config_error("DiscordClient", "client")
         if not self._config.webhook_url and not self._config.bot_token:
             raise ValueError(
                 "DiscordClient: at least one of webhook_url or bot_token must be non-empty"

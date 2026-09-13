@@ -54,30 +54,23 @@ class Gate(Knot):
         if _config is None:
             raise TypeError("Gate requires _config=KnotConfig(id=...)")
 
-        self._mutable_predicate = predicate
         self._mutable_execution_extra: dict[str, Any] = {}
-        self._mutable_fan_out_extra: dict[str, Any] = {}
 
-        self._mutable_config = _config
-        self._mutable_parents = {"input": input}
-        self._mutable_config_values = {}
-        self._mutable_input_adapters = {}
-        self._mutable_output_adapter = None
-        self._mutable_mapped_inputs: dict = {}
-
-        from pirn.tapestry import _current_tapestry
-
-        target = tapestry or _current_tapestry.get(None)
-        if target is not None:
-            target.register(self)
+        self._bootstrap(
+            config=_config,
+            parents={"input": input},
+            config_values={"predicate": predicate},
+            tapestry=tapestry,
+        )
 
         self._frozen = True
 
-    async def process(self, input: Any, **_: Any) -> Any:  # type: ignore[override]
+    async def process(self, input: Any, predicate: Callable[[Any], bool], **_: Any) -> Any:  # type: ignore[override]
         """Pass the input through if the predicate is truthy, or raise to signal gate closure.
 
         Args:
             input: Value produced by the upstream knot, evaluated by the predicate.
+            predicate: Callable that decides whether the gate stays open.
 
         Returns:
             The input value unchanged when the predicate returns truthy.
@@ -85,7 +78,7 @@ class Gate(Knot):
         Raises:
             _GateClosedError: If the predicate returns falsy; converted to Skipped by ``__call__``.
         """
-        if self._mutable_predicate(input):
+        if predicate(input):
             return input
         raise _GateClosedError
 

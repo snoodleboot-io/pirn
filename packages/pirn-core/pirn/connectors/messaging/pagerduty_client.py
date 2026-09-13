@@ -64,7 +64,7 @@ class PagerDutyClient(ApiClient):
             Optional deduplication key for event grouping.
         """
         if self._closed:
-            raise RuntimeError("PagerDutyClient is closed")
+            raise self._closed_error("PagerDutyClient")
         if severity not in type(self)._valid_severities:
             raise ValueError(
                 f"PagerDutyClient: severity must be one of "
@@ -94,7 +94,7 @@ class PagerDutyClient(ApiClient):
             Deduplication key identifying the incident to resolve.
         """
         if self._closed:
-            raise RuntimeError("PagerDutyClient is closed")
+            raise self._closed_error("PagerDutyClient")
         routing_key = self._routing_key()
         payload: dict[str, Any] = {
             "routing_key": routing_key,
@@ -186,7 +186,7 @@ class PagerDutyClient(ApiClient):
 
     async def _create_client(self) -> Any:
         if self._config is None:
-            raise RuntimeError("PagerDutyClient: missing config and no injected client")
+            raise self._missing_config_error("PagerDutyClient", "client")
         if not self._config.api_key:
             raise ValueError("PagerDutyClient: config.api_key must be non-empty")
         self._logger.debug("pagerduty.connect")

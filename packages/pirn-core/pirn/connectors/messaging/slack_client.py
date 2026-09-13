@@ -116,7 +116,7 @@ class SlackClient(ApiClient):
 
     async def _ensure_client(self) -> Any:
         if self._closed:
-            raise RuntimeError("SlackClient is closed")
+            raise self._closed_error("SlackClient")
         if self._client is None:
             self._client = await self._create_client()
         return self._client
@@ -129,7 +129,7 @@ class SlackClient(ApiClient):
                 "SlackClient requires slack-sdk; install via pip install pirn[slack]"
             ) from exc
         if self._config is None:
-            raise RuntimeError("SlackClient: missing config and no injected client")
+            raise self._missing_config_error("SlackClient", "client")
         if not self._config.bot_token:
             raise ValueError("SlackClient: config.bot_token must be non-empty")
         self._logger.debug("slack.connect")

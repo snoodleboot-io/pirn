@@ -90,7 +90,7 @@ class KafkaBroker(MessageBroker):
 
     async def _ensure_producer(self) -> Any:
         if self._closed:
-            raise RuntimeError("KafkaBroker is closed")
+            raise self._closed_error("KafkaBroker")
         if self._producer is None:
             self._producer = await self._build_producer()
         return self._producer

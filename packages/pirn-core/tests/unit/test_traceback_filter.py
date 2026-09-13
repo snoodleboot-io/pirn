@@ -80,6 +80,9 @@ class _BrokenEmitter:
     def name(self) -> str:
         return "BrokenEmitter"
 
+    async def on_status(self, event: object) -> None:
+        """No-op: these tests exercise on_lineage/on_run_result policy only."""
+
     async def on_lineage(self, record: object) -> None:
         raise RuntimeError("boom")
 

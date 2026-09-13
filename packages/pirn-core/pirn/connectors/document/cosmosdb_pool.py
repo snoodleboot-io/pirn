@@ -86,7 +86,7 @@ class CosmosDBPool(DatabaseConnectionPool):
 
     async def _ensure_container(self) -> None:
         if self._closed:
-            raise RuntimeError("CosmosDBPool is closed")
+            raise self._closed_error("CosmosDBPool")
         if self._container is None:
             await self._create_container()
 
@@ -98,7 +98,7 @@ class CosmosDBPool(DatabaseConnectionPool):
                 "CosmosDBPool requires azure-cosmos; install via pip install pirn[cosmosdb]"
             ) from exc
         if self._config is None:
-            raise RuntimeError("CosmosDBPool: missing config and no injected container_client")
+            raise self._missing_config_error("CosmosDBPool", "container_client")
 
         try:
             self._cosmos_client = CosmosClient(

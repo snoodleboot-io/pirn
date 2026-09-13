@@ -126,7 +126,7 @@ class TelegramClient(ApiClient):
 
     async def _create_client(self) -> Any:
         if self._config is None:
-            raise RuntimeError("TelegramClient: missing config and no injected client")
+            raise self._missing_config_error("TelegramClient", "client")
         if not self._config.bot_token:
             raise ValueError("TelegramClient: config.bot_token must be non-empty")
         self._logger.debug("telegram.connect")

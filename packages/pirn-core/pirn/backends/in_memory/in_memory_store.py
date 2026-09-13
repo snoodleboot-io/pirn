@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from pirn.backends.base.subscribable_store import SubscribableStore
 from pirn.backends.base.tapestry_snapshot import TapestrySnapshot
 from pirn.backends.base.tapestry_store import TapestryStore
+from pirn.exceptions.duplicate_knot_error import DuplicateKnotError
 
 if TYPE_CHECKING:
     from pirn.core.knot import Knot
@@ -36,13 +37,13 @@ class InMemoryStore(TapestryStore, SubscribableStore):
             knot: The knot to register.
 
         Raises:
-            ValueError: If a different ``Knot`` instance with the same
+            DuplicateKnotError: If a different ``Knot`` instance with the same
                 ``knot_id`` is already registered.
         """
         with self._lock:
             existing = self._knots.get(knot.knot_id)
             if existing is not None and existing is not knot:
-                raise ValueError(
+                raise DuplicateKnotError(
                     f"knot id {knot.knot_id!r} already registered with a different instance"
                 )
             is_new = existing is None

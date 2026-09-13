@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from pirn.exceptions.pirn_error import PirnError
 
-class RebindableError(Exception):
+
+class RebindableError(PirnError):
     """Carrier for a placeholder record's identity when re-registering with
     the live ExceptionManager.
 

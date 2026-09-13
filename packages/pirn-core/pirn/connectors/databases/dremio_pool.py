@@ -93,7 +93,7 @@ class DremioPool(DatabaseConnectionPool):
 
     async def _ensure_connection(self) -> Any:
         if self._closed:
-            raise RuntimeError("DremioPool is closed")
+            raise self._closed_error("DremioPool")
         if self._connection is None:
             self._connection = await self._create_connection()
         return self._connection
@@ -106,7 +106,7 @@ class DremioPool(DatabaseConnectionPool):
                 "DremioPool requires pyarrow; install via pip install pirn[dremio]"
             ) from exc
         if self._config is None:
-            raise RuntimeError("DremioPool: missing config and no injected connection")
+            raise self._missing_config_error("DremioPool", "connection")
 
         config = self._config
         scheme = "grpc+tls" if config.tls else "grpc+tcp"

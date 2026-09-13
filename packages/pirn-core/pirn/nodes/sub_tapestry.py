@@ -41,6 +41,7 @@ from pirn.core.err import Err
 from pirn.core.knot import Knot
 from pirn.core.ok import Ok
 from pirn.core.result import Result
+from pirn.exceptions.pirn_error import PirnError
 from pirn.managers.exception_record import ExceptionRecord
 
 if TYPE_CHECKING:
@@ -135,7 +136,7 @@ def _apply_inherited_value_plane(
         tapestry._transport = transport
 
 
-class SubTapestryError(Exception):
+class SubTapestryError(PirnError):
     """Raised when the inner tapestry pipeline fails.
 
     Attached to the ``Err`` the outer pipeline receives so the inner

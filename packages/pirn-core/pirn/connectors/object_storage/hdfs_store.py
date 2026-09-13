@@ -108,7 +108,7 @@ class HDFSStore(ObjectStore):
 
     async def _ensure_client(self) -> Any:
         if self._closed:
-            raise RuntimeError("HDFSStore is closed")
+            raise self._closed_error("HDFSStore")
         if self._client is not None:
             return self._client
         if self._config.use_webhdfs:

@@ -137,7 +137,7 @@ class RabbitMQBroker(MessageBroker):
 
     async def _ensure_channel(self) -> Any:
         if self._closed:
-            raise RuntimeError("RabbitMQBroker is closed")
+            raise self._closed_error("RabbitMQBroker")
         if self._connection is None:
             self._connection = await self._build_connection()
         if self._channel is None:
