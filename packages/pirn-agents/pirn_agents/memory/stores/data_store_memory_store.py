@@ -7,71 +7,73 @@ entry and raises ``KeyError`` on any other mapping. Every *keyed* consumer —
 ``SemanticMemoryUpsert``, ``CrossSessionProfileUpdater`` — therefore had no
 shipped backend to run against.
 
-This adapter closes that gap by wrapping any core
-:class:`pirn.backends.base.data_store.DataStore` (in-memory, local disk, S3,
-GCS, Azure, ValKey), which is exactly a keyed put/get/has/scrub surface. Two
-details make the mapping honest:
+ADR "agents speaks core" WS3 part 4: a caller-chosen key is a knot id, not a
+row in a hashed key-value table. This adapter's ``store``/``retrieve``/
+``forget`` now delegate to
+:class:`~pirn_agents.memory.stores.keyed_lineage_store.KeyedLineageStore`,
+which writes each value as a single-knot ``Tapestry`` run (the engine
+content-addresses it into ``DataStore`` and records one ``KnotLineage`` row)
+and reads "the current value under this key" via
+``RunHistory.query_latest_lineage_by_knot_id``. The ``content_hash(key)``
+method that used to fabricate a fake content hash by hashing the caller's
+*key* — inverting what a ``DataStore`` hash means, since a hash stopped
+identifying a value and started identifying a caller-chosen name — is gone;
+there is no longer a hash to compute from a bare key at all.
 
-* **Keys are hashed before they reach the backend.** A ``DataStore`` key is a
-  content hash, and backends turn it into a filename or object key —
-  ``LocalDiskDataStore`` would otherwise try to write a file called
-  ``session:s1``. Hashing ``namespace`` + ``key`` into a SHA-256 hex digest
-  keeps every agent key safe, deterministic across processes, and namespaced so
-  two logical stores can share one backend without colliding.
-* **Missing keys are not errors.** ``DataStore.get`` raises ``KeyError``;
-  the :class:`MemoryStore` contract returns ``None``.
+**Missing keys are not errors.** ``KeyedLineageStore.get`` already returns
+``None`` for an absent (or evicted) key, matching the ``MemoryStore``
+contract with no translation needed here.
 
 Similarity :meth:`search` is *not* implemented: a key-value backend has no
 notion of nearness. Use a ``VectorMemoryStore`` when you need search.
 
 Backend-neutral by construction: nothing here imports a vendor driver, and the
 injected ``DataStore`` owns whatever lazy import it needs.
-
-**Deprecation candidate (ADR "agents speaks core" WS3).** Hashing an arbitrary
-logical ``key`` to fabricate a content hash inverts what a ``DataStore`` hash
-means — it stops identifying a value and starts identifying a caller-chosen
-name (see :meth:`content_hash`). A writer knot that instead simply *returns* a
-:class:`~pirn_agents.memory.management.memory_record.MemoryRecord` needs none
-of this: the engine content-addresses the value itself, and
-:class:`~pirn_agents.memory.memory_lineage_recall.MemoryLineageRecall` reads it
-back via ``RunHistory`` lineage. This adapter stays for its current callers —
-:class:`~pirn_agents.sessions.persisted_session_store.PersistedSessionStore`,
-:class:`~pirn_agents.sessions.thread_repository.ThreadRepository`,
-``SemanticMemoryUpsert``, ``CrossSessionProfileUpdater`` — which are keyed by a
-caller-chosen id (a session id, a thread id) rather than by content, so the
-lineage-based path does not fit them as written; migrating those onto
-``RunResult``/``RunHistory`` is ADR WS3's sessions checkbox (deferred this
-cycle — see the WS3 report).
 """
 
 from __future__ import annotations
 
-import hashlib
 from collections.abc import Mapping, Sequence
 from typing import Any
 
 from pirn.backends.base.data_store import DataStore
+from pirn.backends.base.run_history import RunHistory
 from pirn.backends.base.value_retention import ValueRetention
+from pirn.backends.in_memory.in_memory_history import InMemoryHistory
 
+from pirn_agents.memory.stores.keyed_lineage_store import KeyedLineageStore
 from pirn_agents.memory.stores.memory_store import MemoryStore
 
 
 class DataStoreMemoryStore(MemoryStore):
-    """A keyed :class:`MemoryStore` backed by any core :class:`DataStore`."""
+    """A keyed :class:`MemoryStore` backed by any core :class:`DataStore`, via lineage."""
 
-    def __init__(self, *, data_store: DataStore, namespace: str = "agent-memory") -> None:
-        """Bind the adapter to a backing ``DataStore`` and key namespace.
+    def __init__(
+        self,
+        *,
+        data_store: DataStore,
+        namespace: str = "agent-memory",
+        history: RunHistory | None = None,
+    ) -> None:
+        """Bind the adapter to a backing ``DataStore``/``RunHistory`` and key namespace.
 
         Args:
-            data_store: The core data store values are persisted through. Any
-                shipped implementation works (in-memory, disk, S3, GCS, Azure,
-                ValKey); durability and signing are the backend's concern.
-            namespace: Prefix folded into every hashed key so that several
-                logical stores can share one backend without colliding.
-                Non-empty.
+            data_store: The core data store values are content-addressed
+                into. Any shipped implementation works (in-memory, disk, S3,
+                GCS, Azure, ValKey); durability and signing are the backend's
+                concern.
+            namespace: Prefix folded into every keyed identity so that
+                several logical stores can share one backend without
+                colliding. Non-empty.
+            history: The ``RunHistory`` each write is recorded to and each
+                read is served from. Defaults to a private, per-instance
+                ``InMemoryHistory`` — pass a durable, shared backend for keys
+                that must survive past this process or be visible to another
+                one.
 
         Raises:
-            TypeError: If ``data_store`` is not a ``DataStore``.
+            TypeError: If ``data_store`` is not a ``DataStore`` or ``history``
+                is not a ``RunHistory``.
             ValueError: If ``namespace`` is empty.
         """
         if not isinstance(data_store, DataStore):
@@ -79,54 +81,42 @@ class DataStoreMemoryStore(MemoryStore):
                 f"DataStoreMemoryStore: data_store must be a DataStore, "
                 f"got {type(data_store).__name__}"
             )
+        if history is not None and not isinstance(history, RunHistory):
+            raise TypeError(
+                f"DataStoreMemoryStore: history must be a RunHistory, got {type(history).__name__}"
+            )
         if not namespace:
             raise ValueError("DataStoreMemoryStore: namespace must be non-empty")
         self._data_store = data_store
         self._namespace = namespace
+        self._keyed = KeyedLineageStore(
+            history=history if history is not None else InMemoryHistory(),
+            data_store=data_store,
+        )
 
     @property
     def namespace(self) -> str:
-        """The prefix folded into every hashed key."""
+        """The prefix folded into every keyed identity."""
         return self._namespace
 
     @property
     def retention(self) -> ValueRetention:
         """Delegate to the wrapped ``DataStore``'s declared ceiling.
 
-        This adapter adds no bound of its own — every key it writes is a
-        write straight through to ``data_store`` — so its retention is
-        exactly the backend's. A bounded backend (e.g. the default
-        ``InMemoryDataStore``) evicts entries from underneath this store the
-        same way it would any other value; see the ``KeyError`` translation
-        note on :meth:`retrieve`.
+        This adapter adds no bound of its own on the value plane — every key
+        it writes is content-addressed straight into ``data_store`` — so its
+        retention is exactly the backend's. A bounded backend (e.g. the
+        default ``InMemoryDataStore``) evicts values from underneath this
+        store the same way it would any other; see :meth:`retrieve`.
         """
         return self._data_store.retention
-
-    def content_hash(self, key: str) -> str:
-        """Return the backend key a logical ``key`` maps to.
-
-        The digest covers the namespace and the key, separated by a NUL byte so
-        that ``("a", "b:c")`` and ``("a:b", "c")`` cannot collide. Backends key
-        objects by content hash and derive filenames or object keys from it, so
-        a raw agent key such as ``"session:s1"`` must never reach them.
-
-        Args:
-            key: The logical key used by the caller.
-
-        Returns:
-            A 64-character SHA-256 hex digest, stable across processes.
-        """
-        digest = hashlib.sha256()
-        digest.update(self._namespace.encode("utf-8"))
-        digest.update(b"\x00")
-        digest.update(key.encode("utf-8"))
-        return digest.hexdigest()
 
     async def store(self, key: str, value: Mapping[str, Any]) -> None:
         """Persist a snapshot of ``value`` under ``key``.
 
         Args:
-            key: The logical key; hashed before it reaches the backend.
+            key: The logical key — becomes a knot id
+                (``KeyedLineageStore.identity``), not a hashed row.
             value: Any mapping. Unlike a vector store, no particular entry is
                 required. A shallow copy is taken so later caller mutations do
                 not rewrite stored state.
@@ -138,35 +128,27 @@ class DataStoreMemoryStore(MemoryStore):
             raise TypeError(
                 f"DataStoreMemoryStore: value must be a Mapping, got {type(value).__name__}"
             )
-        await self._data_store.put(self.content_hash(key), dict(value))
+        await self._keyed.put(namespace=self._namespace, key=key, value=dict(value))
 
     async def retrieve(self, key: str) -> Mapping[str, Any] | None:
-        """Return the value stored under ``key``, or ``None`` if absent.
+        """Return the current value stored under ``key``, or ``None`` if absent.
 
         Args:
             key: The logical key passed to :meth:`store`.
 
         Returns:
-            The stored mapping, or ``None``. The backend's ``KeyError`` for a
-            missing hash is translated to ``None`` per the ``MemoryStore``
-            contract.
+            The stored mapping, or ``None``.
 
         Note:
-            That translation covers eviction too. A backend whose
-            ``retention`` declares a ``max_values`` ceiling — the default
+            ``None`` covers eviction too. A backend whose ``retention``
+            declares a ``max_values`` ceiling — the default
             ``InMemoryDataStore`` does, at 10,000 values — drops its least
-            recently used entries and raises ``ValueEvictedError``, which is a
-            ``KeyError``, so a long session silently reads ``None`` for memory
-            it wrote earlier. That is the ``MemoryStore`` contract working as
-            designed: a memory store reports absence, it does not promise
-            durability the way a lineage row does. Give a session whose memory
-            must survive a durable ``DataStore``, or raise the ceiling. See
+            recently used entries and raises ``ValueEvictedError`` when the
+            corresponding value has been evicted, which
+            :meth:`KeyedLineageStore.get` already translates to ``None``. See
             PIR-839.
         """
-        try:
-            return await self._data_store.get(self.content_hash(key))
-        except KeyError:
-            return None
+        return await self._keyed.get(namespace=self._namespace, key=key)
 
     async def search(
         self,
@@ -191,8 +173,14 @@ class DataStoreMemoryStore(MemoryStore):
         )
 
     async def forget(self, key: str) -> None:
-        """Remove the entry stored under ``key``; missing keys are a no-op."""
-        await self._data_store.scrub(self.content_hash(key))
+        """Remove the entry stored under ``key``; missing keys are a no-op write.
+
+        Writes a tombstone (see :meth:`KeyedLineageStore.delete`) rather than
+        erasing anything — there is no "unrecord a run" operation, so the
+        prior value's lineage rows stay in ``RunHistory`` for anyone who
+        wants them; ordinary readers just see ``key`` as absent from now on.
+        """
+        await self._keyed.delete(namespace=self._namespace, key=key)
 
     async def close(self) -> None:
         """Scrub credentials. The injected ``DataStore`` owns its own lifecycle.
