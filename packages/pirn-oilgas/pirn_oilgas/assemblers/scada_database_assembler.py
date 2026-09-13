@@ -7,6 +7,18 @@ Sits between :class:`~pirn.connectors.knots.database_query_source.DatabaseQueryS
 Each row must be a ``(timestamp, value)`` pair. The assembler converts the
 value column into a float64 numpy array and constructs the typed payload.
 
+Algorithm:
+    1. Receive ``rows`` (historian query rows), ``tag``, ``since``, and
+       ``sample_interval_sec``.
+    2. Validate types and values: ``rows`` must be a list, ``tag`` a
+       non-empty string, ``since`` a ``datetime``, and
+       ``sample_interval_sec`` a positive number.
+    3. Extract the value column (index 1) of each row into a float64
+       ``numpy`` array.
+    4. Return a :class:`ScadaPayload` wrapping a :class:`ScadaTimeSeries`
+       (``sensor_id=tag``, ``sample_count=len(rows)``,
+       ``sample_interval_sec``) and the value array.
+
 References:
     - OPC Foundation (2017). OPC Unified Architecture Specification, Part 11
       — Historical Access.

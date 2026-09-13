@@ -7,6 +7,20 @@ Sits between :class:`~pirn.connectors.knots.object_store_read_source.ObjectStore
 The raw bytes encode a JSON completion record with perforation intervals,
 packer depths, and sliding sleeve positions.
 
+Algorithm:
+    1. Receive ``body`` (raw JSON bytes) and ``well_id``.
+    2. Validate that ``body`` is ``bytes``, ``well_id`` is a non-empty
+       string, and ``body`` decodes as JSON.
+    3. Derive ``depth_count``:
+
+       - decoded dict with a list under ``perforations`` or ``intervals``
+         → the length of that list;
+       - decoded dict without either key → ``max(1, len(dict))``;
+       - decoded list → its length;
+       - anything else → ``1``.
+    4. Return a :class:`DrillingParameters` with ``well_id``,
+       ``depth_count``, and the current UTC timestamp as ``fetched_at``.
+
 References:
     - API RP 19D (2008) — Measuring the Properties of Proppants.
     - Economides & Nolte (2000). Reservoir Stimulation, 3rd ed., Chapter 5.
