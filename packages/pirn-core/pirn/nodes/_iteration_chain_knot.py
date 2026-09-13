@@ -58,7 +58,7 @@ class _IterationChainKnot(Knot):
         """
         from pirn.core.run_request import RunRequest
         from pirn.nodes.loop_sub_tapestry import LoopSubTapestry
-        from pirn.nodes.sub_tapestry import _apply_inherited_value_plane, _inherited_emitters
+        from pirn.nodes.sub_tapestry import SubTapestry
         from pirn.tapestry import (
             _current_data_store,
             _current_emitter_error_policy,
@@ -105,7 +105,7 @@ class _IterationChainKnot(Knot):
         # history growth above is: the store declares a `retention` capability
         # and evicts to stay within it, so the value plane is bounded rather
         # than either unbounded or thrown away.  See PIR-839.
-        _apply_inherited_value_plane(
+        SubTapestry._apply_inherited_value_plane(
             iter_tapestry,
             data_store=_current_data_store.get(None),
             transport=_current_transport.get(None),
@@ -128,7 +128,9 @@ class _IterationChainKnot(Knot):
         # emitter analogue, because emitters are always explicitly attached and
         # their intake is proportional to work the loop actually performed.
         # Consumers that need a ceiling can filter on `RunResult.parent_run_id`.
-        inherited = _inherited_emitters(iter_tapestry.emitters, _current_emitters.get(None))
+        inherited = SubTapestry._inherited_emitters(
+            iter_tapestry.emitters, _current_emitters.get(None)
+        )
         parent_run_id = _current_run_id.get(None)
         result = await iter_tapestry.run(
             RunRequest(),

@@ -56,68 +56,6 @@ if TYPE_CHECKING:
     from pirn.tapestry import Tapestry
 
 
-# ---------------------------------------------------------------------------
-# Coercion helpers
-# ---------------------------------------------------------------------------
-
-
-def _is_knot_cls(candidate: Any) -> bool:
-    """Return True if *candidate* is Knot or a subclass of Knot."""
-    try:
-        return isinstance(candidate, type) and issubclass(candidate, Knot)
-    except TypeError:
-        return False
-
-
-def _extract_coercible_type(hint: Any) -> tuple[Any, Any] | None:
-    """Return ``(coerce_type, adapter_type)`` for a ``Knot | T`` union hint.
-
-    *coerce_type* is the non-Knot, non-NoneType member — used as the
-    ``type_`` when wrapping a scalar in a ``Parameter``.
-    *adapter_type* is the full union with Knot removed (NoneType kept) —
-    used as the pydantic validation type so ``None`` is accepted when the
-    original hint included it.
-
-    Returns ``None`` if the hint is not a Union that contains Knot alongside
-    at least one non-Knot, non-NoneType member.
-    """
-    origin = get_origin(hint)
-    args: tuple[Any, ...] = ()
-
-    if origin is Union:
-        args = get_args(hint)
-    else:
-        try:
-            if isinstance(hint, _types.UnionType):
-                args = get_args(hint)
-        except AttributeError:
-            pass
-
-    if not args:
-        return None
-
-    has_knot = any(_is_knot_cls(a) for a in args)
-    if not has_knot:
-        return None
-
-    non_knot_non_none = [a for a in args if a is not type(None) and not _is_knot_cls(a)]
-    if not non_knot_non_none:
-        return None
-
-    coerce_type = non_knot_non_none[0] if len(non_knot_non_none) == 1 else Any
-
-    # adapter_type: all args except Knot subclasses — preserves None.
-    adapter_args = [a for a in args if not _is_knot_cls(a)]
-    if len(adapter_args) == 1:
-        adapter_type: Any = adapter_args[0]
-    elif adapter_args:
-        adapter_type = Union[tuple(adapter_args)]  # noqa: UP007
-    else:
-        adapter_type = coerce_type
-
-    return coerce_type, adapter_type
-
-
 class Knot:
     """Abstract base class for all units of work in a pirn pipeline.
 
@@ -149,6 +87,63 @@ class Knot:
     # Populated by __init_subclass__ for each class that defines process().
     # Maps param name -> scalar type extracted from ``Knot | T`` union hints.
     _coercible_params: dict[str, Any] = {}  # noqa: RUF012
+
+    @staticmethod
+    def _is_knot_cls(candidate: Any) -> bool:
+        """Return True if *candidate* is Knot or a subclass of Knot."""
+        try:
+            return isinstance(candidate, type) and issubclass(candidate, Knot)
+        except TypeError:
+            return False
+
+    @staticmethod
+    def _extract_coercible_type(hint: Any) -> tuple[Any, Any] | None:
+        """Return ``(coerce_type, adapter_type)`` for a ``Knot | T`` union hint.
+
+        *coerce_type* is the non-Knot, non-NoneType member — used as the
+        ``type_`` when wrapping a scalar in a ``Parameter``.
+        *adapter_type* is the full union with Knot removed (NoneType kept) —
+        used as the pydantic validation type so ``None`` is accepted when the
+        original hint included it.
+
+        Returns ``None`` if the hint is not a Union that contains Knot alongside
+        at least one non-Knot, non-NoneType member.
+        """
+        origin = get_origin(hint)
+        args: tuple[Any, ...] = ()
+
+        if origin is Union:
+            args = get_args(hint)
+        else:
+            try:
+                if isinstance(hint, _types.UnionType):
+                    args = get_args(hint)
+            except AttributeError:
+                pass
+
+        if not args:
+            return None
+
+        has_knot = any(Knot._is_knot_cls(a) for a in args)
+        if not has_knot:
+            return None
+
+        non_knot_non_none = [a for a in args if a is not type(None) and not Knot._is_knot_cls(a)]
+        if not non_knot_non_none:
+            return None
+
+        coerce_type = non_knot_non_none[0] if len(non_knot_non_none) == 1 else Any
+
+        # adapter_type: all args except Knot subclasses — preserves None.
+        adapter_args = [a for a in args if not Knot._is_knot_cls(a)]
+        if len(adapter_args) == 1:
+            adapter_type: Any = adapter_args[0]
+        elif adapter_args:
+            adapter_type = Union[tuple(adapter_args)]  # noqa: UP007
+        else:
+            adapter_type = coerce_type
+
+        return coerce_type, adapter_type
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
@@ -193,7 +188,7 @@ class Knot:
             for pname, hint in hints.items():
                 if pname in ("self", "return"):
                     continue
-                result = _extract_coercible_type(hint)
+                result = cls._extract_coercible_type(hint)
                 if result is not None:
                     coercible[pname] = result  # (coerce_type, adapter_type)
             cls._coercible_params = coercible

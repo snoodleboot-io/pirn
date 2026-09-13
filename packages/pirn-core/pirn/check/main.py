@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sys
 
-from pirn.check._loader import _load_factory
+from pirn.check._loader import _Loader
 from pirn.check.validator import validate_tapestry
 
 
@@ -17,7 +17,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--strict", action="store_true", help="Treat warnings as errors.")
     args = parser.parse_args(argv)
 
-    factory = _load_factory(args.spec)
+    factory = _Loader.load_factory(args.spec)
 
     try:
         tapestry = factory()

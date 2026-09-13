@@ -6,26 +6,30 @@ from pirn.check.validation_issue import ValidationIssue
 from pirn.check.validation_result import ValidationResult
 
 
-def _dfs(
-    node: str,
-    adj: dict[str, list[str]],
-    color: dict[str, int],
-    result: ValidationResult,
-    cycle_reported: set[str],
-) -> None:
-    color[node] = 1  # GREY
-    for parent_id in adj.get(node, []):
-        if parent_id not in color:
-            continue
-        if color[parent_id] == 1 and parent_id not in cycle_reported:
-            cycle_reported.add(parent_id)
-            result.issues.append(
-                ValidationIssue("error", node, f"cycle detected: {node!r} → {parent_id!r}")
-            )
-            return
-        if color[parent_id] == 0:
-            _dfs(parent_id, adj, color, result, cycle_reported)
-    color[node] = 2  # BLACK
+class _Dfs:
+    """Recursive DFS cycle-detector used by ``validate_tapestry``."""
+
+    @staticmethod
+    def walk(
+        node: str,
+        adj: dict[str, list[str]],
+        color: dict[str, int],
+        result: ValidationResult,
+        cycle_reported: set[str],
+    ) -> None:
+        color[node] = 1  # GREY
+        for parent_id in adj.get(node, []):
+            if parent_id not in color:
+                continue
+            if color[parent_id] == 1 and parent_id not in cycle_reported:
+                cycle_reported.add(parent_id)
+                result.issues.append(
+                    ValidationIssue("error", node, f"cycle detected: {node!r} → {parent_id!r}")
+                )
+                return
+            if color[parent_id] == 0:
+                _Dfs.walk(parent_id, adj, color, result, cycle_reported)
+        color[node] = 2  # BLACK
 
 
 def validate_tapestry(tapestry: Any) -> ValidationResult:
@@ -62,7 +66,7 @@ def validate_tapestry(tapestry: Any) -> ValidationResult:
 
     for k in knots:
         if color[k.knot_id] == 0:
-            _dfs(k.knot_id, adj, color, result, cycle_reported)
+            _Dfs.walk(k.knot_id, adj, color, result, cycle_reported)
 
     referenced_as_parent: set[str] = set()
     for k in knots:

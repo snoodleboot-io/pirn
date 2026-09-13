@@ -28,7 +28,7 @@ from pirn.emitters.emitter import Emitter
 from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
 from pirn.nodes.loop_sub_tapestry import LoopSubTapestry
 from pirn.nodes.source import Source
-from pirn.nodes.sub_tapestry import SubTapestry, _inherited_emitters
+from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
 if TYPE_CHECKING:
@@ -303,19 +303,21 @@ class TestInheritedEmitters(unittest.TestCase):
 
     def test_nothing_to_inherit_leaves_the_inner_subscription_alone(self) -> None:
         own = [_Recorder()]
-        self.assertIsNone(_inherited_emitters(own, None))
+        self.assertIsNone(SubTapestry._inherited_emitters(own, None))
 
     def test_an_empty_inherited_list_is_also_a_no_override(self) -> None:
         """`run(emitters=[])` must not be turned into 'use the inner defaults'."""
-        self.assertIsNone(_inherited_emitters([], []))
+        self.assertIsNone(SubTapestry._inherited_emitters([], []))
 
     def test_inherited_emitters_are_appended_after_the_tapestry_s_own(self) -> None:
         own, outer = _Recorder(), _Recorder()
-        self.assertEqual([own, outer], _inherited_emitters([own], [outer]))
+        self.assertEqual([own, outer], SubTapestry._inherited_emitters([own], [outer]))
 
     def test_a_shared_instance_appears_once(self) -> None:
         shared, other = _Recorder(), _Recorder()
-        self.assertEqual([shared, other], _inherited_emitters([shared], [shared, other]))
+        self.assertEqual(
+            [shared, other], SubTapestry._inherited_emitters([shared], [shared, other])
+        )
 
     def test_deduplication_is_by_identity_not_equality(self) -> None:
         class _AlwaysEqual(Emitter):
@@ -326,7 +328,7 @@ class TestInheritedEmitters(unittest.TestCase):
                 return 0
 
         first, second = _AlwaysEqual(), _AlwaysEqual()
-        merged = _inherited_emitters([first], [second])
+        merged = SubTapestry._inherited_emitters([first], [second])
         assert merged is not None
         self.assertEqual(2, len(merged))
         self.assertIs(first, merged[0])

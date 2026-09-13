@@ -36,7 +36,7 @@ from pirn.core.transport.inline_transport import InlineTransport
 from pirn.core.transport.transport_handle import TransportHandle
 from pirn.nodes.loop_sub_tapestry import LoopSubTapestry
 from pirn.nodes.source import Source
-from pirn.nodes.sub_tapestry import SubTapestry, _apply_inherited_value_plane
+from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
 if TYPE_CHECKING:
@@ -389,13 +389,13 @@ class TestApplyInheritedValuePlane(unittest.TestCase):
     def test_nothing_to_inherit_leaves_both_halves_alone(self) -> None:
         inner = Tapestry()
         store, transport = inner.data_store, inner.transport
-        _apply_inherited_value_plane(inner, data_store=None, transport=None)
+        SubTapestry._apply_inherited_value_plane(inner, data_store=None, transport=None)
         self.assertIs(store, inner.data_store)
         self.assertIs(transport, inner.transport)
 
     def test_the_data_store_is_replaced(self) -> None:
         inner, outer_store = Tapestry(), InMemoryDataStore()
-        _apply_inherited_value_plane(inner, data_store=outer_store, transport=None)
+        SubTapestry._apply_inherited_value_plane(inner, data_store=outer_store, transport=None)
         self.assertIs(outer_store, inner.data_store)
 
     def test_the_data_store_is_replaced_even_when_the_inner_named_one(self) -> None:
@@ -407,25 +407,29 @@ class TestApplyInheritedValuePlane(unittest.TestCase):
         """
         inner = Tapestry(data_store=InMemoryDataStore())
         outer_store = InMemoryDataStore()
-        _apply_inherited_value_plane(inner, data_store=outer_store, transport=None)
+        SubTapestry._apply_inherited_value_plane(inner, data_store=outer_store, transport=None)
         self.assertIs(outer_store, inner.data_store)
 
     def test_a_defaulted_transport_is_replaced(self) -> None:
         inner, outer_transport = Tapestry(), _RecordingTransport()
-        _apply_inherited_value_plane(inner, data_store=None, transport=outer_transport)
+        SubTapestry._apply_inherited_value_plane(inner, data_store=None, transport=outer_transport)
         self.assertIs(outer_transport, inner.transport)
 
     def test_an_explicit_transport_is_kept(self) -> None:
         own = _RecordingTransport()
         inner = Tapestry(transport=own)
-        _apply_inherited_value_plane(inner, data_store=None, transport=_RecordingTransport())
+        SubTapestry._apply_inherited_value_plane(
+            inner, data_store=None, transport=_RecordingTransport()
+        )
         self.assertIs(own, inner.transport)
 
     def test_an_explicitly_passed_inline_transport_is_also_kept(self) -> None:
         """The explicit flag exists because the default cannot be recognised by type."""
         own = InlineTransport()
         inner = Tapestry(transport=own)
-        _apply_inherited_value_plane(inner, data_store=None, transport=_RecordingTransport())
+        SubTapestry._apply_inherited_value_plane(
+            inner, data_store=None, transport=_RecordingTransport()
+        )
         self.assertIs(own, inner.transport)
 
 
