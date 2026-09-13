@@ -4,7 +4,11 @@ A :class:`SubTapestry` that walks an ordered list of instruction ``steps``: the
 first link runs against the initial ``task``; each subsequent link runs against
 the previous link's output. This is the simplest agentic composition — a
 deterministic pipeline of prompts with no branching — and is bounded by the number
-of steps. Returns a typed :class:`PromptChainResult`.
+of steps. Each link runs as a real, individually-traceable knot via
+:class:`~pirn_agents.specializations.prompt_chaining._prompt_chain_loop._PromptChainLoop`
+(a :class:`~pirn.nodes.loop_sub_tapestry.LoopSubTapestry`), instead of a
+hand-rolled Python ``for`` loop (ADR agents-speaks-core WS5b). Returns a typed
+:class:`PromptChainResult`.
 
 References:
     - Anthropic (2024) "Building effective agents" — prompt chaining
@@ -17,12 +21,15 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.source import Source
+from pirn.core.parameter import Parameter
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.llm_response_text import LlmResponseText
-from pirn_agents.specializations.prompt_chaining.prompt_chain_result import PromptChainResult
+from pirn_agents.specializations.prompt_chaining._prompt_chain_loop import _PromptChainLoop
+from pirn_agents.specializations.prompt_chaining._prompt_chain_result_extractor import (
+    _PromptChainResultExtractor,
+)
+from pirn_agents.specializations.prompt_chaining._prompt_chain_state import _PromptChainState
 
 
 class PromptChainPipeline(AgentPipeline):
@@ -54,8 +61,7 @@ class PromptChainPipeline(AgentPipeline):
             steps: Ordered instruction strings, one per link.
 
         Returns:
-            A terminal :class:`Source` whose output is the
-            :class:`PromptChainResult`.
+            The sink knot whose output is the :class:`PromptChainResult`.
 
         Raises:
             TypeError: If ``task`` is not a string, ``llm`` is not an
@@ -71,23 +77,14 @@ class PromptChainPipeline(AgentPipeline):
                     f"PromptChainPipeline: steps[{index}] must be a str, got {type(step).__name__}"
                 )
 
-        outputs: list[str] = []
-        current = task
-        for step in step_tuple:
-            raw = await llm.chat(
-                messages=[
-                    {"role": "system", "content": step},
-                    {"role": "user", "content": current},
-                ]
-            )
-            current = LlmResponseText().extract(raw)
-            outputs.append(current)
-
-        result = PromptChainResult(outputs=tuple(outputs), final=outputs[-1])
-        _result = result
-
-        class _PromptChainResultSource(Source):
-            async def process(self, **_: Any) -> PromptChainResult:
-                return _result
-
-        return _PromptChainResultSource(_config=KnotConfig(id="prompt_chain_result"))
+        initial = Parameter(
+            "prompt_chain_state",
+            _PromptChainState,
+            default=_PromptChainState(steps=step_tuple, index=0, current=task, outputs=()),
+        )
+        loop = _PromptChainLoop(
+            llm=llm,
+            state=initial,
+            _config=KnotConfig(id="prompt_chain_loop"),
+        )
+        return _PromptChainResultExtractor(state=loop, _config=KnotConfig(id="prompt_chain_result"))
