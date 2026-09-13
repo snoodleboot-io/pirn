@@ -193,7 +193,7 @@ class Tapestry:
         recorded as the container knot's ``Err``.  An inner tapestry
         inherits the cap through the run context and may only tighten it.
     admission_observers:
-        ``AdmissionObserver``\s told of every admission and release in runs
+        ``AdmissionObserver`` instances told of every admission and release in runs
         of this tapestry (queue depth, wait, hold time, outcome, and the
         gate itself so a limit can be adjusted in reaction).  A run's own
         ``admission_observers=`` replaces the list.  Not forwarded into

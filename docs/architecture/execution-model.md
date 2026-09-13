@@ -113,6 +113,10 @@ await t.run(RunRequest(parameters={"doc": "..."}, concurrency=ConcurrencyLimits(
 - The effective ceiling is also bounded by the dispatcher (`ThreadDispatcher(max_workers=...)`; a sync `@knot` runs on the default executor, `min(32, cpu + 4)` threads).
 - Not yet: limits are not forwarded into `SubTapestry` / `LoopSubTapestry` inner runs, and `Map` / `ZipMap` / `DictMap` fan out their elements inside one admitted knot (PIR-841 slices 3 and 4).
 
+#### Gate decisions: predicate or Check
+
+A `Gate` passes its one `input` through unchanged or produces `Skipped(reason="gate_closed")`. Its decision is either `predicate=`, a callable over the input, or `check=`, a `Check` knot (`pirn/nodes/check.py`) — the predicate half of a gate: a knot with any number of parents whose `process()` answers `bool`, enforced by `Check.__call__` (a non-`bool` verdict is `Err(TypeError)` whatever the return hint). The gate stays single-input on purpose: its output carries the input's identity through lineage, and joining is `Aggregator`'s job. With `check=` the common multi-value case — gate `A` on a verdict computed from `A` and `B` — needs no join: the `Check` reads both, the gate passes `A`. A `Check` that fails or is skipped skips the gate under the default error policy, like any missing parent.
+
 #### Nested runs and the nesting guard
 
 Every `SubTapestry` inner run, `LoopSubTapestry` loop run and loop iteration is a real run with its own id, recorded with `parent_run_id` / `parent_knot_id`, and now with a `run_path` that lists the enclosing runs (`/{outer}/{inner}`). Each run executes under an immutable `RunNesting` frame (`pirn/core/run_nesting.py`) carried on a context variable: its `depth` (0 for a root run), the enclosing `run_ids`, the `path` of container classes between the root and it, and the tightest `max_depth` set on that path. A knot reads its own frame with `RunNesting.current()`; the engine keeps it on `RunContext.nesting`.
