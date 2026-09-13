@@ -891,6 +891,16 @@ class Engine:
             result, parent_hashes, started_at = await self._dispatch_with_timing(knot, inputs)
             return result, parent_hashes, started_at, False
 
+        if replay.allow_new_knots and replay.row_for(knot.knot_id) is None:
+            # This knot is genuinely new to the recording — e.g. it sits
+            # downstream of a HITL gate the source run suspended at, so the
+            # source run never reached it.  ``allow_new_knots`` opts a
+            # session into "replay the covered prefix, execute the rest",
+            # which is additive: every other replay session in the tree still
+            # raises here (see ReplaySession.__init__).
+            result, parent_hashes, started_at = await self._dispatch_with_timing(knot, inputs)
+            return result, parent_hashes, started_at, False
+
         if isinstance(knot, Parameter):
             result, parent_hashes, started_at = await self._dispatch_with_timing(knot, inputs)
             if isinstance(result, Ok):

@@ -3,15 +3,27 @@ from __future__ import annotations
 from typing import Any
 
 from pirn.backends.base.value_retention import ValueRetention
+from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 
-class DataStore:
+class DataStore(PirnOpaqueValue):
     """Interface: where intermediate values live, keyed by content hash.
 
     Lineage references values by hash; the data store holds them by hash.
     Scrubbing values from the data store does not affect lineage.
 
     Implementations inherit from this class and override all methods.
+
+    Mixes in :class:`~pirn.core.pirn_opaque_value.PirnOpaqueValue` (ADR
+    "agents speaks core" WS3) so a ``Knot.process()`` can declare a
+    ``DataStore`` as a typed parameter: without it, ``Knot._build_adapters``
+    cannot build a pydantic ``TypeAdapter`` for the type and construction
+    raises ``PydanticSchemaGenerationError`` for any knot that wants to
+    consume the data plane directly (e.g. a lineage-based recall knot). The
+    default identity-keyed ``_pirn_audit_dict`` is right here, the same as
+    every other live-resource base (``ConnectorBase``, LLM/embedding
+    providers): a backend is stateful and not usefully summarised as a flat
+    dict.
     """
 
     @property
