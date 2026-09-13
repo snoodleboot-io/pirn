@@ -183,6 +183,25 @@ class TestKnotCall(unittest.TestCase):
         result = asyncio.run(node({"a": 1, "b": 2}))
         self.assertIsInstance(result, Ok)
 
+    def test_call_propagates_cancelled_error_instead_of_wrapping_it(self) -> None:
+        """A cancelled knot's Task must actually observe the cancellation.
+
+        Wrapping CancelledError in an Err would make a cancelled Task look
+        like it completed normally, and a caller awaiting the cancellation
+        (e.g. via asyncio.wait_for) would never see it propagate.
+        """
+
+        class Cancels(Knot):
+            async def process(self, **_: Any) -> Any:
+                raise asyncio.CancelledError
+
+        async def run() -> None:
+            node = Cancels(_config=KnotConfig(id="cancels"))
+            await node({})
+
+        with self.assertRaises(asyncio.CancelledError):
+            asyncio.run(run())
+
 
 class TestKnotSubclassValidation(unittest.TestCase):
     def test_process_with_args_raises_type_error(self) -> None:

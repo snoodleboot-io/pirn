@@ -32,6 +32,7 @@ this knot's output.  ``SubTapestryError`` is raised if the inner run fails;
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, ClassVar
 
@@ -291,6 +292,8 @@ class SubTapestry(Knot):
         if self._mutable_mapped_inputs:
             try:
                 outputs = await self._fan_out(kwargs)
+            except (asyncio.CancelledError, KeyboardInterrupt, SystemExit):
+                raise
             except BaseException as exc:
                 return Err(record=ExceptionRecord.for_knot(config.id, exc))
             return Ok(value=outputs)
@@ -330,6 +333,12 @@ class SubTapestry(Knot):
                 raise
             self._record_inner_run_meta(run_result)
             output = run_result.outputs[self._resolve_output_key(sink)]
+        except (asyncio.CancelledError, KeyboardInterrupt, SystemExit):
+            # Task cancellation and process-level control flow are not
+            # SubTapestry failures. Converting them to Err would let a
+            # cancelled knot's Task look like it completed normally, and a
+            # caller awaiting the cancellation would never see it propagate.
+            raise
         except BaseException as exc:
             return Err(record=ExceptionRecord.for_knot(config.id, exc))
 

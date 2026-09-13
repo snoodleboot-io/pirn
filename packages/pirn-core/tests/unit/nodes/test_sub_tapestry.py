@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import unittest
 from datetime import UTC, datetime
 from typing import Any
@@ -81,6 +82,25 @@ class TestSubTapestryProcess(unittest.IsolatedAsyncioTestCase):
             _Bare(upstream=src, _config=KnotConfig(id="bare"))
         result = await t.run(RunRequest())
         self.assertFalse(result.succeeded)
+
+    async def test_call_propagates_cancelled_error_instead_of_wrapping_it(self) -> None:
+        """A cancelled SubTapestry's Task must actually observe the cancellation.
+
+        Wrapping CancelledError in an Err would let a cancelled Task look
+        like it completed normally, and a caller awaiting the cancellation
+        would never see it propagate.
+        """
+
+        class _Cancels(SubTapestry):
+            async def process(self, upstream: Any, **_: Any) -> Any:
+                raise asyncio.CancelledError
+
+        with Tapestry() as t:
+            src = _DoubleSource(_config=KnotConfig(id="src3"))
+            node = _Cancels(upstream=src, _config=KnotConfig(id="cancels"))
+
+        with self.assertRaises(asyncio.CancelledError):
+            await node({"upstream": 21})
 
 
 class _Leaf(Source):
