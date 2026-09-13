@@ -7,7 +7,9 @@ the redacted form. This closes the "logs" surface of F11-S6: the previously
 unprotected log emitters now redact detected secrets *before* writing, without
 any change at the call sites.
 
-Attach it to a logger or handler with ``logger.addFilter(SecretRedactingLogFilter())``.
+Attach it to a logger or handler with ``logger.addFilter(SecretRedactingLogFilter())``,
+or with :meth:`SecretRedactingLogFilter.install` for the common case of the
+whole ``pirn_agents`` package logger.
 """
 
 from __future__ import annotations
@@ -19,6 +21,37 @@ from pirn_agents.security.secret_leak_scanner import SecretLeakScanner
 
 class SecretRedactingLogFilter(logging.Filter):
     """Redact secrets in a log record's message before it is emitted."""
+
+    @classmethod
+    def install(
+        cls, *, logger_name: str = "pirn_agents", scanner: SecretLeakScanner | None = None
+    ) -> SecretRedactingLogFilter:
+        """Attach a redacting filter to ``logging.getLogger(logger_name)``.
+
+        Idempotent: if ``logger_name`` already carries a filter of this class
+        it is returned unchanged rather than stacking a second one — calling
+        this more than once (e.g. from more than one import path) is safe.
+        This is opt-in, not automatic on import: nothing in this package calls
+        it for you, since attaching a regex-scanning filter to a logger is a
+        deployment decision (see the WS2 report — the one-line hookup for the
+        application/bootstrap layer is ``SecretRedactingLogFilter.install()``).
+
+        Args:
+            logger_name: The logger to attach to; defaults to the package
+                logger every ``pirn_agents`` module logs under.
+            scanner: The scanner to reuse; a default one is built when
+                ``None``.
+
+        Returns:
+            The installed (or already-present) filter instance.
+        """
+        logger = logging.getLogger(logger_name)
+        for existing in logger.filters:
+            if isinstance(existing, cls):
+                return existing
+        installed = cls(scanner=scanner)
+        logger.addFilter(installed)
+        return installed
 
     def __init__(self, *, scanner: SecretLeakScanner | None = None, name: str = "") -> None:
         """Configure the filter.

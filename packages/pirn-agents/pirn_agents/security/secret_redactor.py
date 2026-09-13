@@ -12,11 +12,27 @@ never mutated — wrapped in a
 This is the "extend ``_clear_credentials`` to new surfaces" step: the same
 redactor guards the previously-unprotected tool-arg, tool-result, and log
 surfaces, complementing the connector ``_clear_credentials`` credential-drop.
+
+ADR agents-speaks-core WS2 — the traceback surface: core's
+:class:`~pirn.tapestry.Tapestry` and
+:class:`~pirn.managers.exception_manager.ExceptionManager` accept a
+``traceback_filter: Callable[[str], str]`` that runs over every captured
+traceback before it is stored in an :class:`~pirn.managers.exception_record.ExceptionRecord`
+— core's own default is the format-only
+:func:`pirn.managers.redact.redact_common_secrets`. :meth:`default_traceback_filter`
+returns a filter backed by this redactor instead, so a traceback that leaks
+through an agents-specific surface (e.g. an MCP server URL in a connection
+error) gets the same detection this module already applies to tool args and
+results. One-line hookup for wherever agents builds a ``Tapestry`` (the
+pattern registry / builder, ``AgentPipeline._run_inner`` — WS1/WS6, not this
+lane)::
+
+    Tapestry(traceback_filter=SecretRedactor.default_traceback_filter())
 """
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
 from pirn_agents.security.redaction_result import RedactionResult
@@ -78,6 +94,30 @@ class SecretRedactor:
     def _normalise(name: str) -> str:
         """Lower-case ``name`` and drop non-alphanumeric characters."""
         return "".join(ch for ch in str(name).lower() if ch.isalnum())
+
+    @classmethod
+    def default_traceback_filter(cls) -> Callable[[str], str]:
+        """Return a ready-to-use ``traceback_filter`` for ``Tapestry``/``ExceptionManager``.
+
+        Builds a fresh :class:`SecretRedactor` (default scanner and key-name
+        list) and returns its bound :meth:`filter_traceback` — a plain
+        ``Callable[[str], str]``, the exact shape core's ``traceback_filter``
+        seam expects. Pass a pre-configured redactor's own
+        :meth:`filter_traceback` instead when the defaults do not fit (a
+        custom ``secret_key_names``, for instance).
+        """
+        return cls().filter_traceback
+
+    def filter_traceback(self, text: str) -> str:
+        """Return ``text`` (a traceback) with detected secrets redacted.
+
+        The plain-string return shape core's ``traceback_filter`` seam
+        expects — :meth:`redact_text` returns a
+        :class:`~pirn_agents.security.redaction_result.RedactionResult`
+        instead, which is why this is a separate method rather than passing
+        ``redact_text`` itself.
+        """
+        return self.redact_text(text).value
 
     def redact_text(self, text: str) -> RedactionResult:
         """Redact secrets in a bare string.
