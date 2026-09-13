@@ -116,8 +116,8 @@ UNRUN_TAPESTRY = frozenset(
 #: `ReActStepExecutor`); these predate this lane and are out of its scope.
 AWAITS_INVOKE = frozenset(
     {
-        "specializations/multi_agent/orchestrator_workers.py::_WorkerInvocation",
-        "specializations/routing/model_cascade_router.py::_AttemptTier",
+        "specializations/multi_agent/_worker_invocation.py::_WorkerInvocation",
+        "specializations/routing/_attempt_tier.py::_AttemptTier",
         "tools/tool_invocation.py::ToolInvocation",
     }
 )

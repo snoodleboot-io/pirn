@@ -22,9 +22,10 @@ Algorithm:
     2. If ``relevant_docs`` is non-empty, the sink is a
        :class:`~pirn_agents.specializations.base.resolved_value_knot.ResolvedValueKnot`
        surfacing a shallow copy of the list unchanged.
-    3. Otherwise the sink is a :class:`_FallbackDocument`, downstream of a
-       :class:`~pirn_agents.tools.tool_invocation.ToolInvocation` that calls
-       ``fallback_tool.invoke({"input": query})``; its output is
+    3. Otherwise the sink is a
+       :class:`~pirn_agents.specializations.rag._fallback_document._FallbackDocument`,
+       downstream of a :class:`~pirn_agents.tools.tool_invocation.ToolInvocation`
+       that calls ``fallback_tool.invoke({"input": query})``; its output is
        ``[{"source": "fallback", "content": str(result)}]``.
 
 References:
@@ -42,40 +43,10 @@ from pirn.core.knot_config import KnotConfig
 from pirn_agents.interfaces.router import Router
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.base.resolved_value_knot import ResolvedValueKnot
+from pirn_agents.specializations.rag._fallback_document import _FallbackDocument
 from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_invocation import ToolInvocation
-from pirn_agents.tools.tool_result import ToolResult
-from pirn_agents.tools.tool_status import ToolStatus
-
-
-class _FallbackDocument(Knot):
-    """Wrap the fallback tool's result into the single-doc list shape."""
-
-    def __init__(
-        self,
-        *,
-        tool_result: Knot | ToolResult,
-        _config: KnotConfig,
-        **kwargs: Any,
-    ) -> None:
-        super().__init__(tool_result=tool_result, _config=_config, **kwargs)
-
-    async def process(self, tool_result: ToolResult, **_: Any) -> list[Mapping[str, Any]]:
-        """Return ``[{"source": "fallback", "content": str(result)}]``.
-
-        Args:
-            tool_result: The fallback tool's invocation outcome.
-
-        Returns:
-            A single-entry document list wrapping the tool's result.
-
-        Raises:
-            RuntimeError: If the fallback tool call itself failed.
-        """
-        if tool_result.status is not ToolStatus.OK:
-            raise RuntimeError(f"CorrectiveRouter: fallback_tool call failed: {tool_result.error}")
-        return [{"source": "fallback", "content": str(tool_result.result)}]
 
 
 class CorrectiveRouter(AgentPipeline, Router):

@@ -18,7 +18,6 @@ References:
 
 from __future__ import annotations
 
-from collections import Counter
 from typing import Any
 
 from pirn.core.knot import Knot
@@ -29,70 +28,11 @@ from pirn.nodes.reduce_ import Reduce
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.base.resolved_value_knot import ResolvedValueKnot
-from pirn_agents.specializations.llm_response_text import LlmResponseText
-from pirn_agents.types.messaging.agent_response import AgentResponse
-
-
-class _SampleOnce(Knot):
-    """Draw one independent sample from the LLM for the same prompt."""
-
-    def __init__(
-        self,
-        *,
-        prompt: Knot | str,
-        llm: Knot | LLMProvider,
-        # `sample_index` distinguishes the otherwise-identical fanned-out
-        # invocations in lineage; the prompt sent to the LLM does not use it.
-        sample_index: Knot | int,
-        _config: KnotConfig,
-        **kwargs: Any,
-    ) -> None:
-        super().__init__(
-            prompt=prompt, llm=llm, sample_index=sample_index, _config=_config, **kwargs
-        )
-
-    async def process(self, prompt: str, llm: LLMProvider, sample_index: int, **_: Any) -> str:
-        """Sample one answer to ``prompt``.
-
-        Args:
-            prompt: The user question.
-            llm: The provider to sample from.
-            sample_index: This sample's position; unused beyond lineage identity.
-
-        Returns:
-            The extracted answer text.
-        """
-        raw = await llm.chat(messages=[{"role": "user", "content": prompt}])
-        return LlmResponseText().extract(raw)
-
-
-class _MajorityVote:
-    """Reduce ``combine`` target: case-insensitive majority vote over samples."""
-
-    @staticmethod
-    def combine(answers: list[str]) -> str:
-        """Return the majority-vote answer, original casing, first on ties.
-
-        Args:
-            answers: The sampled answer strings.
-
-        Returns:
-            The most common stripped answer, in its first-encountered original
-            casing.
-
-        Math:
-            Given normalised answers :math:`a_1, \\ldots, a_n` (stripped,
-            lower-cased), the winner is
-            :math:`\\arg\\max_{v} \\lvert \\{ i : a_i = v \\} \\rvert`, ties
-            broken by first occurrence.
-        """
-        normalised = [a.strip().lower() for a in answers]
-        counts: Counter[str] = Counter(normalised)
-        top_normal = counts.most_common(1)[0][0]
-        for original, norm in zip(answers, normalised, strict=False):
-            if norm == top_normal:
-                return original.strip()
-        return answers[0].strip()
+from pirn_agents.specializations.chain_of_thought._majority_vote import _MajorityVote
+from pirn_agents.specializations.chain_of_thought._sample_once import _SampleOnce
+from pirn_agents.specializations.chain_of_thought._self_consistency_result import (
+    _SelfConsistencyResult,
+)
 
 
 class SelfConsistencyEnsemble(AgentPipeline):
@@ -160,14 +100,3 @@ class SelfConsistencyEnsemble(AgentPipeline):
             _config=KnotConfig(id="vote"),
         )
         return _SelfConsistencyResult(winner=winner, _config=KnotConfig(id="result"))
-
-
-class _SelfConsistencyResult(Knot):
-    """Wrap the majority-vote answer string as an :class:`AgentResponse`."""
-
-    def __init__(self, *, winner: Knot | str, _config: KnotConfig, **kwargs: Any) -> None:
-        super().__init__(winner=winner, _config=_config, **kwargs)
-
-    async def process(self, winner: str, **_: Any) -> AgentResponse:
-        """Return ``winner`` wrapped as an :class:`AgentResponse`."""
-        return AgentResponse(content=winner)

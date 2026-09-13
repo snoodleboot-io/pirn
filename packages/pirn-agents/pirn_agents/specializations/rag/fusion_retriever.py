@@ -8,13 +8,13 @@ de-duplicated by identity and returned in fused-score order, each carrying its
 
 The fan-out is expressed as a graph rather than a hand-rolled
 ``asyncio.gather`` over a semaphore: each query variant becomes its own
-:class:`_VariantSearch` invocation, fanned out with a core
-:class:`~pirn.nodes.map_markers.Map`, and folded into the fused ranking with a
-:class:`~pirn.nodes.reduce_.Reduce`. The engine schedules the per-variant
-searches concurrently — every ready sibling starts as its own task (PIR-841) —
-so retrieval runs *through* the engine, with its own ``Result``, history
-record, and lineage per variant. Each search knot carries a
-``concurrency_group`` so a run-level
+:class:`~pirn_agents.specializations.rag._variant_search._VariantSearch`
+invocation, fanned out with a core :class:`~pirn.nodes.map_markers.Map`, and
+folded into the fused ranking with a :class:`~pirn.nodes.reduce_.Reduce`. The
+engine schedules the per-variant searches concurrently — every ready sibling
+starts as its own task (PIR-841) — so retrieval runs *through* the engine,
+with its own ``Result``, history record, and lineage per variant. Each search
+knot carries a ``concurrency_group`` so a run-level
 :class:`~pirn.core.concurrency.concurrency_limits.ConcurrencyLimits` can bound
 in-flight searches; ``max_concurrency`` stays a validated, accepted parameter
 recorded on that group (bounding a *container* knot's own inner run this way
@@ -25,7 +25,7 @@ than strictly capping it).
 Algorithm:
     1. Validate ``queries`` (list of str), ``store`` (:class:`MemoryStore`),
        ``top_k``, ``max_concurrency``, and ``rrf_k`` (positive ints).
-    2. Fan out one :class:`_VariantSearch` invocation per query variant.
+    2. Fan out one ``_VariantSearch`` invocation per query variant.
     3. A :class:`~pirn.nodes.reduce_.Reduce` keys each hit by its ``id`` (or a
        stable fallback), records the first-seen mapping, builds per-query
        ranked key lists, and fuses them via
@@ -48,7 +48,6 @@ References:
 from __future__ import annotations
 
 import functools
-from collections.abc import Mapping
 from typing import Any
 
 from pirn.core.knot import Knot
@@ -58,87 +57,10 @@ from pirn.nodes.reduce_ import Reduce
 
 from pirn_agents.interfaces.retriever import Retriever
 from pirn_agents.memory.stores.memory_store import MemoryStore
-from pirn_agents.retrieval.reciprocal_rank_fusion import reciprocal_rank_fusion
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.base.resolved_value_knot import ResolvedValueKnot
-
-
-class _VariantSearch(Knot):
-    """Search the store for one query variant and return its ranked hits."""
-
-    def __init__(
-        self,
-        *,
-        query: Knot | str,
-        store: Knot | MemoryStore,
-        top_k: Knot | int,
-        _config: KnotConfig,
-        **kwargs: Any,
-    ) -> None:
-        super().__init__(query=query, store=store, top_k=top_k, _config=_config, **kwargs)
-
-    async def process(
-        self,
-        query: str,
-        store: MemoryStore,
-        top_k: int,
-        **_: Any,
-    ) -> list[Mapping[str, Any]]:
-        """Search ``store`` for ``query`` and return up to ``top_k`` hits.
-
-        Args:
-            query: The query variant to search for.
-            store: The memory store to search.
-            top_k: Maximum number of hits to fetch.
-
-        Returns:
-            The hits for this query variant, in ranked order.
-        """
-        return [item async for item in await store.search(query, top_k=top_k)]
-
-
-class _FuseVariantHits:
-    """Reduce ``combine`` target: fuse per-variant rankings with RRF."""
-
-    @staticmethod
-    def combine(
-        items: list[list[Mapping[str, Any]]], *, rrf_k: int, top_k: int
-    ) -> list[Mapping[str, Any]]:
-        """Fuse per-variant ranked hit lists into the top ``top_k`` documents.
-
-        Args:
-            items: One ranked hit list per query variant.
-            rrf_k: The RRF damping constant.
-            top_k: Maximum number of fused documents to return.
-
-        Returns:
-            Up to ``top_k`` document mappings ordered by fused score, each
-            with a ``fusion_score`` key.
-        """
-        representative: dict[str, Mapping[str, Any]] = {}
-        rankings: list[list[str]] = []
-        for hits in items:
-            ranking: list[str] = []
-            for hit in hits:
-                key = _FuseVariantHits._doc_key(hit)
-                representative.setdefault(key, hit)
-                ranking.append(key)
-            rankings.append(ranking)
-        fused = reciprocal_rank_fusion(rankings, k=rrf_k)
-        results: list[Mapping[str, Any]] = []
-        for key, score in fused[:top_k]:
-            merged = dict(representative[key])
-            merged["fusion_score"] = score
-            results.append(merged)
-        return results
-
-    @staticmethod
-    def _doc_key(hit: Mapping[str, Any]) -> str:
-        """Return a stable identity key for a retrieved hit."""
-        identifier = hit.get("id")
-        if identifier is not None:
-            return str(identifier)
-        return repr(sorted((str(k), str(v)) for k, v in hit.items()))
+from pirn_agents.specializations.rag._fuse_variant_hits import _FuseVariantHits
+from pirn_agents.specializations.rag._variant_search import _VariantSearch
 
 
 class FusionRetriever(AgentPipeline, Retriever):

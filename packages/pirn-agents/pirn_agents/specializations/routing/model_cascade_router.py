@@ -19,19 +19,21 @@ the spend cap.
 
 ``tiers`` is a resolved value known in full by the time ``process()`` runs, so
 its length is not data-dependent (unlike an agentic loop). ``process()`` builds
-a static chain of one :class:`_AttemptTier` knot per tier, each folding its
-decision into the previous tier's accumulated :class:`_CascadeChainState`. Once
-a tier is accepted, or the spend cap forces a downshift, the state is
-``locked`` and every later ``_AttemptTier`` passes it through unchanged without
-invoking its own tier — the same escalation-stops-here behaviour as before,
-except every tier now gets its own engine ``Result``, history record, and
-lineage, where the original hid all of them behind one knot's hand-rolled loop.
+a static chain of one
+:class:`~pirn_agents.specializations.routing._attempt_tier._AttemptTier` knot
+per tier, each folding its decision into the previous tier's accumulated
+:class:`~pirn_agents.specializations.routing._cascade_chain_state._CascadeChainState`.
+Once a tier is accepted, or the spend cap forces a downshift, the state is
+``locked`` and every later ``_AttemptTier`` passes it through unchanged
+without invoking its own tier — the same escalation-stops-here behaviour as
+before, except every tier now gets its own engine ``Result``, history record,
+and lineage, where the original hid all of them behind one knot's hand-rolled
+loop.
 """
 
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Sequence
-from dataclasses import dataclass
 from typing import Any
 
 from pirn.core.knot import Knot
@@ -41,175 +43,10 @@ from pirn_agents.interfaces.router import Router
 from pirn_agents.performance.spend_cap_policy import SpendCapPolicy
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.base.resolved_value_knot import ResolvedValueKnot
-from pirn_agents.specializations.routing.cascade_outcome import CascadeOutcome
+from pirn_agents.specializations.routing._attempt_tier import _AttemptTier
+from pirn_agents.specializations.routing._cascade_chain_state import _CascadeChainState
+from pirn_agents.specializations.routing._cascade_result import _CascadeResult
 from pirn_agents.specializations.routing.cascade_tier import CascadeTier
-
-
-@dataclass
-class _CascadeChainState:
-    """State threaded across cascade tiers."""
-
-    attempted: tuple[str, ...] = ()
-    decisions: tuple[str, ...] = ()
-    best_value: Any = None
-    best_tier: str | None = None
-    best_confidence: float | None = None
-    accepted_outcome: CascadeOutcome | None = None
-    locked: bool = False
-
-
-class _AttemptTier(Knot):
-    """Fold one tier's decision into the cascade's accumulated state.
-
-    ``confidence`` and ``meter`` are typed ``Any``: ``confidence`` is a bare
-    callable (not a :class:`~pirn.core.pirn_opaque_value.PirnOpaqueValue`) and
-    :class:`RunBudgetMeter` is a plain class, so pydantic has no schema for
-    either — ``Knot.__init__`` builds a ``TypeAdapter`` for every declared
-    input eagerly, and a concrete annotation would raise
-    ``PydanticSchemaGenerationError`` at construction time. This mirrors why
-    the pre-remediation version of this file routed both around
-    ``super().__init__()`` entirely.
-    """
-
-    def __init__(
-        self,
-        *,
-        prior: Knot | _CascadeChainState,
-        tier: Knot | CascadeTier,
-        index: Knot | int,
-        request: Knot | Any,
-        confidence: Any,
-        meter: Any,
-        spend_cap_policy: Knot | SpendCapPolicy,
-        _config: KnotConfig,
-        **kwargs: Any,
-    ) -> None:
-        super().__init__(
-            prior=prior,
-            tier=tier,
-            index=index,
-            request=request,
-            confidence=confidence,
-            meter=meter,
-            spend_cap_policy=spend_cap_policy,
-            _config=_config,
-            **kwargs,
-        )
-
-    async def process(
-        self,
-        prior: _CascadeChainState,
-        tier: CascadeTier,
-        index: int,
-        request: Any,
-        confidence: Callable[[Any], Awaitable[float]],
-        meter: Any,
-        spend_cap_policy: SpendCapPolicy,
-        **_: Any,
-    ) -> _CascadeChainState:
-        """Try ``tier`` unless the chain is already locked.
-
-        Args:
-            prior: The chain's accumulated state before this tier.
-            tier: This tier's name, invoke callable, floor, and cost.
-            index: This tier's 0-based position (0 = cheapest).
-            request: The payload passed unchanged to the tier's ``invoke``.
-            confidence: Async scorer mapping the tier's output to ``[0, 1]``.
-            meter: Optional budget meter accruing each tier's estimated cost.
-            spend_cap_policy: What to do when a tier would breach the cap.
-
-        Returns:
-            ``prior`` unchanged if already locked (accepted or downshifted);
-            otherwise the state folding in this tier's decision.
-
-        Raises:
-            pirn_agents.performance.budget_breach_error.BudgetBreachError: When
-                the spend cap is exceeded under an ``ABORT`` policy.
-        """
-        if prior.locked:
-            return prior
-        decisions = list(prior.decisions)
-        attempted = list(prior.attempted)
-
-        if meter is not None and meter.would_exceed_cost(tier.estimated_cost):
-            if spend_cap_policy is SpendCapPolicy.DOWNSHIFT and index > 0:
-                decisions.append(f"{tier.name}: spend cap reached -> downshift (skip)")
-                return _CascadeChainState(
-                    attempted=tuple(attempted),
-                    decisions=tuple(decisions),
-                    best_value=prior.best_value,
-                    best_tier=prior.best_tier,
-                    best_confidence=prior.best_confidence,
-                    locked=True,
-                )
-            decisions.append(f"{tier.name}: spend cap exceeded -> abort")
-            meter.spend_cost(tier.estimated_cost)  # raises BudgetBreachError
-
-        attempted.append(tier.name)
-        try:
-            value = await tier.invoke(request)
-        except Exception as exc:
-            decisions.append(f"{tier.name}: failed ({exc}) -> escalate")
-            return _CascadeChainState(
-                attempted=tuple(attempted),
-                decisions=tuple(decisions),
-                best_value=prior.best_value,
-                best_tier=prior.best_tier,
-                best_confidence=prior.best_confidence,
-            )
-
-        if meter is not None:
-            meter.spend_cost(tier.estimated_cost)
-
-        score = float(await confidence(value))
-        if score >= tier.min_confidence:
-            decisions.append(f"{tier.name}: accepted (confidence={score})")
-            outcome = CascadeOutcome(
-                value=value,
-                chosen=tier.name,
-                succeeded=True,
-                escalated=index > 0,
-                attempted=tuple(attempted),
-                decisions=tuple(decisions),
-                confidence=score,
-            )
-            return _CascadeChainState(
-                attempted=tuple(attempted),
-                decisions=tuple(decisions),
-                accepted_outcome=outcome,
-                locked=True,
-            )
-        decisions.append(f"{tier.name}: low confidence={score} -> escalate")
-        return _CascadeChainState(
-            attempted=tuple(attempted),
-            decisions=tuple(decisions),
-            best_value=value,
-            best_tier=tier.name,
-            best_confidence=score,
-        )
-
-
-class _CascadeResult(Knot):
-    """Extract the final :class:`CascadeOutcome` from the chain's state."""
-
-    def __init__(
-        self, *, state: Knot | _CascadeChainState, _config: KnotConfig, **kwargs: Any
-    ) -> None:
-        super().__init__(state=state, _config=_config, **kwargs)
-
-    async def process(self, state: _CascadeChainState, **_: Any) -> CascadeOutcome:
-        """Return the accepted outcome, or a best-effort exhausted outcome."""
-        if state.accepted_outcome is not None:
-            return state.accepted_outcome
-        return CascadeOutcome(
-            value=state.best_value,
-            chosen=state.best_tier,
-            succeeded=False,
-            escalated=True,
-            attempted=state.attempted,
-            decisions=state.decisions,
-            confidence=state.best_confidence,
-        )
 
 
 class ModelCascadeRouter(AgentPipeline, Router):

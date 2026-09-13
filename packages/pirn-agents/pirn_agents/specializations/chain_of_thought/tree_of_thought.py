@@ -7,14 +7,14 @@ Algorithm:
     4. Build ``depth`` chained rounds (``depth`` is a resolved int, so the
        rounds are statically unrolled — no data-dependent termination is
        involved, unlike an agentic loop). Each round:
-       a. :class:`_RepeatBeamForExpansion` flattens the current beam into one
+       a. ``_RepeatBeamForExpansion`` flattens the current beam into one
           entry per ``(path, candidate index)`` pair.
-       b. :class:`_ExpandOneThought` is fanned out over that flat list with a
+       b. ``_ExpandOneThought`` is fanned out over that flat list with a
           core :class:`~pirn.nodes.map_markers.Map`, generating one next-thought
           per entry.
        c. A :class:`~pirn.nodes.reduce_.Reduce` combines each thought with its
           parent path into a new candidate.
-       d. :class:`_ScoreCandidate` is fanned out over the candidates with
+       d. ``_ScoreCandidate`` is fanned out over the candidates with
           another ``Map``, scoring each (numeric 1-10 expected; non-numeric
           responses score 0).
        e. A :class:`~pirn.nodes.reduce_.Reduce` sorts by score and keeps the
@@ -34,7 +34,7 @@ References:
 from __future__ import annotations
 
 import functools
-from typing import Any, ClassVar
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -42,166 +42,18 @@ from pirn.nodes.map_markers import Map
 from pirn.nodes.reduce_ import Reduce
 
 from pirn_agents.llm.llm_provider import LLMProvider
-from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.base.resolved_value_knot import ResolvedValueKnot
-from pirn_agents.specializations.llm_response_text import LlmResponseText
-from pirn_agents.types.messaging.agent_response import AgentResponse
-
-
-class _RepeatBeamForExpansion(Knot):
-    """Flatten the beam into one entry per ``(path, candidate index)`` pair."""
-
-    def __init__(
-        self,
-        *,
-        beam: Knot | list[tuple[str, float]],
-        k_candidates: Knot | int,
-        _config: KnotConfig,
-        **kwargs: Any,
-    ) -> None:
-        super().__init__(beam=beam, k_candidates=k_candidates, _config=_config, **kwargs)
-
-    async def process(
-        self, beam: list[tuple[str, float]], k_candidates: int, **_: Any
-    ) -> list[str]:
-        """Repeat each beam path ``k_candidates`` times, flattened.
-
-        Args:
-            beam: The current beam, as ``(path, score)`` pairs.
-            k_candidates: Number of next-thoughts to request per path.
-
-        Returns:
-            A flat list of parent paths, each repeated ``k_candidates`` times.
-        """
-        return [path for path, _score in beam for _ in range(k_candidates)]
-
-
-class _ExpandOneThought(Knot):
-    """Ask the LLM for the next reasoning step continuing one parent path."""
-
-    _expansion_system: ClassVar[PromptBinding] = PromptBinding(
-        name="specializations.chain_of_thought.tree_of_thought.expansion_system",
-        default=(
-            "You are a reasoning assistant. Generate the next reasoning step "
-            "that continues the following thought chain."
-        ),
-    )
-
-    def __init__(
-        self,
-        *,
-        parent_path: Knot | str,
-        llm: Knot | LLMProvider,
-        _config: KnotConfig,
-        **kwargs: Any,
-    ) -> None:
-        super().__init__(parent_path=parent_path, llm=llm, _config=_config, **kwargs)
-
-    async def process(self, parent_path: str, llm: LLMProvider, **_: Any) -> tuple[str, str]:
-        """Generate one next-thought continuing ``parent_path``.
-
-        Args:
-            parent_path: The reasoning path so far.
-            llm: The provider generating the next step.
-
-        Returns:
-            A ``(parent_path, thought)`` pair.
-        """
-        messages = [
-            {"role": "system", "content": _ExpandOneThought._expansion_system.resolve()},
-            {"role": "user", "content": parent_path},
-        ]
-        raw = await llm.chat(messages=messages)
-        return parent_path, LlmResponseText().extract(raw)
-
-
-class _CombineExpansions:
-    """Reduce ``combine`` target: fold each thought into a new candidate path."""
-
-    @staticmethod
-    def combine(items: list[tuple[str, str]]) -> list[tuple[str, float]]:
-        """Join each ``(parent_path, thought)`` pair into a scored-0.0 candidate."""
-        return [(f"{parent_path}\n{thought}", 0.0) for parent_path, thought in items]
-
-
-class _ScoreCandidate(Knot):
-    """Ask the LLM to rate one candidate reasoning path."""
-
-    _scoring_system: ClassVar[PromptBinding] = PromptBinding(
-        name="specializations.chain_of_thought.tree_of_thought.scoring_system",
-        default=(
-            "You are a reasoning evaluator. Rate the quality of the following "
-            "reasoning step on a scale from 1 to 10. Reply with a single integer only."
-        ),
-    )
-
-    def __init__(
-        self,
-        *,
-        candidate: Knot | tuple[str, float],
-        llm: Knot | LLMProvider,
-        _config: KnotConfig,
-        **kwargs: Any,
-    ) -> None:
-        super().__init__(candidate=candidate, llm=llm, _config=_config, **kwargs)
-
-    async def process(
-        self, candidate: tuple[str, float], llm: LLMProvider, **_: Any
-    ) -> tuple[str, float]:
-        """Score ``candidate``'s path.
-
-        Args:
-            candidate: The ``(path, placeholder_score)`` pair to score.
-            llm: The provider used to rate the path.
-
-        Returns:
-            A ``(path, score)`` pair; ``score`` defaults to 0.0 when the LLM's
-            reply does not parse as a float.
-
-        Math:
-            Score :math:`s \\in \\{0\\} \\cup [1, 10]` as judged by the LLM;
-            0 when its reply does not parse as a number.
-        """
-        path, _placeholder = candidate
-        messages = [
-            {"role": "system", "content": _ScoreCandidate._scoring_system.resolve()},
-            {"role": "user", "content": path},
-        ]
-        raw = await llm.chat(messages=messages)
-        text = LlmResponseText().extract(raw).strip()
-        try:
-            return path, float(text)
-        except ValueError:
-            return path, 0.0
-
-
-class _TopBeam:
-    """Reduce ``combine`` target: keep the top-``beam_width`` scoring candidates."""
-
-    @staticmethod
-    def combine(items: list[tuple[str, float]], *, beam_width: int) -> list[tuple[str, float]]:
-        """Sort ``items`` by descending score and keep the top ``beam_width``."""
-        return sorted(items, key=lambda pair: pair[1], reverse=True)[:beam_width]
-
-
-class _TreeOfThoughtResult(Knot):
-    """Extract the best-scoring path from the final beam."""
-
-    def __init__(
-        self,
-        *,
-        beam: Knot | list[tuple[str, float]],
-        prompt: Knot | str,
-        _config: KnotConfig,
-        **kwargs: Any,
-    ) -> None:
-        super().__init__(beam=beam, prompt=prompt, _config=_config, **kwargs)
-
-    async def process(self, beam: list[tuple[str, float]], prompt: str, **_: Any) -> AgentResponse:
-        """Return the top beam entry's path as an :class:`AgentResponse`."""
-        best_path = beam[0][0] if beam else prompt
-        return AgentResponse(content=best_path)
+from pirn_agents.specializations.chain_of_thought._combine_expansions import _CombineExpansions
+from pirn_agents.specializations.chain_of_thought._expand_one_thought import _ExpandOneThought
+from pirn_agents.specializations.chain_of_thought._repeat_beam_for_expansion import (
+    _RepeatBeamForExpansion,
+)
+from pirn_agents.specializations.chain_of_thought._score_candidate import _ScoreCandidate
+from pirn_agents.specializations.chain_of_thought._top_beam import _TopBeam
+from pirn_agents.specializations.chain_of_thought._tree_of_thought_result import (
+    _TreeOfThoughtResult,
+)
 
 
 class TreeOfThought(AgentPipeline):

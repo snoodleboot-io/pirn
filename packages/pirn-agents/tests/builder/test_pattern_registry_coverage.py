@@ -56,11 +56,11 @@ _EXPECTED_EXCLUSIONS = frozenset(
         # constructor parameter is state only a driving loop can supply.
         "pirn_agents.specializations.react.react_step_executor.ReActStepExecutor",
         # Private: the loop body IterativeRetriever drives internally (PIR-856).
-        "pirn_agents.specializations.rag.iterative_retriever._IterativeRetrievalLoop",
+        "pirn_agents.specializations.rag._iterative_retrieval_loop._IterativeRetrievalLoop",
         # Private: the loop body AgenticRagPipeline drives internally (PIR-856).
-        "pirn_agents.specializations.rag.agentic_rag_pipeline._AgenticRagLoop",
+        "pirn_agents.specializations.rag._agentic_rag_loop._AgenticRagLoop",
         # Private: the per-candidate step FallbackChain drives internally (PIR-856).
-        "pirn_agents.specializations.routing.fallback_chain._CandidateAttempt",
+        "pirn_agents.specializations.routing._candidate_attempt._CandidateAttempt",
     }
 )
 
@@ -164,9 +164,9 @@ def test_the_excluded_bases_are_bases_and_the_excluded_private_is_private() -> N
         [
             "pirn_agents.specializations.evaluator_optimizer._evaluator_optimizer_loop"
             "._EvaluatorOptimizerLoop",
-            "pirn_agents.specializations.rag.iterative_retriever._IterativeRetrievalLoop",
-            "pirn_agents.specializations.rag.agentic_rag_pipeline._AgenticRagLoop",
-            "pirn_agents.specializations.routing.fallback_chain._CandidateAttempt",
+            "pirn_agents.specializations.rag._iterative_retrieval_loop._IterativeRetrievalLoop",
+            "pirn_agents.specializations.rag._agentic_rag_loop._AgenticRagLoop",
+            "pirn_agents.specializations.routing._candidate_attempt._CandidateAttempt",
         ]
     )
     # Every exclusion falls into exactly one justified category: base,
