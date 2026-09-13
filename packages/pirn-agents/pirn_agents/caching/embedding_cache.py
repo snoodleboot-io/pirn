@@ -13,6 +13,14 @@ The wrapped embed function is the sole backend seam — any
 :class:`pirn_agents.retrieval.embeddings.embedding_provider.EmbeddingProvider` ``embed`` (or a
 plain async callable) fits — so the cache is provider-neutral and no vendor SDK
 is imported here.
+
+Core store: none. This is a pure key→vector index (no eviction policy beyond
+FIFO bounding, no ``ResultCache`` shape), so it keeps its own
+``dict[str, tuple[float, ...]]`` rather than a
+:class:`pirn.backends.base.data_store.DataStore` (ADR agents-speaks-core WS2 —
+see :mod:`pirn_agents.caching.semantic_result_cache` for why the other
+embedding-indexed caches in this package make the same choice). Keys still
+hash through the shared :func:`~pirn_agents.caching.content_address.content_address`.
 """
 
 from __future__ import annotations

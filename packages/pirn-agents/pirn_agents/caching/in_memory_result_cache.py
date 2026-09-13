@@ -1,18 +1,27 @@
-"""``InMemoryResultCache`` — pure-python default :class:`ResultCache` with FIFO bounding."""
+"""``InMemoryResultCache`` — pure-python default :class:`ResultCache` (ADR agents-speaks-core WS2).
+
+Backed by :class:`pirn.backends.in_memory.in_memory_data_store.InMemoryDataStore`
+rather than a private dict, so the bounding, eviction, and content-addressing
+this class used to hand-roll are core's — this is the same store the engine
+uses for knot outputs, wearing a ``ResultCache`` face.
+"""
 
 from __future__ import annotations
+
+from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
 
 from pirn_agents.caching.cache_entry import CacheEntry
 from pirn_agents.caching.result_cache import ResultCache
 
 
 class InMemoryResultCache(ResultCache):
-    """A dict-backed cache with optional FIFO eviction and hit/miss counters.
+    """A store-backed cache with optional bounding and hit/miss counters.
 
-    The zero-dependency default: no backend, deterministic, and fast enough for
-    within-run memoisation of idempotent calls. When ``max_entries`` is set the
-    oldest inserted entry is evicted once the bound is reached, so the cache
-    never grows without limit.
+    The zero-dependency default: no external backend, deterministic, and fast
+    enough for within-run memoisation of idempotent calls. When ``max_entries``
+    is set the least-recently-*read* entry is evicted once the bound is
+    reached — :class:`InMemoryDataStore`'s eviction order — so the cache never
+    grows without limit.
     """
 
     def __init__(self, *, max_entries: int | None = None) -> None:
@@ -25,34 +34,36 @@ class InMemoryResultCache(ResultCache):
             raise ValueError(
                 f"InMemoryResultCache: max_entries must be >= 1 or None, got {max_entries!r}"
             )
-        self._entries: dict[str, CacheEntry] = {}
-        self._max_entries = max_entries
+        super().__init__(store=InMemoryDataStore(max_values=max_entries))
         self.hits = 0
         self.misses = 0
+        # DataStore exposes no count/enumeration (put/get/has/scrub only), so
+        # this mirrors just the key set, not the values, purely to answer
+        # __len__ without reaching into the store's private state. Kept in
+        # sync by every method below, including the base class's put/invalidate.
+        self._keys: set[str] = set()
 
     def __len__(self) -> int:
-        return len(self._entries)
+        return len(self._keys)
 
     async def get(self, key: str) -> CacheEntry | None:
         """Return the entry for ``key`` and bump the hit/miss counters."""
-        entry = self._entries.get(key)
+        entry = await super().get(key)
         if entry is None:
             self.misses += 1
+            # A tracked key with no entry was evicted by the store's own
+            # bound; stop counting it so __len__ reflects what is retrievable.
+            self._keys.discard(key)
             return None
         self.hits += 1
         return entry
 
     async def put(self, entry: CacheEntry) -> None:
-        """Store ``entry``, evicting the oldest item if the bound is reached."""
-        if (
-            self._max_entries is not None
-            and entry.key not in self._entries
-            and len(self._entries) >= self._max_entries
-        ):
-            oldest_key = next(iter(self._entries))
-            del self._entries[oldest_key]
-        self._entries[entry.key] = entry
+        """Store ``entry``, evicting per :class:`InMemoryDataStore`'s bound."""
+        await super().put(entry)
+        self._keys.add(entry.key)
 
     async def invalidate(self, key: str) -> None:
         """Drop the entry under ``key`` if present."""
-        self._entries.pop(key, None)
+        await super().invalidate(key)
+        self._keys.discard(key)
