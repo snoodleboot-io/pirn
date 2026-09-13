@@ -74,27 +74,28 @@ class HttpTransport:
 
         Retries HTTP 429 (honouring ``Retry-After`` when present) and transient
         5xx/network errors up to the policy's ``max_retries``; propagates
-        non-retryable errors immediately.
+        non-retryable errors immediately. The retry loop itself is
+        :meth:`~pirn_agents.llm.retry_policy.RetryPolicy.run` (PIR-856); this
+        method supplies only what is transport-specific: which exceptions are
+        retryable, and the ``Retry-After`` hint.
         """
-        attempt = 0
-        while True:
-            try:
-                return await self._post_json(
-                    client=client, url=url, headers=headers, payload=payload
-                )
-            except RateLimitError as exc:
-                if attempt >= self._retry_policy.max_retries:
-                    raise
-                if exc.retry_after is not None:
-                    delay = min(exc.retry_after, self._retry_policy.max_retry_after)
-                else:
-                    delay = self._retry_policy.backoff_delay(attempt, rng=self._rng)
-                await self._sleep(delay)
-            except TransientLLMError:
-                if attempt >= self._retry_policy.max_retries:
-                    raise
-                await self._sleep(self._retry_policy.backoff_delay(attempt, rng=self._rng))
-            attempt += 1
+
+        async def _attempt(_attempt: int) -> Any:
+            return await self._post_json(client=client, url=url, headers=headers, payload=payload)
+
+        def _is_retryable(exc: BaseException) -> bool:
+            return isinstance(exc, (RateLimitError, TransientLLMError))
+
+        def _retry_after(exc: BaseException) -> float | None:
+            return exc.retry_after if isinstance(exc, RateLimitError) else None
+
+        return await self._retry_policy.run(
+            _attempt,
+            is_retryable=_is_retryable,
+            retry_after=_retry_after,
+            sleep=self._sleep,
+            rng=self._rng,
+        )
 
     async def _post_json(
         self,
