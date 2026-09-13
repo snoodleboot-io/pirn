@@ -8,6 +8,7 @@ import unittest
 import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
+
 from pirn_ml.assemblers.trained_model_object_store_assembler import (
     TrainedModelObjectStoreAssembler,
 )

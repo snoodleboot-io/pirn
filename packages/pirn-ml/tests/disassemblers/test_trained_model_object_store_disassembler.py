@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
+
 from pirn_ml.disassemblers.trained_model_object_store_disassembler import (
     TrainedModelObjectStoreDisassembler,
 )
