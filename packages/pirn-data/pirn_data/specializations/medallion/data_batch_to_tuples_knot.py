@@ -22,11 +22,12 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
+from pirn.core.disassembler import Disassembler
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 
-class DataBatchToTuplesKnot(Knot):
+class DataBatchToTuplesKnot(Disassembler):
     """Map a :class:`DataBatch` to a list of column-ordered tuples."""
 
     def __init__(
@@ -56,8 +57,11 @@ class DataBatchToTuplesKnot(Knot):
             A list of tuples, one per row, with values ordered by ``column_names``.
 
         Raises:
+            TypeError: If ``column_names`` is not a sequence of strings.
             ValueError: If ``column_names`` is empty.
         """
+        if not isinstance(column_names, Sequence) or isinstance(column_names, (str, bytes)):
+            raise TypeError("DataBatchToTuplesKnot: column_names must be a sequence of strings")
         column_tuple = tuple(column_names)
         if not column_tuple:
             raise ValueError("DataBatchToTuplesKnot: column_names must be non-empty")

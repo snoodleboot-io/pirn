@@ -85,3 +85,8 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
         k = self._make_knot()
         with self.assertRaisesRegex(ValueError, "column_names"):
             await self._call(k, column_names=[])
+
+    async def test_rejects_non_sequence_column_names(self) -> None:
+        k = self._make_knot()
+        with self.assertRaisesRegex(TypeError, "column_names"):
+            await self._call(k, column_names=123)
