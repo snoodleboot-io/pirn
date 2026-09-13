@@ -72,9 +72,11 @@ DEFINES_INLINE_SOURCE = frozenset(
 #: `Parameter` structurally cannot accept). `_ResponseEcho` is pinned
 #: importable and explicitly documented as "not a transform — do not fix, do
 #: not delete" (`_response_echo.py`); it stays for that reason, not because
-#: it is legitimate the way the vending Knots are. `ResolvedValueKnot` is the
-#: burn-down target here: it wraps an ordinary already-known value, not an
-#: opaque resource, so it becomes a `Parameter` deprecation shim.
+#: it is legitimate the way the vending Knots are. `ResolvedValueKnot` was the
+#: burn-down target here — it wrapped an ordinary already-known value, not an
+#: opaque resource — and is now a `Parameter` deprecation shim: its `process()`
+#: is inherited from `Parameter` rather than redefined, so it no longer
+#: appears in this walk at all.
 IS_IDENTITY_KNOT = frozenset(
     {
         "connectors/knots/http_connector_knot.py::HttpConnectorKnot",
@@ -84,7 +86,6 @@ IS_IDENTITY_KNOT = frozenset(
         "memory/stores/knots/memory_store_knot.py::MemoryStoreKnot",
         "retrieval/embeddings/knots/embedding_provider_knot.py::EmbeddingProviderKnot",
         "retrieval/vector_stores/knots/vector_store_knot.py::VectorStoreKnot",
-        "specializations/base/resolved_value_knot.py::ResolvedValueKnot",
         "specializations/multi_agent/_response_echo.py::_ResponseEcho",
         "tools/knots/tool_client_knot.py::ToolClientKnot",
     }

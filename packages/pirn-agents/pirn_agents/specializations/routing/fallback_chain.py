@@ -33,9 +33,9 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
 
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.base.resolved_value_knot import ResolvedValueKnot
 from pirn_agents.specializations.routing._candidate_attempt import _CandidateAttempt
 from pirn_agents.specializations.routing._fallback_chain_result import _FallbackChainResult
 from pirn_agents.specializations.routing._fallback_chain_state import _FallbackChainState
@@ -99,8 +99,11 @@ class FallbackChain(AgentPipeline):
                 f"FallbackChain: confidences must be a Mapping, got {type(confidences).__name__}"
             )
 
-        chain: Knot = ResolvedValueKnot(
-            value=_FallbackChainState(), _config=KnotConfig(id="initial")
+        chain: Knot = Parameter(
+            "initial",
+            _FallbackChainState,
+            default=_FallbackChainState(),
+            _config=KnotConfig(id="initial"),
         )
         for index, candidate in enumerate(candidate_tuple):
             chain = _CandidateAttempt(
