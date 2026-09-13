@@ -153,4 +153,4 @@ class TestRunsThroughTheEngine(unittest.IsolatedAsyncioTestCase):
         # in the inner run rather than beside it in the outer one.
         children = await t.history.children_of(result.run_id)
         inner_knot_ids = {row.knot_id for child in children for row in child.lineage}
-        assert "invoke-0" in inner_knot_ids, inner_knot_ids
+        assert "c1" in inner_knot_ids, inner_knot_ids

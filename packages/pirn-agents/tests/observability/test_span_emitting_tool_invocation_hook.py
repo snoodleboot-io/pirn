@@ -7,10 +7,12 @@ emits TOOL spans into the shared sink — no duplicate instrumentation.
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Mapping
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
@@ -50,34 +52,32 @@ class _EchoTool(Tool):
         return self._name
 
 
-def _executor(hook: SpanEmittingToolInvocationHook) -> ParallelToolExecutor:
-    with Tapestry():
-        return ParallelToolExecutor(
-            tool_calls=[],
-            toolset=Toolset(),
-            hook=hook,
-            _config=KnotConfig(id="pte-obs", validate_io=False),
-        )
+async def _execute(
+    hook: SpanEmittingToolInvocationHook, calls: list[ToolCall], toolset: Toolset
+) -> tuple:
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        with Tapestry() as t:
+            ParallelToolExecutor(
+                tool_calls=calls,
+                toolset=toolset,
+                max_concurrency=1,
+                hook=hook,
+                _config=KnotConfig(id="pte-obs"),
+            )
+        run = await t.run(RunRequest())
+    assert run.succeeded, run.exceptions
+    return run.outputs["pte-obs"]
 
 
 class TestHookAdapter:
     async def test_ok_call_emits_ok_tool_span(self) -> None:
         sink = RecordingSink()
         hook = SpanEmittingToolInvocationHook(Tracer(sink))
-        executor = _executor(hook)
 
         toolset = Toolset([_EchoTool(name="search")])
-        # PIR-856: hook is a process()-declared input now (Rule 2), not
-        # self._hook read at run time — a direct process() call (bypassing
-        # the engine, which would forward the constructor's config value
-        # automatically) must supply it explicitly here too.
-        results = await executor.process(
-            tool_calls=[ToolCall(tool_name="search", arguments={}, call_id="c1")],
-            toolset=toolset,
-            max_concurrency=1,
-            timeout=None,
-            retries=0,
-            hook=hook,
+        results = await _execute(
+            hook, [ToolCall(tool_name="search", arguments={}, call_id="c1")], toolset
         )
         assert results[0].status is ToolStatus.OK
         assert len(sink.finished) == 1
@@ -91,17 +91,10 @@ class TestHookAdapter:
     async def test_failed_call_emits_error_tool_span(self) -> None:
         sink = RecordingSink()
         hook = SpanEmittingToolInvocationHook(Tracer(sink))
-        executor = _executor(hook)
 
         toolset = Toolset([_EchoTool(name="boom", boom=True)])
-        # PIR-856: see the matching comment in test_ok_call_emits_ok_tool_span.
-        results = await executor.process(
-            tool_calls=[ToolCall(tool_name="boom", arguments={}, call_id="c2")],
-            toolset=toolset,
-            max_concurrency=1,
-            timeout=None,
-            retries=0,
-            hook=hook,
+        results = await _execute(
+            hook, [ToolCall(tool_name="boom", arguments={}, call_id="c2")], toolset
         )
         assert results[0].status is ToolStatus.ERROR
         assert sink.finished[0].status is SpanStatus.ERROR

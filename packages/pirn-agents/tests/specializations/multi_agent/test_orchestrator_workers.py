@@ -17,6 +17,7 @@ from pirn_agents.specializations.multi_agent.orchestrator_workers_result import 
 )
 from pirn_agents.tools.agent_tool import AgentTool
 from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.tool_factory import ToolFactory
 from pirn_agents.tools.tool_status import ToolStatus
 from pirn_agents.types.messaging.agent_response import AgentResponse
 from tests.agent_tool_doubles import StubAgent, reset_doubles
@@ -87,7 +88,7 @@ class TestOrchestratorWorkers(unittest.IsolatedAsyncioTestCase):
         with Tapestry() as t:
             OrchestratorWorkers(
                 tasks=tuple(f"t{i}" for i in range(6)),
-                worker=probe,
+                worker=ToolFactory.of(probe),
                 max_concurrency=2,
                 _config=KnotConfig(id="ow"),
             )

@@ -1,33 +1,39 @@
 """Isolation, concurrency, timeout, retry, and cancellation tests for
-:class:`ParallelToolExecutor`.
+:class:`ParallelToolExecutor` — a fan-out of tool knots the engine runs (ADR WS1).
 
 Written in the project's ``asyncio_mode = "auto"`` style: module-level
 ``async def test_...`` functions with plain ``assert`` statements. A local
-:class:`StubTool` provides configurable latency, transient-failure, and
-cancellation-tracking behaviour so the concurrency semantics can be asserted
-deterministically.
+:class:`Probe` tool knot provides configurable latency, transient-failure and
+in-flight tracking so the engine's concurrency semantics can be asserted
+deterministically.  Every test runs the executor in a real tapestry: the
+executor is a ``SubTapestry`` whose ``process()`` returns the fan-out's sink,
+so a directly-awaited ``process()`` no longer exercises anything.
 """
 
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Mapping
-from typing import Any
+from typing import Any, ClassVar
 
 import pytest
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_retry_policy import KnotRetryPolicy
+from pirn.core.run_request import RunRequest
+from pirn.core.run_result import RunResult
 from pirn.tapestry import Tapestry
 
 from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
 from pirn_agents.llm.retry_policy import RetryPolicy
 from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_result import ToolResult
 from pirn_agents.tools.tool_status import ToolStatus
 from pirn_agents.tools.toolset import Toolset
 
 
 class InFlightCounter:
-    """Track live and peak concurrency across cooperating tasks."""
+    """Track live and peak concurrency across cooperating calls."""
 
     def __init__(self) -> None:
         self.current = 0
@@ -41,97 +47,101 @@ class InFlightCounter:
         self.current -= 1
 
 
-class StubTool(Tool):
-    """Configurable tool double recording invocations and cancellations."""
+class Probe(Tool):
+    """Configurable tool knot: latency, transient failures, in-flight tracking."""
+
+    #: name -> number of calls / cancellations observed, shared per test.
+    calls: ClassVar[dict[str, int]] = {}
+    cancelled: ClassVar[dict[str, int]] = {}
+    failures_left: ClassVar[dict[str, int]] = {}
+    counters: ClassVar[dict[str, InFlightCounter]] = {}
 
     def __init__(
         self,
         *,
-        name: str,
-        latency: float = 0.0,
-        result: Any = "ok",
-        fail_times: int = 0,
-        counter: InFlightCounter | None = None,
+        name: Knot | str,
+        latency: Knot | float = 0.0,
+        result: Knot | Any = "ok",
+        _config: KnotConfig,
+        **kwargs: Any,
     ) -> None:
-        self._name = name
-        self._latency = latency
-        self._result = result
-        self._fail_times = fail_times
-        self._counter = counter
-        self.calls = 0
-        self.cancelled = 0
+        super().__init__(name=name, latency=latency, result=result, _config=_config, **kwargs)
 
-    @property
-    def name(self) -> str:
-        return self._name
-
-    @property
-    def description(self) -> str:
-        return f"stub {self._name}"
-
-    @property
-    def parameters_schema(self) -> Mapping[str, Any]:
-        return {"type": "object", "properties": {}}
-
-    async def invoke(self, arguments: Mapping[str, Any]) -> Any:
-        self.calls += 1
-        if self._fail_times > 0:
-            self._fail_times -= 1
-            raise RuntimeError(f"{self._name} transient failure")
-        counter = self._counter
+    async def process(self, name: str, latency: float = 0.0, result: Any = "ok", **_: Any) -> Any:
+        Probe.calls[name] = Probe.calls.get(name, 0) + 1
+        if Probe.failures_left.get(name, 0) > 0:
+            Probe.failures_left[name] -= 1
+            raise RuntimeError(f"{name} transient failure")
+        counter = Probe.counters.get(name)
         if counter is not None:
             counter.enter()
         try:
-            if self._latency:
-                await asyncio.sleep(self._latency)
-            return self._result
+            if latency:
+                await asyncio.sleep(latency)
+            return result
         except asyncio.CancelledError:
-            self.cancelled += 1
+            Probe.cancelled[name] = Probe.cancelled.get(name, 0) + 1
             raise
         finally:
             if counter is not None:
                 counter.leave()
 
 
-def _make_executor(**ctor: Any) -> ParallelToolExecutor:
-    """Build an executor inside a throwaway tapestry context."""
-    with Tapestry():
-        return ParallelToolExecutor(
-            tool_calls=[],
-            toolset=Toolset(),
-            _config=KnotConfig(id="pte", validate_io=False),
-            **ctor,
+@pytest.fixture(autouse=True)
+def _reset_probe() -> None:
+    Probe.calls.clear()
+    Probe.cancelled.clear()
+    Probe.failures_left.clear()
+    Probe.counters.clear()
+
+
+def _named(names: list[str], **bound: Any) -> Toolset:
+    """One probe capability per name: ``name`` bound (hidden) and declared as the tool name."""
+    return Toolset([Probe.bind(name=name, **bound).named(name) for name in names])
+
+
+async def _run(
+    calls: list[ToolCall], toolset: Toolset, **ctor: Any
+) -> tuple[tuple[ToolResult, ...], RunResult, Tapestry]:
+    with Tapestry() as t:
+        ParallelToolExecutor(
+            tool_calls=calls, toolset=toolset, _config=KnotConfig(id="pte"), **ctor
         )
+    run = await t.run(RunRequest())
+    assert run.succeeded, run.exceptions
+    return run.outputs["pte"], run, t
+
+
+async def _inner_rows(t: Tapestry, run: RunResult) -> dict[str, Any]:
+    children = await t.history.children_of(run.run_id)
+    return {row.knot_id: row for child in children for row in child.lineage}
 
 
 async def test_concurrency_cap_respected() -> None:
     counter = InFlightCounter()
-    tools = [StubTool(name=f"t{i}", latency=0.05, counter=counter) for i in range(4)]
-    toolset = Toolset(tools)
-    calls = [ToolCall(tool_name=f"t{i}", arguments={}, call_id=f"c{i}") for i in range(4)]
-    executor = _make_executor()
+    names = [f"t{i}" for i in range(4)]
+    for name in names:
+        Probe.counters[name] = counter
+    toolset = _named(names, latency=0.05)
+    calls = [ToolCall(tool_name=n, arguments={}, call_id=f"c{i}") for i, n in enumerate(names)]
 
-    results = await executor.process(
-        tool_calls=calls, toolset=toolset, max_concurrency=2, timeout=None, retries=0
-    )
+    results, _, _ = await _run(calls, toolset, max_concurrency=2)
 
     assert counter.peak == 2
     assert all(r.status is ToolStatus.OK for r in results)
 
 
 async def test_failure_isolation() -> None:
-    good = StubTool(name="good", result="value")
-    bad = StubTool(name="bad", fail_times=1)  # no retries -> permanent failure
-    toolset = Toolset([good, bad])
+    toolset = Toolset(
+        [Probe.bind(name="good", result="value").named("good"), Probe.bind(name="bad").named("bad")]
+    )
+    Probe.failures_left["bad"] = 1
     calls = [
         ToolCall(tool_name="good", arguments={}, call_id="c1"),
         ToolCall(tool_name="bad", arguments={}, call_id="c2"),
     ]
-    executor = _make_executor()
 
-    results = await executor.process(
-        tool_calls=calls, toolset=toolset, max_concurrency=8, timeout=None, retries=0
-    )
+    results, _, _ = await _run(calls, toolset)
 
     by_id = {r.call_id: r for r in results}
     assert by_id["c1"].status is ToolStatus.OK
@@ -141,223 +151,177 @@ async def test_failure_isolation() -> None:
 
 
 async def test_timeout_isolated_from_siblings() -> None:
-    slow = StubTool(name="slow", latency=0.5)
-    fast = StubTool(name="fast", result="quick")
-    toolset = Toolset([slow, fast])
+    toolset = _named(["slow", "fast"])
     calls = [
-        ToolCall(tool_name="slow", arguments={}, call_id="c1"),
-        ToolCall(tool_name="fast", arguments={}, call_id="c2"),
+        ToolCall(tool_name="slow", arguments={"latency": 0.5}, call_id="c1"),
+        ToolCall(tool_name="fast", arguments={"result": "quick"}, call_id="c2"),
     ]
-    executor = _make_executor()
 
-    results = await executor.process(
-        tool_calls=calls, toolset=toolset, max_concurrency=8, timeout=0.05, retries=0
-    )
+    results, _, _ = await _run(calls, toolset, timeout=0.05)
 
     by_id = {r.call_id: r for r in results}
     assert by_id["c1"].status is ToolStatus.TIMEOUT
-    assert by_id["c1"].error is not None and "timed out" in by_id["c1"].error
-    assert by_id["c1"].latency is not None
+    assert by_id["c1"].error is not None and "did not finish within" in by_id["c1"].error
     assert by_id["c2"].status is ToolStatus.OK
     assert by_id["c2"].result == "quick"
 
 
 async def test_retry_then_success() -> None:
-    # Fails twice, succeeds on the third attempt; retries=2 grants exactly that.
-    flaky = StubTool(name="flaky", fail_times=2, result="recovered")
-    toolset = Toolset([flaky])
+    # Fails twice, succeeds on the third attempt; three attempts grant exactly that.
+    toolset = _named(["flaky"], result="recovered")
+    Probe.failures_left["flaky"] = 2
     calls = [ToolCall(tool_name="flaky", arguments={}, call_id="c1")]
-    # PIR-856: retry_policy is a process()-declared input now (Rule 2), not
-    # self._retry_policy read at run time — a direct process() call (bypassing
-    # the engine, which would forward the constructor's config value
-    # automatically) must supply it explicitly here too.
-    retry_policy = RetryPolicy(base_delay=0.0)
-    executor = _make_executor(retry_policy=retry_policy)
 
-    results = await executor.process(
-        tool_calls=calls,
-        toolset=toolset,
-        max_concurrency=8,
-        timeout=None,
-        retries=2,
-        retry_policy=retry_policy,
+    results, run, t = await _run(
+        calls, toolset, retry=KnotRetryPolicy(max_attempts=3, base_delay=0.0, jitter=False)
     )
 
-    assert flaky.calls == 3
+    assert Probe.calls["flaky"] == 3
     assert results[0].status is ToolStatus.OK
     assert results[0].result == "recovered"
+    rows = await _inner_rows(t, run)
+    assert rows["c1"].extra.get("attempts") == 3
 
 
 async def test_retry_exhausted_returns_error() -> None:
-    flaky = StubTool(name="flaky", fail_times=5)
-    toolset = Toolset([flaky])
+    toolset = _named(["flaky"])
+    Probe.failures_left["flaky"] = 5
     calls = [ToolCall(tool_name="flaky", arguments={}, call_id="c1")]
-    # PIR-856: see the matching comment in test_retry_then_success.
-    retry_policy = RetryPolicy(base_delay=0.0)
-    executor = _make_executor(retry_policy=retry_policy)
 
-    results = await executor.process(
-        tool_calls=calls,
-        toolset=toolset,
-        max_concurrency=8,
-        timeout=None,
-        retries=1,
-        retry_policy=retry_policy,
+    results, _, _ = await _run(
+        calls, toolset, retry=KnotRetryPolicy(max_attempts=2, base_delay=0.0, jitter=False)
     )
 
-    assert flaky.calls == 2  # initial attempt + 1 retry
+    assert Probe.calls["flaky"] == 2  # initial attempt + 1 retry
     assert results[0].status is ToolStatus.ERROR
 
 
-async def test_retry_delay_comes_from_the_composed_retry_policy() -> None:
-    # The inter-attempt delay is RetryPolicy.backoff_delay, not a hand-rolled
-    # formula. Capture the delays with an injected sleep + deterministic rng and
-    # match them against the policy computed independently.
-    slept: list[float] = []
-
-    async def _record(delay: float) -> None:
-        slept.append(delay)
-
-    policy = RetryPolicy(base_delay=0.1, multiplier=2.0, max_delay=1.0, jitter=True)
-    flaky = StubTool(name="flaky", fail_times=2, result="ok")
-    toolset = Toolset([flaky])
+async def test_deprecated_retries_and_retry_policy_translate_to_a_knot_retry_policy() -> None:
+    toolset = _named(["flaky"], result="ok")
+    Probe.failures_left["flaky"] = 1
     calls = [ToolCall(tool_name="flaky", arguments={}, call_id="c1")]
-    # PIR-856: see the matching comment in test_retry_then_success.
-    executor = _make_executor(retry_policy=policy, rng=lambda: 0.5, sleep=_record)
 
-    await executor.process(
-        tool_calls=calls,
-        toolset=toolset,
-        max_concurrency=8,
-        timeout=None,
-        retries=2,
-        retry_policy=policy,
-        rng=lambda: 0.5,
-        sleep=_record,
-    )
+    with pytest.warns(DeprecationWarning, match="retry=KnotRetryPolicy"):
+        results, _, _ = await _run(
+            calls, toolset, retries=1, retry_policy=RetryPolicy(base_delay=0.0, jitter=False)
+        )
 
-    assert slept == [
-        policy.backoff_delay(0, rng=lambda: 0.5),
-        policy.backoff_delay(1, rng=lambda: 0.5),
-    ]
+    assert Probe.calls["flaky"] == 2
+    assert results[0].status is ToolStatus.OK
+
+
+def test_effective_retry_keeps_the_policys_backoff_shape() -> None:
+    policy = RetryPolicy(base_delay=0.1, multiplier=3.0, max_delay=1.0, jitter=False)
+    knot_policy = ParallelToolExecutor._effective_retry(None, 2, policy)
+    assert knot_policy is not None
+    assert knot_policy.max_attempts == 3
+    assert knot_policy.backoff_delay(0) == policy.backoff_delay(0)
+    assert knot_policy.backoff_delay(1) == policy.backoff_delay(1)
+    assert ParallelToolExecutor._effective_retry(None, 0, policy) is None
 
 
 async def test_unknown_tool_yields_error_and_batch_completes() -> None:
-    good = StubTool(name="good", result="value")
-    toolset = Toolset([good])
+    toolset = _named(["good"], result="value")
     calls = [
         ToolCall(tool_name="missing", arguments={}, call_id="c1"),
         ToolCall(tool_name="good", arguments={}, call_id="c2"),
     ]
-    executor = _make_executor()
 
-    results = await executor.process(
-        tool_calls=calls, toolset=toolset, max_concurrency=8, timeout=None, retries=0
-    )
+    results, _, _ = await _run(calls, toolset)
 
     by_id = {r.call_id: r for r in results}
     assert by_id["c1"].status is ToolStatus.ERROR
     assert by_id["c1"].error is not None and "missing" in by_id["c1"].error
+    assert by_id["c1"].exception is not None
+    assert by_id["c1"].exception.exc_type == "ToolNotFoundError"
     assert by_id["c2"].status is ToolStatus.OK
 
 
 async def test_results_returned_in_input_order() -> None:
     # Later calls finish first (descending latency) yet order must follow input.
-    tools = [StubTool(name=f"t{i}", latency=(4 - i) * 0.02, result=i) for i in range(4)]
-    toolset = Toolset(tools)
-    calls = [ToolCall(tool_name=f"t{i}", arguments={}, call_id=f"c{i}") for i in range(4)]
-    executor = _make_executor()
+    names = [f"t{i}" for i in range(4)]
+    toolset = _named(names)
+    calls = [
+        ToolCall(tool_name=n, arguments={"latency": (4 - i) * 0.02, "result": i}, call_id=f"c{i}")
+        for i, n in enumerate(names)
+    ]
 
-    results = await executor.process(
-        tool_calls=calls, toolset=toolset, max_concurrency=8, timeout=None, retries=0
-    )
+    results, _, _ = await _run(calls, toolset)
 
     assert tuple(r.call_id for r in results) == ("c0", "c1", "c2", "c3")
     assert tuple(r.result for r in results) == (0, 1, 2, 3)
 
 
+async def test_every_call_gets_its_own_lineage_row_under_its_call_id() -> None:
+    toolset = _named(["a", "b"])
+    calls = [
+        ToolCall(tool_name="a", arguments={}, call_id="c1"),
+        ToolCall(tool_name="b", arguments={}, call_id="c2"),
+    ]
+
+    _, run, t = await _run(calls, toolset)
+
+    rows = await _inner_rows(t, run)
+    assert rows["c1"].outcome == "ok"
+    assert rows["c2"].outcome == "ok"
+    assert rows["results"].outcome == "ok"
+
+
+async def test_empty_batch_produces_an_empty_tuple() -> None:
+    results, _, _ = await _run([], Toolset())
+    assert results == ()
+
+
 async def test_rejects_non_tool_call() -> None:
-    executor = _make_executor()
+    with Tapestry():
+        executor = ParallelToolExecutor(
+            tool_calls=[], toolset=Toolset(), _config=KnotConfig(id="pte", validate_io=False)
+        )
     with pytest.raises(TypeError):
         await executor.process(
             tool_calls=["not-a-call"],  # type: ignore[list-item]
             toolset=Toolset(),
             max_concurrency=8,
-            timeout=None,
-            retries=0,
         )
 
 
 async def test_rejects_non_toolset() -> None:
-    # Not converted to the await-knot(...)/ValidationError shape: this knot is
-    # constructed with validate_io=False in production (ReWooPipeline), so
-    # process() carries its own isinstance guard as the only real protection.
-    executor = _make_executor()
+    # This knot is constructed with validate_io=False in production
+    # (ReWooPipeline), so process() carries its own isinstance guard.
+    with Tapestry():
+        executor = ParallelToolExecutor(
+            tool_calls=[], toolset=Toolset(), _config=KnotConfig(id="pte", validate_io=False)
+        )
     with pytest.raises(TypeError):
         await executor.process(
             tool_calls=[],
             toolset=["not-a-toolset"],  # type: ignore[arg-type]
             max_concurrency=8,
-            timeout=None,
-            retries=0,
         )
 
 
 async def test_cancellation_propagates_and_cancels_inflight() -> None:
-    slow = StubTool(name="slow", latency=5.0)
-    toolset = Toolset([slow])
-    calls = [ToolCall(tool_name="slow", arguments={}, call_id="c1")]
-    executor = _make_executor()
+    toolset = _named(["slow"])
+    calls = [ToolCall(tool_name="slow", arguments={"latency": 5.0}, call_id="c1")]
+    with Tapestry() as t:
+        ParallelToolExecutor(tool_calls=calls, toolset=toolset, _config=KnotConfig(id="pte"))
 
-    task = asyncio.ensure_future(
-        executor.process(
-            tool_calls=calls, toolset=toolset, max_concurrency=8, timeout=None, retries=0
-        )
-    )
-    await asyncio.sleep(0.05)  # let the invocation start and block on its sleep
+    task = asyncio.ensure_future(t.run(RunRequest()))
+    await asyncio.sleep(0.1)  # let the call start and block on its sleep
     task.cancel()
 
     with pytest.raises(asyncio.CancelledError):
         await task
 
-    assert slow.cancelled == 1
-
-
-async def test_runs_through_tapestry_end_to_end() -> None:
-    from pirn.core.run_request import RunRequest
-
-    good = StubTool(name="good", result="value")
-    toolset = Toolset([good])
-    calls = [ToolCall(tool_name="good", arguments={}, call_id="c1")]
-
-    with Tapestry() as tapestry:
-        ParallelToolExecutor(
-            tool_calls=calls,
-            toolset=toolset,
-            max_concurrency=4,
-            _config=KnotConfig(id="pte"),
-        )
-    run = await tapestry.run(RunRequest())
-
-    assert run.succeeded
-    results = run.outputs["pte"]
-    assert results[0].status is ToolStatus.OK
-    assert results[0].result == "value"
+    assert Probe.cancelled.get("slow", 0) == 1
 
 
 async def test_error_path_carries_the_exception_record() -> None:
-    """PIR-794: the tool path keeps type and traceback, not just a string."""
-    # fail_times exceeds the retry budget below, so the call ends in ERROR.
-    toolset = Toolset([StubTool(name="t", fail_times=1)])
-    executor = _make_executor()
+    """The tool path keeps type and traceback, not just a string."""
+    toolset = _named(["t"])
+    Probe.failures_left["t"] = 1
 
-    results = await executor.process(
-        tool_calls=[ToolCall(tool_name="t", arguments={}, call_id="c1")],
-        toolset=toolset,
-        max_concurrency=4,
-        timeout=None,
-        retries=0,
-    )
+    results, _, _ = await _run([ToolCall(tool_name="t", arguments={}, call_id="c1")], toolset)
 
     assert results[0].status is ToolStatus.ERROR
     record = results[0].exception
@@ -366,20 +330,4 @@ async def test_error_path_carries_the_exception_record() -> None:
     assert record.message == "t transient failure"
     assert "RuntimeError: t transient failure" in record.traceback_text
     # The string stays available and agrees with the record.
-    assert results[0].error == "t transient failure"
-
-
-async def test_tool_not_found_carries_the_exception_record() -> None:
-    executor = _make_executor()
-
-    results = await executor.process(
-        tool_calls=[ToolCall(tool_name="absent", arguments={}, call_id="c1")],
-        toolset=Toolset([]),
-        max_concurrency=4,
-        timeout=None,
-        retries=0,
-    )
-
-    assert results[0].status is ToolStatus.ERROR
-    assert results[0].exception is not None
-    assert results[0].exception.exc_type == "ToolNotFoundError"
+    assert results[0].error == "RuntimeError: t transient failure"

@@ -9,11 +9,12 @@ from __future__ import annotations
 
 import asyncio
 import time
-from collections.abc import Mapping
-from typing import Any
+from typing import Any, ClassVar
 
 import pytest
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
@@ -25,46 +26,44 @@ from tests.benchmarks.conftest import BenchmarkRecorder
 
 
 class _SleepTool(Tool):
-    def __init__(self, *, name: str, latency: float) -> None:
-        self._name = name
-        self._latency = latency
+    """Sleep a bound duration, then return the bound marker."""
 
-    @property
-    def name(self) -> str:
-        return self._name
+    tool_name: ClassVar[str] = "sleep"
 
-    @property
-    def description(self) -> str:
-        return "sleep"
+    def __init__(
+        self, *, marker: Knot | str, latency: Knot | float, _config: KnotConfig, **kwargs: Any
+    ) -> None:
+        super().__init__(marker=marker, latency=latency, _config=_config, **kwargs)
 
-    @property
-    def parameters_schema(self) -> Mapping[str, Any]:
-        return {"type": "object", "properties": {}}
-
-    async def invoke(self, arguments: Mapping[str, Any]) -> Any:
-        await asyncio.sleep(self._latency)
-        return self._name
+    async def process(self, marker: str, latency: float, **_: Any) -> str:
+        await asyncio.sleep(latency)
+        return marker
 
 
 @pytest.mark.benchmark
 async def test_tool_executor_throughput(benchmark_recorder: BenchmarkRecorder) -> None:
     n = 8
     per_call = 0.02
-    toolset = Toolset([_SleepTool(name=f"t{i}", latency=per_call) for i in range(n)])
+    toolset = Toolset(
+        [
+            _SleepTool.bind(marker=f"t{i}", latency=per_call).named(f"t{i}", description="sleep")
+            for i in range(n)
+        ]
+    )
     calls = [ToolCall(tool_name=f"t{i}", arguments={}, call_id=f"c{i}") for i in range(n)]
 
-    with Tapestry():
-        executor = ParallelToolExecutor(
-            tool_calls=[],
-            toolset=Toolset(),
-            _config=KnotConfig(id="pte-bench-harness", validate_io=False),
+    with Tapestry() as tapestry:
+        ParallelToolExecutor(
+            tool_calls=calls,
+            toolset=toolset,
+            max_concurrency=n,
+            _config=KnotConfig(id="pte-bench-harness"),
         )
-
     start = time.perf_counter()
-    results = await executor.process(
-        tool_calls=calls, toolset=toolset, max_concurrency=n, timeout=None, retries=0
-    )
+    run = await tapestry.run(RunRequest())
     elapsed = time.perf_counter() - start
+    assert run.succeeded, run.exceptions
+    results = run.outputs["pte-bench-harness"]
 
     assert all(r.status is ToolStatus.OK for r in results)
     serial = n * per_call

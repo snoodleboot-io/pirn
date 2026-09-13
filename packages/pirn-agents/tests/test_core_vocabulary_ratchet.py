@@ -81,7 +81,6 @@ EXCEPTION_ROOTS_WITHOUT_PIRN_ERROR = frozenset(
 # for the separate, correctness-motivated reason (PIR-785).
 CANONICAL_JSON_IMPORTERS = frozenset(
     {
-        "agent/parallel_tool_executor.py",
         "builder/agent_knot_id_factory.py",
         "caching/content_address.py",
         "determinism/content_digest.py",

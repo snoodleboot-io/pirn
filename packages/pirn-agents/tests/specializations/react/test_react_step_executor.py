@@ -206,4 +206,4 @@ class TestRunsThroughTheEngine(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         children = await t.history.children_of(result.run_id)
         inner_knot_ids = {row.knot_id for child in children for row in child.lineage}
-        assert "tool-call" in inner_knot_ids, inner_knot_ids
+        assert "step-call" in inner_knot_ids, inner_knot_ids

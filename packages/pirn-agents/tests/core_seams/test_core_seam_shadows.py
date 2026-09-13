@@ -41,8 +41,6 @@ RETRY_TIMEOUT = frozenset(
 NESTING = frozenset(
     {
         "agent/agent_invoker.py::AgentInvoker",
-        "agent/agent_nesting_config.py::AgentNestingConfig",
-        "agent/agent_tool_context.py::AgentToolContext",
         "exceptions/agent_cycle_error.py::AgentCycleError",
         "exceptions/agent_depth_exceeded_error.py::AgentDepthExceededError",
         "exceptions/agent_recursion_error.py::AgentRecursionError",

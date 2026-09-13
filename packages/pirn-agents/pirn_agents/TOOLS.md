@@ -1,10 +1,65 @@
 # Base Tool Library (PAE-F6)
 
-A curated set of production-grade `Tool` implementations agents can use out of
-the box — the "batteries" for the batteries-included runtime. Every tool is a
-`Tool` subclass, derives a provider-neutral JSON schema, and returns a typed F1
-`ToolResult` via `as_tool_result(call)`. Optional backends (`httpx`, `aiosqlite`)
+A curated set of production-grade tools agents can use out of the box — the
+"batteries" for the batteries-included runtime. Since the ADR "agents speaks
+core" (WS1) **a tool is a `Knot` class**: `Tool(Knot)` declares its call
+arguments on `process()`, derives its provider-neutral JSON schema from that
+signature (`Tool.declaration()` → `input_json_schema()`), and one call is one
+tool knot the engine runs — with its own `Ok | Err | Skipped`, lineage row,
+timeout, retry and concurrency group. Optional backends (`httpx`, `aiosqlite`)
 are imported lazily at call time, so `import pirn_agents` stays backend-free.
+
+## The shape of a tool
+
+```python
+from typing import Annotated, Any, ClassVar
+
+from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
+from pydantic import Field
+
+from pirn_agents.tools.tool import Tool
+
+
+class RetrieverTool(Tool):
+    """Retrieve the most relevant stored records for a query, ranked by similarity."""
+
+    tool_name: ClassVar[str] = "retriever"          # default: snake_case of the class name
+
+    def __init__(self, *, query: Knot | str, store: Knot | MemoryStore,
+                 top_k: Knot | int = 5, _config: KnotConfig, **kwargs: Any) -> None:
+        super().__init__(query=query, store=store, top_k=top_k, _config=_config, **kwargs)
+
+    async def process(
+        self,
+        query: Annotated[str, Field(description="The retrieval query.")],
+        store: MemoryStore,                          # a collaborator, bound once
+        top_k: Annotated[int, Field(description="Number of results.")] = 5,
+        **_: Any,
+    ) -> Mapping[str, Any]:
+        ...
+```
+
+* The description shown to the model is the class docstring's first paragraph;
+  argument descriptions come from `Annotated[..., Field(description=...)]`.
+* Collaborators (stores, clients, providers) are ordinary inputs that are
+  **bound once** into a capability: `RetrieverTool.bind(store=my_store)`.
+  Bound inputs are hidden from the declaration; `.defaults(top_k=3)` keeps an
+  input callable but shows the default; `.named("search_notes", description=...)`
+  renames the capability.
+* `Tool.bind(...)` / `Tool.factory()` return a `ToolFactory` — the *capability*
+  value a `Toolset` holds (a `KnotFactory` + declaration + facets:
+  `permissions`, `requires_approval()`, `streaming`, `stateful`).
+  `ToolFactory.for_call(call)` constructs the tool knot for one `ToolCall`
+  inside the current tapestry; `ToolFactory.run_call(call)` runs one call in
+  a throwaway tapestry and returns its `Result`.
+* `@tool` on a function is `@knot` plus a declaration; `McpTool` is
+  `KnotFactory.from_schema` over the remote tool's schema; an agent is a tool
+  through `AgentTool` (`agent.as_tool()`), whose nesting guard is core's
+  `RunNesting`.
+* `Tool.invoke(arguments)` and the invoke-shaped subclass (properties `name` /
+  `description` / `parameters_schema`) still work for **one cycle** through
+  `ToolFactory.of()` and emit a `DeprecationWarning`.
 
 ## Tool catalog
 
@@ -24,7 +79,7 @@ are imported lazily at call time, so `import pirn_agents` stays backend-free.
 ## Toolset bundles
 
 Factory functions in `pirn_agents.tools.bundles` group related tools with sane
-defaults. They only *construct* tools, so importing them triggers no backend
+defaults. They only *bind* capabilities, so importing them triggers no backend
 imports:
 
 ```python
@@ -36,8 +91,10 @@ from pirn_agents.tools.bundles import (
 tools = calculator_toolset() + web_toolset() + filesystem_toolset(root="/srv/workspace")
 ```
 
-`Toolset` supports `+` / `merge` (unique names re-checked), `get(name)`,
-iteration, and `schema()` (provider-neutral schema list).
+`Toolset` maps a name to a `ToolFactory` (a `Tool` class, a bound factory, a
+`@tool` function or a legacy instance are all normalised through
+`ToolFactory.of`). It supports `+` / `merge` (unique names re-checked),
+`get(name)`, iteration, and `schema()` (provider-neutral declaration list).
 
 ## Registering a Toolset with a ReActLoop
 
@@ -64,15 +121,21 @@ run = await tapestry.run(RunRequest())
 response = run.outputs["loop"]        # AgentResponse
 ```
 
-Under F1 schema-based tool calling, pass a `ToolCall` to `tool.as_tool_result(call)`
-(or dispatch a batch through `ParallelToolExecutor`). The text ReAct loop supplies
-each action input as `{"input": ...}`; single-argument base tools accept that as an
-alias for their canonical parameter, so the same tool works both ways.
+Under F1 schema-based tool calling, a batch of `ToolCall`s is dispatched through
+`ParallelToolExecutor` — a `SubTapestry` that constructs one tool knot per call
+under the `"tools"` concurrency group, with per-knot `timeout` and
+`retry=KnotRetryPolicy(...)` — and `ToolCallCodec` turns the run's `Result`s
+back into the model's tool-result messages. A single call is a `ToolInvocation`
+knot. The text ReAct loop supplies each action input as `{"input": ...}`;
+single-argument base tools accept that as an alias for their canonical
+parameter, so the same tool works both ways. `ToolResult`/`ToolStatus` remain
+for one cycle as a deprecated *view* of a call's `Result`
+(`ToolResult.from_result(call_id, result, lineage)`).
 
 ## Security notes
 
 ### Filesystem
-All paths resolve against the injected `root`; absolute paths, `..` traversal, and
+All paths resolve against the bound `root`; absolute paths, `..` traversal, and
 symlink components are rejected, and reads/listings/globs are capped. Symlinks that
 would escape the root are excluded from `glob` results.
 
@@ -84,7 +147,7 @@ response body is streamed and truncated at `max_bytes`. `allow_private=True` is 
 explicit opt-in for trusted internal endpoints only.
 
 ### `sql_query` — configuration and read-only guarantees
-Configure it with a `SqlConnector` and its policy:
+Bind it to a `SqlConnector` and its policy:
 
 ```python
 import sqlite3
@@ -92,7 +155,7 @@ from pirn_agents.tools.sql.sql_query_tool import SqlQueryTool
 from pirn_agents.tools.sql.sqlite_connector import SqliteConnector
 
 conn = sqlite3.connect("app.db", check_same_thread=False)   # runs on a worker thread
-tool = SqlQueryTool(connector=SqliteConnector(connection=conn), read_only=True, max_rows=500)
+tool = SqlQueryTool.bind(connector=SqliteConnector(connection=conn), read_only=True, max_rows=500)
 ```
 
 - **`read_only=True`** (default) rejects any statement that is not a single
@@ -108,7 +171,7 @@ tool = SqlQueryTool(connector=SqliteConnector(connection=conn), read_only=True, 
 > untrusted input, also connect with a least-privilege, read-only database role.
 
 ### Sandbox (`python_exec` / `shell`) — OD-1
-Code/command execution is **opt-in and disabled by default**. Tools backed by a
+Code/command execution is **opt-in and disabled by default**. Tools bound to a
 `SandboxExecutor` raise `SandboxDisabledError` unless it was constructed with
 `enabled=True`:
 

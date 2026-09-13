@@ -37,7 +37,7 @@ from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.react.react_loop import ReActLoop
 from pirn_agents.tools.agent_as_tool_mixin import AgentAsToolMixin
-from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.tool_factory import ToolFactory
 from pirn_agents.types.messaging.agent_message import AgentMessage
 
 
@@ -64,7 +64,7 @@ class ResearchAgent(AgentAsToolMixin, AgentPipeline):
         *,
         topic: Knot | str,
         llm: Knot | LLMProvider,
-        search_tool: Knot | Tool,
+        search_tool: Knot | Any,
         _config: KnotConfig,
         max_searches: Knot | int = 5,
         **kwargs: Any,
@@ -82,7 +82,7 @@ class ResearchAgent(AgentAsToolMixin, AgentPipeline):
         self,
         topic: str,
         llm: LLMProvider,
-        search_tool: Tool,
+        search_tool: ToolFactory,
         max_searches: int = 5,
         **_: Any,
     ) -> Any:

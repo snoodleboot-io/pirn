@@ -12,8 +12,8 @@ from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_loop_pipeline import AgentLoopPipeline
 from pirn_agents.specializations.rag._agentic_rag_state import _AgenticRagState
 from pirn_agents.specializations.rag._follow_up_decision import _FollowUpDecision
-from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_factory import ToolFactory
 from pirn_agents.tools.tool_invocation import ToolInvocation
 from pirn_agents.tools.tool_result import ToolResult
 from pirn_agents.tools.tool_status import ToolStatus
@@ -26,7 +26,7 @@ class _AgenticRagLoop(AgentLoopPipeline[_AgenticRagState]):
         self,
         *,
         query: str,
-        rag_tool: Tool,
+        rag_tool: ToolFactory,
         llm: LLMProvider,
         max_iterations: int,
         **kwargs: Any,

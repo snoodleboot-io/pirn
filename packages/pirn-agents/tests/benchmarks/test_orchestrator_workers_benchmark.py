@@ -9,10 +9,10 @@ from __future__ import annotations
 
 import asyncio
 import time
-from collections.abc import Mapping
-from typing import Any
+from typing import Any, ClassVar
 
 import pytest
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -23,31 +23,25 @@ from tests.benchmarks.conftest import BenchmarkRecorder
 
 
 class _SleepWorker(Tool):
-    def __init__(self, latency: float) -> None:
-        self._latency = latency
+    """Sleep a bound latency, then echo the task."""
 
-    @property
-    def name(self) -> str:
-        return "sleep_worker"
+    tool_name: ClassVar[str] = "sleep_worker"
 
-    @property
-    def description(self) -> str:
-        return "sleep"
+    def __init__(
+        self, *, task: Knot | str, latency: Knot | float, _config: KnotConfig, **kwargs: Any
+    ) -> None:
+        super().__init__(task=task, latency=latency, _config=_config, **kwargs)
 
-    @property
-    def parameters_schema(self) -> Mapping[str, Any]:
-        return {"type": "object", "properties": {"task": {"type": "string"}}}
-
-    async def invoke(self, arguments: Mapping[str, Any]) -> Any:
-        await asyncio.sleep(self._latency)
-        return arguments["task"]
+    async def process(self, task: str, latency: float, **_: Any) -> str:
+        await asyncio.sleep(latency)
+        return task
 
 
 @pytest.mark.benchmark
 async def test_orchestrator_workers_scaling(benchmark_recorder: BenchmarkRecorder) -> None:
     n = 8
     per_task = 0.02
-    worker = _SleepWorker(per_task)
+    worker = _SleepWorker.bind(latency=per_task)
     tasks = tuple(f"t{i}" for i in range(n))
 
     start = time.perf_counter()

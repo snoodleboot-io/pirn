@@ -7,7 +7,7 @@ from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
-from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.tool_factory import ToolFactory
 
 
 @dataclass(frozen=True)
@@ -20,14 +20,14 @@ class RouteCandidate(PirnOpaqueValue):
         Stable identifier used to look this candidate's confidence up and to
         report which candidate handled (or was skipped for) a request.
     tool:
-        The :class:`Tool` invoked when this candidate is chosen.
+        The tool capability called when this candidate is chosen.
     min_confidence:
         The minimum confidence (0.0-1.0) this candidate requires before the
         fallback chain will invoke it; below it the chain skips to the next.
     """
 
     name: str
-    tool: Tool
+    tool: ToolFactory
     min_confidence: float = 0.0
 
     def _pirn_audit_dict(self) -> dict[str, Any]:

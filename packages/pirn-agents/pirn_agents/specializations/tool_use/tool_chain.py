@@ -1,44 +1,36 @@
 """``ToolChain`` — execute a fixed sequence of tools, piping output to input, through the engine.
 
-Takes an initial :class:`ToolCall` and a sequence of :class:`Tool` instances.
+Takes an initial :class:`ToolCall` and a sequence of tool capabilities.
 Executes the first call, feeds its result as ``input`` to the next tool in
-the chain, and so on. Returns the :class:`ToolResult` from wherever the
+the chain, and so on. Returns the :class:`ToolResult` view from wherever the
 chain actually stopped — the final tool's success, or the first tool that
 failed.
 
-Every step is a :class:`~pirn_agents.tools.tool_invocation.ToolInvocation`,
-the same knot :class:`~pirn_agents.planning.tool_executor.ToolExecutor` and
-:class:`~pirn_agents.agent.parallel_tool_executor.ParallelToolExecutor` use,
-so each call in the chain gets its own lineage/history/``Ok|Err|Skipped``
-instead of being awaited inline (PIR-856).
+Every step is a tool knot — ``factory.for_call(call)`` (ADR agents-speaks-core,
+WS1) — so each call in the chain gets its own lineage/history/``Ok|Err|Skipped``
+instead of being awaited inline.  A failed step is that step's own ``Err``,
+and the engine's default error policy does the short-circuit: every knot
+downstream of it — the next call, the next step, to the end of the chain —
+is :class:`~pirn.core.skipped.Skipped` automatically, with no gate to
+write by hand.
 
 Algorithm:
     1. Receive resolved ``initial_call`` and ``tools`` at process time.
-    2. Validate that ``tools`` is non-empty and each entry is a :class:`Tool`.
-    3. Validate that ``initial_call`` is a :class:`ToolCall`.
-    4. Wire ``ToolInvocation`` for ``tools[0]`` against ``initial_call``.
-    5. For each subsequent tool: wire a :class:`~pirn.nodes.gate.gate.Gate`
-       on the previous step's output, open only when that step's
-       :class:`ToolResult` has :attr:`~pirn_agents.tools.tool_status.ToolStatus.OK`;
-       when closed, everything downstream — the next call, the next
-       invocation, and so on to the end of the chain — is
-       :class:`~pirn.core.skipped.Skipped` automatically (``error_policy``'s
-       default, ``SKIP_IF_PARENT_FAILED``, propagates a skip through every
-       knot that depends on it). When open, wire an
-       :class:`~pirn.nodes.aggregator.Aggregator` that builds the next
-       :class:`ToolCall` from the previous result, then the next
-       ``ToolInvocation`` against it.
-    6. Return an :class:`Aggregator` over every step's own result, configured
+    2. Validate that ``tools`` is non-empty and each entry is a capability.
+    3. The first step is ``tools[0].for_call(initial_call)``.
+    4. For each subsequent tool: wire an :class:`~pirn.nodes.aggregator.Aggregator`
+       that builds the next :class:`ToolCall` from the previous step's raw
+       output — or returns ``Skipped`` when that step failed — then the next
+       step as a :class:`~pirn_agents.tools.tool_invocation.ToolInvocation`
+       over that upstream call.
+    5. Return an :class:`Aggregator` over every step's own result, configured
        with ``error_policy=RECEIVE_ERRORS`` so its ``combine`` sees each
-       step's raw ``Ok | Skipped`` and can distinguish "this step ran" from
-       "the chain had already stopped before this step" — picking the
-       *last* step whose result is ``Ok`` is exactly the tool where the chain
-       stopped, whether that is the final success or the first failure,
-       because every step after a failure is ``Skipped``, never ``Ok``.
+       step's raw ``Ok | Err | Skipped`` and picks the *last* step that ran —
+       the final success or the first failure — as the chain's outcome.
 
 References:
+    - :class:`pirn_agents.tools.tool_factory.ToolFactory`
     - :class:`pirn_agents.tools.tool_invocation.ToolInvocation`
-    - :class:`pirn.nodes.gate.gate.Gate`
     - :class:`pirn.core.error_policy.ErrorPolicy`
 """
 
@@ -53,118 +45,138 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.ok import Ok
 from pirn.core.result import Result
+from pirn.core.skipped import Skipped
 from pirn.nodes.aggregator import Aggregator
-from pirn.nodes.gate.gate import Gate
+from pirn.tapestry import Tapestry
 
+from pirn_agents.exceptions.tool_argument_validation_error import (
+    ToolArgumentValidationError,
+)
+from pirn_agents.security.secret_redactor import SecretRedactor
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_call_rejection import ToolCallRejection
+from pirn_agents.tools.tool_factory import ToolFactory
 from pirn_agents.tools.tool_invocation import ToolInvocation
 from pirn_agents.tools.tool_result import ToolResult
-from pirn_agents.tools.tool_status import ToolStatus
 
 
 class ToolChain(AgentPipeline):
     """Execute a sequence of tools, through the engine, passing each output to the next."""
 
+    # A failed step is delivered to the terminal Aggregator, not to this knot.
+    _inner_failures_reach_sink = True
+
     def __init__(
         self,
         *,
         initial_call: Knot | ToolCall,
-        tools: Knot | Sequence[Tool],
+        tools: Knot | Sequence[Any],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
         super().__init__(initial_call=initial_call, tools=tools, _config=_config, **kwargs)
 
+    def _make_inner_tapestry(self) -> Tapestry:
+        """A tapestry whose fallback ``traceback_filter`` redacts secrets."""
+        return Tapestry(traceback_filter=SecretRedactor.default_traceback_filter())
+
     async def process(
         self,
         initial_call: ToolCall,
-        tools: Sequence[Tool],
+        tools: Sequence[ToolFactory],
         **_: Any,
     ) -> Knot:
         """Wire the chain and return the knot that resolves to its terminal result.
 
         Args:
             initial_call: The first ToolCall to execute, which seeds the chain.
-            tools: The ordered sequence of Tool instances to execute.
+            tools: The ordered capabilities to execute.
 
         Returns:
             The sink of the inner pipeline: an :class:`~pirn.nodes.aggregator.Aggregator`
             over every step's own result, whose output — the :class:`ToolResult`
-            of whichever step the chain actually stopped at — becomes this
-            knot's output.
+            view of whichever step the chain actually stopped at — becomes
+            this knot's output.
 
         Raises:
-            TypeError: If initial_call is not a ToolCall or any entry in tools is not a Tool.
+            TypeError: If initial_call is not a ToolCall or any entry in tools is not a capability.
             ValueError: If tools is empty.
         """
         tool_list = list(tools)
         if not tool_list:
             raise ValueError("ToolChain: tools must not be empty")
+        factories: list[ToolFactory] = []
         for index, tool in enumerate(tool_list):
-            if not isinstance(tool, Tool):
+            try:
+                factories.append(ToolFactory.of(tool))
+            except TypeError as exc:
                 raise TypeError(
                     f"ToolChain: tools[{index}] must be a Tool, got {type(tool).__name__}"
-                )
+                ) from exc
 
         call_id = initial_call.call_id
         steps: dict[str, Knot] = {}
-        previous_step: Knot = ToolInvocation(
-            tool=tool_list[0], call=initial_call, _config=KnotConfig(id="step-0")
-        )
+        try:
+            previous_step: Knot = factories[0].for_call(initial_call, knot_id="step-0")
+        except ToolArgumentValidationError as exc:
+            previous_step = ToolCallRejection(
+                call=initial_call, error=exc, _config=KnotConfig(id="step-0")
+            )
         steps["step_0"] = previous_step
 
-        for index, tool in enumerate(tool_list[1:], start=1):
-            gate = Gate(
-                input=previous_step,
-                predicate=self._step_succeeded,
-                _config=KnotConfig(id=f"gate-{index - 1}"),
-            )
+        for index, factory in enumerate(factories[1:], start=1):
             next_call = Aggregator(
                 combine=functools.partial(
-                    self._build_next_call, tool_name=tool.name, call_id=call_id
+                    self._build_next_call, tool_name=factory.name, call_id=call_id
                 ),
-                previous=gate,
+                previous=previous_step,
                 _config=KnotConfig(id=f"next-call-{index}"),
             )
             previous_step = ToolInvocation(
-                tool=tool, call=next_call, _config=KnotConfig(id=f"step-{index}")
+                tool=factory, call=next_call, _config=KnotConfig(id=f"step-{index}")
             )
             steps[f"step_{index}"] = previous_step
 
         return Aggregator(
-            combine=self._pick_terminal,
+            combine=functools.partial(self._pick_terminal, call_id),
             _config=KnotConfig(id="chain-result", error_policy=ErrorPolicy.RECEIVE_ERRORS),
             **steps,
         )
 
     @staticmethod
-    def _step_succeeded(result: ToolResult) -> bool:
-        """Gate predicate: only chain into the next tool on an OK result."""
-        return result.status is ToolStatus.OK
+    def _build_next_call(previous: Any, *, tool_name: str, call_id: str) -> ToolCall | Skipped:
+        """Build the next step's :class:`ToolCall` from the previous step's raw output.
+
+        A previous step that is a failed :class:`ToolResult` view (a
+        ``ToolInvocation`` reports its call's ``Err`` as a view for the
+        cycle) stops the chain: returning ``Skipped`` skips this call and
+        everything downstream of it, exactly as a raw ``Err`` upstream would.
+        """
+        if isinstance(previous, ToolResult):
+            if previous.error is not None:
+                return Skipped(reason="previous_step_failed")
+            previous = previous.result
+        return ToolCall(tool_name=tool_name, arguments={"input": previous}, call_id=call_id)
 
     @staticmethod
-    def _build_next_call(previous: ToolResult, *, tool_name: str, call_id: str) -> ToolCall:
-        """Build the next step's :class:`ToolCall` from the previous step's raw output."""
-        return ToolCall(tool_name=tool_name, arguments={"input": previous.result}, call_id=call_id)
+    def _pick_terminal(call_id: str, **results: Result[Any]) -> ToolResult:
+        """Return the view of the last step that actually ran.
 
-    @staticmethod
-    def _pick_terminal(**results: Result[ToolResult]) -> ToolResult:
-        """Return the result of the last step whose own result is ``Ok``.
-
-        Every step after the chain first fails is ``Skipped`` (the closed
-        gate's default ``error_policy`` propagation), never ``Ok`` — so the
-        last ``Ok`` step is exactly the one the chain stopped at, whether
+        Every step after the chain first fails is ``Skipped`` (the default
+        error policy's propagation), never ``Ok`` or ``Err`` — so the last
+        non-skipped step is exactly the one the chain stopped at, whether
         that is the final tool's success or the first tool's failure.
         """
         ordered = sorted(results.items(), key=lambda item: int(item[0].rsplit("_", 1)[1]))
-        terminal: ToolResult | None = None
+        terminal: Result[Any] | None = None
         for _, result in ordered:
-            if isinstance(result, Ok):
-                terminal = result.value
+            if not isinstance(result, Skipped):
+                terminal = result
         if terminal is None:
-            # Unreachable in practice: step_0 has no gate in front of it, so
-            # it is never Skipped and always contributes an Ok result.
+            # Unreachable in practice: step_0 has nothing upstream of it, so it
+            # is never Skipped and always contributes an Ok or Err.
             raise RuntimeError("ToolChain: no step produced a result")
-        return terminal
+        if isinstance(terminal, Ok) and isinstance(terminal.value, ToolResult):
+            return terminal.value
+        return ToolResult.from_result(call_id, terminal)

@@ -31,7 +31,7 @@ from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.plan_and_execute.task_planner import TaskPlanner
 from pirn_agents.specializations.plan_react.plan_react_result import PlanReActResult
 from pirn_agents.specializations.react.react_loop import ReActLoop
-from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.tool_factory import ToolFactory
 from pirn_agents.types.messaging.agent_message import AgentMessage
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
@@ -44,7 +44,7 @@ class PlanReActPipeline(AgentPipeline):
         *,
         task: Knot | str,
         llm: Knot | LLMProvider,
-        tools: Knot | Sequence[Tool] = (),
+        tools: Knot | Sequence[Any] = (),
         max_iterations: Knot | int = 4,
         max_steps: Knot | int = 5,
         _config: KnotConfig,
@@ -64,7 +64,7 @@ class PlanReActPipeline(AgentPipeline):
         self,
         task: str,
         llm: LLMProvider,
-        tools: Sequence[Tool] = (),
+        tools: Sequence[ToolFactory] = (),
         max_iterations: int = 4,
         max_steps: int = 5,
         **_: Any,

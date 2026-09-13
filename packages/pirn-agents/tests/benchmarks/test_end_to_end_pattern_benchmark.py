@@ -13,6 +13,7 @@ import time
 
 import pytest
 from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
@@ -49,13 +50,14 @@ async def test_end_to_end_pattern_latency_and_tokens(
         await provider.chat([{"role": "user", "content": f"turn {turn}"}])
         meter.spend_tokens(tokens_per_turn)
         total_tokens += tokens_per_turn
-        results = await executor.process(
-            tool_calls=[ToolCall(tool_name="search", arguments={"q": "x"}, call_id=f"c{turn}")],
-            toolset=toolset,
-            max_concurrency=1,
-            timeout=None,
-            retries=0,
-        )
+        with Tapestry() as tapestry:
+            ParallelToolExecutor(
+                tool_calls=[ToolCall(tool_name="search", arguments={"q": "x"}, call_id=f"c{turn}")],
+                toolset=toolset,
+                max_concurrency=1,
+                _config=KnotConfig(id="pte-e2e"),
+            )
+        results = (await tapestry.run(RunRequest())).outputs["pte-e2e"]
         assert results[0].status is ToolStatus.OK
     latency = time.perf_counter() - start
 
