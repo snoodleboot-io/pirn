@@ -60,7 +60,7 @@ class RouterFallbackPipeline(AgentPipeline):
         confidences: Mapping[str, float],
         arguments: Mapping[str, Any],
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Wire the router + fallback chain and return the chain sink.
 
         Args:

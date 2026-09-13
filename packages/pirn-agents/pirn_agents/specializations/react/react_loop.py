@@ -106,7 +106,7 @@ class ReActLoop(AgentPipeline):
         tools: Sequence[Tool],
         max_iterations: int = 10,
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Run the unrolled ReAct loop over the seed messages and return the final AgentResponse.
 
         Args:

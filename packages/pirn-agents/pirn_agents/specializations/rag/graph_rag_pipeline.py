@@ -90,7 +90,7 @@ class GraphRAGPipeline(AgentPipeline):
 
     async def process(
         self, query: str, graph_memory: MemoryStore, llm: LLMProvider, hop_count: int, **_: Any
-    ) -> Any:
+    ) -> Knot:
         """Retrieve graph entities, build a sub-graph context, and answer the query via the LLM.
 
         Args:

@@ -91,7 +91,7 @@ class DocumentSummarizerPipeline(AgentPipeline):
         request_timeout: float = _DocumentSourceReader.request_timeout,
         connect_timeout: float = _DocumentSourceReader.connect_timeout,
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Load the document, map-reduce summarise each chunk, and return the combined summary.
 
         Args:

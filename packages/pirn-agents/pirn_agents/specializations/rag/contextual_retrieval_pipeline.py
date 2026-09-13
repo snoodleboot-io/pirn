@@ -71,7 +71,7 @@ class ContextualRetrievalPipeline(AgentPipeline):
         fetch_k: PositiveInt = 10,
         rerank_k: PositiveInt = 5,
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Wire retrieval → rerank → compression → synthesis.
 
         Args:

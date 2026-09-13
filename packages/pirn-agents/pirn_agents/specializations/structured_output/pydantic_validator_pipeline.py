@@ -72,7 +72,7 @@ class PydanticValidatorPipeline(AgentPipeline):
         model_class: type[BaseModel],
         max_retries: int,
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Extract JSON from the LLM, validate against the model class, and return the validated instance.
 
         Args:

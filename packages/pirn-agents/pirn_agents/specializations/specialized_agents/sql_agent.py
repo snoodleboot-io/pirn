@@ -114,7 +114,7 @@ class SQLAgent(AgentPipeline):
         pool: DatabaseConnectionPool,
         schema_description: str = "",
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Translate the question to SQL, execute it, and return the result as an AgentResponse.
 
         Args:

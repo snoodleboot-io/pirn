@@ -67,7 +67,7 @@ class RaptorTreeBuilder(AgentPipeline):
         cluster_size: int = 2,
         max_levels: int = 3,
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Wire ``_DocumentChunker`` → ``_RaptorAssembler`` and return the sink.
 
         Args:

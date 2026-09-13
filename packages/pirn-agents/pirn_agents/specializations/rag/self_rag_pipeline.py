@@ -100,7 +100,7 @@ class SelfRAGPipeline(AgentPipeline):
         llm: LLMProvider,
         top_k: PositiveInt = 5,
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Generate a draft answer, assess retrieval need, optionally retrieve and regenerate.
 
         Args:

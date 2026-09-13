@@ -73,7 +73,7 @@ class JsonExtractorPipeline(AgentPipeline):
         schema: Mapping[str, Any],
         max_retries: int,
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Extract a JSON mapping from the LLM response, retrying with error feedback on failure.
 
         Args:

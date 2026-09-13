@@ -81,7 +81,7 @@ class HyDERAGPipeline(AgentPipeline):
 
     async def process(
         self, query: str, memory: MemoryStore, llm: LLMProvider, top_k: int, **_: Any
-    ) -> Any:
+    ) -> Knot:
         """Generate a hypothetical answer, retrieve on it, then produce the final answer via the LLM.
 
         Args:

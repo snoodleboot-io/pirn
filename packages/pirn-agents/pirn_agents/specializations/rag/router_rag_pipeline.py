@@ -58,7 +58,7 @@ class RouterRagPipeline(AgentPipeline):
         llm: LLMProvider,
         top_k: int = 5,
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Wire classification → routed retrieval → synthesis.
 
         Args:

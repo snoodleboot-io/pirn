@@ -104,7 +104,7 @@ class DocumentQAPipeline(AgentPipeline):
         request_timeout: float = _DocumentSourceReader.request_timeout,
         connect_timeout: float = _DocumentSourceReader.connect_timeout,
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Retrieve the top-k relevant chunks from source and answer the question via the LLM.
 
         Args:

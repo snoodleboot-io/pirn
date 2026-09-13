@@ -63,7 +63,7 @@ class ConsensusAggregator(AgentPipeline):
         llm: LLMProvider,
         strategy: str = "llm_synthesis",
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Apply the configured consensus strategy to the specialist responses and return the winner.
 
         Args:

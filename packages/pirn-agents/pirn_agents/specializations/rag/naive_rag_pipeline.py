@@ -87,7 +87,7 @@ class NaiveRAGPipeline(AgentPipeline):
         llm: LLMProvider,
         top_k: PositiveInt = 5,
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Retrieve top-k memories, build a prompt, generate an answer, and return it as an AgentResponse.
 
         Inputs are validated by the framework against these annotations before

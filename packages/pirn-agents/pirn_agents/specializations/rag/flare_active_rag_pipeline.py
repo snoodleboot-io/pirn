@@ -100,7 +100,7 @@ class FlareActiveRagPipeline(AgentPipeline):
         max_retrieval_calls: PositiveInt = 3,
         top_k: PositiveInt = 3,
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Run the FLARE loop and return the assembled answer as a source knot.
 
         Args:

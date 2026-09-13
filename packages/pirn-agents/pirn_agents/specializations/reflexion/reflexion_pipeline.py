@@ -70,7 +70,7 @@ class ReflexionPipeline(AgentPipeline):
         max_iterations: int = 3,
         memory_namespace: str = "reflexion",
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Run the bounded Reflexion loop and surface a :class:`ReflexionResult`.
 
         Args:

@@ -77,7 +77,7 @@ class InputGuardrailCheck(AgentPipeline):
         deny_patterns: Sequence[str] = (),
         pii_patterns: Sequence[str] = (),
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Reject messages matching deny patterns and redact PII, returning the cleaned message tuple.
 
         Args:

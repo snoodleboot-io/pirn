@@ -66,7 +66,7 @@ class SelfQueryRagPipeline(AgentPipeline):
         filterable_fields: list[str] | None = None,
         top_k: int = 5,
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Wire filter extraction → filtered retrieval → synthesis.
 
         Args:

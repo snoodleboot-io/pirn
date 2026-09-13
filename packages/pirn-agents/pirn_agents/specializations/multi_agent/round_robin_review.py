@@ -61,7 +61,7 @@ class RoundRobinReview(AgentPipeline):
         response: AgentResponse,
         reviewers: Any,
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Send the draft through each reviewer in round-robin order, returning the final result.
 
         Args:

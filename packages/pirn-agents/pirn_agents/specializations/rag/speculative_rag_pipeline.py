@@ -60,7 +60,7 @@ class SpeculativeRagPipeline(AgentPipeline):
         llm: LLMProvider,
         top_k: int = 5,
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Wire the concurrent draft + retrieval branches into verification.
 
         Args:

@@ -71,7 +71,7 @@ class RetryOnParseFailure(AgentPipeline):
         parser: Callable[[str], Any],
         max_retries: int = 3,
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Attempt to get a valid parsed response, retrying with error feedback on failure.
 
         Args:
