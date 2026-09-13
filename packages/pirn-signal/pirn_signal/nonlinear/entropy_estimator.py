@@ -39,6 +39,8 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.nonlinear._ordinal_pattern_entropy import OrdinalPatternEntropy
+from pirn_signal.nonlinear._sample_entropy import SampleEntropy
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -106,65 +108,27 @@ class EntropyEstimator(Knot):
         }
 
     @staticmethod
-    def _sample_entropy(signal_array: np.ndarray, template_length: int, tolerance: float) -> float:
-        """Sample entropy via template matching with Chebyshev distance."""
+    def _approx_entropy_phi(signal_array: np.ndarray, m_val: int, tolerance: float) -> float:
+        """Mean log frequency of self-inclusive template matches of length ``m_val``."""
         signal_length = len(signal_array)
-
-        def _phi(m_val: int) -> int:
-            count = 0
-            for template_idx in range(signal_length - m_val):
-                template = signal_array[template_idx : template_idx + m_val]
-                for compare_idx in range(signal_length - m_val):
-                    if (
-                        template_idx != compare_idx
-                        and np.max(
-                            np.abs(signal_array[compare_idx : compare_idx + m_val] - template)
-                        )
-                        < tolerance
-                    ):
-                        count += 1
-            return count
-
-        match_count_longer = _phi(template_length + 1)
-        match_count_base = _phi(template_length)
-        if match_count_base == 0:
-            return 0.0
-        return float(-np.log(match_count_longer / match_count_base))
+        counts = []
+        for template_idx in range(signal_length - m_val + 1):
+            template = signal_array[template_idx : template_idx + m_val]
+            match_count = sum(
+                1
+                for compare_idx in range(signal_length - m_val + 1)
+                if np.max(np.abs(signal_array[compare_idx : compare_idx + m_val] - template))
+                <= tolerance
+            )
+            counts.append(float(match_count) / (signal_length - m_val + 1))
+        return float(np.mean(np.log(counts)))
 
     @staticmethod
     def _approx_entropy(signal_array: np.ndarray, template_length: int, tolerance: float) -> float:
         """Approximate entropy via template matching (includes self-matches)."""
-        signal_length = len(signal_array)
-
-        def _phi(m_val: int) -> float:
-            counts = []
-            for template_idx in range(signal_length - m_val + 1):
-                template = signal_array[template_idx : template_idx + m_val]
-                match_count = sum(
-                    1
-                    for compare_idx in range(signal_length - m_val + 1)
-                    if np.max(np.abs(signal_array[compare_idx : compare_idx + m_val] - template))
-                    <= tolerance
-                )
-                counts.append(float(match_count) / (signal_length - m_val + 1))
-            return float(np.mean(np.log(counts)))
-
-        return float(_phi(template_length) - _phi(template_length + 1))
-
-    @staticmethod
-    def _perm_entropy(signal_array: np.ndarray, template_length: int) -> float:
-        """Permutation entropy via ordinal pattern frequencies."""
-        signal_length = len(signal_array)
-        counts: dict[tuple[int, ...], int] = {}
-        for start_idx in range(signal_length - template_length + 1):
-            pattern = tuple(
-                int(rank)
-                for rank in np.argsort(signal_array[start_idx : start_idx + template_length])
-            )
-            counts[pattern] = counts.get(pattern, 0) + 1
-        total = sum(counts.values())
-        probs = np.array([v / total for v in counts.values()])
-        return float(-np.sum(probs * np.log(probs + 1e-12)))
+        phi_m = EntropyEstimator._approx_entropy_phi(signal_array, template_length, tolerance)
+        phi_m1 = EntropyEstimator._approx_entropy_phi(signal_array, template_length + 1, tolerance)
+        return float(phi_m - phi_m1)
 
     @staticmethod
     def _spectral_entropy(signal_array: np.ndarray) -> float:
@@ -181,9 +145,9 @@ class EntropyEstimator(Knot):
         """Dispatch entropy computation to the selected measure."""
         tolerance = 0.2 * float(np.std(signal_array))
         if kind == "sample":
-            return EntropyEstimator._sample_entropy(signal_array, template_length, tolerance)
+            return SampleEntropy.compute(signal_array, template_length, tolerance)
         if kind == "approximate":
             return EntropyEstimator._approx_entropy(signal_array, template_length, tolerance)
         if kind == "permutation":
-            return EntropyEstimator._perm_entropy(signal_array, template_length)
+            return OrdinalPatternEntropy.compute(signal_array, template_length)[0]
         return EntropyEstimator._spectral_entropy(signal_array)
