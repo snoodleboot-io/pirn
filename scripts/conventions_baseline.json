@@ -1,0 +1,79 @@
+{
+  "pirn-agents": {
+    "filename_mismatch": 0,
+    "gate_wrong_base": 5,
+    "knot_init_impure": 13,
+    "knot_process_kwargs_name": 5,
+    "knot_property": 2,
+    "knot_self_assignment": 12,
+    "module_level_function": 62,
+    "multi_class_file": 0,
+    "nested_def_missing_override": 52
+  },
+  "pirn-core": {
+    "filename_mismatch": 34,
+    "gate_wrong_base": 3,
+    "knot_init_impure": 1,
+    "knot_process_kwargs_name": 3,
+    "knot_property": 5,
+    "knot_self_assignment": 1,
+    "module_level_function": 43,
+    "multi_class_file": 7,
+    "nested_def_missing_override": 86
+  },
+  "pirn-data": {
+    "filename_mismatch": 1,
+    "gate_wrong_base": 0,
+    "knot_init_impure": 0,
+    "knot_process_kwargs_name": 0,
+    "knot_property": 0,
+    "knot_self_assignment": 0,
+    "module_level_function": 1,
+    "multi_class_file": 1,
+    "nested_def_missing_override": 18
+  },
+  "pirn-health": {
+    "filename_mismatch": 2,
+    "gate_wrong_base": 0,
+    "knot_init_impure": 0,
+    "knot_process_kwargs_name": 0,
+    "knot_property": 0,
+    "knot_self_assignment": 0,
+    "module_level_function": 85,
+    "multi_class_file": 0,
+    "nested_def_missing_override": 3
+  },
+  "pirn-ml": {
+    "filename_mismatch": 1,
+    "gate_wrong_base": 1,
+    "knot_init_impure": 0,
+    "knot_process_kwargs_name": 1,
+    "knot_property": 0,
+    "knot_self_assignment": 0,
+    "module_level_function": 4,
+    "multi_class_file": 1,
+    "nested_def_missing_override": 0
+  },
+  "pirn-oilgas": {
+    "filename_mismatch": 0,
+    "gate_wrong_base": 1,
+    "knot_init_impure": 0,
+    "knot_process_kwargs_name": 0,
+    "knot_property": 0,
+    "knot_self_assignment": 0,
+    "module_level_function": 23,
+    "multi_class_file": 0,
+    "nested_def_missing_override": 6
+  },
+  "pirn-signal": {
+    "filename_mismatch": 0,
+    "gate_wrong_base": 0,
+    "knot_init_impure": 0,
+    "knot_process_kwargs_name": 0,
+    "knot_property": 0,
+    "knot_self_assignment": 0,
+    "module_level_function": 107,
+    "multi_class_file": 0,
+    "nested_def_missing_override": 3
+  }
+}
