@@ -125,6 +125,7 @@ class TestContentIdentifiedProvidersHashByConfiguration(unittest.TestCase):
 
         # Assert
         assert canonical == {
+            "__pirn_type__": "llm_provider",
             "provider": "pirn_agents.llm.anthropic_messages_provider.AnthropicMessagesProvider",
             "config": {
                 "model": "m-a",
@@ -222,6 +223,53 @@ class TestContentIdentifiedProvidersHashByConfiguration(unittest.TestCase):
 
                 # Assert
                 assert content_hash(varied) != reference
+
+    def test_a_plain_mapping_of_the_same_shape_does_not_hash_like_a_provider(self) -> None:
+        # Arrange
+        provider = OpenAICompatibleProvider(model="m", base_url="https://a/v1")
+        canonical = provider.__pirn_canonical__()
+        lookalike = {"provider": canonical["provider"], "config": canonical["config"]}
+
+        # Act / Assert
+        assert content_hash(lookalike) != content_hash(provider)
+
+    def test_the_hash_follows_the_pricing_and_retry_policy_that_actually_run(self) -> None:
+        """Swapping a private attribute after construction must not re-key the hash.
+
+        The constructor hands pricing to the response mapper and the retry policy to
+        the transport; those are what compute ``cost`` and retry. A hash read from the
+        provider's own attributes would describe a config that never runs.
+        """
+        # Arrange
+        provider = OpenAICompatibleProvider(
+            model="m",
+            base_url="https://a/v1",
+            pricing=ModelPricing(input_per_million=1.0),
+            retry_policy=RetryPolicy(max_retries=2),
+        )
+        before = content_hash(provider)
+        running_cost = provider._mapper.estimate_cost({"input_tokens": 1_000_000})
+
+        # Act
+        provider._pricing = ModelPricing(input_per_million=99.0)
+        provider._retry_policy = RetryPolicy(max_retries=0)
+
+        # Assert — cost and retries still come from the built collaborators, and so does the hash.
+        assert provider._mapper.estimate_cost({"input_tokens": 1_000_000}) == running_cost
+        assert provider._transport.retry_policy == RetryPolicy(max_retries=2)
+        assert content_hash(provider) == before
+        assert provider.__pirn_canonical__()["config"]["pricing"]["input_per_million"] == 1.0
+        assert provider.__pirn_canonical__()["config"]["retry_policy"]["max_retries"] == 2
+
+    def test_a_replaced_mapper_falls_back(self) -> None:
+        # Arrange
+        provider = OpenAICompatibleProvider(model="m", base_url="https://a/v1")
+        provider._mapper = type("_Mapper", (type(provider._mapper),), {})(
+            codec=provider._codec, pricing=None
+        )
+
+        # Act / Assert
+        assert provider.content_identity() is None
 
     def test_the_hash_is_stable_across_close_and_credential_clearing(self) -> None:
         # Arrange

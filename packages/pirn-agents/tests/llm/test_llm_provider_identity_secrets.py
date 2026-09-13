@@ -111,7 +111,7 @@ class TestCredentialsNeverAppearInTheCanonicalForm(unittest.TestCase):
                 canonical = provider.__pirn_canonical__()
 
                 # Assert
-                assert set(canonical) == {"provider", "config"}
+                assert set(canonical) == {"__pirn_type__", "provider", "config"}
                 assert set(canonical["config"]) == {
                     "model",
                     "endpoint",

@@ -27,7 +27,6 @@ from typing import Any, ClassVar
 
 from pirn.backends.disk import LocalDiskDataStore
 from pirn.backends.sqlite.sqlite_history import SQLiteHistory
-from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.recording.replay_error import ReplayError
@@ -38,17 +37,7 @@ from pirn.tapestry import Tapestry
 from pirn_agents.llm.anthropic_messages_provider import AnthropicMessagesProvider
 from pirn_agents.llm.base_llm_provider import BaseLLMProvider
 from pirn_agents.llm.openai_compatible_provider import OpenAICompatibleProvider
-
-
-class AsksModel(Knot):
-    """Holds a provider as a literal and returns the model's reply to one message."""
-
-    def __init__(self, *, llm: BaseLLMProvider, **kwargs: Any) -> None:
-        super().__init__(llm=llm, **kwargs)
-
-    async def process(self, llm: BaseLLMProvider, **_: Any) -> str:
-        reply = await llm.chat([{"role": "user", "content": "hello"}])
-        return str(reply["content"])
+from tests.llm.asks_model import AsksModel
 
 
 class ProviderReplayWorker:

@@ -168,6 +168,14 @@ class BaseLLMProvider(ConnectorBase, LLMProvider):
         * the pricing or retry policy is a subclass of its value type, or a numeric
           setting is not a plain number.
 
+        Pricing, retry policy, sleeper and jitter source are read from the
+        collaborators the constructor built (the response mapper and the transport),
+        not from the provider's own attributes, so the hash describes what actually
+        runs. Mutating any private attribute after construction (``_pricing``,
+        ``_mapper``, ``_transport``, …) or monkeypatching a method is unsupported:
+        the hash is only guaranteed to match behaviour for a provider configured
+        through its constructor.
+
         The opt-in is **not inherited**, following the rule tools use: only a class
         that defines ``content_identity`` itself is content-identified. A concrete
         provider re-declares it (usually as ``return super().content_identity()``)
@@ -181,17 +189,20 @@ class BaseLLMProvider(ConnectorBase, LLMProvider):
         """
         if self._injected_client is not None:
             return None
-        if self._sleep is not asyncio.sleep or self._rng is not None:
+        transport = self._transport
+        mapper = self._mapper
+        if type(transport) is not HttpTransport or type(mapper) is not ResponseMapper:
             return None
-        if type(self._transport) is not HttpTransport:
+        if transport.sleeper is not asyncio.sleep or transport.rng is not None:
             return None
         endpoint = EndpointIdentity.of(self._base_url)
         if endpoint is None:
             return None
-        pricing = None if self._pricing is None else self._pricing_identity(self._pricing)
-        if self._pricing is not None and pricing is None:
+        running_pricing = mapper.pricing
+        pricing = None if running_pricing is None else self._pricing_identity(running_pricing)
+        if running_pricing is not None and pricing is None:
             return None
-        retry_policy = self._retry_policy_identity(self._retry_policy)
+        retry_policy = self._retry_policy_identity(transport.retry_policy)
         if retry_policy is None:
             return None
         max_tokens = self._default_max_tokens
@@ -223,9 +234,10 @@ class BaseLLMProvider(ConnectorBase, LLMProvider):
           ``__main__`` class stays identity-keyed;
         * :meth:`content_identity` returns a mapping, not ``None``.
 
-        The content form is the class reference plus the declared config. The class
-        is included because it fixes the wire format, completions path and any
-        class-level headers. No credential, header value, userinfo or query string
+        The content form is a type tag, the class reference and the declared config.
+        The class is included because it fixes the wire format, completions path and
+        any class-level headers. The tag keeps a provider's form from coinciding with
+        an ordinary mapping value that happens to have the same two keys. No credential, header value, userinfo or query string
         ever appears in it. :meth:`_pirn_audit_dict` is unchanged.
         """
         provider_type = type(self)
@@ -237,7 +249,7 @@ class BaseLLMProvider(ConnectorBase, LLMProvider):
         config = self.content_identity()
         if config is None:
             return super().__pirn_canonical__()
-        return {"provider": reference, "config": config}
+        return {"__pirn_type__": "llm_provider", "provider": reference, "config": config}
 
     @staticmethod
     def _pricing_identity(pricing: ModelPricing) -> dict[str, float] | None:
