@@ -22,8 +22,11 @@ from collections.abc import Callable
 
 import pytest
 
+import pirn.core.pirn_identity_nonce as pirn_identity_nonce_module
+import pirn.core.pirn_opaque_value as pirn_opaque_value_module
 from pirn.connectors.connector_base import ConnectorBase
 from pirn.core.hashing import content_hash
+from pirn.core.pirn_identity_nonce import PirnIdentityNonce
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 from tests.unit.core.identity_reuse_subprocess import IdentityReuseSubprocess
 
@@ -247,16 +250,89 @@ def test_non_weakrefable_deep_copy_gets_its_own_token() -> None:
     assert duplicate._pirn_identity_token() != original_token
 
 
-def test_non_weakrefable_token_never_survives_pickle_free_unpickle_at_the_same_address() -> None:
-    # Arrange — the probe that defeated the id()-owner check: pickle A, free
-    # it, unpickle into (usually) the same address, in a clean interpreter.
+@pytest.mark.parametrize("protocol", range(pickle.HIGHEST_PROTOCOL + 1))
+def test_non_weakrefable_pickle_payload_never_carries_the_identity_token(protocol: int) -> None:
+    # Arrange — if the token is not in the bytes, no unpickled object can
+    # recover it, whatever address it lands at.
+    original = OpaqueTuple((1, 2))
+    token = original._pirn_identity_token()
 
     # Act
-    tally = IdentityReuseSubprocess.run("tuple_pickle", 2000)
+    payload = pickle.dumps(original, protocol=protocol)
 
     # Assert
-    assert tally["reuses"] > 0, f"no address was reused; the loop tested nothing: {tally}"
-    assert tally["collisions"] == 0, tally
+    assert token.encode("ascii") not in payload
+    assert token.encode("utf-16-le") not in payload
+
+
+def test_non_weakrefable_unpickled_value_at_the_originals_address_mints_its_own_token(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Arrange — the probe that defeated the old id()-owner check: an object
+    # unpickled into the freed original's address. Real reuse depends on the
+    # allocator and was flaky in CI (PIR-855), so the address match is
+    # simulated: every object reports the same id() to the owner checks.
+    _report_one_address_for_every_object(monkeypatch)
+    original = OpaqueTuple((1, 2))
+    original_token = original._pirn_identity_token()
+    payload = pickle.dumps(original)
+    del original
+
+    # Act
+    restored = pickle.loads(payload)
+
+    # Assert
+    assert restored._pirn_identity_token() != original_token
+
+
+def test_non_weakrefable_deep_copy_at_the_originals_address_mints_its_own_token(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Arrange — as above, for a deepcopy that lands at the original's address.
+    _report_one_address_for_every_object(monkeypatch)
+    original = OpaqueTuple((1, 2))
+    original_token = original._pirn_identity_token()
+
+    # Act
+    duplicate = copy.deepcopy(original)
+
+    # Assert
+    assert duplicate._pirn_identity_token() != original_token
+
+
+def test_non_weakrefable_holder_minted_for_another_owner_is_not_trusted() -> None:
+    # Arrange — a holder in this instance's __dict__ whose owner is another
+    # object (or nobody) must not lend its token.
+    value = OpaqueTuple((1, 2))
+    borrowed = PirnIdentityNonce(owner_id=id(value) + 16)
+    ownerless = PirnIdentityNonce()
+    tokens = []
+
+    # Act
+    for holder in (borrowed, ownerless):
+        vars(value)["_pirn_identity_nonce"] = holder
+        tokens.append(value._pirn_identity_token())
+
+    # Assert
+    assert tokens[0] != borrowed.token
+    assert tokens[1] != ownerless.token
+
+
+def test_simulated_shared_address_would_expose_an_id_only_token(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Arrange — control for the simulation: with every object at one address,
+    # a token keyed on id() alone collides. The tests above therefore exercise
+    # the hazard rather than passing vacuously.
+    _report_one_address_for_every_object(monkeypatch)
+    first, second = OpaqueTuple((1,)), OpaqueTuple((2,))
+
+    # Act
+    ids = {pirn_identity_nonce_module.id(first), pirn_identity_nonce_module.id(second)}  # type: ignore[attr-defined]
+
+    # Assert
+    assert len(ids) == 1
+    assert first._pirn_identity_token() != second._pirn_identity_token()
 
 
 def test_non_weakrefable_mutated_shallow_copy_does_not_hash_equal_to_the_original() -> None:
@@ -302,6 +378,22 @@ def test_instance_without_a_dict_refuses_with_a_fresh_token_per_read() -> None:
 
     # Assert — it never matches anything, itself included.
     assert len(tokens) == 5
+
+
+def _one_address(_value: object) -> int:
+    """Stand-in for ``id``: every object reports the same address."""
+    return 0x7F00_0000_1000
+
+
+def _report_one_address_for_every_object(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make the identity machinery see every object at one address.
+
+    ``id`` is resolved as a module global before the builtin, so shadowing it
+    in the two modules that call it simulates address reuse exactly, with no
+    dependence on the allocator.
+    """
+    monkeypatch.setattr(pirn_identity_nonce_module, "id", _one_address, raising=False)
+    monkeypatch.setattr(pirn_opaque_value_module, "id", _one_address, raising=False)
 
 
 def _read_token_after_barrier(

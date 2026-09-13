@@ -8,9 +8,9 @@ an :class:`AgentResponse`.
 
 Wiring N of these as the parents of a single
 :class:`~pirn.nodes.aggregator.Aggregator` lets the *engine* schedule the whole
-fan-out wave concurrently (the scheduler runs every ready sibling in one
-``asyncio.gather``) instead of the caller doing its own ``asyncio.gather`` over
-``process()`` outside the engine. See PIR-714.
+fan-out concurrently (the scheduler starts every sibling as its own task the
+moment it is ready; PIR-841) instead of the caller doing its own
+``asyncio.gather`` over ``process()`` outside the engine. See PIR-714.
 
 The specialist is held on a ``_mutable_`` slot rather than passed to
 ``super().__init__``. Two facts from ``pirn.core.knot`` force this:

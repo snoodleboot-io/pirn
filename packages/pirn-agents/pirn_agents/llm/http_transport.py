@@ -47,6 +47,21 @@ class HttpTransport:
         self._sleep: Callable[[float], Awaitable[None]] = sleeper
         self._rng: Callable[[], float] | None = rng
 
+    @property
+    def retry_policy(self) -> RetryPolicy:
+        """Return the retry/backoff policy this transport applies."""
+        return self._retry_policy
+
+    @property
+    def sleeper(self) -> Callable[[float], Awaitable[None]]:
+        """Return the async sleep function awaited between retries."""
+        return self._sleep
+
+    @property
+    def rng(self) -> Callable[[], float] | None:
+        """Return the jitter source, or ``None`` for the policy's default."""
+        return self._rng
+
     async def request_with_retries(
         self,
         *,

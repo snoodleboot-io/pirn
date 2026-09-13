@@ -13,7 +13,7 @@ from pirn.backends.base.tapestry_snapshot import TapestrySnapshot
 from pirn.backends.base.tapestry_store import TapestryStore
 from pirn.backends.postgres.postgres_store import PostgresStore
 from pirn.engine._run_scoped_subscriber import _RunScopedSubscriber
-from pirn.tapestry import _current_run_id, current_run_id
+from pirn.tapestry import _current_dispatching_knot_id, _current_run_id, current_run_id
 
 
 def _make_knot(knot_id: str) -> MagicMock:
@@ -266,6 +266,27 @@ class TestPostgresStoreRunAttribution(unittest.IsolatedAsyncioTestCase):
         # goes to every extensible run rather than to nobody.
         self.assertEqual(pending_a, [knot])
         self.assertEqual(pending_b, [knot])
+
+    async def test_listener_context_does_not_attribute_a_registrar(self) -> None:
+        # Arrange: the LISTEN task was started by subscribe() while an outer
+        # knot was executing, so its context carries that knot's id.  The
+        # notice names no registering knot (PIR-841).
+        pending: list[Any] = []
+        registrars: dict[str, str] = {}
+        self.store._subscribers[0] = _RunScopedSubscriber("run-a", pending, registrars)
+        knot = _make_knot("k1")
+        await self._register_under_run(knot, "run-a")
+        token = _current_dispatching_knot_id.set("outer-knot")
+
+        # Act
+        try:
+            self._drain_notifications()
+        finally:
+            _current_dispatching_knot_id.reset(token)
+
+        # Assert
+        self.assertEqual(pending, [knot])
+        self.assertEqual(registrars, {})
 
     def test_legacy_bare_knot_id_payload_still_broadcasts(self) -> None:
         """A publisher from before PIR-815 sends the bare knot id.
