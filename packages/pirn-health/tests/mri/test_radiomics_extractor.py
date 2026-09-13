@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import unittest
-from collections.abc import Mapping
 
 from pirn.core.knot_config import KnotConfig
 
@@ -36,9 +35,9 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(TypeError, "string"):
             await knot.process(image_path="i", mask_path="m", feature_classes=[1])  # type: ignore[list-item]
 
-    async def test_returns_mapping(self) -> None:
+    async def test_raises_not_implemented_for_valid_input(self) -> None:
         knot = self._make_knot()
-        out = await knot.process(
-            image_path="i.nii.gz", mask_path="m.nii.gz", feature_classes=["firstorder"]
-        )
-        assert isinstance(out, Mapping)
+        with self.assertRaisesRegex(NotImplementedError, "pyradiomics"):
+            await knot.process(
+                image_path="i.nii.gz", mask_path="m.nii.gz", feature_classes=["firstorder"]
+            )

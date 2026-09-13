@@ -11,7 +11,8 @@ from pirn.tapestry import Tapestry
 from pirn_health.mri.mri_quality_controller import MRIQualityController
 
 _CFG = KnotConfig(id="q")
-_MRI = {"nifti_path": "scan.nii.gz", "motion_params": [0.1, 0.2]}
+_VOXELS = [float(v) for v in range(1, 101)]
+_MRI = {"nifti_path": "scan.nii.gz", "motion_params": [0.1, 0.2], "voxel_data": _VOXELS}
 
 
 def _make_knot() -> MRIQualityController:
@@ -56,8 +57,16 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_no_motion_params(self) -> None:
         knot = _make_knot()
-        mri = {"nifti_path": "scan.nii.gz", "motion_params": None}
+        mri = {"nifti_path": "scan.nii.gz", "motion_params": None, "voxel_data": _VOXELS}
         out = await knot.process(
             mri_data=mri, snr_threshold=10.0, motion_threshold_mm=0.5, modality="T1w"
         )
         assert out["mean_fd_mm"] is None
+
+    async def test_raises_not_implemented_without_voxel_data(self) -> None:
+        knot = _make_knot()
+        mri = {"nifti_path": "scan.nii.gz", "motion_params": [0.1, 0.2]}
+        with self.assertRaisesRegex(NotImplementedError, "voxel_data"):
+            await knot.process(
+                mri_data=mri, snr_threshold=10.0, motion_threshold_mm=0.5, modality="T1w"
+            )

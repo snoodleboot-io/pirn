@@ -3,9 +3,15 @@
 Algorithm:
     1. Receive mri_data dict, snr_threshold float, motion_threshold_mm float, modality string.
     2. Validate modality is one of T1w/T2w/BOLD/DWI and thresholds are positive numerics.
-    3. Compute SNR and CNR from the image data.
-    4. Compute mean framewise displacement from motion parameters if provided.
-    5. Return QC metrics and pass/fail flag.
+    3. If ``mri_data`` carries ``voxel_data``, compute SNR and CNR directly from
+       those values (bottom 20% by intensity as the noise region, remainder as
+       signal; CNR from the interquartile contrast).
+    4. If no ``voxel_data`` is supplied, raise ``NotImplementedError`` — computing
+       SNR/CNR from a bare ``nifti_path`` requires loading the image, which is
+       not implemented here. There is no fallback path; synthetic values derived
+       from the path are never produced.
+    5. Compute mean framewise displacement from motion parameters if provided.
+    6. Return QC metrics and pass/fail flag.
 
 Math:
     Signal-to-noise ratio:
@@ -71,6 +77,9 @@ class MRIQualityController(Knot):
         Raises:
             TypeError: If mri_data is not a dict.
             ValueError: If modality is invalid or thresholds are not positive.
+            NotImplementedError: If ``mri_data`` has no usable ``voxel_data`` —
+                computing SNR/CNR from a bare NIfTI path is not implemented and
+                synthetic values are not produced.
         """
         if not isinstance(mri_data, dict):
             raise TypeError("MRIQualityController: mri_data must be a dict")
@@ -104,13 +113,10 @@ class MRIQualityController(Knot):
             q25 = float(np.percentile(arr, 25))
             cnr = float((q75 - q25) / noise_std)
         else:
-            # Deterministic proxy derived from the file path
-            import hashlib
-
-            seed = int(hashlib.sha256(mri_data.get("nifti_path", "").encode()).hexdigest()[:8], 16)
-            rng = np.random.default_rng(seed)
-            snr = float(20.0 + rng.uniform(0, 60))
-            cnr = float(5.0 + rng.uniform(0, 20))
+            raise NotImplementedError(
+                "MRIQualityController: computing SNR/CNR from a bare 'nifti_path' is not "
+                "implemented — pass 'voxel_data' in mri_data; synthetic values are not produced"
+            )
 
         qc_flags: list[str] = []
         if snr < float(snr_threshold):

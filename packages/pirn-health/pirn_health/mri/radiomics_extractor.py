@@ -1,14 +1,17 @@
 """``RadiomicsExtractor`` — pyradiomics-style radiomic feature extractor.
 
-Production version uses ``pyradiomics``. This stub returns an empty
-mapping ``feature_name -> value``.
+Production version uses ``pyradiomics`` to compute first-order, texture, and
+shape features from an image and ROI mask. No synthetic fallback exists:
+``pyradiomics`` is not part of any current ``pirn-health`` extra, so
+``process()`` raises ``NotImplementedError`` unconditionally rather than
+inventing plausible-looking feature values from the input paths.
 
 Algorithm:
     1. Receive image_path, mask_path strings, and feature_classes sequence.
     2. Validate paths are non-empty and feature_classes is list/tuple of strings.
-    3. Load image and ROI mask from the given paths.
-    4. Compute first-order, texture, and shape features per class.
-    5. Return a mapping of feature name to numeric value.
+    3. Raise ``NotImplementedError`` — real computation requires ``pyradiomics``
+       to load the image/mask pair and compute the requested feature classes.
+       There is no fallback path; synthetic values are never produced.
 
 Math:
     Grey-level co-occurrence matrix (GLCM) contrast:
@@ -22,7 +25,6 @@ References:
 
 from __future__ import annotations
 
-import hashlib
 from collections.abc import Mapping, Sequence
 from typing import Any
 
@@ -65,11 +67,13 @@ class RadiomicsExtractor(Knot):
             feature_classes: List or tuple of feature class name strings.
 
         Returns:
-            Mapping of feature name to radiomic value (empty at orchestration layer).
+            Never returns; always raises ``NotImplementedError``.
 
         Raises:
             ValueError: If image_path or mask_path is empty.
             TypeError: If feature_classes is not list/tuple or contains non-strings.
+            NotImplementedError: Always, once inputs validate — real radiomic
+                computation requires ``pyradiomics``; no synthetic fallback exists.
         """
         for label, value in (
             ("image_path", image_path),
@@ -82,28 +86,7 @@ class RadiomicsExtractor(Knot):
         for fc in feature_classes:
             if not isinstance(fc, str):
                 raise TypeError("RadiomicsExtractor: every feature class must be a string")
-        merged: dict[str, float] = {}
-        for fc in feature_classes:
-            digest = int(hashlib.sha256((image_path + mask_path + fc).encode()).hexdigest()[:8], 16)
-            if fc == "shape":
-                features = {
-                    "volume_vox": float(digest % 10000 + 1000),
-                    "surface_area_vox": float(digest % 5000 + 500),
-                    "sphericity": 0.6 + (digest % 40) / 100.0,
-                }
-            elif fc == "firstorder":
-                features = {
-                    "mean": (digest % 1000) / 10.0,
-                    "std": (digest % 200) / 10.0,
-                    "kurtosis": 2.5 + (digest % 10) / 10.0,
-                }
-            elif fc == "glcm":
-                features = {
-                    "contrast": (digest % 500) / 100.0,
-                    "correlation": 0.3 + (digest % 60) / 100.0,
-                    "energy": 0.1 + (digest % 50) / 100.0,
-                }
-            else:
-                features = {"value": (digest % 1000) / 100.0}
-            merged.update({f"{fc}_{k}": v for k, v in features.items()})
-        return merged
+        raise NotImplementedError(
+            "RadiomicsExtractor: real computation requires 'pyradiomics' "
+            "(not currently part of any pirn-health extra); synthetic values are not produced"
+        )

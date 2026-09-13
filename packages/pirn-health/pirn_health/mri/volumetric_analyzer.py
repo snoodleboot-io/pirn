@@ -1,14 +1,17 @@
 """``VolumetricAnalyzer`` — per-region volume estimates.
 
-Production version uses FreeSurfer aseg/aparc volumes or FSL FAST.
-This stub returns an empty mapping ``region -> volume_mm3``.
+Production version uses FreeSurfer aseg/aparc volumes or FSL FAST, loading
+the atlas-labelled NIfTI via ``nibabel`` and counting voxels per region. No
+synthetic fallback exists: ``process()`` raises ``NotImplementedError`` once
+inputs validate rather than inventing plausible-looking volumes from the
+input path.
 
 Algorithm:
     1. Receive labelled_nifti_path string and regions sequence.
     2. Validate labelled_nifti_path is non-empty and regions is list/tuple of strings.
-    3. Load the atlas-labelled NIfTI and count voxels per region.
-    4. Multiply voxel counts by voxel volume to get mm³.
-    5. Return a mapping of region name to volume.
+    3. Raise ``NotImplementedError`` — real computation requires the 'mri'
+       extra (nibabel) to load the labelled NIfTI and count voxels per
+       region. There is no fallback path; synthetic values are never produced.
 
 Math:
     Volume for region $r$:
@@ -24,7 +27,6 @@ References:
 
 from __future__ import annotations
 
-import hashlib
 from collections.abc import Mapping, Sequence
 from typing import Any
 
@@ -63,11 +65,14 @@ class VolumetricAnalyzer(Knot):
             regions: List or tuple of region name strings to measure.
 
         Returns:
-            Mapping of region name to volume in cubic millimetres.
+            Never returns; always raises ``NotImplementedError``.
 
         Raises:
             ValueError: If labelled_nifti_path is empty.
             TypeError: If regions is not list/tuple or contains non-strings.
+            NotImplementedError: Always, once inputs validate — real volumetric
+                computation requires the 'mri' extra (nibabel); no synthetic
+                fallback exists.
         """
         if not isinstance(labelled_nifti_path, str) or not labelled_nifti_path:
             raise ValueError("VolumetricAnalyzer: labelled_nifti_path must be non-empty")
@@ -76,9 +81,7 @@ class VolumetricAnalyzer(Knot):
         for region in regions:
             if not isinstance(region, str):
                 raise TypeError("VolumetricAnalyzer: every region must be a string")
-        result = {}
-        for region in regions:
-            seed = (labelled_nifti_path + region).encode()
-            digest = int(hashlib.sha256(seed).hexdigest()[:8], 16)
-            result[region] = 500.0 + (digest % 10000) * 0.1
-        return result
+        raise NotImplementedError(
+            "VolumetricAnalyzer: real computation requires the 'mri' extra (nibabel); "
+            "synthetic values are not produced"
+        )

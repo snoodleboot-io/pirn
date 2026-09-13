@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import unittest
-from collections.abc import Mapping
 
 from pirn.core.knot_config import KnotConfig
 
@@ -31,8 +30,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(TypeError, "string"):
             await knot.process(labelled_nifti_path="x", regions=[1])  # type: ignore[list-item]
 
-    async def test_returns_per_region_mapping(self) -> None:
+    async def test_raises_not_implemented_for_valid_input(self) -> None:
         knot = self._make_knot()
-        out = await knot.process(labelled_nifti_path="x", regions=["frontal"])
-        assert isinstance(out, Mapping)
-        assert "frontal" in out
+        with self.assertRaisesRegex(NotImplementedError, "nibabel"):
+            await knot.process(labelled_nifti_path="x", regions=["frontal"])
