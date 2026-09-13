@@ -1,26 +1,34 @@
 """``SemanticResultCache`` — a :class:`ResultCache` that matches by embedding similarity.
 
-Core store: none. :meth:`get_or_compute_semantic` scans every stored embedding
-for the best cosine match, which needs enumeration —
+ADR agents-speaks-core WS2 part 2: "index = resource, values = DataStore".
+:meth:`get_or_compute_semantic` needs a nearest-match scan over embeddings,
+which needs enumeration —
 :class:`pirn.backends.base.data_store.DataStore` deliberately exposes none
-(``put``/``get``/``has``/``scrub`` only, keyed lookups by design), so this
-class keeps its own ``dict[str, CacheEntry]`` index rather than
-:class:`~pirn_agents.caching.result_cache.ResultCache`'s ``DataStore``
-(ADR agents-speaks-core WS2 — layering this onto a shared store is deferred
-pending an enumerable core store; see the WS2 report). Its exact-key path
-(:meth:`get`/:meth:`put`/:meth:`has`/:meth:`invalidate`) therefore overrides
-every ``ResultCache`` storage method rather than inheriting them.
+(``put``/``get``/``has``/``scrub`` only, keyed lookups by design). The
+embeddings therefore live in a vended
+:class:`~pirn_agents.caching.similarity_index.SimilarityIndex` resource
+(exactly like a vector-store backend), keyed by the same ``content_hash``
+string the matched entry is stored under; the entries themselves — the
+actual cached *values* — live in an
+:class:`~pirn.backends.in_memory.in_memory_data_store.InMemoryDataStore`,
+the same store :class:`~pirn_agents.caching.in_memory_result_cache.InMemoryResultCache`
+uses. Exact-key ``get``/``put``/``has``/``invalidate`` therefore delegate to
+that store, keeping the index in sync alongside it, rather than overriding
+every storage method with a private dict as before this pass.
 """
 
 from __future__ import annotations
 
-import math
 from collections.abc import Awaitable, Callable, Sequence
 from typing import Any
 
+from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
+from pirn.core.hashing import content_hash
+from pirn.exceptions.value_evicted_error import ValueEvictedError
+
 from pirn_agents.caching.cache_entry import CacheEntry
-from pirn_agents.caching.content_address import content_address
 from pirn_agents.caching.result_cache import ResultCache
+from pirn_agents.caching.similarity_index import SimilarityIndex
 
 
 class SemanticResultCache(ResultCache):
@@ -48,7 +56,9 @@ class SemanticResultCache(ResultCache):
             embed: Async function mapping text to a vector; the only backend
                 seam, supplied by the caller.
             threshold: Minimum cosine similarity (0..1) for a semantic hit.
-            max_entries: Optional FIFO bound on stored entries.
+            max_entries: Optional bound on stored entries (evicts the
+                least-recently-*read* entry once reached, per
+                :class:`InMemoryDataStore`).
 
         Raises:
             ValueError: If ``threshold`` is outside ``[0, 1]`` or ``max_entries``
@@ -60,85 +70,77 @@ class SemanticResultCache(ResultCache):
             raise ValueError(
                 f"SemanticResultCache: max_entries must be >= 1 or None, got {max_entries!r}"
             )
+        super().__init__(store=InMemoryDataStore(max_values=max_entries))
         self._embed = embed
         self._threshold = threshold
-        self._max_entries = max_entries
-        self._entries: dict[str, CacheEntry] = {}
+        self._index = SimilarityIndex()
         self.hits = 0
         self.misses = 0
+        # Mirrors InMemoryResultCache's own bookkeeping: DataStore has no
+        # count/enumeration, so __len__ tracks the key set it was given,
+        # not the store's internal state.
+        self._keys: set[str] = set()
 
     def __len__(self) -> int:
-        return len(self._entries)
+        return len(self._keys)
 
     async def get(self, key: str) -> CacheEntry | None:
         """Exact-key lookup (bumps hit/miss counters)."""
-        entry = self._entries.get(key)
+        try:
+            entry = await self._store.get(key)
+        except (KeyError, ValueEvictedError):
+            entry = None
         if entry is None:
             self.misses += 1
+            self._keys.discard(key)
+            self._index.discard(key)
             return None
         self.hits += 1
         return entry
 
     async def put(self, entry: CacheEntry) -> None:
-        """Store ``entry`` with optional FIFO eviction."""
-        if (
-            self._max_entries is not None
-            and entry.key not in self._entries
-            and len(self._entries) >= self._max_entries
-        ):
-            del self._entries[next(iter(self._entries))]
-        self._entries[entry.key] = entry
+        """Store ``entry``, indexing its embedding (if any) for the semantic scan."""
+        await self._store.put(entry.key, entry)
+        self._keys.add(entry.key)
+        if entry.embedding is not None:
+            self._index.put(entry.key, entry.embedding)
 
     async def has(self, key: str) -> bool:
-        """Return whether an entry is stored under the exact ``key``.
-
-        Note this class keeps its own exact-key dict rather than
-        :class:`ResultCache`'s ``DataStore`` (see the module docstring), so it
-        overrides every storage method, including this one, instead of
-        inheriting the base's ``self._store``-backed implementation.
-        """
-        return key in self._entries
+        """Return whether an entry is stored under the exact ``key``."""
+        return await self._store.has(key)
 
     async def invalidate(self, key: str) -> None:
-        """Drop the entry under ``key`` if present."""
-        self._entries.pop(key, None)
+        """Drop the entry under ``key`` if present, from both the store and the index."""
+        await self._store.scrub(key)
+        self._keys.discard(key)
+        self._index.discard(key)
 
     async def get_or_compute_semantic(
         self, text: str, compute: Callable[[], Awaitable[Any]]
     ) -> Any:
         """Return a semantically-matching cached value or compute and store one.
 
-        Embeds ``text``, scans stored entries for the best cosine match at or
-        above ``threshold``, and returns its value on a hit. On a miss it
-        computes the value, stores it keyed by the content address of ``text``
-        (with its embedding attached for future matches), and returns it.
+        Embeds ``text``, scans the similarity index for the best cosine match
+        at or above ``threshold``, and returns its value on a hit. On a miss
+        it computes the value, stores it keyed by the content hash of
+        ``text`` (with its embedding indexed for future matches), and
+        returns it.
         """
         query = tuple(float(x) for x in await self._embed(text))
-        best: CacheEntry | None = None
-        best_similarity = self._threshold
-        for entry in self._entries.values():
-            if entry.embedding is None:
-                continue
-            similarity = self._cosine(query, entry.embedding)
-            if similarity >= best_similarity:
-                best = entry
-                best_similarity = similarity
-        if best is not None:
-            self.hits += 1
-            return best.value
+        best_key = self._index.best_match(query, self._threshold)
+        if best_key is not None:
+            try:
+                entry = await self._store.get(best_key)
+            except (KeyError, ValueEvictedError):
+                entry = None
+                self._keys.discard(best_key)
+                self._index.discard(best_key)
+            if entry is not None:
+                self.hits += 1
+                return entry.value
         self.misses += 1
         value = await compute()
-        await self.put(CacheEntry(key=content_address(text), value=value, embedding=query))
+        await self.put(
+            CacheEntry(key=content_hash(text, strict=True), value=value, embedding=query)
+        )
         return value
-
-    @staticmethod
-    def _cosine(left: Sequence[float], right: Sequence[float]) -> float:
-        """Cosine similarity of two equal-length vectors; 0.0 on degenerate input."""
-        if len(left) != len(right):
-            return 0.0
-        dot = sum(a * b for a, b in zip(left, right, strict=True))
-        norm_left = math.sqrt(sum(a * a for a in left))
-        norm_right = math.sqrt(sum(b * b for b in right))
-        if norm_left == 0.0 or norm_right == 0.0:
-            return 0.0
-        return dot / (norm_left * norm_right)
