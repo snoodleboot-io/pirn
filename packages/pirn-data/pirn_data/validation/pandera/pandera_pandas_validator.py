@@ -144,6 +144,8 @@ class PanderaPandasValidator(Knot):
         :class:`QualityCheck` is emitted per failure row.
         """
         results: list[QualityCheck] = []
+        # exc is pandera's SchemaError(s); duck-type failure_cases since its
+        # presence/shape varies across pandera versions and check backends.
         cases = getattr(exc, "failure_cases", None)
         if cases is None:
             return tuple(results)

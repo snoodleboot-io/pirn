@@ -149,6 +149,8 @@ class RayCompute(Sink):
 
     @staticmethod
     def _safe_block_count(dataset: Any) -> int | None:
+        # dataset is a ray.data.Dataset; duck-type num_blocks since it is
+        # not present on every Ray version/dataset variant.
         for attr in ("num_blocks",):
             method = getattr(dataset, attr, None)
             if callable(method):

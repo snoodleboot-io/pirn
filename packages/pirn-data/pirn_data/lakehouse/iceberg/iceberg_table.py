@@ -162,6 +162,8 @@ class IcebergTable(LakehouseTable):
         millis = int(ts.timestamp() * 1000)
         chosen: int | None = None
         for entry in table.history():
+            # entry is a pyiceberg history record (namedtuple/model); duck-type
+            # its fields, matching _history_entry below.
             ts_ms = getattr(entry, "timestamp_ms", None)
             snap_id = getattr(entry, "snapshot_id", None)
             if ts_ms is None or snap_id is None:

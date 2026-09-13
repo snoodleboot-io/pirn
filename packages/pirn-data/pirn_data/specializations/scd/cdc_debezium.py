@@ -96,6 +96,10 @@ class CDCDebezium(Knot):
 
     @staticmethod
     def _decode_envelope(record: Any, topic: str) -> dict[str, Any] | None:
+        # record is a broker-client message object of unknown concrete type
+        # (kafka-python, confluent-kafka, aiokafka, ...); duck-type its
+        # ``.value`` attribute, falling back to the record itself when the
+        # broker client already hands back the raw payload.
         value = getattr(record, "value", record)
         if isinstance(value, (bytes, bytearray)):
             try:

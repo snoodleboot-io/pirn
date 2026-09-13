@@ -59,7 +59,7 @@ class ReadHighWaterMarkKnot(Knot):
             The maximum watermark value, or ``None`` when the table is empty.
 
         Raises:
-            TypeError: If ``pool`` is not a ``DatabaseConnectionPool`` or lacks ``fetch_all``.
+            TypeError: If ``pool`` is not a ``DatabaseConnectionPool``.
             ValueError: If identifiers are empty or contain invalid characters.
         """
         if not isinstance(pool, DatabaseConnectionPool):
@@ -75,10 +75,7 @@ class ReadHighWaterMarkKnot(Knot):
                     f"ReadHighWaterMarkKnot: {label} {value!r} must be "
                     "alphanumeric (plus underscores)"
                 )
-        fetch_all = getattr(pool, "fetch_all", None)
-        if fetch_all is None:
-            raise TypeError("ReadHighWaterMarkKnot: pool does not support fetch_all()")
-        rows = await fetch_all(f"SELECT MAX({watermark_column}) FROM {table}")
+        rows = await pool.fetch_all(f"SELECT MAX({watermark_column}) FROM {table}")
         if not rows:
             return None
         return rows[0][0]

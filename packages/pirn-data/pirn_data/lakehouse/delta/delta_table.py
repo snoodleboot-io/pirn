@@ -169,6 +169,9 @@ class DeltaTable(LakehouseTable):
         # use, just return it.
         if self._dt is None:
             return self._ensure_dt()
+        # self._dt is a vendor deltalake.DeltaTable (or a test-injected
+        # stub); duck-type update_incremental since older SDK versions and
+        # stubs may not expose it.
         update_fn = getattr(self._dt, "update_incremental", None)
         if callable(update_fn):
             update_fn()
