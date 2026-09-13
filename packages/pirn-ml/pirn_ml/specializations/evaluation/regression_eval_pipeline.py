@@ -3,7 +3,9 @@ evaluation: RMSE, MAE, R-squared, MAPE.
 
 Algorithm:
     1. Receive ``model`` (ModelManifest) and ``split`` (SplitManifest) via process().
-    2. Wire an inner Tapestry with Evaluator using the canonical regression metrics.
+    2. Wire an inner Tapestry with Evaluator using the canonical regression metrics
+       (shared with the other ``*_eval_pipeline`` SubTapestries via
+       :class:`~pirn_ml.specializations.evaluation._eval_pipeline_base._EvalPipelineBase`).
     3. Run the inner Tapestry via _run_inner() and return the EvalMetadata.
 
 
@@ -17,18 +19,16 @@ from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.parameter import Parameter
-from pirn.nodes.sub_tapestry import SubTapestry
 
-from pirn_ml.evaluation.evaluator import Evaluator
+from pirn_ml.specializations.evaluation._eval_pipeline_base import _EvalPipelineBase
 from pirn_ml.types.model_manifest import ModelManifest
 from pirn_ml.types.split_manifest import SplitManifest
 
 
-class RegressionEvalPipeline(SubTapestry):
+class RegressionEvalPipeline(_EvalPipelineBase):
     """Evaluate a regressor with RMSE, MAE, R-squared, and MAPE."""
 
-    _regression_metrics: ClassVar[tuple[str, ...]] = (
+    _metrics: ClassVar[tuple[str, ...]] = (
         "rmse",
         "mae",
         "r2",
@@ -55,15 +55,5 @@ class RegressionEvalPipeline(SubTapestry):
         Returns:
             EvalReportPayload containing rmse, mae, r2, and mape metrics.
         """
-        model_node = Parameter(
-            "model", ModelManifest, default=model, _config=KnotConfig(id="model")
-        )
-        split_node = Parameter(
-            "split", SplitManifest, default=split, _config=KnotConfig(id="split")
-        )
-        return Evaluator(
-            model=model_node,
-            split=split_node,
-            metrics=self._regression_metrics,
-            _config=KnotConfig(id="evaluate"),
-        )
+        model_node, split_node = self._wire_model_split(model, split)
+        return self._evaluate(model_node, split_node, self._metrics)

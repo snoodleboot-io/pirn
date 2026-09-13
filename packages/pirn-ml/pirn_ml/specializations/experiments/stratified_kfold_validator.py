@@ -3,8 +3,9 @@ stratification.
 
 Composition:
 
-1. :class:`CrossValidator` produces ``k`` logical :class:`SplitManifest`
-   folds from the upstream :class:`DatasetManifest`.
+1. k logical :class:`SplitManifest` folds are extracted via
+   :meth:`~pirn_ml.specializations.experiments._kfold_validator_base._KFoldValidatorBase._extract_folds_via_cross_validator`
+   from the upstream :class:`DatasetManifest`.
 2. For each fold, :class:`Trainer` fits the configured algorithm and
    :class:`Evaluator` scores it on the fold's test partition.
 3. Per-fold metric values are averaged into a single aggregate
@@ -19,8 +20,9 @@ Algorithm:
     1. Receive ``dataset`` (DatasetManifest), ``stratify_column``, ``algorithm``,
        ``metrics``, and ``k`` via process().
     2. Validate all inputs.
-    3. Wire CrossValidator in an inner Tapestry to produce k folds.
-    4. Wire Trainer + Evaluator per fold in a second inner Tapestry.
+    3. Extract k logical folds (shared strategy in
+       :class:`~pirn_ml.specializations.experiments._kfold_validator_base._KFoldValidatorBase`).
+    4. Wire Trainer + Evaluator per fold (shared wiring, same base class).
     5. Aggregate per-fold metrics (mean) and return an EvalMetadata.
 
 Math:
@@ -41,22 +43,14 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
-from pirn.nodes.aggregator import Aggregator
-from pirn.nodes.sub_tapestry import SubTapestry
 
-from pirn_ml.data_prep.cross_validator import CrossValidator
-from pirn_ml.evaluation.evaluator import Evaluator
-from pirn_ml.training.trainer import Trainer
+from pirn_ml.specializations.experiments._kfold_validator_base import (
+    _KFoldValidatorBase,
+)
 from pirn_ml.types.dataset_manifest import DatasetManifest
 from pirn_ml.types.eval_metadata import EvalMetadata
 from pirn_ml.types.eval_metrics import EvalMetrics
 from pirn_ml.types.eval_report_payload import EvalReportPayload
-from pirn_ml.types.split_manifest import SplitManifest
-
-
-@knot
-async def _extract_fold(folds: tuple[SplitManifest, ...], index: int) -> SplitManifest:
-    return folds[index]
 
 
 @knot
@@ -97,7 +91,7 @@ async def _aggregate_stratified_kfold_reports(
     )
 
 
-class StratifiedKFoldValidator(SubTapestry):
+class StratifiedKFoldValidator(_KFoldValidatorBase):
     """K-fold cross-validation with target stratification."""
 
     def __init__(
@@ -165,38 +159,13 @@ class StratifiedKFoldValidator(SubTapestry):
         dataset_node = Parameter(
             "dataset", DatasetManifest, default=dataset, _config=KnotConfig(id="dataset")
         )
-        folds_node = CrossValidator(
-            dataset=dataset_node,
-            k=k,
-            _config=KnotConfig(id="folds"),
+        fold_nodes = self._extract_folds_via_cross_validator(dataset_node, k)
+        eval_nodes = self._wire_folds(
+            fold_nodes,
+            algorithm,
+            metric_tuple,
+            hyperparameters_for_fold=lambda fold_index: {"fold_index": fold_index},
         )
-        eval_nodes = []
-        for fold_index in range(k):
-            fold_index_node = Parameter(
-                f"fold_index_{fold_index}",
-                int,
-                default=fold_index,
-                _config=KnotConfig(id=f"fold_index_{fold_index}"),
-            )
-            split_node = _extract_fold(
-                folds=folds_node,
-                index=fold_index_node,
-                _config=KnotConfig(id=f"split_{fold_index}"),
-            )
-            model = Trainer(
-                split=split_node,
-                algorithm=algorithm,
-                hyperparameters={"fold_index": fold_index},
-                _config=KnotConfig(id=f"train_{fold_index}"),
-            )
-            eval_nodes.append(
-                Evaluator(
-                    model=model,
-                    split=split_node,
-                    metrics=metric_tuple,
-                    _config=KnotConfig(id=f"evaluate_{fold_index}"),
-                )
-            )
         algorithm_node = Parameter(
             "algorithm", str, default=algorithm, _config=KnotConfig(id="algorithm")
         )
@@ -210,11 +179,7 @@ class StratifiedKFoldValidator(SubTapestry):
             default=stratify_column,
             _config=KnotConfig(id="stratify_column"),
         )
-        collected = Aggregator(
-            combine=lambda **kw: list(kw.values()),
-            _config=KnotConfig(id="collect-reports"),
-            **{f"r{i}": eval_nodes[i] for i in range(k)},
-        )
+        collected = self._collect(eval_nodes, collect_id="collect-reports")
         return _aggregate_stratified_kfold_reports(
             reports=collected,
             algorithm=algorithm_node,

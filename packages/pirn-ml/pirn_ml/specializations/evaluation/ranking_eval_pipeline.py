@@ -5,7 +5,9 @@ Computes NDCG@k, MRR, and MAP@k for a ranking model on a held-out split.
 Algorithm:
     1. Receive ``model`` (ModelManifest), ``split`` (SplitManifest), and ``k`` (int) via process().
     2. Validate k is an int >= 1.
-    3. Wire an inner Tapestry with Evaluator using NDCG@k, MRR, MAP@k metrics.
+    3. Wire an inner Tapestry with Evaluator using NDCG@k, MRR, MAP@k metrics
+       (shared with the other ``*_eval_pipeline`` SubTapestries via
+       :class:`~pirn_ml.specializations.evaluation._eval_pipeline_base._EvalPipelineBase`).
     4. Run the inner Tapestry via _run_inner() and return the EvalMetadata.
 
 
@@ -19,15 +21,13 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.parameter import Parameter
-from pirn.nodes.sub_tapestry import SubTapestry
 
-from pirn_ml.evaluation.evaluator import Evaluator
+from pirn_ml.specializations.evaluation._eval_pipeline_base import _EvalPipelineBase
 from pirn_ml.types.model_manifest import ModelManifest
 from pirn_ml.types.split_manifest import SplitManifest
 
 
-class RankingEvalPipeline(SubTapestry):
+class RankingEvalPipeline(_EvalPipelineBase):
     """Evaluate a ranking model with NDCG@k, MRR, and MAP@k."""
 
     def __init__(
@@ -70,15 +70,5 @@ class RankingEvalPipeline(SubTapestry):
             "mrr",
             f"map_at_{k}",
         )
-        model_node = Parameter(
-            "model", ModelManifest, default=model, _config=KnotConfig(id="model")
-        )
-        split_node = Parameter(
-            "split", SplitManifest, default=split, _config=KnotConfig(id="split")
-        )
-        return Evaluator(
-            model=model_node,
-            split=split_node,
-            metrics=metrics,
-            _config=KnotConfig(id="evaluate"),
-        )
+        model_node, split_node = self._wire_model_split(model, split)
+        return self._evaluate(model_node, split_node, metrics)

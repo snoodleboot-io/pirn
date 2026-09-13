@@ -5,7 +5,9 @@ Composition:
 
 1. The configured ``model`` and ``split`` parents are forwarded into the
    inner tapestry as proxy emitters so the inner :class:`Evaluator`
-   reads them as upstream knots.
+   reads them as upstream knots (shared with the other
+   ``*_eval_pipeline`` SubTapestries via
+   :class:`~pirn_ml.specializations.evaluation._eval_pipeline_base._EvalPipelineBase`).
 2. :class:`Evaluator` computes the classification metrics
    (accuracy, precision, recall, F1, ROC-AUC, confusion matrix).
 
@@ -27,18 +29,16 @@ from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.parameter import Parameter
-from pirn.nodes.sub_tapestry import SubTapestry
 
-from pirn_ml.evaluation.evaluator import Evaluator
+from pirn_ml.specializations.evaluation._eval_pipeline_base import _EvalPipelineBase
 from pirn_ml.types.model_manifest import ModelManifest
 from pirn_ml.types.split_manifest import SplitManifest
 
 
-class ClassificationEvalPipeline(SubTapestry):
+class ClassificationEvalPipeline(_EvalPipelineBase):
     """Evaluate a classifier with the canonical classification metric set."""
 
-    _classification_metrics: ClassVar[tuple[str, ...]] = (
+    _metrics: ClassVar[tuple[str, ...]] = (
         "accuracy",
         "precision",
         "recall",
@@ -67,15 +67,5 @@ class ClassificationEvalPipeline(SubTapestry):
         Returns:
             EvalReportPayload containing accuracy, precision, recall, f1, roc_auc, and confusion_matrix.
         """
-        model_node = Parameter(
-            "model", ModelManifest, default=model, _config=KnotConfig(id="model")
-        )
-        split_node = Parameter(
-            "split", SplitManifest, default=split, _config=KnotConfig(id="split")
-        )
-        return Evaluator(
-            model=model_node,
-            split=split_node,
-            metrics=self._classification_metrics,
-            _config=KnotConfig(id="evaluate"),
-        )
+        model_node, split_node = self._wire_model_split(model, split)
+        return self._evaluate(model_node, split_node, self._metrics)

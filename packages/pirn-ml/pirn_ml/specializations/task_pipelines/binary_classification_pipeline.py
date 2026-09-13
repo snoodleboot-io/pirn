@@ -10,7 +10,8 @@ Algorithm:
        and ``algorithm`` via process().
     2. Validate all inputs.
     3. Wire DatasetLoader → TrainTestSplit → Scaler → Trainer → Evaluator
-       in an inner Tapestry.
+       in an inner Tapestry (shared graph-building lives in
+       :class:`~pirn_ml.specializations.task_pipelines._supervised_task_pipeline._SupervisedTaskPipeline`).
     4. Run via _run_inner() and return the EvalMetadata.
 
 Math:
@@ -33,19 +34,17 @@ from pirn.connectors.database_connection_pool import (
 )
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.sub_tapestry import SubTapestry
 
-from pirn_ml.data_prep.dataset_loader import DatasetLoader
-from pirn_ml.data_prep.train_test_split import TrainTestSplit
-from pirn_ml.evaluation.evaluator import Evaluator
-from pirn_ml.features.scaler import Scaler
-from pirn_ml.training.trainer import Trainer
+from pirn_ml.specializations.task_pipelines._supervised_task_pipeline import (
+    _SupervisedTaskPipeline,
+)
 
 
-class BinaryClassificationPipeline(SubTapestry):
+class BinaryClassificationPipeline(_SupervisedTaskPipeline):
     """End-to-end binary classification SubTapestry."""
 
-    _binary_metrics: ClassVar[tuple[str, ...]] = (
+    _dataset_name: ClassVar[str] = "binary-classification"
+    _metrics: ClassVar[tuple[str, ...]] = (
         "accuracy",
         "precision",
         "recall",
@@ -100,45 +99,15 @@ class BinaryClassificationPipeline(SubTapestry):
             ValueError: If any input fails validation.
             TypeError: If pool is not a DatabaseConnectionPool.
         """
-        if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError("BinaryClassificationPipeline: pool must be a DatabaseConnectionPool")
-        if not isinstance(query, str) or not query:
-            raise ValueError("BinaryClassificationPipeline: query must be a non-empty string")
-        if not isinstance(target_column, str) or not target_column:
-            raise ValueError(
-                "BinaryClassificationPipeline: target_column must be a non-empty string"
-            )
-        feature_tuple = tuple(feature_names)
-        if not feature_tuple:
-            raise ValueError("BinaryClassificationPipeline: feature_names must be non-empty")
-        if not isinstance(algorithm, str) or not algorithm:
-            raise ValueError("BinaryClassificationPipeline: algorithm must be a non-empty string")
-        dataset = DatasetLoader(
-            name="binary-classification",
-            feature_names=feature_tuple,
-            target_name=target_column,
+        pool = self._require_pool("BinaryClassificationPipeline", pool)
+        query = self._require_query("BinaryClassificationPipeline", query)
+        target_column = self._require_target_column("BinaryClassificationPipeline", target_column)
+        feature_tuple = self._require_feature_names("BinaryClassificationPipeline", feature_names)
+        algorithm = self._require_algorithm("BinaryClassificationPipeline", algorithm)
+        return self._build_evaluator(
             pool=pool,
             query=query,
-            _config=KnotConfig(id="load"),
-        )
-        split = TrainTestSplit(
-            dataset=dataset,
-            _config=KnotConfig(id="split"),
-        )
-        preprocessed = Scaler(
-            split=split,
-            columns=feature_tuple,
-            method="standardise",
-            _config=KnotConfig(id="preprocess"),
-        )
-        trained = Trainer(
-            split=preprocessed,
+            feature_tuple=feature_tuple,
+            target_name=target_column,
             algorithm=algorithm,
-            _config=KnotConfig(id="train"),
-        )
-        return Evaluator(
-            model=trained,
-            split=preprocessed,
-            metrics=self._binary_metrics,
-            _config=KnotConfig(id="evaluate"),
         )

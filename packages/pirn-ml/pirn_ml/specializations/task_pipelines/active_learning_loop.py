@@ -7,7 +7,9 @@ Algorithm:
        ``n_rounds``, ``query_size``, and ``algorithm`` via process().
     2. Validate all inputs.
     3. Wire DatasetLoader → TrainTestSplit → Trainer → Evaluator in an
-       inner Tapestry.
+       inner Tapestry (shared graph-building lives in
+       :class:`~pirn_ml.specializations.task_pipelines._supervised_task_pipeline._SupervisedTaskPipeline`,
+       with no ``Scaler`` stage for this pipeline).
     4. Run via _run_inner() and return the final EvalMetadata.
 
 Math:
@@ -31,18 +33,18 @@ from pirn.connectors.database_connection_pool import (
 )
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.sub_tapestry import SubTapestry
 
-from pirn_ml.data_prep.dataset_loader import DatasetLoader
-from pirn_ml.data_prep.train_test_split import TrainTestSplit
-from pirn_ml.evaluation.evaluator import Evaluator
-from pirn_ml.training.trainer import Trainer
+from pirn_ml.specializations.task_pipelines._supervised_task_pipeline import (
+    _SupervisedTaskPipeline,
+)
 
 
-class ActiveLearningLoop(SubTapestry):
+class ActiveLearningLoop(_SupervisedTaskPipeline):
     """Train on labeled pool, query uncertain samples, and iterate for N rounds."""
 
-    _eval_metrics: ClassVar[tuple[str, ...]] = ("accuracy", "f1")
+    _dataset_name: ClassVar[str] = "active-learning"
+    _metrics: ClassVar[tuple[str, ...]] = ("accuracy", "f1")
+    _use_scaler: ClassVar[bool] = False
 
     def __init__(
         self,
@@ -99,45 +101,23 @@ class ActiveLearningLoop(SubTapestry):
             ValueError: If any input fails validation.
             TypeError: If pool is not a DatabaseConnectionPool.
         """
-        if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError("ActiveLearningLoop: pool must be a DatabaseConnectionPool")
-        if not isinstance(query, str) or not query:
-            raise ValueError("ActiveLearningLoop: query must be a non-empty string")
-        if not isinstance(target_column, str) or not target_column:
-            raise ValueError("ActiveLearningLoop: target_column must be a non-empty string")
-        feature_tuple = tuple(feature_names)
-        if not feature_tuple:
-            raise ValueError("ActiveLearningLoop: feature_names must be non-empty")
+        pool = self._require_pool("ActiveLearningLoop", pool)
+        query = self._require_query("ActiveLearningLoop", query)
+        target_column = self._require_target_column("ActiveLearningLoop", target_column)
+        feature_tuple = self._require_feature_names("ActiveLearningLoop", feature_names)
         if not isinstance(n_rounds, int) or n_rounds < 1:
             raise ValueError("ActiveLearningLoop: n_rounds must be an int >= 1")
         if not isinstance(query_size, int) or query_size < 1:
             raise ValueError("ActiveLearningLoop: query_size must be an int >= 1")
-        if not isinstance(algorithm, str) or not algorithm:
-            raise ValueError("ActiveLearningLoop: algorithm must be a non-empty string")
-        dataset = DatasetLoader(
-            name="active-learning",
-            feature_names=feature_tuple,
-            target_name=target_column,
+        algorithm = self._require_algorithm("ActiveLearningLoop", algorithm)
+        return self._build_evaluator(
             pool=pool,
             query=query,
-            _config=KnotConfig(id="load"),
-        )
-        split = TrainTestSplit(
-            dataset=dataset,
-            _config=KnotConfig(id="split"),
-        )
-        trained = Trainer(
-            split=split,
+            feature_tuple=feature_tuple,
+            target_name=target_column,
             algorithm=algorithm,
             hyperparameters={
                 "n_rounds": n_rounds,
                 "query_size": query_size,
             },
-            _config=KnotConfig(id="train"),
-        )
-        return Evaluator(
-            model=trained,
-            split=split,
-            metrics=self._eval_metrics,
-            _config=KnotConfig(id="evaluate"),
         )

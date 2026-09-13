@@ -15,7 +15,8 @@ Algorithm:
        ``metrics``, and ``n_splits`` via process().
     2. Validate all inputs.
     3. Build chronological train/test splits via row-count partitioning.
-    4. Wire Trainer + Evaluator per split in an inner Tapestry.
+    4. Wire Trainer + Evaluator per split (shared wiring in
+       :class:`~pirn_ml.specializations.experiments._kfold_validator_base._KFoldValidatorBase`).
     5. Aggregate per-split metrics and return an EvalMetadata.
 
 Math:
@@ -39,11 +40,10 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
-from pirn.nodes.aggregator import Aggregator
-from pirn.nodes.sub_tapestry import SubTapestry
 
-from pirn_ml.evaluation.evaluator import Evaluator
-from pirn_ml.training.trainer import Trainer
+from pirn_ml.specializations.experiments._kfold_validator_base import (
+    _KFoldValidatorBase,
+)
 from pirn_ml.types.dataset_manifest import DatasetManifest
 from pirn_ml.types.eval_metadata import EvalMetadata
 from pirn_ml.types.eval_metrics import EvalMetrics
@@ -89,7 +89,7 @@ async def _aggregate_tscv_reports(
     )
 
 
-class TimeSeriesSplitterValidator(SubTapestry):
+class TimeSeriesSplitterValidator(_KFoldValidatorBase):
     """Walk-forward time-series cross-validation."""
 
     def __init__(
@@ -155,28 +155,21 @@ class TimeSeriesSplitterValidator(SubTapestry):
                     "TimeSeriesSplitterValidator: every metric name must be a non-empty string"
                 )
         splits = self._build_splits(dataset, n_splits)
-        eval_nodes = []
-        for split_index, split in enumerate(splits):
-            split_node = Parameter(
+        fold_nodes = [
+            Parameter(
                 f"split_{split_index}",
                 SplitManifest,
                 default=split,
                 _config=KnotConfig(id=f"split_{split_index}"),
             )
-            model = Trainer(
-                split=split_node,
-                algorithm=algorithm,
-                hyperparameters={"split_index": split_index},
-                _config=KnotConfig(id=f"train_{split_index}"),
-            )
-            eval_nodes.append(
-                Evaluator(
-                    model=model,
-                    split=split_node,
-                    metrics=metric_tuple,
-                    _config=KnotConfig(id=f"evaluate_{split_index}"),
-                )
-            )
+            for split_index, split in enumerate(splits)
+        ]
+        eval_nodes = self._wire_folds(
+            fold_nodes,
+            algorithm,
+            metric_tuple,
+            hyperparameters_for_fold=lambda split_index: {"split_index": split_index},
+        )
         algorithm_node = Parameter(
             "algorithm", str, default=algorithm, _config=KnotConfig(id="algorithm")
         )
@@ -189,11 +182,7 @@ class TimeSeriesSplitterValidator(SubTapestry):
         time_column_node = Parameter(
             "time_column", str, default=time_column, _config=KnotConfig(id="time_column")
         )
-        collected = Aggregator(
-            combine=lambda **kw: list(kw.values()),
-            _config=KnotConfig(id="collect-reports"),
-            **{f"r{i}": eval_nodes[i] for i in range(n_splits)},
-        )
+        collected = self._collect(eval_nodes, collect_id="collect-reports")
         return _aggregate_tscv_reports(
             reports=collected,
             algorithm=algorithm_node,
