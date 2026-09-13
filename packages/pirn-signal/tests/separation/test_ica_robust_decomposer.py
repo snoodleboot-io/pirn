@@ -18,7 +18,6 @@ import numpy as np
 import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-
 from pirn_signal.separation.ica_robust_decomposer import ICARobustDecomposer
 from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
