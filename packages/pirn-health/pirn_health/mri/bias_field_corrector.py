@@ -21,12 +21,19 @@ Math:
 References:
     - Tustison et al. (2010) N4ITK: Improved N3 Bias Correction.
     - SimpleITK: https://simpleitk.readthedocs.io/
+
+Note:
+    ``_is_stub`` is ``True`` on this knot: it is a functional placeholder
+    for the production implementation described above, not a complete
+    algorithm. It is registered so pipelines can be wired and tested
+    end-to-end before the real implementation lands; do not treat its
+    output as production-quality.
 """
 
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -42,6 +49,8 @@ except ImportError:
 
 class BiasFieldCorrector(Knot):
     """Apply N4 bias-field correction to an MRI NIfTI file."""
+
+    _is_stub: ClassVar[bool] = True
 
     def __init__(
         self,

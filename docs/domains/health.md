@@ -589,6 +589,42 @@ PHI stripping happens at the connector layer (format decoders), before bytes rea
 
 ---
 
+## Reference stubs
+
+Some knots in this domain are documented stand-ins for a full vendor-grade
+implementation — their module docstring says so explicitly ("Production
+version uses `X`; this stub does `Y`"). They are registered as ordinary
+production knots (so pipelines can be wired and tested end-to-end before the
+real implementation lands) and each carries `_is_stub: ClassVar[bool] = True`
+plus a `Note:` docstring block, so the gap is visible at the class rather
+than buried in prose. `tests/test_reference_stubs.py` walks the package and
+pins the count; treat any change to it as a signal that a stub was
+implemented for real (drop the marker) or a new one was added (extend this
+list).
+
+| Domain | Knot |
+|---|---|
+| `pirn_health.genomics` (18) | `BCFtoolsCaller`, `Bowtie2Aligner`, `BWAAligner`, `CNVDetector`, `DifferentialExpressionAnalyzer`, `ExpressionQuantifier`, `GATKCaller`, `GenomicsQCCheck`, `GVCFCombiner`, `MultiOmicsIntegrator`, `PathwayEnricher`, `SingleCellClusterer`, `SnpEffAnnotator`, `STARAligner`, `StructuralVariantDetector`, `VCFFilter`, `VCFMerger`, `VEPAnnotator` |
+| `pirn_health.mri` (7) | `AtlasAligner`, `BiasFieldCorrector`, `CorticalThicknessEstimator`, `IntensityNormalizer`, `LesionSegmenter`, `RadiomicsExtractor`, `VolumetricAnalyzer` |
+| `pirn_health.trials` (7) | `ADaMDatasetBuilder`, `ClinicalEventAggregator`, `DefineXMLGenerator`, `EstimandAlignedAnalyzer`, `MedDRANormalizer`, `SDTMDomainValidator`, `TreatmentEmergentClassifier` |
+| `pirn_health.clinical` (6) | `HL7v2MessageParser`, `LabResultNormalizer`, `LOINCMapper`, `OMOPCDMMapper`, `ReadmissionRiskScorer`, `ClinicalNLPExtractor` |
+| `pirn_health.pathology` (1) | `PathologyFeatureExtractor` |
+
+Total: 39. `ClinicalNLPExtractor` is included even though its primary path
+calls a live `HealthLLMProvider` for real extraction — its own docstring
+documents an empty-mapping stub fallback on a malformed LLM response, so it
+is flagged rather than silently excluded.
+
+Some knots whose module docstring also mentions a "Production version" for
+context (e.g. `AtlasAligner`, `BiasFieldCorrector`, `IntensityNormalizer`,
+`LesionSegmenter` above) already shell out to the real external tool or
+library when it is installed; they are still marked `_is_stub` because their
+own docstring explicitly claims stub status; if a follow-up confirms the
+implementation is complete, remove the marker and Note: block instead of
+leaving it stale.
+
+---
+
 ## Install Extras and Dependencies
 
 ```bash
@@ -601,7 +637,7 @@ pip install "pirn-health[genomics]"
 
 | Extra | Install | Libraries installed | What it enables |
 |---|---|---|---|
-| `health` | `pirn-health[health]` | `pydicom>=2.4`, `mne>=1.6`, `nibabel>=5.2`, `pyfaidx>=0.7`, `pysam>=0.22`, `fhir.resources>=7.1`, `pyedflib>=0.1.42` | DICOM, NIfTI, BIDS, EDF/EDF+/BDF, BrainVision (via mne), FHIR JSON/XML, HL7 v2, CDA, Define-XML, SDTM XPT, OpenSlide, mzML; all clinical and genomics sub-domain knots |
+| `health` | `pirn-health[health]` | `pydicom>=2.4`, `mne>=1.6`, `nibabel>=5.2`, `pyfaidx>=0.7`, `pysam>=0.22`, `fhir.resources>=7.1`, `pyedflib>=0.1.42`, `scipy>=1.11`, `scikit-learn>=1.3` | DICOM, NIfTI, BIDS, EDF/EDF+/BDF, BrainVision (via mne), FHIR JSON/XML, HL7 v2, CDA, Define-XML, SDTM XPT, OpenSlide, mzML; all clinical and genomics sub-domain knots; scipy-backed EEG/MEG/wearables signal processing and scikit-learn-backed ICA/propensity matching |
 | `mri` | `pirn-health[mri]` | `SimpleITK>=2.3`, `dipy>=1.9`, `nibabel>=5.2` | MRI/volumetrics knots (registration, segmentation, volumetrics) — resolves independently of the full `health` extra |
 | `genomics` | `pirn-health[genomics]` | `pyfaidx>=0.7`, `pysam>=0.22` | FASTA, FASTQ, VCF, BCF file format connectors only |
 

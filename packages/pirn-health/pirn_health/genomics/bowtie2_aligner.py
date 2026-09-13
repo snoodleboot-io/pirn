@@ -14,12 +14,19 @@ Algorithm:
 References:
     - Bowtie2: https://bowtie-bio.sourceforge.net/bowtie2/manual.shtml
     - Langmead & Salzberg (2012) Fast gapped-read alignment with Bowtie 2.
+
+Note:
+    ``_is_stub`` is ``True`` on this knot: it is a functional placeholder
+    for the production implementation described above, not a complete
+    algorithm. It is registered so pipelines can be wired and tested
+    end-to-end before the real implementation lands; do not treat its
+    output as production-quality.
 """
 
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -27,6 +34,8 @@ from pirn.core.knot_config import KnotConfig
 
 class Bowtie2Aligner(Knot):
     """Align reads with Bowtie2 and emit a BAM path."""
+
+    _is_stub: ClassVar[bool] = True
 
     def __init__(
         self,

@@ -18,12 +18,19 @@ Math:
 References:
     - Shinohara et al. (2014) Statistical normalization techniques for MRI.
     - intensity-normalization: https://github.com/jcreinhold/intensity-normalization
+
+Note:
+    ``_is_stub`` is ``True`` on this knot: it is a functional placeholder
+    for the production implementation described above, not a complete
+    algorithm. It is registered so pipelines can be wired and tested
+    end-to-end before the real implementation lands; do not treat its
+    output as production-quality.
 """
 
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 from pirn.core.knot import Knot
@@ -40,6 +47,8 @@ except ImportError:
 
 class IntensityNormalizer(Knot):
     """Normalise MRI intensities to a common scale."""
+
+    _is_stub: ClassVar[bool] = True
 
     def __init__(
         self,

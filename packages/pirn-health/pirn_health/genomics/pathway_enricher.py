@@ -18,12 +18,19 @@ Math:
 References:
     - Subramanian et al. (2005) Gene set enrichment analysis.
     - fgsea: https://bioconductor.org/packages/fgsea/
+
+Note:
+    ``_is_stub`` is ``True`` on this knot: it is a functional placeholder
+    for the production implementation described above, not a complete
+    algorithm. It is registered so pipelines can be wired and tested
+    end-to-end before the real implementation lands; do not treat its
+    output as production-quality.
 """
 
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -31,6 +38,8 @@ from pirn.core.knot_config import KnotConfig
 
 class PathwayEnricher(Knot):
     """Run pathway enrichment over a ranked gene list."""
+
+    _is_stub: ClassVar[bool] = True
 
     def __init__(
         self,

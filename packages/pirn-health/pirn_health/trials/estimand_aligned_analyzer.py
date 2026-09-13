@@ -22,6 +22,13 @@ Math:
 
 References:
     - ICH E9(R1). (2019). Addendum on Estimands and Sensitivity Analysis in Clinical Trials.
+
+Note:
+    ``_is_stub`` is ``True`` on this knot: it is a functional placeholder
+    for the production implementation described above, not a complete
+    algorithm. It is registered so pipelines can be wired and tested
+    end-to-end before the real implementation lands; do not treat its
+    output as production-quality.
 """
 
 from __future__ import annotations
@@ -37,6 +44,8 @@ from pirn_health.types.clinical_trial_record import ClinicalTrialRecord
 
 class EstimandAlignedAnalyzer(Knot):
     """Project trial records onto a chosen estimand strategy."""
+
+    _is_stub: ClassVar[bool] = True
 
     _supported_strategies: ClassVar[frozenset[str]] = frozenset(
         {

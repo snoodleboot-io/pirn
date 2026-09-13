@@ -17,13 +17,20 @@ References:
     - SNOMED CT: https://www.snomed.org/
     - ICD-10-CM: https://www.cdc.gov/nchs/icd/icd-10-cm.htm
     - RxNorm: https://www.nlm.nih.gov/research/umls/rxnorm/
+
+Note:
+    ``_is_stub`` is ``True`` on this knot: it is a functional placeholder
+    for the production implementation described above, not a complete
+    algorithm. It is registered so pipelines can be wired and tested
+    end-to-end before the real implementation lands; do not treat its
+    output as production-quality.
 """
 
 from __future__ import annotations
 
 import json
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -33,6 +40,8 @@ from pirn_health.health_llm_provider import HealthLLMProvider
 
 class ClinicalNLPExtractor(Knot):
     """Extract diagnoses / medications / vitals from a clinical note."""
+
+    _is_stub: ClassVar[bool] = True
 
     def __init__(
         self,

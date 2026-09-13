@@ -15,12 +15,19 @@ Algorithm:
 References:
     - HL7 v2.x: https://www.hl7.org/implement/standards/product_brief.cfm?product_id=185
     - hl7apy: https://github.com/crs4/hl7apy
+
+Note:
+    ``_is_stub`` is ``True`` on this knot: it is a functional placeholder
+    for the production implementation described above, not a complete
+    algorithm. It is registered so pipelines can be wired and tested
+    end-to-end before the real implementation lands; do not treat its
+    output as production-quality.
 """
 
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -30,6 +37,8 @@ from pirn_health.types.clinical_record import ClinicalRecord
 
 class HL7v2MessageParser(Knot):
     """Parse one HL7v2 message into a :class:`ClinicalRecord`."""
+
+    _is_stub: ClassVar[bool] = True
 
     def __init__(
         self,

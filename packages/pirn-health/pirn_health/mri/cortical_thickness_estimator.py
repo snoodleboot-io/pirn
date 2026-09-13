@@ -18,13 +18,20 @@ Math:
 References:
     - Fischl & Dale (2000) Measuring the thickness of the human cerebral cortex from magnetic resonance images.
     - FreeSurfer: https://surfer.nmr.mgh.harvard.edu/
+
+Note:
+    ``_is_stub`` is ``True`` on this knot: it is a functional placeholder
+    for the production implementation described above, not a complete
+    algorithm. It is registered so pipelines can be wired and tested
+    end-to-end before the real implementation lands; do not treat its
+    output as production-quality.
 """
 
 from __future__ import annotations
 
 import asyncio
 from collections.abc import Mapping, Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -32,6 +39,8 @@ from pirn.core.knot_config import KnotConfig
 
 class CorticalThicknessEstimator(Knot):
     """Estimate cortical thickness per region from a T1w MRI."""
+
+    _is_stub: ClassVar[bool] = True
 
     def __init__(
         self,

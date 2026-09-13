@@ -14,12 +14,19 @@ Algorithm:
 
 References:
     - ENCODE quality metrics: https://www.encodeproject.org/data-standards/
+
+Note:
+    ``_is_stub`` is ``True`` on this knot: it is a functional placeholder
+    for the production implementation described above, not a complete
+    algorithm. It is registered so pipelines can be wired and tested
+    end-to-end before the real implementation lands; do not treat its
+    output as production-quality.
 """
 
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -30,6 +37,8 @@ from pirn_health.types.genomics_record import GenomicsRecord
 
 class GenomicsQCCheck(Knot):
     """Pass through records iff every quality_score >= threshold."""
+
+    _is_stub: ClassVar[bool] = True
 
     def __init__(
         self,
