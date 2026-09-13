@@ -6,6 +6,7 @@ import unittest
 
 from pirn_agents.testing.stub_tool import StubTool
 from pirn_agents.tools.tool_decorator import tool
+from tests.tools.tool_runner import ToolRunner
 
 
 @tool
@@ -34,8 +35,8 @@ class TestFunctionToolStreaming(unittest.IsolatedAsyncioTestCase):
     async def test_collect_stream_facet(self) -> None:
         assert await counted_stream.collect_stream({"n": 2}) == ["chunk0", "chunk1"]
 
-    async def test_invoke_aggregates_stream_to_list(self) -> None:
-        assert await counted_stream.invoke({"n": 2}) == ["chunk0", "chunk1"]
+    async def test_a_call_aggregates_stream_to_list(self) -> None:
+        assert await ToolRunner.value(counted_stream, {"n": 2}) == ["chunk0", "chunk1"]
 
     def test_stream_on_non_streaming_raises(self) -> None:
         @tool
@@ -53,9 +54,9 @@ class TestStubToolStreaming(unittest.IsolatedAsyncioTestCase):
         assert stub.streaming is True
         assert await stub.collect_stream({}) == ["a", "b", "c"]
 
-    async def test_stub_invoke_aggregates(self) -> None:
+    async def test_stub_call_aggregates(self) -> None:
         stub = StubTool(name="s", stream_chunks=[1, 2])
-        assert await stub.invoke({}) == [1, 2]
+        assert await ToolRunner.value(stub, {}) == [1, 2]
 
     def test_stub_records_stream_invocations(self) -> None:
         stub = StubTool(name="s", stream_chunks=["x"])

@@ -1,4 +1,18 @@
-"""``AgentNestingConfig`` — the single source for agent-as-tool recursion limits."""
+"""``AgentNestingConfig`` — the default nesting cap for agent-as-tool calls.
+
+Since the ADR "agents speaks core" (WS0/WS1) the depth and cycle guard for
+nested runs is core's :class:`~pirn.core.run_nesting.RunNesting` frame,
+enforced by ``Tapestry(max_nesting_depth=)`` and inherited (only ever
+tightened) by inner runs.  What agents still decides is the *default* cap an
+agent-as-tool call applies when its caller set none: this value is that
+default, expressed as a root ``RunNesting`` frame whose ``max_depth`` is the
+number of agent-as-tool frames that may be active at once (each such frame
+is two nested runs — the call and the agent — which
+:class:`~pirn_agents.tools.agent_tool_call.AgentToolCall` accounts for).
+
+A frozen value rather than a module constant so a caller can hand a
+*different* posture around as data — and so the limit is auditable.
+"""
 
 from __future__ import annotations
 
@@ -6,27 +20,12 @@ from dataclasses import dataclass
 from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
+from pirn.core.run_nesting import RunNesting
 
 
 @dataclass(frozen=True)
-class AgentNestingConfig(PirnOpaqueValue):
-    """One place to declare how deep agent-as-tool nesting may go.
-
-    An agent-as-tool call travels a fixed chain —
-    :meth:`~pirn_agents.tools.agent_as_tool_mixin.AgentAsToolMixin.as_tool` →
-    :func:`~pirn_agents.tools.as_tool.as_tool` →
-    :class:`~pirn_agents.tools.agent_tool.AgentTool` →
-    :class:`~pirn_agents.agent.agent_invoker.AgentInvoker` →
-    :class:`~pirn_agents.agent.agent_tool_context.AgentToolContext` — and every
-    link used to re-declare the same recursion cap as its own literal. Five
-    copies of one safety limit is five chances for them to drift apart, and a
-    lower cap deeper in the chain silently wins. The class-level field default
-    here is the one declaration each link now reads (the same idiom
-    :class:`~pirn_agents.specializations.document_processing._document_source_reader._DocumentSourceReader`
-    uses for its byte cap), so the whole chain moves together.
-
-    A frozen value rather than a module constant so a caller can also hand a
-    *different* posture around as data — and so the limit is auditable.
+class AgentNestingConfig(RunNesting, PirnOpaqueValue):
+    """A root nesting frame carrying the agent-as-tool default cap.
 
     Attributes
     ----------

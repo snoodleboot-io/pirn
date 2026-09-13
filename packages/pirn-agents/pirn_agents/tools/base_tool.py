@@ -1,79 +1,44 @@
-"""``BaseTool`` — shared base for the concrete base-library tools.
+"""``BaseTool`` — deprecated alias of :class:`~pirn_agents.tools.tool.Tool` (one cycle).
 
-A :class:`BaseTool` is a thin :class:`~pirn_agents.tools.tool.Tool` subclass that adds
-two conveniences every concrete base tool reuses:
-
-* :meth:`as_tool_result` — invoke for a given :class:`~pirn_agents.tools.tool_call.ToolCall`
-  and wrap the outcome in a typed F1 :class:`~pirn_agents.tools.tool_result.ToolResult`
-  (timing the call, mapping a raised exception to :attr:`ToolStatus.ERROR`). This
-  mirrors the established :class:`~pirn_agents.mcp.mcp_tool.McpTool` pattern so a
-  tool round-trips through F1's protocol both under the executor (which wraps the
-  raw :meth:`invoke` return) and standalone.
-* :meth:`_string_argument` — resolve a required string argument, accepting the
-  generic ``"input"`` key as an alias for the tool's primary parameter so the
-  same tool works under F1 schema-based calling *and* the text-driven
-  :class:`~pirn_agents.specializations.react.react_step_executor.ReActStepExecutor`,
-  which passes every action input as ``{"input": ...}``.
-
-Concrete tools still override ``name``/``description``/``parameters_schema`` and
-implement :meth:`invoke`.
+Before the ADR "agents speaks core" (WS1) the base-library tools shared this
+subclass for two conveniences: ``as_tool_result`` (invoke and wrap in a
+``ToolResult``) and ``_string_argument`` (the ReAct ``"input"`` alias).  Both
+now live where the knot model puts them — the ``ToolResult`` view is built by
+:meth:`ToolResult.from_result` from a call knot's ``Result`` and the alias is
+resolved by :meth:`ToolFactory.resolve_arguments` — and every base tool is a
+plain :class:`Tool`.  ``BaseTool`` stays importable as a thin subclass so an
+external subclass keeps its base; it adds nothing and warns on subclassing.
 """
 
 from __future__ import annotations
 
-import time
+import warnings
 from collections.abc import Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_call import ToolCall
-from pirn_agents.tools.tool_result import ToolResult
-from pirn_agents.tools.tool_status import ToolStatus
+
+if TYPE_CHECKING:
+    from pirn_agents.tools.tool_result import ToolResult
 
 
 class BaseTool(Tool):
-    """A :class:`Tool` with typed-result and argument-resolution helpers."""
+    """Deprecated: subclass :class:`Tool` directly."""
 
-    async def as_tool_result(self, call: ToolCall) -> ToolResult:
-        """Invoke for ``call`` and return a fully-formed F1 :class:`ToolResult`.
-
-        A raised exception becomes a :attr:`ToolStatus.ERROR` result carrying the
-        stringified error rather than propagating, so callers get the same
-        terminal shape F1's executor would produce.
-
-        Args:
-            call: The originating :class:`ToolCall`; its ``call_id`` is echoed and
-                its ``arguments`` are passed to :meth:`invoke`.
-
-        Returns:
-            A :class:`ToolResult` with measured ``latency`` and either the tool's
-            value (status ``OK``) or the error detail (status ``ERROR``).
-
-        Raises:
-            TypeError: If ``call`` is not a :class:`ToolCall`.
-        """
-        if not isinstance(call, ToolCall):
-            raise TypeError(
-                f"{type(self).__name__}.as_tool_result: call must be a ToolCall, "
-                f"got {type(call).__name__}"
-            )
-        start = time.perf_counter()
-        try:
-            value = await self.invoke(call.arguments)
-        except Exception as exc:
-            return ToolResult(
-                call_id=call.call_id,
-                result=None,
-                status=ToolStatus.ERROR,
-                error=str(exc),
-                latency=time.perf_counter() - start,
-            )
-        return ToolResult(
-            call_id=call.call_id,
-            result=value,
-            status=ToolStatus.OK,
-            latency=time.perf_counter() - start,
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        warnings.warn(
+            f"{cls.__qualname__} subclasses BaseTool, which is deprecated (ADR agents-speaks-core "
+            "WS1): subclass pirn_agents.tools.tool.Tool directly",
+            DeprecationWarning,
+            stacklevel=2,
         )
+        super().__init_subclass__(**kwargs)
+
+    @classmethod
+    async def as_tool_result(cls, call: ToolCall) -> ToolResult:
+        """Deprecated: run ``call`` outside the engine and return the ``ToolResult`` view."""
+        return await cls.factory().as_tool_result(call)
 
     @staticmethod
     def _require_mapping(tool_name: str, arguments: Mapping[str, Any]) -> None:
@@ -93,15 +58,9 @@ class BaseTool(Tool):
     ) -> str:
         """Return the string argument ``name``, falling back to ``"input"``.
 
-        The ``"input"`` alias lets a single-string tool be driven by the text
-        ReAct loop (which supplies ``{"input": ...}``) as well as by schema-based
-        F1 tool calls that use the canonical parameter name.
-
-        Args:
-            tool_name: Owning tool name, used in error messages.
-            arguments: The invocation argument mapping.
-            name: The canonical parameter key to read.
-            allow_empty: When ``False`` (default), an empty string is rejected.
+        Kept for external ``invoke``-shaped subclasses; a knot-shaped tool
+        declares ``name`` as a ``process()`` input and lets
+        :meth:`ToolFactory.resolve_arguments` handle the alias.
 
         Raises:
             ValueError: If neither ``name`` nor ``"input"`` yields a string (or the

@@ -1,120 +1,261 @@
-"""Interface for invocable agent tools.
+"""``Tool`` — a capability the model may call, expressed as a ``Knot`` class.
 
-A :class:`Tool` is a single capability the agent can call during
-planning: a database lookup, a web search, a calculator, a custom
-function. Concrete tools inherit from :class:`Tool` and override the
-``name``, ``description``, and ``parameters_schema`` properties along
-with :meth:`invoke`.
+A tool is three things core already names (ADR "agents speaks core", 2026-09-13,
+target model item 1):
 
-The base also exposes optional **capability facets** as default-returning
-members that concrete tools override to opt in — mirroring the default-no-op
-override points on core ``Knot``/``Emitter``:
+* the **capability** is the ``Tool`` *class* — what a model may be offered;
+* one **call** is an *instance*, built with ``KnotConfig(id=call_id)`` and the
+  call's arguments as its inputs, exactly like any other knot;
+* the **outcome** is the engine's ``Ok | Err | Skipped`` plus the ``KnotLineage``
+  row the run records for it.
 
-* :attr:`stateful` / :attr:`state` — tools that carry injected state across
-  invocations (default: not stateful, no state).
-* :attr:`permissions` / :meth:`requires_approval` — permission / scope
-  metadata and the human-approval gate (default: inert/unrestricted).
-* :attr:`streaming` / :meth:`stream` / :meth:`collect_stream` — tools that
-  yield incremental output (default: not streaming; :meth:`stream` raises).
+What the agents layer adds on top is only the model-facing envelope:
+:meth:`declaration` renders the class's ``name`` / ``description`` / JSON
+``parameters`` for a provider, derived from the same ``process()`` type hints
+core validates with (``Knot.input_json_schema``), and the capability facets a
+planner or an approval policy read (:attr:`permissions`,
+:meth:`requires_approval`, :attr:`streaming`).  There is no second execution
+verb: ``process()`` **is** how a tool runs.
 
-Pydantic treats tools as opaque (see
-:class:`pirn.core.pirn_opaque_value.PirnOpaqueValue`); the default
-identity-keyed serialiser keeps content-addressing cache stable.
+Authoring a tool is authoring a knot::
+
+    class Calculator(Tool):
+        \"\"\"Evaluate an arithmetic expression.\"\"\"
+
+        tool_name: ClassVar[str] = "calculator"
+
+        def __init__(self, *, expression: Knot | str, _config: KnotConfig, **kwargs: Any) -> None:
+            super().__init__(expression=expression, _config=_config, **kwargs)
+
+        async def process(self, expression: str, **_: Any) -> float:
+            return evaluate(expression)
+
+    Calculator.declaration()          # name/description/parameters for the model
+    Calculator(expression="1 + 1", _config=KnotConfig(id="call_1"))   # one call
+
+Dependencies a call does not supply — a filesystem root, a database
+connector, a memory store — are ordinary inputs bound once with
+:meth:`bind`, which returns a :class:`~pirn_agents.tools.tool_factory.ToolFactory`
+whose declaration hides them from the model.  A
+:class:`~pirn_agents.tools.toolset.Toolset` holds those factories (or bare
+classes), and executing a :class:`~pirn_agents.tools.tool_call.ToolCall` is
+``factory.for_call(call)`` — a knot the engine schedules, validates, retries
+and times out through ``KnotConfig``.
+
+Deprecated shape (one cycle).  A subclass that overrides ``name`` /
+``description`` / ``parameters_schema`` as properties and implements
+``invoke(arguments)`` — the pre-ADR interface — still imports and still works
+as a *capability* when handed to a ``Toolset`` or ``ToolFactory.of()``, which
+wrap it in a schema-declared knot; defining one warns ``DeprecationWarning``.
+Such an instance is not a bootstrapped knot and must not be wired as a knot
+input directly.
 """
 
 from __future__ import annotations
 
+import inspect
+import re
+import warnings
 from collections.abc import AsyncIterator, Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
-from pirn.core.pirn_opaque_value import PirnOpaqueValue
+from pirn.core.err import Err
+from pirn.core.knot import Knot
+from pirn.core.result import Result
 
 from pirn_agents.tools.tool_declaration import ToolDeclaration
+from pirn_agents.tools.tool_error_record import ToolErrorRecord
 from pirn_agents.tools.tool_permissions import ToolPermissions
 
+if TYPE_CHECKING:
+    from pirn_agents.tools.tool_factory import ToolFactory
 
-class Tool(PirnOpaqueValue):
-    """Interface every tool must satisfy."""
 
-    def declaration(self) -> ToolDeclaration:
-        """Return the provider-neutral declaration envelope for this tool.
+class Tool(Knot):
+    """A model-callable capability; subclass and implement ``process()``.
 
-        Derived from the three required members, so every concrete tool —
-        including MCP-discovered and agent-backed ones — gets a typed
-        declaration without restating the neutral key names.
-        """
-        return ToolDeclaration(
-            name=self.name,
-            description=self.description,
-            parameters=self.parameters_schema,
-        )
+    Class attributes (all optional):
+        tool_name: The name the model addresses the tool by.  Empty (the
+            default) means the snake_case of the class name.
+        tool_description: What the model is told the tool does.  Defaults to
+            the first paragraph of the class docstring.
+        permissions: :class:`ToolPermissions` metadata (scope, mutating,
+            approval, cost hint).  Inert by default.
+        streaming: Whether :meth:`stream` yields incremental output.  A
+            streaming tool's ``process()`` still returns the drained value.
+    """
 
-    @property
-    def name(self) -> str:
-        """Stable identifier the agent uses to address the tool."""
-        raise NotImplementedError(f"{type(self).__name__} must implement name")
+    tool_name: ClassVar[str] = ""
+    tool_description: ClassVar[str | None] = None
+    permissions: ClassVar[ToolPermissions] = ToolPermissions()
+    streaming: ClassVar[bool] = False
 
-    @property
-    def description(self) -> str:
-        """Human-readable description shown to the LLM during planning."""
-        raise NotImplementedError(f"{type(self).__name__} must implement description")
+    # ``process`` below is declared in the gradual parameter form; see
+    # ``Knot._dynamic_process_signature`` for why (PIR-833).
+    _dynamic_process_signature: ClassVar[bool] = True
 
-    @property
-    def parameters_schema(self) -> Mapping[str, Any]:
-        """JSON Schema describing the tool's expected arguments."""
-        raise NotImplementedError(f"{type(self).__name__} must implement parameters_schema")
+    #: Set by ``__init_subclass__`` on a pre-ADR, ``invoke``-shaped subclass.
+    _legacy_tool: ClassVar[bool] = False
 
-    async def invoke(self, arguments: Mapping[str, Any]) -> Any:
-        """Execute the tool with ``arguments`` and return the raw result."""
-        raise NotImplementedError(f"{type(self).__name__} must implement invoke()")
+    _snake_case_re: ClassVar[re.Pattern[str]] = re.compile(r"(?<!^)(?=[A-Z])")
 
-    @property
-    def stateful(self) -> bool:
-        """Whether this tool carries injected state across invocations (default False)."""
-        return False
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        if "invoke" in cls.__dict__ and "process" not in cls.__dict__:
+            cls._legacy_tool = True
+            if "__init__" not in cls.__dict__:
+                # A pre-ADR subclass that declares no ``__init__`` would reach
+                # ``Knot.__init__`` and be refused for lacking ``_config``; it
+                # is a plain capability object for the cycle, not a knot.
+                cls.__init__ = Tool._legacy_init
+            # Its declaration and factory come from the instance's properties,
+            # not from a process() it does not have.
+            cls.declaration = Tool._legacy_declaration  # type: ignore[method-assign]
+            cls.factory = Tool._legacy_factory  # type: ignore[method-assign]
+            warnings.warn(
+                f"{cls.__qualname__} defines invoke(): the invoke-shaped Tool is deprecated "
+                "(ADR agents-speaks-core WS1). Implement process() and read the name, "
+                "description and schema from declaration(); this class keeps working as a "
+                "capability only through Toolset / ToolFactory.of() for one cycle.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
 
-    @property
-    def state(self) -> Any:
-        """The injected state/resource object, or ``None`` (default None)."""
+    def _legacy_init(self, *args: Any, **kwargs: Any) -> None:
+        """The ``__init__`` of a deprecated ``invoke``-shaped subclass that declares none."""
         return None
 
-    @property
-    def permissions(self) -> ToolPermissions:
-        """Permission / scope metadata for this tool (default: inert/unrestricted)."""
-        return ToolPermissions()
+    def _legacy_factory(self) -> ToolFactory:
+        """A deprecated ``invoke``-shaped instance as a capability."""
+        from pirn_agents.tools.tool_factory import ToolFactory  # local: avoids a cycle
 
-    @property
-    def streaming(self) -> bool:
-        """Whether this tool yields incremental output via :meth:`stream` (default False)."""
-        return False
+        return ToolFactory.from_legacy(self)
 
-    def stream(self, arguments: Mapping[str, Any]) -> AsyncIterator[Any]:
+    def _legacy_declaration(self) -> ToolDeclaration:
+        """A deprecated ``invoke``-shaped instance's declaration, read off its properties."""
+        return self._legacy_factory().declaration()
+
+    async def process(self, *args: Any, **_: Any) -> Any:
+        """Execute one call.  Subclasses name their inputs and return the tool's value.
+
+        Raises:
+            NotImplementedError: Always; subclasses must override this method.
+        """
+        raise NotImplementedError(f"{type(self).__name__} must implement process()")
+
+    async def __call__(self, parent_results: Mapping[str, Any]) -> Result[Any]:
+        """Run as any knot; a failed call's record is credential-scrubbed on the way out.
+
+        A tool's failure message routinely names what it was talking to — a
+        DSN, a server URL — and the engine's ``traceback_filter`` reaches only
+        the traceback, never ``message``.  Scrubbing here, on the knot itself,
+        keeps the guarantee every invocation path used to make individually.
+        """
+        if not hasattr(self, "_mutable_config"):
+            raise TypeError(
+                f"{type(self).__name__} is an invoke-shaped Tool instance, not a knot; wire it "
+                "through Toolset / ToolFactory.of() rather than as a knot input"
+            )
+        result = await super().__call__(parent_results)
+        if isinstance(result, Err):
+            return Err(record=ToolErrorRecord.scrubbed_record(result.record))
+        return result
+
+    # ------------------------------------------------------------ envelope
+
+    @classmethod
+    def declared_name(cls) -> str:
+        """The name the model addresses this tool by."""
+        if cls.tool_name:
+            return cls.tool_name
+        return cls._snake_case_re.sub("_", cls.__name__).lower()
+
+    @classmethod
+    def declared_description(cls) -> str:
+        """The description shown to the model."""
+        if cls.tool_description is not None:
+            return cls.tool_description
+        own_doc = cls.__dict__.get("__doc__")
+        doc = inspect.cleandoc(own_doc) if isinstance(own_doc, str) else ""
+        first = doc.split("\n\n")[0].strip()
+        return first or cls.declared_name()
+
+    @classmethod
+    def declaration(cls) -> ToolDeclaration:
+        """Return the provider-neutral declaration of this capability.
+
+        ``parameters`` is ``Knot.input_json_schema()`` — the same hints
+        ``validate_io`` checks — with Knot-typed and ``PirnOpaqueValue``-typed
+        inputs already excluded by core (a live resource is wired, never
+        supplied by a model).  Bind dependencies with :meth:`bind` to hide
+        them too.
+        """
+        return cls.factory().declaration()
+
+    @classmethod
+    def factory(cls) -> ToolFactory:
+        """This class as a :class:`ToolFactory` with nothing bound."""
+        from pirn_agents.tools.tool_factory import ToolFactory  # local: avoids a cycle
+
+        return ToolFactory(cls)
+
+    @classmethod
+    def bind(cls, **config: Any) -> ToolFactory:
+        """Bind inputs a call never supplies and return the resulting factory.
+
+        ``ReadFileTool.bind(root="/srv")`` is the read-file capability scoped
+        to ``/srv``: its declaration hides ``root``, and every call it
+        constructs carries it.
+        """
+        return cls.factory().bind(**config)
+
+    @classmethod
+    def requires_approval(cls) -> bool:
+        """Whether a call must be approved by a human (from :attr:`permissions`)."""
+        return cls.permissions.approval_required
+
+    @classmethod
+    def stream(cls, arguments: Mapping[str, Any]) -> AsyncIterator[Any]:
         """Return an async iterator of partial results for ``arguments``.
 
-        Default: raise :class:`TypeError` — a non-streaming tool has nothing to stream.
+        Default: raise :class:`TypeError` — a non-streaming tool has nothing
+        to stream.  A streaming subclass sets ``streaming = True`` and
+        overrides this; its ``process()`` returns the drained chunks.
         """
-        raise TypeError(f"tool {self.name!r} is not a streaming tool")
+        raise TypeError(f"tool {cls.declared_name()!r} is not a streaming tool")
 
-    def requires_approval(self) -> bool:
-        """Whether invoking this tool requires human approval (from its permissions)."""
-        return self.permissions.approval_required
+    @classmethod
+    async def collect_stream(cls, arguments: Mapping[str, Any]) -> list[Any]:
+        """Drain :meth:`stream` for ``arguments`` into a list of chunks."""
+        return [chunk async for chunk in cls.stream(arguments)]
 
-    async def collect_stream(self, arguments: Mapping[str, Any]) -> list[Any]:
-        """Drain this tool's stream for ``arguments`` into a list of chunks."""
-        return [chunk async for chunk in self.stream(arguments)]
+    @classmethod
+    async def invoke(cls, arguments: Mapping[str, Any]) -> Any:
+        """Deprecated: construct one call and await it outside the engine.
+
+        Kept for one cycle for callers of the pre-ADR ``tool.invoke(arguments)``.
+        The knot shape is ``cls(**arguments, _config=KnotConfig(id=...))``
+        registered in a tapestry, or ``cls.factory().for_call(call)``.
+        """
+        warnings.warn(
+            f"{cls.__qualname__}.invoke() is deprecated (ADR agents-speaks-core WS1): "
+            "construct the tool knot and run it in a tapestry, or use "
+            "ToolFactory.for_call(call)",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return await cls.factory().invoke(arguments)
 
     def _clear_credentials(self) -> None:
         """Drop any in-memory credential reference held by the tool.
 
-        :class:`Tool` has no shared credential field, so the default
-        implementation is a no-op. Concrete tools that hold a
-        credential string (token, api key, secret) on a private
-        attribute should override this method to null whichever
-        credential field they hold (e.g. ``self._config = None`` or
-        ``self._api_key = None``). Callers should invoke this after
-        tearing down any live SDK / client so the credential becomes
-        garbage-collectable as soon as the tool reference is dropped.
-        Long-running processes that hold tool references benefit;
-        default deployments are unaffected.
+        A knot-shaped tool holds its dependencies as bound inputs, so there
+        is nothing to clear by default; a subclass holding a live secret on
+        a ``_mutable_`` slot overrides this.
         """
-        pass
+        return None
+
+    def __repr__(self) -> str:
+        if hasattr(self, "_mutable_config"):
+            return f"<{type(self).__name__} call={self.knot_id!r}>"
+        return f"<{type(self).__name__} (invoke-shaped, deprecated)>"

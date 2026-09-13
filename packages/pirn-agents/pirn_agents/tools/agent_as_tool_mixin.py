@@ -30,6 +30,7 @@ from pirn_agents.agent.agent_nesting_config import AgentNestingConfig
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.performance.run_budget import RunBudget
 from pirn_agents.tools.as_tool import as_tool
+from pirn_agents.tools.tool_declaration import ToolDeclaration
 
 if TYPE_CHECKING:
     from pirn_agents.tools.agent_tool import AgentTool
@@ -44,6 +45,15 @@ class AgentAsToolMixin(SubTapestry):
     ``SubTapestry`` base is inherited once through C3 linearization, so combining
     the two bases changes neither the MRO's construction path nor behaviour.
     """
+
+    def declaration(self) -> ToolDeclaration:
+        """The provider-neutral declaration of this agent as a tool (ADR agents-speaks-core, WS1).
+
+        A ``SubTapestry`` is a ``Knot``, so nothing is needed to *run* it as a
+        tool; the declaration — name, description, and the caller-facing
+        subset of its ``process`` inputs — is what the model sees.
+        """
+        return as_tool(self).declaration()
 
     def as_tool(
         self,

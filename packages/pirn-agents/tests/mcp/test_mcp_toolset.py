@@ -9,6 +9,7 @@ tool result round-trip through F1's protocol — the toolset's ``schema()`` and 
 from __future__ import annotations
 
 from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
@@ -51,22 +52,21 @@ async def test_schema_is_provider_neutral_round_trip() -> None:
     }
 
 
-def _make_executor() -> ParallelToolExecutor:
-    with Tapestry():
-        return ParallelToolExecutor(
-            tool_calls=[],
-            toolset=Toolset(),
-            _config=KnotConfig(id="pte", validate_io=False),
+async def _execute(calls: list[ToolCall], toolset: Toolset, **ctor: object) -> tuple:
+    with Tapestry() as t:
+        ParallelToolExecutor(
+            tool_calls=calls, toolset=toolset, _config=KnotConfig(id="pte"), **ctor
         )
+    run = await t.run(RunRequest())
+    assert run.succeeded, run.exceptions
+    return run.outputs["pte"]
 
 
 async def test_result_round_trips_through_parallel_executor() -> None:
     toolset = await _discover()
     calls = [ToolCall(tool_name="echo", arguments={"text": "hello"}, call_id="c-1")]
 
-    results = await _make_executor().process(
-        tool_calls=calls, toolset=toolset, max_concurrency=4, timeout=None, retries=0
-    )
+    results = await _execute(calls, toolset, max_concurrency=4)
 
     assert len(results) == 1
     assert results[0].call_id == "c-1"
@@ -78,9 +78,7 @@ async def test_error_tool_round_trips_to_error_result() -> None:
     toolset = await _discover()
     calls = [ToolCall(tool_name="boom", arguments={}, call_id="c-err")]
 
-    results = await _make_executor().process(
-        tool_calls=calls, toolset=toolset, max_concurrency=1, timeout=None, retries=0
-    )
+    results = await _execute(calls, toolset, max_concurrency=1)
 
     assert results[0].status is ToolStatus.ERROR
 

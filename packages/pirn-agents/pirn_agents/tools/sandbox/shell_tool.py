@@ -3,65 +3,59 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import Annotated, Any, ClassVar
 
-from pirn_agents.tools.base_tool import BaseTool
+from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
+from pydantic import Field
+
 from pirn_agents.tools.sandbox.sandbox_executor import SandboxExecutor
+from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.tool_permissions import ToolPermissions
 
 
-class ShellTool(BaseTool):
-    """Execute a shell command via a :class:`SandboxExecutor` (disabled by default)."""
+class ShellTool(Tool):
+    """Execute a shell command in a sandbox and return stdout/stderr (opt-in)."""
 
-    def __init__(self, *, executor: SandboxExecutor, shell_path: str = "/bin/sh") -> None:
-        """Bind the tool to a sandbox executor and the shell to run.
+    tool_name: ClassVar[str] = "shell"
+    permissions: ClassVar[ToolPermissions] = ToolPermissions(mutating=True)
+
+    def __init__(
+        self,
+        *,
+        command: Knot | str,
+        executor: Knot | SandboxExecutor,
+        shell_path: Knot | str = "/bin/sh",
+        _config: KnotConfig,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(
+            command=command, executor=executor, shell_path=shell_path, _config=_config, **kwargs
+        )
+
+    async def process(
+        self,
+        command: Annotated[str, Field(description="The shell command line to run.")],
+        executor: SandboxExecutor,
+        shell_path: str = "/bin/sh",
+        **_: Any,
+    ) -> Mapping[str, Any]:
+        """Run ``command`` through the sandbox and return its result.
 
         Args:
-            executor: The :class:`SandboxExecutor` that gates and runs the command.
+            command: The shell command line to run.
+            executor: The :class:`SandboxExecutor` that gates and runs the
+                command; bound once with ``ShellTool.bind(executor=...)``.
             shell_path: Path to the shell interpreter; defaults to ``/bin/sh``.
 
-        Raises:
-            TypeError: If ``executor`` is not a :class:`SandboxExecutor`.
-        """
-        if not isinstance(executor, SandboxExecutor):
-            raise TypeError(
-                f"shell: executor must be a SandboxExecutor, got {type(executor).__name__}"
-            )
-        self._executor = executor
-        self._shell = shell_path
-
-    @property
-    def name(self) -> str:
-        """Return the stable tool identifier ``"shell"``."""
-        return "shell"
-
-    @property
-    def description(self) -> str:
-        """Return the human-readable description shown to the planner."""
-        return "Execute a shell command in a sandbox and return stdout/stderr (opt-in)."
-
-    @property
-    def parameters_schema(self) -> Mapping[str, Any]:
-        """Return the JSON Schema for the ``command`` argument."""
-        return {
-            "type": "object",
-            "properties": {
-                "command": {"type": "string", "description": "The shell command line to run."}
-            },
-            "required": ["command"],
-        }
-
-    async def invoke(self, arguments: Mapping[str, Any]) -> Mapping[str, Any]:
-        """Run the ``command`` argument through the sandbox and return its result.
-
         Returns:
-            The :class:`SandboxResult` mapping (stdout/stderr/exit_code/…).
+            The :class:`SandboxResult` mapping (stdout/stderr/exit_code/...).
 
         Raises:
-            TypeError: If ``arguments`` is not a mapping.
-            ValueError: If ``command`` is missing/empty.
+            ValueError: If ``command`` is empty.
             SandboxDisabledError: If the sandbox is not opted in.
         """
-        self._require_mapping(self.name, arguments)
-        command = self._string_argument(self.name, arguments, "command")
-        result = await self._executor.execute(command=[self._shell, "-c", command])
+        if not command:
+            raise ValueError("shell: 'command' must be a non-empty string")
+        result = await executor.execute(command=[shell_path, "-c", command])
         return result.as_mapping()

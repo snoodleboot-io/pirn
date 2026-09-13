@@ -9,12 +9,14 @@ server-reported error becoming a ``ToolStatus.ERROR`` result.
 from __future__ import annotations
 
 import pytest
+from pirn.core.err import Err
+from pirn.core.ok import Ok
 
 from pirn_agents.mcp.mcp_client import McpClient
 from pirn_agents.mcp.mcp_error import McpError
 from pirn_agents.mcp.mcp_tool import McpTool
-from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_factory import ToolFactory
 from pirn_agents.tools.tool_status import ToolStatus
 from tests.mcp.stub_mcp import StubMcpTransport
 
@@ -30,18 +32,21 @@ async def _echo_tool() -> McpTool:
 async def test_descriptor_maps_name_description_and_schema() -> None:
     tool = await _echo_tool()
 
-    assert isinstance(tool, Tool)
+    assert isinstance(tool, ToolFactory)
     assert tool.name == "echo"
     assert tool.description == "Echo the given text back."
     assert tool.parameters_schema["properties"] == {"text": {"type": "string"}}
 
 
-async def test_invoke_returns_mapped_text_result() -> None:
+async def test_a_call_returns_the_mapped_text_result() -> None:
     tool = await _echo_tool()
 
-    result = await tool.invoke({"text": "hi there"})
+    outcome = await tool.run_call(
+        ToolCall(tool_name="echo", arguments={"text": "hi there"}, call_id="c")
+    )
 
-    assert result == "hi there"
+    assert isinstance(outcome, Ok)
+    assert outcome.value == "hi there"
 
 
 async def test_invoke_returns_structured_content() -> None:
@@ -51,18 +56,24 @@ async def test_invoke_returns_structured_content() -> None:
     add = next(d for d in descriptors if d["name"] == "add")
     tool = McpTool.from_descriptor(client=client, descriptor=add)
 
-    result = await tool.invoke({"a": 2, "b": 3})
+    outcome = await tool.run_call(
+        ToolCall(tool_name="add", arguments={"a": 2, "b": 3}, call_id="c")
+    )
 
-    assert result == {"sum": 5}
+    assert isinstance(outcome, Ok)
+    assert outcome.value == {"sum": 5}
 
 
-async def test_invoke_raises_on_server_error_flag() -> None:
+async def test_a_server_error_flag_is_the_calls_err() -> None:
     client = McpClient(StubMcpTransport())
     await client.open()
     tool = McpTool(client=client, name="boom")
 
-    with pytest.raises(McpError):
-        await tool.invoke({})
+    outcome = await tool.run_call(ToolCall(tool_name="boom", arguments={}, call_id="c"))
+
+    assert isinstance(outcome, Err)
+    assert outcome.record.exc_type == McpError.__name__
+    assert "kaboom" in outcome.record.message
 
 
 async def test_as_tool_result_ok_round_trips_call_id() -> None:
@@ -91,10 +102,12 @@ async def test_as_tool_result_maps_server_error_to_error_status() -> None:
     assert "kaboom" in result.error
 
 
-async def test_invoke_rejects_non_mapping_arguments() -> None:
+async def test_undeclared_arguments_are_refused_by_the_declaration() -> None:
     tool = await _echo_tool()
-    with pytest.raises(TypeError):
-        await tool.invoke("nope")  # type: ignore[arg-type]
+    assert tool.validate_arguments({"nope": 1}) == {
+        "text": "missing_required",
+        "nope": "unexpected_property",
+    }
 
 
 async def test_constructor_rejects_non_client() -> None:

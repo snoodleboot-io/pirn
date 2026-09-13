@@ -80,6 +80,7 @@ from pirn_agents.types.messaging.agent_message import AgentMessage
 from pirn_agents.types.messaging.agent_response import AgentResponse
 from tests.conftest import StubLLMProvider, StubMemoryStore, StubTool
 from tests.specializations.conftest import StubEmbeddingProvider
+from tests.tools.tool_runner import ToolRunner
 
 
 def _bare(cls: type[Knot], knot_id: str = "pin") -> Knot:
@@ -751,8 +752,8 @@ class ToolsPromptPins(unittest.IsolatedAsyncioTestCase):
         llm = StubLLMProvider(responses=["answer"])
         store = StubMemoryStore()
         await store.store("a", {"text": "ants are insects"})
-        tool = RagTool(store=store, llm=llm)
-        await tool.invoke({"question": "what are ants?"})
+        tool = RagTool.bind(store=store, llm=llm)
+        await ToolRunner.value(tool, {"question": "what are ants?"})
         assert llm.calls[0][0]["content"] == (
             "Answer the question using only the provided context. "
             "If the context is insufficient, say so."
@@ -761,6 +762,6 @@ class ToolsPromptPins(unittest.IsolatedAsyncioTestCase):
     async def test_rag_tool_explicit_override_still_wins(self) -> None:
         llm = StubLLMProvider(responses=["answer"])
         store = StubMemoryStore()
-        tool = RagTool(store=store, llm=llm, system_prompt="Be terse.")
-        await tool.invoke({"question": "what are ants?"})
+        tool = RagTool.bind(store=store, llm=llm, system_prompt="Be terse.")
+        await ToolRunner.value(tool, {"question": "what are ants?"})
         assert llm.calls[0][0]["content"] == "Be terse."

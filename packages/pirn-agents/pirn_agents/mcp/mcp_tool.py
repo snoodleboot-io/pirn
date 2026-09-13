@@ -1,32 +1,30 @@
-"""``McpTool`` — adapt one discovered MCP server tool to the F1 ``Tool`` protocol.
+"""``McpTool`` — one discovered MCP server tool as a schema-declared tool capability.
 
-An :class:`McpTool` wraps a single tool descriptor discovered from an MCP server
-(its ``name``, ``description``, and JSON-Schema ``inputSchema``) and delegates
-:meth:`invoke` to the server's ``tools/call``. The raw MCP ``CallToolResult`` is
-mapped to a plain Python value so the tool composes with F1's
-:class:`~pirn_agents.agent.parallel_tool_executor.ParallelToolExecutor`, which wraps
-the return in a :class:`~pirn_agents.tools.tool_result.ToolResult`. For direct
-(executor-free) use, :meth:`as_tool_result` produces the ``ToolResult`` itself so
-schema *and* result round-trip through F1's protocol either way.
+An MCP server advertises a tool as a descriptor — ``name``, ``description``
+and a JSON-Schema ``inputSchema`` — with no Python signature to introspect.
+That is exactly the case core's ``KnotFactory.from_schema`` exists for (ADR
+agents-speaks-core, WS0/WS1): the schema is the input contract, each property
+becomes the ``TypeAdapter`` ``validate_io`` applies, and ``process`` receives
+the validated arguments by keyword.  ``McpTool`` is the
+:class:`~pirn_agents.tools.tool_factory.ToolFactory` over such a generated
+:class:`~pirn_agents.tools.tool.Tool` subclass, whose ``process()`` delegates
+to the server's ``tools/call`` through the bound :class:`McpClient` and maps
+the raw ``CallToolResult`` to a plain Python value.  One call is one knot:
+``factory.for_call(call)``; the engine records its ``Result``.
 """
 
 from __future__ import annotations
 
-import time
 from collections.abc import Mapping
 from typing import Any
 
 from pirn_agents.mcp.mcp_client import McpClient
 from pirn_agents.mcp.mcp_error import McpError
-from pirn_agents.tools.tool import Tool
-from pirn_agents.tools.tool_call import ToolCall
-from pirn_agents.tools.tool_error_record import ToolErrorRecord
-from pirn_agents.tools.tool_result import ToolResult
-from pirn_agents.tools.tool_status import ToolStatus
+from pirn_agents.tools.tool_factory import ToolFactory
 
 
-class McpTool(Tool):
-    """A remote MCP tool exposed through the local :class:`Tool` interface."""
+class McpTool(ToolFactory):
+    """A remote MCP tool exposed as a local tool capability."""
 
     def __init__(
         self,
@@ -39,28 +37,36 @@ class McpTool(Tool):
         """Bind a discovered MCP tool descriptor to a live client.
 
         Args:
-            client: The :class:`McpClient` whose session backs invocations.
+            client: The :class:`McpClient` whose session backs every call.
             name: The server tool's stable name.
             description: Human-readable description shown to the planner.
             parameters_schema: The tool's JSON-Schema for arguments; defaults to
                 an empty-object schema when the server omits one.
 
         Raises:
-            TypeError: If ``client`` is not an :class:`McpClient` or ``name`` is
-                not a non-empty string.
+            TypeError: If ``client`` is not an :class:`McpClient`, ``name`` is
+                not a non-empty string, or the schema is not an object schema
+                core can declare inputs from.
         """
         if not isinstance(client, McpClient):
             raise TypeError(f"McpTool: client must be an McpClient, got {type(client).__name__}")
         if not isinstance(name, str) or not name:
             raise TypeError(f"McpTool: name must be a non-empty string, got {name!r}")
-        self._client: McpClient = client
-        self._name: str = name
-        self._description: str = description
-        self._parameters_schema: Mapping[str, Any] = (
+        schema: Mapping[str, Any] = (
             dict(parameters_schema)
             if isinstance(parameters_schema, Mapping)
             else {"type": "object", "properties": {}}
         )
+        self._client: McpClient | None = client
+        self._remote_name = name
+        knot_class = ToolFactory.schema_declared_class(
+            f"McpTool_{name}",
+            schema,
+            self._call_remote,
+            description=description,
+            tool_name=name,
+        )
+        super().__init__(knot_class, name=name, description=description)
 
     @classmethod
     def from_descriptor(cls, *, client: McpClient, descriptor: Mapping[str, Any]) -> McpTool:
@@ -85,94 +91,25 @@ class McpTool(Tool):
             parameters_schema=descriptor.get("inputSchema"),
         )
 
-    @property
-    def name(self) -> str:
-        """Return the tool's stable server name."""
-        return self._name
-
-    @property
-    def description(self) -> str:
-        """Return the tool's human-readable description."""
-        return self._description
-
-    @property
-    def parameters_schema(self) -> Mapping[str, Any]:
-        """Return the tool's JSON-Schema argument specification."""
-        return self._parameters_schema
-
-    async def invoke(self, arguments: Mapping[str, Any]) -> Any:
-        """Call the remote tool and return its result mapped to a plain value.
-
-        Args:
-            arguments: Argument mapping conforming to :attr:`parameters_schema`.
-
-        Returns:
-            The mapped MCP result (structured content, a string, or a list).
+    async def _call_remote(self, **arguments: Any) -> Any:
+        """The generated knot's body: ``tools/call`` on the server, mapped to a value.
 
         Raises:
-            TypeError: If ``arguments`` is not a Mapping.
-            McpError: If the server marks the result as an error (``isError``)
-                or returns a JSON-RPC error.
+            McpError: If the server marks the result as an error (``isError``),
+                returns a JSON-RPC error, or the client has been cleared.
         """
-        if not isinstance(arguments, Mapping):
-            raise TypeError(
-                f"McpTool.invoke: arguments must be a Mapping, got {type(arguments).__name__}"
-            )
-        raw = await self._client.call_tool(self._name, arguments)
+        if self._client is None:
+            raise McpError(f"MCP tool {self._remote_name!r} has no client (credentials cleared)")
+        raw = await self._client.call_tool(self._remote_name, arguments)
         if raw.get("isError") is True:
             raise McpError(
-                f"MCP tool {self._name!r} reported an error: {McpTool._result_text(raw)}"
+                f"MCP tool {self._remote_name!r} reported an error: {McpTool._result_text(raw)}"
             )
         return McpTool._map_tool_result(raw)
 
-    async def as_tool_result(self, call: ToolCall) -> ToolResult:
-        """Invoke for ``call`` and return a fully-formed F1 :class:`ToolResult`.
-
-        A server-reported error becomes a ``ToolStatus.ERROR`` result rather than
-        a raised exception, so callers get the same terminal shape F1's executor
-        would produce.
-
-        Args:
-            call: The originating :class:`ToolCall`; its ``call_id`` is echoed.
-
-        Raises:
-            TypeError: If ``call`` is not a :class:`ToolCall`.
-        """
-        if not isinstance(call, ToolCall):
-            raise TypeError(
-                f"McpTool.as_tool_result: call must be a ToolCall, got {type(call).__name__}"
-            )
-        start = time.perf_counter()
-        try:
-            raw = await self._client.call_tool(self._name, call.arguments)
-        except McpError as exc:
-            # ``error`` derives from the record, so the two cannot drift.
-            return ToolResult(
-                call_id=call.call_id,
-                result=None,
-                status=ToolStatus.ERROR,
-                exception=ToolErrorRecord.scrubbed(self._name, exc),
-                latency=time.perf_counter() - start,
-            )
-        latency = time.perf_counter() - start
-        if raw.get("isError") is True:
-            return ToolResult(
-                call_id=call.call_id,
-                result=None,
-                status=ToolStatus.ERROR,
-                error=f"MCP tool {self._name!r} reported an error: {McpTool._result_text(raw)}",
-                latency=latency,
-            )
-        return ToolResult(
-            call_id=call.call_id,
-            result=McpTool._map_tool_result(raw),
-            status=ToolStatus.OK,
-            latency=latency,
-        )
-
     def _clear_credentials(self) -> None:
         """Drop the client reference so any held session becomes GC-able."""
-        self._client = None  # type: ignore[assignment]
+        self._client = None
 
     @staticmethod
     def _map_tool_result(raw: Mapping[str, Any]) -> Any:

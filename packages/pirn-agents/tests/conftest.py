@@ -13,7 +13,7 @@ from typing import Any
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.llm.stream_delta import StreamDelta
 from pirn_agents.memory.stores.memory_store import MemoryStore
-from pirn_agents.tools.tool import Tool
+from pirn_agents.testing.stub_tool import StubTool as KitStubTool
 
 
 class StubLLMProvider(LLMProvider):
@@ -89,8 +89,13 @@ class StubMemoryStore(MemoryStore):
         return None
 
 
-class StubTool(Tool):
-    """Tool double that records each invocation."""
+class StubTool(KitStubTool):
+    """Tool capability double that records each call (ADR agents-speaks-core, WS1).
+
+    ``handler`` may be a plain return value or a callable applied to the
+    incoming arguments mapping; every call is one knot, so a stub runs through
+    the engine like a real tool.
+    """
 
     def __init__(
         self,
@@ -99,25 +104,7 @@ class StubTool(Tool):
         description: str = "stub tool",
         handler: Callable[[Mapping[str, Any]], Any] | Any = "tool-result",
     ) -> None:
-        self._name = name
-        self._description = description
-        self._handler = handler
-        self.invocations: list[Mapping[str, Any]] = []
-
-    @property
-    def name(self) -> str:
-        return self._name
-
-    @property
-    def description(self) -> str:
-        return self._description
-
-    @property
-    def parameters_schema(self) -> Mapping[str, Any]:
-        return {"type": "object", "properties": {"input": {"type": "string"}}}
-
-    async def invoke(self, arguments: Mapping[str, Any]) -> Any:
-        self.invocations.append(dict(arguments))
-        if callable(self._handler):
-            return self._handler(arguments)
-        return self._handler
+        if callable(handler):
+            super().__init__(name=name, description=description, handler=handler)
+        else:
+            super().__init__(name=name, description=description, result=handler)

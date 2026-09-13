@@ -4,63 +4,64 @@ from __future__ import annotations
 
 import sys
 from collections.abc import Mapping
-from typing import Any
+from typing import Annotated, Any, ClassVar
 
-from pirn_agents.tools.base_tool import BaseTool
+from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
+from pydantic import Field
+
 from pirn_agents.tools.sandbox.sandbox_executor import SandboxExecutor
+from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.tool_permissions import ToolPermissions
 
 
-class PythonExecTool(BaseTool):
-    """Execute a Python snippet via a :class:`SandboxExecutor` (disabled by default)."""
+class PythonExecTool(Tool):
+    """Execute a Python code snippet in a sandbox and return stdout/stderr (opt-in)."""
 
-    def __init__(self, *, executor: SandboxExecutor, python_executable: str | None = None) -> None:
-        """Bind the tool to a sandbox executor and the interpreter to run.
+    tool_name: ClassVar[str] = "python_exec"
+    permissions: ClassVar[ToolPermissions] = ToolPermissions(mutating=True)
+
+    def __init__(
+        self,
+        *,
+        code: Knot | str,
+        executor: Knot | SandboxExecutor,
+        python_executable: Knot | str | None = None,
+        _config: KnotConfig,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(
+            code=code,
+            executor=executor,
+            python_executable=python_executable,
+            _config=_config,
+            **kwargs,
+        )
+
+    async def process(
+        self,
+        code: Annotated[str, Field(description="Python source to execute.")],
+        executor: SandboxExecutor,
+        python_executable: str | None = None,
+        **_: Any,
+    ) -> Mapping[str, Any]:
+        """Run ``code`` through the sandbox and return its result.
 
         Args:
-            executor: The :class:`SandboxExecutor` that gates and runs the code.
+            code: The Python source to execute.
+            executor: The :class:`SandboxExecutor` that gates and runs the
+                code; bound once with ``PythonExecTool.bind(executor=...)``.
             python_executable: Interpreter path; defaults to the current one.
 
-        Raises:
-            TypeError: If ``executor`` is not a :class:`SandboxExecutor`.
-        """
-        if not isinstance(executor, SandboxExecutor):
-            raise TypeError(
-                f"python_exec: executor must be a SandboxExecutor, got {type(executor).__name__}"
-            )
-        self._executor = executor
-        self._python = python_executable if python_executable is not None else sys.executable
-
-    @property
-    def name(self) -> str:
-        """Return the stable tool identifier ``"python_exec"``."""
-        return "python_exec"
-
-    @property
-    def description(self) -> str:
-        """Return the human-readable description shown to the planner."""
-        return "Execute a Python code snippet in a sandbox and return stdout/stderr (opt-in)."
-
-    @property
-    def parameters_schema(self) -> Mapping[str, Any]:
-        """Return the JSON Schema for the ``code`` argument."""
-        return {
-            "type": "object",
-            "properties": {"code": {"type": "string", "description": "Python source to execute."}},
-            "required": ["code"],
-        }
-
-    async def invoke(self, arguments: Mapping[str, Any]) -> Mapping[str, Any]:
-        """Run the ``code`` argument through the sandbox and return its result.
-
         Returns:
-            The :class:`SandboxResult` mapping (stdout/stderr/exit_code/…).
+            The :class:`SandboxResult` mapping (stdout/stderr/exit_code/...).
 
         Raises:
-            TypeError: If ``arguments`` is not a mapping.
-            ValueError: If ``code`` is missing/empty.
+            ValueError: If ``code`` is empty.
             SandboxDisabledError: If the sandbox is not opted in.
         """
-        self._require_mapping(self.name, arguments)
-        code = self._string_argument(self.name, arguments, "code")
-        result = await self._executor.execute(command=[self._python, "-I", "-"], stdin=code)
+        if not code:
+            raise ValueError("python_exec: 'code' must be a non-empty string")
+        python = python_executable if python_executable is not None else sys.executable
+        result = await executor.execute(command=[python, "-I", "-"], stdin=code)
         return result.as_mapping()

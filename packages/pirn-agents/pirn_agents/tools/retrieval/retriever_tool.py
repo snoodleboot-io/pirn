@@ -1,6 +1,6 @@
 """``RetrieverTool`` — expose a :class:`MemoryStore` similarity search as a tool.
 
-Wraps an injected F4 :class:`~pirn_agents.memory.stores.memory_store.MemoryStore` so an agent
+Reads a bound F4 :class:`~pirn_agents.memory.stores.memory_store.MemoryStore` so an agent
 can explicitly decide to retrieve ranked context. Provider-neutral: any store
 implementation (vector DB, in-memory, hybrid) works, and nothing vendor-specific
 is imported at module load.
@@ -9,81 +9,58 @@ is imported at module load.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import Annotated, Any, ClassVar
+
+from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
+from pydantic import Field
 
 from pirn_agents.memory.stores.memory_store import MemoryStore
-from pirn_agents.tools.base_tool import BaseTool
+from pirn_agents.tools.tool import Tool
 
 
-class RetrieverTool(BaseTool):
-    """Retrieve the top-k most similar records for a query from a memory store."""
+class RetrieverTool(Tool):
+    """Retrieve the most relevant stored records for a query, ranked by similarity."""
 
-    def __init__(self, *, store: MemoryStore, top_k: int = 5) -> None:
-        """Bind the tool to a memory store and a default result count.
+    tool_name: ClassVar[str] = "retriever"
+
+    def __init__(
+        self,
+        *,
+        query: Knot | str,
+        store: Knot | MemoryStore,
+        top_k: Knot | int = 5,
+        _config: KnotConfig,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(query=query, store=store, top_k=top_k, _config=_config, **kwargs)
+
+    async def process(
+        self,
+        query: Annotated[str, Field(description="The retrieval query.")],
+        store: MemoryStore,
+        top_k: Annotated[int, Field(description="Number of ranked results to return.")] = 5,
+        **_: Any,
+    ) -> Mapping[str, Any]:
+        """Search the store and return ranked results.
 
         Args:
-            store: The injected :class:`MemoryStore` to search.
-            top_k: Default number of ranked results to return.
-
-        Raises:
-            TypeError: If ``store`` is not a :class:`MemoryStore`.
-            ValueError: If ``top_k`` is not positive.
-        """
-        if not isinstance(store, MemoryStore):
-            raise TypeError(f"retriever: store must be a MemoryStore, got {type(store).__name__}")
-        if top_k <= 0:
-            raise ValueError(f"retriever: top_k must be positive, got {top_k}")
-        self._store: MemoryStore = store
-        self._top_k = top_k
-
-    @property
-    def name(self) -> str:
-        """Return the stable tool identifier ``"retriever"``."""
-        return "retriever"
-
-    @property
-    def description(self) -> str:
-        """Return the human-readable description shown to the planner."""
-        return "Retrieve the most relevant stored records for a query, ranked by similarity."
-
-    @property
-    def parameters_schema(self) -> Mapping[str, Any]:
-        """Return the JSON Schema for the ``query`` and optional ``top_k``."""
-        return {
-            "type": "object",
-            "properties": {
-                "query": {"type": "string", "description": "The retrieval query."},
-                "top_k": {
-                    "type": "integer",
-                    "description": "Number of ranked results to return.",
-                },
-            },
-            "required": ["query"],
-        }
-
-    async def invoke(self, arguments: Mapping[str, Any]) -> Mapping[str, Any]:
-        """Search the store and return ranked results.
+            query: The retrieval query.
+            store: The :class:`MemoryStore` to search; bound once with
+                ``RetrieverTool.bind(store=...)``.
+            top_k: Number of ranked results to return.
 
         Returns:
             ``{"query", "results": [mapping...], "count"}`` — results are ordered
             by the store's ranking.
 
         Raises:
-            TypeError: If ``arguments`` is not a mapping.
-            ValueError: If ``query`` is missing/empty.
+            ValueError: If ``query`` is empty or ``top_k`` is not positive.
         """
-        self._require_mapping(self.name, arguments)
-        query = self._string_argument(self.name, arguments, "query")
-        requested = arguments.get("top_k")
-        top_k = requested if isinstance(requested, int) and requested > 0 else self._top_k
-        results = await self._collect(query, top_k)
+        if not query:
+            raise ValueError("retriever: 'query' must be a non-empty string")
+        if top_k <= 0:
+            raise ValueError(f"retriever: top_k must be positive, got {top_k}")
+        hits = await store.search(query, top_k=top_k)
+        results = [dict(item) for item in list(hits)[:top_k]]
         return {"query": query, "results": results, "count": len(results)}
-
-    async def _collect(self, query: str, top_k: int) -> list[dict[str, Any]]:
-        """Search the store and return up to ``top_k`` hits as an ordered list."""
-        hits = await self._store.search(query, top_k=top_k)
-        return [dict(item) for item in list(hits)[:top_k]]
-
-    def _clear_credentials(self) -> None:
-        """Drop the store reference so it becomes garbage-collectable."""
-        self._store = None  # type: ignore[assignment]
