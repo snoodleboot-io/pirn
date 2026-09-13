@@ -37,7 +37,6 @@ from typing import Any, ClassVar
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from scipy.optimize import curve_fit
 
 from pirn_oilgas.types.scada_payload import ScadaPayload
 
@@ -136,6 +135,14 @@ class DeclineCurveAnalyzer(Knot):
 
     @staticmethod
     def _fit_hyperbolic(rate_array: np.ndarray, time_days: np.ndarray) -> dict[str, float]:
+        try:
+            from scipy.optimize import curve_fit
+        except ImportError as exc:
+            raise ImportError(
+                "DeclineCurveAnalyzer: hyperbolic fitting requires scipy — "
+                "install pirn-oilgas[oilgas]"
+            ) from exc
+
         def hyperbolic(time_arr: np.ndarray, qi_: float, di_: float, arps_b: float) -> np.ndarray:
             return qi_ * (1.0 + arps_b * di_ * time_arr) ** (-1.0 / arps_b)
 

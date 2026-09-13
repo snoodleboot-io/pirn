@@ -24,7 +24,6 @@ import asyncio
 import io
 from typing import Any
 
-import lasio
 import numpy as np
 from pirn.core.disassembler import Disassembler
 from pirn.core.knot import Knot
@@ -34,6 +33,14 @@ from pirn_oilgas.types.las_payload import LASPayload
 
 
 def _encode(payload: LASPayload) -> bytes:
+    try:
+        import lasio
+    except ImportError as exc:
+        raise ImportError(
+            "LasObjectStoreDisassembler: encoding LAS bytes requires lasio — "
+            "install pirn-oilgas[oilgas]"
+        ) from exc
+
     las = lasio.LASFile()
 
     las.well["WELL"].value = payload.las.well_id

@@ -25,7 +25,6 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 from typing import Any
 
-import lasio
 import numpy as np
 from pirn.core.assembler import Assembler
 from pirn.core.knot import Knot
@@ -41,6 +40,14 @@ def _decode(
     curves: tuple[str, ...],
     depth_unit: str,
 ) -> LASPayload:
+    try:
+        import lasio
+    except ImportError as exc:
+        raise ImportError(
+            "LasObjectStoreAssembler: decoding LAS bytes requires lasio — "
+            "install pirn-oilgas[oilgas]"
+        ) from exc
+
     las = lasio.read(io.StringIO(body.decode("utf-8", errors="replace")))
     available = {curve_entry.mnemonic for curve_entry in las.curves}
     curve_data: dict[str, np.ndarray] = {}
