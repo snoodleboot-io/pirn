@@ -13,6 +13,7 @@ _logger = logging.getLogger(__name__)
 from pirn.backends.base.tapestry_snapshot import TapestrySnapshot  # noqa: E402
 from pirn.backends.base.tapestry_store import TapestryStore  # noqa: E402
 from pirn.backends.valkey._lazy_client import _LazyClient  # noqa: E402
+from pirn.exceptions.duplicate_knot_error import DuplicateKnotError  # noqa: E402
 
 if TYPE_CHECKING:
     from pirn.core.knot import Knot
@@ -59,12 +60,12 @@ class ValKeyStore(TapestryStore, SubscribableStore):
             knot: The knot to register.
 
         Raises:
-            ValueError: If a different ``Knot`` instance with the same
+            DuplicateKnotError: If a different ``Knot`` instance with the same
                 ``knot_id`` is already registered.
         """
         existing = self._live.get(knot.knot_id)
         if existing is not None and existing is not knot:
-            raise ValueError(
+            raise DuplicateKnotError(
                 f"knot id {knot.knot_id!r} already registered with a different instance"
             )
         self._live[knot.knot_id] = knot
@@ -102,12 +103,12 @@ class ValKeyStore(TapestryStore, SubscribableStore):
             knot: The knot to register.
 
         Raises:
-            ValueError: If a different ``Knot`` instance with the same
+            DuplicateKnotError: If a different ``Knot`` instance with the same
                 ``knot_id`` is already registered.
         """
         existing = self._live.get(knot.knot_id)
         if existing is not None and existing is not knot:
-            raise ValueError(
+            raise DuplicateKnotError(
                 f"knot id {knot.knot_id!r} already registered with a different instance"
             )
         self._live[knot.knot_id] = knot

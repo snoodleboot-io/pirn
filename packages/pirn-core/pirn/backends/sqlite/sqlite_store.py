@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 from pirn.backends.base.tapestry_snapshot import TapestrySnapshot
 from pirn.backends.base.tapestry_store import TapestryStore
 from pirn.backends.sqlite._migrations import apply_migrations
+from pirn.exceptions.duplicate_knot_error import DuplicateKnotError
 
 if TYPE_CHECKING:
     from pirn.core.knot import Knot
@@ -114,7 +115,7 @@ class SQLiteStore(TapestryStore):
             knot: The knot to register.
 
         Raises:
-            ValueError: If a different ``Knot`` instance with the same
+            DuplicateKnotError: If a different ``Knot`` instance with the same
                 ``knot_id`` is already registered.
         """
         from datetime import UTC, datetime
@@ -122,7 +123,7 @@ class SQLiteStore(TapestryStore):
         self._ensure_init()
         existing = self._live.get(knot.knot_id)
         if existing is not None and existing is not knot:
-            raise ValueError(
+            raise DuplicateKnotError(
                 f"knot id {knot.knot_id!r} already registered with a different instance"
             )
         self._live[knot.knot_id] = knot
