@@ -11,6 +11,7 @@ import hmac
 import os
 
 from pirn.exceptions.data_integrity_error import DataIntegrityError
+from pirn.exceptions.pirn_config_error import PirnConfigError
 
 
 class _Signer:
@@ -39,13 +40,13 @@ class _Signer:
         """
         raw = os.environ.get(var)
         if not raw:
-            raise ValueError(
+            raise PirnConfigError(
                 f"Environment variable {var!r} is not set or empty. "
                 "Set it to a base64-encoded signing key before constructing a signed DataStore."
             )
         decoded = base64.b64decode(raw)
         if len(decoded) < 32:
-            raise ValueError(
+            raise PirnConfigError(
                 f"Environment variable {var!r} decoded to {len(decoded)} bytes; "
                 "HMAC-SHA256 requires at least 32 bytes of key material. "
                 'Generate a key with: python -c "import secrets,base64; print(base64.b64encode(secrets.token_bytes(32)).decode())"'

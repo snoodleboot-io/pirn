@@ -345,6 +345,7 @@ class Tapestry:
         from pirn.core.knot import Knot as _Knot
         from pirn.core.run_request import RunRequest as _RunRequest
         from pirn.engine.engine import Engine
+        from pirn.exceptions.tapestry_error import TapestryError
 
         request = request or _RunRequest()
 
@@ -361,7 +362,7 @@ class Tapestry:
             chosen = list(terminals)
 
         if not chosen:
-            raise ValueError(
+            raise TapestryError(
                 "tapestry has no knots / no terminals to run; construct knots "
                 "inside `with Tapestry() as t:` or pass `terminals=`."
             )
@@ -429,13 +430,16 @@ class Tapestry:
     def remove_emitter(self, emitter: Any) -> None:
         """Remove an emitter by identity (not equality).
 
-        Raises ``ValueError`` if the emitter is not registered.
+        Raises ``TapestryError`` (a ``ValueError``) if the emitter is not
+        registered.
         """
+        from pirn.exceptions.tapestry_error import TapestryError
+
         for i, e in enumerate(self._emitters):
             if e is emitter:
                 del self._emitters[i]
                 return
-        raise ValueError("emitter not registered with this tapestry")
+        raise TapestryError("emitter not registered with this tapestry")
 
     @property
     def emitters(self) -> list[Any]:
