@@ -2,9 +2,15 @@
 
 from __future__ import annotations
 
+from pirn.exceptions.pirn_error import PirnError
 
-class McpTrustError(Exception):
+
+class McpTrustError(PirnError, Exception):
     """Raised when the MCP trust policy refuses a server/tool call.
+
+    Subclasses :class:`~pirn.exceptions.pirn_error.PirnError` in addition to
+    ``Exception`` so every existing ``except Exception`` handler keeps
+    working unchanged, while new code can narrow to ``PirnError``.
 
     Parameters
     ----------

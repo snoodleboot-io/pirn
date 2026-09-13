@@ -2,9 +2,15 @@
 
 from __future__ import annotations
 
+from pirn.exceptions.pirn_error import PirnError
 
-class UnsupportedModalityError(ValueError):
+
+class UnsupportedModalityError(PirnError, ValueError):
     """Raised when a content block's modality is not supported by a provider.
+
+    Subclasses :class:`~pirn.exceptions.pirn_error.PirnError` in addition to
+    ``ValueError`` so every existing ``except ValueError`` handler keeps
+    working unchanged, while new code can narrow to ``PirnError``.
 
     A provider's :class:`~pirn_agents.llm.multimodal_adapter.MultimodalAdapter`
     raises this from ``encode_blocks`` when it is handed a block whose modality

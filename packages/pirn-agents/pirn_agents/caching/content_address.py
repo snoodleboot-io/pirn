@@ -9,6 +9,25 @@ The canonicalisation itself lives in
 :class:`~pirn_agents.serialization.canonical_json.CanonicalJson`, shared with
 the cassette, checkpoint and idempotency hashers so that every subsystem
 agrees on what a payload's content address is.
+
+ADR agents-speaks-core WS2 — deferred, not delegated to
+:func:`pirn.core.hashing.content_hash`: that function is deliberately
+best-effort for a value it cannot canonicalise — it falls back to a
+``sha256:unhashable:<outer-type>`` sentinel rather than raising, and that
+sentinel does not vary with the *value*'s content, only its outer Python
+type. This class exists specifically to prevent that exact failure mode
+(PIR-785): a cache keyed by it must never let two distinct, non-JSON-encodable
+payloads collapse onto one key, because ``ResultCache.get_or_compute`` would
+then silently answer one caller's request with another's cached value. Moving
+onto ``content_hash`` as-is would resurrect PIR-785 (worse: today's error
+already names the specific offending type via ``OpaquePolicy``'s nested walk;
+``content_hash``'s sentinel only names the top-level payload type — see
+``test_the_raise_names_the_offending_type`` — so even a caller willing to
+post-check the sentinel string loses that diagnostic). Revisiting this needs
+either a strict/raising mode on ``content_hash`` or an agreed contract for the
+sentinel, which is a decision for whoever owns :mod:`pirn.core.hashing`, not
+something this workstream can make unilaterally for a cache-correctness
+guarantee — see the WS2 report.
 """
 
 from __future__ import annotations

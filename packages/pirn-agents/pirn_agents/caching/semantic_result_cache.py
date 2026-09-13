@@ -1,4 +1,16 @@
-"""``SemanticResultCache`` — a :class:`ResultCache` that matches by embedding similarity."""
+"""``SemanticResultCache`` — a :class:`ResultCache` that matches by embedding similarity.
+
+Core store: none. :meth:`get_or_compute_semantic` scans every stored embedding
+for the best cosine match, which needs enumeration —
+:class:`pirn.backends.base.data_store.DataStore` deliberately exposes none
+(``put``/``get``/``has``/``scrub`` only, keyed lookups by design), so this
+class keeps its own ``dict[str, CacheEntry]`` index rather than
+:class:`~pirn_agents.caching.result_cache.ResultCache`'s ``DataStore``
+(ADR agents-speaks-core WS2 — layering this onto a shared store is deferred
+pending an enumerable core store; see the WS2 report). Its exact-key path
+(:meth:`get`/:meth:`put`/:meth:`has`/:meth:`invalidate`) therefore overrides
+every ``ResultCache`` storage method rather than inheriting them.
+"""
 
 from __future__ import annotations
 
@@ -76,6 +88,16 @@ class SemanticResultCache(ResultCache):
         ):
             del self._entries[next(iter(self._entries))]
         self._entries[entry.key] = entry
+
+    async def has(self, key: str) -> bool:
+        """Return whether an entry is stored under the exact ``key``.
+
+        Note this class keeps its own exact-key dict rather than
+        :class:`ResultCache`'s ``DataStore`` (see the module docstring), so it
+        overrides every storage method, including this one, instead of
+        inheriting the base's ``self._store``-backed implementation.
+        """
+        return key in self._entries
 
     async def invalidate(self, key: str) -> None:
         """Drop the entry under ``key`` if present."""

@@ -4,9 +4,13 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, ClassVar
 
+from pirn.core.err import Err
+from pirn.core.ok import Ok
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
+from pirn.core.result import Result
+from pirn.core.skipped import Skipped
 from pirn.managers.exception_record import ExceptionRecord
 
 from pirn_agents.batch.batch_item_status import BatchItemStatus
@@ -41,6 +45,16 @@ class BatchItemResult(PirnOpaqueValue):
     latency:
         Wall-clock seconds spent on the item (queue wait excluded).
     """
+
+    #: :attr:`~pirn.managers.exception_record.ExceptionRecord.exc_type` values
+    #: :meth:`from_result` treats as a timeout rather than a plain error.
+    #: ``Result`` has no dedicated timeout variant (only ``Ok``/``Err``/
+    #: ``Skipped``), so the distinction ``BatchItemStatus.TIMEOUT`` makes has
+    #: to be recovered from the exception's recorded type name — a heuristic,
+    #: not a structural guarantee. A caller that already knows which one
+    #: applies should construct :class:`BatchItemResult` directly instead of
+    #: routing through this bridge.
+    _timeout_exc_types: ClassVar[frozenset[str]] = frozenset({"ToolTimeoutError", "TimeoutError"})
 
     index: int
     key: str
@@ -100,6 +114,92 @@ class BatchItemResult(PirnOpaqueValue):
             "attempts": self.attempts,
             "latency": self.latency,
         }
+
+    def to_result(self) -> Result[Any]:
+        """Return this item's outcome as a core ``Result`` (``Ok | Err | Skipped``).
+
+        ADR agents-speaks-core WS2 bridge, kept alongside :attr:`status` /
+        :class:`BatchItemStatus` for one deprecation cycle rather than
+        replacing them outright — ``MapAgent``'s scheduling (WS4b) still
+        produces and consumes :class:`BatchItemResult` directly. ``TIMEOUT``
+        has no dedicated ``Result`` variant; it becomes an ``Err`` exactly
+        like ``ERROR``, distinguishable only via ``record.exc_type`` (see
+        :meth:`from_result` for the reverse mapping).
+
+        Returns:
+            ``Ok(value=output)`` for ``OK``, ``Skipped`` for ``SKIPPED``, or
+            ``Err(record=exception)`` for ``ERROR``/``TIMEOUT``.
+
+        Raises:
+            ValueError: If ``status`` is ``ERROR``/``TIMEOUT`` and
+                :attr:`exception` is ``None`` — an ``Err`` cannot be built
+                from a failure with no captured record.
+        """
+        if self.status is BatchItemStatus.OK:
+            return Ok(value=self.output)
+        if self.status is BatchItemStatus.SKIPPED:
+            return Skipped(reason="resumed", detail={"index": self.index, "key": self.key})
+        if self.exception is None:
+            raise ValueError(
+                f"BatchItemResult.to_result: status is {self.status.value!r} but "
+                f"exception is None; cannot build an Err with no record"
+            )
+        return Err(record=self.exception)
+
+    @classmethod
+    def from_result(
+        cls,
+        *,
+        index: int,
+        key: str,
+        result: Result[Any],
+        attempts: int = 1,
+        latency: float = 0.0,
+    ) -> BatchItemResult:
+        """Build a :class:`BatchItemResult` from a core ``Result``.
+
+        The reverse of :meth:`to_result`. An ``Err`` maps to ``TIMEOUT`` when
+        its record's ``exc_type`` is in :attr:`_timeout_exc_types`, else
+        ``ERROR`` — see that attribute's docstring for why this is a
+        heuristic rather than a structural mapping.
+
+        Args:
+            index: Position of the item in the input stream.
+            key: Stable identity of the item.
+            result: The core outcome to translate.
+            attempts: How many times the item was attempted.
+            latency: Wall-clock seconds spent on the item.
+        """
+        if isinstance(result, Ok):
+            return cls(
+                index=index,
+                key=key,
+                status=BatchItemStatus.OK,
+                output=result.value,
+                attempts=attempts,
+                latency=latency,
+            )
+        if isinstance(result, Skipped):
+            return cls(
+                index=index,
+                key=key,
+                status=BatchItemStatus.SKIPPED,
+                attempts=attempts,
+                latency=latency,
+            )
+        status = (
+            BatchItemStatus.TIMEOUT
+            if result.record.exc_type in cls._timeout_exc_types
+            else BatchItemStatus.ERROR
+        )
+        return cls(
+            index=index,
+            key=key,
+            status=status,
+            exception=result.record,
+            attempts=attempts,
+            latency=latency,
+        )
 
     @staticmethod
     def _json_safe(value: Any) -> Any:

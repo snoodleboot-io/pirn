@@ -28,6 +28,15 @@ class TestGetPut:
         cache = InMemoryResultCache()
         await cache.invalidate("nope")  # no raise
 
+    async def test_has_reflects_put_and_invalidate(self) -> None:
+        # ADR agents-speaks-core WS2: has() is thin over the backing DataStore.
+        cache = InMemoryResultCache()
+        assert await cache.has("k") is False
+        await cache.put(CacheEntry(key="k", value=1))
+        assert await cache.has("k") is True
+        await cache.invalidate("k")
+        assert await cache.has("k") is False
+
 
 class TestBounding:
     def test_rejects_bad_max_entries(self) -> None:

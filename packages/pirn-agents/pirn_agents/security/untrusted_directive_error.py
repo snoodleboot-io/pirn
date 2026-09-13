@@ -2,9 +2,15 @@
 
 from __future__ import annotations
 
+from pirn.exceptions.pirn_error import PirnError
 
-class UntrustedDirectiveError(Exception):
+
+class UntrustedDirectiveError(PirnError, Exception):
     """Raised when untrusted content attempts to direct the agent.
+
+    Subclasses :class:`~pirn.exceptions.pirn_error.PirnError` in addition to
+    ``Exception`` so every existing ``except Exception`` handler keeps
+    working unchanged, while new code can narrow to ``PirnError``.
 
     Carries the human-readable ``message`` and the tuple of matched
     ``directives`` (the offending snippets) so a caller can log or surface

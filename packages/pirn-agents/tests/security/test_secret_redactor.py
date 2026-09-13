@@ -123,3 +123,67 @@ def test_log_filter_passes_clean_message_unchanged() -> None:
     record = logging.LogRecord("n", logging.INFO, __file__, 1, "just a normal message", None, None)
     assert filt.filter(record) is True
     assert record.getMessage() == "just a normal message"
+
+
+class TestSecretRedactingLogFilterInstall:
+    """ADR agents-speaks-core WS2: opt-in install onto the package logger."""
+
+    def _clean(self, logger_name: str) -> logging.Logger:
+        logger = logging.getLogger(logger_name)
+        logger.filters = [f for f in logger.filters if not isinstance(f, SecretRedactingLogFilter)]
+        return logger
+
+    def test_installs_onto_the_named_logger(self) -> None:
+        logger = self._clean("pirn_agents.test.install_a")
+        try:
+            installed = SecretRedactingLogFilter.install(logger_name=logger.name)
+            assert installed in logger.filters
+        finally:
+            self._clean(logger.name)
+
+    def test_is_idempotent(self) -> None:
+        logger = self._clean("pirn_agents.test.install_b")
+        try:
+            first = SecretRedactingLogFilter.install(logger_name=logger.name)
+            second = SecretRedactingLogFilter.install(logger_name=logger.name)
+            assert first is second
+            assert sum(isinstance(f, SecretRedactingLogFilter) for f in logger.filters) == 1
+        finally:
+            self._clean(logger.name)
+
+    def test_defaults_to_the_package_logger_name(self) -> None:
+        logger = self._clean("pirn_agents")
+        try:
+            installed = SecretRedactingLogFilter.install()
+            assert installed in logging.getLogger("pirn_agents").filters
+        finally:
+            self._clean(logger.name)
+
+
+class TestDefaultTracebackFilter:
+    """ADR agents-speaks-core WS2: the ``traceback_filter`` factory for ``Tapestry``."""
+
+    def test_returns_a_plain_callable(self) -> None:
+        filt = SecretRedactor.default_traceback_filter()
+        assert callable(filt)
+        assert filt("no secrets here") == "no secrets here"
+
+    def test_redacts_a_secret_in_traceback_text(self) -> None:
+        filt = SecretRedactor.default_traceback_filter()
+        traceback_text = f"Traceback...\nConnectionError: could not reach {_DSN}"
+        redacted = filt(traceback_text)
+        assert "s3cr3t" not in redacted
+        assert isinstance(redacted, str)
+
+    def test_filter_traceback_matches_redact_text_value(self) -> None:
+        redactor = SecretRedactor()
+        text = f"failed: {_AWS}"
+        assert redactor.filter_traceback(text) == redactor.redact_text(text).value
+
+    def test_shape_matches_core_traceback_filter_seam(self) -> None:
+        # Callable[[str], str] is exactly what Tapestry/ExceptionManager expect
+        # to pass a captured traceback through; a smoke test against the real
+        # signature rather than pirn_agents' own contract.
+        from pirn.tapestry import Tapestry
+
+        Tapestry(traceback_filter=SecretRedactor.default_traceback_filter())

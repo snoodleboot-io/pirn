@@ -12,6 +12,10 @@ removed, so the very next call recomputes (this is coalescing of *concurrent*
 work, not a result cache — pair it with a
 :class:`~pirn_agents.caching.result_cache.ResultCache` for persistence). The
 mechanism is pure ``asyncio`` and provider-neutral; no vendor SDK is imported.
+
+Core store: none, by design — an in-flight :class:`asyncio.Future` is not a
+value the ``run`` ends up storing anywhere, so there is nothing for a
+:class:`pirn.backends.base.data_store.DataStore` to back.
 """
 
 from __future__ import annotations

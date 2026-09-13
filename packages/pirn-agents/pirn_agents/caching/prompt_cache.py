@@ -15,6 +15,15 @@ and can be swept with :meth:`purge_expired`. Entries are also explicitly
 droppable with :meth:`invalidate`. No vendor SDK is imported — the embedding
 function is the only backend seam — so the cache stays provider-neutral and
 ``import pirn_agents`` stays backend-free.
+
+Core store: none. Like :class:`~pirn_agents.caching.semantic_result_cache.SemanticResultCache`,
+the semantic path scans every stored embedding for the best cosine match,
+which needs enumeration that :class:`pirn.backends.base.data_store.DataStore`
+deliberately does not provide; this class keeps its own ``dict[str, CacheEntry]``
+index rather than layering on :class:`~pirn_agents.caching.result_cache.ResultCache`
+(ADR agents-speaks-core WS2 — deferred pending an enumerable core store; see
+the WS2 report). The exact-key path still hashes through the shared
+:func:`~pirn_agents.caching.content_address.content_address`.
 """
 
 from __future__ import annotations
