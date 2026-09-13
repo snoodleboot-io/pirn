@@ -37,7 +37,7 @@ class TestRunWithRetries:
         async def _invoke() -> object:
             return "v"
 
-        result = await _Engine()._run_with_retries(_invoke, timeout=None, retries=2, **_builders())
+        result = await _Engine().run_with_retries(_invoke, timeout=None, retries=2, **_builders())
         assert result == "ok:v:1"
 
     async def test_retries_then_succeeds(self) -> None:
@@ -50,14 +50,14 @@ class TestRunWithRetries:
                 raise RuntimeError("flaky")
             return "v"
 
-        result = await _Engine()._run_with_retries(_invoke, timeout=None, retries=2, **_builders())
+        result = await _Engine().run_with_retries(_invoke, timeout=None, retries=2, **_builders())
         assert result == "ok:v:3"  # attempts counts the successful try
 
     async def test_exhausts_retries_to_error(self) -> None:
         async def _invoke() -> object:
             raise RuntimeError("boom")
 
-        result = await _Engine()._run_with_retries(_invoke, timeout=None, retries=1, **_builders())
+        result = await _Engine().run_with_retries(_invoke, timeout=None, retries=1, **_builders())
         assert result == "error:boom:2"  # initial + 1 retry
 
     async def test_timeout_is_terminal_not_retried(self) -> None:
@@ -69,7 +69,7 @@ class TestRunWithRetries:
             await asyncio.sleep(1)
             return "never"
 
-        result = await _Engine()._run_with_retries(_invoke, timeout=0.01, retries=5, **_builders())
+        result = await _Engine().run_with_retries(_invoke, timeout=0.01, retries=5, **_builders())
         # The timing-out exception reaches the builder — it is never dropped.
         assert result == "timeout:TimeoutError:1"
         assert attempts == 1  # a timeout is never retried
@@ -85,7 +85,7 @@ class TestRunWithRetries:
                 raise TimeoutError("transient")
             return "v"
 
-        result = await _Engine()._run_with_retries(_invoke, timeout=None, retries=2, **_builders())
+        result = await _Engine().run_with_retries(_invoke, timeout=None, retries=2, **_builders())
         assert result == "ok:v:2"
 
     async def test_hooks_fire_in_order(self) -> None:
@@ -100,7 +100,7 @@ class TestRunWithRetries:
         async def _before() -> None:
             events.append("before")
 
-        result = await _Engine()._run_with_retries(
+        result = await _Engine().run_with_retries(
             _invoke,
             timeout=None,
             retries=3,
@@ -121,7 +121,7 @@ class TestRunWithRetries:
             raise asyncio.CancelledError()
 
         with pytest.raises(asyncio.CancelledError):
-            await _Engine()._run_with_retries(_invoke, timeout=None, retries=3, **_builders())
+            await _Engine().run_with_retries(_invoke, timeout=None, retries=3, **_builders())
 
 
 class TestDrainOnCancel:
@@ -136,6 +136,6 @@ class TestDrainOnCancel:
         tasks = [asyncio.ensure_future(_long()) for _ in range(3)]
         await started.wait()
 
-        await _Engine()._drain_on_cancel(tasks)
+        await _Engine().drain_on_cancel(tasks)
 
         assert all(task.cancelled() for task in tasks)

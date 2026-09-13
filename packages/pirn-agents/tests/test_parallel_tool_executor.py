@@ -167,10 +167,20 @@ async def test_retry_then_success() -> None:
     flaky = StubTool(name="flaky", fail_times=2, result="recovered")
     toolset = Toolset([flaky])
     calls = [ToolCall(tool_name="flaky", arguments={}, call_id="c1")]
-    executor = _make_executor(retry_policy=RetryPolicy(base_delay=0.0))
+    # PIR-856: retry_policy is a process()-declared input now (Rule 2), not
+    # self._retry_policy read at run time — a direct process() call (bypassing
+    # the engine, which would forward the constructor's config value
+    # automatically) must supply it explicitly here too.
+    retry_policy = RetryPolicy(base_delay=0.0)
+    executor = _make_executor(retry_policy=retry_policy)
 
     results = await executor.process(
-        tool_calls=calls, toolset=toolset, max_concurrency=8, timeout=None, retries=2
+        tool_calls=calls,
+        toolset=toolset,
+        max_concurrency=8,
+        timeout=None,
+        retries=2,
+        retry_policy=retry_policy,
     )
 
     assert flaky.calls == 3
@@ -182,10 +192,17 @@ async def test_retry_exhausted_returns_error() -> None:
     flaky = StubTool(name="flaky", fail_times=5)
     toolset = Toolset([flaky])
     calls = [ToolCall(tool_name="flaky", arguments={}, call_id="c1")]
-    executor = _make_executor(retry_policy=RetryPolicy(base_delay=0.0))
+    # PIR-856: see the matching comment in test_retry_then_success.
+    retry_policy = RetryPolicy(base_delay=0.0)
+    executor = _make_executor(retry_policy=retry_policy)
 
     results = await executor.process(
-        tool_calls=calls, toolset=toolset, max_concurrency=8, timeout=None, retries=1
+        tool_calls=calls,
+        toolset=toolset,
+        max_concurrency=8,
+        timeout=None,
+        retries=1,
+        retry_policy=retry_policy,
     )
 
     assert flaky.calls == 2  # initial attempt + 1 retry
@@ -205,10 +222,18 @@ async def test_retry_delay_comes_from_the_composed_retry_policy() -> None:
     flaky = StubTool(name="flaky", fail_times=2, result="ok")
     toolset = Toolset([flaky])
     calls = [ToolCall(tool_name="flaky", arguments={}, call_id="c1")]
+    # PIR-856: see the matching comment in test_retry_then_success.
     executor = _make_executor(retry_policy=policy, rng=lambda: 0.5, sleep=_record)
 
     await executor.process(
-        tool_calls=calls, toolset=toolset, max_concurrency=8, timeout=None, retries=2
+        tool_calls=calls,
+        toolset=toolset,
+        max_concurrency=8,
+        timeout=None,
+        retries=2,
+        retry_policy=policy,
+        rng=lambda: 0.5,
+        sleep=_record,
     )
 
     assert slept == [

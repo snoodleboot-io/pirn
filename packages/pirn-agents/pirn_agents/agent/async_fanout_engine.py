@@ -58,7 +58,7 @@ class AsyncFanoutEngine(Generic[R]):
         return await invoke()
 
     @staticmethod
-    async def _drain_on_cancel(tasks: Iterable[asyncio.Task[R]]) -> None:
+    async def drain_on_cancel(tasks: Iterable[asyncio.Task[R]]) -> None:
         """Cancel every in-flight task and await its unwind, swallowing errors.
 
         The caller re-raises :class:`asyncio.CancelledError` after this returns, so
@@ -69,7 +69,7 @@ class AsyncFanoutEngine(Generic[R]):
             task.cancel()
         await asyncio.gather(*pending, return_exceptions=True)
 
-    async def _run_with_retries(
+    async def run_with_retries(
         self,
         invoke: Callable[[], Awaitable[object]],
         *,

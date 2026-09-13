@@ -236,7 +236,7 @@ class MapAgent(AsyncFanoutEngine[BatchItemResult]):
                             since_checkpoint = 0
                     yield result
         except asyncio.CancelledError:
-            await self._drain_on_cancel(pending)
+            await self.drain_on_cancel(pending)
             raise
         if checkpointer is not None and since_checkpoint > 0:
             await checkpointer.save(progress)
@@ -291,7 +291,7 @@ class MapAgent(AsyncFanoutEngine[BatchItemResult]):
         if key in completed_keys:
             return BatchItemResult(index=index, key=key, status=BatchItemStatus.SKIPPED, attempts=0)
         start = time.perf_counter()
-        return await self._run_with_retries(
+        return await self.run_with_retries(
             lambda: self._run_item(item),
             timeout=self._timeout,
             retries=self._retries,
