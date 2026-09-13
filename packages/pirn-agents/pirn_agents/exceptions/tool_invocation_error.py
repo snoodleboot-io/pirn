@@ -2,9 +2,16 @@
 
 from __future__ import annotations
 
+from pirn.exceptions.pirn_error import PirnError
 
-class ToolInvocationError(Exception):
+
+class ToolInvocationError(PirnError, Exception):
     """Base class for every failure raised while invoking a tool.
+
+    Subclasses :class:`~pirn.exceptions.pirn_error.PirnError` in addition to
+    ``Exception`` so every existing ``except Exception``/``except
+    ToolInvocationError`` handler around a tool call keeps working unchanged,
+    while new code can catch ``PirnError`` across pirn domains uniformly.
 
     Carries a human-readable ``message`` and, optionally, the ``call_id``
     of the originating :class:`~pirn_agents.tools.tool_call.ToolCall` so a

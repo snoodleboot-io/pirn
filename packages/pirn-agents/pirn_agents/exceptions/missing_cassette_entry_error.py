@@ -2,9 +2,15 @@
 
 from __future__ import annotations
 
+from pirn.exceptions.pirn_error import PirnError
 
-class MissingCassetteEntryError(LookupError):
+
+class MissingCassetteEntryError(PirnError, LookupError):
     """Raised in replay mode when a call's key has no (further) recorded entry.
+
+    Subclasses :class:`~pirn.exceptions.pirn_error.PirnError` in addition to
+    ``LookupError`` so every existing ``except LookupError`` handler keeps
+    working unchanged, while new code can narrow to ``PirnError``.
 
     Replay must never silently fall back to a live call: an absent entry means
     the cassette is stale or the run diverged, and the caller is told exactly
