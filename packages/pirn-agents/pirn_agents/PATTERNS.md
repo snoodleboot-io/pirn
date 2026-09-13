@@ -1249,29 +1249,41 @@ cache = InMemoryResultCache(max_entries=1024)
 result = await cache.get_or_compute({"tool": "search", "args": {"q": "dicom"}}, run_search)
 ```
 
-### Observability — span/callback interface + pluggable sink (generalises F1)
+### Observability — AgentCallRecorder emits through core's own emitters
 
-`Tracer` opens `Span`s around LLM, tool, and retrieval calls and reports them to
-a pluggable `ObservabilitySink` that is a genuine no-op by default (zero
-required backend), exactly like F1's `ToolInvocationHook`. F1's tool hook
-re-enters this interface via `SpanEmittingToolInvocationHook`, so tool spans
-land in the same sink as LLM/retrieval spans without duplicate instrumentation.
-Concrete sinks: `LoggingSink` (stdlib logging) and `OtelSink` (behind the lazy
-`otel` extra).
+ADR "agents speaks core" (WS4a) retired the standalone span/callback plane
+(`Tracer`/`Span`/`ObservabilitySink`/`OtelSink`/`LoggingSink`/
+`SpanEmittingToolInvocationHook` — still importable for one deprecation cycle,
+each raising `DeprecationWarning`) in favour of one call:
+`AgentCallRecorder.record(...)` emits a core `StatusEvent` — `run_id` sourced
+from `pirn.tapestry.current_run_id`, `knot_id` supplied by the caller (never
+ambient) — through the run's own emitters
+(`pirn.tapestry.current_emitters`/`EmitterFanout.emit_status`), the same
+stream the engine's own per-knot lifecycle transitions use. `extra` carries
+whatever span-like fields the call wants to report (`kind`, `model`,
+`tokens`, `cost`, `latency`, …); `OpenTelemetryEmitter` renders a non-empty
+`extra` as a span named `"<kind>:<knot_id>"` with `agents.<key>` attributes,
+and `LogEmitter` includes it under `pirn_extra`. `ToolInvocation` already
+calls this for every engine-scheduled tool call — no hook required.
 
 ```python
-from pirn_agents.observability.tracer import Tracer
-from pirn_agents.observability.span_emitting_tool_invocation_hook import (
-    SpanEmittingToolInvocationHook,
-)
+from pirn_agents.observability.agent_call_recorder import AgentCallRecorder
 
-tracer = Tracer(LoggingSink())                     # or Tracer() for the no-op default
-async with tracer.llm_span(name="llm.chat") as span:
-    span.set_attribute("model", "…")
-    ...
-# same tracer/sink for tool spans, via the F1 hook seam:
-executor = ParallelToolExecutor(..., hook=SpanEmittingToolInvocationHook(tracer))
+# from inside a Knot's process()
+start = time.perf_counter()
+reply = await llm.chat(...)
+await AgentCallRecorder.record(
+    knot_id=self.knot_id,
+    kind="llm",
+    ok=True,
+    latency=time.perf_counter() - start,
+    model="gpt-…",
+    tokens=reply.usage.total_tokens,
+)
 ```
+
+Wire `Tapestry(emitters=[OpenTelemetryEmitter(...)])` or `LogEmitter()` the
+same way you would for any other run — there is no separate sink to plug in.
 
 ### Benchmark harness — `[benchmark]` lines → report → delta
 

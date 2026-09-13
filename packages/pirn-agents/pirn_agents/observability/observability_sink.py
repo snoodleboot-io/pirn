@@ -1,4 +1,14 @@
-"""``ObservabilitySink`` — the pluggable, no-op-by-default span destination."""
+"""``ObservabilitySink`` — the pluggable, no-op-by-default span destination.
+
+.. deprecated:: ADR agents-speaks-core WS4a
+    This whole sink plane forked a second event bus alongside core's own
+    ``StatusManager``/``Emitter`` stream, and no production call site ever
+    adopted it (see the PIR-856 vocabulary-drift review). Scheduled for
+    deletion after one release cycle; new code should implement a
+    :class:`pirn.emitters.emitter.Emitter` and let
+    :class:`~pirn_agents.observability.agent_call_recorder.AgentCallRecorder`
+    deliver events to it instead of a bespoke sink.
+"""
 
 from __future__ import annotations
 
@@ -11,6 +21,13 @@ if TYPE_CHECKING:
 
 class ObservabilitySink:
     """Receives span lifecycle callbacks; the base class is a genuine no-op.
+
+    .. deprecated:: ADR agents-speaks-core WS4a
+        See the module docstring. No constructor warning is raised here — a
+        :class:`~pirn_agents.observability.tracer.Tracer` constructs one of
+        these as its own inert default on every call, and warning there would
+        be pure noise; the warning lives on ``Tracer``/``OtelSink``/
+        ``LoggingSink`` themselves.
 
     Mirrors the design of F1's
     :class:`~pirn_agents.tools.tool_invocation_hook.ToolInvocationHook`: the three

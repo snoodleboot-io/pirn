@@ -45,9 +45,16 @@ class LogEmitter(Emitter):
     async def on_status(self, event: StatusEvent) -> None:
         """Logs a knot state-transition event at INFO level.
 
+        When ``event.extra`` carries structured metadata — an ad hoc event a
+        downstream domain emitted for a sub-step the engine has no lifecycle
+        for (an LLM call, a tool call, a retrieval step) — it is included
+        under the ``pirn_extra`` key so it is queryable the same way
+        ``pirn_detail`` already is, without changing the log message itself.
+
         Args:
             event: The status event to log.
         """
+        extra_map = event.extra if isinstance(getattr(event, "extra", None), dict) else {}
         self._log.info(
             "knot %s: %s",
             event.knot_id,
@@ -58,6 +65,7 @@ class LogEmitter(Emitter):
                 "pirn_knot_id": event.knot_id,
                 "pirn_state": event.state.value,
                 "pirn_detail": event.detail,
+                "pirn_extra": dict(extra_map) if extra_map else None,
             },
         )
 

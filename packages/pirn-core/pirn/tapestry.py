@@ -462,6 +462,50 @@ class Tapestry:
         """
         return self._emitter_error_policy
 
+    @staticmethod
+    def current_emitters() -> list[Emitter]:
+        """Return the enclosing run's emitter list, or ``[]`` outside a run.
+
+        Distinct from the instance property :attr:`emitters`: that is
+        *this* tapestry's own registered list, read at construction/
+        ``add_emitter`` time; this is the *ambient* run's subscription,
+        read from the same contextvar :meth:`run` publishes for
+        ``SubTapestry``/``LoopSubTapestry`` to inherit.
+
+        Mirrors :func:`current_run_id`: downstream packages that want to
+        publish an ad hoc event through the run's own emitter subscription
+        — an LLM call, a tool call, a retrieval step, none of which is a
+        per-knot lifecycle transition the engine already reports — had no
+        supported way to reach the run's emitters, only the private
+        ``_current_emitters``. This exposes the same list under a
+        supported name; see
+        :meth:`pirn.engine.emitter_fanout.EmitterFanout.emit_status` for
+        the sanctioned way to deliver an event to it. Also available as
+        the bare :func:`pirn.tapestry.current_emitters` function.
+
+        An empty list is returned both outside a run and when the
+        enclosing run was itself given ``emitters=[]`` — an explicit
+        opt-out that a caller reading this accessor must honour rather
+        than falling back to some other source of emitters.
+        """
+        return list(_current_emitters.get(None) or [])
+
+    @staticmethod
+    def current_emitter_error_policy() -> EmitterErrorPolicy:
+        """Return the enclosing run's emitter error policy.
+
+        Defaults to
+        :attr:`~pirn.emitters.emitter_error_policy.EmitterErrorPolicy.WARN`
+        outside a run, matching :class:`Tapestry`'s own default, so a
+        caller of :meth:`current_emitters` always has a sensible policy to
+        pair it with. Also available as the bare
+        :func:`pirn.tapestry.current_emitter_error_policy` function.
+        """
+        from pirn.emitters.emitter_error_policy import EmitterErrorPolicy as _EmitterErrorPolicy
+
+        policy = _current_emitter_error_policy.get(None)
+        return policy if policy is not None else _EmitterErrorPolicy.WARN
+
     async def close(self) -> None:
         """Close every registered emitter, releasing held resources.
 
@@ -545,6 +589,19 @@ def current_run_id() -> str | None:
     knots must be told which knot they belong to.
     """
     return _current_run_id.get(None)
+
+
+#: Bare-function aliases for :meth:`Tapestry.current_emitters` /
+#: :meth:`Tapestry.current_emitter_error_policy`, so
+#: ``pirn.tapestry.current_emitters()`` calls exactly like
+#: :func:`current_run_id` (house convention reserves a bare module-level
+#: ``def`` for a genuine decorator or "only-way" adapter; `current_run_id`/
+#: `current_tapestry`/`get_current_store` predate that convention taking
+#: hold here, and are grandfathered by the conventions-gate baseline rather
+#: than a pattern to keep extending — see the two methods' docstrings for
+#: the accessors themselves).
+current_emitters = Tapestry.current_emitters
+current_emitter_error_policy = Tapestry.current_emitter_error_policy
 
 
 @contextmanager

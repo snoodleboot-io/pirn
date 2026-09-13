@@ -49,6 +49,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents.observability.agent_call_recorder import AgentCallRecorder
 from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_error_record import ToolErrorRecord
@@ -93,6 +94,15 @@ class ToolInvocation(Knot):
         deliberately not done here; when it lands, this method is the single
         place that changes.
 
+        Either outcome is also reported through
+        :class:`~pirn_agents.observability.agent_call_recorder.AgentCallRecorder`
+        (ADR agents-speaks-core WS4a) — the emitter-path replacement for the old
+        ``ToolInvocationHook``/``SpanEmittingToolInvocationHook`` seam, which only
+        the *executors* fired around their own hand-rolled invocation, never this
+        knot. Every tool call scheduled through the engine as a ``ToolInvocation``
+        is observable this way, regardless of whether the caller configured a
+        hook.
+
         Args:
             tool: The resolved tool (a config value, not an upstream input).
             call: The resolved :class:`ToolCall`.
@@ -110,17 +120,37 @@ class ToolInvocation(Knot):
         try:
             value = await tool.invoke(call.arguments)
         except Exception as exc:
+            latency = time.perf_counter() - start
+            scrubbed_message = ToolErrorRecord.scrubbed_message(exc)
+            await AgentCallRecorder.record(
+                knot_id=self.knot_id,
+                kind="tool",
+                ok=False,
+                latency=latency,
+                detail=scrubbed_message,
+                tool_name=call.tool_name,
+                call_id=call.call_id,
+            )
             return ToolResult(
                 call_id=call.call_id,
                 result=None,
                 status=ToolStatus.ERROR,
-                error=ToolErrorRecord.scrubbed_message(exc),
+                error=scrubbed_message,
                 exception=ToolErrorRecord.scrubbed(call.tool_name, exc),
-                latency=time.perf_counter() - start,
+                latency=latency,
             )
+        latency = time.perf_counter() - start
+        await AgentCallRecorder.record(
+            knot_id=self.knot_id,
+            kind="tool",
+            ok=True,
+            latency=latency,
+            tool_name=call.tool_name,
+            call_id=call.call_id,
+        )
         return ToolResult(
             call_id=call.call_id,
             result=value,
             status=ToolStatus.OK,
-            latency=time.perf_counter() - start,
+            latency=latency,
         )

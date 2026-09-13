@@ -1,8 +1,17 @@
-"""``LoggingSink`` — an :class:`ObservabilitySink` that writes spans to stdlib logging."""
+"""``LoggingSink`` — an :class:`ObservabilitySink` that writes spans to stdlib logging.
+
+.. deprecated:: ADR agents-speaks-core WS4a
+    Part of the deprecated Tracer/Span plane; scheduled for deletion after one
+    release cycle. Use ``pirn.emitters.log_emitter.LogEmitter`` instead — it
+    already logs every ``StatusEvent``, and now includes an
+    :class:`~pirn_agents.observability.agent_call_recorder.AgentCallRecorder`
+    call's ``extra`` fields under a ``pirn_extra`` key.
+"""
 
 from __future__ import annotations
 
 import logging
+import warnings
 from collections.abc import Mapping
 from typing import Any
 
@@ -13,6 +22,9 @@ from pirn_agents.security.secret_redacting_log_filter import SecretRedactingLogF
 
 class LoggingSink(ObservabilitySink):
     """Emit each span lifecycle transition as a structured log record.
+
+    .. deprecated:: ADR agents-speaks-core WS4a
+        See the module docstring.
 
     Backend-free: it uses only the standard library :mod:`logging`, so it needs
     no extra and is safe to wire in any environment. Start/finish/event map to
@@ -47,6 +59,13 @@ class LoggingSink(ObservabilitySink):
             redact_secrets: Set ``False`` to leave the logger untouched — only
                 when something upstream already redacts.
         """
+        warnings.warn(
+            "LoggingSink is deprecated (ADR agents-speaks-core WS4a) and "
+            "scheduled for deletion after one release cycle; use "
+            "pirn.emitters.log_emitter.LogEmitter instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self._logger = logger if logger is not None else logging.getLogger(__name__)
         self._level = level
         if redact_secrets and not any(
