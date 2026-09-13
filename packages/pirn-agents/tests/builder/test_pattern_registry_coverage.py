@@ -57,6 +57,8 @@ _EXPECTED_EXCLUSIONS = frozenset(
         "pirn_agents.specializations.react.react_step_executor.ReActStepExecutor",
         # Private: the loop body IterativeRetriever drives internally (PIR-856).
         "pirn_agents.specializations.rag.iterative_retriever._IterativeRetrievalLoop",
+        # Private: the loop body AgenticRagPipeline drives internally (PIR-856).
+        "pirn_agents.specializations.rag.agentic_rag_pipeline._AgenticRagLoop",
     }
 )
 
@@ -161,6 +163,7 @@ def test_the_excluded_bases_are_bases_and_the_excluded_private_is_private() -> N
             "pirn_agents.specializations.evaluator_optimizer._evaluator_optimizer_loop"
             "._EvaluatorOptimizerLoop",
             "pirn_agents.specializations.rag.iterative_retriever._IterativeRetrievalLoop",
+            "pirn_agents.specializations.rag.agentic_rag_pipeline._AgenticRagLoop",
         ]
     )
     # Every exclusion falls into exactly one justified category: base,

@@ -205,6 +205,9 @@ _PATTERNS: tuple[PatternDescriptor, ...] = (
     PatternDescriptor(
         "iterative_retriever", f"{_SPEC}.rag.iterative_retriever:IterativeRetriever", "query"
     ),
+    PatternDescriptor(
+        "corrective_router", f"{_SPEC}.rag.corrective_router:CorrectiveRouter", "query"
+    ),
     # --- reasoning loops
     PatternDescriptor("react", f"{_SPEC}.react.react_loop:ReActLoop", "messages", _MESSAGES),
     PatternDescriptor(
