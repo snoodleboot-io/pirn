@@ -42,12 +42,15 @@ from typing import TYPE_CHECKING, Any, ClassVar, Union, get_args, get_origin, ge
 
 from pydantic import TypeAdapter, ValidationError
 
+from pirn.core.dict_map import DictMap
 from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
+from pirn.core.map import Map
+from pirn.core.map_type_error import MapTypeError
 from pirn.core.ok import Ok
 from pirn.core.result import Result
+from pirn.core.zip_map import ZipMap
 from pirn.managers.exception_record import ExceptionRecord
-from pirn.nodes.map_markers import DictMap, Map, MapTypeError, ZipMap
 
 if TYPE_CHECKING:
     from pirn.tapestry import Tapestry

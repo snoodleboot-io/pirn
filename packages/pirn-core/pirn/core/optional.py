@@ -54,35 +54,11 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
+from pirn.core._optional_marker import _OptionalMarker
+from pirn.core._optional_meta import _OptionalMeta
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.skipped import Skipped
-
-
-class _OptionalMarker:
-    """Plain mixin applied to every Optional-decorated knot or stub.
-
-    Has no logic of its own.  Its sole purpose is to serve as a stable
-    marker so that ``isinstance(x, Optional)`` can be answered without
-    putting ``Optional`` itself in the decorated class's MRO (which would
-    cause ``Optional.__new__`` to fire recursively during construction).
-
-    Do not subclass or instantiate directly.
-    """
-
-
-class _OptionalMeta(type):
-    """Metaclass for ``Optional`` that redirects ``isinstance`` checks.
-
-    ``isinstance(x, Optional)`` would normally check whether ``x`` is an
-    instance of the ``Optional`` class — but ``Optional.__new__`` never
-    returns an ``Optional`` instance; it always returns a ``Knot`` subclass.
-    This metaclass overrides ``__instancecheck__`` to check for the
-    ``_OptionalMarker`` mixin instead, which IS present on every result.
-    """
-
-    def __instancecheck__(cls, instance: object) -> bool:
-        return isinstance(instance, _OptionalMarker)
 
 
 class Optional(metaclass=_OptionalMeta):

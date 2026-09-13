@@ -41,8 +41,8 @@ from pirn.core.err import Err
 from pirn.core.knot import Knot
 from pirn.core.ok import Ok
 from pirn.core.result import Result
-from pirn.exceptions.pirn_error import PirnError
 from pirn.managers.exception_record import ExceptionRecord
+from pirn.nodes.sub_tapestry_error import SubTapestryError
 
 if TYPE_CHECKING:
     from pirn.backends.base.run_history import RunHistory
@@ -134,21 +134,6 @@ def _apply_inherited_value_plane(
         tapestry._data_store = data_store
     if transport is not None and not tapestry._transport_explicit:
         tapestry._transport = transport
-
-
-class SubTapestryError(PirnError):
-    """Raised when the inner tapestry pipeline fails.
-
-    Attached to the ``Err`` the outer pipeline receives so the inner
-    ``RunResult`` is reachable for inspection.
-    """
-
-    def __init__(self, inner_result: RunResult) -> None:
-        self.inner_result = inner_result
-        exception_count = len(inner_result.exceptions)
-        super().__init__(
-            f"inner pipeline failed with {exception_count} exception(s); run_id={inner_result.run_id!r}"
-        )
 
 
 class SubTapestry(Knot):

@@ -7,7 +7,8 @@ the flow.
 
 Example::
 
-    from pirn.nodes.continuation import Next, continues
+    from pirn.nodes.continuation import continues
+    from pirn.nodes.next import Next
 
     pool = {
         "summarise": SummariseKnot,
@@ -40,57 +41,18 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Callable
-from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.nodes._end_knot import _EndKnot
+from pirn.nodes.next import Next
 from pirn.tapestry import get_current_store
 
 # ── Types ─────────────────────────────────────────────────────────────────────
 
 Pool = dict[str, type[Knot]]
 ContinuationFn = Callable[[Any], "list[Next]"]
-
-
-# ── Next ──────────────────────────────────────────────────────────────────────
-
-
-@dataclass
-class Next:
-    """One successor to spawn from a continuation.
-
-    ``action`` maps to a knot class in the pool.  ``inputs`` are passed as
-    constructor kwargs — plain values become config constants, ``Knot``
-    instances become parent edges exactly as in any pirn constructor.
-
-    ``id`` overrides the auto-generated knot id.  Leave it ``None`` to get
-    a stable derived id (``"{continuation_id}_{action}_{index}"``).
-    """
-
-    action: str
-    inputs: dict[str, Any] = field(default_factory=dict)
-    id: str | None = None
-
-
-# ── Built-in terminal ─────────────────────────────────────────────────────────
-
-
-class _EndKnot(Knot):
-    """Terminal knot — registered when a continuation returns Next('end').
-
-    Produces no output.  Its presence in the graph makes explicit that the
-    flow terminated intentionally at this point, not due to an error or
-    missing logic.
-    """
-
-    async def process(self, **_: Any) -> None:
-        """Receive any inputs and return None to mark explicit flow termination.
-
-        Returns:
-            None, signalling that this branch of the flow has terminated intentionally.
-        """
-        return None
 
 
 # ── WithContinuation ──────────────────────────────────────────────────────────

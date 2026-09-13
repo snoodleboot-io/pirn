@@ -253,7 +253,7 @@ nodes:
 If the inner run produces any exceptions, `_run_inner` raises `SubTapestryError`. The outer engine catches this and records the knot as `Err`, with the inner `RunResult` attached for inspection:
 
 ```python
-from pirn.nodes.sub_tapestry import SubTapestryError
+from pirn.nodes.sub_tapestry_error import SubTapestryError
 
 try:
     result = await tapestry.run(request)
@@ -270,7 +270,8 @@ except SubTapestryError as e:
 Attaches dynamic next-step logic to any knot without modifying it. The continuation is a plain function that receives the knot's output and returns a `list[Next]` — one entry per successor to spawn into the running extensible tapestry. Always returns at least one entry; use `Next("end")` to terminate explicitly.
 
 ```python
-from pirn.nodes.continuation import Next, continues
+from pirn.nodes.continuation import continues
+from pirn.nodes.next import Next
 
 POOL = {
     "summarise": SummariseKnot,

@@ -7,7 +7,8 @@ from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.engine.shed.shed import CycleDetector, Shed, detect_cycle
+from pirn.engine.shed.cycle_detector import CycleDetector
+from pirn.engine.shed.shed import Shed, detect_cycle
 from pirn.engine.shed.shed_error import ShedError
 from pirn.nodes.sink import Sink
 from pirn.nodes.source import Source

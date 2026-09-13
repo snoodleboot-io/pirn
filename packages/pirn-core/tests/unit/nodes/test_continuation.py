@@ -7,7 +7,8 @@ from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.nodes.continuation import Next, WithContinuation, continues
+from pirn.nodes.continuation import WithContinuation, continues
+from pirn.nodes.next import Next
 from pirn.nodes.source import Source
 from pirn.tapestry import Tapestry
 
