@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -33,6 +33,9 @@ class HandoffCheck(Knot):
     compiled at process time with ``re.IGNORECASE``.
     """
 
+    #: Stateless helper shared across instances (Knot Rule 4 — class-level constant).
+    _pattern_compiler: ClassVar[SafePatternCompiler] = SafePatternCompiler()
+
     def __init__(
         self,
         *,
@@ -41,23 +44,12 @@ class HandoffCheck(Knot):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        self._pattern_compiler = SafePatternCompiler()
         super().__init__(
             response=response,
             escalation_patterns=escalation_patterns,
             _config=_config,
             **kwargs,
         )
-        # Validate concrete patterns up front so a bad escalation-list fails
-        # fast at build time. A ``Knot`` reference resolves later, so it is
-        # validated at process time instead.
-        if not isinstance(escalation_patterns, Knot):
-            self._pattern_compiler.compile_patterns(
-                escalation_patterns,
-                owner="HandoffCheck",
-                field="escalation_patterns",
-                flags=re.IGNORECASE,
-            )
 
     async def process(
         self,

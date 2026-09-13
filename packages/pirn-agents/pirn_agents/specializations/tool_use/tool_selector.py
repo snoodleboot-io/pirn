@@ -31,6 +31,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.tools.tool import Tool
 
 
@@ -106,7 +107,7 @@ class ToolSelector(Knot):
             },
         )
         raw = await llm.chat([{"role": "user", "content": prompt}])
-        text = self._extract_text(raw).strip()
+        text = LlmResponseText().extract(raw).strip()
         if not text or text.upper() == "NONE":
             return []
         valid_names = {tool.name for tool in tool_list}
@@ -116,13 +117,3 @@ class ToolSelector(Knot):
             if name in valid_names:
                 selected.append(name)
         return selected
-
-    @staticmethod
-    def _extract_text(raw: Any) -> str:
-        if isinstance(raw, str):
-            return raw
-        if isinstance(raw, dict):
-            content = raw.get("content")
-            if isinstance(content, str):
-                return content
-        return str(raw)

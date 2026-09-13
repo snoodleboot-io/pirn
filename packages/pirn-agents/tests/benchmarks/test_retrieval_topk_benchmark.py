@@ -24,8 +24,7 @@ async def test_retrieval_topk_latency_and_recall(
 
     top_k = 5
     start = time.perf_counter()
-    stream = await store.search("document", top_k=top_k)
-    hits = [item async for item in stream]
+    hits = list(await store.search("document", top_k=top_k))
     latency = time.perf_counter() - start
 
     # The stub returns the first top_k stored docs; recall is hits/top_k here.

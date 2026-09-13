@@ -70,6 +70,9 @@ class ChromaBackendClient(VectorBackendClient):
         metadatas = [dict(point.get("metadata", {})) or None for point in points]
         documents = [point.get("document") for point in points]
 
+        # design-decision-override: asyncio.to_thread needs a zero-arg callable;
+        # closing over the prepared arrays here avoids a partial for a
+        # single-use helper.
         def _run() -> None:
             collection.upsert(
                 ids=ids,
@@ -91,6 +94,9 @@ class ChromaBackendClient(VectorBackendClient):
         collection = self._get_collection()
         where = self._to_where(metadata_filter)
 
+        # design-decision-override: asyncio.to_thread needs a zero-arg callable;
+        # closing over collection/vector/top_k/where here avoids a partial for a
+        # single-use helper.
         def _run() -> Any:
             return collection.query(
                 query_embeddings=[list(vector)],
@@ -120,6 +126,9 @@ class ChromaBackendClient(VectorBackendClient):
         """Fetch one point (with its vector) by id, thread-offloaded."""
         collection = self._get_collection()
 
+        # design-decision-override: asyncio.to_thread needs a zero-arg callable;
+        # closing over collection/key here avoids a partial for a single-use
+        # helper.
         def _run() -> Any:
             return collection.get(ids=[key], include=["embeddings", "metadatas", "documents"])
 
@@ -142,6 +151,9 @@ class ChromaBackendClient(VectorBackendClient):
         collection = self._get_collection()
         id_list = list(ids)
 
+        # design-decision-override: asyncio.to_thread needs a zero-arg callable;
+        # closing over collection/id_list here avoids a partial for a
+        # single-use helper.
         def _run() -> None:
             collection.delete(ids=id_list)
 

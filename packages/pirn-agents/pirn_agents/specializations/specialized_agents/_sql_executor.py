@@ -88,7 +88,12 @@ class _SQLExecutor(Knot):
             pipeline, one derived from model text. Holding it as plain
             constructor state keeps the decision the operator's, fixed at
             construction, exactly as ``SqlServiceConnector`` and ``SqlQueryTool``
-            hold theirs.
+            hold theirs. This is a deliberate, documented exception to Knot
+            Design Rule 4 (no instance state for inputs) — see
+            ``docs/contributing/knot-design-rules.md`` and PIR-817 — made for
+            this specific security property, not a general license to store
+            inputs on ``self``. ``read_only`` is correspondingly *not* a
+            ``process()`` parameter.
         """
         self._read_only = read_only
         super().__init__(sql=sql, pool=pool, _config=_config, **kwargs)

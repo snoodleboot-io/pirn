@@ -31,7 +31,7 @@ injected ``DataStore`` owns whatever lazy import it needs.
 from __future__ import annotations
 
 import hashlib
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from pirn.backends.base.data_store import DataStore
@@ -143,7 +143,7 @@ class DataStoreMemoryStore(MemoryStore):
         query: str,
         *,
         top_k: int = 10,
-    ) -> AsyncIterator[Mapping[str, Any]]:
+    ) -> Sequence[Mapping[str, Any]]:
         """Always raise: a key-value backend cannot answer similarity queries.
 
         Args:

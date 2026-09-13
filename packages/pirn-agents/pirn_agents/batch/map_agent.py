@@ -41,7 +41,7 @@ from pirn_agents.batch.adaptive_concurrency_controller import AdaptiveConcurrenc
 from pirn_agents.batch.batch_checkpointer import BatchCheckpointer
 from pirn_agents.batch.batch_item_result import BatchItemResult
 from pirn_agents.batch.batch_item_status import BatchItemStatus
-from pirn_agents.batch.batch_progress import BatchProgress
+from pirn_agents.batch.batch_scheduler import BatchScheduler
 from pirn_agents.batch.rate_limit_signal import RateLimitSignal
 from pirn_agents.llm.retry_policy import RetryPolicy
 from pirn_agents.resilience.token_bucket_rate_limiter import TokenBucketRateLimiter
@@ -211,71 +211,22 @@ class MapAgent(AsyncFanoutEngine[BatchItemResult]):
                 f"MapAgent.run: checkpoint_scope must be a str or None, "
                 f"got {type(checkpoint_scope).__name__}"
             )
-        checkpointer = self._scoped_checkpointer(checkpoint_scope)
-        progress = await MapAgent._load_progress(checkpointer)
-        # Held as a local, not on the instance: it belongs to this run, and a
-        # runner is deliberately reusable across runs (PIR-803).
-        completed_keys = progress.completed_keys
-        source = enumerate(inputs)
-        pending: set[asyncio.Task[BatchItemResult]] = set()
-        exhausted = False
-        since_checkpoint = 0
-        try:
-            while True:
-                exhausted = self._fill(source, pending, exhausted, completed_keys)
-                if not pending:
-                    break
-                done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
-                for task in done:
-                    result = task.result()
-                    if checkpointer is not None and result.status is BatchItemStatus.OK:
-                        progress = progress.with_completed(result.key)
-                        since_checkpoint += 1
-                        if since_checkpoint >= self._checkpoint_every:
-                            await checkpointer.save(progress)
-                            since_checkpoint = 0
-                    yield result
-        except asyncio.CancelledError:
-            await self.drain_on_cancel(pending)
-            raise
-        if checkpointer is not None and since_checkpoint > 0:
-            await checkpointer.save(progress)
+        scheduler = BatchScheduler(
+            run_one=self._run_one,
+            key_for=self._key_for,
+            limit=self._limit,
+            drain_on_cancel=self.drain_on_cancel,
+            checkpointer=self._scoped_checkpointer(checkpoint_scope),
+            checkpoint_every=self._checkpoint_every,
+        )
+        async for result in scheduler.run(inputs):
+            yield result
 
     def _scoped_checkpointer(self, checkpoint_scope: str | None) -> BatchCheckpointer | None:
         """Return the checkpointer this run persists through, narrowed by scope."""
         if self._checkpointer is None or checkpoint_scope is None:
             return self._checkpointer
         return self._checkpointer.scoped(checkpoint_scope)
-
-    @staticmethod
-    async def _load_progress(checkpointer: BatchCheckpointer | None) -> BatchProgress:
-        """Load prior progress (seeding the resume skip-set), or start empty."""
-        if checkpointer is None:
-            return BatchProgress(batch_id="batch")
-        return await checkpointer.load()
-
-    def _fill(
-        self,
-        source: object,
-        pending: set[asyncio.Task[BatchItemResult]],
-        exhausted: bool,
-        completed_keys: frozenset[str],
-    ) -> bool:
-        """Top up ``pending`` up to the current limit, returning exhaustion.
-
-        Pulls at most enough items to reach ``_limit()`` in-flight; each pull is
-        the lazy ``next()`` that carries backpressure to the input producer.
-        """
-        if exhausted:
-            return True
-        while len(pending) < self._limit():
-            try:
-                index, item = next(source)  # type: ignore[call-overload]
-            except StopIteration:
-                return True
-            key = self._key_for(index, item)
-            pending.add(asyncio.ensure_future(self._run_one(index, item, key, completed_keys)))
-        return False
 
     async def _run_one(
         self, index: int, item: object, key: str, completed_keys: frozenset[str]

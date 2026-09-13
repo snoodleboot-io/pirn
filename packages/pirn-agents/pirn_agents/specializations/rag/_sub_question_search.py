@@ -44,5 +44,5 @@ class _SubQuestionSearch(Knot):
         Returns:
             A ``(sub_question, hits)`` pair.
         """
-        hits = [item async for item in await store.search(sub_question, top_k=top_k)]
+        hits = list(await store.search(sub_question, top_k=top_k))
         return sub_question, hits

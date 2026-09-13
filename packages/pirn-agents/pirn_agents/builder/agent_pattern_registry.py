@@ -26,7 +26,7 @@ its own, and resolves a pattern's class only when that pattern is named.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.sub_tapestry import SubTapestry
@@ -35,271 +35,286 @@ from pirn_agents.builder.pattern_descriptor import PatternDescriptor
 from pirn_agents.builder.pattern_seed_kind import PatternSeedKind
 from pirn_agents.types.messaging.agent_message import AgentMessage
 
-_SPEC = "pirn_agents.specializations"
-_MESSAGES = PatternSeedKind.MESSAGES
-
-#: The pattern table: (name, "module:Class", seed parameter[, seed kind]).
-#:
-#: The seed is the constructor parameter the builder's ``.input(...)`` feeds —
-#: by convention a pipeline's first parameter, the subject it acts on. Every
-#: other required parameter is a component the caller supplies by name.
-_PATTERNS: tuple[PatternDescriptor, ...] = (
-    # --- document processing
-    PatternDescriptor(
-        "document_ingestion",
-        f"{_SPEC}.document_processing.document_ingestion_pipeline:DocumentIngestionPipeline",
-        "source",
-    ),
-    # Deviates from first-parameter: for QA the *question* is what varies per
-    # run, while `source` is configuration, so the question is the seed.
-    PatternDescriptor(
-        "document_qa",
-        f"{_SPEC}.document_processing.document_qa_pipeline:DocumentQAPipeline",
-        "question",
-    ),
-    PatternDescriptor(
-        "document_summarizer",
-        f"{_SPEC}.document_processing.document_summarizer_pipeline:DocumentSummarizerPipeline",
-        "source",
-    ),
-    PatternDescriptor(
-        "document_translation",
-        f"{_SPEC}.document_processing.document_translation_pipeline:DocumentTranslationPipeline",
-        "source",
-    ),
-    PatternDescriptor(
-        "ingestion",
-        f"{_SPEC}.document_processing.ingestion_pipeline:IngestionPipeline",
-        "source_connector",
-    ),
-    # --- evaluator / optimizer
-    PatternDescriptor(
-        "evaluator_optimizer",
-        f"{_SPEC}.evaluator_optimizer.evaluator_optimizer_pipeline:EvaluatorOptimizerPipeline",
-        "task",
-    ),
-    # --- chain of thought
-    PatternDescriptor(
-        "tree_of_thought", f"{_SPEC}.chain_of_thought.tree_of_thought:TreeOfThought", "prompt"
-    ),
-    PatternDescriptor(
-        "self_consistency",
-        f"{_SPEC}.chain_of_thought.self_consistency_ensemble:SelfConsistencyEnsemble",
-        "prompt",
-    ),
-    # --- guardrails
-    PatternDescriptor(
-        "fact_check", f"{_SPEC}.guardrails.fact_check_gate:FactCheckGate", "response"
-    ),
-    PatternDescriptor(
-        "input_guardrail",
-        f"{_SPEC}.guardrails.input_guardrail_gate:InputGuardrailGate",
-        "messages",
-        _MESSAGES,
-    ),
-    PatternDescriptor(
-        "output_guardrail",
-        f"{_SPEC}.guardrails.output_guardrail_gate:OutputGuardrailGate",
-        "response",
-    ),
-    PatternDescriptor(
-        "pii_redactor", f"{_SPEC}.guardrails.pii_redactor_check:PiiRedactorCheck", "response"
-    ),
-    # --- search
-    PatternDescriptor("lats", f"{_SPEC}.lats.lats_search:LatsSearch", "task"),
-    # --- multi-agent
-    PatternDescriptor(
-        "consensus", f"{_SPEC}.multi_agent.consensus_aggregator:ConsensusAggregator", "responses"
-    ),
-    PatternDescriptor("debate", f"{_SPEC}.multi_agent.debate_framework:DebateFramework", "topic"),
-    PatternDescriptor(
-        "orchestrator", f"{_SPEC}.multi_agent.orchestrator_agent:OrchestratorAgent", "task"
-    ),
-    PatternDescriptor(
-        "orchestrator_workers",
-        f"{_SPEC}.multi_agent.orchestrator_workers:OrchestratorWorkers",
-        "tasks",
-    ),
-    PatternDescriptor(
-        "parallel_specialists",
-        f"{_SPEC}.multi_agent.parallel_specialist_fan_out:ParallelSpecialistFanOut",
-        "task",
-    ),
-    PatternDescriptor(
-        "round_robin_review",
-        f"{_SPEC}.multi_agent.round_robin_review:RoundRobinReview",
-        "response",
-    ),
-    # --- planning
-    PatternDescriptor(
-        "plan_react", f"{_SPEC}.plan_react.plan_react_pipeline:PlanReActPipeline", "task"
-    ),
-    PatternDescriptor(
-        "prompt_chain",
-        f"{_SPEC}.prompt_chaining.prompt_chain_pipeline:PromptChainPipeline",
-        "task",
-    ),
-    # --- retrieval-augmented generation
-    PatternDescriptor(
-        "adaptive_rag", f"{_SPEC}.rag.adaptive_rag_pipeline:AdaptiveRAGPipeline", "query"
-    ),
-    PatternDescriptor(
-        "agentic_rag", f"{_SPEC}.rag.agentic_rag_pipeline:AgenticRagPipeline", "query"
-    ),
-    PatternDescriptor(
-        "contextual_retrieval",
-        f"{_SPEC}.rag.contextual_retrieval_pipeline:ContextualRetrievalPipeline",
-        "query",
-    ),
-    PatternDescriptor(
-        "corrective_rag", f"{_SPEC}.rag.corrective_rag_pipeline:CorrectiveRAGPipeline", "query"
-    ),
-    PatternDescriptor(
-        "flare_rag", f"{_SPEC}.rag.flare_active_rag_pipeline:FlareActiveRagPipeline", "query"
-    ),
-    PatternDescriptor("graph_rag", f"{_SPEC}.rag.graph_rag_pipeline:GraphRAGPipeline", "query"),
-    PatternDescriptor("hyde_rag", f"{_SPEC}.rag.hyde_rag_pipeline:HyDERAGPipeline", "query"),
-    PatternDescriptor(
-        "multi_hop_rag", f"{_SPEC}.rag.multi_hop_rag_pipeline:MultiHopRAGPipeline", "query"
-    ),
-    PatternDescriptor("naive_rag", f"{_SPEC}.rag.naive_rag_pipeline:NaiveRAGPipeline", "query"),
-    PatternDescriptor("rag_fusion", f"{_SPEC}.rag.rag_fusion_pipeline:RagFusionPipeline", "query"),
-    PatternDescriptor("router_rag", f"{_SPEC}.rag.router_rag_pipeline:RouterRagPipeline", "query"),
-    PatternDescriptor(
-        "self_query_rag", f"{_SPEC}.rag.self_query_rag_pipeline:SelfQueryRagPipeline", "query"
-    ),
-    PatternDescriptor("self_rag", f"{_SPEC}.rag.self_rag_pipeline:SelfRAGPipeline", "query"),
-    PatternDescriptor(
-        "speculative_rag", f"{_SPEC}.rag.speculative_rag_pipeline:SpeculativeRagPipeline", "query"
-    ),
-    PatternDescriptor(
-        "sub_question_rag", f"{_SPEC}.rag.sub_question_rag_pipeline:SubQuestionRagPipeline", "query"
-    ),
-    # --- indexing
-    PatternDescriptor(
-        "auto_merging_ingestor",
-        f"{_SPEC}.rag.indexing.auto_merging_ingestor:AutoMergingIngestor",
-        "text",
-    ),
-    PatternDescriptor(
-        "parent_document_ingestor",
-        f"{_SPEC}.rag.indexing.parent_document_ingestor:ParentDocumentIngestor",
-        "text",
-    ),
-    PatternDescriptor(
-        "raptor_tree_builder",
-        f"{_SPEC}.rag.indexing.raptor_tree_builder:RaptorTreeBuilder",
-        "text",
-    ),
-    # --- retrieval components (WS7/PIR-856: Map+Reduce fan-out rewrite)
-    PatternDescriptor("reranker", f"{_SPEC}.rag.reranker:Reranker", "query"),
-    PatternDescriptor(
-        "contextual_compressor",
-        f"{_SPEC}.rag.contextual_compressor:ContextualCompressor",
-        "query",
-    ),
-    PatternDescriptor(
-        "contextual_chunk_enricher",
-        f"{_SPEC}.rag.contextual_chunk_enricher:ContextualChunkEnricher",
-        "documents",
-    ),
-    PatternDescriptor(
-        "fusion_retriever", f"{_SPEC}.rag.fusion_retriever:FusionRetriever", "queries"
-    ),
-    PatternDescriptor(
-        "sub_question_retriever",
-        f"{_SPEC}.rag.sub_question_retriever:SubQuestionRetriever",
-        "sub_questions",
-    ),
-    PatternDescriptor(
-        "iterative_retriever", f"{_SPEC}.rag.iterative_retriever:IterativeRetriever", "query"
-    ),
-    PatternDescriptor(
-        "corrective_router", f"{_SPEC}.rag.corrective_router:CorrectiveRouter", "query"
-    ),
-    # --- reasoning loops
-    PatternDescriptor("react", f"{_SPEC}.react.react_loop:ReActLoop", "messages", _MESSAGES),
-    PatternDescriptor(
-        "reflexion", f"{_SPEC}.reflexion.reflexion_pipeline:ReflexionPipeline", "task"
-    ),
-    PatternDescriptor("rewoo", f"{_SPEC}.rewoo.rewoo_pipeline:ReWooPipeline", "goal"),
-    PatternDescriptor(
-        "router_fallback",
-        f"{_SPEC}.routing.router_fallback_pipeline:RouterFallbackPipeline",
-        "candidates",
-    ),
-    PatternDescriptor(
-        "model_cascade",
-        f"{_SPEC}.routing.model_cascade_router:ModelCascadeRouter",
-        "request",
-    ),
-    PatternDescriptor("fallback_chain", f"{_SPEC}.routing.fallback_chain:FallbackChain", "ordered"),
-    PatternDescriptor("self_ask", f"{_SPEC}.self_ask.self_ask_pipeline:SelfAskPipeline", "task"),
-    # --- specialized agents
-    PatternDescriptor(
-        "browser_agent", f"{_SPEC}.specialized_agents.browser_agent:BrowserAgent", "goal"
-    ),
-    PatternDescriptor("code_agent", f"{_SPEC}.specialized_agents.code_agent:CodeAgent", "task"),
-    PatternDescriptor(
-        "data_analyst_agent",
-        f"{_SPEC}.specialized_agents.data_analyst_agent:DataAnalystAgent",
-        "question",
-    ),
-    PatternDescriptor(
-        "research_agent", f"{_SPEC}.specialized_agents.research_agent:ResearchAgent", "topic"
-    ),
-    PatternDescriptor("sql_agent", f"{_SPEC}.specialized_agents.sql_agent:SQLAgent", "question"),
-    # --- structured output
-    PatternDescriptor(
-        "enum_classifier",
-        f"{_SPEC}.structured_output.enum_classifier_pipeline:EnumClassifierPipeline",
-        "prompt",
-    ),
-    PatternDescriptor(
-        "json_extractor",
-        f"{_SPEC}.structured_output.json_extractor_pipeline:JsonExtractorPipeline",
-        "prompt",
-    ),
-    PatternDescriptor(
-        "pydantic_validator",
-        f"{_SPEC}.structured_output.pydantic_validator_pipeline:PydanticValidatorPipeline",
-        "prompt",
-    ),
-    PatternDescriptor(
-        "retry_on_parse_failure",
-        f"{_SPEC}.structured_output.retry_on_parse_failure:RetryOnParseFailure",
-        "prompt",
-    ),
-    PatternDescriptor(
-        "yaml_extractor",
-        f"{_SPEC}.structured_output.yaml_extractor_pipeline:YamlExtractorPipeline",
-        "prompt",
-    ),
-    # --- tool use
-    PatternDescriptor(
-        "parallel_tool_call",
-        f"{_SPEC}.tool_use.parallel_tool_caller:ParallelToolCaller",
-        "tool_calls",
-    ),
-    PatternDescriptor("tool_chain", f"{_SPEC}.tool_use.tool_chain:ToolChain", "initial_call"),
-)
-
-#: Convenience spellings that resolve to a canonical pattern name.
-_ALIASES: Mapping[str, str] = {"rag": "naive_rag"}
-
 
 class AgentPatternRegistry:
     """Resolves pattern names to :class:`SubTapestry` subclasses and builds them."""
 
+    _spec: ClassVar[str] = "pirn_agents.specializations"
+    _messages: ClassVar[PatternSeedKind] = PatternSeedKind.MESSAGES
+
+    #: The pattern table: (name, "module:Class", seed parameter[, seed kind]).
+    #:
+    #: The seed is the constructor parameter the builder's ``.input(...)`` feeds —
+    #: by convention a pipeline's first parameter, the subject it acts on. Every
+    #: other required parameter is a component the caller supplies by name.
+    _patterns: ClassVar[tuple[PatternDescriptor, ...]] = (
+        # --- document processing
+        PatternDescriptor(
+            "document_ingestion",
+            f"{_spec}.document_processing.document_ingestion_pipeline:DocumentIngestionPipeline",
+            "source",
+        ),
+        # Deviates from first-parameter: for QA the *question* is what varies per
+        # run, while `source` is configuration, so the question is the seed.
+        PatternDescriptor(
+            "document_qa",
+            f"{_spec}.document_processing.document_qa_pipeline:DocumentQAPipeline",
+            "question",
+        ),
+        PatternDescriptor(
+            "document_summarizer",
+            f"{_spec}.document_processing.document_summarizer_pipeline:DocumentSummarizerPipeline",
+            "source",
+        ),
+        PatternDescriptor(
+            "document_translation",
+            f"{_spec}.document_processing.document_translation_pipeline:DocumentTranslationPipeline",
+            "source",
+        ),
+        PatternDescriptor(
+            "ingestion",
+            f"{_spec}.document_processing.ingestion_pipeline:IngestionPipeline",
+            "source_connector",
+        ),
+        # --- evaluator / optimizer
+        PatternDescriptor(
+            "evaluator_optimizer",
+            f"{_spec}.evaluator_optimizer.evaluator_optimizer_pipeline:EvaluatorOptimizerPipeline",
+            "task",
+        ),
+        # --- guardrails
+        PatternDescriptor("fact_check", f"{_spec}.guardrails.fact_check:FactCheck", "response"),
+        PatternDescriptor(
+            "input_guardrail",
+            f"{_spec}.guardrails.input_guardrail_check:InputGuardrailCheck",
+            "messages",
+            _messages,
+        ),
+        PatternDescriptor(
+            "output_guardrail",
+            f"{_spec}.guardrails.output_guardrail_check:OutputGuardrailCheck",
+            "response",
+        ),
+        PatternDescriptor(
+            "pii_redactor", f"{_spec}.guardrails.pii_redactor_check:PiiRedactorCheck", "response"
+        ),
+        # --- search
+        PatternDescriptor("lats", f"{_spec}.lats.lats_search:LatsSearch", "task"),
+        # --- multi-agent
+        PatternDescriptor(
+            "consensus",
+            f"{_spec}.multi_agent.consensus_aggregator:ConsensusAggregator",
+            "responses",
+        ),
+        PatternDescriptor(
+            "debate", f"{_spec}.multi_agent.debate_framework:DebateFramework", "topic"
+        ),
+        PatternDescriptor(
+            "orchestrator", f"{_spec}.multi_agent.orchestrator_agent:OrchestratorAgent", "task"
+        ),
+        PatternDescriptor(
+            "orchestrator_workers",
+            f"{_spec}.multi_agent.orchestrator_workers:OrchestratorWorkers",
+            "tasks",
+        ),
+        PatternDescriptor(
+            "parallel_specialists",
+            f"{_spec}.multi_agent.parallel_specialist_fan_out:ParallelSpecialistFanOut",
+            "task",
+        ),
+        PatternDescriptor(
+            "round_robin_review",
+            f"{_spec}.multi_agent.round_robin_review:RoundRobinReview",
+            "response",
+        ),
+        # --- planning
+        PatternDescriptor(
+            "plan_react", f"{_spec}.plan_react.plan_react_pipeline:PlanReActPipeline", "task"
+        ),
+        PatternDescriptor(
+            "prompt_chain",
+            f"{_spec}.prompt_chaining.prompt_chain_pipeline:PromptChainPipeline",
+            "task",
+        ),
+        # --- retrieval-augmented generation
+        PatternDescriptor(
+            "adaptive_rag", f"{_spec}.rag.adaptive_rag_pipeline:AdaptiveRAGPipeline", "query"
+        ),
+        PatternDescriptor(
+            "agentic_rag", f"{_spec}.rag.agentic_rag_pipeline:AgenticRagPipeline", "query"
+        ),
+        PatternDescriptor(
+            "contextual_retrieval",
+            f"{_spec}.rag.contextual_retrieval_pipeline:ContextualRetrievalPipeline",
+            "query",
+        ),
+        PatternDescriptor(
+            "corrective_rag", f"{_spec}.rag.corrective_rag_pipeline:CorrectiveRAGPipeline", "query"
+        ),
+        PatternDescriptor(
+            "flare_rag", f"{_spec}.rag.flare_active_rag_pipeline:FlareActiveRagPipeline", "query"
+        ),
+        PatternDescriptor("graph_rag", f"{_spec}.rag.graph_rag_pipeline:GraphRAGPipeline", "query"),
+        PatternDescriptor("hyde_rag", f"{_spec}.rag.hyde_rag_pipeline:HyDERAGPipeline", "query"),
+        PatternDescriptor(
+            "multi_hop_rag", f"{_spec}.rag.multi_hop_rag_pipeline:MultiHopRAGPipeline", "query"
+        ),
+        PatternDescriptor("naive_rag", f"{_spec}.rag.naive_rag_pipeline:NaiveRAGPipeline", "query"),
+        PatternDescriptor(
+            "rag_fusion", f"{_spec}.rag.rag_fusion_pipeline:RagFusionPipeline", "query"
+        ),
+        PatternDescriptor(
+            "router_rag", f"{_spec}.rag.router_rag_pipeline:RouterRagPipeline", "query"
+        ),
+        PatternDescriptor(
+            "self_query_rag", f"{_spec}.rag.self_query_rag_pipeline:SelfQueryRagPipeline", "query"
+        ),
+        PatternDescriptor("self_rag", f"{_spec}.rag.self_rag_pipeline:SelfRAGPipeline", "query"),
+        PatternDescriptor(
+            "speculative_rag",
+            f"{_spec}.rag.speculative_rag_pipeline:SpeculativeRagPipeline",
+            "query",
+        ),
+        PatternDescriptor(
+            "sub_question_rag",
+            f"{_spec}.rag.sub_question_rag_pipeline:SubQuestionRagPipeline",
+            "query",
+        ),
+        # --- indexing
+        PatternDescriptor(
+            "auto_merging_ingestor",
+            f"{_spec}.rag.indexing.auto_merging_ingestor:AutoMergingIngestor",
+            "text",
+        ),
+        PatternDescriptor(
+            "parent_document_ingestor",
+            f"{_spec}.rag.indexing.parent_document_ingestor:ParentDocumentIngestor",
+            "text",
+        ),
+        PatternDescriptor(
+            "raptor_tree_builder",
+            f"{_spec}.rag.indexing.raptor_tree_builder:RaptorTreeBuilder",
+            "text",
+        ),
+        # --- reasoning loops
+        PatternDescriptor("react", f"{_spec}.react.react_loop:ReActLoop", "messages", _messages),
+        PatternDescriptor(
+            "reflexion", f"{_spec}.reflexion.reflexion_pipeline:ReflexionPipeline", "task"
+        ),
+        PatternDescriptor("rewoo", f"{_spec}.rewoo.rewoo_pipeline:ReWooPipeline", "goal"),
+        PatternDescriptor(
+            "router_fallback",
+            f"{_spec}.routing.router_fallback_pipeline:RouterFallbackPipeline",
+            "candidates",
+        ),
+        PatternDescriptor(
+            "self_ask", f"{_spec}.self_ask.self_ask_pipeline:SelfAskPipeline", "task"
+        ),
+        # --- specialized agents
+        PatternDescriptor(
+            "browser_agent", f"{_spec}.specialized_agents.browser_agent:BrowserAgent", "goal"
+        ),
+        PatternDescriptor("code_agent", f"{_spec}.specialized_agents.code_agent:CodeAgent", "task"),
+        PatternDescriptor(
+            "data_analyst_agent",
+            f"{_spec}.specialized_agents.data_analyst_agent:DataAnalystAgent",
+            "question",
+        ),
+        PatternDescriptor(
+            "research_agent", f"{_spec}.specialized_agents.research_agent:ResearchAgent", "topic"
+        ),
+        PatternDescriptor(
+            "sql_agent", f"{_spec}.specialized_agents.sql_agent:SQLAgent", "question"
+        ),
+        # --- structured output
+        PatternDescriptor(
+            "enum_classifier",
+            f"{_spec}.structured_output.enum_classifier_pipeline:EnumClassifierPipeline",
+            "prompt",
+        ),
+        PatternDescriptor(
+            "json_extractor",
+            f"{_spec}.structured_output.json_extractor_pipeline:JsonExtractorPipeline",
+            "prompt",
+        ),
+        PatternDescriptor(
+            "pydantic_validator",
+            f"{_spec}.structured_output.pydantic_validator_pipeline:PydanticValidatorPipeline",
+            "prompt",
+        ),
+        PatternDescriptor(
+            "retry_on_parse_failure",
+            f"{_spec}.structured_output.retry_on_parse_failure:RetryOnParseFailure",
+            "prompt",
+        ),
+        PatternDescriptor(
+            "yaml_extractor",
+            f"{_spec}.structured_output.yaml_extractor_pipeline:YamlExtractorPipeline",
+            "prompt",
+        ),
+        # --- tool use
+        PatternDescriptor(
+            "parallel_tool_call",
+            f"{_spec}.tool_use.parallel_tool_caller:ParallelToolCaller",
+            "tool_calls",
+        ),
+        PatternDescriptor("tool_chain", f"{_spec}.tool_use.tool_chain:ToolChain", "initial_call"),
+        # --- engine-graph conversions (PIR-856 agents-flow lane)
+        PatternDescriptor("reranker", f"{_spec}.rag.reranker:Reranker", "query"),
+        PatternDescriptor(
+            "contextual_compressor",
+            f"{_spec}.rag.contextual_compressor:ContextualCompressor",
+            "query",
+        ),
+        PatternDescriptor(
+            "contextual_chunk_enricher",
+            f"{_spec}.rag.contextual_chunk_enricher:ContextualChunkEnricher",
+            "documents",
+        ),
+        PatternDescriptor(
+            "fusion_retriever", f"{_spec}.rag.fusion_retriever:FusionRetriever", "queries"
+        ),
+        PatternDescriptor(
+            "sub_question_retriever",
+            f"{_spec}.rag.sub_question_retriever:SubQuestionRetriever",
+            "sub_questions",
+        ),
+        PatternDescriptor(
+            "iterative_retriever", f"{_spec}.rag.iterative_retriever:IterativeRetriever", "query"
+        ),
+        PatternDescriptor(
+            "corrective_router", f"{_spec}.rag.corrective_router:CorrectiveRouter", "query"
+        ),
+        PatternDescriptor(
+            "tree_of_thought", f"{_spec}.chain_of_thought.tree_of_thought:TreeOfThought", "prompt"
+        ),
+        PatternDescriptor(
+            "self_consistency",
+            f"{_spec}.chain_of_thought.self_consistency_ensemble:SelfConsistencyEnsemble",
+            "prompt",
+        ),
+        PatternDescriptor(
+            "model_cascade",
+            f"{_spec}.routing.model_cascade_router:ModelCascadeRouter",
+            "request",
+        ),
+        PatternDescriptor(
+            "fallback_chain", f"{_spec}.routing.fallback_chain:FallbackChain", "ordered"
+        ),
+    )
+
+    #: Convenience spellings that resolve to a canonical pattern name.
+    _aliases: ClassVar[Mapping[str, str]] = {"rag": "naive_rag"}
+
     @classmethod
     def _descriptors(cls) -> Mapping[str, PatternDescriptor]:
         """Return the canonical name-to-descriptor table."""
-        return {descriptor.name: descriptor for descriptor in _PATTERNS}
+        return {descriptor.name: descriptor for descriptor in cls._patterns}
 
     @classmethod
     def pattern_names(cls) -> tuple[str, ...]:
         """Return the sorted, supported pattern names (including aliases)."""
-        return tuple(sorted({*cls._descriptors(), *_ALIASES}))
+        return tuple(sorted({*cls._descriptors(), *cls._aliases}))
 
     @classmethod
     def canonical_names(cls) -> tuple[str, ...]:
@@ -317,7 +332,7 @@ class AgentPatternRegistry:
             ValueError: If ``pattern`` is unknown.
         """
         table = cls._descriptors()
-        resolved = table.get(_ALIASES.get(pattern, pattern))
+        resolved = table.get(cls._aliases.get(pattern, pattern))
         if resolved is None:
             raise ValueError(
                 f"AgentPatternRegistry: unknown pattern {pattern!r}; "

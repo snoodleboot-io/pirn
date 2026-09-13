@@ -10,6 +10,17 @@ Algorithm:
 This generalises :class:`~pirn_agents.control.reflection_check.ReflectionCheck`
 from a boolean "iterate again?" gate to a continuous score.
 
+Math:
+    The first bare number found anywhere in the reply, ``n``, is clamped to the
+    documented 0-10 scale:
+
+    $$
+    \\text{score} = \\min(10,\\ \\max(0,\\ n))
+    $$
+
+    A reply with no parseable number scores :math:`0`, treated as "no support for
+    a positive score" rather than a missing value.
+
 References:
     - Zheng et al. (2023) "Judging LLM-as-a-Judge" https://arxiv.org/abs/2306.05685
     - Madaan et al. (2023) "Self-Refine" https://arxiv.org/abs/2303.17651

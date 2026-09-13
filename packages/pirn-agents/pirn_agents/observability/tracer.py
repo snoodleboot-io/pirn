@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import time
 from collections.abc import AsyncIterator, Callable, Mapping
 from contextlib import asynccontextmanager
@@ -64,7 +65,8 @@ class Tracer:
     stack in every context that can see it, not only the one calling ``finish``,
     so a span opened on the event loop and closed on a dispatcher worker leaves
     nothing behind. Sink callbacks are best-effort: any exception a sink raises
-    is swallowed so observability can never abort a traced call.
+    is logged at WARNING and otherwise swallowed so observability can never
+    abort a traced call.
     """
 
     def __init__(
@@ -152,7 +154,8 @@ class Tracer:
         stack, and its id is pushed so any span started before it finishes nests
         beneath it. The push is balanced by the span's ``on_close``, so this
         path pops even though no context manager wraps it. The sink's
-        ``on_start`` is fired (exceptions swallowed) before returning.
+        ``on_start`` is fired (exceptions logged at WARNING and swallowed)
+        before returning.
         """
         open_ids = self.open_span_ids
         parent_id = open_ids[-1] if open_ids else None
@@ -172,7 +175,11 @@ class Tracer:
         try:
             self._sink.on_start(span)
         except Exception:
-            pass
+            logging.getLogger(__name__).warning(
+                "tracer.sink_on_start_failed",
+                exc_info=True,
+                extra={"span_id": span_id, "span_name": name},
+            )
         return span
 
     @staticmethod

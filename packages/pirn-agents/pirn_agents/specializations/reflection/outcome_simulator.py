@@ -23,6 +23,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.specializations.reflection.simulation_result import SimulationResult
 
 
@@ -82,7 +83,7 @@ class OutcomeSimulator(Knot):
             {"role": "user", "content": action},
         ]
         raw = await llm.chat(messages=messages)
-        text = self._extract_text(raw)
+        text = LlmResponseText().extract(raw)
         best, neutral, worst = self._parse_outcomes(text)
         return SimulationResult(
             best_case=best,
@@ -113,19 +114,3 @@ class OutcomeSimulator(Knot):
             " ".join(sections["neutral"]),
             " ".join(sections["worst"]),
         )
-
-    @staticmethod
-    def _extract_text(raw: Any) -> str:
-        if isinstance(raw, str):
-            return raw
-        if isinstance(raw, dict):
-            content = raw.get("content")
-            if isinstance(content, str):
-                return content
-            if isinstance(content, list) and content:
-                first = content[0]
-                if isinstance(first, dict):
-                    text = first.get("text")
-                    if isinstance(text, str):
-                        return text
-        return str(raw)

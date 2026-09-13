@@ -157,6 +157,9 @@ def tool(
         cost_hint=cost_hint,
     )
 
+    # design-decision-override: `tool` is a decorator factory — `@tool(...)`
+    # must return the actual decorator, which can only reach the caller's
+    # name/description/permissions/etc. by closing over them.
     def _decorate(target: Callable[..., Any]) -> FunctionTool:
         return _build_tool(
             target,

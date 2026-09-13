@@ -33,22 +33,11 @@ import importlib
 import inspect
 from dataclasses import dataclass
 from types import MappingProxyType
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.builder.pattern_seed_kind import PatternSeedKind
-
-#: Constructor parameters the registry supplies itself, never the caller.
-_RESERVED_PARAMETERS = frozenset({"self", "_config"})
-
-#: Import cache, keyed by target. Descriptors are frozen, so the cache lives here.
-_RESOLVED: dict[str, type[SubTapestry]] = {}
-
-#: Rows already checked against their class, keyed by ``(target, seed)``. Keyed
-#: by the pair, not the target: two rows may share a class and differ in seed,
-#: and the second must still be checked.
-_VALIDATED: set[tuple[str, str]] = set()
 
 
 @dataclass(frozen=True)
@@ -68,6 +57,19 @@ class PatternDescriptor:
     seed_kind:
         How that seed is coerced before binding.
     """
+
+    #: Constructor parameters the registry supplies itself, never the caller.
+    #: ``ClassVar`` excludes it from the dataclass's own fields.
+    _reserved_parameters: ClassVar[frozenset[str]] = frozenset({"self", "_config"})
+
+    #: Import cache, keyed by target. Descriptors are frozen, so the cache
+    #: lives on the class instead of an instance.
+    _resolved: ClassVar[dict[str, type[SubTapestry]]] = {}
+
+    #: Rows already checked against their class, keyed by ``(target, seed)``.
+    #: Keyed by the pair, not the target: two rows may share a class and
+    #: differ in seed, and the second must still be checked.
+    _validated: ClassVar[set[tuple[str, str]]] = set()
 
     name: str
     target: str
@@ -116,7 +118,7 @@ class PatternDescriptor:
             TypeError: If the target is not a :class:`SubTapestry` subclass.
             ValueError: If :attr:`seed` is not one of its constructor parameters.
         """
-        resolved = _RESOLVED.get(self.target)
+        resolved = type(self)._resolved.get(self.target)
         if resolved is None:
             module = importlib.import_module(self.module_name)
             # `vars(...)` rather than `getattr`: the class name is data, so the
@@ -133,15 +135,15 @@ class PatternDescriptor:
                     f"PatternDescriptor {self.name!r}: {self.target} must be a SubTapestry "
                     f"subclass, got {candidate!r}"
                 )
-            _RESOLVED[self.target] = candidate
+            type(self)._resolved[self.target] = candidate
             resolved = candidate
-        if (self.target, self.seed) not in _VALIDATED:
+        if (self.target, self.seed) not in type(self)._validated:
             if self.seed not in self.parameters():
                 raise ValueError(
                     f"PatternDescriptor {self.name!r}: seed {self.seed!r} is not a constructor "
                     f"parameter of {self.class_name}; parameters are {sorted(self.parameters())!r}"
                 )
-            _VALIDATED.add((self.target, self.seed))
+            type(self)._validated.add((self.target, self.seed))
         return resolved
 
     def parameters(self) -> MappingProxyType[str, bool]:
@@ -151,13 +153,13 @@ class PatternDescriptor:
         any ``*args``/``**kwargs`` catch-all, which absorbs anything and so
         tells the builder nothing.
         """
-        knot_class = _RESOLVED.get(self.target) or self.knot_class()
+        knot_class = type(self)._resolved.get(self.target) or self.knot_class()
         signature = inspect.signature(knot_class.__init__)
         return MappingProxyType(
             {
                 name: parameter.default is not inspect.Parameter.empty
                 for name, parameter in signature.parameters.items()
-                if name not in _RESERVED_PARAMETERS
+                if name not in type(self)._reserved_parameters
                 and parameter.kind is not inspect.Parameter.VAR_KEYWORD
                 and parameter.kind is not inspect.Parameter.VAR_POSITIONAL
             }

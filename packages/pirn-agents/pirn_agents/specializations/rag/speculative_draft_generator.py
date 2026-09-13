@@ -23,6 +23,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 
 
 class SpeculativeDraftGenerator(Knot):
@@ -75,14 +76,4 @@ class SpeculativeDraftGenerator(Knot):
             )
         prompt = type(self)._draft_prompt.render({"query": query})
         raw = await llm.chat([{"role": "user", "content": prompt}])
-        return self._extract_text(raw)
-
-    @staticmethod
-    def _extract_text(raw: Any) -> str:
-        if isinstance(raw, str):
-            return raw
-        if isinstance(raw, dict):
-            content = raw.get("content")
-            if isinstance(content, str):
-                return content
-        return str(raw)
+        return LlmResponseText().extract(raw)

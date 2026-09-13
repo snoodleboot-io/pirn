@@ -74,6 +74,9 @@ class CrossEncoderReranker(RerankerBackend):
         model = self._get_model()
         pairs = [[query, self._doc_text(document)] for document in documents]
 
+        # design-decision-override: asyncio.to_thread needs a zero-arg callable;
+        # closing over model/pairs here avoids a partial/lambda-with-default
+        # dance for a single-use helper.
         def _predict() -> Any:
             return model.predict(pairs)
 

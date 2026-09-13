@@ -1,4 +1,4 @@
-"""Tests for :class:`InputGuardrailGate`."""
+"""Tests for :class:`InputGuardrailCheck`."""
 
 from __future__ import annotations
 
@@ -8,29 +8,29 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
-from pirn_agents.specializations.guardrails.input_guardrail_gate import (
-    InputGuardrailGate,
+from pirn_agents.specializations.guardrails.input_guardrail_check import (
+    InputGuardrailCheck,
 )
 from pirn_agents.types.messaging.agent_message import AgentMessage
 
 
-def _make_knot() -> InputGuardrailGate:
+def _make_knot() -> InputGuardrailCheck:
     with Tapestry():
-        return InputGuardrailGate(
+        return InputGuardrailCheck(
             messages=(),
             deny_patterns=(),
             _config=KnotConfig(id="gate"),
         )
 
 
-class TestInputGuardrailGateProcess(unittest.IsolatedAsyncioTestCase):
+class TestInputGuardrailCheckProcess(unittest.IsolatedAsyncioTestCase):
     async def test_redacts_pii_and_passes_clean_messages_through(self) -> None:
         messages = (
             AgentMessage(role="user", content="email me at me@x.com"),
             AgentMessage(role="user", content="hello world"),
         )
         with Tapestry() as t:
-            InputGuardrailGate(
+            InputGuardrailCheck(
                 messages=messages,
                 deny_patterns=(r"DROP TABLE",),
                 pii_patterns=(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}",),
@@ -46,7 +46,7 @@ class TestInputGuardrailGateProcess(unittest.IsolatedAsyncioTestCase):
     async def test_deny_pattern_match_fails_run(self) -> None:
         messages = (AgentMessage(role="user", content="please DROP TABLE users"),)
         with Tapestry() as t:
-            InputGuardrailGate(
+            InputGuardrailCheck(
                 messages=messages,
                 deny_patterns=(r"DROP TABLE",),
                 _config=KnotConfig(id="gate"),

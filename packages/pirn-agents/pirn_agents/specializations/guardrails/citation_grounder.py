@@ -30,6 +30,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
@@ -87,20 +88,10 @@ class CitationGrounder(Knot):
             {"sources": sources_text, "response": response.content},
         )
         raw = await llm.chat([{"role": "user", "content": prompt}])
-        new_content = self._extract_text(raw).strip()
+        new_content = LlmResponseText().extract(raw).strip()
         return AgentResponse(
             content=new_content,
             tool_calls=response.tool_calls,
             finish_reason=response.finish_reason,
             usage=response.usage,
         )
-
-    @staticmethod
-    def _extract_text(raw: Any) -> str:
-        if isinstance(raw, str):
-            return raw
-        if isinstance(raw, dict):
-            content = raw.get("content")
-            if isinstance(content, str):
-                return content
-        return str(raw)

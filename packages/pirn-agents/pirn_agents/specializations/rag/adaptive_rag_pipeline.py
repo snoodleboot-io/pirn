@@ -58,10 +58,6 @@ from pirn_agents.specializations.rag.rag_response_builder import (
     RAGResponseBuilder,
 )
 
-_ROUTE_SIMPLE = "simple"
-_ROUTE_MODERATE = "moderate"
-_ROUTE_COMPLEX = "complex"
-
 
 def _merge_hits(**per_question: Any) -> list[Any]:
     """Flatten the per-sub-question retrieval results into one hit list.
@@ -114,20 +110,25 @@ def _select_complexity_route(complexity: str) -> str:
         One of ``"simple"``, ``"moderate"`` or ``"complex"``.
     """
     if complexity == "COMPLEX":
-        return _ROUTE_COMPLEX
+        return AdaptiveRAGPipeline._route_complex
     if complexity == "SIMPLE":
-        return _ROUTE_SIMPLE
+        return AdaptiveRAGPipeline._route_simple
     if complexity == "MODERATE":
-        return _ROUTE_MODERATE
+        return AdaptiveRAGPipeline._route_moderate
     if "COMPLEX" in complexity:
-        return _ROUTE_COMPLEX
+        return AdaptiveRAGPipeline._route_complex
     if "SIMPLE" in complexity:
-        return _ROUTE_SIMPLE
-    return _ROUTE_MODERATE
+        return AdaptiveRAGPipeline._route_simple
+    return AdaptiveRAGPipeline._route_moderate
 
 
 class AdaptiveRAGPipeline(AgentPipeline):
     """Classify query complexity, then route to naive RAG, multi-hop RAG, or direct LLM."""
+
+    #: Route names the classifier resolves to (Rule: no module-level constants).
+    _route_simple: ClassVar[str] = "simple"
+    _route_moderate: ClassVar[str] = "moderate"
+    _route_complex: ClassVar[str] = "complex"
 
     _classify_prompt: ClassVar[PromptBinding] = PromptBinding(
         name="specializations.rag.adaptive_rag_pipeline.classify_prompt",
@@ -195,7 +196,7 @@ class AdaptiveRAGPipeline(AgentPipeline):
         # precomputed value — so the arm's knots were invisible to the run this
         # pipeline reports. Only the decisions that must be resolved before the
         # graph can be built still need their own inner run.
-        if route == _ROUTE_SIMPLE:
+        if route == type(self)._route_simple:
             answer = LLMChatCall(
                 prompt=query,
                 llm=llm,
@@ -203,7 +204,7 @@ class AdaptiveRAGPipeline(AgentPipeline):
             )
             return RAGResponseBuilder(answer=answer, _config=KnotConfig(id="response"))
 
-        if route == _ROUTE_COMPLEX:
+        if route == type(self)._route_complex:
             decompose_prompt = type(self)._decompose_prompt.render({"query": query})
             with Tapestry() as inner_decompose:
                 LLMChatCall(

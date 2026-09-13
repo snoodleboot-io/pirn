@@ -21,7 +21,7 @@ all four adapters can be validated identically.
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from pirn_agents.memory.stores.memory_store import MemoryStore
@@ -104,16 +104,16 @@ class VectorMemoryStore(MemoryStore):
         query: str,
         *,
         top_k: int = 10,
-    ) -> AsyncIterator[Mapping[str, Any]]:
-        """Embed ``query`` and yield up to ``top_k`` nearest records as mappings.
+    ) -> Sequence[Mapping[str, Any]]:
+        """Embed ``query`` and return up to ``top_k`` nearest records as mappings.
 
         Args:
             query: The text query; embedded via the configured provider.
-            top_k: Maximum number of hits to yield.
+            top_k: Maximum number of hits to return.
 
         Returns:
-            An async iterator of hit mappings, each with ``id``, ``score``,
-            ``metadata``, and ``document`` keys.
+            A tuple of hit mappings, most similar first, each with ``id``,
+            ``score``, ``metadata``, and ``document`` keys.
 
         Raises:
             RuntimeError: If no embedding provider was supplied at construction.
@@ -125,17 +125,15 @@ class VectorMemoryStore(MemoryStore):
             )
         vectors = await self._embedder.embed([query])
         matches = await self.query(vectors[0], top_k=top_k)
-
-        async def _aiter() -> AsyncIterator[Mapping[str, Any]]:
-            for match in matches:
-                yield {
-                    "id": match.id,
-                    "score": match.score,
-                    "metadata": dict(match.metadata),
-                    "document": match.document,
-                }
-
-        return _aiter()
+        return tuple(
+            {
+                "id": match.id,
+                "score": match.score,
+                "metadata": dict(match.metadata),
+                "document": match.document,
+            }
+            for match in matches
+        )
 
     async def forget(self, key: str) -> None:
         """Remove the record stored under ``key`` if present."""

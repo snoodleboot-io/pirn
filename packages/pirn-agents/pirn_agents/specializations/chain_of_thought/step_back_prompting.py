@@ -23,6 +23,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
@@ -90,7 +91,7 @@ class StepBackPrompting(Knot):
             {"role": "user", "content": prompt},
         ]
         step_back_raw = await llm.chat(messages=step_back_messages)
-        step_back_answer = self._extract_text(step_back_raw)
+        step_back_answer = LlmResponseText().extract(step_back_raw)
 
         forward_messages = [
             {"role": "system", "content": type(self)._forward_system.resolve()},
@@ -102,21 +103,5 @@ class StepBackPrompting(Knot):
             },
         ]
         forward_raw = await llm.chat(messages=forward_messages)
-        answer = self._extract_text(forward_raw)
+        answer = LlmResponseText().extract(forward_raw)
         return AgentResponse(content=answer)
-
-    @staticmethod
-    def _extract_text(raw: Any) -> str:
-        if isinstance(raw, str):
-            return raw
-        if isinstance(raw, dict):
-            content = raw.get("content")
-            if isinstance(content, str):
-                return content
-            if isinstance(content, list) and content:
-                first = content[0]
-                if isinstance(first, dict):
-                    text = first.get("text")
-                    if isinstance(text, str):
-                        return text
-        return str(raw)

@@ -1,4 +1,4 @@
-"""Tests for :class:`OutputGuardrailGate`."""
+"""Tests for :class:`OutputGuardrailCheck`."""
 
 from __future__ import annotations
 
@@ -8,16 +8,16 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
-from pirn_agents.specializations.guardrails.output_guardrail_gate import (
-    OutputGuardrailGate,
+from pirn_agents.specializations.guardrails.output_guardrail_check import (
+    OutputGuardrailCheck,
 )
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
-def _make_knot() -> OutputGuardrailGate:
+def _make_knot() -> OutputGuardrailCheck:
     with Tapestry():
-        return OutputGuardrailGate(
+        return OutputGuardrailCheck(
             response=AgentResponse(content="ok", finish_reason="stop"),
             deny_patterns=(),
             allowed_tool_names=(),
@@ -25,11 +25,11 @@ def _make_knot() -> OutputGuardrailGate:
         )
 
 
-class TestOutputGuardrailGateProcessDirect(unittest.IsolatedAsyncioTestCase):
+class TestOutputGuardrailCheckProcessDirect(unittest.IsolatedAsyncioTestCase):
     async def test_process_passes_clean_response(self) -> None:
         response = AgentResponse(content="all good", finish_reason="stop")
         with Tapestry() as t:
-            OutputGuardrailGate(
+            OutputGuardrailCheck(
                 response=response,
                 deny_patterns=(),
                 allowed_tool_names=(),
@@ -44,7 +44,7 @@ class TestOutputGuardrailGateProcessDirect(unittest.IsolatedAsyncioTestCase):
     async def test_process_raises_for_deny_pattern_match(self) -> None:
         response = AgentResponse(content="this is BAD content", finish_reason="stop")
         with Tapestry() as t:
-            OutputGuardrailGate(
+            OutputGuardrailCheck(
                 response=response,
                 deny_patterns=(r"BAD",),
                 allowed_tool_names=(),
@@ -60,7 +60,7 @@ class TestOutputGuardrailGateProcessDirect(unittest.IsolatedAsyncioTestCase):
             finish_reason="stop",
         )
         with Tapestry() as t:
-            OutputGuardrailGate(
+            OutputGuardrailCheck(
                 response=response,
                 deny_patterns=(),
                 allowed_tool_names=("search",),
@@ -70,7 +70,7 @@ class TestOutputGuardrailGateProcessDirect(unittest.IsolatedAsyncioTestCase):
         assert not run.succeeded
 
 
-class TestOutputGuardrailGateProcess(unittest.IsolatedAsyncioTestCase):
+class TestOutputGuardrailCheckProcess(unittest.IsolatedAsyncioTestCase):
     async def test_passes_response_when_clean(self) -> None:
         response = AgentResponse(
             content="all good",
@@ -84,7 +84,7 @@ class TestOutputGuardrailGateProcess(unittest.IsolatedAsyncioTestCase):
             finish_reason="stop",
         )
         with Tapestry() as t:
-            OutputGuardrailGate(
+            OutputGuardrailCheck(
                 response=response,
                 deny_patterns=(r"BAD",),
                 allowed_tool_names=("search",),
@@ -109,7 +109,7 @@ class TestOutputGuardrailGateProcess(unittest.IsolatedAsyncioTestCase):
             finish_reason="stop",
         )
         with Tapestry() as t:
-            OutputGuardrailGate(
+            OutputGuardrailCheck(
                 response=response,
                 deny_patterns=(),
                 allowed_tool_names=("search",),

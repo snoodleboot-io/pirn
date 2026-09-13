@@ -14,7 +14,7 @@ without descending into vendor SDKs.
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
@@ -36,8 +36,16 @@ class MemoryStore(PirnOpaqueValue):
         query: str,
         *,
         top_k: int = 10,
-    ) -> AsyncIterator[Mapping[str, Any]]:
-        """Yield up to ``top_k`` mappings most similar to ``query``."""
+    ) -> Sequence[Mapping[str, Any]]:
+        """Return up to ``top_k`` mappings most similar to ``query``, most similar first.
+
+        The contract is a single ``await`` away from a concrete, len()-able
+        sequence — never an async iterator or generator. Every caller can
+        therefore write ``results = await store.search(...)`` with no
+        duck-typed drain for "was that awaitable, async-iterable, or already
+        a list?" (PIR-856; the ambiguity previously forced 8 near-identical
+        drain copies across the RAG/guardrail/memory call sites).
+        """
         raise NotImplementedError(f"{type(self).__name__} must implement search()")
 
     async def forget(self, key: str) -> None:

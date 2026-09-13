@@ -42,4 +42,4 @@ class _VariantSearch(Knot):
         Returns:
             The hits for this query variant, in ranked order.
         """
-        return [item async for item in await store.search(query, top_k=top_k)]
+        return list(await store.search(query, top_k=top_k))

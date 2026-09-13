@@ -7,7 +7,7 @@ state and conversation threads.
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from pirn_agents.memory.stores.memory_store import MemoryStore
@@ -35,12 +35,8 @@ class DictMemoryStore(MemoryStore):
         found = self.data.get(key)
         return dict(found) if found is not None else None
 
-    async def search(self, query: str, *, top_k: int = 10) -> AsyncIterator[Mapping[str, Any]]:
-        async def _aiter() -> AsyncIterator[Mapping[str, Any]]:
-            for value in list(self.data.values())[:top_k]:
-                yield value
-
-        return _aiter()
+    async def search(self, query: str, *, top_k: int = 10) -> Sequence[Mapping[str, Any]]:
+        return list(self.data.values())[:top_k]
 
     async def forget(self, key: str) -> None:
         self.forgotten.append(key)

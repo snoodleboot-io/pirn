@@ -120,14 +120,9 @@ class StubMemoryStore(MemoryStore):
         query: str,
         *,
         top_k: int = 10,
-    ) -> AsyncIterator[Mapping[str, Any]]:
+    ) -> Sequence[Mapping[str, Any]]:
         self.search_queries.append(query)
-
-        async def _aiter() -> AsyncIterator[Mapping[str, Any]]:
-            for hit in self._hits[:top_k]:
-                yield hit
-
-        return _aiter()
+        return list(self._hits[:top_k])
 
     async def forget(self, key: str) -> None:
         return None

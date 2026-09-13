@@ -34,7 +34,7 @@ to the knot-first API. See ``BUILDER.md``.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.nodes.sub_tapestry import SubTapestry
 
@@ -42,17 +42,18 @@ from pirn_agents.builder.agent_knot_id_factory import AgentKnotIdFactory
 from pirn_agents.builder.agent_pattern_registry import AgentPatternRegistry
 from pirn_agents.builder.agent_references import AgentReferences
 from pirn_agents.builder.agent_spec import AgentSpec
+from pirn_agents.builder.agent_spec_codec import AgentSpecCodec
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.toolset import Toolset
 
-#: Component names with a dedicated, type-checked setter on the builder.
-_SHORTHAND_COMPONENTS = frozenset({"llm", "memory", "tools"})
-
 
 class AgentBuilder:
     """Chainable builder that generates a :class:`SubTapestry` agent graph."""
+
+    #: Component names with a dedicated, type-checked setter on the builder.
+    _shorthand_components: ClassVar[frozenset[str]] = frozenset({"llm", "memory", "tools"})
 
     @classmethod
     def from_spec(cls, spec: AgentSpec, *, references: AgentReferences) -> AgentBuilder:
@@ -81,25 +82,7 @@ class AgentBuilder:
             ValueError: If ``spec.pattern`` is not a known pattern.
             KeyError: If a label the spec names is not registered.
         """
-        if not isinstance(spec, AgentSpec):
-            raise TypeError(
-                f"AgentBuilder.from_spec: spec must be an AgentSpec, got {type(spec).__name__}"
-            )
-        if not isinstance(references, AgentReferences):
-            raise TypeError(
-                f"AgentBuilder.from_spec: references must be an AgentReferences, "
-                f"got {type(references).__name__}"
-            )
-        builder = cls()
-        if spec.llm is not None:
-            builder.llm(references.resolve(spec.llm))
-        if spec.memory is not None:
-            builder.memory(references.resolve(spec.memory))
-        if spec.tools:
-            builder.tools([references.resolve(label) for label in spec.tools])
-        for name, label in spec.components.items():
-            builder.component(name, references.resolve(label))
-        return builder.pattern(spec.pattern, **spec.options)
+        return AgentSpecCodec.from_spec(cls, spec, references=references)
 
     def __init__(self) -> None:
         """Start an empty builder with no components configured."""
@@ -185,7 +168,7 @@ class AgentBuilder:
             )
         if not name:
             raise ValueError("AgentBuilder.component: name must be a non-empty string")
-        if name in _SHORTHAND_COMPONENTS:
+        if name in self._shorthand_components:
             raise ValueError(
                 f"AgentBuilder.component: use .{name}(...) to set {name!r} — it is type-checked"
             )
@@ -329,7 +312,7 @@ class AgentBuilder:
         return {
             name: type(value).__name__
             for name, value in sorted(self._components.items())
-            if name not in _SHORTHAND_COMPONENTS
+            if name not in self._shorthand_components
         }
 
     def to_spec(self) -> AgentSpec:
@@ -341,16 +324,7 @@ class AgentBuilder:
         Raises:
             ValueError: If no pattern has been selected yet.
         """
-        if self._pattern is None:
-            raise ValueError("AgentBuilder.to_spec: no pattern selected; call .pattern(...)")
-        return AgentSpec(
-            pattern=self._pattern,
-            llm=self._component_label("llm"),
-            memory=self._component_label("memory"),
-            tools=tuple(tool.name for tool in self._tools),
-            components=self._component_labels(),
-            options=dict(self._options),
-        )
+        return AgentSpecCodec.to_spec(self)
 
     def build(self) -> SubTapestry:
         """Generate the agent's :class:`SubTapestry` with a stable knot id.

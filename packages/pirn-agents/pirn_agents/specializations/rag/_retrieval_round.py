@@ -42,4 +42,4 @@ class _RetrievalRound(Knot):
         Returns:
             The hits for this round.
         """
-        return [item async for item in await memory.search(query, top_k=top_k)]
+        return list(await memory.search(query, top_k=top_k))

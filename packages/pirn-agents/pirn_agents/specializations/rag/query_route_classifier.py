@@ -26,6 +26,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 
 
 class QueryRouteClassifier(Knot):
@@ -91,7 +92,7 @@ class QueryRouteClassifier(Knot):
         options = ", ".join(route_names)
         prompt = type(self)._route_prompt.render({"options": options, "query": query})
         raw = await llm.chat([{"role": "user", "content": prompt}])
-        reply = self._extract_text(raw).strip().lower()
+        reply = LlmResponseText().extract(raw).strip().lower()
         for name in route_names:
             if name.lower() == reply:
                 return name
@@ -99,13 +100,3 @@ class QueryRouteClassifier(Knot):
             if name.lower() in reply:
                 return name
         return route_names[0]
-
-    @staticmethod
-    def _extract_text(raw: Any) -> str:
-        if isinstance(raw, str):
-            return raw
-        if isinstance(raw, dict):
-            content = raw.get("content")
-            if isinstance(content, str):
-                return content
-        return str(raw)

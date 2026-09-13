@@ -6,9 +6,8 @@ and returns the matching memory entries as a list.
 Algorithm
 ---------
 1. Validate inputs.
-2. Call ``store.search(context, top_k=top_k)`` which may be sync,
-   async, or an async-iterable.
-3. Collect up to ``top_k`` results and return them.
+2. ``await store.search(context, top_k=top_k)``.
+3. Return up to ``top_k`` results as a list.
 
 Math
 ----
@@ -78,16 +77,5 @@ class EpisodicMemoryRetriever(Retriever):
             raise TypeError(
                 f"EpisodicMemoryRetriever: context must be a string, got {type(context).__name__}"
             )
-        candidate = store.search(context, top_k=top_k)
-        if hasattr(candidate, "__await__"):
-            candidate = await candidate
-        if hasattr(candidate, "__aiter__"):
-            collected: list[Mapping[str, Any]] = []
-            async for item in candidate:  # type: ignore[misc]
-                collected.append(item)
-                if len(collected) >= top_k:
-                    break
-            return collected
-        if isinstance(candidate, list):
-            return list(candidate[:top_k])
-        return [item for item in candidate][:top_k]  # type: ignore[misc]
+        hits = await store.search(context, top_k=top_k)
+        return list(hits[:top_k])

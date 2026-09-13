@@ -28,6 +28,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
@@ -100,7 +101,7 @@ class FormatCoercer(Knot):
             },
         )
         raw = await llm.chat([{"role": "user", "content": prompt}])
-        new_content = self._extract_text(raw).strip()
+        new_content = LlmResponseText().extract(raw).strip()
         return AgentResponse(
             content=new_content,
             tool_calls=response.tool_calls,
@@ -128,13 +129,3 @@ class FormatCoercer(Knot):
                 or "```" in stripped
             )
         return False
-
-    @staticmethod
-    def _extract_text(raw: Any) -> str:
-        if isinstance(raw, str):
-            return raw
-        if isinstance(raw, dict):
-            content = raw.get("content")
-            if isinstance(content, str):
-                return content
-        return str(raw)

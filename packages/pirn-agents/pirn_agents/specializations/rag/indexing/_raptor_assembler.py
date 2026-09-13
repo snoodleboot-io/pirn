@@ -18,6 +18,19 @@ Algorithm:
        retrieval) and return the :class:`RaptorTree`.
 
 Internal API.
+
+Extends :class:`~pirn.core.assembler.Assembler` for the family-membership
+signal (this is the terminal node that assembles the final
+:class:`RaptorTree` for :class:`RaptorTreeBuilder`), not the strict "raw
+bytes in, no I/O" Assembler contract: this knot performs an atomic
+read-check-transform-write cycle against the vector store (dedup lookup,
+LLM summarization, embedding, upsert) the same way ``ScdType2``,
+``MergeUpsert`` and ``CDCDebezium`` do — the ETL exception documented in
+``docs/contributing/assembler-disassembler-pattern.md`` ("Not required for
+ETL knots that perform an atomic read-transform-write cycle against a pool
+or broker"). Splitting the I/O out would break that atomicity (the dedup
+short-circuit and the final upsert must see a consistent store).
+
 References:
     - Sarthi et al., "RAPTOR" (ICLR 2024): https://arxiv.org/abs/2401.18059
 """
@@ -27,6 +40,7 @@ from __future__ import annotations
 import hashlib
 from typing import Any, ClassVar
 
+from pirn.core.assembler import Assembler
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -39,7 +53,7 @@ from pirn_agents.specializations.rag.indexing.raptor_node import RaptorNode
 from pirn_agents.specializations.rag.indexing.raptor_tree import RaptorTree
 
 
-class _RaptorAssembler(Knot):
+class _RaptorAssembler(Assembler):
     """Recursively cluster + summarize leaves into a stored RAPTOR tree."""
 
     _summary_prompt: ClassVar[PromptBinding] = PromptBinding(

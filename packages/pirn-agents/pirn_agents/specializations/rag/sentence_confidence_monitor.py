@@ -11,6 +11,14 @@ Algorithm:
        ``threshold`` (number in [0, 1]).
     2. Return ``True`` when ``confidence < threshold``, else ``False``.
 
+Math:
+    $$
+    \\text{needs\\_retrieval} = \\text{confidence} < \\text{threshold}
+    $$
+
+    Both operands are constrained to :math:`[0, 1]`; equality (``confidence ==
+    threshold``) does not trigger retrieval — the comparison is strict.
+
 References:
     - Jiang et al., "Active Retrieval Augmented Generation" (FLARE, EMNLP 2023):
       https://arxiv.org/abs/2305.06983

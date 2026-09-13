@@ -76,6 +76,10 @@ async def run_eval(
     limiter = BackpressureSemaphore(concurrency if concurrency is not None else ConcurrencyConfig())
     active_recorder = recorder if recorder is not None else NullRunRecorder()
 
+    # design-decision-override: closure over limiter/active_recorder/metrics/
+    # thresholds/target so each item can be scheduled independently under
+    # asyncio.gather without threading five parameters through a module-level
+    # helper on every call.
     async def _run_item(item: EvalItem) -> EvalCaseResult:
         async with limiter.slot():
             output = await active_recorder.invoke(

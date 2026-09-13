@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -41,6 +41,9 @@ from pirn_agents.types.messaging.agent_response import AgentResponse
 class PIIResponseRedactor(Knot):
     """Redacts PII matches in :class:`AgentResponse.content`."""
 
+    #: Stateless helper shared across instances (Knot Rule 4 — class-level constant).
+    _pattern_compiler: ClassVar[SafePatternCompiler] = SafePatternCompiler()
+
     def __init__(
         self,
         *,
@@ -49,7 +52,6 @@ class PIIResponseRedactor(Knot):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        self._pattern_compiler = SafePatternCompiler()
         super().__init__(response=response, patterns=patterns, _config=_config, **kwargs)
 
     async def process(
@@ -82,6 +84,9 @@ class PIIResponseRedactor(Knot):
         )
         content = response.content
 
+        # design-decision-override: asyncio.to_thread needs a zero-arg callable;
+        # the default-arg trick binds content_str once per call so the closure
+        # is safe even if this method runs concurrently for different responses.
         def _apply_pii(content_str: str = content) -> str:
             for p in compiled:
                 content_str = p.sub("<redacted>", content_str)

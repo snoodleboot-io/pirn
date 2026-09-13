@@ -32,6 +32,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.types.messaging.agent_message import AgentMessage
 
 
@@ -112,18 +113,8 @@ class SessionSummarizer(Knot):
             {"conversation": rendered},
         )
         raw = await llm.chat([{"role": "user", "content": summary_prompt}])
-        summary_text = self._extract_text(raw)
+        summary_text = LlmResponseText().extract(raw)
         summary_msg = AgentMessage(role="system", content=f"[Summary] {summary_text}")
         if message_list:
             return [summary_msg, message_list[-1]]
         return [summary_msg]
-
-    @staticmethod
-    def _extract_text(raw: Any) -> str:
-        if isinstance(raw, str):
-            return raw
-        if isinstance(raw, dict):
-            content = raw.get("content")
-            if isinstance(content, str):
-                return content
-        return str(raw)

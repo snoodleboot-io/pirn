@@ -19,6 +19,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 
 
 class _LLMCallKnot(Knot):
@@ -45,14 +46,4 @@ class _LLMCallKnot(Knot):
             The text content returned by the LLM.
         """
         raw = await llm.chat([{"role": "user", "content": prompt}])
-        return self._extract_text(raw)
-
-    @staticmethod
-    def _extract_text(raw: Any) -> str:
-        if isinstance(raw, str):
-            return raw
-        if isinstance(raw, dict):
-            content = raw.get("content")
-            if isinstance(content, str):
-                return content
-        return str(raw)
+        return LlmResponseText().extract(raw)

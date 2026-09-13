@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import unittest
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
@@ -28,15 +28,10 @@ class _PerQueryStore(MemoryStore):
     async def retrieve(self, key: str) -> Mapping[str, Any] | None:
         return None
 
-    async def search(self, query: str, *, top_k: int = 10) -> AsyncIterator[Mapping[str, Any]]:
+    async def search(self, query: str, *, top_k: int = 10) -> Sequence[Mapping[str, Any]]:
         self.search_queries.append(query)
         hits = self._mapping.get(query, [])
-
-        async def _aiter() -> AsyncIterator[Mapping[str, Any]]:
-            for hit in hits[:top_k]:
-                yield hit
-
-        return _aiter()
+        return list(hits[:top_k])
 
     async def forget(self, key: str) -> None:
         return None

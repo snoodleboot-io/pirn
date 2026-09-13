@@ -1,6 +1,6 @@
 """``InputMessageScrubber`` — regex-based pre-prompt safety filter.
 
-Inner stage knot used by :class:`InputGuardrailGate`. Walks each
+Inner stage knot used by :class:`InputGuardrailCheck`. Walks each
 incoming :class:`AgentMessage`, rejects any whose ``content`` matches
 one of the deny patterns (raising :class:`ValueError`), and replaces
 PII matches with ``"<redacted>"`` literal substitutes. Returns the
@@ -32,7 +32,7 @@ from __future__ import annotations
 import asyncio
 import re
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -44,6 +44,9 @@ from pirn_agents.types.messaging.agent_message import AgentMessage
 class InputMessageScrubber(Knot):
     """Validates and PII-scrubs a tuple of :class:`AgentMessage`."""
 
+    #: Stateless helper shared across instances (Knot Rule 4 — class-level constant).
+    _pattern_compiler: ClassVar[SafePatternCompiler] = SafePatternCompiler()
+
     def __init__(
         self,
         *,
@@ -53,7 +56,6 @@ class InputMessageScrubber(Knot):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        self._pattern_compiler = SafePatternCompiler()
         super().__init__(
             messages=messages,
             deny_patterns=deny_patterns,

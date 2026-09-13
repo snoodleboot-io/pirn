@@ -1,17 +1,14 @@
 """``MemorySearchRetriever`` — top-k similarity search over a :class:`MemoryStore`.
 
-Wraps :meth:`MemoryStore.search` (which yields an
-``AsyncIterator[Mapping[str, Any]]``) into a single eager ``list`` of
+Wraps :meth:`MemoryStore.search` (a single ``await`` away from a concrete
+``Sequence[Mapping[str, Any]]``, per its contract) into a plain ``list`` of
 hits suitable for downstream context-injection knots in RAG pipelines.
 
 Algorithm:
     1. Validate ``store``, ``top_k``, and ``query`` types.
-    2. Call ``store.search(query, top_k=top_k)``; the return type may
-       be an awaitable, an async iterable, or a plain list.
-    3. Await the result if it is an awaitable.
-    4. Drain up to ``top_k`` items if the result is an async iterable.
-    5. Slice to ``top_k`` if the result is a plain list.
-    6. Return the collected items as a ``list[Mapping[str, Any]]``.
+    2. ``await store.search(query, top_k=top_k)``.
+    3. Return the result as a ``list[Mapping[str, Any]]``, sliced to
+       ``top_k`` in case a store returns more than asked.
 
 References:
     - pirn-native implementation; no external algorithm reference.
@@ -80,16 +77,5 @@ class MemorySearchRetriever(Retriever):
             raise TypeError(
                 f"MemorySearchRetriever: query must be a string, got {type(query).__name__}"
             )
-        candidate = store.search(query, top_k=top_k)
-        if hasattr(candidate, "__await__"):
-            candidate = await candidate  # type: ignore[assignment]
-        if hasattr(candidate, "__aiter__"):
-            collected: list[Mapping[str, Any]] = []
-            async for item in candidate:  # type: ignore[misc]
-                collected.append(item)
-                if len(collected) >= top_k:
-                    break
-            return collected
-        if isinstance(candidate, list):
-            return list(candidate[:top_k])
-        return [item for item in candidate][:top_k]  # type: ignore[misc]
+        hits = await store.search(query, top_k=top_k)
+        return list(hits[:top_k])
