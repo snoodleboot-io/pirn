@@ -17,13 +17,25 @@ separate while still resuming within an occurrence (PIR-803).
 
 from __future__ import annotations
 
+import warnings
+
 from pirn_agents.batch.batch_progress import BatchProgress
 from pirn_agents.sessions.run_checkpoint import RunCheckpoint
 from pirn_agents.sessions.session_store import SessionStore
 
 
 class BatchCheckpointer:
-    """Save/restore a batch's :class:`BatchProgress` through an F14 SessionStore."""
+    """Save/restore a batch's :class:`BatchProgress` through an F14 SessionStore.
+
+    .. deprecated::
+        ADR agents-speaks-core, WS4b: :class:`~pirn_agents.batch.map_agent.MapAgent`
+        no longer takes a checkpointer. Resume-after-crash is now a
+        ``RunHistory`` lineage query — pass a durable ``history=``/``data_store=``
+        to ``MapAgent`` and a re-run skips any item whose knot id already has an
+        ``Ok`` lineage row, with no separate checkpoint store to keep in sync.
+        Kept, unchanged and fully functional, for one deprecation cycle for any
+        caller still constructing one directly.
+    """
 
     def __init__(self, *, store: SessionStore, batch_id: str) -> None:
         """Build the checkpointer.
@@ -36,6 +48,13 @@ class BatchCheckpointer:
             TypeError: If ``store`` is not a SessionStore.
             ValueError: If ``batch_id`` is empty.
         """
+        warnings.warn(
+            "BatchCheckpointer is deprecated (ADR agents-speaks-core WS4b): "
+            "MapAgent resumes from RunHistory lineage now; pass history=/data_store= "
+            "to MapAgent instead of a checkpointer.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if not isinstance(store, SessionStore):
             raise TypeError(
                 f"BatchCheckpointer: store must be a SessionStore, got {type(store).__name__}"

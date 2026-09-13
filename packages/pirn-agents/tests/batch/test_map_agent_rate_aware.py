@@ -1,9 +1,16 @@
-"""F28-S2 tests: MapAgent's rate-aware adaptive scheduling over reused F21 infra.
+"""Rate-aware adaptive scheduling tests for ``MapAgent`` (ADR agents-speaks-core, WS4b).
 
-A manual clock plus a fake sleep that advances it make the shared
-:class:`TokenBucketRateLimiter` deterministic — no real elapsed time. The
-provider throttle is modelled provider-neutrally as a :class:`RateLimitSignal`
-the ``run_item`` adapter raises.
+The shared :class:`TokenBucketRateLimiter` and provider-neutral
+:class:`RateLimitSignal` are unchanged. What changed is how a throttle
+reaches the concurrency governor: ``AdaptiveConcurrencyController`` is now
+an ``AdmissionObserver`` (see its module docstring), reacting to
+``on_throttle`` (called directly by the per-item knot on a
+``RateLimitSignal``) and ``on_release`` (called by the engine on every
+item's settle). A manual clock plus a fake sleep still make the rate
+limiter's own pacing deterministic — no real elapsed time — but the retry
+backoff itself is the engine's (``GovernedDispatch``), which sleeps for real
+(kept short with ``base_delay`` near zero) rather than through an injectable
+hook, since the engine owns the retry loop now.
 """
 
 from __future__ import annotations
@@ -16,7 +23,6 @@ from pirn_agents.batch.adaptive_concurrency_controller import AdaptiveConcurrenc
 from pirn_agents.batch.batch_item_status import BatchItemStatus
 from pirn_agents.batch.map_agent import MapAgent
 from pirn_agents.batch.rate_limit_signal import RateLimitSignal
-from pirn_agents.llm.retry_policy import RetryPolicy
 from pirn_agents.resilience.rate_limiter_config import RateLimiterConfig
 from pirn_agents.resilience.token_bucket_rate_limiter import TokenBucketRateLimiter
 from tests.batch.batch_doubles import InFlightCounter, StubAgent, gated_agent
@@ -55,7 +61,7 @@ async def test_rate_limiter_paces_dispatch() -> None:
     limiter = TokenBucketRateLimiter(
         RateLimiterConfig(refill_rate=1.0, capacity=1.0), clock=clock, sleep=sleep
     )
-    runner = MapAgent(StubAgent(), concurrency=4, rate_limiter=limiter)
+    runner = MapAgent(StubAgent(), batch_id="r1", concurrency=4, rate_limiter=limiter)
 
     results = await _drain(runner, ["a", "b", "c"])
 
@@ -77,14 +83,14 @@ async def test_throttle_scales_down_and_pauses_bucket() -> None:
     async def agent(item: object) -> object:
         if not state["throttled"]:
             state["throttled"] = True
-            raise RateLimitSignal(retry_after=5.0)
+            raise RateLimitSignal(retry_after=0.01)
         return f"done:{item}"
 
     runner = MapAgent(
         agent,
+        batch_id="r2",
         concurrency=4,
         retries=1,
-        retry_policy=RetryPolicy(base_delay=0.0),
         rate_limiter=limiter,
         concurrency_controller=controller,
     )
@@ -92,11 +98,12 @@ async def test_throttle_scales_down_and_pauses_bucket() -> None:
     results = await _drain(runner, ["x"])
 
     assert results[0].status is BatchItemStatus.OK
-    assert results[0].attempts == 2
-    # Throttle backed the controller off (4 -> 2) then one success bumped it (-> 3).
+    # Throttle backed the controller off (4 -> 2) then one successful release
+    # bumped it (-> 3).
     assert controller.limit() == 3
-    # The retry honoured the 5s Retry-After via the shared bucket's pause.
-    assert 5.0 in sleep.calls
+    # The retry's own attempt also honoured the 5s-shaped Retry-After via the
+    # shared bucket's pause (a small value here so the test stays fast).
+    assert 0.01 in sleep.calls
 
 
 async def test_throttle_without_retry_reports_error() -> None:
@@ -105,7 +112,9 @@ async def test_throttle_without_retry_reports_error() -> None:
     async def agent(item: object) -> object:
         raise RateLimitSignal(retry_after=1.0, message="429 slow down")
 
-    runner = MapAgent(agent, concurrency=4, retries=0, concurrency_controller=controller)
+    runner = MapAgent(
+        agent, batch_id="r3", concurrency=4, retries=0, concurrency_controller=controller
+    )
 
     results = await _drain(runner, ["x"])
 
@@ -118,12 +127,14 @@ async def test_adaptive_limit_caps_in_flight() -> None:
     counter = InFlightCounter()
     gate = asyncio.Event()
     controller = AdaptiveConcurrencyController(min_limit=1, max_limit=2, initial=2)
-    runner = MapAgent(gated_agent(gate, counter), concurrency=8, concurrency_controller=controller)
+    runner = MapAgent(
+        gated_agent(gate, counter), batch_id="r4", concurrency=8, concurrency_controller=controller
+    )
 
     task = asyncio.ensure_future(_drain(runner, list(range(6))))
-    for _ in range(20):
+    for _ in range(50):
         await asyncio.sleep(0)
-    assert counter.peak == 2  # controller cap wins over the higher concurrency
+    assert counter.peak == 2  # controller's initial limit wins over concurrency=8
     gate.set()
     await task
 

@@ -1,28 +1,37 @@
 """Checkpoint scoping across trigger fires (PIR-803 / WS8-W3).
 
-``TriggeredBatch`` reuses one :class:`MapAgent` for every fire, and ``MapAgent``
-re-seeds its skip-set from the checkpointer on every ``run()``. Under a single
-checkpoint namespace that made fire 2 skip everything fire 1 had completed, even
-though ``inputs_fn(ordinal)`` exists precisely to hand each fire *fresh* data.
-These tests pin the fix: a checkpoint is scoped to one fire, so resumption still
-works *within* a fire while fires stay independent.
+``TriggeredBatch`` reuses one :class:`MapAgent` for every fire, and
+``MapAgent`` now resumes from a shared ``RunHistory``'s lineage instead of a
+checkpoint store (ADR agents-speaks-core, WS4b): an item's knot id is
+``item:<batch_id>:<key>``, and a re-run with the same ``history=`` skips any
+item whose id already has an ``Ok`` lineage row. Under a single namespace
+that made fire 2 skip everything fire 1 had completed, even though
+``inputs_fn(ordinal)`` exists precisely to hand each fire *fresh* data.
+These tests pin the fix: resume is scoped to one fire (via
+``checkpoint_scope``, which becomes part of the item knot id), so
+resumption still works *within* a fire while fires stay independent.
 """
 
 from __future__ import annotations
 
 import pytest
+from pirn.backends.in_memory.in_memory_history import InMemoryHistory
 
-from pirn_agents.batch.batch_checkpointer import BatchCheckpointer
 from pirn_agents.batch.batch_item_status import BatchItemStatus
 from pirn_agents.batch.map_agent import MapAgent
 from pirn_agents.batch.triggered_batch import TriggeredBatch
-from pirn_agents.sessions.in_memory_session_store import InMemorySessionStore
 from tests.batch.batch_doubles import RecordingTrigger, StubAgent
 
 
 def _by_customer(item: object) -> str:
     """Key items by their own value — the customer-id shape that collides."""
     return str(item)
+
+
+async def _completed(history: InMemoryHistory, batch_id: str, key: str) -> bool:
+    """Whether an item's knot has an ``Ok`` lineage row under this batch/key."""
+    rows = await history.query_lineage_by_knot_id(f"item:{batch_id}:{key}")
+    return any(row.outcome == "ok" for row in rows)
 
 
 async def test_a_later_fire_reruns_keys_an_earlier_fire_completed() -> None:
@@ -33,9 +42,9 @@ async def test_a_later_fire_reruns_keys_an_earlier_fire_completed() -> None:
     reported ``completed_count == 0`` out of ``total == 2`` — a success that
     processed nothing.
     """
-    checkpointer = BatchCheckpointer(store=InMemorySessionStore(), batch_id="daily")
+    history = InMemoryHistory()
     agent = StubAgent()
-    runner = MapAgent(agent, concurrency=1, key_fn=_by_customer, checkpointer=checkpointer)
+    runner = MapAgent(agent, concurrency=1, key_fn=_by_customer, history=history)
 
     triggered = TriggeredBatch(
         trigger=RecordingTrigger(fires=2),
@@ -51,9 +60,9 @@ async def test_a_later_fire_reruns_keys_an_earlier_fire_completed() -> None:
 
 async def test_partially_overlapping_fires_rerun_the_colliding_subset() -> None:
     """Only the colliding keys were dropped, which is what hid the bug so long."""
-    checkpointer = BatchCheckpointer(store=InMemorySessionStore(), batch_id="daily")
+    history = InMemoryHistory()
     agent = StubAgent()
-    runner = MapAgent(agent, concurrency=1, key_fn=_by_customer, checkpointer=checkpointer)
+    runner = MapAgent(agent, concurrency=1, key_fn=_by_customer, history=history)
     windows: dict[int, list[object]] = {1: ["c1", "c2"], 2: ["c2", "c3"]}
 
     triggered = TriggeredBatch(
@@ -68,10 +77,9 @@ async def test_partially_overlapping_fires_rerun_the_colliding_subset() -> None:
 
 
 async def test_each_fire_checkpoints_under_its_own_key() -> None:
-    """Per-fire scoping is observable in the store, not just in the results."""
-    store = InMemorySessionStore()
-    checkpointer = BatchCheckpointer(store=store, batch_id="daily")
-    runner = MapAgent(StubAgent(), concurrency=1, key_fn=_by_customer, checkpointer=checkpointer)
+    """Per-fire scoping is observable in lineage, not just in the results."""
+    history = InMemoryHistory()
+    runner = MapAgent(StubAgent(), concurrency=1, key_fn=_by_customer, history=history)
 
     triggered = TriggeredBatch(
         trigger=RecordingTrigger(fires=2),
@@ -80,32 +88,28 @@ async def test_each_fire_checkpoints_under_its_own_key() -> None:
     )
     _ = [progress async for progress in triggered.run()]
 
-    assert (await checkpointer.scoped("1").load()).completed_keys == frozenset({"c1"})
-    assert (await checkpointer.scoped("2").load()).completed_keys == frozenset({"c2"})
-    # Nothing is written under the unscoped id, so fires never collide.
-    assert await store.load("daily") is None
+    assert await _completed(history, "batch:1", "c1")
+    assert await _completed(history, "batch:2", "c2")
+    # Nothing is recorded under the unscoped batch id, so fires never collide.
+    assert not await _completed(history, "batch", "c1")
 
 
 async def test_an_interrupted_fire_resumes_where_it_left_off() -> None:
     """Crash-resumption *within* one fire survives per-fire scoping.
 
     The first process dies with item ``"d"`` of fire 2 unfinished (a permanent
-    failure stands in for the crash — a failed item is never checkpointed). The
-    replacement process replays the same trigger ordinals against the same
-    store: fire 1 is entirely skipped, and fire 2 re-runs only ``"d"``.
+    failure stands in for the crash — a failed item leaves no ``Ok`` lineage
+    row). The replacement process replays the same trigger ordinals against
+    the same history: fire 1 is entirely skipped, and fire 2 re-runs only
+    ``"d"``.
     """
-    store = InMemorySessionStore()
+    history = InMemoryHistory()
     windows: dict[int, list[object]] = {1: ["a", "b"], 2: ["c", "d"]}
 
     first_agent = StubAgent(fail_items={"d"})
     first = TriggeredBatch(
         trigger=RecordingTrigger(fires=2),
-        map_agent=MapAgent(
-            first_agent,
-            concurrency=1,
-            key_fn=_by_customer,
-            checkpointer=BatchCheckpointer(store=store, batch_id="daily"),
-        ),
+        map_agent=MapAgent(first_agent, concurrency=1, key_fn=_by_customer, history=history),
         inputs_fn=lambda ordinal: windows[ordinal],
     )
     crashed = [progress async for progress in first.run()]
@@ -114,12 +118,7 @@ async def test_an_interrupted_fire_resumes_where_it_left_off() -> None:
     second_agent = StubAgent()
     second = TriggeredBatch(
         trigger=RecordingTrigger(fires=2),
-        map_agent=MapAgent(
-            second_agent,
-            concurrency=1,
-            key_fn=_by_customer,
-            checkpointer=BatchCheckpointer(store=store, batch_id="daily"),
-        ),
+        map_agent=MapAgent(second_agent, concurrency=1, key_fn=_by_customer, history=history),
         inputs_fn=lambda ordinal: windows[ordinal],
     )
     resumed = [progress async for progress in second.run()]
@@ -131,14 +130,13 @@ async def test_an_interrupted_fire_resumes_where_it_left_off() -> None:
 
 async def test_map_agent_resumes_within_a_scope_and_isolates_across_scopes() -> None:
     """The scoping seam itself: same scope resumes, a different scope does not."""
-    store = InMemorySessionStore()
-    checkpointer = BatchCheckpointer(store=store, batch_id="daily")
+    history = InMemoryHistory()
 
     first = StubAgent(fail_items={"b"})
     _ = [
         result
         async for result in MapAgent(
-            first, concurrency=1, key_fn=_by_customer, checkpointer=checkpointer
+            first, concurrency=1, key_fn=_by_customer, history=history
         ).run(["a", "b"], checkpoint_scope="7")
     ]
     assert first.calls == ["a", "b"]
@@ -147,9 +145,9 @@ async def test_map_agent_resumes_within_a_scope_and_isolates_across_scopes() -> 
     same = StubAgent()
     resumed = [
         result
-        async for result in MapAgent(
-            same, concurrency=1, key_fn=_by_customer, checkpointer=checkpointer
-        ).run(["a", "b"], checkpoint_scope="7")
+        async for result in MapAgent(same, concurrency=1, key_fn=_by_customer, history=history).run(
+            ["a", "b"], checkpoint_scope="7"
+        )
     ]
     assert same.calls == ["b"]
     assert {r.key: r.status for r in resumed} == {
@@ -162,7 +160,7 @@ async def test_map_agent_resumes_within_a_scope_and_isolates_across_scopes() -> 
     _ = [
         result
         async for result in MapAgent(
-            other, concurrency=1, key_fn=_by_customer, checkpointer=checkpointer
+            other, concurrency=1, key_fn=_by_customer, history=history
         ).run(["a", "b"], checkpoint_scope="8")
     ]
     assert other.calls == ["a", "b"]
@@ -170,9 +168,9 @@ async def test_map_agent_resumes_within_a_scope_and_isolates_across_scopes() -> 
 
 async def test_shared_checkpoint_opts_back_into_cross_fire_dedup() -> None:
     """The escape hatch: one namespace for every fire, explicitly requested."""
-    checkpointer = BatchCheckpointer(store=InMemorySessionStore(), batch_id="daily")
+    history = InMemoryHistory()
     agent = StubAgent()
-    runner = MapAgent(agent, concurrency=1, key_fn=_by_customer, checkpointer=checkpointer)
+    runner = MapAgent(agent, concurrency=1, key_fn=_by_customer, history=history)
 
     triggered = TriggeredBatch(
         trigger=RecordingTrigger(fires=2),
@@ -188,8 +186,7 @@ async def test_shared_checkpoint_opts_back_into_cross_fire_dedup() -> None:
 
 async def test_batch_id_and_checkpoint_scope_follow_the_triggers_fire_ordinal() -> None:
     """A trigger whose ordinals do not start at 1 still drives consistent ids."""
-    store = InMemorySessionStore()
-    checkpointer = BatchCheckpointer(store=store, batch_id="daily")
+    history = InMemoryHistory()
     seen: list[int] = []
 
     def inputs_fn(ordinal: int) -> list[object]:
@@ -198,16 +195,14 @@ async def test_batch_id_and_checkpoint_scope_follow_the_triggers_fire_ordinal() 
 
     triggered = TriggeredBatch(
         trigger=RecordingTrigger(fires=2, first_ordinal=41),
-        map_agent=MapAgent(
-            StubAgent(), concurrency=1, key_fn=_by_customer, checkpointer=checkpointer
-        ),
+        map_agent=MapAgent(StubAgent(), concurrency=1, key_fn=_by_customer, history=history),
         inputs_fn=inputs_fn,
     )
     progresses = [progress async for progress in triggered.run()]
 
     assert seen == [41, 42]
     assert [progress.batch_id for progress in progresses] == ["batch-41", "batch-42"]
-    assert (await checkpointer.scoped("41").load()).completed_keys == frozenset({"c41"})
+    assert await _completed(history, "batch:41", "c41")
 
 
 async def test_a_trigger_without_a_usable_ordinal_falls_back_to_the_local_counter() -> None:
@@ -220,12 +215,6 @@ async def test_a_trigger_without_a_usable_ordinal_falls_back_to_the_local_counte
     progresses = [progress async for progress in triggered.run()]
 
     assert [progress.batch_id for progress in progresses] == ["batch-1", "batch-2"]
-
-
-def test_scoped_rejects_an_empty_suffix() -> None:
-    checkpointer = BatchCheckpointer(store=InMemorySessionStore(), batch_id="daily")
-    with pytest.raises(ValueError):
-        checkpointer.scoped("")
 
 
 def test_rejects_a_non_bool_shared_checkpoint() -> None:
@@ -257,20 +246,15 @@ async def test_a_replacement_process_silently_drops_repeat_keys_without_scope_fn
     skip-set. A customer seen in both runs is dropped — reported as completed
     having never been processed.
     """
-    store = InMemorySessionStore()
+    history = InMemoryHistory()
     proc1_agent, proc2_agent = StubAgent(), StubAgent()
     proc1_windows: dict[int, list[object]] = {1: ["a", "b"], 2: ["c", "a"]}
     proc2_windows: dict[int, list[object]] = {1: ["a", "d"], 2: ["e", "a"]}
 
     for agent, windows in ((proc1_agent, proc1_windows), (proc2_agent, proc2_windows)):
         # A fresh TriggeredBatch each time == a fresh process, but the SAME
-        # durable store, which is the whole point of a checkpoint.
-        runner = MapAgent(
-            agent,
-            concurrency=1,
-            key_fn=_by_customer,
-            checkpointer=BatchCheckpointer(store=store, batch_id="daily"),
-        )
+        # durable history, which is the whole point of a checkpoint.
+        runner = MapAgent(agent, concurrency=1, key_fn=_by_customer, history=history)
         triggered = TriggeredBatch(
             trigger=RecordingTrigger(fires=2),
             map_agent=runner,
@@ -278,15 +262,18 @@ async def test_a_replacement_process_silently_drops_repeat_keys_without_scope_fn
         )
         [progress async for progress in triggered.run()]
 
-    assert proc1_agent.calls == ["a", "b", "c", "a"]
+    # Dispatch order among same-depth sibling items is the engine's own
+    # (topological, tie-broken by knot id), not input order, so compare as
+    # multisets: what matters is that every item ran, none was dropped.
+    assert sorted(proc1_agent.calls) == sorted(["a", "b", "c", "a"])
     # 'a' appears in both of proc2's windows and is dropped from both, because
     # scopes "1" and "2" already hold it from proc1.
-    assert proc2_agent.calls == ["d", "e"]
+    assert sorted(proc2_agent.calls) == sorted(["d", "e"])
 
 
 async def test_scope_fn_keeps_a_replacement_process_processing_its_own_window() -> None:
     """The fix: a window identity derived from the data does not restart at 1."""
-    store = InMemorySessionStore()
+    history = InMemoryHistory()
     proc1_agent, proc2_agent = StubAgent(), StubAgent()
     proc1_windows: dict[int, list[object]] = {1: ["a", "b"], 2: ["c", "a"]}
     proc2_windows: dict[int, list[object]] = {1: ["a", "d"], 2: ["e", "a"]}
@@ -298,12 +285,7 @@ async def test_scope_fn_keeps_a_replacement_process_processing_its_own_window() 
         (proc1_agent, proc1_windows, proc1_scopes),
         (proc2_agent, proc2_windows, proc2_scopes),
     ):
-        runner = MapAgent(
-            agent,
-            concurrency=1,
-            key_fn=_by_customer,
-            checkpointer=BatchCheckpointer(store=store, batch_id="daily"),
-        )
+        runner = MapAgent(agent, concurrency=1, key_fn=_by_customer, history=history)
         triggered = TriggeredBatch(
             trigger=RecordingTrigger(fires=2),
             map_agent=runner,
@@ -312,9 +294,10 @@ async def test_scope_fn_keeps_a_replacement_process_processing_its_own_window() 
         )
         [progress async for progress in triggered.run()]
 
-    assert proc1_agent.calls == ["a", "b", "c", "a"]
+    # See the sibling-order note above: compare as multisets.
+    assert sorted(proc1_agent.calls) == sorted(["a", "b", "c", "a"])
     # Nothing dropped: proc2's windows are its own.
-    assert proc2_agent.calls == ["a", "d", "e", "a"]
+    assert sorted(proc2_agent.calls) == sorted(["a", "d", "e", "a"])
 
 
 async def test_a_repeated_scope_is_refused_rather_than_silently_shared() -> None:
@@ -323,7 +306,7 @@ async def test_a_repeated_scope_is_refused_rather_than_silently_shared() -> None
         StubAgent(),
         concurrency=1,
         key_fn=_by_customer,
-        checkpointer=BatchCheckpointer(store=InMemorySessionStore(), batch_id="daily"),
+        history=InMemoryHistory(),
     )
     triggered = TriggeredBatch(
         trigger=RecordingTrigger(fires=2),
@@ -364,12 +347,7 @@ def test_scope_fn_must_be_callable() -> None:
 async def test_without_scope_fn_the_ordinal_still_scopes_each_fire() -> None:
     """The default path is unchanged — PIR-803's guarantee still holds."""
     agent = StubAgent()
-    runner = MapAgent(
-        agent,
-        concurrency=1,
-        key_fn=_by_customer,
-        checkpointer=BatchCheckpointer(store=InMemorySessionStore(), batch_id="daily"),
-    )
+    runner = MapAgent(agent, concurrency=1, key_fn=_by_customer, history=InMemoryHistory())
     triggered = TriggeredBatch(
         trigger=RecordingTrigger(fires=2),
         map_agent=runner,
