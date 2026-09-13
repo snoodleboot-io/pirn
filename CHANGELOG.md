@@ -11,6 +11,13 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+#### Inner runs inherit the execution plane (ADR agents-speaks-core, WS0b)
+
+- `pirn/core/execution_plane.py` — `ExecutionPlane`: the dispatcher, admission gate + `ConcurrencyLimits`, admission observers, replay posture and identity resolver a run executes under. `Tapestry.run` publishes it for the run's duration (`ExecutionPlane.current()`) and every `SubTapestry` inner run / `LoopSubTapestry` iteration inherits whatever its own tapestry did not name. The gate is inherited **by identity**, so `max_in_flight` and group caps are one budget across the run tree (PIR-841 slice 3).
+- Container knots are slot-free: `Knot._holds_admission_slot` (`False` on `SubTapestry` and loop iterations), `AdmissionTicket.held`; the `ReadyQueue` admits them without the gate, so a container can never deadlock on a slot its own leaves need. A `SubTapestry` with a `concurrency_group` now raises `ValueError` at construction.
+- `LimitedAdmissionGate` is thread-safe (lock-guarded counters, waiters woken on their own loop) for inner runs under `ThreadDispatcher`, and tracks tickets by identity rather than knot id. The engine wakes on a shared-gate release while it has refused knots queued, not only on its own completions.
+- `SubTapestry._run_inner(dispatcher=, concurrency=, admission_observers=)` and the overridable `_inner_dispatcher()` / `_inner_concurrency()` / `_inner_admission_observers()` hooks are the per-container overrides. `Engine._gate_for` is now public `Engine.gate_for`.
+
 #### `@tool` decorator and scalar auto-coercion
 
 - `pirn/domains/agents/tool_decorator.py` — `@tool` decorator converts any sync or async function into a `FunctionTool` (a `Tool` subclass). Name is taken from the function name, description from the first docstring paragraph, and `parameters_schema` from type annotations. Both `Optional[T]` and `list[T]` annotations are handled. Import via `from pirn.domains.agents import tool, FunctionTool`.

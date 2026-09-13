@@ -331,6 +331,17 @@ useful reading if you need to understand or test admission behavior, even though
 third implementation in requires engine-level changes today rather than a public
 constructor argument.
 
+**Inner runs share the gate.** A `SubTapestry` body or `LoopSubTapestry` iteration that
+names no limits of its own is metered by the enclosing run's gate — the same instance — so
+the caps above bound the whole run tree, and the container knot itself holds no slot while
+it waits on its inner run (so it may not carry a `concurrency_group`). A container that needs
+a budget or backend of its own overrides it through `SubTapestry._run_inner(dispatcher=,
+concurrency=, admission_observers=)` or the `_inner_dispatcher` / `_inner_concurrency` /
+`_inner_admission_observers` hooks; `RunRequest(concurrency=ConcurrencyLimits())` opts an
+inner run out of the shared budget. The rest of the inherited plane — replay posture,
+identity resolver — and the derivation rules are in
+[Execution Model](execution-model.md#inner-runs-inherit-the-execution-plane).
+
 ### Runtime feedback — `AdmissionObserver` and `set_limit`
 
 The caps are not fixed for the run's life. An `AdmissionObserver` hears every admission and

@@ -21,12 +21,25 @@ class AdmissionTicket:
     A ticket records the slots its admission took, so that releasing it frees
     exactly what admitting it claimed (PIR-841).
 
+    A *container* knot — a ``SubTapestry``, a ``LoopSubTapestry``, a loop
+    iteration — holds no slot at all (``Knot._holds_admission_slot`` is
+    ``False``): it spends its life waiting on an inner run whose leaves are
+    admitted individually through the same gate, so a slot held by the
+    container would be a slot its own leaves could deadlock on.  Such a knot is
+    admitted without consulting the gate and gets a ticket with ``held`` set
+    to ``False``, which the engine never hands back to the gate (ADR
+    agents-speaks-core, WS0b; PIR-841 design §5.4).
+
     Attributes:
         knot_id: The id of the admitted knot.
         group: The concurrency group whose limited slot the knot holds, or
             ``None`` when it holds no group slot: the knot has no group, or
             the gate does not limit that group.
+        held: Whether the gate holds capacity for this ticket.  ``True`` for
+            every ticket a gate issues; ``False`` for the slot-free ticket
+            the ready queue issues a container knot.
     """
 
     knot_id: str
     group: str | None = None
+    held: bool = True
