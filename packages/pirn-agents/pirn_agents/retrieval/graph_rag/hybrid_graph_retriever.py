@@ -13,6 +13,25 @@ fusion used by the dense+lexical :class:`HybridRetriever` — so no cross-arm sc
 calibration is needed. The vector arm is **opt-in**: when no embedding index is
 supplied (or it holds no nodes), the retriever falls back cleanly to the graph
 arm alone, still returning RRF-scored hits so the output shape is identical.
+
+Math:
+    Fusion is delegated to
+    :meth:`~pirn_agents.retrieval.reciprocal_rank_fusion.ReciprocalRankFusion.fuse`.
+    For each node id :math:`d` appearing in one or both of the graph-arm and
+    vector-arm rankings :math:`R`, with damping constant ``rrf_k`` and
+    0-based rank :math:`\\text{rank}_r(d)` of :math:`d` in ranking :math:`r`:
+
+    $$
+    \\text{RRF}(d) = \\sum_{r \\in R} \\frac{1}{\\text{rrf\\_k} + \\text{rank}_r(d)}
+    $$
+
+    A node absent from a ranking contributes nothing from that ranking's term
+    (there is no rank to sum). Nodes are returned in descending
+    :math:`\\text{RRF}(d)`, ties broken by first appearance across the input
+    rankings. The vector arm is over-fetched by ``candidate_multiplier`` (top
+    ``top_k * candidate_multiplier`` hits) before fusion, so the final
+    RRF-ordered cut is less sensitive to the vector arm's own ranking noise
+    near the boundary.
 """
 
 from __future__ import annotations

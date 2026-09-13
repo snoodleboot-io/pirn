@@ -18,6 +18,28 @@ Algorithm:
        the frontier. Track the best node seen.
     4. Return a typed :class:`LatsResult` with the best trajectory found.
 
+Math:
+    The frontier is a min-heap keyed on :math:`-\\text{value}(n)` (Python's
+    :mod:`heapq` is min-first, so negating simulates a max-heap), broken by an
+    insertion-order counter so nodes of equal value pop FIFO rather than by an
+    unstable trajectory-tuple comparison:
+
+    $$
+    \\text{priority}(n) = \\bigl(-\\text{value}(n),\\ \\text{insertion\\_index}(n)\\bigr)
+    $$
+
+    ``best`` tracks the single highest-value node seen across the whole
+    search, independent of the frontier's current contents:
+
+    $$
+    \\text{best} \\leftarrow \\text{child} \\quad \\text{if } \\text{value}(\\text{child}) > \\text{value}(\\text{best})
+    $$
+
+    Search halts when the frontier empties, a node reaches ``max_depth``
+    without producing a still-frontier-worthy child, or the budget meter
+    raises :class:`~pirn_agents.performance.budget_breach_error.BudgetBreachError`
+    on ``spend_iteration()`` — whichever comes first.
+
 References:
     - Zhou et al. (2024) "Language Agent Tree Search" https://arxiv.org/abs/2310.04406
 """

@@ -16,6 +16,40 @@ signals' native scales — govern their influence, then fused as
 :class:`~pirn_agents.memory.management.ranked_memory.RankedMemory` in descending
 score (ties broken by record id for determinism).
 
+Math:
+    Recency is a half-life decay of each record's age at ``now``, reusing the
+    shared decay primitive (:data:`half_life_seconds` in seconds):
+
+    $$
+    \\text{recency\\_raw} = 2^{-\\,\\text{age\\_seconds} / \\text{half\\_life\\_seconds}}
+    $$
+
+    Each raw signal :math:`x` (relevance, recency, importance) is independently
+    min-max normalised across the candidate set:
+
+    $$
+    \\text{norm}(x_i) = \\begin{cases}
+        \\dfrac{x_i - \\min(x)}{\\max(x) - \\min(x)} & \\max(x) \\neq \\min(x) \\\\
+        0 & \\max(x) = \\min(x)
+    \\end{cases}
+    $$
+
+    The all-equal case (empty span) maps every candidate to ``0`` rather than
+    dividing by zero, so a signal that does not discriminate this batch
+    contributes no bias toward any particular candidate.
+
+    The composite score is the weight-blended sum of the three normalised
+    signals:
+
+    $$
+    \\text{score} = w_{\\text{rel}} \\cdot \\text{rel}_{\\text{norm}}
+        + w_{\\text{rec}} \\cdot \\text{rec}_{\\text{norm}}
+        + w_{\\text{imp}} \\cdot \\text{imp}_{\\text{norm}}
+    $$
+
+    Results are sorted by descending ``score``, ties broken by ascending
+    record id.
+
 Rerank hook (provider-neutral)
 ------------------------------
 ``reranker`` is an optional

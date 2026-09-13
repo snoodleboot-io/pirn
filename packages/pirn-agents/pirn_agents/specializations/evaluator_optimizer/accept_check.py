@@ -11,6 +11,11 @@ Algorithm:
     1. Receive a :class:`JudgeVerdict` and a numeric ``threshold``.
     2. Validate types at process time.
     3. Return ``True`` when ``verdict.score >= threshold``.
+
+Math:
+    $$
+    \\text{accepted} = \\text{verdict.score} \\geq \\text{threshold}
+    $$
 """
 
 from __future__ import annotations

@@ -14,6 +14,29 @@ Algorithm:
 Complexity is O(n) in the common fits-the-budget path and O(n log n) only when
 eviction is required (a single sort of the evictable items).
 
+Math:
+    Let :math:`s_i` be the token size of item :math:`i` (from ``counter``) and
+    :math:`T = \\sum_i s_i` the total. With ``available`` :math:`A` (the
+    budget's remaining room):
+
+    $$
+    \\text{fits} = T \\leq A
+    $$
+
+    When it does not fit, evictable (non-pinned) items are dropped in
+    ascending ``policy.eviction_rank`` order (ties broken by original index)
+    until the running total no longer exceeds :math:`A`. After dropping a
+    prefix :math:`D` of the ordered evictable items:
+
+    $$
+    \\text{running} = T - \\sum_{i \\in D} s_i, \\qquad \\text{stop when } \\text{running} \\leq A
+    $$
+
+    Pinned items are never members of :math:`D`, so eviction can leave
+    ``running`` above :math:`A` when the pinned items alone already exceed the
+    budget — the assembler does not raise in that case, it simply returns
+    the best achievable ``total_tokens``.
+
 
 References:
     - :class:`pirn_agents.context.context_item.ContextItem`

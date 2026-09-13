@@ -13,6 +13,13 @@ Algorithm:
     4. Cast confidence to float and compare against threshold.
     5. Return the response unchanged if confidence >= threshold, else return None.
 
+Math:
+    $$
+    \\text{pass\\_through} = \\begin{cases}
+        \\text{response} & \\text{confidence} \\geq \\text{threshold} \\\\
+        \\text{None (escalate)} & \\text{confidence} < \\text{threshold} \\ \\text{or absent}
+    \\end{cases}
+    $$
 
 References:
     - Madaan et al. (2023) "Self-Refine: Iterative Refinement with Self-Feedback"

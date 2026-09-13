@@ -13,9 +13,17 @@ Algorithm
 4. Otherwise call LLM with a summarization prompt.
 5. Return ``[summary_message, last_original_message]``.
 
-Math
-----
-``total_tokens = sum(len(msg.content.split()) for msg in messages)``
+Math:
+    Approximate token count is the sum of each message's whitespace-split
+    word count:
+
+    $$
+    \\text{total\\_tokens} = \\sum_{m \\in \\text{messages}} \\text{len}(\\text{split}(m.\\text{content}))
+    $$
+
+    $$
+    \\text{compress} = \\text{total\\_tokens} > \\text{token\\_threshold}
+    $$
 
 References
 ----------

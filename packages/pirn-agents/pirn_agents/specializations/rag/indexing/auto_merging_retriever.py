@@ -15,6 +15,19 @@ Algorithm:
        ``retrieved_leaves / sibling_count >= merge_threshold``; otherwise keep
        the individual leaves.
     5. Return up to ``top_k`` results ordered by score.
+
+Math:
+    For a parent with ``sibling_count`` :math:`n` leaf children (floored at 1
+    when the store did not record a count), of which ``retrieved_leaves``
+    :math:`k` were among the over-fetched matches:
+
+    $$
+    \\text{merge} = \\frac{k}{n} \\geq \\text{merge\\_threshold}
+    $$
+
+    ``merge_threshold`` is validated to :math:`(0, 1]`, so a threshold of
+    ``1.0`` merges only when every sibling was retrieved and a threshold near
+    ``0`` merges on a single retrieved leaf.
 """
 
 from __future__ import annotations
