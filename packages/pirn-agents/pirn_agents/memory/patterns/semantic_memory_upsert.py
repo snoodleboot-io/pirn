@@ -10,12 +10,25 @@ Algorithm
 2. Build a prompt from ``fact_extraction_prompt`` and ``response.content``.
 3. Call the LLM and parse one fact per line.
 4. For each fact compute a SHA-256 prefix key; retrieve the existing entry.
-5. If absent or changed, call ``store.store``; increment the counter.
+5. If absent or changed, call ``store.store`` with a typed
+   :class:`~pirn_agents.memory.management.memory_record.MemoryRecord` payload;
+   increment the counter.
 6. Return the total count of upserted facts.
 
 Math
 ----
 Key: ``"fact:" + sha256(fact)[:16]``.
+
+ADR "agents speaks core" WS3 part 3 note: this still writes through
+:class:`MemoryStore` (typically backed by
+:class:`~pirn_agents.memory.stores.data_store_memory_store.DataStoreMemoryStore`)
+rather than the ``Payload``-returning writer-knot pattern
+:class:`~pirn_agents.memory.memory_lineage_recall.MemoryLineageRecall` reads
+back — deduplication needs a lookup *by the fact's own key* before a value
+exists to hash, which lineage-by-knot-id recall does not provide. What moved
+is the payload shape: the stored value is now a typed
+:class:`~pirn_agents.memory.management.memory_record.MemoryRecord`, not a
+bare ``{"fact": ...}`` dict.
 
 References
 ----------
@@ -25,12 +38,15 @@ None.
 from __future__ import annotations
 
 import hashlib
+from datetime import UTC, datetime
 from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
+from pirn_agents.memory.management.memory_provenance import MemoryProvenance
+from pirn_agents.memory.management.memory_record import MemoryRecord
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.llm_response_text import LlmResponseText
@@ -110,7 +126,31 @@ class SemanticMemoryUpsert(Knot):
         for fact in facts:
             key = "fact:" + hashlib.sha256(fact.encode()).hexdigest()[:16]
             existing = await store.retrieve(key)
-            if existing is None or existing.get("fact") != fact:
-                await store.store(key, {"fact": fact})
+            if existing is None or self._content_of(existing) != fact:
+                now = datetime.now(UTC)
+                record = MemoryRecord(
+                    id=key,
+                    kind="semantic",
+                    content=fact,
+                    provenance=MemoryProvenance(source="semantic_memory_upsert", timestamp=now),
+                    created_at=now,
+                )
+                await store.store(key, record.to_payload())
                 upserted += 1
         return upserted
+
+    @staticmethod
+    def _content_of(existing: Any) -> str | None:
+        """Return the fact text from an existing entry, old or new payload shape.
+
+        Reads the current ``MemoryRecord.to_payload()`` shape (``"content"``)
+        and falls back to the pre-migration flat shape (``{"fact": ...}``) so
+        an already-persisted entry written before this change still
+        deduplicates correctly.
+        """
+        if not isinstance(existing, dict):
+            return None
+        if "content" in existing:
+            return str(existing["content"])
+        fact = existing.get("fact")
+        return str(fact) if fact is not None else None
