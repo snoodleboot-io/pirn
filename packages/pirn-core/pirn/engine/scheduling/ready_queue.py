@@ -13,15 +13,34 @@ if TYPE_CHECKING:
 
 
 class ReadyQueue:
-    """FIFO of ready knots, ordered by when they became ready.
+    """Ready knots, one FIFO per concurrency group, ordered by readiness.
 
     Knots that become ready together -- the roots of a run, or the children a
     single resolution released -- are pushed as one batch and share a
-    readiness sequence number.  The queue orders by ``(sequence, topo_index)``:
-    first come, first served across batches, and topological order within a
-    batch.  So a knot that became ready later can never overtake one that has
-    been waiting longer, which is what keeps an open-ended loop from starving
-    work queued before it.
+    readiness sequence number.  Every entry is ordered by ``(sequence,
+    topo_index)``: first come, first served across batches, and topological
+    order within a batch.  So a knot that became ready later can never
+    overtake one that has been waiting longer, which is what keeps an
+    open-ended loop from starving work queued before it.
+
+    Entries are kept in one FIFO per ``KnotConfig.concurrency_group`` (one more
+    for ungrouped knots).  Admission offers the FIFO heads to the gate in
+    readiness order and passes over a head the gate refuses (PIR-841, design
+    §6):
+
+    * **No head-of-line blocking across groups.**  Four saturated API calls
+      at the front of the queue never hold up the local knots behind them.
+    * **FIFO within a group.**  Nothing queued behind a refused head in its
+      own group is offered, so a knot cannot be overtaken by a sibling that
+      became ready after it, however long it waits.
+
+    **Cost does not grow with the number of groups.**  The group heads live in
+    a heap, so the next head is found in O(log groups).  When the gate has no
+    run-wide capacity nothing is offered at all.  When it has capacity but
+    refuses a head, that group is full, and every knot of the group would be
+    refused too, so the group is *parked*: it is not offered again until
+    ``unpark`` says one of its slots came back.  A saturated group therefore
+    costs one refusal per release of its own slots, not one per admission.
 
     Entries are knot ids, not knot instances.  The engine replaces entries in
     the shed while a run is live (``Parameter`` binding after a mid-run
@@ -30,26 +49,51 @@ class ReadyQueue:
     """
 
     def __init__(self) -> None:
-        self._heap: list[tuple[int, int, str]] = []
+        # Heaps of (sequence, topo_index, knot_id).  Ungrouped knots -- every
+        # knot of a run that uses no groups -- live in one long-lived heap, so
+        # that common case never touches the group structures.
+        self._ungrouped: list[tuple[int, int, str]] = []
+        self._ungrouped_parked = False
+        # A group's heap is dropped as soon as it empties.
+        self._groups: dict[str, list[tuple[int, int, str]]] = {}
+        # Heap of (head entry, group) for unparked groups.  Entries go stale
+        # when a group's head changes or it is parked; they are discarded
+        # lazily when they reach the top.
+        self._heads: list[tuple[tuple[int, int, str], str]] = []
+        self._parked: set[str] = set()
+        self._size = 0
         self._next_sequence = 0
 
-    def push_batch(self, entries: Iterable[tuple[int, str]]) -> None:
+    def push_batch(self, entries: Iterable[tuple[int, str, str | None]]) -> None:
         """Enqueue knots that became ready at the same moment.
 
         Args:
-            entries: ``(topo_index, knot_id)`` pairs.  Every pair in one call
-                shares a readiness sequence number.
+            entries: ``(topo_index, knot_id, concurrency_group)`` triples.
+                Every triple in one call shares a readiness sequence number.
         """
         sequence = self._next_sequence
-        pushed = False
-        for topo_index, knot_id in entries:
-            heapq.heappush(self._heap, (sequence, topo_index, knot_id))
-            pushed = True
+        pushed = 0
+        for topo_index, knot_id, group in entries:
+            entry = (sequence, topo_index, knot_id)
+            pushed += 1
+            if group is None:
+                heapq.heappush(self._ungrouped, entry)
+                continue
+            fifo = self._groups.get(group)
+            if fifo is None:
+                fifo = self._groups[group] = []
+            heapq.heappush(fifo, entry)
+            if fifo[0] is entry and group not in self._parked:
+                heapq.heappush(self._heads, (entry, group))
         if pushed:
+            self._size += pushed
             self._next_sequence += 1
 
     def pop_admissible(self, gate: AdmissionGate, shed: Shed) -> tuple[str, AdmissionTicket] | None:
         """Remove and return the longest-waiting knot the gate admits.
+
+        Heads are offered in readiness order.  A refused head stays queued,
+        and its group is parked until ``unpark`` is called for it.
 
         Args:
             gate: The run's admission gate.
@@ -57,19 +101,83 @@ class ReadyQueue:
 
         Returns:
             ``(knot_id, ticket)`` for the admitted knot, or ``None`` when the
-            queue is empty or the gate refused the head, which stays queued.
+            queue is empty, the gate has no run-wide capacity, or every
+            unparked group's head was refused.
         """
-        if not self._heap:
+        if not self._size or not gate.has_capacity():
             return None
-        _, _, knot_id = self._heap[0]
-        ticket = gate.try_admit(shed.knot(knot_id))
-        if ticket is None:
-            return None
-        heapq.heappop(self._heap)
-        return knot_id, ticket
+        while True:
+            group_head = self._live_group_head()
+            ungrouped_head = (
+                self._ungrouped[0] if self._ungrouped and not self._ungrouped_parked else None
+            )
+            if ungrouped_head is not None and (
+                group_head is None or ungrouped_head < group_head[0]
+            ):
+                knot_id = ungrouped_head[2]
+                ticket = gate.try_admit(shed.knot(knot_id))
+                if ticket is None:
+                    self._ungrouped_parked = True
+                    continue
+                heapq.heappop(self._ungrouped)
+                self._size -= 1
+                return knot_id, ticket
+            if group_head is None:
+                return None
+            entry, group = group_head
+            knot_id = entry[2]
+            ticket = gate.try_admit(shed.knot(knot_id))
+            heapq.heappop(self._heads)
+            if ticket is None:
+                self._parked.add(group)
+                continue
+            fifo = self._groups[group]
+            heapq.heappop(fifo)
+            self._size -= 1
+            if fifo:
+                heapq.heappush(self._heads, (fifo[0], group))
+            else:
+                del self._groups[group]
+            return knot_id, ticket
+
+    def unpark(self, group: str | None) -> None:
+        """Offer *group* again: one of its slots, or run-wide capacity, came back.
+
+        Args:
+            group: The group to re-offer; ``None`` re-offers ungrouped knots.
+                A group that is not parked is left as it is.
+        """
+        if group is None:
+            self._ungrouped_parked = False
+            return
+        if group not in self._parked:
+            return
+        self._parked.discard(group)
+        fifo = self._groups.get(group)
+        if fifo:
+            heapq.heappush(self._heads, (fifo[0], group))
+
+    def unpark_all(self) -> None:
+        """Offer every parked group again."""
+        self._ungrouped_parked = False
+        for group in self._parked:
+            fifo = self._groups.get(group)
+            if fifo:
+                heapq.heappush(self._heads, (fifo[0], group))
+        self._parked.clear()
+
+    def _live_group_head(self) -> tuple[tuple[int, int, str], str] | None:
+        heads = self._heads
+        while heads:
+            entry, group = heads[0]
+            fifo = self._groups.get(group)
+            if group not in self._parked and fifo and fifo[0] == entry:
+                return heads[0]
+            heapq.heappop(heads)
+        return None
 
     def __len__(self) -> int:
-        return len(self._heap)
+        return self._size
 
     def __bool__(self) -> bool:
-        return bool(self._heap)
+        return self._size > 0

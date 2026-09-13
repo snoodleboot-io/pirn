@@ -43,6 +43,9 @@ class TestUnboundedAdmissionGate(unittest.IsolatedAsyncioTestCase):
         # Assert
         self.assertTrue(all(t is not None for t in tickets))
 
+    def test_always_has_capacity(self) -> None:
+        self.assertTrue(UnboundedAdmissionGate().has_capacity())
+
     def test_release_accepts_its_ticket(self) -> None:
         # Arrange
         gate = UnboundedAdmissionGate()

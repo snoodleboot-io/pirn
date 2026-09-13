@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Annotated, Any, ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from pirn.core.concurrency.concurrency_limits import ConcurrencyLimits
 from pirn.core.error_policy import ErrorPolicy
 
 if TYPE_CHECKING:
@@ -42,6 +43,9 @@ class KnotConfig(BaseModel):
             tapestry-level default.  ``None`` means "inherit from the
             tapestry".  Excluded from ``model_dump`` so it does not appear in
             lineage hashes.
+        concurrency_group: The concurrency group the knot is admitted under,
+            or ``None``.  Excluded from ``model_dump`` so it does not appear
+            in lineage hashes.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid", arbitrary_types_allowed=True)
@@ -93,3 +97,25 @@ class KnotConfig(BaseModel):
     Pass an :class:`~pirn.core.transport.data_transport.DataTransport`
     instance; ``None`` means "inherit from the tapestry".
     """
+    concurrency_group: str | None = Field(default=None, exclude=True)
+    """The concurrency group this knot is admitted under (PIR-841).
+
+    When the run's ``ConcurrencyLimits.groups`` caps this group, at most that
+    many knots of the group are in flight at once; the knot still counts
+    against ``max_in_flight`` too.  A group the limits do not list bounds
+    nothing.  ``None`` (the default) puts the knot in no group.
+
+    A knot belongs to at most one group.  Names follow the knot id charset.
+
+    Excluded from ``model_dump``, like ``transport``: which budget a knot
+    waits in says nothing about what it computes, so it must not reach
+    ``knot_config_hash``.  Including it would change the hash of every knot
+    and stop every existing recording from replaying.
+    """
+
+    @field_validator("concurrency_group")
+    @classmethod
+    def validate_concurrency_group(cls, group: str | None) -> str | None:
+        if group is None:
+            return None
+        return ConcurrencyLimits.validate_group_name(group)

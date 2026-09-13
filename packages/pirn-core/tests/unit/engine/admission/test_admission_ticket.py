@@ -16,6 +16,12 @@ class TestAdmissionTicket(unittest.TestCase):
         # Assert
         self.assertEqual(ticket.knot_id, "k1")
 
+    def test_holds_no_group_slot_by_default(self) -> None:
+        self.assertIsNone(AdmissionTicket(knot_id="k1").group)
+
+    def test_records_the_group_slot_it_holds(self) -> None:
+        self.assertEqual(AdmissionTicket(knot_id="k1", group="api").group, "api")
+
     def test_is_frozen(self) -> None:
         # Arrange
         ticket = AdmissionTicket(knot_id="k1")

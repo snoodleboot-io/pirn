@@ -30,12 +30,20 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
+import sys
+import warnings
 from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
 from pirn.backends.base.data_store import DataStore
 from pirn.backends.base.run_history import RunHistory
+from pirn.core.concurrency.concurrency_limits import ConcurrencyLimits
+from pirn.core.concurrency.undefined_concurrency_group_error import (
+    UndefinedConcurrencyGroupError,
+)
+from pirn.core.concurrency.unused_concurrency_group_warning import UnusedConcurrencyGroupWarning
 from pirn.core.err import Err
 from pirn.core.error_policy import ErrorPolicy
 from pirn.core.hashing import content_hash
@@ -57,6 +65,7 @@ from pirn.engine._emitter_subscriber import _EmitterSubscriber
 from pirn.engine._run_scoped_subscriber import _RunScopedSubscriber
 from pirn.engine.admission.admission_gate import AdmissionGate
 from pirn.engine.admission.admission_ticket import AdmissionTicket
+from pirn.engine.admission.limited_admission_gate import LimitedAdmissionGate
 from pirn.engine.admission.unbounded_admission_gate import UnboundedAdmissionGate
 from pirn.engine.dispatchers.dispatcher import Dispatcher
 from pirn.engine.dispatchers.local_dispatcher import LocalDispatcher
@@ -93,8 +102,10 @@ class Engine:
         transport: DataTransport | None = None,
         actor: str | None = None,
         replay: ReplaySession | None = None,
+        concurrency: ConcurrencyLimits | None = None,
     ) -> RunResult:
         shed = Shed.from_terminals(terminals)
+        self._check_groups(shed, concurrency, extensible=extensible_store is not None)
 
         ctx = RunContext(
             run_id=request.run_id,
@@ -152,6 +163,7 @@ class Engine:
                 transport=active_transport,
                 replay=replay,
                 registrars=registrars,
+                gate=self._gate_for(concurrency),
             )
         finally:
             if extensible_store is not None and subscribe_token is not None:
@@ -170,6 +182,7 @@ class Engine:
         transport: DataTransport | None = None,
         replay: ReplaySession | None = None,
         registrars: dict[str, str] | None = None,
+        gate: AdmissionGate | None = None,
     ) -> RunResult:
         active_transport: DataTransport = transport or InlineTransport()
         await active_transport.begin_run(ctx.run_id)
@@ -204,8 +217,9 @@ class Engine:
         # replaced made it do.
         tracker = DependencyTracker(shed)
         ready = ReadyQueue()
-        gate: AdmissionGate = UnboundedAdmissionGate()
-        self._enqueue(ready, tracker, tracker.initially_ready())
+        if gate is None:
+            gate = UnboundedAdmissionGate()
+        self._enqueue(ready, tracker, shed, tracker.initially_ready())
 
         # In-flight tasks, each with the knot instance this run actually
         # dispatched -- kept so lineage is read back off the copy that executed
@@ -224,6 +238,10 @@ class Engine:
         # Mid-run registrations made from inside a dispatched knot, keyed
         # newcomer id -> registering knot id.  Filled by the store subscriber.
         known_registrars: dict[str, str] = registrars if registrars is not None else {}
+        # A ticket admitted but not yet handed to an in-flight task or back to
+        # the gate.  Admission awaits (materialization) before the task exists,
+        # so an abort in that window must still give the slot back.
+        unplaced: AdmissionTicket | None = None
 
         try:
             while True:
@@ -239,21 +257,28 @@ class Engine:
                         ctx,
                         tracker,
                     )
-                    self._enqueue(ready, tracker, newcomers)
+                    self._enqueue(ready, tracker, shed, newcomers)
 
                 # Admit everything the gate allows.  A knot the engine resolves
                 # without dispatching (skipped, or failed for a missing parent)
                 # gives its ticket straight back and may release children into
                 # this same pass.
+                #
+                # TODO(PIR-841 slice 3): container knots (SubTapestry,
+                # LoopSubTapestry) are admitted here like leaves and hold their
+                # slot for their inner run's whole life, so an open-ended loop
+                # can starve siblings under a small cap.  Design §5.4.2 makes
+                # them slot-free once limits are forwarded into inner runs.
                 while (admitted := ready.pop_admissible(gate, shed)) is not None:
-                    kid, ticket = admitted
+                    kid, unplaced = admitted
                     knot = shed.knot(kid)
                     ctx.status.transition(kid, KnotState.RUNNING)
 
                     decision = self._decide(shed, knot, results, ctx)
 
                     if isinstance(decision, (Skipped, Err)):
-                        gate.release(ticket)
+                        self._release(gate, ready, unplaced)
+                        unplaced = None
                         results[kid] = decision
                         if isinstance(decision, Skipped):
                             ctx.skipped.append(kid)
@@ -262,7 +287,7 @@ class Engine:
                             # REQUIRE_ALL_PARENTS: synthetic Err.
                             ctx.status.transition(kid, KnotState.FAILED, "missing parent")
                         self._record_lineage(ctx, knot, results, decision, started=ctx.started_at)
-                        self._enqueue(ready, tracker, tracker.resolve(kid))
+                        self._enqueue(ready, tracker, shed, tracker.resolve(kid))
                         continue
 
                     # decision is the resolved input dict.
@@ -281,7 +306,8 @@ class Engine:
                     task = asyncio.create_task(
                         self._invoke_admitted(run_knot, materialized, replay, data_store)
                     )
-                    running[task] = (run_knot, ticket)
+                    running[task] = (run_knot, unplaced)
+                    unplaced = None
                     task.add_done_callback(completions.put_nowait)
 
                 if not running:
@@ -289,6 +315,9 @@ class Engine:
                         continue
                     if ready:
                         # Refused with nothing in flight to free capacity.
+                        # Nothing in flight means nothing will unpark a group
+                        # either, so re-offer them all.
+                        ready.unpark_all()
                         await gate.wait_for_release()
                         continue
                     break
@@ -304,7 +333,11 @@ class Engine:
                 for task in sorted(done, key=lambda t: tracker.topo_index(running[t][0].knot_id)):
                     knot, ticket = running.pop(task)
                     kid = knot.knot_id
-                    gate.release(ticket)
+                    # Release before reading the outcome, so the slot comes back
+                    # however the task ended -- a result, an Err, or an exception
+                    # or cancellation that ``task.result()`` re-raises below.  It
+                    # does not rely on ``Knot.__call__`` catching anything.
+                    self._release(gate, ready, ticket)
                     result, parent_hashes, started_at, replayed, finished_at = task.result()
                     # Re-register placeholder records with the live manager.
                     result = self._rebind_err(result, kid, ctx)
@@ -342,7 +375,7 @@ class Engine:
                         finished=finished_at,
                         replayed_from=replay.source_run_id if replayed and replay else None,
                     )
-                    self._enqueue(ready, tracker, tracker.resolve(kid))
+                    self._enqueue(ready, tracker, shed, tracker.resolve(kid))
                     if pending_new:
                         newcomers = self._absorb_pending(
                             shed,
@@ -352,7 +385,7 @@ class Engine:
                             ctx,
                             tracker,
                         )
-                        self._enqueue(ready, tracker, newcomers)
+                        self._enqueue(ready, tracker, shed, newcomers)
         except BaseException:
             # The run is aborting: a replay that cannot be served, a setup
             # error in a mid-run merge, or the run itself being cancelled.
@@ -364,9 +397,26 @@ class Engine:
             # ``asyncio.to_thread``) or on a remote worker keeps running until
             # it returns; its task completes as cancelled at once, so this wait
             # never blocks on it, but the thread itself is not stopped.
-            for task in running:
-                task.cancel()
-            await asyncio.gather(*running, return_exceptions=True)
+            #
+            # Every slot still held comes back to the gate, so nothing waiting
+            # on it -- a nested run sharing the budget, once PIR-841 slice 3
+            # lands -- is left parked behind an aborted run.
+            try:
+                for task in running:
+                    task.cancel()
+                await asyncio.gather(*running, return_exceptions=True)
+            finally:
+                # TODO(PIR-841 slice 3): a knot on a worker thread
+                # (ThreadDispatcher, sync @knot) is still running when its
+                # cancelled task completes, yet its slot is released here.
+                # Harmless while every gate is per run, since the run is over;
+                # a gate shared across runs (slice 3 chaining) would admit a
+                # new knot beside that still-running thread and over-admit.
+                for _, held in running.values():
+                    gate.release(held)
+                running.clear()
+                if unplaced is not None:
+                    gate.release(unplaced)
             raise
 
         # Report per-knot records in an order that depends on the graph alone,
@@ -412,10 +462,105 @@ class Engine:
     # ------------------------------------------------------------- helpers
 
     @staticmethod
-    def _enqueue(ready: ReadyQueue, tracker: DependencyTracker, knot_ids: list[str]) -> None:
+    def _gate_for(limits: ConcurrencyLimits | None) -> AdmissionGate:
+        """Return the admission gate that enforces *limits* for one run.
+
+        No limits, or limits that constrain nothing, get the lock-free
+        ``UnboundedAdmissionGate``, so an unlimited run pays nothing for the
+        feature.
+        """
+        if limits is None or limits.is_unbounded:
+            return UnboundedAdmissionGate()
+        return LimitedAdmissionGate(limits)
+
+    @staticmethod
+    def _release(gate: AdmissionGate, ready: ReadyQueue, ticket: AdmissionTicket) -> None:
+        """Return *ticket*'s slots and re-offer whatever they could now admit.
+
+        A freed slot can admit a knot of the ticket's own group, which the
+        queue parked when it was full, and any ungrouped knot.
+        """
+        gate.release(ticket)
+        ready.unpark(None)
+        if ticket.group is not None:
+            ready.unpark(ticket.group)
+
+    @staticmethod
+    def _check_groups(shed: Shed, limits: ConcurrencyLimits | None, extensible: bool) -> None:
+        """Fail fast on a knot in an undefined group; warn on an unused group.
+
+        Only when *limits* define groups: without groups, tags are ignored so
+        the same tapestry still runs unbounded or under ``max_in_flight``
+        alone.  Checked over the static graph before anything runs; a knot
+        registered mid-run is checked by the gate when it is admitted.
+
+        A defined group no static knot is in warns only when the run cannot
+        receive mid-run knots.  An extensible run's newcomers may be exactly
+        the knots that group is for, so there it is only debug-logged.
+
+        Raises:
+            UndefinedConcurrencyGroupError: For the first knot, in id order,
+                whose group the limits do not define.
+        """
+        if limits is None or not limits.groups:
+            return
+        used: set[str] = set()
+        for knot_id in sorted(shed.knots):
+            group = shed.knots[knot_id].config.concurrency_group
+            if group is None:
+                continue
+            if group not in limits.groups:
+                raise UndefinedConcurrencyGroupError(knot_id, group, limits.groups)
+            used.add(group)
+        unused = sorted(set(limits.groups) - used)
+        if not unused:
+            return
+        if extensible:
+            _log.debug(
+                "ConcurrencyLimits groups %s match no knot of the static graph; "
+                "mid-run knots may still join them",
+                unused,
+            )
+            return
+        Engine._warn_outside_pirn(
+            f"ConcurrencyLimits define groups {unused} that no knot of this run is in, "
+            "so those caps apply to nothing; check the group names",
+            UnusedConcurrencyGroupWarning,
+        )
+
+    @staticmethod
+    def _warn_outside_pirn(message: str, category: type[Warning]) -> None:
+        """Warn, attributed to the first frame outside the pirn package.
+
+        A fixed ``stacklevel`` would point into ``tapestry.py`` or the engine,
+        which says nothing about which call chose the limits; the useful
+        location is the user's call to ``Tapestry.run``.  Python 3.12+ skips
+        the package's frames natively; 3.11 counts them by walking the stack.
+        """
+        package_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + os.sep
+        if sys.version_info >= (3, 12):
+            warnings.warn(message, category, skip_file_prefixes=(package_dir,))
+            return
+        # stacklevel=1 is this function; level 2 is sys._getframe(1).
+        level = 2
+        frame = sys._getframe(1)
+        while frame is not None and os.path.abspath(frame.f_code.co_filename).startswith(
+            package_dir
+        ):
+            level += 1
+            frame = frame.f_back
+        warnings.warn(message, category, stacklevel=level)
+
+    @staticmethod
+    def _enqueue(
+        ready: ReadyQueue, tracker: DependencyTracker, shed: Shed, knot_ids: list[str]
+    ) -> None:
         """Push knots that just became ready onto *ready* as one batch."""
         if knot_ids:
-            ready.push_batch((tracker.topo_index(kid), kid) for kid in knot_ids)
+            ready.push_batch(
+                (tracker.topo_index(kid), kid, shed.knots[kid].config.concurrency_group)
+                for kid in knot_ids
+            )
 
     def _absorb_pending(
         self,

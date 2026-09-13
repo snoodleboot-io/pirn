@@ -59,7 +59,8 @@ Parameters are bound first (each `Parameter` knot matched to `RunRequest.paramet
 ```
 tracker = DependencyTracker(shed)          # unresolved-parent counts, levels
 ready   = ReadyQueue(tracker.initially_ready())
-gate    = UnboundedAdmissionGate()         # the default admits everything
+gate    = UnboundedAdmissionGate()         # no limits: admits everything
+          | LimitedAdmissionGate(limits)   # RunRequest.concurrency / Tapestry(concurrency=)
 
 loop:
     merge any mid-run-registered knots     # newcomers may be ready at once
@@ -82,6 +83,34 @@ sort lineage, exceptions, skipped and outputs by (level, dispatched, topo index)
 ```
 
 A knot is scheduled the moment its own parents have resolved, not when a whole "wave" of unrelated knots has finished: completions are processed one at a time as they happen, so a fast knot's children start while its slow siblings are still running (PIR-841). Each dispatched task reports itself on a completion queue through a done-callback, so the engine wakes once per completion at O(1) cost, and it finds newly ready knots by decrementing their unresolved-parent counts, so a chain of *n* knots costs O(n) scheduling work rather than a rescan of the topological order per step. A knot is decided, materialized and turned into a task only once the run's `AdmissionGate` admits it; the default `UnboundedAdmissionGate` admits every ready knot immediately.
+
+#### Concurrency limits
+
+A run can cap how many knots are in flight at once, overall and per named group:
+
+```python
+from pirn.core.concurrency.concurrency_limits import ConcurrencyLimits
+
+with Tapestry() as t:
+    p = Parameter("doc", str)
+    for i in range(200):
+        Summarise(text=p, _config=KnotConfig(id=f"sum{i}"))                               # unbounded
+    for i in range(12):
+        CallLLM(text=p, _config=KnotConfig(id=f"llm{i}", concurrency_group="openai"))    # 4 at a time
+
+await t.run(RunRequest(parameters={"doc": "..."}, concurrency=ConcurrencyLimits(groups={"openai": 4})))
+```
+
+- `RunRequest.concurrency` applies to one run; `Tapestry(concurrency=...)` is the default for runs whose request carries none. An explicit `ConcurrencyLimits()` runs unbounded even over a tapestry default.
+- A knot is admitted only while both its global slot (`max_in_flight`, if set) and its group slot (`groups[name]`) are free; it takes both or neither.
+- **Undefined groups fail fast.** When the limits define any group, a knot whose `concurrency_group` is not one of them raises `UndefinedConcurrencyGroupError` (naming the knot, its group and the defined groups): at run start for the static graph, at admission for a knot registered mid-run. A typo such as `"open_ai"` for `"openai"` would otherwise silently run every call at once. When the limits define no groups, tags are ignored, so the same tapestry runs unbounded or under `max_in_flight` alone. A defined group that no knot of the static graph uses emits `UnusedConcurrencyGroupWarning`.
+- The ready queue keeps one FIFO per group and a heap of group heads, offering heads in readiness order and skipping a head whose group is full. Saturated API calls never hold up the local knots behind them, and within a group a knot is never overtaken by one that became ready after it. A full group is parked until one of its slots is released, and nothing is offered while the run-wide cap is full, so admission cost does not grow with the number of groups.
+- **Known limitation (until slice 3):** a `SubTapestry` / `LoopSubTapestry` holds one slot for its inner run's whole life. An open-ended `LoopSubTapestry` under a small `max_in_flight` can starve its siblings.
+- A slot is released when the knot's task finishes, whatever the outcome (result, `Err`, exception or cancellation), when the engine resolves a knot without running it (skipped, missing parent), and for every in-flight knot when a run aborts.
+- Limits govern scheduling only: outputs, lineage hashes and the order of lineage, exceptions, skipped and outputs are the same under any limits. `KnotConfig.concurrency_group` is excluded from `model_dump`, so it never reaches `knot_config_hash`, and recordings made before a knot joined a group still replay.
+- A queued knot stays `PENDING`; `RUNNING` means admitted.
+- The effective ceiling is also bounded by the dispatcher (`ThreadDispatcher(max_workers=...)`; a sync `@knot` runs on the default executor, `min(32, cpu + 4)` threads).
+- Not yet: limits are not forwarded into `SubTapestry` / `LoopSubTapestry` inner runs, and `Map` / `ZipMap` / `DictMap` fan out their elements inside one admitted knot (PIR-841 slices 3 and 4).
 
 Per-knot records do not depend on completion order. `RunResult.lineage`, `exceptions`, `skipped` and `outputs` are sorted by `(level, dispatched, topological index)`, where `level` is the knot's depth from the roots; for a graph without mid-run registrations that is exactly the order the earlier wave loop produced. `status_events` and live `on_status` delivery are the exception: they follow real state transitions, so sibling knots' events interleave in the order the knots actually start and finish.
 

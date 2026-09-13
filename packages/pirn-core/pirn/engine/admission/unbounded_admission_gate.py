@@ -18,6 +18,10 @@ class UnboundedAdmissionGate(AdmissionGate):
     admission only the cost of building a ticket.
     """
 
+    def has_capacity(self) -> bool:
+        """Always ``True``: nothing is ever held."""
+        return True
+
     def try_admit(self, knot: Knot) -> AdmissionTicket:
         """Admit *knot* unconditionally.
 

@@ -54,6 +54,20 @@ All 159 unit test files that exercise optional-dependency code now wrap imports 
 
 ### Changed
 
+#### Run-level and group concurrency limits (PIR-841, slice 2)
+
+A run can now cap how many knots are in flight at once. `pirn/core/concurrency/concurrency_limits.py` adds `ConcurrencyLimits(max_in_flight=None, groups={})`, a frozen, serialisable value; limits are at least 1 and group names follow the knot id charset.
+
+- **Where:** `RunRequest.concurrency` (per run) overrides `Tapestry(concurrency=...)` (default). `None` everywhere, or `ConcurrencyLimits()`, is unbounded, and uses the same lock-free gate as before.
+- **Groups:** `KnotConfig(concurrency_group="openai")` puts a knot in a group; `ConcurrencyLimits(groups={"openai": 4})` lets at most four of them run at once, alongside any global cap. `concurrency_group` is excluded from `model_dump`, so `knot_config_hash` is unchanged and existing recordings still replay.
+- **Undefined groups fail fast:** when the limits define any group, a knot in a group they do not define raises `UndefinedConcurrencyGroupError` (at run start, or at admission for a mid-run knot). Limits without groups ignore group tags. A defined group no knot uses emits `UnusedConcurrencyGroupWarning`.
+- **Fairness:** `ReadyQueue` keeps one FIFO per group and a heap of group heads. A full group never blocks knots of other groups (no head-of-line blocking), and within a group knots start in readiness order. A full group is parked until its slot is released, so cost does not grow with the number of groups.
+- **Serialisable:** `ConcurrencyLimits` (and a `RunRequest` carrying it) pickles and deep-copies; `groups` is a read-only `GroupLimits` mapping.
+- **Known limitation:** `SubTapestry` / `LoopSubTapestry` hold one slot for their inner run's whole life until slice 3.
+- **Slots always come back:** on success, failure, skip, cancellation and run abort. `pirn/engine/admission/limited_admission_gate.py` (`LimitedAdmissionGate`) refuses a double or foreign release with `AdmissionReleaseError`.
+- **Unchanged under any limits:** outputs, lineage hashes, and the order of `lineage`, `exceptions`, `skipped` and `outputs`.
+- **Not yet:** limits are not forwarded into `SubTapestry` / `LoopSubTapestry` inner runs (slice 3), and `Map` / `ZipMap` / `DictMap` elements are not admitted individually (slice 4).
+
 #### Engine schedules knots through an admission queue (PIR-841, slice 1)
 
 `pirn/engine/engine.py` no longer runs a graph in waves (dispatch every ready knot, wait for all of them, rescan for the next set). A knot now becomes ready the moment its own parents resolve and starts once the run's `AdmissionGate` admits it; the default `UnboundedAdmissionGate` admits everything, so no run is capped. New classes: `pirn/engine/scheduling/dependency_tracker.py` (`DependencyTracker`), `pirn/engine/scheduling/ready_queue.py` (`ReadyQueue`), and `pirn/engine/admission/` (`AdmissionGate`, `UnboundedAdmissionGate`, `AdmissionTicket`). There is no new public API yet.

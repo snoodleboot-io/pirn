@@ -20,6 +20,14 @@ class TestAdmissionGateInterface(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(NotImplementedError, "try_admit"):
             gate.try_admit(knot)
 
+    def test_has_capacity_must_be_implemented(self) -> None:
+        # Arrange
+        gate = AdmissionGate()
+
+        # Act / Assert
+        with self.assertRaisesRegex(NotImplementedError, "has_capacity"):
+            gate.has_capacity()
+
     def test_release_must_be_implemented(self) -> None:
         # Arrange
         gate = AdmissionGate()

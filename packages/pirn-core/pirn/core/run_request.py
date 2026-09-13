@@ -6,6 +6,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from pirn.core.concurrency.concurrency_limits import ConcurrencyLimits
+
 
 class RunRequest(BaseModel):
     """Input descriptor for a single tapestry run.
@@ -28,6 +30,11 @@ class RunRequest(BaseModel):
             before the scheduler dispatches any knots.
         submitted_at: UTC wall-clock time when this request was created.
             Defaults to the current time at construction.
+        concurrency: How many knots this run may have in flight at once,
+            overall and per group.  ``None`` (the default) uses the
+            ``Tapestry``'s ``concurrency=`` default, which is itself unbounded
+            unless set.  An explicit ``ConcurrencyLimits()`` runs unbounded
+            even if the tapestry has a default.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -44,4 +51,11 @@ class RunRequest(BaseModel):
     trigger: str | None = Field(
         default=None,
         description="Why the run was initiated — trigger type and identifier, e.g. 'webhook:order-placed' or 'manual'.",
+    )
+
+    # HOW MUCH AT ONCE — per-run admission limits (PIR-841)
+    concurrency: ConcurrencyLimits | None = Field(
+        default=None,
+        description="Concurrency limits for this run. When set, overrides the Tapestry's default; "
+        "ConcurrencyLimits() explicitly runs unbounded. None inherits the Tapestry's default.",
     )

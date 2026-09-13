@@ -19,16 +19,30 @@ class AdmissionGate:
 
     Admission is non-blocking by design: ``try_admit`` answers immediately,
     and ``wait_for_release`` is the one place a scheduler parks when nothing
-    at all can start.  Today the ready queue is a single FIFO, so a refused
-    head stops admission until capacity frees up; nothing queued behind it is
-    offered in the meantime.
+    at all can start.  The ready queue keeps one FIFO per concurrency group
+    and offers their heads in readiness order, so a head refused because its
+    group is full does not stop knots of other groups from being offered;
+    only the knots queued behind it in its own group wait (design §6).
 
-    TODO(PIR-841 slice 2): keep one FIFO per concurrency group (design §6) so
-    a refused head in a saturated group does not block ready knots in other
-    groups.
+    A gate must refuse only for reasons shared by the knot's whole group --
+    its group's budget or the run's -- because the queue passes over the
+    rest of a refused head's group.  With run-wide capacity available
+    (``has_capacity``), a refusal means the group is full: the queue parks
+    that group and offers it again only once a slot of the group is released
+    (the engine tells the queue, using ``AdmissionTicket.group``).
 
     Implementations inherit and override every method.
     """
+
+    def has_capacity(self) -> bool:
+        """Whether the run-wide budget could admit any knot at all.
+
+        The ready queue asks this before offering anything, so a full run
+        costs one call per admission attempt rather than one refusal per
+        queued group.  ``True`` does not promise ``try_admit`` succeeds: the
+        knot's own group may still be full.
+        """
+        raise NotImplementedError(f"{type(self).__name__} must implement has_capacity()")
 
     def try_admit(self, knot: Knot) -> AdmissionTicket | None:
         """Admit *knot* if capacity allows.

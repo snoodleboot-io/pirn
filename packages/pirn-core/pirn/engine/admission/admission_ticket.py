@@ -17,13 +17,15 @@ class AdmissionTicket:
     ticket rather than the dispatch call, so it measures run time and never
     queue time.
 
-    It carries only the knot id today, because the one gate that exists
-    (``UnboundedAdmissionGate``) holds no capacity.  A bounded gate records the
-    slots it took here, so that releasing a ticket frees exactly what admitting
-    it claimed (PIR-841).
+    A ticket records the slots its admission took, so that releasing it frees
+    exactly what admitting it claimed (PIR-841).
 
     Attributes:
         knot_id: The id of the admitted knot.
+        group: The concurrency group whose limited slot the knot holds, or
+            ``None`` when it holds no group slot: the knot has no group, or
+            the gate does not limit that group.
     """
 
     knot_id: str
+    group: str | None = None
