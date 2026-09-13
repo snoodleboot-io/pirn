@@ -402,7 +402,7 @@ Clinical data knots for EHR and CDS workflows.
 
 | Knot | Description |
 |---|---|
-| `FhirPatientAssembler` *(from `pirn_health.assemblers`)* | Assembles sanitised `ClinicalRecord` tuples from `list[dict]` + metadata (replaces removed `FhirPatientIngestor`) |
+| `FhirPatientAssembler` *(from `pirn_health.assemblers`)* | Assembles `ClinicalRecord` tuples from `list[dict]` + `salt`, hashing `patient_id`/`encounter_id` with the same salted SHA-256 scheme as `PHIRedactor` before construction (replaces removed `FhirPatientIngestor`) |
 | `HL7v2MessageParser` | Parses HL7 v2 messages from bytes |
 | `PHIRedactor` | Explicit pass-through redaction knot for clinical record streams |
 | `PatientCohortBuilder` | Filters a record stream into a named cohort by inclusion criteria |
@@ -574,7 +574,7 @@ from pirn_health.assemblers.wsi_object_store_assembler import WsiObjectStoreAsse
 | `MegObjectStoreAssembler` | `bytes` + metadata | `SignalPayload` |
 | `DicomPacsAssembler` | `bytes` + `series_id` | `DICOMPayload` |
 | `WsiObjectStoreAssembler` | `bytes` + metadata | `tuple[WSITilePayload, ...]` |
-| `FhirPatientAssembler` | `list[dict]` + metadata | `tuple[ClinicalRecord, ...]` |
+| `FhirPatientAssembler` | `list[dict]` + `salt` | `tuple[ClinicalRecord, ...]` |
 
 **Disassemblers** (Payload → raw, no I/O) — all in `pirn_health.disassemblers`:
 

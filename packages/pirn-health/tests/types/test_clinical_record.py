@@ -43,8 +43,8 @@ class TestAuditDict(unittest.TestCase):
             source_system="epic",
         )
         d = record._pirn_audit_dict()
-        assert d["patient_id"] == "P1"
-        assert d["encounter_id"] == "E1"
+        assert "patient_id" not in d
+        assert "encounter_id" not in d
         assert d["observation_codes"] == ["A", "B"]
         assert d["observed_at"] == when.isoformat()
         assert d["source_system"] == "epic"
