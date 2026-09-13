@@ -35,6 +35,7 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.nonlinear._delay_embedding import DelayEmbedding
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -105,25 +106,11 @@ class RecurrenceAnalyzer(Knot):
         }
 
     @staticmethod
-    def _delay_embed(signal_array: np.ndarray, embedding_dim: int, tau: int) -> np.ndarray:
-        """Build Takens delay embedding matrix of shape (N - (embedding_dim-1)*tau, embedding_dim)."""
-        signal_length = len(signal_array)
-        length = signal_length - (embedding_dim - 1) * tau
-        if length <= 0:
-            return np.empty((0, embedding_dim))
-        return np.array(
-            [
-                signal_array[start_idx : start_idx + embedding_dim * tau : tau]
-                for start_idx in range(length)
-            ]
-        )
-
-    @staticmethod
     def _recurrence_matrix(
         signal_array: np.ndarray, embedding_dim: int, tau: int, distance_threshold: float
     ) -> np.ndarray:
         """Build binary recurrence matrix using Euclidean distance threshold."""
-        embedded = RecurrenceAnalyzer._delay_embed(signal_array, embedding_dim, tau)
+        embedded = DelayEmbedding.embed(signal_array, embedding_dim, tau)
         n_pts = len(embedded)
         if n_pts == 0:
             return np.zeros((0, 0), dtype=bool)
