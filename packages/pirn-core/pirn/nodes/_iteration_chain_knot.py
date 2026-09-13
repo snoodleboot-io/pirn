@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -30,7 +30,16 @@ class _IterationChainKnot(Knot):
     two concerns used to share one wiring — ``state=self`` — which meant
     ``step``'s returned state was silently discarded for every iteration after
     the first (PIR-754).
+
+    An iteration is a container: it holds no admission slot while its
+    iteration run executes, and that run inherits the loop run's execution
+    plane -- the same shared gate, dispatcher, observers, replay posture and
+    resolver -- through ``Tapestry.run`` (ADR agents-speaks-core, WS0b).  An
+    iteration tapestry built as ``Tapestry(dispatcher=..., concurrency=...)``
+    inside ``step()`` keeps what it named, exactly as it keeps a transport.
     """
+
+    _holds_admission_slot: ClassVar[bool] = False
 
     def __init__(
         self,

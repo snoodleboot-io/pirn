@@ -6,9 +6,11 @@ import heapq
 from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
+from pirn.engine.admission.admission_ticket import AdmissionTicket
+
 if TYPE_CHECKING:
+    from pirn.core.knot import Knot
     from pirn.engine.admission.admission_gate import AdmissionGate
-    from pirn.engine.admission.admission_ticket import AdmissionTicket
     from pirn.engine.shed.shed import Shed
 
 
@@ -36,7 +38,8 @@ class ReadyQueue:
 
     **Cost does not grow with the number of groups.**  The group heads live in
     a heap, so the next head is found in O(log groups).  When the gate has no
-    run-wide capacity nothing is offered at all.  When it has capacity but
+    run-wide capacity no leaf is offered at all; only a slot-free container
+    knot at the head of the line still starts.  When it has capacity but
     refuses a head, that group is full, and every knot of the group would be
     refused too, so the group is *parked*: it is not offered again until
     ``unpark`` says one of its slots came back.  A saturated group therefore
@@ -99,13 +102,26 @@ class ReadyQueue:
             gate: The run's admission gate.
             shed: The run's shed, used to look up the knot to offer.
 
+        A *container* knot (``Knot._holds_admission_slot`` is ``False``) is
+        admitted without consulting the gate, even when the gate has no
+        run-wide capacity: it holds no slot, so nothing it waits on can be
+        waiting on it (ADR agents-speaks-core, WS0b).  Heads are still
+        offered in readiness order, so a container queued behind a leaf the
+        gate cannot yet admit waits its turn; that is a delay, never a
+        deadlock, because a leaf never waits on a container.
+
+        Args:
+            gate: The run's admission gate.
+            shed: The run's shed, used to look up the knot to offer.
+
         Returns:
             ``(knot_id, ticket)`` for the admitted knot, or ``None`` when the
-            queue is empty, the gate has no run-wide capacity, or every
-            unparked group's head was refused.
+            queue is empty, the gate has no run-wide capacity for the head
+            in line, or every unparked group's head was refused.
         """
-        if not self._size or not gate.has_capacity():
+        if not self._size:
             return None
+        capacity = gate.has_capacity()
         while True:
             group_head = self._live_group_head()
             ungrouped_head = (
@@ -115,8 +131,10 @@ class ReadyQueue:
                 group_head is None or ungrouped_head < group_head[0]
             ):
                 knot_id = ungrouped_head[2]
-                ticket = gate.try_admit(shed.knot(knot_id))
+                ticket = self._admit(gate, shed.knot(knot_id), capacity)
                 if ticket is None:
+                    if not capacity:
+                        return None
                     self._ungrouped_parked = True
                     continue
                 heapq.heappop(self._ungrouped)
@@ -126,11 +144,14 @@ class ReadyQueue:
                 return None
             entry, group = group_head
             knot_id = entry[2]
-            ticket = gate.try_admit(shed.knot(knot_id))
-            heapq.heappop(self._heads)
+            ticket = self._admit(gate, shed.knot(knot_id), capacity)
             if ticket is None:
+                if not capacity:
+                    return None
+                heapq.heappop(self._heads)
                 self._parked.add(group)
                 continue
+            heapq.heappop(self._heads)
             fifo = self._groups[group]
             heapq.heappop(fifo)
             self._size -= 1
@@ -139,6 +160,27 @@ class ReadyQueue:
             else:
                 del self._groups[group]
             return knot_id, ticket
+
+    @staticmethod
+    def _admit(gate: AdmissionGate, knot: Knot, capacity: bool) -> AdmissionTicket | None:
+        """Admit *knot*: slot-free for a container, through *gate* for a leaf.
+
+        Args:
+            gate: The run's admission gate.
+            knot: The knot at the head of the line.
+            capacity: ``gate.has_capacity()`` as read at the start of this
+                pass; a leaf is refused outright when it is ``False``, so a
+                full run-wide budget costs one call rather than one refusal
+                per group.
+
+        Returns:
+            The ticket, or ``None`` when the gate refuses the knot.
+        """
+        if not type(knot)._holds_admission_slot:
+            return AdmissionTicket(knot_id=knot.knot_id, held=False)
+        if not capacity:
+            return None
+        return gate.try_admit(knot)
 
     def unpark(self, group: str | None) -> None:
         """Offer *group* again: one of its slots, or run-wide capacity, came back.
