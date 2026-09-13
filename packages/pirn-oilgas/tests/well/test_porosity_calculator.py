@@ -89,7 +89,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
                 _config=KnotConfig(id="p"),
             )
         with patch(
-            "pirn_oilgas.assemblers.las_object_store_assembler._decode",
+            "pirn_oilgas.assemblers.las_object_store_assembler.LasObjectStoreAssembler._decode",
             side_effect=_fake_decode,
         ):
             result = await t.run(RunRequest(parameters={"body": b"las-bytes"}))
