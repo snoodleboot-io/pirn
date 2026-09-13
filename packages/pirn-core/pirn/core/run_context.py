@@ -42,7 +42,7 @@ class RunContext:
         self.lineage: list[KnotLineage] = []
         self.skipped: list[str] = []
         # Strong references to in-flight, fire-and-forget emitter tasks
-        # (Engine._subscribe_emitters_to_status); without this, Python's GC
+        # (EmitterFanout.subscribe_emitters_to_status); without this, Python's GC
         # may reclaim them before they complete. Lives as long as the run.
         self.emitter_tasks: list[Any] = []
         # Deduplicated source snapshots keyed by source_hash — populated

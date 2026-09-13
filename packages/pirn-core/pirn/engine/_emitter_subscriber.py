@@ -8,9 +8,9 @@ from typing import TYPE_CHECKING, Any, TypeAlias
 if TYPE_CHECKING:
     from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
 
-#: Signature of ``Engine._handle_emitter_error`` — kept as a type alias so
-#: ``_EmitterSubscriber`` does not need to import ``Engine`` (which would be
-#: circular: ``engine.py`` imports this module).
+#: Signature of ``EmitterFanout.handle_emitter_error`` — kept as a type alias so
+#: ``_EmitterSubscriber`` does not need to import ``EmitterFanout`` (which would be
+#: circular: ``emitter_fanout.py`` imports this module).
 EmitterErrorHandler: TypeAlias = Callable[[Any, str, Exception, "EmitterErrorPolicy"], None]
 
 
@@ -41,7 +41,7 @@ class _EmitterSubscriber:
             await self._emitter.on_status(event)
         except Exception as exc:
             # Routed through the same IGNORE/WARN/RAISE dispatch used for
-            # on_lineage/on_run_result (Engine._handle_emitter_error), so a
+            # on_lineage/on_run_result (EmitterFanout.handle_emitter_error), so a
             # broken on_status emitter is reported the same way every other
             # emitter failure is instead of being swallowed unconditionally.
             # RAISE here still cannot fail this run synchronously — this

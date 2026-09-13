@@ -48,8 +48,6 @@ from pirn.core.err import Err
 from pirn.core.error_policy import ErrorPolicy
 from pirn.core.hashing import content_hash
 from pirn.core.knot import Knot
-from pirn.core.knot_lineage import KnotLineage
-from pirn.core.knot_source_record import extract_knot_source
 from pirn.core.ok import Ok
 from pirn.core.parameter import Parameter
 from pirn.core.result import Result
@@ -61,7 +59,6 @@ from pirn.core.transport.data_transport import DataTransport
 from pirn.core.transport.inline_transport import InlineTransport
 from pirn.core.transport.transport_handle import TransportHandle
 from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
-from pirn.engine._emitter_subscriber import _EmitterSubscriber
 from pirn.engine._run_scoped_subscriber import _RunScopedSubscriber
 from pirn.engine.admission.admission_gate import AdmissionGate
 from pirn.engine.admission.admission_ticket import AdmissionTicket
@@ -69,13 +66,14 @@ from pirn.engine.admission.limited_admission_gate import LimitedAdmissionGate
 from pirn.engine.admission.unbounded_admission_gate import UnboundedAdmissionGate
 from pirn.engine.dispatchers.dispatcher import Dispatcher
 from pirn.engine.dispatchers.local_dispatcher import LocalDispatcher
+from pirn.engine.emitter_fanout import EmitterFanout
+from pirn.engine.lineage_recorder import LineageRecorder
 from pirn.engine.scheduling.dependency_tracker import DependencyTracker
 from pirn.engine.scheduling.ready_queue import ReadyQueue
 from pirn.engine.shed.shed import Shed
 from pirn.exceptions.unbound_parameter_error import UnboundParameterError
 from pirn.managers.knot_state import KnotState
 from pirn.managers.rebindable_error import RebindableError
-from pirn.recording.invocation_identity import InvocationIdentity
 from pirn.recording.replay_session import ReplaySession
 from pirn.tapestry import _current_dispatching_knot_id
 
@@ -125,7 +123,7 @@ class Engine:
         # subscribers synchronously); we schedule a task per event.
         emitters = emitters or []
         if emitters:
-            self._subscribe_emitters_to_status(ctx, emitters, emitter_error_policy)
+            EmitterFanout.subscribe_emitters_to_status(ctx, emitters, emitter_error_policy)
 
         # Mid-run extension: subscribe to the store if one was provided.
         # New knots arriving during the run go into ``pending_new`` and
@@ -287,7 +285,9 @@ class Engine:
                         else:
                             # REQUIRE_ALL_PARENTS: synthetic Err.
                             ctx.status.transition(kid, KnotState.FAILED, "missing parent")
-                        self._record_lineage(ctx, knot, results, decision, started=ctx.started_at)
+                        LineageRecorder.record_lineage(
+                            ctx, knot, results, decision, started=ctx.started_at
+                        )
                         self._enqueue(ready, tracker, shed, tracker.resolve(kid))
                         continue
 
@@ -366,7 +366,7 @@ class Engine:
                     else:
                         ctx.status.transition(kid, KnotState.FAILED)
 
-                    self._record_lineage(
+                    LineageRecorder.record_lineage(
                         ctx,
                         knot,
                         results,
@@ -452,11 +452,15 @@ class Engine:
                 try:
                     await emitter.on_lineage(record)
                 except Exception as exc:
-                    self._handle_emitter_error(emitter, "on_lineage", exc, emitter_error_policy)
+                    EmitterFanout.handle_emitter_error(
+                        emitter, "on_lineage", exc, emitter_error_policy
+                    )
             try:
                 await emitter.on_run_result(run_result)
             except Exception as exc:
-                self._handle_emitter_error(emitter, "on_run_result", exc, emitter_error_policy)
+                EmitterFanout.handle_emitter_error(
+                    emitter, "on_run_result", exc, emitter_error_policy
+                )
 
         return run_result
 
@@ -670,54 +674,6 @@ class Engine:
                 out[name] = value
         return out
 
-    @staticmethod
-    def _handle_emitter_error(
-        emitter: Any,
-        event_type: str,
-        exc: Exception,
-        policy: EmitterErrorPolicy,
-    ) -> None:
-        if policy is EmitterErrorPolicy.IGNORE:
-            return
-        if policy is EmitterErrorPolicy.WARN:
-            _log.warning("emitter %r failed on %s: %s", emitter, event_type, exc)
-            return
-        # RAISE
-        raise exc
-
-    def _subscribe_emitters_to_status(
-        self,
-        ctx: RunContext,
-        emitters: list[Any],
-        emitter_error_policy: EmitterErrorPolicy,
-    ) -> None:
-        """Subscribe each emitter's ``on_status`` to ``StatusManager``.
-
-        StatusManager calls subscribers synchronously; emitters are
-        async.  We schedule each call as a fire-and-forget task on the
-        running loop. A failing ``on_status`` is routed through
-        ``_handle_emitter_error`` — the same policy dispatch used for
-        ``on_lineage``/``on_run_result`` — so IGNORE/WARN/RAISE apply here
-        too, instead of being swallowed unconditionally regardless of the
-        configured policy.
-        """
-        loop = asyncio.get_running_loop()
-        # Strong-reference the in-flight tasks; without this, Python's
-        # GC may reclaim them before they complete. ctx.emitter_tasks
-        # lives as long as the run.
-        emitter_tasks = ctx.emitter_tasks
-
-        for emitter in emitters:
-            ctx.status.subscribe(
-                _EmitterSubscriber(
-                    emitter,
-                    loop,
-                    emitter_tasks,
-                    emitter_error_policy,
-                    self._handle_emitter_error,
-                )
-            )
-
     def _bind_parameters(self, shed: Shed, ctx: RunContext) -> None:
         """Bind every parameter's value for *this* run.
 
@@ -908,15 +864,11 @@ class Engine:
         started_at = datetime.now(UTC)
         result = await replay.resolve(
             knot=knot,
-            knot_config_hash=self._config_hash(knot),
+            knot_config_hash=LineageRecorder.config_hash(knot),
             parent_input_hashes=parent_hashes,
             data_store=data_store,
         )
         return result, parent_hashes, started_at, True
-
-    def _config_hash(self, knot: Knot) -> str:
-        """Hash the knot's canonical config — the value lineage records."""
-        return content_hash(knot.config.model_dump(mode="json"))
 
     async def _dispatch_with_timing(
         self,
@@ -954,111 +906,3 @@ class Engine:
             real = ctx.exceptions.record(knot_id, rebindable)
             return Err(record=real)
         return result
-
-    def _record_lineage(
-        self,
-        ctx: RunContext,
-        knot: Knot,
-        results: dict[str, Result[Any]],
-        result: Result[Any],
-        parent_hashes: dict[str, str] | None = None,
-        started: datetime | None = None,
-        finished: datetime | None = None,
-        replayed_from: str | None = None,
-    ) -> None:
-        """Build and stash a KnotLineage for this knot's execution.
-
-        For knots that didn't actually dispatch (Skipped / synthetic Err),
-        ``parent_hashes`` is computed here from the available parent
-        results.
-
-        ``finished`` is when the knot's outcome came into existence; it
-        defaults to now, which is exact for a knot resolved without dispatch.
-
-        ``replayed_from`` is the run id this outcome was served from when the
-        knot was replayed rather than executed; it lands in ``extra`` so a
-        replayed run is distinguishable from a live one after the fact.
-        """
-        if parent_hashes is None:
-            parent_hashes = {}
-            # Recompute from the actual result map for knots that did
-            # not dispatch (Skipped / synthetic Err).
-            for parent_name, parent_knot in knot.parents.items():
-                pr = results.get(parent_knot.knot_id)
-                if pr is not None:
-                    parent_hashes[parent_name] = content_hash(
-                        pr.value if isinstance(pr, Ok) else pr
-                    )
-
-        if isinstance(result, Ok):
-            outcome = "ok"
-            output_hash = content_hash(result.value)
-            error_record_id = None
-            skip_reason = None
-        elif isinstance(result, Err):
-            outcome = "err"
-            output_hash = None
-            error_record_id = result.record.id
-            skip_reason = None
-        else:  # Skipped
-            outcome = "skipped"
-            output_hash = None
-            error_record_id = None
-            skip_reason = result.reason
-
-        # If validate_io is on, we hash the canonical config (the user-
-        # facing fields).  Otherwise we hash a sentinel.
-        cfg_hash = self._config_hash(knot)
-
-        parent_knot_ids = {name: pk.knot_id for name, pk in knot.parents.items()}
-
-        pirn_version = ctx.runtime_info.get("pirn_version", "unknown")
-        source_record = extract_knot_source(knot, pirn_version)
-        if source_record is not None:
-            ctx.add_knot_source(source_record)
-
-        extra: dict[str, Any] = {"parent_knot_ids": parent_knot_ids} if parent_knot_ids else {}
-
-        # Merge structured execution context contributed by the knot itself.
-        extra.update(knot.lineage_extra())
-
-        # L-4: Optional knot — Ok(Skipped) means the knot ran but produced Skipped.
-        from pirn.core.skipped import Skipped as _Skipped
-
-        if isinstance(result, Ok) and isinstance(result.value, _Skipped):
-            skip_info: dict[str, Any] = {"reason": result.value.reason}
-            if result.value.detail:
-                skip_info.update(result.value.detail)
-            extra["optional_skip"] = skip_info
-
-        # L-7: Record the applied error policy.
-        extra["error_policy"] = str(knot.config.error_policy)
-
-        # Literal constructor arguments reach process() as inputs but are
-        # covered by neither ``knot_config_hash`` nor ``parent_input_hashes``.
-        # Record their hash so a reader can tell ``Scale(x=p, factor=3)`` from
-        # ``Scale(x=p, factor=5)``, which are otherwise byte-identical in
-        # lineage (PIR-836).  ``None`` when the knot has no literal inputs.
-        config_values_hash = InvocationIdentity.config_values_hash(knot)
-
-        if replayed_from is not None:
-            extra["replayed_from_run_id"] = replayed_from
-
-        record = KnotLineage(
-            run_id=ctx.run_id,
-            knot_id=knot.knot_id,
-            knot_class=f"{type(knot).__module__}.{type(knot).__qualname__}",
-            knot_config_hash=cfg_hash,
-            config_values_hash=config_values_hash,
-            parent_input_hashes=parent_hashes,
-            output_hash=output_hash,
-            outcome=outcome,
-            error_record_id=error_record_id,
-            skip_reason=skip_reason,
-            dispatcher=ctx.dispatcher_name,
-            started_at=started or ctx.started_at,
-            finished_at=finished or datetime.now(UTC),
-            extra=extra,
-            source_hash=source_record.source_hash if source_record is not None else None,
-        )
-        ctx.add_lineage(record)

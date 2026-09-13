@@ -8,7 +8,7 @@ from typing import Any
 
 from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
 from pirn.engine._emitter_subscriber import _EmitterSubscriber
-from pirn.engine.engine import Engine
+from pirn.engine.emitter_fanout import EmitterFanout
 
 
 class _FailingEmitter:
@@ -57,11 +57,11 @@ class TestEmitterSubscriberErrorRouting(unittest.IsolatedAsyncioTestCase):
             asyncio.get_running_loop(),
             [],
             EmitterErrorPolicy.WARN,
-            Engine._handle_emitter_error,
+            EmitterFanout.handle_emitter_error,
         )
 
         # Act / Assert: WARN logs rather than raising back into the task.
-        with self.assertLogs("pirn.engine.engine", level="WARNING") as ctx:
+        with self.assertLogs("pirn.engine.emitter_fanout", level="WARNING") as ctx:
             tasks = await _run_and_collect(subscriber, event="e")
         self.assertTrue(any("on_status" in msg for msg in ctx.output))
         self.assertIsNone(tasks[0].exception())
@@ -81,7 +81,7 @@ class TestEmitterSubscriberErrorRouting(unittest.IsolatedAsyncioTestCase):
             asyncio.get_running_loop(),
             [],
             EmitterErrorPolicy.RAISE,
-            Engine._handle_emitter_error,
+            EmitterFanout.handle_emitter_error,
         )
 
         # Act

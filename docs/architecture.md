@@ -477,7 +477,7 @@ class Emitter(Protocol):
 
 **Subscription to StatusManager:**
 
-The engine wires emitters to `RunContext.status` (a `StatusManager`) at the start of each run via `_subscribe_emitters_to_status`. Because `StatusManager` fires subscribers synchronously but emitters are async, each subscriber wraps the emitter call in a fire-and-forget `asyncio.create_task`. Exceptions in emitters are swallowed so a broken emitter cannot abort a run.
+The engine wires emitters to `RunContext.status` (a `StatusManager`) at the start of each run via `EmitterFanout.subscribe_emitters_to_status`. Because `StatusManager` fires subscribers synchronously but emitters are async, each subscriber wraps the emitter call in a fire-and-forget `asyncio.create_task`. Exceptions in emitters are swallowed so a broken emitter cannot abort a run.
 
 **Lifecycle hooks:**
 
@@ -553,7 +553,7 @@ If no explicit terminals are passed, `Tapestry.terminals()` performs an O(n) sca
 
 1. `Shed.from_terminals(terminals)` — BFS walk + cycle check + index build.
 2. `RunContext(run_id, terminals_requested, dispatcher_name, parameters)` — run-scoped state container holding the `StatusManager`, `ExceptionManager`, and lineage accumulator.
-3. If `emitters` non-empty, subscribe each emitter's `on_status` to `ctx.status` via `_subscribe_emitters_to_status`.
+3. If `emitters` non-empty, subscribe each emitter's `on_status` to `ctx.status` via `EmitterFanout.subscribe_emitters_to_status`.
 4. If `extensible_store`, subscribe `_on_new_knot` callback to the store.
 5. Call `_execute_loop`.
 6. In the `finally` block, unsubscribe from the store.
@@ -572,7 +572,7 @@ Inside `_execute_loop` (`pirn/engine/engine.py:105`):
    e. Call `_rebind_err` to register the `ExceptionRecord` with the live `ExceptionManager`.
    f. If `Ok`: `content_hash(result.value)` + `await data_store.put(hash, value)`.
    g. Update `ctx.status` state machine.
-   h. Call `_record_lineage` — builds a `KnotLineage` record and adds it to `ctx`.
+   h. Call `LineageRecorder.record_lineage` — builds a `KnotLineage` record and adds it to `ctx`.
    i. `tracker.resolve(knot)` — push the children that became ready onto the queue.
    j. Drain `pending_new` again (knots registered while that knot ran).
 4. Sort `ctx.lineage`, the exception report, `skipped` and outputs by `(level, dispatched, topological index)`.
@@ -600,7 +600,7 @@ The dispatcher calls `knot(inputs)` (which calls `knot.__call__`, which calls `k
 
 **Step 7: Lineage capture per knot**
 
-`_record_lineage` (`pirn/engine/engine.py:472`) builds a `KnotLineage`:
+`LineageRecorder.record_lineage` (`pirn/engine/lineage_recorder.py`) builds a `KnotLineage`:
 
 - `run_id`, `knot_id`, `knot_class` (fully-qualified class name).
 - `knot_config_hash` = `content_hash(knot.config.model_dump(mode="json"))`.
@@ -1271,7 +1271,7 @@ sequenceDiagram
             else Skipped or synthetic Err
                 E->>E: record directly, no dispatch
             end
-            E->>E: _record_lineage → KnotLineage → ctx.add_lineage()
+            E->>E: LineageRecorder.record_lineage → KnotLineage → ctx.add_lineage()
         end
 
         E->>E: tracker.resolve(knot) → ready children
@@ -1329,7 +1329,9 @@ flowchart TD
 | `pirn/core/parameter.py` | `Parameter` knot (external input binding) |
 | `pirn/core/result.py` | `Ok`, `Err`, `Skipped` |
 | `pirn/tapestry.py` | `Tapestry`, `_CURRENT_TAPESTRY` ContextVar, `current_tapestry()` |
-| `pirn/engine/engine.py` | `Engine`, admission loop, `_decide`, `_dispatch_with_timing`, `_record_lineage` |
+| `pirn/engine/engine.py` | `Engine`, admission loop, `_decide`, `_dispatch_with_timing` |
+| `pirn/engine/lineage_recorder.py` | `LineageRecorder` (`record_lineage`, `config_hash`) |
+| `pirn/engine/emitter_fanout.py` | `EmitterFanout` (`subscribe_emitters_to_status`, `handle_emitter_error`) |
 | `pirn/engine/scheduling/` | `DependencyTracker` (readiness, levels, reporting order), `ReadyQueue` |
 | `pirn/engine/admission/` | `AdmissionGate`, `UnboundedAdmissionGate`, `AdmissionTicket` |
 | `pirn/engine/shed/shed.py` | `Shed`, `CycleDetector`, BFS construction, topological sort |
