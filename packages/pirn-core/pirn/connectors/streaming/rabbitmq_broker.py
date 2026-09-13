@@ -101,6 +101,7 @@ class RabbitMQBroker(MessageBroker):
         channel = await self._ensure_channel()
         queue = await channel.declare_queue(topic, durable=True)
 
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[Any]:
             async with queue.iterator() as queue_iter:
                 async for message in queue_iter:

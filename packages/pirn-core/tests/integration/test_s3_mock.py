@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 
 import pytest
 
-from pirn.backends.s3 import S3DataStore
+from pirn.backends.s3_data_store import S3DataStore
 
 # ---------------------------------------------------- fake S3 client
 

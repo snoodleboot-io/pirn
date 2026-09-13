@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.streaming.iterable import IterableSource
+from pirn.streaming.iterable_source import IterableSource
 
 
 class TestIterableSourceConstruction(unittest.TestCase):

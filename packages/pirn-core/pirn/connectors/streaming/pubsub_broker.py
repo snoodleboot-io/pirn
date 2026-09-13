@@ -89,12 +89,15 @@ class PubSubBroker(MessageBroker):
             for header_name, header_value in headers.items():
                 attributes[header_name] = header_value.decode("utf-8")
 
-        def _publish_sync() -> str:
-            future = publisher.publish(topic_path, bytes(value), **attributes)
-            return future.result()
-
-        await asyncio.to_thread(_publish_sync)
+        await asyncio.to_thread(self._sync_publish, publisher, topic_path, bytes(value), attributes)
         self._logger.debug("pubsub.publish", extra={"topic": topic, "size": len(value)})
+
+    @staticmethod
+    def _sync_publish(
+        publisher: Any, topic_path: str, value: bytes, attributes: dict[str, str]
+    ) -> str:
+        future = publisher.publish(topic_path, value, **attributes)
+        return future.result()
 
     async def consume(
         self,
@@ -112,6 +115,7 @@ class PubSubBroker(MessageBroker):
         subscriber = await self._ensure_subscriber()
         subscription_path = self._subscription_path(subscriber, topic)
 
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[Any]:
             while True:
                 response = await asyncio.to_thread(

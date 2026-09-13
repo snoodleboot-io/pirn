@@ -92,7 +92,7 @@ For multi-process deployments, switch to `PostgresHistory`.
 
 ```python
 import aiobotocore.session
-from pirn.backends.s3 import S3DataStore
+from pirn.backends.s3_data_store import S3DataStore
 
 store = S3DataStore(
     bucket="my-bucket",

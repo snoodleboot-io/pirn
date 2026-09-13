@@ -78,6 +78,7 @@ class KafkaBroker(MessageBroker):
         else:
             consumer = await self._build_consumer(topic, effective_group)
 
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[Any]:
             await consumer.start()
             try:

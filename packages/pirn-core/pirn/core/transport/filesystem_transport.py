@@ -119,7 +119,7 @@ class FilesystemTransport(DataTransport):
         A bare ``write_bytes`` creates the file and then fills it, leaving a
         window in which a concurrent reader observes a truncated object
         (PIR-805). Same shape as
-        :class:`~pirn.backends.disk.DiskBackend`'s writer (PIR-804): a temp
+        :class:`~pirn.backends.local_disk_data_store.DiskBackend`'s writer (PIR-804): a temp
         file in the *destination directory*, then ``os.replace`` — atomic on
         POSIX and on Windows for same-volume moves, and sharing the directory
         keeps the rename off a filesystem boundary.

@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import AsyncIterator
 from typing import Any
 
-from pirn.streaming.base import StreamingSource
+from pirn.streaming.streaming_source import StreamingSource
+
+_logger = logging.getLogger(__name__)
 
 
 class KafkaStreamingSource(StreamingSource):
@@ -81,7 +84,9 @@ class KafkaStreamingSource(StreamingSource):
             try:
                 await self._consumer.stop()
             except Exception:
-                pass
+                _logger.warning(
+                    "KafkaStreamingSource: consumer.stop() raised during close", exc_info=True
+                )
 
     @staticmethod
     def __default_decoder(msg: Any) -> Any:

@@ -95,7 +95,7 @@ Reads a **single file** by composing an `ObjectStore` (where the bytes live) wit
 ```python
 from pirn_data.sources.file_source import FileSource
 from pirn.connectors.file_formats.parquet_format import ParquetFormat
-from pirn.backends.s3 import S3DataStore
+from pirn.backends.s3_data_store import S3DataStore
 
 source = FileSource(
     store=S3DataStore(bucket="my-bucket"),

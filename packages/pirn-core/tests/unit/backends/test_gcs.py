@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import AsyncMock, MagicMock
 
 from pirn.backends._signer import _Signer
-from pirn.backends.gcs import GCSDataStore
+from pirn.backends.gcs_data_store import GCSDataStore
 
 
 def _make_gcs_storage_mock(stored: dict[str, bytes]) -> MagicMock:

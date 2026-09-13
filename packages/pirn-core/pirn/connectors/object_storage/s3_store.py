@@ -48,6 +48,7 @@ class S3Store(ObjectStore):
         chunk_size = self._config.chunk_size
         bucket = self._config.bucket
 
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[bytes]:
             response = await client.get_object(Bucket=bucket, Key=key)
             body = response["Body"]
@@ -95,6 +96,7 @@ class S3Store(ObjectStore):
         client = await self._ensure_client()
         bucket = self._config.bucket
 
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[str]:
             continuation: str | None = None
             while True:

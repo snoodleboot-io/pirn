@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.managers.rebindable_exception import RebindableError
+from pirn.managers.rebindable_error import RebindableError
 
 
 class TestRebindableError(unittest.TestCase):

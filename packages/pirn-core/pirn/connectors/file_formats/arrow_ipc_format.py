@@ -59,6 +59,7 @@ class ArrowIpcFormat(StreamingFileFormat):
         buffer = pa.BufferReader(payload)
         reader = ipc.open_stream(buffer)
 
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[Mapping[str, Any]]:
             for batch in reader:
                 for record in batch.to_pylist():
@@ -95,6 +96,7 @@ class ArrowIpcFormat(StreamingFileFormat):
             writer.close()
         payload = sink.getvalue().to_pybytes()
 
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[bytes]:
             yield payload
 

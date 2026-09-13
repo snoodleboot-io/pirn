@@ -18,7 +18,7 @@ class TestS3HasKeyExceptionPropagation(unittest.IsolatedAsyncioTestCase):
         os.environ.pop("PIRN_ENV", None)
 
     async def test_not_found_returns_false(self) -> None:
-        from pirn.backends.s3 import S3DataStore
+        from pirn.backends.s3_data_store import S3DataStore
 
         class _NoSuchKeyError(Exception):
             pass
@@ -40,7 +40,7 @@ class TestS3HasKeyExceptionPropagation(unittest.IsolatedAsyncioTestCase):
         assert result is False
 
     async def test_access_denied_propagates(self) -> None:
-        from pirn.backends.s3 import S3DataStore
+        from pirn.backends.s3_data_store import S3DataStore
 
         class _AccessDeniedError(Exception):
             pass
@@ -70,7 +70,7 @@ class TestGCSHasKeyExceptionPropagation(unittest.IsolatedAsyncioTestCase):
         os.environ.pop("PIRN_ENV", None)
 
     async def test_404_returns_false(self) -> None:
-        from pirn.backends.gcs import GCSDataStore
+        from pirn.backends.gcs_data_store import GCSDataStore
 
         mock_storage = AsyncMock()
         mock_storage.__aenter__ = AsyncMock(return_value=mock_storage)
@@ -84,7 +84,7 @@ class TestGCSHasKeyExceptionPropagation(unittest.IsolatedAsyncioTestCase):
         assert result is False
 
     async def test_auth_error_propagates(self) -> None:
-        from pirn.backends.gcs import GCSDataStore
+        from pirn.backends.gcs_data_store import GCSDataStore
 
         class _AuthError(Exception):
             pass

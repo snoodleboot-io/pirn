@@ -18,7 +18,7 @@ class TestLocalDiskDataStorePathTraversal(unittest.IsolatedAsyncioTestCase):
         os.environ.pop("PIRN_ENV", None)
 
     def test_normal_sha256_hash_accepted(self) -> None:
-        from pirn.backends.disk import LocalDiskDataStore
+        from pirn.backends.local_disk_data_store import LocalDiskDataStore
 
         with tempfile.TemporaryDirectory() as tmp:
             store = LocalDiskDataStore(tmp, signer=self._signer)
@@ -26,7 +26,7 @@ class TestLocalDiskDataStorePathTraversal(unittest.IsolatedAsyncioTestCase):
             assert tmp in key
 
     def test_path_traversal_via_content_hash_rejected(self) -> None:
-        from pirn.backends.disk import LocalDiskDataStore
+        from pirn.backends.local_disk_data_store import LocalDiskDataStore
 
         with tempfile.TemporaryDirectory() as tmp:
             store = LocalDiskDataStore(tmp, signer=self._signer)
@@ -35,7 +35,7 @@ class TestLocalDiskDataStorePathTraversal(unittest.IsolatedAsyncioTestCase):
             assert "outside the store root" in str(ctx.exception)
 
     def test_absolute_path_in_hash_rejected(self) -> None:
-        from pirn.backends.disk import LocalDiskDataStore
+        from pirn.backends.local_disk_data_store import LocalDiskDataStore
 
         with tempfile.TemporaryDirectory() as tmp:
             store = LocalDiskDataStore(tmp, signer=self._signer)
@@ -43,7 +43,7 @@ class TestLocalDiskDataStorePathTraversal(unittest.IsolatedAsyncioTestCase):
                 store._object_key("/etc/shadow")
 
     def test_null_byte_in_hash_rejected(self) -> None:
-        from pirn.backends.disk import LocalDiskDataStore
+        from pirn.backends.local_disk_data_store import LocalDiskDataStore
 
         with tempfile.TemporaryDirectory() as tmp:
             store = LocalDiskDataStore(tmp, signer=self._signer)

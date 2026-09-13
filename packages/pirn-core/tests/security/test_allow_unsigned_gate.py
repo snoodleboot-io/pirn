@@ -10,7 +10,7 @@ import unittest
 class TestCloudObjectStoreUnsignedGate(unittest.TestCase):
     def test_unsigned_without_env_var_raises(self) -> None:
         os.environ.pop("PIRN_ALLOW_UNSIGNED", None)
-        from pirn.backends.disk import LocalDiskDataStore
+        from pirn.backends.local_disk_data_store import LocalDiskDataStore
 
         with tempfile.TemporaryDirectory() as tmp:
             with self.assertRaises(ValueError) as ctx:
@@ -24,11 +24,11 @@ class TestCloudObjectStoreUnsignedGate(unittest.TestCase):
         import pirn.backends.base._cloud_object_store as mod
 
         importlib.reload(mod)
-        import pirn.backends.disk as disk_mod
+        import pirn.backends.local_disk_data_store as disk_mod
 
         importlib.reload(disk_mod)
 
-        from pirn.backends.disk import LocalDiskDataStore
+        from pirn.backends.local_disk_data_store import LocalDiskDataStore
 
         try:
             with tempfile.TemporaryDirectory() as tmp:
@@ -43,7 +43,7 @@ class TestCloudObjectStoreUnsignedGate(unittest.TestCase):
     def test_signed_store_requires_no_env_var(self) -> None:
         os.environ.pop("PIRN_ALLOW_UNSIGNED", None)
         from pirn.backends._signer import _Signer
-        from pirn.backends.disk import LocalDiskDataStore
+        from pirn.backends.local_disk_data_store import LocalDiskDataStore
 
         os.environ["PIRN_ENV"] = "test"
         try:

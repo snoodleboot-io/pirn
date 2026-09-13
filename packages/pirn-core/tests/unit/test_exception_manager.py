@@ -81,7 +81,7 @@ class _StandaloneTests(unittest.TestCase):
         the manager: the carried ``original_exc_type`` and
         ``original_traceback_text`` surface on the new record rather than
         the wrapper's own type and frames."""
-        from pirn.managers.rebindable_exception import RebindableError
+        from pirn.managers.rebindable_error import RebindableError
 
         em = ExceptionManager(run_id="r1")
         exc = RebindableError(

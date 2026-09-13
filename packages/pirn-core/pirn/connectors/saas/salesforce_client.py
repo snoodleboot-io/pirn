@@ -163,19 +163,25 @@ class SalesforceClient(ApiClient, TableSource, RecordWriter):
             raise ValueError("SalesforceClient.request: path must be non-empty")
         client = await self._ensure_client()
         upper_method = method.upper()
+        return await asyncio.to_thread(self._sync_request, client, upper_method, path, params, body)
 
-        def _run() -> Any:
-            if upper_method == "GET" and self._is_soql_path(path):
-                soql = self._extract_soql(path, params)
-                return client.query(soql)
-            return client.restful(
-                path,
-                method=upper_method,
-                params=dict(params) if params is not None else None,
-                json=dict(body) if body is not None else None,
-            )
-
-        return await asyncio.to_thread(_run)
+    def _sync_request(
+        self,
+        client: Any,
+        upper_method: str,
+        path: str,
+        params: Mapping[str, Any] | None,
+        body: Mapping[str, Any] | None,
+    ) -> Any:
+        if upper_method == "GET" and self._is_soql_path(path):
+            soql = self._extract_soql(path, params)
+            return client.query(soql)
+        return client.restful(
+            path,
+            method=upper_method,
+            params=dict(params) if params is not None else None,
+            json=dict(body) if body is not None else None,
+        )
 
     async def close(self) -> None:
         if self._client is not None:

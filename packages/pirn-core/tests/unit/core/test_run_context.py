@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.core.lineage import KnotLineage
+from pirn.core.knot_lineage import KnotLineage
 from pirn.core.run_context import RunContext
 
 

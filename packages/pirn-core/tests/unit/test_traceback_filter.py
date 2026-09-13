@@ -126,7 +126,7 @@ class _EmitterPolicyTests(unittest.IsolatedAsyncioTestCase):
     async def test_emitter_policy_warn_logs_warning(self) -> None:
         """WARN: a warning naming the emitter is logged, and the run still succeeds."""
         t = self._single_source_tapestry()
-        with self.assertLogs("pirn.engine.engine", level=logging.WARNING) as captured:
+        with self.assertLogs("pirn.engine.emitter_fanout", level=logging.WARNING) as captured:
             result = await t.run(
                 emitters=[_BrokenEmitter()],
                 emitter_error_policy=EmitterErrorPolicy.WARN,

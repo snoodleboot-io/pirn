@@ -5,7 +5,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from pirn.core.lineage import KnotLineage
+from pirn.core.knot_lineage import KnotLineage
 from pirn.managers.exception_record import ExceptionRecord
 from pirn.managers.status_event import StatusEvent
 

@@ -50,6 +50,7 @@ class FastqFormat(StreamingFileFormat):
     async def read(self, body: AsyncIterator[bytes]) -> AsyncIterator[Mapping[str, Any]]:
         encoding = self._encoding
 
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[Mapping[str, Any]]:
             buffered = bytearray()
             pending: list[str] = []
@@ -78,6 +79,7 @@ class FastqFormat(StreamingFileFormat):
     async def write(self, records: AsyncIterator[Mapping[str, Any]]) -> AsyncIterator[bytes]:
         encoding = self._encoding
 
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[bytes]:
             async for record in records:
                 seq_id = record.get("seq_id")

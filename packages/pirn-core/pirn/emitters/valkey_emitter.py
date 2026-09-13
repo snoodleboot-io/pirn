@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Any
 
-from pirn.emitters.base import Emitter
+from pirn.emitters.emitter import Emitter
 
 if TYPE_CHECKING:
-    from pirn.core.lineage import KnotLineage
+    from pirn.core.knot_lineage import KnotLineage
     from pirn.core.run_result import RunResult
     from pirn.managers.status_event import StatusEvent
+
+_logger = logging.getLogger(__name__)
 
 
 class ValKeyEmitter(Emitter):
@@ -99,4 +102,4 @@ class ValKeyEmitter(Emitter):
             try:
                 await self._client.close()
             except Exception:
-                pass
+                _logger.warning("ValKeyEmitter: client.close() raised during close", exc_info=True)

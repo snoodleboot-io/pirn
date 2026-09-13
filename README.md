@@ -262,10 +262,10 @@ metrics, message buses, or traces.
 ### Triggers
 
 ```python
-from pirn.triggers.base import run_forever
-from pirn.triggers.cron import CronTrigger
-from pirn.triggers.http import WebhookTrigger
-from pirn.triggers.kafka import KafkaTrigger
+from pirn.triggers.trigger import run_forever
+from pirn.triggers.cron_trigger import CronTrigger
+from pirn.triggers.webhook_trigger import WebhookTrigger
+from pirn.triggers.kafka_trigger import KafkaTrigger
 
 # Run every five minutes.
 trigger = CronTrigger(every_seconds=300)
@@ -288,9 +288,9 @@ uvicorn.run(trigger.app, host="0.0.0.0", port=8080)
 ### Emitters
 
 ```python
-from pirn.emitters.kafka import KafkaEmitter
-from pirn.emitters.log import LogEmitter
-from pirn.emitters.otel import OpenTelemetryEmitter
+from pirn.emitters.kafka_emitter import KafkaEmitter
+from pirn.emitters.log_emitter import LogEmitter
+from pirn.emitters.open_telemetry_emitter import OpenTelemetryEmitter
 
 # Stream structured logs.
 log_emitter = LogEmitter(with_payload=False)
@@ -319,9 +319,9 @@ Triggers fire whole runs (request/response). **Streaming sources**
 feed continuous data into a single long-running pipeline — ETL-style.
 
 ```python
-from pirn.streaming.base import run_stream
-from pirn.streaming.file_tail import FileTailSource
-from pirn.streaming.iterable import IterableSource
+from pirn.streaming.streaming_source import run_stream
+from pirn.streaming.file_tail_source import FileTailSource
+from pirn.streaming.iterable_source import IterableSource
 
 # Tail a log file forever.
 source = FileTailSource("/var/log/app.log", parameter_name="line")
@@ -386,8 +386,8 @@ persistent stores do not yet support mid-run extension.
 ## Visualization
 
 ```python
-from pirn.viz.html import html_for_run
-from pirn.viz.mermaid import mermaid_for_tapestry, mermaid_for_run
+from pirn.viz.tapestry_html_renderer import html_for_run
+from pirn.viz.mermaid_renderer import mermaid_for_tapestry, mermaid_for_run
 
 # Mermaid for embedding in docs.
 print(mermaid_for_tapestry(t))           # structure only
@@ -428,7 +428,7 @@ nodes:
 
 ```python
 from pirn.core.run_request import RunRequest
-from pirn.yaml_loader.loader import load_pipeline
+from pirn.yaml_loader.pipeline_loader import load_pipeline
 
 t = load_pipeline(
     yaml_text,

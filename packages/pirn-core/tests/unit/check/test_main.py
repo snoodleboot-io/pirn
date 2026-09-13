@@ -22,7 +22,7 @@ class TestMainReturnCodes(unittest.TestCase):
         tap._store.all.return_value = []
         ok_result = ValidationResult()
 
-        with patch("pirn.check.main._load_factory", return_value=lambda: tap):
+        with patch("pirn.check.main._Loader.load_factory", return_value=lambda: tap):
             with patch("pirn.check.main.validate_tapestry", return_value=ok_result):
                 code = main(["mymod:build"])
         self.assertEqual(code, 0)
@@ -31,7 +31,7 @@ class TestMainReturnCodes(unittest.TestCase):
         tap = MagicMock()
         error_result = ValidationResult(issues=[ValidationIssue("error", None, "cycle detected")])
 
-        with patch("pirn.check.main._load_factory", return_value=lambda: tap):
+        with patch("pirn.check.main._Loader.load_factory", return_value=lambda: tap):
             with patch("pirn.check.main.validate_tapestry", return_value=error_result):
                 code = main(["mymod:build"])
         self.assertEqual(code, 1)
@@ -42,7 +42,7 @@ class TestMainReturnCodes(unittest.TestCase):
             issues=[ValidationIssue("warning", None, "too many terminals")]
         )
 
-        with patch("pirn.check.main._load_factory", return_value=lambda: tap):
+        with patch("pirn.check.main._Loader.load_factory", return_value=lambda: tap):
             with patch("pirn.check.main.validate_tapestry", return_value=warn_result):
                 code = main(["mymod:build", "--strict"])
         self.assertEqual(code, 1)
@@ -53,7 +53,7 @@ class TestMainReturnCodes(unittest.TestCase):
             issues=[ValidationIssue("warning", None, "too many terminals")]
         )
 
-        with patch("pirn.check.main._load_factory", return_value=lambda: tap):
+        with patch("pirn.check.main._Loader.load_factory", return_value=lambda: tap):
             with patch("pirn.check.main.validate_tapestry", return_value=warn_result):
                 code = main(["mymod:build"])
         self.assertEqual(code, 0)
@@ -62,6 +62,6 @@ class TestMainReturnCodes(unittest.TestCase):
         def bad_factory():
             raise RuntimeError("bad")
 
-        with patch("pirn.check.main._load_factory", return_value=bad_factory):
+        with patch("pirn.check.main._Loader.load_factory", return_value=bad_factory):
             code = main(["mymod:build"])
         self.assertEqual(code, 2)

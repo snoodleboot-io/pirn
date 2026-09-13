@@ -156,20 +156,36 @@ class GitHubClient(ApiClient, TableSource):
         request_headers = dict(headers) if headers is not None else None
         request_body = dict(body) if body is not None else None
 
-        def _run() -> Any:
-            requester = client.requester
-            return requester.requestJsonAndCheck(
+        try:
+            return await asyncio.to_thread(
+                self._sync_request,
+                client,
                 method,
                 path,
                 request_params,
                 request_headers,
                 request_body,
             )
-
-        try:
-            return await asyncio.to_thread(_run)
         except Exception as exc:
             self._reraise_scrubbed(exc)
+
+    @staticmethod
+    def _sync_request(
+        client: Any,
+        method: str,
+        path: str,
+        request_params: dict[str, Any] | None,
+        request_headers: dict[str, str] | None,
+        request_body: dict[str, Any] | None,
+    ) -> Any:
+        requester = client.requester
+        return requester.requestJsonAndCheck(
+            method,
+            path,
+            request_params,
+            request_headers,
+            request_body,
+        )
 
     async def close(self) -> None:
         if self._client is not None:

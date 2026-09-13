@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime, timedelta
 
-from pirn.core.lineage import KnotLineage
+from pirn.core.knot_lineage import KnotLineage
 
 
 def _make(**overrides):

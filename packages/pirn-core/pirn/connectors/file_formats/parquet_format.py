@@ -83,6 +83,7 @@ class ParquetFormat(StreamingFileFormat):
         buffer = pa.BufferReader(payload)
         parquet_file = pq.ParquetFile(buffer)
 
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[Mapping[str, Any]]:
             for group_index in range(parquet_file.num_row_groups):
                 table = parquet_file.read_row_group(group_index)
@@ -113,6 +114,7 @@ class ParquetFormat(StreamingFileFormat):
         )
         payload = buffer.getvalue().to_pybytes()
 
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[bytes]:
             yield payload
 

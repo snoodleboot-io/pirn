@@ -117,17 +117,15 @@ class TwilioClient(ApiClient, RecordWriter):
         request_body = dict(body) if body is not None else None
         request_headers = dict(headers) if headers is not None else None
 
-        def _run() -> Any:
-            return client.request(
+        try:
+            return await asyncio.to_thread(
+                client.request,
                 method,
                 path,
                 params=request_params,
                 data=request_body,
                 headers=request_headers,
             )
-
-        try:
-            return await asyncio.to_thread(_run)
         except Exception as exc:
             self._reraise_scrubbed(exc)
 

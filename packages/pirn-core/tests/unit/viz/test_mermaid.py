@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import MagicMock
 
-from pirn.viz.mermaid import MermaidRenderer, mermaid_for_tapestry
+from pirn.viz.mermaid_renderer import MermaidRenderer, mermaid_for_tapestry
 
 
 def _make_tapestry(*knots):

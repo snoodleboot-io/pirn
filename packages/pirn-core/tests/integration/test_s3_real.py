@@ -60,7 +60,7 @@ def s3_store(request):
         aws_secret_access_key=env["secret_key"],
     )
 
-    from pirn.backends.s3 import S3DataStore
+    from pirn.backends.s3_data_store import S3DataStore
 
     return S3DataStore(
         bucket=env["bucket"],

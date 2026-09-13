@@ -1,17 +1,20 @@
 from __future__ import annotations
 
 import importlib.metadata
+import logging
 import socket
 import sys
 from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
-from pirn.core.knot_source import KnotSourceRecord
-from pirn.core.lineage import KnotLineage
+from pirn.core.knot_lineage import KnotLineage
+from pirn.core.knot_source_record import KnotSourceRecord
 from pirn.core.run_result import RunResult
 from pirn.managers.exception_manager import ExceptionManager
 from pirn.managers.status_manager import StatusManager
+
+_logger = logging.getLogger(__name__)
 
 
 class RunContext:
@@ -39,7 +42,7 @@ class RunContext:
         self.lineage: list[KnotLineage] = []
         self.skipped: list[str] = []
         # Strong references to in-flight, fire-and-forget emitter tasks
-        # (Engine._subscribe_emitters_to_status); without this, Python's GC
+        # (EmitterFanout.subscribe_emitters_to_status); without this, Python's GC
         # may reclaim them before they complete. Lives as long as the run.
         self.emitter_tasks: list[Any] = []
         # Deduplicated source snapshots keyed by source_hash — populated
@@ -88,6 +91,11 @@ class RunContext:
             )
             return result.stdout.strip() if result.returncode == 0 else ""
         except Exception:
+            _logger.warning(
+                "RunContext: resolving the VCS commit via `git rev-parse` raised; "
+                "runtime_info.vcs_commit will be empty",
+                exc_info=True,
+            )
             return ""
 
     def add_lineage(self, record: KnotLineage) -> None:

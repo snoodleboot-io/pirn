@@ -209,7 +209,7 @@ async def test_valkey_data_store_no_ttl_when_unspecified():
 
 async def test_valkey_data_store_round_trips_complex_objects():
     """Pickle handles arbitrary Python objects; test a few shapes."""
-    from pirn.core.lineage import KnotLineage
+    from pirn.core.knot_lineage import KnotLineage
 
     client = _FakeGlideClient()
     ds = ValKeyDataStore(client=client, allow_unsigned=True)

@@ -195,17 +195,15 @@ class DatadogClient(ApiClient, TableSource, EventEmitter, MetricQuery):
         request_body = dict(body) if body is not None else None
         request_headers = dict(headers) if headers is not None else None
 
-        def _run() -> Any:
-            return client.call_api(
+        try:
+            return await asyncio.to_thread(
+                client.call_api,
                 method_upper,
                 path,
                 query_params=request_params,
                 body=request_body,
                 header_params=request_headers,
             )
-
-        try:
-            return await asyncio.to_thread(_run)
         except Exception as exc:
             safe_message = self._scrubber.scrub(str(exc))
             raise type(exc)(safe_message) from None
@@ -244,19 +242,22 @@ class DatadogClient(ApiClient, TableSource, EventEmitter, MetricQuery):
 
         assert self._config is not None  # guarded by RuntimeError above
 
-        def _build() -> Any:
-            configuration = Configuration()
-            if self._config.api_key is not None:  # type: ignore[union-attr]
-                configuration.api_key["apiKeyAuth"] = self._config.api_key  # type: ignore[union-attr]
-            if self._config.app_key is not None:  # type: ignore[union-attr]
-                configuration.api_key["appKeyAuth"] = self._config.app_key  # type: ignore[union-attr]
-            configuration.server_variables["site"] = self._config.site  # type: ignore[union-attr]
-            return DatadogApiClient(configuration)
-
         try:
-            client = await asyncio.to_thread(_build)
+            client = await asyncio.to_thread(
+                self._sync_build_client, Configuration, DatadogApiClient, self._config
+            )
         except Exception as exc:
             safe_message = self._scrubber.scrub(str(exc))
             raise type(exc)(safe_message) from None
         self._logger.debug("datadog.connect")
         return client
+
+    @staticmethod
+    def _sync_build_client(configuration_cls: Any, api_client_cls: Any, config: Any) -> Any:
+        configuration = configuration_cls()
+        if config.api_key is not None:
+            configuration.api_key["apiKeyAuth"] = config.api_key
+        if config.app_key is not None:
+            configuration.api_key["appKeyAuth"] = config.app_key
+        configuration.server_variables["site"] = config.site
+        return api_client_cls(configuration)

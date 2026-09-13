@@ -104,6 +104,7 @@ class PlainTextFormat(StreamingFileFormat):
         body: AsyncIterator[bytes],
         encoding: str,
     ) -> AsyncIterator[Mapping[str, Any]]:
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[Mapping[str, Any]]:
             buffered = bytearray()
             line_number = 0
@@ -138,6 +139,7 @@ class PlainTextFormat(StreamingFileFormat):
         body: AsyncIterator[bytes],
         encoding: str,
     ) -> AsyncIterator[Mapping[str, Any]]:
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[Mapping[str, Any]]:
             chunks: list[bytes] = []
             async for chunk in body:
@@ -159,6 +161,7 @@ class PlainTextFormat(StreamingFileFormat):
         body: AsyncIterator[bytes],
         encoding: str,
     ) -> AsyncIterator[Mapping[str, Any]]:
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[Mapping[str, Any]]:
             chunks: list[bytes] = []
             async for chunk in body:
@@ -176,6 +179,7 @@ class PlainTextFormat(StreamingFileFormat):
         records: AsyncIterator[Mapping[str, Any]],
         encoding: str,
     ) -> AsyncIterator[bytes]:
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[bytes]:
             first = True
             async for record in records:
@@ -194,6 +198,7 @@ class PlainTextFormat(StreamingFileFormat):
         records: AsyncIterator[Mapping[str, Any]],
         encoding: str,
     ) -> AsyncIterator[bytes]:
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[bytes]:
             first = True
             async for record in records:
@@ -212,6 +217,7 @@ class PlainTextFormat(StreamingFileFormat):
         records: AsyncIterator[Mapping[str, Any]],
         encoding: str,
     ) -> AsyncIterator[bytes]:
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[bytes]:
             async for record in records:
                 text = cls._extract_text(record)

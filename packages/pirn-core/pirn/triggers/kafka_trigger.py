@@ -17,11 +17,14 @@ Construction:
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import AsyncIterator
 from typing import Any
 
 from pirn.core.run_request import RunRequest
-from pirn.triggers.base import Trigger
+from pirn.triggers.trigger import Trigger
+
+_logger = logging.getLogger(__name__)
 
 
 class KafkaTrigger(Trigger):
@@ -120,7 +123,7 @@ class KafkaTrigger(Trigger):
             try:
                 await self._consumer.stop()
             except Exception:
-                pass
+                _logger.warning("KafkaTrigger: consumer.stop() raised during close", exc_info=True)
 
     @staticmethod
     def __default_request_builder(msg: Any) -> RunRequest:

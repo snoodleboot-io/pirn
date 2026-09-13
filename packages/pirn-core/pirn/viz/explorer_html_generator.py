@@ -6,7 +6,7 @@ pirn.db files found in the same tree.  Requires internet (D3 from CDN).
 
 Usage::
 
-    from pirn.viz.explorer import generate_explorer_html
+    from pirn.viz.explorer_html_generator import generate_explorer_html
     from pathlib import Path
     Path("explorer.html").write_text(generate_explorer_html("/path/to/project"))
 
@@ -29,7 +29,7 @@ class ExplorerHtmlGenerator:
     @classmethod
     def generate(cls, folder: str | Path) -> str:
         folder = Path(folder).resolve()
-        from pirn.viz._scanner import scan_folder
+        from pirn.viz.tapestry_graph_scanner import scan_folder
 
         tapestries, runs = scan_folder(folder)
         data = json.dumps(

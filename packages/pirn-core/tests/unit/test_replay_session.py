@@ -16,7 +16,7 @@ from pirn.core.err import Err
 from pirn.core.hashing import content_hash
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.lineage import KnotLineage
+from pirn.core.knot_lineage import KnotLineage
 from pirn.core.ok import Ok
 from pirn.core.run_result import RunResult
 from pirn.core.skipped import Skipped

@@ -6,7 +6,7 @@ Triggers start a new pipeline run for each external event. Drive them with `run_
 
 ## Trigger protocol
 
-::: pirn.triggers.base.Trigger
+::: pirn.triggers.trigger.Trigger
     options:
       show_source: false
       members_order: source
@@ -16,7 +16,7 @@ Triggers start a new pipeline run for each external event. Drive them with `run_
 
 ## `run_forever()`
 
-::: pirn.triggers.base.run_forever
+::: pirn.triggers.trigger.run_forever
     options:
       show_source: false
       heading_level: 3
@@ -24,8 +24,8 @@ Triggers start a new pipeline run for each external event. Drive them with `run_
 ### Example
 
 ```python
-from pirn.triggers.base import run_forever
-from pirn.triggers.cron import CronTrigger
+from pirn.triggers.trigger import run_forever
+from pirn.triggers.cron_trigger import CronTrigger
 
 trigger = CronTrigger(every_seconds=300)
 await run_forever(trigger, tapestry, on_result=handle_result)
@@ -39,7 +39,7 @@ await run_forever(trigger, tapestry, on_result=handle_result)
 
 Fires on a schedule.
 
-::: pirn.triggers.cron.CronTrigger
+::: pirn.triggers.cron_trigger.CronTrigger
     options:
       show_source: false
       members_order: source
@@ -48,8 +48,8 @@ Fires on a schedule.
 ### Example
 
 ```python
-from pirn.triggers.base import run_forever
-from pirn.triggers.cron import CronTrigger
+from pirn.triggers.trigger import run_forever
+from pirn.triggers.cron_trigger import CronTrigger
 
 # Run every five minutes
 trigger = CronTrigger(every_seconds=300)
@@ -62,7 +62,7 @@ await run_forever(trigger, tapestry)
 
 Fires on each HTTP POST request. `trigger.app` is a Starlette ASGI app you mount on any ASGI server.
 
-::: pirn.triggers.http.WebhookTrigger
+::: pirn.triggers.webhook_trigger.WebhookTrigger
     options:
       show_source: false
       members_order: source
@@ -71,7 +71,7 @@ Fires on each HTTP POST request. `trigger.app` is a Starlette ASGI app you mount
 ### Example
 
 ```python
-from pirn.triggers.http import WebhookTrigger
+from pirn.triggers.webhook_trigger import WebhookTrigger
 import uvicorn
 
 trigger = WebhookTrigger(path="/run")
@@ -88,7 +88,7 @@ uvicorn.run(trigger.app, host="127.0.0.1", port=8080)
 
 Fires on each Kafka message. Requires `pirn[kafka]`.
 
-::: pirn.triggers.kafka.KafkaTrigger
+::: pirn.triggers.kafka_trigger.KafkaTrigger
     options:
       show_source: false
       members_order: source
@@ -97,8 +97,8 @@ Fires on each Kafka message. Requires `pirn[kafka]`.
 ### Example
 
 ```python
-from pirn.triggers.base import run_forever
-from pirn.triggers.kafka import KafkaTrigger
+from pirn.triggers.trigger import run_forever
+from pirn.triggers.kafka_trigger import KafkaTrigger
 
 trigger = KafkaTrigger(
     topic="orders",
@@ -114,7 +114,7 @@ await run_forever(trigger, tapestry)
 
 Fires on ValKey pub/sub messages. Requires `pirn[valkey]`.
 
-::: pirn.triggers.valkey.ValKeyTrigger
+::: pirn.triggers.valkey_trigger.ValKeyTrigger
     options:
       show_source: false
       members_order: source

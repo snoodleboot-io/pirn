@@ -158,7 +158,7 @@ nodes:
 ```python
 import asyncio
 from pirn.core.run_request import RunRequest
-from pirn.yaml_loader.loader import load_pipeline
+from pirn.yaml_loader.pipeline_loader import load_pipeline
 import pathlib
 
 async def main():

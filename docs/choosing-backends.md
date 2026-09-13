@@ -28,7 +28,7 @@ implementation for each one and combine freely.
 |-------|--------|---------|----------|
 | `InMemoryHistory` | `pirn.backends.in_memory` | No | Tests, ephemeral pipelines. |
 | `SQLiteHistory` | `pirn.backends.sqlite` | Yes | Single-host, < 50k runs/day. |
-| `DuckDBHistory` | `pirn.backends.duckdb` | Yes | OLAP queries over millions of lineage records. |
+| `DuckDBHistory` | `pirn.backends.duckdb_history` | Yes | OLAP queries over millions of lineage records. |
 | `PostgresHistory` | `pirn.backends.postgres` | Yes | Multi-host, transactional writes, replication. |
 
 ### DataStore
@@ -36,10 +36,10 @@ implementation for each one and combine freely.
 | Class | Import | Notes |
 |-------|--------|-------|
 | `InMemoryDataStore` | `pirn.backends.in_memory` | Default. No eviction. |
-| `LocalDiskDataStore` | `pirn.backends.disk` | Content-addressed files; survives restarts. |
-| `S3DataStore` | `pirn.backends.s3` | Large objects; needs `pirn[s3]`. |
-| `GCSDataStore` | `pirn.backends.gcs` | Large objects on GCS; needs `pirn[gcs]`. |
-| `AzureBlobDataStore` | `pirn.backends.azure` | Large objects on Azure Blob; needs `pirn[azure]`. |
+| `LocalDiskDataStore` | `pirn.backends.local_disk_data_store` | Content-addressed files; survives restarts. |
+| `S3DataStore` | `pirn.backends.s3_data_store` | Large objects; needs `pirn[s3]`. |
+| `GCSDataStore` | `pirn.backends.gcs_data_store` | Large objects on GCS; needs `pirn[gcs]`. |
+| `AzureBlobDataStore` | `pirn.backends.azure_blob_data_store` | Large objects on Azure Blob; needs `pirn[azure]`. |
 | `ValKeyDataStore` | `pirn.backends.valkey` | Fast; optional TTL; needs `pirn[valkey]`. |
 
 That table is the complete list. There is **no `SQLiteDataStore` and no
@@ -74,7 +74,7 @@ One machine, survives restarts, no external services.
 from pirn.tapestry import Tapestry
 from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 from pirn.backends.sqlite.sqlite_store import SQLiteStore
-from pirn.backends.disk import LocalDiskDataStore
+from pirn.backends.local_disk_data_store import LocalDiskDataStore
 
 t = Tapestry(
     store=SQLiteStore("pirn.db"),
@@ -97,8 +97,8 @@ You want `GROUP BY knot_id`, percentiles over lineage, or ad-hoc SQL.
 ```python
 from pirn.tapestry import Tapestry
 from pirn.backends.sqlite.sqlite_store import SQLiteStore
-from pirn.backends.duckdb import DuckDBHistory
-from pirn.backends.disk import LocalDiskDataStore
+from pirn.backends.duckdb_history import DuckDBHistory
+from pirn.backends.local_disk_data_store import LocalDiskDataStore
 
 t = Tapestry(
     store=SQLiteStore("pirn.db"),
@@ -122,7 +122,7 @@ durability.
 from pirn.tapestry import Tapestry
 from pirn.backends.postgres.postgres_history import PostgresHistory
 from pirn.backends.postgres.postgres_store import PostgresStore
-from pirn.backends.s3 import S3DataStore
+from pirn.backends.s3_data_store import S3DataStore
 
 store   = PostgresStore(dsn="postgresql://…")
 history = PostgresHistory(dsn="postgresql://…")

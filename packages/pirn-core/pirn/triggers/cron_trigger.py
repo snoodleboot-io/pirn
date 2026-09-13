@@ -30,7 +30,7 @@ from datetime import UTC, datetime, time, timedelta
 from typing import Any
 
 from pirn.core.run_request import RunRequest
-from pirn.triggers.base import Trigger
+from pirn.triggers.trigger import Trigger
 
 
 class CronTrigger(Trigger):
@@ -177,7 +177,7 @@ class CronTrigger(Trigger):
 
         Resolves :func:`asyncio.sleep` at call time rather than binding it
         in ``__init__`` so that module-level monkeypatching of
-        ``pirn.triggers.cron.asyncio.sleep`` continues to work.
+        ``pirn.triggers.cron_trigger.asyncio.sleep`` continues to work.
 
         Args:
             delay: Seconds to wait.

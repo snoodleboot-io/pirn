@@ -35,6 +35,7 @@ class BatchFileFormat(FileFormat):
         payload = await self._drain_bytes(body)
         decoded = await self._decode_full(payload)
 
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[Mapping[str, Any]]:
             for record in decoded:
                 yield record
@@ -45,6 +46,7 @@ class BatchFileFormat(FileFormat):
         materialised = await self._drain_records(records)
         payload = await self._encode_full(materialised)
 
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[bytes]:
             yield payload
 

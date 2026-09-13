@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.nodes.gate._gate_closed import _GateClosedError
+from pirn.nodes.gate._gate_closed_error import _GateClosedError
 
 
 class TestGateClosed(unittest.TestCase):

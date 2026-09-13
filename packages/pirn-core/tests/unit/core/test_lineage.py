@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 
 from pydantic import ValidationError
 
-from pirn.core.lineage import KnotLineage
+from pirn.core.knot_lineage import KnotLineage
 
 
 def _make_lineage(**overrides) -> KnotLineage:

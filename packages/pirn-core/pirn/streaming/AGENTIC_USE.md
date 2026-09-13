@@ -33,8 +33,8 @@ import asyncio
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.tapestry import Tapestry
-from pirn.streaming.kafka import KafkaStreamingSource
-from pirn.streaming.base import run_stream
+from pirn.streaming.kafka_streaming_source import KafkaStreamingSource
+from pirn.streaming.streaming_source import run_stream
 
 source = KafkaStreamingSource(
     topic="raw-events",
@@ -56,7 +56,7 @@ asyncio.run(main())
 ### File tail — process each new line
 
 ```python
-from pirn.streaming.file_tail import FileTailSource
+from pirn.streaming.file_tail_source import FileTailSource
 
 source = FileTailSource(path="/var/log/app.log", parameter_name="line")
 # Yields each new line appended to the file
@@ -65,7 +65,7 @@ source = FileTailSource(path="/var/log/app.log", parameter_name="line")
 ### Wrap an async iterable
 
 ```python
-from pirn.streaming.iterable import IterableSource
+from pirn.streaming.iterable_source import IterableSource
 
 async def generate():
     for i in range(100):

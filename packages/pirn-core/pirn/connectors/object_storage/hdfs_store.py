@@ -6,6 +6,8 @@ import logging
 from collections.abc import AsyncIterator
 from typing import Any
 
+from pirn.connectors.object_storage._pyarrow_hdfs_client import _PyArrowHDFSClient
+from pirn.connectors.object_storage._web_hdfs_client import _WebHDFSClient
 from pirn.connectors.object_storage.hdfs_config import HDFSConfig
 from pirn.connectors.object_store import ObjectStore
 
@@ -54,6 +56,7 @@ class HDFSStore(ObjectStore):
         path = self._full_path(key)
         chunk_size = self._config.chunk_size
 
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[bytes]:
             data = await client.get(path)
             offset = 0
@@ -93,6 +96,7 @@ class HDFSStore(ObjectStore):
         client = await self._ensure_client()
         base = self._full_path(prefix) if prefix else self._config.base_path
 
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[str]:
             entries = await client.list(base)
             for entry in sorted(entries):
@@ -154,97 +158,3 @@ class HDFSStore(ObjectStore):
             extra={"host": config.namenode_host},
         )
         return self._client
-
-
-class _WebHDFSClient:
-    """Thin synchronous WebHDFS adapter (runs in asyncio.to_thread in prod)."""
-
-    def __init__(self, *, base_url: str, user: str, session: Any) -> None:
-        self._base_url = base_url
-        self._user = user
-        self._session = session
-
-    async def get(self, path: str) -> bytes:
-        import asyncio
-
-        return await asyncio.to_thread(self._sync_get, path)
-
-    def _sync_get(self, path: str) -> bytes:
-        url = f"{self._base_url}{path}?op=OPEN&user.name={self._user}"
-        resp = self._session.get(url, allow_redirects=True)
-        resp.raise_for_status()
-        return resp.content
-
-    async def put(self, path: str, data: bytes) -> None:
-        import asyncio
-
-        await asyncio.to_thread(self._sync_put, path, data)
-
-    def _sync_put(self, path: str, data: bytes) -> None:
-        url = f"{self._base_url}{path}?op=CREATE&overwrite=true&user.name={self._user}"
-        resp = self._session.put(url, data=data, allow_redirects=True)
-        resp.raise_for_status()
-
-    async def delete(self, path: str) -> None:
-        import asyncio
-
-        await asyncio.to_thread(self._sync_delete, path)
-
-    def _sync_delete(self, path: str) -> None:
-        url = f"{self._base_url}{path}?op=DELETE&user.name={self._user}"
-        resp = self._session.delete(url)
-        resp.raise_for_status()
-
-    async def list(self, path: str) -> list[str]:
-        import asyncio
-
-        return await asyncio.to_thread(self._sync_list, path)
-
-    def _sync_list(self, path: str) -> list[str]:
-        url = f"{self._base_url}{path}?op=LISTSTATUS&user.name={self._user}"
-        resp = self._session.get(url)
-        resp.raise_for_status()
-        statuses = resp.json().get("FileStatuses", {}).get("FileStatus", [])
-        return [f"{path.rstrip('/')}/{s['pathSuffix']}" for s in statuses if s.get("pathSuffix")]
-
-    def close(self) -> None:
-        self._session.close()
-
-
-class _PyArrowHDFSClient:
-    """Thin PyArrow HDFS adapter."""
-
-    def __init__(self, *, fs: Any) -> None:
-        self._fs = fs
-
-    async def get(self, path: str) -> bytes:
-        import asyncio
-
-        return await asyncio.to_thread(self._sync_get, path)
-
-    def _sync_get(self, path: str) -> bytes:
-        with self._fs.open_input_stream(path) as f:
-            return f.read()
-
-    async def put(self, path: str, data: bytes) -> None:
-        import asyncio
-
-        await asyncio.to_thread(self._sync_put, path, data)
-
-    def _sync_put(self, path: str, data: bytes) -> None:
-        with self._fs.open_output_stream(path) as f:
-            f.write(data)
-
-    async def delete(self, path: str) -> None:
-        import asyncio
-
-        await asyncio.to_thread(self._fs.delete_file, path)
-
-    async def list(self, path: str) -> list[str]:
-        import asyncio
-
-        return await asyncio.to_thread(self._sync_list, path)
-
-    def _sync_list(self, path: str) -> list[str]:
-        file_info = self._fs.get_file_info(self._fs.FileSelector(path, recursive=False))
-        return [fi.path for fi in file_info]

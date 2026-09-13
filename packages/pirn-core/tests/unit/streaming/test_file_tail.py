@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from pirn.streaming.file_tail import FileTailSource
+from pirn.streaming.file_tail_source import FileTailSource
 
 
 class TestFileTailSourceConstruction(unittest.TestCase):

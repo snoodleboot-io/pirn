@@ -113,6 +113,7 @@ class CsvFormat(StreamingFileFormat):
         has_header = self._has_header
         configured_columns = self._column_names
 
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[Mapping[str, Any]]:
             text_buffer = io.StringIO(text)
             if has_header:
@@ -161,6 +162,7 @@ class CsvFormat(StreamingFileFormat):
 
         payload = text_buffer.getvalue().encode(self._encoding)
 
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[bytes]:
             yield payload
 

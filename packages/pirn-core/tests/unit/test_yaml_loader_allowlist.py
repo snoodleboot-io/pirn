@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.yaml_loader.loader import load_pipeline
+from pirn.yaml_loader.pipeline_loader import load_pipeline
 
 # Minimal YAML that exercises a knot with a callable ref.
 _KNOT_YAML_TEMPLATE = """\

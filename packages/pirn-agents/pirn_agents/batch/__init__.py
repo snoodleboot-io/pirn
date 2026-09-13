@@ -14,9 +14,9 @@ batch machinery.
 
 Triggering is core's, not this package's.
 :class:`~pirn_agents.batch.triggered_batch.TriggeredBatch` accepts any
-:class:`pirn.triggers.base.Trigger`, and the two triggers defined here —
+:class:`pirn.triggers.trigger.Trigger`, and the two triggers defined here —
 :class:`~pirn_agents.batch.interval_trigger.IntervalTrigger` (schedule, backed by
-:class:`pirn.triggers.cron.CronTrigger`) and
+:class:`pirn.triggers.cron_trigger.CronTrigger`) and
 :class:`~pirn_agents.batch.event_trigger.EventTrigger` (in-process, on demand) —
 are ``Trigger`` subclasses like any other. Consequently a broker- or HTTP-backed
 batch needs no entry point here: construct core's ``KafkaTrigger``,
@@ -28,7 +28,7 @@ nothing on this import path pulls one in.
 ``TriggeredBatch`` binds a trigger without consuming it and leaves it open, so
 the same trigger can drive a later run; pass ``owns_trigger=True`` to hand it
 over for the fire-and-forget shape, where a trigger constructed inline is closed
-on every exit path exactly as :func:`pirn.triggers.base.run_forever` does. This
+on every exit path exactly as :func:`pirn.triggers.trigger.run_forever` does. This
 matters because ``close()`` is **terminal** for both triggers here: a closed
 ``IntervalTrigger`` emits nothing further, and a closed ``EventTrigger`` also
 refuses ``fire()``, so nothing can ever feed its stream again. Closing a trigger

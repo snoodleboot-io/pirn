@@ -13,13 +13,13 @@ import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
-from pirn.streaming.base import StreamingSource, run_stream
-from pirn.streaming.file_tail import FileTailSource
-from pirn.streaming.iterable import IterableSource
+from pirn.streaming.file_tail_source import FileTailSource
+from pirn.streaming.iterable_source import IterableSource
+from pirn.streaming.streaming_source import StreamingSource, run_stream
 from pirn.tapestry import Tapestry
 
 try:
-    from pirn.streaming.kafka import KafkaStreamingSource
+    from pirn.streaming.kafka_streaming_source import KafkaStreamingSource
 except ImportError:
     KafkaStreamingSource = None  # type: ignore[assignment]
 

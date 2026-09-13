@@ -11,7 +11,8 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.core.run_result import RunResult
 from pirn.managers.exception_record import ExceptionRecord
-from pirn.nodes.sub_tapestry import SubTapestry, SubTapestryError
+from pirn.nodes.sub_tapestry import SubTapestry
+from pirn.nodes.sub_tapestry_error import SubTapestryError
 
 
 def _make_failed_run_result() -> RunResult:

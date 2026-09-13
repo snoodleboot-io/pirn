@@ -141,6 +141,11 @@ class ObjectStoreTransport(DataTransport):
                     return True
             return False
         except Exception:
+            _log.warning(
+                "ObjectStoreTransport: listing key %r raised; reporting as not found",
+                handle.key,
+                exc_info=True,
+            )
             return False
 
     async def end_run(self, run_id: str, *, success: bool) -> None:

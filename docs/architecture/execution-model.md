@@ -141,7 +141,7 @@ The dispatcher calls `knot(inputs)` → `knot.__call__` → `knot.process(**kwar
 
 ### Step 9: Lineage capture per knot
 
-`_record_lineage` builds a `KnotLineage`:
+`LineageRecorder.record_lineage` (`pirn/engine/lineage_recorder.py`) builds a `KnotLineage`:
 
 ```python
 KnotLineage(
@@ -224,7 +224,7 @@ sequenceDiagram
         else Skipped or synthetic Err
             E->>E: record directly
         end
-        E->>E: _record_lineage per knot
+        E->>E: LineageRecorder.record_lineage per knot
         E->>E: tracker.resolve(knot) → ready children
     end
 

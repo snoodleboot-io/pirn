@@ -88,6 +88,7 @@ class JsonFormat(StreamingFileFormat):
                 )
             records = [parsed] if parsed else []
 
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[Mapping[str, Any]]:
             for record in records:
                 yield record
@@ -108,6 +109,7 @@ class JsonFormat(StreamingFileFormat):
             single = rows[0] if rows else {}
             payload = json.dumps(single).encode(self._encoding)
 
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[bytes]:
             yield payload
 

@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import importlib.util
+import logging
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, ClassVar
 
 from pirn.viz._tapestry_graph import TapestryGraph
+
+_logger = logging.getLogger(__name__)
 
 
 class TapestryGraphScanner:
@@ -137,7 +140,12 @@ class TapestryGraphScanner:
                         parent_knot_ids = extra.get("parent_knot_ids", {})
                         source_hash = payload.get("source_hash") or ""
                     except Exception:
-                        pass
+                        _logger.warning(
+                            "TapestryGraphScanner: parsing lineage payload_json for knot %r "
+                            "raised; extra/parent_knot_ids/source_hash left empty",
+                            kid,
+                            exc_info=True,
+                        )
                     knots[kid] = {
                         "outcome": outcome,
                         "class": kclass.split(".")[-1],
@@ -189,7 +197,12 @@ class TapestryGraphScanner:
                         else:
                             existing.append(child_rid)
                 except Exception:
-                    pass
+                    _logger.warning(
+                        "TapestryGraphScanner: reading child run ids for run %r raised; "
+                        "child_run_ids left as gathered so far",
+                        run_id,
+                        exc_info=True,
+                    )
 
                 # Fetch parent_input_hashes per knot from lineage_inputs.
                 if "lineage_inputs" in tables:
@@ -204,7 +217,12 @@ class TapestryGraphScanner:
                                 pih = knots[kid].setdefault("parent_input_hashes", {})
                                 pih[input_name] = input_hash
                     except Exception:
-                        pass
+                        _logger.warning(
+                            "TapestryGraphScanner: reading lineage_inputs for run %r raised; "
+                            "parent_input_hashes left as gathered so far",
+                            run_id,
+                            exc_info=True,
+                        )
 
                 # Collect knot_sources for every source_hash referenced in
                 # this run's knots so the UI can render source code modals.
@@ -226,7 +244,12 @@ class TapestryGraphScanner:
                                     "pirn_version": pv,
                                 }
                         except Exception:
-                            pass
+                            _logger.warning(
+                                "TapestryGraphScanner: reading knot_sources for run %r raised; "
+                                "knot_sources left as gathered so far",
+                                run_id,
+                                exc_info=True,
+                            )
 
                 result.append(
                     {
@@ -252,6 +275,11 @@ class TapestryGraphScanner:
             conn.close()
             return result
         except Exception:
+            _logger.warning(
+                "TapestryGraphScanner: scanning run history db %r raised; reporting no runs",
+                str(db_path),
+                exc_info=True,
+            )
             return []
 
     @staticmethod
@@ -268,6 +296,12 @@ class TapestryGraphScanner:
                 ),
             )
         except Exception:
+            _logger.warning(
+                "TapestryGraphScanner: computing duration from %r/%r raised; reporting 0ms",
+                start,
+                end,
+                exc_info=True,
+            )
             return 0
 
     @staticmethod
@@ -321,7 +355,7 @@ class TapestryGraphScanner:
 
             raw = _yaml.safe_load(path.read_text())
             name = (raw or {}).get("name") or path.stem
-            from pirn.yaml_loader.loader import load_pipeline
+            from pirn.yaml_loader.pipeline_loader import load_pipeline
 
             tapestry = load_pipeline(path.read_text())
             return cls._tapestry_to_graph(tapestry, name, source)
@@ -364,9 +398,18 @@ class TapestryGraphScanner:
                                 results.append(cls._tapestry_to_graph(val, path.stem, source))
                                 break
                         except Exception:
-                            pass
+                            _logger.warning(
+                                "TapestryGraphScanner: calling builder %r in %r raised",
+                                builder_name,
+                                str(path),
+                                exc_info=True,
+                            )
         except Exception:
-            pass
+            _logger.warning(
+                "TapestryGraphScanner: scanning python module %r raised; reporting no tapestries",
+                str(path),
+                exc_info=True,
+            )
         return results
 
 

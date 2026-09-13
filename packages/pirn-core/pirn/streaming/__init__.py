@@ -12,12 +12,12 @@ continuous transformation.
 
 Concrete sources, each imported from the module that owns it:
 
-* ``pirn.streaming.iterable.IterableSource`` — wraps any async iterable
+* ``pirn.streaming.iterable_source.IterableSource`` — wraps any async iterable
   (tests, simple cases).
-* ``pirn.streaming.kafka.KafkaStreamingSource`` — streams Kafka messages.
-* ``pirn.streaming.file_tail.FileTailSource`` — tails a file like ``tail -f``.
+* ``pirn.streaming.kafka_streaming_source.KafkaStreamingSource`` — streams Kafka messages.
+* ``pirn.streaming.file_tail_source.FileTailSource`` — tails a file like ``tail -f``.
 
-Streaming is driven by ``pirn.streaming.base.run_stream(source, tapestry)``,
+Streaming is driven by ``pirn.streaming.streaming_source.run_stream(source, tapestry)``,
 which ticks the tapestry once per yielded value.  There is no
 ``Tapestry.run_stream`` method — the driver is a free function, so the
 engine carries no streaming-specific surface.

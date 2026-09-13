@@ -259,8 +259,8 @@ async def test_dispatch_order():
 Use `EmitterErrorPolicy.RAISE` and a recording emitter to assert events:
 
 ```python
-from pirn.emitters.base import Emitter
-from pirn.core.lineage import KnotLineage
+from pirn.emitters.emitter import Emitter
+from pirn.core.knot_lineage import KnotLineage
 from pirn.core.run_result import RunResult
 from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
 

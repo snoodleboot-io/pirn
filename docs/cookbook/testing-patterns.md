@@ -191,8 +191,8 @@ async def test_fallback_on_error():
 ## Pattern 6: Test a recording emitter
 
 ```python
-from pirn.emitters.base import Emitter
-from pirn.core.lineage import KnotLineage
+from pirn.emitters.emitter import Emitter
+from pirn.core.knot_lineage import KnotLineage
 from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
 
 class RecordingEmitter(Emitter):
@@ -252,7 +252,7 @@ async def test_same_input_same_hash_across_runs():
 ## Pattern 8: Test YAML pipelines
 
 ```python
-from pirn.yaml_loader.loader import load_pipeline
+from pirn.yaml_loader.pipeline_loader import load_pipeline
 
 YAML = """
 name: test_yaml

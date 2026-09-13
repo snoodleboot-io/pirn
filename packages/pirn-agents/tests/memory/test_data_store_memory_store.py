@@ -16,8 +16,8 @@ from pathlib import Path
 import pytest
 from pirn.backends._signer import _Signer
 from pirn.backends.base.data_store import DataStore
-from pirn.backends.disk import LocalDiskDataStore
 from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
+from pirn.backends.local_disk_data_store import LocalDiskDataStore
 
 from pirn_agents.memory.stores.data_store_memory_store import DataStoreMemoryStore
 from pirn_agents.memory.stores.memory_store import MemoryStore

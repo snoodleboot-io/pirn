@@ -14,11 +14,11 @@ Module                       TapestryStore    RunHistory    DataStore
 ``pirn.backends.sqlite``     yes              yes           --
 ``pirn.backends.postgres``   yes              yes           --
 ``pirn.backends.valkey``     yes              --            yes
-``pirn.backends.duckdb``     --               yes           --
-``pirn.backends.disk``       --               --            yes
-``pirn.backends.s3``         --               --            yes
-``pirn.backends.gcs``        --               --            yes
-``pirn.backends.azure``      --               --            yes
+``pirn.backends.duckdb_history``     --               yes           --
+``pirn.backends.local_disk_data_store``       --               --            yes
+``pirn.backends.s3_data_store``         --               --            yes
+``pirn.backends.gcs_data_store``        --               --            yes
+``pirn.backends.azure_blob_data_store``      --               --            yes
 ===========================  ===============  ============  ===============
 
 ``--`` means no such class exists.  Notably ``SQLiteStore`` and

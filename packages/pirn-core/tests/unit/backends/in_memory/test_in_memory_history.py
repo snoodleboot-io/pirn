@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 from pirn.backends.in_memory.in_memory_history import InMemoryHistory
-from pirn.core.lineage import KnotLineage
+from pirn.core.knot_lineage import KnotLineage
 
 
 def _make_lineage(

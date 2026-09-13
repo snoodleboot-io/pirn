@@ -15,7 +15,7 @@ from pathlib import Path
 from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
-from pirn.yaml_loader.loader import load_pipeline
+from pirn.yaml_loader.pipeline_loader import load_pipeline
 
 YAML_PATH = Path(__file__).parent / "tapestry.yaml"
 DB_PATH = Path(__file__).parent.parent / "pirn.db"

@@ -138,7 +138,7 @@ nodes:
 # run_moderation.py
 import asyncio
 from pirn.core.run_request import RunRequest
-from pirn.yaml_loader.loader import load_pipeline
+from pirn.yaml_loader.pipeline_loader import load_pipeline
 from knots import score_text, route_selector, handle_clean, handle_toxic, AuditLog
 
 YAML = open("content_moderation.yaml").read()
@@ -213,7 +213,7 @@ For the toxic run you will see something like:
 Attach a `LogEmitter` to see structured events during the run:
 
 ```python
-from pirn.emitters.log import LogEmitter
+from pirn.emitters.log_emitter import LogEmitter
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -237,8 +237,8 @@ Each knot transition produces a JSON log line:
 Generate a Mermaid diagram or a self-contained HTML explorer:
 
 ```python
-from pirn.viz.html import html_for_run
-from pirn.viz.mermaid import mermaid_for_tapestry
+from pirn.viz.tapestry_html_renderer import html_for_run
+from pirn.viz.mermaid_renderer import mermaid_for_tapestry
 from pathlib import Path
 
 # Embed in docs

@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import MagicMock
 
-from pirn.emitters.base import Emitter
+from pirn.emitters.emitter import Emitter
 
 
 class TestEmitterBase(unittest.IsolatedAsyncioTestCase):

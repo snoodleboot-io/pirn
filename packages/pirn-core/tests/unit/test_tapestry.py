@@ -8,7 +8,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
 from pirn.core.run_result import RunResult
-from pirn.emitters.base import Emitter
+from pirn.emitters.emitter import Emitter
 from pirn.tapestry import Tapestry, _current_tapestry, current_tapestry
 
 
@@ -25,6 +25,19 @@ class _RecordingEmitter(Emitter):
 
     async def on_run_result(self, result: RunResult) -> None:
         self.run_results.append(result)
+
+
+class _ClosableEmitter(Emitter):
+    """Tracks whether ``close()`` was called, optionally raising from it."""
+
+    def __init__(self, *, raise_on_close: bool = False) -> None:
+        self.closed = False
+        self._raise_on_close = raise_on_close
+
+    async def close(self) -> None:
+        self.closed = True
+        if self._raise_on_close:
+            raise RuntimeError("boom")
 
 
 # (tapestry, emitter) queued for a knot to register while a run is in flight.
@@ -128,7 +141,7 @@ class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
     # --------------------------------------------------------- emitter tests
 
     def test_add_and_remove_emitter_by_identity(self):
-        from pirn.emitters.log import LogEmitter
+        from pirn.emitters.log_emitter import LogEmitter
 
         t = Tapestry()
         e1 = LogEmitter()
@@ -142,7 +155,7 @@ class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
         assert t.emitters[0] is e2
 
     def test_remove_emitter_raises_when_not_registered(self):
-        from pirn.emitters.log import LogEmitter
+        from pirn.emitters.log_emitter import LogEmitter
 
         t = Tapestry()
         e = LogEmitter()
@@ -151,7 +164,7 @@ class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
 
     def test_remove_emitter_uses_identity_not_equality(self):
         """Two equal-looking emitters must be distinguished by identity."""
-        from pirn.emitters.log import LogEmitter
+        from pirn.emitters.log_emitter import LogEmitter
 
         t = Tapestry()
         e1 = LogEmitter()
@@ -162,8 +175,48 @@ class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(ValueError, "not registered"):
             t.remove_emitter(e2)
 
+    async def test_close_closes_every_registered_emitter(self):
+        t = Tapestry()
+        e1 = _ClosableEmitter()
+        e2 = _ClosableEmitter()
+        t.add_emitter(e1)
+        t.add_emitter(e2)
+
+        await t.close()
+
+        assert e1.closed
+        assert e2.closed
+
+    async def test_close_isolates_one_emitters_failure_from_the_rest(self):
+        t = Tapestry()
+        failing = _ClosableEmitter(raise_on_close=True)
+        healthy = _ClosableEmitter()
+        t.add_emitter(failing)
+        t.add_emitter(healthy)
+
+        await t.close()  # must not raise
+
+        assert failing.closed
+        assert healthy.closed
+
+    async def test_async_with_closes_emitters_on_exit(self):
+        e = _ClosableEmitter()
+        async with Tapestry() as t:
+            t.add_emitter(e)
+            assert not e.closed
+        assert e.closed
+
+    async def test_sync_with_does_not_close_emitters(self):
+        """Plain ``with`` cannot await; emitters stay open until close() is awaited explicitly."""
+        e = _ClosableEmitter()
+        with Tapestry() as t:
+            t.add_emitter(e)
+        assert not e.closed
+        await t.close()
+        assert e.closed
+
     def test_emitters_property_returns_copy(self):
-        from pirn.emitters.log import LogEmitter
+        from pirn.emitters.log_emitter import LogEmitter
 
         t = Tapestry()
         e = LogEmitter()

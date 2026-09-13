@@ -11,8 +11,8 @@ from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.core.run_result import RunResult
 from pirn.tapestry import Tapestry
-from pirn.viz.html import html_for_run
-from pirn.viz.mermaid import mermaid_for_run, mermaid_for_tapestry
+from pirn.viz.mermaid_renderer import mermaid_for_run, mermaid_for_tapestry
+from pirn.viz.tapestry_html_renderer import html_for_run
 
 
 @knot
@@ -221,7 +221,7 @@ async def test_html_for_tapestry_marks_sub_tapestry_node():
     from typing import Any
 
     from pirn.nodes.sub_tapestry import SubTapestry
-    from pirn.viz.html import html_for_tapestry
+    from pirn.viz.tapestry_html_renderer import html_for_tapestry
 
     class _Inner(SubTapestry):
         async def process(self, x: int, **_: Any) -> None:  # type: ignore[override]

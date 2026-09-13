@@ -99,7 +99,7 @@ Can share the same database file as `SQLiteStore`. Sustains ~5,000 lineage write
 ### DuckDBHistory
 
 ```python
-from pirn.backends.duckdb import DuckDBHistory
+from pirn.backends.duckdb_history import DuckDBHistory
 
 history = DuckDBHistory("lineage.duckdb")
 ```
@@ -147,7 +147,7 @@ This matters most for `LoopSubTapestry`, which is unbounded by design — a conv
 ### LocalDiskDataStore
 
 ```python
-from pirn.backends.disk import LocalDiskDataStore
+from pirn.backends.local_disk_data_store import LocalDiskDataStore
 
 data = LocalDiskDataStore("/var/pirn/data")
 t = Tapestry(data_store=data)
@@ -161,7 +161,7 @@ One file per value, named by content hash. Survives process restarts. Supports `
 ### S3DataStore
 
 ```python
-from pirn.backends.s3 import S3DataStore
+from pirn.backends.s3_data_store import S3DataStore
 
 data = S3DataStore(bucket="pirn-data", prefix="runs/", region="us-east-1")
 t = Tapestry(data_store=data)
@@ -206,7 +206,7 @@ One machine, survives restarts, no external services:
 from pirn.tapestry import Tapestry
 from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 from pirn.backends.sqlite.sqlite_store import SQLiteStore
-from pirn.backends.disk import LocalDiskDataStore
+from pirn.backends.local_disk_data_store import LocalDiskDataStore
 
 t = Tapestry(
     store=SQLiteStore("pirn.db"),
@@ -223,8 +223,8 @@ Add DuckDB for fast lineage queries:
 
 ```python
 from pirn.backends.sqlite.sqlite_store import SQLiteStore
-from pirn.backends.duckdb import DuckDBHistory
-from pirn.backends.disk import LocalDiskDataStore
+from pirn.backends.duckdb_history import DuckDBHistory
+from pirn.backends.local_disk_data_store import LocalDiskDataStore
 
 t = Tapestry(
     store=SQLiteStore("pirn.db"),
@@ -240,7 +240,7 @@ Multiple hosts, durable lineage, large values:
 ```python
 from pirn.backends.postgres.postgres_history import PostgresHistory
 from pirn.backends.postgres.postgres_store import PostgresStore
-from pirn.backends.s3 import S3DataStore
+from pirn.backends.s3_data_store import S3DataStore
 
 t = Tapestry(
     store=PostgresStore(dsn="postgresql://..."),

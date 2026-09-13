@@ -6,8 +6,8 @@ from typing import Any
 
 from pirn.backends.base.run_history import RunHistory
 from pirn.backends.sqlite._migrations import apply_migrations
-from pirn.core.knot_source import KnotSourceRecord
-from pirn.core.lineage import KnotLineage
+from pirn.core.knot_lineage import KnotLineage
+from pirn.core.knot_source_record import KnotSourceRecord
 
 
 def _json_default(obj: Any) -> Any:

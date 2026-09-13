@@ -20,8 +20,8 @@ from __future__ import annotations
 from typing import Any
 
 from pirn.backends.base.run_history import RunHistory
-from pirn.core.knot_source import KnotSourceRecord
-from pirn.core.lineage import KnotLineage
+from pirn.core.knot_lineage import KnotLineage
+from pirn.core.knot_source_record import KnotSourceRecord
 
 
 class DuckDBHistory(RunHistory):
@@ -44,6 +44,9 @@ CREATE TABLE IF NOT EXISTS runs (
     runtime_info_json VARCHAR,
     payload_json VARCHAR NOT NULL
 );
+ALTER TABLE runs ADD COLUMN IF NOT EXISTS parent_run_id VARCHAR;
+ALTER TABLE runs ADD COLUMN IF NOT EXISTS parent_knot_id VARCHAR;
+CREATE INDEX IF NOT EXISTS idx_runs_parent ON runs(parent_run_id);
 CREATE TABLE IF NOT EXISTS lineage (
     run_id VARCHAR NOT NULL,
     knot_id VARCHAR NOT NULL,
@@ -115,7 +118,11 @@ CREATE TABLE IF NOT EXISTS knot_sources (
 
         self._ensure_init()
         self._conn.execute(
-            "INSERT OR REPLACE INTO runs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            """INSERT OR REPLACE INTO runs
+               (run_id, succeeded, started_at, finished_at, dispatcher,
+                actor, trigger, environment_json, runtime_info_json,
+                parent_run_id, parent_knot_id, payload_json)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 result.run_id,
                 result.succeeded,
@@ -126,6 +133,8 @@ CREATE TABLE IF NOT EXISTS knot_sources (
                 result.trigger,
                 json.dumps(result.environment),
                 json.dumps(result.runtime_info),
+                result.parent_run_id,
+                result.parent_knot_id,
                 result.model_dump_json(),
             ),
         )
@@ -253,6 +262,23 @@ CREATE TABLE IF NOT EXISTS knot_sources (
 
         rows = self._conn.execute(
             "SELECT payload_json FROM runs WHERE actor = ?", (actor,)
+        ).fetchall()
+        return [RunResult.model_validate_json(row[0]) for row in rows]
+
+    async def children_of(self, run_id: str) -> list[Any]:
+        """Return all runs whose ``parent_run_id`` matches ``run_id``.
+
+        Args:
+            run_id: UUID of the parent run.
+
+        Returns:
+            List of ``RunResult`` objects for all child runs, possibly empty.
+        """
+        self._ensure_init()
+        from pirn.core.run_result import RunResult
+
+        rows = self._conn.execute(
+            "SELECT payload_json FROM runs WHERE parent_run_id = ?", (run_id,)
         ).fetchall()
         return [RunResult.model_validate_json(row[0]) for row in rows]
 

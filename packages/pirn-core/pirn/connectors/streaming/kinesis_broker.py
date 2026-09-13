@@ -93,6 +93,7 @@ class KinesisBroker(MessageBroker):
         """
         client = await self._ensure_client()
 
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[Any]:
             shards_response = await client.describe_stream(StreamName=topic)
             shards = shards_response["StreamDescription"]["Shards"]

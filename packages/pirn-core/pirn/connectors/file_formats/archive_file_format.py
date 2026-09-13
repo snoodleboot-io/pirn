@@ -87,6 +87,7 @@ class ArchiveFileFormat(FileFormat):
         archive_type = self._archive_type
         inner = self._inner
 
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[Mapping[str, Any]]:
             if archive_type == "zip":
                 async for record in ArchiveFileFormat._read_zip(inner, payload):
@@ -109,6 +110,7 @@ class ArchiveFileFormat(FileFormat):
         else:
             payload = await ArchiveFileFormat._write_tar(inner, grouped, archive_type)
 
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[bytes]:
             yield payload
 
@@ -159,6 +161,7 @@ class ArchiveFileFormat(FileFormat):
                 member_bytes = zf.read(info.filename)
                 member_name = info.filename
 
+                # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
                 async def _byte_iter(
                     data: bytes = member_bytes,
                 ) -> AsyncIterator[bytes]:
@@ -197,6 +200,7 @@ class ArchiveFileFormat(FileFormat):
                 member_bytes = fobj.read()
                 member_name = member.name
 
+                # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
                 async def _byte_iter(
                     data: bytes = member_bytes,
                 ) -> AsyncIterator[bytes]:
@@ -216,7 +220,7 @@ class ArchiveFileFormat(FileFormat):
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
             for member_name, member_records in grouped.items():
-
+                # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
                 async def _record_iter(
                     recs: list[Mapping[str, Any]] = member_records,
                 ) -> AsyncIterator[Mapping[str, Any]]:
@@ -245,7 +249,7 @@ class ArchiveFileFormat(FileFormat):
 
         try:
             for member_name, member_records in grouped.items():
-
+                # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
                 async def _record_iter(
                     recs: list[Mapping[str, Any]] = member_records,
                 ) -> AsyncIterator[Mapping[str, Any]]:

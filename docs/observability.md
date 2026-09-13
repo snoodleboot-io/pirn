@@ -19,8 +19,8 @@ Attach emitters when constructing a `Tapestry`, or per-run:
 
 ```python
 from pirn.tapestry import Tapestry
-from pirn.emitters.log import LogEmitter
-from pirn.emitters.otel import OpenTelemetryEmitter
+from pirn.emitters.log_emitter import LogEmitter
+from pirn.emitters.open_telemetry_emitter import OpenTelemetryEmitter
 
 t = Tapestry(emitters=[LogEmitter(), OpenTelemetryEmitter()])
 
@@ -68,7 +68,7 @@ from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExport
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
-from pirn.emitters.otel import OpenTelemetryEmitter
+from pirn.emitters.open_telemetry_emitter import OpenTelemetryEmitter
 
 # 1. Configure the SDK once at process startup.
 provider = TracerProvider()
@@ -170,10 +170,10 @@ async def handle_request():
 ## Structured logs
 
 `LogEmitter` writes one JSON line per event to the standard Python logger
-`pirn.emitters.log` at `INFO` level:
+`pirn.emitters.log_emitter` at `INFO` level:
 
 ```python
-from pirn.emitters.log import LogEmitter
+from pirn.emitters.log_emitter import LogEmitter
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -197,7 +197,7 @@ Pass these to your log aggregator (Loki, Splunk, CloudWatch) and query by
 `ValKeyEmitter` publishes each event as a JSON message to a ValKey channel:
 
 ```python
-from pirn.emitters.valkey import ValKeyEmitter
+from pirn.emitters.valkey_emitter import ValKeyEmitter
 
 emitter = ValKeyEmitter(url="redis://localhost:6379", channel="pirn:events")
 t = Tapestry(emitters=[emitter])
@@ -217,7 +217,7 @@ See `docs/subscribable-stores.md` for the same-process subscription model
 call. Useful for Slack alerts, GitHub status checks, or custom dashboards:
 
 ```python
-from pirn.emitters.webhook import WebhookEmitter
+from pirn.emitters.webhook_emitter import WebhookEmitter
 
 emitter = WebhookEmitter(url="https://hooks.slack.com/…")
 t = Tapestry(emitters=[emitter])
@@ -230,8 +230,8 @@ t = Tapestry(emitters=[emitter])
 Subclass `Emitter` and override whichever methods you need:
 
 ```python
-from pirn.emitters.base import Emitter
-from pirn.core.lineage import KnotLineage
+from pirn.emitters.emitter import Emitter
+from pirn.core.knot_lineage import KnotLineage
 from pirn.core.run_result import RunResult
 
 class PrometheusEmitter(Emitter):

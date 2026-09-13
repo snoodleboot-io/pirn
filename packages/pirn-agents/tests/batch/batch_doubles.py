@@ -11,7 +11,7 @@ import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable
 
 from pirn.core.run_request import RunRequest
-from pirn.triggers.base import Trigger
+from pirn.triggers.trigger import Trigger
 
 
 class RecordingTrigger(Trigger):

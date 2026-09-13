@@ -4,7 +4,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.branch._branch_not_selected import _BranchNotSelectedError
+from pirn.nodes.branch._branch_not_selected_error import _BranchNotSelectedError
 
 
 class BranchOutput(Knot):

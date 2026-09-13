@@ -136,17 +136,14 @@ class StripeClient(ApiClient, TableSource):
         params_dict = dict(params) if params is not None else None
         body_dict = dict(body) if body is not None else None
         headers_dict = dict(headers) if headers is not None else None
-
-        def _run() -> Any:
-            return client.raw_request(
-                upper_method,
-                path,
-                params=params_dict,
-                body=body_dict,
-                headers=headers_dict,
-            )
-
-        return await asyncio.to_thread(_run)
+        return await asyncio.to_thread(
+            client.raw_request,
+            upper_method,
+            path,
+            params=params_dict,
+            body=body_dict,
+            headers=headers_dict,
+        )
 
     async def close(self) -> None:
         if self._client is not None:

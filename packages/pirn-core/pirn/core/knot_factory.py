@@ -48,6 +48,7 @@ class KnotFactory:
 
     @staticmethod
     def __make_async_process(fn: Callable[..., Any]) -> Callable[..., Any]:
+        # design-decision-override: closure over fn, used as the process() of the dynamic Knot subclass
         @functools.wraps(fn)
         async def process(self, **kwargs: Any) -> Any:
             return await fn(**kwargs)
@@ -56,6 +57,7 @@ class KnotFactory:
 
     @staticmethod
     def __make_sync_process(fn: Callable[..., Any]) -> Callable[..., Any]:
+        # design-decision-override: closure over fn, used as the process() of the dynamic Knot subclass
         @functools.wraps(fn)
         async def process(self, **kwargs: Any) -> Any:
             return await asyncio.to_thread(fn, **kwargs)

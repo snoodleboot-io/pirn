@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.yaml_loader.loader import PipelineLoader, load_pipeline
+from pirn.yaml_loader.pipeline_loader import PipelineLoader, load_pipeline
 from pirn.yaml_loader.specs.pipeline_spec import PipelineSpec
 
 

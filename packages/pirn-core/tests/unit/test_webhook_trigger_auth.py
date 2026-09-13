@@ -13,7 +13,7 @@ from unittest.mock import MagicMock, patch
 
 from starlette.testclient import TestClient
 
-from pirn.triggers.http import WebhookTrigger
+from pirn.triggers.webhook_trigger import WebhookTrigger
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -102,7 +102,7 @@ class TestRateLimiting(unittest.TestCase):
         # Use a controllable clock: pin to t=0 for the first two requests,
         # then advance to t=61 so the old entries are pruned.
         mock_time = MagicMock(return_value=0.0)
-        with patch("pirn.triggers.http.time.monotonic", mock_time):
+        with patch("pirn.triggers.webhook_trigger.time.monotonic", mock_time):
             client.post("/run", json={})
             client.post("/run", json={})
             mock_time.return_value = 61.0

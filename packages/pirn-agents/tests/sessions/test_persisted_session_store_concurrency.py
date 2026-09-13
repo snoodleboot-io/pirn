@@ -23,7 +23,7 @@ from pathlib import Path
 
 import pytest
 from pirn.backends._signer import _Signer
-from pirn.backends.disk import LocalDiskDataStore
+from pirn.backends.local_disk_data_store import LocalDiskDataStore
 
 from pirn_agents.memory.stores.data_store_memory_store import DataStoreMemoryStore
 from pirn_agents.sessions.persisted_session_store import PersistedSessionStore

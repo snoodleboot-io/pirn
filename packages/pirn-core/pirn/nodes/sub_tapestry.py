@@ -35,120 +35,17 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from pydantic import ValidationError
-
 from pirn.core.err import Err
 from pirn.core.knot import Knot
 from pirn.core.ok import Ok
 from pirn.core.result import Result
-from pirn.exceptions.pirn_error import PirnError
 from pirn.managers.exception_record import ExceptionRecord
+from pirn.nodes.sub_tapestry_error import SubTapestryError
 
 if TYPE_CHECKING:
     from pirn.backends.base.run_history import RunHistory
     from pirn.core.run_result import RunResult
     from pirn.tapestry import Tapestry
-
-
-def _inherited_emitters(own: list[Any], inherited: list[Any] | None) -> list[Any] | None:
-    """Combine an inner tapestry's own emitters with those inherited from the outer run.
-
-    Returns ``None`` when there is nothing to inherit.  ``None`` is what
-    ``Tapestry.run(emitters=...)`` reads as "not overridden", so the inner
-    tapestry keeps whatever subscription it already had — which is also the
-    right answer when the outer run deliberately opted out with
-    ``run(emitters=[])``.
-
-    De-duplicated by identity, not equality: the same emitter instance
-    registered on both the outer tapestry and the inner one must receive one
-    ``on_lineage`` call per record, not two.  Equality is the wrong test
-    because emitters are ordinary objects whose ``__eq__`` may be identity-
-    based, value-based, or expensive.
-
-    Args:
-        own: Emitters the inner tapestry already carries, in declared order.
-        inherited: Emitters the enclosing run is fanning to, or ``None`` when
-            there is no enclosing run.
-
-    Returns:
-        The merged list, or ``None`` to leave the inner subscription alone.
-    """
-    if not inherited:
-        return None
-    merged = list(own)
-    seen = {id(emitter) for emitter in merged}
-    merged.extend(emitter for emitter in inherited if id(emitter) not in seen)
-    return merged
-
-
-def _apply_inherited_value_plane(
-    tapestry: Tapestry,
-    *,
-    data_store: Any,
-    transport: Any,
-) -> None:
-    """Point an inner tapestry at the enclosing run's value plane.
-
-    The *value plane* is the pair a run writes its outputs into: the
-    ``DataStore`` that holds each value by content hash, and the
-    ``DataTransport`` that moves it between edges.  An inner tapestry is
-    constructed with defaults, so without this its values go to a fresh
-    ``InMemoryDataStore`` that is discarded the moment the inner run ends —
-    while the inner *lineage* rows, written to the forwarded outer history, keep
-    advertising ``output_hash`` values that now resolve against nothing
-    (PIR-837).
-
-    The two halves are not treated identically, because they are not the same
-    kind of thing:
-
-    * **The data store is forwarded unconditionally**, exactly as the history
-      is.  A lineage row and the value it names are two halves of one record;
-      routing the row to the outer history while routing the value elsewhere
-      recreates the dangling reference this fixes.  Whoever owns the history
-      owns the store that answers it.
-    * **The transport yields to an inner tapestry that chose its own.**  A
-      transport is a movement layer inside a single run, not part of any
-      durable record: its handles never leave the run that created them and no
-      lineage row references one.  Inheriting it keeps a disk- or object-store-
-      backed pipeline from silently dropping to ``InlineTransport`` inside a
-      ``SubTapestry`` body, which is where the bulk of a pipeline's data often
-      moves.  But a ``LoopSubTapestry`` iteration built as
-      ``Tapestry(transport=...)`` inside ``step()`` named that transport
-      deliberately, and overwriting it would be the same silent override in the
-      opposite direction.
-
-    Sharing one transport instance across the outer and inner runs is safe:
-    every ``DataTransport`` method is keyed by ``run_id``, and the inner run has
-    its own, so ``begin_run`` / ``end_run`` allocate and release inner-run
-    resources without touching the outer run's.  Sharing one data store is safe
-    for a different reason: it is content-addressed, so an inner value that
-    collides with an outer one is the same value.
-
-    Args:
-        tapestry: The inner tapestry about to be run.
-        data_store: The enclosing run's data store, or ``None`` when there is
-            no enclosing run to inherit from.
-        transport: The enclosing run's transport, or ``None`` likewise.
-    """
-    if data_store is not None:
-        tapestry._data_store = data_store
-    if transport is not None and not tapestry._transport_explicit:
-        tapestry._transport = transport
-
-
-class SubTapestryError(PirnError):
-    """Raised when the inner tapestry pipeline fails.
-
-    Attached to the ``Err`` the outer pipeline receives so the inner
-    ``RunResult`` is reachable for inspection.
-    """
-
-    def __init__(self, inner_result: RunResult) -> None:
-        self.inner_result = inner_result
-        exception_count = len(inner_result.exceptions)
-        super().__init__(
-            f"inner pipeline failed with {exception_count} exception(s); run_id={inner_result.run_id!r}"
-        )
 
 
 class SubTapestry(Knot):
@@ -226,6 +123,92 @@ class SubTapestry(Knot):
         """
         return sink.knot_id
 
+    @staticmethod
+    def _inherited_emitters(own: list[Any], inherited: list[Any] | None) -> list[Any] | None:
+        """Combine an inner tapestry's own emitters with those inherited from the outer run.
+
+        Returns ``None`` when there is nothing to inherit.  ``None`` is what
+        ``Tapestry.run(emitters=...)`` reads as "not overridden", so the inner
+        tapestry keeps whatever subscription it already had — which is also the
+        right answer when the outer run deliberately opted out with
+        ``run(emitters=[])``.
+
+        De-duplicated by identity, not equality: the same emitter instance
+        registered on both the outer tapestry and the inner one must receive one
+        ``on_lineage`` call per record, not two.  Equality is the wrong test
+        because emitters are ordinary objects whose ``__eq__`` may be identity-
+        based, value-based, or expensive.
+
+        Args:
+            own: Emitters the inner tapestry already carries, in declared order.
+            inherited: Emitters the enclosing run is fanning to, or ``None`` when
+                there is no enclosing run.
+
+        Returns:
+            The merged list, or ``None`` to leave the inner subscription alone.
+        """
+        if not inherited:
+            return None
+        merged = list(own)
+        seen = {id(emitter) for emitter in merged}
+        merged.extend(emitter for emitter in inherited if id(emitter) not in seen)
+        return merged
+
+    @staticmethod
+    def _apply_inherited_value_plane(
+        tapestry: Tapestry,
+        *,
+        data_store: Any,
+        transport: Any,
+    ) -> None:
+        """Point an inner tapestry at the enclosing run's value plane.
+
+        The *value plane* is the pair a run writes its outputs into: the
+        ``DataStore`` that holds each value by content hash, and the
+        ``DataTransport`` that moves it between edges.  An inner tapestry is
+        constructed with defaults, so without this its values go to a fresh
+        ``InMemoryDataStore`` that is discarded the moment the inner run ends —
+        while the inner *lineage* rows, written to the forwarded outer history, keep
+        advertising ``output_hash`` values that now resolve against nothing
+        (PIR-837).
+
+        The two halves are not treated identically, because they are not the same
+        kind of thing:
+
+        * **The data store is forwarded unconditionally**, exactly as the history
+          is.  A lineage row and the value it names are two halves of one record;
+          routing the row to the outer history while routing the value elsewhere
+          recreates the dangling reference this fixes.  Whoever owns the history
+          owns the store that answers it.
+        * **The transport yields to an inner tapestry that chose its own.**  A
+          transport is a movement layer inside a single run, not part of any
+          durable record: its handles never leave the run that created them and no
+          lineage row references one.  Inheriting it keeps a disk- or object-store-
+          backed pipeline from silently dropping to ``InlineTransport`` inside a
+          ``SubTapestry`` body, which is where the bulk of a pipeline's data often
+          moves.  But a ``LoopSubTapestry`` iteration built as
+          ``Tapestry(transport=...)`` inside ``step()`` named that transport
+          deliberately, and overwriting it would be the same silent override in the
+          opposite direction.
+
+        Sharing one transport instance across the outer and inner runs is safe:
+        every ``DataTransport`` method is keyed by ``run_id``, and the inner run has
+        its own, so ``begin_run`` / ``end_run`` allocate and release inner-run
+        resources without touching the outer run's.  Sharing one data store is safe
+        for a different reason: it is content-addressed, so an inner value that
+        collides with an outer one is the same value.
+
+        Args:
+            tapestry: The inner tapestry about to be run.
+            data_store: The enclosing run's data store, or ``None`` when there is
+                no enclosing run to inherit from.
+            transport: The enclosing run's transport, or ``None`` likewise.
+        """
+        if data_store is not None:
+            tapestry._data_store = data_store
+        if transport is not None and not tapestry._transport_explicit:
+            tapestry._transport = transport
+
     def __init__(self, **kwargs: Any) -> None:
         # Capture the outer observability wiring *before* super().__init__
         # freezes the object.  History and emitters are captured together
@@ -245,15 +228,15 @@ class SubTapestry(Knot):
         outer_data_store: Any = outer.data_store if outer is not None else None
         outer_transport: Any = outer.transport if outer is not None else None
         super().__init__(**kwargs)
-        # Bypass freeze guard to stash fields that are unknown until after
-        # __init__ completes.  All follow the _mutable_ convention so the
-        # freeze guard allows them.
-        object.__setattr__(self, "_mutable_outer_history", outer_history)
-        object.__setattr__(self, "_mutable_outer_emitters", outer_emitters)
-        object.__setattr__(self, "_mutable_outer_emitter_policy", outer_emitter_policy)
-        object.__setattr__(self, "_mutable_outer_data_store", outer_data_store)
-        object.__setattr__(self, "_mutable_outer_transport", outer_transport)
-        object.__setattr__(self, "_mutable_inner_run_meta", {})
+        # Knot.__setattr__ already exempts any `_mutable_`-prefixed name from
+        # the freeze guard, so a plain assignment is enough here — no need to
+        # bypass __setattr__ via object.__setattr__ as well.
+        self._mutable_outer_history = outer_history
+        self._mutable_outer_emitters = outer_emitters
+        self._mutable_outer_emitter_policy = outer_emitter_policy
+        self._mutable_outer_data_store = outer_data_store
+        self._mutable_outer_transport = outer_transport
+        self._mutable_inner_run_meta = {}
 
     def lineage_extra(self) -> dict[str, Any]:
         return {**super().lineage_extra(), **self._mutable_inner_run_meta}
@@ -285,21 +268,10 @@ class SubTapestry(Knot):
         from pirn.tapestry import Tapestry
 
         config = self._mutable_config
-        kwargs: dict[str, Any] = dict(self._mutable_config_values)
-        kwargs.update(parent_results)
-
-        if self._mutable_mapped_inputs:
-            try:
-                outputs = await self._fan_out(kwargs)
-            except BaseException as exc:
-                return Err(record=ExceptionRecord.for_knot(config.id, exc))
-            return Ok(value=outputs)
-
-        if config.validate_io:
-            try:
-                kwargs = self._validate_inputs(kwargs)
-            except ValidationError as exc:
-                return Err(record=ExceptionRecord.for_knot(config.id, exc))
+        prepared = await self._prepare_inputs(parent_results)
+        if not isinstance(prepared, dict):
+            return prepared
+        kwargs = prepared
 
         # Clear the previous invocation's metadata up front.  It used to be
         # assigned only after the try body succeeded, so a failed inner run left
@@ -402,7 +374,7 @@ class SubTapestry(Knot):
         # correct answer.  See PIR-764.
         outer_history: RunHistory | None = _current_history.get(None)
         if outer_history is None:
-            outer_history = object.__getattribute__(self, "_mutable_outer_history")
+            outer_history = self._mutable_outer_history
         # Inject the outer history into the inner tapestry so inner runs are
         # recorded to the same store and appear in the explorer.
         if outer_history is not None:
@@ -418,11 +390,11 @@ class SubTapestry(Knot):
         # resolve against (PIR-764/PIR-773, PIR-837).
         outer_data_store: Any = _current_data_store.get(None)
         if outer_data_store is None:
-            outer_data_store = object.__getattribute__(self, "_mutable_outer_data_store")
+            outer_data_store = self._mutable_outer_data_store
         outer_transport: Any = _current_transport.get(None)
         if outer_transport is None:
-            outer_transport = object.__getattribute__(self, "_mutable_outer_transport")
-        _apply_inherited_value_plane(
+            outer_transport = self._mutable_outer_transport
+        self._apply_inherited_value_plane(
             tapestry, data_store=outer_data_store, transport=outer_transport
         )
 
@@ -440,9 +412,9 @@ class SubTapestry(Knot):
         outer_emitters: list[Any] | None = _current_emitters.get(None)
         outer_emitter_policy: Any = _current_emitter_error_policy.get(None)
         if outer_emitters is None:
-            outer_emitters = object.__getattribute__(self, "_mutable_outer_emitters")
-            outer_emitter_policy = object.__getattribute__(self, "_mutable_outer_emitter_policy")
-        inner_emitters = _inherited_emitters(tapestry.emitters, outer_emitters)
+            outer_emitters = self._mutable_outer_emitters
+            outer_emitter_policy = self._mutable_outer_emitter_policy
+        inner_emitters = self._inherited_emitters(tapestry.emitters, outer_emitters)
         # Only carry the outer policy when emitters actually came with it;
         # otherwise leave the inner tapestry governed by its own default.
         inner_emitter_policy = outer_emitter_policy if inner_emitters is not None else None

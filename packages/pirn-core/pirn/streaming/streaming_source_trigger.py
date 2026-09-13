@@ -11,9 +11,9 @@ When you have a streaming source but want to use the
 trigger-based machinery (richer per-event ``RunRequest`` shapes,
 existing trigger observers), wrap it::
 
-    from pirn.streaming.iterable import IterableSource
-    from pirn.streaming.trigger_adapter import StreamingSourceTrigger
-    from pirn.triggers.base import run_forever
+    from pirn.streaming.iterable_source import IterableSource
+    from pirn.streaming.streaming_source_trigger import StreamingSourceTrigger
+    from pirn.triggers.trigger import run_forever
 
     source = IterableSource([1, 2, 3], parameter_name="x")
     trigger = StreamingSourceTrigger(source=source)
@@ -26,7 +26,7 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 from pirn.core.run_request import RunRequest
-from pirn.streaming.base import StreamingSource
+from pirn.streaming.streaming_source import StreamingSource
 
 
 class StreamingSourceTrigger:

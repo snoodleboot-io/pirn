@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from threading import Lock
 
@@ -7,6 +8,8 @@ from pirn.managers.knot_state import KnotState
 from pirn.managers.status_event import StatusEvent
 
 Subscriber = Callable[[StatusEvent], None]
+
+_logger = logging.getLogger(__name__)
 
 
 class StatusManager:
@@ -39,7 +42,12 @@ class StatusManager:
             try:
                 sub(event)
             except Exception:
-                pass
+                _logger.warning(
+                    "StatusManager: subscriber raised for knot %r transition to %r",
+                    knot_id,
+                    state,
+                    exc_info=True,
+                )
         return event
 
     def subscribe(self, subscriber: Subscriber) -> None:

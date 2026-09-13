@@ -12,7 +12,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.gate._gate_closed import _GateClosedError
+from pirn.nodes.gate._gate_closed_error import _GateClosedError
 
 
 class Gate(Knot):

@@ -9,7 +9,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 from pirn.core.run_request import RunRequest
-from pirn.triggers.base import Trigger, run_forever
+from pirn.triggers.trigger import Trigger, run_forever
 
 
 class _SimpleTrigger(Trigger):

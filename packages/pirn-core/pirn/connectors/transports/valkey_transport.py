@@ -167,6 +167,11 @@ class ValkeyTransport(DataTransport):
             result = await self._client.exists([handle.key])
             return bool(result)
         except Exception:
+            _log.warning(
+                "ValkeyTransport: EXISTS for key %r raised; reporting as not found",
+                handle.key,
+                exc_info=True,
+            )
             return False
 
     async def end_run(self, run_id: str, *, success: bool) -> None:

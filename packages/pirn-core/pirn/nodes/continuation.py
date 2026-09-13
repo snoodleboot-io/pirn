@@ -7,7 +7,8 @@ the flow.
 
 Example::
 
-    from pirn.nodes.continuation import Next, continues
+    from pirn.nodes.continuation import continues
+    from pirn.nodes.next import Next
 
     pool = {
         "summarise": SummariseKnot,
@@ -40,57 +41,18 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Callable
-from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.nodes._end_knot import _EndKnot
+from pirn.nodes.next import Next
 from pirn.tapestry import get_current_store
 
 # ── Types ─────────────────────────────────────────────────────────────────────
 
 Pool = dict[str, type[Knot]]
 ContinuationFn = Callable[[Any], "list[Next]"]
-
-
-# ── Next ──────────────────────────────────────────────────────────────────────
-
-
-@dataclass
-class Next:
-    """One successor to spawn from a continuation.
-
-    ``action`` maps to a knot class in the pool.  ``inputs`` are passed as
-    constructor kwargs — plain values become config constants, ``Knot``
-    instances become parent edges exactly as in any pirn constructor.
-
-    ``id`` overrides the auto-generated knot id.  Leave it ``None`` to get
-    a stable derived id (``"{continuation_id}_{action}_{index}"``).
-    """
-
-    action: str
-    inputs: dict[str, Any] = field(default_factory=dict)
-    id: str | None = None
-
-
-# ── Built-in terminal ─────────────────────────────────────────────────────────
-
-
-class _EndKnot(Knot):
-    """Terminal knot — registered when a continuation returns Next('end').
-
-    Produces no output.  Its presence in the graph makes explicit that the
-    flow terminated intentionally at this point, not due to an error or
-    missing logic.
-    """
-
-    async def process(self, **_: Any) -> None:
-        """Receive any inputs and return None to mark explicit flow termination.
-
-        Returns:
-            None, signalling that this branch of the flow has terminated intentionally.
-        """
-        return None
 
 
 # ── WithContinuation ──────────────────────────────────────────────────────────
@@ -145,10 +107,13 @@ class WithContinuation(Knot):
         **kwargs: Any,
     ) -> None:
         super().__init__(result=result, **kwargs)
-        object.__setattr__(self, "_mutable_fn", fn)
+        # Knot.__setattr__ already exempts any `_mutable_`-prefixed name from
+        # the freeze guard, so a plain assignment is enough here — no need to
+        # bypass __setattr__ via object.__setattr__ as well.
+        self._mutable_fn = fn
         # Built-in end action is always available; user pool entries take
         # precedence if they supply their own "end" knot.
-        object.__setattr__(self, "_mutable_pool", {WithContinuation._end: _EndKnot, **pool})
+        self._mutable_pool = {WithContinuation._end: _EndKnot, **pool}
 
     async def process(self, result: Any, **_: Any) -> Any:  # type: ignore[override]
         """Invoke the continuation function on the upstream result, register successor knots, and return the result.
@@ -162,8 +127,8 @@ class WithContinuation(Knot):
         Raises:
             KeyError: If a continuation-returned action name is not present in the pool.
         """
-        fn: ContinuationFn = object.__getattribute__(self, "_mutable_fn")
-        pool: Pool = object.__getattribute__(self, "_mutable_pool")
+        fn: ContinuationFn = self._mutable_fn
+        pool: Pool = self._mutable_pool
 
         nexts = fn(result)
 

@@ -71,13 +71,13 @@ def _sqlite_history() -> RunHistory:
 
 def _duckdb_history() -> RunHistory:
     pytest.importorskip("duckdb")
-    from pirn.backends.duckdb import DuckDBHistory
+    from pirn.backends.duckdb_history import DuckDBHistory
 
     return DuckDBHistory(path=":memory:")
 
 
 def _disk_data_store(tmp_path: Path) -> DataStore:
-    from pirn.backends.disk import LocalDiskDataStore
+    from pirn.backends.local_disk_data_store import LocalDiskDataStore
 
     return LocalDiskDataStore(tmp_path, allow_unsigned=True)
 
@@ -183,6 +183,24 @@ async def test_history_query_by_output_hash_finds_duplicates(history):
     assert len(d_records) == 2
 
 
+async def test_history_children_of_finds_child_runs_by_parent_run_id(history):
+    """A run recorded with ``_parent_run_id`` is returned by ``children_of``."""
+    parent = await _run_pipeline(history, 1)
+    with Tapestry(history=history) as t:
+        p = Parameter("x", int, _config=KnotConfig(id="x"))
+        _f(x=p, _config=KnotConfig(id="d"))
+    child = await t.run(RunRequest(parameters={"x": 2}), _parent_run_id=parent.run_id)
+
+    children = await history.children_of(parent.run_id)
+
+    assert {c.run_id for c in children} == {child.run_id}
+
+
+async def test_history_children_of_returns_empty_for_run_with_no_children(history):
+    result = await _run_pipeline(history, 3)
+    assert await history.children_of(result.run_id) == []
+
+
 async def test_history_query_by_input_hash_finds_consumers(history):
     """A value produced in run A and consumed in run B is reachable by
     input-hash query."""
@@ -282,7 +300,7 @@ async def test_lineage_hashes_stable_across_backends():
     from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 
     sqlite = await collect_hashes(SQLiteHistory)
-    from pirn.backends.duckdb import DuckDBHistory
+    from pirn.backends.duckdb_history import DuckDBHistory
 
     duck = await collect_hashes(DuckDBHistory)
 
@@ -326,10 +344,10 @@ def test_shipped_data_store_roster_is_closed():
     import inspect
     import pkgutil
 
-    from pirn.backends.azure import AzureBlobDataStore
-    from pirn.backends.disk import LocalDiskDataStore
-    from pirn.backends.gcs import GCSDataStore
-    from pirn.backends.s3 import S3DataStore
+    from pirn.backends.azure_blob_data_store import AzureBlobDataStore
+    from pirn.backends.gcs_data_store import GCSDataStore
+    from pirn.backends.local_disk_data_store import LocalDiskDataStore
+    from pirn.backends.s3_data_store import S3DataStore
     from pirn.backends.valkey.valkey_data_store import ValKeyDataStore
 
     shipped = {

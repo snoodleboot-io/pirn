@@ -11,7 +11,7 @@ Pass the token via an environment variable so it never appears in source code:
 
 ```python
 import os
-from pirn.triggers.http import WebhookTrigger
+from pirn.triggers.webhook_trigger import WebhookTrigger
 
 trigger = WebhookTrigger(path="/run", auth_token=os.environ["PIRN_WEBHOOK_TOKEN"])
 ```

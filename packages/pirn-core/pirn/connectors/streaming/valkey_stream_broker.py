@@ -77,6 +77,7 @@ class ValkeyStreamBroker(MessageBroker):
 
         await self._ensure_group(client, topic, effective_group)
 
+        # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[Any]:
             while True:
                 response = await client.xreadgroup(

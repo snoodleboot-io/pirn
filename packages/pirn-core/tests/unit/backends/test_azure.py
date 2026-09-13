@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import AsyncMock, MagicMock
 
 from pirn.backends._signer import _Signer
-from pirn.backends.azure import AzureBlobDataStore
+from pirn.backends.azure_blob_data_store import AzureBlobDataStore
 
 
 def _make_azure_mock(stored: dict[str, bytes]) -> MagicMock:

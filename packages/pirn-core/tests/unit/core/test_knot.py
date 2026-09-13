@@ -4,7 +4,7 @@ import asyncio
 import unittest
 from typing import Any
 
-from pirn.core.knot import Knot, _extract_coercible_type, _is_knot_cls
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.tapestry import Tapestry
@@ -22,18 +22,18 @@ class NoOutput(Knot):
 
 class TestKnotHelpers(unittest.TestCase):
     def test_is_knot_cls_true(self) -> None:
-        self.assertTrue(_is_knot_cls(Knot))
-        self.assertTrue(_is_knot_cls(Add))
+        self.assertTrue(Knot._is_knot_cls(Knot))
+        self.assertTrue(Knot._is_knot_cls(Add))
 
     def test_is_knot_cls_false_for_non_class(self) -> None:
-        self.assertFalse(_is_knot_cls(42))
-        self.assertFalse(_is_knot_cls("string"))
+        self.assertFalse(Knot._is_knot_cls(42))
+        self.assertFalse(Knot._is_knot_cls("string"))
 
     def test_is_knot_cls_false_for_non_knot(self) -> None:
-        self.assertFalse(_is_knot_cls(int))
+        self.assertFalse(Knot._is_knot_cls(int))
 
     def test_extract_coercible_type_plain_type_returns_none(self) -> None:
-        self.assertIsNone(_extract_coercible_type(int))
+        self.assertIsNone(Knot._extract_coercible_type(int))
 
     def test_extract_coercible_type_union_with_knot(self) -> None:
         from typing import Union
@@ -42,7 +42,7 @@ class TestKnotHelpers(unittest.TestCase):
         # _extract_coercible_type's `origin is Union` branch specifically, which
         # is distinct from its PEP-604 types.UnionType branch. Mirrors the
         # UP007 suppression the source itself carries where Union is required.
-        result = _extract_coercible_type(Union[Knot, int])  # noqa: UP007
+        result = Knot._extract_coercible_type(Union[Knot, int])  # noqa: UP007
         self.assertIsNotNone(result)
         coerce_type, _adapter_type = result
         self.assertIs(coerce_type, int)

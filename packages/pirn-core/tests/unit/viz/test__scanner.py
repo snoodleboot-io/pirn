@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from pirn.viz._scanner import TapestryGraphScanner
+from pirn.viz.tapestry_graph_scanner import TapestryGraphScanner
 
 
 class TestTapestryGraphScannerDurationMs(unittest.TestCase):

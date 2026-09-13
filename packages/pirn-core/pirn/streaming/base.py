@@ -1,108 +1,24 @@
-"""Streaming source protocol and the run_stream driver.
+"""Deprecated compatibility shim for ``pirn.streaming.base``.
 
-A streaming source is *like* a knot in that it produces values for
-downstream knots, but its lifecycle is different: it produces multiple
-values over time, and the engine ticks the downstream graph once per
-value.
-
-Implementation note: rather than treating a ``StreamingSource`` as a
-true ``Knot`` and complicating the engine, we expose it as a separate
-abstraction with a dedicated driver (``run_stream``).  The driver
-takes the source plus a list of downstream terminal knots; for each
-value the source emits, it runs the terminals (treating the source's
-value as a parameter binding).
-
-This keeps the request/response engine simple and the streaming engine
-focused.
+``StreamingSource`` and ``run_stream`` moved to
+:mod:`pirn.streaming.streaming_source` so the filename matches the class it
+defines (house convention: filename = snake_case(ClassName)). Import from
+the new location; this shim is kept for one release cycle and will be
+removed afterward.
 """
 
 from __future__ import annotations
 
-import asyncio
-from collections.abc import AsyncIterator, Awaitable, Callable
-from typing import TYPE_CHECKING, Any
+import warnings
 
-if TYPE_CHECKING:
-    from pirn.core.run_result import RunResult
-    from pirn.tapestry import Tapestry
+from pirn.streaming.streaming_source import StreamingSource, run_stream
 
+warnings.warn(
+    "'pirn.streaming.base' is deprecated; import 'StreamingSource' and "
+    "'run_stream' from 'pirn.streaming.streaming_source' instead. This "
+    "compatibility shim will be removed in a future release.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
-# Type aliases for callbacks.
-_OnResult = Callable[[Any, "RunResult"], Awaitable[None]]
-_OnError = Callable[[Any, BaseException], Awaitable[None]]
-
-
-class StreamingSource:
-    """Yields a sequence of values over time.
-
-    Each yielded value gets bound to the parameter named ``parameter_name``
-    of the runs the driver kicks off.  When the source is exhausted the
-    driver exits.
-    """
-
-    @property
-    def name(self) -> str:
-        raise NotImplementedError(f"{type(self).__name__} must implement name")
-
-    @property
-    def parameter_name(self) -> str:
-        """The parameter name that downstream knots consume."""
-        raise NotImplementedError(f"{type(self).__name__} must implement parameter_name")
-
-    def stream(self) -> AsyncIterator[Any]:
-        raise NotImplementedError(f"{type(self).__name__} must implement stream()")
-
-    async def close(self) -> None:
-        raise NotImplementedError(f"{type(self).__name__} must implement close()")
-
-
-async def run_stream(
-    source: StreamingSource,
-    tapestry: Tapestry,
-    *,
-    on_result: _OnResult | None = None,
-    on_error: _OnError | None = None,
-    extra_parameters: dict[str, Any] | None = None,
-) -> None:
-    """Drive a streaming source against a tapestry.
-
-    For each value the source yields, kick off a run with that value
-    bound to ``source.parameter_name`` (plus any ``extra_parameters``
-    that should also be available each tick).
-
-    The driver runs until the source's stream is exhausted, or until
-    cancellation.  ``source.close()`` is called on exit.
-
-    Compared to ``triggers.run_forever``: triggers build a full
-    ``RunRequest`` per event (they're independent jobs), whereas this
-    driver inlines a single parameter from the source — implying the
-    source is the *primary* input and other parameters are constants
-    for the run.
-    """
-    from pirn.core.run_request import RunRequest
-
-    base_params = dict(extra_parameters or {})
-    try:
-        async for value in source.stream():
-            params = dict(base_params)
-            params[source.parameter_name] = value
-            request = RunRequest(parameters=params)
-            try:
-                result = await tapestry.run(request)
-            except (asyncio.CancelledError, KeyboardInterrupt, SystemExit):
-                # A cancelled run ends the stream; it is not a bad value for
-                # on_error to log and skip past (PIR-841).
-                raise
-            except BaseException as exc:
-                if on_error is not None:
-                    await on_error(value, exc)
-                else:
-                    raise
-            else:
-                if on_result is not None:
-                    await on_result(value, result)
-    finally:
-        try:
-            await source.close()
-        except Exception:
-            pass
+__all__ = ["StreamingSource", "run_stream"]

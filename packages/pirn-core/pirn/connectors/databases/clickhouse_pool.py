@@ -79,11 +79,11 @@ class ClickhousePool(DatabaseConnectionPool):
         self._reject_inline_interpolation(query)
         client = await self._ensure_client()
         params = self._normalise_params(parameters)
+        return await asyncio.to_thread(self._sync_execute, client, query, params)
 
-        def _run() -> Any:
-            return client.command(query, parameters=params)
-
-        return await asyncio.to_thread(_run)
+    @staticmethod
+    def _sync_execute(client: Any, query: str, params: Any) -> Any:
+        return client.command(query, parameters=params)
 
     async def fetch_all(
         self,
@@ -93,15 +93,15 @@ class ClickhousePool(DatabaseConnectionPool):
         self._reject_inline_interpolation(query)
         client = await self._ensure_client()
         params = self._normalise_params(parameters)
+        return await asyncio.to_thread(self._sync_fetch_all, client, query, params)
 
-        def _run() -> list[tuple[Any, ...]]:
-            result = client.query(query, parameters=params)
-            rows = getattr(result, "result_rows", None)
-            if rows is None:
-                rows = list(result)
-            return [tuple(r) for r in rows]
-
-        return await asyncio.to_thread(_run)
+    @staticmethod
+    def _sync_fetch_all(client: Any, query: str, params: Any) -> list[tuple[Any, ...]]:
+        result = client.query(query, parameters=params)
+        rows = getattr(result, "result_rows", None)
+        if rows is None:
+            rows = list(result)
+        return [tuple(r) for r in rows]
 
     async def execute_many(
         self,
@@ -118,16 +118,16 @@ class ClickhousePool(DatabaseConnectionPool):
         self._reject_inline_interpolation(query)
         client = await self._ensure_client()
         rows = [list(p) for p in parameter_seq]
+        await asyncio.to_thread(self._sync_execute_many, client, query, rows)
 
-        def _run() -> None:
-            insert_fn = getattr(client, "insert", None)
-            if callable(insert_fn):
-                insert_fn(query, rows)
-                return
-            for params in rows:
-                client.command(query, parameters=params)
-
-        await asyncio.to_thread(_run)
+    @staticmethod
+    def _sync_execute_many(client: Any, query: str, rows: list[Any]) -> None:
+        insert_fn = getattr(client, "insert", None)
+        if callable(insert_fn):
+            insert_fn(query, rows)
+            return
+        for params in rows:
+            client.command(query, parameters=params)
 
     @staticmethod
     def _normalise_params(parameters: Iterable[Any] | None) -> Any:

@@ -42,77 +42,18 @@ from typing import TYPE_CHECKING, Any, ClassVar, Union, get_args, get_origin, ge
 
 from pydantic import TypeAdapter, ValidationError
 
+from pirn.core.dict_map import DictMap
 from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
+from pirn.core.map import Map
+from pirn.core.map_type_error import MapTypeError
 from pirn.core.ok import Ok
 from pirn.core.result import Result
+from pirn.core.zip_map import ZipMap
 from pirn.managers.exception_record import ExceptionRecord
-from pirn.nodes.map_markers import DictMap, Map, MapTypeError, ZipMap
 
 if TYPE_CHECKING:
     from pirn.tapestry import Tapestry
-
-
-# ---------------------------------------------------------------------------
-# Coercion helpers
-# ---------------------------------------------------------------------------
-
-
-def _is_knot_cls(candidate: Any) -> bool:
-    """Return True if *candidate* is Knot or a subclass of Knot."""
-    try:
-        return isinstance(candidate, type) and issubclass(candidate, Knot)
-    except TypeError:
-        return False
-
-
-def _extract_coercible_type(hint: Any) -> tuple[Any, Any] | None:
-    """Return ``(coerce_type, adapter_type)`` for a ``Knot | T`` union hint.
-
-    *coerce_type* is the non-Knot, non-NoneType member — used as the
-    ``type_`` when wrapping a scalar in a ``Parameter``.
-    *adapter_type* is the full union with Knot removed (NoneType kept) —
-    used as the pydantic validation type so ``None`` is accepted when the
-    original hint included it.
-
-    Returns ``None`` if the hint is not a Union that contains Knot alongside
-    at least one non-Knot, non-NoneType member.
-    """
-    origin = get_origin(hint)
-    args: tuple[Any, ...] = ()
-
-    if origin is Union:
-        args = get_args(hint)
-    else:
-        try:
-            if isinstance(hint, _types.UnionType):
-                args = get_args(hint)
-        except AttributeError:
-            pass
-
-    if not args:
-        return None
-
-    has_knot = any(_is_knot_cls(a) for a in args)
-    if not has_knot:
-        return None
-
-    non_knot_non_none = [a for a in args if a is not type(None) and not _is_knot_cls(a)]
-    if not non_knot_non_none:
-        return None
-
-    coerce_type = non_knot_non_none[0] if len(non_knot_non_none) == 1 else Any
-
-    # adapter_type: all args except Knot subclasses — preserves None.
-    adapter_args = [a for a in args if not _is_knot_cls(a)]
-    if len(adapter_args) == 1:
-        adapter_type: Any = adapter_args[0]
-    elif adapter_args:
-        adapter_type = Union[tuple(adapter_args)]  # noqa: UP007
-    else:
-        adapter_type = coerce_type
-
-    return coerce_type, adapter_type
 
 
 class Knot:
@@ -146,6 +87,63 @@ class Knot:
     # Populated by __init_subclass__ for each class that defines process().
     # Maps param name -> scalar type extracted from ``Knot | T`` union hints.
     _coercible_params: dict[str, Any] = {}  # noqa: RUF012
+
+    @staticmethod
+    def _is_knot_cls(candidate: Any) -> bool:
+        """Return True if *candidate* is Knot or a subclass of Knot."""
+        try:
+            return isinstance(candidate, type) and issubclass(candidate, Knot)
+        except TypeError:
+            return False
+
+    @staticmethod
+    def _extract_coercible_type(hint: Any) -> tuple[Any, Any] | None:
+        """Return ``(coerce_type, adapter_type)`` for a ``Knot | T`` union hint.
+
+        *coerce_type* is the non-Knot, non-NoneType member — used as the
+        ``type_`` when wrapping a scalar in a ``Parameter``.
+        *adapter_type* is the full union with Knot removed (NoneType kept) —
+        used as the pydantic validation type so ``None`` is accepted when the
+        original hint included it.
+
+        Returns ``None`` if the hint is not a Union that contains Knot alongside
+        at least one non-Knot, non-NoneType member.
+        """
+        origin = get_origin(hint)
+        args: tuple[Any, ...] = ()
+
+        if origin is Union:
+            args = get_args(hint)
+        else:
+            try:
+                if isinstance(hint, _types.UnionType):
+                    args = get_args(hint)
+            except AttributeError:
+                pass
+
+        if not args:
+            return None
+
+        has_knot = any(Knot._is_knot_cls(a) for a in args)
+        if not has_knot:
+            return None
+
+        non_knot_non_none = [a for a in args if a is not type(None) and not Knot._is_knot_cls(a)]
+        if not non_knot_non_none:
+            return None
+
+        coerce_type = non_knot_non_none[0] if len(non_knot_non_none) == 1 else Any
+
+        # adapter_type: all args except Knot subclasses — preserves None.
+        adapter_args = [a for a in args if not Knot._is_knot_cls(a)]
+        if len(adapter_args) == 1:
+            adapter_type: Any = adapter_args[0]
+        elif adapter_args:
+            adapter_type = Union[tuple(adapter_args)]  # noqa: UP007
+        else:
+            adapter_type = coerce_type
+
+        return coerce_type, adapter_type
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
@@ -190,7 +188,7 @@ class Knot:
             for pname, hint in hints.items():
                 if pname in ("self", "return"):
                     continue
-                result = _extract_coercible_type(hint)
+                result = cls._extract_coercible_type(hint)
                 if result is not None:
                     coercible[pname] = result  # (coerce_type, adapter_type)
             cls._coercible_params = coercible
@@ -601,13 +599,21 @@ class Knot:
 
     # -------------------------------------------------------------- runtime
 
-    async def __call__(self, parent_results: Mapping[str, Any]) -> Result[Any]:
-        """Framework entry point — invoked by the engine.
+    async def _prepare_inputs(
+        self, parent_results: Mapping[str, Any]
+    ) -> dict[str, Any] | Result[Any]:
+        """Merge config values with resolved parent results, then fan-out or validate.
 
-        ``parent_results`` is a mapping from this knot's input parameter
-        name to the upstream value (or, under RECEIVE_ERRORS, the
-        upstream Result).  Config values are merged in from
-        ``self._mutable_config_values``.
+        Shared by ``Knot.__call__`` and ``SubTapestry.__call__``, which
+        otherwise duplicated this exactly.
+
+        Returns:
+            The ``process()`` kwargs (a plain ``dict``) when input
+            preparation succeeds ordinarily. When one or more inputs is a
+            ``Map``/``ZipMap``/``DictMap`` marker, or ``validate_io``
+            catches a bad input, returns an already-terminal ``Result``
+            instead — the caller must return it immediately rather than
+            call ``process()``.
         """
         config = self._mutable_config
         # Assemble the kwargs to process().  Parents override config in
@@ -631,6 +637,22 @@ class Knot:
                 kwargs = self._validate_inputs(kwargs)
             except ValidationError as exc:
                 return Err(record=ExceptionRecord.for_knot(config.id, exc))
+
+        return kwargs
+
+    async def __call__(self, parent_results: Mapping[str, Any]) -> Result[Any]:
+        """Framework entry point — invoked by the engine.
+
+        ``parent_results`` is a mapping from this knot's input parameter
+        name to the upstream value (or, under RECEIVE_ERRORS, the
+        upstream Result).  Config values are merged in from
+        ``self._mutable_config_values``.
+        """
+        config = self._mutable_config
+        prepared = await self._prepare_inputs(parent_results)
+        if not isinstance(prepared, dict):
+            return prepared
+        kwargs = prepared
 
         try:
             result = await self.process(**kwargs)

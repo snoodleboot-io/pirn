@@ -25,8 +25,8 @@ Attach emitters at construction or per-run:
 
 ```python
 from pirn.tapestry import Tapestry
-from pirn.emitters.log import LogEmitter
-from pirn.emitters.otel import OpenTelemetryEmitter
+from pirn.emitters.log_emitter import LogEmitter
+from pirn.emitters.open_telemetry_emitter import OpenTelemetryEmitter
 
 # All runs
 t = Tapestry(emitters=[LogEmitter(), OpenTelemetryEmitter()])
@@ -54,10 +54,10 @@ result = await t.run(request, emitters=[])
 
 ## Structured logs
 
-`LogEmitter` writes one JSON line per event to the `pirn.emitters.log` logger at `INFO` level:
+`LogEmitter` writes one JSON line per event to the `pirn.emitters.log_emitter` logger at `INFO` level:
 
 ```python
-from pirn.emitters.log import LogEmitter
+from pirn.emitters.log_emitter import LogEmitter
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -97,7 +97,7 @@ from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-from pirn.emitters.otel import OpenTelemetryEmitter
+from pirn.emitters.open_telemetry_emitter import OpenTelemetryEmitter
 
 provider = TracerProvider()
 provider.add_span_processor(
@@ -154,7 +154,7 @@ histogram_quantile(0.99,
 Publish status, lineage, and result events to separate Kafka topics:
 
 ```python
-from pirn.emitters.kafka import KafkaEmitter
+from pirn.emitters.kafka_emitter import KafkaEmitter
 
 emitter = KafkaEmitter(
     bootstrap_servers="kafka:9092",
@@ -172,7 +172,7 @@ Requires `pip install pirn[kafka]`. Each event is a JSON-serialised Pydantic mod
 ## ValKey pub/sub emitter
 
 ```python
-from pirn.emitters.valkey import ValKeyEmitter
+from pirn.emitters.valkey_emitter import ValKeyEmitter
 
 emitter = ValKeyEmitter(url="redis://localhost:6379", channel="pirn:events")
 t = Tapestry(emitters=[emitter])
@@ -187,7 +187,7 @@ A separate consumer subscribes to `pirn:events` and forwards events to a metrics
 `WebhookEmitter` POSTs JSON to an HTTP endpoint on every `on_run_result` call:
 
 ```python
-from pirn.emitters.webhook import WebhookEmitter
+from pirn.emitters.webhook_emitter import WebhookEmitter
 
 emitter = WebhookEmitter(url="https://hooks.slack.com/...")
 t = Tapestry(emitters=[emitter])
@@ -202,8 +202,8 @@ Useful for Slack alerts, GitHub status checks, or custom dashboards.
 Subclass `Emitter` and override whichever hooks you need:
 
 ```python
-from pirn.emitters.base import Emitter
-from pirn.core.lineage import KnotLineage
+from pirn.emitters.emitter import Emitter
+from pirn.core.knot_lineage import KnotLineage
 from pirn.core.run_result import RunResult
 
 class PrometheusEmitter(Emitter):

@@ -7,8 +7,8 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 from pirn.core.run_request import RunRequest
-from pirn.streaming.base import StreamingSource
-from pirn.streaming.trigger_adapter import StreamingSourceTrigger
+from pirn.streaming.streaming_source import StreamingSource
+from pirn.streaming.streaming_source_trigger import StreamingSourceTrigger
 
 
 class _FakeStream(StreamingSource):

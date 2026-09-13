@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import MagicMock
 
-from pirn.viz.html import TapestryHtmlRenderer, html_for_tapestry
+from pirn.viz.tapestry_html_renderer import TapestryHtmlRenderer, html_for_tapestry
 
 
 def _make_tapestry(*knots):
