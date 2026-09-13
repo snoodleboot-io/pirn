@@ -28,30 +28,30 @@
     "knot_process_kwargs_name": 0,
     "knot_property": 0,
     "knot_self_assignment": 0,
-    "module_level_function": 1,
+    "module_level_function": 0,
     "multi_class_file": 1,
-    "nested_def_missing_override": 18
+    "nested_def_missing_override": 0
   },
   "pirn-health": {
-    "filename_mismatch": 2,
+    "filename_mismatch": 0,
     "gate_wrong_base": 0,
     "knot_init_impure": 0,
     "knot_process_kwargs_name": 0,
     "knot_property": 0,
     "knot_self_assignment": 0,
-    "module_level_function": 85,
+    "module_level_function": 0,
     "multi_class_file": 0,
-    "nested_def_missing_override": 3
+    "nested_def_missing_override": 0
   },
   "pirn-ml": {
-    "filename_mismatch": 1,
+    "filename_mismatch": 0,
     "gate_wrong_base": 1,
     "knot_init_impure": 0,
-    "knot_process_kwargs_name": 1,
+    "knot_process_kwargs_name": 0,
     "knot_property": 0,
     "knot_self_assignment": 0,
-    "module_level_function": 4,
-    "multi_class_file": 1,
+    "module_level_function": 0,
+    "multi_class_file": 0,
     "nested_def_missing_override": 0
   },
   "pirn-oilgas": {
@@ -61,9 +61,9 @@
     "knot_process_kwargs_name": 0,
     "knot_property": 0,
     "knot_self_assignment": 0,
-    "module_level_function": 23,
+    "module_level_function": 0,
     "multi_class_file": 0,
-    "nested_def_missing_override": 6
+    "nested_def_missing_override": 0
   },
   "pirn-signal": {
     "filename_mismatch": 0,

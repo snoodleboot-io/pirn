@@ -92,14 +92,18 @@ def test_nested_function_with_override_comment_is_allowed(tmp_path: Path) -> Non
         "        pass\n"
         "    return inner\n"
     )
-    assert "nested_def_missing_override" not in _rules(check_file(f, "acme", "closures.py"))
+    assert "nested_def_missing_override" not in _rules(
+        check_file(f, "acme", "closures.py")
+    )
 
 
 def test_method_inside_class_is_not_nested(tmp_path: Path) -> None:
     root = _import_root(tmp_path, "acme", "acme")
     f = root / "widget.py"
     f.write_text("class Widget:\n    def method(self) -> None:\n        pass\n")
-    assert "nested_def_missing_override" not in _rules(check_file(f, "acme", "widget.py"))
+    assert "nested_def_missing_override" not in _rules(
+        check_file(f, "acme", "widget.py")
+    )
 
 
 # --- rule 4: gate_wrong_base -------------------------------------------------
@@ -115,7 +119,9 @@ def test_flags_gate_suffix_with_wrong_base(tmp_path: Path) -> None:
 def test_allows_gate_suffix_extending_gate_primitive(tmp_path: Path) -> None:
     root = _import_root(tmp_path, "acme", "acme")
     f = root / "row_count_gate.py"
-    f.write_text("from pirn.nodes.gate.gate import Gate\n\n\nclass RowCountGate(Gate):\n    pass\n")
+    f.write_text(
+        "from pirn.nodes.gate.gate import Gate\n\n\nclass RowCountGate(Gate):\n    pass\n"
+    )
     assert "gate_wrong_base" not in _rules(check_file(f, "acme", "row_count_gate.py"))
 
 
@@ -159,7 +165,9 @@ def test_allows_pure_knot_init(tmp_path: Path) -> None:
 def test_allows_knot_with_no_init(tmp_path: Path) -> None:
     root = _import_root(tmp_path, "acme", "acme")
     f = root / "thing_knot.py"
-    f.write_text("from pirn.core.knot import Knot\n\n\nclass ThingKnot(Knot):\n    pass\n")
+    f.write_text(
+        "from pirn.core.knot import Knot\n\n\nclass ThingKnot(Knot):\n    pass\n"
+    )
     assert "knot_init_impure" not in _rules(check_file(f, "acme", "thing_knot.py"))
 
 
@@ -249,16 +257,22 @@ def test_allows_underscore_named_process_kwargs(tmp_path: Path) -> None:
         "    async def process(self, x: int, **_) -> int:\n"
         "        return x\n"
     )
-    assert "knot_process_kwargs_name" not in _rules(check_file(f, "acme", "thing_knot.py"))
+    assert "knot_process_kwargs_name" not in _rules(
+        check_file(f, "acme", "thing_knot.py")
+    )
 
 
-def test_process_with_no_kwargs_param_is_not_flagged_by_this_rule(tmp_path: Path) -> None:
+def test_process_with_no_kwargs_param_is_not_flagged_by_this_rule(
+    tmp_path: Path,
+) -> None:
     root = _import_root(tmp_path, "acme", "acme")
     f = root / "thing_knot.py"
     f.write_text(
         "from pirn.core.knot import Knot\n\n\nclass ThingKnot(Knot):\n    async def process(self, x: int) -> int:\n        return x\n"
     )
-    assert "knot_process_kwargs_name" not in _rules(check_file(f, "acme", "thing_knot.py"))
+    assert "knot_process_kwargs_name" not in _rules(
+        check_file(f, "acme", "thing_knot.py")
+    )
 
 
 # --- rule 9: filename_mismatch ----------------------------------------------
@@ -288,7 +302,9 @@ def test_private_only_class_file_is_not_checked(tmp_path: Path) -> None:
 # --- knot-like class detection (base name or suffix) ------------------------
 
 
-def test_pipeline_suffix_counts_as_knot_like_even_without_knot_base(tmp_path: Path) -> None:
+def test_pipeline_suffix_counts_as_knot_like_even_without_knot_base(
+    tmp_path: Path,
+) -> None:
     root = _import_root(tmp_path, "acme", "acme")
     f = root / "score_pipeline.py"
     f.write_text(
@@ -301,8 +317,12 @@ def test_pipeline_suffix_counts_as_knot_like_even_without_knot_base(tmp_path: Pa
 
 
 def test_core_nodes_allowlist_exempts_rules_5_to_7() -> None:
-    assert check_conventions._is_exempt_from_knot_purity("pirn-core", "pirn/nodes/gate/gate.py")
-    assert check_conventions._is_exempt_from_knot_purity("pirn-core", "pirn/core/parameter.py")
+    assert check_conventions._is_exempt_from_knot_purity(
+        "pirn-core", "pirn/nodes/gate/gate.py"
+    )
+    assert check_conventions._is_exempt_from_knot_purity(
+        "pirn-core", "pirn/core/parameter.py"
+    )
     assert not check_conventions._is_exempt_from_knot_purity(
         "pirn-core", "pirn/domains/data/foo.py"
     )
@@ -360,7 +380,10 @@ def test_write_baseline_then_clean_run_passes(
     (root / "leak.py").write_text("def helper() -> None:\n    pass\n")
     baseline = tmp_path / "baseline.json"
 
-    assert _run(monkeypatch, str(root), "--baseline", str(baseline), "--write-baseline") == 0
+    assert (
+        _run(monkeypatch, str(root), "--baseline", str(baseline), "--write-baseline")
+        == 0
+    )
     data = json.loads(baseline.read_text())
     assert data["acme"]["module_level_function"] == 1
 
@@ -401,11 +424,15 @@ def test_no_arguments_is_an_error(monkeypatch: pytest.MonkeyPatch) -> None:
     assert _run(monkeypatch) == 2
 
 
-def test_missing_path_is_an_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_missing_path_is_an_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     assert _run(monkeypatch, str(tmp_path / "nope")) == 2
 
 
-def test_non_directory_path_is_an_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_non_directory_path_is_an_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     f = tmp_path / "file.py"
     f.write_text("")
     assert _run(monkeypatch, str(f)) == 2
@@ -416,3 +443,41 @@ def test_resolve_import_roots_accepts_directories(tmp_path: Path) -> None:
     roots, errors = resolve_import_roots([str(root)])
     assert errors == []
     assert roots == [root]
+
+
+def test_fan_in_wiring_in_init_is_pure(tmp_path: Path) -> None:
+    """Building an Aggregator over a variadic input before super() is wiring, not logic."""
+    src = (
+        "from pirn.core.knot import Knot\n"
+        "from pirn.nodes.aggregator import Aggregator\n"
+        "class EnsembleBuilder(Knot):\n"
+        "    def __init__(self, *, models, _config, **kwargs):\n"
+        "        numbered = {f'model_{i}': m for i, m in enumerate(models)}\n"
+        "        node = Aggregator(combine=max, _config=_config, **numbered)\n"
+        "        super().__init__(models=node, _config=_config, **kwargs)\n"
+        "    async def process(self, models, **_):\n"
+        "        return models\n"
+    )
+    root = _import_root(tmp_path, "acme", "acme")
+    f = root / "ensemble_builder.py"
+    f.write_text(src)
+    assert "knot_init_impure" not in _rules(
+        check_file(f, "acme", "ensemble_builder.py")
+    )
+
+
+def test_non_fan_in_logic_in_init_is_impure(tmp_path: Path) -> None:
+    src = (
+        "from pirn.core.knot import Knot\n"
+        "class Bad(Knot):\n"
+        "    def __init__(self, *, x, _config, **kwargs):\n"
+        "        if x is None:\n"
+        "            raise ValueError('x')\n"
+        "        super().__init__(x=x, _config=_config, **kwargs)\n"
+        "    async def process(self, x, **_):\n"
+        "        return x\n"
+    )
+    root = _import_root(tmp_path, "acme", "acme")
+    f = root / "bad.py"
+    f.write_text(src)
+    assert "knot_init_impure" in _rules(check_file(f, "acme", "bad.py"))

@@ -125,7 +125,9 @@ _KNOT_BASE_NAMES = frozenset(
     }
 )
 
-_SKIP_DIR_NAMES = frozenset({"tests", ".venv", "venv", "__pycache__", ".ruff_cache", ".tox"})
+_SKIP_DIR_NAMES = frozenset(
+    {"tests", ".venv", "venv", "__pycache__", ".ruff_cache", ".tox"}
+)
 
 _RULES = (
     "multi_class_file",
@@ -166,7 +168,9 @@ def _dotted_name(node: ast.expr) -> str:
 
 def _base_names(bases: list[ast.expr]) -> list[str]:
     """The trailing identifier of each base (``pirn.core.knot.Knot`` -> ``Knot``)."""
-    return [_dotted_name(base).rsplit(".", 1)[-1] for base in bases if _dotted_name(base)]
+    return [
+        _dotted_name(base).rsplit(".", 1)[-1] for base in bases if _dotted_name(base)
+    ]
 
 
 def _is_knot_like(node: ast.ClassDef) -> bool:
@@ -178,7 +182,11 @@ def _is_knot_like(node: ast.ClassDef) -> bool:
 def _is_gate_base(bases: list[ast.expr]) -> bool:
     for base in bases:
         dotted = _dotted_name(base)
-        if dotted == "Gate" or dotted.endswith(".gate.Gate") or dotted.endswith(".Gate"):
+        if (
+            dotted == "Gate"
+            or dotted.endswith(".gate.Gate")
+            or dotted.endswith(".Gate")
+        ):
             return True
     return False
 
@@ -233,9 +241,54 @@ def _find_method(
     class_node: ast.ClassDef, name: str
 ) -> ast.FunctionDef | ast.AsyncFunctionDef | None:
     for stmt in class_node.body:
-        if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)) and stmt.name == name:
+        if (
+            isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and stmt.name == name
+        ):
             return stmt
     return None
+
+
+# Core fan-in / marker nodes a Knot may construct in ``__init__`` to wire a
+# variadic or scalar input before handing it to ``super().__init__``.  Building
+# one of these from the constructor's own arguments is wiring (Rule 1), not
+# logic: the node participates in the graph with full lineage and the value
+# still arrives in ``process()`` as a resolved argument (Rule 2).  See
+# knot-design-rules.md, Rule 1, "Fan-in wiring".
+_FAN_IN_NODE_NAMES = frozenset(
+    {"Aggregator", "Reduce", "Parameter", "Map", "ZipMap", "DictMap"}
+)
+
+
+def _is_fan_in_wiring(body: list[ast.stmt]) -> bool:
+    """True when ``body`` only builds fan-in nodes and then calls ``super().__init__``.
+
+    Accepted statements, in order: zero or more simple assignments whose value
+    is a dict literal / dict comprehension (numbering the parents) or a call to
+    one of ``_FAN_IN_NODE_NAMES``, followed by exactly one bare
+    ``super().__init__(...)`` call as the last statement.
+    """
+    if not body or not _is_bare_super_init_call(body[-1]):
+        return False
+    for stmt in body[:-1]:
+        if not isinstance(stmt, ast.Assign) or len(stmt.targets) != 1:
+            return False
+        if not isinstance(stmt.targets[0], ast.Name):
+            return False
+        value = stmt.value
+        if isinstance(value, (ast.Dict, ast.DictComp)):
+            continue
+        if isinstance(value, ast.Call):
+            func = value.func
+            name = (
+                func.id
+                if isinstance(func, ast.Name)
+                else (func.attr if isinstance(func, ast.Attribute) else None)
+            )
+            if name in _FAN_IN_NODE_NAMES:
+                continue
+        return False
+    return True
 
 
 def _check_knot_init_purity(class_node: ast.ClassDef, path: Path) -> list[_Violation]:
@@ -249,6 +302,8 @@ def _check_knot_init_purity(class_node: ast.ClassDef, path: Path) -> list[_Viola
         return []
     if not body:
         return []
+    if _is_fan_in_wiring(body):
+        return []
     return [
         _Violation(
             "knot_init_impure",
@@ -259,7 +314,9 @@ def _check_knot_init_purity(class_node: ast.ClassDef, path: Path) -> list[_Viola
     ]
 
 
-def _check_knot_self_assignment(class_node: ast.ClassDef, path: Path) -> list[_Violation]:
+def _check_knot_self_assignment(
+    class_node: ast.ClassDef, path: Path
+) -> list[_Violation]:
     init = _find_method(class_node, "__init__")
     if init is None:
         return []
@@ -309,7 +366,9 @@ def _check_knot_property(class_node: ast.ClassDef, path: Path) -> list[_Violatio
     return violations
 
 
-def _check_knot_process_kwargs(class_node: ast.ClassDef, path: Path) -> list[_Violation]:
+def _check_knot_process_kwargs(
+    class_node: ast.ClassDef, path: Path
+) -> list[_Violation]:
     process = _find_method(class_node, "process")
     if process is None or process.args.kwarg is None:
         return []
@@ -332,12 +391,16 @@ def _is_exempt_from_knot_purity(package: str, relative_posix: str) -> bool:
     return False
 
 
-def _check_nested_defs(tree: ast.Module, source_lines: list[str], path: Path) -> list[_Violation]:
+def _check_nested_defs(
+    tree: ast.Module, source_lines: list[str], path: Path
+) -> list[_Violation]:
     violations: list[_Violation] = []
 
     def _visit(node: ast.AST, enclosing_function_depth: int) -> None:
         for child in ast.iter_child_nodes(node):
-            is_def = isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+            is_def = isinstance(
+                child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+            )
             is_function = isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef))
             if (
                 is_def
@@ -353,7 +416,11 @@ def _check_nested_defs(tree: ast.Module, source_lines: list[str], path: Path) ->
                         f"nested {kind} {child.name!r} has no #design-decision-override comment",
                     )
                 )
-            next_depth = enclosing_function_depth + 1 if is_function else enclosing_function_depth
+            next_depth = (
+                enclosing_function_depth + 1
+                if is_function
+                else enclosing_function_depth
+            )
             _visit(child, next_depth)
 
     _visit(tree, 0)
@@ -537,7 +604,9 @@ def main(argv: list[str] | None = None) -> int:
         description="AST gate over house style conventions for Knot source (PIR-856)."
     )
     parser.add_argument(
-        "import_roots", nargs="*", help="Knot import root directories, e.g. packages/*/pirn*"
+        "import_roots",
+        nargs="*",
+        help="Knot import root directories, e.g. packages/*/pirn*",
     )
     parser.add_argument(
         "--baseline",
@@ -581,7 +650,9 @@ def main(argv: list[str] | None = None) -> int:
             baseline_count = baseline_for_package.get(rule, 0)
             if count > baseline_count:
                 failed = True
-                notes.append(f"{package}: {rule} count {count} exceeds baseline {baseline_count}")
+                notes.append(
+                    f"{package}: {rule} count {count} exceeds baseline {baseline_count}"
+                )
             elif count < baseline_count:
                 notes.append(
                     f"baseline can be lowered: {package}: {rule} is {count}, baseline says {baseline_count}"

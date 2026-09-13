@@ -49,6 +49,21 @@ def __init__(
 
 `__init__` does nothing else. No validation, no assignment to `self._x`, no logic.
 
+**Fan-in wiring.** A variadic input (a sequence of Knots) or a scalar that must
+participate in the graph may be wired through a core fan-in node constructed in
+`__init__` and passed to `super().__init__` — `Aggregator`, `Reduce`, `Parameter`,
+or a map marker. That is still wiring, not logic: the node carries its own lineage
+and `process()` receives the resolved value (Rule 2). Nothing else may happen in
+`__init__`; `scripts/check_conventions.py` enforces exactly this shape.
+
+```python
+def __init__(self, *, models: Sequence[Knot], _config: KnotConfig, **kwargs: Any) -> None:
+    numbered = {f"model_{i}": m for i, m in enumerate(models)}
+    models_node = Aggregator(combine=EnsembleBuilder._order_models,
+                             _config=KnotConfig(id=f"{_config.id}:models"), **numbered)
+    super().__init__(models=models_node, _config=_config, **kwargs)
+```
+
 ---
 
 ## Rule 2 — `process()` is the execution layer: it takes resolved values
