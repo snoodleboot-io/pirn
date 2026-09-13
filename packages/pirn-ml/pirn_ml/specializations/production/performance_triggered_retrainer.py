@@ -26,6 +26,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_ml.evaluation.evaluator import Evaluator
@@ -33,11 +34,6 @@ from pirn_ml.training.trainer import Trainer
 from pirn_ml.types.eval_report_payload import EvalReportPayload
 from pirn_ml.types.model_manifest import ModelManifest
 from pirn_ml.types.split_manifest import SplitManifest
-
-
-@knot
-async def _emit_value(value: Any) -> Any:
-    return value
 
 
 @knot
@@ -115,8 +111,12 @@ class PerformanceTriggeredRetrainer(SubTapestry):
         if not isinstance(algorithm, str) or not algorithm:
             raise ValueError("PerformanceTriggeredRetrainer: algorithm must be a non-empty string")
         threshold_f = float(threshold)
-        model_node = _emit_value(value=model, _config=KnotConfig(id="model"))
-        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        model_node = Parameter(
+            "model", ModelManifest, default=model, _config=KnotConfig(id="model")
+        )
+        split_node = Parameter(
+            "split", SplitManifest, default=split, _config=KnotConfig(id="split")
+        )
         evaluated = Evaluator(
             model=model_node,
             split=split_node,
@@ -128,8 +128,10 @@ class PerformanceTriggeredRetrainer(SubTapestry):
             algorithm=algorithm,
             _config=KnotConfig(id="retrain"),
         )
-        metric_node = _emit_value(value=metric, _config=KnotConfig(id="metric"))
-        threshold_node = _emit_value(value=threshold_f, _config=KnotConfig(id="threshold"))
+        metric_node = Parameter("metric", str, default=metric, _config=KnotConfig(id="metric"))
+        threshold_node = Parameter(
+            "threshold", float, default=threshold_f, _config=KnotConfig(id="threshold")
+        )
         return _build_retrainer_result(
             eval_report=evaluated,
             retrained_model=retrained,

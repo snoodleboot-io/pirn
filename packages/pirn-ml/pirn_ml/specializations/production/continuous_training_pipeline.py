@@ -31,6 +31,7 @@ from pirn.connectors.object_store import ObjectStore
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_ml.data_prep.dataset_loader import DatasetLoader
@@ -52,11 +53,6 @@ async def _holdout_features(split: SplitManifest) -> list[Mapping[str, Any]]:
         row: dict[str, Any] = {feature: float(index) for feature in split.test.feature_names}
         rows.append(row)
     return rows
-
-
-@knot
-async def _emit_value(value: Any) -> Any:
-    return value
 
 
 @knot
@@ -196,8 +192,10 @@ class ContinuousTrainingPipeline(SubTapestry):
             raise ValueError("ContinuousTrainingPipeline: freshness_window_days must be >= 0")
         is_fresh, cached_model_id = await self._is_fresh(lineage, name, freshness_window_days)
         if is_fresh and cached_model_id is not None:
-            return _emit_value(
-                value={"model_id": cached_model_id, "eval_report": None, "skipped": True},
+            return Parameter(
+                "skipped",
+                dict,
+                default={"model_id": cached_model_id, "eval_report": None, "skipped": True},
                 _config=KnotConfig(id="skipped"),
             )
         dataset = DatasetLoader(

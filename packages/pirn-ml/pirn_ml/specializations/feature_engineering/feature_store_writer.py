@@ -21,17 +21,12 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_ml.feature_store_provider import FeatureStoreProvider
 from pirn_ml.features.feature_store import FeatureStore
 from pirn_ml.types.split_manifest import SplitManifest
-
-
-@knot
-async def _emit_value(value: Any) -> Any:
-    return value
 
 
 class FeatureStoreWriter(SubTapestry):
@@ -74,7 +69,9 @@ class FeatureStoreWriter(SubTapestry):
             raise TypeError("FeatureStoreWriter: split must be a SplitManifest")
         if not isinstance(feature_store, FeatureStoreProvider):
             raise TypeError("FeatureStoreWriter: feature_store must be a FeatureStoreProvider")
-        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        split_node = Parameter(
+            "split", SplitManifest, default=split, _config=KnotConfig(id="split")
+        )
         return FeatureStore(
             split=split_node,
             provider=feature_store,

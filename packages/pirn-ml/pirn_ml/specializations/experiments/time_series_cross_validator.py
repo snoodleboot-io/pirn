@@ -30,6 +30,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
 from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.sub_tapestry import SubTapestry
 
@@ -40,11 +41,6 @@ from pirn_ml.types.eval_metadata import EvalMetadata
 from pirn_ml.types.eval_metrics import EvalMetrics
 from pirn_ml.types.eval_report_payload import EvalReportPayload
 from pirn_ml.types.split_manifest import SplitManifest
-
-
-@knot
-async def _emit_value(value: Any) -> Any:
-    return value
 
 
 @knot
@@ -157,8 +153,10 @@ class TimeSeriesCrossValidator(SubTapestry):
                 source_uri=dataset.source_uri,
             )
             fold = SplitManifest(train=train_ds, test=test_ds)
-            split_node = _emit_value(
-                value=fold,
+            split_node = Parameter(
+                f"split_{fold_index}",
+                SplitManifest,
+                default=fold,
                 _config=KnotConfig(id=f"split_{fold_index}"),
             )
             model = Trainer(
@@ -174,9 +172,15 @@ class TimeSeriesCrossValidator(SubTapestry):
                     _config=KnotConfig(id=f"evaluate_{fold_index}"),
                 )
             )
-        algorithm_node = _emit_value(value=algorithm, _config=KnotConfig(id="algorithm"))
-        dataset_name_node = _emit_value(value=dataset.name, _config=KnotConfig(id="dataset_name"))
-        n_splits_node = _emit_value(value=n_splits, _config=KnotConfig(id="n_splits"))
+        algorithm_node = Parameter(
+            "algorithm", str, default=algorithm, _config=KnotConfig(id="algorithm")
+        )
+        dataset_name_node = Parameter(
+            "dataset_name", str, default=dataset.name, _config=KnotConfig(id="dataset_name")
+        )
+        n_splits_node = Parameter(
+            "n_splits", int, default=n_splits, _config=KnotConfig(id="n_splits")
+        )
         collected = Aggregator(
             combine=lambda **kw: list(kw.values()),
             _config=KnotConfig(id="collect-reports"),

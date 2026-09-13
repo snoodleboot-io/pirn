@@ -29,16 +29,12 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_ml.deployment.shadow_deployer import ShadowDeployer
 from pirn_ml.lineage_store import LineageStore
 from pirn_ml.types.model_manifest import ModelManifest
-
-
-@knot
-async def _emit_value(value: Any) -> Any:
-    return value
 
 
 @knot
@@ -122,9 +118,15 @@ class ShadowDeploymentPipeline(SubTapestry):
         """
         if not isinstance(lineage, LineageStore):
             raise TypeError("ShadowDeploymentPipeline: lineage must be a LineageStore")
-        champion_node = _emit_value(value=champion, _config=KnotConfig(id="champion"))
-        challenger_node = _emit_value(value=challenger, _config=KnotConfig(id="challenger"))
-        lineage_node = _emit_value(value=lineage, _config=KnotConfig(id="lineage"))
+        champion_node = Parameter(
+            "champion", ModelManifest, default=champion, _config=KnotConfig(id="champion")
+        )
+        challenger_node = Parameter(
+            "challenger", ModelManifest, default=challenger, _config=KnotConfig(id="challenger")
+        )
+        lineage_node = Parameter(
+            "lineage", LineageStore, default=lineage, _config=KnotConfig(id="lineage")
+        )
         deploy_champion = ShadowDeployer(
             model=champion_node,
             registry=lineage,

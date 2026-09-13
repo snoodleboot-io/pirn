@@ -31,18 +31,13 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_ml.specializations.feature_engineering._lag_append_knot import (
     _LagAppendKnot,
 )
 from pirn_ml.types.split_manifest import SplitManifest
-
-
-@knot
-async def _emit_value(value: Any) -> Any:
-    return value
 
 
 class LagFeatureGenerator(SubTapestry):
@@ -108,7 +103,9 @@ class LagFeatureGenerator(SubTapestry):
                 raise TypeError("LagFeatureGenerator: every lag must be an int")
             if lag < 1:
                 raise ValueError("LagFeatureGenerator: every lag must be >= 1")
-        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        split_node = Parameter(
+            "split", SplitManifest, default=split, _config=KnotConfig(id="split")
+        )
         return _LagAppendKnot(
             split=split_node,
             time_column=time_column,

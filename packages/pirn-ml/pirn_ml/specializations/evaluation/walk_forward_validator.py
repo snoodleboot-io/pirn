@@ -32,6 +32,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
 from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.sub_tapestry import SubTapestry
 
@@ -40,11 +41,6 @@ from pirn_ml.training.trainer import Trainer
 from pirn_ml.types.dataset_manifest import DatasetManifest
 from pirn_ml.types.eval_report_payload import EvalReportPayload
 from pirn_ml.types.split_manifest import SplitManifest
-
-
-@knot
-async def _emit_value(value: Any) -> Any:
-    return value
 
 
 @knot
@@ -140,8 +136,10 @@ class WalkForwardValidator(SubTapestry):
                 test=test_partition,
                 validation=None,
             )
-            split_node = _emit_value(
-                value=split_value,
+            split_node = Parameter(
+                f"split-step-{step}",
+                SplitManifest,
+                default=split_value,
                 _config=KnotConfig(id=f"split-step-{step}"),
             )
             trainer = Trainer(

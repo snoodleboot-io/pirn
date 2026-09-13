@@ -25,17 +25,13 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_ml.evaluation.evaluator import Evaluator
 from pirn_ml.types.eval_report_payload import EvalReportPayload
 from pirn_ml.types.model_manifest import ModelManifest
 from pirn_ml.types.split_manifest import SplitManifest
-
-
-@knot
-async def _emit_value(value: Any) -> Any:
-    return value
 
 
 @knot
@@ -125,9 +121,15 @@ class ABTestDeployer(SubTapestry):
         if not isinstance(alpha, (int, float)) or alpha <= 0.0 or alpha >= 1.0:
             raise ValueError("ABTestDeployer: alpha must be in (0, 1)")
         alpha_f = float(alpha)
-        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
-        model_a_node = _emit_value(value=model_a, _config=KnotConfig(id="model-a"))
-        model_b_node = _emit_value(value=model_b, _config=KnotConfig(id="model-b"))
+        split_node = Parameter(
+            "split", SplitManifest, default=split, _config=KnotConfig(id="split")
+        )
+        model_a_node = Parameter(
+            "model-a", ModelManifest, default=model_a, _config=KnotConfig(id="model-a")
+        )
+        model_b_node = Parameter(
+            "model-b", ModelManifest, default=model_b, _config=KnotConfig(id="model-b")
+        )
         eval_a = Evaluator(
             model=model_a_node,
             split=split_node,
@@ -140,10 +142,10 @@ class ABTestDeployer(SubTapestry):
             metrics=(primary_metric,),
             _config=KnotConfig(id="eval-b"),
         )
-        primary_metric_node = _emit_value(
-            value=primary_metric, _config=KnotConfig(id="primary_metric")
+        primary_metric_node = Parameter(
+            "primary_metric", str, default=primary_metric, _config=KnotConfig(id="primary_metric")
         )
-        alpha_node = _emit_value(value=alpha_f, _config=KnotConfig(id="alpha"))
+        alpha_node = Parameter("alpha", float, default=alpha_f, _config=KnotConfig(id="alpha"))
         return _build_ab_test_result(
             report_a=eval_a,
             report_b=eval_b,

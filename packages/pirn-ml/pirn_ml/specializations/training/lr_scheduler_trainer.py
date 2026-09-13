@@ -29,6 +29,7 @@ from typing import Any, ClassVar
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_ml.evaluation.evaluator import Evaluator
@@ -36,11 +37,6 @@ from pirn_ml.training.trainer import Trainer
 from pirn_ml.types.eval_report_payload import EvalReportPayload
 from pirn_ml.types.model_manifest import ModelManifest
 from pirn_ml.types.split_manifest import SplitManifest
-
-
-@knot
-async def _emit_value(value: Any) -> Any:
-    return value
 
 
 @knot
@@ -122,7 +118,9 @@ class LRSchedulerTrainer(SubTapestry):
             **(dict(hyperparameters) if hyperparameters is not None else {}),
             "lr_scheduler": scheduler,
         }
-        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        split_node = Parameter(
+            "split", SplitManifest, default=split, _config=KnotConfig(id="split")
+        )
         model = Trainer(
             split=split_node,
             algorithm=algorithm,
@@ -135,7 +133,9 @@ class LRSchedulerTrainer(SubTapestry):
             metrics=metric_tuple,
             _config=KnotConfig(id="evaluate"),
         )
-        scheduler_node = _emit_value(value=scheduler, _config=KnotConfig(id="scheduler"))
+        scheduler_node = Parameter(
+            "scheduler", str, default=scheduler, _config=KnotConfig(id="scheduler")
+        )
         return _combine_lr_scheduler_result(
             model=model,
             eval_report=evaluated,

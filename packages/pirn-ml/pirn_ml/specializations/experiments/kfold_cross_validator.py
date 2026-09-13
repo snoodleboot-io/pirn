@@ -30,6 +30,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
 from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.sub_tapestry import SubTapestry
 
@@ -41,11 +42,6 @@ from pirn_ml.types.eval_metadata import EvalMetadata
 from pirn_ml.types.eval_metrics import EvalMetrics
 from pirn_ml.types.eval_report_payload import EvalReportPayload
 from pirn_ml.types.split_manifest import SplitManifest
-
-
-@knot
-async def _emit_value(value: Any) -> Any:
-    return value
 
 
 @knot
@@ -150,7 +146,9 @@ class KFoldCrossValidator(SubTapestry):
                 raise ValueError(
                     "KFoldCrossValidator: every metric name must be a non-empty string"
                 )
-        dataset_node = _emit_value(value=dataset, _config=KnotConfig(id="dataset"))
+        dataset_node = Parameter(
+            "dataset", DatasetManifest, default=dataset, _config=KnotConfig(id="dataset")
+        )
         folds_node = CrossValidator(
             dataset=dataset_node,
             k=k,
@@ -158,8 +156,11 @@ class KFoldCrossValidator(SubTapestry):
         )
         eval_nodes = []
         for fold_index in range(k):
-            fold_index_node = _emit_value(
-                value=fold_index, _config=KnotConfig(id=f"fold_index_{fold_index}")
+            fold_index_node = Parameter(
+                f"fold_index_{fold_index}",
+                int,
+                default=fold_index,
+                _config=KnotConfig(id=f"fold_index_{fold_index}"),
             )
             split_node = _extract_fold(
                 folds=folds_node,
@@ -179,9 +180,13 @@ class KFoldCrossValidator(SubTapestry):
                     _config=KnotConfig(id=f"evaluate_{fold_index}"),
                 )
             )
-        algorithm_node = _emit_value(value=algorithm, _config=KnotConfig(id="algorithm"))
-        dataset_name_node = _emit_value(value=dataset.name, _config=KnotConfig(id="dataset_name"))
-        k_node = _emit_value(value=k, _config=KnotConfig(id="k"))
+        algorithm_node = Parameter(
+            "algorithm", str, default=algorithm, _config=KnotConfig(id="algorithm")
+        )
+        dataset_name_node = Parameter(
+            "dataset_name", str, default=dataset.name, _config=KnotConfig(id="dataset_name")
+        )
+        k_node = Parameter("k", int, default=k, _config=KnotConfig(id="k"))
         collected = Aggregator(
             combine=lambda **kw: list(kw.values()),
             _config=KnotConfig(id="collect"),

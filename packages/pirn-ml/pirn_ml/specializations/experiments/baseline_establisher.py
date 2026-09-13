@@ -29,17 +29,12 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_ml.evaluation.evaluator import Evaluator
 from pirn_ml.training.trainer import Trainer
 from pirn_ml.types.split_manifest import SplitManifest
-
-
-@knot
-async def _emit_value(value: Any) -> Any:
-    return value
 
 
 class BaselineEstablisher(SubTapestry):
@@ -93,7 +88,9 @@ class BaselineEstablisher(SubTapestry):
                 raise ValueError(
                     "BaselineEstablisher: every metric name must be a non-empty string"
                 )
-        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        split_node = Parameter(
+            "split", SplitManifest, default=split, _config=KnotConfig(id="split")
+        )
         model = Trainer(
             split=split_node,
             algorithm=algorithm,
