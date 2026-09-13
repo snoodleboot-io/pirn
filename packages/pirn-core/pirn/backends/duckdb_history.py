@@ -20,8 +20,8 @@ from __future__ import annotations
 from typing import Any
 
 from pirn.backends.base.run_history import RunHistory
-from pirn.core.knot_source import KnotSourceRecord
-from pirn.core.lineage import KnotLineage
+from pirn.core.knot_lineage import KnotLineage
+from pirn.core.knot_source_record import KnotSourceRecord
 
 
 class DuckDBHistory(RunHistory):

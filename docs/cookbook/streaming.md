@@ -25,8 +25,8 @@ from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
-from pirn.streaming.base import run_stream
-from pirn.streaming.iterable import IterableSource
+from pirn.streaming.streaming_source import run_stream
+from pirn.streaming.iterable_source import IterableSource
 
 
 @knot
@@ -78,7 +78,7 @@ Output:
 Tail a log file and process each new line as it arrives:
 
 ```python
-from pirn.streaming.file_tail import FileTailSource
+from pirn.streaming.file_tail_source import FileTailSource
 
 
 @knot
@@ -120,7 +120,7 @@ asyncio.run(main())
 Consume a Kafka topic, one run per message:
 
 ```python
-from pirn.streaming.kafka import KafkaStreamingSource
+from pirn.streaming.kafka_streaming_source import KafkaStreamingSource
 
 
 @knot
@@ -161,7 +161,7 @@ asyncio.run(main())
 Pass constant values shared across all streaming ticks with `extra_parameters`:
 
 ```python
-from pirn.streaming.base import run_stream
+from pirn.streaming.streaming_source import run_stream
 
 await run_stream(
     source,
@@ -182,9 +182,9 @@ These are merged into the `RunRequest.parameters` for every tick. Parameters in 
 Adapt a streaming source to the `Trigger` protocol with `StreamingSourceTrigger`:
 
 ```python
-from pirn.streaming.file_tail import FileTailSource
-from pirn.streaming.trigger_adapter import StreamingSourceTrigger
-from pirn.triggers.base import run_forever
+from pirn.streaming.file_tail_source import FileTailSource
+from pirn.streaming.streaming_source_trigger import StreamingSourceTrigger
+from pirn.triggers.trigger import run_forever
 
 source = FileTailSource("/var/log/app.log", parameter_name="line")
 trigger = StreamingSourceTrigger(source)

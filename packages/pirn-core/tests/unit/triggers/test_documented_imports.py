@@ -139,7 +139,7 @@ class TestDocumentedImportsAreReal(unittest.TestCase):
             offenders,
             [],
             "docs import from a package façade that exports nothing; "
-            "use the concrete module (pirn.triggers.cron, pirn.streaming.iterable, …)",
+            "use the concrete module (pirn.triggers.cron_trigger, pirn.streaming.iterable_source, …)",
         )
 
 
@@ -164,12 +164,12 @@ class TestConcreteModulePathsResolve(unittest.TestCase):
 
     def test_documented_trigger_paths_resolve(self) -> None:
         for module_name, symbol in (
-            ("pirn.triggers.base", "Trigger"),
-            ("pirn.triggers.base", "run_forever"),
-            ("pirn.triggers.cron", "CronTrigger"),
-            ("pirn.triggers.http", "WebhookTrigger"),
-            ("pirn.triggers.kafka", "KafkaTrigger"),
-            ("pirn.triggers.valkey", "ValKeyTrigger"),
+            ("pirn.triggers.trigger", "Trigger"),
+            ("pirn.triggers.trigger", "run_forever"),
+            ("pirn.triggers.cron_trigger", "CronTrigger"),
+            ("pirn.triggers.webhook_trigger", "WebhookTrigger"),
+            ("pirn.triggers.kafka_trigger", "KafkaTrigger"),
+            ("pirn.triggers.valkey_trigger", "ValKeyTrigger"),
         ):
             with self.subTest(module=module_name, symbol=symbol):
                 module = importlib.import_module(module_name)
@@ -177,12 +177,12 @@ class TestConcreteModulePathsResolve(unittest.TestCase):
 
     def test_documented_streaming_paths_resolve(self) -> None:
         for module_name, symbol in (
-            ("pirn.streaming.base", "StreamingSource"),
-            ("pirn.streaming.base", "run_stream"),
-            ("pirn.streaming.iterable", "IterableSource"),
-            ("pirn.streaming.kafka", "KafkaStreamingSource"),
-            ("pirn.streaming.file_tail", "FileTailSource"),
-            ("pirn.streaming.trigger_adapter", "StreamingSourceTrigger"),
+            ("pirn.streaming.streaming_source", "StreamingSource"),
+            ("pirn.streaming.streaming_source", "run_stream"),
+            ("pirn.streaming.iterable_source", "IterableSource"),
+            ("pirn.streaming.kafka_streaming_source", "KafkaStreamingSource"),
+            ("pirn.streaming.file_tail_source", "FileTailSource"),
+            ("pirn.streaming.streaming_source_trigger", "StreamingSourceTrigger"),
         ):
             with self.subTest(module=module_name, symbol=symbol):
                 module = importlib.import_module(module_name)

@@ -1,6 +1,6 @@
 """``TriggeredBatch`` — run a batch once per trigger fire (F28-S5 / PIR-584).
 
-Binds a core :class:`pirn.triggers.base.Trigger` to a
+Binds a core :class:`pirn.triggers.trigger.Trigger` to a
 :class:`~pirn_agents.batch.map_agent.MapAgent`: for each fire it fetches a fresh
 input set from ``inputs_fn(ordinal)``, runs the batch to completion, and yields a
 :class:`~pirn_agents.batch.batch_progress.BatchProgress` summarising that run
@@ -9,7 +9,7 @@ fire). It owns no scheduling itself; the trigger decides *when* and this decides
 *what*, so a cron/interval schedule and an event source drive the same batch with
 no code change.
 
-The loop takes its semantics from :func:`pirn.triggers.base.run_forever`, with
+The loop takes its semantics from :func:`pirn.triggers.trigger.run_forever`, with
 optional ``on_result``/``on_error`` callbacks observing each run. Trigger
 lifecycle is the one place it deliberately does not: ``run_forever`` closes the
 trigger on every exit path, whereas this leaves a trigger the caller
@@ -56,7 +56,7 @@ import contextlib
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterable
 
 from pirn.core.run_request import RunRequest
-from pirn.triggers.base import Trigger
+from pirn.triggers.trigger import Trigger
 
 from pirn_agents.batch.batch_progress import BatchProgress
 from pirn_agents.batch.map_agent import MapAgent

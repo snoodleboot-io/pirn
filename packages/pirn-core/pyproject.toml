@@ -402,8 +402,8 @@ ignore = ["E501"]
 # before import). Scoped to tests only, deliberately not project-wide.
 "**/tests/**/*.py" = ["F841", "E402"]
 "**/pirn/__init__.py" = ["RUF022"]
-"**/pirn/viz/explorer.py" = ["E501"]
-"**/pirn/viz/html.py" = ["E501"]
+"**/pirn/viz/explorer_html_generator.py" = ["E501"]
+"**/pirn/viz/tapestry_html_renderer.py" = ["E501"]
 
 [tool.coverage.run]
 source = ["pirn"]

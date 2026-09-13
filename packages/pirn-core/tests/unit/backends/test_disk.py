@@ -11,7 +11,7 @@ import unittest.mock
 from pathlib import Path
 
 from pirn.backends._signer import _Signer
-from pirn.backends.disk import LocalDiskDataStore
+from pirn.backends.local_disk_data_store import LocalDiskDataStore
 
 
 class TestLocalDiskDataStoreKeyLayout(unittest.TestCase):
@@ -166,7 +166,7 @@ class TestLocalDiskDataStoreAtomicWrite(unittest.IsolatedAsyncioTestCase):
         await self.store.put("sha256:abc123", "original")
 
         with unittest.mock.patch(
-            "pirn.backends.disk.os.replace", side_effect=OSError("rename failed")
+            "pirn.backends.local_disk_data_store.os.replace", side_effect=OSError("rename failed")
         ):
             with self.assertRaises(OSError):
                 await self.store.put("sha256:abc123", "replacement")
@@ -175,7 +175,7 @@ class TestLocalDiskDataStoreAtomicWrite(unittest.IsolatedAsyncioTestCase):
 
     async def test_failed_write_cleans_up_temp_file(self) -> None:
         with unittest.mock.patch(
-            "pirn.backends.disk.os.replace", side_effect=OSError("rename failed")
+            "pirn.backends.local_disk_data_store.os.replace", side_effect=OSError("rename failed")
         ):
             with self.assertRaises(OSError):
                 await self.store.put("sha256:abc123", "replacement")

@@ -18,21 +18,28 @@ class TestExploreCli(unittest.TestCase):
 
     def test_valid_folder_no_open_returns_0(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            with patch("pirn.viz.explorer.generate_explorer_html", return_value="<html/>"):
+            with patch(
+                "pirn.viz.explorer_html_generator.generate_explorer_html", return_value="<html/>"
+            ):
                 result = ExploreCli().run([tmp, "--no-open"])
         self.assertEqual(result, 0)
 
     def test_output_file_written(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             out = str(Path(tmp) / "out.html")
-            with patch("pirn.viz.explorer.generate_explorer_html", return_value="<html>hi</html>"):
+            with patch(
+                "pirn.viz.explorer_html_generator.generate_explorer_html",
+                return_value="<html>hi</html>",
+            ):
                 ExploreCli().run([tmp, "--output", out, "--no-open"])
             self.assertTrue(Path(out).exists())
             self.assertEqual(Path(out).read_text(encoding="utf-8"), "<html>hi</html>")
 
     def test_default_output_path(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            with patch("pirn.viz.explorer.generate_explorer_html", return_value="<html/>"):
+            with patch(
+                "pirn.viz.explorer_html_generator.generate_explorer_html", return_value="<html/>"
+            ):
                 ExploreCli().run([tmp, "--no-open"])
             default_out = Path(tmp) / "pirn_explorer.html"
             self.assertTrue(default_out.exists())
@@ -42,6 +49,8 @@ class TestExploreCli(unittest.TestCase):
 
     def test_main_delegates_to_cli(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            with patch("pirn.viz.explorer.generate_explorer_html", return_value="<html/>"):
+            with patch(
+                "pirn.viz.explorer_html_generator.generate_explorer_html", return_value="<html/>"
+            ):
                 code = main([tmp, "--no-open"])
         self.assertEqual(code, 0)

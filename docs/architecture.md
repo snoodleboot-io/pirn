@@ -237,7 +237,7 @@ Every value that flows through the pipeline is identified by a stable content ha
 
 **Why sha256:** collision resistance at acceptable cost. Hex-encoded because hashes appear in logs and JSON where hex is universally readable.
 
-**Canonicalisation rules** (`hashing._canonicalise`):
+**Canonicalisation rules** (`_ContentHasher._canonicalise`):
 
 | Type | Canonical form |
 |------|---------------|
@@ -686,7 +686,7 @@ t = Tapestry()  # all defaults: InMemoryStore, InMemoryHistory, InMemoryDataStor
 ```python
 from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 from pirn.backends.sqlite.sqlite_store import SQLiteStore
-from pirn.backends.disk import LocalDiskDataStore
+from pirn.backends.local_disk_data_store import LocalDiskDataStore
 
 t = Tapestry(
     store=SQLiteStore("pirn.db"),
@@ -702,7 +702,7 @@ Suitable for scheduled batch jobs on a single machine. SQLite is the write path;
 ```python
 from pirn.backends.postgres.postgres_history import PostgresHistory
 from pirn.backends.postgres.postgres_store import PostgresStore
-from pirn.backends.s3 import S3DataStore
+from pirn.backends.s3_data_store import S3DataStore
 
 t = Tapestry(
     store=PostgresStore(dsn="postgresql://..."),
@@ -718,7 +718,7 @@ Multiple workers can share the same Postgres cluster and S3 bucket. Suitable for
 ```python
 from pirn.backends.postgres.postgres_history import PostgresHistory
 from pirn.backends.postgres.postgres_store import PostgresStore
-from pirn.backends.duckdb import DuckDBHistory
+from pirn.backends.duckdb_history import DuckDBHistory
 
 # OLTP writes go to Postgres; OLAP reads hit DuckDB (e.g. against a read replica)
 t = Tapestry(
@@ -879,7 +879,7 @@ Built-in sources: `IterableStreamingSource` (wraps a Python iterable), `FileTail
 ### Entry Point
 
 ```python
-from pirn.yaml_loader.loader import load_pipeline
+from pirn.yaml_loader.pipeline_loader import load_pipeline
 
 tapestry = load_pipeline(
     yaml_text,
@@ -1322,7 +1322,9 @@ flowchart TD
 | `pirn/core/knot_config.py` | `KnotConfig` |
 | `pirn/core/error_policy.py` | `ErrorPolicy` enum |
 | `pirn/core/run_request.py`, `pirn/core/run_result.py`, `pirn/core/run_context.py` | `RunRequest`, `RunResult`, `RunContext` |
-| `pirn/core/hashing.py` | `content_hash()`, `_canonicalise()` |
+| `pirn/core/hashing.py` | `content_hash()` (thin wrapper) |
+| `pirn/core/_content_hasher.py` | `_ContentHasher` (`.hash()`, `._canonicalise()`) |
+| `pirn/core/_unhashable_error.py` | `_UnhashableError` |
 | `pirn/core/lineage.py` | `KnotLineage` Pydantic model |
 | `pirn/core/parameter.py` | `Parameter` knot (external input binding) |
 | `pirn/core/result.py` | `Ok`, `Err`, `Skipped` |

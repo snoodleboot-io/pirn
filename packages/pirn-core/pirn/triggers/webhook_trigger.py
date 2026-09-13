@@ -52,7 +52,7 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 from pirn.core.run_request import RunRequest
-from pirn.triggers.base import Trigger
+from pirn.triggers.trigger import Trigger
 
 
 class WebhookTrigger(Trigger):

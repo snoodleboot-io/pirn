@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterable, AsyncIterator, Iterable
 from typing import Any
 
-from pirn.streaming.base import StreamingSource
+from pirn.streaming.streaming_source import StreamingSource
 
 
 class IterableSource(StreamingSource):

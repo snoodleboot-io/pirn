@@ -29,7 +29,7 @@ Before / after (individual pipeline)
 To render a single pipeline before and after a run use the lower-level
 helpers::
 
-    from pirn.viz.html import html_for_tapestry, html_for_run
+    from pirn.viz.tapestry_html_renderer import html_for_tapestry, html_for_run
 
     Path("before.html").write_text(html_for_tapestry(tapestry))
     # … run the pipeline …
@@ -40,7 +40,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pirn.viz.explorer import generate_explorer_html
+from pirn.viz.explorer_html_generator import generate_explorer_html
 
 EXAMPLES_DIR = Path(__file__).parent
 OUTPUT = EXAMPLES_DIR / "pirn_explorer.html"

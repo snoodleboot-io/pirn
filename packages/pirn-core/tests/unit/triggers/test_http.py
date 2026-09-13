@@ -7,7 +7,7 @@ import unittest
 from typing import ClassVar
 
 from pirn.core.run_request import RunRequest
-from pirn.triggers.http import WebhookTrigger
+from pirn.triggers.webhook_trigger import WebhookTrigger
 
 
 class TestWebhookTriggerConstruction(unittest.TestCase):

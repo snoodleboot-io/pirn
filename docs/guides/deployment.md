@@ -170,7 +170,7 @@ from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 from pirn.backends.sqlite.sqlite_store import SQLiteStore
-from pirn.backends.disk import LocalDiskDataStore
+from pirn.backends.local_disk_data_store import LocalDiskDataStore
 
 async def main():
     t = Tapestry(
@@ -188,7 +188,7 @@ asyncio.run(main())
 ```python
 import uvicorn
 from pirn.tapestry import Tapestry
-from pirn.triggers.http import WebhookTrigger
+from pirn.triggers.webhook_trigger import WebhookTrigger
 
 trigger = WebhookTrigger(path="/run")
 # trigger.app is a Starlette ASGI app
@@ -204,8 +204,8 @@ uvicorn.run(trigger.app, host="127.0.0.1", port=8080)
 ### Event-driven (Kafka trigger)
 
 ```python
-from pirn.triggers.base import run_forever
-from pirn.triggers.kafka import KafkaTrigger
+from pirn.triggers.trigger import run_forever
+from pirn.triggers.kafka_trigger import KafkaTrigger
 
 trigger = KafkaTrigger(
     topic="orders",
@@ -219,8 +219,8 @@ await run_forever(trigger, tapestry, on_result=handle_result)
 ### Streaming ETL
 
 ```python
-from pirn.streaming.file_tail import FileTailSource
-from pirn.streaming.base import run_stream
+from pirn.streaming.file_tail_source import FileTailSource
+from pirn.streaming.streaming_source import run_stream
 
 source = FileTailSource("/var/log/app.log", parameter_name="line")
 await run_stream(source, tapestry, on_result=handle)

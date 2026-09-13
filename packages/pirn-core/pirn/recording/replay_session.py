@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from pirn.core.err import Err
-from pirn.core.lineage import KnotLineage
+from pirn.core.knot_lineage import KnotLineage
 from pirn.core.ok import Ok
 from pirn.core.result import Result
 from pirn.core.skipped import Skipped

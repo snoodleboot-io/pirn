@@ -6,7 +6,7 @@ import logging
 import unittest
 from unittest.mock import MagicMock
 
-from pirn.emitters.log import LogEmitter
+from pirn.emitters.log_emitter import LogEmitter
 
 
 def _make_status_event(knot_id: str = "k1", run_id: str = "r1") -> MagicMock:

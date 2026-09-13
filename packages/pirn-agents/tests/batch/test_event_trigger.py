@@ -1,6 +1,6 @@
 """On-demand tests for :class:`EventTrigger` (PIR-723 / WS8-D2).
 
-``EventTrigger`` is a core :class:`pirn.triggers.base.Trigger` backed by an
+``EventTrigger`` is a core :class:`pirn.triggers.trigger.Trigger` backed by an
 in-process queue: each awaited :meth:`fire` yields one ``RunRequest`` carrying
 its 1-based ``fire_ordinal``, and the now-async :meth:`close` ends the stream
 idempotently. No broker is imported on this path.
@@ -12,7 +12,7 @@ import asyncio
 
 import pytest
 from pirn.core.run_request import RunRequest
-from pirn.triggers.base import Trigger
+from pirn.triggers.trigger import Trigger
 
 from pirn_agents.batch.event_trigger import EventTrigger
 

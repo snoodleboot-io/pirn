@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import AsyncMock, MagicMock
 
-from pirn.emitters.kafka import KafkaEmitter
+from pirn.emitters.kafka_emitter import KafkaEmitter
 
 
 def _make_status_event() -> MagicMock:

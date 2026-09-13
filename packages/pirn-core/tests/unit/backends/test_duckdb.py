@@ -5,8 +5,8 @@ from __future__ import annotations
 import unittest
 from datetime import UTC, datetime
 
-from pirn.backends.duckdb import DuckDBHistory
-from pirn.core.lineage import KnotLineage
+from pirn.backends.duckdb_history import DuckDBHistory
+from pirn.core.knot_lineage import KnotLineage
 
 
 def _now() -> datetime:

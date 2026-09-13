@@ -6,7 +6,7 @@ Emitters observe runs and fan events to logs, traces, metrics, message buses, or
 
 ## Emitter protocol
 
-::: pirn.emitters.base.Emitter
+::: pirn.emitters.emitter.Emitter
     options:
       show_source: false
       members_order: source
@@ -49,7 +49,7 @@ Consequences worth planning for:
 
 Writes structured JSON to Python `logging`.
 
-::: pirn.emitters.log.LogEmitter
+::: pirn.emitters.log_emitter.LogEmitter
     options:
       show_source: false
       members_order: source
@@ -58,7 +58,7 @@ Writes structured JSON to Python `logging`.
 ### Example
 
 ```python
-from pirn.emitters.log import LogEmitter
+from pirn.emitters.log_emitter import LogEmitter
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -71,7 +71,7 @@ t = Tapestry(emitters=[LogEmitter(with_payload=False)])
 
 Emits OTel spans per knot and per run.
 
-::: pirn.emitters.otel.OpenTelemetryEmitter
+::: pirn.emitters.open_telemetry_emitter.OpenTelemetryEmitter
     options:
       show_source: false
       members_order: source
@@ -83,7 +83,7 @@ Emits OTel spans per knot and per run.
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-from pirn.emitters.otel import OpenTelemetryEmitter
+from pirn.emitters.open_telemetry_emitter import OpenTelemetryEmitter
 from opentelemetry import trace
 
 provider = TracerProvider()
@@ -99,7 +99,7 @@ t = Tapestry(emitters=[OpenTelemetryEmitter()])
 
 Publishes events to Kafka topics.
 
-::: pirn.emitters.kafka.KafkaEmitter
+::: pirn.emitters.kafka_emitter.KafkaEmitter
     options:
       show_source: false
       members_order: source
@@ -108,7 +108,7 @@ Publishes events to Kafka topics.
 ### Example
 
 ```python
-from pirn.emitters.kafka import KafkaEmitter
+from pirn.emitters.kafka_emitter import KafkaEmitter
 
 emitter = KafkaEmitter(
     bootstrap_servers="kafka:9092",
@@ -125,7 +125,7 @@ t = Tapestry(emitters=[emitter])
 
 Publishes events to a ValKey pub/sub channel.
 
-::: pirn.emitters.valkey.ValKeyEmitter
+::: pirn.emitters.valkey_emitter.ValKeyEmitter
     options:
       show_source: false
       members_order: source
@@ -137,7 +137,7 @@ Publishes events to a ValKey pub/sub channel.
 
 POSTs JSON to an HTTP endpoint on `on_run_result`.
 
-::: pirn.emitters.webhook.WebhookEmitter
+::: pirn.emitters.webhook_emitter.WebhookEmitter
     options:
       show_source: false
       members_order: source
@@ -146,7 +146,7 @@ POSTs JSON to an HTTP endpoint on `on_run_result`.
 ### Example
 
 ```python
-from pirn.emitters.webhook import WebhookEmitter
+from pirn.emitters.webhook_emitter import WebhookEmitter
 
 t = Tapestry(emitters=[WebhookEmitter(url="https://hooks.slack.com/...")])
 ```

@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from pirn.backends.postgres.postgres_history import PostgresHistory
-from pirn.core.lineage import KnotLineage
+from pirn.core.knot_lineage import KnotLineage
 
 
 def _now() -> datetime:

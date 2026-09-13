@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import AsyncMock, MagicMock
 
 from pirn.core.run_request import RunRequest
-from pirn.triggers.valkey import ValKeyTrigger
+from pirn.triggers.valkey_trigger import ValKeyTrigger
 
 
 def _mock_msg(body: str) -> MagicMock:
@@ -60,7 +60,7 @@ class TestValKeyTriggerDefaultBuilder(unittest.TestCase):
         msg.__class__ = type("_NoAttrMsg", (), {})
         raw = '{"c":3}'
         # When msg has no .message attribute getattr falls back
-        import pirn.triggers.valkey as _m
+        import pirn.triggers.valkey_trigger as _m
 
         # Direct: body = getattr(msg, "message", msg)
         result = _m.ValKeyTrigger._ValKeyTrigger__default_request_builder

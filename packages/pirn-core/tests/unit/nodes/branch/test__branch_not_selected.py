@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.nodes.branch._branch_not_selected import _BranchNotSelectedError
+from pirn.nodes.branch._branch_not_selected_error import _BranchNotSelectedError
 
 
 class TestBranchNotSelected(unittest.TestCase):

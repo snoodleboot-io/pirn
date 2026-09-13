@@ -25,7 +25,7 @@ import sys
 from pathlib import Path
 from typing import Any, ClassVar
 
-from pirn.backends.disk import LocalDiskDataStore
+from pirn.backends.local_disk_data_store import LocalDiskDataStore
 from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest

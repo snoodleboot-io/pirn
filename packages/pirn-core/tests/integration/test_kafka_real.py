@@ -88,7 +88,7 @@ async def test_kafka_trigger_consumes_real_messages():
     """Produce 3 messages; KafkaTrigger must yield 3 RunRequests."""
     from aiokafka import AIOKafkaConsumer
 
-    from pirn.triggers.kafka import KafkaTrigger
+    from pirn.triggers.kafka_trigger import KafkaTrigger
 
     bootstrap = _bootstrap()
     topic = _unique_topic()
@@ -124,7 +124,7 @@ async def test_kafka_trigger_consumes_real_messages():
 
 async def test_kafka_emitter_publishes_status_event_to_topic():
     """Emit a status event; consume from the topic and verify the JSON."""
-    from pirn.emitters.kafka import KafkaEmitter
+    from pirn.emitters.kafka_emitter import KafkaEmitter
     from pirn.managers.knot_state import KnotState
     from pirn.managers.status_event import StatusEvent
 
@@ -165,8 +165,8 @@ async def test_kafka_streaming_source_drives_run_per_message():
     """Produce 5 messages; run_stream must complete 5 runs with correct outputs."""
     from aiokafka import AIOKafkaConsumer
 
-    from pirn.streaming.base import run_stream
-    from pirn.streaming.kafka import KafkaStreamingSource
+    from pirn.streaming.kafka_streaming_source import KafkaStreamingSource
+    from pirn.streaming.streaming_source import run_stream
 
     bootstrap = _bootstrap()
     topic = _unique_topic()

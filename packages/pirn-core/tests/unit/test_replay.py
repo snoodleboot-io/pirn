@@ -1,6 +1,6 @@
 import unittest
 
-"""Tests for pirn.replay — replay_run and compare_runs."""
+"""Tests for pirn.knot_diff — replay_run and compare_runs."""
 
 
 from pirn.backends.sqlite.sqlite_history import SQLiteHistory
@@ -8,7 +8,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
-from pirn.replay import KnotDiff, compare_runs, replay_run
+from pirn.knot_diff import KnotDiff, compare_runs, replay_run
 from pirn.tapestry import Tapestry
 
 

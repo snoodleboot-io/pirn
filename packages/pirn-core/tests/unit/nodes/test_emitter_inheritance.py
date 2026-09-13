@@ -24,7 +24,7 @@ from pirn.backends.in_memory.in_memory_history import InMemoryHistory
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.emitters.base import Emitter
+from pirn.emitters.emitter import Emitter
 from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
 from pirn.nodes.loop_sub_tapestry import LoopSubTapestry
 from pirn.nodes.source import Source
@@ -32,7 +32,7 @@ from pirn.nodes.sub_tapestry import SubTapestry, _inherited_emitters
 from pirn.tapestry import Tapestry
 
 if TYPE_CHECKING:
-    from pirn.core.lineage import KnotLineage
+    from pirn.core.knot_lineage import KnotLineage
     from pirn.core.run_result import RunResult
     from pirn.managers.status_event import StatusEvent
 

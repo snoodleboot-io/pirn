@@ -8,7 +8,7 @@ Render tapestries and run results as Mermaid diagrams or standalone HTML.
 
 Generate Mermaid `graph LR` syntax showing the tapestry structure.
 
-::: pirn.viz.mermaid.mermaid_for_tapestry
+::: pirn.viz.mermaid_renderer.mermaid_for_tapestry
     options:
       show_source: false
       heading_level: 3
@@ -16,7 +16,7 @@ Generate Mermaid `graph LR` syntax showing the tapestry structure.
 ### Example
 
 ```python
-from pirn.viz.mermaid import mermaid_for_tapestry
+from pirn.viz.mermaid_renderer import mermaid_for_tapestry
 
 # Embed in Markdown
 print(mermaid_for_tapestry(tapestry))
@@ -33,7 +33,7 @@ Path("docs/diagrams/pipeline.md").write_text(
 
 Generate Mermaid syntax with knot outcomes overlaid via class assignments.
 
-::: pirn.viz.mermaid.mermaid_for_run
+::: pirn.viz.mermaid_renderer.mermaid_for_run
     options:
       show_source: false
       heading_level: 3
@@ -41,7 +41,7 @@ Generate Mermaid syntax with knot outcomes overlaid via class assignments.
 ### Example
 
 ```python
-from pirn.viz.mermaid import mermaid_for_run
+from pirn.viz.mermaid_renderer import mermaid_for_run
 
 result = await tapestry.run(request)
 diagram = mermaid_for_run(result)
@@ -55,7 +55,7 @@ Nodes are coloured: `ok` → green, `err` → red, `skipped` → grey.
 
 Generate a self-contained HTML file with SVG rendering, hover tooltips, and outcome filtering.
 
-::: pirn.viz.html.html_for_run
+::: pirn.viz.tapestry_html_renderer.html_for_run
     options:
       show_source: false
       heading_level: 3
@@ -63,7 +63,7 @@ Generate a self-contained HTML file with SVG rendering, hover tooltips, and outc
 ### Example
 
 ```python
-from pirn.viz.html import html_for_run
+from pirn.viz.tapestry_html_renderer import html_for_run
 from pathlib import Path
 
 result = await tapestry.run(request)
@@ -78,7 +78,7 @@ The generated file has no external dependencies — open in any browser.
 
 Generate a self-contained HTML file showing the tapestry structure without run outcomes.
 
-::: pirn.viz.html.html_for_tapestry
+::: pirn.viz.tapestry_html_renderer.html_for_tapestry
     options:
       show_source: false
       heading_level: 3

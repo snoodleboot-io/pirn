@@ -10,7 +10,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 from pirn.backends._signer import _Signer
-from pirn.backends.disk import LocalDiskDataStore
+from pirn.backends.local_disk_data_store import LocalDiskDataStore
 
 _KEY = b"test-signing-key-32-bytes-abcdefg"[:32]
 _SIGNER = _Signer(_KEY)
@@ -140,7 +140,7 @@ class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
     # ------------------------------------------------------------------ S3DataStore
 
     async def test_s3_round_trip_with_signer(self) -> None:
-        from pirn.backends.s3 import S3DataStore
+        from pirn.backends.s3_data_store import S3DataStore
 
         stored: dict[str, bytes] = {}
         mock_s3 = AsyncMock()
@@ -167,7 +167,7 @@ class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
         assert await store.get("sha256:abc") == {"y": 2}
 
     async def test_s3_tampered_payload_raises(self) -> None:
-        from pirn.backends.s3 import S3DataStore
+        from pirn.backends.s3_data_store import S3DataStore
 
         stored: dict[str, bytes] = {}
         mock_s3 = AsyncMock()
@@ -197,7 +197,7 @@ class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
             await store.get("sha256:abc")
 
     async def test_s3_no_signer_works(self) -> None:
-        from pirn.backends.s3 import S3DataStore
+        from pirn.backends.s3_data_store import S3DataStore
 
         stored: dict[str, bytes] = {}
         mock_s3 = AsyncMock()
@@ -224,7 +224,7 @@ class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
         assert await store.get("sha256:abc") == 99
 
     def test_s3_refuses_unsigned_without_explicit_opt_in(self) -> None:
-        from pirn.backends.s3 import S3DataStore
+        from pirn.backends.s3_data_store import S3DataStore
 
         with self.assertRaisesRegex(ValueError, "refusing to construct an unsigned"):
             S3DataStore(bucket="test-bucket")

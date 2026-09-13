@@ -101,7 +101,7 @@ Implement `pirn.backends.RunHistory`:
 ```python
 from pirn.backends.base.run_history import RunHistory
 from pirn.core.run_result import RunResult
-from pirn.core.lineage import KnotLineage
+from pirn.core.knot_lineage import KnotLineage
 
 
 class BigQueryHistory:
@@ -350,8 +350,8 @@ uses to try `EnvIdentityResolver` then `OsIdentityResolver` in order).
 Implement three async hooks (all optional — subclass the base and override what you need):
 
 ```python
-from pirn.emitters.base import Emitter
-from pirn.core.lineage import KnotLineage
+from pirn.emitters.emitter import Emitter
+from pirn.core.knot_lineage import KnotLineage
 from pirn.core.run_result import RunResult
 from pirn.managers.status_event import StatusEvent
 
@@ -400,10 +400,10 @@ t.add_emitter(DatadogEmitter(statsd))
 
 ## Custom Triggers
 
-Implement `pirn.triggers.base.Trigger`:
+Implement `pirn.triggers.trigger.Trigger`:
 
 ```python
-from pirn.triggers.base import Trigger, run_forever
+from pirn.triggers.trigger import Trigger, run_forever
 from pirn.core.run_request import RunRequest
 from collections.abc import AsyncIterator
 import boto3
@@ -451,10 +451,10 @@ await run_forever(trigger, tapestry, on_result=handle_result)
 
 ## Custom StreamingSources
 
-Implement `pirn.streaming.base.StreamingSource`:
+Implement `pirn.streaming.streaming_source.StreamingSource`:
 
 ```python
-from pirn.streaming.base import StreamingSource, run_stream
+from pirn.streaming.streaming_source import StreamingSource, run_stream
 from collections.abc import AsyncIterator
 
 

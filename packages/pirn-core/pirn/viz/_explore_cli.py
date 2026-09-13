@@ -43,7 +43,7 @@ class ExploreCli:
 
         output = Path(args.output) if args.output else folder / "pirn_explorer.html"
 
-        from pirn.viz.explorer import generate_explorer_html
+        from pirn.viz.explorer_html_generator import generate_explorer_html
 
         html = generate_explorer_html(folder)
         output.write_text(html, encoding="utf-8")

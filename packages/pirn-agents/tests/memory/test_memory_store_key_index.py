@@ -18,7 +18,7 @@ from typing import Any
 
 import pytest
 from pirn.backends._signer import _Signer
-from pirn.backends.disk import LocalDiskDataStore
+from pirn.backends.local_disk_data_store import LocalDiskDataStore
 
 from pirn_agents.memory.stores.data_store_memory_store import DataStoreMemoryStore
 from pirn_agents.memory.stores.key_index_unreadable_error import KeyIndexUnreadableError

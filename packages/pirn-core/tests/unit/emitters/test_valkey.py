@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import AsyncMock, MagicMock
 
-from pirn.emitters.valkey import ValKeyEmitter
+from pirn.emitters.valkey_emitter import ValKeyEmitter
 
 
 def _make_client() -> MagicMock:

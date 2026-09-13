@@ -1,7 +1,7 @@
 """Schedule tests for :class:`IntervalTrigger` (PIR-723 / WS8-D2).
 
-``IntervalTrigger`` is a core :class:`pirn.triggers.base.Trigger` that delegates
-its schedule to :class:`pirn.triggers.cron.CronTrigger`'s ``delay_fn`` seam, so
+``IntervalTrigger`` is a core :class:`pirn.triggers.trigger.Trigger` that delegates
+its schedule to :class:`pirn.triggers.cron_trigger.CronTrigger`'s ``delay_fn`` seam, so
 these tests assert both the core contract (``name``/``stream()``/``close()``
 yielding ``RunRequest``) and the schedule itself. The injected ``sleep`` records
 the scheduled delays with no wall-clock wait, keeping the fixed-interval path,
@@ -15,7 +15,7 @@ import asyncio
 
 import pytest
 from pirn.core.run_request import RunRequest
-from pirn.triggers.base import Trigger
+from pirn.triggers.trigger import Trigger
 
 from pirn_agents.batch.interval_trigger import IntervalTrigger
 

@@ -321,7 +321,7 @@ class TapestryGraphScanner:
 
             raw = _yaml.safe_load(path.read_text())
             name = (raw or {}).get("name") or path.stem
-            from pirn.yaml_loader.loader import load_pipeline
+            from pirn.yaml_loader.pipeline_loader import load_pipeline
 
             tapestry = load_pipeline(path.read_text())
             return cls._tapestry_to_graph(tapestry, name, source)

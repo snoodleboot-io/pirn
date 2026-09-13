@@ -8,7 +8,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.parameter import Parameter
 from pirn.core.run_result import RunResult
-from pirn.emitters.base import Emitter
+from pirn.emitters.emitter import Emitter
 from pirn.tapestry import Tapestry, _current_tapestry, current_tapestry
 
 
@@ -128,7 +128,7 @@ class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
     # --------------------------------------------------------- emitter tests
 
     def test_add_and_remove_emitter_by_identity(self):
-        from pirn.emitters.log import LogEmitter
+        from pirn.emitters.log_emitter import LogEmitter
 
         t = Tapestry()
         e1 = LogEmitter()
@@ -142,7 +142,7 @@ class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
         assert t.emitters[0] is e2
 
     def test_remove_emitter_raises_when_not_registered(self):
-        from pirn.emitters.log import LogEmitter
+        from pirn.emitters.log_emitter import LogEmitter
 
         t = Tapestry()
         e = LogEmitter()
@@ -151,7 +151,7 @@ class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
 
     def test_remove_emitter_uses_identity_not_equality(self):
         """Two equal-looking emitters must be distinguished by identity."""
-        from pirn.emitters.log import LogEmitter
+        from pirn.emitters.log_emitter import LogEmitter
 
         t = Tapestry()
         e1 = LogEmitter()
@@ -163,7 +163,7 @@ class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
             t.remove_emitter(e2)
 
     def test_emitters_property_returns_copy(self):
-        from pirn.emitters.log import LogEmitter
+        from pirn.emitters.log_emitter import LogEmitter
 
         t = Tapestry()
         e = LogEmitter()

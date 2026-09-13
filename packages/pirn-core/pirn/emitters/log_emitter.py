@@ -5,10 +5,10 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from pirn.emitters.base import Emitter
+from pirn.emitters.emitter import Emitter
 
 if TYPE_CHECKING:
-    from pirn.core.lineage import KnotLineage
+    from pirn.core.knot_lineage import KnotLineage
     from pirn.core.run_result import RunResult
     from pirn.managers.status_event import StatusEvent
 

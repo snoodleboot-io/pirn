@@ -1,6 +1,6 @@
 """``IntervalTrigger`` — a scheduled batch trigger (PIR-723 / WS8-D2).
 
-A core :class:`pirn.triggers.base.Trigger` that fires on a schedule: by default
+A core :class:`pirn.triggers.trigger.Trigger` that fires on a schedule: by default
 every ``interval`` seconds, optionally bounded by ``max_fires``. The schedule is
 pluggable through ``delay_fn`` — a ``Callable[[int], float]`` mapping the next
 1-based fire ordinal to the seconds to wait before it — which is the seam an
@@ -10,7 +10,7 @@ scheduler. The async ``sleep`` is injected so tests advance the schedule
 deterministically with no wall-clock wait.
 
 The schedule itself is not implemented here: it is delegated wholesale to
-:class:`pirn.triggers.cron.CronTrigger`'s ``delay_fn`` mode, whose contract
+:class:`pirn.triggers.cron_trigger.CronTrigger`'s ``delay_fn`` mode, whose contract
 ("wait ``fn(ordinal)`` seconds before each fire, ordinal 1 included") is exactly
 this class's. Constant-interval mode is expressed as a constant ``delay_fn``
 rather than as ``CronTrigger(every_seconds=...)`` deliberately: ``every_seconds``
@@ -35,8 +35,8 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Awaitable, Callable
 
 from pirn.core.run_request import RunRequest
-from pirn.triggers.base import Trigger
-from pirn.triggers.cron import CronTrigger
+from pirn.triggers.cron_trigger import CronTrigger
+from pirn.triggers.trigger import Trigger
 
 
 class IntervalTrigger(Trigger):

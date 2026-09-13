@@ -36,7 +36,7 @@ from pirn.core.concurrency.unused_concurrency_group_warning import UnusedConcurr
 from pirn.core.error_policy import ErrorPolicy
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.lineage import KnotLineage
+from pirn.core.knot_lineage import KnotLineage
 from pirn.core.parameter import Parameter
 from pirn.core.result import Result
 from pirn.core.run_request import RunRequest

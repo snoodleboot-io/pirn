@@ -9,7 +9,7 @@ from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.source import Source
-from pirn.streaming.base import StreamingSource, run_stream
+from pirn.streaming.streaming_source import StreamingSource, run_stream
 from pirn.tapestry import Tapestry
 
 

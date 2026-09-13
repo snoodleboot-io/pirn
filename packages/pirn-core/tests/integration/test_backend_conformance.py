@@ -71,13 +71,13 @@ def _sqlite_history() -> RunHistory:
 
 def _duckdb_history() -> RunHistory:
     pytest.importorskip("duckdb")
-    from pirn.backends.duckdb import DuckDBHistory
+    from pirn.backends.duckdb_history import DuckDBHistory
 
     return DuckDBHistory(path=":memory:")
 
 
 def _disk_data_store(tmp_path: Path) -> DataStore:
-    from pirn.backends.disk import LocalDiskDataStore
+    from pirn.backends.local_disk_data_store import LocalDiskDataStore
 
     return LocalDiskDataStore(tmp_path, allow_unsigned=True)
 
@@ -282,7 +282,7 @@ async def test_lineage_hashes_stable_across_backends():
     from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 
     sqlite = await collect_hashes(SQLiteHistory)
-    from pirn.backends.duckdb import DuckDBHistory
+    from pirn.backends.duckdb_history import DuckDBHistory
 
     duck = await collect_hashes(DuckDBHistory)
 
@@ -326,10 +326,10 @@ def test_shipped_data_store_roster_is_closed():
     import inspect
     import pkgutil
 
-    from pirn.backends.azure import AzureBlobDataStore
-    from pirn.backends.disk import LocalDiskDataStore
-    from pirn.backends.gcs import GCSDataStore
-    from pirn.backends.s3 import S3DataStore
+    from pirn.backends.azure_blob_data_store import AzureBlobDataStore
+    from pirn.backends.gcs_data_store import GCSDataStore
+    from pirn.backends.local_disk_data_store import LocalDiskDataStore
+    from pirn.backends.s3_data_store import S3DataStore
     from pirn.backends.valkey.valkey_data_store import ValKeyDataStore
 
     shipped = {

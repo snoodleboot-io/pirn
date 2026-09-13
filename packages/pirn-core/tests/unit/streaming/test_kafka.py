@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import AsyncMock, MagicMock
 
-from pirn.streaming.kafka import KafkaStreamingSource
+from pirn.streaming.kafka_streaming_source import KafkaStreamingSource
 
 
 def _mock_msg(value: bytes) -> MagicMock:

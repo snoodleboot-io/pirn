@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from pirn.core.run_request import RunRequest
     from pirn.core.run_result import RunResult
     from pirn.core.transport.data_transport import DataTransport
-    from pirn.emitters.base import Emitter
+    from pirn.emitters.emitter import Emitter
     from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
     from pirn.engine.dispatchers.dispatcher import Dispatcher
     from pirn.recording.replay_session import ReplaySession
@@ -192,7 +192,7 @@ class Tapestry:
         from pirn.core.identity.env_identity_resolver import EnvIdentityResolver
         from pirn.core.identity.os_identity_resolver import OsIdentityResolver
         from pirn.core.transport.inline_transport import InlineTransport
-        from pirn.emitters.base import EmitterErrorPolicy as _EmitterErrorPolicy
+        from pirn.emitters.emitter import EmitterErrorPolicy as _EmitterErrorPolicy
         from pirn.engine.dispatchers.local_dispatcher import LocalDispatcher
 
         self._store = store or InMemoryStore()

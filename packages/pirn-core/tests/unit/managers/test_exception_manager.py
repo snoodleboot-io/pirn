@@ -4,7 +4,7 @@ import unittest
 
 from pirn.managers.exception_manager import ExceptionManager
 from pirn.managers.exception_record import ExceptionRecord
-from pirn.managers.rebindable_exception import RebindableError
+from pirn.managers.rebindable_error import RebindableError
 
 
 class TestExceptionManager(unittest.TestCase):

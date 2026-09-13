@@ -1,6 +1,6 @@
 """``EventTrigger`` — an on-demand batch trigger (PIR-723 / WS8-D2).
 
-A core :class:`pirn.triggers.base.Trigger` that fires when an external event
+A core :class:`pirn.triggers.trigger.Trigger` that fires when an external event
 arrives: a caller (a webhook handler, a queue consumer, a test) awaits
 :meth:`fire` to enqueue a fire signal, and the consumer — a
 :class:`~pirn_agents.batch.triggered_batch.TriggeredBatch`, or core's
@@ -28,7 +28,7 @@ import asyncio
 from collections.abc import AsyncIterator
 
 from pirn.core.run_request import RunRequest
-from pirn.triggers.base import Trigger
+from pirn.triggers.trigger import Trigger
 
 
 class EventTrigger(Trigger):

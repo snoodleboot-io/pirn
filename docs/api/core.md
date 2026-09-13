@@ -102,7 +102,7 @@ Core types: `Knot`, `Assembler`, `Disassembler`, `Parameter`, `KnotConfig`, `Err
 
 ## KnotLineage
 
-::: pirn.core.lineage.KnotLineage
+::: pirn.core.knot_lineage.KnotLineage
     options:
       show_source: false
       members_order: source

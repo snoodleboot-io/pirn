@@ -12,15 +12,15 @@ arrive, and the runtime calls ``tapestry.run`` for each.  The
 Concrete triggers and the driver, each imported from the module that
 owns it:
 
-* ``pirn.triggers.base.Trigger`` — base class; implement ``name``,
+* ``pirn.triggers.trigger.Trigger`` — base class; implement ``name``,
   ``stream()`` and ``close()``.
-* ``pirn.triggers.base.run_forever`` — the driver loop.
-* ``pirn.triggers.cron.CronTrigger`` — interval, at-times, or
+* ``pirn.triggers.trigger.run_forever`` — the driver loop.
+* ``pirn.triggers.cron_trigger.CronTrigger`` — interval, at-times, or
   caller-supplied schedule.
-* ``pirn.triggers.http.WebhookTrigger`` — Starlette ASGI app; one
+* ``pirn.triggers.webhook_trigger.WebhookTrigger`` — Starlette ASGI app; one
   ``RunRequest`` per POST.
-* ``pirn.triggers.kafka.KafkaTrigger`` — one ``RunRequest`` per message.
-* ``pirn.triggers.valkey.ValKeyTrigger`` — one ``RunRequest`` per
+* ``pirn.triggers.kafka_trigger.KafkaTrigger`` — one ``RunRequest`` per message.
+* ``pirn.triggers.valkey_trigger.ValKeyTrigger`` — one ``RunRequest`` per
   pub-sub message.
 
 No public-API re-exports live here.  The house convention forbids import

@@ -22,7 +22,7 @@ pirn/triggers/
 └── valkey.py     ValKeyTrigger    — Valkey/Redis pub-sub; yield one RunRequest per message
 ```
 
-`pirn/triggers/__init__.py` deliberately re-exports nothing — the house convention forbids import forwarding, and `scripts/check_no_import_forwarding.py` enforces it in CI. Always import from the concrete module: `from pirn.triggers.base import run_forever`, **not** `from pirn.triggers import run_forever`.
+`pirn/triggers/__init__.py` deliberately re-exports nothing — the house convention forbids import forwarding, and `scripts/check_no_import_forwarding.py` enforces it in CI. Always import from the concrete module: `from pirn.triggers.trigger import run_forever`, **not** `from pirn.triggers import run_forever`.
 
 ---
 
@@ -33,8 +33,8 @@ pirn/triggers/
 ```python
 import asyncio
 from pirn.tapestry import Tapestry
-from pirn.triggers.cron import CronTrigger
-from pirn.triggers.base import run_forever
+from pirn.triggers.cron_trigger import CronTrigger
+from pirn.triggers.trigger import run_forever
 
 with Tapestry() as t:
     ...  # build pipeline
@@ -78,7 +78,7 @@ CronTrigger(
 import os
 
 import uvicorn
-from pirn.triggers.http import WebhookTrigger
+from pirn.triggers.webhook_trigger import WebhookTrigger
 
 trigger = WebhookTrigger(path="/run", auth_token=os.environ["PIRN_WEBHOOK_TOKEN"])
 uvicorn.run(trigger.app, host="0.0.0.0", port=8080)
@@ -105,7 +105,7 @@ await run_forever(trigger, t, on_result=on_result, on_error=on_error)
 ### Custom trigger
 
 ```python
-from pirn.triggers.base import Trigger
+from pirn.triggers.trigger import Trigger
 from pirn.core.run_request import RunRequest
 from collections.abc import AsyncIterator
 
@@ -141,7 +141,7 @@ If `on_error` is not provided and a run raises, `run_forever` re-raises and exit
 
 ### Using `run_forever` for a streaming source
 
-`run_forever` is for triggers that produce independent `RunRequest` objects. For continuous data (file tail, Kafka stream), use `run_stream` from `pirn.streaming.base` instead — it handles the different lifecycle. Note it is a free function, not a `Tapestry` method.
+`run_forever` is for triggers that produce independent `RunRequest` objects. For continuous data (file tail, Kafka stream), use `run_stream` from `pirn.streaming.streaming_source` instead — it handles the different lifecycle. Note it is a free function, not a `Tapestry` method.
 
 ---
 
@@ -155,7 +155,7 @@ If `on_error` is not provided and a run raises, `run_forever` re-raises and exit
 - **`KafkaTrigger` requires `pirn[kafka]`.** It is not included in the base install.
 - **`WebhookTrigger` does not run a server.** It exposes `trigger.app`; you mount it on uvicorn/hypercorn or compose it into an existing Starlette/FastAPI app, in a task alongside the rest of your async application.
 - **`ValKeyTrigger` requires a Valkey/Redis connection.** Pass a configured async client at construction.
-- **Nothing is exported from `pirn.triggers`.** Import from the concrete module (`pirn.triggers.base`, `pirn.triggers.cron`, …).
+- **Nothing is exported from `pirn.triggers`.** Import from the concrete module (`pirn.triggers.trigger`, `pirn.triggers.cron_trigger`, …).
 
 ---
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import AsyncMock, MagicMock
 
-from pirn.emitters.webhook import WebhookEmitter
+from pirn.emitters.webhook_emitter import WebhookEmitter
 
 
 def _make_event() -> MagicMock:

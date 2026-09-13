@@ -6,7 +6,7 @@ import ssl
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from pirn.emitters.webhook import WebhookEmitter
+from pirn.emitters.webhook_emitter import WebhookEmitter
 
 # ---------------------------------------------------------------------------
 # Helpers

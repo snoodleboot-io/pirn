@@ -88,7 +88,7 @@ Storage backend protocols and all built-in implementations.
 
 ## DuckDB (`pirn[duckdb]`)
 
-::: pirn.backends.duckdb.DuckDBHistory
+::: pirn.backends.duckdb_history.DuckDBHistory
     options:
       show_source: false
       members_order: source
@@ -98,7 +98,7 @@ Storage backend protocols and all built-in implementations.
 
 ## Local disk
 
-::: pirn.backends.disk.LocalDiskDataStore
+::: pirn.backends.local_disk_data_store.LocalDiskDataStore
     options:
       show_source: false
       members_order: source
@@ -108,7 +108,7 @@ Storage backend protocols and all built-in implementations.
 
 ## S3 (`pirn[s3]`)
 
-::: pirn.backends.s3.S3DataStore
+::: pirn.backends.s3_data_store.S3DataStore
     options:
       show_source: false
       members_order: source

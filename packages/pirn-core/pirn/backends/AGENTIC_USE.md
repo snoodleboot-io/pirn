@@ -92,7 +92,7 @@ for rec in records:
 ### Persisting intermediate values (S3)
 
 ```python
-from pirn.backends.s3 import S3DataStore
+from pirn.backends.s3_data_store import S3DataStore
 
 data = S3DataStore(bucket="my-pirn-bucket", prefix="runs/")
 with Tapestry(data=data) as t:

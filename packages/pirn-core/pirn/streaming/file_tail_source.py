@@ -6,7 +6,7 @@ import asyncio
 from collections.abc import AsyncIterator
 from pathlib import Path
 
-from pirn.streaming.base import StreamingSource
+from pirn.streaming.streaming_source import StreamingSource
 
 
 class FileTailSource(StreamingSource):

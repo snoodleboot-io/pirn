@@ -23,7 +23,7 @@ class InvocationIdentity:
     Two such knots therefore record identical ``knot_config_hash``, identical
     ``parent_input_hashes`` and identical ``source_hash`` while computing
     different answers.  That is harmless for a re-executing helper like
-    ``pirn.replay.replay_run`` — the knot runs, so the literal is honoured —
+    ``pirn.knot_diff.replay_run`` — the knot runs, so the literal is honoured —
     but it is fatal for a replay that *substitutes* the recorded output: the
     stale value would be served with no signal that anything had changed.
 

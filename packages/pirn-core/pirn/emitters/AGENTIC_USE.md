@@ -30,7 +30,7 @@ pirn/emitters/
 ```python
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
-from pirn.emitters.log import LogEmitter
+from pirn.emitters.log_emitter import LogEmitter
 
 with Tapestry(emitters=[LogEmitter()]) as t:
     ...
@@ -42,8 +42,8 @@ result = await t.run(RunRequest())
 ### Compose multiple emitters
 
 ```python
-from pirn.emitters.log import LogEmitter
-from pirn.emitters.otel import OpenTelemetryEmitter
+from pirn.emitters.log_emitter import LogEmitter
+from pirn.emitters.open_telemetry_emitter import OpenTelemetryEmitter
 
 with Tapestry(emitters=[LogEmitter(), OpenTelemetryEmitter(tracer=my_tracer)]) as t:
     ...
@@ -52,8 +52,8 @@ with Tapestry(emitters=[LogEmitter(), OpenTelemetryEmitter(tracer=my_tracer)]) a
 ### Custom emitter
 
 ```python
-from pirn.emitters.base import Emitter
-from pirn.core.lineage import KnotLineage
+from pirn.emitters.emitter import Emitter
+from pirn.core.knot_lineage import KnotLineage
 
 class MetricsEmitter(Emitter):
     async def on_lineage(self, record: KnotLineage) -> None:

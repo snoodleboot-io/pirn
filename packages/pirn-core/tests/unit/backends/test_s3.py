@@ -7,7 +7,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 from pirn.backends._signer import _Signer
-from pirn.backends.s3 import S3DataStore
+from pirn.backends.s3_data_store import S3DataStore
 
 
 def _make_s3_mock(stored: dict[str, bytes]) -> tuple[Any, Any]:

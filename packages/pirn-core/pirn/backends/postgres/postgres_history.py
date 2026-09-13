@@ -5,8 +5,8 @@ from typing import Any
 
 from pirn.backends.base.run_history import RunHistory
 from pirn.backends.postgres._lazy_pool import _LazyPool
-from pirn.core.knot_source import KnotSourceRecord
-from pirn.core.lineage import KnotLineage
+from pirn.core.knot_lineage import KnotLineage
+from pirn.core.knot_source_record import KnotSourceRecord
 
 
 class PostgresHistory(RunHistory):

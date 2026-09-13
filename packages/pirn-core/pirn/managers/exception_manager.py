@@ -5,7 +5,7 @@ from collections.abc import Callable
 from threading import Lock
 
 from pirn.managers.exception_record import ExceptionRecord
-from pirn.managers.rebindable_exception import RebindableError
+from pirn.managers.rebindable_error import RebindableError
 
 
 class ExceptionManager:

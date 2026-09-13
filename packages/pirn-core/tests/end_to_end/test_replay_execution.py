@@ -1,7 +1,7 @@
 """Replay posture: recorded outcomes are served, knots do not execute.
 
 The distinguishing property of ``ReplaySession`` — and the thing
-``pirn.replay.replay_run`` cannot do — is that a knot with a side effect is
+``pirn.knot_diff.replay_run`` cannot do — is that a knot with a side effect is
 *not run* on replay.  These tests prove that by observation (a call log, or a
 knot that raises if reached) rather than by comparing outputs, which a
 re-execution would satisfy just as well.

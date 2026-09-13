@@ -48,8 +48,8 @@ from pirn.core.err import Err
 from pirn.core.error_policy import ErrorPolicy
 from pirn.core.hashing import content_hash
 from pirn.core.knot import Knot
-from pirn.core.knot_source import extract_knot_source
-from pirn.core.lineage import KnotLineage
+from pirn.core.knot_lineage import KnotLineage
+from pirn.core.knot_source_record import extract_knot_source
 from pirn.core.ok import Ok
 from pirn.core.parameter import Parameter
 from pirn.core.result import Result
@@ -74,7 +74,7 @@ from pirn.engine.scheduling.ready_queue import ReadyQueue
 from pirn.engine.shed.shed import Shed
 from pirn.exceptions.unbound_parameter_error import UnboundParameterError
 from pirn.managers.knot_state import KnotState
-from pirn.managers.rebindable_exception import RebindableError
+from pirn.managers.rebindable_error import RebindableError
 from pirn.recording.invocation_identity import InvocationIdentity
 from pirn.recording.replay_session import ReplaySession
 from pirn.tapestry import _current_dispatching_knot_id

@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from pirn.viz._tapestry_graph import TapestryGraph
-from pirn.viz.explorer import ExplorerHtmlGenerator, generate_explorer_html
+from pirn.viz.explorer_html_generator import ExplorerHtmlGenerator, generate_explorer_html
 
 
 class TestExplorerHtmlGeneratorGenerate(unittest.TestCase):
@@ -29,7 +29,7 @@ class TestExplorerHtmlGeneratorGenerate(unittest.TestCase):
 
     def test_tapestry_data_injected(self) -> None:
         graphs = [TapestryGraph(name="my_pipe", source="pipe.yaml")]
-        with patch("pirn.viz._scanner.scan_folder", return_value=(graphs, [])):
+        with patch("pirn.viz.tapestry_graph_scanner.scan_folder", return_value=(graphs, [])):
             with tempfile.TemporaryDirectory() as tmp:
                 html = ExplorerHtmlGenerator.generate(tmp)
         self.assertIn("my_pipe", html)

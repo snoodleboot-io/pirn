@@ -68,7 +68,7 @@ def test_dispatcher_public_surface():
 
 
 def test_yaml_public_surface():
-    from pirn.yaml_loader.loader import load_pipeline
+    from pirn.yaml_loader.pipeline_loader import load_pipeline
     from pirn.yaml_loader.specs.pipeline_spec import PipelineSpec
 
     assert callable(load_pipeline)
@@ -97,12 +97,12 @@ async def test_quickstart_example():
 
 def test_phase3_emitter_public_surface():
     """Phase 3 emitter classes are importable from their defining modules."""
-    from pirn.emitters.base import Emitter
-    from pirn.emitters.kafka import KafkaEmitter
-    from pirn.emitters.log import LogEmitter
-    from pirn.emitters.otel import OpenTelemetryEmitter
-    from pirn.emitters.valkey import ValKeyEmitter
-    from pirn.emitters.webhook import WebhookEmitter
+    from pirn.emitters.emitter import Emitter
+    from pirn.emitters.kafka_emitter import KafkaEmitter
+    from pirn.emitters.log_emitter import LogEmitter
+    from pirn.emitters.open_telemetry_emitter import OpenTelemetryEmitter
+    from pirn.emitters.valkey_emitter import ValKeyEmitter
+    from pirn.emitters.webhook_emitter import WebhookEmitter
 
     for cls in (
         Emitter,
@@ -117,11 +117,11 @@ def test_phase3_emitter_public_surface():
 
 def test_phase3_trigger_public_surface():
     """Phase 3 trigger classes are importable from their defining modules."""
-    from pirn.triggers.base import Trigger, run_forever
-    from pirn.triggers.cron import CronTrigger
-    from pirn.triggers.http import WebhookTrigger
-    from pirn.triggers.kafka import KafkaTrigger
-    from pirn.triggers.valkey import ValKeyTrigger
+    from pirn.triggers.cron_trigger import CronTrigger
+    from pirn.triggers.kafka_trigger import KafkaTrigger
+    from pirn.triggers.trigger import Trigger, run_forever
+    from pirn.triggers.valkey_trigger import ValKeyTrigger
+    from pirn.triggers.webhook_trigger import WebhookTrigger
 
     for cls in (CronTrigger, KafkaTrigger, ValKeyTrigger, WebhookTrigger):
         assert isinstance(cls, type)
@@ -132,7 +132,7 @@ def test_phase3_trigger_public_surface():
 def test_phase3_log_emitter_works_without_extras():
     """LogEmitter has no optional dependencies — it should construct
     cleanly even without any [extras] installed."""
-    from pirn.emitters.log import LogEmitter
+    from pirn.emitters.log_emitter import LogEmitter
 
     e = LogEmitter()
     assert e.name == "LogEmitter"

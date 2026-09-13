@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import AsyncMock, MagicMock
 
 from pirn.core.run_request import RunRequest
-from pirn.triggers.kafka import KafkaTrigger
+from pirn.triggers.kafka_trigger import KafkaTrigger
 
 
 def _mock_msg(value: bytes) -> MagicMock:

@@ -6,7 +6,7 @@ import unittest
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
-from pirn.emitters.otel import OpenTelemetryEmitter
+from pirn.emitters.open_telemetry_emitter import OpenTelemetryEmitter
 
 
 def _utcnow() -> datetime:

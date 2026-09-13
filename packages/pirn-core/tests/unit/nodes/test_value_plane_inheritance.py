@@ -40,7 +40,7 @@ from pirn.nodes.sub_tapestry import SubTapestry, _apply_inherited_value_plane
 from pirn.tapestry import Tapestry
 
 if TYPE_CHECKING:
-    from pirn.core.lineage import KnotLineage
+    from pirn.core.knot_lineage import KnotLineage
     from pirn.core.run_result import RunResult
 
 #: Produced only by the inner source, so its hash cannot be planted in the outer

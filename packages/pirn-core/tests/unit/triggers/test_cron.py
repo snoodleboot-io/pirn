@@ -9,7 +9,7 @@ from time import monotonic
 from unittest.mock import patch
 
 from pirn.core.run_request import RunRequest
-from pirn.triggers.cron import CronTrigger
+from pirn.triggers.cron_trigger import CronTrigger
 
 
 class _SleepRecorder:
@@ -66,7 +66,7 @@ class TestCronTriggerConstruction(unittest.TestCase):
 
 class TestCronTriggerStream(unittest.IsolatedAsyncioTestCase):
     async def test_every_seconds_emits_up_to_max_runs(self) -> None:
-        with patch("pirn.triggers.cron.asyncio.sleep", return_value=None):
+        with patch("pirn.triggers.cron_trigger.asyncio.sleep", return_value=None):
             trigger = CronTrigger(every_seconds=0.001, max_runs=3)
             requests = []
             async for req in trigger.stream():
@@ -81,7 +81,7 @@ class TestCronTriggerStream(unittest.IsolatedAsyncioTestCase):
             call_count[0] += 1
             return {"ts": call_count[0]}
 
-        with patch("pirn.triggers.cron.asyncio.sleep", return_value=None):
+        with patch("pirn.triggers.cron_trigger.asyncio.sleep", return_value=None):
             trigger = CronTrigger(every_seconds=0.001, parameters_factory=factory, max_runs=2)
             reqs = []
             async for req in trigger.stream():
@@ -90,7 +90,7 @@ class TestCronTriggerStream(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(reqs[0].parameters["ts"], 1)
 
     async def test_empty_parameters_without_factory(self) -> None:
-        with patch("pirn.triggers.cron.asyncio.sleep", return_value=None):
+        with patch("pirn.triggers.cron_trigger.asyncio.sleep", return_value=None):
             trigger = CronTrigger(every_seconds=0.001, max_runs=1)
             async for req in trigger.stream():
                 self.assertEqual(req.parameters, {})
@@ -103,7 +103,7 @@ class TestCronTriggerTrailingSleep(unittest.IsolatedAsyncioTestCase):
         recorder = _SleepRecorder()
         # Patch the module-level asyncio.sleep so this test also expresses the
         # defect against the pre-fix implementation, which had no injection seam.
-        with patch("pirn.triggers.cron.asyncio.sleep", new=recorder):
+        with patch("pirn.triggers.cron_trigger.asyncio.sleep", new=recorder):
             trigger = CronTrigger(every_seconds=1.0, max_runs=2)
             fired: list[RunRequest] = []
             async for req in trigger.stream():
@@ -115,7 +115,7 @@ class TestCronTriggerTrailingSleep(unittest.IsolatedAsyncioTestCase):
 
     async def test_single_run_sleeps_not_at_all(self) -> None:
         recorder = _SleepRecorder()
-        with patch("pirn.triggers.cron.asyncio.sleep", new=recorder):
+        with patch("pirn.triggers.cron_trigger.asyncio.sleep", new=recorder):
             trigger = CronTrigger(every_seconds=5.0, max_runs=1)
             fired = [req async for req in trigger.stream()]
 
@@ -128,7 +128,7 @@ class TestCronTriggerTrailingSleep(unittest.IsolatedAsyncioTestCase):
         # on both sides of PIR-790.  It is kept so that any future rework of
         # the shared loop cannot quietly give at-times mode one.
         recorder = _SleepRecorder()
-        with patch("pirn.triggers.cron.asyncio.sleep", new=recorder):
+        with patch("pirn.triggers.cron_trigger.asyncio.sleep", new=recorder):
             trigger = CronTrigger(at_times=[time(9, 0)], max_runs=2)
             fired = [req async for req in trigger.stream()]
 
@@ -152,7 +152,7 @@ class TestCronTriggerSleepInjection(unittest.IsolatedAsyncioTestCase):
     async def test_injected_sleep_takes_precedence_over_module_sleep(self) -> None:
         recorder = _SleepRecorder()
         module_sleep = _SleepRecorder()
-        with patch("pirn.triggers.cron.asyncio.sleep", new=module_sleep):
+        with patch("pirn.triggers.cron_trigger.asyncio.sleep", new=module_sleep):
             trigger = CronTrigger(every_seconds=1.0, max_runs=2, sleep=recorder)
             _ = [req async for req in trigger.stream()]
 
@@ -283,7 +283,7 @@ class TestCronTriggerClose(unittest.IsolatedAsyncioTestCase):
         trigger was waiting on was still emitted.
         """
         gate = _GatedSleep()
-        with patch("pirn.triggers.cron.asyncio.sleep", new=gate):
+        with patch("pirn.triggers.cron_trigger.asyncio.sleep", new=gate):
             trigger = CronTrigger(at_times=[time(9, 0)])
             agen = trigger.stream()
 
@@ -305,7 +305,7 @@ class TestCronTriggerClose(unittest.IsolatedAsyncioTestCase):
     async def test_interval_close_mid_sleep_emits_nothing_further(self) -> None:
         """The same mid-sleep close, on the interval mode's second fire."""
         gate = _GatedSleep()
-        with patch("pirn.triggers.cron.asyncio.sleep", new=gate):
+        with patch("pirn.triggers.cron_trigger.asyncio.sleep", new=gate):
             trigger = CronTrigger(every_seconds=3.0)
             agen = trigger.stream()
 
@@ -341,7 +341,7 @@ class TestCronTriggerCloseShutdownLatency(unittest.IsolatedAsyncioTestCase):
         recorder = _SleepRecorder()
         # Module-level patch, so this runs verbatim against the pre-fix code,
         # where it records [7.0] instead of [].
-        with patch("pirn.triggers.cron.asyncio.sleep", new=recorder):
+        with patch("pirn.triggers.cron_trigger.asyncio.sleep", new=recorder):
             trigger = CronTrigger(every_seconds=7.0)
             fired: list[RunRequest] = []
             async for req in trigger.stream():
@@ -366,7 +366,7 @@ class TestCronTriggerCloseShutdownLatency(unittest.IsolatedAsyncioTestCase):
 
     async def test_at_times_close_at_yield_records_no_further_sleep(self) -> None:
         recorder = _SleepRecorder()
-        with patch("pirn.triggers.cron.asyncio.sleep", new=recorder):
+        with patch("pirn.triggers.cron_trigger.asyncio.sleep", new=recorder):
             trigger = CronTrigger(at_times=[time(9, 0)])
             fired: list[RunRequest] = []
             async for req in trigger.stream():
@@ -416,7 +416,7 @@ class TestCronTriggerFirstDelayIsHonoured(unittest.IsolatedAsyncioTestCase):
 
     async def test_at_times_first_fire_still_awaits(self) -> None:
         recorder = _SleepRecorder()
-        with patch("pirn.triggers.cron.asyncio.sleep", new=recorder):
+        with patch("pirn.triggers.cron_trigger.asyncio.sleep", new=recorder):
             trigger = CronTrigger(at_times=[time(9, 0)], max_runs=1)
             fired = [req async for req in trigger.stream()]
 
