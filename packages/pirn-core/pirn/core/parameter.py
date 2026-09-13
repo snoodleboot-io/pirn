@@ -48,6 +48,24 @@ class Parameter(Knot):
             ``AttributeError`` when accessed on a parameter with no default.
         spec: The ``ParameterSpec`` describing this parameter for schema
             export and documentation.
+
+    Algorithm:
+        1. Construction — a ``TypeAdapter`` for ``type_`` is built once and
+           stored as the knot's output adapter; no parent/config
+           introspection runs, since ``Parameter`` has no declared inputs.
+        2. Binding (per run) — before the engine dispatches any work,
+           ``Engine._bind_parameters`` looks up ``RunRequest.parameters[name]``.
+           If present, the value is validated via :meth:`bind`. If absent and
+           a default was declared, the default is used unvalidated (it was
+           supplied by the pipeline author, not an external caller). If
+           neither is available, resolution defers to ``process()``.
+        3. Run-scoped copy — the bound value is written onto a *copy* of this
+           ``Parameter`` (:meth:`bound_copy`), never onto the shared graph
+           knot, so concurrent runs sharing one ``Tapestry`` do not overwrite
+           each other's bindings (PIR-802).
+        4. Resolution — ``process()`` returns the bound value if one was set
+           on this instance, else the declared default, else raises
+           ``UnboundParameterError``.
     """
 
     def __init__(

@@ -15,6 +15,25 @@ class BranchOutput(Knot):
 
     The output is Ok(input_value) if this branch was selected, otherwise
     Skipped.
+
+    Algorithm:
+        1. Construction — each ``BranchOutput`` is wired with two parents:
+           ``chosen`` (the owning ``Branch``, whose output is the selected
+           branch name) and ``passthrough`` (the ``Branch``'s own ``input``
+           parent, so the original value reaches here without going through
+           ``Branch.process()``, which only returns the selected name).
+        2. Resolution — the engine resolves both parents and passes them to
+           ``process()``.
+        3. Match — if ``chosen`` equals this output's own ``branch_name``,
+           ``passthrough`` is returned unchanged.
+        4. No match — otherwise ``process()`` raises
+           ``_BranchNotSelectedError``, which the engine would normally wrap
+           as ``Err``.
+        5. Skip conversion — ``BranchOutput.__call__`` intercepts that
+           specific ``Err`` and converts it to
+           ``Skipped(reason="branch_not_selected")`` before returning it to
+           the engine, so downstream knots wired to the non-selected outputs
+           are skipped rather than failed.
     """
 
     def __init__(
