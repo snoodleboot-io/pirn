@@ -38,7 +38,7 @@ What this does **not** give you, and why:
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.backends.base.data_store import DataStore
 from pirn.backends.base.run_history import RunHistory
@@ -48,35 +48,6 @@ from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.determinism._thunk_source import _ThunkSource
-
-#: Sentinel written by :meth:`KeyedLineageStore.delete`; :meth:`get` treats a
-#: value with this shape as absent rather than returning it.
-_TOMBSTONE: Mapping[str, Any] = {"__keyed_lineage_store_deleted__": True}
-
-#: Characters :func:`_escape_identity_component` passes through unescaped.
-#: Deliberately excludes ``.`` and ``:`` even though ``KnotConfig.id`` allows
-#: them — both are meaningful to the escaping scheme itself (the escape
-#: leader and the namespace/key separator, respectively), so both must always
-#: be escaped when they appear *inside* a caller's namespace or key.
-_IDENTITY_SAFE_CHARS = frozenset("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-")
-
-
-def _escape_identity_component(component: str) -> str:
-    """Escape ``component`` into the charset a ``KnotConfig.id`` allows.
-
-    Every byte outside :data:`_IDENTITY_SAFE_CHARS` becomes ``.xx`` (its
-    lowercase hex value, UTF-8 encoded) — including ``.`` and ``:`` — so the
-    output contains a bare ``.`` or ``:`` only where this function or
-    :meth:`KeyedLineageStore.identity` put one, never as a leftover from the
-    caller's own text.
-    """
-    escaped: list[str] = []
-    for char in component:
-        if char in _IDENTITY_SAFE_CHARS:
-            escaped.append(char)
-        else:
-            escaped.extend(f".{byte:02x}" for byte in char.encode("utf-8"))
-    return "".join(escaped)
 
 
 class KeyedLineageStore(PirnOpaqueValue):
@@ -88,6 +59,20 @@ class KeyedLineageStore(PirnOpaqueValue):
     parameter: IO validation only needs ``isinstance(value, cls)``, not a
     descent into the wrapped ``RunHistory``/``DataStore``.
     """
+
+    #: Sentinel written by :meth:`delete`; :meth:`get` treats a value with
+    #: this shape as absent rather than returning it.
+    _tombstone: ClassVar[Mapping[str, Any]] = {"__keyed_lineage_store_deleted__": True}
+
+    #: Characters :meth:`_escape_identity_component` passes through
+    #: unescaped. Deliberately excludes ``.`` and ``:`` even though
+    #: ``KnotConfig.id`` allows them — both are meaningful to the escaping
+    #: scheme itself (the escape leader and the namespace/key separator,
+    #: respectively), so both must always be escaped when they appear
+    #: *inside* a caller's namespace or key.
+    _identity_safe_chars: ClassVar[frozenset[str]] = frozenset(
+        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-"
+    )
 
     def __init__(self, *, history: RunHistory, data_store: DataStore) -> None:
         """Bind the store to the ``RunHistory``/``DataStore`` pair it reads and writes.
@@ -116,8 +101,26 @@ class KeyedLineageStore(PirnOpaqueValue):
     def data_store(self) -> DataStore:
         return self._data_store
 
-    @staticmethod
-    def identity(namespace: str, key: str) -> str:
+    @classmethod
+    def _escape_identity_component(cls, component: str) -> str:
+        """Escape ``component`` into the charset a ``KnotConfig.id`` allows.
+
+        Every byte outside :attr:`_identity_safe_chars` becomes ``.xx`` (its
+        lowercase hex value, UTF-8 encoded) — including ``.`` and ``:`` — so
+        the output contains a bare ``.`` or ``:`` only where this method or
+        :meth:`identity` put one, never as a leftover from the caller's own
+        text.
+        """
+        escaped: list[str] = []
+        for char in component:
+            if char in cls._identity_safe_chars:
+                escaped.append(char)
+            else:
+                escaped.extend(f".{byte:02x}" for byte in char.encode("utf-8"))
+        return "".join(escaped)
+
+    @classmethod
+    def identity(cls, namespace: str, key: str) -> str:
         """Return the knot id a ``(namespace, key)`` pair maps to.
 
         ``KnotConfig.id`` only allows ``[a-zA-Z0-9_.:-]``, but a caller's key
@@ -139,7 +142,7 @@ class KeyedLineageStore(PirnOpaqueValue):
             raise ValueError("KeyedLineageStore.identity: namespace must be non-empty")
         if not key:
             raise ValueError("KeyedLineageStore.identity: key must be non-empty")
-        return f"{_escape_identity_component(namespace)}:{_escape_identity_component(key)}"
+        return f"{cls._escape_identity_component(namespace)}:{cls._escape_identity_component(key)}"
 
     async def put(self, *, namespace: str, key: str, value: Any) -> str:
         """Write ``value`` as the current value under ``(namespace, key)``.
@@ -191,7 +194,7 @@ class KeyedLineageStore(PirnOpaqueValue):
             value = await self._data_store.get(row.output_hash)
         except KeyError:
             return None
-        return None if value == _TOMBSTONE else value
+        return None if value == type(self)._tombstone else value
 
     async def latest_output_hash(self, *, namespace: str, key: str) -> str | None:
         """Return the content hash of the current value under ``(namespace, key)``.
@@ -200,7 +203,7 @@ class KeyedLineageStore(PirnOpaqueValue):
         fetching it — compare a candidate's own
         ``pirn.core.hashing.content_hash(candidate)`` against this. ``None``
         when the key was never written or its outcome was not ``"ok"``; a
-        tombstone still has a real hash (of ``_TOMBSTONE``), same as any
+        tombstone still has a real hash (of :attr:`_tombstone`), same as any
         other value — a caller checking for "was this deleted" should use
         :meth:`get` instead.
         """
@@ -217,4 +220,4 @@ class KeyedLineageStore(PirnOpaqueValue):
         tombstone) — cheap, and harmless since :meth:`get` treats both the
         same.
         """
-        await self.put(namespace=namespace, key=key, value=_TOMBSTONE)
+        await self.put(namespace=namespace, key=key, value=type(self)._tombstone)
