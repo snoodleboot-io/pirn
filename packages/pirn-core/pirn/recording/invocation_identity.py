@@ -39,7 +39,18 @@ class InvocationIdentity:
     * a :class:`~pirn.core.pirn_opaque_value.PirnOpaqueValue` — an LLM
       provider, a tool, a connection pool — is *identity-keyed*, so the same
       logical object hashes differently in another process.  That produces a
-      false *mismatch*, which is safe: replay refuses and the knot executes;
+      false *mismatch*, which is safe: replay raises
+      :class:`~pirn.recording.replay_mismatch_error.ReplayMismatchError`.  It
+      never falls back to running the knot live.  The identity token is unique
+      per instance even when CPython reuses a freed object's address (PIR-852).
+      This covers a :class:`~pirn.connectors.connector_base.ConnectorBase`
+      (HTTP LLM and embedding providers, HTTP, MCP and SQL connectors) too,
+      whose default ``__pirn_canonical__`` returns the identity token rather
+      than its per-class audit form (PIR-848).  A type that defines its own
+      ``__pirn_canonical__`` gets a true content hash instead.  Known gap
+      (PIR-853): inside a pydantic model literal, a value is hashed through
+      ``model_dump`` and so its audit form, which for a connector is a
+      per-class constant; such a literal can still false-match;
     * a fully opaque object with no pydantic schema canonicalises to
       ``sha256:unhashable:<Type>``, which is **equal for two different
       instances**.  That produces a false *match*, which is not safe: a

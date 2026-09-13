@@ -29,6 +29,3 @@ class IbisConnection(PirnOpaqueValue):
     @property
     def backend(self) -> Any:
         return self._backend
-
-    def _pirn_audit_dict(self) -> Any:
-        return f"<IbisConnection@{id(self._backend):x}>"
