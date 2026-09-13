@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 from collections.abc import Sequence
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -119,12 +120,20 @@ class TestLatsSearch(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_value_model(self) -> None:
         with Tapestry():
-            knot = LatsSearch.__new__(LatsSearch)
-            object.__setattr__(knot, "_config", KnotConfig(id="lats"))
-        with self.assertRaises(TypeError):
-            await knot.process(
+            knot = LatsSearch(
                 task="q",
                 llm=_proposer_llm(),
-                value_model="bad",  # type: ignore[arg-type]
+                value_model=_KeywordValueModel("right"),
                 budget=RunBudget(max_iterations=5),
+                _config=KnotConfig(id="lats"),
             )
+        result = await knot(
+            {
+                "task": "q",
+                "llm": _proposer_llm(),
+                "value_model": "bad",
+                "budget": RunBudget(max_iterations=5),
+            }
+        )
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"

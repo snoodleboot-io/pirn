@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
+from pirn.core.err import Err
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -38,8 +39,9 @@ class TestRelevanceCheckProcess(unittest.IsolatedAsyncioTestCase):
             retrieved=_DocsSource([], _config=KnotConfig(id="src")),
             _config=KnotConfig(id="rg"),
         )
-        with self.assertRaises(TypeError):
-            await knot.process(query=42, retrieved=[], threshold=0.5)  # type: ignore[arg-type]
+        result = await knot({"query": 42, "retrieved": [], "threshold": 0.5})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_keeps_relevant_docs(self) -> None:
         docs = [{"text": "python programming language"}]

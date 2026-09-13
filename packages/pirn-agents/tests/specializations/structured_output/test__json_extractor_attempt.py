@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -79,7 +80,13 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_process_rejects_non_string_prompt(self) -> None:
         llm = StubLLMProvider(['{"x": 1}'])
         with Tapestry():
-            k = _JsonExtractorAttempt.__new__(_JsonExtractorAttempt)
-            object.__setattr__(k, "_config", KnotConfig(id="x"))
-        with self.assertRaises(TypeError):
-            await k.process(prompt=42, llm=llm, schema={"x": "int"}, prior_error="")  # type: ignore[arg-type]
+            k = _JsonExtractorAttempt(
+                prompt="p",
+                llm=llm,
+                schema={"x": "int"},
+                prior_error="",
+                _config=KnotConfig(id="x"),
+            )
+        result = await k({"prompt": 42, "llm": llm, "schema": {"x": "int"}, "prior_error": ""})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"

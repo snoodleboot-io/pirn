@@ -68,10 +68,6 @@ class ConsensusSynthesisCaller(Knot):
         Raises:
             ValueError: If responses is empty or not a Mapping.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"ConsensusSynthesisCaller: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
         if not isinstance(responses, Mapping) or not responses:
             raise ValueError("ConsensusSynthesisCaller: responses must be a non-empty mapping")
         rendered = "\n".join(f"[{name}] {response.content}" for name, response in responses.items())

@@ -76,17 +76,8 @@ class QueryRouteClassifier(Knot):
             an unrecognised reply.
 
         Raises:
-            TypeError: If ``query`` is not a string or ``llm`` is not an LLMProvider.
             ValueError: If ``route_names`` is empty.
         """
-        if not isinstance(query, str):
-            raise TypeError(
-                f"QueryRouteClassifier: query must be a string, got {type(query).__name__}"
-            )
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"QueryRouteClassifier: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
         if not route_names:
             raise ValueError("QueryRouteClassifier: route_names must be non-empty")
         options = ", ".join(route_names)

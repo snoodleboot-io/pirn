@@ -71,15 +71,7 @@ class ReflexionActor(Knot):
 
         Returns:
             The answer text.
-
-        Raises:
-            TypeError: If ``task`` is not a string or ``llm`` is not an
-                :class:`LLMProvider`.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(f"ReflexionActor: llm must be an LLMProvider, got {type(llm).__name__}")
-        if not isinstance(task, str):
-            raise TypeError(f"ReflexionActor: task must be a string, got {type(task).__name__}")
         reflection_tuple = tuple(reflections)
         system = type(self)._system_prompt.resolve()
         if reflection_tuple:

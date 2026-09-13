@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
@@ -14,8 +15,12 @@ from tests.specializations.conftest import StubMemoryStore
 
 def _retriever() -> RoutedRetriever:
     with Tapestry():
-        knot = RoutedRetriever.__new__(RoutedRetriever)
-        object.__setattr__(knot, "_config", KnotConfig(id="route"))
+        knot = RoutedRetriever(
+            route="docs",
+            routes=RouteTable({"docs": StubMemoryStore([])}),
+            query="q",
+            _config=KnotConfig(id="route"),
+        )
     return knot
 
 
@@ -40,5 +45,6 @@ class TestRoutedRetriever(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_route_table(self) -> None:
         knot = _retriever()
-        with self.assertRaisesRegex(TypeError, "routes must be a RouteTable"):
-            await knot.process(route="x", routes="nope", query="q", top_k=5)  # type: ignore[arg-type]
+        result = await knot({"route": "x", "routes": "nope", "query": "q", "top_k": 5})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"

@@ -116,10 +116,6 @@ class DebateFramework(AgentPipeline):
             TypeError: If judge_llm is not an LLMProvider, a debater is not a
                 SubTapestry, or topic is not a string.
         """
-        if not isinstance(judge_llm, LLMProvider):
-            raise TypeError(
-                f"DebateFramework: judge_llm must be an LLMProvider, got {type(judge_llm).__name__}"
-            )
         debater_tuple = tuple(debaters)
         if len(debater_tuple) < 2:
             raise ValueError(
@@ -133,8 +129,6 @@ class DebateFramework(AgentPipeline):
                 )
         if not isinstance(rounds, int) or rounds <= 0:
             raise ValueError(f"DebateFramework: rounds must be a positive int, got {rounds!r}")
-        if not isinstance(topic, str):
-            raise TypeError(f"DebateFramework: topic must be a string, got {type(topic).__name__}")
 
         round_aggregators: list[Knot] = []
         for round_index in range(rounds):

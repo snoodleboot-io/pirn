@@ -62,14 +62,7 @@ class PlanExecutor(Knot):
 
         Returns:
             An AgentResponse whose content contains each step result separated by newlines.
-
-        Raises:
-            TypeError: If plan is not a Plan instance.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(f"PlanExecutor: llm must be an LLMProvider, got {type(llm).__name__}")
-        if not isinstance(plan, Plan):
-            raise TypeError(f"PlanExecutor: plan must be a Plan, got {type(plan).__name__}")
         step_results: list[str] = []
         for index, step in enumerate(plan.steps):
             prior_context = "\n".join(

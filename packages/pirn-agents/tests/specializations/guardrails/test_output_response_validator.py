@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -56,8 +57,11 @@ class TestOutputResponseValidatorProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_agent_response(self) -> None:
         k = _make_knot()
-        with self.assertRaises(TypeError):
-            await k.process(response="not-a-response", deny_patterns=[], allowed_tool_names=[])  # type: ignore[arg-type]
+        result = await k(
+            {"response": "not-a-response", "deny_patterns": [], "allowed_tool_names": []}
+        )
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_tapestry_run_integration(self) -> None:
         response = AgentResponse(content="safe content", finish_reason="stop")

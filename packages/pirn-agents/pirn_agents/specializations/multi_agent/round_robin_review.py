@@ -72,17 +72,11 @@ class RoundRobinReview(AgentPipeline):
             The AgentResponse produced by the last reviewer in the sequence.
 
         Raises:
-            TypeError: If response is not an AgentResponse instance.
             ValueError: If reviewers is empty.
         """
         reviewer_list = list(reviewers)
         if not reviewer_list:
             raise ValueError("RoundRobinReview: reviewers must be a non-empty sequence")
-        if not isinstance(response, AgentResponse):
-            raise TypeError(
-                "RoundRobinReview: response must be an AgentResponse, "
-                f"got {type(response).__name__}"
-            )
         current = response
         for reviewer in reviewer_list:
             result = await invoke_specialist(reviewer, response=current)

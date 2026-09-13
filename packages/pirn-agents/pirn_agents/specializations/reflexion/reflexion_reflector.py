@@ -75,10 +75,6 @@ class ReflexionReflector(Knot):
             TypeError: If any string input has the wrong type or ``llm`` is not
                 an :class:`LLMProvider`.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"ReflexionReflector: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
         for name, value in (("task", task), ("answer", answer), ("feedback", feedback)):
             if not isinstance(value, str):
                 raise TypeError(

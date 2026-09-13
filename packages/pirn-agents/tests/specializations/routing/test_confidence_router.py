@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
@@ -38,10 +39,12 @@ class TestConfidenceRouterProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_numeric_score(self) -> None:
         knot = self._make()
-        with self.assertRaisesRegex(TypeError, "score must be a float"):
-            await knot.process(score="high", threshold=0.5)  # type: ignore[arg-type]
+        result = await knot({"score": "high", "threshold": 0.5})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_rejects_non_numeric_threshold(self) -> None:
         knot = self._make()
-        with self.assertRaisesRegex(TypeError, "threshold must be a float"):
-            await knot.process(score=0.9, threshold="high")  # type: ignore[arg-type]
+        result = await knot({"score": 0.9, "threshold": "high"})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"

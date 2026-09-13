@@ -63,14 +63,7 @@ class TaskPlanner(Knot):
 
         Returns:
             A Plan containing the ordered step strings and the raw LLM rationale.
-
-        Raises:
-            TypeError: If goal is not a string.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(f"TaskPlanner: llm must be an LLMProvider, got {type(llm).__name__}")
-        if not isinstance(goal, str):
-            raise TypeError(f"TaskPlanner: goal must be a string, got {type(goal).__name__}")
         messages = [
             {"role": "system", "content": type(self)._planning_system.resolve()},
             {"role": "user", "content": goal},

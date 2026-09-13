@@ -76,11 +76,8 @@ class IntentRouter(Router):
             The category label string most closely matching the message intent.
 
         Raises:
-            TypeError: If message is not a string or llm is not an LLMProvider.
             ValueError: If categories is empty or contains invalid entries.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(f"IntentRouter: llm must be an LLMProvider, got {type(llm).__name__}")
         categories_tuple = tuple(categories)
         if not categories_tuple:
             raise ValueError("IntentRouter: categories must be a non-empty sequence")
@@ -89,8 +86,6 @@ class IntentRouter(Router):
                 raise ValueError(
                     f"IntentRouter: categories[{index}] must be a non-empty string, got {cat!r}"
                 )
-        if not isinstance(message, str):
-            raise TypeError(f"IntentRouter: message must be a string, got {type(message).__name__}")
         category_list = ", ".join(categories_tuple)
         prompt = type(self)._classification_prompt.render(
             {"categories": category_list, "message": message},

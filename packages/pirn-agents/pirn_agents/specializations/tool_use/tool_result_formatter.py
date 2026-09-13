@@ -49,15 +49,7 @@ class ToolResultFormatter(Knot):
 
         Returns:
             A human-readable string representation of the tool result.
-
-        Raises:
-            TypeError: If tool_result is not a ToolResult.
         """
-        if not isinstance(tool_result, ToolResult):
-            raise TypeError(
-                "ToolResultFormatter: tool_result must be a ToolResult, "
-                f"got {type(tool_result).__name__}"
-            )
         if tool_result.error is not None:
             return f"Tool call '{tool_result.call_id}' failed with error: {tool_result.error}"
         result_repr = self._format_result(tool_result.result)

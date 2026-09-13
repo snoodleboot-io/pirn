@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -33,10 +34,10 @@ class TestReflexionActor(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_llm(self) -> None:
         with Tapestry():
-            actor = ReflexionActor.__new__(ReflexionActor)
-            object.__setattr__(actor, "_config", KnotConfig(id="a"))
-        with self.assertRaises(TypeError):
-            await actor.process(task="q", llm="bad")  # type: ignore[arg-type]
+            actor = ReflexionActor(task="q", llm=StubLLMProvider(["x"]), _config=KnotConfig(id="a"))
+        result = await actor({"task": "q", "llm": "bad"})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
 
 class TestReflexionEvaluator(unittest.IsolatedAsyncioTestCase):

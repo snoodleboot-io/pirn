@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
+from pirn.core.err import Err
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -70,8 +71,9 @@ class TestRoundRobinReviewProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_agent_response(self) -> None:
         r1 = _make_reviewer("-r1", "r1")
         k = _make_knot([r1])
-        with self.assertRaises(TypeError):
-            await k.process(response="not-a-response", reviewers=[r1])  # type: ignore[arg-type]
+        result = await k({"response": "not-a-response", "reviewers": [r1]})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_rejects_empty_reviewers(self) -> None:
         r1 = _make_reviewer("-r1", "r1")

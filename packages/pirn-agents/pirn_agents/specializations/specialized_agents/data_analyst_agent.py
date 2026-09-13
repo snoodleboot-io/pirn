@@ -89,20 +89,6 @@ class DataAnalystAgent(AgentPipeline):
             raise TypeError(
                 f"DataAnalystAgent: question must be a non-empty string, got {question!r}"
             )
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"DataAnalystAgent: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
-        if not isinstance(pool, DatabaseConnectionPool):
-            raise TypeError(
-                "DataAnalystAgent: pool must be a DatabaseConnectionPool, "
-                f"got {type(pool).__name__}"
-            )
-        if not isinstance(schema_description, str):
-            raise TypeError(
-                "DataAnalystAgent: schema_description must be a string, "
-                f"got {type(schema_description).__name__}"
-            )
         sql_response = SQLAgent(
             question=question,
             llm=llm,

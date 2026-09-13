@@ -122,8 +122,6 @@ class ReActLoop(AgentPipeline):
             TypeError: If llm is not an LLMProvider or any tool is not a Tool.
             ValueError: If max_iterations is not a positive integer.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(f"ReActLoop: llm must be an LLMProvider, got {type(llm).__name__}")
         if not isinstance(max_iterations, int) or max_iterations <= 0:
             raise ValueError(
                 f"ReActLoop: max_iterations must be a positive int, got {max_iterations!r}"

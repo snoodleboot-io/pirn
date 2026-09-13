@@ -74,15 +74,7 @@ class CitationGrounder(Knot):
 
         Returns:
             A new AgentResponse with the content rewritten to include inline citations.
-
-        Raises:
-            TypeError: If response is not an AgentResponse instance.
         """
-        if not isinstance(response, AgentResponse):
-            raise TypeError(
-                "CitationGrounder: response must be an AgentResponse, "
-                f"got {type(response).__name__}"
-            )
         sources_text = "\n\n".join(f"[{i + 1}]: {src}" for i, src in enumerate(sources))
         prompt = type(self)._grounding_prompt.render(
             {"sources": sources_text, "response": response.content},

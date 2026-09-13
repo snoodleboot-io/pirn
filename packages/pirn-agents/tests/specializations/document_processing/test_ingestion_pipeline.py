@@ -12,6 +12,7 @@ import unittest
 from collections.abc import AsyncIterator, Mapping, Sequence
 from typing import Any
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -190,13 +191,16 @@ class TestIngestionPipelineValidation(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_wrong_loader(self) -> None:
         pipeline = self._pipeline()
         store = _DictMemoryStore()
-        with self.assertRaisesRegex(TypeError, "loader must be a Loader"):
-            await pipeline.process(
-                source_connector=_StubSource([]),
-                loader=object(),  # type: ignore[arg-type]
-                chunking_strategy=FixedSizeChunkingStrategy(),
-                upserter=IncrementalUpserter(store=store, embedder=StubEmbeddingProvider()),
-            )
+        result = await pipeline(
+            {
+                "source_connector": _StubSource([]),
+                "loader": object(),
+                "chunking_strategy": FixedSizeChunkingStrategy(),
+                "upserter": IncrementalUpserter(store=store, embedder=StubEmbeddingProvider()),
+            }
+        )
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_rejects_bad_concurrency(self) -> None:
         pipeline = self._pipeline()

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
@@ -13,8 +14,9 @@ from tests.specializations.conftest import StubLLMProvider
 
 def _expander() -> MultiQueryExpander:
     with Tapestry():
-        knot = MultiQueryExpander.__new__(MultiQueryExpander)
-        object.__setattr__(knot, "_config", KnotConfig(id="expand"))
+        knot = MultiQueryExpander(
+            query="original", llm=StubLLMProvider(["x"]), _config=KnotConfig(id="expand")
+        )
     return knot
 
 
@@ -40,8 +42,9 @@ class TestMultiQueryExpander(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_string_query(self) -> None:
         knot = _expander()
-        with self.assertRaisesRegex(TypeError, "query must be a string"):
-            await knot.process(query=1, llm=StubLLMProvider(["x"]), num_queries=2)  # type: ignore[arg-type]
+        result = await knot({"query": 1, "llm": StubLLMProvider(["x"]), "num_queries": 2})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_rejects_non_positive_num_queries(self) -> None:
         knot = _expander()

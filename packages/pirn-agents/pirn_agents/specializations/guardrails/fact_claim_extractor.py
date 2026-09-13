@@ -69,15 +69,7 @@ class FactClaimExtractor(Knot):
 
         Returns:
             A list of factual claim strings extracted from the response content.
-
-        Raises:
-            TypeError: If response is not an AgentResponse instance.
         """
-        if not isinstance(response, AgentResponse):
-            raise TypeError(
-                "FactClaimExtractor: response must be an AgentResponse, "
-                f"got {type(response).__name__}"
-            )
         prompt = type(self)._extraction_prompt.render(
             {"answer": response.content},
         )

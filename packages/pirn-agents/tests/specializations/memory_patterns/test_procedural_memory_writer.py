@@ -6,6 +6,7 @@ import unittest
 from collections.abc import Mapping
 from typing import Any
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
@@ -61,11 +62,15 @@ class TestProceduralMemoryWriterProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_agent_response(self) -> None:
         k = _make_knot()
         store = _TrackingStore()
-        with self.assertRaises(TypeError):
-            await k.process(agent_response="not-a-response", task_description="task", store=store)  # type: ignore[arg-type]
+        result = await k(
+            {"agent_response": "not-a-response", "task_description": "task", "store": store}
+        )
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_rejects_non_memory_store(self) -> None:
         k = _make_knot()
         response = AgentResponse(content="x", finish_reason="stop")
-        with self.assertRaises(TypeError):
-            await k.process(agent_response=response, task_description="task", store="bad")  # type: ignore[arg-type]
+        result = await k({"agent_response": response, "task_description": "task", "store": "bad"})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"

@@ -81,24 +81,9 @@ class AutoMergingRetriever(Retriever):
             Up to ``top_k`` result mappings, each a merged parent or a precise leaf.
 
         Raises:
-            TypeError: If ``query``/``store``/``embedder`` are the wrong type.
             ValueError: If ``top_k``/``candidate_multiplier`` are not positive ints
                 or ``merge_threshold`` is outside ``(0, 1]``.
         """
-        if not isinstance(query, str):
-            raise TypeError(
-                f"AutoMergingRetriever: query must be a string, got {type(query).__name__}"
-            )
-        if not isinstance(store, VectorMemoryStore):
-            raise TypeError(
-                f"AutoMergingRetriever: store must be a VectorMemoryStore, "
-                f"got {type(store).__name__}"
-            )
-        if not isinstance(embedder, EmbeddingProvider):
-            raise TypeError(
-                f"AutoMergingRetriever: embedder must be an EmbeddingProvider, "
-                f"got {type(embedder).__name__}"
-            )
         if not isinstance(top_k, int) or top_k <= 0:
             raise ValueError(f"AutoMergingRetriever: top_k must be a positive int, got {top_k!r}")
         if not isinstance(candidate_multiplier, int) or candidate_multiplier <= 0:

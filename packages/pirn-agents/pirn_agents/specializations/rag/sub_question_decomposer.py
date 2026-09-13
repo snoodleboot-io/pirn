@@ -77,17 +77,8 @@ class SubQuestionDecomposer(Knot):
             A list of sub-question strings; ``[query]`` when decomposition is empty.
 
         Raises:
-            TypeError: If ``query`` is not a string or ``llm`` is not an LLMProvider.
             ValueError: If ``max_sub_questions`` is not a positive integer.
         """
-        if not isinstance(query, str):
-            raise TypeError(
-                f"SubQuestionDecomposer: query must be a string, got {type(query).__name__}"
-            )
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"SubQuestionDecomposer: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
         if not isinstance(max_sub_questions, int) or max_sub_questions <= 0:
             raise ValueError(
                 "SubQuestionDecomposer: max_sub_questions must be a positive int, "

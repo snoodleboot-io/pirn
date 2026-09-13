@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -50,14 +51,16 @@ class TestTaskPlannerProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
         llm = StubLLMProvider(["1. step"])
         k = _make_knot(llm)
-        with self.assertRaises(TypeError):
-            await k.process(goal="goal", llm="bad")  # type: ignore[arg-type]
+        result = await k({"goal": "goal", "llm": "bad"})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_rejects_non_string_goal(self) -> None:
         llm = StubLLMProvider(["1. step"])
         k = _make_knot(llm)
-        with self.assertRaises(TypeError):
-            await k.process(goal=42, llm=llm)  # type: ignore[arg-type]
+        result = await k({"goal": 42, "llm": llm})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_tapestry_run_integration(self) -> None:
         llm = StubLLMProvider(["1. Research the topic\n2. Write outline\n3. Draft article"])

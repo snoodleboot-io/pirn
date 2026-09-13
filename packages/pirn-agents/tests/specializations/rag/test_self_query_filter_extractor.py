@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
@@ -13,8 +14,12 @@ from tests.specializations.conftest import StubLLMProvider
 
 def _extractor() -> SelfQueryFilterExtractor:
     with Tapestry():
-        knot = SelfQueryFilterExtractor.__new__(SelfQueryFilterExtractor)
-        object.__setattr__(knot, "_config", KnotConfig(id="extract"))
+        knot = SelfQueryFilterExtractor(
+            query="q",
+            llm=StubLLMProvider(["{}"]),
+            filterable_fields=[],
+            _config=KnotConfig(id="extract"),
+        )
     return knot
 
 
@@ -45,5 +50,6 @@ class TestSelfQueryFilterExtractor(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_string_query(self) -> None:
         knot = _extractor()
-        with self.assertRaisesRegex(TypeError, "query must be a string"):
-            await knot.process(query=1, llm=StubLLMProvider(["{}"]), filterable_fields=[])  # type: ignore[arg-type]
+        result = await knot({"query": 1, "llm": StubLLMProvider(["{}"]), "filterable_fields": []})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"

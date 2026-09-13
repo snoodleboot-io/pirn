@@ -107,10 +107,6 @@ class ToolChain(AgentPipeline):
                 raise TypeError(
                     f"ToolChain: tools[{index}] must be a Tool, got {type(tool).__name__}"
                 )
-        if not isinstance(initial_call, ToolCall):
-            raise TypeError(
-                f"ToolChain: initial_call must be a ToolCall, got {type(initial_call).__name__}"
-            )
 
         call_id = initial_call.call_id
         steps: dict[str, Knot] = {}

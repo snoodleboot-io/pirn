@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -18,14 +19,24 @@ from tests.specializations.conftest import (
 
 class TestJsonExtractorPipelineValidation(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
-        knot = JsonExtractorPipeline.__new__(JsonExtractorPipeline)
-        with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
-            await knot.process(
+        with Tapestry():
+            knot = JsonExtractorPipeline(
                 prompt="give me json",
-                llm="not-a-provider",  # type: ignore[arg-type]
+                llm=StubLLMProvider(['{"name": "x"}']),
                 schema={"name": "string"},
                 max_retries=3,
+                _config=KnotConfig(id="jep"),
             )
+        result = await knot(
+            {
+                "prompt": "give me json",
+                "llm": "not-a-provider",
+                "schema": {"name": "string"},
+                "max_retries": 3,
+            }
+        )
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_rejects_zero_max_retries(self) -> None:
         llm = StubLLMProvider(['{"name": "x"}'])

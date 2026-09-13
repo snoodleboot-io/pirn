@@ -6,6 +6,7 @@ import unittest
 from collections.abc import Mapping
 from typing import Any
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
@@ -61,5 +62,6 @@ class TestSemanticFactWriterProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_memory_store(self) -> None:
         k = _make_knot()
-        with self.assertRaises(TypeError):
-            await k.process(facts=[], store="bad")  # type: ignore[arg-type]
+        result = await k({"facts": [], "store": "bad"})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"

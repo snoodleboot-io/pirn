@@ -75,8 +75,6 @@ class CodeAgent(AgentPipeline):
         """
         if not isinstance(task, str) or not task:
             raise TypeError(f"CodeAgent: task must be a non-empty string, got {task!r}")
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(f"CodeAgent: llm must be an LLMProvider, got {type(llm).__name__}")
         if not isinstance(language, str) or not language:
             raise TypeError(f"CodeAgent: language must be a non-empty string, got {language!r}")
         code = _CodeGenerator(

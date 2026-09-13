@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -37,26 +38,33 @@ class TestAnalysisStepProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_agent_response(self) -> None:
         llm = StubLLMProvider(["x"])
+        valid_response = AgentResponse(content="ok", finish_reason="stop")
         with Tapestry():
-            k = _AnalysisStep.__new__(_AnalysisStep)
-            object.__setattr__(k, "_config", KnotConfig(id="as"))
-        with self.assertRaises((TypeError, ValueError)):
-            await k.process(
+            k = _AnalysisStep(
                 question="q",
-                sql_response="not-a-response",  # type: ignore[arg-type]
+                sql_response=valid_response,
                 llm=llm,
+                _config=KnotConfig(id="as"),
             )
+        result = await k(
+            {
+                "question": "q",
+                "sql_response": "not-a-response",
+                "llm": llm,
+            }
+        )
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_process_rejects_non_agent_response(self) -> None:
         llm = StubLLMProvider(["x"])
+        valid_response = AgentResponse(content="ok", finish_reason="stop")
         with Tapestry():
-            k = _AnalysisStep.__new__(_AnalysisStep)
-            object.__setattr__(k, "_config", KnotConfig(id="x"))
-        with self.assertRaises(TypeError):
-            await k.process(
-                question="q",
-                sql_response="not-an-agent-response",  # type: ignore[arg-type]
-                llm=llm,
+            k = _AnalysisStep(
+                question="q", sql_response=valid_response, llm=llm, _config=KnotConfig(id="x")
             )
+        result = await k({"question": "q", "sql_response": "not-an-agent-response", "llm": llm})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"

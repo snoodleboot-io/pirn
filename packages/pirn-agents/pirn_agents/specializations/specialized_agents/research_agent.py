@@ -103,12 +103,6 @@ class ResearchAgent(AgentAsToolMixin, AgentPipeline):
         """
         if not isinstance(topic, str) or not topic:
             raise TypeError(f"ResearchAgent: topic must be a non-empty string, got {topic!r}")
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(f"ResearchAgent: llm must be an LLMProvider, got {type(llm).__name__}")
-        if not isinstance(search_tool, Tool):
-            raise TypeError(
-                f"ResearchAgent: search_tool must be a Tool, got {type(search_tool).__name__}"
-            )
         if not isinstance(max_searches, int) or max_searches <= 0:
             raise ValueError(
                 f"ResearchAgent: max_searches must be a positive int, got {max_searches!r}"

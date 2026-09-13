@@ -106,8 +106,6 @@ class RAGPromptBuilder(Knot):
         """
         if not isinstance(instruction, str) or not instruction:
             raise ValueError("RAGPromptBuilder: instruction must be a non-empty string")
-        if not isinstance(query, str):
-            raise TypeError(f"RAGPromptBuilder: query must be a string, got {type(query).__name__}")
         rendered_hits: list[str] = []
         for index, hit in enumerate(retrieved):
             if not isinstance(hit, Mapping):

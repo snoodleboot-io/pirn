@@ -71,19 +71,10 @@ class OrchestratorRouter(Router):
 
         Returns:
             The specialist name chosen by the LLM, or the first registered name on parse failure.
-
-        Raises:
-            TypeError: If task is not a string.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"OrchestratorRouter: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
         names = tuple(specialist_names)
         if not names:
             raise ValueError("OrchestratorRouter: specialist_names must be non-empty")
-        if not isinstance(task, str):
-            raise TypeError(f"OrchestratorRouter: task must be a string, got {type(task).__name__}")
         prompt = type(self)._routing_prompt.render(
             {
                 "specialists": "\n".join(f"- {name}" for name in names),

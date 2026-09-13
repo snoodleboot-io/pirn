@@ -78,28 +78,8 @@ class SentenceWindowIngestor(Knot):
             The number of sentence records upserted.
 
         Raises:
-            TypeError: If ``text``/``doc_id`` are not strings or ``embedder``/
-                ``store`` are the wrong type.
             ValueError: If ``window_size`` is negative.
         """
-        if not isinstance(text, str):
-            raise TypeError(
-                f"SentenceWindowIngestor: text must be a string, got {type(text).__name__}"
-            )
-        if not isinstance(embedder, EmbeddingProvider):
-            raise TypeError(
-                f"SentenceWindowIngestor: embedder must be an EmbeddingProvider, "
-                f"got {type(embedder).__name__}"
-            )
-        if not isinstance(store, VectorMemoryStore):
-            raise TypeError(
-                f"SentenceWindowIngestor: store must be a VectorMemoryStore, "
-                f"got {type(store).__name__}"
-            )
-        if not isinstance(doc_id, str):
-            raise TypeError(
-                f"SentenceWindowIngestor: doc_id must be a string, got {type(doc_id).__name__}"
-            )
         if not isinstance(window_size, int) or window_size < 0:
             raise ValueError(
                 f"SentenceWindowIngestor: window_size must be a non-negative int, "

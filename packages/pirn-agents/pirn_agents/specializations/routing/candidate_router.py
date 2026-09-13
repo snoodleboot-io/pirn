@@ -72,6 +72,10 @@ class CandidateRouter(Router):
                     f"CandidateRouter: candidates[{index}] must be a RouteCandidate, got "
                     f"{type(candidate).__name__}"
                 )
+        # PIR-856: kept, not redundant. RouterFallbackPipeline wires this knot
+        # with KnotConfig(validate_io=False) (router_fallback_pipeline.py), so
+        # `validate_io`'s pydantic check never runs for that caller — this
+        # guard is the only protection ``confidences`` gets there.
         if not isinstance(confidences, Mapping):
             raise TypeError(
                 f"CandidateRouter: confidences must be a Mapping, got {type(confidences).__name__}"

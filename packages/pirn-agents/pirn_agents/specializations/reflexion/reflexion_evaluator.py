@@ -61,21 +61,7 @@ class ReflexionEvaluator(Knot):
 
         Returns:
             A :class:`ReflexionEvaluation` with ``success`` and ``feedback``.
-
-        Raises:
-            TypeError: If ``task``/``answer`` are not strings or ``llm`` is not
-                an :class:`LLMProvider`.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"ReflexionEvaluator: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
-        if not isinstance(task, str):
-            raise TypeError(f"ReflexionEvaluator: task must be a string, got {type(task).__name__}")
-        if not isinstance(answer, str):
-            raise TypeError(
-                f"ReflexionEvaluator: answer must be a string, got {type(answer).__name__}"
-            )
         system = type(self)._system_prompt.resolve()
         user = f"Task:\n{task}\n\nAnswer:\n{answer}"
         raw = await llm.chat(

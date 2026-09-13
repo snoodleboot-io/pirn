@@ -71,23 +71,8 @@ class ParentDocumentRetriever(Retriever):
             Parent documents as ``{"id", "text", "score"}`` mappings, in rank order.
 
         Raises:
-            TypeError: If ``query``/``store``/``embedder`` are the wrong type.
             ValueError: If ``top_k``/``candidate_multiplier`` are not positive ints.
         """
-        if not isinstance(query, str):
-            raise TypeError(
-                f"ParentDocumentRetriever: query must be a string, got {type(query).__name__}"
-            )
-        if not isinstance(store, VectorMemoryStore):
-            raise TypeError(
-                f"ParentDocumentRetriever: store must be a VectorMemoryStore, "
-                f"got {type(store).__name__}"
-            )
-        if not isinstance(embedder, EmbeddingProvider):
-            raise TypeError(
-                f"ParentDocumentRetriever: embedder must be an EmbeddingProvider, "
-                f"got {type(embedder).__name__}"
-            )
         if not isinstance(top_k, int) or top_k <= 0:
             raise ValueError(
                 f"ParentDocumentRetriever: top_k must be a positive int, got {top_k!r}"

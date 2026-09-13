@@ -89,14 +89,7 @@ class _JsonExtractorAttempt(Knot):
 
         Returns:
             The parsed JSON mapping on success, or an error description string on failure.
-
-        Raises:
-            TypeError: If prompt is not a string.
         """
-        if not isinstance(prompt, str):
-            raise TypeError(
-                f"JsonExtractorPipeline: prompt must be a string, got {type(prompt).__name__}"
-            )
         schema_dict = dict(schema)
         system_lines = [
             type(self)._system_prompt.render(

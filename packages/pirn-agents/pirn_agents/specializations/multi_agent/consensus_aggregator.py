@@ -75,10 +75,6 @@ class ConsensusAggregator(AgentPipeline):
         Raises:
             ValueError: If responses is empty or not a Mapping.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"ConsensusAggregator: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
         strategies = self._consensus_strategies()
         supported = tuple(candidate.name() for candidate in strategies)
         if strategy not in supported:

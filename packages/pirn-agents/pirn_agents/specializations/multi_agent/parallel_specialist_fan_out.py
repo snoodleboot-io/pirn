@@ -100,14 +100,9 @@ class ParallelSpecialistFanOut(AgentPipeline):
 
         Raises:
             ValueError: If specialists is empty or not a Mapping.
-            TypeError: If task is not a string.
         """
         if not isinstance(specialists, Mapping) or not specialists:
             raise ValueError("ParallelSpecialistFanOut: specialists must be a non-empty mapping")
-        if not isinstance(task, str):
-            raise TypeError(
-                f"ParallelSpecialistFanOut: task must be a string, got {type(task).__name__}"
-            )
         specialists_dict: dict[str, SubTapestry] = dict(specialists)  # type: ignore[arg-type]
         parents: dict[str, Knot] = {}
         order: list[tuple[str, str]] = []

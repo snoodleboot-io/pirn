@@ -79,17 +79,7 @@ class LlmJudge(Knot):
 
         Returns:
             A :class:`JudgeVerdict` with a 0-10 ``score`` and ``feedback``.
-
-        Raises:
-            TypeError: If ``task``/``candidate`` are not strings or ``llm`` is
-                not an :class:`LLMProvider`.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(f"LlmJudge: llm must be an LLMProvider, got {type(llm).__name__}")
-        if not isinstance(task, str):
-            raise TypeError(f"LlmJudge: task must be a string, got {type(task).__name__}")
-        if not isinstance(candidate, str):
-            raise TypeError(f"LlmJudge: candidate must be a string, got {type(candidate).__name__}")
         system = type(self)._system_prompt.resolve()
         user = f"Task:\n{task}\n\nCandidate:\n{candidate}"
         raw = await llm.chat(

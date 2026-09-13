@@ -66,23 +66,8 @@ class SentenceWindowRetriever(Retriever):
             Hit mappings ``{"id", "text": window, "sentence": doc, "score"}``.
 
         Raises:
-            TypeError: If ``query``/``store``/``embedder`` are the wrong type.
             ValueError: If ``top_k`` is not a positive integer.
         """
-        if not isinstance(query, str):
-            raise TypeError(
-                f"SentenceWindowRetriever: query must be a string, got {type(query).__name__}"
-            )
-        if not isinstance(store, VectorMemoryStore):
-            raise TypeError(
-                f"SentenceWindowRetriever: store must be a VectorMemoryStore, "
-                f"got {type(store).__name__}"
-            )
-        if not isinstance(embedder, EmbeddingProvider):
-            raise TypeError(
-                f"SentenceWindowRetriever: embedder must be an EmbeddingProvider, "
-                f"got {type(embedder).__name__}"
-            )
         if not isinstance(top_k, int) or top_k <= 0:
             raise ValueError(
                 f"SentenceWindowRetriever: top_k must be a positive int, got {top_k!r}"

@@ -9,6 +9,7 @@ from typing import Any
 import pytest
 from pirn.connectors.databases.sqlite_config import SqliteConfig
 from pirn.connectors.databases.sqlite_pool import SqlitePool
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -33,8 +34,9 @@ class TestSQLAgentProcess(unittest.IsolatedAsyncioTestCase):
             pool=pool,
             _config=KnotConfig(id="sql"),
         )
-        with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
-            await agent.process(question="who?", llm="not-a-provider", pool=pool)  # type: ignore[arg-type]
+        result = await agent({"question": "who?", "llm": "not-a-provider", "pool": pool})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_rejects_non_pool(self) -> None:
         llm = StubLLMProvider(["SELECT 1"])
@@ -45,8 +47,9 @@ class TestSQLAgentProcess(unittest.IsolatedAsyncioTestCase):
             pool=pool,
             _config=KnotConfig(id="sql"),
         )
-        with self.assertRaisesRegex(TypeError, "pool must be a DatabaseConnectionPool"):
-            await agent.process(question="who?", llm=llm, pool="not-a-pool")  # type: ignore[arg-type]
+        result = await agent({"question": "who?", "llm": llm, "pool": "not-a-pool"})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
 
 class TestSQLAgentHappyPath(unittest.IsolatedAsyncioTestCase):

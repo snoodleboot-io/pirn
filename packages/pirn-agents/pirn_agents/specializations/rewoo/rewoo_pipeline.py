@@ -88,10 +88,6 @@ class ReWooPipeline(AgentPipeline):
             TypeError: If ``llm`` is not an LLMProvider or any tool is not a Tool.
             ValueError: If ``max_concurrency`` is less than 1.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(f"ReWooPipeline: llm must be an LLMProvider, got {type(llm).__name__}")
-        if not isinstance(goal, str):
-            raise TypeError(f"ReWooPipeline: goal must be a string, got {type(goal).__name__}")
         if not isinstance(max_concurrency, int) or max_concurrency < 1:
             raise ValueError(
                 f"ReWooPipeline: max_concurrency must be >= 1, got {max_concurrency!r}"

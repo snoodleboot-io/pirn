@@ -94,14 +94,6 @@ class EvaluatorOptimizerPipeline(AgentPipeline):
             TypeError: If ``llm``/``task``/``threshold`` have the wrong type.
             ValueError: If ``max_iterations`` is not a positive int.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"EvaluatorOptimizerPipeline: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
-        if not isinstance(task, str):
-            raise TypeError(
-                f"EvaluatorOptimizerPipeline: task must be a string, got {type(task).__name__}"
-            )
         if not isinstance(threshold, (int, float)) or isinstance(threshold, bool):
             raise TypeError(
                 "EvaluatorOptimizerPipeline: threshold must be numeric, got "

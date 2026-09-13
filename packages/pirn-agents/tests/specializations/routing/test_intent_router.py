@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
@@ -46,12 +47,9 @@ class TestIntentRouterProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
         llm = StubLLMProvider(["a"])
         knot = self._make_knot(llm)
-        with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
-            await knot.process(
-                message="hello",
-                llm="not-a-provider",  # type: ignore[arg-type]
-                categories=["a", "b"],
-            )
+        result = await knot({"message": "hello", "llm": "not-a-provider", "categories": ["a", "b"]})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_rejects_empty_categories(self) -> None:
         llm = StubLLMProvider(["a"])
@@ -62,9 +60,6 @@ class TestIntentRouterProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_string_message(self) -> None:
         llm = StubLLMProvider(["alpha"])
         knot = self._make_knot(llm)
-        with self.assertRaises(TypeError):
-            await knot.process(
-                message=99,  # type: ignore[arg-type]
-                llm=llm,
-                categories=["alpha"],
-            )
+        result = await knot({"message": 99, "llm": llm, "categories": ["alpha"]})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"

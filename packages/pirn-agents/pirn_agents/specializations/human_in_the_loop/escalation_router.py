@@ -55,15 +55,7 @@ class EscalationRouter(Router):
 
         Returns:
             The original AgentResponse if confidence >= threshold, else None to indicate escalation.
-
-        Raises:
-            TypeError: If response is not an AgentResponse instance.
         """
-        if not isinstance(response, AgentResponse):
-            raise TypeError(
-                "EscalationRouter: response must be an AgentResponse, "
-                f"got {type(response).__name__}"
-            )
         confidence = response.usage.get("confidence")
         if confidence is None:
             return None

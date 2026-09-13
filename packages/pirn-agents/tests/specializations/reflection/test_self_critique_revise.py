@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -69,15 +70,19 @@ class TestSelfCritiqueReviseProcess(unittest.IsolatedAsyncioTestCase):
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_process_rejects_non_llm_provider(self) -> None:
         with Tapestry():
-            k = SelfCritiqueRevise.__new__(SelfCritiqueRevise)
-            object.__setattr__(k, "_config", KnotConfig(id="x"))
-        with self.assertRaises(TypeError):
-            await k.process(prompt="explain ml", llm="not-llm")  # type: ignore[arg-type]
+            k = SelfCritiqueRevise(
+                prompt="explain ml",
+                llm=StubLLMProvider(["gen", "crit", "rev"]),
+                _config=KnotConfig(id="x"),
+            )
+        result = await k({"prompt": "explain ml", "llm": "not-llm"})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_process_rejects_non_string_prompt(self) -> None:
         llm = StubLLMProvider(["gen", "crit", "rev"])
         with Tapestry():
-            k = SelfCritiqueRevise.__new__(SelfCritiqueRevise)
-            object.__setattr__(k, "_config", KnotConfig(id="x"))
-        with self.assertRaises(TypeError):
-            await k.process(prompt=42, llm=llm)  # type: ignore[arg-type]
+            k = SelfCritiqueRevise(prompt="explain ml", llm=llm, _config=KnotConfig(id="x"))
+        result = await k({"prompt": 42, "llm": llm})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"

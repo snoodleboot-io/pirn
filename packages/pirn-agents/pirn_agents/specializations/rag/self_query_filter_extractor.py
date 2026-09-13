@@ -82,18 +82,7 @@ class SelfQueryFilterExtractor(Knot):
         Returns:
             A mapping with the cleaned semantic ``query`` and a ``metadata_filter``
             restricted to ``filterable_fields``.
-
-        Raises:
-            TypeError: If ``query`` is not a string or ``llm`` is not an LLMProvider.
         """
-        if not isinstance(query, str):
-            raise TypeError(
-                f"SelfQueryFilterExtractor: query must be a string, got {type(query).__name__}"
-            )
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"SelfQueryFilterExtractor: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
         fields = ", ".join(filterable_fields) if filterable_fields else "(none)"
         prompt = type(self)._extraction_prompt.render({"fields": fields, "query": query})
         raw = await llm.chat([{"role": "user", "content": prompt}])

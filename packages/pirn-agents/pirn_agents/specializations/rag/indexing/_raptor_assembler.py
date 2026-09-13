@@ -111,22 +111,8 @@ class _RaptorAssembler(Assembler):
             A :class:`RaptorTree` describing the stored tree.
 
         Raises:
-            TypeError: If ``llm``/``embedder``/``store`` are the wrong type.
             ValueError: If ``cluster_size``/``max_levels`` are not positive ints.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"_RaptorAssembler: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
-        if not isinstance(embedder, EmbeddingProvider):
-            raise TypeError(
-                f"_RaptorAssembler: embedder must be an EmbeddingProvider, "
-                f"got {type(embedder).__name__}"
-            )
-        if not isinstance(store, VectorMemoryStore):
-            raise TypeError(
-                f"_RaptorAssembler: store must be a VectorMemoryStore, got {type(store).__name__}"
-            )
         if not isinstance(cluster_size, int) or cluster_size <= 1:
             raise ValueError(
                 f"_RaptorAssembler: cluster_size must be an int > 1, got {cluster_size!r}"

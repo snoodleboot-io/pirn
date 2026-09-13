@@ -67,15 +67,7 @@ class PIIResponseRedactor(Knot):
 
         Returns:
             A new AgentResponse with PII replaced, or the original if no patterns matched.
-
-        Raises:
-            TypeError: If response is not an AgentResponse instance.
         """
-        if not isinstance(response, AgentResponse):
-            raise TypeError(
-                "PIIResponseRedactor: response must be an AgentResponse, "
-                f"got {type(response).__name__}"
-            )
         compiled = tuple(
             self._pattern_compiler.compile_safe_pattern(
                 raw, index=i, owner="PIIResponseRedactor", field="patterns"

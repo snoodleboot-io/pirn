@@ -61,14 +61,7 @@ class ClarificationRequester(Knot):
 
         Returns:
             A clarifying question string if ambiguous, otherwise the original message.
-
-        Raises:
-            TypeError: If message is not a string.
         """
-        if not isinstance(message, str):
-            raise TypeError(
-                f"ClarificationRequester: message must be a string, got {type(message).__name__}"
-            )
         prompt = type(self)._ambiguity_prompt.render(
             {"message": message},
         )

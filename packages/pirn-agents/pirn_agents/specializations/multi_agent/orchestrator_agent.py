@@ -79,18 +79,9 @@ class OrchestratorAgent(AgentPipeline):
 
         Returns:
             The AgentResponse produced by the selected specialist.
-
-        Raises:
-            TypeError: If task is not a string.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"OrchestratorAgent: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
         if not isinstance(specialists, Mapping) or not specialists:
             raise ValueError("OrchestratorAgent: specialists must be a non-empty mapping")
-        if not isinstance(task, str):
-            raise TypeError(f"OrchestratorAgent: task must be a string, got {type(task).__name__}")
         specialists_dict: dict[str, SubTapestry] = dict(specialists)  # type: ignore[arg-type]
         with Tapestry() as route_inner:
             OrchestratorRouter(

@@ -81,15 +81,7 @@ class HallucinationDetector(Knot):
 
         Returns:
             A dict with 'flagged_claims' (list[str]) and 'has_hallucinations' (bool).
-
-        Raises:
-            TypeError: If response is not an AgentResponse instance.
         """
-        if not isinstance(response, AgentResponse):
-            raise TypeError(
-                "HallucinationDetector: response must be an AgentResponse, "
-                f"got {type(response).__name__}"
-            )
         sources_text = "\n\n".join(f"[Source {i + 1}]: {src}" for i, src in enumerate(sources))
         prompt = type(self)._detection_prompt.render(
             {"sources": sources_text, "response": response.content},

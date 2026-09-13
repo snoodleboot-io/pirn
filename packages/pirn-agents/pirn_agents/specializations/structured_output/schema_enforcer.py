@@ -65,10 +65,6 @@ class SchemaEnforcer(Knot):
             ValueError: If response content is not valid JSON.
             ValidationError: If the parsed data does not satisfy the model schema.
         """
-        if not isinstance(response, AgentResponse):
-            raise TypeError(
-                f"SchemaEnforcer: response must be an AgentResponse, got {type(response).__name__}"
-            )
         if not isinstance(model_class, type) or not issubclass(model_class, BaseModel):
             raise TypeError(
                 f"SchemaEnforcer: model_class must be a BaseModel subclass, got {model_class!r}"

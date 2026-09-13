@@ -70,10 +70,6 @@ class EnumClassifierPipeline(AgentPipeline):
             TypeError: If llm is not an LLMProvider or prompt is not a string.
             ValueError: If labels is empty or the classifier produces a non-string result.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"EnumClassifierPipeline: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
         labels_tuple = tuple(labels)
         if not labels_tuple:
             raise ValueError("EnumClassifierPipeline: labels must be a non-empty sequence")
@@ -83,10 +79,6 @@ class EnumClassifierPipeline(AgentPipeline):
                     f"EnumClassifierPipeline: labels[{index}] must be a "
                     f"non-empty string, got {label!r}"
                 )
-        if not isinstance(prompt, str):
-            raise TypeError(
-                f"EnumClassifierPipeline: prompt must be a string, got {type(prompt).__name__}"
-            )
         return _EnumClassifierAttempt(
             prompt=prompt,
             llm=llm,

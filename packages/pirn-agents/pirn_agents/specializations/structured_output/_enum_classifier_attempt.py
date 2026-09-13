@@ -64,13 +64,8 @@ class _EnumClassifierAttempt(Knot):
             The matched label string from the allowed set.
 
         Raises:
-            TypeError: If prompt is not a string.
             ValueError: If the LLM reply does not match any allowed label.
         """
-        if not isinstance(prompt, str):
-            raise TypeError(
-                f"EnumClassifierPipeline: prompt must be a string, got {type(prompt).__name__}"
-            )
         labels_tuple = tuple(labels)
         lower_index = {label.lower(): label for label in labels_tuple}
         system_message = type(self)._system_prompt.render(

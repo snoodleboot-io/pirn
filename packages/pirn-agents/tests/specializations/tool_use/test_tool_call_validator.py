@@ -6,6 +6,7 @@ import unittest
 from collections.abc import Mapping
 from typing import Any
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -146,8 +147,11 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             await k.process(tool_call=call, tools=["not-a-tool"])  # type: ignore[list-item]
 
     async def test_process_rejects_non_tool_call(self) -> None:
+        valid_call = ToolCall(tool_name="t", arguments={}, call_id="c1")
         with Tapestry():
-            k = ToolCallValidator.__new__(ToolCallValidator)
-            object.__setattr__(k, "_config", KnotConfig(id="x"))
-        with self.assertRaises(TypeError):
-            await k.process(tool_call="not-a-call", tools=[StubTool(name="t")])  # type: ignore[arg-type]
+            k = ToolCallValidator(
+                tool_call=valid_call, tools=[StubTool(name="t")], _config=KnotConfig(id="x")
+            )
+        result = await k({"tool_call": "not-a-call", "tools": [StubTool(name="t")]})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"

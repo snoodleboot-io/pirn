@@ -78,19 +78,12 @@ class FormatCoercer(Knot):
             AgentResponse with the rewritten content.
 
         Raises:
-            TypeError: If llm is not an LLMProvider or response is not an AgentResponse.
             ValueError: If target_format is not a supported format.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(f"FormatCoercer: llm must be an LLMProvider, got {type(llm).__name__}")
         if target_format not in type(self)._supported_formats:
             raise ValueError(
                 f"FormatCoercer: target_format must be one of "
                 f"{sorted(type(self)._supported_formats)}, got {target_format!r}"
-            )
-        if not isinstance(response, AgentResponse):
-            raise TypeError(
-                f"FormatCoercer: response must be an AgentResponse, got {type(response).__name__}"
             )
         if self._already_matches(response.content, target_format):
             return response

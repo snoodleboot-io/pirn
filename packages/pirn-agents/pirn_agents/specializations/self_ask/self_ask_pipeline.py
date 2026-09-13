@@ -87,16 +87,8 @@ class SelfAskPipeline(AgentPipeline):
             A terminal :class:`Source` whose output is the :class:`SelfAskResult`.
 
         Raises:
-            TypeError: If ``task`` is not a string or ``llm`` is not an
-                :class:`LLMProvider`.
             ValueError: If ``max_subquestions`` is not a positive int.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"SelfAskPipeline: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
-        if not isinstance(task, str):
-            raise TypeError(f"SelfAskPipeline: task must be a string, got {type(task).__name__}")
         if not isinstance(max_subquestions, int) or max_subquestions <= 0:
             raise ValueError(
                 "SelfAskPipeline: max_subquestions must be a positive int, got "

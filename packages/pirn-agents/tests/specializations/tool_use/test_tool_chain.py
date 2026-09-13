@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -61,8 +62,9 @@ class TestToolChainValidation(unittest.IsolatedAsyncioTestCase):
         tool = StubTool(name="step1", handler="result1")
         call = ToolCall(tool_name="t", arguments={}, call_id="c1")
         chain = _make_chain(call, [tool])
-        with self.assertRaisesRegex(TypeError, "initial_call must be a ToolCall"):
-            await chain.process(initial_call="not-a-call", tools=[tool])  # type: ignore[arg-type]
+        result = await chain({"initial_call": "not-a-call", "tools": [tool]})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
 
 class TestToolChainHappyPath(unittest.IsolatedAsyncioTestCase):

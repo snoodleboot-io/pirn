@@ -62,14 +62,6 @@ class PromptChainPipeline(AgentPipeline):
                 :class:`LLMProvider`, or a step is not a string.
             ValueError: If ``steps`` is empty.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"PromptChainPipeline: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
-        if not isinstance(task, str):
-            raise TypeError(
-                f"PromptChainPipeline: task must be a string, got {type(task).__name__}"
-            )
         step_tuple = tuple(steps)
         if not step_tuple:
             raise ValueError("PromptChainPipeline: steps must be a non-empty sequence")

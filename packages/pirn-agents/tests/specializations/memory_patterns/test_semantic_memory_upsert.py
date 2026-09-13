@@ -7,6 +7,7 @@ import unittest
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
@@ -79,11 +80,13 @@ class TestSemanticMemoryUpsertProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
         k = _make_knot()
         store = RecordingMemoryStore()
-        with self.assertRaises(TypeError):
-            await k.process(response=AgentResponse(content="x"), llm="bad", store=store)  # type: ignore[arg-type]
+        result = await k({"response": AgentResponse(content="x"), "llm": "bad", "store": store})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_rejects_non_memory_store(self) -> None:
         k = _make_knot()
         llm = StubLLMProvider(["fact1"])
-        with self.assertRaises(TypeError):
-            await k.process(response=AgentResponse(content="x"), llm=llm, store="bad")  # type: ignore[arg-type]
+        result = await k({"response": AgentResponse(content="x"), "llm": llm, "store": "bad"})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"

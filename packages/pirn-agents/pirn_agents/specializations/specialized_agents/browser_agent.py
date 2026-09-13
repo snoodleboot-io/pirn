@@ -106,12 +106,6 @@ class BrowserAgent(AgentPipeline):
             TypeError: If browser_tool is not a Tool instance.
             ValueError: If max_steps is not a positive integer.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(f"BrowserAgent: llm must be an LLMProvider, got {type(llm).__name__}")
-        if not isinstance(browser_tool, Tool):
-            raise TypeError(
-                f"BrowserAgent: browser_tool must be a Tool, got {type(browser_tool).__name__}"
-            )
         if not isinstance(max_steps, int) or max_steps <= 0:
             raise ValueError(f"BrowserAgent: max_steps must be a positive int, got {max_steps!r}")
         if not isinstance(goal, str) or not goal:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -67,5 +68,6 @@ class TestAcceptCheck(unittest.IsolatedAsyncioTestCase):
             gate = AcceptCheck(
                 verdict=JudgeVerdict(score=0.0), threshold=8.0, _config=KnotConfig(id="gate")
             )
-        with self.assertRaises(TypeError):
-            await gate.process(verdict="bad", threshold=8.0)  # type: ignore[arg-type]
+        result = await gate({"verdict": "bad", "threshold": 8.0})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"

@@ -89,22 +89,12 @@ class ConstitutionalFilter(Knot):
             A compliant AgentResponse, possibly revised from the original.
 
         Raises:
-            TypeError: If response is not an AgentResponse or llm is not an LLMProvider.
             ValueError: If max_revisions is not a positive int.
             ConstitutionalViolationError: If violations persist after max_revisions attempts.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"ConstitutionalFilter: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
         if not isinstance(max_revisions, int) or max_revisions <= 0:
             raise ValueError(
                 f"ConstitutionalFilter: max_revisions must be a positive int, got {max_revisions!r}"
-            )
-        if not isinstance(response, AgentResponse):
-            raise TypeError(
-                "ConstitutionalFilter: response must be an AgentResponse, "
-                f"got {type(response).__name__}"
             )
         principles_text = "\n".join(f"- {p}" for p in principles)
         current_content = response.content

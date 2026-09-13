@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -31,12 +32,9 @@ class TestYamlExtractorPipelineProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
         llm = StubLLMProvider(["name: Ada\nage: 36\n"])
         knot = _make_knot(llm)
-        with self.assertRaisesRegex(TypeError, "llm must be an LLMProvider"):
-            await knot.process(
-                prompt="give me yaml",
-                llm="not-a-provider",  # type: ignore[arg-type]
-                max_retries=3,
-            )
+        result = await knot({"prompt": "give me yaml", "llm": "not-a-provider", "max_retries": 3})
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_rejects_zero_max_retries(self) -> None:
         llm = StubLLMProvider(["name: Ada\nage: 36\n"])

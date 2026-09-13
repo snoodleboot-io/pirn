@@ -83,15 +83,8 @@ class PlanReActPipeline(AgentPipeline):
             :class:`PlanReActResult`.
 
         Raises:
-            TypeError: If ``llm``/``task`` have the wrong type.
             ValueError: If ``max_iterations`` or ``max_steps`` is not positive.
         """
-        if not isinstance(llm, LLMProvider):
-            raise TypeError(
-                f"PlanReActPipeline: llm must be an LLMProvider, got {type(llm).__name__}"
-            )
-        if not isinstance(task, str):
-            raise TypeError(f"PlanReActPipeline: task must be a string, got {type(task).__name__}")
         if not isinstance(max_iterations, int) or max_iterations <= 0:
             raise ValueError(
                 f"PlanReActPipeline: max_iterations must be positive, got {max_iterations!r}"

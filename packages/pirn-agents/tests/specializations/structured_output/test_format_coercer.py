@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -17,13 +18,22 @@ from tests.specializations.conftest import StubLLMProvider
 
 class TestFormatCoercerValidation(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_llm_provider(self) -> None:
-        knot = FormatCoercer.__new__(FormatCoercer)
-        with self.assertRaisesRegex(TypeError, "LLMProvider"):
-            await knot.process(
+        with Tapestry():
+            knot = FormatCoercer(
                 response=AgentResponse(content="x", finish_reason="stop"),
-                llm="bad",  # type: ignore[arg-type]
+                llm=StubLLMProvider(["x"]),
                 target_format="json",
+                _config=KnotConfig(id="fc1"),
             )
+        result = await knot(
+            {
+                "response": AgentResponse(content="x", finish_reason="stop"),
+                "llm": "bad",
+                "target_format": "json",
+            }
+        )
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
     async def test_rejects_unsupported_format(self) -> None:
         knot = FormatCoercer.__new__(FormatCoercer)
@@ -35,13 +45,18 @@ class TestFormatCoercerValidation(unittest.IsolatedAsyncioTestCase):
             )
 
     async def test_rejects_non_agent_response(self) -> None:
-        knot = FormatCoercer.__new__(FormatCoercer)
-        with self.assertRaises(TypeError):
-            await knot.process(
-                response="not-a-response",  # type: ignore[arg-type]
+        with Tapestry():
+            knot = FormatCoercer(
+                response=AgentResponse(content="x", finish_reason="stop"),
                 llm=StubLLMProvider(["x"]),
                 target_format="json",
+                _config=KnotConfig(id="fc2"),
             )
+        result = await knot(
+            {"response": "not-a-response", "llm": StubLLMProvider(["x"]), "target_format": "json"}
+        )
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ValidationError"
 
 
 class TestFormatCoercerProcess(unittest.IsolatedAsyncioTestCase):

@@ -78,14 +78,7 @@ class MetadataExtractor(Knot):
         Returns:
             A dict with keys 'title', 'author', 'date', 'summary', each a string
             or None if not found.
-
-        Raises:
-            TypeError: If document is not a string.
         """
-        if not isinstance(document, str):
-            raise TypeError(
-                f"MetadataExtractor: document must be a string, got {type(document).__name__}"
-            )
         prompt = type(self)._extraction_prompt.render(
             {"document": document},
         )
