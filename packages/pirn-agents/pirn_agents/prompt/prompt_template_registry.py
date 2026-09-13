@@ -16,17 +16,6 @@ from __future__ import annotations
 from pirn_agents.prompt.prompt_template import PromptTemplate
 
 
-def _version_key(version: str) -> tuple[tuple[int, str], ...]:
-    """Return a sortable key for a dotted ``version`` string."""
-    parts: list[tuple[int, str]] = []
-    for part in version.split("."):
-        if part.isdigit():
-            parts.append((int(part), ""))
-        else:
-            parts.append((-1, part))
-    return tuple(parts)
-
-
 class PromptTemplateRegistry:
     """A registry of prompt templates keyed by namespace, name, and version."""
 
@@ -34,6 +23,17 @@ class PromptTemplateRegistry:
         """Create an empty registry."""
         self._by_key: dict[tuple[str, str, str], PromptTemplate] = {}
         self._versions: dict[tuple[str, str], list[str]] = {}
+
+    @staticmethod
+    def _version_key(version: str) -> tuple[tuple[int, str], ...]:
+        """Return a sortable key for a dotted ``version`` string."""
+        parts: list[tuple[int, str]] = []
+        for part in version.split("."):
+            if part.isdigit():
+                parts.append((int(part), ""))
+            else:
+                parts.append((-1, part))
+        return tuple(parts)
 
     def register(self, template: PromptTemplate, *, namespace: str = "default") -> None:
         """Register ``template`` under ``(namespace, name, version)``.
@@ -59,7 +59,7 @@ class PromptTemplateRegistry:
         self._by_key[key] = template
         versions = self._versions.setdefault((namespace, template.name), [])
         versions.append(template.version)
-        versions.sort(key=_version_key)
+        versions.sort(key=self._version_key)
 
     def get(
         self, name: str, *, namespace: str = "default", version: str | None = None

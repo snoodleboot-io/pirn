@@ -30,15 +30,6 @@ from pirn.core.pirn_opaque_value import PirnOpaqueValue
 from pirn_agents.prompt.prompt_render_error import PromptRenderError
 
 
-def _placeholder_finditer(text: str) -> list[re.Match[str]]:
-    """Return every ``{{ name }}`` / ``{{> name }}`` match in ``text``.
-
-    Group 1 is ``">"`` for a partial include (empty for a variable slot); group
-    2 is the whitelisted name.
-    """
-    return list(re.finditer(r"\{\{\s*(>?)\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}", text))
-
-
 @dataclass(frozen=True)
 class PromptTemplate(PirnOpaqueValue):
     """A versioned prompt template with variable slots and partial includes.
@@ -79,6 +70,15 @@ class PromptTemplate(PirnOpaqueValue):
             if not isinstance(key, str) or not isinstance(value, str):
                 raise TypeError("PromptTemplate: partials must map str names to str bodies")
 
+    @staticmethod
+    def _placeholder_finditer(text: str) -> list[re.Match[str]]:
+        """Return every ``{{ name }}`` / ``{{> name }}`` match in ``text``.
+
+        Group 1 is ``">"`` for a partial include (empty for a variable slot);
+        group 2 is the whitelisted name.
+        """
+        return list(re.finditer(r"\{\{\s*(>?)\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}", text))
+
     def variable_names(self) -> tuple[str, ...]:
         """Return the sorted, unique variable names across body and partials.
 
@@ -88,14 +88,14 @@ class PromptTemplate(PirnOpaqueValue):
         """
         names: set[str] = set()
         for source in (self.template, *self.partials.values()):
-            for match in _placeholder_finditer(source):
+            for match in self._placeholder_finditer(source):
                 if not match.group(1):
                     names.add(match.group(2))
         return tuple(sorted(names))
 
     def partial_names(self) -> tuple[str, ...]:
         """Return the sorted, unique partial names the body includes."""
-        names = {m.group(2) for m in _placeholder_finditer(self.template) if m.group(1)}
+        names = {m.group(2) for m in self._placeholder_finditer(self.template) if m.group(1)}
         return tuple(sorted(names))
 
     def render(self, variables: Mapping[str, Any] | None = None, *, strict: bool = True) -> str:
