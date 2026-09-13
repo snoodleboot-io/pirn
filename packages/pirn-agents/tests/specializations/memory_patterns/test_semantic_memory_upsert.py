@@ -57,7 +57,30 @@ class TestSemanticMemoryUpsertProcess(unittest.IsolatedAsyncioTestCase):
         response = AgentResponse(content="Paris is the capital of France.")
         count = await k.process(response=response, llm=llm, store=store)
         assert count == 2
-        assert len(store.data) == 2
+
+    async def test_stores_a_typed_memory_record_payload(self) -> None:
+        # ADR agents-speaks-core WS3 part 3: the stored value is now a
+        # MemoryRecord.to_payload(), not a bare {"fact": ...} dict.
+        k = _make_knot()
+        store = RecordingMemoryStore()
+        llm = StubLLMProvider(["a new fact"])
+        response = AgentResponse(content="a new fact")
+        await k.process(response=response, llm=llm, store=store)
+        [stored] = store.data.values()
+        assert stored["content"] == "a new fact"
+        assert stored["kind"] == "semantic"
+        assert stored["provenance"]["source"] == "semantic_memory_upsert"
+
+    async def test_deduplicates_against_a_freshly_written_typed_record(self) -> None:
+        k = _make_knot()
+        store = RecordingMemoryStore()
+        llm = StubLLMProvider(["repeat me", "repeat me"])
+        response = AgentResponse(content="repeat me")
+        first = await k.process(response=response, llm=llm, store=store)
+        second = await k.process(response=response, llm=llm, store=store)
+        assert first == 1
+        assert second == 0
+        assert len(store.data) == 1
 
     async def test_deduplicates_existing_facts(self) -> None:
         k = _make_knot()

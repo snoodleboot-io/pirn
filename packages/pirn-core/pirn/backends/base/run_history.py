@@ -3,16 +3,24 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from pirn.backends.base.run_retention import RunRetention
+from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 if TYPE_CHECKING:
     from pirn.core.knot_lineage import KnotLineage
     from pirn.core.knot_source_record import KnotSourceRecord
 
 
-class RunHistory:
+class RunHistory(PirnOpaqueValue):
     """Interface: where run results and lineage records are persisted.
 
     Implementations inherit from this class and override all methods.
+
+    Mixes in :class:`~pirn.core.pirn_opaque_value.PirnOpaqueValue` (ADR
+    "agents speaks core" WS3) for the same reason
+    :class:`~pirn.backends.base.data_store.DataStore` does: a ``Knot`` that
+    wants to query lineage directly (a session-chain reader, a lineage-based
+    recall knot) must be able to declare ``RunHistory`` as a typed
+    ``process()`` parameter, which requires a pydantic-core schema.
     """
 
     @property
