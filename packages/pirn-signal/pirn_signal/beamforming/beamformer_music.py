@@ -9,7 +9,8 @@ Algorithm:
     5. For each scan angle theta in [start, stop, step]:
        a. Construct the steering vector a(theta) ∈ C^{num_elements}.
        b. Compute MUSIC pseudo-spectrum: P(theta) = 1 / (a^H E_n E_n^H a).
-    6. Return a SpectrumFrame with frequency_bins = number of scan angles.
+    6. Return a single-channel SignalPayload whose data is the MUSIC pseudo-spectrum
+       over the scan-angle grid (frequency_grid_size points).
 
 Math:
     MUSIC pseudo-spectrum:

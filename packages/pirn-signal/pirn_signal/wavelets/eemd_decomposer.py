@@ -7,7 +7,7 @@ Algorithm:
     3. For each of ensemble_size trials, add scaled white Gaussian noise to the signal.
     4. Apply EMD to each noisy realisation, extracting up to max_imf_count IMFs.
     5. Ensemble-average the IMFs across all realisations to cancel noise.
-    6. Return a WaveletFrame with max_imf_count IMF scales.
+    6. Return a WaveletPayload with max_imf_count IMF scales.
 
 Math:
     Ensemble average IMF:

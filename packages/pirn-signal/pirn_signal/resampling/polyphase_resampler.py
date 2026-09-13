@@ -8,7 +8,7 @@ Algorithm:
        at 1 / (2 * max(L, M)).
     4. Decompose the FIR prototype into L polyphase branches.
     5. Apply ``scipy.signal.upfirdn`` with (L, M) to produce the resampled output.
-    6. Return a SignalFrame at the new rate fs * L / M with scaled sample count.
+    6. Return a SignalPayload at the new rate fs * L / M with scaled sample count.
 
 Math:
     Polyphase resampled rate:

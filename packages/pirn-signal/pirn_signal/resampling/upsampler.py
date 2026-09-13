@@ -4,7 +4,7 @@ Algorithm:
     1. Receive the input signal frame and upsample_factor.
     2. Validate upsample_factor (integer > 1).
     3. Insert (upsample_factor - 1) zeros between each input sample.
-    4. Return a SignalFrame at the higher sample rate with the proportionally
+    4. Return a SignalPayload at the higher sample rate with the proportionally
        larger sample count (no reconstruction filter applied).
 
 Math:

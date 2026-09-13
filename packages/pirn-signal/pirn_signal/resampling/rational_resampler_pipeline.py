@@ -6,7 +6,7 @@ Algorithm:
     3. Reduce L and M by their GCD to find the minimal rational ratio.
     4. Upsample by L (zero-stuffing), apply an anti-alias FIR lowpass filter,
        then downsample by M.
-    5. Return a SignalFrame at the converted rate with the scaled sample count.
+    5. Return a SignalPayload at the converted rate with the scaled sample count.
 
 Math:
     GCD-reduced rational ratio:

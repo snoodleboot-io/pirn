@@ -6,7 +6,7 @@ Algorithm:
     3. Partition the signal into overlapping frames of length frame_size spaced
        by hop_size samples using overlap-add or overlap-save framing.
     4. Manage the ring buffer state to handle frame boundaries across calls.
-    5. Return a SignalFrame representing the current buffered output.
+    5. Return a SignalPayload representing the current buffered output.
 
 Math:
     Number of complete frames from $N$ input samples:

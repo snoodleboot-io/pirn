@@ -6,7 +6,7 @@ Algorithm:
     3. Design a Lagrange interpolation FIR filter of length filter_order + 1
        centered at the fractional delay.
     4. Convolve the signal with the Lagrange FIR coefficients.
-    5. Return a SignalFrame delayed by delay_samples samples (same rate and length).
+    5. Return a SignalPayload delayed by delay_samples samples (same rate and length).
 
 Math:
     Lagrange interpolation coefficients at fractional delay $\\delta$:

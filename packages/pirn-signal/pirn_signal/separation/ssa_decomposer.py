@@ -9,7 +9,7 @@ Algorithm:
     4. Compute the SVD of the trajectory matrix; retain the top component_count
        singular triplets.
     5. Reconstruct each component via diagonal averaging (anti-diagonal means).
-    6. Return a SourceFrame with the reconstructed SSA components.
+    6. Return a SourcePayload with the reconstructed SSA components.
 
 Math:
     Trajectory matrix:

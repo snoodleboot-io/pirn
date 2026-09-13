@@ -7,7 +7,7 @@ Algorithm:
        ratio output_rate_hz / input_rate_hz using a precision multiplier.
     4. Reduce L/M by their GCD to find the minimal polyphase decomposition.
     5. Apply ``scipy.signal.resample_poly`` with the reduced L/M factors.
-    6. Return a SignalFrame at the target rate with proportionally scaled sample count.
+    6. Return a SignalPayload at the target rate with proportionally scaled sample count.
 
 Math:
     Sample count conversion:

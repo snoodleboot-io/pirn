@@ -5,7 +5,7 @@ Algorithm:
     2. Validate both rates (positive floats).
     3. Compute the drift ratio: reference_rate_hz / measured_rate_hz.
     4. Apply polyphase resampling to stretch/compress the signal by the drift ratio.
-    5. Return a SignalFrame at the reference rate with corrected sample count.
+    5. Return a SignalPayload at the reference rate with corrected sample count.
 
 Math:
     Drift correction ratio:

@@ -9,7 +9,7 @@ Algorithm:
        |S_hat(k, f)| = max(|X(k, f)| - alpha * |N(f)|, beta * |X(k, f)|)
        where alpha = over_subtraction_factor and beta is a spectral floor constant.
     6. Reconstruct the signal via inverse STFT.
-    7. Return a denoised SignalFrame.
+    7. Return a denoised SignalPayload.
 
 Math:
     Spectral subtraction magnitude update:

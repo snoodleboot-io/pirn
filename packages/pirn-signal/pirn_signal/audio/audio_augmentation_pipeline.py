@@ -14,8 +14,19 @@ Algorithm:
        generator derived from the configured seed) and return an augmented
        SignalPayload with the same metadata.
 
-    from uniform distributions; specific formulae depend on the chosen
-    augmentation library.
+Math:
+    Additive Gaussian noise at a random standard deviation $\\sigma \\sim U(0.001, 0.01)$:
+
+    $$x'[n] = x[n] + \\mathcal{N}(0, \\sigma^2)$$
+
+    Time and frequency masking (SpecAugment-style) zero a contiguous span:
+
+    $$x'[n] = 0, \\quad n \\in [n_0, n_0 + L)$$
+
+    where $L$ is drawn as a random fraction of the signal (or spectrum) length and
+    $n_0$ is drawn uniformly over the remaining valid range. Pitch shift and time
+    stretch amounts are drawn uniformly from $[-3, 3]$ semitones and $[0.85, 1.15]$
+    respectively; their formulae are defined within ``librosa.effects``.
 
 References:
     - Park, D.S. et al. (2019). "SpecAugment: A Simple Data Augmentation Method

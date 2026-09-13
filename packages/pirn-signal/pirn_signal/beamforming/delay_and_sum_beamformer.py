@@ -9,7 +9,7 @@ Algorithm:
     4. Fractionally delay each element signal by tau_i (via sinc interpolation or
        nearest-sample approximation).
     5. Sum all delayed element signals and normalise by num_elements.
-    6. Return a single-channel beamformed SignalFrame.
+    6. Return a single-channel beamformed SignalPayload.
 
 Math:
     Delay for element $i$:
@@ -71,7 +71,7 @@ class DelayAndSumBeamformer(Knot):
         steering_angle_deg: float,
         **_: Any,
     ) -> SignalPayload:
-        """Apply the delay-and-sum beamformer and return the beamformed SignalFrame.
+        """Apply the delay-and-sum beamformer and return the beamformed SignalPayload.
 
         Args:
             signal: The multi-element array input signal payload.

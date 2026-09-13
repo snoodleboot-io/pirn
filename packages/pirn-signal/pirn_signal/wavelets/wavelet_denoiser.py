@@ -11,7 +11,7 @@ Algorithm:
     6. Apply the selected thresholding to each detail subband:
        - ``soft``: d̂ = sign(d) max(|d| - λ, 0)
        - ``hard``: d̂ = d · 1[|d| > λ]
-    7. Reconstruct via IDWT and return the denoised SignalFrame.
+    7. Reconstruct via IDWT and return the denoised SignalPayload.
 
 Math:
     Universal threshold (Donoho-Johnstone):

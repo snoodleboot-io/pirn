@@ -8,7 +8,7 @@ Algorithm:
        method (``scipy.interpolate.interp1d`` or equivalent).
     4. Evaluate the interpolant at the new sample times spaced at
        1 / target_sample_rate_hz.
-    5. Return a SignalFrame at the target rate with the proportionally larger sample count.
+    5. Return a SignalPayload at the target rate with the proportionally larger sample count.
 
 Math:
     Resampled sample count:

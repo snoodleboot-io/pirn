@@ -7,7 +7,7 @@ Algorithm:
        a. Tree A: real part using a standard quadrature mirror filter bank.
        b. Tree B: imaginary part using a half-sample shifted filter bank.
     4. Decompose both trees to level_count levels, producing 2^level_count subbands per tree.
-    5. Return a WaveletFrame with 2^level_count subbands.
+    5. Return a WaveletPayload with 2^level_count subbands.
 
 Math:
     Dual-tree complex wavelet:

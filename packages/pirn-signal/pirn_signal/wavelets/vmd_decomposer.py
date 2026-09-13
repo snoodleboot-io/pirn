@@ -16,7 +16,7 @@ Algorithm:
          to ``vmdpy``'s and it should be treated as an approximation, not a
          drop-in replacement.
     5. Iterate until convergence: update modes, centre frequencies, and Lagrange multipliers.
-    6. Return a WaveletFrame with mode_count IMF-like modes.
+    6. Return a WaveletPayload with mode_count IMF-like modes.
 
     The backend is an explicit input rather than an availability probe: which
     backend ran is always recorded in the pipeline's lineage, and requesting

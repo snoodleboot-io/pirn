@@ -5,7 +5,7 @@ Algorithm:
     2. Validate wavelet_name (non-empty string) and scale_count (positive integer).
     3. Generate a logarithmically spaced array of scale_count scales.
     4. For each scale, convolve the signal with the dilated/translated wavelet.
-    5. Return a WaveletFrame with scale_count rows of CWT coefficients.
+    5. Return a WaveletPayload with scale_count rows of CWT coefficients.
 
 Math:
     CWT at scale $a$ and translation $b$:

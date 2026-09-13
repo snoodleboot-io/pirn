@@ -7,6 +7,17 @@ Algorithm:
     4. Apply via ``scipy.signal.lfilter(h, [1.0], data)``.
     5. Return a filtered SignalPayload.
 
+Math:
+    Windowed-sinc lowpass FIR design, with $M$ = num_taps - 1 and normalised
+    cutoff $f_c$ = cutoff_hz / (sample_rate_hz / 2):
+
+    $$h[n] = w[n] \\cdot f_c \\cdot \\operatorname{sinc}\\!\\left(f_c (n - M/2)\\right), \\quad n = 0, \\ldots, M$$
+
+    where $w[n]$ is the chosen window function and $\\operatorname{sinc}(x) = \\sin(\\pi x) / (\\pi x)$.
+    The filtered output is the direct-form convolution:
+
+    $$y[n] = \\sum_{k=0}^{M} h[k] \\, x[n-k]$$
+
 References:
     - scipy.signal.firwin: https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.firwin.html
 """
@@ -27,7 +38,7 @@ class FIRWindowFilter(Knot):
     """Window-method FIR filter."""
 
     _valid_windows: ClassVar[frozenset[str]] = frozenset(
-        {"hamming", "hann", "blackman", "kaiser", "flattop"}
+        {"hamming", "hann", "blackman", "bartlett", "kaiser", "flattop"}
     )
 
     def __init__(

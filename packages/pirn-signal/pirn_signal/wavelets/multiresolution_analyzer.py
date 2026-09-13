@@ -6,7 +6,7 @@ Algorithm:
     3. Apply the Mallat algorithm: at each level, convolve the approximation
        subband with the low-pass filter and downsample by 2.
     4. Store the approximation and detail subbands for each level.
-    5. Return a WaveletFrame with level_count decomposition levels.
+    5. Return a WaveletPayload with level_count decomposition levels.
 
 Math:
     Multiresolution approximation at scale $j$:

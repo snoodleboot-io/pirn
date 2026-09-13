@@ -17,7 +17,7 @@ from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 @dataclass(frozen=True)
 class SignalFrame(PirnOpaqueValue):
-    """Reference to a digital signal captured by an ingestor."""
+    """Reference to a digital signal assembled from raw connector bytes."""
 
     signal_id: str = ""
     channel_count: int = 0

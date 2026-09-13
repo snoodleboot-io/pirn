@@ -47,10 +47,15 @@ class TestFIRWindowFilter(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_unknown_window(self) -> None:
         knot = self._make()
         with pytest.raises(ValueError, match="window"):
-            await knot.process(_SIGNAL, num_taps=31, cutoff_hz=100.0, window="bartlett")
+            await knot.process(_SIGNAL, num_taps=31, cutoff_hz=100.0, window="unknown_window")
 
     async def test_emits_signal_payload(self) -> None:
         knot = self._make()
         out = await knot.process(_SIGNAL, num_taps=31, cutoff_hz=100.0, window="hamming")
         assert isinstance(out, SignalPayload)
         assert out.frame.signal_id == "test:fir-window"
+
+    async def test_accepts_bartlett_window(self) -> None:
+        knot = self._make()
+        out = await knot.process(_SIGNAL, num_taps=31, cutoff_hz=100.0, window="bartlett")
+        assert isinstance(out, SignalPayload)

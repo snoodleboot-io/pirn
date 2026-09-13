@@ -7,7 +7,7 @@ Algorithm:
        ±max_lag_samples lags using ``scipy.signal.correlate``.
     4. Identify the lag at maximum correlation (the estimated time offset).
     5. Shift the target signal by the estimated offset.
-    6. Return a SignalFrame of the aligned target signal.
+    6. Return a SignalPayload of the aligned target signal.
 
 Math:
     Cross-correlation:

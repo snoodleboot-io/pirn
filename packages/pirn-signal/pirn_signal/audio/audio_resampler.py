@@ -1,4 +1,4 @@
-"""``AudioResampler`` — resample an audio :class:`SignalFrame`.
+"""``AudioResampler`` — resample an audio :class:`SignalPayload`.
 
 Algorithm:
     1. Receive the input signal frame, target_sample_rate_hz, and quality.
@@ -6,7 +6,7 @@ Algorithm:
     3. Compute resampling ratio: ratio = target_sample_rate_hz / signal.sample_rate_hz.
     4. Apply the chosen resampling algorithm (polyphase, Kaiser, or linear interpolation).
     5. Update sample count: new_samples = int(samples_per_channel * ratio).
-    6. Return a resampled SignalFrame at target_sample_rate_hz.
+    6. Return a resampled SignalPayload at target_sample_rate_hz.
 
 Math:
     Resampled sample count:

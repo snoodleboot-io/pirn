@@ -11,7 +11,14 @@ Algorithm:
     7. Repeat independently for each channel and return a FeaturePayload with
        the per-frame speaker label per channel.
 
-    Cluster assignment uses Euclidean distance in the MFCC feature space (KMeans);
+Math:
+    KMeans clustering of the $T$ MFCC frame vectors $x_t \\in \\mathbb{R}^{20}$ into
+    $k$ = min(max_speakers, T) clusters minimises the within-cluster sum of squares:
+
+    $$\\underset{\\{\\mu_1, \\ldots, \\mu_k\\}}{\\arg\\min} \\sum_{i=1}^{k} \\sum_{t : c_t = i} \\lVert x_t - \\mu_i \\rVert^2$$
+
+    where $c_t$ is the cluster assigned to frame $t$ and $\\mu_i$ is the centroid of
+    cluster $i$. Cluster assignment uses Euclidean distance in the MFCC feature space;
     specific metrics depend on the chosen embedding model.
 
 References:

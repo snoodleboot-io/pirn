@@ -5,7 +5,7 @@ Algorithm:
     2. Validate downsample_factor (integer > 1).
     3. Keep every Nth sample from the input signal without applying any
        anti-aliasing filter (caller is responsible for prior filtering).
-    4. Return a SignalFrame at the reduced sample rate with the proportionally
+    4. Return a SignalPayload at the reduced sample rate with the proportionally
        smaller sample count.
 
 Math:

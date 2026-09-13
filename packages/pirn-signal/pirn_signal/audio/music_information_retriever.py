@@ -14,7 +14,17 @@ Algorithm:
        object-dtype ``data`` holds the (heterogeneously shaped) computed value
        for each requested feature, per channel.
 
-    librosa algorithms; formulae are defined within those routines.
+Math:
+    Key estimation correlates the mean chroma vector against the 12 pitch classes
+    and picks the strongest:
+
+    $$\\hat{k} = \\arg\\max_{p \\in \\{0, \\ldots, 11\\}} \\overline{C}_p, \\quad
+    \\overline{C}_p = \\frac{1}{T} \\sum_{t=1}^{T} C_{p,t}$$
+
+    where $C$ is the chroma-CQT matrix (12 pitch classes x $T$ frames). The
+    remaining features (chroma, spectral contrast, tonnetz, tempo, harmonic/percussive
+    separation, structure) delegate to ``librosa``; their formulae are defined within
+    those routines.
 
 References:
     - McFee, B. et al. (2015). "librosa: Audio and music signal analysis in Python."
