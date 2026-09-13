@@ -1,21 +1,45 @@
 """``FusionRetriever`` — concurrent multi-query retrieval fused with RRF.
 
 The retrieval stage of RAG-Fusion. Given a list of query variants, it searches
-the :class:`MemoryStore` for each variant **concurrently** (bounded by a
-concurrency budget), builds one ranked id list per variant, and fuses them with
-Reciprocal Rank Fusion. Documents are de-duplicated by identity and returned in
-fused-score order, each carrying its ``fusion_score``.
+the :class:`MemoryStore` for each variant **concurrently**, builds one ranked
+id list per variant, and fuses them with Reciprocal Rank Fusion. Documents are
+de-duplicated by identity and returned in fused-score order, each carrying its
+``fusion_score``.
+
+The fan-out is expressed as a graph rather than a hand-rolled
+``asyncio.gather`` over a semaphore: each query variant becomes its own
+:class:`_VariantSearch` invocation, fanned out with a core
+:class:`~pirn.nodes.map_markers.Map`, and folded into the fused ranking with a
+:class:`~pirn.nodes.reduce_.Reduce`. The engine schedules the per-variant
+searches concurrently — every ready sibling starts as its own task (PIR-841) —
+so retrieval runs *through* the engine, with its own ``Result``, history
+record, and lineage per variant. Each search knot carries a
+``concurrency_group`` so a run-level
+:class:`~pirn.core.concurrency.concurrency_limits.ConcurrencyLimits` can bound
+in-flight searches; ``max_concurrency`` stays a validated, accepted parameter
+recorded on that group (bounding a *container* knot's own inner run this way
+is not yet enforced by core — see ``ConcurrencyLimits`` PIR-841 slice 2/3 —
+so, until that lands, ``max_concurrency`` documents the intended budget rather
+than strictly capping it).
 
 Algorithm:
     1. Validate ``queries`` (list of str), ``store`` (:class:`MemoryStore`),
        ``top_k``, ``max_concurrency``, and ``rrf_k`` (positive ints).
-    2. Launch one search per query through an :class:`asyncio.Semaphore` of
-       size ``max_concurrency`` and await them together.
-    3. Key each hit by its ``id`` (or a stable fallback), record the first-seen
-       mapping, and build per-query ranked key lists.
-    4. Fuse the ranked lists via
+    2. Fan out one :class:`_VariantSearch` invocation per query variant.
+    3. A :class:`~pirn.nodes.reduce_.Reduce` keys each hit by its ``id`` (or a
+       stable fallback), records the first-seen mapping, builds per-query
+       ranked key lists, and fuses them via
        :func:`~pirn_agents.retrieval.reciprocal_rank_fusion.reciprocal_rank_fusion`.
-    5. Return the top ``top_k`` fused documents, each with a ``fusion_score``.
+    4. Return the top ``top_k`` fused documents, each with a ``fusion_score``.
+
+Math:
+    Reciprocal Rank Fusion score for document :math:`d` across query variants
+    :math:`Q`, with :math:`\\text{rank}_q(d)` the 1-indexed rank of :math:`d`
+    in variant :math:`q`'s ranking (or omitted if unranked):
+
+    $$
+    \\text{RRF}(d) = \\sum_{q \\in Q} \\frac{1}{k + \\text{rank}_q(d)}
+    $$
 
 References:
     - Cormack, Clarke & Buettcher, "Reciprocal Rank Fusion" (SIGIR 2009).
@@ -23,19 +47,101 @@ References:
 
 from __future__ import annotations
 
-import asyncio
+import functools
 from collections.abc import Mapping
 from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.nodes.map_markers import Map
+from pirn.nodes.reduce_ import Reduce
 
 from pirn_agents.interfaces.retriever import Retriever
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.retrieval.reciprocal_rank_fusion import reciprocal_rank_fusion
+from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
+from pirn_agents.specializations.base.resolved_value_knot import ResolvedValueKnot
 
 
-class FusionRetriever(Retriever):
+class _VariantSearch(Knot):
+    """Search the store for one query variant and return its ranked hits."""
+
+    def __init__(
+        self,
+        *,
+        query: Knot | str,
+        store: Knot | MemoryStore,
+        top_k: Knot | int,
+        _config: KnotConfig,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(query=query, store=store, top_k=top_k, _config=_config, **kwargs)
+
+    async def process(
+        self,
+        query: str,
+        store: MemoryStore,
+        top_k: int,
+        **_: Any,
+    ) -> list[Mapping[str, Any]]:
+        """Search ``store`` for ``query`` and return up to ``top_k`` hits.
+
+        Args:
+            query: The query variant to search for.
+            store: The memory store to search.
+            top_k: Maximum number of hits to fetch.
+
+        Returns:
+            The hits for this query variant, in ranked order.
+        """
+        return [item async for item in await store.search(query, top_k=top_k)]
+
+
+class _FuseVariantHits:
+    """Reduce ``combine`` target: fuse per-variant rankings with RRF."""
+
+    @staticmethod
+    def combine(
+        items: list[list[Mapping[str, Any]]], *, rrf_k: int, top_k: int
+    ) -> list[Mapping[str, Any]]:
+        """Fuse per-variant ranked hit lists into the top ``top_k`` documents.
+
+        Args:
+            items: One ranked hit list per query variant.
+            rrf_k: The RRF damping constant.
+            top_k: Maximum number of fused documents to return.
+
+        Returns:
+            Up to ``top_k`` document mappings ordered by fused score, each
+            with a ``fusion_score`` key.
+        """
+        representative: dict[str, Mapping[str, Any]] = {}
+        rankings: list[list[str]] = []
+        for hits in items:
+            ranking: list[str] = []
+            for hit in hits:
+                key = _FuseVariantHits._doc_key(hit)
+                representative.setdefault(key, hit)
+                ranking.append(key)
+            rankings.append(ranking)
+        fused = reciprocal_rank_fusion(rankings, k=rrf_k)
+        results: list[Mapping[str, Any]] = []
+        for key, score in fused[:top_k]:
+            merged = dict(representative[key])
+            merged["fusion_score"] = score
+            results.append(merged)
+        return results
+
+    @staticmethod
+    def _doc_key(hit: Mapping[str, Any]) -> str:
+        """Return a stable identity key for a retrieved hit."""
+        identifier = hit.get("id")
+        if identifier is not None:
+            return str(identifier)
+        return repr(sorted((str(k), str(v)) for k, v in hit.items()))
+
+
+class FusionRetriever(AgentPipeline, Retriever):
     """Search each query variant concurrently and fuse the rankings with RRF."""
 
     def __init__(
@@ -67,19 +173,20 @@ class FusionRetriever(Retriever):
         max_concurrency: int = 4,
         rrf_k: int = 60,
         **_: Any,
-    ) -> list[Mapping[str, Any]]:
-        """Retrieve for every query concurrently and fuse the rankings.
+    ) -> Knot:
+        """Build the per-variant search graph and return its RRF-fusing sink knot.
 
         Args:
             queries: The query variants to search for.
             store: The memory store searched once per variant.
             top_k: Number of fused documents to return.
-            max_concurrency: Maximum number of in-flight searches.
+            max_concurrency: Intended in-flight search budget (see module
+                docstring for the current enforcement caveat).
             rrf_k: The RRF damping constant.
 
         Returns:
-            Up to ``top_k`` document mappings ordered by fused score, each with a
-            ``fusion_score`` key.
+            The sink knot whose output is up to ``top_k`` document mappings
+            ordered by fused score, each with a ``fusion_score`` key.
 
         Raises:
             TypeError: If ``store`` is not a MemoryStore or ``queries`` is not a list.
@@ -102,53 +209,22 @@ class FusionRetriever(Retriever):
         if not isinstance(rrf_k, int) or rrf_k <= 0:
             raise ValueError(f"FusionRetriever: rrf_k must be a positive int, got {rrf_k!r}")
         if not queries:
-            return []
+            return ResolvedValueKnot(value=[], _config=KnotConfig(id="empty"))
+
         fetch = top_k * 2
-        semaphore = asyncio.Semaphore(max_concurrency)
-
-        async def _bounded(query: str) -> list[Mapping[str, Any]]:
-            async with semaphore:
-                return await self._search(store, query, fetch)
-
-        per_query_hits = await asyncio.gather(*(_bounded(query) for query in queries))
-        representative: dict[str, Mapping[str, Any]] = {}
-        rankings: list[list[str]] = []
-        for hits in per_query_hits:
-            ranking: list[str] = []
-            for hit in hits:
-                key = self._doc_key(hit)
-                representative.setdefault(key, hit)
-                ranking.append(key)
-            rankings.append(ranking)
-        fused = reciprocal_rank_fusion(rankings, k=rrf_k)
-        results: list[Mapping[str, Any]] = []
-        for key, score in fused[:top_k]:
-            merged = dict(representative[key])
-            merged["fusion_score"] = score
-            results.append(merged)
-        return results
-
-    @staticmethod
-    async def _search(store: MemoryStore, query: str, top_k: int) -> list[Mapping[str, Any]]:
-        """Drain ``store.search`` (awaitable / async-iterable / list) into a list."""
-        candidate = store.search(query, top_k=top_k)
-        if hasattr(candidate, "__await__"):
-            candidate = await candidate  # type: ignore[assignment]
-        if hasattr(candidate, "__aiter__"):
-            collected: list[Mapping[str, Any]] = []
-            async for item in candidate:  # type: ignore[misc]
-                collected.append(item)
-                if len(collected) >= top_k:
-                    break
-            return collected
-        if isinstance(candidate, list):
-            return list(candidate[:top_k])
-        return [item for item in candidate][:top_k]  # type: ignore[misc]
-
-    @staticmethod
-    def _doc_key(hit: Mapping[str, Any]) -> str:
-        """Return a stable identity key for a retrieved hit."""
-        identifier = hit.get("id")
-        if identifier is not None:
-            return str(identifier)
-        return repr(sorted((str(k), str(v)) for k, v in hit.items()))
+        queries_knot = ResolvedValueKnot(value=queries, _config=KnotConfig(id="queries"))
+        searched = _VariantSearch(
+            # Core's Map marker is consumed at construction by
+            # `knot.py:199-205` and is deliberately not a Knot, so it does not
+            # satisfy the declared `Knot | str`. Inline suppression is the
+            # house idiom for this; see PIR-715/PIR-716.
+            query=Map(queries_knot),  # pyright: ignore[reportArgumentType]
+            store=store,
+            top_k=fetch,
+            _config=KnotConfig(id="search_each", concurrency_group="fusion_retriever_search"),
+        )
+        return Reduce(
+            of=searched,
+            combine=functools.partial(_FuseVariantHits.combine, rrf_k=rrf_k, top_k=top_k),
+            _config=KnotConfig(id="fuse"),
+        )

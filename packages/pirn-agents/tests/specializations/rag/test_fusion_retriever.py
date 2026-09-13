@@ -7,6 +7,7 @@ from collections.abc import AsyncIterator, Mapping
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.memory.stores.memory_store import MemoryStore
@@ -59,8 +60,11 @@ class TestFusionRetriever(unittest.IsolatedAsyncioTestCase):
                 "b": [{"id": "1", "text": "shared"}, {"id": "3", "text": "only-b"}],
             }
         )
-        knot = _retriever()
-        results = await knot.process(queries=["a", "b"], store=store, top_k=5)
+        with Tapestry() as tapestry:
+            FusionRetriever(queries=["a", "b"], store=store, top_k=5, _config=KnotConfig(id="fuse"))
+        result = await tapestry.run(RunRequest())
+        assert result.succeeded
+        results = result.outputs["fuse"]
         ids = [r["id"] for r in results]
         # doc 1 is ranked first by both queries -> highest fused score, no dup.
         assert ids[0] == "1"
@@ -71,14 +75,20 @@ class TestFusionRetriever(unittest.IsolatedAsyncioTestCase):
         store = _PerQueryStore(
             {"a": [{"id": str(i)} for i in range(10)]},
         )
-        knot = _retriever()
-        results = await knot.process(queries=["a"], store=store, top_k=3)
-        assert len(results) == 3
+        with Tapestry() as tapestry:
+            FusionRetriever(queries=["a"], store=store, top_k=3, _config=KnotConfig(id="fuse"))
+        result = await tapestry.run(RunRequest())
+        assert result.succeeded
+        assert len(result.outputs["fuse"]) == 3
 
     async def test_empty_queries_returns_empty(self) -> None:
-        knot = _retriever()
-        results = await knot.process(queries=[], store=StubMemoryStore([]), top_k=5)
-        assert results == []
+        with Tapestry() as tapestry:
+            FusionRetriever(
+                queries=[], store=StubMemoryStore([]), top_k=5, _config=KnotConfig(id="fuse")
+            )
+        result = await tapestry.run(RunRequest())
+        assert result.succeeded
+        assert result.outputs["fuse"] == []
 
     async def test_rejects_non_store(self) -> None:
         knot = _retriever()

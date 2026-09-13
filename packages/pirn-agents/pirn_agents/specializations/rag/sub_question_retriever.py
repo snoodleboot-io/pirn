@@ -1,19 +1,35 @@
 """``SubQuestionRetriever`` — concurrent per-sub-question retrieval + union.
 
 The retrieval stage of sub-question RAG. Each sub-question is searched against
-the :class:`MemoryStore` **concurrently** (bounded by a concurrency budget) and
-the hits are unioned into a single deduplicated context set, preserving the
-order in which documents were first seen. Each surviving document records which
-``sub_question`` first retrieved it.
+the :class:`MemoryStore` **concurrently** and the hits are unioned into a
+single deduplicated context set, preserving the order in which documents were
+first seen. Each surviving document records which ``sub_question`` first
+retrieved it.
+
+The fan-out is expressed as a graph rather than a hand-rolled
+``asyncio.gather`` over a semaphore: each sub-question becomes its own
+:class:`_SubQuestionSearch` invocation, fanned out with a core
+:class:`~pirn.nodes.map_markers.Map`, and folded into the deduplicated union
+with a :class:`~pirn.nodes.reduce_.Reduce`. The engine schedules the
+per-sub-question searches concurrently — every ready sibling starts as its own
+task (PIR-841) — so retrieval runs *through* the engine, with its own
+``Result``, history record, and lineage per sub-question. Each search knot
+carries a ``concurrency_group`` so a run-level
+:class:`~pirn.core.concurrency.concurrency_limits.ConcurrencyLimits` can bound
+in-flight searches; ``max_concurrency`` stays a validated, accepted parameter
+recorded on that group (bounding a *container* knot's own inner run this way
+is not yet enforced by core — see ``ConcurrencyLimits`` PIR-841 slice 2/3 —
+so, until that lands, ``max_concurrency`` documents the intended budget rather
+than strictly capping it).
 
 Algorithm:
     1. Validate ``sub_questions`` (list), ``store`` (:class:`MemoryStore`),
        ``top_k`` and ``max_concurrency`` (positive ints).
-    2. Search every sub-question through an :class:`asyncio.Semaphore` of size
-       ``max_concurrency`` and await them together.
-    3. Union the hits, keying by ``id`` (or a stable fallback) so a document
-       retrieved by several sub-questions appears once.
-    4. Return the deduplicated document list in first-seen order.
+    2. Fan out one :class:`_SubQuestionSearch` invocation per sub-question.
+    3. A :class:`~pirn.nodes.reduce_.Reduce` unions the hits, keying by ``id``
+       (or a stable fallback) so a document retrieved by several sub-questions
+       appears once, in first-seen order.
+    4. Return the deduplicated document list.
 
 References:
     - Sub-question query engine pattern (LlamaIndex).
@@ -21,18 +37,92 @@ References:
 
 from __future__ import annotations
 
-import asyncio
 from collections.abc import Mapping
 from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.nodes.map_markers import Map
+from pirn.nodes.reduce_ import Reduce
 
 from pirn_agents.interfaces.retriever import Retriever
 from pirn_agents.memory.stores.memory_store import MemoryStore
+from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
+from pirn_agents.specializations.base.resolved_value_knot import ResolvedValueKnot
 
 
-class SubQuestionRetriever(Retriever):
+class _SubQuestionSearch(Knot):
+    """Search the store for one sub-question and return its hits with provenance."""
+
+    def __init__(
+        self,
+        *,
+        sub_question: Knot | str,
+        store: Knot | MemoryStore,
+        top_k: Knot | int,
+        _config: KnotConfig,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(
+            sub_question=sub_question, store=store, top_k=top_k, _config=_config, **kwargs
+        )
+
+    async def process(
+        self,
+        sub_question: str,
+        store: MemoryStore,
+        top_k: int,
+        **_: Any,
+    ) -> tuple[str, list[Mapping[str, Any]]]:
+        """Search ``store`` for ``sub_question`` and return its hits.
+
+        Args:
+            sub_question: The sub-question to search for.
+            store: The memory store to search.
+            top_k: Maximum number of hits to fetch.
+
+        Returns:
+            A ``(sub_question, hits)`` pair.
+        """
+        hits = [item async for item in await store.search(sub_question, top_k=top_k)]
+        return sub_question, hits
+
+
+class _UnionSubQuestionHits:
+    """Reduce ``combine`` target: union per-sub-question hits, deduplicated."""
+
+    @staticmethod
+    def combine(items: list[tuple[str, list[Mapping[str, Any]]]]) -> list[Mapping[str, Any]]:
+        """Union ``items`` into a single deduplicated, first-seen-order list.
+
+        Args:
+            items: ``(sub_question, hits)`` pairs, one per sub-question, in
+                the sub-questions' original order.
+
+        Returns:
+            The deduplicated hits, each carrying which sub-question first
+            retrieved it.
+        """
+        merged: dict[str, Mapping[str, Any]] = {}
+        for sub_question, hits in items:
+            for hit in hits:
+                key = _UnionSubQuestionHits._doc_key(hit)
+                if key not in merged:
+                    enriched = dict(hit)
+                    enriched.setdefault("sub_question", sub_question)
+                    merged[key] = enriched
+        return list(merged.values())
+
+    @staticmethod
+    def _doc_key(hit: Mapping[str, Any]) -> str:
+        """Return a stable identity key for a retrieved hit."""
+        identifier = hit.get("id")
+        if identifier is not None:
+            return str(identifier)
+        return repr(sorted((str(k), str(v)) for k, v in hit.items()))
+
+
+class SubQuestionRetriever(AgentPipeline, Retriever):
     """Retrieve per sub-question concurrently and union the deduplicated hits."""
 
     def __init__(
@@ -61,17 +151,19 @@ class SubQuestionRetriever(Retriever):
         top_k: int = 3,
         max_concurrency: int = 4,
         **_: Any,
-    ) -> list[Mapping[str, Any]]:
-        """Retrieve for each sub-question concurrently and union the hits.
+    ) -> Knot:
+        """Build the per-sub-question search graph and return its union sink knot.
 
         Args:
             sub_questions: The sub-questions to search for.
             store: The memory store searched once per sub-question.
             top_k: Number of hits fetched per sub-question.
-            max_concurrency: Maximum number of in-flight searches.
+            max_concurrency: Intended in-flight search budget (see module
+                docstring for the current enforcement caveat).
 
         Returns:
-            The deduplicated union of retrieved documents in first-seen order.
+            The sink knot whose output is the deduplicated union of retrieved
+            documents in first-seen order.
 
         Raises:
             TypeError: If ``store`` is not a MemoryStore or ``sub_questions`` not a list.
@@ -94,45 +186,23 @@ class SubQuestionRetriever(Retriever):
                 f"got {max_concurrency!r}"
             )
         if not sub_questions:
-            return []
-        semaphore = asyncio.Semaphore(max_concurrency)
+            return ResolvedValueKnot(value=[], _config=KnotConfig(id="empty"))
 
-        async def _bounded(sub_question: str) -> tuple[str, list[Mapping[str, Any]]]:
-            async with semaphore:
-                return sub_question, await self._search(store, sub_question, top_k)
-
-        results = await asyncio.gather(*(_bounded(sub_q) for sub_q in sub_questions))
-        merged: dict[str, Mapping[str, Any]] = {}
-        for sub_question, hits in results:
-            for hit in hits:
-                key = self._doc_key(hit)
-                if key not in merged:
-                    enriched = dict(hit)
-                    enriched.setdefault("sub_question", sub_question)
-                    merged[key] = enriched
-        return list(merged.values())
-
-    @staticmethod
-    async def _search(store: MemoryStore, query: str, top_k: int) -> list[Mapping[str, Any]]:
-        """Drain ``store.search`` (awaitable / async-iterable / list) into a list."""
-        candidate = store.search(query, top_k=top_k)
-        if hasattr(candidate, "__await__"):
-            candidate = await candidate  # type: ignore[assignment]
-        if hasattr(candidate, "__aiter__"):
-            collected: list[Mapping[str, Any]] = []
-            async for item in candidate:  # type: ignore[misc]
-                collected.append(item)
-                if len(collected) >= top_k:
-                    break
-            return collected
-        if isinstance(candidate, list):
-            return list(candidate[:top_k])
-        return [item for item in candidate][:top_k]  # type: ignore[misc]
-
-    @staticmethod
-    def _doc_key(hit: Mapping[str, Any]) -> str:
-        """Return a stable identity key for a retrieved hit."""
-        identifier = hit.get("id")
-        if identifier is not None:
-            return str(identifier)
-        return repr(sorted((str(k), str(v)) for k, v in hit.items()))
+        sub_questions_knot = ResolvedValueKnot(
+            value=sub_questions, _config=KnotConfig(id="sub_questions")
+        )
+        searched = _SubQuestionSearch(
+            # Core's Map marker is consumed at construction by
+            # `knot.py:199-205` and is deliberately not a Knot, so it does not
+            # satisfy the declared `Knot | str`. Inline suppression is the
+            # house idiom for this; see PIR-715/PIR-716.
+            sub_question=Map(sub_questions_knot),  # pyright: ignore[reportArgumentType]
+            store=store,
+            top_k=top_k,
+            _config=KnotConfig(id="search_each", concurrency_group="sub_question_retriever_search"),
+        )
+        return Reduce(
+            of=searched,
+            combine=_UnionSubQuestionHits.combine,
+            _config=KnotConfig(id="union"),
+        )
