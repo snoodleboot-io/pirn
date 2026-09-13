@@ -106,7 +106,7 @@ _current_traceback_filter: ContextVar[Any] = ContextVar(
 )
 
 #: The nested-run frame of the enclosing run: its depth, the enclosing run
-#: ids, the container classes on the path, and the tightest
+#: ids, the container knots on the path, and the tightest
 #: ``max_nesting_depth`` set on that path.  ``Tapestry.run`` derives an inner
 #: run's frame from it (``RunNesting.child``), which is where the depth cap and
 #: the re-entry guard are enforced, and publishes the new frame for the run's
@@ -188,7 +188,7 @@ class Tapestry:
         run, ``LoopSubTapestry`` loop run and loop iteration counts one
         level.  Setting it turns the nested-run guard on for the whole
         subtree: a run that would exceed the tightest cap on the path fails
-        with ``NestingDepthExceededError``, and a container class
+        with ``NestingDepthExceededError``, and a container knot
         re-entering itself fails with ``NestedRunCycleError`` -- both
         recorded as the container knot's ``Err``.  An inner tapestry
         inherits the cap through the run context and may only tighten it.
@@ -402,7 +402,7 @@ class Tapestry:
 
         ``_nesting_key`` is internal: a container knot starting this run as an
         inner run passes its nesting key (``SubTapestry._nesting_key``) so the
-        nested-run guard can detect the class re-entering itself; a loop
+        nested-run guard can detect the container re-entering itself; a loop
         iteration passes none.  The run's frame is derived from the enclosing
         run's frame *before* anything starts, so a refused run raises here
         and never touches history.
@@ -421,7 +421,13 @@ class Tapestry:
         enclosing = _current_nesting.get(None)
         enclosing_run_id = _current_run_id.get(None)
         if enclosing is None or enclosing_run_id is None:
-            nesting = _RunNesting(max_depth=self._max_nesting_depth)
+            # A root run started by a container outside any engine run (a
+            # SubTapestry awaited directly) still puts that container on
+            # the path, so a re-entry below it is a cycle (ADR WS1).
+            nesting = _RunNesting(
+                path=(_nesting_key,) if _nesting_key is not None else (),
+                max_depth=self._max_nesting_depth,
+            )
         else:
             nesting = enclosing.child(
                 _nesting_key, enclosing_run_id, max_depth=self._max_nesting_depth

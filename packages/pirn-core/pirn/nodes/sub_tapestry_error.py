@@ -20,6 +20,11 @@ class SubTapestryError(PirnError):
     def __init__(self, inner_result: RunResult) -> None:
         self.inner_result = inner_result
         exception_count = len(inner_result.exceptions)
+        causes = "; ".join(
+            f"{record.knot_id}: {record.exc_type}: {record.message}"
+            for record in inner_result.exceptions
+        )
         super().__init__(
-            f"inner pipeline failed with {exception_count} exception(s); run_id={inner_result.run_id!r}"
+            f"inner pipeline failed with {exception_count} exception(s); "
+            f"run_id={inner_result.run_id!r}" + (f" [{causes}]" if causes else "")
         )
