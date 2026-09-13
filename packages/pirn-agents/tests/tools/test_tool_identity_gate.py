@@ -15,10 +15,11 @@ Two checks:
   the hash changes. The parameters covered must equal the introspected signature,
   so a new constructor argument fails here until someone decides what it does to
   identity.
-* **Coverage ratchet.** Every class in the workspace (``packages/``, ``examples/``,
-  ``scripts/``) that defines ``content_identity`` must have a case below or a named
-  exemption — by exact equality, so removing an opt-in without updating the gate
-  also fails. The scan is whole-workspace and by AST, not by importing one package,
+* **Coverage ratchet.** Every :class:`Tool` subclass in the workspace (``packages/``,
+  ``examples/``, ``scripts/``) that defines ``content_identity`` must have a case
+  below or a named exemption — by exact equality, so removing an opt-in without
+  updating the gate also fails. Non-tool classes that use the same facet name (the
+  HTTP LLM providers) are gated by ``tests/llm/test_llm_provider_identity_gate.py``. The scan is whole-workspace and by AST, not by importing one package,
   because a package-local registry previously missed classes defined elsewhere.
 * **Inheritance ratchet.** The opt-in is not inherited (review of PR #310): a
   subclass of an opted-in tool is identity-keyed unless it re-declares
@@ -31,6 +32,7 @@ from __future__ import annotations
 
 import ast
 import inspect
+import re
 import tempfile
 import unittest
 from collections.abc import Callable, Mapping
@@ -313,6 +315,13 @@ class TestOptedInToolsDeclareEveryConstructorArgument(unittest.TestCase):
     def _scan(workspace: Path) -> tuple[set[str], set[str]]:
         """Return ``(declaring, inheriting without re-declaring)`` as ``path::name`` sets.
 
+        Only descendants of :class:`Tool` are reported. Other classes also define
+        ``content_identity`` — the HTTP LLM providers opt in through the same
+        facet name — and are gated by their own per-argument test,
+        ``tests/llm/test_llm_provider_identity_gate.py`` (PIR-840 PR-3, #312),
+        which scopes itself to ``BaseLLMProvider`` subclasses. Scanning every
+        class here would make whichever of the two PRs merged second go red.
+
         Inheritance is resolved by base-class *name* to a fixed point, which
         over-reports on a name collision — the safe direction for a gate. Only
         files whose text mentions a relevant name are parsed, which keeps a
@@ -352,11 +361,53 @@ class TestOptedInToolsDeclareEveryConstructorArgument(unittest.TestCase):
                         node
                     )
                 }
-                return declaring, opted_in - declaring
+                ancestry = TestOptedInToolsDeclareEveryConstructorArgument._ancestry(sources)
+                tools = {
+                    entry
+                    for entry in opted_in
+                    if TestOptedInToolsDeclareEveryConstructorArgument._descends_from_tool(
+                        entry.rsplit("::", 1)[1], ancestry
+                    )
+                }
+                return declaring & tools, (opted_in - declaring) & tools
             opted_in = found
             needles = {"content_identity"} | {
                 entry.rsplit("::", 1)[1] for entry in opted_in - {EXEMPT_ROOT}
             }
+
+    @staticmethod
+    def _ancestry(sources: Mapping[str, str]) -> dict[str, set[str]]:
+        """Index every class name in the workspace to the base-class names it lists.
+
+        A regex over the source text rather than a parse of every file, to keep the
+        scan fast. Same-named classes merge their bases, which can only widen what
+        counts as a tool — the safe direction for a gate.
+        """
+        ancestry: dict[str, set[str]] = {}
+        header = re.compile(r"^\s*class\s+(\w+)\s*\(([^)]*)\)", re.MULTILINE)
+        for text in sources.values():
+            for match in header.finditer(text):
+                bases = {
+                    base.split("[", 1)[0].strip().rsplit(".", 1)[-1]
+                    for base in match.group(2).split(",")
+                    if base.strip() and "=" not in base
+                }
+                ancestry.setdefault(match.group(1), set()).update(bases)
+        return ancestry
+
+    @staticmethod
+    def _descends_from_tool(name: str, ancestry: Mapping[str, set[str]]) -> bool:
+        """Whether class ``name`` is ``Tool`` or reaches it through listed base names."""
+        seen: set[str] = set()
+        pending = [name]
+        while pending:
+            current = pending.pop()
+            if current == "Tool":
+                return True
+            if current not in seen:
+                seen.add(current)
+                pending.extend(ancestry.get(current, ()))
+        return False
 
     @staticmethod
     def _defines_content_identity(node: ast.ClassDef) -> bool:
