@@ -137,6 +137,7 @@ class McpConnector(ConnectorBase):
             McpError: If every attempt fails; chains the last underlying error.
         """
 
+        # design-decision-override: thunk closes over this call's arguments for RetryPolicy.run
         async def _attempt(_attempt: int) -> McpClient:
             self._client = None
             try:

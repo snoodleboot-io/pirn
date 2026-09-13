@@ -481,3 +481,19 @@ def test_non_fan_in_logic_in_init_is_impure(tmp_path: Path) -> None:
     f = root / "bad.py"
     f.write_text(src)
     assert "knot_init_impure" in _rules(check_file(f, "acme", "bad.py"))
+
+
+def test_override_marker_survives_ruff_format_spacing(tmp_path: Path) -> None:
+    """``ruff format`` inserts a space after ``#``; both spellings must count."""
+    root = _import_root(tmp_path, "acme", "acme")
+    f = root / "closure.py"
+    f.write_text(
+        "def outer(x):\n"
+        "    # design-decision-override: closure captures x\n"
+        "    def inner():\n"
+        "        return x\n"
+        "    return inner\n"
+    )
+    assert "nested_def_missing_override" not in _rules(
+        check_file(f, "acme", "closure.py")
+    )

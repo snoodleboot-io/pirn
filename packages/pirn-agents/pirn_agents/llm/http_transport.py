@@ -80,12 +80,15 @@ class HttpTransport:
         retryable, and the ``Retry-After`` hint.
         """
 
+        # design-decision-override: thunk closes over this call's arguments for RetryPolicy.run
         async def _attempt(_attempt: int) -> Any:
             return await self._post_json(client=client, url=url, headers=headers, payload=payload)
 
+        # design-decision-override: thunk closes over this call's arguments for RetryPolicy.run
         def _is_retryable(exc: BaseException) -> bool:
             return isinstance(exc, (RateLimitError, TransientLLMError))
 
+        # design-decision-override: thunk closes over this call's arguments for RetryPolicy.run
         def _retry_after(exc: BaseException) -> float | None:
             return exc.retry_after if isinstance(exc, RateLimitError) else None
 

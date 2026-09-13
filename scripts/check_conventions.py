@@ -17,7 +17,7 @@ Rules
    a Knot definition written in function syntax).
 3. ``nested_def_missing_override`` — a ``def``/``class`` nested inside another
    function (a closure or a function-local class) with no
-   ``#design-decision-override`` comment on one of the three lines immediately
+   ``# design-decision-override`` comment (with or without the space) on one of the three lines immediately
    above it. A class nested inside a *class* (an ordinary method) is not
    "nested" in this sense and is never flagged.
 4. ``gate_wrong_base`` — a class named ``*Gate`` (other than the framework
@@ -99,6 +99,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import re
 import json
 import sys
 from pathlib import Path
@@ -205,12 +206,17 @@ def _decorator_names(decorators: list[ast.expr]) -> list[str]:
     return names
 
 
+# ``ruff format`` rewrites ``#design-decision-override`` as ``# design-decision-override``,
+# so both spellings are the same marker.
+_OVERRIDE_MARKER = re.compile(r"#\s*design-decision-override")
+
+
 def _has_override_comment(source_lines: list[str], lineno: int) -> bool:
-    """Look for ``#design-decision-override`` on one of the 3 lines above ``lineno``."""
+    """Look for the design-decision-override marker on one of the 3 lines above ``lineno``."""
     start = max(0, lineno - 4)  # lineno is 1-based; check up to 3 lines above it
     end = lineno - 1
     for line in source_lines[start:end]:
-        if "#design-decision-override" in line:
+        if _OVERRIDE_MARKER.search(line):
             return True
     return False
 
