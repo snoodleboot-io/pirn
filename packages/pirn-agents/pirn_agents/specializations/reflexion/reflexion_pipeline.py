@@ -10,10 +10,12 @@ A :class:`SubTapestry` that runs, up to ``max_iterations`` times:
    next iteration — the persistent-memory characteristic of Reflexion.
 
 The loop is strictly bounded by ``max_iterations`` and returns a typed
-:class:`ReflexionResult` on either success or exhaustion. Orchestration happens
-in ``process`` (the constituent knots' ``process`` methods are invoked directly),
-and the final result is surfaced through a small terminal :class:`Source`, the
-same shape :class:`OrchestratorAgent` uses.
+:class:`ReflexionResult` on either success or exhaustion. Driven by
+:class:`~pirn_agents.specializations.reflexion._reflexion_loop._ReflexionLoop`
+(a :class:`~pirn.nodes.loop_sub_tapestry.LoopSubTapestry`): every iteration
+wires the actor and evaluator as real parent/child knots the engine actually
+runs, instead of calling their ``process()`` methods directly inside a
+hand-rolled Python ``for`` loop (ADR agents-speaks-core WS5b).
 
 References:
     - Shinn et al. (2023) "Reflexion" https://arxiv.org/abs/2303.11366
@@ -25,17 +27,16 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.source import Source
-from pirn.tapestry import Tapestry
+from pirn.core.parameter import Parameter
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.reflexion.reflexion_actor import ReflexionActor
-from pirn_agents.specializations.reflexion.reflexion_attempt import ReflexionAttempt
-from pirn_agents.specializations.reflexion.reflexion_evaluator import ReflexionEvaluator
-from pirn_agents.specializations.reflexion.reflexion_reflector import ReflexionReflector
-from pirn_agents.specializations.reflexion.reflexion_result import ReflexionResult
+from pirn_agents.specializations.reflexion._reflexion_loop import _ReflexionLoop
+from pirn_agents.specializations.reflexion._reflexion_result_extractor import (
+    _ReflexionResultExtractor,
+)
+from pirn_agents.specializations.reflexion._reflexion_state import _ReflexionState
 
 
 class ReflexionPipeline(AgentPipeline):
@@ -81,8 +82,7 @@ class ReflexionPipeline(AgentPipeline):
             memory_namespace: Key prefix for this run's reflections.
 
         Returns:
-            A terminal :class:`Source` whose output is the
-            :class:`ReflexionResult`.
+            The sink knot whose output is the :class:`ReflexionResult`.
 
         Raises:
             ValueError: If ``max_iterations`` is not a positive int.
@@ -92,74 +92,20 @@ class ReflexionPipeline(AgentPipeline):
                 f"ReflexionPipeline: max_iterations must be a positive int, got {max_iterations!r}"
             )
 
-        with Tapestry():
-            actor = ReflexionActor(task=task, llm=llm, _config=KnotConfig(id="reflexion_actor"))
-            evaluator = ReflexionEvaluator(
-                task=task, answer="", llm=llm, _config=KnotConfig(id="reflexion_eval")
-            )
-            reflector = ReflexionReflector(
-                task=task,
-                answer="",
-                feedback="",
-                llm=llm,
-                _config=KnotConfig(id="reflexion_reflect"),
-            )
-
-        attempts: list[ReflexionAttempt] = []
-        reflection_keys: list[str] = []
-        final_answer = ""
-        succeeded = False
-        iterations = 0
-
-        for index in range(max_iterations):
-            iterations = index + 1
-            reflections = await self._read_reflections(memory, reflection_keys)
-            answer = await actor.process(task=task, llm=llm, reflections=reflections)
-            evaluation = await evaluator.process(task=task, answer=answer, llm=llm)
-            final_answer = answer
-            if evaluation.success:
-                attempts.append(
-                    ReflexionAttempt(answer=answer, success=True, feedback="", reflection="")
-                )
-                succeeded = True
-                break
-            reflection = await reflector.process(
-                task=task, answer=answer, feedback=evaluation.feedback, llm=llm
-            )
-            key = f"{memory_namespace}:{index}"
-            await memory.store(key, {"text": reflection})
-            reflection_keys.append(key)
-            attempts.append(
-                ReflexionAttempt(
-                    answer=answer,
-                    success=False,
-                    feedback=evaluation.feedback,
-                    reflection=reflection,
-                )
-            )
-
-        result = ReflexionResult(
-            answer=final_answer,
-            succeeded=succeeded,
-            iterations=iterations,
-            attempts=tuple(attempts),
+        initial = Parameter(
+            "reflexion_state",
+            _ReflexionState,
+            default=_ReflexionState(
+                reflection_keys=(), attempts=(), final_answer="", succeeded=False, index=0
+            ),
         )
-        _result = result
-
-        class _ReflexionResultSource(Source):
-            async def process(self, **_: Any) -> ReflexionResult:
-                return _result
-
-        return _ReflexionResultSource(_config=KnotConfig(id="reflexion_result"))
-
-    @staticmethod
-    async def _read_reflections(memory: MemoryStore, keys: list[str]) -> tuple[str, ...]:
-        """Read back every previously written reflection from the memory store."""
-        texts: list[str] = []
-        for key in keys:
-            entry = await memory.retrieve(key)
-            if entry is not None:
-                text = entry.get("text")
-                if isinstance(text, str):
-                    texts.append(text)
-        return tuple(texts)
+        loop = _ReflexionLoop(
+            task=task,
+            llm=llm,
+            memory=memory,
+            max_iterations=max_iterations,
+            memory_namespace=memory_namespace,
+            state=initial,
+            _config=KnotConfig(id="reflexion_loop"),
+        )
+        return _ReflexionResultExtractor(state=loop, _config=KnotConfig(id="reflexion_result"))

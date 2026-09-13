@@ -74,7 +74,6 @@ AWAITS_CHILD_PROCESS = frozenset(
         "retrieval/graph_rag/hybrid_graph_retriever.py::HybridGraphRetriever",
         "specializations/lats/lats_search.py::LatsSearch",
         "specializations/plan_react/plan_react_pipeline.py::PlanReActPipeline",
-        "specializations/reflexion/reflexion_pipeline.py::ReflexionPipeline",
     }
 )
 
@@ -87,7 +86,6 @@ RETURNS_INLINE_SOURCE = frozenset(
         "specializations/plan_react/plan_react_pipeline.py::PlanReActPipeline",
         "specializations/rag/flare_active_rag_pipeline.py::FlareActiveRagPipeline",
         "specializations/rag/multi_hop_rag_pipeline.py::MultiHopRAGPipeline",
-        "specializations/reflexion/reflexion_pipeline.py::ReflexionPipeline",
     }
 )
 
@@ -98,7 +96,6 @@ UNRUN_TAPESTRY = frozenset(
     {
         "specializations/lats/lats_search.py::LatsSearch",
         "specializations/plan_react/plan_react_pipeline.py::PlanReActPipeline",
-        "specializations/reflexion/reflexion_pipeline.py::ReflexionPipeline",
     }
 )
 
