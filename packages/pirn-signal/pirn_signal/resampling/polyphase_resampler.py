@@ -29,10 +29,10 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.resampling._poly_resampling import PolyResampling
 from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
@@ -92,7 +92,7 @@ class PolyphaseResampler(Knot):
             raise ValueError("PolyphaseResampler: filter_length must be a positive integer")
 
         result = await asyncio.to_thread(
-            PolyphaseResampler._resample_poly, signal.data, upsample_factor, downsample_factor
+            PolyResampling.resample_poly, signal.data, upsample_factor, downsample_factor
         )
         new_rate = (signal.frame.sample_rate_hz * upsample_factor) / downsample_factor
 
@@ -105,13 +105,3 @@ class PolyphaseResampler(Knot):
             ),
             data=result,
         )
-
-    @staticmethod
-    def _resample_poly(data: np.ndarray, up: int, down: int) -> np.ndarray:
-        try:
-            from scipy import signal as ss  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "PolyphaseResampler requires 'scipy'. Install via pip install pirn-signal[signal]"
-            ) from exc
-        return np.asarray(ss.resample_poly(data, up, down, axis=-1))

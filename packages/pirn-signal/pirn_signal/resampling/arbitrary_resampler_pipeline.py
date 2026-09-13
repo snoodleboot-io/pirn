@@ -31,10 +31,10 @@ import asyncio
 from math import gcd
 from typing import Any
 
-import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.resampling._poly_resampling import PolyResampling
 from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
@@ -91,9 +91,7 @@ class ArbitraryResamplerPipeline(Knot):
         up = int(output_rate_hz) // common
         down = int(input_rate_hz) // common
 
-        result = await asyncio.to_thread(
-            ArbitraryResamplerPipeline._resample_poly, signal.data, up, down
-        )
+        result = await asyncio.to_thread(PolyResampling.resample_poly, signal.data, up, down)
 
         return SignalPayload(
             metadata=SignalFrame(
@@ -104,13 +102,3 @@ class ArbitraryResamplerPipeline(Knot):
             ),
             data=result,
         )
-
-    @staticmethod
-    def _resample_poly(data: np.ndarray, up: int, down: int) -> np.ndarray:
-        try:
-            from scipy import signal as ss  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "ArbitraryResamplerPipeline requires 'scipy'. Install via pip install pirn-signal[signal]"
-            ) from exc
-        return np.asarray(ss.resample_poly(data, up, down, axis=-1))
