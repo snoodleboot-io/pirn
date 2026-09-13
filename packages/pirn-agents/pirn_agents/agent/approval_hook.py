@@ -11,9 +11,14 @@ surfaces will supply.
 The module-level :func:`authorize_tool_call` coroutine is the guard callers run
 before executing a tool: it consults the capability's permission metadata and
 only routes through the hook when approval is actually required, so
-unrestricted tools pay nothing.  In a graph, the same decision is a
-:class:`~pirn.nodes.check.Check` feeding a core ``Gate`` in front of the tool
-knot, so a denied call is ``Skipped`` (ADR agents-speaks-core, WS1).
+unrestricted tools pay nothing.  A denied call is, this cycle, recorded
+as the call's own ``Err`` through a
+:class:`~pirn_agents.tools.tool_call_rejection.ToolCallRejection` knot —
+behaviour-preserving with the error view every caller already handles (ADR
+agents-speaks-core, WS1 decision).  The next-cycle shape is the graph form:
+an ``ApprovalCheck(Check)`` feeding a core ``Gate(check=)`` in front of the
+tool knot, so a denied call becomes ``Skipped`` and the model is told the
+call was not made rather than that it failed.
 """
 
 from __future__ import annotations
