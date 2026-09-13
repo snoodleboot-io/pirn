@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import pytest
+from pirn.core.err import Err
+from pirn.core.ok import Ok
+from pirn.core.skipped import Skipped
 from pirn.managers.exception_record import ExceptionRecord
 
 from pirn_agents.batch.batch_item_result import BatchItemResult
@@ -166,3 +169,111 @@ class TestBatchItemResultValidation:
 
     def test_is_opaque_audit_dict(self) -> None:
         assert _ok()._pirn_audit_dict() == _ok().to_payload()
+
+
+def _timeout() -> BatchItemResult:
+    record = ExceptionRecord(
+        run_id="<unbound>",
+        knot_id="k7",
+        exc_type="ToolTimeoutError",
+        message="deadline exceeded",
+        traceback_text="",
+    )
+    return BatchItemResult(
+        index=7, key="k7", status=BatchItemStatus.TIMEOUT, exception=record, attempts=1
+    )
+
+
+def _skipped() -> BatchItemResult:
+    return BatchItemResult(index=3, key="k3", status=BatchItemStatus.SKIPPED, attempts=0)
+
+
+class TestBatchItemResultToResult:
+    """ADR agents-speaks-core WS2: the ``Result`` bridge."""
+
+    def test_ok_becomes_ok(self) -> None:
+        result = _ok().to_result()
+        assert isinstance(result, Ok)
+        assert result.value == {"n": 1}
+
+    def test_error_becomes_err(self) -> None:
+        record = _record()
+        result = _failed(record).to_result()
+        assert isinstance(result, Err)
+        assert result.record is record
+
+    def test_timeout_becomes_err(self) -> None:
+        result = _timeout().to_result()
+        assert isinstance(result, Err)
+        assert result.record.exc_type == "ToolTimeoutError"
+
+    def test_skipped_becomes_skipped(self) -> None:
+        result = _skipped().to_result()
+        assert isinstance(result, Skipped)
+        assert result.detail == {"index": 3, "key": "k3"}
+
+    def test_error_without_a_record_is_rejected(self) -> None:
+        # __post_init__ allows exception=None regardless of status, so
+        # to_result must guard the case a plain construction can produce.
+        broken = BatchItemResult(index=0, key="k", status=BatchItemStatus.ERROR)
+        with pytest.raises(ValueError, match="exception is None"):
+            broken.to_result()
+
+
+class TestBatchItemResultFromResult:
+    """The reverse bridge: ``Result`` -> :class:`BatchItemResult`."""
+
+    def test_ok_round_trips(self) -> None:
+        built = BatchItemResult.from_result(
+            index=2, key="k2", result=Ok(value={"n": 1}), attempts=1, latency=0.5
+        )
+        assert built == _ok()
+
+    def test_skipped_round_trips(self) -> None:
+        built = BatchItemResult.from_result(
+            index=3, key="k3", result=Skipped(reason="resumed", detail={}), attempts=0
+        )
+        assert built.status is BatchItemStatus.SKIPPED
+        assert built.index == 3
+        assert built.key == "k3"
+
+    def test_known_timeout_exc_type_becomes_timeout_status(self) -> None:
+        record = ExceptionRecord(
+            run_id="<unbound>",
+            knot_id="k7",
+            exc_type="ToolTimeoutError",
+            message="deadline exceeded",
+            traceback_text="",
+        )
+        built = BatchItemResult.from_result(index=7, key="k7", result=Err(record=record))
+        assert built.status is BatchItemStatus.TIMEOUT
+
+    def test_other_exc_type_becomes_error_status(self) -> None:
+        built = BatchItemResult.from_result(index=9, key="k9", result=Err(record=_record()))
+        assert built.status is BatchItemStatus.ERROR
+
+    def test_round_trip_is_lossless_for_ok(self) -> None:
+        original = _ok()
+        assert (
+            BatchItemResult.from_result(
+                index=original.index,
+                key=original.key,
+                result=original.to_result(),
+                attempts=original.attempts,
+                latency=original.latency,
+            )
+            == original
+        )
+
+    def test_round_trip_is_lossless_for_error(self) -> None:
+        original = _failed()
+        assert (
+            BatchItemResult.from_result(
+                index=original.index,
+                key=original.key,
+                result=original.to_result(),
+                attempts=original.attempts,
+                latency=original.latency,
+            )
+            == original
+        )
