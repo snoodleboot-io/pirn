@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 from pirn.core.knot import Knot
@@ -38,7 +38,7 @@ from pirn_signal.types.signal_payload import SignalPayload
 class HurstExponentEstimator(Knot):
     """Estimate the Hurst exponent (long-memory / self-similarity)."""
 
-    _valid_methods = frozenset({"rs", "dfa", "wavelet"})
+    _valid_methods: ClassVar[frozenset[str]] = frozenset({"rs", "dfa", "wavelet"})
 
     def __init__(
         self,

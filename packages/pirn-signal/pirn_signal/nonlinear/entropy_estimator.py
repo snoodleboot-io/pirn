@@ -33,7 +33,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 from pirn.core.knot import Knot
@@ -47,7 +47,9 @@ from pirn_signal.types.signal_payload import SignalPayload
 class EntropyEstimator(Knot):
     """Time-series complexity / entropy estimator."""
 
-    _valid_kinds = frozenset({"sample", "approximate", "permutation", "spectral"})
+    _valid_kinds: ClassVar[frozenset[str]] = frozenset(
+        {"sample", "approximate", "permutation", "spectral"}
+    )
 
     def __init__(
         self,
