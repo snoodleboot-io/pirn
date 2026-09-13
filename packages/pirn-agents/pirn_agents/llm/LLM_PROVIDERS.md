@@ -78,6 +78,28 @@ for adapters without native support (e.g. the OpenAI-compatible one, where the
 request shape is unchanged) and active where supported (`AnthropicMessagesProvider`
 marks the system prompt with `cache_control`).
 
+## Replay identity (PIR-840)
+
+A provider passed to a knot is hashed into lineage, and core replay serves a
+recorded output only when that hash matches. `OpenAICompatibleProvider` and
+`AnthropicMessagesProvider` hash by a **credential-free content identity**: the
+provider class, `model`, the endpoint's scheme, host, port and path,
+`default_max_tokens`, `enable_prompt_cache`, `pricing`, `timeout` and
+`retry_policy`. A run recorded in one process therefore replays in another with the
+same configuration.
+
+- **The API key is not identity.** The same model and endpoint with a different key
+  replay each other. No credential, header, userinfo or query value is ever hashed.
+- **Some configurations stay identity-keyed** (replay in another process refuses,
+  which is the safe direction): a `base_url` with userinfo, a query string (such as
+  `?api-version=`) or a fragment; an injected `client`, `sleeper` or `rng`; a
+  subclassed `ModelPricing` or `RetryPolicy`.
+- **Subclasses must re-declare `content_identity`.** The opt-in is not inherited: a
+  subclass that adds constructor arguments, headers or request fields must
+  re-declare it with that config included (and add a row to
+  `tests/llm/test_llm_provider_identity_gate.py`), or it stays identity-keyed.
+- Proxy and TLS settings that `httpx` reads from the environment are not hashed.
+
 ## Local / self-hosted validation (`--real`)
 
 CI is **stub-only**: every test injects a fake async transport, so no network

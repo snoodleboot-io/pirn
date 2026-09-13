@@ -21,6 +21,11 @@ deliberate rather than lucky; measured at 100% on Python 3.11 and 3.14:
    (:func:`claim_freed_address`). A fresh list, a range iterator or an
    ``__init__``'s helper objects are allocations too, and on 3.11 they share
    the victim's size class and take the block first.
+
+Unpickling cannot be driven this way, because the unpickler's own
+allocations decide where the object lands. The pickle case is tested
+deterministically in ``test_pirn_opaque_value_identity_token.py`` instead,
+by simulating the reused address (PIR-855).
 """
 
 from __future__ import annotations
@@ -28,7 +33,6 @@ from __future__ import annotations
 import asyncio
 import gc
 import json
-import pickle
 import sys
 from collections.abc import Callable
 from typing import Any
@@ -52,10 +56,6 @@ class Opaque(PirnOpaqueValue):
 
     def __init__(self, label: str) -> None:
         self.label = label
-
-
-class OpaqueTuple(PirnOpaqueValue, tuple):
-    """A value that cannot be weakly referenced (takes the ``__dict__`` fallback)."""
 
 
 class PlainEndpointConnector(ConnectorBase):
@@ -137,24 +137,6 @@ def connector_hash_once() -> tuple[bool, bool]:
     return id(fresh) == freed_address, collided
 
 
-def tuple_pickle_once() -> tuple[bool, bool]:
-    """Pickle a non-weakrefable value, free it, unpickle at (usually) its address."""
-    original = OpaqueTuple((1, 2))
-    original_address = id(original)
-    original_token = original._pirn_identity_token()
-    payload = pickle.dumps(original)
-    del original
-    # Unpickling allocates temporaries that can take the freed block first and
-    # release it again, so retry (freeing each miss) until the reuse happens.
-    restored = pickle.loads(payload)
-    for _ in range(8):
-        if id(restored) == original_address:
-            break
-        del restored
-        restored = pickle.loads(payload)
-    return id(restored) == original_address, restored._pirn_identity_token() == original_token
-
-
 async def connector_replay_once() -> tuple[bool, bool]:
     """Record with connector A, free it and its tapestry, replay with a new B.
 
@@ -214,7 +196,6 @@ def main(scenario: str, iterations: int) -> dict[str, int]:
     steps: dict[str, Callable[[], tuple[bool, bool]]] = {
         "opaque_hash": opaque_hash_once,
         "connector_hash": connector_hash_once,
-        "tuple_pickle": tuple_pickle_once,
     }
     return tally_sync(steps[scenario], iterations)
 
