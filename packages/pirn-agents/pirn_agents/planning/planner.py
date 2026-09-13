@@ -1,7 +1,7 @@
-"""``Planner`` — produce an ordered :class:`Plan` from an :class:`AgentContext`.
+"""``Planner`` — produce an ordered :class:`Plan` from a :class:`ConversationPayload`.
 
 Algorithm:
-    1. Receive the resolved ``AgentContext`` and ``LLMProvider``.
+    1. Receive the resolved ``ConversationPayload`` and ``LLMProvider``.
     2. Validate input types at process time.
     3. Build a wire-format message list with the planning instruction + context messages.
     4. Call ``llm.chat`` with the messages.
@@ -27,7 +27,7 @@ from pirn_agents.agent.recorded_llm_call import RecordedLlmCall
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.planning.plan import Plan
 from pirn_agents.prompt.prompt_binding import PromptBinding
-from pirn_agents.types.messaging.agent_context import AgentContext
+from pirn_agents.types.messaging.conversation_payload import ConversationPayload
 
 
 class Planner(Knot):
@@ -71,7 +71,7 @@ class Planner(Knot):
 
     async def process(
         self,
-        context: AgentContext,
+        context: ConversationPayload,
         llm: LLMProvider,
         **_: Any,
     ) -> Plan:

@@ -11,22 +11,22 @@ from pirn.tapestry import Tapestry
 
 from pirn_agents.planning.plan import Plan
 from pirn_agents.planning.planner import Planner
-from pirn_agents.types.messaging.agent_context import AgentContext
 from pirn_agents.types.messaging.agent_message import AgentMessage
+from pirn_agents.types.messaging.conversation_payload import ConversationPayload
 from tests.conftest import StubLLMProvider
 
 
 def _make_knot(llm: StubLLMProvider) -> Planner:
     @knot
-    async def _ctx() -> AgentContext:
-        return AgentContext(messages=())
+    async def _ctx() -> ConversationPayload:
+        return ConversationPayload(messages=())
 
     with Tapestry():
         upstream = _ctx(_config=KnotConfig(id="ctx"))
         return Planner(context=upstream, llm=llm, _config=KnotConfig(id="p"))
 
 
-_CONTEXT = AgentContext(
+_CONTEXT = ConversationPayload(
     messages=(AgentMessage(role="user", content="plan a trip"),),
 )
 

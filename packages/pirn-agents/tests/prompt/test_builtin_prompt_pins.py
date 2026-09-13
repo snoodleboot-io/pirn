@@ -30,9 +30,9 @@ from pirn_agents.specializations.plan_and_execute.task_planner import TaskPlanne
 from pirn_agents.specializations.reflection.constitutional_filter import ConstitutionalFilter
 from pirn_agents.specializations.reflection.outcome_simulator import OutcomeSimulator
 from pirn_agents.specializations.reflection.self_critique_revise import SelfCritiqueRevise
-from pirn_agents.types.messaging.agent_context import AgentContext
 from pirn_agents.types.messaging.agent_message import AgentMessage
 from pirn_agents.types.messaging.agent_response import AgentResponse
+from pirn_agents.types.messaging.conversation_payload import ConversationPayload
 from tests.conftest import StubLLMProvider
 
 
@@ -42,8 +42,8 @@ async def _stub_response() -> AgentResponse:
 
 
 @knot
-async def _stub_context() -> AgentContext:
-    return AgentContext(messages=())
+async def _stub_context() -> ConversationPayload:
+    return ConversationPayload(messages=())
 
 
 @knot
@@ -76,7 +76,7 @@ class PlanningPromptPins(unittest.IsolatedAsyncioTestCase):
         with Tapestry():
             upstream = _stub_context(_config=KnotConfig(id="ctx"))
             planner = Planner(context=upstream, llm=llm, _config=KnotConfig(id="p"))
-        context = AgentContext(messages=(AgentMessage(role="user", content="go"),))
+        context = ConversationPayload(messages=(AgentMessage(role="user", content="go"),))
         await planner.process(context=context, llm=llm)
         assert llm.calls[0][0]["content"] == (
             "You are a planning assistant. Given the conversation so far, "

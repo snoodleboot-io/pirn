@@ -9,8 +9,8 @@ from pirn.core.knot_factory import knot
 from pirn.tapestry import Tapestry
 
 from pirn_agents.input.context_builder import ContextBuilder
-from pirn_agents.types.messaging.agent_context import AgentContext
 from pirn_agents.types.messaging.agent_message import AgentMessage
+from pirn_agents.types.messaging.conversation_payload import ConversationPayload
 
 
 def _make_knot() -> ContextBuilder:
@@ -32,13 +32,13 @@ _MESSAGES = (
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_builds_context_without_system_prompt(self) -> None:
         k = _make_knot()
-        ctx: AgentContext = await k.process(messages=_MESSAGES, system_prompt=None)
-        assert isinstance(ctx, AgentContext)
+        ctx: ConversationPayload = await k.process(messages=_MESSAGES, system_prompt=None)
+        assert isinstance(ctx, ConversationPayload)
         assert len(ctx.messages) == 2
 
     async def test_prepends_system_prompt(self) -> None:
         k = _make_knot()
-        ctx: AgentContext = await k.process(messages=_MESSAGES, system_prompt="Be helpful.")
+        ctx: ConversationPayload = await k.process(messages=_MESSAGES, system_prompt="Be helpful.")
         assert ctx.messages[0].role == "system"
         assert ctx.messages[0].content == "Be helpful."
         assert len(ctx.messages) == 3

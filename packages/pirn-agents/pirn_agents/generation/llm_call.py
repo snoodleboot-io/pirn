@@ -1,7 +1,7 @@
 """``LLMCall`` — non-streaming chat-completion against an :class:`LLMProvider`.
 
 Algorithm:
-    1. Receive the resolved ``AgentContext`` and ``LLMProvider``.
+    1. Receive the resolved ``ConversationPayload`` and ``LLMProvider``.
     2. Validate input types at process time.
     3. Convert context messages to wire-format role/content mappings.
     4. Call ``llm.chat`` with the wire messages and optional model override.
@@ -21,7 +21,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
-from pirn_agents.types.messaging.agent_context import AgentContext
+from pirn_agents.types.messaging.conversation_payload import ConversationPayload
 
 
 class LLMCall(Knot):
@@ -50,7 +50,7 @@ class LLMCall(Knot):
 
     async def process(
         self,
-        context: AgentContext,
+        context: ConversationPayload,
         llm: LLMProvider,
         model: str | None,
         **_: Any,

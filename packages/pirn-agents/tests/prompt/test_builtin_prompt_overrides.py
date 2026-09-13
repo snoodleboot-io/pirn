@@ -19,9 +19,9 @@ from pirn_agents.control.reflection_check import ReflectionCheck
 from pirn_agents.planning.planner import Planner
 from pirn_agents.prompt.prompt_catalog import PromptCatalog
 from pirn_agents.specializations.chain_of_thought.chain_of_thought import ChainOfThought
-from pirn_agents.types.messaging.agent_context import AgentContext
 from pirn_agents.types.messaging.agent_message import AgentMessage
 from pirn_agents.types.messaging.agent_response import AgentResponse
+from pirn_agents.types.messaging.conversation_payload import ConversationPayload
 from tests.conftest import StubLLMProvider
 
 
@@ -31,8 +31,8 @@ async def _stub_response() -> AgentResponse:
 
 
 @knot
-async def _stub_context() -> AgentContext:
-    return AgentContext(messages=())
+async def _stub_context() -> ConversationPayload:
+    return ConversationPayload(messages=())
 
 
 class TerseReflectionCheck(ReflectionCheck):
@@ -93,7 +93,7 @@ class PackOverridesBuiltinTests(_SharedCatalogCase):
         with Tapestry():
             upstream = _stub_context(_config=KnotConfig(id="ctx2"))
             planner = Planner(context=upstream, llm=llm, _config=KnotConfig(id="p2"))
-        context = AgentContext(messages=(AgentMessage(role="user", content="go"),))
+        context = ConversationPayload(messages=(AgentMessage(role="user", content="go"),))
         await planner.process(context=context, llm=llm)
         # No variables are supplied at this site, so the slot stays literal
         # rather than raising mid-turn.
@@ -118,7 +118,7 @@ class SubclassOverrideWinsTests(_SharedCatalogCase):
         with Tapestry():
             upstream = _stub_context(_config=KnotConfig(id="ctx4"))
             planner = TersePlanner(context=upstream, llm=llm, _config=KnotConfig(id="p4"))
-        context = AgentContext(messages=(AgentMessage(role="user", content="go"),))
+        context = ConversationPayload(messages=(AgentMessage(role="user", content="go"),))
         await planner.process(context=context, llm=llm)
         assert llm.calls[0][0]["content"] == "List the steps."
 
