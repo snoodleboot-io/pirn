@@ -1,6 +1,6 @@
 """``FactClaimVerifier`` — search a memory store for support of each claim.
 
-Inner stage knot used by :class:`FactCheckGate`. Queries the
+Inner stage knot used by :class:`FactCheck`. Queries the
 configured :class:`MemoryStore` once per claim. Claims that return
 zero hits are recorded as unverified; the original
 :class:`AgentResponse` is returned with a warning footer appended

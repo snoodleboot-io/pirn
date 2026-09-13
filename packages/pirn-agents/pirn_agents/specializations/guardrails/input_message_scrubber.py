@@ -1,6 +1,6 @@
 """``InputMessageScrubber`` — regex-based pre-prompt safety filter.
 
-Inner stage knot used by :class:`InputGuardrailGate`. Walks each
+Inner stage knot used by :class:`InputGuardrailCheck`. Walks each
 incoming :class:`AgentMessage`, rejects any whose ``content`` matches
 one of the deny patterns (raising :class:`ValueError`), and replaces
 PII matches with ``"<redacted>"`` literal substitutes. Returns the

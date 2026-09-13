@@ -1,6 +1,6 @@
 """``OutputResponseValidator`` — post-LLM safety filter on a response.
 
-Inner stage knot used by :class:`OutputGuardrailGate`. Rejects the
+Inner stage knot used by :class:`OutputGuardrailCheck`. Rejects the
 response when its ``content`` matches any deny pattern, or when any
 of its ``tool_calls`` references a tool name not in the allow list.
 On success the response is returned unchanged.

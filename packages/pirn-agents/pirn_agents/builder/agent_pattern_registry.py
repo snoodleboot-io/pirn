@@ -79,18 +79,16 @@ _PATTERNS: tuple[PatternDescriptor, ...] = (
         "task",
     ),
     # --- guardrails
-    PatternDescriptor(
-        "fact_check", f"{_SPEC}.guardrails.fact_check_gate:FactCheckGate", "response"
-    ),
+    PatternDescriptor("fact_check", f"{_SPEC}.guardrails.fact_check:FactCheck", "response"),
     PatternDescriptor(
         "input_guardrail",
-        f"{_SPEC}.guardrails.input_guardrail_gate:InputGuardrailGate",
+        f"{_SPEC}.guardrails.input_guardrail_check:InputGuardrailCheck",
         "messages",
         _MESSAGES,
     ),
     PatternDescriptor(
         "output_guardrail",
-        f"{_SPEC}.guardrails.output_guardrail_gate:OutputGuardrailGate",
+        f"{_SPEC}.guardrails.output_guardrail_check:OutputGuardrailCheck",
         "response",
     ),
     PatternDescriptor(

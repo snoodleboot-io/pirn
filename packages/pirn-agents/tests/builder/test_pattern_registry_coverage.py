@@ -55,6 +55,11 @@ _EXPECTED_EXCLUSIONS = frozenset(
         # but not a standalone pattern either: its ``already_terminated``
         # constructor parameter is state only a driving loop can supply.
         "pirn_agents.specializations.react.react_step_executor.ReActStepExecutor",
+        # Deprecated *Gate aliases (PIR-856, Knot Design Rule 7): reachable only
+        # under their replacement *Check name, which is what is registered.
+        "pirn_agents.specializations.guardrails.fact_check_gate.FactCheckGate",
+        "pirn_agents.specializations.guardrails.input_guardrail_gate.InputGuardrailGate",
+        "pirn_agents.specializations.guardrails.output_guardrail_gate.OutputGuardrailGate",
     }
 )
 

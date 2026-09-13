@@ -6,7 +6,7 @@ knot with its own ``Result``, history record and lineage.
 
 Both termination decisions live inside the iteration tapestry, per
 :class:`~pirn_agents.specializations.base.agent_loop_pipeline.AgentLoopPipeline`
-— that base explains why. Concretely: ``AcceptGate`` is a knot rather than an
+— that base explains why. Concretely: ``AcceptCheck`` is a knot rather than an
 awaited call in a Python ``if``, and the optional ``ReflectionCheck`` sits behind
 a ``Gate`` that opens only on "not accepted", so an accepted run does not pay for
 it.
@@ -29,7 +29,7 @@ from pirn_agents.specializations.base.gated_agent_response import GatedAgentResp
 from pirn_agents.specializations.evaluator_optimizer._evaluator_optimizer_state import (
     _EvaluatorOptimizerState,
 )
-from pirn_agents.specializations.evaluator_optimizer.accept_gate import AcceptGate
+from pirn_agents.specializations.evaluator_optimizer.accept_check import AcceptCheck
 from pirn_agents.specializations.evaluator_optimizer.candidate_generator import (
     CandidateGenerator,
 )
@@ -100,7 +100,7 @@ class _EvaluatorOptimizerLoop(AgentLoopPipeline[_EvaluatorOptimizerState]):
                 llm=self._llm,
                 _config=KnotConfig(id=_JUDGE_ID),
             )
-            accepted = AcceptGate(
+            accepted = AcceptCheck(
                 verdict=verdict,
                 threshold=self._threshold,
                 _config=KnotConfig(id=_GATE_ID),

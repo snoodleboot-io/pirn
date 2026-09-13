@@ -4,6 +4,11 @@ Native pirn-agents test for :class:`SafePatternCompiler` and the guard's use by
 the ``SafetyCheck`` / ``HandoffCheck`` control knots. (Previously lived under
 ``pirn-core/tests`` as a cross-domain test; relocated here since it exercises
 pirn-agents code only — pirn-core is imported, never tested.)
+
+``SafetyCheck`` and ``HandoffCheck`` validate patterns in ``process()`` rather
+than at construction (Knot Design Rule 3 — validation belongs in ``process()``,
+never ``__init__``; PIR-856 removed the up-front constructor validation these
+tests used to exercise), so the guard tests below call ``process()`` directly.
 """
 
 from __future__ import annotations
@@ -56,47 +61,57 @@ class TestCompileSafePattern(unittest.TestCase):
         assert "deny_patterns[2]" in msg
 
 
-class TestSafetyCheckReDoSGuard(unittest.TestCase):
-    def test_long_pattern_rejected_at_construction(self) -> None:
+class TestSafetyCheckReDoSGuard(unittest.IsolatedAsyncioTestCase):
+    async def test_long_pattern_rejected_at_process_time(self) -> None:
         long_pattern = "a" * (_MAX + 1)
+        message = AgentMessage(role="user", content="hello")
 
         @knot
         async def m() -> AgentMessage:
-            return AgentMessage(role="user", content="hello")
+            return message
+
+        with Tapestry():
+            msg = m(_config=KnotConfig(id="m"))
+            check = SafetyCheck(
+                message=msg,
+                deny_patterns=(long_pattern,),
+                _config=KnotConfig(id="g"),
+            )
 
         with self.assertRaises(ValueError):
-            with Tapestry():
-                msg = m(_config=KnotConfig(id="m"))
-                SafetyCheck(
-                    message=msg,
-                    deny_patterns=(long_pattern,),
-                    _config=KnotConfig(id="g"),
-                )
+            await check.process(message=message, deny_patterns=(long_pattern,))
 
-    def test_empty_deny_patterns_rejected(self) -> None:
+    async def test_empty_deny_patterns_rejected(self) -> None:
+        message = AgentMessage(role="user", content="hello")
+
         @knot
         async def m() -> AgentMessage:
-            return AgentMessage(role="user", content="hello")
+            return message
+
+        with Tapestry():
+            msg = m(_config=KnotConfig(id="m"))
+            check = SafetyCheck(message=msg, deny_patterns=(), _config=KnotConfig(id="g"))
 
         with self.assertRaises(ValueError, msg="empty deny_patterns should raise"):
-            with Tapestry():
-                msg = m(_config=KnotConfig(id="m"))
-                SafetyCheck(message=msg, deny_patterns=(), _config=KnotConfig(id="g"))
+            await check.process(message=message, deny_patterns=())
 
 
-class TestHandoffCheckReDoSGuard(unittest.TestCase):
-    def test_long_pattern_rejected_at_construction(self) -> None:
+class TestHandoffCheckReDoSGuard(unittest.IsolatedAsyncioTestCase):
+    async def test_long_pattern_rejected_at_process_time(self) -> None:
         long_pattern = "b" * (_MAX + 1)
+        response = AgentResponse(content="ok", finish_reason="stop")
 
         @knot
         async def r() -> AgentResponse:
-            return AgentResponse(content="ok", finish_reason="stop")
+            return response
+
+        with Tapestry():
+            resp = r(_config=KnotConfig(id="r"))
+            check = HandoffCheck(
+                response=resp,
+                escalation_patterns=(long_pattern,),
+                _config=KnotConfig(id="h"),
+            )
 
         with self.assertRaises(ValueError):
-            with Tapestry():
-                resp = r(_config=KnotConfig(id="r"))
-                HandoffCheck(
-                    response=resp,
-                    escalation_patterns=(long_pattern,),
-                    _config=KnotConfig(id="h"),
-                )
+            await check.process(response=response, escalation_patterns=(long_pattern,))

@@ -8,7 +8,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
-from pirn_agents.specializations.evaluator_optimizer.accept_gate import AcceptGate
+from pirn_agents.specializations.evaluator_optimizer.accept_check import AcceptCheck
 from pirn_agents.specializations.evaluator_optimizer.candidate_generator import CandidateGenerator
 from pirn_agents.specializations.evaluator_optimizer.judge_verdict import JudgeVerdict
 from pirn_agents.specializations.evaluator_optimizer.llm_judge import LlmJudge
@@ -53,10 +53,10 @@ class TestLlmJudge(unittest.IsolatedAsyncioTestCase):
         assert judge is not None
 
 
-class TestAcceptGate(unittest.IsolatedAsyncioTestCase):
+class TestAcceptCheck(unittest.IsolatedAsyncioTestCase):
     async def test_accepts_at_threshold(self) -> None:
         with Tapestry():
-            gate = AcceptGate(
+            gate = AcceptCheck(
                 verdict=JudgeVerdict(score=8.0), threshold=8.0, _config=KnotConfig(id="gate")
             )
         assert await gate.process(verdict=JudgeVerdict(score=8.0), threshold=8.0) is True
@@ -64,7 +64,7 @@ class TestAcceptGate(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_verdict(self) -> None:
         with Tapestry():
-            gate = AcceptGate(
+            gate = AcceptCheck(
                 verdict=JudgeVerdict(score=0.0), threshold=8.0, _config=KnotConfig(id="gate")
             )
         with self.assertRaises(TypeError):

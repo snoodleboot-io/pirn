@@ -12,7 +12,7 @@ skipped too — the conditional work is never paid for.
 
 Typical use, inside a loop iteration's tapestry::
 
-    accepted = AcceptGate(verdict=verdict, threshold=t, _config=KnotConfig(id="gate"))
+    accepted = AcceptCheck(verdict=verdict, threshold=t, _config=KnotConfig(id="gate"))
     keep_going = Gate(input=accepted, predicate=lambda ok: not ok,
                       _config=KnotConfig(id="continue"))
     response = GatedAgentResponse(content=candidate, gate=keep_going,

@@ -48,7 +48,7 @@ pirn_agents/
     ├── rag/                 NaiveRAGPipeline, CorrectiveRAGPipeline, HyDERAGPipeline, GraphRAGPipeline
     ├── multi_agent/         OrchestratorAgent, ParallelSpecialistFanOut, ConsensusAggregator, DebateFramework
     ├── memory_patterns/     SemanticMemoryPipeline, EpisodicMemoryPipeline, ProceduralMemoryPipeline, WorkingMemoryPipeline
-    ├── guardrails/          InputGuardrailGate, OutputGuardrailGate, PiiRedactorCheck, FactCheckGate
+    ├── guardrails/          InputGuardrailCheck, OutputGuardrailCheck, PiiRedactorCheck, FactCheck
     ├── structured_output/   JsonExtractorPipeline, YamlExtractorPipeline, PydanticValidatorPipeline, EnumClassifierPipeline
     ├── specialized_agents/  ReActLoop-based: BrowserAgent, CodeAgent, SQLAgent, ResearchAgent, DataAnalystAgent
     └── document_processing/ DocumentIngestionPipeline, DocumentQAPipeline, DocumentSummarizerPipeline, DocumentTranslationPipeline
@@ -390,16 +390,16 @@ controller = ReviewController(board=blackboard, _config=KnotConfig(id="ctrl"))
 **When to use:** An agent's output must pass safety or quality gates before
 being returned to the caller.
 
-**Knots:** `SafetyCheck`, `InputGuardrailGate`, `OutputGuardrailGate`,
-`PiiRedactorCheck`, `FactCheckGate`.
+**Knots:** `SafetyCheck`, `InputGuardrailCheck`, `OutputGuardrailCheck`,
+`PiiRedactorCheck`, `FactCheck`.
 
 Gates follow a common interface: they accept the upstream response and either
 pass it through, redact it, or raise to abort the run.
 
 ```python
 from pirn_agents.control.safety_check import SafetyCheck
-from pirn_agents.specializations.guardrails.output_guardrail_gate import (
-    OutputGuardrailGate,
+from pirn_agents.specializations.guardrails.output_guardrail_check import (
+    OutputGuardrailCheck,
 )
 from pirn_agents.specializations.guardrails.pii_redactor_check import (
     PiiRedactorCheck,
@@ -408,7 +408,7 @@ from pirn_agents.specializations.guardrails.pii_redactor_check import (
 raw_response = LLMCall(context=ctx, llm=llm, _config=KnotConfig(id="llm"))
 safety       = SafetyCheck(response=raw_response, _config=KnotConfig(id="safety"))
 pii          = PiiRedactorCheck(response=safety,  _config=KnotConfig(id="pii"))
-output_gate  = OutputGuardrailGate(response=pii, llm=llm, _config=KnotConfig(id="oguard"))
+output_gate  = OutputGuardrailCheck(response=pii, llm=llm, _config=KnotConfig(id="oguard"))
 ```
 
 Stack gates in order: safety first, then PII, then policy.
@@ -789,7 +789,7 @@ result = (await t.run(RunRequest())).outputs["rx"]   # ReflexionResult(answer, s
 ## Pattern 21 — Evaluator-Optimizer (LLM-as-judge accept loop)
 
 Generator produces a candidate, an `LlmJudge` returns a numeric `JudgeVerdict`, and
-`AcceptGate` — the scored generalisation of `control.reflection_check.ReflectionCheck`
+`AcceptCheck` — the scored generalisation of `control.reflection_check.ReflectionCheck`
 — stops on threshold. An optional `ReflectionCheck` can be injected as an early-stop
 gate (reuse, not duplication).
 
@@ -927,14 +927,14 @@ result = (await t.run(RunRequest())).outputs["pc"]   # PromptChainResult(outputs
 Patterns compose — pick the pieces you need:
 
 ```
-[InputGuardrailGate]                       ← supervision
+[InputGuardrailCheck]                       ← supervision
    → [IntentClassifier]                    ← routing input
    → [OrchestratorAgent]                   ← coordinator/dispatcher
        ├── [ReActLoop + SearchTool]         ← react (research leg)
        ├── [CorrectiveRAGPipeline]          ← RAG (document leg)
        └── [CodeAgent]                      ← specialised agent (code leg)
    → [ConsensusAggregator]                  ← synthesiser
-   → [PiiRedactorCheck → OutputGuardrailGate] ← supervision (output)
+   → [PiiRedactorCheck → OutputGuardrailCheck] ← supervision (output)
 ```
 
 All of the above are real knots in this library. The only things you supply

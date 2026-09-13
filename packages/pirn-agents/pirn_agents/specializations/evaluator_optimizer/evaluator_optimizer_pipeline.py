@@ -5,7 +5,7 @@ A :class:`SubTapestry` that loops, up to ``max_iterations`` times:
 1. :class:`CandidateGenerator` drafts a candidate (refining on the last judge
    feedback).
 2. :class:`LlmJudge` scores the candidate.
-3. :class:`AcceptGate` — the scored generalisation of
+3. :class:`~pirn_agents.specializations.evaluator_optimizer.accept_check.AcceptCheck` — the scored generalisation of
    :class:`~pirn_agents.control.reflection_check.ReflectionCheck` — accepts once
    the score meets ``threshold``.
 
