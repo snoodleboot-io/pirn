@@ -34,34 +34,6 @@ from pirn_health.types.health_signal_frame import HealthSignalFrame
 from pirn_health.types.health_signal_payload import HealthSignalPayload
 
 
-def _assemble_eeg(
-    body: bytes,
-    subject_id: str,
-    channel_count: int,
-    sample_rate_hz: float,
-    duration_sec: float,
-) -> HealthSignalPayload:
-    n_samples = int(sample_rate_hz * duration_sec)
-    try:
-        npz = np.load(io.BytesIO(body))
-        keys = list(npz.files)
-        if not keys:
-            raise ValueError("empty npz")
-        data = npz[keys[0]].astype(np.float32)
-        if data.ndim == 1:
-            data = data[np.newaxis, :]
-    except Exception:
-        data = np.zeros((channel_count, n_samples), dtype=np.float32)
-    frame = HealthSignalFrame(
-        signal_id=subject_id,
-        channel_count=channel_count,
-        sample_rate_hz=sample_rate_hz,
-        samples_per_channel=n_samples,
-        fetched_at=datetime.now(UTC),
-    )
-    return HealthSignalPayload(metadata=frame, data=data)
-
-
 class EegObjectStoreAssembler(Assembler):
     """Assemble a :class:`HealthSignalPayload` from raw EEG bytes stored in an object store."""
 
@@ -135,10 +107,38 @@ class EegObjectStoreAssembler(Assembler):
         if float(duration_sec) <= 0.0:
             raise ValueError("EegObjectStoreAssembler: duration_sec must be positive")
         return await asyncio.to_thread(
-            _assemble_eeg,
+            self._assemble_eeg,
             body,
             subject_id,
             channel_count,
             float(sample_rate_hz),
             float(duration_sec),
         )
+
+    @staticmethod
+    def _assemble_eeg(
+        body: bytes,
+        subject_id: str,
+        channel_count: int,
+        sample_rate_hz: float,
+        duration_sec: float,
+    ) -> HealthSignalPayload:
+        n_samples = int(sample_rate_hz * duration_sec)
+        try:
+            npz = np.load(io.BytesIO(body))
+            keys = list(npz.files)
+            if not keys:
+                raise ValueError("empty npz")
+            data = npz[keys[0]].astype(np.float32)
+            if data.ndim == 1:
+                data = data[np.newaxis, :]
+        except Exception:
+            data = np.zeros((channel_count, n_samples), dtype=np.float32)
+        frame = HealthSignalFrame(
+            signal_id=subject_id,
+            channel_count=channel_count,
+            sample_rate_hz=sample_rate_hz,
+            samples_per_channel=n_samples,
+            fetched_at=datetime.now(UTC),
+        )
+        return HealthSignalPayload(metadata=frame, data=data)

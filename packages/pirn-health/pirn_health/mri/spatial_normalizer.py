@@ -22,17 +22,6 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 
-async def _run_subprocess(cmd: list[str]) -> None:
-    proc = await asyncio.create_subprocess_exec(
-        *cmd,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-    _, stderr = await proc.communicate()
-    if proc.returncode != 0:
-        raise RuntimeError(f"{cmd[0]} failed: {stderr.decode()}")
-
-
 class SpatialNormalizer(Knot):
     """Register subject MRI to a standard atlas space (MNI152, Talairach)."""
 
@@ -111,10 +100,21 @@ class SpatialNormalizer(Knot):
             "-out",
             warped_path,
         ]
-        await _run_subprocess(cmd)
+        await self._run_subprocess(cmd)
         return {
             "warped_image_path": warped_path,
             "warp_field_path": f"{base}_warp_{template}.nii.gz",
             "template": template,
             "final_cost": 0.0,
         }
+
+    @staticmethod
+    async def _run_subprocess(cmd: list[str]) -> None:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        _, stderr = await proc.communicate()
+        if proc.returncode != 0:
+            raise RuntimeError(f"{cmd[0]} failed: {stderr.decode()}")

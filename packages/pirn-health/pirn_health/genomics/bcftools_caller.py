@@ -25,17 +25,6 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 
-async def _run_subprocess(cmd: list[str]) -> None:
-    proc = await asyncio.create_subprocess_exec(
-        *cmd,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-    _, stderr = await proc.communicate()
-    if proc.returncode != 0:
-        raise RuntimeError(f"{cmd[0]} failed: {stderr.decode()}")
-
-
 class BCFtoolsCaller(Knot):
     """Call variants with bcftools and return the VCF path."""
 
@@ -112,3 +101,14 @@ class BCFtoolsCaller(Knot):
         if call_proc.returncode != 0:
             raise RuntimeError(f"bcftools call failed: {call_stderr.decode()}")
         return output_vcf_path
+
+    @staticmethod
+    async def _run_subprocess(cmd: list[str]) -> None:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        _, stderr = await proc.communicate()
+        if proc.returncode != 0:
+            raise RuntimeError(f"{cmd[0]} failed: {stderr.decode()}")

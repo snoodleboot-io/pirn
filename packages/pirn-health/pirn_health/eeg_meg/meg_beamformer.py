@@ -28,27 +28,6 @@ from pirn.core.knot_config import KnotConfig
 from pirn_health.types.health_signal_payload import HealthSignalPayload
 
 
-def _lcmv_beamform(data: np.ndarray, sv: np.ndarray) -> tuple[float, np.ndarray]:
-    """Compute LCMV beamformer weights and beamformed power.
-
-    Args:
-        data: Signal array of shape (n_channels, n_samples).
-        sv: Steering vector of shape (n_channels,).
-
-    Returns:
-        Tuple of (beamformed_power, weight_vector).
-    """
-    n_samples = data.shape[1]
-    cov = (data @ data.T) / n_samples  # (n_channels, n_channels)
-    cov_inv = np.linalg.pinv(cov)
-    numerator = cov_inv @ sv
-    denominator = sv @ cov_inv @ sv
-    weights = numerator / (denominator + 1e-12)
-    beamformed = weights @ data  # (n_samples,)
-    power = float(np.mean(beamformed**2))
-    return power, weights
-
-
 class MEGBeamformer(Knot):
     """Spatial filter (LCMV beamformer) for MEG source localization."""
 
@@ -98,8 +77,29 @@ class MEGBeamformer(Knot):
             )
         data = signal.data.reshape(n_channels, -1).astype(float)
         sv = np.array(steering_vector, dtype=float)
-        power, weights = await asyncio.to_thread(_lcmv_beamform, data, sv)
+        power, weights = await asyncio.to_thread(self._lcmv_beamform, data, sv)
         return {
             "beamformed_power": power,
             "weight_vector": weights.tolist(),
         }
+
+    @staticmethod
+    def _lcmv_beamform(data: np.ndarray, sv: np.ndarray) -> tuple[float, np.ndarray]:
+        """Compute LCMV beamformer weights and beamformed power.
+
+        Args:
+            data: Signal array of shape (n_channels, n_samples).
+            sv: Steering vector of shape (n_channels,).
+
+        Returns:
+            Tuple of (beamformed_power, weight_vector).
+        """
+        n_samples = data.shape[1]
+        cov = (data @ data.T) / n_samples  # (n_channels, n_channels)
+        cov_inv = np.linalg.pinv(cov)
+        numerator = cov_inv @ sv
+        denominator = sv @ cov_inv @ sv
+        weights = numerator / (denominator + 1e-12)
+        beamformed = weights @ data  # (n_samples,)
+        power = float(np.mean(beamformed**2))
+        return power, weights

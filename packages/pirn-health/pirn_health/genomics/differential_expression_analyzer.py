@@ -37,61 +37,6 @@ except ImportError:
     _HAS_SCIPY = False
 
 
-def _run_de(
-    case_counts: dict[str, Mapping[str, float]],
-    control_counts: dict[str, Mapping[str, float]],
-    gene_ids: list[str],
-) -> dict[str, dict[str, float]]:
-    """Compute log2FC, Welch t-test p-value, and BH-adjusted p-value per gene."""
-    if not _HAS_SCIPY or ss is None:
-        raise ImportError(
-            "scipy is required for DifferentialExpressionAnalyzer — "
-            "install with: pip install 'pirn-health[health]'"
-        )
-    log2fcs: list[float] = []
-    pvalues: list[float] = []
-
-    for gid in gene_ids:
-        case_vals = np.array([s[gid] for s in case_counts.values() if gid in s], dtype=float)
-        ctrl_vals = np.array([s[gid] for s in control_counts.values() if gid in s], dtype=float)
-
-        mean_case = float(np.mean(case_vals)) if len(case_vals) > 0 else 0.0
-        mean_ctrl = float(np.mean(ctrl_vals)) if len(ctrl_vals) > 0 else 0.0
-        log2fc = np.log2(max(mean_case, 1e-10) / max(mean_ctrl, 1e-10))
-        log2fcs.append(float(log2fc))
-
-        if len(case_vals) < 2 or len(ctrl_vals) < 2:
-            pvalues.append(1.0)
-        else:
-            result = ss.ttest_ind(case_vals, ctrl_vals, equal_var=False)
-            pval = float(result.pvalue)
-            if np.isnan(pval):
-                pval = 1.0
-            pvalues.append(pval)
-
-    gene_count = len(gene_ids)
-    if gene_count == 0:
-        return {}
-
-    # Benjamini-Hochberg correction
-    order = np.argsort(pvalues)
-    padjs = np.array(pvalues, dtype=float)
-    for rank_minus1, sorted_index in enumerate(order):
-        rank = rank_minus1 + 1
-        padjs[sorted_index] = min(1.0, pvalues[sorted_index] * gene_count / rank)
-
-    # Enforce monotonicity (scan from largest rank to smallest)
-    for rank_minus1 in range(gene_count - 2, -1, -1):
-        sorted_index = order[rank_minus1]
-        next_sorted_index = order[rank_minus1 + 1]
-        padjs[sorted_index] = min(padjs[sorted_index], padjs[next_sorted_index])
-
-    return {
-        gid: {"log2fc": log2fcs[i], "pvalue": pvalues[i], "padj": float(padjs[i])}
-        for i, gid in enumerate(gene_ids)
-    }
-
-
 class DifferentialExpressionAnalyzer(Knot):
     """Run differential-expression analysis between case and control groups."""
 
@@ -142,5 +87,60 @@ class DifferentialExpressionAnalyzer(Knot):
             if not isinstance(gid, str):
                 raise TypeError("DifferentialExpressionAnalyzer: every gene id must be a string")
         return await asyncio.to_thread(
-            _run_de, dict(case_counts), dict(control_counts), list(gene_ids)
+            self._run_de, dict(case_counts), dict(control_counts), list(gene_ids)
         )
+
+    @staticmethod
+    def _run_de(
+        case_counts: dict[str, Mapping[str, float]],
+        control_counts: dict[str, Mapping[str, float]],
+        gene_ids: list[str],
+    ) -> dict[str, dict[str, float]]:
+        """Compute log2FC, Welch t-test p-value, and BH-adjusted p-value per gene."""
+        if not _HAS_SCIPY or ss is None:
+            raise ImportError(
+                "scipy is required for DifferentialExpressionAnalyzer — "
+                "install with: pip install 'pirn-health[health]'"
+            )
+        log2fcs: list[float] = []
+        pvalues: list[float] = []
+
+        for gid in gene_ids:
+            case_vals = np.array([s[gid] for s in case_counts.values() if gid in s], dtype=float)
+            ctrl_vals = np.array([s[gid] for s in control_counts.values() if gid in s], dtype=float)
+
+            mean_case = float(np.mean(case_vals)) if len(case_vals) > 0 else 0.0
+            mean_ctrl = float(np.mean(ctrl_vals)) if len(ctrl_vals) > 0 else 0.0
+            log2fc = np.log2(max(mean_case, 1e-10) / max(mean_ctrl, 1e-10))
+            log2fcs.append(float(log2fc))
+
+            if len(case_vals) < 2 or len(ctrl_vals) < 2:
+                pvalues.append(1.0)
+            else:
+                result = ss.ttest_ind(case_vals, ctrl_vals, equal_var=False)
+                pval = float(result.pvalue)
+                if np.isnan(pval):
+                    pval = 1.0
+                pvalues.append(pval)
+
+        gene_count = len(gene_ids)
+        if gene_count == 0:
+            return {}
+
+        # Benjamini-Hochberg correction
+        order = np.argsort(pvalues)
+        padjs = np.array(pvalues, dtype=float)
+        for rank_minus1, sorted_index in enumerate(order):
+            rank = rank_minus1 + 1
+            padjs[sorted_index] = min(1.0, pvalues[sorted_index] * gene_count / rank)
+
+        # Enforce monotonicity (scan from largest rank to smallest)
+        for rank_minus1 in range(gene_count - 2, -1, -1):
+            sorted_index = order[rank_minus1]
+            next_sorted_index = order[rank_minus1 + 1]
+            padjs[sorted_index] = min(padjs[sorted_index], padjs[next_sorted_index])
+
+        return {
+            gid: {"log2fc": log2fcs[i], "pvalue": pvalues[i], "padj": float(padjs[i])}
+            for i, gid in enumerate(gene_ids)
+        }

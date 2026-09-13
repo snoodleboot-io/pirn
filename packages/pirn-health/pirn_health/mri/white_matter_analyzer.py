@@ -42,31 +42,6 @@ except ImportError:
     _HAS_DIPY = False
 
 
-def _fit_dti(
-    dwi_nifti_path: str,
-    bvec_path: str,
-    bval_path: str,
-    tracts: list[str],
-) -> dict[str, dict[str, float]]:
-    if not _HAS_DIPY or nib is None or gradient_table is None or TensorModel is None:
-        raise ImportError(
-            "dipy and nibabel are required for WhiteMatterAnalyzer — "
-            "install with: pip install 'pirn[mri]'"
-        )
-    img = nib.load(dwi_nifti_path)
-    data = np.asarray(img.dataobj, dtype=float)
-    bvecs = np.loadtxt(bvec_path)
-    bvals = np.loadtxt(bval_path)
-    gtab = gradient_table(bvals, bvecs=bvecs)
-    model = TensorModel(gtab)
-    fit = model.fit(data)
-    fa = np.asarray(fit.fa)
-    md = np.asarray(fit.md)
-    mean_fa = float(np.nanmean(fa))
-    mean_md = float(np.nanmean(md))
-    return {tract: {"fa": mean_fa, "md": mean_md} for tract in tracts}
-
-
 class WhiteMatterAnalyzer(Knot):
     """Compute per-tract DTI metrics from a DWI volume."""
 
@@ -124,4 +99,31 @@ class WhiteMatterAnalyzer(Knot):
         for tract in tracts:
             if not isinstance(tract, str):
                 raise TypeError("WhiteMatterAnalyzer: every tract must be a string")
-        return await asyncio.to_thread(_fit_dti, dwi_nifti_path, bvec_path, bval_path, list(tracts))
+        return await asyncio.to_thread(
+            self._fit_dti, dwi_nifti_path, bvec_path, bval_path, list(tracts)
+        )
+
+    @staticmethod
+    def _fit_dti(
+        dwi_nifti_path: str,
+        bvec_path: str,
+        bval_path: str,
+        tracts: list[str],
+    ) -> dict[str, dict[str, float]]:
+        if not _HAS_DIPY or nib is None or gradient_table is None or TensorModel is None:
+            raise ImportError(
+                "dipy and nibabel are required for WhiteMatterAnalyzer — "
+                "install with: pip install 'pirn[mri]'"
+            )
+        img = nib.load(dwi_nifti_path)
+        data = np.asarray(img.dataobj, dtype=float)
+        bvecs = np.loadtxt(bvec_path)
+        bvals = np.loadtxt(bval_path)
+        gtab = gradient_table(bvals, bvecs=bvecs)
+        model = TensorModel(gtab)
+        fit = model.fit(data)
+        fa = np.asarray(fit.fa)
+        md = np.asarray(fit.md)
+        mean_fa = float(np.nanmean(fa))
+        mean_md = float(np.nanmean(md))
+        return {tract: {"fa": mean_fa, "md": mean_md} for tract in tracts}

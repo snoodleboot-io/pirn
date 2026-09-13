@@ -40,15 +40,6 @@ except ImportError:
     _HAS_SCIPY = False
 
 
-def _apply_bandpass(data: np.ndarray, low_hz: float, high_hz: float, fs: float) -> np.ndarray:
-    if not _HAS_SCIPY or ss is None:
-        raise ImportError(
-            "scipy is required for EegBandpassFilter — install with: pip install 'pirn-health[health]'"
-        )
-    sos = ss.butter(4, [low_hz, high_hz], btype="bandpass", fs=fs, output="sos")
-    return ss.sosfiltfilt(sos, data, axis=-1)
-
-
 class EegBandpassFilter(Knot):
     """Bandpass-filter an EEG/MEG signal between two cutoff frequencies."""
 
@@ -101,7 +92,7 @@ class EegBandpassFilter(Knot):
 
         fs = signal.frame.sample_rate_hz
         filtered = await asyncio.to_thread(
-            _apply_bandpass, signal.data, float(low_hz), float(high_hz), fs
+            self._apply_bandpass, signal.data, float(low_hz), float(high_hz), fs
         )
 
         frame = HealthSignalFrame(
@@ -112,3 +103,12 @@ class EegBandpassFilter(Knot):
             fetched_at=signal.frame.fetched_at,
         )
         return HealthSignalPayload(metadata=frame, data=filtered)
+
+    @staticmethod
+    def _apply_bandpass(data: np.ndarray, low_hz: float, high_hz: float, fs: float) -> np.ndarray:
+        if not _HAS_SCIPY or ss is None:
+            raise ImportError(
+                "scipy is required for EegBandpassFilter — install with: pip install 'pirn-health[health]'"
+            )
+        sos = ss.butter(4, [low_hz, high_hz], btype="bandpass", fs=fs, output="sos")
+        return ss.sosfiltfilt(sos, data, axis=-1)

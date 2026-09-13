@@ -32,22 +32,6 @@ from pirn.core.knot_config import KnotConfig
 from pirn_health.types.health_signal_payload import HealthSignalPayload
 
 
-def _minimum_norm_estimate(data: np.ndarray, n_sources: int) -> np.ndarray:
-    """Return a synthetic activation value per source derived from signal amplitude.
-
-    The mean absolute amplitude across time is computed from the data, then
-    interpolated/repeated to cover n_sources and normalised to [0, 1].
-    """
-    channel_means = np.abs(data).mean(axis=-1)  # (n_channels,) or scalar
-    channel_means = np.atleast_1d(channel_means).astype(float)
-    indices = np.linspace(0, len(channel_means) - 1, n_sources)
-    source_activations = np.interp(indices, np.arange(len(channel_means)), channel_means)
-    max_val = source_activations.max()
-    if max_val > 0.0:
-        source_activations = source_activations / max_val
-    return source_activations
-
-
 class SourceLocalizer(Knot):
     """Estimate source-space activations from sensor-space signals."""
 
@@ -102,5 +86,21 @@ class SourceLocalizer(Knot):
         n_sources = len(source_labels)
         if n_sources == 0:
             return {}
-        activations = await asyncio.to_thread(_minimum_norm_estimate, signal.data, n_sources)
+        activations = await asyncio.to_thread(self._minimum_norm_estimate, signal.data, n_sources)
         return {label: float(activations[i]) for i, label in enumerate(source_labels)}
+
+    @staticmethod
+    def _minimum_norm_estimate(data: np.ndarray, n_sources: int) -> np.ndarray:
+        """Return a synthetic activation value per source derived from signal amplitude.
+
+        The mean absolute amplitude across time is computed from the data, then
+        interpolated/repeated to cover n_sources and normalised to [0, 1].
+        """
+        channel_means = np.abs(data).mean(axis=-1)  # (n_channels,) or scalar
+        channel_means = np.atleast_1d(channel_means).astype(float)
+        indices = np.linspace(0, len(channel_means) - 1, n_sources)
+        source_activations = np.interp(indices, np.arange(len(channel_means)), channel_means)
+        max_val = source_activations.max()
+        if max_val > 0.0:
+            source_activations = source_activations / max_val
+        return source_activations

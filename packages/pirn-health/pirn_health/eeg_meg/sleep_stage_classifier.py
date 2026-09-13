@@ -40,42 +40,6 @@ except ImportError:
     _HAS_SCIPY = False
 
 
-def _band_power(epoch: np.ndarray, fs: float, low: float, high: float) -> float:
-    if not _HAS_SCIPY or ss is None:
-        raise ImportError(
-            "scipy is required for SleepStageClassifier — install with: pip install 'pirn-health[health]'"
-        )
-    freqs, psd = ss.welch(epoch, fs=fs)
-    mask = (freqs >= low) & (freqs <= high)
-    return float(np.trapz(psd[mask], freqs[mask])) if mask.any() else 0.0
-
-
-def _classify_epoch(epoch: np.ndarray, fs: float) -> str:
-    delta = _band_power(epoch, fs, 0.5, 4.0)
-    theta = _band_power(epoch, fs, 4.0, 8.0)
-    alpha = _band_power(epoch, fs, 8.0, 13.0)
-    total = delta + theta + alpha + 1e-12
-    if delta / total > 0.5:
-        return "N3"
-    if alpha / total > 0.4:
-        return "W"
-    if theta / total > 0.35:
-        return "N1"
-    return "N2"
-
-
-def _classify_signal(data: np.ndarray, fs: float, epoch_duration_sec: int) -> list[str]:
-    epoch_samples = int(fs * epoch_duration_sec)
-    channel = data[0] if data.ndim > 1 else data
-    stages: list[str] = []
-    for start in range(0, len(channel), epoch_samples):
-        epoch = channel[start : start + epoch_samples]
-        if len(epoch) < epoch_samples // 2:
-            break
-        stages.append(_classify_epoch(epoch, fs))
-    return stages
-
-
 class SleepStageClassifier(Knot):
     """Classify 30-second PSG epochs into sleep stages (W, N1, N2, N3, REM)."""
 
@@ -129,7 +93,7 @@ class SleepStageClassifier(Knot):
 
         fs = signal.frame.sample_rate_hz
         stage_labels = await asyncio.to_thread(
-            _classify_signal, signal.data, fs, epoch_duration_sec
+            self._classify_signal, signal.data, fs, epoch_duration_sec
         )
 
         n_sleep = sum(1 for s in stage_labels if s != "W")
@@ -141,3 +105,39 @@ class SleepStageClassifier(Knot):
             "total_epochs": len(stage_labels),
             "sleep_efficiency_pct": sleep_efficiency_pct,
         }
+
+    @staticmethod
+    def _band_power(epoch: np.ndarray, fs: float, low: float, high: float) -> float:
+        if not _HAS_SCIPY or ss is None:
+            raise ImportError(
+                "scipy is required for SleepStageClassifier — install with: pip install 'pirn-health[health]'"
+            )
+        freqs, psd = ss.welch(epoch, fs=fs)
+        mask = (freqs >= low) & (freqs <= high)
+        return float(np.trapz(psd[mask], freqs[mask])) if mask.any() else 0.0
+
+    @staticmethod
+    def _classify_epoch(epoch: np.ndarray, fs: float) -> str:
+        delta = SleepStageClassifier._band_power(epoch, fs, 0.5, 4.0)
+        theta = SleepStageClassifier._band_power(epoch, fs, 4.0, 8.0)
+        alpha = SleepStageClassifier._band_power(epoch, fs, 8.0, 13.0)
+        total = delta + theta + alpha + 1e-12
+        if delta / total > 0.5:
+            return "N3"
+        if alpha / total > 0.4:
+            return "W"
+        if theta / total > 0.35:
+            return "N1"
+        return "N2"
+
+    @staticmethod
+    def _classify_signal(data: np.ndarray, fs: float, epoch_duration_sec: int) -> list[str]:
+        epoch_samples = int(fs * epoch_duration_sec)
+        channel = data[0] if data.ndim > 1 else data
+        stages: list[str] = []
+        for start in range(0, len(channel), epoch_samples):
+            epoch = channel[start : start + epoch_samples]
+            if len(epoch) < epoch_samples // 2:
+                break
+            stages.append(SleepStageClassifier._classify_epoch(epoch, fs))
+        return stages

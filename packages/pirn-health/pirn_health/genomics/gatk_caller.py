@@ -25,17 +25,6 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 
-async def _run_subprocess(cmd: list[str]) -> None:
-    proc = await asyncio.create_subprocess_exec(
-        *cmd,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-    _, stderr = await proc.communicate()
-    if proc.returncode != 0:
-        raise RuntimeError(f"{cmd[0]} failed: {stderr.decode()}")
-
-
 class GATKCaller(Knot):
     """Call variants with GATK HaplotypeCaller and return the VCF path."""
 
@@ -96,5 +85,16 @@ class GATKCaller(Knot):
             "-O",
             output_vcf_path,
         ]
-        await _run_subprocess(cmd)
+        await self._run_subprocess(cmd)
         return output_vcf_path
+
+    @staticmethod
+    async def _run_subprocess(cmd: list[str]) -> None:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        _, stderr = await proc.communicate()
+        if proc.returncode != 0:
+            raise RuntimeError(f"{cmd[0]} failed: {stderr.decode()}")

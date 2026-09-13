@@ -40,17 +40,6 @@ except ImportError:
     _HAS_SITK = False
 
 
-def _apply_n4(nifti_path: str, output_nifti_path: str) -> None:
-    if not _HAS_SITK or sitk is None:
-        raise ImportError(
-            "SimpleITK is required for BiasFieldCorrector — install with: pip install 'pirn[mri]'"
-        )
-    img = sitk.ReadImage(nifti_path, sitk.sitkFloat32)
-    corrector = sitk.N4BiasFieldCorrectionImageFilter()
-    corrected = corrector.Execute(img)
-    sitk.WriteImage(corrected, output_nifti_path)
-
-
 class BiasFieldCorrector(Knot):
     """Apply N4 bias-field correction to an MRI NIfTI file."""
 
@@ -93,5 +82,16 @@ class BiasFieldCorrector(Knot):
         ):
             if not isinstance(value, str) or not value:
                 raise ValueError(f"BiasFieldCorrector: {label} must be a non-empty string")
-        await asyncio.to_thread(_apply_n4, nifti_path, output_nifti_path)
+        await asyncio.to_thread(self._apply_n4, nifti_path, output_nifti_path)
         return output_nifti_path
+
+    @staticmethod
+    def _apply_n4(nifti_path: str, output_nifti_path: str) -> None:
+        if not _HAS_SITK or sitk is None:
+            raise ImportError(
+                "SimpleITK is required for BiasFieldCorrector — install with: pip install 'pirn[mri]'"
+            )
+        img = sitk.ReadImage(nifti_path, sitk.sitkFloat32)
+        corrector = sitk.N4BiasFieldCorrectionImageFilter()
+        corrected = corrector.Execute(img)
+        sitk.WriteImage(corrected, output_nifti_path)

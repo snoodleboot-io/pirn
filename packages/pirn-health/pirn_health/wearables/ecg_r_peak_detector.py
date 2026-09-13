@@ -42,33 +42,6 @@ except ImportError:
     _HAS_SCIPY = False
 
 
-def _pan_tompkins(ecg: np.ndarray, fs: float) -> tuple[int, ...]:
-    """Run Pan-Tompkins R-peak detection on a 1-D ECG array.
-
-    Args:
-        ecg: 1-D array of ECG samples.
-        fs: Sampling rate in Hz.
-
-    Returns:
-        Tuple of integer sample indices for detected R-peaks.
-    """
-    if not _HAS_SCIPY or scipy is None:
-        raise ImportError(
-            "scipy is required for ECGRPeakDetector — install with: pip install 'pirn-health[health]'"
-        )
-    sos = scipy.signal.butter(2, [5.0, 15.0], btype="bandpass", fs=fs, output="sos")
-    filtered = scipy.signal.sosfiltfilt(sos, ecg)
-    deriv = np.diff(filtered, prepend=filtered[0])
-    squared = deriv**2
-    window_samples = max(1, int(0.150 * fs))
-    kernel = np.ones(window_samples) / window_samples
-    integrated = np.convolve(squared, kernel, mode="same")
-    threshold = 0.6 * float(integrated.max()) if integrated.size > 0 else 0.0
-    min_distance = max(1, int(0.3 * fs))
-    peaks, _ = scipy.signal.find_peaks(integrated, height=threshold, distance=min_distance)
-    return tuple(int(p) for p in peaks)
-
-
 class ECGRPeakDetector(Knot):
     """Detect R-peaks in an ECG signal."""
 
@@ -109,4 +82,31 @@ class ECGRPeakDetector(Knot):
             )
         ecg = signal.data if signal.data.ndim == 1 else signal.data[0]
         fs = signal.frame.sample_rate_hz
-        return await asyncio.to_thread(_pan_tompkins, ecg, fs)
+        return await asyncio.to_thread(self._pan_tompkins, ecg, fs)
+
+    @staticmethod
+    def _pan_tompkins(ecg: np.ndarray, fs: float) -> tuple[int, ...]:
+        """Run Pan-Tompkins R-peak detection on a 1-D ECG array.
+
+        Args:
+            ecg: 1-D array of ECG samples.
+            fs: Sampling rate in Hz.
+
+        Returns:
+            Tuple of integer sample indices for detected R-peaks.
+        """
+        if not _HAS_SCIPY or scipy is None:
+            raise ImportError(
+                "scipy is required for ECGRPeakDetector — install with: pip install 'pirn-health[health]'"
+            )
+        sos = scipy.signal.butter(2, [5.0, 15.0], btype="bandpass", fs=fs, output="sos")
+        filtered = scipy.signal.sosfiltfilt(sos, ecg)
+        deriv = np.diff(filtered, prepend=filtered[0])
+        squared = deriv**2
+        window_samples = max(1, int(0.150 * fs))
+        kernel = np.ones(window_samples) / window_samples
+        integrated = np.convolve(squared, kernel, mode="same")
+        threshold = 0.6 * float(integrated.max()) if integrated.size > 0 else 0.0
+        min_distance = max(1, int(0.3 * fs))
+        peaks, _ = scipy.signal.find_peaks(integrated, height=threshold, distance=min_distance)
+        return tuple(int(p) for p in peaks)

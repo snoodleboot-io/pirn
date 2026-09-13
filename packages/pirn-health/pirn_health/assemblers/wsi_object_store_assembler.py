@@ -40,25 +40,6 @@ except ImportError:
     _HAS_PIL = False
 
 
-def _assemble_tile(body: bytes, slide_id: str, tile_index: int) -> WSITilePayload:
-    if not _HAS_PIL or Image is None:
-        raise ImportError(
-            "Pillow is required for WsiObjectStoreAssembler — install with: pip install 'pirn-health[health]'"
-        )
-    img = Image.open(io.BytesIO(body)).convert("RGB")
-    pixels = np.array(img, dtype=np.uint8)
-    height, width = pixels.shape[:2]
-    tile = WSITile(
-        slide_id=slide_id,
-        tile_x=tile_index,
-        tile_y=0,
-        level=0,
-        width=width,
-        height=height,
-    )
-    return WSITilePayload(metadata=tile, data=pixels)
-
-
 class WsiObjectStoreAssembler(Assembler):
     """Assemble a :class:`WSITilePayload` from raw image bytes stored in an object store."""
 
@@ -118,4 +99,23 @@ class WsiObjectStoreAssembler(Assembler):
             )
         if tile_index < 0:
             raise ValueError("WsiObjectStoreAssembler: tile_index must be >= 0")
-        return await asyncio.to_thread(_assemble_tile, body, slide_id, tile_index)
+        return await asyncio.to_thread(self._assemble_tile, body, slide_id, tile_index)
+
+    @staticmethod
+    def _assemble_tile(body: bytes, slide_id: str, tile_index: int) -> WSITilePayload:
+        if not _HAS_PIL or Image is None:
+            raise ImportError(
+                "Pillow is required for WsiObjectStoreAssembler — install with: pip install 'pirn-health[health]'"
+            )
+        img = Image.open(io.BytesIO(body)).convert("RGB")
+        pixels = np.array(img, dtype=np.uint8)
+        height, width = pixels.shape[:2]
+        tile = WSITile(
+            slide_id=slide_id,
+            tile_x=tile_index,
+            tile_y=0,
+            level=0,
+            width=width,
+            height=height,
+        )
+        return WSITilePayload(metadata=tile, data=pixels)

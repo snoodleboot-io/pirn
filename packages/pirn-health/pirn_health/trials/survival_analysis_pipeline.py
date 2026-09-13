@@ -48,150 +48,6 @@ except ImportError:
     _HAS_SCIPY = False
 
 
-def _km_median(times: np.ndarray, events: np.ndarray) -> float | None:
-    """Kaplan-Meier median survival time."""
-    order = np.argsort(times)
-    times = times[order]
-    events = events[order]
-    patient_count = len(times)
-    survival_prob = 1.0
-    for time_index in range(patient_count):
-        at_risk = patient_count - time_index
-        events_at_time = events[time_index]
-        survival_prob *= 1.0 - events_at_time / at_risk
-        if survival_prob <= 0.5:
-            return float(times[time_index])
-    return None
-
-
-def _log_rank(
-    times_a: np.ndarray,
-    events_a: np.ndarray,
-    times_b: np.ndarray,
-    events_b: np.ndarray,
-) -> float:
-    """Log-rank test p-value (two-group)."""
-    if not _HAS_SCIPY or ss is None:
-        raise ImportError(
-            "scipy is required for SurvivalAnalysisPipeline — install with: pip install 'pirn-health[health]'"
-        )
-    all_times = np.unique(np.concatenate([times_a[events_a == 1], times_b[events_b == 1]]))
-    obs_a = exp_a = log_rank_var = 0.0
-    for event_time in all_times:
-        at_risk_a = float(np.sum(times_a >= event_time))
-        at_risk_b = float(np.sum(times_b >= event_time))
-        at_risk_total = at_risk_a + at_risk_b
-        if at_risk_total == 0:
-            continue
-        events_a_at_t = float(np.sum((times_a == event_time) & (events_a == 1)))
-        events_b_at_t = float(np.sum((times_b == event_time) & (events_b == 1)))
-        events_total = events_a_at_t + events_b_at_t
-        expected_a = at_risk_a * events_total / at_risk_total
-        obs_a += events_a_at_t
-        exp_a += expected_a
-        if at_risk_total > 1:
-            log_rank_var += (
-                at_risk_a
-                * at_risk_b
-                * events_total
-                * (at_risk_total - events_total)
-                / (at_risk_total * at_risk_total * (at_risk_total - 1))
-            )
-    if log_rank_var == 0.0:
-        return 1.0
-    chi2_stat = (obs_a - exp_a) ** 2 / log_rank_var
-    return float(ss.chi2.sf(chi2_stat, df=1))
-
-
-def _cox_hr(
-    times: np.ndarray,
-    events: np.ndarray,
-    covariate_matrix: np.ndarray,
-    n_iter: int = 20,
-) -> np.ndarray:
-    """Newton-Raphson Cox partial likelihood gradient for single iteration."""
-    n_patients, n_covariates = covariate_matrix.shape
-    beta = np.zeros(n_covariates)
-    for _ in range(n_iter):
-        order = np.argsort(times)
-        events_sorted = events[order]
-        covariates_sorted = covariate_matrix[order]
-        exp_xb = np.exp(covariates_sorted @ beta)
-        grad = np.zeros(n_covariates)
-        hess = np.zeros((n_covariates, n_covariates))
-        for patient_index in range(n_patients):
-            if events_sorted[patient_index] == 0:
-                continue
-            risk_set = np.arange(patient_index, n_patients)
-            denom = exp_xb[risk_set].sum()
-            risk_weights = exp_xb[risk_set] / denom
-            weighted_covariates = (covariates_sorted[risk_set] * risk_weights[:, None]).sum(axis=0)
-            grad += covariates_sorted[patient_index] - weighted_covariates
-            xwx = (covariates_sorted[risk_set] * risk_weights[:, None]).T @ covariates_sorted[
-                risk_set
-            ]
-            hess -= xwx - np.outer(weighted_covariates, weighted_covariates)
-        try:
-            beta -= np.linalg.solve(hess, grad)
-        except np.linalg.LinAlgError:
-            break
-    return np.exp(beta)
-
-
-def _run_survival(
-    survival_data: list[dict[str, Any]],
-    time_col: str,
-    event_col: str,
-    group_col: str | None,
-    covariates: Sequence[str],
-) -> dict[str, Any]:
-    for record_index, record in enumerate(survival_data):
-        if time_col not in record:
-            raise ValueError(
-                f"SurvivalAnalysisPipeline: survival_data[{record_index}] missing required "
-                f"field '{time_col}'; got: {list(record)}"
-            )
-        if event_col not in record:
-            raise ValueError(
-                f"SurvivalAnalysisPipeline: survival_data[{record_index}] missing required "
-                f"field '{event_col}'; got: {list(record)}"
-            )
-    times = np.array([float(r[time_col]) for r in survival_data])
-    events = np.array([float(r[event_col]) for r in survival_data])
-    n_events = int(events.sum())
-
-    median = _km_median(times, events)
-
-    log_rank_p: float | None = None
-    if group_col:
-        group_vals = np.array([r.get(group_col) for r in survival_data])
-        unique_groups = np.unique(group_vals[group_vals != np.array(None)])
-        if len(unique_groups) >= 2:
-            mask = group_vals == unique_groups[0]
-            if mask.any() and (~mask).any():
-                log_rank_p = _log_rank(times[mask], events[mask], times[~mask], events[~mask])
-
-    cox_hazard_ratios: dict[str, float] = {}
-    if covariates:
-        try:
-            covariate_matrix = np.array(
-                [[float(r.get(col, 0)) for col in covariates] for r in survival_data]
-            )
-            hrs = _cox_hr(times, events, covariate_matrix)
-            cox_hazard_ratios = {
-                col: float(hrs[covariate_index]) for covariate_index, col in enumerate(covariates)
-            }
-        except Exception:
-            cox_hazard_ratios = {col: 1.0 for col in covariates}
-
-    return {
-        "median_survival_days": median,
-        "log_rank_p_value": log_rank_p,
-        "cox_hazard_ratios": cox_hazard_ratios,
-        "n_events": n_events,
-    }
-
-
 class SurvivalAnalysisPipeline(Knot):
     """Kaplan-Meier and Cox proportional hazards survival analysis."""
 
@@ -247,5 +103,154 @@ class SurvivalAnalysisPipeline(Knot):
         if not isinstance(event_col, str) or not event_col:
             raise ValueError("SurvivalAnalysisPipeline: event_col must be a non-empty string")
         return await asyncio.to_thread(
-            _run_survival, survival_data, time_col, event_col, group_col, covariates
+            self._run_survival, survival_data, time_col, event_col, group_col, covariates
         )
+
+    @staticmethod
+    def _km_median(times: np.ndarray, events: np.ndarray) -> float | None:
+        """Kaplan-Meier median survival time."""
+        order = np.argsort(times)
+        times = times[order]
+        events = events[order]
+        patient_count = len(times)
+        survival_prob = 1.0
+        for time_index in range(patient_count):
+            at_risk = patient_count - time_index
+            events_at_time = events[time_index]
+            survival_prob *= 1.0 - events_at_time / at_risk
+            if survival_prob <= 0.5:
+                return float(times[time_index])
+        return None
+
+    @staticmethod
+    def _log_rank(
+        times_a: np.ndarray,
+        events_a: np.ndarray,
+        times_b: np.ndarray,
+        events_b: np.ndarray,
+    ) -> float:
+        """Log-rank test p-value (two-group)."""
+        if not _HAS_SCIPY or ss is None:
+            raise ImportError(
+                "scipy is required for SurvivalAnalysisPipeline — install with: pip install 'pirn-health[health]'"
+            )
+        all_times = np.unique(np.concatenate([times_a[events_a == 1], times_b[events_b == 1]]))
+        obs_a = exp_a = log_rank_var = 0.0
+        for event_time in all_times:
+            at_risk_a = float(np.sum(times_a >= event_time))
+            at_risk_b = float(np.sum(times_b >= event_time))
+            at_risk_total = at_risk_a + at_risk_b
+            if at_risk_total == 0:
+                continue
+            events_a_at_t = float(np.sum((times_a == event_time) & (events_a == 1)))
+            events_b_at_t = float(np.sum((times_b == event_time) & (events_b == 1)))
+            events_total = events_a_at_t + events_b_at_t
+            expected_a = at_risk_a * events_total / at_risk_total
+            obs_a += events_a_at_t
+            exp_a += expected_a
+            if at_risk_total > 1:
+                log_rank_var += (
+                    at_risk_a
+                    * at_risk_b
+                    * events_total
+                    * (at_risk_total - events_total)
+                    / (at_risk_total * at_risk_total * (at_risk_total - 1))
+                )
+        if log_rank_var == 0.0:
+            return 1.0
+        chi2_stat = (obs_a - exp_a) ** 2 / log_rank_var
+        return float(ss.chi2.sf(chi2_stat, df=1))
+
+    @staticmethod
+    def _cox_hr(
+        times: np.ndarray,
+        events: np.ndarray,
+        covariate_matrix: np.ndarray,
+        n_iter: int = 20,
+    ) -> np.ndarray:
+        """Newton-Raphson Cox partial likelihood gradient for single iteration."""
+        n_patients, n_covariates = covariate_matrix.shape
+        beta = np.zeros(n_covariates)
+        for _ in range(n_iter):
+            order = np.argsort(times)
+            events_sorted = events[order]
+            covariates_sorted = covariate_matrix[order]
+            exp_xb = np.exp(covariates_sorted @ beta)
+            grad = np.zeros(n_covariates)
+            hess = np.zeros((n_covariates, n_covariates))
+            for patient_index in range(n_patients):
+                if events_sorted[patient_index] == 0:
+                    continue
+                risk_set = np.arange(patient_index, n_patients)
+                denom = exp_xb[risk_set].sum()
+                risk_weights = exp_xb[risk_set] / denom
+                weighted_covariates = (covariates_sorted[risk_set] * risk_weights[:, None]).sum(
+                    axis=0
+                )
+                grad += covariates_sorted[patient_index] - weighted_covariates
+                xwx = (covariates_sorted[risk_set] * risk_weights[:, None]).T @ covariates_sorted[
+                    risk_set
+                ]
+                hess -= xwx - np.outer(weighted_covariates, weighted_covariates)
+            try:
+                beta -= np.linalg.solve(hess, grad)
+            except np.linalg.LinAlgError:
+                break
+        return np.exp(beta)
+
+    @staticmethod
+    def _run_survival(
+        survival_data: list[dict[str, Any]],
+        time_col: str,
+        event_col: str,
+        group_col: str | None,
+        covariates: Sequence[str],
+    ) -> dict[str, Any]:
+        for record_index, record in enumerate(survival_data):
+            if time_col not in record:
+                raise ValueError(
+                    f"SurvivalAnalysisPipeline: survival_data[{record_index}] missing required "
+                    f"field '{time_col}'; got: {list(record)}"
+                )
+            if event_col not in record:
+                raise ValueError(
+                    f"SurvivalAnalysisPipeline: survival_data[{record_index}] missing required "
+                    f"field '{event_col}'; got: {list(record)}"
+                )
+        times = np.array([float(r[time_col]) for r in survival_data])
+        events = np.array([float(r[event_col]) for r in survival_data])
+        n_events = int(events.sum())
+
+        median = SurvivalAnalysisPipeline._km_median(times, events)
+
+        log_rank_p: float | None = None
+        if group_col:
+            group_vals = np.array([r.get(group_col) for r in survival_data])
+            unique_groups = np.unique(group_vals[group_vals != np.array(None)])
+            if len(unique_groups) >= 2:
+                mask = group_vals == unique_groups[0]
+                if mask.any() and (~mask).any():
+                    log_rank_p = SurvivalAnalysisPipeline._log_rank(
+                        times[mask], events[mask], times[~mask], events[~mask]
+                    )
+
+        cox_hazard_ratios: dict[str, float] = {}
+        if covariates:
+            try:
+                covariate_matrix = np.array(
+                    [[float(r.get(col, 0)) for col in covariates] for r in survival_data]
+                )
+                hrs = SurvivalAnalysisPipeline._cox_hr(times, events, covariate_matrix)
+                cox_hazard_ratios = {
+                    col: float(hrs[covariate_index])
+                    for covariate_index, col in enumerate(covariates)
+                }
+            except Exception:
+                cox_hazard_ratios = {col: 1.0 for col in covariates}
+
+        return {
+            "median_survival_days": median,
+            "log_rank_p_value": log_rank_p,
+            "cox_hazard_ratios": cox_hazard_ratios,
+            "n_events": n_events,
+        }

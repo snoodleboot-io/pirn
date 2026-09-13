@@ -36,32 +36,6 @@ except ImportError:
     _HAS_SCIPY = False
 
 
-def _count_steps(data: np.ndarray, fs: float) -> int:
-    """Count steps by detecting peaks in accelerometer magnitude.
-
-    Args:
-        data: Array of shape ``(channels, samples)`` or ``(samples,)``.
-        fs: Sampling rate in Hz.
-
-    Returns:
-        Number of detected steps.
-    """
-    if not _HAS_SCIPY or scipy is None:
-        raise ImportError(
-            "scipy is required for StepCounter — install with: pip install 'pirn-health[health]'"
-        )
-    if data.ndim > 1:
-        magnitude = np.sqrt(np.sum(data**2, axis=0))
-    else:
-        magnitude = data
-    if magnitude.size == 0:
-        return 0
-    threshold = 0.5 * float(np.std(magnitude)) + float(np.mean(magnitude))
-    min_distance = max(1, int(0.5 * fs))
-    peaks, _ = scipy.signal.find_peaks(magnitude, height=threshold, distance=min_distance)
-    return int(peaks.size)
-
-
 class StepCounter(Knot):
     """Count steps from a tri-axial accelerometer signal."""
 
@@ -100,4 +74,30 @@ class StepCounter(Knot):
         if not isinstance(threshold, (int, float)) or float(threshold) < 0:
             raise ValueError("StepCounter: threshold must be a non-negative number")
         fs = signal.frame.sample_rate_hz
-        return await asyncio.to_thread(_count_steps, signal.data, fs)
+        return await asyncio.to_thread(self._count_steps, signal.data, fs)
+
+    @staticmethod
+    def _count_steps(data: np.ndarray, fs: float) -> int:
+        """Count steps by detecting peaks in accelerometer magnitude.
+
+        Args:
+            data: Array of shape ``(channels, samples)`` or ``(samples,)``.
+            fs: Sampling rate in Hz.
+
+        Returns:
+            Number of detected steps.
+        """
+        if not _HAS_SCIPY or scipy is None:
+            raise ImportError(
+                "scipy is required for StepCounter — install with: pip install 'pirn-health[health]'"
+            )
+        if data.ndim > 1:
+            magnitude = np.sqrt(np.sum(data**2, axis=0))
+        else:
+            magnitude = data
+        if magnitude.size == 0:
+            return 0
+        threshold = 0.5 * float(np.std(magnitude)) + float(np.mean(magnitude))
+        min_distance = max(1, int(0.5 * fs))
+        peaks, _ = scipy.signal.find_peaks(magnitude, height=threshold, distance=min_distance)
+        return int(peaks.size)

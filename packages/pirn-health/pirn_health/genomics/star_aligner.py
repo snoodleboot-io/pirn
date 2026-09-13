@@ -25,17 +25,6 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 
-async def _run_subprocess(cmd: list[str]) -> None:
-    proc = await asyncio.create_subprocess_exec(
-        *cmd,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-    _, stderr = await proc.communicate()
-    if proc.returncode != 0:
-        raise RuntimeError(f"{cmd[0]} failed: {stderr.decode()}")
-
-
 class STARAligner(Knot):
     """Align RNA-seq reads with STAR and emit a BAM path."""
 
@@ -100,5 +89,16 @@ class STARAligner(Knot):
             "--outFileNamePrefix",
             output_bam_path.removesuffix(".bam"),
         ]
-        await _run_subprocess(cmd)
+        await self._run_subprocess(cmd)
         return output_bam_path
+
+    @staticmethod
+    async def _run_subprocess(cmd: list[str]) -> None:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        _, stderr = await proc.communicate()
+        if proc.returncode != 0:
+            raise RuntimeError(f"{cmd[0]} failed: {stderr.decode()}")

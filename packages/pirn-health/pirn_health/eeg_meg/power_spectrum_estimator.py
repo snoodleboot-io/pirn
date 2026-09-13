@@ -44,20 +44,6 @@ _bands = {
 }
 
 
-def _compute_band_power(data: np.ndarray, fs: float) -> dict[str, float]:
-    if not _HAS_SCIPY or ss is None:
-        raise ImportError(
-            "scipy is required for PowerSpectrumEstimator — install with: pip install 'pirn-health[health]'"
-        )
-    channel = data[0] if data.ndim > 1 else data
-    freqs, psd = ss.welch(channel, fs=fs, axis=-1)
-    result: dict[str, float] = {}
-    for band_name, (low, high) in _bands.items():
-        mask = (freqs >= low) & (freqs <= high)
-        result[band_name] = float(np.trapezoid(psd[mask], freqs[mask])) if mask.any() else 0.0
-    return result
-
-
 class PowerSpectrumEstimator(Knot):
     """Estimate per-band power for a signal payload."""
 
@@ -101,4 +87,18 @@ class PowerSpectrumEstimator(Knot):
             raise ValueError("PowerSpectrumEstimator: method must be one of welch/multitaper")
 
         fs = signal.frame.sample_rate_hz
-        return await asyncio.to_thread(_compute_band_power, signal.data, fs)
+        return await asyncio.to_thread(self._compute_band_power, signal.data, fs)
+
+    @staticmethod
+    def _compute_band_power(data: np.ndarray, fs: float) -> dict[str, float]:
+        if not _HAS_SCIPY or ss is None:
+            raise ImportError(
+                "scipy is required for PowerSpectrumEstimator — install with: pip install 'pirn-health[health]'"
+            )
+        channel = data[0] if data.ndim > 1 else data
+        freqs, psd = ss.welch(channel, fs=fs, axis=-1)
+        result: dict[str, float] = {}
+        for band_name, (low, high) in _bands.items():
+            mask = (freqs >= low) & (freqs <= high)
+            result[band_name] = float(np.trapezoid(psd[mask], freqs[mask])) if mask.any() else 0.0
+        return result

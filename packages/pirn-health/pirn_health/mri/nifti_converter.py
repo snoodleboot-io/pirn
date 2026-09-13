@@ -34,17 +34,6 @@ from pirn.core.knot_config import KnotConfig
 from pirn_health.types.dicom_payload import DICOMPayload
 
 
-async def _run_subprocess(cmd: list[str]) -> None:
-    proc = await asyncio.create_subprocess_exec(
-        *cmd,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-    _, stderr = await proc.communicate()
-    if proc.returncode != 0:
-        raise RuntimeError(f"{cmd[0]} failed: {stderr.decode()}")
-
-
 class NIfTIConverter(Knot):
     """Convert a staged DICOM series to a NIfTI file path."""
 
@@ -90,7 +79,7 @@ class NIfTIConverter(Knot):
         with tempfile.TemporaryDirectory(prefix="nifti_converter_") as staging_dir:
             await asyncio.to_thread(self._stage_dataset, payload.dataset, staging_dir)
             cmd = ["dcm2niix", "-o", output_dir, staging_dir]
-            await _run_subprocess(cmd)
+            await self._run_subprocess(cmd)
         return output_nifti_path
 
     @staticmethod
@@ -102,3 +91,14 @@ class NIfTIConverter(Knot):
         and it is scoped to a temporary directory removed by the caller.
         """
         dataset.save_as(Path(staging_dir) / "series.dcm")
+
+    @staticmethod
+    async def _run_subprocess(cmd: list[str]) -> None:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        _, stderr = await proc.communicate()
+        if proc.returncode != 0:
+            raise RuntimeError(f"{cmd[0]} failed: {stderr.decode()}")

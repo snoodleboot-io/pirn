@@ -30,41 +30,6 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 
-def _analyze_spirometry(flow_or_volume: np.ndarray, fs: float) -> dict[str, float]:
-    """Compute FVC, FEV1, FEV1/FVC ratio, and PEF from a flow or volume signal.
-
-    Args:
-        flow_or_volume: 1-D array of flow values in L/s.
-        fs: Sampling rate in Hz.
-
-    Returns:
-        Dict with fvc, fev1, fev1_fvc_ratio, pef, and predicted_fvc_pct.
-    """
-    if flow_or_volume.size == 0 or fs <= 0:
-        return {
-            "fvc": 0.0,
-            "fev1": 0.0,
-            "fev1_fvc_ratio": 0.0,
-            "pef": 0.0,
-            "predicted_fvc_pct": 100.0,
-        }
-    dt = 1.0 / fs
-    volume = np.cumsum(flow_or_volume) * dt
-    fvc = float(volume.max()) if volume.size > 0 else 0.0
-    samples_1sec = min(int(fs), flow_or_volume.size)
-    fev1 = float(volume[samples_1sec - 1]) if samples_1sec > 0 else 0.0
-    fev1_fvc_ratio = (fev1 / fvc) if fvc > 0 else 0.0
-    pef = float(flow_or_volume.max()) if flow_or_volume.size > 0 else 0.0
-    predicted_fvc_pct = 100.0
-    return {
-        "fvc": fvc,
-        "fev1": fev1,
-        "fev1_fvc_ratio": fev1_fvc_ratio,
-        "pef": pef,
-        "predicted_fvc_pct": predicted_fvc_pct,
-    }
-
-
 class SpirometryAnalyzer(Knot):
     """Compute spirometry indices from a flow-volume trace."""
 
@@ -111,4 +76,39 @@ class SpirometryAnalyzer(Knot):
         if not isinstance(sample_rate_hz, (int, float)) or float(sample_rate_hz) <= 0:
             raise ValueError("SpirometryAnalyzer: sample_rate_hz must be a positive number")
         flow_array = np.asarray(flow_l_per_sec, dtype=float)
-        return await asyncio.to_thread(_analyze_spirometry, flow_array, float(sample_rate_hz))
+        return await asyncio.to_thread(self._analyze_spirometry, flow_array, float(sample_rate_hz))
+
+    @staticmethod
+    def _analyze_spirometry(flow_or_volume: np.ndarray, fs: float) -> dict[str, float]:
+        """Compute FVC, FEV1, FEV1/FVC ratio, and PEF from a flow or volume signal.
+
+        Args:
+            flow_or_volume: 1-D array of flow values in L/s.
+            fs: Sampling rate in Hz.
+
+        Returns:
+            Dict with fvc, fev1, fev1_fvc_ratio, pef, and predicted_fvc_pct.
+        """
+        if flow_or_volume.size == 0 or fs <= 0:
+            return {
+                "fvc": 0.0,
+                "fev1": 0.0,
+                "fev1_fvc_ratio": 0.0,
+                "pef": 0.0,
+                "predicted_fvc_pct": 100.0,
+            }
+        dt = 1.0 / fs
+        volume = np.cumsum(flow_or_volume) * dt
+        fvc = float(volume.max()) if volume.size > 0 else 0.0
+        samples_1sec = min(int(fs), flow_or_volume.size)
+        fev1 = float(volume[samples_1sec - 1]) if samples_1sec > 0 else 0.0
+        fev1_fvc_ratio = (fev1 / fvc) if fvc > 0 else 0.0
+        pef = float(flow_or_volume.max()) if flow_or_volume.size > 0 else 0.0
+        predicted_fvc_pct = 100.0
+        return {
+            "fvc": fvc,
+            "fev1": fev1,
+            "fev1_fvc_ratio": fev1_fvc_ratio,
+            "pef": pef,
+            "predicted_fvc_pct": predicted_fvc_pct,
+        }

@@ -38,16 +38,6 @@ except ImportError:
     _HAS_SCIPY = False
 
 
-def _apply_notch(data: np.ndarray, notch_hz: float, fs: float) -> np.ndarray:
-    if not _HAS_SCIPY or ss is None:
-        raise ImportError(
-            "scipy is required for EegNotchFilter — install with: pip install 'pirn-health[health]'"
-        )
-    numerator_coeffs, denominator_coeffs = ss.iirnotch(notch_hz, Q=30.0, fs=fs)
-    sos = ss.tf2sos(numerator_coeffs, denominator_coeffs)
-    return ss.sosfiltfilt(sos, data, axis=-1)
-
-
 class EegNotchFilter(Knot):
     """Apply a notch filter at the line-noise frequency."""
 
@@ -91,7 +81,7 @@ class EegNotchFilter(Knot):
             raise ValueError("EegNotchFilter: notch_hz must be a positive number")
 
         fs = signal.frame.sample_rate_hz
-        filtered = await asyncio.to_thread(_apply_notch, signal.data, float(notch_hz), fs)
+        filtered = await asyncio.to_thread(self._apply_notch, signal.data, float(notch_hz), fs)
 
         frame = HealthSignalFrame(
             signal_id=signal.frame.signal_id + ":notch",
@@ -101,3 +91,13 @@ class EegNotchFilter(Knot):
             fetched_at=signal.frame.fetched_at,
         )
         return HealthSignalPayload(metadata=frame, data=filtered)
+
+    @staticmethod
+    def _apply_notch(data: np.ndarray, notch_hz: float, fs: float) -> np.ndarray:
+        if not _HAS_SCIPY or ss is None:
+            raise ImportError(
+                "scipy is required for EegNotchFilter — install with: pip install 'pirn-health[health]'"
+            )
+        numerator_coeffs, denominator_coeffs = ss.iirnotch(notch_hz, Q=30.0, fs=fs)
+        sos = ss.tf2sos(numerator_coeffs, denominator_coeffs)
+        return ss.sosfiltfilt(sos, data, axis=-1)

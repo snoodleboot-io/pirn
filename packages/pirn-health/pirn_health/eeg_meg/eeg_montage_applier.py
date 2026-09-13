@@ -24,53 +24,6 @@ from pirn.core.knot_config import KnotConfig
 from pirn_health.types.health_signal_payload import HealthSignalPayload
 
 
-def _get_standard_positions(n_channels: int) -> dict[str, list[float]]:
-    """Return standard 10-20 channel positions for up to 19 channels, zeros beyond."""
-    standard = {
-        "Fp1": [-0.95, 0.31, 0.00],
-        "Fp2": [0.95, 0.31, 0.00],
-        "F7": [-0.81, 0.59, 0.00],
-        "F3": [-0.55, 0.83, 0.00],
-        "Fz": [0.00, 0.99, 0.00],
-        "F4": [0.55, 0.83, 0.00],
-        "F8": [0.81, 0.59, 0.00],
-        "T3": [-1.00, 0.00, 0.00],
-        "C3": [-0.71, 0.00, 0.71],
-        "Cz": [0.00, 0.00, 1.00],
-        "C4": [0.71, 0.00, 0.71],
-        "T4": [1.00, 0.00, 0.00],
-        "T5": [-0.81, -0.59, 0.00],
-        "P3": [-0.55, -0.83, 0.00],
-        "Pz": [0.00, -0.99, 0.00],
-        "P4": [0.55, -0.83, 0.00],
-        "T6": [0.81, -0.59, 0.00],
-        "O1": [-0.31, -0.95, 0.00],
-        "O2": [0.31, -0.95, 0.00],
-    }
-    keys = list(standard.keys())
-    result: dict[str, list[float]] = {}
-    for i in range(n_channels):
-        if i < len(keys):
-            name = keys[i]
-            result[name] = standard[name]
-        else:
-            result[f"CH{i + 1}"] = [0.0, 0.0, 0.0]
-    return result
-
-
-def _apply_montage(
-    n_channels: int,
-    montage_name: str,
-) -> dict[str, Any]:
-    """Build channel position mapping for the given montage."""
-    positions = _get_standard_positions(n_channels)
-    return {
-        "montage_name": montage_name,
-        "n_channels": n_channels,
-        "channel_positions": positions,
-    }
-
-
 class EEGMontageApplier(Knot):
     """Apply electrode montage (re-reference, set channel positions) to EEG data."""
 
@@ -133,4 +86,51 @@ class EEGMontageApplier(Knot):
             )
         n_channels = signal.frame.channel_count - len(drop_channels)
         n_channels = max(0, n_channels)
-        return await asyncio.to_thread(_apply_montage, n_channels, montage_name)
+        return await asyncio.to_thread(self._apply_montage, n_channels, montage_name)
+
+    @staticmethod
+    def _get_standard_positions(n_channels: int) -> dict[str, list[float]]:
+        """Return standard 10-20 channel positions for up to 19 channels, zeros beyond."""
+        standard = {
+            "Fp1": [-0.95, 0.31, 0.00],
+            "Fp2": [0.95, 0.31, 0.00],
+            "F7": [-0.81, 0.59, 0.00],
+            "F3": [-0.55, 0.83, 0.00],
+            "Fz": [0.00, 0.99, 0.00],
+            "F4": [0.55, 0.83, 0.00],
+            "F8": [0.81, 0.59, 0.00],
+            "T3": [-1.00, 0.00, 0.00],
+            "C3": [-0.71, 0.00, 0.71],
+            "Cz": [0.00, 0.00, 1.00],
+            "C4": [0.71, 0.00, 0.71],
+            "T4": [1.00, 0.00, 0.00],
+            "T5": [-0.81, -0.59, 0.00],
+            "P3": [-0.55, -0.83, 0.00],
+            "Pz": [0.00, -0.99, 0.00],
+            "P4": [0.55, -0.83, 0.00],
+            "T6": [0.81, -0.59, 0.00],
+            "O1": [-0.31, -0.95, 0.00],
+            "O2": [0.31, -0.95, 0.00],
+        }
+        keys = list(standard.keys())
+        result: dict[str, list[float]] = {}
+        for i in range(n_channels):
+            if i < len(keys):
+                name = keys[i]
+                result[name] = standard[name]
+            else:
+                result[f"CH{i + 1}"] = [0.0, 0.0, 0.0]
+        return result
+
+    @staticmethod
+    def _apply_montage(
+        n_channels: int,
+        montage_name: str,
+    ) -> dict[str, Any]:
+        """Build channel position mapping for the given montage."""
+        positions = EEGMontageApplier._get_standard_positions(n_channels)
+        return {
+            "montage_name": montage_name,
+            "n_channels": n_channels,
+            "channel_positions": positions,
+        }

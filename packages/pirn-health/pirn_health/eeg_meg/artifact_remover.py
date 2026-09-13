@@ -42,17 +42,6 @@ except ImportError:
     _HAS_SKLEARN = False
 
 
-def _apply_ica(data: np.ndarray, n_components: int) -> np.ndarray:
-    if not _HAS_SKLEARN or FastICA is None:
-        raise ImportError(
-            "scikit-learn is required for ArtifactRemover — install with: pip install 'pirn-health[health]'"
-        )
-    ica = FastICA(n_components=n_components, random_state=0)
-    sources = ica.fit_transform(data.T)
-    reconstructed = ica.inverse_transform(sources)
-    return reconstructed.T
-
-
 class ArtifactRemover(Knot):
     """Remove EOG/ECG/muscle artifacts from a signal payload."""
 
@@ -104,7 +93,7 @@ class ArtifactRemover(Knot):
         if method not in ("infomax", "fastica", "picard"):
             raise ValueError("ArtifactRemover: method must be one of infomax/fastica/picard")
 
-        reconstructed = await asyncio.to_thread(_apply_ica, signal.data, n_components)
+        reconstructed = await asyncio.to_thread(self._apply_ica, signal.data, n_components)
 
         frame = HealthSignalFrame(
             signal_id=signal.frame.signal_id + ":ica",
@@ -114,3 +103,14 @@ class ArtifactRemover(Knot):
             fetched_at=signal.frame.fetched_at,
         )
         return HealthSignalPayload(metadata=frame, data=reconstructed)
+
+    @staticmethod
+    def _apply_ica(data: np.ndarray, n_components: int) -> np.ndarray:
+        if not _HAS_SKLEARN or FastICA is None:
+            raise ImportError(
+                "scikit-learn is required for ArtifactRemover — install with: pip install 'pirn-health[health]'"
+            )
+        ica = FastICA(n_components=n_components, random_state=0)
+        sources = ica.fit_transform(data.T)
+        reconstructed = ica.inverse_transform(sources)
+        return reconstructed.T

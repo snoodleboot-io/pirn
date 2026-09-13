@@ -35,50 +35,6 @@ except ImportError:
     _HAS_SCIPY = False
 
 
-def _band_coherence(
-    channel_x: np.ndarray, channel_y: np.ndarray, fs: float, low: float, high: float
-) -> float:
-    if not _HAS_SCIPY or ss is None:
-        raise ImportError(
-            "scipy is required for CoherenceAnalyzer — install with: pip install 'pirn-health[health]'"
-        )
-    freqs, cxy = ss.coherence(channel_x, channel_y, fs=fs)
-    mask = (freqs >= low) & (freqs <= high)
-    return float(np.mean(cxy[mask])) if mask.any() else 0.0
-
-
-def _channel_index(name: str, n_channels: int) -> int:
-    if name.startswith("ch"):
-        try:
-            idx = int(name[2:])
-            return idx if 0 <= idx < n_channels else 0
-        except ValueError:
-            return 0
-    return 0
-
-
-def _compute_coherence(
-    data: np.ndarray,
-    channel_pairs: Sequence[tuple[str, str]],
-    fs: float,
-    low: float,
-    high: float,
-) -> dict[tuple[str, str], float]:
-    n_channels = data.shape[0] if data.ndim > 1 else 1
-    result: dict[tuple[str, str], float] = {}
-    for pair in channel_pairs:
-        idx_a = _channel_index(pair[0], n_channels)
-        idx_b = _channel_index(pair[1], n_channels)
-        if data.ndim > 1:
-            channel_a = data[idx_a]
-            channel_b = data[idx_b]
-        else:
-            channel_a = data
-            channel_b = data
-        result[pair] = _band_coherence(channel_a, channel_b, fs, low, high)
-    return result
-
-
 class CoherenceAnalyzer(Knot):
     """Compute coherence for the supplied channel pairs."""
 
@@ -144,10 +100,54 @@ class CoherenceAnalyzer(Knot):
 
         fs = signal.frame.sample_rate_hz
         return await asyncio.to_thread(
-            _compute_coherence,
+            self._compute_coherence,
             signal.data,
             channel_pairs,
             fs,
             float(band_low_hz),
             float(band_high_hz),
         )
+
+    @staticmethod
+    def _band_coherence(
+        channel_x: np.ndarray, channel_y: np.ndarray, fs: float, low: float, high: float
+    ) -> float:
+        if not _HAS_SCIPY or ss is None:
+            raise ImportError(
+                "scipy is required for CoherenceAnalyzer — install with: pip install 'pirn-health[health]'"
+            )
+        freqs, cxy = ss.coherence(channel_x, channel_y, fs=fs)
+        mask = (freqs >= low) & (freqs <= high)
+        return float(np.mean(cxy[mask])) if mask.any() else 0.0
+
+    @staticmethod
+    def _channel_index(name: str, n_channels: int) -> int:
+        if name.startswith("ch"):
+            try:
+                idx = int(name[2:])
+                return idx if 0 <= idx < n_channels else 0
+            except ValueError:
+                return 0
+        return 0
+
+    @staticmethod
+    def _compute_coherence(
+        data: np.ndarray,
+        channel_pairs: Sequence[tuple[str, str]],
+        fs: float,
+        low: float,
+        high: float,
+    ) -> dict[tuple[str, str], float]:
+        n_channels = data.shape[0] if data.ndim > 1 else 1
+        result: dict[tuple[str, str], float] = {}
+        for pair in channel_pairs:
+            idx_a = CoherenceAnalyzer._channel_index(pair[0], n_channels)
+            idx_b = CoherenceAnalyzer._channel_index(pair[1], n_channels)
+            if data.ndim > 1:
+                channel_a = data[idx_a]
+                channel_b = data[idx_b]
+            else:
+                channel_a = data
+                channel_b = data
+            result[pair] = CoherenceAnalyzer._band_coherence(channel_a, channel_b, fs, low, high)
+        return result

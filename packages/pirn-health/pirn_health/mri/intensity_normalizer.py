@@ -38,19 +38,6 @@ except ImportError:
     _HAS_NIB = False
 
 
-def _normalize(nifti_path: str, output_nifti_path: str) -> None:
-    if not _HAS_NIB or nib is None:
-        raise ImportError(
-            "nibabel is required for IntensityNormalizer — install with: pip install 'pirn[mri]'"
-        )
-    img = nib.load(nifti_path)
-    data = np.asarray(img.dataobj, dtype=float)
-    mean, std = data.mean(), data.std()
-    normalized = (data - mean) / (std if std > 0 else 1.0)
-    out_img = nib.Nifti1Image(normalized, img.affine, img.header)
-    nib.save(out_img, output_nifti_path)
-
-
 class IntensityNormalizer(Knot):
     """Normalise MRI intensities to a common scale."""
 
@@ -100,5 +87,18 @@ class IntensityNormalizer(Knot):
                 raise ValueError(f"IntensityNormalizer: {label} must be a non-empty string")
         if method not in ("zscore", "whitestripe", "fcm"):
             raise ValueError("IntensityNormalizer: method must be one of zscore/whitestripe/fcm")
-        await asyncio.to_thread(_normalize, nifti_path, output_nifti_path)
+        await asyncio.to_thread(self._normalize, nifti_path, output_nifti_path)
         return output_nifti_path
+
+    @staticmethod
+    def _normalize(nifti_path: str, output_nifti_path: str) -> None:
+        if not _HAS_NIB or nib is None:
+            raise ImportError(
+                "nibabel is required for IntensityNormalizer — install with: pip install 'pirn[mri]'"
+            )
+        img = nib.load(nifti_path)
+        data = np.asarray(img.dataobj, dtype=float)
+        mean, std = data.mean(), data.std()
+        normalized = (data - mean) / (std if std > 0 else 1.0)
+        out_img = nib.Nifti1Image(normalized, img.affine, img.header)
+        nib.save(out_img, output_nifti_path)

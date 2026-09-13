@@ -27,29 +27,6 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 
-def _hrv_metrics(rr_ms: np.ndarray) -> dict[str, float]:
-    """Compute time-domain HRV metrics from an R-R interval array.
-
-    Args:
-        rr_ms: 1-D array of R-R intervals in milliseconds.
-
-    Returns:
-        Dict with sdnn, rmssd, pnn50, and mean_hr_bpm.
-    """
-    if rr_ms.size == 0:
-        return {"sdnn": 0.0, "rmssd": 0.0, "pnn50": 0.0, "mean_hr_bpm": 0.0}
-    sdnn = float(np.std(rr_ms, ddof=1)) if rr_ms.size > 1 else 0.0
-    if rr_ms.size > 1:
-        diffs = np.diff(rr_ms)
-        rmssd = float(np.sqrt(np.mean(diffs**2)))
-        pnn50 = float(np.mean(np.abs(diffs) > 50.0))
-    else:
-        rmssd = 0.0
-        pnn50 = 0.0
-    mean_hr_bpm = float(60000.0 / np.mean(rr_ms)) if np.mean(rr_ms) > 0 else 0.0
-    return {"sdnn": sdnn, "rmssd": rmssd, "pnn50": pnn50, "mean_hr_bpm": mean_hr_bpm}
-
-
 class HeartRateVariabilityAnalyzer(Knot):
     """Compute HRV metrics from R-R intervals."""
 
@@ -85,4 +62,27 @@ class HeartRateVariabilityAnalyzer(Knot):
             if not isinstance(rr, (int, float)):
                 raise TypeError("HeartRateVariabilityAnalyzer: every RR must be numeric")
         rr_array = np.asarray(rr_intervals_ms, dtype=float)
-        return await asyncio.to_thread(_hrv_metrics, rr_array)
+        return await asyncio.to_thread(self._hrv_metrics, rr_array)
+
+    @staticmethod
+    def _hrv_metrics(rr_ms: np.ndarray) -> dict[str, float]:
+        """Compute time-domain HRV metrics from an R-R interval array.
+
+        Args:
+            rr_ms: 1-D array of R-R intervals in milliseconds.
+
+        Returns:
+            Dict with sdnn, rmssd, pnn50, and mean_hr_bpm.
+        """
+        if rr_ms.size == 0:
+            return {"sdnn": 0.0, "rmssd": 0.0, "pnn50": 0.0, "mean_hr_bpm": 0.0}
+        sdnn = float(np.std(rr_ms, ddof=1)) if rr_ms.size > 1 else 0.0
+        if rr_ms.size > 1:
+            diffs = np.diff(rr_ms)
+            rmssd = float(np.sqrt(np.mean(diffs**2)))
+            pnn50 = float(np.mean(np.abs(diffs) > 50.0))
+        else:
+            rmssd = 0.0
+            pnn50 = 0.0
+        mean_hr_bpm = float(60000.0 / np.mean(rr_ms)) if np.mean(rr_ms) > 0 else 0.0
+        return {"sdnn": sdnn, "rmssd": rmssd, "pnn50": pnn50, "mean_hr_bpm": mean_hr_bpm}

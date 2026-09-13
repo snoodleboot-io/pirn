@@ -35,18 +35,6 @@ except ImportError:
     _HAS_PIL = False
 
 
-def _to_png_bytes(payload: WSITilePayload) -> bytes:
-    if not _HAS_PIL or Image is None:
-        raise ImportError(
-            "Pillow is required for WsiObjectStoreDisassembler — "
-            "install with: pip install 'pirn-health[health]'"
-        )
-    img = Image.fromarray(payload.pixels.astype(np.uint8), mode="RGB")
-    buf = io.BytesIO()
-    img.save(buf, format="PNG")
-    return buf.getvalue()
-
-
 class WsiObjectStoreDisassembler(Disassembler):
     """Disassemble a :class:`WSITilePayload` into PNG bytes for object store upload."""
 
@@ -80,4 +68,16 @@ class WsiObjectStoreDisassembler(Disassembler):
                 f"WsiObjectStoreDisassembler: payload must be WSITilePayload, "
                 f"got {type(payload).__name__}"
             )
-        return await asyncio.to_thread(_to_png_bytes, payload)
+        return await asyncio.to_thread(self._to_png_bytes, payload)
+
+    @staticmethod
+    def _to_png_bytes(payload: WSITilePayload) -> bytes:
+        if not _HAS_PIL or Image is None:
+            raise ImportError(
+                "Pillow is required for WsiObjectStoreDisassembler — "
+                "install with: pip install 'pirn-health[health]'"
+            )
+        img = Image.fromarray(payload.pixels.astype(np.uint8), mode="RGB")
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        return buf.getvalue()
