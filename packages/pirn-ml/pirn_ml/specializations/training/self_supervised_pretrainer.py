@@ -33,6 +33,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_ml.evaluation.evaluator import Evaluator
@@ -40,11 +41,6 @@ from pirn_ml.training.trainer import Trainer
 from pirn_ml.types.eval_report_payload import EvalReportPayload
 from pirn_ml.types.model_manifest import ModelManifest
 from pirn_ml.types.split_manifest import SplitManifest
-
-
-@knot
-async def _emit_value(value: Any) -> Any:
-    return value
 
 
 @knot
@@ -143,7 +139,9 @@ class SelfSupervisedPretrainer(SubTapestry):
             raise TypeError("SelfSupervisedPretrainer: finetune_hyperparameters must be a Mapping")
         pretrain_hp = dict(pretrain_hyperparameters) if pretrain_hyperparameters is not None else {}
         finetune_hp = dict(finetune_hyperparameters) if finetune_hyperparameters is not None else {}
-        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        split_node = Parameter(
+            "split", SplitManifest, default=split, _config=KnotConfig(id="split")
+        )
         pretrained = Trainer(
             split=split_node,
             algorithm=pretrain_algorithm,
@@ -162,11 +160,17 @@ class SelfSupervisedPretrainer(SubTapestry):
             metrics=metric_tuple,
             _config=KnotConfig(id="evaluate"),
         )
-        pretrain_alg_node = _emit_value(
-            value=pretrain_algorithm, _config=KnotConfig(id="pretrain_algorithm")
+        pretrain_alg_node = Parameter(
+            "pretrain_algorithm",
+            str,
+            default=pretrain_algorithm,
+            _config=KnotConfig(id="pretrain_algorithm"),
         )
-        finetune_alg_node = _emit_value(
-            value=finetune_algorithm, _config=KnotConfig(id="finetune_algorithm")
+        finetune_alg_node = Parameter(
+            "finetune_algorithm",
+            str,
+            default=finetune_algorithm,
+            _config=KnotConfig(id="finetune_algorithm"),
         )
         return _combine_self_supervised_result(
             model=finetuned,

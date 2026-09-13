@@ -31,6 +31,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_ml.evaluation.evaluator import Evaluator
@@ -38,11 +39,6 @@ from pirn_ml.training.trainer import Trainer
 from pirn_ml.types.eval_report_payload import EvalReportPayload
 from pirn_ml.types.model_manifest import ModelManifest
 from pirn_ml.types.split_manifest import SplitManifest
-
-
-@knot
-async def _emit_value(value: Any) -> Any:
-    return value
 
 
 @knot
@@ -133,7 +129,9 @@ class FineTuningTrainer(SubTapestry):
         hp = dict(hyperparameters) if hyperparameters is not None else {}
         hp["pretrained_model_id"] = pretrained_model_id
         hp["frozen_layers"] = frozen_layers
-        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        split_node = Parameter(
+            "split", SplitManifest, default=split, _config=KnotConfig(id="split")
+        )
         trained = Trainer(
             split=split_node,
             algorithm=algorithm,
@@ -146,10 +144,15 @@ class FineTuningTrainer(SubTapestry):
             metrics=metric_tuple,
             _config=KnotConfig(id="evaluate"),
         )
-        pmid_node = _emit_value(
-            value=pretrained_model_id, _config=KnotConfig(id="pretrained_model_id")
+        pmid_node = Parameter(
+            "pretrained_model_id",
+            str,
+            default=pretrained_model_id,
+            _config=KnotConfig(id="pretrained_model_id"),
         )
-        fl_node = _emit_value(value=frozen_layers, _config=KnotConfig(id="frozen_layers"))
+        fl_node = Parameter(
+            "frozen_layers", int, default=frozen_layers, _config=KnotConfig(id="frozen_layers")
+        )
         return _combine_finetune_eval(
             model=trained,
             eval_report=evaluated,

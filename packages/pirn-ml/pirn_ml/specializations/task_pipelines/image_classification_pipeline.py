@@ -38,7 +38,7 @@ from pirn_ml.training.trainer import Trainer
 class ImageClassificationPipeline(SubTapestry):
     """Image loading, augmentation, CNN/ViT training, and evaluation."""
 
-    _image_metrics: tuple[str, ...] = ("accuracy", "precision", "recall", "f1")
+    _image_metrics: ClassVar[tuple[str, ...]] = ("accuracy", "precision", "recall", "f1")
     valid_architectures: ClassVar[frozenset[str]] = frozenset({"cnn", "vit"})
 
     def __init__(

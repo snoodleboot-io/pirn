@@ -27,11 +27,12 @@ References:
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
 from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.sub_tapestry import SubTapestry
 
@@ -39,11 +40,6 @@ from pirn_ml.evaluation.evaluator import Evaluator
 from pirn_ml.training.trainer import Trainer
 from pirn_ml.types.eval_report_payload import EvalReportPayload
 from pirn_ml.types.split_manifest import SplitManifest
-
-
-@knot
-async def _emit_value(value: Any) -> Any:
-    return value
 
 
 @knot
@@ -57,7 +53,7 @@ async def _combine_ablation_reports(
 class AblationStudyPipeline(SubTapestry):
     """Train a full + per-feature-group leave-out arm; collect reports."""
 
-    _full_arm_name: str = "full"
+    _full_arm_name: ClassVar[str] = "full"
 
     def __init__(
         self,
@@ -139,7 +135,9 @@ class AblationStudyPipeline(SubTapestry):
                 )
         frozen_groups = {name: tuple(cols) for name, cols in fg.items()}
         arm_names = [self._full_arm_name, *sorted(frozen_groups.keys())]
-        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        split_node = Parameter(
+            "split", SplitManifest, default=split, _config=KnotConfig(id="split")
+        )
         arm_report_nodes = []
         for arm in arm_names:
             model = Trainer(
@@ -156,7 +154,9 @@ class AblationStudyPipeline(SubTapestry):
                     _config=KnotConfig(id=f"evaluate_{arm}"),
                 )
             )
-        arm_names_node = _emit_value(value=arm_names, _config=KnotConfig(id="arm_names"))
+        arm_names_node = Parameter(
+            "arm_names", list, default=arm_names, _config=KnotConfig(id="arm_names")
+        )
         collected_reports = Aggregator(
             combine=lambda **kw: list(kw.values()),
             _config=KnotConfig(id="collect-reports"),

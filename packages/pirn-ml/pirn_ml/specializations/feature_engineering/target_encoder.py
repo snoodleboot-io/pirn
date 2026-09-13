@@ -36,16 +36,11 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_ml.features.encoder import Encoder
 from pirn_ml.types.split_manifest import SplitManifest
-
-
-@knot
-async def _emit_value(value: Any) -> Any:
-    return value
 
 
 class TargetEncoder(SubTapestry):
@@ -101,7 +96,9 @@ class TargetEncoder(SubTapestry):
             raise TypeError("TargetEncoder: smoothing must be a number")
         if float(smoothing) < 0.0:
             raise ValueError("TargetEncoder: smoothing must be >= 0.0")
-        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        split_node = Parameter(
+            "split", SplitManifest, default=split, _config=KnotConfig(id="split")
+        )
         return Encoder(
             split=split_node,
             columns=(categorical_column,),

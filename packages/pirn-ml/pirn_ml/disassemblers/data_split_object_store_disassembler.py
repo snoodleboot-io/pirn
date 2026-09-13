@@ -33,21 +33,6 @@ from pirn.core.knot_config import KnotConfig
 from pirn_ml.types.data_split_payload import DataSplitPayload
 
 
-def _serialize(payload: DataSplitPayload) -> bytes:
-    buf = io.BytesIO()
-    arrays = payload.arrays
-    named: dict[str, Any] = {
-        "X_train": arrays.X_train,
-        "X_test": arrays.X_test,
-    }
-    if arrays.y_train is not None:
-        named["y_train"] = arrays.y_train
-    if arrays.y_test is not None:
-        named["y_test"] = arrays.y_test
-    np.savez(buf, **named)
-    return buf.getvalue()
-
-
 class DataSplitObjectStoreDisassembler(Disassembler):
     """Serialise a :class:`DataSplitPayload` to numpy npz bytes for object-store persistence.
 
@@ -86,4 +71,19 @@ class DataSplitObjectStoreDisassembler(Disassembler):
                 f"DataSplitObjectStoreDisassembler: payload must be DataSplitPayload, "
                 f"got {type(payload).__name__}"
             )
-        return await asyncio.to_thread(_serialize, payload)
+        return await asyncio.to_thread(DataSplitObjectStoreDisassembler._serialize, payload)
+
+    @staticmethod
+    def _serialize(payload: DataSplitPayload) -> bytes:
+        buf = io.BytesIO()
+        arrays = payload.arrays
+        named: dict[str, Any] = {
+            "X_train": arrays.X_train,
+            "X_test": arrays.X_test,
+        }
+        if arrays.y_train is not None:
+            named["y_train"] = arrays.y_train
+        if arrays.y_test is not None:
+            named["y_test"] = arrays.y_test
+        np.savez(buf, **named)
+        return buf.getvalue()

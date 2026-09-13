@@ -25,18 +25,11 @@ import asyncio
 import io
 from typing import Any
 
-import joblib
 from pirn.core.disassembler import Disassembler
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_ml.types.trained_model_payload import TrainedModelPayload
-
-
-def _serialize(payload: TrainedModelPayload) -> bytes:
-    buf = io.BytesIO()
-    joblib.dump(payload.estimator.estimator, buf)
-    return buf.getvalue()
 
 
 class TrainedModelObjectStoreDisassembler(Disassembler):
@@ -76,4 +69,22 @@ class TrainedModelObjectStoreDisassembler(Disassembler):
                 f"TrainedModelObjectStoreDisassembler: payload must be TrainedModelPayload, "
                 f"got {type(payload).__name__}"
             )
-        return await asyncio.to_thread(_serialize, payload)
+        return await asyncio.to_thread(TrainedModelObjectStoreDisassembler._serialize, payload)
+
+    @staticmethod
+    def _load_joblib() -> Any:
+        try:
+            import joblib
+        except ImportError as exc:
+            raise ImportError(
+                "TrainedModelObjectStoreDisassembler requires joblib. "
+                "Install with `pip install pirn-ml[ml]`."
+            ) from exc
+        return joblib
+
+    @staticmethod
+    def _serialize(payload: TrainedModelPayload) -> bytes:
+        joblib = TrainedModelObjectStoreDisassembler._load_joblib()
+        buf = io.BytesIO()
+        joblib.dump(payload.estimator.estimator, buf)
+        return buf.getvalue()

@@ -23,17 +23,12 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_ml.features.embedding_extractor import EmbeddingExtractor
 from pirn_ml.ml_embedding_provider import MLEmbeddingProvider
 from pirn_ml.types.split_manifest import SplitManifest
-
-
-@knot
-async def _emit_value(value: Any) -> Any:
-    return value
 
 
 class TextEmbeddingExtractor(SubTapestry):
@@ -83,7 +78,9 @@ class TextEmbeddingExtractor(SubTapestry):
             raise TypeError(
                 "TextEmbeddingExtractor: embedding_provider must be an MLEmbeddingProvider"
             )
-        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        split_node = Parameter(
+            "split", SplitManifest, default=split, _config=KnotConfig(id="split")
+        )
         return EmbeddingExtractor(
             split=split_node,
             text_column=text_column,

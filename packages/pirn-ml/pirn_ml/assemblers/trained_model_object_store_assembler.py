@@ -28,7 +28,6 @@ import pickle
 from datetime import UTC, datetime
 from typing import Any
 
-import joblib
 from pirn.core.assembler import Assembler
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -36,23 +35,6 @@ from pirn.core.knot_config import KnotConfig
 from pirn_ml.types.fitted_estimator import FittedEstimator
 from pirn_ml.types.model_manifest import ModelManifest
 from pirn_ml.types.trained_model_payload import TrainedModelPayload
-
-
-def _deserialize(body: bytes, algorithm: str) -> TrainedModelPayload:
-    try:
-        raw = joblib.load(io.BytesIO(body))
-    except Exception:
-        raw = pickle.loads(body)
-    estimator = FittedEstimator(estimator=raw, algorithm=algorithm)
-    model_id = f"{algorithm}_{datetime.now(UTC).strftime('%Y%m%dT%H%M%S')}"
-    manifest = ModelManifest(
-        model_id=model_id,
-        algorithm=algorithm,
-        feature_names=(),
-        target_name="",
-        created_at=datetime.now(UTC),
-    )
-    return TrainedModelPayload(metadata=manifest, data=estimator)
 
 
 class TrainedModelObjectStoreAssembler(Assembler):
@@ -105,4 +87,35 @@ class TrainedModelObjectStoreAssembler(Assembler):
             raise ValueError("TrainedModelObjectStoreAssembler: body must be non-empty")
         if not algorithm:
             raise ValueError("TrainedModelObjectStoreAssembler: algorithm must be non-empty")
-        return await asyncio.to_thread(_deserialize, body, algorithm)
+        return await asyncio.to_thread(
+            TrainedModelObjectStoreAssembler._deserialize, body, algorithm
+        )
+
+    @staticmethod
+    def _load_joblib() -> Any:
+        try:
+            import joblib
+        except ImportError as exc:
+            raise ImportError(
+                "TrainedModelObjectStoreAssembler requires joblib. "
+                "Install with `pip install pirn-ml[ml]`."
+            ) from exc
+        return joblib
+
+    @staticmethod
+    def _deserialize(body: bytes, algorithm: str) -> TrainedModelPayload:
+        joblib = TrainedModelObjectStoreAssembler._load_joblib()
+        try:
+            raw = joblib.load(io.BytesIO(body))
+        except Exception:
+            raw = pickle.loads(body)
+        estimator = FittedEstimator(estimator=raw, algorithm=algorithm)
+        model_id = f"{algorithm}_{datetime.now(UTC).strftime('%Y%m%dT%H%M%S')}"
+        manifest = ModelManifest(
+            model_id=model_id,
+            algorithm=algorithm,
+            feature_names=(),
+            target_name="",
+            created_at=datetime.now(UTC),
+        )
+        return TrainedModelPayload(metadata=manifest, data=estimator)

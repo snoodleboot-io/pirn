@@ -29,6 +29,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_ml.evaluation.evaluator import Evaluator
@@ -37,11 +38,6 @@ from pirn_ml.types.dataset_manifest import DatasetManifest
 from pirn_ml.types.eval_report_payload import EvalReportPayload
 from pirn_ml.types.model_manifest import ModelManifest
 from pirn_ml.types.split_manifest import SplitManifest
-
-
-@knot
-async def _emit_value(value: Any) -> Any:
-    return value
 
 
 @knot
@@ -128,8 +124,10 @@ class OnlineLearnerTrainer(SubTapestry):
                 source_uri=split.train.source_uri,
             )
             batch_split = SplitManifest(train=batch_ds, test=split.test)
-            batch_node = _emit_value(
-                value=batch_split,
+            batch_node = Parameter(
+                f"batch_{batch_idx}",
+                SplitManifest,
+                default=batch_split,
                 _config=KnotConfig(id=f"batch_{batch_idx}"),
             )
             last_model = Trainer(
@@ -148,7 +146,9 @@ class OnlineLearnerTrainer(SubTapestry):
                 metrics=(monitor_metric,),
                 _config=KnotConfig(id=f"evaluate_{batch_idx}"),
             )
-        n_batches_node = _emit_value(value=n_batches, _config=KnotConfig(id="n_batches"))
+        n_batches_node = Parameter(
+            "n_batches", int, default=n_batches, _config=KnotConfig(id="n_batches")
+        )
         return _combine_online_learner_result(
             model=last_model,
             eval_report=last_evaluated,

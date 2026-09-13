@@ -29,6 +29,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_ml.evaluation.evaluator import Evaluator
@@ -37,11 +38,6 @@ from pirn_ml.training.trainer import Trainer
 from pirn_ml.types.eval_report_payload import EvalReportPayload
 from pirn_ml.types.model_manifest import ModelManifest
 from pirn_ml.types.split_manifest import SplitManifest
-
-
-@knot
-async def _emit_value(value: Any) -> Any:
-    return value
 
 
 @knot
@@ -121,7 +117,9 @@ class StackingEnsembleBuilder(SubTapestry):
                 raise ValueError(
                     "StackingEnsembleBuilder: every metric name must be a non-empty string"
                 )
-        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        split_node = Parameter(
+            "split", SplitManifest, default=split, _config=KnotConfig(id="split")
+        )
         base_models = []
         for i, alg in enumerate(base_tuple):
             model = Trainer(
@@ -141,7 +139,9 @@ class StackingEnsembleBuilder(SubTapestry):
             metrics=metric_tuple,
             _config=KnotConfig(id="evaluate"),
         )
-        n_base_node = _emit_value(value=len(base_tuple), _config=KnotConfig(id="n_base_models"))
+        n_base_node = Parameter(
+            "n_base_models", int, default=len(base_tuple), _config=KnotConfig(id="n_base_models")
+        )
         return _combine_stacking_result(
             ensemble_model=ensemble,
             eval_report=evaluated,

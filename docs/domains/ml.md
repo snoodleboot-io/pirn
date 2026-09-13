@@ -200,7 +200,7 @@ Pre-built `SubTapestry` pipelines for common ML patterns.
 | `task_pipelines/` | `BinaryClassificationPipeline`, `MulticlassClassificationPipeline`, `RegressionPipeline`, `ForecastingPipeline`, `NLPPipeline`, `ComputerVisionPipeline` |
 | `training/` | `SklearnTrainerPipeline`, `XGBoostTrainerPipeline`, `NeuralNetTrainerPipeline` |
 | `evaluation/` | `ClassificationEvalPipeline`, `RegressionEvalPipeline`, `RankingEvalPipeline`, `TimeSeriesEvalPipeline`, `WalkForwardValidator` |
-| `experiments/` | `GridSearchTuner`, `BayesianSearchTuner`, `StratifiedKFoldValidator`, `TimeSeriesSplitterValidator`, `AblationStudyPipeline`, `ChampionChallengerGate` |
+| `experiments/` | `GridSearchTuner`, `BayesianSearchTuner`, `StratifiedKFoldValidator`, `TimeSeriesSplitterValidator`, `AblationStudyPipeline`, `ChampionChallengerCheck` |
 | `feature_engineering/` | `FeatureStoreReader`, `FeatureStoreWriter`, `TextEmbeddingExtractor`, `ImageEmbeddingExtractor`, `LagFeatureGenerator`, `TargetEncoder` |
 | `production/` | `FullTrainDeployPipeline`, `ShadowDeploymentPipeline`, `ABTestPipeline`, `ContinuousTrainingPipeline`, `DriftMonitor`, `ModelLineageTracker` |
 
@@ -232,7 +232,7 @@ from pirn_ml.data_prep.train_test_split import TrainTestSplit
 from pirn_ml.features.scaler import Scaler
 from pirn_ml.training.trainer import Trainer
 from pirn_ml.evaluation.evaluator import Evaluator
-from pirn_ml.evaluation.metric_gate import MetricCheck
+from pirn_ml.evaluation.metric_check import MetricCheck
 
 from sklearn.linear_model import LogisticRegression
 

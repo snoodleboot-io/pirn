@@ -33,6 +33,7 @@ from typing import Any, ClassVar
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_ml.evaluation.evaluator import Evaluator
@@ -41,11 +42,6 @@ from pirn_ml.training.trainer import Trainer
 from pirn_ml.types.eval_report_payload import EvalReportPayload
 from pirn_ml.types.model_manifest import ModelManifest
 from pirn_ml.types.split_manifest import SplitManifest
-
-
-@knot
-async def _emit_value(value: Any) -> Any:
-    return value
 
 
 @knot
@@ -139,7 +135,9 @@ class BaggingEnsembleBuilder(SubTapestry):
             raise TypeError("BaggingEnsembleBuilder: hyperparameters must be a Mapping")
         hp = dict(hyperparameters) if hyperparameters is not None else {}
         strategy = "voting" if task == "classification" else "blending"
-        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        split_node = Parameter(
+            "split", SplitManifest, default=split, _config=KnotConfig(id="split")
+        )
         base_models = []
         for i in range(n_estimators):
             model = Trainer(
@@ -160,7 +158,9 @@ class BaggingEnsembleBuilder(SubTapestry):
             metrics=metric_tuple,
             _config=KnotConfig(id="evaluate"),
         )
-        n_est_node = _emit_value(value=n_estimators, _config=KnotConfig(id="n_estimators"))
+        n_est_node = Parameter(
+            "n_estimators", int, default=n_estimators, _config=KnotConfig(id="n_estimators")
+        )
         return _combine_ensemble_eval(
             ensemble_model=ensemble,
             eval_report=evaluated,

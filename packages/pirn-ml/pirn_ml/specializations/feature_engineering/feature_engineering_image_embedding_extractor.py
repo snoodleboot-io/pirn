@@ -23,7 +23,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_ml.image_encoder_provider import ImageEncoderProvider
@@ -31,11 +31,6 @@ from pirn_ml.specializations.feature_engineering._image_encoder_extractor import
     _ImageEncoderExtractor,
 )
 from pirn_ml.types.split_manifest import SplitManifest
-
-
-@knot
-async def _emit_value(value: Any) -> Any:
-    return value
 
 
 class FeatureEngineeringImageEmbeddingExtractor(SubTapestry):
@@ -87,7 +82,9 @@ class FeatureEngineeringImageEmbeddingExtractor(SubTapestry):
             raise TypeError(
                 "FeatureEngineeringImageEmbeddingExtractor: image_encoder must be an ImageEncoderProvider"
             )
-        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        split_node = Parameter(
+            "split", SplitManifest, default=split, _config=KnotConfig(id="split")
+        )
         return _ImageEncoderExtractor(
             split=split_node,
             image_column=image_column,

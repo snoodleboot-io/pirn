@@ -37,7 +37,7 @@ from pirn_ml.training.trainer import Trainer
 class TextClassificationPipeline(SubTapestry):
     """TF-IDF or embedding features → classifier train → evaluation."""
 
-    _classification_metrics: tuple[str, ...] = (
+    _classification_metrics: ClassVar[tuple[str, ...]] = (
         "accuracy",
         "precision",
         "recall",

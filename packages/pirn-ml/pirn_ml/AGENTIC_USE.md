@@ -76,7 +76,7 @@ pirn_ml/
 │   └── ensemble_builder.py         # Voting or stacking ensemble from TrainedModels
 ├── evaluation/
 │   ├── evaluator.py                # Score TrainedModel on test split → EvalReport
-│   ├── metric_gate.py              # Pass through only if metric >= threshold
+│   ├── metric_check.py             # Pass through only if metric >= threshold
 │   ├── explainer.py                # Feature importances / SHAP values
 │   └── fairness_audit.py           # Demographic parity, equalized odds, etc.
 ├── deployment/
@@ -206,7 +206,7 @@ from pirn_ml.data_prep.train_test_split import TrainTestSplit
 from pirn_ml.features.scaler import Scaler
 from pirn_ml.training.trainer import Trainer
 from pirn_ml.evaluation.evaluator import Evaluator
-from pirn_ml.evaluation.metric_gate import MetricCheck
+from pirn_ml.evaluation.metric_check import MetricCheck
 from pirn_ml.deployment.model_serializer import ModelSerializer
 from pirn_ml.deployment.model_registrar import ModelRegistrar
 from pirn.connectors.file_formats.joblib_format import JoblibFormat

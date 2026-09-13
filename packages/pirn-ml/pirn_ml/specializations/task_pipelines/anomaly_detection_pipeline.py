@@ -44,7 +44,7 @@ from pirn_ml.training.trainer import Trainer
 class AnomalyDetectionPipeline(SubTapestry):
     """Fit an anomaly detector on normal data and score the test set."""
 
-    _anomaly_metrics: tuple[str, ...] = ("precision", "recall", "f1", "roc_auc")
+    _anomaly_metrics: ClassVar[tuple[str, ...]] = ("precision", "recall", "f1", "roc_auc")
     valid_algorithms: ClassVar[frozenset[str]] = frozenset(
         {"isolation_forest", "lof", "autoencoder"}
     )

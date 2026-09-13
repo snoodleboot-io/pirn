@@ -34,6 +34,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
+from pirn.core.parameter import Parameter
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_ml.evaluation.evaluator import Evaluator
@@ -41,11 +42,6 @@ from pirn_ml.training.hyperparam_search import HyperparamSearch
 from pirn_ml.types.eval_report_payload import EvalReportPayload
 from pirn_ml.types.model_manifest import ModelManifest
 from pirn_ml.types.split_manifest import SplitManifest
-
-
-@knot
-async def _emit_value(value: Any) -> Any:
-    return value
 
 
 @knot
@@ -127,7 +123,9 @@ class HyperbandTuner(SubTapestry):
         frozen_space = {k: tuple(v) for k, v in ss.items()}
         rounds = max(1, math.ceil(math.log2(max_configs)))
         n_trials = max(1, max_configs // (2 ** (rounds - 1)))
-        split_node = _emit_value(value=split, _config=KnotConfig(id="split"))
+        split_node = Parameter(
+            "split", SplitManifest, default=split, _config=KnotConfig(id="split")
+        )
         best = HyperparamSearch(
             split=split_node,
             algorithm=algorithm,
@@ -143,7 +141,7 @@ class HyperbandTuner(SubTapestry):
             metrics=(primary_metric,),
             _config=KnotConfig(id="evaluate"),
         )
-        rounds_node = _emit_value(value=rounds, _config=KnotConfig(id="rounds"))
+        rounds_node = Parameter("rounds", int, default=rounds, _config=KnotConfig(id="rounds"))
         return _combine_hyperband_result(
             best_model=best,
             eval_report=evaluated,
