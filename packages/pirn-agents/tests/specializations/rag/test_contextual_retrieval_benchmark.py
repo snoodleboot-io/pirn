@@ -29,11 +29,7 @@ class _RelevanceReranker(RerankerBackend):
 
 
 async def _drain(store: MemoryStore, query: str, top_k: int) -> list[Mapping[str, Any]]:
-    iterator = await store.search(query, top_k=top_k)
-    collected: list[Mapping[str, Any]] = []
-    async for item in iterator:
-        collected.append(item)
-    return collected
+    return list(await store.search(query, top_k=top_k))
 
 
 def _reranker_knot() -> Reranker:

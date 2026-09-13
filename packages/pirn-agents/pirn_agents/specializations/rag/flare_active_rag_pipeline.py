@@ -128,7 +128,7 @@ class FlareActiveRagPipeline(AgentPipeline):
                 SentenceConfidenceMonitor.needs_retrieval(confidence, float(confidence_threshold))
                 and retrieval_calls < max_retrieval_calls
             ):
-                docs = await self._search(memory, sentence, top_k)
+                docs = list((await memory.search(sentence, top_k=top_k))[:top_k])
                 retrieval_calls += 1
                 sentence = self._extract_text(
                     await llm.chat(
@@ -174,23 +174,6 @@ class FlareActiveRagPipeline(AgentPipeline):
         confidence = float(match.group(1))
         confidence = min(1.0, max(0.0, confidence))
         return confidence, match.group(2).strip()
-
-    @staticmethod
-    async def _search(store: MemoryStore, query: str, top_k: int) -> list[Mapping[str, Any]]:
-        """Drain ``store.search`` (awaitable / async-iterable / list) into a list."""
-        candidate = store.search(query, top_k=top_k)
-        if hasattr(candidate, "__await__"):
-            candidate = await candidate  # type: ignore[assignment]
-        if hasattr(candidate, "__aiter__"):
-            collected: list[Mapping[str, Any]] = []
-            async for item in candidate:  # type: ignore[misc]
-                collected.append(item)
-                if len(collected) >= top_k:
-                    break
-            return collected
-        if isinstance(candidate, list):
-            return list(candidate[:top_k])
-        return [item for item in candidate][:top_k]  # type: ignore[misc]
 
     @staticmethod
     def _extract_text(raw: Any) -> str:

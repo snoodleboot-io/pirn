@@ -70,13 +70,9 @@ class _SlowMemory(MemoryStore):
     async def retrieve(self, key: str) -> Mapping[str, Any] | None:
         return None
 
-    async def search(self, query: str, *, top_k: int = 10) -> AsyncIterator[Mapping[str, Any]]:
+    async def search(self, query: str, *, top_k: int = 10) -> Sequence[Mapping[str, Any]]:
         await asyncio.sleep(_STAGE_DELAY)
-
-        async def _aiter() -> AsyncIterator[Mapping[str, Any]]:
-            yield {"id": "1", "text": "evidence"}
-
-        return _aiter()
+        return [{"id": "1", "text": "evidence"}]
 
     async def forget(self, key: str) -> None:
         return None

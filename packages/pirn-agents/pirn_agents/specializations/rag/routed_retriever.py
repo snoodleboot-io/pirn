@@ -79,27 +79,10 @@ class RoutedRetriever(Retriever):
             raise ValueError(f"RoutedRetriever: top_k must be a positive int, got {top_k!r}")
         selected = route if routes.has(route) else routes.route_names()[0]
         store = routes.store_for(selected)
-        hits = await self._search(store, query, top_k)
+        hits = await store.search(query, top_k=top_k)
         tagged: list[Mapping[str, Any]] = []
-        for hit in hits:
+        for hit in list(hits)[:top_k]:
             enriched = dict(hit)
             enriched.setdefault("route", selected)
             tagged.append(enriched)
         return tagged
-
-    @staticmethod
-    async def _search(store: Any, query: str, top_k: int) -> list[Mapping[str, Any]]:
-        """Drain ``store.search`` (awaitable / async-iterable / list) into a list."""
-        candidate = store.search(query, top_k=top_k)
-        if hasattr(candidate, "__await__"):
-            candidate = await candidate
-        if hasattr(candidate, "__aiter__"):
-            collected: list[Mapping[str, Any]] = []
-            async for item in candidate:
-                collected.append(item)
-                if len(collected) >= top_k:
-                    break
-            return collected
-        if isinstance(candidate, list):
-            return list(candidate[:top_k])
-        return [item for item in candidate][:top_k]

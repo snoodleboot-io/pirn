@@ -7,7 +7,7 @@ writes) and a counting stub embedder to assert that only deltas are re-embedded.
 from __future__ import annotations
 
 import unittest
-from collections.abc import AsyncIterator, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from pirn_agents.memory.stores.memory_store import MemoryStore
@@ -33,12 +33,8 @@ class _DictMemoryStore(MemoryStore):
     async def retrieve(self, key: str) -> Mapping[str, Any] | None:
         return self.entries.get(key)
 
-    async def search(self, query: str, *, top_k: int = 10) -> AsyncIterator[Mapping[str, Any]]:
-        async def _aiter() -> AsyncIterator[Mapping[str, Any]]:
-            for entry in list(self.entries.values())[:top_k]:
-                yield entry
-
-        return _aiter()
+    async def search(self, query: str, *, top_k: int = 10) -> Sequence[Mapping[str, Any]]:
+        return list(self.entries.values())[:top_k]
 
     async def forget(self, key: str) -> None:
         self.entries.pop(key, None)

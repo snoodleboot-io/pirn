@@ -196,8 +196,6 @@ class VectorStoreConformance:
 
     async def test_search_uses_embedder(self) -> None:
         store = await self._seeded()
-        hits: list[Mapping[str, Any]] = []
-        async for hit in await store.search("anything", top_k=2):
-            hits.append(hit)
+        hits = await store.search("anything", top_k=2)
         assert len(hits) == 2
         assert hits[0]["id"] == "a"
