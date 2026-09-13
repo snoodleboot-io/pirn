@@ -1,66 +1,18 @@
-"""``MegObjectStoreDisassembler`` — disassemble a :class:`HealthSignalPayload` into bytes.
+"""``MegObjectStoreDisassembler`` — disassemble a MEG :class:`HealthSignalPayload` into bytes.
 
-Sits between domain knots that produce :class:`~pirn_health.types.health_signal_payload.HealthSignalPayload`
-and an object store sink connector that expects raw ``bytes``.
-
-Algorithm:
-    1. Receive a :class:`HealthSignalPayload`.
-    2. Validate the payload type.
-    3. Serialise ``payload.data`` via ``np.save`` into a BytesIO buffer on a thread.
-    4. Return the resulting ``bytes``.
+Thin subclass of
+:class:`~pirn_health.disassemblers._mne_signal_object_store_disassembler._MneSignalObjectStoreDisassembler`
+— see that module for the algorithm and references. This class exists to
+give MEG-sourced payloads their own public, discoverable name and error
+messages.
 """
 
 from __future__ import annotations
 
-import asyncio
-import io
-from typing import Any
-
-import numpy as np
-from pirn.core.disassembler import Disassembler
-from pirn.core.knot import Knot
-from pirn.core.knot_config import KnotConfig
-
-from pirn_health.types.health_signal_payload import HealthSignalPayload
+from pirn_health.disassemblers._mne_signal_object_store_disassembler import (
+    _MneSignalObjectStoreDisassembler,
+)
 
 
-def _serialise(payload: HealthSignalPayload) -> bytes:
-    buf = io.BytesIO()
-    np.save(buf, payload.data)
-    return buf.getvalue()
-
-
-class MegObjectStoreDisassembler(Disassembler):
-    """Disassemble a :class:`HealthSignalPayload` into raw bytes for object store upload."""
-
-    def __init__(
-        self,
-        *,
-        payload: Knot,
-        _config: KnotConfig,
-        **kwargs: Any,
-    ) -> None:
-        super().__init__(payload=payload, _config=_config, **kwargs)
-
-    async def process(
-        self,
-        payload: HealthSignalPayload,
-        **_: Any,
-    ) -> bytes:
-        """Serialise the MEG sample array to bytes.
-
-        Args:
-            payload: :class:`HealthSignalPayload` produced by an upstream MEG knot.
-
-        Returns:
-            Raw ``bytes`` of the sample array in NumPy ``.npy`` format.
-
-        Raises:
-            TypeError: If ``payload`` is not a :class:`HealthSignalPayload`.
-        """
-        if not isinstance(payload, HealthSignalPayload):
-            raise TypeError(
-                f"MegObjectStoreDisassembler: payload must be HealthSignalPayload, "
-                f"got {type(payload).__name__}"
-            )
-        return await asyncio.to_thread(_serialise, payload)
+class MegObjectStoreDisassembler(_MneSignalObjectStoreDisassembler):
+    """Disassemble a MEG :class:`HealthSignalPayload` into raw bytes for object store upload."""
