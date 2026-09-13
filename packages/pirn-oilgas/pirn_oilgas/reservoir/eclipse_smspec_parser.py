@@ -32,6 +32,10 @@ from pirn_oilgas.types.scada_time_series import ScadaTimeSeries
 class EclipseSmspecParser(Knot):
     """Parse an Eclipse SMSPEC binary into a :class:`ScadaTimeSeries` reference."""
 
+    @staticmethod
+    def _decode_keyword(raw_value: Any) -> str:
+        return raw_value.decode() if isinstance(raw_value, (bytes, bytearray)) else str(raw_value)
+
     def __init__(
         self,
         *,
@@ -81,17 +85,19 @@ class EclipseSmspecParser(Knot):
         if not os.path.isfile(smspec_path):
             raise FileNotFoundError(f"EclipseSmspecParser: SMSPEC file not found: {smspec_path}")
 
-        def _decode(raw_value: Any) -> str:
-            return (
-                raw_value.decode() if isinstance(raw_value, (bytes, bytearray)) else str(raw_value)
-            )
-
-        records: dict[str, Any] = {_decode(kw).strip(): arr for kw, arr in resfo.read(smspec_path)}
+        records: dict[str, Any] = {
+            EclipseSmspecParser._decode_keyword(kw).strip(): arr
+            for kw, arr in resfo.read(smspec_path)
+        }
 
         # KEYWORDS holds the summary mnemonic (e.g. "WOPR"), WGNAMES the
         # well/group qualifier (e.g. "WELL1"). Reconstruct the combined key.
-        keywords = [_decode(k).strip() for k in records.get("KEYWORDS", [])]
-        wgnames = [_decode(w).strip() for w in records.get("WGNAMES", [])]
+        keywords = [
+            EclipseSmspecParser._decode_keyword(k).strip() for k in records.get("KEYWORDS", [])
+        ]
+        wgnames = [
+            EclipseSmspecParser._decode_keyword(w).strip() for w in records.get("WGNAMES", [])
+        ]
 
         # Build index: "MNEMONIC:WGNAME" → position (drop empty wgnames)
         kw_part, wg_part = vector_name.split(":", 1) if ":" in vector_name else (vector_name, "")

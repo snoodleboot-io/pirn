@@ -85,6 +85,12 @@ class TypeCurveFitter(Knot):
         return await asyncio.to_thread(self._fit_and_integrate, rate_array, time_days)
 
     @staticmethod
+    def _hyperbolic_model(
+        time_arr: np.ndarray, qi_: float, di_: float, arps_b: float
+    ) -> np.ndarray:
+        return qi_ * (1.0 + arps_b * di_ * time_arr) ** (-1.0 / arps_b)
+
+    @staticmethod
     def _fit_and_integrate(rate_array: np.ndarray, time_days: np.ndarray) -> dict[str, float]:
         try:
             from scipy.optimize import curve_fit
@@ -93,13 +99,10 @@ class TypeCurveFitter(Knot):
                 "TypeCurveFitter: type-curve fitting requires scipy — install pirn-oilgas[oilgas]"
             ) from exc
 
-        def hyperbolic(time_arr: np.ndarray, qi_: float, di_: float, arps_b: float) -> np.ndarray:
-            return qi_ * (1.0 + arps_b * di_ * time_arr) ** (-1.0 / arps_b)
-
         qi0 = float(rate_array[0]) if rate_array[0] > 0 else 1.0
         try:
             popt, _ = curve_fit(
-                hyperbolic,
+                TypeCurveFitter._hyperbolic_model,
                 time_days,
                 rate_array,
                 p0=[qi0, _di_init_day, _b_init],
