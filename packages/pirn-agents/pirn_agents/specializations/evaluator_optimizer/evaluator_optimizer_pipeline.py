@@ -10,8 +10,9 @@ A :class:`SubTapestry` that loops, up to ``max_iterations`` times:
    the score meets ``threshold``.
 
 To *reuse rather than duplicate* the existing binary gate, the pipeline also
-accepts an optional injected :class:`ReflectionCheck`; when supplied it is
-consulted as an early-stop signal — if it decides no further iteration is
+accepts a ``reflection_gate`` flag; when ``True`` a fresh
+:class:`~pirn_agents.control.reflection_check.ReflectionCheck` is consulted
+each iteration as an early-stop signal — if it decides no further iteration is
 worthwhile, the loop stops with the best candidate so far. The loop is bounded by
 ``max_iterations`` and returns a typed :class:`EvaluatorOptimizerResult`.
 
@@ -28,7 +29,6 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 
-from pirn_agents.control.reflection_check import ReflectionCheck
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.evaluator_optimizer._evaluator_optimizer_loop import (
@@ -52,16 +52,16 @@ class EvaluatorOptimizerPipeline(AgentPipeline):
         llm: Knot | LLMProvider,
         threshold: Knot | float = 8.0,
         max_iterations: Knot | int = 3,
-        reflection_gate: ReflectionCheck | None = None,
+        reflection_gate: Knot | bool = False,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        self._reflection_gate = reflection_gate
         super().__init__(
             task=task,
             llm=llm,
             threshold=threshold,
             max_iterations=max_iterations,
+            reflection_gate=reflection_gate,
             _config=_config,
             **kwargs,
         )
@@ -72,6 +72,7 @@ class EvaluatorOptimizerPipeline(AgentPipeline):
         llm: LLMProvider,
         threshold: float = 8.0,
         max_iterations: int = 3,
+        reflection_gate: bool = False,
         **_: Any,
     ) -> Any:
         """Run the accept loop and surface an :class:`EvaluatorOptimizerResult`.
@@ -81,6 +82,9 @@ class EvaluatorOptimizerPipeline(AgentPipeline):
             llm: Provider shared by the generator and judge.
             threshold: Minimum judge score (0-10) to accept.
             max_iterations: Hard cap on generate/judge rounds.
+            reflection_gate: When True, consult a fresh
+                :class:`~pirn_agents.control.reflection_check.ReflectionCheck`
+                each iteration as an early-stop signal.
 
         Returns:
             A terminal :class:`Source` whose output is the
@@ -118,7 +122,7 @@ class EvaluatorOptimizerPipeline(AgentPipeline):
             llm=llm,
             threshold=float(threshold),
             max_iterations=max_iterations,
-            reflection_gate=self._reflection_gate,
+            reflection_gate=reflection_gate,
             state=initial,
             _config=KnotConfig(id="eo_loop"),
         )

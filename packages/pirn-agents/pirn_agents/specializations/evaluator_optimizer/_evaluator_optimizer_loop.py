@@ -61,7 +61,7 @@ class _EvaluatorOptimizerLoop(AgentLoopPipeline[_EvaluatorOptimizerState]):
         llm: LLMProvider,
         threshold: float,
         max_iterations: int,
-        reflection_gate: ReflectionCheck | None,
+        reflection_gate: bool,
         **kwargs: Any,
     ) -> None:
         self._task = task
@@ -105,7 +105,7 @@ class _EvaluatorOptimizerLoop(AgentLoopPipeline[_EvaluatorOptimizerState]):
                 threshold=self._threshold,
                 _config=KnotConfig(id=_GATE_ID),
             )
-            if self._reflection_gate is not None:
+            if self._reflection_gate:
                 keep_going = Gate(
                     input=accepted,
                     predicate=_reject,

@@ -29,7 +29,7 @@ References:
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -41,6 +41,9 @@ from pirn_agents.types.messaging.agent_response import AgentResponse
 class OutputResponseValidator(Knot):
     """Validates an :class:`AgentResponse` against deny + allow rules."""
 
+    #: Stateless helper shared across instances (Knot Rule 4 — class-level constant).
+    _pattern_compiler: ClassVar[SafePatternCompiler] = SafePatternCompiler()
+
     def __init__(
         self,
         *,
@@ -50,7 +53,6 @@ class OutputResponseValidator(Knot):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        self._pattern_compiler = SafePatternCompiler()
         super().__init__(
             response=response,
             deny_patterns=deny_patterns,

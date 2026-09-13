@@ -32,7 +32,7 @@ from __future__ import annotations
 import asyncio
 import re
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -44,6 +44,9 @@ from pirn_agents.types.messaging.agent_message import AgentMessage
 class InputMessageScrubber(Knot):
     """Validates and PII-scrubs a tuple of :class:`AgentMessage`."""
 
+    #: Stateless helper shared across instances (Knot Rule 4 — class-level constant).
+    _pattern_compiler: ClassVar[SafePatternCompiler] = SafePatternCompiler()
+
     def __init__(
         self,
         *,
@@ -53,7 +56,6 @@ class InputMessageScrubber(Knot):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        self._pattern_compiler = SafePatternCompiler()
         super().__init__(
             messages=messages,
             deny_patterns=deny_patterns,

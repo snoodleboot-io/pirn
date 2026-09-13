@@ -35,7 +35,7 @@ References:
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -51,6 +51,9 @@ from pirn_agents.types.messaging.agent_message import AgentMessage
 class InputGuardrailGate(AgentPipeline):
     """Pre-prompt deny + PII redaction gate over agent messages."""
 
+    #: Stateless helper shared across instances (Knot Rule 4 — class-level constant).
+    _pattern_compiler: ClassVar[SafePatternCompiler] = SafePatternCompiler()
+
     def __init__(
         self,
         *,
@@ -60,7 +63,6 @@ class InputGuardrailGate(AgentPipeline):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        self._pattern_compiler = SafePatternCompiler()
         super().__init__(
             messages=messages,
             deny_patterns=deny_patterns,
