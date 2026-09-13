@@ -71,30 +71,20 @@ class HL7v2MessageParser(Knot):
             seg_name = fields[0].upper()
             segments.setdefault(seg_name, []).append(fields)
 
-        def _field(seg: str, field_idx: int, component: int = 0, occurrence: int = 0) -> str:
-            rows = segments.get(seg, [])
-            if occurrence >= len(rows):
-                return ""
-            fields = rows[occurrence]
-            if field_idx >= len(fields):
-                return ""
-            components = fields[field_idx].split("^")
-            return components[component].strip() if component < len(components) else ""
-
         # PID-3: patient identifier list; PID-2 fallback
-        patient_id = _field("PID", 3) or _field("PID", 2) or ""
+        patient_id = self._field(segments, "PID", 3) or self._field(segments, "PID", 2) or ""
         # PV1-19: visit number as encounter ID; MSH-10 (message control ID) as fallback
-        encounter_id = _field("PV1", 19) or _field("MSH", 10) or ""
+        encounter_id = self._field(segments, "PV1", 19) or self._field(segments, "MSH", 10) or ""
 
         # OBX-3: observation identifier (component 0 = code, component 2 = display)
         observation_codes = tuple(
-            _field("OBX", 3, component=0, occurrence=i)
+            self._field(segments, "OBX", 3, component=0, occurrence=i)
             for i in range(len(segments.get("OBX", [])))
-            if _field("OBX", 3, component=0, occurrence=i)
+            if self._field(segments, "OBX", 3, component=0, occurrence=i)
         )
 
         # MSH-7: message date/time (format YYYYMMDDHHMMSS or YYYYMMDD)
-        dt_raw = _field("MSH", 7)
+        dt_raw = self._field(segments, "MSH", 7)
         observed_at = datetime.now(UTC)
         if len(dt_raw) >= 8:
             try:
@@ -112,3 +102,20 @@ class HL7v2MessageParser(Knot):
             observed_at=observed_at,
             source_system="hl7v2",
         )
+
+    @staticmethod
+    def _field(
+        segments: dict[str, list[list[str]]],
+        seg: str,
+        field_idx: int,
+        component: int = 0,
+        occurrence: int = 0,
+    ) -> str:
+        rows = segments.get(seg, [])
+        if occurrence >= len(rows):
+            return ""
+        fields = rows[occurrence]
+        if field_idx >= len(fields):
+            return ""
+        components = fields[field_idx].split("^")
+        return components[component].strip() if component < len(components) else ""

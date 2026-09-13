@@ -123,10 +123,6 @@ class AccelerometerActivityClassifier(Knot):
         n_classes = len(activity_classes)
         step = enmo_max / n_classes if enmo_max > 0 else 1.0
 
-        def _classify(enmo: float) -> str:
-            idx = min(int(enmo / step), n_classes - 1) if step > 0 else 0
-            return activity_classes[idx]
-
         results: list[dict[str, Any]] = []
         for window_index, (start_idx, vm) in enumerate(
             zip(range(0, timestamp_count, window_samples), window_vms, strict=False)
@@ -138,8 +134,17 @@ class AccelerometerActivityClassifier(Knot):
                 {
                     "start_iso": start_iso,
                     "end_iso": end_iso,
-                    "activity_class": _classify(enmo_vals[window_index]),
+                    "activity_class": self._classify_window(
+                        enmo_vals[window_index], step, n_classes, activity_classes
+                    ),
                     "vector_magnitude": vm,
                 }
             )
         return results
+
+    @staticmethod
+    def _classify_window(
+        enmo: float, step: float, n_classes: int, activity_classes: tuple[str, ...]
+    ) -> str:
+        idx = min(int(enmo / step), n_classes - 1) if step > 0 else 0
+        return activity_classes[idx]
