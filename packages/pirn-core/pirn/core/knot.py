@@ -622,13 +622,6 @@ class Knot:
         if self._mutable_mapped_inputs:
             try:
                 outputs = await self._fan_out(kwargs)
-            except (asyncio.CancelledError, KeyboardInterrupt, SystemExit):
-                # Task cancellation and process-level control flow are not
-                # knot failures. Converting them to Err would let a
-                # cancelled knot's Task look like it completed normally,
-                # and a caller awaiting the cancellation would never see
-                # it propagate.
-                raise
             except BaseException as exc:
                 return Err(record=ExceptionRecord.for_knot(config.id, exc))
             return Ok(value=outputs)
@@ -641,8 +634,6 @@ class Knot:
 
         try:
             result = await self.process(**kwargs)
-        except (asyncio.CancelledError, KeyboardInterrupt, SystemExit):
-            raise
         except BaseException as exc:
             return Err(record=ExceptionRecord.for_knot(config.id, exc))
 
