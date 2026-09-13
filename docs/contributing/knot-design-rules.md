@@ -64,6 +64,22 @@ def __init__(self, *, models: Sequence[Knot], _config: KnotConfig, **kwargs: Any
     super().__init__(models=models_node, _config=_config, **kwargs)
 ```
 
+**Deprecating a Knot-shaped shim.** A public Knot class kept importable for one
+deprecation cycle (`docs/contributing/knot-remediation-process.md`) must still obey
+Rule 1 — no statement beyond the single `super().__init__(...)` call — so it cannot
+itself call `warnings.warn(...)`. Set the class attribute `_deprecated_since:
+ClassVar[str | None]` instead; `Knot._bootstrap` (the seam both the standard
+`Knot.__init__` introspection and framework primitives that bypass it, e.g.
+`Parameter`, converge on) raises a `DeprecationWarning` on every construction when it
+is set, naming the class and the value. A shim deprecated for only one of its call
+shapes (e.g. a `Knot | T` argument, where the `Knot` case is still correct and only
+the constant case is being replaced by `Parameter`) overrides
+`_deprecation_notice(self, parents, config_values)` to inspect which shape this
+construction used and return `None` for the shapes that stay legitimate. See
+`pirn_agents.specializations.base.resolved_value_knot.ResolvedValueKnot` (unconditional)
+and `pirn_agents.specializations.react.messages_passthrough.MessagesPassthrough`
+(conditional) for both shapes (ADR agents-speaks-core WS5b).
+
 ---
 
 ## Rule 2 — `process()` is the execution layer: it takes resolved values
