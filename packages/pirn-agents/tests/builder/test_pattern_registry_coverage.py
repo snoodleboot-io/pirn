@@ -97,6 +97,12 @@ _EXPECTED_EXCLUSIONS = frozenset(
         # WS5b) -- not a loop body, but the same "internal component another
         # pipeline wires, never named on its own" shape as _CandidateAttempt.
         "pirn_agents.specializations.rag._complex_rag_arm._ComplexRagArm",
+        # Private: the loop body ModelCascadeRouter drives internally
+        # (ADR agents-speaks-core WS5b).
+        "pirn_agents.specializations.routing._cascade_loop._CascadeLoop",
+        # Private: the loop body FallbackChain drives internally (ADR
+        # agents-speaks-core WS5b).
+        "pirn_agents.specializations.routing._fallback_loop._FallbackLoop",
         # Newly promoted to the AgentPipeline family (ADR agents-speaks-core
         # WS5b: was a plain Knot with a hand-rolled revision loop, now a
         # SubTapestry driving _ConstitutionalFilterLoop). Registering it under
@@ -266,6 +272,8 @@ def test_the_excluded_bases_are_bases_and_the_excluded_private_is_private() -> N
             "pirn_agents.specializations.reflexion._reflexion_loop._ReflexionLoop",
             "pirn_agents.specializations.rag._flare_loop._FlareLoop",
             "pirn_agents.specializations.rag._complex_rag_arm._ComplexRagArm",
+            "pirn_agents.specializations.routing._cascade_loop._CascadeLoop",
+            "pirn_agents.specializations.routing._fallback_loop._FallbackLoop",
         ]
     )
     # Every exclusion falls into exactly one justified category: base,
