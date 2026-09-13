@@ -32,12 +32,6 @@ from pirn_signal.types.spectrum_frame import SpectrumFrame
 from pirn_signal.types.spectrum_payload import SpectrumPayload
 
 
-def _compute_cepstrum(data: np.ndarray) -> np.ndarray:
-    spectrum = np.fft.rfft(data, axis=-1)
-    log_spectrum = np.log(np.abs(spectrum) + 1e-10)
-    return np.fft.irfft(log_spectrum, axis=-1)
-
-
 class CepstrumAnalyzer(Knot):
     """Real cepstrum estimator via IFFT of log-magnitude spectrum."""
 
@@ -81,7 +75,7 @@ class CepstrumAnalyzer(Knot):
                 "CepstrumAnalyzer: cepstrum_kind must be 'real', 'complex', or 'power'"
             )
 
-        cepstrum = await asyncio.to_thread(_compute_cepstrum, signal.data)
+        cepstrum = await asyncio.to_thread(CepstrumAnalyzer._compute_cepstrum, signal.data)
         freq_bins = cepstrum.shape[-1]
 
         return SpectrumPayload(
@@ -92,3 +86,9 @@ class CepstrumAnalyzer(Knot):
             ),
             data=cepstrum,
         )
+
+    @staticmethod
+    def _compute_cepstrum(data: np.ndarray) -> np.ndarray:
+        spectrum = np.fft.rfft(data, axis=-1)
+        log_spectrum = np.log(np.abs(spectrum) + 1e-10)
+        return np.fft.irfft(log_spectrum, axis=-1)

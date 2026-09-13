@@ -26,7 +26,6 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from scipy import signal as ss
 
 from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.spectrum_frame import SpectrumFrame
@@ -75,6 +74,12 @@ class STFTDecomposer(Knot):
         Raises:
             ValueError: If window_length or hop_length are invalid.
         """
+        try:
+            from scipy import signal as ss  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "STFTDecomposer requires 'scipy'. Install via pip install pirn-signal[signal]"
+            ) from exc
         if not isinstance(window_length, int) or window_length <= 0:
             raise ValueError("STFTDecomposer: window_length must be a positive integer")
         if not isinstance(hop_length, int) or hop_length <= 0:

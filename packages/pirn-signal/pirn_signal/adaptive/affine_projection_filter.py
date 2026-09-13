@@ -42,37 +42,6 @@ from pirn_signal.types.signal_payload import SignalPayload
 _apf_delta = 1e-6
 
 
-def _apf(
-    signal_data: np.ndarray,
-    reference_data: np.ndarray,
-    filter_length: int,
-    projection_order: int,
-    step_size: float,
-) -> np.ndarray:
-    """Run the affine projection adaptive filter loop and return the error signal."""
-    n_samples = len(signal_data)
-    filter_weights = np.zeros(filter_length)
-    e_out = np.zeros(n_samples)
-    start = filter_length + projection_order - 1
-    for sample_index in range(start, n_samples):
-        input_matrix = np.stack(
-            [
-                signal_data[sample_index - p - filter_length : sample_index - p][::-1]
-                for p in range(projection_order)
-            ],
-            axis=0,
-        )
-        desired_vector = reference_data[sample_index - projection_order + 1 : sample_index + 1][
-            ::-1
-        ]
-        output_vector = input_matrix @ filter_weights
-        e_vec = desired_vector - output_vector
-        gram = input_matrix @ input_matrix.T + _apf_delta * np.eye(projection_order)
-        filter_weights = filter_weights + step_size * input_matrix.T @ np.linalg.solve(gram, e_vec)
-        e_out[sample_index] = e_vec[0]
-    return e_out
-
-
 class AffineProjectionFilter(Knot):
     """Affine projection adaptive filter."""
 
@@ -134,7 +103,12 @@ class AffineProjectionFilter(Knot):
         ref_data = reference.data[0] if reference.data.ndim > 1 else reference.data
 
         result = await asyncio.to_thread(
-            _apf, sig_data, ref_data, filter_length, projection_order, step_size
+            AffineProjectionFilter._apf,
+            sig_data,
+            ref_data,
+            filter_length,
+            projection_order,
+            step_size,
         )
 
         return SignalPayload(
@@ -146,3 +120,36 @@ class AffineProjectionFilter(Knot):
             ),
             data=result,
         )
+
+    @staticmethod
+    def _apf(
+        signal_data: np.ndarray,
+        reference_data: np.ndarray,
+        filter_length: int,
+        projection_order: int,
+        step_size: float,
+    ) -> np.ndarray:
+        """Run the affine projection adaptive filter loop and return the error signal."""
+        n_samples = len(signal_data)
+        filter_weights = np.zeros(filter_length)
+        e_out = np.zeros(n_samples)
+        start = filter_length + projection_order - 1
+        for sample_index in range(start, n_samples):
+            input_matrix = np.stack(
+                [
+                    signal_data[sample_index - p - filter_length : sample_index - p][::-1]
+                    for p in range(projection_order)
+                ],
+                axis=0,
+            )
+            desired_vector = reference_data[sample_index - projection_order + 1 : sample_index + 1][
+                ::-1
+            ]
+            output_vector = input_matrix @ filter_weights
+            e_vec = desired_vector - output_vector
+            gram = input_matrix @ input_matrix.T + _apf_delta * np.eye(projection_order)
+            filter_weights = filter_weights + step_size * input_matrix.T @ np.linalg.solve(
+                gram, e_vec
+            )
+            e_out[sample_index] = e_vec[0]
+        return e_out

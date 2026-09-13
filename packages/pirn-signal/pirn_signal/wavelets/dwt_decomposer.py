@@ -27,17 +27,12 @@ import asyncio
 from typing import Any
 
 import numpy as np
-import pywt
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.wavelet_frame import WaveletFrame
 from pirn_signal.types.wavelet_payload import WaveletPayload
-
-
-def _run_dwt(data: np.ndarray, wavelet_name: str, level: int) -> list[np.ndarray]:
-    return list(pywt.wavedec(data, wavelet_name, level=level, axis=-1))
 
 
 class DWTDecomposer(Knot):
@@ -84,10 +79,22 @@ class DWTDecomposer(Knot):
             raise ValueError("DWTDecomposer: wavelet_name must be a non-empty string")
         if not isinstance(level_count, int) or level_count <= 0:
             raise ValueError("DWTDecomposer: level_count must be a positive integer")
-        coeffs = await asyncio.to_thread(_run_dwt, signal.data, wavelet_name, level_count)
+        coeffs = await asyncio.to_thread(
+            DWTDecomposer._run_dwt, signal.data, wavelet_name, level_count
+        )
         frame = WaveletFrame(
             signal_id=signal.frame.signal_id,
             wavelet_name=wavelet_name,
             scale_count=len(coeffs),
         )
         return WaveletPayload(metadata=frame, data=coeffs)
+
+    @staticmethod
+    def _run_dwt(data: np.ndarray, wavelet_name: str, level: int) -> list[np.ndarray]:
+        try:
+            import pywt  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "DWTDecomposer requires 'pywavelets'. Install via pip install pirn-signal[signal]"
+            ) from exc
+        return list(pywt.wavedec(data, wavelet_name, level=level, axis=-1))

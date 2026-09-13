@@ -29,16 +29,6 @@ from pirn.core.knot_config import KnotConfig
 from pirn_signal.types.wavelet_payload import WaveletPayload
 
 
-def _encode(payload: WaveletPayload) -> bytes:
-    buf = io.BytesIO()
-    arrays: dict[str, np.ndarray] = {f"level_{i}": arr for i, arr in enumerate(payload.data)}
-    arrays["signal_id"] = np.array(payload.metadata.signal_id)
-    arrays["wavelet_name"] = np.array(payload.metadata.wavelet_name)
-    arrays["scale_count"] = np.array(payload.metadata.scale_count)
-    np.savez(buf, **arrays)  # type: ignore[arg-type]
-    return buf.getvalue()
-
-
 class WaveletObjectStoreDisassembler(Disassembler):
     """Serialize a :class:`WaveletPayload` to raw npz bytes.
 
@@ -81,4 +71,14 @@ class WaveletObjectStoreDisassembler(Disassembler):
             raise ValueError(
                 "WaveletObjectStoreDisassembler: payload.data must contain at least one decomposition level"
             )
-        return await asyncio.to_thread(_encode, payload)
+        return await asyncio.to_thread(WaveletObjectStoreDisassembler._encode, payload)
+
+    @staticmethod
+    def _encode(payload: WaveletPayload) -> bytes:
+        buf = io.BytesIO()
+        arrays: dict[str, np.ndarray] = {f"level_{i}": arr for i, arr in enumerate(payload.data)}
+        arrays["signal_id"] = np.array(payload.metadata.signal_id)
+        arrays["wavelet_name"] = np.array(payload.metadata.wavelet_name)
+        arrays["scale_count"] = np.array(payload.metadata.scale_count)
+        np.savez(buf, **arrays)  # type: ignore[arg-type]
+        return buf.getvalue()

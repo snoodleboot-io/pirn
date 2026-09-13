@@ -25,34 +25,14 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-import librosa
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from sklearn.cluster import KMeans
 
 from pirn_signal.types.signal_payload import SignalPayload
 
 _mfcc_hop = 512
 _mfcc_n = 20
-
-
-def _diarize(
-    data: np.ndarray,
-    sr: int,
-    num_speakers: int,
-) -> dict[str, Any]:
-    mono = data[0] if data.ndim > 1 else data
-    mfcc = librosa.feature.mfcc(y=mono, sr=sr, n_mfcc=_mfcc_n, hop_length=_mfcc_hop)
-    features = mfcc.T
-    n_frames = features.shape[0]
-    cluster_count = min(num_speakers, n_frames)
-    if cluster_count < 2 or n_frames < 2:
-        labels = [0] * n_frames
-    else:
-        kmeans = KMeans(n_clusters=cluster_count, random_state=0, n_init="auto")
-        labels = kmeans.fit_predict(features).tolist()
-    return {"speaker_labels": labels, "num_speakers": num_speakers}
 
 
 class SpeakerDiarizationPipeline(Knot):
@@ -112,6 +92,38 @@ class SpeakerDiarizationPipeline(Knot):
                 "SpeakerDiarizationPipeline: embedding_model must be a non-empty string"
             )
         sr = int(signal.frame.sample_rate_hz)
-        result = await asyncio.to_thread(_diarize, signal.data, sr, max_speakers)
+        result = await asyncio.to_thread(
+            SpeakerDiarizationPipeline._diarize, signal.data, sr, max_speakers
+        )
         result["signal_id"] = signal.frame.signal_id
         return result
+
+    @staticmethod
+    def _diarize(
+        data: np.ndarray,
+        sr: int,
+        num_speakers: int,
+    ) -> dict[str, Any]:
+        try:
+            import librosa  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "SpeakerDiarizationPipeline requires 'librosa'. Install via pip install pirn-signal[signal]"
+            ) from exc
+        try:
+            from sklearn.cluster import KMeans  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "SpeakerDiarizationPipeline requires 'scikit-learn'. Install via pip install pirn-signal[separation]"
+            ) from exc
+        mono = data[0] if data.ndim > 1 else data
+        mfcc = librosa.feature.mfcc(y=mono, sr=sr, n_mfcc=_mfcc_n, hop_length=_mfcc_hop)
+        features = mfcc.T
+        n_frames = features.shape[0]
+        cluster_count = min(num_speakers, n_frames)
+        if cluster_count < 2 or n_frames < 2:
+            labels = [0] * n_frames
+        else:
+            kmeans = KMeans(n_clusters=cluster_count, random_state=0, n_init="auto")
+            labels = kmeans.fit_predict(features).tolist()
+        return {"speaker_labels": labels, "num_speakers": num_speakers}

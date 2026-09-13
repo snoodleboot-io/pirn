@@ -37,41 +37,6 @@ from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
-def _lms_band(
-    x: np.ndarray,
-    d: np.ndarray,
-    filter_length: int,
-    step_size: float,
-) -> np.ndarray:
-    """Run LMS adaptive filter on a single subband and return the error signal."""
-    band_length = len(x)
-    filter_weights = np.zeros(filter_length)
-    e_out = np.zeros(band_length)
-    for sample_index in range(filter_length, band_length):
-        x_buf = x[sample_index - filter_length : sample_index][::-1]
-        filter_output = filter_weights @ x_buf
-        error = d[sample_index] - filter_output
-        filter_weights = filter_weights + step_size * error * x_buf
-        e_out[sample_index] = error
-    return e_out
-
-
-def _subband_lms(
-    signal_data: np.ndarray,
-    reference_data: np.ndarray,
-    num_subbands: int,
-    filter_length: int,
-    step_size: float,
-) -> np.ndarray:
-    """Split into subbands, run per-band LMS, concatenate results."""
-    sig_bands = np.array_split(signal_data, num_subbands)
-    ref_bands = np.array_split(reference_data, num_subbands)
-    out_bands = [
-        _lms_band(sig_bands[k], ref_bands[k], filter_length, step_size) for k in range(num_subbands)
-    ]
-    return np.concatenate(out_bands)
-
-
 class SubbandAdaptiveFilter(Knot):
     """Subband adaptive filter — decompose, adapt per band, reconstruct."""
 
@@ -135,7 +100,12 @@ class SubbandAdaptiveFilter(Knot):
         ref_data = reference.data[0] if reference.data.ndim > 1 else reference.data
 
         result = await asyncio.to_thread(
-            _subband_lms, sig_data, ref_data, subband_count, filter_length_per_band, step_size
+            SubbandAdaptiveFilter._subband_lms,
+            sig_data,
+            ref_data,
+            subband_count,
+            filter_length_per_band,
+            step_size,
         )
 
         return SignalPayload(
@@ -147,3 +117,39 @@ class SubbandAdaptiveFilter(Knot):
             ),
             data=result,
         )
+
+    @staticmethod
+    def _lms_band(
+        x: np.ndarray,
+        d: np.ndarray,
+        filter_length: int,
+        step_size: float,
+    ) -> np.ndarray:
+        """Run LMS adaptive filter on a single subband and return the error signal."""
+        band_length = len(x)
+        filter_weights = np.zeros(filter_length)
+        e_out = np.zeros(band_length)
+        for sample_index in range(filter_length, band_length):
+            x_buf = x[sample_index - filter_length : sample_index][::-1]
+            filter_output = filter_weights @ x_buf
+            error = d[sample_index] - filter_output
+            filter_weights = filter_weights + step_size * error * x_buf
+            e_out[sample_index] = error
+        return e_out
+
+    @staticmethod
+    def _subband_lms(
+        signal_data: np.ndarray,
+        reference_data: np.ndarray,
+        num_subbands: int,
+        filter_length: int,
+        step_size: float,
+    ) -> np.ndarray:
+        """Split into subbands, run per-band LMS, concatenate results."""
+        sig_bands = np.array_split(signal_data, num_subbands)
+        ref_bands = np.array_split(reference_data, num_subbands)
+        out_bands = [
+            SubbandAdaptiveFilter._lms_band(sig_bands[k], ref_bands[k], filter_length, step_size)
+            for k in range(num_subbands)
+        ]
+        return np.concatenate(out_bands)

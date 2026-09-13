@@ -37,25 +37,6 @@ from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
-def _lms(
-    signal_data: np.ndarray,
-    reference_data: np.ndarray,
-    filter_length: int,
-    step_size: float,
-) -> np.ndarray:
-    """Run the LMS adaptive filter loop and return the error signal."""
-    n_samples = len(signal_data)
-    output = np.zeros(n_samples)
-    filter_weights = np.zeros(filter_length)
-    for sample_index in range(filter_length, n_samples):
-        input_buffer = signal_data[sample_index - filter_length : sample_index][::-1]
-        filter_output = filter_weights @ input_buffer
-        error = reference_data[sample_index] - filter_output
-        filter_weights = filter_weights + step_size * error * input_buffer
-        output[sample_index] = error
-    return output
-
-
 class LMSAdaptiveFilter(Knot):
     """Stochastic-gradient LMS adaptive filter."""
 
@@ -110,7 +91,9 @@ class LMSAdaptiveFilter(Knot):
         sig_data = signal.data[0] if signal.data.ndim > 1 else signal.data
         ref_data = reference.data[0] if reference.data.ndim > 1 else reference.data
 
-        result = await asyncio.to_thread(_lms, sig_data, ref_data, filter_length, step_size)
+        result = await asyncio.to_thread(
+            LMSAdaptiveFilter._lms, sig_data, ref_data, filter_length, step_size
+        )
 
         return SignalPayload(
             metadata=SignalFrame(
@@ -121,3 +104,22 @@ class LMSAdaptiveFilter(Knot):
             ),
             data=result,
         )
+
+    @staticmethod
+    def _lms(
+        signal_data: np.ndarray,
+        reference_data: np.ndarray,
+        filter_length: int,
+        step_size: float,
+    ) -> np.ndarray:
+        """Run the LMS adaptive filter loop and return the error signal."""
+        n_samples = len(signal_data)
+        output = np.zeros(n_samples)
+        filter_weights = np.zeros(filter_length)
+        for sample_index in range(filter_length, n_samples):
+            input_buffer = signal_data[sample_index - filter_length : sample_index][::-1]
+            filter_output = filter_weights @ input_buffer
+            error = reference_data[sample_index] - filter_output
+            filter_weights = filter_weights + step_size * error * input_buffer
+            output[sample_index] = error
+        return output

@@ -32,18 +32,9 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from scipy import signal as ss
 
 from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
-
-
-def _correlate_multichannel(data: np.ndarray, template: np.ndarray) -> np.ndarray:
-    """Cross-correlate each channel of data with template, returning full-mode output."""
-    if data.ndim == 1:
-        return ss.correlate(data, template, mode="full")
-    rows = [ss.correlate(data[i], template, mode="full") for i in range(data.shape[0])]
-    return np.stack(rows, axis=0)
 
 
 class MatchedFilter(Knot):
@@ -92,7 +83,9 @@ class MatchedFilter(Knot):
 
         tmpl_arr = np.array(templ)
         out_samples = signal.data.shape[-1] + len(templ) - 1
-        filtered = await asyncio.to_thread(_correlate_multichannel, signal.data, tmpl_arr)
+        filtered = await asyncio.to_thread(
+            MatchedFilter._correlate_multichannel, signal.data, tmpl_arr
+        )
         return SignalPayload(
             metadata=SignalFrame(
                 signal_id=f"{signal.frame.signal_id}:matched",
@@ -102,3 +95,17 @@ class MatchedFilter(Knot):
             ),
             data=np.asarray(filtered),
         )
+
+    @staticmethod
+    def _correlate_multichannel(data: np.ndarray, template: np.ndarray) -> np.ndarray:
+        """Cross-correlate each channel of data with template, returning full-mode output."""
+        try:
+            from scipy import signal as ss  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "MatchedFilter requires 'scipy'. Install via pip install pirn-signal[signal]"
+            ) from exc
+        if data.ndim == 1:
+            return ss.correlate(data, template, mode="full")
+        rows = [ss.correlate(data[i], template, mode="full") for i in range(data.shape[0])]
+        return np.stack(rows, axis=0)

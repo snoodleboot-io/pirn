@@ -35,16 +35,10 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from sklearn.decomposition import PCA
 
 from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.source_frame import SourceFrame
 from pirn_signal.types.source_payload import SourcePayload
-
-
-def _run_pca(data: np.ndarray, component_count: int, whiten: bool) -> np.ndarray:
-    pca = PCA(n_components=component_count, whiten=whiten)
-    return pca.fit_transform(data.T).T
 
 
 class PCADecomposer(Knot):
@@ -95,7 +89,9 @@ class PCADecomposer(Knot):
             raise ValueError("PCADecomposer: component_count must be a positive integer")
         if not isinstance(whiten, bool):
             raise TypeError("PCADecomposer: whiten must be a bool")
-        components = await asyncio.to_thread(_run_pca, signal.data, component_count, whiten)
+        components = await asyncio.to_thread(
+            PCADecomposer._run_pca, signal.data, component_count, whiten
+        )
         return SourcePayload(
             metadata=SourceFrame(
                 signal_id=f"{signal.frame.signal_id}:pca",
@@ -104,3 +100,14 @@ class PCADecomposer(Knot):
             ),
             data=np.asarray(components),
         )
+
+    @staticmethod
+    def _run_pca(data: np.ndarray, component_count: int, whiten: bool) -> np.ndarray:
+        try:
+            from sklearn.decomposition import PCA  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "PCADecomposer requires 'scikit-learn'. Install via pip install pirn-signal[separation]"
+            ) from exc
+        pca = PCA(n_components=component_count, whiten=whiten)
+        return pca.fit_transform(data.T).T

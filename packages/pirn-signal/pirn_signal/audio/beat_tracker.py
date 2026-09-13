@@ -32,17 +32,11 @@ import asyncio
 from collections.abc import Mapping
 from typing import Any
 
-import librosa
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_signal.types.signal_payload import SignalPayload
-
-
-def _track_beats(mono: np.ndarray, sr: int, hop_length: int) -> tuple[float, np.ndarray]:
-    tempo, beat_frames = librosa.beat.beat_track(y=mono, sr=sr, hop_length=hop_length)
-    return float(np.atleast_1d(tempo)[0]), beat_frames
 
 
 class BeatTracker(Knot):
@@ -97,9 +91,20 @@ class BeatTracker(Knot):
             raise ValueError("BeatTracker: tempo_max_bpm must exceed tempo_min_bpm")
         mono = signal.data[0] if signal.data.ndim > 1 else signal.data
         sr = int(signal.frame.sample_rate_hz)
-        tempo, beat_frames = await asyncio.to_thread(_track_beats, mono, sr, hop_length)
+        tempo, beat_frames = await asyncio.to_thread(BeatTracker._track_beats, mono, sr, hop_length)
         return {
             "tempo_bpm": tempo,
             "beat_frames": beat_frames.tolist(),
             "signal_id": signal.frame.signal_id,
         }
+
+    @staticmethod
+    def _track_beats(mono: np.ndarray, sr: int, hop_length: int) -> tuple[float, np.ndarray]:
+        try:
+            import librosa  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "BeatTracker requires 'librosa'. Install via pip install pirn-signal[signal]"
+            ) from exc
+        tempo, beat_frames = librosa.beat.beat_track(y=mono, sr=sr, hop_length=hop_length)
+        return float(np.atleast_1d(tempo)[0]), beat_frames

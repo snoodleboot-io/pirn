@@ -19,7 +19,6 @@ from typing import Any, ClassVar
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from scipy import signal as ss
 
 from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
@@ -74,6 +73,12 @@ class FIRWindowFilter(Knot):
         Raises:
             ValueError: If num_taps, cutoff_hz, or window are invalid.
         """
+        try:
+            from scipy import signal as ss  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "FIRWindowFilter requires 'scipy'. Install via pip install pirn-signal[signal]"
+            ) from exc
         if not isinstance(num_taps, int) or num_taps <= 0 or num_taps % 2 == 0:
             raise ValueError("FIRWindowFilter: num_taps must be a positive odd integer")
         if not isinstance(cutoff_hz, (int, float)) or cutoff_hz <= 0:

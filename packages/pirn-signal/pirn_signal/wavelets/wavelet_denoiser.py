@@ -34,22 +34,11 @@ import asyncio
 from typing import Any
 
 import numpy as np
-import pywt
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
-
-
-def _run_denoising(data: np.ndarray, wavelet: str, level: int, threshold_mode: str) -> np.ndarray:
-    coeffs = pywt.wavedec(data, wavelet, level=level, axis=-1)
-    finest_detail = coeffs[-1]
-    sigma = np.median(np.abs(finest_detail)) / 0.6745
-    sample_count = data.shape[-1]
-    threshold = sigma * np.sqrt(2 * np.log(sample_count))
-    coeffs_thresh = [pywt.threshold(c, threshold, mode=threshold_mode) for c in coeffs]
-    return pywt.waverec(coeffs_thresh, wavelet, axis=-1)
 
 
 class WaveletDenoiser(Knot):
@@ -103,7 +92,7 @@ class WaveletDenoiser(Knot):
         if threshold_mode not in {"soft", "hard"}:
             raise ValueError("WaveletDenoiser: threshold_mode must be one of 'soft', 'hard'")
         denoised = await asyncio.to_thread(
-            _run_denoising, signal.data, wavelet, level, threshold_mode
+            WaveletDenoiser._run_denoising, signal.data, wavelet, level, threshold_mode
         )
         out_frame = SignalFrame(
             signal_id=f"{signal.frame.signal_id}:denoised-{threshold_mode}",
@@ -112,3 +101,21 @@ class WaveletDenoiser(Knot):
             samples_per_channel=denoised.shape[-1],
         )
         return SignalPayload(metadata=out_frame, data=denoised)
+
+    @staticmethod
+    def _run_denoising(
+        data: np.ndarray, wavelet: str, level: int, threshold_mode: str
+    ) -> np.ndarray:
+        try:
+            import pywt  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "WaveletDenoiser requires 'pywavelets'. Install via pip install pirn-signal[signal]"
+            ) from exc
+        coeffs = pywt.wavedec(data, wavelet, level=level, axis=-1)
+        finest_detail = coeffs[-1]
+        sigma = np.median(np.abs(finest_detail)) / 0.6745
+        sample_count = data.shape[-1]
+        threshold = sigma * np.sqrt(2 * np.log(sample_count))
+        coeffs_thresh = [pywt.threshold(c, threshold, mode=threshold_mode) for c in coeffs]
+        return pywt.waverec(coeffs_thresh, wavelet, axis=-1)

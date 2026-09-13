@@ -41,34 +41,6 @@ from pirn_signal.types.signal_payload import SignalPayload
 _default_frame_size = 512
 
 
-def _energy_vad(
-    x: np.ndarray, threshold_db: float, frame_size: int = _default_frame_size
-) -> list[bool]:
-    """Classify frames as voiced (True) or unvoiced (False) by RMS energy."""
-    signal_length = len(x)
-    voiced = []
-    threshold_linear = 10.0 ** (threshold_db / 20.0)
-    for start in range(0, signal_length, frame_size):
-        frame = x[start : start + frame_size]
-        rms = float(np.sqrt(np.mean(frame**2)))
-        voiced.append(rms >= threshold_linear)
-    return voiced
-
-
-def _run_vad(
-    data: np.ndarray,
-    threshold_db: float,
-    frame_duration_ms: int,
-    aggressiveness: int,
-    sr: float,
-) -> dict[str, Any]:
-    mono = data[0] if data.ndim > 1 else data
-    frame_size = max(1, int(sr * frame_duration_ms / 1000.0))
-    effective_threshold = threshold_db - aggressiveness * 3.0
-    voiced_frames = _energy_vad(mono, effective_threshold, frame_size)
-    return {"voiced_frames": voiced_frames}
-
-
 class VADDetector(Knot):
     """Voice activity detector based on energy and zero-crossing heuristics."""
 
@@ -119,7 +91,35 @@ class VADDetector(Knot):
         threshold_db = -40.0
         sr = signal.frame.sample_rate_hz
         result = await asyncio.to_thread(
-            _run_vad, signal.data, threshold_db, frame_duration_ms, aggressiveness, sr
+            VADDetector._run_vad, signal.data, threshold_db, frame_duration_ms, aggressiveness, sr
         )
         result["signal_id"] = signal.frame.signal_id
         return result
+
+    @staticmethod
+    def _energy_vad(
+        x: np.ndarray, threshold_db: float, frame_size: int = _default_frame_size
+    ) -> list[bool]:
+        """Classify frames as voiced (True) or unvoiced (False) by RMS energy."""
+        signal_length = len(x)
+        voiced = []
+        threshold_linear = 10.0 ** (threshold_db / 20.0)
+        for start in range(0, signal_length, frame_size):
+            frame = x[start : start + frame_size]
+            rms = float(np.sqrt(np.mean(frame**2)))
+            voiced.append(rms >= threshold_linear)
+        return voiced
+
+    @staticmethod
+    def _run_vad(
+        data: np.ndarray,
+        threshold_db: float,
+        frame_duration_ms: int,
+        aggressiveness: int,
+        sr: float,
+    ) -> dict[str, Any]:
+        mono = data[0] if data.ndim > 1 else data
+        frame_size = max(1, int(sr * frame_duration_ms / 1000.0))
+        effective_threshold = threshold_db - aggressiveness * 3.0
+        voiced_frames = VADDetector._energy_vad(mono, effective_threshold, frame_size)
+        return {"voiced_frames": voiced_frames}

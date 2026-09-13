@@ -28,24 +28,12 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-import librosa
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
-
-
-def _resample(data: np.ndarray, orig_sr: int, target_sr: int, res_type: str) -> np.ndarray:
-    if data.ndim == 1:
-        return librosa.resample(data, orig_sr=orig_sr, target_sr=target_sr, res_type=res_type)
-    return np.stack(
-        [
-            librosa.resample(ch, orig_sr=orig_sr, target_sr=target_sr, res_type=res_type)
-            for ch in data
-        ]
-    )
 
 
 class AudioResampler(Knot):
@@ -98,7 +86,9 @@ class AudioResampler(Knot):
             )
         orig_sr = int(signal.frame.sample_rate_hz)
         target_sr = int(target_sample_rate_hz)
-        result = await asyncio.to_thread(_resample, signal.data, orig_sr, target_sr, quality)
+        result = await asyncio.to_thread(
+            AudioResampler._resample, signal.data, orig_sr, target_sr, quality
+        )
         return SignalPayload(
             metadata=SignalFrame(
                 signal_id=f"{signal.frame.signal_id}:resampled",
@@ -107,4 +97,21 @@ class AudioResampler(Knot):
                 samples_per_channel=result.shape[-1],
             ),
             data=np.asarray(result),
+        )
+
+    @staticmethod
+    def _resample(data: np.ndarray, orig_sr: int, target_sr: int, res_type: str) -> np.ndarray:
+        try:
+            import librosa  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "AudioResampler requires 'librosa'. Install via pip install pirn-signal[signal]"
+            ) from exc
+        if data.ndim == 1:
+            return librosa.resample(data, orig_sr=orig_sr, target_sr=target_sr, res_type=res_type)
+        return np.stack(
+            [
+                librosa.resample(ch, orig_sr=orig_sr, target_sr=target_sr, res_type=res_type)
+                for ch in data
+            ]
         )

@@ -26,56 +26,11 @@ import asyncio
 from collections.abc import Mapping
 from typing import Any, ClassVar
 
-import librosa
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_signal.types.signal_payload import SignalPayload
-
-
-def _compute_mir_features(
-    mono: np.ndarray, sr: int, feature_set: tuple[str, ...]
-) -> dict[str, Any]:
-    result: dict[str, Any] = {}
-
-    if "chroma" in feature_set:
-        chroma = librosa.feature.chroma_stft(y=mono, sr=sr)
-        result["chroma"] = chroma.tolist()
-
-    if "spectral_contrast" in feature_set:
-        contrast = librosa.feature.spectral_contrast(y=mono, sr=sr)
-        result["spectral_contrast"] = contrast.tolist()
-
-    if "tonnetz" in feature_set:
-        harmonic = librosa.effects.harmonic(mono)
-        tn = librosa.feature.tonnetz(y=harmonic, sr=sr)
-        result["tonnetz"] = tn.tolist()
-
-    if "tempo" in feature_set:
-        tempo, _ = librosa.beat.beat_track(y=mono, sr=sr)
-        result["tempo"] = float(np.atleast_1d(tempo)[0])
-
-    if "key" in feature_set:
-        chroma = librosa.feature.chroma_cqt(y=mono, sr=sr)
-        chroma_mean = chroma.mean(axis=1)
-        pitch_classes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
-        result["key"] = pitch_classes[int(np.argmax(chroma_mean))]
-
-    if "harmonic" in feature_set:
-        harmonic = librosa.effects.harmonic(mono)
-        result["harmonic"] = harmonic.tolist()
-
-    if "percussive" in feature_set:
-        percussive = librosa.effects.percussive(mono)
-        result["percussive"] = percussive.tolist()
-
-    if "structure" in feature_set:
-        mfcc = librosa.feature.mfcc(y=mono, sr=sr, n_mfcc=13)
-        recurrence = librosa.segment.recurrence_matrix(mfcc, mode="affinity")
-        result["structure"] = recurrence.tolist()
-
-    return result
 
 
 class MusicInformationRetriever(Knot):
@@ -142,5 +97,57 @@ class MusicInformationRetriever(Knot):
                 )
         mono = signal.data[0] if signal.data.ndim > 1 else signal.data
         sr = int(signal.frame.sample_rate_hz)
-        features = await asyncio.to_thread(_compute_mir_features, mono, sr, feature_set)
+        features = await asyncio.to_thread(
+            MusicInformationRetriever._compute_mir_features, mono, sr, feature_set
+        )
         return {"signal_id": signal.frame.signal_id, **features}
+
+    @staticmethod
+    def _compute_mir_features(
+        mono: np.ndarray, sr: int, feature_set: tuple[str, ...]
+    ) -> dict[str, Any]:
+        try:
+            import librosa  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "MusicInformationRetriever requires 'librosa'. Install via pip install pirn-signal[signal]"
+            ) from exc
+        result: dict[str, Any] = {}
+
+        if "chroma" in feature_set:
+            chroma = librosa.feature.chroma_stft(y=mono, sr=sr)
+            result["chroma"] = chroma.tolist()
+
+        if "spectral_contrast" in feature_set:
+            contrast = librosa.feature.spectral_contrast(y=mono, sr=sr)
+            result["spectral_contrast"] = contrast.tolist()
+
+        if "tonnetz" in feature_set:
+            harmonic = librosa.effects.harmonic(mono)
+            tn = librosa.feature.tonnetz(y=harmonic, sr=sr)
+            result["tonnetz"] = tn.tolist()
+
+        if "tempo" in feature_set:
+            tempo, _ = librosa.beat.beat_track(y=mono, sr=sr)
+            result["tempo"] = float(np.atleast_1d(tempo)[0])
+
+        if "key" in feature_set:
+            chroma = librosa.feature.chroma_cqt(y=mono, sr=sr)
+            chroma_mean = chroma.mean(axis=1)
+            pitch_classes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+            result["key"] = pitch_classes[int(np.argmax(chroma_mean))]
+
+        if "harmonic" in feature_set:
+            harmonic = librosa.effects.harmonic(mono)
+            result["harmonic"] = harmonic.tolist()
+
+        if "percussive" in feature_set:
+            percussive = librosa.effects.percussive(mono)
+            result["percussive"] = percussive.tolist()
+
+        if "structure" in feature_set:
+            mfcc = librosa.feature.mfcc(y=mono, sr=sr, n_mfcc=13)
+            recurrence = librosa.segment.recurrence_matrix(mfcc, mode="affinity")
+            result["structure"] = recurrence.tolist()
+
+        return result

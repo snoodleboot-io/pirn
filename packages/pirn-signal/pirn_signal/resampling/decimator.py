@@ -33,14 +33,9 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from scipy import signal as ss
 
 from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
-
-
-def _decimate(data: np.ndarray, decimation_factor: int) -> np.ndarray:
-    return ss.decimate(data, q=decimation_factor, axis=-1)
 
 
 class Decimator(Knot):
@@ -82,7 +77,7 @@ class Decimator(Knot):
         if not isinstance(decimation_factor, int) or decimation_factor <= 1:
             raise ValueError("Decimator: decimation_factor must be an integer > 1")
 
-        decimated = await asyncio.to_thread(_decimate, signal.data, decimation_factor)
+        decimated = await asyncio.to_thread(Decimator._decimate, signal.data, decimation_factor)
 
         new_frame = SignalFrame(
             signal_id=f"{signal.frame.signal_id}:decimate",
@@ -91,3 +86,13 @@ class Decimator(Knot):
             samples_per_channel=signal.frame.samples_per_channel // decimation_factor,
         )
         return SignalPayload(metadata=new_frame, data=decimated)
+
+    @staticmethod
+    def _decimate(data: np.ndarray, decimation_factor: int) -> np.ndarray:
+        try:
+            from scipy import signal as ss  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "Decimator requires 'scipy'. Install via pip install pirn-signal[signal]"
+            ) from exc
+        return ss.decimate(data, q=decimation_factor, axis=-1)

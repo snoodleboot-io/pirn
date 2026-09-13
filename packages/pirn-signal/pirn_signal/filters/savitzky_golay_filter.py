@@ -30,7 +30,6 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from scipy import signal as ss
 
 from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
@@ -77,6 +76,12 @@ class SavitzkyGolayFilter(Knot):
         Raises:
             ValueError: If window_length or polynomial_order are invalid.
         """
+        try:
+            from scipy import signal as ss  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "SavitzkyGolayFilter requires 'scipy'. Install via pip install pirn-signal[signal]"
+            ) from exc
         if not isinstance(window_length, int) or window_length <= 0:
             raise ValueError("SavitzkyGolayFilter: window_length must be a positive integer")
         if window_length % 2 == 0:

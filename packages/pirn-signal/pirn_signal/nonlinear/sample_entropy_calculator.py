@@ -30,35 +30,11 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.nonlinear._sample_entropy import SampleEntropy
 from pirn_signal.types.signal_payload import SignalPayload
-
-
-def _sample_entropy(signal_array: np.ndarray, template_length: int, tolerance: float) -> float:
-    """Sample entropy via Chebyshev template matching (self-matches excluded)."""
-    signal_length = len(signal_array)
-
-    def _phi(m_val: int) -> int:
-        count = 0
-        for template_idx in range(signal_length - m_val):
-            template = signal_array[template_idx : template_idx + m_val]
-            for compare_idx in range(signal_length - m_val):
-                if (
-                    template_idx != compare_idx
-                    and np.max(np.abs(signal_array[compare_idx : compare_idx + m_val] - template))
-                    < tolerance
-                ):
-                    count += 1
-        return count
-
-    match_count_longer = _phi(template_length + 1)
-    match_count_base = _phi(template_length)
-    if match_count_base == 0:
-        return 0.0
-    return float(-np.log(match_count_longer / match_count_base))
 
 
 class SampleEntropyCalculator(Knot):
@@ -107,7 +83,10 @@ class SampleEntropyCalculator(Knot):
             raise ValueError("SampleEntropyCalculator: tolerance must be a positive float")
         signal_array = signal.data[0] if signal.data.ndim > 1 else signal.data
         value = await asyncio.to_thread(
-            _sample_entropy, signal_array.astype(float), template_length, float(tolerance)
+            SampleEntropy.compute,
+            signal_array.astype(float),
+            template_length,
+            float(tolerance),
         )
         return {
             "value": value,

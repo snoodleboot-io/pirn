@@ -39,23 +39,6 @@ from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
-def _kalman_1d(
-    signal_array: np.ndarray, process_noise_var: float, measurement_noise_var: float
-) -> np.ndarray:
-    """Run a scalar 1-D Kalman filter and return the filtered signal."""
-    sample_count = len(signal_array)
-    x_est = np.zeros(sample_count)
-    x_hat = signal_array[0]
-    error_covariance = 1.0
-    for sample_index in range(sample_count):
-        p_pred = error_covariance + process_noise_var
-        kalman_gain = p_pred / (p_pred + measurement_noise_var)
-        x_hat = x_hat + kalman_gain * (signal_array[sample_index] - x_hat)
-        error_covariance = (1.0 - kalman_gain) * p_pred
-        x_est[sample_index] = x_hat
-    return x_est
-
-
 class KalmanFilter(Knot):
     """Standard scalar Kalman filter for 1-D signal smoothing."""
 
@@ -104,7 +87,7 @@ class KalmanFilter(Knot):
         signal_array = signal.data[0] if signal.data.ndim > 1 else signal.data
 
         result = await asyncio.to_thread(
-            _kalman_1d, signal_array, float(process_noise), float(measurement_noise)
+            KalmanFilter._kalman_1d, signal_array, float(process_noise), float(measurement_noise)
         )
 
         return SignalPayload(
@@ -116,3 +99,20 @@ class KalmanFilter(Knot):
             ),
             data=result,
         )
+
+    @staticmethod
+    def _kalman_1d(
+        signal_array: np.ndarray, process_noise_var: float, measurement_noise_var: float
+    ) -> np.ndarray:
+        """Run a scalar 1-D Kalman filter and return the filtered signal."""
+        sample_count = len(signal_array)
+        x_est = np.zeros(sample_count)
+        x_hat = signal_array[0]
+        error_covariance = 1.0
+        for sample_index in range(sample_count):
+            p_pred = error_covariance + process_noise_var
+            kalman_gain = p_pred / (p_pred + measurement_noise_var)
+            x_hat = x_hat + kalman_gain * (signal_array[sample_index] - x_hat)
+            error_covariance = (1.0 - kalman_gain) * p_pred
+            x_est[sample_index] = x_hat
+        return x_est

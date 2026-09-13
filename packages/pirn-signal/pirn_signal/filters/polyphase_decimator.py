@@ -30,7 +30,6 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from scipy import signal as ss
 
 from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
@@ -76,6 +75,12 @@ class PolyphaseDecimator(Knot):
         Raises:
             ValueError: If decimation_factor or filter_taps are invalid.
         """
+        try:
+            from scipy import signal as ss  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "PolyphaseDecimator requires 'scipy'. Install via pip install pirn-signal[signal]"
+            ) from exc
         if not isinstance(decimation_factor, int) or decimation_factor <= 1:
             raise ValueError("PolyphaseDecimator: decimation_factor must be an integer > 1")
         if not isinstance(filter_taps, int) or filter_taps <= 0:

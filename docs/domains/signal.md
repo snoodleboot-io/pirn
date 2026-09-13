@@ -10,11 +10,12 @@ pirn's signal domain (`pirn_signal`) provides digital signal processing (DSP) pr
 
 ```bash
 pip install pirn-signal                     # pure-Python orchestration layer
-pip install 'pirn-signal[signal]'           # scipy + pywavelets + librosa (all DSP knots)
+pip install 'pirn-signal[signal]'           # scipy + pywavelets + librosa + vmdpy (most DSP knots)
 pip install 'pirn-signal[emd]'              # EMD-signal + scipy (empirical mode decomposition)
+pip install 'pirn-signal[separation]'       # scikit-learn (ICA/PCA/NMF/sparse-coding knots + speaker diarization)
 ```
 
-Available extras: `signal`, `emd`. (Audio **file-format** decoding — WAV/FLAC/OGG/MP3/AAC/M4A — is a core connector extra, `pirn[audio]`, not a signal-package extra; see [Audio File Formats](#audio-file-formats) below.)
+Available extras: `signal`, `emd`, `separation`. (Audio **file-format** decoding — WAV/FLAC/OGG/MP3/AAC/M4A — is a core connector extra, `pirn[audio]`, not a signal-package extra; see [Audio File Formats](#audio-file-formats) below.)
 
 **Registration (ADR-4):** `import pirn_signal` self-registers the signal-domain knots under `library="pirn"`, so a YAML pipeline can resolve them by bare name. In Python you import the knot classes directly (same effect). To register every installed domain at once, call `pirn.discover_installed_domains()`.
 
@@ -370,10 +371,12 @@ pip install "pirn-signal[signal]"
 
 | Extra | Libraries installed | What it enables |
 |---|---|---|
-| `signal` | `scipy>=1.12`, `pywavelets>=1.5`, `librosa>=0.10` | All signal domain knots (filters, spectral, wavelets, resampling, adaptive, separation, nonlinear, audio analysis) |
+| `signal` | `scipy>=1.12`, `pywavelets>=1.5`, `librosa>=0.10`, `vmdpy>=0.2` | Filters, spectral, wavelets (including `VMDDecomposer`'s `backend="vmdpy"`), resampling, adaptive, nonlinear, and audio analysis knots |
+| `emd` | `EMD-signal>=1.6`, `scipy>=1.12` | `EMDDecomposer`, `EEMDDecomposer` |
+| `separation` | `scikit-learn>=1.3` | `pirn_signal.separation` knots (ICA/PCA/NMF/sparse coding/dictionary learning) and `SpeakerDiarizationPipeline`'s clustering step |
 | `audio` (separate) | `soundfile`, `numpy`, `pydub` | WAV/FLAC/OGG/MP3/AAC/M4A format connectors |
 
-`scipy` and `pywavelets` are the core dependencies. `librosa` adds the audio analysis knots in `pirn_signal.audio` and pulls in `numpy` and `soundfile` as transitive dependencies.
+`scipy` and `pywavelets` are the core DSP dependencies. `librosa` adds the audio analysis knots in `pirn_signal.audio` and pulls in `numpy` and `soundfile` as transitive dependencies. `vmdpy` backs `VMDDecomposer`'s default `backend="vmdpy"`; without it, pass `backend="numpy"` to use the built-in fallback (see [`pirn_signal.wavelets`](#pirn_signalwavelets) below), or install `pirn-signal[signal]`. `scikit-learn` is a separate extra because it is only needed by the source-separation sub-package and one audio knot, not the rest of the DSP surface.
 
 ---
 

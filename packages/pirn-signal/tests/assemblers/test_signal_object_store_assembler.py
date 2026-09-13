@@ -49,7 +49,7 @@ class TestSignalObjectStoreAssembler(unittest.IsolatedAsyncioTestCase):
     async def test_returns_signal_payload(self) -> None:
         knot = _make("clip-01")
         with patch(
-            "pirn_signal.assemblers.signal_object_store_assembler._decode",
+            "pirn_signal.assemblers.signal_object_store_assembler.SignalObjectStoreAssembler._decode",
             side_effect=_fake_decode,
         ):
             result = await knot.process(body=b"audio-bytes", signal_id="clip-01")
@@ -58,7 +58,7 @@ class TestSignalObjectStoreAssembler(unittest.IsolatedAsyncioTestCase):
     async def test_metadata_signal_id_matches(self) -> None:
         knot = _make("clip-01")
         with patch(
-            "pirn_signal.assemblers.signal_object_store_assembler._decode",
+            "pirn_signal.assemblers.signal_object_store_assembler.SignalObjectStoreAssembler._decode",
             side_effect=_fake_decode,
         ):
             result = await knot.process(body=b"audio-bytes", signal_id="clip-01")
@@ -67,7 +67,7 @@ class TestSignalObjectStoreAssembler(unittest.IsolatedAsyncioTestCase):
     async def test_metadata_channel_count_populated(self) -> None:
         knot = _make("clip-01")
         with patch(
-            "pirn_signal.assemblers.signal_object_store_assembler._decode",
+            "pirn_signal.assemblers.signal_object_store_assembler.SignalObjectStoreAssembler._decode",
             side_effect=_fake_decode,
         ):
             result = await knot.process(body=b"audio-bytes", signal_id="clip-01")

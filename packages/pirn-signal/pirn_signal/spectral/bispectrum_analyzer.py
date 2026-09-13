@@ -31,11 +31,6 @@ from pirn_signal.types.spectrum_frame import SpectrumFrame
 from pirn_signal.types.spectrum_payload import SpectrumPayload
 
 
-def _compute_bispectrum(data: np.ndarray, segment_length: int) -> np.ndarray:
-    spectrum = np.fft.rfft(data, n=segment_length, axis=-1)
-    return spectrum[..., :, np.newaxis] * spectrum[..., np.newaxis, :]
-
-
 class BispectrumAnalyzer(Knot):
     """Estimate the bispectrum via FFT outer product."""
 
@@ -75,7 +70,9 @@ class BispectrumAnalyzer(Knot):
         if not isinstance(segment_length, int) or segment_length <= 0:
             raise ValueError("BispectrumAnalyzer: segment_length must be a positive integer")
 
-        bispectrum = await asyncio.to_thread(_compute_bispectrum, signal.data, segment_length)
+        bispectrum = await asyncio.to_thread(
+            BispectrumAnalyzer._compute_bispectrum, signal.data, segment_length
+        )
         freq_bins = segment_length // 2 + 1
         freq_res = (
             signal.frame.sample_rate_hz / segment_length if signal.frame.sample_rate_hz > 0 else 0.0
@@ -89,3 +86,8 @@ class BispectrumAnalyzer(Knot):
             ),
             data=bispectrum,
         )
+
+    @staticmethod
+    def _compute_bispectrum(data: np.ndarray, segment_length: int) -> np.ndarray:
+        spectrum = np.fft.rfft(data, n=segment_length, axis=-1)
+        return spectrum[..., :, np.newaxis] * spectrum[..., np.newaxis, :]

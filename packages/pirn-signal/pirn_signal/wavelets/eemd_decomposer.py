@@ -34,29 +34,10 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from PyEMD import EEMD
 
 from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.wavelet_frame import WaveletFrame
 from pirn_signal.types.wavelet_payload import WaveletPayload
-
-
-def _eemd_1d(channel: np.ndarray, trials: int, noise_width: float, max_imf: int) -> np.ndarray:
-    eemd = EEMD(trials=trials, noise_width=noise_width)
-    return eemd.eemd(channel, max_imf=max_imf)
-
-
-def _run_eemd(
-    data: np.ndarray, ensemble_size: int, noise_amplitude: float, max_imf: int
-) -> list[np.ndarray]:
-    if data.ndim == 1:
-        imfs = _eemd_1d(data, ensemble_size, noise_amplitude, max_imf)
-        return [imfs[i] for i in range(len(imfs))]
-    results: list[np.ndarray] = []
-    for ch_idx in range(data.shape[0]):
-        imfs = _eemd_1d(data[ch_idx], ensemble_size, noise_amplitude, max_imf)
-        results.extend(imfs[i] for i in range(len(imfs)))
-    return results
 
 
 class EEMDDecomposer(Knot):
@@ -110,7 +91,7 @@ class EEMDDecomposer(Knot):
         if not isinstance(max_imf_count, int) or max_imf_count <= 0:
             raise ValueError("EEMDDecomposer: max_imf_count must be a positive integer")
         imfs = await asyncio.to_thread(
-            _run_eemd, signal.data, ensemble_size, noise_amplitude, max_imf_count
+            EEMDDecomposer._run_eemd, signal.data, ensemble_size, noise_amplitude, max_imf_count
         )
         frame = WaveletFrame(
             signal_id=signal.frame.signal_id,
@@ -118,3 +99,27 @@ class EEMDDecomposer(Knot):
             scale_count=len(imfs),
         )
         return WaveletPayload(metadata=frame, data=imfs)
+
+    @staticmethod
+    def _eemd_1d(channel: np.ndarray, trials: int, noise_width: float, max_imf: int) -> np.ndarray:
+        try:
+            from PyEMD import EEMD  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "EEMDDecomposer requires 'EMD-signal'. Install via pip install pirn-signal[emd]"
+            ) from exc
+        eemd = EEMD(trials=trials, noise_width=noise_width)
+        return eemd.eemd(channel, max_imf=max_imf)
+
+    @staticmethod
+    def _run_eemd(
+        data: np.ndarray, ensemble_size: int, noise_amplitude: float, max_imf: int
+    ) -> list[np.ndarray]:
+        if data.ndim == 1:
+            imfs = EEMDDecomposer._eemd_1d(data, ensemble_size, noise_amplitude, max_imf)
+            return [imfs[i] for i in range(len(imfs))]
+        results: list[np.ndarray] = []
+        for ch_idx in range(data.shape[0]):
+            imfs = EEMDDecomposer._eemd_1d(data[ch_idx], ensemble_size, noise_amplitude, max_imf)
+            results.extend(imfs[i] for i in range(len(imfs)))
+        return results

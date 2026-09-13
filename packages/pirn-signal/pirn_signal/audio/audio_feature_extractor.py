@@ -33,29 +33,11 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-import librosa
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_signal.types.signal_payload import SignalPayload
-
-
-def _extract_features(mono: np.ndarray, sr: int, n_fft: int, hop_length: int) -> dict[str, Any]:
-    rms = librosa.feature.rms(y=mono, frame_length=n_fft, hop_length=hop_length)
-    zcr = librosa.feature.zero_crossing_rate(mono, frame_length=n_fft, hop_length=hop_length)
-    centroid = librosa.feature.spectral_centroid(y=mono, sr=sr, n_fft=n_fft, hop_length=hop_length)
-    bandwidth = librosa.feature.spectral_bandwidth(
-        y=mono, sr=sr, n_fft=n_fft, hop_length=hop_length
-    )
-    rolloff = librosa.feature.spectral_rolloff(y=mono, sr=sr, n_fft=n_fft, hop_length=hop_length)
-    return {
-        "rms_energy": rms[0].tolist(),
-        "zero_crossing_rate": zcr[0].tolist(),
-        "spectral_centroid": centroid[0].tolist(),
-        "spectral_bandwidth": bandwidth[0].tolist(),
-        "spectral_rolloff": rolloff[0].tolist(),
-    }
 
 
 class AudioFeatureExtractor(Knot):
@@ -116,4 +98,33 @@ class AudioFeatureExtractor(Knot):
             raise ValueError("AudioFeatureExtractor: hop_length must be a positive integer")
         mono = signal.data[0] if signal.data.ndim > 1 else signal.data
         sr = int(signal.frame.sample_rate_hz)
-        return await asyncio.to_thread(_extract_features, mono, sr, n_fft, hop_length)
+        return await asyncio.to_thread(
+            AudioFeatureExtractor._extract_features, mono, sr, n_fft, hop_length
+        )
+
+    @staticmethod
+    def _extract_features(mono: np.ndarray, sr: int, n_fft: int, hop_length: int) -> dict[str, Any]:
+        try:
+            import librosa  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "AudioFeatureExtractor requires 'librosa'. Install via pip install pirn-signal[signal]"
+            ) from exc
+        rms = librosa.feature.rms(y=mono, frame_length=n_fft, hop_length=hop_length)
+        zcr = librosa.feature.zero_crossing_rate(mono, frame_length=n_fft, hop_length=hop_length)
+        centroid = librosa.feature.spectral_centroid(
+            y=mono, sr=sr, n_fft=n_fft, hop_length=hop_length
+        )
+        bandwidth = librosa.feature.spectral_bandwidth(
+            y=mono, sr=sr, n_fft=n_fft, hop_length=hop_length
+        )
+        rolloff = librosa.feature.spectral_rolloff(
+            y=mono, sr=sr, n_fft=n_fft, hop_length=hop_length
+        )
+        return {
+            "rms_energy": rms[0].tolist(),
+            "zero_crossing_rate": zcr[0].tolist(),
+            "spectral_centroid": centroid[0].tolist(),
+            "spectral_bandwidth": bandwidth[0].tolist(),
+            "spectral_rolloff": rolloff[0].tolist(),
+        }

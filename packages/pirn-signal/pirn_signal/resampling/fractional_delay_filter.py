@@ -28,25 +28,9 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from scipy import signal as ss
 
 from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
-
-
-def _lagrange_coeffs(delay: float, order: int) -> np.ndarray:
-    tap_count = order + 1
-    tap_weights = np.ones(tap_count)
-    for tap_index in range(tap_count):
-        for basis_index in range(tap_count):
-            if basis_index != tap_index:
-                tap_weights[tap_index] *= (delay - basis_index) / (tap_index - basis_index)
-    return tap_weights
-
-
-def _apply_fractional_delay(data: np.ndarray, delay: float, order: int) -> np.ndarray:
-    tap_weights = _lagrange_coeffs(delay, order)
-    return np.asarray(ss.lfilter(tap_weights, [1.0], data, axis=-1))
 
 
 class FractionalDelayFilter(Knot):
@@ -98,7 +82,10 @@ class FractionalDelayFilter(Knot):
             raise ValueError("FractionalDelayFilter: filter_order must be a positive integer")
 
         result = await asyncio.to_thread(
-            _apply_fractional_delay, signal.data, float(delay_samples), filter_order
+            FractionalDelayFilter._apply_fractional_delay,
+            signal.data,
+            float(delay_samples),
+            filter_order,
         )
 
         return SignalPayload(
@@ -110,3 +97,24 @@ class FractionalDelayFilter(Knot):
             ),
             data=result,
         )
+
+    @staticmethod
+    def _lagrange_coeffs(delay: float, order: int) -> np.ndarray:
+        tap_count = order + 1
+        tap_weights = np.ones(tap_count)
+        for tap_index in range(tap_count):
+            for basis_index in range(tap_count):
+                if basis_index != tap_index:
+                    tap_weights[tap_index] *= (delay - basis_index) / (tap_index - basis_index)
+        return tap_weights
+
+    @staticmethod
+    def _apply_fractional_delay(data: np.ndarray, delay: float, order: int) -> np.ndarray:
+        try:
+            from scipy import signal as ss  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "FractionalDelayFilter requires 'scipy'. Install via pip install pirn-signal[signal]"
+            ) from exc
+        tap_weights = FractionalDelayFilter._lagrange_coeffs(delay, order)
+        return np.asarray(ss.lfilter(tap_weights, [1.0], data, axis=-1))

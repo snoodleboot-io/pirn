@@ -26,7 +26,6 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from scipy import signal as ss
 
 from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
@@ -75,6 +74,12 @@ class ISTFTReconstructor(Knot):
         Raises:
             ValueError: If hop_length or window are invalid.
         """
+        try:
+            from scipy import signal as ss  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "ISTFTReconstructor requires 'scipy'. Install via pip install pirn-signal[signal]"
+            ) from exc
         if not isinstance(hop_length, int) or hop_length <= 0:
             raise ValueError("ISTFTReconstructor: hop_length must be a positive integer")
         if window not in self._valid_windows:

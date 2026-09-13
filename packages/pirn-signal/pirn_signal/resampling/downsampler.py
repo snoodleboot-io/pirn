@@ -35,10 +35,6 @@ from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
-def _drop_samples(data: np.ndarray, factor: int) -> np.ndarray:
-    return np.ascontiguousarray(data[..., ::factor])
-
-
 class Downsampler(Knot):
     """Keep every Nth sample (caller is responsible for anti-aliasing)."""
 
@@ -78,7 +74,9 @@ class Downsampler(Knot):
         if not isinstance(downsample_factor, int) or downsample_factor <= 1:
             raise ValueError("Downsampler: downsample_factor must be an integer > 1")
 
-        downsampled = await asyncio.to_thread(_drop_samples, signal.data, downsample_factor)
+        downsampled = await asyncio.to_thread(
+            Downsampler._drop_samples, signal.data, downsample_factor
+        )
 
         new_frame = SignalFrame(
             signal_id=f"{signal.frame.signal_id}:downsample",
@@ -87,3 +85,7 @@ class Downsampler(Knot):
             samples_per_channel=signal.frame.samples_per_channel // downsample_factor,
         )
         return SignalPayload(metadata=new_frame, data=downsampled)
+
+    @staticmethod
+    def _drop_samples(data: np.ndarray, factor: int) -> np.ndarray:
+        return np.ascontiguousarray(data[..., ::factor])

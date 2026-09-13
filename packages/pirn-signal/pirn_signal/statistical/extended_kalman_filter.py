@@ -38,38 +38,6 @@ from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
-def _ekf(
-    observations: np.ndarray, process_noise_var: float, measurement_noise_var: float, state_dim: int
-) -> np.ndarray:
-    """Linearised EKF with identity state transition, scalar observation per step.
-
-    Returns filtered state estimates shaped (len(observations),).
-    """
-    obs_count = len(observations)
-    transition_matrix = np.eye(state_dim)
-    observation_matrix = np.zeros((1, state_dim))
-    observation_matrix[0, 0] = 1.0
-    process_noise_matrix = process_noise_var * np.eye(state_dim)
-    measurement_noise_matrix = np.array([[measurement_noise_var]])
-    state_estimate = np.zeros(state_dim)
-    error_covariance = np.eye(state_dim)
-    estimates = np.zeros(obs_count)
-    for obs_index in range(obs_count):
-        # Predict
-        x_pred = transition_matrix @ state_estimate
-        P_pred = transition_matrix @ error_covariance @ transition_matrix.T + process_noise_matrix
-        # Update
-        innovation_covariance = (
-            observation_matrix @ P_pred @ observation_matrix.T + measurement_noise_matrix
-        )
-        kalman_gain_matrix = P_pred @ observation_matrix.T @ np.linalg.inv(innovation_covariance)
-        innov = observations[obs_index] - float(observation_matrix @ x_pred)
-        state_estimate = x_pred + kalman_gain_matrix[:, 0] * innov
-        error_covariance = (np.eye(state_dim) - kalman_gain_matrix @ observation_matrix) @ P_pred
-        estimates[obs_index] = float(state_estimate[0])
-    return estimates
-
-
 class ExtendedKalmanFilter(Knot):
     """Extended Kalman filter for nonlinear state-space models."""
 
@@ -118,7 +86,11 @@ class ExtendedKalmanFilter(Knot):
         process_noise = 1e-3
         measurement_noise = 1e-1
         filtered = await asyncio.to_thread(
-            _ekf, signal_array.astype(float), process_noise, measurement_noise, state_dim
+            ExtendedKalmanFilter._ekf,
+            signal_array.astype(float),
+            process_noise,
+            measurement_noise,
+            state_dim,
         )
         frame = SignalFrame(
             signal_id=f"{signal.frame.signal_id}:ekf",
@@ -127,3 +99,44 @@ class ExtendedKalmanFilter(Knot):
             samples_per_channel=len(filtered),
         )
         return SignalPayload(metadata=frame, data=filtered)
+
+    @staticmethod
+    def _ekf(
+        observations: np.ndarray,
+        process_noise_var: float,
+        measurement_noise_var: float,
+        state_dim: int,
+    ) -> np.ndarray:
+        """Linearised EKF with identity state transition, scalar observation per step.
+
+        Returns filtered state estimates shaped (len(observations),).
+        """
+        obs_count = len(observations)
+        transition_matrix = np.eye(state_dim)
+        observation_matrix = np.zeros((1, state_dim))
+        observation_matrix[0, 0] = 1.0
+        process_noise_matrix = process_noise_var * np.eye(state_dim)
+        measurement_noise_matrix = np.array([[measurement_noise_var]])
+        state_estimate = np.zeros(state_dim)
+        error_covariance = np.eye(state_dim)
+        estimates = np.zeros(obs_count)
+        for obs_index in range(obs_count):
+            # Predict
+            x_pred = transition_matrix @ state_estimate
+            P_pred = (
+                transition_matrix @ error_covariance @ transition_matrix.T + process_noise_matrix
+            )
+            # Update
+            innovation_covariance = (
+                observation_matrix @ P_pred @ observation_matrix.T + measurement_noise_matrix
+            )
+            kalman_gain_matrix = (
+                P_pred @ observation_matrix.T @ np.linalg.inv(innovation_covariance)
+            )
+            innov = observations[obs_index] - float(observation_matrix @ x_pred)
+            state_estimate = x_pred + kalman_gain_matrix[:, 0] * innov
+            error_covariance = (
+                np.eye(state_dim) - kalman_gain_matrix @ observation_matrix
+            ) @ P_pred
+            estimates[obs_index] = float(state_estimate[0])
+        return estimates

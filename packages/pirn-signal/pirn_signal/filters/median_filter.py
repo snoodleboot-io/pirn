@@ -28,17 +28,9 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from scipy.ndimage import median_filter
 
 from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
-
-
-def _apply_median_filter(data: np.ndarray, kernel_size: int) -> np.ndarray:
-    """Apply scipy.ndimage.median_filter with size matched to data shape."""
-    if data.ndim == 1:
-        return median_filter(data, size=kernel_size)
-    return median_filter(data, size=(1, kernel_size))
 
 
 class MedianFilter(Knot):
@@ -80,7 +72,9 @@ class MedianFilter(Knot):
         if not isinstance(kernel_size, int) or kernel_size <= 0 or kernel_size % 2 == 0:
             raise ValueError("MedianFilter: kernel_size must be a positive odd integer")
 
-        filtered = await asyncio.to_thread(_apply_median_filter, signal.data, kernel_size)
+        filtered = await asyncio.to_thread(
+            MedianFilter._apply_median_filter, signal.data, kernel_size
+        )
         return SignalPayload(
             metadata=SignalFrame(
                 signal_id=f"{signal.frame.signal_id}:median",
@@ -90,3 +84,16 @@ class MedianFilter(Knot):
             ),
             data=np.asarray(filtered),
         )
+
+    @staticmethod
+    def _apply_median_filter(data: np.ndarray, kernel_size: int) -> np.ndarray:
+        """Apply scipy.ndimage.median_filter with size matched to data shape."""
+        try:
+            from scipy.ndimage import median_filter  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "MedianFilter requires 'scipy'. Install via pip install pirn-signal[signal]"
+            ) from exc
+        if data.ndim == 1:
+            return median_filter(data, size=kernel_size)
+        return median_filter(data, size=(1, kernel_size))

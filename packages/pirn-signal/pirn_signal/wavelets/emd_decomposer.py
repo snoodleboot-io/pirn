@@ -36,27 +36,10 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from PyEMD import EMD
 
 from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.wavelet_frame import WaveletFrame
 from pirn_signal.types.wavelet_payload import WaveletPayload
-
-
-def _emd_1d(channel: np.ndarray, max_imf: int) -> np.ndarray:
-    emd = EMD()
-    return emd.emd(channel, max_imf=max_imf)
-
-
-def _run_emd(data: np.ndarray, max_imf: int) -> list[np.ndarray]:
-    if data.ndim == 1:
-        imfs = _emd_1d(data, max_imf)
-        return [imfs[i] for i in range(len(imfs))]
-    results: list[np.ndarray] = []
-    for ch_idx in range(data.shape[0]):
-        imfs = _emd_1d(data[ch_idx], max_imf)
-        results.extend(imfs[i] for i in range(len(imfs)))
-    return results
 
 
 class EMDDecomposer(Knot):
@@ -97,10 +80,32 @@ class EMDDecomposer(Knot):
         """
         if not isinstance(max_imf_count, int) or max_imf_count <= 0:
             raise ValueError("EMDDecomposer: max_imf_count must be a positive integer")
-        imfs = await asyncio.to_thread(_run_emd, signal.data, max_imf_count)
+        imfs = await asyncio.to_thread(EMDDecomposer._run_emd, signal.data, max_imf_count)
         frame = WaveletFrame(
             signal_id=signal.frame.signal_id,
             wavelet_name="emd",
             scale_count=len(imfs),
         )
         return WaveletPayload(metadata=frame, data=imfs)
+
+    @staticmethod
+    def _emd_1d(channel: np.ndarray, max_imf: int) -> np.ndarray:
+        try:
+            from PyEMD import EMD  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ImportError(
+                "EMDDecomposer requires 'EMD-signal'. Install via pip install pirn-signal[emd]"
+            ) from exc
+        emd = EMD()
+        return emd.emd(channel, max_imf=max_imf)
+
+    @staticmethod
+    def _run_emd(data: np.ndarray, max_imf: int) -> list[np.ndarray]:
+        if data.ndim == 1:
+            imfs = EMDDecomposer._emd_1d(data, max_imf)
+            return [imfs[i] for i in range(len(imfs))]
+        results: list[np.ndarray] = []
+        for ch_idx in range(data.shape[0]):
+            imfs = EMDDecomposer._emd_1d(data[ch_idx], max_imf)
+            results.extend(imfs[i] for i in range(len(imfs)))
+        return results

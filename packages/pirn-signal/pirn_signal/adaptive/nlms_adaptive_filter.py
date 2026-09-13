@@ -38,27 +38,6 @@ from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
 
-def _nlms(
-    signal_data: np.ndarray,
-    reference_data: np.ndarray,
-    filter_length: int,
-    step_size: float,
-    regularization: float,
-) -> np.ndarray:
-    """Run the NLMS adaptive filter loop and return the error signal."""
-    n_samples = len(signal_data)
-    output = np.zeros(n_samples)
-    filter_weights = np.zeros(filter_length)
-    for sample_index in range(filter_length, n_samples):
-        input_buffer = signal_data[sample_index - filter_length : sample_index][::-1]
-        filter_output = filter_weights @ input_buffer
-        error = reference_data[sample_index] - filter_output
-        mu_n = step_size / (regularization + input_buffer @ input_buffer)
-        filter_weights = filter_weights + mu_n * error * input_buffer
-        output[sample_index] = error
-    return output
-
-
 class NLMSAdaptiveFilter(Knot):
     """Normalised LMS adaptive filter (LMS with input-power normalisation)."""
 
@@ -120,7 +99,7 @@ class NLMSAdaptiveFilter(Knot):
         ref_data = reference.data[0] if reference.data.ndim > 1 else reference.data
 
         result = await asyncio.to_thread(
-            _nlms, sig_data, ref_data, filter_length, step_size, regularization
+            NLMSAdaptiveFilter._nlms, sig_data, ref_data, filter_length, step_size, regularization
         )
 
         return SignalPayload(
@@ -132,3 +111,24 @@ class NLMSAdaptiveFilter(Knot):
             ),
             data=result,
         )
+
+    @staticmethod
+    def _nlms(
+        signal_data: np.ndarray,
+        reference_data: np.ndarray,
+        filter_length: int,
+        step_size: float,
+        regularization: float,
+    ) -> np.ndarray:
+        """Run the NLMS adaptive filter loop and return the error signal."""
+        n_samples = len(signal_data)
+        output = np.zeros(n_samples)
+        filter_weights = np.zeros(filter_length)
+        for sample_index in range(filter_length, n_samples):
+            input_buffer = signal_data[sample_index - filter_length : sample_index][::-1]
+            filter_output = filter_weights @ input_buffer
+            error = reference_data[sample_index] - filter_output
+            mu_n = step_size / (regularization + input_buffer @ input_buffer)
+            filter_weights = filter_weights + mu_n * error * input_buffer
+            output[sample_index] = error
+        return output
