@@ -27,13 +27,24 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from scipy import signal as ss
 
 from pirn_health.types.health_signal_frame import HealthSignalFrame
 from pirn_health.types.health_signal_payload import HealthSignalPayload
 
+try:
+    from scipy import signal as ss
+
+    _HAS_SCIPY: bool = True
+except ImportError:
+    ss = None  # type: ignore[assignment]
+    _HAS_SCIPY = False
+
 
 def _apply_bandpass(data: np.ndarray, low_hz: float, high_hz: float, fs: float) -> np.ndarray:
+    if not _HAS_SCIPY or ss is None:
+        raise ImportError(
+            "scipy is required for EegBandpassFilter — install with: pip install 'pirn-health[health]'"
+        )
     sos = ss.butter(4, [low_hz, high_hz], btype="bandpass", fs=fs, output="sos")
     return ss.sosfiltfilt(sos, data, axis=-1)
 

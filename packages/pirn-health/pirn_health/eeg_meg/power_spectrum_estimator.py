@@ -24,9 +24,16 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from scipy import signal as ss
 
 from pirn_health.types.health_signal_payload import HealthSignalPayload
+
+try:
+    from scipy import signal as ss
+
+    _HAS_SCIPY: bool = True
+except ImportError:
+    ss = None  # type: ignore[assignment]
+    _HAS_SCIPY = False
 
 _bands = {
     "delta": (0.5, 4.0),
@@ -38,6 +45,10 @@ _bands = {
 
 
 def _compute_band_power(data: np.ndarray, fs: float) -> dict[str, float]:
+    if not _HAS_SCIPY or ss is None:
+        raise ImportError(
+            "scipy is required for PowerSpectrumEstimator — install with: pip install 'pirn-health[health]'"
+        )
     channel = data[0] if data.ndim > 1 else data
     freqs, psd = ss.welch(channel, fs=fs, axis=-1)
     result: dict[str, float] = {}

@@ -22,11 +22,22 @@ from typing import Any, ClassVar
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from sklearn.decomposition import FastICA
+
+try:
+    from sklearn.decomposition import FastICA
+
+    _HAS_SKLEARN: bool = True
+except ImportError:
+    FastICA = None  # type: ignore[assignment]
+    _HAS_SKLEARN = False
 
 
 def _run_ica(data_2d: np.ndarray, n_components: int, max_iter: int) -> dict[str, Any]:
     """Run FastICA and return mixing/unmixing matrices and component variances."""
+    if not _HAS_SKLEARN or FastICA is None:
+        raise ImportError(
+            "scikit-learn is required for EEGICADecomposer — install with: pip install 'pirn-health[health]'"
+        )
     ica = FastICA(n_components=n_components, max_iter=max_iter, random_state=0)
     sources: np.ndarray = np.asarray(ica.fit_transform(data_2d.T))  # (n_samples, n_components)
     mixing: np.ndarray = np.asarray(ica.mixing_)  # (n_channels, n_components)

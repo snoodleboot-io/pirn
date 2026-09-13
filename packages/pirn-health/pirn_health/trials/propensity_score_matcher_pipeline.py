@@ -37,7 +37,14 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from sklearn.linear_model import LogisticRegression
+
+try:
+    from sklearn.linear_model import LogisticRegression
+
+    _HAS_SKLEARN: bool = True
+except ImportError:
+    LogisticRegression = None  # type: ignore[assignment]
+    _HAS_SKLEARN = False
 
 
 def _safe_float(raw_value: object) -> float:
@@ -88,6 +95,11 @@ def _run_psm(
 
     ps = np.full(len(cohort), 0.5)
     if len(np.unique(treatment_labels)) > 1:
+        if not _HAS_SKLEARN or LogisticRegression is None:
+            raise ImportError(
+                "scikit-learn is required for PropensityScoreMatcherPipeline — "
+                "install with: pip install 'pirn-health[health]'"
+            )
         try:
             lr = LogisticRegression(max_iter=500, random_state=0)
             lr.fit(covariate_matrix, treatment_labels)

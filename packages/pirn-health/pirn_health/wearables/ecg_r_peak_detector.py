@@ -28,11 +28,18 @@ import asyncio
 from typing import Any
 
 import numpy as np
-import scipy.signal
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_health.types.health_signal_payload import HealthSignalPayload
+
+try:
+    import scipy.signal
+
+    _HAS_SCIPY: bool = True
+except ImportError:
+    scipy = None  # type: ignore[assignment]
+    _HAS_SCIPY = False
 
 
 def _pan_tompkins(ecg: np.ndarray, fs: float) -> tuple[int, ...]:
@@ -45,6 +52,10 @@ def _pan_tompkins(ecg: np.ndarray, fs: float) -> tuple[int, ...]:
     Returns:
         Tuple of integer sample indices for detected R-peaks.
     """
+    if not _HAS_SCIPY or scipy is None:
+        raise ImportError(
+            "scipy is required for ECGRPeakDetector — install with: pip install 'pirn-health[health]'"
+        )
     sos = scipy.signal.butter(2, [5.0, 15.0], btype="bandpass", fs=fs, output="sos")
     filtered = scipy.signal.sosfiltfilt(sos, ecg)
     deriv = np.diff(filtered, prepend=filtered[0])

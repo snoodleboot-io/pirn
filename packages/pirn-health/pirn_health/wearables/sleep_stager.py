@@ -25,15 +25,26 @@ import asyncio
 from typing import Any
 
 import numpy as np
-import scipy.signal
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_health.types.health_signal_payload import HealthSignalPayload
 
+try:
+    import scipy.signal
+
+    _HAS_SCIPY: bool = True
+except ImportError:
+    scipy = None  # type: ignore[assignment]
+    _HAS_SCIPY = False
+
 
 def _band_power(epoch: np.ndarray, fs: float, low: float, high: float) -> float:
     """Compute average power in a frequency band using Welch's method."""
+    if not _HAS_SCIPY or scipy is None:
+        raise ImportError(
+            "scipy is required for SleepStager — install with: pip install 'pirn-health[health]'"
+        )
     nperseg = min(epoch.size, max(4, int(fs * 2)))
     freqs, psd = scipy.signal.welch(epoch, fs=fs, nperseg=nperseg)
     idx = (freqs >= low) & (freqs <= high)

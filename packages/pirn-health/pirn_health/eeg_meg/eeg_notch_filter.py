@@ -25,13 +25,24 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from scipy import signal as ss
 
 from pirn_health.types.health_signal_frame import HealthSignalFrame
 from pirn_health.types.health_signal_payload import HealthSignalPayload
 
+try:
+    from scipy import signal as ss
+
+    _HAS_SCIPY: bool = True
+except ImportError:
+    ss = None  # type: ignore[assignment]
+    _HAS_SCIPY = False
+
 
 def _apply_notch(data: np.ndarray, notch_hz: float, fs: float) -> np.ndarray:
+    if not _HAS_SCIPY or ss is None:
+        raise ImportError(
+            "scipy is required for EegNotchFilter — install with: pip install 'pirn-health[health]'"
+        )
     numerator_coeffs, denominator_coeffs = ss.iirnotch(notch_hz, Q=30.0, fs=fs)
     sos = ss.tf2sos(numerator_coeffs, denominator_coeffs)
     return ss.sosfiltfilt(sos, data, axis=-1)

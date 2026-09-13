@@ -23,9 +23,16 @@ import asyncio
 from typing import Any
 
 import numpy as np
-import scipy.signal
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+
+try:
+    import scipy.signal
+
+    _HAS_SCIPY: bool = True
+except ImportError:
+    scipy = None  # type: ignore[assignment]
+    _HAS_SCIPY = False
 
 
 def _ppg_peaks(ppg: np.ndarray, fs: float) -> list[dict[str, Any]]:
@@ -38,6 +45,10 @@ def _ppg_peaks(ppg: np.ndarray, fs: float) -> list[dict[str, Any]]:
     Returns:
         List of dicts with hr_bpm and timestamp_sec for each inter-peak segment.
     """
+    if not _HAS_SCIPY or scipy is None:
+        raise ImportError(
+            "scipy is required for PPGHeartRateExtractor — install with: pip install 'pirn-health[health]'"
+        )
     if ppg.size < 4 or fs <= 0:
         return []
     low = 0.5

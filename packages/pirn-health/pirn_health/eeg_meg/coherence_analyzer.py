@@ -23,14 +23,25 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from scipy import signal as ss
 
 from pirn_health.types.health_signal_payload import HealthSignalPayload
+
+try:
+    from scipy import signal as ss
+
+    _HAS_SCIPY: bool = True
+except ImportError:
+    ss = None  # type: ignore[assignment]
+    _HAS_SCIPY = False
 
 
 def _band_coherence(
     channel_x: np.ndarray, channel_y: np.ndarray, fs: float, low: float, high: float
 ) -> float:
+    if not _HAS_SCIPY or ss is None:
+        raise ImportError(
+            "scipy is required for CoherenceAnalyzer — install with: pip install 'pirn-health[health]'"
+        )
     freqs, cxy = ss.coherence(channel_x, channel_y, fs=fs)
     mask = (freqs >= low) & (freqs <= high)
     return float(np.mean(cxy[mask])) if mask.any() else 0.0

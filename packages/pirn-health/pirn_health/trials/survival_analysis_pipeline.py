@@ -38,7 +38,14 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from scipy import stats as ss
+
+try:
+    from scipy import stats as ss
+
+    _HAS_SCIPY: bool = True
+except ImportError:
+    ss = None  # type: ignore[assignment]
+    _HAS_SCIPY = False
 
 
 def _km_median(times: np.ndarray, events: np.ndarray) -> float | None:
@@ -64,6 +71,10 @@ def _log_rank(
     events_b: np.ndarray,
 ) -> float:
     """Log-rank test p-value (two-group)."""
+    if not _HAS_SCIPY or ss is None:
+        raise ImportError(
+            "scipy is required for SurvivalAnalysisPipeline — install with: pip install 'pirn-health[health]'"
+        )
     all_times = np.unique(np.concatenate([times_a[events_a == 1], times_b[events_b == 1]]))
     obs_a = exp_a = log_rank_var = 0.0
     for event_time in all_times:

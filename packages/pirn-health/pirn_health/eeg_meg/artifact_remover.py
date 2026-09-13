@@ -29,13 +29,24 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from sklearn.decomposition import FastICA
 
 from pirn_health.types.health_signal_frame import HealthSignalFrame
 from pirn_health.types.health_signal_payload import HealthSignalPayload
 
+try:
+    from sklearn.decomposition import FastICA
+
+    _HAS_SKLEARN: bool = True
+except ImportError:
+    FastICA = None  # type: ignore[assignment]
+    _HAS_SKLEARN = False
+
 
 def _apply_ica(data: np.ndarray, n_components: int) -> np.ndarray:
+    if not _HAS_SKLEARN or FastICA is None:
+        raise ImportError(
+            "scikit-learn is required for ArtifactRemover — install with: pip install 'pirn-health[health]'"
+        )
     ica = FastICA(n_components=n_components, random_state=0)
     sources = ica.fit_transform(data.T)
     reconstructed = ica.inverse_transform(sources)

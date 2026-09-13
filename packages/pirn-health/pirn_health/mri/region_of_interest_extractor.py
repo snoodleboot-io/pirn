@@ -23,10 +23,17 @@ import asyncio
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-import nibabel as nib
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+
+try:
+    import nibabel as nib
+
+    _HAS_NIBABEL: bool = True
+except ImportError:
+    nib = None  # type: ignore[assignment]
+    _HAS_NIBABEL = False
 
 
 def _extract_roi_means(
@@ -34,6 +41,11 @@ def _extract_roi_means(
     atlas_label_path: str,
     roi_labels: Sequence[int],
 ) -> dict[int, float]:
+    if not _HAS_NIBABEL or nib is None:
+        raise ImportError(
+            "nibabel is required for RegionOfInterestExtractor — "
+            "install with: pip install 'pirn-health[mri]'"
+        )
     img = nib.load(nifti_path)
     atlas = nib.load(atlas_label_path)
     intensity: np.ndarray = np.asarray(img.get_fdata(), dtype=float)

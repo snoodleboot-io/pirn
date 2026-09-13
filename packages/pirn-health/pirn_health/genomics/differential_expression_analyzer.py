@@ -27,7 +27,14 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from scipy import stats as ss
+
+try:
+    from scipy import stats as ss
+
+    _HAS_SCIPY: bool = True
+except ImportError:
+    ss = None  # type: ignore[assignment]
+    _HAS_SCIPY = False
 
 
 def _run_de(
@@ -36,6 +43,11 @@ def _run_de(
     gene_ids: list[str],
 ) -> dict[str, dict[str, float]]:
     """Compute log2FC, Welch t-test p-value, and BH-adjusted p-value per gene."""
+    if not _HAS_SCIPY or ss is None:
+        raise ImportError(
+            "scipy is required for DifferentialExpressionAnalyzer — "
+            "install with: pip install 'pirn-health[health]'"
+        )
     log2fcs: list[float] = []
     pvalues: list[float] = []
 

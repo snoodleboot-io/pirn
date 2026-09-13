@@ -20,15 +20,27 @@ import io
 from typing import Any
 
 import numpy as np
-from PIL import Image
 from pirn.core.disassembler import Disassembler
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_health.types.wsi_tile_payload import WSITilePayload
 
+try:
+    from PIL import Image
+
+    _HAS_PIL: bool = True
+except ImportError:
+    Image = None  # type: ignore[assignment]
+    _HAS_PIL = False
+
 
 def _to_png_bytes(payload: WSITilePayload) -> bytes:
+    if not _HAS_PIL or Image is None:
+        raise ImportError(
+            "Pillow is required for WsiObjectStoreDisassembler — "
+            "install with: pip install 'pirn-health[health]'"
+        )
     img = Image.fromarray(payload.pixels.astype(np.uint8), mode="RGB")
     buf = io.BytesIO()
     img.save(buf, format="PNG")

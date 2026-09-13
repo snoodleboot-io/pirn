@@ -28,12 +28,23 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from scipy import signal as ss
 
 from pirn_health.types.health_signal_payload import HealthSignalPayload
 
+try:
+    from scipy import signal as ss
+
+    _HAS_SCIPY: bool = True
+except ImportError:
+    ss = None  # type: ignore[assignment]
+    _HAS_SCIPY = False
+
 
 def _plv(signal_a: np.ndarray, signal_b: np.ndarray) -> float:
+    if not _HAS_SCIPY or ss is None:
+        raise ImportError(
+            "scipy is required for ConnectivityAnalyzer — install with: pip install 'pirn-health[health]'"
+        )
     phase_a = np.angle(np.asarray(ss.hilbert(signal_a)))
     phase_b = np.angle(np.asarray(ss.hilbert(signal_b)))
     return float(np.abs(np.mean(np.exp(1j * (phase_a - phase_b)))))
