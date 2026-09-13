@@ -108,6 +108,10 @@ class LLMProviderStreamingMixin:
             if delta.tool_call is not None:
                 tool_deltas.append(delta.tool_call)
 
+        # design-decision-override: StreamingToolCallParser.parse_to_list wants
+        # an AsyncIterator, and the tool-call fragments are already fully
+        # collected in-memory here; closing over tool_deltas to re-wrap it as
+        # one is simpler than adding a list-accepting overload to the parser.
         async def _emit() -> AsyncIterator[Mapping[str, Any]]:
             for fragment in tool_deltas:
                 yield fragment

@@ -84,6 +84,9 @@ class PIIResponseRedactor(Knot):
         )
         content = response.content
 
+        # design-decision-override: asyncio.to_thread needs a zero-arg callable;
+        # the default-arg trick binds content_str once per call so the closure
+        # is safe even if this method runs concurrently for different responses.
         def _apply_pii(content_str: str = content) -> str:
             for p in compiled:
                 content_str = p.sub("<redacted>", content_str)

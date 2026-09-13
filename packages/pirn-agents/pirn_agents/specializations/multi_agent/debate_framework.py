@@ -64,6 +64,9 @@ from pirn_agents.types.messaging.agent_response import AgentResponse
 def _make_round_combine(count: int) -> Any:
     """Build the combine that orders one round's responses by debater index."""
 
+    # design-decision-override: Aggregator's combine hook takes only the
+    # resolved **responses kwargs, so the per-round debater count can only
+    # reach it by closing over `count` in a factory-built callable.
     def combine(**responses: AgentResponse) -> list[AgentResponse]:
         return [responses[f"debater_{index}"] for index in range(count)]
 

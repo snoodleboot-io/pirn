@@ -135,6 +135,9 @@ class PromptTemplate(PirnOpaqueValue):
     def _expand_partials(self, text: str, *, strict: bool) -> str:
         """Inline ``{{> name }}`` includes exactly one level deep."""
 
+        # design-decision-override: re.sub's callback signature is fixed to
+        # (match) -> str, so closing over self/strict here is the only way to
+        # reach the instance's partials and the caller's strictness flag.
         def _replace(match: re.Match[str]) -> str:
             if not match.group(1):
                 return match.group(0)
@@ -150,6 +153,9 @@ class PromptTemplate(PirnOpaqueValue):
     def _substitute(self, text: str, values: Mapping[str, Any], *, strict: bool) -> str:
         """Substitute variable slots in a single, non-recursive left-to-right pass."""
 
+        # design-decision-override: re.sub's callback signature is fixed to
+        # (match) -> str, so closing over self/values/strict here is the only
+        # way to reach the substitution values and the caller's strictness flag.
         def _replace(match: re.Match[str]) -> str:
             if match.group(1):
                 # A leftover partial token (e.g. nested inside a partial body).

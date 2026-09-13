@@ -92,6 +92,9 @@ class SafePatternCompiler:
     ) -> re.Match[str] | None:
         """Return the first match of any pattern against content, running off the event loop."""
 
+        # design-decision-override: asyncio.to_thread needs a zero-arg callable;
+        # closing over patterns/content here avoids a partial for a single-use
+        # helper.
         def _search() -> re.Match[str] | None:
             for pattern in patterns:
                 m = pattern.search(content)

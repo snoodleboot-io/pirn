@@ -97,6 +97,9 @@ class OpaquePolicy(Enum):
             accepts, so digests taken with the un-narrowed policy do not move.
         """
 
+        # design-decision-override: this is a closure factory — the returned
+        # callable must carry `render` bound in, since the caller only gets a
+        # single-argument fallback back, not a (fallback, render) pair.
         def _render_content(value: Any) -> str:
             rendered = render(value)
             try:

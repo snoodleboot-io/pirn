@@ -114,6 +114,10 @@ class StubTool(Tool):
         self.stream_invocations.append(dict(arguments))
         chunks = list(self._stream_chunks)
 
+        # design-decision-override: an async-generator function is the only way
+        # to build an AsyncIterator here; closing over the resolved `chunks`
+        # snapshot keeps the returned iterator independent of later
+        # reconfiguration of this stub.
         async def _aiter() -> AsyncIterator[Any]:
             for chunk in chunks:
                 yield chunk
