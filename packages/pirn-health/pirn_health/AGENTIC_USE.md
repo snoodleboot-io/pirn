@@ -69,7 +69,7 @@ pirn_health/
 │   ├── __init__.py
 │   ├── eeg_object_store_assembler.py         — bytes + metadata → SignalPayload (EEG)
 │   ├── meg_object_store_assembler.py         — bytes + metadata → SignalPayload (MEG)
-│   ├── dicom_pacs_assembler.py               — DICOMSeries + staging_dir → DICOMPayload
+│   ├── dicom_pacs_assembler.py               — bytes + series_id → DICOMPayload (parsed in memory)
 │   ├── wsi_object_store_assembler.py         — bytes + slide_id + metadata → tuple[WSITilePayload, ...]
 │   └── fhir_patient_assembler.py             — list[dict] + metadata → tuple[ClinicalRecord, ...]
 ├── disassemblers/
@@ -103,7 +103,7 @@ Domain payloads enter and leave the health domain through assembler/disassembler
 |------|-------|--------|
 | `EegObjectStoreAssembler` | `bytes` + signal metadata | `SignalPayload` |
 | `MegObjectStoreAssembler` | `bytes` + signal metadata | `SignalPayload` |
-| `DicomPacsAssembler` | `DICOMSeries` + `staging_dir` | `DICOMPayload` |
+| `DicomPacsAssembler` | `bytes` + `series_id` | `DICOMPayload` |
 | `WsiObjectStoreAssembler` | `bytes` + slide metadata | `tuple[WSITilePayload, ...]` |
 | `FhirPatientAssembler` | `list[dict]` + cohort metadata | `tuple[ClinicalRecord, ...]` |
 

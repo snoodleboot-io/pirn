@@ -1,15 +1,19 @@
 """``NIfTIConverter`` — convert a DICOM series to NIfTI format.
 
 Production version uses ``dcm2niix`` / ``nibabel``. Accepts a
-:class:`DICOMPayload` so the staged filesystem path travels with the
-series metadata through the transport layer.
+:class:`DICOMPayload` carrying an in-memory ``pydicom.Dataset`` (the
+assembler layer performs no filesystem I/O — see
+``pirn_health.assemblers.dicom_pacs_assembler``). ``dcm2niix`` is an external
+CLI tool that only reads from disk, so this knot — not the assembler — owns
+staging the dataset to a self-cleaning temporary directory for the duration
+of the subprocess call.
 
 Algorithm:
     1. Receive payload DICOMPayload and output_nifti_path string.
     2. Validate payload is a DICOMPayload and output_nifti_path is non-empty.
-    3. Run dcm2niix against payload.dicom_dir to produce the NIfTI file.
-    4. Return the output NIfTI path.
-
+    3. Write ``payload.dataset`` to a temporary directory via ``save_as``.
+    4. Run dcm2niix against that temporary directory to produce the NIfTI file.
+    5. Remove the temporary directory and return the output NIfTI path.
 
 References:
     - Li et al. (2016) The first step for neuroimaging data analysis: DICOM to NIfTI conversion.
@@ -20,6 +24,8 @@ from __future__ import annotations
 
 import asyncio
 import os
+import tempfile
+from pathlib import Path
 from typing import Any
 
 from pirn.core.knot import Knot
@@ -66,7 +72,7 @@ class NIfTIConverter(Knot):
         """Convert the DICOM series to NIfTI format and return the output NIfTI path.
 
         Args:
-            payload: DICOMPayload carrying the series metadata and staged directory path.
+            payload: DICOMPayload carrying the series metadata and parsed dataset.
             output_nifti_path: Non-empty path for the NIfTI output file.
 
         Returns:
@@ -81,7 +87,18 @@ class NIfTIConverter(Knot):
         if not isinstance(output_nifti_path, str) or not output_nifti_path:
             raise ValueError("NIfTIConverter: output_nifti_path must be non-empty string")
         output_dir = os.path.dirname(output_nifti_path) or "."
-        dicom_dir = payload.dicom_dir or "."
-        cmd = ["dcm2niix", "-o", output_dir, dicom_dir]
-        await _run_subprocess(cmd)
+        with tempfile.TemporaryDirectory(prefix="nifti_converter_") as staging_dir:
+            await asyncio.to_thread(self._stage_dataset, payload.dataset, staging_dir)
+            cmd = ["dcm2niix", "-o", output_dir, staging_dir]
+            await _run_subprocess(cmd)
         return output_nifti_path
+
+    @staticmethod
+    def _stage_dataset(dataset: Any, staging_dir: str) -> None:
+        """Write ``dataset`` to a single ``.dcm`` file inside ``staging_dir``.
+
+        ``dcm2niix`` is an external tool that only reads from disk; this is the
+        one place in the DICOM pipeline that legitimately needs a real file,
+        and it is scoped to a temporary directory removed by the caller.
+        """
+        dataset.save_as(Path(staging_dir) / "series.dcm")

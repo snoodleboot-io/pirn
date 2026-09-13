@@ -429,7 +429,7 @@ MRI acquisition and analysis knots.
 
 | Knot | Description |
 |---|---|
-| `DicomPacsAssembler` *(from `pirn_health.assemblers`)* | Assembles a `DICOMPayload` from a `DICOMSeries` + staging dir (replaces removed `DicomIngestor`) |
+| `DicomPacsAssembler` *(from `pirn_health.assemblers`)* | Assembles a `DICOMPayload` from raw DICOM `bytes` + `series_id`, parsed in memory (replaces removed `DicomIngestor`) |
 | `NIfTIConverter` | Converts DICOM volumes to NIfTI format |
 | `BiasFieldCorrector` | N4 bias field correction via ANTs/SimpleITK |
 | `BrainMaskExtractor` | Skull-stripping and brain mask extraction |
@@ -572,7 +572,7 @@ from pirn_health.assemblers.wsi_object_store_assembler import WsiObjectStoreAsse
 |-----------|-------|--------|
 | `EegObjectStoreAssembler` | `bytes` + metadata | `SignalPayload` |
 | `MegObjectStoreAssembler` | `bytes` + metadata | `SignalPayload` |
-| `DicomPacsAssembler` | `DICOMSeries` + staging dir | `DICOMPayload` |
+| `DicomPacsAssembler` | `bytes` + `series_id` | `DICOMPayload` |
 | `WsiObjectStoreAssembler` | `bytes` + metadata | `tuple[WSITilePayload, ...]` |
 | `FhirPatientAssembler` | `list[dict]` + metadata | `tuple[ClinicalRecord, ...]` |
 

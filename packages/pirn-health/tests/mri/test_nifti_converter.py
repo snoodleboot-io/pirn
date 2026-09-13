@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import unittest
+from pathlib import Path
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from pirn.core.knot_config import KnotConfig
@@ -12,7 +14,16 @@ from pirn_health.types.dicom_payload import DICOMPayload
 from pirn_health.types.dicom_series import DICOMSeries
 
 _CFG = KnotConfig(id="c")
-_PAYLOAD = DICOMPayload(metadata=DICOMSeries(), data="/tmp/dicom")
+
+
+class _FakeDataset:
+    """Stands in for a ``pydicom.Dataset`` — only needs ``save_as``."""
+
+    def save_as(self, dest: Any) -> None:
+        Path(dest).write_bytes(b"\x00")
+
+
+_PAYLOAD = DICOMPayload(metadata=DICOMSeries(), data=_FakeDataset())
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
