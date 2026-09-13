@@ -703,11 +703,9 @@ class Engine:
         """
         loop = asyncio.get_running_loop()
         # Strong-reference the in-flight tasks; without this, Python's
-        # GC may reclaim them before they complete.  We attach to ctx
-        # so the list lives as long as the run.
-        if not hasattr(ctx, "_emitter_tasks"):
-            ctx._emitter_tasks = []  # type: ignore[attr-defined]
-        emitter_tasks: list[Any] = ctx._emitter_tasks  # type: ignore[attr-defined]
+        # GC may reclaim them before they complete. ctx.emitter_tasks
+        # lives as long as the run.
+        emitter_tasks = ctx.emitter_tasks
 
         for emitter in emitters:
             ctx.status.subscribe(

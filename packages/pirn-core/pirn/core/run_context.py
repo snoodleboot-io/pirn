@@ -38,6 +38,10 @@ class RunContext:
         self.exceptions = ExceptionManager(run_id, traceback_filter=traceback_filter)
         self.lineage: list[KnotLineage] = []
         self.skipped: list[str] = []
+        # Strong references to in-flight, fire-and-forget emitter tasks
+        # (Engine._subscribe_emitters_to_status); without this, Python's GC
+        # may reclaim them before they complete. Lives as long as the run.
+        self.emitter_tasks: list[Any] = []
         # Deduplicated source snapshots keyed by source_hash — populated
         # during the run, persisted after finalization.
         self.knot_sources: dict[str, KnotSourceRecord] = {}
@@ -51,22 +55,24 @@ class RunContext:
         self.environment: dict[str, str] = {"hostname": socket.gethostname(), **(environment or {})}
 
         # By What Means — auto-populated at run construction time
-        def _pkg_version(name: str) -> str:
-            try:
-                return importlib.metadata.version(name)
-            except importlib.metadata.PackageNotFoundError:
-                return "unknown"
-
         import cloudpickle
 
         self.runtime_info: dict[str, str] = {
             "python_version": sys.version,
-            "pirn_version": _pkg_version("pirn"),
-            "cloudpickle_version": _pkg_version("cloudpickle"),
+            "pirn_version": self._pkg_version("pirn"),
+            "cloudpickle_version": self._pkg_version("cloudpickle"),
             "cloudpickle_pickle_protocol": str(cloudpickle.DEFAULT_PROTOCOL),
             "platform": sys.platform,
             "vcs_commit": self._resolve_vcs_commit(),
         }
+
+    @staticmethod
+    def _pkg_version(name: str) -> str:
+        """Return the installed version of *name*, or "unknown" if absent."""
+        try:
+            return importlib.metadata.version(name)
+        except importlib.metadata.PackageNotFoundError:
+            return "unknown"
 
     @staticmethod
     def _resolve_vcs_commit() -> str:
