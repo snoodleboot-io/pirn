@@ -5,11 +5,10 @@ from __future__ import annotations
 import unittest
 
 try:
-    import duckdb
+    import duckdb  # noqa: F401
 except ImportError as _e:
     raise unittest.SkipTest("duckdb not installed") from _e
 
-import duckdb
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
 from pirn.core.run_request import RunRequest
@@ -20,6 +19,7 @@ from pirn_data.frames.duckdb.bridges.data_batch_to_duckdb import (
     DataBatchToDuckdb,
 )
 from pirn_data.frames.duckdb.duckdb_connection import DuckDBConnection
+from pirn_data.frames.duckdb.duckdb_connection_knot import DuckDBConnectionKnot
 from pirn_data.frames.duckdb.duckdb_data_batch import DuckdbDataBatch
 
 
@@ -72,29 +72,25 @@ class TestDataBatchToDuckdb(unittest.IsolatedAsyncioTestCase):
         assert out.relation.fetchall() == []
 
     async def test_uses_supplied_connection(self) -> None:
-        raw_conn = duckdb.connect(database=":memory:")
-        connection = DuckDBConnection(raw_conn)
         with Tapestry() as t:
             batch = emit_users(_config=KnotConfig(id="users"))
+            conn_knot = DuckDBConnectionKnot(_config=KnotConfig(id="conn"))
             DataBatchToDuckdb(
                 batch=batch,
-                connection=connection,
+                connection=conn_knot,
                 _config=KnotConfig(id="duck"),
             )
         result = await t.run(RunRequest())
+        conn_result: DuckDBConnection = result.outputs["conn"]
         out: DuckdbDataBatch = result.outputs["duck"]
-        assert out.connection is raw_conn
+        assert out.connection is conn_result.conn
 
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_connection_from_upstream_knot(self) -> None:
-        @knot
-        async def emit_connection() -> DuckDBConnection:
-            return DuckDBConnection(duckdb.connect(database=":memory:"))
-
         with Tapestry() as t:
             batch = emit_users(_config=KnotConfig(id="users"))
-            conn_knot = emit_connection(_config=KnotConfig(id="conn"))
+            conn_knot = DuckDBConnectionKnot(_config=KnotConfig(id="conn"))
             DataBatchToDuckdb(
                 batch=batch,
                 connection=conn_knot,
