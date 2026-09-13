@@ -28,6 +28,15 @@ def _walk_knot_subclasses(package: object) -> tuple[set[str], list[str]]:
 
     Returns a pair of (fully-qualified ``Knot`` subclass names defined in the
     package, dotted names of submodules that failed to import).
+
+    Identity is keyed by the class's own ``__module__.__qualname__``, not by
+    whatever module-level attribute name it happens to be bound to. A
+    deprecated-name alias (``OldName = NewName``, the pattern this repo's
+    PIR-856 remediation uses to keep a renamed public class importable under
+    its old name) binds a second name to the *same* class object; sweet_tea's
+    ``Registry`` likewise registers both names but with an identical
+    ``class_def``, so comparing by alias name would flag the alias as
+    "missing" even though the class it refers to is fully registered.
     """
     found: set[str] = set()
     failed: list[str] = []
@@ -38,9 +47,9 @@ def _walk_knot_subclasses(package: object) -> tuple[set[str], list[str]]:
         except ImportError:
             failed.append(module_name)
             continue
-        for name, obj in vars(module).items():
+        for _name, obj in vars(module).items():
             if isinstance(obj, type) and obj.__module__ == module_name and issubclass(obj, Knot):
-                found.add(f"{module_name}.{name}")
+                found.add(f"{obj.__module__}.{obj.__qualname__}")
     return found, failed
 
 
@@ -54,7 +63,7 @@ def test_registry_holds_every_knot_subclass_when_extras_present() -> None:
         )
 
     registered = {
-        f"{entry.class_def.__module__}.{entry.class_def.__name__}"
+        f"{entry.class_def.__module__}.{entry.class_def.__qualname__}"
         for entry in Registry.typed_entries(Knot)
         if entry.class_def.__module__.startswith("pirn_data.")
     }
