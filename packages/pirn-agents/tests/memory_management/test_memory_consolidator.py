@@ -50,7 +50,7 @@ class TestMemoryConsolidator(unittest.IsolatedAsyncioTestCase):
         derivation = result[0].provenance.derivation
         assert derivation is not None
         assert "e1" in derivation and "e2" in derivation
-        assert result[0].metadata["merged_count"] == 2
+        assert result[0].tags["merged_count"] == 2
 
     async def test_no_op_on_already_clean_data(self) -> None:
         knot = _make_knot()

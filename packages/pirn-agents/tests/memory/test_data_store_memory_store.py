@@ -56,6 +56,11 @@ class TestConstruction:
     def test_exposes_its_namespace(self, backend: InMemoryDataStore) -> None:
         assert DataStoreMemoryStore(data_store=backend, namespace="ns").namespace == "ns"
 
+    def test_retention_delegates_to_the_wrapped_data_store(
+        self, store: DataStoreMemoryStore, backend: InMemoryDataStore
+    ) -> None:
+        assert store.retention == backend.retention
+
 
 class TestKeyedSurface:
     async def test_store_then_retrieve_round_trips(self, store: DataStoreMemoryStore) -> None:
