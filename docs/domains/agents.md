@@ -224,7 +224,7 @@ Pre-built `SubTapestry` pipelines for common agent patterns.
 | `rag/` | `NaiveRAGPipeline`, `CorrectiveRAGPipeline`, `HyDERAGPipeline`, `GraphRAGPipeline` — retrieval-augmented generation patterns with relevance gating |
 | `react/` | `ReActLoop` — Reasoning + Acting loop with step accumulation, tool execution, and termination gating |
 | `document_processing/` | `DocumentIngestionPipeline`, `DocumentQAPipeline`, `DocumentSummarizerPipeline`, `DocumentTranslationPipeline` |
-| `multi_agent/` | `OrchestratorAgent`, `ParallelSpecialistFanOut`, `DebateFramework`, `ConsensusAggregator` — multi-agent coordination patterns |
+| `multi_agent/` | `OrchestratorAgent`, `ParallelSpecialistFanOut`, `DebateFramework`, `ConsensusPipeline` — multi-agent coordination patterns |
 | `guardrails/` | Input/output guardrail gates, PII redaction, fact-checking |
 | `structured_output/` | `JsonExtractorPipeline`, `YamlExtractorPipeline`, `PydanticValidatorPipeline`, `EnumClassifierPipeline` |
 | `memory_patterns/` | Working memory, episodic memory, semantic memory, and procedural memory pipelines |

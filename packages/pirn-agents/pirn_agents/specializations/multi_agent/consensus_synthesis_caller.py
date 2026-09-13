@@ -1,6 +1,6 @@
 """``ConsensusSynthesisCaller`` — LLM-mediated consensus over responses.
 
-Inner stage knot used by :class:`ConsensusAggregator` when the
+Inner stage knot used by :class:`ConsensusPipeline` when the
 ``llm_synthesis`` strategy is selected. Renders every specialist
 response into a single prompt and asks the LLM to produce a
 consensus reply. Returns the synthesised :class:`AgentResponse`.

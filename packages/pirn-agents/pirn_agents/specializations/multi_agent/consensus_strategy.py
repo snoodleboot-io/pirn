@@ -1,6 +1,6 @@
 """``ConsensusStrategy`` — interface for one consensus-reduction mechanism.
 
-The OCP seam behind :class:`ConsensusAggregator`. Each concrete strategy owns a
+The OCP seam behind :class:`ConsensusPipeline`. Each concrete strategy owns a
 single named consensus mechanism: it reports its selector name (:meth:`name`)
 and builds the inner stage :class:`~pirn.core.knot.Knot` that performs the
 reduction (:meth:`build`). The aggregator holds an ordered tuple of these

@@ -72,7 +72,7 @@ pirn_agents/
     ├── rag/                     Naive / Corrective / HyDe / Graph RAG pipelines
     │                            SelfRAG, AdaptiveRAG, MultiHopRAG, Reranker, RAGSynthesizer
     ├── multi_agent/             OrchestratorAgent, ParallelSpecialistFanOut, DebateFramework,
-    │                            ConsensusAggregator, RoundRobinReview
+    │                            ConsensusPipeline, RoundRobinReview
     ├── memory_patterns/         Working / Semantic / Episodic / Procedural memory pipelines
     │                            EpisodicMemoryRetriever, SemanticMemoryUpsert, SessionSummarizer
     ├── guardrails/              Input/OutputGuardrailCheck, PiiRedactorCheck, FactCheck

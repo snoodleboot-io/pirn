@@ -6,7 +6,7 @@ through a core :class:`~pirn.nodes.reduce_.Reduce`, since "reduce a list to
 one value" is exactly what ``Reduce`` names, and a bespoke Knot doing the
 identical fold inside its own ``process()`` duplicates it. This class is kept
 — it is directly unit-tested and its public name stays importable — but is no
-longer part of ``ConsensusAggregator``'s wiring.
+longer part of ``ConsensusPipeline``'s wiring.
 
 Groups responses by their ``content`` field and returns the response whose
 content appears most frequently. Ties are broken by first-seen order.

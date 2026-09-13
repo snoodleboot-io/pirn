@@ -106,7 +106,7 @@ class AgentPatternRegistry:
         # --- multi-agent
         PatternDescriptor(
             "consensus",
-            f"{_spec}.multi_agent.consensus_aggregator:ConsensusAggregator",
+            f"{_spec}.multi_agent.consensus_pipeline:ConsensusPipeline",
             "responses",
         ),
         PatternDescriptor(
