@@ -68,19 +68,67 @@ class OpenTelemetryEmitter(Emitter):
         return self._tracer
 
     async def on_status(self, event: StatusEvent) -> None:
-        """No-op for the OTel emitter.
+        """No-op for a plain lifecycle transition; a span for a carried event.
 
-        Status transitions (PENDING → RUNNING → SUCCEEDED) are too
-        fine-grained for individual spans.  Knot execution timing is
+        The engine's own per-knot transitions (PENDING → RUNNING →
+        SUCCEEDED) are too fine-grained for individual spans and never set
+        ``extra`` — those are still ignored, and knot execution timing is
         captured via ``on_lineage`` instead.
 
+        A downstream domain that emits its own ad hoc ``StatusEvent`` for a
+        sub-step the engine has no lifecycle for — an LLM call, a tool call,
+        a retrieval step inside one knot's ``process()`` — sets ``extra``
+        (see ``pirn.managers.status_event.StatusEvent.extra``) to carry
+        span-like fields (kind, model, tokens, cost, latency, ...). When
+        present, that becomes one short span here: named
+        ``"<kind>:<knot_id>"``, stamped with the same ``pirn.run_id`` /
+        ``pirn.knot_id`` attributes as every other span this emitter
+        produces, plus one ``agents.<key>`` attribute per ``extra`` entry.
+        The span's duration is taken from ``extra["latency"]`` (seconds)
+        when present, else it is a zero-duration point event at
+        ``event.occurred_at``.
+
         Args:
-            event: Ignored.
+            event: The status event. Ignored unless ``extra`` is a non-empty
+                mapping.
         """
-        # Status transitions are too noisy for spans (one knot has
-        # PENDING → RUNNING → SUCCEEDED).  We use lineage records
-        # instead, which represent the *complete* knot execution.
-        return
+        extra = event.extra if isinstance(getattr(event, "extra", None), dict) else {}
+        if not extra:
+            return
+        tracer = self._ensure_tracer()
+        kind = extra.get("kind", "event")
+        start_ns = int(event.occurred_at.timestamp() * 1e9)
+        span = tracer.start_span(f"{kind}:{event.knot_id}", start_time=start_ns)
+        try:
+            span.set_attribute("pirn.run_id", event.run_id)
+            span.set_attribute("pirn.knot_id", event.knot_id)
+            span.set_attribute("pirn.state", event.state.value)
+            if event.detail:
+                span.set_attribute("pirn.detail", event.detail)
+            self._apply_extra_attributes(span, extra)
+        finally:
+            latency = extra.get("latency")
+            end_ns = (
+                start_ns + int(latency * 1e9)
+                if isinstance(latency, (int, float))
+                else start_ns
+            )
+            span.end(end_time=end_ns)
+
+    @staticmethod
+    def _apply_extra_attributes(span: Any, extra: dict[str, Any]) -> None:
+        """Copy each ``extra`` entry onto ``span`` as an ``agents.<key>`` attribute.
+
+        Stringifies anything that is not an OTel-primitive attribute type
+        (``str``/``bool``/``int``/``float``) rather than rejecting it — the
+        caller controls what it puts in ``extra`` and this must never raise.
+        """
+        for key, value in extra.items():
+            attr_key = f"agents.{key}"
+            if isinstance(value, (str, bool, int, float)):
+                span.set_attribute(attr_key, value)
+            else:
+                span.set_attribute(attr_key, str(value))
 
     async def on_lineage(self, record: KnotLineage) -> None:
         """Emits a completed knot execution as an OTel span.

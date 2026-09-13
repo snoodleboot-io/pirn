@@ -7,10 +7,18 @@ from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 from pirn.emitters.open_telemetry_emitter import OpenTelemetryEmitter
+from pirn.managers.knot_state import KnotState
+from pirn.managers.status_event import StatusEvent
 
 
 def _utcnow() -> datetime:
     return datetime.now(UTC)
+
+
+def _status_event(**overrides) -> StatusEvent:
+    base = dict(run_id="r1", knot_id="k1", state=KnotState.SUCCEEDED)
+    base.update(overrides)
+    return StatusEvent(**base)
 
 
 def _make_lineage(outcome: str = "ok") -> MagicMock:
@@ -95,6 +103,41 @@ class TestOpenTelemetryEmitterEvents(unittest.IsolatedAsyncioTestCase):
         span.set_attribute.assert_any_call("pirn.run_id", "r1")
         span.set_attribute.assert_any_call("pirn.knot_id", "k1")
         span.end.assert_called_once()
+
+    async def test_on_status_with_empty_extra_is_still_noop(self) -> None:
+        """A real StatusEvent with no ``extra`` behaves exactly as before."""
+        tracer = _make_tracer()
+        emitter = OpenTelemetryEmitter(tracer=tracer)
+        await emitter.on_status(_status_event())
+        tracer.start_span.assert_not_called()
+
+    async def test_on_status_with_extra_creates_a_span(self) -> None:
+        span = _make_span()
+        tracer = MagicMock()
+        tracer.start_span = MagicMock(return_value=span)
+        emitter = OpenTelemetryEmitter(tracer=tracer)
+        await emitter.on_status(
+            _status_event(
+                extra={"kind": "llm", "model": "gpt-x", "tokens": 42, "latency": 0.25}
+            )
+        )
+        tracer.start_span.assert_called_once()
+        args, kwargs = tracer.start_span.call_args
+        assert args[0] == "llm:k1"
+        assert "start_time" in kwargs
+        span.set_attribute.assert_any_call("pirn.run_id", "r1")
+        span.set_attribute.assert_any_call("pirn.knot_id", "k1")
+        span.set_attribute.assert_any_call("agents.model", "gpt-x")
+        span.set_attribute.assert_any_call("agents.tokens", 42)
+        span.end.assert_called_once()
+
+    async def test_on_status_stringifies_non_primitive_extra_values(self) -> None:
+        span = _make_span()
+        tracer = MagicMock()
+        tracer.start_span = MagicMock(return_value=span)
+        emitter = OpenTelemetryEmitter(tracer=tracer)
+        await emitter.on_status(_status_event(extra={"kind": "tool", "payload": [1, 2]}))
+        span.set_attribute.assert_any_call("agents.payload", "[1, 2]")
 
     async def test_err_outcome_sets_error_status(self) -> None:
         try:

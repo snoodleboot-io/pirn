@@ -9,13 +9,16 @@ from unittest.mock import MagicMock
 from pirn.emitters.log_emitter import LogEmitter
 
 
-def _make_status_event(knot_id: str = "k1", run_id: str = "r1") -> MagicMock:
+def _make_status_event(
+    knot_id: str = "k1", run_id: str = "r1", extra: dict | None = None
+) -> MagicMock:
     event = MagicMock()
     event.knot_id = knot_id
     event.run_id = run_id
     event.state = MagicMock()
     event.state.value = "running"
     event.detail = {}
+    event.extra = {} if extra is None else extra
     return event
 
 
@@ -67,6 +70,22 @@ class TestLogEmitterEvents(unittest.IsolatedAsyncioTestCase):
         emitter = LogEmitter(logger=logger)
         await emitter.on_status(_make_status_event())
         logger.info.assert_called_once()
+
+    async def test_on_status_extra_absent_when_empty(self) -> None:
+        logger = MagicMock(spec=logging.Logger)
+        emitter = LogEmitter(logger=logger)
+        await emitter.on_status(_make_status_event())
+        _, kwargs = logger.info.call_args
+        self.assertIsNone(kwargs.get("extra", {}).get("pirn_extra"))
+
+    async def test_on_status_includes_extra_when_present(self) -> None:
+        logger = MagicMock(spec=logging.Logger)
+        emitter = LogEmitter(logger=logger)
+        await emitter.on_status(_make_status_event(extra={"kind": "llm", "latency": 0.1}))
+        _, kwargs = logger.info.call_args
+        self.assertEqual(
+            kwargs["extra"]["pirn_extra"], {"kind": "llm", "latency": 0.1}
+        )
 
     async def test_on_lineage_logs_info(self) -> None:
         logger = MagicMock(spec=logging.Logger)
