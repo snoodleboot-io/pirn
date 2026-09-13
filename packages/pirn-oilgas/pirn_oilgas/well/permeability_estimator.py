@@ -46,24 +46,25 @@ _sw_curve_priority = ("SW_archie", "SW_simandoux", "SW_indonesia", "SW_waxman_sm
 _eps = 1e-9
 
 
-def _find_porosity_curve(curve_data: dict[str, np.ndarray]) -> np.ndarray:
-    for name in _porosity_curve_priority:
-        if name in curve_data:
-            return curve_data[name]
-    raise ValueError(
-        "PermeabilityEstimator: no porosity curve found in curve_data; run PorosityCalculator first"
-    )
-
-
-def _find_swi(curve_data: dict[str, np.ndarray], depth_count: int) -> np.ndarray:
-    for name in _sw_curve_priority:
-        if name in curve_data:
-            return curve_data[name]
-    return np.full(depth_count, 0.25, dtype=np.float64)
-
-
 class PermeabilityEstimator(Knot):
     """Estimate a permeability curve using a configured correlation."""
+
+    @staticmethod
+    def _find_porosity_curve(curve_data: dict[str, np.ndarray]) -> np.ndarray:
+        for name in _porosity_curve_priority:
+            if name in curve_data:
+                return curve_data[name]
+        raise ValueError(
+            "PermeabilityEstimator: no porosity curve found in curve_data; "
+            "run PorosityCalculator first"
+        )
+
+    @staticmethod
+    def _find_swi(curve_data: dict[str, np.ndarray], depth_count: int) -> np.ndarray:
+        for name in _sw_curve_priority:
+            if name in curve_data:
+                return curve_data[name]
+        return np.full(depth_count, 0.25, dtype=np.float64)
 
     def __init__(
         self,
@@ -93,8 +94,8 @@ class PermeabilityEstimator(Knot):
             )
 
         curve_data = payload.curve_data
-        phi = _find_porosity_curve(curve_data)
-        swi = _find_swi(curve_data, len(phi))
+        phi = PermeabilityEstimator._find_porosity_curve(curve_data)
+        swi = PermeabilityEstimator._find_swi(curve_data, len(phi))
 
         if method == "timur":
             permeability_curve = np.maximum(0.136 * phi**4.4 / (swi**2 + _eps), 0.0)

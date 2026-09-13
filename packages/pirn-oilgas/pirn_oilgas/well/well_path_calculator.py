@@ -30,7 +30,7 @@ References:
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 from pirn.core.knot import Knot
@@ -41,71 +41,68 @@ from pirn_oilgas.types.well_path_3d import WellPath3D
 from pirn_oilgas.types.well_path_3d_payload import WellPath3DPayload
 
 
-def _minimum_curvature(stations: np.ndarray) -> np.ndarray:
-    station_count = len(stations)
-    points = np.zeros((station_count, 3), dtype=np.float64)
-    inc = np.deg2rad(stations[:, 1])
-    azi = np.deg2rad(stations[:, 2])
-    for station_idx in range(1, station_count):
-        delta_md = stations[station_idx, 0] - stations[station_idx - 1, 0]
-        inc1, inc2 = inc[station_idx - 1], inc[station_idx]
-        azi1, azi2 = azi[station_idx - 1], azi[station_idx]
-        dl = np.arccos(
-            np.cos(inc2 - inc1) - np.sin(inc1) * np.sin(inc2) * (1 - np.cos(azi2 - azi1))
-        )
-        rf = (2 / dl) * np.tan(dl / 2) if dl > 1e-6 else 1.0
-        dN = (delta_md / 2) * rf * (np.sin(inc1) * np.cos(azi1) + np.sin(inc2) * np.cos(azi2))
-        dE = (delta_md / 2) * rf * (np.sin(inc1) * np.sin(azi1) + np.sin(inc2) * np.sin(azi2))
-        dTVD = (delta_md / 2) * rf * (np.cos(inc1) + np.cos(inc2))
-        points[station_idx] = points[station_idx - 1] + [dN, dE, dTVD]
-    return points
-
-
-def _tangential(stations: np.ndarray) -> np.ndarray:
-    station_count = len(stations)
-    points = np.zeros((station_count, 3), dtype=np.float64)
-    inc = np.deg2rad(stations[:, 1])
-    azi = np.deg2rad(stations[:, 2])
-    for station_idx in range(1, station_count):
-        delta_md = stations[station_idx, 0] - stations[station_idx - 1, 0]
-        points[station_idx] = points[station_idx - 1] + delta_md * np.array(
-            [
-                np.sin(inc[station_idx]) * np.cos(azi[station_idx]),
-                np.sin(inc[station_idx]) * np.sin(azi[station_idx]),
-                np.cos(inc[station_idx]),
-            ]
-        )
-    return points
-
-
-def _balanced_tangential(stations: np.ndarray) -> np.ndarray:
-    station_count = len(stations)
-    points = np.zeros((station_count, 3), dtype=np.float64)
-    inc = np.deg2rad(stations[:, 1])
-    azi = np.deg2rad(stations[:, 2])
-    for station_idx in range(1, station_count):
-        delta_md = stations[station_idx, 0] - stations[station_idx - 1, 0]
-        mid_inc = (inc[station_idx - 1] + inc[station_idx]) / 2
-        mid_azi = (azi[station_idx - 1] + azi[station_idx]) / 2
-        points[station_idx] = points[station_idx - 1] + delta_md * np.array(
-            [
-                np.sin(mid_inc) * np.cos(mid_azi),
-                np.sin(mid_inc) * np.sin(mid_azi),
-                np.cos(mid_inc),
-            ]
-        )
-    return points
-
-
-_algorithms = {
-    "minimum_curvature": _minimum_curvature,
-    "tangential": _tangential,
-    "balanced_tangential": _balanced_tangential,
-}
-
-
 class WellPathCalculator(Knot):
     """Convert a deviation survey into a 3-D well-path reference."""
+
+    valid_methods: ClassVar[frozenset[str]] = frozenset(
+        {"minimum_curvature", "tangential", "balanced_tangential"}
+    )
+
+    @staticmethod
+    def _minimum_curvature(stations: np.ndarray) -> np.ndarray:
+        station_count = len(stations)
+        points = np.zeros((station_count, 3), dtype=np.float64)
+        inc = np.deg2rad(stations[:, 1])
+        azi = np.deg2rad(stations[:, 2])
+        for station_idx in range(1, station_count):
+            delta_md = stations[station_idx, 0] - stations[station_idx - 1, 0]
+            inc1, inc2 = inc[station_idx - 1], inc[station_idx]
+            azi1, azi2 = azi[station_idx - 1], azi[station_idx]
+            dl = np.arccos(
+                np.cos(inc2 - inc1) - np.sin(inc1) * np.sin(inc2) * (1 - np.cos(azi2 - azi1))
+            )
+            rf = (2 / dl) * np.tan(dl / 2) if dl > 1e-6 else 1.0
+            dN = (delta_md / 2) * rf * (np.sin(inc1) * np.cos(azi1) + np.sin(inc2) * np.cos(azi2))
+            dE = (delta_md / 2) * rf * (np.sin(inc1) * np.sin(azi1) + np.sin(inc2) * np.sin(azi2))
+            dTVD = (delta_md / 2) * rf * (np.cos(inc1) + np.cos(inc2))
+            points[station_idx] = points[station_idx - 1] + [dN, dE, dTVD]
+        return points
+
+    @staticmethod
+    def _tangential(stations: np.ndarray) -> np.ndarray:
+        station_count = len(stations)
+        points = np.zeros((station_count, 3), dtype=np.float64)
+        inc = np.deg2rad(stations[:, 1])
+        azi = np.deg2rad(stations[:, 2])
+        for station_idx in range(1, station_count):
+            delta_md = stations[station_idx, 0] - stations[station_idx - 1, 0]
+            points[station_idx] = points[station_idx - 1] + delta_md * np.array(
+                [
+                    np.sin(inc[station_idx]) * np.cos(azi[station_idx]),
+                    np.sin(inc[station_idx]) * np.sin(azi[station_idx]),
+                    np.cos(inc[station_idx]),
+                ]
+            )
+        return points
+
+    @staticmethod
+    def _balanced_tangential(stations: np.ndarray) -> np.ndarray:
+        station_count = len(stations)
+        points = np.zeros((station_count, 3), dtype=np.float64)
+        inc = np.deg2rad(stations[:, 1])
+        azi = np.deg2rad(stations[:, 2])
+        for station_idx in range(1, station_count):
+            delta_md = stations[station_idx, 0] - stations[station_idx - 1, 0]
+            mid_inc = (inc[station_idx - 1] + inc[station_idx]) / 2
+            mid_azi = (azi[station_idx - 1] + azi[station_idx]) / 2
+            points[station_idx] = points[station_idx - 1] + delta_md * np.array(
+                [
+                    np.sin(mid_inc) * np.cos(mid_azi),
+                    np.sin(mid_inc) * np.sin(mid_azi),
+                    np.cos(mid_inc),
+                ]
+            )
+        return points
 
     def __init__(
         self,
@@ -135,11 +132,19 @@ class WellPathCalculator(Knot):
         """
         if not isinstance(survey, DeviationSurveyPayload):
             raise TypeError("WellPathCalculator: survey must be a DeviationSurveyPayload")
-        _valid_methods = frozenset(_algorithms)
-        if method not in _valid_methods:
-            raise ValueError(f"WellPathCalculator: method must be one of {sorted(_valid_methods)}")
-        algo = _algorithms[method]
-        points = await asyncio.to_thread(algo, survey.stations)
+        if method not in WellPathCalculator.valid_methods:
+            raise ValueError(
+                f"WellPathCalculator: method must be one of "
+                f"{sorted(WellPathCalculator.valid_methods)}"
+            )
+        if method == "minimum_curvature":
+            points = await asyncio.to_thread(WellPathCalculator._minimum_curvature, survey.stations)
+        elif method == "tangential":
+            points = await asyncio.to_thread(WellPathCalculator._tangential, survey.stations)
+        else:
+            points = await asyncio.to_thread(
+                WellPathCalculator._balanced_tangential, survey.stations
+            )
         return WellPath3DPayload(
             metadata=WellPath3D(
                 well_id=survey.survey.well_id,

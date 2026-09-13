@@ -86,7 +86,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         with Tapestry() as t:
             self._make_knot()
         with patch(
-            "pirn_oilgas.assemblers.las_object_store_assembler._decode",
+            "pirn_oilgas.assemblers.las_object_store_assembler.LasObjectStoreAssembler._decode",
             side_effect=_fake_decode,
         ):
             result = await t.run(RunRequest())

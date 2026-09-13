@@ -7,6 +7,19 @@ The decoded dict carries well name, record count, curve list, and data rows.
 Mud log data does not yet have a typed Payload in the oilgas domain; this
 assembler bridges the connector boundary until one is introduced.
 
+Algorithm:
+    1. Receive ``body`` (raw JSON bytes) and ``required_curves``.
+    2. Validate that ``body`` is ``bytes`` and decodes to a JSON dict with
+       ``header`` and ``data`` keys.
+    3. If any rows are present, check that every name in
+       ``required_curves`` is a key of the first data row; raise
+       ``ValueError`` listing any that are missing.
+    4. Derive ``curves`` from the first row's keys (or fall back to
+       ``required_curves`` when ``data`` is empty).
+    5. Return a dict with ``well_name`` (from ``header``, defaulting to
+       ``"unknown"``), ``record_count`` (``len(data)``), ``curves``, and
+       ``data``.
+
 References:
     - IADC Mud Logging Manual (1999), Section 3.
 """

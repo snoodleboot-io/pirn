@@ -24,39 +24,12 @@ import asyncio
 import io
 from typing import Any
 
-import lasio
 import numpy as np
 from pirn.core.disassembler import Disassembler
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_oilgas.types.las_payload import LASPayload
-
-
-def _encode(payload: LASPayload) -> bytes:
-    las = lasio.LASFile()
-
-    las.well["WELL"].value = payload.las.well_id
-    las.well["DEPT"].unit = payload.las.depth_unit
-
-    curve_data = payload.curve_data
-    mnemonics = list(curve_data.keys())
-
-    depth_array: np.ndarray = curve_data.get("DEPT", curve_data.get("DEPTH", np.array([])))
-    if depth_array.size == 0:
-        first_mnemonic = mnemonics[0]
-        depth_array = np.arange(len(curve_data[first_mnemonic]), dtype=np.float64)
-
-    las.append_curve("DEPT", depth_array, unit=payload.las.depth_unit)
-
-    for mnemonic, values in curve_data.items():
-        if mnemonic in ("DEPT", "DEPTH"):
-            continue
-        las.append_curve(mnemonic, values)
-
-    buf = io.StringIO()
-    las.write(buf)
-    return buf.getvalue().encode("utf-8")
 
 
 class LasObjectStoreDisassembler(Disassembler):
@@ -66,6 +39,40 @@ class LasObjectStoreDisassembler(Disassembler):
     encodes the curve data into LAS 2.0 format bytes suitable for a connector
     sink. Performs no I/O.
     """
+
+    @staticmethod
+    def _encode(payload: LASPayload) -> bytes:
+        try:
+            import lasio
+        except ImportError as exc:
+            raise ImportError(
+                "LasObjectStoreDisassembler: encoding LAS bytes requires lasio — "
+                "install pirn-oilgas[oilgas]"
+            ) from exc
+
+        las = lasio.LASFile()
+
+        las.well["WELL"].value = payload.las.well_id
+        las.well["DEPT"].unit = payload.las.depth_unit
+
+        curve_data = payload.curve_data
+        mnemonics = list(curve_data.keys())
+
+        depth_array: np.ndarray = curve_data.get("DEPT", curve_data.get("DEPTH", np.array([])))
+        if depth_array.size == 0:
+            first_mnemonic = mnemonics[0]
+            depth_array = np.arange(len(curve_data[first_mnemonic]), dtype=np.float64)
+
+        las.append_curve("DEPT", depth_array, unit=payload.las.depth_unit)
+
+        for mnemonic, values in curve_data.items():
+            if mnemonic in ("DEPT", "DEPTH"):
+                continue
+            las.append_curve(mnemonic, values)
+
+        buf = io.StringIO()
+        las.write(buf)
+        return buf.getvalue().encode("utf-8")
 
     def __init__(
         self,
@@ -99,4 +106,4 @@ class LasObjectStoreDisassembler(Disassembler):
             )
         if len(payload.curve_data) == 0:
             raise ValueError("LasObjectStoreDisassembler: payload.curve_data must be non-empty")
-        return await asyncio.to_thread(_encode, payload)
+        return await asyncio.to_thread(LasObjectStoreDisassembler._encode, payload)

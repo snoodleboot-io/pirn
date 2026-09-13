@@ -34,7 +34,6 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from scipy.signal import hilbert
 
 
 class InstantaneousAttributeExtractor(Knot):
@@ -73,6 +72,14 @@ class InstantaneousAttributeExtractor(Knot):
         Returns:
             Dict with one key per requested attribute, each value is list[float].
         """
+        try:
+            from scipy.signal import hilbert
+        except ImportError as exc:
+            raise ImportError(
+                "InstantaneousAttributeExtractor: computing instantaneous attributes "
+                "requires scipy — install pirn-oilgas[oilgas]"
+            ) from exc
+
         valid_attributes: frozenset[str] = frozenset(
             {"amplitude", "phase", "frequency", "bandwidth", "q_factor"}
         )

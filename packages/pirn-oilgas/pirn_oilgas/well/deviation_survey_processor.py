@@ -33,17 +33,17 @@ from pirn_oilgas.types.deviation_survey import DeviationSurvey
 from pirn_oilgas.types.deviation_survey_payload import DeviationSurveyPayload
 
 
-def _resample_survey(stations: np.ndarray, target_md_step: float) -> np.ndarray:
-    sorted_idx = np.argsort(stations[:, 0])
-    sorted_stations = stations[sorted_idx]
-    new_md = np.arange(sorted_stations[0, 0], sorted_stations[-1, 0], target_md_step)
-    new_inc = np.interp(new_md, sorted_stations[:, 0], sorted_stations[:, 1])
-    new_azi = np.interp(new_md, sorted_stations[:, 0], sorted_stations[:, 2])
-    return np.column_stack([new_md, new_inc, new_azi]).astype(np.float64)
-
-
 class DeviationSurveyProcessor(Knot):
     """Validate and resample a deviation survey to a uniform measured-depth step."""
+
+    @staticmethod
+    def _resample_survey(stations: np.ndarray, target_md_step: float) -> np.ndarray:
+        sorted_idx = np.argsort(stations[:, 0])
+        sorted_stations = stations[sorted_idx]
+        new_md = np.arange(sorted_stations[0, 0], sorted_stations[-1, 0], target_md_step)
+        new_inc = np.interp(new_md, sorted_stations[:, 0], sorted_stations[:, 1])
+        new_azi = np.interp(new_md, sorted_stations[:, 0], sorted_stations[:, 2])
+        return np.column_stack([new_md, new_inc, new_azi]).astype(np.float64)
 
     def __init__(
         self,
@@ -81,7 +81,9 @@ class DeviationSurveyProcessor(Knot):
             raise TypeError("DeviationSurveyProcessor: target_md_step must be numeric")
         if target_md_step <= 0.0:
             raise ValueError("DeviationSurveyProcessor: target_md_step must be positive")
-        new_stations = await asyncio.to_thread(_resample_survey, survey.stations, target_md_step)
+        new_stations = await asyncio.to_thread(
+            DeviationSurveyProcessor._resample_survey, survey.stations, target_md_step
+        )
         return DeviationSurveyPayload(
             metadata=DeviationSurvey(
                 well_id=survey.survey.well_id,

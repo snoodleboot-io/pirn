@@ -31,19 +31,19 @@ from pirn_oilgas.types.scada_payload import ScadaPayload
 from pirn_oilgas.types.scada_time_series import ScadaTimeSeries
 
 
-def _compute_water_cut(
-    oil_values: np.ndarray,
-    water_values: np.ndarray,
-    aligned_count: int,
-) -> np.ndarray:
-    water_cut = water_values[:aligned_count] / (
-        oil_values[:aligned_count] + water_values[:aligned_count] + 1e-9
-    )
-    return np.clip(water_cut, 0.0, 1.0)
-
-
 class WaterCutTracker(Knot):
     """Compute water-cut = water_rate / (water_rate + oil_rate)."""
+
+    @staticmethod
+    def _compute_water_cut(
+        oil_values: np.ndarray,
+        water_values: np.ndarray,
+        aligned_count: int,
+    ) -> np.ndarray:
+        water_cut = water_values[:aligned_count] / (
+            oil_values[:aligned_count] + water_values[:aligned_count] + 1e-9
+        )
+        return np.clip(water_cut, 0.0, 1.0)
 
     def __init__(
         self,
@@ -78,7 +78,7 @@ class WaterCutTracker(Knot):
             raise TypeError("WaterCutTracker: water_rate must be a ScadaPayload")
         aligned_count = min(len(oil_rate.values), len(water_rate.values))
         water_cut = await asyncio.to_thread(
-            _compute_water_cut, oil_rate.values, water_rate.values, aligned_count
+            WaterCutTracker._compute_water_cut, oil_rate.values, water_rate.values, aligned_count
         )
         sensor_id = f"watercut:{oil_rate.series.sensor_id}:{water_rate.series.sensor_id}"
         return ScadaPayload(

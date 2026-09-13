@@ -39,50 +39,50 @@ from pirn_oilgas.types.las_file import LASFile
 from pirn_oilgas.types.las_payload import LASPayload
 
 
-def _compute_density(
-    curve_data: dict[str, np.ndarray],
-    matrix_density: float,
-    fluid_density: float,
-) -> np.ndarray:
-    if "RHOB" not in curve_data:
-        raise ValueError(
-            "PorosityCalculator: 'RHOB' curve required in curve_data for density method"
-        )
-    rhob = curve_data["RHOB"]
-    phi = (matrix_density - rhob) / (matrix_density - fluid_density)
-    return np.clip(phi, 0.0, 1.0)
-
-
-def _compute_neutron(curve_data: dict[str, np.ndarray]) -> np.ndarray:
-    if "NPHI" not in curve_data:
-        raise ValueError(
-            "PorosityCalculator: 'NPHI' curve required in curve_data for neutron method"
-        )
-    return np.clip(curve_data["NPHI"], 0.0, 1.0)
-
-
-def _compute_density_neutron(
-    curve_data: dict[str, np.ndarray],
-    matrix_density: float,
-    fluid_density: float,
-) -> np.ndarray:
-    if "RHOB" not in curve_data:
-        raise ValueError(
-            "PorosityCalculator: 'RHOB' curve required in curve_data for density_neutron method"
-        )
-    if "NPHI" not in curve_data:
-        raise ValueError(
-            "PorosityCalculator: 'NPHI' curve required in curve_data for density_neutron method"
-        )
-    rhob = curve_data["RHOB"]
-    phi_d = (matrix_density - rhob) / (matrix_density - fluid_density)
-    phi_n = curve_data["NPHI"]
-    phi_dn = np.sqrt((phi_d**2 + phi_n**2) / 2.0)
-    return np.clip(phi_dn, 0.0, 1.0)
-
-
 class PorosityCalculator(Knot):
     """Derive a porosity curve and append it to the LASPayload."""
+
+    @staticmethod
+    def _compute_density(
+        curve_data: dict[str, np.ndarray],
+        matrix_density: float,
+        fluid_density: float,
+    ) -> np.ndarray:
+        if "RHOB" not in curve_data:
+            raise ValueError(
+                "PorosityCalculator: 'RHOB' curve required in curve_data for density method"
+            )
+        rhob = curve_data["RHOB"]
+        phi = (matrix_density - rhob) / (matrix_density - fluid_density)
+        return np.clip(phi, 0.0, 1.0)
+
+    @staticmethod
+    def _compute_neutron(curve_data: dict[str, np.ndarray]) -> np.ndarray:
+        if "NPHI" not in curve_data:
+            raise ValueError(
+                "PorosityCalculator: 'NPHI' curve required in curve_data for neutron method"
+            )
+        return np.clip(curve_data["NPHI"], 0.0, 1.0)
+
+    @staticmethod
+    def _compute_density_neutron(
+        curve_data: dict[str, np.ndarray],
+        matrix_density: float,
+        fluid_density: float,
+    ) -> np.ndarray:
+        if "RHOB" not in curve_data:
+            raise ValueError(
+                "PorosityCalculator: 'RHOB' curve required in curve_data for density_neutron method"
+            )
+        if "NPHI" not in curve_data:
+            raise ValueError(
+                "PorosityCalculator: 'NPHI' curve required in curve_data for density_neutron method"
+            )
+        rhob = curve_data["RHOB"]
+        phi_d = (matrix_density - rhob) / (matrix_density - fluid_density)
+        phi_n = curve_data["NPHI"]
+        phi_dn = np.sqrt((phi_d**2 + phi_n**2) / 2.0)
+        return np.clip(phi_dn, 0.0, 1.0)
 
     def __init__(
         self,
@@ -142,13 +142,16 @@ class PorosityCalculator(Knot):
 
         if method == "density":
             phi = await asyncio.to_thread(
-                _compute_density, curve_data, matrix_density, fluid_density
+                PorosityCalculator._compute_density, curve_data, matrix_density, fluid_density
             )
         elif method == "neutron":
-            phi = await asyncio.to_thread(_compute_neutron, curve_data)
+            phi = await asyncio.to_thread(PorosityCalculator._compute_neutron, curve_data)
         else:
             phi = await asyncio.to_thread(
-                _compute_density_neutron, curve_data, matrix_density, fluid_density
+                PorosityCalculator._compute_density_neutron,
+                curve_data,
+                matrix_density,
+                fluid_density,
             )
 
         mnemonic = f"PHI_{method}"

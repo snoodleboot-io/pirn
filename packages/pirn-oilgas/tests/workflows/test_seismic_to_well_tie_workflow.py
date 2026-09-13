@@ -83,11 +83,11 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             self._make_knot()
         with (
             patch(
-                "pirn_oilgas.assemblers.las_object_store_assembler._decode",
+                "pirn_oilgas.assemblers.las_object_store_assembler.LasObjectStoreAssembler._decode",
                 side_effect=_fake_las_decode,
             ),
             patch(
-                "pirn_oilgas.assemblers.segy_object_store_assembler._decode",
+                "pirn_oilgas.assemblers.segy_object_store_assembler.SegyObjectStoreAssembler._decode",
                 side_effect=_fake_segy_decode,
             ),
         ):
