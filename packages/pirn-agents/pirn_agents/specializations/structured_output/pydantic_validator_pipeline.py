@@ -10,12 +10,14 @@ Algorithm:
     1. Receive ``prompt``, ``llm``, ``model_class``, and ``max_retries`` in :meth:`process`.
     2. Validate inputs: llm must be LLMProvider, model_class a BaseModel subclass, max_retries positive.
     3. Derive a schema dict from the model class's JSON schema.
-    4. Loop up to ``max_retries`` times:
-       a. Build an inner :class:`Tapestry` with a :class:`_JsonExtractorAttempt` knot.
-       b. If outcome is a dict, validate it with the model class.
-       c. On success, return the validated model instance.
-       d. On validation failure, record the error string as ``prior_error``.
-    5. Raise :class:`ValueError` if all attempts are exhausted.
+    4. Drive the attempts with a :class:`_PydanticValidatorLoop`
+       (``LoopSubTapestry``): each attempt is one real, individually-traceable
+       :class:`_JsonExtractorAttempt` invocation, validated against
+       ``model_class`` in ``fold``, rather than a step inside a hand-rolled
+       Python ``for`` loop (ADR agents-speaks-core WS5b).
+    5. Extract the validated instance with
+       :class:`_PydanticValidatorResultExtractor`, which raises
+       :class:`ValueError` if every attempt was exhausted.
 
 
 References:
@@ -26,20 +28,24 @@ References:
 
 from __future__ import annotations
 
-import json
 from collections.abc import Mapping
 from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.source import Source
-from pirn.tapestry import Tapestry
-from pydantic import BaseModel, ValidationError
+from pirn.core.parameter import Parameter
+from pydantic import BaseModel
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.structured_output._json_extractor_attempt import (
-    _JsonExtractorAttempt,
+from pirn_agents.specializations.structured_output._pydantic_validator_loop import (
+    _PydanticValidatorLoop,
+)
+from pirn_agents.specializations.structured_output._pydantic_validator_result_extractor import (
+    _PydanticValidatorResultExtractor,
+)
+from pirn_agents.specializations.structured_output._pydantic_validator_state import (
+    _PydanticValidatorState,
 )
 
 
@@ -82,7 +88,8 @@ class PydanticValidatorPipeline(AgentPipeline):
             max_retries: Maximum number of extraction + validation attempts.
 
         Returns:
-            A validated model instance produced by model_class.model_validate.
+            The sink knot whose output is a validated model instance produced
+            by ``model_class.model_validate``.
 
         Raises:
             TypeError: If llm is not an LLMProvider, model_class not a BaseModel subclass,
@@ -100,42 +107,24 @@ class PydanticValidatorPipeline(AgentPipeline):
                 f"got {max_retries!r}"
             )
         schema = self._derive_schema(model_class)
-        prior_error = ""
-        last_error = "no attempts were made"
-        validated_instance: BaseModel | None = None
-        for attempt_index in range(max_retries):
-            with Tapestry() as attempt_tapestry:
-                _JsonExtractorAttempt(
-                    prompt=prompt,
-                    llm=llm,
-                    schema=schema,
-                    prior_error=prior_error,
-                    _config=KnotConfig(id=f"extract_{attempt_index}"),
-                )
-            inner_result = await self._run_inner(attempt_tapestry)
-            outcome = inner_result.outputs.get(f"extract_{attempt_index}")
-            if not isinstance(outcome, dict):
-                prior_error = str(outcome) if outcome is not None else "no output"
-                last_error = prior_error
-                continue
-            try:
-                validated_instance = model_class.model_validate(outcome)
-                break
-            except ValidationError as exc:
-                prior_error = self._summarise_validation_error(exc)
-                last_error = prior_error
-        if validated_instance is None:
-            raise ValueError(
-                "PydanticValidatorPipeline: exhausted "
-                f"{max_retries} attempt(s); last error: {last_error}"
-            )
-        _instance = validated_instance
 
-        class _ResultSource(Source):
-            async def process(self, **_: Any) -> BaseModel:
-                return _instance
-
-        return _ResultSource(_config=KnotConfig(id="result"))
+        initial = Parameter(
+            "pydantic_validator_state",
+            _PydanticValidatorState,
+            default=_PydanticValidatorState(
+                prior_error="", validated=None, last_error="no attempts were made", attempts=0
+            ),
+        )
+        loop = _PydanticValidatorLoop(
+            prompt=prompt,
+            llm=llm,
+            schema=schema,
+            model_class=model_class,
+            max_retries=max_retries,
+            state=initial,
+            _config=KnotConfig(id="pydantic_validator_loop"),
+        )
+        return _PydanticValidatorResultExtractor(state=loop, _config=KnotConfig(id="result"))
 
     @staticmethod
     def _derive_schema(model_class: type[BaseModel]) -> Mapping[str, Any]:
@@ -152,14 +141,3 @@ class PydanticValidatorPipeline(AgentPipeline):
                 for name, spec in properties.items()
             }
         return {}
-
-    @staticmethod
-    def _summarise_validation_error(exc: ValidationError) -> str:
-        try:
-            errors = exc.errors()
-        except Exception:
-            return str(exc)
-        try:
-            return f"pydantic validation failed: {json.dumps(errors)}"
-        except (TypeError, ValueError):
-            return f"pydantic validation failed: {errors!r}"

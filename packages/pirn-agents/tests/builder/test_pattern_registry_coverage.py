@@ -76,6 +76,16 @@ _EXPECTED_EXCLUSIONS = frozenset(
         # (ADR agents-speaks-core WS5b).
         "pirn_agents.specializations.reflection._constitutional_filter_loop"
         "._ConstitutionalFilterLoop",
+        # Private: the loop body JsonExtractorPipeline drives internally
+        # (ADR agents-speaks-core WS5b).
+        "pirn_agents.specializations.structured_output._json_extractor_loop._JsonExtractorLoop",
+        # Private: the loop body YamlExtractorPipeline drives internally
+        # (ADR agents-speaks-core WS5b).
+        "pirn_agents.specializations.structured_output._yaml_extractor_loop._YamlExtractorLoop",
+        # Private: the loop body PydanticValidatorPipeline drives internally
+        # (ADR agents-speaks-core WS5b).
+        "pirn_agents.specializations.structured_output._pydantic_validator_loop"
+        "._PydanticValidatorLoop",
         # Newly promoted to the AgentPipeline family (ADR agents-speaks-core
         # WS5b: was a plain Knot with a hand-rolled revision loop, now a
         # SubTapestry driving _ConstitutionalFilterLoop). Registering it under
@@ -238,6 +248,10 @@ def test_the_excluded_bases_are_bases_and_the_excluded_private_is_private() -> N
             "pirn_agents.specializations.prompt_chaining._prompt_chain_loop._PromptChainLoop",
             "pirn_agents.specializations.reflection._constitutional_filter_loop"
             "._ConstitutionalFilterLoop",
+            "pirn_agents.specializations.structured_output._json_extractor_loop._JsonExtractorLoop",
+            "pirn_agents.specializations.structured_output._yaml_extractor_loop._YamlExtractorLoop",
+            "pirn_agents.specializations.structured_output._pydantic_validator_loop"
+            "._PydanticValidatorLoop",
         ]
     )
     # Every exclusion falls into exactly one justified category: base,

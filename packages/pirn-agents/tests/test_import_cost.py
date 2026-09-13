@@ -65,8 +65,17 @@ from functools import lru_cache
 # writing: 779 modules, 272 of them specializations; 1099 entries (419 from
 # pirn-core, 680 from pirn_agents); 603 351 comparisons, which is exactly
 # 1099 x 1098 / 2.
+#
+# ADR agents-speaks-core WS5b (control-flow vocabulary, part 2) raised
+# _MAX_SPECIALIZATION_MODULES: converting a hand-rolled Python loop or an
+# inline Source into a real LoopSubTapestry costs one new module per state
+# value object / loop class / result-extractor knot (see
+# specializations/self_ask, prompt_chaining, reflection, structured_output,
+# multi_agent). Fresh measurement at the time of this change: 867 total
+# modules, 344 specializations, 1305 entries, 0 comparisons -- all still
+# comfortably inside every other ceiling; only specializations needed room.
 _MAX_PIRN_AGENTS_MODULES = 975
-_MAX_SPECIALIZATION_MODULES = 340
+_MAX_SPECIALIZATION_MODULES = 430
 _MAX_REGISTRY_ENTRIES = 1375
 
 # Linear in the entry ceiling, not quadratic. sweet_tea >= 0.2.65 keys the

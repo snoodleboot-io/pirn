@@ -15,11 +15,12 @@ of this knot for strict validation.
 Algorithm:
     1. Receive ``prompt``, ``llm``, ``schema``, and ``max_retries`` in :meth:`process`.
     2. Validate inputs: llm must be LLMProvider, schema a Mapping, max_retries positive.
-    3. Loop up to ``max_retries`` times:
-       a. Build an inner :class:`Tapestry` with a :class:`_JsonExtractorAttempt` knot.
-       b. Run the tapestry; if outcome is a dict, return it immediately.
-       c. Otherwise record the error string as ``prior_error`` for the next attempt.
-    4. Raise :class:`ValueError` if all attempts are exhausted.
+    3. Drive the attempts with a :class:`_JsonExtractorLoop`
+       (``LoopSubTapestry``): each attempt is one real, individually-traceable
+       :class:`_JsonExtractorAttempt` invocation rather than a step inside a
+       hand-rolled Python ``for`` loop (ADR agents-speaks-core WS5b).
+    4. Extract the parsed mapping with :class:`_JsonExtractorResultExtractor`,
+       which raises ``ValueError`` if every attempt was exhausted.
 
 
 References:
@@ -34,13 +35,18 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.source import Source
-from pirn.tapestry import Tapestry
+from pirn.core.parameter import Parameter
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.structured_output._json_extractor_attempt import (
-    _JsonExtractorAttempt,
+from pirn_agents.specializations.structured_output._json_extractor_loop import (
+    _JsonExtractorLoop,
+)
+from pirn_agents.specializations.structured_output._json_extractor_result_extractor import (
+    _JsonExtractorResultExtractor,
+)
+from pirn_agents.specializations.structured_output._json_extractor_state import (
+    _JsonExtractorState,
 )
 
 
@@ -83,7 +89,8 @@ class JsonExtractorPipeline(AgentPipeline):
             max_retries: Maximum number of extraction attempts.
 
         Returns:
-            A parsed JSON mapping conforming to the configured schema.
+            The sink knot whose output is a parsed JSON mapping conforming to
+            the configured schema.
 
         Raises:
             TypeError: If llm is not an LLMProvider or prompt is not a string.
@@ -98,33 +105,20 @@ class JsonExtractorPipeline(AgentPipeline):
                 f"JsonExtractorPipeline: max_retries must be a positive int, got {max_retries!r}"
             )
         schema_dict = dict(schema)
-        prior_error = ""
-        last_error = "no attempts were made"
-        result_dict: Mapping[str, Any] | None = None
-        for attempt_index in range(max_retries):
-            with Tapestry() as attempt_tapestry:
-                _JsonExtractorAttempt(
-                    prompt=prompt,
-                    llm=llm,
-                    schema=schema_dict,
-                    prior_error=prior_error,
-                    _config=KnotConfig(id=f"attempt_{attempt_index}"),
-                )
-            inner_result = await self._run_inner(attempt_tapestry)
-            outcome = inner_result.outputs.get(f"attempt_{attempt_index}")
-            if isinstance(outcome, dict):
-                result_dict = outcome
-                break
-            prior_error = str(outcome) if outcome is not None else "no output"
-            last_error = prior_error
-        if result_dict is None:
-            raise ValueError(
-                f"JsonExtractorPipeline: exhausted {max_retries} attempt(s); last error: {last_error}"
-            )
-        _result = result_dict
 
-        class _ResultSource(Source):
-            async def process(self, **_: Any) -> Mapping[str, Any]:
-                return _result
-
-        return _ResultSource(_config=KnotConfig(id="result"))
+        initial = Parameter(
+            "json_extractor_state",
+            _JsonExtractorState,
+            default=_JsonExtractorState(
+                prior_error="", result=None, last_error="no attempts were made", attempts=0
+            ),
+        )
+        loop = _JsonExtractorLoop(
+            prompt=prompt,
+            llm=llm,
+            schema=schema_dict,
+            max_retries=max_retries,
+            state=initial,
+            _config=KnotConfig(id="json_extractor_loop"),
+        )
+        return _JsonExtractorResultExtractor(state=loop, _config=KnotConfig(id="result"))

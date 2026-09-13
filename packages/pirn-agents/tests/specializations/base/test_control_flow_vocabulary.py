@@ -42,15 +42,16 @@ from tests.specializations.base.bypass_inventory import BypassInventory
 # --- known bypasses, frozen (ADR agents-speaks-core WS5a) ------------------
 
 #: A `Source` subclass defined anywhere inside `process()`, not only ones
-#: that are returned. Eight remain (down from twelve): all exist to
+#: that are returned. Five remain (down from twelve): all exist to
 #: re-inject an already-resolved value into the inner graph — the
 #: `Parameter` use case. `RetryOnParseFailure` is fixed — see its
 #: `_RetryResultExtractor`/`_RetryOnParseFailureLoop` (ADR agents-speaks-core
 #: WS5a). `SelfAskPipeline` is fixed — see its `_SelfAskComposer`/
 #: `_SelfAskLoop`; `PromptChainPipeline` is fixed — see its
 #: `_PromptChainResultExtractor`/`_PromptChainLoop`; `OrchestratorAgent` is
-#: fixed — see its `_OrchestratorResultNormalizer` (ADR agents-speaks-core
-#: WS5b).
+#: fixed — see its `_OrchestratorResultNormalizer`; `JsonExtractorPipeline`/
+#: `YamlExtractorPipeline`/`PydanticValidatorPipeline` are fixed — see their
+#: `*Loop`/`*ResultExtractor` pairs (ADR agents-speaks-core WS5b).
 DEFINES_INLINE_SOURCE = frozenset(
     {
         "specializations/lats/lats_search.py::LatsSearch",
@@ -58,9 +59,6 @@ DEFINES_INLINE_SOURCE = frozenset(
         "specializations/rag/flare_active_rag_pipeline.py::FlareActiveRagPipeline",
         "specializations/rag/multi_hop_rag_pipeline.py::MultiHopRAGPipeline",
         "specializations/reflexion/reflexion_pipeline.py::ReflexionPipeline",
-        "specializations/structured_output/json_extractor_pipeline.py::JsonExtractorPipeline",
-        "specializations/structured_output/pydantic_validator_pipeline.py::PydanticValidatorPipeline",
-        "specializations/structured_output/yaml_extractor_pipeline.py::YamlExtractorPipeline",
     }
 )
 
