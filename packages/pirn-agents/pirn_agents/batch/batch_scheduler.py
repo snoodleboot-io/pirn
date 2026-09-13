@@ -16,6 +16,7 @@ given, exactly the shape ``MapAgent`` already builds from its own
 from __future__ import annotations
 
 import asyncio
+import warnings
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterable
 
 from pirn_agents.batch.batch_checkpointer import BatchCheckpointer
@@ -25,7 +26,16 @@ from pirn_agents.batch.batch_progress import BatchProgress
 
 
 class BatchScheduler:
-    """Bounded, checkpointing, completion-order dispatch loop for a batch run."""
+    """Bounded, checkpointing, completion-order dispatch loop for a batch run.
+
+    .. deprecated::
+        ADR agents-speaks-core, WS4b: :class:`~pirn_agents.batch.map_agent.MapAgent`
+        no longer drives this loop. Dispatch bounds are ``KnotConfig(concurrency_group=)``
+        + core ``ConcurrencyLimits`` / ``AdmissionGate``; per-item retry and timeout are
+        ``KnotConfig.retry`` / ``KnotConfig.timeout``; checkpointing is a ``RunHistory``
+        lineage query. Kept, unchanged and fully functional, for one deprecation cycle
+        for any caller still constructing one directly.
+    """
 
     def __init__(
         self,
@@ -53,6 +63,13 @@ class BatchScheduler:
                 persists through, or ``None`` to disable checkpointing.
             checkpoint_every: Persist after this many newly-completed items.
         """
+        warnings.warn(
+            "BatchScheduler is deprecated (ADR agents-speaks-core WS4b): MapAgent "
+            "now dispatches items as knots through the core engine's admission "
+            "gate and GovernedDispatch instead of this hand-rolled asyncio.wait loop.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self._run_one = run_one
         self._key_for = key_for
         self._limit = limit

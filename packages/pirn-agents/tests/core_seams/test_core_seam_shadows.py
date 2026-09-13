@@ -61,7 +61,6 @@ ADMISSION_FEEDBACK = frozenset(
     {
         "agent/_fanout_runner.py::_FanoutRunner",
         "agent/async_fanout_engine.py::AsyncFanoutEngine",
-        "batch/adaptive_concurrency_controller.py::AdaptiveConcurrencyController",
         "batch/batch_scheduler.py::BatchScheduler",
         "performance/backpressure_semaphore.py::BackpressureSemaphore",
         "performance/concurrency_config.py::ConcurrencyConfig",
