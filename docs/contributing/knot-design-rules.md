@@ -159,6 +159,17 @@ extension). These may be held as instance state *only* in a dedicated vending Kn
 sole purpose is to construct and return that resource (see Rule 6). Consumers of the
 resource receive its value in `process()` as a resolved argument.
 
+**Exception — policy values that must not be knot-driven.** A small number of
+constructor arguments are safety or governance policy, not data — a value that must be
+fixed at pipeline-build time and must never be swappable by wiring in a different
+upstream Knot at run time (e.g. `SQLAgent.read_only`, PIR-817: whether a SQL-executing
+agent may run mutating statements is a decision the pipeline author makes once, not
+something an upstream Knot's output should be able to flip). These may be held as
+constructor state — typed as a plain scalar, not `Knot | scalar_type` — **only** when the
+class docstring states which argument this applies to and why it must not be knot-driven.
+This is a narrow, documented exception, not a general escape from Rule 4; when in doubt,
+the input is data and belongs in `process()`.
+
 ---
 
 ## Rule 5 — SQL query builders and computed strings are private helpers
@@ -388,6 +399,23 @@ References:
         https://docs.getdbt.com/docs/build/data-tests
 """
 ```
+
+---
+
+## A note on `pirn/nodes/*` and framework primitives
+
+`pirn/nodes/` (`Gate`, `SubTapestry`, `LoopSubTapestry`, `Aggregator`, `Parameter`, …) and
+`pirn/core/parameter.py` are the framework's own bootstrap primitives, not domain knots.
+Several of them construct instance state directly in `__init__` (`Parameter`, for
+example, bypasses the standard parent/config introspection entirely, because its
+`process()` signature is framework-managed rather than user-declared) — this is what
+*implements* Rules 1-7 for every other knot, so it cannot itself be written in terms of
+them without a bootstrapping paradox. This is not a blanket exemption for anything under
+`pirn/nodes/`: it is why `scripts/check_conventions.py`'s AST gate carries an explicit,
+narrow allowlist for exactly these files (rules covering `__init__` purity, self-assigned
+state, and `@property` fields), reviewed the same way any other rule exception is. New
+files under `pirn/nodes/` do not inherit the allowlist automatically — extending it needs
+the same documented justification as the constructor-state exception above.
 
 ---
 
