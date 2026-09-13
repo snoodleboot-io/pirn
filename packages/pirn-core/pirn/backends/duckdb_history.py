@@ -231,6 +231,28 @@ CREATE TABLE IF NOT EXISTS knot_sources (
         ).fetchall()
         return [KnotLineage.model_validate_json(row[0]) for row in rows]
 
+    async def query_latest_lineage_by_knot_id(self, knot_id: str) -> KnotLineage | None:
+        """Return the most recently finished lineage record for ``knot_id``.
+
+        Args:
+            knot_id: Identifier of the knot whose latest record is requested.
+
+        Returns:
+            The record with the greatest ``finished_at``, or ``None`` if
+            ``knot_id`` has never run.
+
+        Note:
+            ``finished_at`` is its own ``TIMESTAMP`` column, so the database
+            does the ordering and the truncation — a single-row fetch
+            regardless of how many times ``knot_id`` has run.
+        """
+        self._ensure_init()
+        row = self._conn.execute(
+            "SELECT payload_json FROM lineage WHERE knot_id = ? ORDER BY finished_at DESC LIMIT 1",
+            (knot_id,),
+        ).fetchone()
+        return KnotLineage.model_validate_json(row[0]) if row is not None else None
+
     # --------------- DuckDB-specific analytical methods -----------------
 
     async def query_lineage_by_class(self, knot_class: str) -> list[KnotLineage]:

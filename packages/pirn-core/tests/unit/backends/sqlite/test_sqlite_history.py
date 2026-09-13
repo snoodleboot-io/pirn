@@ -28,6 +28,7 @@ def _make_lineage(
     output_hash: str | None = "sha256:out",
     parent_input_hashes: dict[str, str] | None = None,
     outcome: str = "ok",
+    finished_at: datetime | None = None,
 ) -> KnotLineage:
     now = _now()
     return KnotLineage(
@@ -40,7 +41,7 @@ def _make_lineage(
         outcome=outcome,
         dispatcher="LocalDispatcher",
         started_at=now,
-        finished_at=now,
+        finished_at=finished_at if finished_at is not None else now,
     )
 
 
@@ -148,6 +149,33 @@ class TestSQLiteHistoryRecordAndQuery(unittest.IsolatedAsyncioTestCase):
         await self.history.record_run(result)
         records = await self.history.query_lineage_by_knot_id("knot-xyz")
         self.assertEqual(len(records), 1)
+
+    async def test_query_latest_lineage_by_knot_id_returns_the_newest(self) -> None:
+        older = _make_lineage(
+            run_id="run-1",
+            knot_id="k-keyed",
+            output_hash="sha256:v1",
+            finished_at=datetime(2026, 1, 1, tzinfo=UTC),
+        )
+        newer = _make_lineage(
+            run_id="run-2",
+            knot_id="k-keyed",
+            output_hash="sha256:v2",
+            finished_at=datetime(2026, 6, 1, tzinfo=UTC),
+        )
+        # Recorded out of chronological order, so a naive "last inserted"
+        # read would get this wrong.
+        await self.history.record_run(_make_run_result(run_id="run-1", lineage=[older]))
+        await self.history.record_run(_make_run_result(run_id="run-2", lineage=[newer]))
+
+        latest = await self.history.query_latest_lineage_by_knot_id("k-keyed")
+
+        self.assertIsNotNone(latest)
+        self.assertEqual(latest.output_hash, "sha256:v2")
+
+    async def test_query_latest_lineage_by_knot_id_returns_none_when_absent(self) -> None:
+        latest = await self.history.query_latest_lineage_by_knot_id("no-such-knot")
+        self.assertIsNone(latest)
 
     async def test_query_runs_by_actor(self) -> None:
         r1 = _make_run_result(run_id="run-1", actor="alice")
