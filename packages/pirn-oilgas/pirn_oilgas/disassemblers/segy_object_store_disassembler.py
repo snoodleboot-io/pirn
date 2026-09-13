@@ -12,6 +12,17 @@ Algorithm:
        then read the file back as raw bytes.
     4. Return the raw SEG-Y bytes.
 
+Note:
+    ``segyio`` has no in-memory writer — it only creates SEG-Y at a real
+    filesystem path. Encoding therefore round-trips the trace buffer through
+    a ``NamedTemporaryFile`` before reading it back as ``bytes``. This is
+    scratch I/O local to the encode step, not the connector I/O that
+    ``docs/contributing/assembler-disassembler-pattern.md`` (Disassembler
+    Contract, item 5, "Perform no I/O") prohibits — no data crosses a
+    connector boundary here, the returned bytes are handed back in memory.
+    The temp file's path is reserved and then always removed in a
+    ``try``/``finally``, including on exceptions raised by ``segyio``.
+
 References:
     - SEG Technical Standards Committee (2017). SEG-Y_r2.0 Data Exchange Format.
       Society of Exploration Geophysicists.
@@ -20,6 +31,7 @@ References:
 from __future__ import annotations
 
 import asyncio
+import os
 import tempfile
 from typing import Any
 
@@ -43,19 +55,22 @@ def _encode(payload: SegyPayload) -> bytes:
     with tempfile.NamedTemporaryFile(suffix=".segy", delete=False) as tmp:
         tmp_path = tmp.name
 
-    spec = segyio.spec()
-    spec.sorting = None
-    spec.format = 1
-    spec.samples = np.arange(sample_count, dtype=np.float32)
-    spec.tracecount = total_traces
+    try:
+        spec = segyio.spec()
+        spec.sorting = None
+        spec.format = 1
+        spec.samples = np.arange(sample_count, dtype=np.float32)
+        spec.tracecount = total_traces
 
-    with segyio.create(tmp_path, spec) as segy_file:
-        segy_file.bin.update(tsort=segyio.TraceSortingFormat.UNKNOWN_SORTING)
-        for idx in range(total_traces):
-            segy_file.trace[idx] = traces[idx].astype(np.float32)
+        with segyio.create(tmp_path, spec) as segy_file:
+            segy_file.bin.update(tsort=segyio.TraceSortingFormat.UNKNOWN_SORTING)
+            for idx in range(total_traces):
+                segy_file.trace[idx] = traces[idx].astype(np.float32)
 
-    with open(tmp_path, "rb") as raw:
-        return raw.read()
+        with open(tmp_path, "rb") as raw:
+            return raw.read()
+    finally:
+        os.unlink(tmp_path)
 
 
 class SegyObjectStoreDisassembler(Disassembler):
