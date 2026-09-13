@@ -48,3 +48,15 @@ class TestBandStopFilter(unittest.IsolatedAsyncioTestCase):
         out = await knot.process(_SIGNAL, low_cutoff_hz=45.0, high_cutoff_hz=55.0)
         assert isinstance(out, SignalPayload)
         assert out.frame.signal_id == "test:bandstop"
+
+    async def test_rejects_non_positive_order(self) -> None:
+        knot = self._make()
+        with pytest.raises(ValueError, match="order"):
+            await knot.process(_SIGNAL, low_cutoff_hz=45.0, high_cutoff_hz=55.0, order=0)
+
+    async def test_custom_order_applies(self) -> None:
+        knot = self._make()
+        out = await knot.process(_SIGNAL, low_cutoff_hz=45.0, high_cutoff_hz=55.0, order=2)
+        assert isinstance(out, SignalPayload)
+        assert out.frame.signal_id == "test:bandstop"
+        assert out.data.shape == _SIGNAL.data.shape

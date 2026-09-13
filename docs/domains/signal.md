@@ -134,10 +134,10 @@ Deterministic digital filter knots backed by `scipy.signal`.
 
 | Knot | Description |
 |---|---|
-| `LowPassFilter` | Butterworth/Chebyshev/elliptic low-pass IIR filter |
-| `HighPassFilter` | High-pass IIR filter |
-| `BandPassFilter` | Band-pass IIR filter |
-| `BandStopFilter` | Band-stop (notch) IIR filter |
+| `LowPassFilter` | Butterworth low-pass IIR filter (configurable order, default 4) |
+| `HighPassFilter` | Butterworth high-pass IIR filter (configurable order, default 4) |
+| `BandPassFilter` | Butterworth band-pass IIR filter (configurable order, default 4) |
+| `BandStopFilter` | Butterworth band-stop (notch) IIR filter (configurable order, default 4) |
 | `NotchFilter` | Targeted notch filter (power-line interference removal) |
 | `ButterworthFilter` | Butterworth IIR at configurable order and cutoff |
 | `ChebyshevType1Filter` | Chebyshev Type I IIR with ripple in the passband |
