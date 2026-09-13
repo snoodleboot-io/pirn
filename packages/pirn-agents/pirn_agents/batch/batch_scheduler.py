@@ -57,8 +57,8 @@ class BatchScheduler:
             limit: Returns the current dispatch bound (may vary over the
                 run's lifetime under an adaptive controller).
             drain_on_cancel: Awaits every still-pending task so cancellation
-                never leaks a running item; the same contract
-                ``AsyncFanoutEngine.drain_on_cancel`` implements.
+                never leaks a running item (the contract the retired
+                ``AsyncFanoutEngine`` used to implement).
             checkpointer: The (already scope-narrowed) checkpointer this run
                 persists through, or ``None`` to disable checkpointing.
             checkpoint_every: Persist after this many newly-completed items.
