@@ -88,4 +88,13 @@ _RegistryVisibility.log_skips(
     ),
 )
 
+# Alias every AgentPatternRegistry name ("react", "naive_rag", ...) into the
+# same registry `fill_registry` just populated, so a core YAML pipeline's
+# `callable: react` resolves exactly like any other Knot by name (ADR
+# agents-speaks-core WS6a) — one registry, not a builder-only second one.
+# Runs after `fill_registry` so every pattern module is already imported.
+from pirn_agents.builder.agent_pattern_registry import AgentPatternRegistry  # noqa: E402
+
+AgentPatternRegistry.register_with_core_registry()
+
 available_extras = CapabilityProbe().available_extras

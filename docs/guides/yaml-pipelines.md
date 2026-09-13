@@ -299,4 +299,61 @@ The YAML loader supports 9 node types: `parameter`, `knot`, `source`, `sink`, `b
 
 ---
 
-**See also:** [Architecture — YAML Loader](../architecture/overview.md#yaml-pipeline-loader), [API — YAML Loader](../api/yaml-loader.md)
+## Agents
+
+`pirn-agents`' 65 shipped agentic patterns (ReAct, the RAG family, guardrail checks, multi-agent orchestrations, structured-output extractors, …) are ordinary `SubTapestry` knots, so they need nothing agents-specific to reach from YAML — every pattern name is a `callable:` reference like any other.
+
+### Pattern names resolve like any other knot
+
+`pirn_agents`, at import time, aliases every name `AgentPatternRegistry` (and `Agent.patterns()`) advertises into the same `sweet_tea` registry this loader's `_resolve_callable` reads (`AgentPatternRegistry.register_with_core_registry`). No `known_callables` entry is needed for a pattern name — `callable: react` resolves exactly the way `callable: object_store_read_source` does for a core-shipped knot:
+
+```yaml
+nodes:
+  - id: seed
+    type: parameter
+    type_: Any
+
+  - id: agent
+    type: knot
+    callable: react            # resolves via the shared registry, no known_callables needed
+    parents:
+      messages: seed
+    config:
+      tools: []
+      max_iterations: 3
+```
+
+A pattern's runtime seed (the parameter the high-level builder's `.input(...)` feeds — `messages` for `react`, `query` for the RAG family, `task` for planning loops — see `AgentPatternRegistry.descriptor(name).seed`) is always its own graph input, never baked into `config`. A hand-authored document supplies it exactly as-shaped: `react`'s `messages` wants a `tuple[AgentMessage, ...]`/`list[AgentMessage]`, not a bare string — the string-to-message convenience `AgentBuilder.input(...)` provides is a builder-only nicety (see `docs/guides/knot-registration.md` and `pirn_agents/builder/BUILDER.md`), not something this loader performs.
+
+### Live references (LLM providers, memory stores, tools)
+
+A pattern's other required components are usually live objects — an `LLMProvider`, a `MemoryStore`, a `Tool` — that cannot be written into YAML text. `AgentReferences.as_known_callables()` adapts a caller-owned label → object table into this loader's `known_callables`, so a `source` node can name the label as its `callable:`:
+
+```python
+from pirn.yaml_loader.pipeline_loader import load_pipeline
+from pirn_agents.builder.agent_references import AgentReferences
+
+references = AgentReferences().register("llm", my_llm_provider)
+tapestry = load_pipeline(yaml_text, known_callables=references.as_known_callables())
+```
+
+```yaml
+nodes:
+  - id: llm_provider
+    type: source
+    callable: llm               # resolved via known_callables, not the registry
+  - id: agent
+    type: knot
+    callable: react
+    parents: {messages: seed, llm: llm_provider}
+```
+
+See `examples/agents_core_pipeline/` for the complete, `tapestry-check`-validated version of this pipeline.
+
+### `AgentSpec` — the declarative shape as a core pipeline document
+
+`AgentSpec` (pattern + provider/tool/component references + options — the config-driven counterpart of the fluent builder) is a projection of `PipelineSpec`: `AgentSpec.to_pipeline_spec()`/`AgentSpec.from_pipeline_spec()` round-trip losslessly through it, and `AgentSpecLoader.from_yaml`/`from_json`/`from_path` accept a core pipeline document directly (dispatching on a top-level `nodes:` key). The older flat dialect (`pattern:`/`llm:`/`memory:`/`tools:`/`components:`/`options:` at the top level, no `nodes:` list) still loads for one deprecation cycle but emits a `DeprecationWarning` — write the `nodes:`-shaped document above instead. See `pirn_agents/builder/BUILDER.md`'s "Config-driven agents" section for the full walkthrough, including how references round-trip through tagged `parameter` nodes.
+
+---
+
+**See also:** [Architecture — YAML Loader](../architecture/overview.md#yaml-pipeline-loader), [API — YAML Loader](../api/yaml-loader.md), and `pirn_agents/builder/BUILDER.md` in the `pirn-agents` package for the full authoring-surface walkthrough

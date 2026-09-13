@@ -1,0 +1,17 @@
+# AgentPresets.coding's shape: a ReAct coding agent, saved as a core
+# pipeline document (ADR agents-speaks-core WS6a). See research.yaml for why
+# this is a YAML document rather than a Python literal, and
+# AgentPresets._coding_builder for how the caller's llm/tools are wired in.
+name: coding_preset
+nodes:
+  - id: seed
+    type: parameter
+    type_: Any
+
+  - id: agent
+    type: knot
+    callable: react
+    parents:
+      messages: seed
+    config:
+      max_iterations: 8

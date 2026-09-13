@@ -28,8 +28,11 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any, ClassVar
 
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
 from pirn.nodes.sub_tapestry import SubTapestry
+from sweet_tea.registry import Registry
 
 from pirn_agents.builder.pattern_descriptor import PatternDescriptor
 from pirn_agents.builder.pattern_seed_kind import PatternSeedKind
@@ -311,10 +314,79 @@ class AgentPatternRegistry:
         """Return the canonical name-to-descriptor table."""
         return {descriptor.name: descriptor for descriptor in cls._patterns}
 
+    #: sweet_tea ``Entry.label`` every pattern alias is registered under, so
+    #: :meth:`pattern_names` can pick its own registrations out of the shared,
+    #: process-wide registry without touching anything another domain added.
+    _registry_label: ClassVar[str] = "pattern"
+
+    @classmethod
+    def register_with_core_registry(cls) -> None:
+        """Register every pattern name as a sweet_tea alias of its class.
+
+        This is what makes a name in :meth:`pattern_names` resolvable through
+        ``sweet_tea.abstract_inverter_factory.AbstractInverterFactory[Knot].create``
+        — the same lookup core's YAML loader uses to resolve a ``callable:``
+        reference — so a core pipeline document can name a pattern (``callable:
+        react``) exactly as the builder does (``.pattern("react")``). One
+        registry, not a builder-only second one.
+
+        A handful of pattern names (e.g. ``"reranker"``) already equal the
+        auto-registered, lowercased name of their own class —
+        ``Registry.fill_registry()`` registers every class under
+        ``class_name.lower()`` regardless of this table. Registering a second
+        entry for that same key would not make it a duplicate (sweet_tea
+        de-duplicates by the *whole* ``(key, class_def, library, label)``
+        tuple, and the label here differs), it would make
+        ``AbstractInverterFactory[Knot].create(name)`` — called with no label
+        filter, exactly as core's loader calls it — raise on ambiguity. Such
+        names are left alone: the class is already uniquely resolvable under
+        that key, so no alias is needed or safe to add.
+
+        Called once, from ``pirn_agents/__init__.py``, after
+        ``Registry.fill_registry()`` has already imported every pattern
+        module. Safe to call again: ``Registry.register`` de-duplicates
+        identical ``(key, class_def, library, label)`` tuples, and the
+        already-unique-key check above is idempotent.
+        """
+        for name in {*cls._descriptors(), *cls._aliases}:
+            target_cls = cls.descriptor(name).knot_class()
+            if cls._resolves_uniquely_to(name, target_cls):
+                continue
+            Registry.register(name, target_cls, library="pirn", label=cls._registry_label)
+
+    @staticmethod
+    def _resolves_uniquely_to(name: str, target_cls: type[SubTapestry]) -> bool:
+        """Return whether ``name`` is *already* a one-entry key for ``target_cls``."""
+        matches = [
+            entry
+            for entry in Registry.entries()
+            if entry.key == name.lower() and entry.library == "pirn"
+        ]
+        return len(matches) == 1 and matches[0].class_def is target_cls
+
     @classmethod
     def pattern_names(cls) -> tuple[str, ...]:
-        """Return the sorted, supported pattern names (including aliases)."""
-        return tuple(sorted({*cls._descriptors(), *cls._aliases}))
+        """Return the sorted pattern names, confirmed against sweet_tea's Registry.
+
+        A name is reported only once it is confirmed to resolve, through the
+        registry, to the exact class this table declares for it — the same
+        check :meth:`register_with_core_registry` uses to decide whether an
+        alias is needed. This does not re-derive the *set* of pattern names
+        from thin air (sweet_tea's ``Entry`` has no "this is a pattern"
+        concept beyond the label this class chooses to apply, and a label
+        cannot be added to an already-unique key without creating the
+        ambiguity described above) — it confirms every declared name actually
+        resolves through the one registry core's loader also uses, so this and
+        ``AbstractInverterFactory[Knot].create(name)`` can never disagree.
+        """
+        declared = {*cls._descriptors(), *cls._aliases}
+        return tuple(
+            sorted(
+                name
+                for name in declared
+                if cls._resolves_uniquely_to(name, cls.descriptor(name).knot_class())
+            )
+        )
 
     @classmethod
     def canonical_names(cls) -> tuple[str, ...]:
@@ -414,7 +486,9 @@ class AgentPatternRegistry:
         supplied_options = dict(options or {})
         cls._reject_unknown(descriptor, supplied_components, supplied_options)
 
-        bound: dict[str, Any] = {descriptor.seed: cls._coerce_seed(descriptor, input_value)}
+        bound: dict[str, Any] = {
+            descriptor.seed: cls._seed_parameter(descriptor, knot_id, input_value)
+        }
         missing: list[str] = []
         for name in descriptor.required_components():
             if name in supplied_components:
@@ -468,6 +542,44 @@ class AgentPatternRegistry:
                         f"{list(descriptor.required_components())!r} and options "
                         f"{list(descriptor.optional_parameters())!r}"
                     )
+
+    @classmethod
+    def _seed_parameter(cls, descriptor: PatternDescriptor, knot_id: str, input_value: Any) -> Any:
+        """Return the graph node ``build`` should bind to the pattern's seed input.
+
+        A literal ``.input(...)`` value is normalised (:meth:`_coerce_seed`)
+        and then wrapped in a named :class:`~pirn.core.parameter.Parameter` —
+        a real graph node with lineage, bindable at run start from
+        ``RunRequest.parameters[<name>]`` — rather than handed to the pattern's
+        constructor as a baked config value with no lineage of its own. An
+        already-built ``Knot`` (an upstream node wired in as the seed) is
+        passed through unchanged: it is already a graph node.
+
+        Args:
+            descriptor: The pattern being built.
+            knot_id: The stable id ``build`` derived for the generated
+                top-level knot — scopes the parameter's name so two agents in
+                the same tapestry never collide.
+            input_value: The raw value from ``.input(...)`` (or
+                :meth:`build`'s ``input_value``).
+
+        Returns:
+            The ``input_value`` unchanged if it is already a ``Knot``;
+            otherwise a new ``Parameter`` defaulting to the normalised value.
+        """
+        if isinstance(input_value, Knot):
+            return input_value
+        normalised = cls._coerce_seed(descriptor, input_value)
+        type_ = (
+            tuple[AgentMessage, ...] if descriptor.seed_kind is PatternSeedKind.MESSAGES else Any
+        )
+        name = f"{knot_id}:{descriptor.seed}"
+        return Parameter(
+            name=name,
+            type_=type_,
+            default=normalised,
+            _config=KnotConfig(id=f"param:{name}"),
+        )
 
     @classmethod
     def _coerce_seed(cls, descriptor: PatternDescriptor, input_value: Any) -> Any:
