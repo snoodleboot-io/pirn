@@ -749,8 +749,9 @@ async def test_skipped_and_synthetic_failures_give_their_slot_back(
 
 
 async def test_a_knot_that_swallows_its_cancellation_gives_its_slot_back() -> None:
-    # Arrange: CancelledError raised inside process() becomes an Err in
-    # Knot.__call__ (PIR-849); the slot must still come back.
+    # Arrange: a CancelledError the knot raises *itself* (no cancellation
+    # pending on its task) becomes an Err in Knot.__call__ (PIR-849); the
+    # slot must still come back.
     with Tapestry() as t:
         p = Parameter("x", int, default=1, _config=KnotConfig(id="p"))
         _SelfCancelling(x=p, _config=KnotConfig(id="a_cancel"))

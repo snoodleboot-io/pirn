@@ -629,6 +629,8 @@ class Knot:
             try:
                 outputs = await self._fan_out(kwargs)
             except BaseException as exc:
+                if self._is_task_cancellation(exc):
+                    raise
                 return Err(record=ExceptionRecord.for_knot(config.id, exc))
             return Ok(value=outputs)
 
@@ -657,6 +659,8 @@ class Knot:
         try:
             result = await self.process(**kwargs)
         except BaseException as exc:
+            if self._is_task_cancellation(exc):
+                raise
             return Err(record=ExceptionRecord.for_knot(config.id, exc))
 
         if config.validate_io and self._mutable_output_adapter is not None:
@@ -668,6 +672,41 @@ class Knot:
         return Ok(value=result)
 
     # -------------------------------------------------------------- helpers
+
+    @staticmethod
+    def _is_task_cancellation(exc: BaseException) -> bool:
+        """Whether *exc* is the running task being cancelled, not a knot's own raise.
+
+        ``__call__`` turns every exception a knot raises into ``Err`` so the
+        engine can record it.  ``asyncio.CancelledError`` is the one exception
+        that is not the knot's to report: when the *task* is being cancelled
+        -- the run was cancelled, or a ``KnotConfig.timeout`` expired -- the
+        cancellation must reach the awaiting caller, or ``asyncio.wait_for``
+        sees a knot that "finished" with an ``Err`` and never raises
+        ``TimeoutError``, and a cancelled run returns a failed ``RunResult``
+        instead of raising (PIR-849).
+
+        A knot that raises ``CancelledError`` *itself*, with no cancellation
+        pending on its task, is reporting an outcome like any other exception
+        and still becomes ``Err``.  ``Task.cancelling()`` tells the two apart:
+        it counts the cancel requests the task has received and not yet
+        ``uncancel()``-led, so it is positive only for a real cancellation.
+        A task-less context (a knot awaited outside asyncio's task machinery)
+        cannot be cancelled and reports ``False``.
+
+        Args:
+            exc: The exception caught by a ``__call__`` boundary.
+
+        Returns:
+            ``True`` when *exc* must propagate, ``False`` when it is an ``Err``.
+        """
+        if not isinstance(exc, asyncio.CancelledError):
+            return False
+        try:
+            task = asyncio.current_task()
+        except RuntimeError:  # no running loop: nothing can be cancelling us
+            return False
+        return task is not None and task.cancelling() > 0
 
     @classmethod
     def _process_signature(cls) -> inspect.Signature:

@@ -104,7 +104,9 @@ class SubTapestry(Knot):
            ``run_result.outputs`` using the key returned by
            ``_resolve_output_key(sink)`` and wrap it in ``Ok``.
         10. Error wrapping — any exception escaping steps 3-9 is caught and
-            wrapped in ``Err`` so the outer engine sees a normal knot failure.
+            wrapped in ``Err`` so the outer engine sees a normal knot failure,
+            except a cancellation of the task itself, which propagates
+            (``Knot._is_task_cancellation``, PIR-849).
     """
 
     _extensible_inner_run: ClassVar[bool] = False
@@ -303,6 +305,12 @@ class SubTapestry(Knot):
             self._record_inner_run_meta(run_result)
             output = run_result.outputs[self._resolve_output_key(sink)]
         except BaseException as exc:
+            # A real cancellation of this task propagates, like ``Knot.__call__``
+            # (PIR-849): the inner run has already been cancelled and wound
+            # down by its own engine, and the outer engine must see the
+            # cancellation rather than a failed result.
+            if self._is_task_cancellation(exc):
+                raise
             return Err(record=ExceptionRecord.for_knot(config.id, exc))
 
         return Ok(value=output)
