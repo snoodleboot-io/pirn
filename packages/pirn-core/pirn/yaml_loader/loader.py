@@ -40,6 +40,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import KnotFactory, knot
 from pirn.core.parameter import Parameter
+from pirn.exceptions.pipeline_load_error import PipelineLoadError
 from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.branch.branch import Branch
 from pirn.nodes.gate.gate import Gate
@@ -93,7 +94,7 @@ class PipelineLoader:
         """
         raw = yaml.safe_load(yaml_text)
         if not isinstance(raw, dict):
-            raise ValueError("YAML pipeline must be a mapping at the top level")
+            raise PipelineLoadError("YAML pipeline must be a mapping at the top level")
         spec = PipelineSpec.model_validate(raw)
 
         tapestry = tapestry or Tapestry()
@@ -156,7 +157,7 @@ class PipelineLoader:
         for child, parents in deps.items():
             for p in parents:
                 if p not in by_id:
-                    raise ValueError(f"node {child!r} references unknown parent {p!r}")
+                    raise PipelineLoadError(f"node {child!r} references unknown parent {p!r}")
                 in_degree[child] += 1
                 children[p].append(child)
 
@@ -172,7 +173,7 @@ class PipelineLoader:
                     new_ready.append(c)
             ready = sorted(ready + new_ready)
         if len(out) != len(by_id):
-            raise ValueError("cycle in YAML pipeline definition")
+            raise PipelineLoadError("cycle in YAML pipeline definition")
         return out
 
     @staticmethod
@@ -358,7 +359,7 @@ class PipelineLoader:
             pass
 
         if not allow_imports:
-            raise ValueError(
+            raise PipelineLoadError(
                 f"reference {ref!r} not in known_callables and not registered as a Knot "
                 "in sweet_tea's Registry; if it belongs to a pirn domain, install & "
                 "import the owning package (e.g. pip install pirn-<x> then "
@@ -369,7 +370,9 @@ class PipelineLoader:
             )
 
         if "." not in ref:
-            raise ValueError(f"reference {ref!r} is not a dotted path and not in known_callables")
+            raise PipelineLoadError(
+                f"reference {ref!r} is not a dotted path and not in known_callables"
+            )
 
         module_path, _, attr = ref.rpartition(".")
 
@@ -377,7 +380,7 @@ class PipelineLoader:
             if not any(
                 module_path == p or module_path.startswith(p + ".") for p in allowed_module_prefixes
             ):
-                raise ValueError(
+                raise PipelineLoadError(
                     f"callable ref {ref!r} resolves to module {module_path!r} which is not in "
                     f"allowed_module_prefixes {allowed_module_prefixes!r}; "
                     f"set allow_callable_refs=True and add the module prefix to "
@@ -422,7 +425,7 @@ class PipelineLoader:
     @staticmethod
     def _import_dotted(ref: str) -> Any:
         if "." not in ref:
-            raise ValueError(f"cannot resolve type {ref!r}")
+            raise PipelineLoadError(f"cannot resolve type {ref!r}")
         module_path, _, attr = ref.rpartition(".")
         module = importlib.import_module(module_path)
         return getattr(module, attr)
