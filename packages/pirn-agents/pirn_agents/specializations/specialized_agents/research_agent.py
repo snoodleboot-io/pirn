@@ -85,7 +85,7 @@ class ResearchAgent(AgentAsToolMixin, AgentPipeline):
         search_tool: ToolFactory,
         max_searches: int = 5,
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Run the search-backed ReAct loop on the topic and return a summary AgentResponse.
 
         Args:

@@ -18,10 +18,10 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 from pirn.backends.base.data_store import DataStore
+from pirn.core.hashing import content_hash
 from pirn.exceptions.value_evicted_error import ValueEvictedError
 
 from pirn_agents.caching.cache_entry import CacheEntry
-from pirn_agents.caching.content_address import content_address
 
 
 class ResultCache:
@@ -96,7 +96,7 @@ class ResultCache:
         Returns:
             The cached (on hit) or freshly computed (on miss) value.
         """
-        key = content_address(payload)
+        key = content_hash(payload, strict=True)
         hit = await self.get(key)
         if hit is not None:
             return hit.value

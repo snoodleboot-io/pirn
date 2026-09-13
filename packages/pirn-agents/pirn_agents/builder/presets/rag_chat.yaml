@@ -1,0 +1,17 @@
+# AgentPresets.rag_chat's shape: a naive-RAG chatbot, saved as a core
+# pipeline document (ADR agents-speaks-core WS6a). See research.yaml for why
+# this is a YAML document rather than a Python literal, and
+# AgentPresets._rag_chat_builder for how the caller's llm/memory are wired in.
+name: rag_chat_preset
+nodes:
+  - id: seed
+    type: parameter
+    type_: Any
+
+  - id: agent
+    type: knot
+    callable: naive_rag
+    parents:
+      query: seed
+    config:
+      top_k: 5

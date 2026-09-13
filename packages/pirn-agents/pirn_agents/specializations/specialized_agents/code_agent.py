@@ -58,7 +58,9 @@ class CodeAgent(AgentPipeline):
     ) -> None:
         super().__init__(task=task, llm=llm, language=language, _config=_config, **kwargs)
 
-    async def process(self, task: str, llm: LLMProvider, language: str = "python", **_: Any) -> Any:
+    async def process(
+        self, task: str, llm: LLMProvider, language: str = "python", **_: Any
+    ) -> Knot:
         """Generate code for the task, run a lint pass, and return the formatted AgentResponse.
 
         Args:

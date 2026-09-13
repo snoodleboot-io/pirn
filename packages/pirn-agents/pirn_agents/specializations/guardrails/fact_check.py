@@ -69,7 +69,7 @@ class FactCheck(AgentPipeline):
         store: MemoryStore,
         llm: LLMProvider,
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Extract factual claims from the response and return it annotated with any unverified claims.
 
         Args:

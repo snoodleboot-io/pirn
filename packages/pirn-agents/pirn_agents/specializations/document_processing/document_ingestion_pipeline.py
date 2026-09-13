@@ -97,7 +97,7 @@ class DocumentIngestionPipeline(AgentPipeline):
         allowed_hosts: tuple[str, ...] | None = None,
         max_bytes: int = _DocumentSourceReader.max_bytes,
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Load, chunk, embed, and store a document; return the number of chunks stored.
 
         Args:

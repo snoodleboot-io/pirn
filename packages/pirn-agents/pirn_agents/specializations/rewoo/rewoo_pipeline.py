@@ -69,7 +69,7 @@ class ReWooPipeline(AgentPipeline):
         tools: Sequence[ToolFactory],
         max_concurrency: int = ConcurrencyConfig.max_concurrency,
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Wire the ReWOO inner pipeline and return its synthesiser sink.
 
         Args:

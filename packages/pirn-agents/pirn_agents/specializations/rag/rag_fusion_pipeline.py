@@ -69,7 +69,7 @@ class RagFusionPipeline(AgentPipeline):
         max_concurrency: int = 4,
         rrf_k: int = 60,
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Wire expansion → fusion retrieval → synthesis and return the sink knot.
 
         Args:

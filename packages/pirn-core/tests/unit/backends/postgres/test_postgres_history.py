@@ -22,6 +22,7 @@ def _make_lineage(
     output_hash: str | None = "sha256:out",
     parent_input_hashes: dict[str, str] | None = None,
     outcome: str = "ok",
+    finished_at: datetime | None = None,
 ) -> KnotLineage:
     now = _now()
     return KnotLineage(
@@ -34,7 +35,7 @@ def _make_lineage(
         outcome=outcome,
         dispatcher="LocalDispatcher",
         started_at=now,
-        finished_at=now,
+        finished_at=finished_at if finished_at is not None else now,
     )
 
 
@@ -119,6 +120,17 @@ class _FakeConn:
             if payload is None:
                 return None
             return {"payload_json": payload}
+        if "FROM lineage WHERE knot_id" in sql and "ORDER BY finished_at" in sql:
+            from pirn.core.knot_lineage import KnotLineage as _KnotLineage
+
+            knot_id = args[0]
+            matches = [v for (_, k), v in self._pool._lineage.items() if k == knot_id]
+            if not matches:
+                return None
+            latest = max(
+                matches, key=lambda payload: _KnotLineage.model_validate_json(payload).finished_at
+            )
+            return {"payload_json": latest}
         return None
 
     async def fetch(self, sql: str, *args: Any) -> list:
@@ -222,6 +234,35 @@ class TestPostgresHistoryRecordAndQuery(unittest.IsolatedAsyncioTestCase):
         records = await history.query_lineage_by_knot_id("k-xyz")
         self.assertEqual(len(records), 1)
         self.assertEqual(records[0].knot_id, "k-xyz")
+
+    async def test_query_latest_lineage_by_knot_id_returns_the_newest(self) -> None:
+        history = _make_history()
+        older = _make_lineage(
+            run_id="run-1",
+            knot_id="k-keyed",
+            output_hash="sha256:v1",
+            finished_at=datetime(2026, 1, 1, tzinfo=UTC),
+        )
+        newer = _make_lineage(
+            run_id="run-2",
+            knot_id="k-keyed",
+            output_hash="sha256:v2",
+            finished_at=datetime(2026, 6, 1, tzinfo=UTC),
+        )
+        # Recorded out of chronological order, so a naive "last inserted"
+        # read would get this wrong.
+        await history.record_run(_make_run_result(run_id="run-1", lineage=[older]))
+        await history.record_run(_make_run_result(run_id="run-2", lineage=[newer]))
+
+        latest = await history.query_latest_lineage_by_knot_id("k-keyed")
+
+        assert latest is not None
+        self.assertEqual(latest.output_hash, "sha256:v2")
+
+    async def test_query_latest_lineage_by_knot_id_returns_none_when_absent(self) -> None:
+        history = _make_history()
+        latest = await history.query_latest_lineage_by_knot_id("no-such-knot")
+        self.assertIsNone(latest)
 
     async def test_children_of_returns_runs_with_matching_parent(self) -> None:
         history = _make_history()

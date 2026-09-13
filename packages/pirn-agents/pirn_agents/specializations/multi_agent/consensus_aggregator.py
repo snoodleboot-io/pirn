@@ -1,5 +1,21 @@
 """``ConsensusAggregator`` — fuse multiple :class:`AgentResponse`s.
 
+Naming note (ADR agents-speaks-core WS5a): despite the name, this is not a
+core :class:`~pirn.nodes.aggregator.Aggregator` (which combines N *parent
+knots'* outputs via a callable) and does not subclass it — ``responses`` here
+arrives as a single already-assembled mapping, and ``process()`` *selects*
+which one of two named strategies builds the inner reduction, an OCP dispatch
+shape closer to :class:`~pirn_agents.interfaces.router.Router` than to a fan-in.
+Renaming it (e.g. to a ``*Picker`` or ``*Reducer`` name matching what it
+actually is) is a public-API change that also touches
+``pirn_agents/builder/agent_pattern_registry.py`` (owned by a different lane)
+and the docs that reference it by name; left as a follow-up decision rather
+than done in this lane (see the WS5a report's Deferred section). The strategy
+it *builds* for ``"majority_vote"`` now does use core primitives —
+:class:`~pirn_agents.specializations.multi_agent.majority_vote_strategy.MajorityVoteStrategy`
+folds through a core :class:`~pirn.nodes.reduce_.Reduce` rather than a bespoke
+picker knot.
+
 A :class:`SubTapestry` that takes a mapping of specialist responses
 and produces a single consensus :class:`AgentResponse`. Two
 strategies are supported:
@@ -11,9 +27,10 @@ strategies are supported:
 
 Algorithm:
     1. Validate ``strategy`` against the supported set.
-    2. Build an inner :class:`Tapestry` containing either
-       :class:`ConsensusMajorityVotePicker` or
-       :class:`ConsensusSynthesisCaller` depending on ``strategy``.
+    2. Build an inner :class:`Tapestry` containing either a
+       :class:`~pirn.nodes.reduce_.Reduce` (majority vote) or
+       :class:`ConsensusSynthesisCaller` (LLM synthesis) depending on
+       ``strategy``.
     3. Execute the inner tapestry via ``self._run_inner(inner)``.
     4. Return the knot output, falling back to majority vote on type mismatch.
 
@@ -63,7 +80,7 @@ class ConsensusAggregator(AgentPipeline):
         llm: LLMProvider,
         strategy: str = "llm_synthesis",
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Apply the configured consensus strategy to the specialist responses and return the winner.
 
         Args:

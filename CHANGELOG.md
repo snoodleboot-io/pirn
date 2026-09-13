@@ -54,6 +54,33 @@ All 159 unit test files that exercise optional-dependency code now wrap imports 
 
 ### Changed
 
+#### `pirn-agents` hashing seams moved onto `pirn.core.hashing.content_hash` (ADR agents-speaks-core WS2 part 2)
+
+`pirn_agents.builder.agent_knot_id_factory.AgentKnotIdFactory.derive` and
+`pirn_agents.resilience.idempotency_key_assigner.IdempotencyKeyAssigner.assign`
+now digest through `pirn.core.hashing.content_hash` instead of
+`pirn_agents.serialization.canonical_json.CanonicalJson`. `content_hash` gained a
+`strict=True` mode in the same change (raises `pirn.exceptions.unhashable_value_error.UnhashableValueError`
+naming the innermost unhashable type instead of returning a best-effort sentinel).
+
+- **Breaking, by design:** both outputs change value across the upgrade — the
+  `sha256:`-prefixed digest `content_hash` emits IS the new format version, not
+  an implementation detail.
+- **`AgentKnotIdFactory.derive`** — acceptable at this package's current 0.x
+  version: a generated knot id is a derived cache/lineage key, not data an
+  operator persists across an upgrade boundary.
+- **`IdempotencyKeyAssigner.assign`** — an operator-facing breaking change: an
+  idempotency key sent to an external backend for retry dedup changes form, so
+  **in-flight idempotent requests must be drained before/during the upgrade**
+  or a retry that lands after it will double-apply. `IdempotencyKeyAssigner.legacy_key(...)`
+  reproduces the pre-upgrade key for one deprecation cycle so an operator can
+  reconcile a backend's dedupe table across the window. See "Idempotency keys"
+  in `docs/domains/agents.md`.
+- `pirn_agents.caching.content_address.ContentAddress`/`content_address` also
+  moved onto `content_hash(..., strict=True)` and are now one-cycle deprecated
+  wrappers; every caller is an in-memory-only cache key, so this carries no
+  migration risk.
+
 #### Run-level and group concurrency limits (PIR-841, slice 2)
 
 A run can now cap how many knots are in flight at once. `pirn/core/concurrency/concurrency_limits.py` adds `ConcurrencyLimits(max_in_flight=None, groups={})`, a frozen, serialisable value; limits are at least 1 and group names follow the knot id charset.

@@ -1,8 +1,13 @@
-"""``FileCassetteStore`` — a stdlib-JSON, file-serialisable :class:`CassetteStore`."""
+"""``FileCassetteStore`` — a stdlib-JSON, file-serialisable :class:`CassetteStore`.
+
+.. deprecated:: ADR agents-speaks-core WS3 part 3
+    See :mod:`pirn_agents.determinism.cassette_store`.
+"""
 
 from __future__ import annotations
 
 import json
+import warnings
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -30,6 +35,12 @@ class FileCassetteStore(CassetteStore):
 
     def __init__(self, root: str | Path) -> None:
         """Initialise the store rooted at ``root`` (created on first save)."""
+        warnings.warn(
+            "FileCassetteStore is deprecated (ADR agents-speaks-core WS3): "
+            "see pirn_agents.determinism.cassette_recorder.CassetteRecorder.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self._root = Path(root)
 
     def _path_for(self, name: str) -> Path:

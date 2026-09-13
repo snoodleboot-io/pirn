@@ -25,6 +25,14 @@ declaration refuses is recorded as its own ``Err`` through
 :class:`~pirn_agents.tools.tool_call_rejection.ToolCallRejection`.  The next
 cycle drops the view and surfaces the tool knot's ``Result`` directly.
 
+This container reports its one call through
+:class:`~pirn_agents.observability.agent_call_recorder.AgentCallRecorder`
+(ADR WS4a) as a ``"tool"`` event under *its own* id on the *outer* run — the
+attribution a consumer correlating spans to the graph it wired expects — and
+claims that report from the tool knot (``Tool._call_reported_by_container``)
+so one call yields one event.  A tool knot wired directly (a fan-out) reports
+itself.  The deprecated ``ToolInvocationHook`` seam is not consulted here.
+
 Algorithm:
     1. ``process()`` receives the resolved ``tool`` (any spelling of a
        capability; validated into a :class:`ToolFactory`), ``call``,
@@ -41,6 +49,8 @@ Algorithm:
 from __future__ import annotations
 
 import functools
+import time
+from collections.abc import Mapping
 from typing import Any
 
 from pirn.core.error_policy import ErrorPolicy
@@ -57,7 +67,9 @@ from pirn.tapestry import Tapestry
 from pirn_agents.exceptions.tool_argument_validation_error import (
     ToolArgumentValidationError,
 )
+from pirn_agents.observability.agent_call_recorder import AgentCallRecorder
 from pirn_agents.security.secret_redactor import SecretRedactor
+from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_call_rejection import ToolCallRejection
 from pirn_agents.tools.tool_factory import ToolFactory
@@ -116,6 +128,15 @@ class ToolInvocation(SubTapestry):
     ) -> Knot:
         """Construct the tool knot for ``call`` and return the view-building sink.
 
+        Either outcome is also reported through
+        :class:`~pirn_agents.observability.agent_call_recorder.AgentCallRecorder`
+        (ADR agents-speaks-core WS4a) — the emitter-path replacement for the old
+        ``ToolInvocationHook``/``SpanEmittingToolInvocationHook`` seam, which only
+        the *executors* fired around their own hand-rolled invocation, never this
+        knot. Every tool call scheduled through the engine as a ``ToolInvocation``
+        is observable this way, regardless of whether the caller configured a
+        hook.
+
         Args:
             tool: The resolved capability.
             call: The resolved :class:`ToolCall`.
@@ -151,32 +172,47 @@ class ToolInvocation(SubTapestry):
         self._mutable_inner_lineage = list(run_result.lineage)
 
     async def __call__(self, parent_results: Any) -> Result[Any]:
-        """Run as a ``SubTapestry``, then attach the call knot's lineage row to the view."""
+        """Run as a ``SubTapestry``, attach the call's lineage latency, report the call."""
         self._mutable_inner_lineage: list[Any] = []
-        result = await super().__call__(parent_results)
+        start = time.perf_counter()
+        token = Tool._call_reported_by_container.set(True)
+        try:
+            result = await super().__call__(parent_results)
+        finally:
+            Tool._call_reported_by_container.reset(token)
+        elapsed = time.perf_counter() - start
         if not isinstance(result, Ok) or not isinstance(result.value, ToolResult):
             return result
         view = result.value
-        if view.latency is not None:
-            return result
-        row = next(
-            (
-                row
-                for row in self._mutable_inner_lineage
-                if row.knot_id == ToolFactory.knot_id_for(view.call_id)
-            ),
-            None,
-        )
-        if row is None:
-            return result
-        return Ok(
-            value=ToolResult(
-                call_id=view.call_id,
-                result=view.result,
-                error=view.error,
-                status=view.status,
-                latency=ToolResult.latency_of(row),
-                tokens=view.tokens,
-                exception=view.exception,
+        if view.latency is None:
+            row = next(
+                (
+                    row
+                    for row in self._mutable_inner_lineage
+                    if row.knot_id == ToolFactory.knot_id_for(view.call_id)
+                ),
+                None,
             )
+            if row is not None:
+                view = ToolResult(
+                    call_id=view.call_id,
+                    result=view.result,
+                    error=view.error,
+                    status=view.status,
+                    latency=ToolResult.latency_of(row),
+                    tokens=view.tokens,
+                    exception=view.exception,
+                )
+        call = parent_results.get("call") if isinstance(parent_results, Mapping) else None
+        if not isinstance(call, ToolCall):
+            call = self.config_values.get("call")
+        await AgentCallRecorder.record(
+            knot_id=self.knot_id,
+            kind="tool",
+            ok=view.error is None,
+            latency=view.latency if view.latency is not None else elapsed,
+            detail=view.error,
+            tool_name=call.tool_name if isinstance(call, ToolCall) else None,
+            call_id=view.call_id,
         )
+        return Ok(value=view)

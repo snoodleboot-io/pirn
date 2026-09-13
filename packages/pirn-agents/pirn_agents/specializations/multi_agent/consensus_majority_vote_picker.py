@@ -1,9 +1,15 @@
 """``ConsensusMajorityVotePicker`` — pick the most common response by content.
 
-Inner stage knot used by :class:`ConsensusAggregator` when the
-``majority_vote`` strategy is selected. Groups responses by their
-``content`` field and returns the response whose content appears most
-frequently. Ties are broken by first-seen order.
+No longer built by :class:`~pirn_agents.specializations.multi_agent.majority_vote_strategy.MajorityVoteStrategy`
+(ADR agents-speaks-core WS5a): that strategy now folds the same reduction
+through a core :class:`~pirn.nodes.reduce_.Reduce`, since "reduce a list to
+one value" is exactly what ``Reduce`` names, and a bespoke Knot doing the
+identical fold inside its own ``process()`` duplicates it. This class is kept
+— it is directly unit-tested and its public name stays importable — but is no
+longer part of ``ConsensusAggregator``'s wiring.
+
+Groups responses by their ``content`` field and returns the response whose
+content appears most frequently. Ties are broken by first-seen order.
 
 Algorithm:
     1. Preserve insertion order of responses via :class:`OrderedDict`.

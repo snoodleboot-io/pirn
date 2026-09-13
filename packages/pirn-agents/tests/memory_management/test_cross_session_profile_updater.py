@@ -1,10 +1,18 @@
-"""Unit tests for :class:`CrossSessionProfileUpdater`."""
+"""Unit tests for :class:`CrossSessionProfileUpdater`.
+
+ADR "agents speaks core" WS3 part 4: ``store`` is now a real
+:class:`~pirn_agents.memory.stores.keyed_lineage_store.KeyedLineageStore`
+(backed by real ``InMemoryHistory``/``InMemoryDataStore``), not a
+:class:`~pirn_agents.memory.stores.memory_store.MemoryStore` double.
+"""
 
 from __future__ import annotations
 
 import unittest
 from datetime import UTC, datetime
 
+from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
+from pirn.backends.in_memory.in_memory_history import InMemoryHistory
 from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
@@ -13,7 +21,11 @@ from pirn_agents.memory.management.cross_session_profile_updater import (
     CrossSessionProfileUpdater,
 )
 from pirn_agents.memory.management.profile_key import ProfileKey
-from tests.memory_management.conftest import RecordingMemoryStore
+from pirn_agents.memory.stores.keyed_lineage_store import KeyedLineageStore
+
+
+def _make_store() -> KeyedLineageStore:
+    return KeyedLineageStore(history=InMemoryHistory(), data_store=InMemoryDataStore())
 
 
 def _make_knot() -> CrossSessionProfileUpdater:
@@ -21,7 +33,7 @@ def _make_knot() -> CrossSessionProfileUpdater:
         return CrossSessionProfileUpdater(
             key=ProfileKey(namespace="user", subject_id="u1"),
             incoming_fields={},
-            store=RecordingMemoryStore(),
+            store=_make_store(),
             now=datetime(2026, 1, 1, tzinfo=UTC),
             _config=KnotConfig(id="cspu"),
         )
@@ -30,7 +42,7 @@ def _make_knot() -> CrossSessionProfileUpdater:
 class TestCrossSessionProfileUpdater(unittest.IsolatedAsyncioTestCase):
     async def test_creates_profile_when_absent(self) -> None:
         knot = _make_knot()
-        store = RecordingMemoryStore()
+        store = _make_store()
         key = ProfileKey(namespace="user", subject_id="u1", session_id="s1")
         profile = await knot.process(
             key=key,
@@ -40,11 +52,11 @@ class TestCrossSessionProfileUpdater(unittest.IsolatedAsyncioTestCase):
         )
         assert profile.fields == {"name": "Ada"}
         assert profile.session_ids == ("s1",)
-        assert "profile:user:u1" in store.data
+        assert await store.get(namespace="profile", key="profile:user:u1") is not None
 
     async def test_persists_across_sessions_without_clobbering(self) -> None:
         knot = _make_knot()
-        store = RecordingMemoryStore()
+        store = _make_store()
         key_s1 = ProfileKey(namespace="user", subject_id="u1", session_id="s1")
         await knot.process(
             key=key_s1,
@@ -65,7 +77,7 @@ class TestCrossSessionProfileUpdater(unittest.IsolatedAsyncioTestCase):
 
     async def test_provider_neutral_lookup_uses_storage_key(self) -> None:
         knot = _make_knot()
-        store = RecordingMemoryStore()
+        store = _make_store()
         key = ProfileKey(namespace="entity", subject_id="acme")
         await knot.process(
             key=key,
@@ -73,11 +85,14 @@ class TestCrossSessionProfileUpdater(unittest.IsolatedAsyncioTestCase):
             store=store,
             now=datetime(2026, 1, 1, tzinfo=UTC),
         )
-        assert store.stored == ["profile:entity:acme"]
+        rows = await store.history.query_lineage_by_knot_id(
+            KeyedLineageStore.identity("profile", "profile:entity:acme")
+        )
+        assert len(rows) == 1
 
     async def test_repeated_session_id_not_duplicated(self) -> None:
         knot = _make_knot()
-        store = RecordingMemoryStore()
+        store = _make_store()
         key = ProfileKey(namespace="user", subject_id="u1", session_id="s1")
         await knot.process(
             key=key, incoming_fields={"a": 1}, store=store, now=datetime(2026, 1, 1, tzinfo=UTC)
@@ -93,7 +108,7 @@ class TestCrossSessionProfileUpdater(unittest.IsolatedAsyncioTestCase):
             {
                 "key": "bad",
                 "incoming_fields": {},
-                "store": RecordingMemoryStore(),
+                "store": _make_store(),
                 "now": datetime(2026, 1, 1, tzinfo=UTC),
             }
         )

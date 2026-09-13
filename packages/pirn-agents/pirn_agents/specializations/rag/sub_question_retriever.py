@@ -41,13 +41,13 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
 from pirn.nodes.map_markers import Map
 from pirn.nodes.reduce_ import Reduce
 
 from pirn_agents.interfaces.retriever import Retriever
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.base.resolved_value_knot import ResolvedValueKnot
 from pirn_agents.specializations.rag._sub_question_search import _SubQuestionSearch
 from pirn_agents.specializations.rag._union_sub_question_hits import _UnionSubQuestionHits
 
@@ -116,10 +116,13 @@ class SubQuestionRetriever(AgentPipeline, Retriever):
                 f"got {max_concurrency!r}"
             )
         if not sub_questions:
-            return ResolvedValueKnot(value=[], _config=KnotConfig(id="empty"))
+            return Parameter("empty", list[Any], default=[], _config=KnotConfig(id="empty"))
 
-        sub_questions_knot = ResolvedValueKnot(
-            value=sub_questions, _config=KnotConfig(id="sub_questions")
+        sub_questions_knot = Parameter(
+            "sub_questions",
+            list[str],
+            default=sub_questions,
+            _config=KnotConfig(id="sub_questions"),
         )
         searched = _SubQuestionSearch(
             # Core's Map marker is consumed at construction by

@@ -75,7 +75,7 @@ class SelfAskPipeline(AgentPipeline):
         llm: LLMProvider,
         max_subquestions: int = 5,
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Run the Self-Ask decomposition and surface a :class:`SelfAskResult`.
 
         Args:

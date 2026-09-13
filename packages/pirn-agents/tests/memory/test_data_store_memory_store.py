@@ -17,7 +17,9 @@ import pytest
 from pirn.backends._signer import _Signer
 from pirn.backends.base.data_store import DataStore
 from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
+from pirn.backends.in_memory.in_memory_history import InMemoryHistory
 from pirn.backends.local_disk_data_store import LocalDiskDataStore
+from pirn.core.hashing import content_hash
 
 from pirn_agents.memory.stores.data_store_memory_store import DataStoreMemoryStore
 from pirn_agents.memory.stores.memory_store import MemoryStore
@@ -131,29 +133,47 @@ class TestSearchIsRefused:
         assert "vector" in message.lower()
 
 
-class TestKeyHashing:
-    def test_content_hash_is_a_sha256_hex_digest(self, store: DataStoreMemoryStore) -> None:
-        digest = store.content_hash("session:s1")
-        assert len(digest) == 64
-        assert all(char in "0123456789abcdef" for char in digest)
+class TestKeyedIdentity:
+    """ADR "agents speaks core" WS3 part 4: a key is a knot id, backed by lineage.
 
-    async def test_backend_never_sees_the_raw_key(
+    The old ``content_hash(key)`` method — which fabricated a fake content
+    hash by hashing the caller's *key* rather than a value — is gone; there is
+    no longer a hash to compute from a bare key at all. These replace
+    ``TestKeyHashing``, which asserted the retired mechanism directly.
+    """
+
+    async def test_written_value_is_content_addressed_by_its_own_hash(
         self, store: DataStoreMemoryStore, backend: InMemoryDataStore
     ) -> None:
         await store.store("session:s1", {"v": 1})
-        assert await backend.has("session:s1") is False
-        assert await backend.has(store.content_hash("session:s1")) is True
+        # The backend sees a hash of the *value*, not of the caller's key --
+        # the exact inversion the old key-hashing scheme got backwards.
+        assert await backend.has(content_hash({"v": 1})) is True
 
-    async def test_hashing_is_stable_across_instances(
-        self, backend: InMemoryDataStore, store: DataStoreMemoryStore
+    async def test_reopening_over_the_same_history_and_data_store_finds_the_key(
+        self, backend: InMemoryDataStore
     ) -> None:
+        history = InMemoryHistory()
+        store = DataStoreMemoryStore(data_store=backend, history=history)
         await store.store("k1", {"v": 1})
-        reopened = DataStoreMemoryStore(data_store=backend)
+        reopened = DataStoreMemoryStore(data_store=backend, history=history)
         assert await reopened.retrieve("k1") == {"v": 1}
 
+    async def test_a_fresh_default_history_does_not_see_a_prior_instances_keys(
+        self, backend: InMemoryDataStore
+    ) -> None:
+        # The default history is private and per-instance (ADR WS3 part 4):
+        # durability across instances now needs an explicitly shared history,
+        # not just a shared DataStore -- unlike the old key-hashing scheme,
+        # which needed only the DataStore.
+        await DataStoreMemoryStore(data_store=backend).store("k1", {"v": 1})
+        reopened = DataStoreMemoryStore(data_store=backend)
+        assert await reopened.retrieve("k1") is None
+
     async def test_namespaces_do_not_collide(self, backend: InMemoryDataStore) -> None:
-        left = DataStoreMemoryStore(data_store=backend, namespace="left")
-        right = DataStoreMemoryStore(data_store=backend, namespace="right")
+        history = InMemoryHistory()
+        left = DataStoreMemoryStore(data_store=backend, namespace="left", history=history)
+        right = DataStoreMemoryStore(data_store=backend, namespace="right", history=history)
         await left.store("k1", {"side": "left"})
         await right.store("k1", {"side": "right"})
         assert await left.retrieve("k1") == {"side": "left"}
@@ -167,7 +187,8 @@ class TestKeyHashing:
     async def test_filesystem_hostile_keys_round_trip_on_disk(
         self, tmp_path: Path, key: str
     ) -> None:
-        store = DataStoreMemoryStore(data_store=_disk_store(tmp_path))
+        history = InMemoryHistory()
+        store = DataStoreMemoryStore(data_store=_disk_store(tmp_path), history=history)
         await store.store(key, {"v": key})
         assert await store.retrieve(key) == {"v": key}
 
@@ -178,9 +199,19 @@ class TestDiskBackend:
         await store.store("k1", {"v": 1})
         assert await store.retrieve("k1") == {"v": 1}
 
-    async def test_survives_a_fresh_adapter_over_the_same_root(self, tmp_path: Path) -> None:
-        await DataStoreMemoryStore(data_store=_disk_store(tmp_path)).store("k1", {"v": 1})
-        reopened = DataStoreMemoryStore(data_store=_disk_store(tmp_path))
+    async def test_survives_a_fresh_adapter_over_the_same_root_and_history(
+        self, tmp_path: Path
+    ) -> None:
+        # ADR WS3 part 4: "the same root" alone is no longer enough -- the
+        # keyed identity's *current value* is resolved via RunHistory, so a
+        # fresh adapter needs the same history too, not just the same
+        # DataStore. A durable deployment shares a durable history the same
+        # way it already shares a durable DataStore.
+        history = InMemoryHistory()
+        await DataStoreMemoryStore(data_store=_disk_store(tmp_path), history=history).store(
+            "k1", {"v": 1}
+        )
+        reopened = DataStoreMemoryStore(data_store=_disk_store(tmp_path), history=history)
         assert await reopened.retrieve("k1") == {"v": 1}
 
     async def test_missing_key_on_disk_returns_none(self, tmp_path: Path) -> None:
@@ -199,13 +230,16 @@ class TestConsumersNowHaveAShippedBackend:
         assert list(await adapter.list_sessions()) == ["s1"]
 
     async def test_persisted_session_store_survives_restart_on_disk(self, tmp_path: Path) -> None:
+        # See test_survives_a_fresh_adapter_over_the_same_root_and_history:
+        # a "restart" now needs the same history shared across instances too.
+        history = InMemoryHistory()
         checkpoint = RunCheckpoint.create(make_run_state(session_id="s1", plan=("a", "b")))
         await PersistedSessionStore(
-            store=DataStoreMemoryStore(data_store=_disk_store(tmp_path))
+            store=DataStoreMemoryStore(data_store=_disk_store(tmp_path), history=history)
         ).save("s1", checkpoint)
 
         reopened = PersistedSessionStore(
-            store=DataStoreMemoryStore(data_store=_disk_store(tmp_path))
+            store=DataStoreMemoryStore(data_store=_disk_store(tmp_path), history=history)
         )
         assert await reopened.load("s1") == checkpoint
         assert list(await reopened.list_sessions()) == ["s1"]

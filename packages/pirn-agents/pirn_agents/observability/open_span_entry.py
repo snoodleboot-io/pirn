@@ -1,10 +1,21 @@
-"""``OpenSpanEntry`` — one span's slot on the tracer's task-local nesting stack."""
+"""``OpenSpanEntry`` — one span's slot on the tracer's task-local nesting stack.
+
+.. deprecated:: ADR agents-speaks-core WS4a
+    Part of the deprecated Tracer/Span plane; scheduled for deletion after one
+    release cycle along with :class:`~pirn_agents.observability.tracer.Tracer`,
+    the only class that uses this. The replacement,
+    :class:`~pirn_agents.observability.agent_call_recorder.AgentCallRecorder`,
+    reports one terminal event per call and needs no nesting stack.
+"""
 
 from __future__ import annotations
 
 
 class OpenSpanEntry:
     """A span's presence on the nesting stack, closable from any context.
+
+    .. deprecated:: ADR agents-speaks-core WS4a
+        See the module docstring.
 
     The nesting stack lives in a :class:`~contextvars.ContextVar` holding an
     immutable tuple, so a push in one task is invisible to its siblings

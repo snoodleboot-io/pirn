@@ -20,7 +20,7 @@ Algorithm:
     1. Validate that ``fallback_tool`` is a :class:`Tool` and ``query`` is
        a string.
     2. If ``relevant_docs`` is non-empty, the sink is a
-       :class:`~pirn_agents.specializations.base.resolved_value_knot.ResolvedValueKnot`
+       :class:`~pirn.core.parameter.Parameter`
        surfacing a shallow copy of the list unchanged.
     3. Otherwise the sink is a
        :class:`~pirn_agents.specializations.rag._fallback_document._FallbackDocument`,
@@ -39,10 +39,10 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
 
 from pirn_agents.interfaces.router import Router
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.base.resolved_value_knot import ResolvedValueKnot
 from pirn_agents.specializations.rag._fallback_document import _FallbackDocument
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_factory import ToolFactory
@@ -102,7 +102,12 @@ class CorrectiveRouter(AgentPipeline, Router):
         if not isinstance(query, str):
             raise TypeError(f"CorrectiveRouter: query must be a string, got {type(query).__name__}")
         if relevant_docs:
-            return ResolvedValueKnot(value=list(relevant_docs), _config=KnotConfig(id="relevant"))
+            return Parameter(
+                "relevant",
+                list[Mapping[str, Any]],
+                default=list(relevant_docs),
+                _config=KnotConfig(id="relevant"),
+            )
         call = ToolCall(
             tool_name=fallback_tool.name,
             arguments={"input": query},

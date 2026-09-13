@@ -67,7 +67,7 @@ class SubQuestionRagPipeline(AgentPipeline):
         top_k: int = 3,
         max_concurrency: int = 4,
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Wire decomposition → per-sub-question retrieval → synthesis.
 
         Args:

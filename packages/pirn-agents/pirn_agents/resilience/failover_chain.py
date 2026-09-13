@@ -50,13 +50,13 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.resilience._attempt_candidate import _AttemptCandidate
 from pirn_agents.resilience.circuit_breaker_registry import CircuitBreakerRegistry
 from pirn_agents.resilience.failover_candidate import FailoverCandidate
 from pirn_agents.resilience.failover_result import FailoverResult
-from pirn_agents.specializations.base.resolved_value_knot import ResolvedValueKnot
 
 
 class FailoverChain(SubTapestry):
@@ -125,8 +125,10 @@ class FailoverChain(SubTapestry):
                 f"got {type(breakers).__name__}"
             )
 
-        chain: Knot = ResolvedValueKnot(
-            value=FailoverResult(succeeded=False, chosen=None, value=None, attempts=()),
+        chain: Knot = Parameter(
+            "initial",
+            FailoverResult,
+            default=FailoverResult(succeeded=False, chosen=None, value=None, attempts=()),
             _config=KnotConfig(id="initial"),
         )
         for index, candidate in enumerate(ordered):

@@ -28,7 +28,7 @@ Algorithm:
        at process time.
     2. Validate input types; raise on bad types or non-positive iterations.
     3. Build an inner :class:`Tapestry` with a fixed-length unrolled chain:
-       a. Seed knot: :class:`MessagesPassthrough` over the input messages.
+       a. Seed knot: a :class:`~pirn.core.parameter.Parameter` over the input messages.
        b. For each iteration index 0..max_iterations-1, threading the
           prior iteration's termination signal into all three knots:
           i.  :class:`ContextBuilder` over the running message tail.
@@ -54,13 +54,11 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
 
 from pirn_agents.input.context_builder import ContextBuilder
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.react.messages_passthrough import (
-    MessagesPassthrough,
-)
 from pirn_agents.specializations.react.react_response_extractor import (
     ReActResponseExtractor,
 )
@@ -106,7 +104,7 @@ class ReActLoop(AgentPipeline):
         tools: Sequence[ToolFactory],
         max_iterations: int = 10,
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Run the unrolled ReAct loop over the seed messages and return the final AgentResponse.
 
         Args:
@@ -135,8 +133,10 @@ class ReActLoop(AgentPipeline):
                     f"ReActLoop: tools[{index}] must be a Tool, got {type(candidate).__name__}"
                 ) from exc
         seed_messages = tuple(messages)
-        seed = MessagesPassthrough(
-            messages=seed_messages,
+        seed = Parameter(
+            "seed_messages",
+            tuple[AgentMessage, ...],
+            default=seed_messages,
             _config=KnotConfig(id="seed"),
         )
         running_messages: Knot = seed

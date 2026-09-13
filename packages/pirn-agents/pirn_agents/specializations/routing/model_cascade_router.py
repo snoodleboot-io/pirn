@@ -38,11 +38,11 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
 
 from pirn_agents.interfaces.router import Router
 from pirn_agents.performance.spend_cap_policy import SpendCapPolicy
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.base.resolved_value_knot import ResolvedValueKnot
 from pirn_agents.specializations.routing._attempt_tier import _AttemptTier
 from pirn_agents.specializations.routing._cascade_chain_state import _CascadeChainState
 from pirn_agents.specializations.routing._cascade_result import _CascadeResult
@@ -131,8 +131,11 @@ class ModelCascadeRouter(AgentPipeline, Router):
         if not callable(confidence):
             raise TypeError("ModelCascadeRouter: confidence must be an async callable")
 
-        chain: Knot = ResolvedValueKnot(
-            value=_CascadeChainState(), _config=KnotConfig(id="initial")
+        chain: Knot = Parameter(
+            "initial",
+            _CascadeChainState,
+            default=_CascadeChainState(),
+            _config=KnotConfig(id="initial"),
         )
         for index, tier in enumerate(tier_tuple):
             chain = _AttemptTier(

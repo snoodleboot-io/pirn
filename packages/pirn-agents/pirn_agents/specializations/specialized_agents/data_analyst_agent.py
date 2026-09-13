@@ -69,7 +69,7 @@ class DataAnalystAgent(AgentPipeline):
         pool: DatabaseConnectionPool,
         schema_description: str = "",
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Run the SQL agent on the question, analyse the rows via the LLM, and return the combined response.
 
         Args:

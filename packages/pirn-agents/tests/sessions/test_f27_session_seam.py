@@ -13,6 +13,8 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
+from pirn.backends.in_memory.in_memory_history import InMemoryHistory
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
@@ -20,10 +22,10 @@ from pirn_agents.memory.management.cross_session_profile_updater import (
     CrossSessionProfileUpdater,
 )
 from pirn_agents.memory.management.profile_key import ProfileKey
+from pirn_agents.memory.stores.keyed_lineage_store import KeyedLineageStore
 from pirn_agents.sessions.in_memory_session_store import InMemorySessionStore
 from pirn_agents.sessions.run_checkpointer import RunCheckpointer
 from pirn_agents.sessions.session_identity import SessionIdentity
-from tests.memory_management.conftest import RecordingMemoryStore
 from tests.sessions.conftest import make_run_state
 
 
@@ -48,7 +50,7 @@ class TestF27SessionSeam:
         assert checkpoint.state.session_id == identity.session_id
 
         # Act — feed that F14 session id into the F27 profile seam, unchanged.
-        profile_store = RecordingMemoryStore()
+        profile_store = KeyedLineageStore(history=InMemoryHistory(), data_store=InMemoryDataStore())
         with Tapestry():
             updater = CrossSessionProfileUpdater(
                 key=ProfileKey(namespace="user", subject_id="u1"),
@@ -69,4 +71,4 @@ class TestF27SessionSeam:
         # across sessions).
         assert profile.session_ids == ("sess-42",)
         assert profile.fields == {"greeted": True}
-        assert "profile:user:u1" in profile_store.data
+        assert await profile_store.get(namespace="profile", key="profile:user:u1") is not None

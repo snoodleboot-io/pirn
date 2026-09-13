@@ -1,7 +1,17 @@
-"""``TrajectoryRecorder`` — a cheap, append-only capture of a run's steps."""
+"""``TrajectoryRecorder`` — a cheap, append-only capture of a run's steps.
+
+.. deprecated:: ADR agents-speaks-core WS3 part 3
+    Requires every call site to remember to call :meth:`record`,  and so
+    misses any step its author did not think to instrument. Prefer
+    :class:`~pirn_agents.determinism.trajectory_emitter.TrajectoryEmitter`,
+    an ``Emitter`` that captures every knot's lineage automatically with no
+    manual instrumentation. Kept for a caller that wants to record
+    free-form steps that are not knot invocations at all.
+"""
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Mapping
 from typing import Any
 
@@ -39,6 +49,12 @@ class TrajectoryRecorder:
         Raises:
             TypeError: If ``run_id`` is empty or ``clock`` is not a Clock.
         """
+        warnings.warn(
+            "TrajectoryRecorder is deprecated (ADR agents-speaks-core WS3): "
+            "see pirn_agents.determinism.trajectory_emitter.TrajectoryEmitter.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if not isinstance(run_id, str) or not run_id:
             raise TypeError("TrajectoryRecorder: run_id must be a non-empty str")
         if clock is not None and not isinstance(clock, Clock):

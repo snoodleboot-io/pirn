@@ -309,6 +309,31 @@ class PostgresHistory(RunHistory):
             rows = await conn.fetch("SELECT payload_json FROM lineage WHERE knot_id = $1", knot_id)
         return [KnotLineage.model_validate_json(r["payload_json"]) for r in rows]
 
+    async def query_latest_lineage_by_knot_id(self, knot_id: str) -> KnotLineage | None:
+        """Return the most recently finished lineage record for ``knot_id``.
+
+        Args:
+            knot_id: Identifier of the knot whose latest record is requested.
+
+        Returns:
+            The record with the greatest ``finished_at``, or ``None`` if
+            ``knot_id`` has never run.
+
+        Note:
+            ``finished_at`` is its own ``TIMESTAMPTZ`` column, so the database
+            does the ordering and the truncation — a single-row fetch
+            regardless of how many times ``knot_id`` has run.
+        """
+        await self._ensure_init()
+        pool = await self._pool.get()
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT payload_json FROM lineage WHERE knot_id = $1 "
+                "ORDER BY finished_at DESC LIMIT 1",
+                knot_id,
+            )
+        return KnotLineage.model_validate_json(row["payload_json"]) if row is not None else None
+
     async def query_runs_by_actor(self, actor: str) -> list[Any]:
         """Return all runs triggered by ``actor``.
 

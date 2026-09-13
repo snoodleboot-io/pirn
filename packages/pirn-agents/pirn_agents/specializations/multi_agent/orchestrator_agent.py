@@ -71,7 +71,7 @@ class OrchestratorAgent(AgentPipeline):
         llm: LLMProvider,
         specialists: Any,
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Route the task to the LLM-selected specialist and return its AgentResponse.
 
         Args:

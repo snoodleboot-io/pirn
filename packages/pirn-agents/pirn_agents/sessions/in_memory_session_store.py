@@ -1,7 +1,13 @@
-"""``InMemorySessionStore`` — a zero-dependency in-process :class:`SessionStore`."""
+"""``InMemorySessionStore`` — a zero-dependency in-process :class:`SessionStore`.
+
+.. deprecated:: ADR agents-speaks-core WS3 part 2
+    See :mod:`pirn_agents.sessions.session_store` and
+    :mod:`pirn_agents.sessions.session_chain`.
+"""
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Sequence
 
 from pirn_agents.sessions.run_checkpoint import RunCheckpoint
@@ -13,6 +19,12 @@ class InMemorySessionStore(SessionStore):
 
     def __init__(self) -> None:
         """Initialise an empty store."""
+        warnings.warn(
+            "InMemorySessionStore is deprecated (ADR agents-speaks-core WS3): "
+            "see pirn_agents.sessions.session_chain.SessionChain.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self._checkpoints: dict[str, RunCheckpoint] = {}
 
     async def save(self, session_id: str, checkpoint: RunCheckpoint) -> None:

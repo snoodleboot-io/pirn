@@ -69,7 +69,7 @@ class YamlExtractorPipeline(AgentPipeline):
         schema: Mapping[str, Any] | None = None,
         max_retries: int = 3,
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Extract a YAML mapping from the LLM response, retrying with error feedback on failure.
 
         Args:

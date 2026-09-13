@@ -2,20 +2,35 @@
 
 Extracts factual claims from an :class:`AgentResponse` via an LLM, checks
 each candidate fact against existing semantic memory, and upserts only
-new or changed facts into the :class:`MemoryStore`.
+new facts into a :class:`~pirn_agents.memory.stores.keyed_lineage_store.KeyedLineageStore`.
 
 Algorithm
 ---------
 1. Validate inputs.
 2. Build a prompt from ``fact_extraction_prompt`` and ``response.content``.
 3. Call the LLM and parse one fact per line.
-4. For each fact compute a SHA-256 prefix key; retrieve the existing entry.
-5. If absent or changed, call ``store.store``; increment the counter.
+4. For each fact, check whether it is already recorded (see "Dedup" below).
+5. If not, ``store.put`` a typed
+   :class:`~pirn_agents.memory.management.memory_record.MemoryRecord` payload;
+   increment the counter.
 6. Return the total count of upserted facts.
 
-Math
-----
-Key: ``"fact:" + sha256(fact)[:16]``.
+Dedup (ADR "agents speaks core" WS3 part 4)
+--------------------------------------------
+A keyed identity is a knot id, not a KV slot: each fact's identity is
+``pirn.core.hashing.content_hash(fact)`` itself — the *same* fact text always
+maps to the *same* identity. That makes "has this fact already been recorded"
+a single, cheap ``RunHistory`` lookup
+(:meth:`~pirn_agents.memory.stores.keyed_lineage_store.KeyedLineageStore.latest_output_hash`)
+with no need to fetch or parse the previously-stored value: a row already
+existing at that identity **is** the dedup signal, because the identity itself
+already encodes the candidate's content hash. This sidesteps a trap the
+naive reading of "compare content hashes" falls into — comparing the hash of
+a *freshly built* ``MemoryRecord`` (whose ``created_at`` is always "now") to a
+previously stored one would never match, since the timestamp always differs,
+defeating dedup entirely. Comparing by identity-existence rather than by
+rehashing a fresh candidate avoids that trap while still reading as "compare
+the candidate's content hash against what's on record".
 
 References
 ----------
@@ -24,14 +39,17 @@ None.
 
 from __future__ import annotations
 
-import hashlib
+from datetime import UTC, datetime
 from typing import Any, ClassVar
 
+from pirn.core.hashing import content_hash
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
-from pirn_agents.memory.stores.memory_store import MemoryStore
+from pirn_agents.memory.management.memory_provenance import MemoryProvenance
+from pirn_agents.memory.management.memory_record import MemoryRecord
+from pirn_agents.memory.stores.keyed_lineage_store import KeyedLineageStore
 from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.types.messaging.agent_response import AgentResponse
@@ -44,13 +62,14 @@ class SemanticMemoryUpsert(Knot):
         name="memory.patterns.semantic_memory_upsert.fact_extraction_prompt",
         default="Extract key facts from the following text.",
     )
+    _namespace: ClassVar[str] = "semantic-memory"
 
     def __init__(
         self,
         *,
         response: Knot | AgentResponse,
         llm: Knot | LLMProvider,
-        store: Knot | MemoryStore,
+        store: Knot | KeyedLineageStore,
         fact_extraction_prompt: Knot | str = _fact_extraction_prompt.default,
         _config: KnotConfig,
         **kwargs: Any,
@@ -68,7 +87,7 @@ class SemanticMemoryUpsert(Knot):
         self,
         response: AgentResponse,
         llm: LLMProvider,
-        store: MemoryStore,
+        store: KeyedLineageStore,
         fact_extraction_prompt: str = _fact_extraction_prompt.default,
         **_: Any,
     ) -> int:
@@ -77,11 +96,11 @@ class SemanticMemoryUpsert(Knot):
         Args:
             response: The AgentResponse whose content is mined for factual claims.
             llm: The LLMProvider used to extract facts.
-            store: The MemoryStore for deduplication lookups and writes.
+            store: The KeyedLineageStore for deduplication lookups and writes.
             fact_extraction_prompt: Non-empty prompt string prefixed to the extraction request.
 
         Returns:
-            The number of new or changed facts upserted into the memory store.
+            The number of new facts upserted into semantic memory.
 
         Raises:
             ValueError: If fact_extraction_prompt is not a non-empty string.
@@ -106,11 +125,22 @@ class SemanticMemoryUpsert(Knot):
             if cleaned:
                 facts.append(cleaned)
 
+        namespace = type(self)._namespace
         upserted = 0
         for fact in facts:
-            key = "fact:" + hashlib.sha256(fact.encode()).hexdigest()[:16]
-            existing = await store.retrieve(key)
-            if existing is None or existing.get("fact") != fact:
-                await store.store(key, {"fact": fact})
+            key = content_hash(fact)
+            already_recorded = (
+                await store.latest_output_hash(namespace=namespace, key=key) is not None
+            )
+            if not already_recorded:
+                now = datetime.now(UTC)
+                record = MemoryRecord(
+                    id=f"fact:{key}",
+                    kind="semantic",
+                    content=fact,
+                    provenance=MemoryProvenance(source="semantic_memory_upsert", timestamp=now),
+                    created_at=now,
+                )
+                await store.put(namespace=namespace, key=key, value=record.to_payload())
                 upserted += 1
         return upserted

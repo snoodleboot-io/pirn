@@ -1,90 +1,122 @@
-"""``CheckpointForker`` — fork a new run from an F14 checkpoint for what-if runs."""
+"""``CheckpointForker`` — branch a run chain at a recorded point for what-if runs.
+
+ADR "agents speaks core" WS3 part 3. A fork is a branch of the session chain:
+given the ``(run_id, output_hash)`` of the knot being forked from — the same
+shape :class:`~pirn_agents.sessions.resume_token.ResumeToken` uses for HITL
+resume — starts a **new** run chained to the source (``_parent_run_id``) that
+replays the source's recorded prefix
+(``ReplaySession(allow_new_knots=True)``, verified against the fork point)
+and executes whatever diverges — new knot ids, or the same ones fed different
+``Parameter`` values via the caller's ``RunRequest`` — for the first time.
+Two forks taken from the same source share that prefix and diverge
+independently; nothing is persisted beyond what the engine already records
+for the new run.
+"""
 
 from __future__ import annotations
 
+from pirn.backends.base.data_store import DataStore
+from pirn.backends.base.run_history import RunHistory
+from pirn.core.run_request import RunRequest
+from pirn.recording.replay_session import ReplaySession
+from pirn.tapestry import Tapestry
+
 from pirn_agents.determinism.fork_result import ForkResult
-from pirn_agents.sessions.execution_cursor import ExecutionCursor
-from pirn_agents.sessions.run_checkpoint import RunCheckpoint
-from pirn_agents.sessions.run_state import RunState
-from pirn_agents.sessions.session_store import SessionStore
+from pirn_agents.sessions.resume_token import ResumeToken
 
 
 class CheckpointForker:
-    """Branch a new run from any recorded F14 checkpoint, preserving prior trace.
-
-    Loads the source session's latest :class:`RunCheckpoint` from a
-    :class:`SessionStore`, rebuilds its :class:`RunState` under a fresh
-    ``new_session_id``, optionally rewinds the plan cursor to a ``fork_point`` so
-    the branch diverges only from that step onward, persists the forked checkpoint
-    back into the store, and returns a :class:`ForkResult` whose provenance makes
-    the fork distinguishable from the original.
-    """
+    """Branch a new run from a recorded point in an existing run chain."""
 
     async def fork(
         self,
         *,
-        store: SessionStore,
-        source_session_id: str,
-        new_session_id: str,
-        fork_point: int | None = None,
+        tapestry: Tapestry,
+        history: RunHistory,
+        data_store: DataStore,
+        fork_point: ResumeToken,
+        source_knot_id: str,
+        request: RunRequest | None = None,
     ) -> ForkResult:
-        """Fork ``source_session_id`` into ``new_session_id`` at ``fork_point``.
+        """Fork the run chain at ``fork_point``, running ``tapestry``'s graph.
 
         Args:
-            store: The session store holding the source checkpoint and receiving
-                the forked one.
-            source_session_id: The run to branch from.
-            new_session_id: The id for the divergent branch.
-            fork_point: Plan step index to diverge from; ``None`` forks at the
-                source's current cursor. Prior completed steps are preserved.
+            tapestry: The tapestry holding the graph to run — the shared
+                prefix up to (and including) ``source_knot_id`` plus whatever
+                diverges after it.
+            history: The ``RunHistory`` the source run was recorded to, and
+                the forked run is recorded to.
+            data_store: The ``DataStore`` the source run's outputs were
+                content-addressed into.
+            fork_point: The ``(run_id, output_hash)`` identifying the exact
+                recorded invocation to fork from.
+            source_knot_id: The id of the knot ``fork_point.output_hash``
+                names, used to verify the fork point against the recording.
+            request: The forked run's ``RunRequest`` — supply any ``Parameter``
+                values the diverging part of the graph needs (a ``Parameter``
+                always executes, even under replay, so any value the shared
+                prefix bound must be re-supplied here too). Defaults to an
+                empty request.
 
         Returns:
-            The :class:`ForkResult` with the new checkpoint and its provenance.
+            The :class:`ForkResult` naming the fork's provenance and carrying
+            the new run's ``RunResult``.
 
         Raises:
-            TypeError: If ``store`` is not a SessionStore.
-            ValueError: If no checkpoint exists for ``source_session_id`` or
-                ``fork_point`` is negative / past the plan length.
+            TypeError: If ``history``, ``data_store``, or ``fork_point`` is
+                the wrong type.
+            KeyError: If ``fork_point.run_id`` is not in ``history``, or
+                ``source_knot_id`` has no recorded row in it.
+            ValueError: If the recorded output hash for ``source_knot_id`` no
+                longer matches ``fork_point.output_hash``.
         """
-        if not isinstance(store, SessionStore):
+        if not isinstance(history, RunHistory):
             raise TypeError(
-                f"CheckpointForker.fork: store must be a SessionStore, got {type(store).__name__}"
+                f"CheckpointForker.fork: history must be a RunHistory, got {type(history).__name__}"
             )
-        source = await store.load(source_session_id)
-        if source is None:
-            raise ValueError(
-                f"CheckpointForker.fork: no checkpoint for source session {source_session_id!r}"
+        if not isinstance(data_store, DataStore):
+            raise TypeError(
+                f"CheckpointForker.fork: data_store must be a DataStore, "
+                f"got {type(data_store).__name__}"
             )
-        forked_state = self._rewind(source.state, new_session_id, fork_point)
-        forked = RunCheckpoint.create(forked_state)
-        await store.save(new_session_id, forked)
-        return ForkResult(
-            new_session_id=new_session_id,
-            source_session_id=source_session_id,
-            forked_from_checkpoint_id=source.checkpoint_id,
-            fork_point=forked_state.cursor.step_index,
-            checkpoint=forked,
+        if not isinstance(fork_point, ResumeToken):
+            raise TypeError(
+                f"CheckpointForker.fork: fork_point must be a ResumeToken, "
+                f"got {type(fork_point).__name__}"
+            )
+        # pyright note: see the identical note in
+        # pirn_agents.sessions.approval_resumer — this package's pyright
+        # config resolves pirn-core via the shared workspace .venv's
+        # editable install of the main checkout, not this worktree/branch's
+        # copy, so it cannot see allow_new_knots yet even though it is real
+        # (proven by pytest here, which links this worktree's pirn-core via
+        # PYTHONPATH).
+        session = await ReplaySession.from_history(
+            history=history,
+            run_id=fork_point.run_id,
+            allow_new_knots=True,  # pyright: ignore[reportCallIssue]
         )
-
-    @staticmethod
-    def _rewind(state: RunState, new_session_id: str, fork_point: int | None) -> RunState:
-        """Return ``state`` re-keyed to ``new_session_id`` and rewound to fork point."""
-        if fork_point is None:
-            cursor = state.cursor
-        else:
-            if fork_point < 0 or fork_point > len(state.plan):
-                raise ValueError(
-                    f"CheckpointForker.fork: fork_point {fork_point} out of range "
-                    f"[0, {len(state.plan)}]"
-                )
-            cursor = ExecutionCursor(
-                step_index=fork_point,
-                completed_steps=state.cursor.completed_steps[:fork_point],
+        row = session.row_for(source_knot_id)
+        if row is None:
+            raise KeyError(
+                f"CheckpointForker.fork: knot {source_knot_id!r} has no recorded row in run "
+                f"{fork_point.run_id!r}"
             )
-        return RunState(
-            session_id=new_session_id,
-            messages=state.messages,
-            plan=state.plan,
-            tool_results=state.tool_results,
-            cursor=cursor,
+        if row.output_hash != fork_point.output_hash:
+            raise ValueError(
+                f"CheckpointForker.fork: stale fork point — the recorded output "
+                f"({row.output_hash!r}) no longer matches ({fork_point.output_hash!r})"
+            )
+        effective_request = request if request is not None else RunRequest()
+        result = await tapestry.run(
+            effective_request,
+            replay=session,
+            _parent_run_id=fork_point.run_id,
+            _parent_knot_id=None,
+        )
+        return ForkResult(
+            new_run_id=result.run_id,
+            source_run_id=fork_point.run_id,
+            forked_from_output_hash=fork_point.output_hash,
+            result=result,
         )

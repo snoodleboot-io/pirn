@@ -52,13 +52,13 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
 from pirn.nodes.map_markers import Map
 from pirn.nodes.reduce_ import Reduce
 
 from pirn_agents.interfaces.retriever import Retriever
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.base.resolved_value_knot import ResolvedValueKnot
 from pirn_agents.specializations.rag._fuse_variant_hits import _FuseVariantHits
 from pirn_agents.specializations.rag._variant_search import _VariantSearch
 
@@ -131,10 +131,12 @@ class FusionRetriever(AgentPipeline, Retriever):
         if not isinstance(rrf_k, int) or rrf_k <= 0:
             raise ValueError(f"FusionRetriever: rrf_k must be a positive int, got {rrf_k!r}")
         if not queries:
-            return ResolvedValueKnot(value=[], _config=KnotConfig(id="empty"))
+            return Parameter("empty", list[Any], default=[], _config=KnotConfig(id="empty"))
 
         fetch = top_k * 2
-        queries_knot = ResolvedValueKnot(value=queries, _config=KnotConfig(id="queries"))
+        queries_knot = Parameter(
+            "queries", list[str], default=queries, _config=KnotConfig(id="queries")
+        )
         searched = _VariantSearch(
             # Core's Map marker is consumed at construction by
             # `knot.py:199-205` and is deliberately not a Knot, so it does not

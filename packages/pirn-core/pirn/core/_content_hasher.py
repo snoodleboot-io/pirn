@@ -28,6 +28,7 @@ from typing import Any, ClassVar
 from pydantic import BaseModel, TypeAdapter
 
 from pirn.core._unhashable_error import _UnhashableError
+from pirn.exceptions.unhashable_value_error import UnhashableValueError
 
 _logger = logging.getLogger(__name__)
 
@@ -47,8 +48,26 @@ class _ContentHasher:
     _type_adapter_cache: ClassVar[dict[type, TypeAdapter]] = {}
 
     @staticmethod
-    def hash(value: Any) -> str:
+    def hash(value: Any, *, strict: bool = False) -> str:
         """Return a stable hex sha256 of ``value`` suitable for lineage joins.
+
+        Algorithm:
+            1. Recursively canonicalise ``value`` via :meth:`_canonicalise`
+               into a JSON-serialisable form (sorted-key mappings, tagged
+               containers, hook/schema fallbacks for opaque leaves).
+            2. If canonicalisation hits a leaf with no canonical form at all
+               — no ``__pirn_canonical__``, no pydantic core schema, not a
+               recognised container — :meth:`_canonicalise` raises
+               ``_UnhashableError`` naming that leaf's type. ``strict=True``
+               re-raises it as :class:`~pirn.exceptions.unhashable_value_error.UnhashableValueError`;
+               ``strict=False`` (the default) swallows it and returns a
+               ``sha256:unhashable:<top-level type>`` sentinel instead, since
+               most callers only need *a* stable-looking key and would
+               rather get one than crash.
+            3. Otherwise, JSON-encode the canonical form with tight
+               separators and no key sorting (canonicalisation already
+               sorted mapping keys) and take its UTF-8 SHA-256 hex digest,
+               prefixed ``sha256:``.
 
         Stability rules
         ---------------
@@ -63,11 +82,27 @@ class _ContentHasher:
         * Primitives (str, int, float, bool, None): JSON-encoded.
         * Bytes: hex-encoded then JSON-wrapped (so they round-trip).
         * Anything else: ``repr(value)`` — best-effort.  Returns ``UNHASHABLE``
-          prefix to signal the caller can't reliably compare across processes.
+          prefix to signal the caller can't reliably compare across processes,
+          unless ``strict=True``.
+
+        Args:
+            value: The value to hash.
+            strict: When ``True``, raise
+                :class:`~pirn.exceptions.unhashable_value_error.UnhashableValueError`
+                (naming the innermost offending type) instead of returning
+                the ``sha256:unhashable:<type>`` sentinel for a value with no
+                canonical form. Defaults to ``False`` — unchanged legacy
+                behaviour.
+
+        Raises:
+            UnhashableValueError: If ``strict`` is ``True`` and ``value``
+                contains a leaf with no canonical form.
         """
         try:
-            canonical = _ContentHasher._canonicalise(value)
-        except _UnhashableError:
+            canonical = _ContentHasher._canonicalise(value, strict=strict)
+        except _UnhashableError as exc:
+            if strict:
+                raise UnhashableValueError(type_name=exc.type_name) from exc
             return f"sha256:{_UnhashableError.sentinel}:{type(value).__name__}"
         payload = json.dumps(canonical, separators=(",", ":"), sort_keys=False).encode("utf-8")
         digest = hashlib.sha256(payload).hexdigest()
@@ -86,7 +121,7 @@ class _ContentHasher:
         return repr(opaque_value)
 
     @staticmethod
-    def _canonicalise(value: Any) -> Any:
+    def _canonicalise(value: Any, *, strict: bool = False) -> Any:
         """Recursively convert ``value`` into a JSON-serialisable canonical form.
 
         We use prefixed type tags ("__bytes__", "__set__", etc.) to ensure
@@ -111,6 +146,16 @@ class _ContentHasher:
           then canonicalise normally. Without this branch the canonicaliser
           walks dataclass ``type`` fields and hits ``_UnhashableError`` for
           anything containing a ``Mapping[str, type]`` (DataSchema columns).
+
+        Args:
+            value: The value to canonicalise.
+            strict: Forwarded to the one recursive call that does not go
+                through ``_canonicalise`` itself — the per-element sub-hash
+                inside the set/frozenset branch, which calls
+                :meth:`hash` directly. Every other branch recurses via
+                ``_canonicalise``, and ``_UnhashableError`` from a nested
+                call propagates unmodified regardless of ``strict`` — this
+                method never catches it, only :meth:`hash` does.
         """
         # Primitive isinstance check FIRST — common case; avoids the
         # ``hasattr`` exception path for every plain int/str/bool/None.
@@ -121,7 +166,7 @@ class _ContentHasher:
         # Sanctioned hook — types control their canonical form explicitly
         # when this is defined.
         if hasattr(value, "__pirn_canonical__"):
-            return _ContentHasher._canonicalise(value.__pirn_canonical__())
+            return _ContentHasher._canonicalise(value.__pirn_canonical__(), strict=strict)
         if isinstance(value, BaseModel):
             # Model JSON, then re-canonicalise the resulting dict so nested
             # non-Pydantic values are handled consistently.
@@ -135,7 +180,8 @@ class _ContentHasher:
             return {
                 "__model__": value.__class__.__name__,
                 "data": _ContentHasher._canonicalise(
-                    value.model_dump(mode="json", fallback=_ContentHasher._opaque_fallback)
+                    value.model_dump(mode="json", fallback=_ContentHasher._opaque_fallback),
+                    strict=strict,
                 ),
             }
         # Pydantic-aware fallback for non-``BaseModel`` types declaring a
@@ -151,7 +197,9 @@ class _ContentHasher:
                 if adapter is None:
                     adapter = TypeAdapter(value_type)
                     _ContentHasher._type_adapter_cache[value_type] = adapter
-                return _ContentHasher._canonicalise(adapter.dump_python(value, mode="json"))
+                return _ContentHasher._canonicalise(
+                    adapter.dump_python(value, mode="json"), strict=strict
+                )
             except Exception:
                 # Fall through to the container/Mapping/Sequence branches
                 # below; if those also fail we end up at ``_UnhashableError``.
@@ -166,16 +214,24 @@ class _ContentHasher:
             # in JSON anyway.
             return {
                 "__map__": [
-                    [_ContentHasher._canonicalise(k), _ContentHasher._canonicalise(value[k])]
+                    [
+                        _ContentHasher._canonicalise(k, strict=strict),
+                        _ContentHasher._canonicalise(value[k], strict=strict),
+                    ]
                     for k in sorted(value.keys(), key=str)
                 ]
             }
         if isinstance(value, (set, frozenset, Set)):
             # Hash each element separately, then sort element-hashes for an
-            # order-independent canonical form.
-            element_hashes = sorted(_ContentHasher.hash(e) for e in value)
+            # order-independent canonical form. Goes through ``hash()``, not
+            # ``_canonicalise()``, so ``strict`` must be passed explicitly —
+            # this is the one place a nested failure would otherwise be
+            # silently absorbed into a per-element sentinel rather than
+            # reaching the outer ``hash()`` call's ``except``.
+            element_hashes = sorted(_ContentHasher.hash(e, strict=strict) for e in value)
             return {"__set__": element_hashes}
         if isinstance(value, (list, tuple, Sequence)) and not isinstance(value, (str, bytes)):
-            return {"__seq__": [_ContentHasher._canonicalise(e) for e in value]}
-        # Opaque type — bail.  Caller produces the UNHASHABLE marker.
-        raise _UnhashableError
+            return {"__seq__": [_ContentHasher._canonicalise(e, strict=strict) for e in value]}
+        # Opaque type — bail.  Caller produces the UNHASHABLE marker (or, in
+        # strict mode, UnhashableValueError naming this exact type).
+        raise _UnhashableError(type_name=type(value).__name__)

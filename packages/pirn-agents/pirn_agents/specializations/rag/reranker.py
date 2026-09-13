@@ -23,7 +23,7 @@ Algorithm:
     2. Validate inputs: ``query`` must be a string, exactly one of ``llm`` /
        ``reranker`` must be provided, ``top_k`` a positive integer.
     3. If ``documents`` is empty, return ``[]`` immediately (as a real graph
-       node, via :class:`~pirn_agents.specializations.base.resolved_value_knot.ResolvedValueKnot`).
+       node, via :class:`~pirn.core.parameter.Parameter`).
     4. Backend path — a single ``_BackendRerank`` invocation scores every
        document in one call.
     5. LLM path — one ``_DocumentRelevanceScorer`` invocation per document,
@@ -53,13 +53,13 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
 from pirn.nodes.map_markers import Map
 from pirn.nodes.reduce_ import Reduce
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.retrieval.rerank.reranker_backend import RerankerBackend
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.base.resolved_value_knot import ResolvedValueKnot
 from pirn_agents.specializations.rag._backend_rerank import _BackendRerank
 from pirn_agents.specializations.rag._document_relevance_scorer import _DocumentRelevanceScorer
 from pirn_agents.specializations.rag._top_k_by_score import _TopKByScore
@@ -140,7 +140,9 @@ class Reranker(AgentPipeline):
             raise ValueError(f"Reranker: top_k must be a positive int, got {top_k!r}")
 
         if not documents:
-            return ResolvedValueKnot(value=[], _config=KnotConfig(id="empty"))
+            return Parameter(
+                "empty", list[Mapping[str, Any]], default=[], _config=KnotConfig(id="empty")
+            )
 
         if reranker is not None:
             return _BackendRerank(
@@ -152,7 +154,12 @@ class Reranker(AgentPipeline):
             )
 
         assert llm is not None  # narrowed: reranker is None implies llm was validated above
-        documents_knot = ResolvedValueKnot(value=documents, _config=KnotConfig(id="documents"))
+        documents_knot = Parameter(
+            "documents",
+            list[Mapping[str, Any]],
+            default=documents,
+            _config=KnotConfig(id="documents"),
+        )
         scored = _DocumentRelevanceScorer(
             query=query,
             # Core's Map marker is consumed at construction by

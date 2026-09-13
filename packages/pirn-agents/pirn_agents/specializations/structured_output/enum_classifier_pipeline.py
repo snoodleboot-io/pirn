@@ -55,7 +55,7 @@ class EnumClassifierPipeline(AgentPipeline):
         llm: LLMProvider,
         labels: Sequence[str],
         **_: Any,
-    ) -> Any:
+    ) -> Knot:
         """Classify the prompt into one of the allowed labels and return the matching label string.
 
         Args:

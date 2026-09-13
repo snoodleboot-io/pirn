@@ -5,8 +5,12 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
+from pirn.core.err import Err
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.ok import Ok
+from pirn.core.skipped import Skipped
+from pirn.managers.exception_record import ExceptionRecord
 
 from pirn_agents.resilience.circuit_open_error import CircuitOpenError
 from pirn_agents.resilience.failover_attempt import FailoverAttempt
@@ -77,7 +81,8 @@ class _AttemptCandidate(Knot):
                     attempts=(
                         *attempts,
                         FailoverAttempt(
-                            candidate.name, FailoverOutcome.CIRCUIT_OPEN, "circuit_open"
+                            candidate.name,
+                            Skipped(reason=FailoverOutcome.CIRCUIT_OPEN.value),
                         ),
                     ),
                 )
@@ -87,7 +92,7 @@ class _AttemptCandidate(Knot):
                     value = await candidate.operation()
             else:
                 value = await candidate.operation()
-        except TimeoutError:
+        except TimeoutError as exc:
             if breaker is not None:
                 await breaker.record_failure()
             return FailoverResult(
@@ -96,7 +101,10 @@ class _AttemptCandidate(Knot):
                 value=None,
                 attempts=(
                     *attempts,
-                    FailoverAttempt(candidate.name, FailoverOutcome.TIMEOUT, "timeout"),
+                    FailoverAttempt(
+                        candidate.name,
+                        Err(record=ExceptionRecord.for_knot(candidate.name, exc)),
+                    ),
                 ),
             )
         except Exception as exc:
@@ -108,7 +116,10 @@ class _AttemptCandidate(Knot):
                 value=None,
                 attempts=(
                     *attempts,
-                    FailoverAttempt(candidate.name, FailoverOutcome.ERROR, str(exc)),
+                    FailoverAttempt(
+                        candidate.name,
+                        Err(record=ExceptionRecord.for_knot(candidate.name, exc)),
+                    ),
                 ),
             )
         if breaker is not None:
@@ -117,5 +128,5 @@ class _AttemptCandidate(Knot):
             succeeded=True,
             chosen=candidate.name,
             value=value,
-            attempts=(*attempts, FailoverAttempt(candidate.name, FailoverOutcome.SUCCESS, None)),
+            attempts=(*attempts, FailoverAttempt(candidate.name, Ok(value=value))),
         )

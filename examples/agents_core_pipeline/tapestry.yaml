@@ -1,0 +1,39 @@
+name: agents_core_pipeline
+description: >
+  A ReAct agent expressed entirely in core's own YAML vocabulary --
+  no agents-only schema (ADR agents-speaks-core WS6a). `callable: react`
+  resolves through the same sweet_tea registry as any other Knot, because
+  AgentPatternRegistry.register_with_core_registry() aliases every shipped
+  agentic pattern name into it at import time. The LLM provider is a live
+  object that cannot be written into YAML text, so it arrives through a
+  `source` node whose `callable:` is a reference label resolved via
+  `known_callables` -- see build_tapestry.py, and
+  AgentReferences.as_known_callables() for the general mechanism.
+
+allow_callable_refs: false
+
+nodes:
+  # The runtime seed. A raw YAML pipeline sees exactly what `react`'s
+  # constructor declares (a tuple of AgentMessage) -- the string-to-message
+  # convenience AgentBuilder.input() provides is a builder-only nicety, not
+  # something core YAML can express; the caller supplies the already-shaped
+  # value via RunRequest.parameters (see run.py).
+  - id: seed_messages
+    type: parameter
+    type_: Any
+
+  # A live LLMProvider cannot be written into YAML text; known_callables
+  # resolves the label "llm" to the one build_tapestry.py registers.
+  - id: llm_provider
+    type: source
+    callable: llm
+
+  - id: agent
+    type: knot
+    callable: react
+    parents:
+      messages: seed_messages
+      llm: llm_provider
+    config:
+      tools: []
+      max_iterations: 3

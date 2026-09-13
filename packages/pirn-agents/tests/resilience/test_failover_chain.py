@@ -11,15 +11,17 @@ from __future__ import annotations
 import asyncio
 
 import pytest
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
+from pirn.core.ok import Ok
 from pirn.core.run_request import RunRequest
+from pirn.core.skipped import Skipped
 from pirn.tapestry import Tapestry
 
 from pirn_agents.resilience.circuit_breaker_config import CircuitBreakerConfig
 from pirn_agents.resilience.circuit_breaker_registry import CircuitBreakerRegistry
 from pirn_agents.resilience.failover_candidate import FailoverCandidate
 from pirn_agents.resilience.failover_chain import FailoverChain
-from pirn_agents.resilience.failover_outcome import FailoverOutcome
 
 
 def _ok(value: object):
@@ -104,9 +106,9 @@ class TestOrdering:
         result = run.outputs["failover"]
         assert result.chosen == "secondary"
         assert result.value == "B"
-        assert result.attempts[0].outcome is FailoverOutcome.ERROR
-        assert result.attempts[0].error == "down"
-        assert result.attempts[1].outcome is FailoverOutcome.SUCCESS
+        assert isinstance(result.attempts[0].result, Err)
+        assert result.attempts[0].result.record.message == "down"
+        assert isinstance(result.attempts[1].result, Ok)
 
     async def test_all_fail_returns_exhausted_trace(self) -> None:
         with Tapestry() as t:
@@ -123,10 +125,7 @@ class TestOrdering:
         assert result.succeeded is False
         assert result.chosen is None
         assert result.value is None
-        assert [a.outcome for a in result.attempts] == [
-            FailoverOutcome.ERROR,
-            FailoverOutcome.ERROR,
-        ]
+        assert [isinstance(a.result, Err) for a in result.attempts] == [True, True]
 
 
 class TestTimeout:
@@ -143,7 +142,8 @@ class TestTimeout:
         assert run.succeeded
         result = run.outputs["failover"]
         assert result.chosen == "fast"
-        assert result.attempts[0].outcome is FailoverOutcome.TIMEOUT
+        assert isinstance(result.attempts[0].result, Err)
+        assert result.attempts[0].result.record.exc_type == "TimeoutError"
 
 
 class TestCircuitIntegration:
@@ -163,7 +163,7 @@ class TestCircuitIntegration:
         assert run.succeeded
         result = run.outputs["failover"]
         assert result.chosen == "secondary"
-        assert result.attempts[0].outcome is FailoverOutcome.CIRCUIT_OPEN
+        assert isinstance(result.attempts[0].result, Skipped)
 
     async def test_repeated_failure_trips_breaker_across_runs(self) -> None:
         breakers = CircuitBreakerRegistry(CircuitBreakerConfig(failure_threshold=1))
@@ -178,7 +178,7 @@ class TestCircuitIntegration:
         first_run = await t1.run(RunRequest())
         assert first_run.succeeded
         first = first_run.outputs["failover"]
-        assert first.attempts[0].outcome is FailoverOutcome.ERROR
+        assert isinstance(first.attempts[0].result, Err)
         # Second run: primary's breaker is now open, so it is skipped.
         with Tapestry() as t2:
             FailoverChain(
@@ -187,7 +187,7 @@ class TestCircuitIntegration:
         second_run = await t2.run(RunRequest())
         assert second_run.succeeded
         second = second_run.outputs["failover"]
-        assert second.attempts[0].outcome is FailoverOutcome.CIRCUIT_OPEN
+        assert isinstance(second.attempts[0].result, Skipped)
 
     async def test_success_records_into_breaker(self) -> None:
         breakers = CircuitBreakerRegistry(CircuitBreakerConfig(failure_threshold=2))

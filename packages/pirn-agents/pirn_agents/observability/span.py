@@ -1,4 +1,14 @@
-"""``Span`` — one instrumented region of work, reported to an :class:`ObservabilitySink`."""
+"""``Span`` — one instrumented region of work, reported to an :class:`ObservabilitySink`.
+
+.. deprecated:: ADR agents-speaks-core WS4a
+    Part of the deprecated Tracer/Span plane; scheduled for deletion after one
+    release cycle. Carries no ``run_id``/``knot_id`` of its own — a
+    :class:`~pirn_agents.observability.tracer.Tracer` stamps ``run_id`` on by
+    hand and ``knot_id`` has to be supplied per call site — which is exactly
+    what :class:`~pirn_agents.observability.agent_call_recorder.AgentCallRecorder`
+    fixes by sourcing both from core. ``Tracer.span()`` still forwards a
+    finished span into that recorder for one cycle; see its implementation.
+"""
 
 from __future__ import annotations
 

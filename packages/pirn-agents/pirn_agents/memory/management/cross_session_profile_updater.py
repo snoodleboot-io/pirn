@@ -1,14 +1,15 @@
 """``CrossSessionProfileUpdater`` — load, merge, and persist a subject profile.
 
 The S3 profile knot. In one ``process`` pass it reads the existing profile for a
-:class:`~pirn_agents.memory.management.profile_key.ProfileKey` through the standard
-:meth:`~pirn_agents.memory.stores.memory_store.MemoryStore.retrieve` interface, folds in the new
-session's fields with
+:class:`~pirn_agents.memory.management.profile_key.ProfileKey` through
+:meth:`~pirn_agents.memory.stores.keyed_lineage_store.KeyedLineageStore.get`,
+folds in the new session's fields with
 :meth:`~pirn_agents.memory.management.profile_merge.ProfileMerge.merge_fields` (so
 unrelated existing fields are never clobbered), records the contributing session
 id, refreshes provenance, and writes the merged
-:class:`~pirn_agents.memory.management.entity_profile.EntityProfile` back under the
-subject-scoped :attr:`ProfileKey.storage_key`. Because that key is
+:class:`~pirn_agents.memory.management.entity_profile.EntityProfile` back under
+the subject-scoped identity (ADR "agents speaks core" WS3 part 4: ``profile:
+<entity>``, via :meth:`KeyedLineageStore.put`). Because that identity is
 session-independent, the profile persists and accumulates across sessions — the
 point where **F14** durable sessions will later supply the session identity.
 """
@@ -17,7 +18,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from datetime import datetime
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -26,18 +27,23 @@ from pirn_agents.memory.management.entity_profile import EntityProfile
 from pirn_agents.memory.management.memory_provenance import MemoryProvenance
 from pirn_agents.memory.management.profile_key import ProfileKey
 from pirn_agents.memory.management.profile_merge import ProfileMerge
-from pirn_agents.memory.stores.memory_store import MemoryStore
+from pirn_agents.memory.stores.keyed_lineage_store import KeyedLineageStore
 
 
 class CrossSessionProfileUpdater(Knot):
     """Merges new session data into a persisted per-subject profile."""
+
+    #: ADR WS3 part 4: profiles live under a dedicated keyed-lineage
+    #: namespace; the subject-scoped ``ProfileKey.storage_key`` (already
+    #: ``"profile:<namespace>:<subject_id>"``) becomes the key within it.
+    _namespace: ClassVar[str] = "profile"
 
     def __init__(
         self,
         *,
         key: Knot | ProfileKey,
         incoming_fields: Knot | Mapping[str, Any],
-        store: Knot | MemoryStore,
+        store: Knot | KeyedLineageStore,
         now: Knot | datetime,
         source: Knot | str = "profile_updater",
         trust_signal: Knot | float = 1.0,
@@ -59,7 +65,7 @@ class CrossSessionProfileUpdater(Knot):
         self,
         key: ProfileKey,
         incoming_fields: Mapping[str, Any],
-        store: MemoryStore,
+        store: KeyedLineageStore,
         now: datetime,
         source: str = "profile_updater",
         trust_signal: float = 1.0,
@@ -70,7 +76,7 @@ class CrossSessionProfileUpdater(Knot):
         Args:
             key: The subject-scoped profile key.
             incoming_fields: New session data to fold into the profile.
-            store: The MemoryStore the profile is read from and written to.
+            store: The KeyedLineageStore the profile is read from and written to.
             now: The timezone-aware update time.
             source: Provenance source label for this update.
             trust_signal: Provenance trust in ``[0, 1]`` for this update.
@@ -80,12 +86,13 @@ class CrossSessionProfileUpdater(Knot):
 
         Raises:
             TypeError: If ``key`` is not a ProfileKey, ``incoming_fields`` is not
-                a Mapping, ``store`` is not a MemoryStore, or ``now`` is not a
-                datetime.
+                a Mapping, ``store`` is not a KeyedLineageStore, or ``now`` is not
+                a datetime.
         """
         if not isinstance(incoming_fields, Mapping):
             raise TypeError("CrossSessionProfileUpdater: incoming_fields must be a Mapping")
-        existing = await store.retrieve(key.storage_key)
+        namespace = type(self)._namespace
+        existing = await store.get(namespace=namespace, key=key.storage_key)
         prior_fields, prior_sessions = self._prior_state(existing)
         merged_fields = ProfileMerge.merge_fields(prior_fields, incoming_fields)
         session_ids = self._extend_sessions(prior_sessions, key.session_id)
@@ -96,7 +103,7 @@ class CrossSessionProfileUpdater(Knot):
             updated_at=now,
             session_ids=session_ids,
         )
-        await store.store(key.storage_key, profile.to_payload())
+        await store.put(namespace=namespace, key=key.storage_key, value=profile.to_payload())
         return profile
 
     @staticmethod

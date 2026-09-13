@@ -3,16 +3,24 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from pirn.backends.base.run_retention import RunRetention
+from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 if TYPE_CHECKING:
     from pirn.core.knot_lineage import KnotLineage
     from pirn.core.knot_source_record import KnotSourceRecord
 
 
-class RunHistory:
+class RunHistory(PirnOpaqueValue):
     """Interface: where run results and lineage records are persisted.
 
     Implementations inherit from this class and override all methods.
+
+    Mixes in :class:`~pirn.core.pirn_opaque_value.PirnOpaqueValue` (ADR
+    "agents speaks core" WS3) for the same reason
+    :class:`~pirn.backends.base.data_store.DataStore` does: a ``Knot`` that
+    wants to query lineage directly (a session-chain reader, a lineage-based
+    recall knot) must be able to declare ``RunHistory`` as a typed
+    ``process()`` parameter, which requires a pydantic-core schema.
     """
 
     @property
@@ -95,6 +103,34 @@ class RunHistory:
         raise NotImplementedError(
             f"{type(self).__name__} must implement query_lineage_by_knot_id()"
         )
+
+    async def query_latest_lineage_by_knot_id(self, knot_id: str) -> KnotLineage | None:
+        """Return the most recently finished lineage record for ``knot_id``.
+
+        The keyed-identity pattern (ADR "agents speaks core" WS3): a caller
+        that treats a knot id as a keyed identity — one write per update,
+        each its own lineage row — reads "the current value under this key"
+        by finding the newest row rather than scanning every historical one.
+
+        The default implementation is always correct but not necessarily
+        efficient: it delegates to :meth:`query_lineage_by_knot_id` and takes
+        the maximum by ``finished_at`` in Python, which is O(n) in how many
+        times this knot id has ever run. A backend whose storage can answer
+        "the latest row for this id" directly (an indexed column, not a JSON
+        blob scan) should override this with that query instead.
+
+        Args:
+            knot_id: Stable identifier of the knot whose latest record is
+                requested.
+
+        Returns:
+            The ``KnotLineage`` record with the greatest ``finished_at`` for
+            ``knot_id``, or ``None`` if it has never run.
+        """
+        rows = await self.query_lineage_by_knot_id(knot_id)
+        if not rows:
+            return None
+        return max(rows, key=lambda row: row.finished_at)
 
     async def query_runs_by_actor(self, actor: str) -> list[Any]:
         """Return all runs triggered by a specific actor.

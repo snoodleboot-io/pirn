@@ -38,11 +38,21 @@ STORE_CLASSES = frozenset(
         "caching/in_memory_result_cache.py::InMemoryResultCache",
         "caching/result_cache.py::ResultCache",
         "caching/semantic_result_cache.py::SemanticResultCache",
+        # ADR agents-speaks-core WS2: a vended similarity INDEX (a PirnOpaqueValue
+        # resource like the vector backends); it maps embeddings to content_hash
+        # keys and holds no values — values live in core DataStore. Not a KV store.
+        "caching/vector_memo_index.py::VectorMemoIndex",
         "connectors/streaming_s3_store.py::StreamingS3Store",
         "determinism/cassette_store.py::CassetteStore",
         "determinism/file_cassette_store.py::FileCassetteStore",
         "determinism/in_memory_cassette_store.py::InMemoryCassetteStore",
         "memory/stores/data_store_memory_store.py::DataStoreMemoryStore",
+        # ADR agents-speaks-core WS3 part 4: the keyed-identity primitive every
+        # other keyed store (DataStoreMemoryStore, SemanticMemoryUpsert,
+        # CrossSessionProfileUpdater, ThreadRepository/PersistedSessionStore's
+        # shims) now delegates to — a caller-chosen key is a knot id, backed by
+        # RunHistory/DataStore, not a hashed row in a KV table.
+        "memory/stores/keyed_lineage_store.py::KeyedLineageStore",
         "memory/stores/memory_store.py::MemoryStore",
         "retrieval/vector_stores/chroma_memory_store.py::ChromaMemoryStore",
         "retrieval/vector_stores/in_memory_vector_store.py::InMemoryVectorStore",
@@ -60,19 +70,25 @@ STORE_CLASSES = frozenset(
 # Regenerate by running StoreInventory.discover_lifecycle_importers() from the
 # package root and pasting the sorted keys below.
 
+# ADR agents-speaks-core WS3 part 2 lowered this from 11 to 9 (the rewritten
+# sessions/approval_resumer.py and sessions/suspending_approval_check.py no
+# longer import RunState/RunCheckpoint at all — a suspend is now
+# Skipped(reason="awaiting_human"), and resume replays from RunHistory via
+# ReplaySession — see pirn_agents.sessions.session_chain). Part 3 lowered it
+# again, 9 to 7: determinism/checkpoint_forker.py and fork_result.py no
+# longer import RunState/RunCheckpoint either — a fork is now a branch of the
+# run chain (ResumeToken-shaped fork point + ReplaySession(allow_new_knots=
+# True)), not a RunCheckpoint rewind. The remaining seven are one-cycle
+# deprecated shims (sessions/* and the batch/ pair, outside this lane).
 LIFECYCLE_IMPORTERS = frozenset(
     {
         "batch/batch_checkpointer.py",
         "batch/batch_progress.py",
-        "determinism/checkpoint_forker.py",
-        "determinism/fork_result.py",
-        "sessions/approval_resumer.py",
         "sessions/in_memory_session_store.py",
         "sessions/persisted_session_store.py",
         "sessions/run_checkpointer.py",
         "sessions/run_resumer.py",
         "sessions/session_store.py",
-        "sessions/suspending_approval_check.py",
     }
 )
 

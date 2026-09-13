@@ -356,6 +356,30 @@ class SQLiteHistory(RunHistory):
         )
         return [KnotLineage.model_validate_json(r[0]) for r in cursor.fetchall()]
 
+    async def query_latest_lineage_by_knot_id(self, knot_id: str) -> KnotLineage | None:
+        """Return the most recently finished lineage record for ``knot_id``.
+
+        Args:
+            knot_id: Identifier of the knot whose latest record is requested.
+
+        Returns:
+            The record with the greatest ``finished_at``, or ``None`` if
+            ``knot_id`` has never run.
+
+        Note:
+            ``finished_at`` is its own indexed-by-``knot_id`` column, not a
+            JSON field — the database does the ordering and the truncation,
+            so this is a single-row fetch regardless of how many times
+            ``knot_id`` has run, unlike the O(n) default.
+        """
+        self._ensure_init()
+        cursor = self._conn.execute(
+            "SELECT payload_json FROM lineage WHERE knot_id = ? ORDER BY finished_at DESC LIMIT 1",
+            (knot_id,),
+        )
+        row = cursor.fetchone()
+        return KnotLineage.model_validate_json(row[0]) if row is not None else None
+
     async def query_runs_by_actor(self, actor: str) -> list[Any]:
         """Return all runs triggered by ``actor``.
 

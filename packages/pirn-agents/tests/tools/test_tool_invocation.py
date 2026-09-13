@@ -18,6 +18,9 @@ from pirn.core.knot_factory import knot
 from pirn.core.knot_retry_policy import KnotRetryPolicy
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
+from pirn.emitters.emitter import Emitter
+from pirn.managers.knot_state import KnotState
+from pirn.managers.status_event import StatusEvent
 from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.check import Check
 from pirn.nodes.gate.gate import Gate
@@ -28,6 +31,17 @@ from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_invocation import ToolInvocation
 from pirn_agents.tools.tool_result import ToolResult
 from pirn_agents.tools.tool_status import ToolStatus
+
+
+class _CapturingEmitter(Emitter):
+    def __init__(self) -> None:
+        self.statuses: list[StatusEvent] = []
+
+    async def on_status(self, event: StatusEvent) -> None:
+        self.statuses.append(event)
+
+    def tool_events(self) -> list[StatusEvent]:
+        return [e for e in self.statuses if e.extra.get("kind") == "tool"]
 
 
 class Echo(Tool):
@@ -74,6 +88,74 @@ class Deny(Check):
 
 def _call(call_id: str = "c1", tool_name: str = "echo", **arguments: Any) -> ToolCall:
     return ToolCall(tool_name=tool_name, arguments=arguments, call_id=call_id)
+
+
+class TestToolCallsEmitThroughAgentCallRecorder(unittest.IsolatedAsyncioTestCase):
+    """ADR WS4a: every tool call the engine runs reports through the emitter path.
+
+    ``ToolInvocation`` reports its one call under its own id on the outer run
+    and claims the report from the tool knot, so one call is one event; a tool
+    knot wired directly (a fan-out) reports itself.  No ``ToolInvocationHook``
+    is needed.
+    """
+
+    async def test_a_successful_call_emits_a_succeeded_tool_event(self) -> None:
+        emitter = _CapturingEmitter()
+        with Tapestry(emitters=[emitter]) as t:
+            ToolInvocation(tool=Echo, call=_call(a=1), _config=KnotConfig(id="inv"))
+
+        result = await t.run(RunRequest())
+
+        assert result.succeeded, result.exceptions
+        events = emitter.tool_events()
+        assert len(events) == 1
+        event = events[0]
+        assert event.knot_id == "inv"
+        assert event.run_id == result.run_id
+        assert event.state is KnotState.SUCCEEDED
+        assert event.extra["tool_name"] == "echo"
+        assert event.extra["call_id"] == "c1"
+        assert isinstance(event.extra["latency"], float)
+
+    async def test_a_raising_call_emits_a_failed_tool_event_with_scrubbed_detail(self) -> None:
+        emitter = _CapturingEmitter()
+        with Tapestry(emitters=[emitter]) as t:
+            ToolInvocation(tool=RaisingDsn, call=_call(a=1), _config=KnotConfig(id="inv"))
+
+        await t.run(RunRequest())
+
+        events = emitter.tool_events()
+        assert len(events) == 1
+        assert events[0].state is KnotState.FAILED
+        assert events[0].detail is not None
+        assert "s3cr3tp4ssw0rd" not in events[0].detail
+
+    async def test_a_refused_call_emits_a_failed_tool_event(self) -> None:
+        emitter = _CapturingEmitter()
+        with Tapestry(emitters=[emitter]) as t:
+            ToolInvocation(tool=Echo, call=_call(a="not an int"), _config=KnotConfig(id="inv"))
+
+        await t.run(RunRequest())
+
+        events = emitter.tool_events()
+        assert len(events) == 1
+        assert events[0].state is KnotState.FAILED
+        assert events[0].extra["call_id"] == "c1"
+        assert events[0].knot_id == "inv"
+        assert "ToolArgumentValidationError" in (events[0].detail or "")
+
+    async def test_a_tool_knot_wired_directly_reports_itself(self) -> None:
+        emitter = _CapturingEmitter()
+        with Tapestry(emitters=[emitter]) as t:
+            Echo(a=1, _config=KnotConfig(id="c9"))
+
+        result = await t.run(RunRequest())
+
+        assert result.succeeded, result.exceptions
+        events = emitter.tool_events()
+        assert [(e.knot_id, e.extra["call_id"], e.extra["tool_name"]) for e in events] == [
+            ("c9", "c9", "echo")
+        ]
 
 
 class TestATooCallIsAKnot(unittest.IsolatedAsyncioTestCase):

@@ -1,14 +1,17 @@
-"""``SuspendSignal`` — emitted when an approval pause persists a run for HITL."""
+"""``SuspendSignal`` — the resumable handle read back from a suspended run."""
 
 from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 from pirn_agents.sessions.resume_token import ResumeToken
+
+if TYPE_CHECKING:
+    from pirn.core.run_result import RunResult
 
 
 @dataclass(frozen=True)
@@ -17,13 +20,14 @@ class SuspendSignal(PirnOpaqueValue):
 
     A suspend is not an error: it is a first-class value carrying the
     :class:`ResumeToken` a human uses to resume, plus a human-readable
-    ``reason``. Its presence tells the caller the run is paused and persisted
-    rather than completed.
+    ``reason``. Its presence tells the caller the run is paused rather than
+    completed — the turn's own ``RunResult`` (already durably recorded) *is*
+    the paused state; nothing else persists it.
 
     Attributes
     ----------
     token:
-        The resumable handle for the persisted run.
+        The resumable handle for the suspended run.
     reason:
         Human-readable explanation of why the run paused.
     """
@@ -42,6 +46,36 @@ class SuspendSignal(PirnOpaqueValue):
     def to_payload(self) -> dict[str, Any]:
         """Return a JSON-friendly mapping of this signal."""
         return {"token": self.token.to_payload(), "reason": self.reason}
+
+    @classmethod
+    def from_run_result(cls, result: RunResult, *, knot_id: str) -> SuspendSignal | None:
+        """Read a suspend signal back from a turn's ``RunResult``, if it suspended.
+
+        Looks up ``knot_id``'s lineage row in ``result``. When that row's
+        outcome is ``"skipped"`` (the shape
+        :class:`~pirn_agents.sessions.suspending_approval_check.SuspendingApprovalCheck`
+        produces), builds the :class:`ResumeToken` from the run's id and the
+        content hash of the value that was pending approval (``knot_id``'s
+        recorded ``response`` input).
+
+        Args:
+            result: The turn's ``RunResult``.
+            knot_id: The id of the ``SuspendingApprovalCheck`` knot in that
+                turn's graph.
+
+        Returns:
+            The ``SuspendSignal`` if ``knot_id`` suspended, else ``None`` —
+            including when ``knot_id`` has no row at all (it did not run this
+            turn) or completed normally (auto-approved).
+        """
+        row = next((r for r in result.lineage if r.knot_id == knot_id), None)
+        if row is None or row.outcome != "skipped":
+            return None
+        pending_hash = row.parent_input_hashes.get("response", "")
+        return cls(
+            token=ResumeToken(run_id=result.run_id, output_hash=pending_hash),
+            reason=row.skip_reason or "awaiting human approval",
+        )
 
     @classmethod
     def from_payload(cls, payload: Any) -> SuspendSignal:
