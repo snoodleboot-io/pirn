@@ -17,13 +17,14 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
+from pirn.core.assembler import Assembler
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.types.messaging.agent_message import AgentMessage
 
 
-class MultiTurnContextAssembler(Knot):
+class MultiTurnContextAssembler(Assembler):
     """Assemble a windowed message list from recent conversation turns."""
 
     def __init__(

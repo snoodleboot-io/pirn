@@ -80,14 +80,9 @@ class RetrieverTool(BaseTool):
         return {"query": query, "results": results, "count": len(results)}
 
     async def _collect(self, query: str, top_k: int) -> list[dict[str, Any]]:
-        """Drain the store's async search iterator into an ordered list."""
-        iterator = await self._store.search(query, top_k=top_k)
-        collected: list[dict[str, Any]] = []
-        async for item in iterator:
-            collected.append(dict(item))
-            if len(collected) >= top_k:
-                break
-        return collected
+        """Search the store and return up to ``top_k`` hits as an ordered list."""
+        hits = await self._store.search(query, top_k=top_k)
+        return [dict(item) for item in list(hits)[:top_k]]
 
     def _clear_credentials(self) -> None:
         """Drop the store reference so it becomes garbage-collectable."""

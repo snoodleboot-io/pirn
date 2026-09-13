@@ -33,6 +33,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.prompt.prompt_binding import PromptBinding
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
@@ -107,7 +108,7 @@ class SemanticMemoryUpsert(Knot):
         instruction = type(self)._fact_extraction_prompt.resolve(fact_extraction_prompt)
         prompt = f"{instruction}\n\nText: {response.content}\n\nReturn one fact per line."
         raw = await llm.chat([{"role": "user", "content": prompt}])
-        text = self._extract_text(raw)
+        text = LlmResponseText().extract(raw)
         facts: list[str] = []
         for raw_line in text.splitlines():
             cleaned = raw_line.strip()
@@ -128,13 +129,3 @@ class SemanticMemoryUpsert(Knot):
                 await store.store(key, {"fact": fact})
                 upserted += 1
         return upserted
-
-    @staticmethod
-    def _extract_text(raw: Any) -> str:
-        if isinstance(raw, str):
-            return raw
-        if isinstance(raw, dict):
-            content = raw.get("content")
-            if isinstance(content, str):
-                return content
-        return str(raw)

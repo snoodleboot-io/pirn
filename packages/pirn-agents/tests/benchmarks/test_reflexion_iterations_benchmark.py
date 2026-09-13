@@ -6,7 +6,7 @@ Reflexion loop needs before the evaluator accepts, under the stub provider.
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 import pytest
@@ -30,12 +30,8 @@ class _DictMemoryStore(MemoryStore):
     async def retrieve(self, key: str) -> Mapping[str, Any] | None:
         return self._data.get(key)
 
-    async def search(self, query: str, *, top_k: int = 10) -> AsyncIterator[Mapping[str, Any]]:
-        async def _aiter() -> AsyncIterator[Mapping[str, Any]]:
-            return
-            yield {}
-
-        return _aiter()
+    async def search(self, query: str, *, top_k: int = 10) -> Sequence[Mapping[str, Any]]:
+        return []
 
     async def forget(self, key: str) -> None:
         self._data.pop(key, None)

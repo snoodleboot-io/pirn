@@ -28,6 +28,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 
 
 class MultiQueryExpander(Knot):
@@ -99,20 +100,10 @@ class MultiQueryExpander(Knot):
                 {"alternative_count": num_queries - 1, "query": query}
             )
             raw = await llm.chat([{"role": "user", "content": prompt}])
-            for line in self._extract_text(raw).splitlines():
+            for line in LlmResponseText().extract(raw).splitlines():
                 stripped = line.strip()
                 if stripped and stripped not in variants:
                     variants.append(stripped)
                 if len(variants) >= num_queries:
                     break
         return variants[:num_queries]
-
-    @staticmethod
-    def _extract_text(raw: Any) -> str:
-        if isinstance(raw, str):
-            return raw
-        if isinstance(raw, dict):
-            content = raw.get("content")
-            if isinstance(content, str):
-                return content
-        return str(raw)

@@ -15,6 +15,20 @@ Algorithm:
     3. Fuse the two ranked id lists with
        :func:`~pirn_agents.retrieval.reciprocal_rank_fusion.reciprocal_rank_fusion`.
     4. Return the top ``top_k`` fused hits as ``{"id", "score"}`` mappings.
+
+Math:
+    The fusion score itself is computed by
+    :func:`~pirn_agents.retrieval.reciprocal_rank_fusion.reciprocal_rank_fusion`
+    (see that module for the full derivation); in short, for a document ``d``
+    appearing at rank :math:`r_i(d)` in ranking :math:`i` (dense or lexical):
+
+    $$
+    \\text{score}(d) = \\sum_i \\frac{1}{k + r_i(d)}
+    $$
+
+    where :math:`k` is ``rrf_k`` (default ``60``, the value used in the original
+    RRF paper) and a document absent from a ranking contributes ``0`` for that
+    ranking.
 """
 
 from __future__ import annotations

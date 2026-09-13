@@ -62,6 +62,9 @@ def _make_mapping_combine(
     the keys used to wire the parents.
     """
 
+    # design-decision-override: Aggregator's combine hook takes only the
+    # resolved **responses kwargs, so the parent-key-to-specialist-name mapping
+    # can only reach it by closing over `order` in a factory-built callable.
     def combine(**responses: AgentResponse) -> dict[str, AgentResponse]:
         return {name: responses[key] for key, name in order}
 

@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -36,6 +36,9 @@ class SafetyCheck(Knot):
     the input — anything else fails fast.
     """
 
+    #: Stateless helper shared across instances (Knot Rule 4 — class-level constant).
+    _pattern_compiler: ClassVar[SafePatternCompiler] = SafePatternCompiler()
+
     def __init__(
         self,
         *,
@@ -44,23 +47,12 @@ class SafetyCheck(Knot):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        self._pattern_compiler = SafePatternCompiler()
         super().__init__(
             message=message,
             deny_patterns=deny_patterns,
             _config=_config,
             **kwargs,
         )
-        # Validate concrete patterns up front so a bad deny-list fails fast at
-        # build time. A ``Knot`` reference resolves later, so it is validated
-        # at process time instead.
-        if not isinstance(deny_patterns, Knot):
-            self._pattern_compiler.compile_patterns(
-                deny_patterns,
-                owner="SafetyCheck",
-                field="deny_patterns",
-                flags=re.IGNORECASE,
-            )
 
     async def process(
         self,

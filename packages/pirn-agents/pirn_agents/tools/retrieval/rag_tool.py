@@ -110,14 +110,9 @@ class RagTool(BaseTool):
         return {"question": question, "answer": answer, "sources": sources}
 
     async def _collect(self, question: str) -> list[dict[str, Any]]:
-        """Drain the store's async search iterator into an ordered list."""
-        iterator = await self._store.search(question, top_k=self._top_k)
-        collected: list[dict[str, Any]] = []
-        async for item in iterator:
-            collected.append(dict(item))
-            if len(collected) >= self._top_k:
-                break
-        return collected
+        """Search the store and return up to ``top_k`` hits as an ordered list."""
+        hits = await self._store.search(question, top_k=self._top_k)
+        return [dict(item) for item in list(hits)[: self._top_k]]
 
     @staticmethod
     def _format_context(sources: list[dict[str, Any]]) -> str:

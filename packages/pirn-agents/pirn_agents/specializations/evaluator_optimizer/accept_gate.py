@@ -1,66 +1,29 @@
-"""``AcceptGate`` — the scored accept gate for the Evaluator-Optimizer loop.
+"""``AcceptGate`` — deprecated alias for :class:`AcceptCheck` (PIR-856).
 
-A :class:`Knot` that decides whether a :class:`JudgeVerdict` clears a threshold.
-It is the scored generalisation of
-:class:`~pirn_agents.control.reflection_check.ReflectionCheck`: where
-``ReflectionCheck`` asks the LLM for a boolean "iterate again?", ``AcceptGate``
-turns the judge's continuous score into the same accept/reject decision without
-an extra LLM round-trip.
-
-Algorithm:
-    1. Receive a :class:`JudgeVerdict` and a numeric ``threshold``.
-    2. Validate types at process time.
-    3. Return ``True`` when ``verdict.score >= threshold``.
+``*Gate`` is reserved for the framework's halt/pass primitive
+(:class:`pirn.nodes.gate.gate.Gate`); this knot returns an accept/reject
+boolean from a threshold comparison, which makes it an assessment knot per
+Knot Design Rule 7, not a ``Gate``. Import :class:`AcceptCheck` instead —
+this alias is kept only so existing imports keep working and will be removed
+in a future release.
 """
 
 from __future__ import annotations
 
+import warnings
 from typing import Any
 
-from pirn.core.knot import Knot
-from pirn.core.knot_config import KnotConfig
-
-from pirn_agents.specializations.evaluator_optimizer.judge_verdict import JudgeVerdict
+from pirn_agents.specializations.evaluator_optimizer.accept_check import AcceptCheck
 
 
-class AcceptGate(Knot):
-    """Return whether a :class:`JudgeVerdict` meets the accept threshold."""
+class AcceptGate(AcceptCheck):
+    """Deprecated alias for :class:`AcceptCheck`. Import :class:`AcceptCheck` instead."""
 
-    def __init__(
-        self,
-        *,
-        verdict: Knot | JudgeVerdict,
-        threshold: Knot | float,
-        _config: KnotConfig,
-        **kwargs: Any,
-    ) -> None:
-        super().__init__(verdict=verdict, threshold=threshold, _config=_config, **kwargs)
-
-    async def process(
-        self,
-        verdict: JudgeVerdict,
-        threshold: float,
-        **_: Any,
-    ) -> bool:
-        """Return ``True`` when ``verdict.score`` meets or exceeds ``threshold``.
-
-        Args:
-            verdict: The judge's scored verdict.
-            threshold: The minimum score to accept.
-
-        Returns:
-            ``True`` if accepted, ``False`` otherwise.
-
-        Raises:
-            TypeError: If ``verdict`` is not a :class:`JudgeVerdict` or
-                ``threshold`` is not numeric.
-        """
-        if not isinstance(verdict, JudgeVerdict):
-            raise TypeError(
-                f"AcceptGate: verdict must be a JudgeVerdict, got {type(verdict).__name__}"
-            )
-        if not isinstance(threshold, (int, float)) or isinstance(threshold, bool):
-            raise TypeError(
-                f"AcceptGate: threshold must be numeric, got {type(threshold).__name__}"
-            )
-        return verdict.score >= float(threshold)
+    def __init__(self, **kwargs: Any) -> None:
+        warnings.warn(
+            "AcceptGate is deprecated; use AcceptCheck instead (PIR-856). "
+            "This alias will be removed in a future release.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(**kwargs)

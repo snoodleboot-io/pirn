@@ -25,6 +25,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
@@ -144,7 +145,7 @@ class TreeOfThought(Knot):
         ]
         tasks = [llm.chat(messages=messages) for _ in range(num_candidates)]
         raws = await asyncio.gather(*tasks)
-        return [self._extract_text(raw) for raw in raws]
+        return [LlmResponseText().extract(raw) for raw in raws]
 
     async def _score(self, path: str, llm: LLMProvider) -> float:
         messages = [
@@ -152,24 +153,8 @@ class TreeOfThought(Knot):
             {"role": "user", "content": path},
         ]
         raw = await llm.chat(messages=messages)
-        text = self._extract_text(raw).strip()
+        text = LlmResponseText().extract(raw).strip()
         try:
             return float(text)
         except ValueError:
             return 0.0
-
-    @staticmethod
-    def _extract_text(raw: Any) -> str:
-        if isinstance(raw, str):
-            return raw
-        if isinstance(raw, dict):
-            content = raw.get("content")
-            if isinstance(content, str):
-                return content
-            if isinstance(content, list) and content:
-                first = content[0]
-                if isinstance(first, dict):
-                    text = first.get("text")
-                    if isinstance(text, str):
-                        return text
-        return str(raw)

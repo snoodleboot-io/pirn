@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import unittest
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
@@ -28,14 +28,9 @@ class _HitStore(MemoryStore):
     async def retrieve(self, key) -> None:
         return None
 
-    async def search(self, query, *, top_k=10) -> AsyncIterator[Mapping[str, Any]]:
+    async def search(self, query, *, top_k=10) -> Sequence[Mapping[str, Any]]:
         has_hit = any(s in query for s in self._supported)
-
-        async def _aiter():
-            if has_hit:
-                yield {"fact": query}
-
-        return _aiter()
+        return [{"fact": query}] if has_hit else []
 
     async def forget(self, key) -> None:
         pass

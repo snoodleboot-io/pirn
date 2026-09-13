@@ -1,9 +1,9 @@
-"""Tests for :class:`FactCheckGate`."""
+"""Tests for :class:`FactCheck`."""
 
 from __future__ import annotations
 
 import unittest
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
@@ -11,8 +11,8 @@ from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.memory.stores.memory_store import MemoryStore
-from pirn_agents.specializations.guardrails.fact_check_gate import (
-    FactCheckGate,
+from pirn_agents.specializations.guardrails.fact_check import (
+    FactCheck,
 )
 from pirn_agents.types.messaging.agent_response import AgentResponse
 from tests.specializations.conftest import StubLLMProvider
@@ -31,16 +31,11 @@ class ScriptedSearchStore(MemoryStore):
     async def retrieve(self, key: str) -> Mapping[str, Any] | None:
         return None
 
-    async def search(self, query: str, *, top_k: int = 10) -> AsyncIterator[Mapping[str, Any]]:
+    async def search(self, query: str, *, top_k: int = 10) -> Sequence[Mapping[str, Any]]:
         self.queries.append(query)
         supported = self._supported
         has_hit = any(token in query for token in supported)
-
-        async def _aiter() -> AsyncIterator[Mapping[str, Any]]:
-            if has_hit:
-                yield {"fact": query}
-
-        return _aiter()
+        return [{"fact": query}] if has_hit else []
 
     async def forget(self, key: str) -> None:
         return None
@@ -49,9 +44,9 @@ class ScriptedSearchStore(MemoryStore):
         return None
 
 
-def _make_knot(llm: StubLLMProvider, store: MemoryStore) -> FactCheckGate:
+def _make_knot(llm: StubLLMProvider, store: MemoryStore) -> FactCheck:
     with Tapestry():
-        return FactCheckGate(
+        return FactCheck(
             response=AgentResponse(content="ok", finish_reason="stop"),
             store=store,
             llm=llm,
@@ -59,7 +54,7 @@ def _make_knot(llm: StubLLMProvider, store: MemoryStore) -> FactCheckGate:
         )
 
 
-class TestFactCheckGateProcess(unittest.IsolatedAsyncioTestCase):
+class TestFactCheckProcess(unittest.IsolatedAsyncioTestCase):
     async def test_process_appends_warning_for_unverified_claims(self) -> None:
         llm = StubLLMProvider(["- earth orbits sun\n- moon is made of cheese"])
         store = ScriptedSearchStore(supported_substrings=("earth orbits sun",))
@@ -68,7 +63,7 @@ class TestFactCheckGateProcess(unittest.IsolatedAsyncioTestCase):
             finish_reason="stop",
         )
         with Tapestry() as t:
-            FactCheckGate(response=response, store=store, llm=llm, _config=KnotConfig(id="fc"))
+            FactCheck(response=response, store=store, llm=llm, _config=KnotConfig(id="fc"))
         run = await t.run(RunRequest())
         assert run.succeeded
         result = run.outputs["fc"]
@@ -81,14 +76,14 @@ class TestFactCheckGateProcess(unittest.IsolatedAsyncioTestCase):
         store = ScriptedSearchStore(supported_substrings=("earth orbits sun",))
         response = AgentResponse(content="Earth orbits the sun.", finish_reason="stop")
         with Tapestry() as t:
-            FactCheckGate(response=response, store=store, llm=llm, _config=KnotConfig(id="fc"))
+            FactCheck(response=response, store=store, llm=llm, _config=KnotConfig(id="fc"))
         run = await t.run(RunRequest())
         assert run.succeeded
         result = run.outputs["fc"]
         assert "Unverified" not in result.content
 
 
-class TestFactCheckGateHappyPath(unittest.IsolatedAsyncioTestCase):
+class TestFactCheckHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_appends_warning_for_unverified_claims(self) -> None:
         # Two claims: only "earth orbits sun" has support in the store.
         llm = StubLLMProvider(["- earth orbits sun\n- moon is made of cheese"])
@@ -100,7 +95,7 @@ class TestFactCheckGateHappyPath(unittest.IsolatedAsyncioTestCase):
             finish_reason="stop",
         )
         with Tapestry() as t:
-            FactCheckGate(
+            FactCheck(
                 response=response,
                 store=store,
                 llm=llm,

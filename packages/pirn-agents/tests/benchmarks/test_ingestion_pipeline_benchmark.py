@@ -48,12 +48,8 @@ class _DictMemoryStore(MemoryStore):
     async def retrieve(self, key: str) -> Mapping[str, Any] | None:
         return self.entries.get(key)
 
-    async def search(self, query: str, *, top_k: int = 10) -> AsyncIterator[Mapping[str, Any]]:
-        async def _aiter() -> AsyncIterator[Mapping[str, Any]]:
-            for entry in list(self.entries.values())[:top_k]:
-                yield entry
-
-        return _aiter()
+    async def search(self, query: str, *, top_k: int = 10) -> Sequence[Mapping[str, Any]]:
+        return list(self.entries.values())[:top_k]
 
     async def forget(self, key: str) -> None:
         self.entries.pop(key, None)

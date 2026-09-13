@@ -1,6 +1,6 @@
 """``FactClaimExtractor`` — list factual claims emitted by an LLM.
 
-Inner stage knot used by :class:`FactCheckGate`. Renders the supplied
+Inner stage knot used by :class:`FactCheck`. Renders the supplied
 :class:`AgentResponse.content` into a claim-extraction prompt, calls
 the configured :class:`LLMProvider`, and parses out one claim per
 line. Empty lines and common list markers are stripped.

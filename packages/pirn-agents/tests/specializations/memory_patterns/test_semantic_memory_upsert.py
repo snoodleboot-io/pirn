@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import unittest
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
@@ -28,12 +28,8 @@ class RecordingMemoryStore(MemoryStore):
     async def retrieve(self, key: str) -> Mapping[str, Any] | None:
         return self.data.get(key)
 
-    async def search(self, query: str, *, top_k: int = 10) -> AsyncIterator[Mapping[str, Any]]:
-        async def _aiter() -> AsyncIterator[Mapping[str, Any]]:
-            if False:
-                yield {}
-
-        return _aiter()
+    async def search(self, query: str, *, top_k: int = 10) -> Sequence[Mapping[str, Any]]:
+        return []
 
     async def forget(self, key: str) -> None:
         self.data.pop(key, None)

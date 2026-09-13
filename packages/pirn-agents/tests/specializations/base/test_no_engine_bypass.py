@@ -153,6 +153,7 @@ USES_ASYNCIO_GATHER = frozenset(
 LOOP_AWAITS_LLM_OR_TOOL_CALL = frozenset(
     {
         "specializations/document_processing/_chunk_translator.py::_ChunkTranslator",
+        "specializations/guardrails/fact_claim_verifier.py::FactClaimVerifier",
         "specializations/plan_and_execute/plan_executor.py::PlanExecutor",
         "specializations/prompt_chaining/prompt_chain_pipeline.py::PromptChainPipeline",
         "specializations/rag/agentic_rag_pipeline.py::AgenticRagPipeline",

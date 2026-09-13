@@ -12,7 +12,7 @@ skipped too — the conditional work is never paid for.
 
 Typical use, inside a loop iteration's tapestry::
 
-    accepted = AcceptGate(verdict=verdict, threshold=t, _config=KnotConfig(id="gate"))
+    accepted = AcceptCheck(verdict=verdict, threshold=t, _config=KnotConfig(id="gate"))
     keep_going = Gate(input=accepted, predicate=lambda ok: not ok,
                       _config=KnotConfig(id="continue"))
     response = GatedAgentResponse(content=candidate, gate=keep_going,
@@ -58,11 +58,13 @@ class GatedAgentResponse(Knot):
         """
         super().__init__(content=content, gate=gate, _config=_config, **kwargs)
 
-    async def process(self, content: str, **_: Any) -> AgentResponse:
+    async def process(self, content: str, gate: Any = None, **_: Any) -> AgentResponse:
         """Present ``content`` as a response.
 
         Args:
             content: The resolved text.
+            gate: The gate's resolved pass-through value. Unused — only the
+                gate's *skip* propagates; see the class docstring.
 
         Returns:
             An :class:`AgentResponse` carrying ``content``.

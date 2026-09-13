@@ -74,6 +74,9 @@ class LocalEmbeddingProvider(BaseEmbeddingProvider):
         client = await self._get_client()
         batch = list(texts)
 
+        # design-decision-override: asyncio.to_thread needs a zero-arg callable;
+        # closing over client/batch here avoids a partial/lambda-with-default
+        # dance for a single-use helper.
         def _encode() -> Any:
             return client.encode(batch)
 

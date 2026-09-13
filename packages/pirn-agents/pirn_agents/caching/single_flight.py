@@ -21,12 +21,6 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 
-def _consume_outcome(future: asyncio.Future[Any]) -> None:
-    """Retrieve a resolved future's outcome so a no-waiter result never warns."""
-    if not future.cancelled():
-        future.exception()  # marks the exception (if any) retrieved; None for a result
-
-
 class SingleFlight:
     """De-duplicate concurrent identical async calls by key (single-flight)."""
 
@@ -34,6 +28,12 @@ class SingleFlight:
         """Create a coalescer with no in-flight calls."""
         self._in_flight: dict[str, asyncio.Future[Any]] = {}
         self.coalesced = 0
+
+    @staticmethod
+    def _consume_outcome(future: asyncio.Future[Any]) -> None:
+        """Retrieve a resolved future's outcome so a no-waiter result never warns."""
+        if not future.cancelled():
+            future.exception()  # marks the exception (if any) retrieved; None for a result
 
     def __len__(self) -> int:
         return len(self._in_flight)
@@ -69,7 +69,7 @@ class SingleFlight:
         # awaits this future; retrieve its outcome in a done-callback to suppress
         # asyncio's "exception was never retrieved" warning without affecting the
         # value waiters observe when they await it.
-        future.add_done_callback(_consume_outcome)
+        future.add_done_callback(self._consume_outcome)
         self._in_flight[key] = future
         try:
             result = await factory()

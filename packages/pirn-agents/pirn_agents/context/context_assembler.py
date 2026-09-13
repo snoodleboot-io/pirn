@@ -27,6 +27,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
+from pirn.core.assembler import Assembler
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -38,7 +39,7 @@ from pirn_agents.context.recency_eviction_policy import RecencyEvictionPolicy
 from pirn_agents.context.token_counter import TokenCounter
 
 
-class ContextAssembler(Knot):
+class ContextAssembler(Assembler):
     """Assembles context items to fit a token budget with pluggable eviction."""
 
     def __init__(

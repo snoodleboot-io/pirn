@@ -31,6 +31,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn_agents.interfaces.router import Router
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 
 
 class IntentRouter(Router):
@@ -95,20 +96,10 @@ class IntentRouter(Router):
             {"categories": category_list, "message": message},
         )
         raw = await llm.chat([{"role": "user", "content": prompt}])
-        label = self._extract_text(raw).strip()
+        label = LlmResponseText().extract(raw).strip()
         if label in categories_tuple:
             return label
         for cat in categories_tuple:
             if cat.lower() in label.lower():
                 return cat
         return categories_tuple[0]
-
-    @staticmethod
-    def _extract_text(raw: Any) -> str:
-        if isinstance(raw, str):
-            return raw
-        if isinstance(raw, dict):
-            content = raw.get("content")
-            if isinstance(content, str):
-                return content
-        return str(raw)

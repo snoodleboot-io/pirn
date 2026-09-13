@@ -9,7 +9,6 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
-from pirn_agents.control.reflection_check import ReflectionCheck
 from pirn_agents.specializations.evaluator_optimizer.evaluator_optimizer_pipeline import (
     EvaluatorOptimizerPipeline,
 )
@@ -68,16 +67,13 @@ class TestEvaluatorOptimizerPipeline(unittest.IsolatedAsyncioTestCase):
     async def test_reflection_gate_early_stop(self) -> None:
         # gen, judge (below threshold), then ReflectionCheck says "no" -> stop.
         llm = StubLLMProvider(["c1", "SCORE: 3\nmeh", "no, stop here"])
-        with Tapestry():
-            gate = ReflectionCheck.__new__(ReflectionCheck)
-            object.__setattr__(gate, "_config", KnotConfig(id="rc"))
         with Tapestry() as t:
             EvaluatorOptimizerPipeline(
                 task="q",
                 llm=llm,
                 threshold=8.0,
                 max_iterations=5,
-                reflection_gate=gate,
+                reflection_gate=True,
                 _config=KnotConfig(id="eo"),
             )
         run = await t.run(RunRequest())
@@ -91,7 +87,6 @@ class TestEvaluatorOptimizerPipeline(unittest.IsolatedAsyncioTestCase):
         with Tapestry():
             knot = EvaluatorOptimizerPipeline.__new__(EvaluatorOptimizerPipeline)
             object.__setattr__(knot, "_config", KnotConfig(id="eo"))
-            object.__setattr__(knot, "_reflection_gate", None)
         with self.assertRaises(ValueError):
             await knot.process(task="q", llm=llm, max_iterations=0)
 

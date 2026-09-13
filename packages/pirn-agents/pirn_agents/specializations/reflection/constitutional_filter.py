@@ -23,6 +23,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.specializations.reflection.constitutional_violation_error import (
     ConstitutionalViolationError,
 )
@@ -117,7 +118,7 @@ class ConstitutionalFilter(Knot):
                 },
             ]
             raw = await llm.chat(messages=messages)
-            evaluation = self._extract_text(raw).strip()
+            evaluation = LlmResponseText().extract(raw).strip()
             if evaluation.upper() == "COMPLIANT":
                 return AgentResponse(content=current_content)
             current_content = evaluation
@@ -126,19 +127,3 @@ class ConstitutionalFilter(Knot):
             "ConstitutionalFilter: response still violates principles after "
             f"{max_revisions} revision(s)"
         )
-
-    @staticmethod
-    def _extract_text(raw: Any) -> str:
-        if isinstance(raw, str):
-            return raw
-        if isinstance(raw, dict):
-            content = raw.get("content")
-            if isinstance(content, str):
-                return content
-            if isinstance(content, list) and content:
-                first = content[0]
-                if isinstance(first, dict):
-                    text = first.get("text")
-                    if isinstance(text, str):
-                        return text
-        return str(raw)

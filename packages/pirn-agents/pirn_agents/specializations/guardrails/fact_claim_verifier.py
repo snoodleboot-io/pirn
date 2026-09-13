@@ -1,6 +1,6 @@
 """``FactClaimVerifier`` — search a memory store for support of each claim.
 
-Inner stage knot used by :class:`FactCheckGate`. Queries the
+Inner stage knot used by :class:`FactCheck`. Queries the
 configured :class:`MemoryStore` once per claim. Claims that return
 zero hits are recorded as unverified; the original
 :class:`AgentResponse` is returned with a warning footer appended
@@ -10,8 +10,7 @@ Algorithm:
     1. Validate that ``response`` is an :class:`AgentResponse`; raise
        :class:`TypeError` otherwise.
     2. Iterate over ``claims``; skip any entry that is not a non-empty string.
-    3. For each valid claim, call ``store.search(claim, top_k=1)``; await the
-       result if it is awaitable and consume at most one item from the iterator.
+    3. For each valid claim, ``await store.search(claim, top_k=1)``.
     4. Collect claims that produced zero hits into ``unverified``.
     5. If ``unverified`` is empty, return ``response`` unchanged.
     6. Otherwise build a warning footer listing each unverified claim prefixed
@@ -84,22 +83,13 @@ class FactClaimVerifier(Knot):
         for claim in claims:
             if not isinstance(claim, str) or not claim:
                 continue
-            iterator = store.search(claim, top_k=1)
-            if hasattr(iterator, "__await__"):
-                iterator = await iterator  # type: ignore[assignment]
-            hits: list[Any] = []
-            if hasattr(iterator, "__aiter__"):
-                async for hit in iterator:  # type: ignore[misc]
-                    hits.append(hit)
-                    break
-            elif isinstance(iterator, list):
-                hits = list(iterator[:1])
+            hits = await store.search(claim, top_k=1)
             if not hits:
                 unverified.append(claim)
         if not unverified:
             return response
         warning_lines = "\n".join(f"- {claim}" for claim in unverified)
-        warning = "\n\n[fact_check_gate] Unverified claims:\n" + warning_lines
+        warning = "\n\n[fact_check] Unverified claims:\n" + warning_lines
         return AgentResponse(
             content=response.content + warning,
             tool_calls=response.tool_calls,
