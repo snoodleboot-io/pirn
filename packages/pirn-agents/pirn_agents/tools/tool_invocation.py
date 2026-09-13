@@ -75,12 +75,7 @@ class ToolInvocation(Knot):
             call: The :class:`ToolCall` to execute, either as a literal or as an
                 upstream knot the engine resolves first.
             _config: Framework metadata; ``id`` is required as for any knot.
-
-        Raises:
-            TypeError: If ``tool`` is not a :class:`Tool`.
         """
-        if not isinstance(tool, Tool):
-            raise TypeError(f"ToolInvocation: tool must be a Tool, got {type(tool).__name__}")
         super().__init__(tool=tool, call=call, _config=_config, **kwargs)
 
     async def process(self, tool: Tool, call: ToolCall, **_: Any) -> ToolResult:
@@ -107,8 +102,11 @@ class ToolInvocation(Knot):
             ``latency`` and either the tool's value or the captured error.
 
         Raises:
-            TypeError: If ``call`` is not a :class:`ToolCall`.
+            TypeError: If ``tool`` is not a :class:`Tool`, or ``call`` is not a
+                :class:`ToolCall`.
         """
+        if not isinstance(tool, Tool):
+            raise TypeError(f"ToolInvocation: tool must be a Tool, got {type(tool).__name__}")
         if not isinstance(call, ToolCall):
             raise TypeError(f"ToolInvocation: call must be a ToolCall, got {type(call).__name__}")
         start = time.perf_counter()

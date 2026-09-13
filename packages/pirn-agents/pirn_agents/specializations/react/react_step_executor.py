@@ -16,27 +16,43 @@ the form::
     Action: <tool_name>
     Action Input: <free-form input>
 
-If a matching tool is registered, we invoke it; otherwise the
-observation is a structured error string. A "Final Answer:" prefix
-short-circuits tool selection: no tool call is performed and the
-trailing assistant message stands as the final answer for the loop.
+If a matching tool is registered, we invoke it — through the engine, as a
+:class:`~pirn_agents.tools.tool_invocation.ToolInvocation` (PIR-856), the
+same knot :class:`~pirn_agents.planning.tool_executor.ToolExecutor` and
+:class:`~pirn_agents.agent.parallel_tool_executor.ParallelToolExecutor` use,
+so the call gets its own lineage/history/``Ok|Err|Skipped`` instead of being
+awaited inline. Otherwise the observation is a structured error string built
+directly, with nothing to invoke. A "Final Answer:" prefix short-circuits
+tool selection: no tool call is performed and the trailing assistant message
+stands as the final answer for the loop.
+
+This is a :class:`~pirn_agents.specializations.base.agent_pipeline.AgentPipeline`
+(the ``specializations/**`` ``SubTapestry`` seam) rather than a plain
+``Knot``: the thought/prompt/parsing logic is ordinary Python decision-making
+that runs before any graph is built — exactly like
+:class:`~pirn_agents.planning.tool_executor.ToolExecutor` deciding which tool
+a call names — but the tool call itself must be a node in an inner pipeline,
+whose sink ``process()`` returns.
 
 Algorithm:
     1. Receive ``context``, ``llm``, ``tools``, and ``already_terminated``
        at process time.
     2. Validate ``llm`` and each entry in ``tools``; raise on bad types.
-    3. If ``already_terminated`` is true, return ``()`` without calling
-       the LLM — an earlier step has produced the final answer and this
-       unrolled step is a no-op.
+    3. If ``already_terminated`` is true, return a terminal producing ``()``
+       — an earlier step has produced the final answer and this unrolled
+       step is a no-op.
     4. Build a tool registry keyed by ``tool.name``.
     5. Render the prompt from ``context``.
     6. Call ``llm.chat`` with the rendered prompt.
     7. Extract the thought text from the raw LLM response.
-    8. If the thought contains ``"Final Answer:"``, return ``(thought,)``.
+    8. If the thought contains ``"Final Answer:"``, return a terminal
+       producing ``(thought,)``.
     9. Parse ``Action:`` / ``Action Input:`` lines from the thought.
-    10. If no action name is found, return ``(thought,)``.
-    11. Invoke the named tool (or produce an error observation).
-    12. Return ``(thought, tool_call_message, observation)``.
+    10. If no action name is found, return a terminal producing ``(thought,)``.
+    11. If the named tool is not registered, return a terminal producing the
+        three messages directly — there is nothing to invoke.
+    12. Otherwise wire a ``ToolInvocation`` for the named tool and return the
+        assembler knot that turns its ``ToolResult`` into the three messages.
 
 
 References:
@@ -51,14 +67,49 @@ from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_factory import knot
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
+from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.tools.tool import Tool
+from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_invocation import ToolInvocation
+from pirn_agents.tools.tool_result import ToolResult
+from pirn_agents.tools.tool_status import ToolStatus
 from pirn_agents.types.messaging.agent_message import AgentMessage
 
 
-class ReActStepExecutor(Knot):
+@knot
+async def _constant_messages(value: tuple[AgentMessage, ...]) -> tuple[AgentMessage, ...]:
+    """Terminal for a branch that needs no tool call: the value is already final.
+
+    A knot rather than a plain early return: ``process()`` must return the
+    sink of an inner pipeline now, so every branch — including the ones with
+    nothing left to compute — needs a graph node to return.
+    """
+    return value
+
+
+@knot
+async def _observation_assembler(
+    thought: AgentMessage,
+    tool_call_message: AgentMessage,
+    call_id: str,
+    action_name: str,
+    tool_result: ToolResult,
+) -> tuple[AgentMessage, ...]:
+    """Terminal: turn a completed ``ToolInvocation``'s result into the step's messages."""
+    content = (
+        str(tool_result.result)
+        if tool_result.status is ToolStatus.OK
+        else (tool_result.error or f"Tool {action_name!r} failed with no message.")
+    )
+    observation = AgentMessage(role="tool", content=content, tool_call_id=call_id, name=action_name)
+    return (thought, tool_call_message, observation)
+
+
+class ReActStepExecutor(AgentPipeline):
     """One ReAct iteration: thought → optional tool-call → observation."""
 
     _react_prompt: ClassVar[PromptBinding] = PromptBinding(
@@ -104,8 +155,8 @@ class ReActStepExecutor(Knot):
         tools: Sequence[Tool],
         already_terminated: bool,
         **_: Any,
-    ) -> tuple[AgentMessage, ...]:
-        """Emit a thought, optionally invoke a tool, and return the new tail of messages.
+    ) -> Knot:
+        """Emit a thought, optionally wire a tool call, and return the step's sink knot.
 
         Args:
             context: The current agent context used to render the prompt for the LLM.
@@ -115,9 +166,11 @@ class ReActStepExecutor(Knot):
                 When true this step is a no-op and no LLM call is made.
 
         Returns:
-            A tuple of new AgentMessage instances: the thought, optional tool-call surrogate,
-            and observation; or just the thought when a Final Answer is emitted. Returns an
-            empty tuple when the loop has already terminated.
+            The sink of the inner pipeline. Its output — a tuple of new
+            ``AgentMessage`` instances: the thought, optional tool-call
+            surrogate, and observation (or just the thought for a Final
+            Answer or no-action turn; empty when already terminated) —
+            becomes this knot's output.
 
         Raises:
             TypeError: If llm is not an LLMProvider or any tool is not a Tool.
@@ -134,7 +187,7 @@ class ReActStepExecutor(Knot):
                     f"got {type(candidate).__name__}"
                 )
         if already_terminated:
-            return ()
+            return _constant_messages(value=(), _config=KnotConfig(id="noop"))
         tools_by_name = {tool.name: tool for tool in tool_tuple}
         prompt = self._render_prompt(context, tool_tuple)
         chat_messages = [{"role": "user", "content": prompt}]
@@ -142,10 +195,10 @@ class ReActStepExecutor(Knot):
         thought_text = self._extract_text(raw)
         thought = AgentMessage(role="assistant", content=thought_text)
         if self._final_answer_marker in thought_text:
-            return (thought,)
+            return _constant_messages(value=(thought,), _config=KnotConfig(id="final-answer"))
         action_name, action_input = self._parse_action(thought_text)
         if action_name is None:
-            return (thought,)
+            return _constant_messages(value=(thought,), _config=KnotConfig(id="no-action"))
         call_id = f"{self.knot_id}-call"
         tool_call_message = AgentMessage(
             role="assistant",
@@ -153,14 +206,28 @@ class ReActStepExecutor(Knot):
             tool_call_id=call_id,
             name=action_name,
         )
-        observation_text = await self._invoke_tool(tools_by_name, action_name, action_input)
-        observation = AgentMessage(
-            role="tool",
-            content=observation_text,
-            tool_call_id=call_id,
-            name=action_name,
+        tool = tools_by_name.get(action_name)
+        if tool is None:
+            observation = AgentMessage(
+                role="tool",
+                content=f"Tool {action_name!r} is not registered.",
+                tool_call_id=call_id,
+                name=action_name,
+            )
+            return _constant_messages(
+                value=(thought, tool_call_message, observation),
+                _config=KnotConfig(id="tool-not-registered"),
+            )
+        call = ToolCall(tool_name=action_name, arguments={"input": action_input}, call_id=call_id)
+        invocation = ToolInvocation(tool=tool, call=call, _config=KnotConfig(id="tool-call"))
+        return _observation_assembler(
+            thought=thought,
+            tool_call_message=tool_call_message,
+            call_id=call_id,
+            action_name=action_name,
+            tool_result=invocation,
+            _config=KnotConfig(id="assemble"),
         )
-        return (thought, tool_call_message, observation)
 
     def _render_prompt(self, context: Any, tools: tuple[Tool, ...]) -> str:
         messages: tuple[AgentMessage, ...]
@@ -186,17 +253,6 @@ class ReActStepExecutor(Knot):
             elif line.startswith(self._action_input_marker):
                 action_input = line[len(self._action_input_marker) :].strip()
         return action_name, action_input
-
-    @staticmethod
-    async def _invoke_tool(tools_by_name: dict[str, Tool], name: str, raw_input: str) -> str:
-        tool = tools_by_name.get(name)
-        if tool is None:
-            return f"Tool {name!r} is not registered."
-        try:
-            result = await tool.invoke({"input": raw_input})
-        except Exception as exc:
-            return f"Tool {name!r} raised: {exc}"
-        return str(result)
 
     @staticmethod
     def _extract_text(raw: Any) -> str:

@@ -18,10 +18,7 @@ from typing import Any
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.agent.parallel_tool_executor import (
-    _UNHASHABLE_ARGS_DIGEST,
-    ParallelToolExecutor,
-)
+from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
 from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_invocation_hook import ToolInvocationHook
@@ -139,8 +136,12 @@ async def test_on_start_fires_before_on_finish_with_ids() -> None:
     calls = [ToolCall(tool_name="t", arguments={"a": 1}, call_id="c1")]
     executor = _make_executor(hook=hook)
 
+    # PIR-856: hook is a process()-declared input now (Rule 2), not
+    # self._hook read at run time — a direct process() call (bypassing the
+    # engine, which would forward the constructor's config value
+    # automatically) must supply it explicitly here too.
     await executor.process(
-        tool_calls=calls, toolset=toolset, max_concurrency=8, timeout=None, retries=0
+        tool_calls=calls, toolset=toolset, max_concurrency=8, timeout=None, retries=0, hook=hook
     )
 
     assert len(hook.events) == 2
@@ -162,8 +163,9 @@ async def test_args_digest_non_empty_and_stable_for_identical_args() -> None:
     ]
     executor = _make_executor(hook=hook)
 
+    # PIR-856: see the matching comment in test_on_start_fires_before_on_finish_with_ids.
     await executor.process(
-        tool_calls=calls, toolset=toolset, max_concurrency=8, timeout=None, retries=0
+        tool_calls=calls, toolset=toolset, max_concurrency=8, timeout=None, retries=0, hook=hook
     )
 
     digests = {s.call_id: s.args_digest for s in hook.starts()}
@@ -180,8 +182,9 @@ async def test_args_digest_differs_for_different_args() -> None:
     ]
     executor = _make_executor(hook=hook)
 
+    # PIR-856: see the matching comment in test_on_start_fires_before_on_finish_with_ids.
     await executor.process(
-        tool_calls=calls, toolset=toolset, max_concurrency=8, timeout=None, retries=0
+        tool_calls=calls, toolset=toolset, max_concurrency=8, timeout=None, retries=0, hook=hook
     )
 
     digests = {s.call_id: s.args_digest for s in hook.starts()}
@@ -194,8 +197,9 @@ async def test_on_finish_status_ok_for_success() -> None:
     calls = [ToolCall(tool_name="t", arguments={}, call_id="c1")]
     executor = _make_executor(hook=hook)
 
+    # PIR-856: see the matching comment in test_on_start_fires_before_on_finish_with_ids.
     await executor.process(
-        tool_calls=calls, toolset=toolset, max_concurrency=8, timeout=None, retries=0
+        tool_calls=calls, toolset=toolset, max_concurrency=8, timeout=None, retries=0, hook=hook
     )
 
     finish = hook.finishes()[0]
@@ -209,8 +213,9 @@ async def test_on_finish_status_error_for_raising_tool() -> None:
     calls = [ToolCall(tool_name="t", arguments={}, call_id="c1")]
     executor = _make_executor(hook=hook)
 
+    # PIR-856: see the matching comment in test_on_start_fires_before_on_finish_with_ids.
     await executor.process(
-        tool_calls=calls, toolset=toolset, max_concurrency=8, timeout=None, retries=0
+        tool_calls=calls, toolset=toolset, max_concurrency=8, timeout=None, retries=0, hook=hook
     )
 
     finish = hook.finishes()[0]
@@ -224,8 +229,9 @@ async def test_on_finish_status_timeout_for_timing_out_tool() -> None:
     calls = [ToolCall(tool_name="t", arguments={}, call_id="c1")]
     executor = _make_executor(hook=hook)
 
+    # PIR-856: see the matching comment in test_on_start_fires_before_on_finish_with_ids.
     await executor.process(
-        tool_calls=calls, toolset=toolset, max_concurrency=8, timeout=0.05, retries=0
+        tool_calls=calls, toolset=toolset, max_concurrency=8, timeout=0.05, retries=0, hook=hook
     )
 
     finish = hook.finishes()[0]
@@ -239,8 +245,9 @@ async def test_on_finish_fires_for_unknown_tool() -> None:
     calls = [ToolCall(tool_name="missing", arguments={}, call_id="c1")]
     executor = _make_executor(hook=hook)
 
+    # PIR-856: see the matching comment in test_on_start_fires_before_on_finish_with_ids.
     await executor.process(
-        tool_calls=calls, toolset=toolset, max_concurrency=8, timeout=None, retries=0
+        tool_calls=calls, toolset=toolset, max_concurrency=8, timeout=None, retries=0, hook=hook
     )
 
     assert len(hook.starts()) == 1
@@ -256,8 +263,14 @@ async def test_noop_default_hook_is_inert_and_matches_no_hook() -> None:
     without_hook = await _make_executor().process(
         tool_calls=calls, toolset=toolset, max_concurrency=8, timeout=None, retries=0
     )
-    with_base_hook = await _make_executor(hook=ToolInvocationHook()).process(
-        tool_calls=calls, toolset=toolset, max_concurrency=8, timeout=None, retries=0
+    base_hook = ToolInvocationHook()
+    with_base_hook = await _make_executor(hook=base_hook).process(
+        tool_calls=calls,
+        toolset=toolset,
+        max_concurrency=8,
+        timeout=None,
+        retries=0,
+        hook=base_hook,
     )
 
     assert _comparable(without_hook) == _comparable(with_base_hook)
@@ -268,10 +281,16 @@ async def test_noop_default_hook_is_inert_and_matches_no_hook() -> None:
 async def test_raising_hook_does_not_break_execution() -> None:
     toolset = Toolset([StubTool(name="t", result="v")])
     calls = [ToolCall(tool_name="t", arguments={}, call_id="c1")]
-    executor = _make_executor(hook=RaisingHook())
+    raising_hook = RaisingHook()
+    executor = _make_executor(hook=raising_hook)
 
     results = await executor.process(
-        tool_calls=calls, toolset=toolset, max_concurrency=8, timeout=None, retries=0
+        tool_calls=calls,
+        toolset=toolset,
+        max_concurrency=8,
+        timeout=None,
+        retries=0,
+        hook=raising_hook,
     )
 
     assert len(results) == 1
@@ -310,8 +329,9 @@ async def test_opaque_arguments_do_not_break_tool_execution() -> None:
     calls = [ToolCall(tool_name="t", arguments={"handle": _AddressOnly()}, call_id="c1")]
     executor = _make_executor(hook=hook)
 
+    # PIR-856: see the matching comment in test_on_start_fires_before_on_finish_with_ids.
     results = await executor.process(
-        tool_calls=calls, toolset=toolset, max_concurrency=8, timeout=None, retries=0
+        tool_calls=calls, toolset=toolset, max_concurrency=8, timeout=None, retries=0, hook=hook
     )
 
     assert len(results) == 1
@@ -321,7 +341,7 @@ async def test_opaque_arguments_do_not_break_tool_execution() -> None:
     # plausible-looking address-derived digest.
     starts = [e for e in hook.events if isinstance(e, StartEvent)]
     assert len(starts) == 1
-    assert starts[0].args_digest == _UNHASHABLE_ARGS_DIGEST
+    assert starts[0].args_digest == ParallelToolExecutor._UNHASHABLE_ARGS_DIGEST
     assert not all(c in "0123456789abcdef" for c in starts[0].args_digest)
 
 
@@ -341,8 +361,9 @@ async def test_content_rendering_arguments_still_get_a_real_digest() -> None:
     ]
     executor = _make_executor(hook=hook)
 
+    # PIR-856: see the matching comment in test_on_start_fires_before_on_finish_with_ids.
     await executor.process(
-        tool_calls=calls, toolset=toolset, max_concurrency=8, timeout=None, retries=0
+        tool_calls=calls, toolset=toolset, max_concurrency=8, timeout=None, retries=0, hook=hook
     )
 
     digests = [e.args_digest for e in hook.events if isinstance(e, StartEvent)]

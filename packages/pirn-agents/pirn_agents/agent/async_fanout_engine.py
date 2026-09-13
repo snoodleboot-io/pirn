@@ -26,6 +26,7 @@ instance without an ``__init__`` ordering conflict.
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 from collections.abc import Awaitable, Callable, Iterable
 from typing import Generic, TypeVar
 
@@ -42,12 +43,6 @@ class AsyncFanoutEngine(Generic[R]):
     _rng: Callable[[], float] | None
     _sleep: Callable[[float], Awaitable[None]]
 
-    async def _backoff(self, attempt: int) -> None:
-        """Sleep for the policy's delay before retry ``attempt`` (0-based)."""
-        delay = self._retry_policy.backoff_delay(attempt, rng=self._rng)
-        if delay > 0:
-            await self._sleep(delay)
-
     @staticmethod
     async def _with_timeout(
         invoke: Callable[[], Awaitable[object]], timeout: float | None
@@ -63,7 +58,7 @@ class AsyncFanoutEngine(Generic[R]):
         return await invoke()
 
     @staticmethod
-    async def _drain_on_cancel(tasks: Iterable[asyncio.Task[R]]) -> None:
+    async def drain_on_cancel(tasks: Iterable[asyncio.Task[R]]) -> None:
         """Cancel every in-flight task and await its unwind, swallowing errors.
 
         The caller re-raises :class:`asyncio.CancelledError` after this returns, so
@@ -74,7 +69,7 @@ class AsyncFanoutEngine(Generic[R]):
             task.cancel()
         await asyncio.gather(*pending, return_exceptions=True)
 
-    async def _run_with_retries(
+    async def run_with_retries(
         self,
         invoke: Callable[[], Awaitable[object]],
         *,
@@ -115,8 +110,11 @@ class AsyncFanoutEngine(Generic[R]):
         Returns:
             The ``R`` built by whichever terminal builder fires.
         """
-        attempt = 0
-        while True:
+        attempts_made = 0
+
+        async def _attempt(attempt: int) -> object:
+            nonlocal attempts_made
+            attempts_made = attempt + 1
             if before_attempt is not None:
                 await before_attempt()
             try:
@@ -126,13 +124,32 @@ class AsyncFanoutEngine(Generic[R]):
             except Exception as exc:
                 if on_exception is not None:
                     on_exception(exc)
-                if timeout is not None and isinstance(exc, TimeoutError):
-                    return on_timeout(exc, attempt + 1)
-                if attempt >= retries:
-                    return on_error(exc, attempt + 1)
-                await self._backoff(attempt)
-                attempt += 1
-                continue
+                raise
             if on_success is not None:
                 on_success()
-            return on_ok(value, attempt + 1)
+            return value
+
+        def _is_retryable(exc: BaseException) -> bool:
+            # A TimeoutError under a configured budget is terminal, never
+            # retried; without a budget it is just another exception.
+            return not (timeout is not None and isinstance(exc, TimeoutError))
+
+        # ``retries`` is a per-call budget distinct from the composed policy's
+        # own ``max_retries`` (the policy supplies only the backoff *shape*);
+        # only build a copy when the two actually differ.
+        policy = (
+            self._retry_policy
+            if retries == self._retry_policy.max_retries
+            else dataclasses.replace(self._retry_policy, max_retries=retries)
+        )
+        try:
+            value = await policy.run(
+                _attempt, is_retryable=_is_retryable, sleep=self._sleep, rng=self._rng
+            )
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            if timeout is not None and isinstance(exc, TimeoutError):
+                return on_timeout(exc, attempts_made)
+            return on_error(exc, attempts_made)
+        return on_ok(value, attempts_made)

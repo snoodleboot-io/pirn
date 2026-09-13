@@ -1,10 +1,23 @@
-"""Tests for :class:`ToolChain`."""
+"""Tests for :class:`ToolChain`.
+
+``ToolChain`` is a ``SubTapestry`` since PIR-856: ``process`` returns the sink
+of an inner pipeline (one ``ToolInvocation`` per step, gated on the previous
+step's success) rather than the result itself, so the outcome tests run a
+real tapestry and read the chain's output. That is the behaviour under test —
+the whole point of the change is that every step goes through the engine —
+and asserting on a directly-awaited ``process`` would no longer exercise it.
+The input-validation tests still call ``process`` directly, because the
+guards fire before any knot is built (see
+``tests/specializations/planning/test_tool_executor.py`` for the identical
+pattern PIR-733 established for the single-call case).
+"""
 
 from __future__ import annotations
 
 import unittest
 
 from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.tool_use.tool_chain import ToolChain
@@ -20,6 +33,15 @@ def _make_chain(initial_call: ToolCall, tools: list) -> ToolChain:
             tools=tools,
             _config=KnotConfig(id="chain"),
         )
+
+
+async def _run_chain(initial_call: ToolCall, tools: list) -> ToolResult:
+    """Run a ToolChain through a real Tapestry and return its output."""
+    with Tapestry() as t:
+        ToolChain(initial_call=initial_call, tools=tools, _config=KnotConfig(id="chain"))
+    result = await t.run(RunRequest())
+    assert result.succeeded, result.exceptions
+    return result.outputs["chain"]
 
 
 class TestToolChainValidation(unittest.IsolatedAsyncioTestCase):
@@ -47,8 +69,7 @@ class TestToolChainHappyPath(unittest.IsolatedAsyncioTestCase):
     async def test_executes_single_tool(self) -> None:
         tool = StubTool(name="step1", handler="result1")
         call = ToolCall(tool_name="step1", arguments={"input": "x"}, call_id="c1")
-        chain = _make_chain(call, [tool])
-        result: ToolResult = await chain.process(initial_call=call, tools=[tool])
+        result = await _run_chain(call, [tool])
         assert result.result == "result1"
         assert result.error is None
 
@@ -62,8 +83,7 @@ class TestToolChainHappyPath(unittest.IsolatedAsyncioTestCase):
         tool1 = StubTool(name="step1", handler="first-output")
         tool2 = StubTool(name="step2", handler=capture)
         call = ToolCall(tool_name="step1", arguments={"input": "start"}, call_id="c1")
-        chain = _make_chain(call, [tool1, tool2])
-        result: ToolResult = await chain.process(initial_call=call, tools=[tool1, tool2])
+        result = await _run_chain(call, [tool1, tool2])
         assert result.result == "processed:first-output"
         assert received_args[0] == {"input": "first-output"}
 
@@ -73,6 +93,66 @@ class TestToolChainHappyPath(unittest.IsolatedAsyncioTestCase):
 
         tool = StubTool(name="explode", handler=fail)
         call = ToolCall(tool_name="explode", arguments={}, call_id="c1")
-        chain = _make_chain(call, [tool])
-        result: ToolResult = await chain.process(initial_call=call, tools=[tool])
-        assert result.error == "step exploded"
+        result = await _run_chain(call, [tool])
+        # PIR-856: the step now runs through ToolInvocation, which reports
+        # "TypeName: message" (and scrubs credentials), matching
+        # ToolExecutor's existing single-call fidelity, rather than the bare
+        # str(exc) this class used to build inline.
+        assert result.error == "ValueError: step exploded"
+
+    async def test_call_id_is_preserved_across_every_step(self) -> None:
+        tool1 = StubTool(name="step1", handler="a")
+        tool2 = StubTool(name="step2", handler="b")
+        call = ToolCall(tool_name="step1", arguments={}, call_id="original-id")
+        result = await _run_chain(call, [tool1, tool2])
+        assert result.call_id == "original-id"
+
+
+class TestToolChainShortCircuits(unittest.IsolatedAsyncioTestCase):
+    """PIR-856: a failing step must stop the chain — later tools never run."""
+
+    async def test_a_failure_stops_the_chain_before_the_next_tool(self) -> None:
+        def fail(args):  # type: ignore[no-untyped-def]
+            raise RuntimeError("boom")
+
+        tool1 = StubTool(name="step1", handler=fail)
+        tool2 = StubTool(name="step2", handler="never")
+        call = ToolCall(tool_name="step1", arguments={}, call_id="c1")
+
+        result = await _run_chain(call, [tool1, tool2])
+
+        assert result.error == "RuntimeError: boom"
+        assert tool2.invocations == []
+
+    async def test_a_middle_failure_stops_a_three_tool_chain(self) -> None:
+        def fail(args):  # type: ignore[no-untyped-def]
+            raise RuntimeError("middle boom")
+
+        tool1 = StubTool(name="step1", handler="ok1")
+        tool2 = StubTool(name="step2", handler=fail)
+        tool3 = StubTool(name="step3", handler="never")
+        call = ToolCall(tool_name="step1", arguments={}, call_id="c1")
+
+        result = await _run_chain(call, [tool1, tool2, tool3])
+
+        assert result.error == "RuntimeError: middle boom"
+        assert tool3.invocations == []
+
+
+class TestRunsThroughTheEngine(unittest.IsolatedAsyncioTestCase):
+    """PIR-856: each step is a node now, not an inline await."""
+
+    async def test_each_step_gets_its_own_lineage_row(self) -> None:
+        tool1 = StubTool(name="step1", handler="a")
+        tool2 = StubTool(name="step2", handler="b")
+        call = ToolCall(tool_name="step1", arguments={}, call_id="c1")
+        with Tapestry() as t:
+            ToolChain(initial_call=call, tools=[tool1, tool2], _config=KnotConfig(id="chain"))
+
+        result = await t.run(RunRequest())
+
+        assert result.succeeded
+        children = await t.history.children_of(result.run_id)
+        inner_knot_ids = {row.knot_id for child in children for row in child.lineage}
+        assert "step-0" in inner_knot_ids
+        assert "step-1" in inner_knot_ids

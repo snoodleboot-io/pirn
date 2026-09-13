@@ -39,7 +39,7 @@ import asyncio
 import logging
 import time
 from collections.abc import Awaitable, Callable, Sequence
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
@@ -59,21 +59,42 @@ from pirn_agents.tools.tool_result import ToolResult
 from pirn_agents.tools.tool_status import ToolStatus
 from pirn_agents.tools.toolset import Toolset
 
-# Reported as the argument digest when the arguments have no content-derived
-# encoding (PIR-826). Deliberately NOT hex, so a consumer can distinguish it
-# from a real 16-hex-char digest instead of being handed an address-derived
-# value that looks like one.
-_UNHASHABLE_ARGS_DIGEST = "unhashable-args"
+
+class _FanoutRunner(AsyncFanoutEngine[ToolResult]):
+    """Composed — not inherited — per-call retry/timeout mechanics.
+
+    ``ParallelToolExecutor`` is a frozen :class:`~pirn.core.knot.Knot` (Rule 4:
+    no instance state for inputs), so the retry policy, jitter source, and
+    sleep function :class:`AsyncFanoutEngine` needs can no longer live on
+    ``self`` set before ``super().__init__()`` freezes the instance —
+    multiply inheriting ``AsyncFanoutEngine`` alongside ``Knot`` required
+    exactly that ordering. A fresh, short-lived instance of this holder is
+    built inside :meth:`ParallelToolExecutor.process` instead, from that
+    call's resolved config values, so no retry state is ever stored on the
+    knot itself (PIR-856).
+    """
+
+    def __init__(
+        self,
+        *,
+        retry_policy: RetryPolicy,
+        rng: Callable[[], float] | None,
+        sleep: Callable[[float], Awaitable[None]],
+    ) -> None:
+        self._retry_policy = retry_policy
+        self._rng = rng
+        self._sleep = sleep
 
 
-class ParallelToolExecutor(AsyncFanoutEngine[ToolResult], Knot):
+class ParallelToolExecutor(Knot):
     """Execute a batch of :class:`ToolCall`s concurrently with isolation.
 
-    The retry backoff shape is configured at construction time via a
-    ``retry_policy`` (kept off the ``process`` signature because it tunes *how* a
-    retry sleeps rather than *what* is executed). The policy is the single source
-    of the backoff *schedule*; the retry *count* remains the separate ``retries``
-    budget, which is a per-invocation concern.
+    The retry backoff shape is configured via a ``retry_policy`` (a config
+    value like ``tool`` on :class:`~pirn_agents.tools.tool_invocation.ToolInvocation`:
+    it tunes *how* a retry sleeps rather than *what* is executed, and is never
+    Knot-valued). The policy is the single source of the backoff *schedule*;
+    the retry *count* remains the separate ``retries`` budget, which is a
+    per-invocation concern.
 
     Observability is opt-in via ``hook``: an optional
     :class:`~pirn_agents.tools.tool_invocation_hook.ToolInvocationHook` fired once
@@ -84,6 +105,13 @@ class ParallelToolExecutor(AsyncFanoutEngine[ToolResult], Knot):
     raises is caught and logged rather than propagated, so a misbehaving hook
     cannot abort the batch.
     """
+
+    #: Reported as the argument digest when the arguments have no
+    #: content-derived encoding (PIR-826). Deliberately NOT hex, so a consumer
+    #: can distinguish it from a real 16-hex-char digest instead of being
+    #: handed an address-derived value that looks like one. A ``ClassVar``
+    #: rather than a module-level constant (house style; PIR-856).
+    _UNHASHABLE_ARGS_DIGEST: ClassVar[str] = "unhashable-args"
 
     def __init__(
         self,
@@ -100,22 +128,16 @@ class ParallelToolExecutor(AsyncFanoutEngine[ToolResult], Knot):
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        # Set backoff policy, jitter/sleep seams, and the observability hook before
-        # super().__init__ freezes the instance. Like the retry policy these are not
-        # ``process`` parameters, so they must not be forwarded to the base
-        # constructor (which validates kwargs against process).
-        self._retry_policy = retry_policy if retry_policy is not None else RetryPolicy()
-        self._rng = rng
-        self._sleep: Callable[[float], Awaitable[None]] = (
-            sleep if sleep is not None else asyncio.sleep
-        )
-        self._hook = hook
         super().__init__(
             tool_calls=tool_calls,
             toolset=toolset,
             max_concurrency=max_concurrency,
             timeout=timeout,
             retries=retries,
+            retry_policy=retry_policy,
+            rng=rng,
+            sleep=sleep,
+            hook=hook,
             _config=_config,
             **kwargs,
         )
@@ -127,6 +149,17 @@ class ParallelToolExecutor(AsyncFanoutEngine[ToolResult], Knot):
         max_concurrency: int,
         timeout: float | None,
         retries: int,
+        retry_policy: RetryPolicy | None = None,
+        rng: Callable[[], float] | None = None,
+        sleep: Callable[[float], Awaitable[None]] | None = None,
+        # Annotated ``Any`` rather than ``ToolInvocationHook | None``:
+        # ``ToolInvocationHook`` is a bare class, not a
+        # ``pirn.core.pirn_opaque_value.PirnOpaqueValue`` (unlike ``Tool`` and
+        # ``RetryPolicy``), so core's eager per-input ``TypeAdapter`` build
+        # (``Knot._build_adapters``, unconditional regardless of
+        # ``validate_io``) fails schema generation for it. ``__init__``'s hint
+        # stays precise; only the process()-layer hint is widened.
+        hook: Any = None,
         **_: Any,
     ) -> tuple[ToolResult, ...]:
         """Run every call concurrently and collect results in input order.
@@ -141,6 +174,14 @@ class ParallelToolExecutor(AsyncFanoutEngine[ToolResult], Knot):
                 per-call timeouts.
             retries: Number of *extra* attempts granted to a call that raises
                 a non-timeout exception.
+            retry_policy: Backoff schedule shared by every retried call.
+                Defaults to :class:`RetryPolicy` (resolved here, not in
+                ``__init__`` — Rule 3).
+            rng: Optional jitter source forwarded to the retry policy.
+            sleep: Async sleep used between retries; defaults to
+                :func:`asyncio.sleep`.
+            hook: Optional :class:`ToolInvocationHook` fired once before and
+                once after every per-call invocation.
 
         Returns:
             A tuple of :class:`ToolResult`, one per input call, in the same
@@ -169,15 +210,22 @@ class ParallelToolExecutor(AsyncFanoutEngine[ToolResult], Knot):
                 f"ParallelToolExecutor: max_concurrency must be >= 1, got {max_concurrency}"
             )
 
+        runner = _FanoutRunner(
+            retry_policy=retry_policy if retry_policy is not None else RetryPolicy(),
+            rng=rng,
+            sleep=sleep if sleep is not None else asyncio.sleep,
+        )
         semaphore = asyncio.Semaphore(max_concurrency)
         tasks: list[asyncio.Task[ToolResult]] = [
-            asyncio.create_task(self._run_one(call, toolset, semaphore, timeout, retries))
+            asyncio.create_task(
+                self._run_one(call, toolset, semaphore, timeout, retries, runner, hook)
+            )
             for call in call_list
         ]
         try:
             gathered = await asyncio.gather(*tasks)
         except asyncio.CancelledError:
-            await self._drain_on_cancel(tasks)
+            await AsyncFanoutEngine.drain_on_cancel(tasks)
             raise
         return tuple(gathered)
 
@@ -188,6 +236,8 @@ class ParallelToolExecutor(AsyncFanoutEngine[ToolResult], Knot):
         semaphore: asyncio.Semaphore,
         timeout: float | None,
         retries: int,
+        runner: _FanoutRunner,
+        hook: ToolInvocationHook | None,
     ) -> ToolResult:
         """Execute a single call under the shared semaphore, never raising.
 
@@ -206,11 +256,10 @@ class ParallelToolExecutor(AsyncFanoutEngine[ToolResult], Knot):
         :meth:`_fire_finish`) so a raising hook never disturbs the result.
         """
         start = time.perf_counter()
-        hook = self._hook
         async with semaphore:
             if hook is not None:
                 self._fire_start(hook, call)
-            result = await self._dispatch(call, toolset, timeout, retries, start)
+            result = await self._dispatch(call, toolset, timeout, retries, start, runner)
             if hook is not None:
                 self._fire_finish(hook, call, result)
             return result
@@ -222,6 +271,7 @@ class ParallelToolExecutor(AsyncFanoutEngine[ToolResult], Knot):
         timeout: float | None,
         retries: int,
         start: float,
+        runner: _FanoutRunner,
     ) -> ToolResult:
         """Resolve and invoke ``call``, returning its terminal ``ToolResult``.
 
@@ -247,7 +297,7 @@ class ParallelToolExecutor(AsyncFanoutEngine[ToolResult], Knot):
         timeout_error = (
             ToolTimeoutError(call.tool_name, timeout, call.call_id) if timeout is not None else None
         )
-        return await self._run_with_retries(
+        return await runner.run_with_retries(
             lambda: tool.invoke(call.arguments),
             timeout=timeout,
             retries=retries,
@@ -325,7 +375,7 @@ class ParallelToolExecutor(AsyncFanoutEngine[ToolResult], Knot):
 
         Returns:
             The first 16 hex characters of the canonical SHA-256 over the
-            arguments, or :data:`_UNHASHABLE_ARGS_DIGEST` when an argument
+            arguments, or :attr:`_UNHASHABLE_ARGS_DIGEST` when an argument
             renders only as its own memory address and so has no content-derived
             encoding. The sentinel is not hex, so a consumer can tell the two
             apart rather than being handed a plausible-looking digest.
@@ -337,9 +387,9 @@ class ParallelToolExecutor(AsyncFanoutEngine[ToolResult], Knot):
                 "ParallelToolExecutor: arguments for call_id=%s contain a value with no "
                 "content-derived rendering, so no stable digest exists; reporting %r",
                 call.call_id,
-                _UNHASHABLE_ARGS_DIGEST,
+                ParallelToolExecutor._UNHASHABLE_ARGS_DIGEST,
             )
-            return _UNHASHABLE_ARGS_DIGEST
+            return ParallelToolExecutor._UNHASHABLE_ARGS_DIGEST
 
     def _fire_finish(self, hook: ToolInvocationHook, call: ToolCall, result: ToolResult) -> None:
         """Fire ``hook.on_finish`` for ``result``, swallowing any hook exception.

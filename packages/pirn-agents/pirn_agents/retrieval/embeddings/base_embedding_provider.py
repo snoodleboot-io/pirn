@@ -141,22 +141,18 @@ class BaseEmbeddingProvider(ConnectorBase, EmbeddingProvider):
         return out
 
     async def _embed_with_retry(self, batch: Sequence[str], model: str | None) -> list[list[float]]:
-        """Embed one batch, retrying on failure per the composed ``RetryPolicy``."""
-        attempt = 0
-        while True:
-            try:
-                return await self._embed_batch(batch, model)
-            except Exception:
-                if attempt >= self._retry_policy.max_retries:
-                    raise
-                await self._backoff(attempt)
-                attempt += 1
+        """Embed one batch, retrying on failure per the composed ``RetryPolicy``.
 
-    async def _backoff(self, attempt: int) -> None:
-        """Sleep for the policy's delay before retry ``attempt`` (0-based)."""
-        delay = self._retry_policy.backoff_delay(attempt, rng=self._rng)
-        if delay > 0:
-            await self._sleep(delay)
+        The retry loop itself is
+        :meth:`~pirn_agents.llm.retry_policy.RetryPolicy.run` (PIR-856); every
+        exception is retryable here, matching the original bare
+        ``except Exception``.
+        """
+
+        async def _attempt(_attempt: int) -> list[list[float]]:
+            return await self._embed_batch(batch, model)
+
+        return await self._retry_policy.run(_attempt, sleep=self._sleep, rng=self._rng)
 
     @staticmethod
     def _iter_batches(items: list[str], size: int) -> Iterator[list[str]]:

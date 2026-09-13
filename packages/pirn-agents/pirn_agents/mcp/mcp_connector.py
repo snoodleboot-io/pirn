@@ -24,6 +24,7 @@ from collections.abc import Awaitable, Callable
 from pirn.connectors.connector_base import ConnectorBase
 from pirn.security.credential_ref import CredentialRef
 
+from pirn_agents.llm.retry_policy import RetryPolicy
 from pirn_agents.mcp.mcp_client import McpClient
 from pirn_agents.mcp.mcp_error import McpError
 from pirn_agents.mcp.mcp_transport import McpTransport
@@ -124,23 +125,37 @@ class McpConnector(ConnectorBase):
     async def _connect_with_backoff(self) -> McpClient:
         """Attempt to (re)build the session, sleeping between failed attempts.
 
+        The retry loop itself is
+        :meth:`~pirn_agents.llm.retry_policy.RetryPolicy.run` (PIR-856), with
+        ``max_reconnect_attempts`` mapped onto a one-off
+        :class:`~pirn_agents.llm.retry_policy.RetryPolicy` (retries = attempts
+        - 1). The delay schedule is supplied via ``delay_for`` rather than the
+        policy's own multiplicative full jitter, so this connector's existing
+        additive-jitter formula (:meth:`_delay_for`) is unchanged.
+
         Raises:
             McpError: If every attempt fails; chains the last underlying error.
         """
-        last_exc: BaseException | None = None
-        for attempt in range(self._max_reconnect_attempts):
+
+        async def _attempt(_attempt: int) -> McpClient:
             self._client = None
             try:
                 return await self._get_client()
-            except Exception as exc:
-                last_exc = exc
+            except Exception:
                 self._client = None
-                if attempt + 1 >= self._max_reconnect_attempts:
-                    break
-                await self._sleep(self._delay_for(attempt))
-        raise McpError(
-            f"McpConnector: reconnect exhausted after {self._max_reconnect_attempts} attempt(s)"
-        ) from last_exc
+                raise
+
+        policy = RetryPolicy(max_retries=self._max_reconnect_attempts - 1)
+        try:
+            return await policy.run(
+                _attempt,
+                delay_for=lambda attempt, _exc: self._delay_for(attempt),
+                sleep=self._sleep,
+            )
+        except Exception as exc:
+            raise McpError(
+                f"McpConnector: reconnect exhausted after {self._max_reconnect_attempts} attempt(s)"
+            ) from exc
 
     def _delay_for(self, attempt: int) -> float:
         """Return the backoff delay for a zero-based ``attempt`` index."""
