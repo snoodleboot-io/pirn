@@ -2,16 +2,34 @@
 
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, TypeAlias
+
+if TYPE_CHECKING:
+    from pirn.emitters.emitter_error_policy import EmitterErrorPolicy
+
+#: Signature of ``Engine._handle_emitter_error`` — kept as a type alias so
+#: ``_EmitterSubscriber`` does not need to import ``Engine`` (which would be
+#: circular: ``engine.py`` imports this module).
+EmitterErrorHandler: TypeAlias = Callable[[Any, str, Exception, "EmitterErrorPolicy"], None]
 
 
 class _EmitterSubscriber:
     """Schedules emitter.on_status as a fire-and-forget task per status event."""
 
-    def __init__(self, emitter: Any, loop: Any, emitter_tasks: list) -> None:
+    def __init__(
+        self,
+        emitter: Any,
+        loop: Any,
+        emitter_tasks: list,
+        error_policy: EmitterErrorPolicy,
+        on_error: EmitterErrorHandler,
+    ) -> None:
         self._emitter = emitter
         self._loop = loop
         self._emitter_tasks = emitter_tasks
+        self._error_policy = error_policy
+        self._on_error = on_error
 
     def __call__(self, event: Any) -> None:
         task = self._loop.create_task(self.__emit_event(event))
@@ -21,5 +39,14 @@ class _EmitterSubscriber:
     async def __emit_event(self, event: Any) -> None:
         try:
             await self._emitter.on_status(event)
-        except Exception:
-            pass
+        except Exception as exc:
+            # Routed through the same IGNORE/WARN/RAISE dispatch used for
+            # on_lineage/on_run_result (Engine._handle_emitter_error), so a
+            # broken on_status emitter is reported the same way every other
+            # emitter failure is instead of being swallowed unconditionally.
+            # RAISE here still cannot fail this run synchronously — this
+            # task is fire-and-forget and nothing awaits it — but letting
+            # the exception propagate out of the task body surfaces it via
+            # asyncio's "exception was never retrieved" reporting instead of
+            # disappearing silently.
+            self._on_error(self._emitter, "on_status", exc, self._error_policy)

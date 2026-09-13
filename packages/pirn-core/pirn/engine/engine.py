@@ -125,7 +125,7 @@ class Engine:
         # subscribers synchronously); we schedule a task per event.
         emitters = emitters or []
         if emitters:
-            self._subscribe_emitters_to_status(ctx, emitters)
+            self._subscribe_emitters_to_status(ctx, emitters, emitter_error_policy)
 
         # Mid-run extension: subscribe to the store if one was provided.
         # New knots arriving during the run go into ``pending_new`` and
@@ -670,8 +670,8 @@ class Engine:
                 out[name] = value
         return out
 
+    @staticmethod
     def _handle_emitter_error(
-        self,
         emitter: Any,
         event_type: str,
         exc: Exception,
@@ -689,13 +689,17 @@ class Engine:
         self,
         ctx: RunContext,
         emitters: list[Any],
+        emitter_error_policy: EmitterErrorPolicy,
     ) -> None:
         """Subscribe each emitter's ``on_status`` to ``StatusManager``.
 
         StatusManager calls subscribers synchronously; emitters are
         async.  We schedule each call as a fire-and-forget task on the
-        running loop.  Exceptions inside emitters are swallowed so a
-        slow or broken emitter cannot break the run.
+        running loop. A failing ``on_status`` is routed through
+        ``_handle_emitter_error`` — the same policy dispatch used for
+        ``on_lineage``/``on_run_result`` — so IGNORE/WARN/RAISE apply here
+        too, instead of being swallowed unconditionally regardless of the
+        configured policy.
         """
         loop = asyncio.get_running_loop()
         # Strong-reference the in-flight tasks; without this, Python's
@@ -706,7 +710,15 @@ class Engine:
         emitter_tasks: list[Any] = ctx._emitter_tasks  # type: ignore[attr-defined]
 
         for emitter in emitters:
-            ctx.status.subscribe(_EmitterSubscriber(emitter, loop, emitter_tasks))
+            ctx.status.subscribe(
+                _EmitterSubscriber(
+                    emitter,
+                    loop,
+                    emitter_tasks,
+                    emitter_error_policy,
+                    self._handle_emitter_error,
+                )
+            )
 
     def _bind_parameters(self, shed: Shed, ctx: RunContext) -> None:
         """Bind every parameter's value for *this* run.
