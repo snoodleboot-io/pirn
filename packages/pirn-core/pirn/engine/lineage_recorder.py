@@ -110,6 +110,12 @@ class LineageRecorder:
                 skip_info.update(result.value.detail)
             extra["optional_skip"] = skip_info
 
+        # A skip whose reason downstream skips inherit (a Gate closed by a
+        # Check naming its own skip_reason) says so, so a replay serves the
+        # same propagation (PIR-872).
+        if isinstance(result, Skipped) and result.propagates:
+            extra["skip_propagates"] = True
+
         # L-7: Record the applied error policy.
         extra["error_policy"] = str(knot.config.error_policy)
 

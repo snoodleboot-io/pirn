@@ -21,8 +21,9 @@ intended:
 a core ``Gate`` in front of every call whose tool requires approval — so a
 denied call's own outcome is a core ``Skipped``, the tool's ``process()`` is
 never invoked, and the model is told the call was skipped rather than that
-it failed (see :meth:`pirn_agents.tools.tool_result.ToolResult.from_result`,
-``gated=True``).  A call an application refuses for an unrelated reason —
+it failed (see :meth:`pirn_agents.tools.tool_result.ToolResult.from_result`).
+The skip's reason is ``"approval_denied"``, recorded on the gate's and the
+tool knot's own lineage rows (core ``Check.skip_reason``, PIR-872).  A call an application refuses for an unrelated reason —
 naming an unregistered tool, or arguments the declaration refuses — still
 recorded as the call's own ``Err`` through
 :class:`~pirn_agents.tools.tool_call_rejection.ToolCallRejection`, which this

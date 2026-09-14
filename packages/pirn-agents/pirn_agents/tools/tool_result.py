@@ -157,7 +157,6 @@ class ToolResult(PirnOpaqueValue):
         lineage: KnotLineage | None = None,
         *,
         tokens: int | None = None,
-        gated: bool = False,
     ) -> ToolResult:
         """Build the view of one call's core ``Result`` — the one builder every path uses.
 
@@ -168,15 +167,6 @@ class ToolResult(PirnOpaqueValue):
             lineage: The call knot's lineage row, when the caller has it;
                 supplies ``latency``.
             tokens: Token usage attributable to the call, when known.
-            gated: ``True`` when the caller wired an approval
-                :class:`~pirn.nodes.gate.gate.Gate` in front of this call
-                (:meth:`~pirn_agents.tools.tool_factory.ToolFactory.for_call`,
-                PIR-865). A gated call's only possible parent besides its own
-                (always-``Ok``) arguments is that gate, so a ``Skipped``
-                result can only be the gate closing — the message names
-                :attr:`~pirn_agents.agent.tool_approval_check.ToolApprovalCheck.skip_reason`
-                ("approval denied") rather than the engine's generic
-                propagation reason. Ignored for ``Ok``/``Err``.
 
         Returns:
             ``result.value`` unchanged when it is already a :class:`ToolResult`;
@@ -185,7 +175,11 @@ class ToolResult(PirnOpaqueValue):
             ``KnotTimeoutError``, i.e. the call outlived ``KnotConfig.timeout``
             — or a ``SKIPPED`` view of a ``Skipped`` (PIR-865): the call
             deliberately did not run, and the model is told exactly that
-            rather than that it failed.
+            rather than that it failed. The message is the skip's own reason
+            with underscores read as spaces — a denied approval's
+            ``"approval_denied"`` (propagated by core from
+            :attr:`~pirn_agents.agent.tool_approval_check.ToolApprovalCheck.skip_reason`,
+            PIR-872) reads ``"call skipped: approval denied"``.
 
         Raises:
             TypeError: If ``result`` is not an ``Ok``, ``Err``, or ``Skipped``.
@@ -211,7 +205,7 @@ class ToolResult(PirnOpaqueValue):
                 latency=latency,
             )
         if isinstance(result, Skipped):
-            reason = "approval denied" if gated else result.reason
+            reason = result.reason.replace("_", " ")
             return cls(
                 call_id=call_id,
                 result=None,

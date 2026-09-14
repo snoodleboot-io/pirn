@@ -174,21 +174,20 @@ class ToolInvocation(SubTapestry):
                 call=call, error=exc, _config=KnotConfig(id=ToolFactory.knot_id_for(call.call_id))
             )
         return Aggregator(
-            combine=functools.partial(self._view, call.call_id, factory.requires_approval()),
+            combine=functools.partial(self._view, call.call_id),
             outcome=call_knot,
             _config=KnotConfig(id="outcome", error_policy=ErrorPolicy.RECEIVE_ERRORS),
         )
 
     @staticmethod
-    def _view(call_id: str, gated: bool, *, outcome: Result[Any]) -> ToolResult:
-        """Build the deprecated view from the call knot's ``Result``.
+    def _view(call_id: str, *, outcome: Result[Any]) -> ToolResult:
+        """Build the model-facing view from the call knot's ``Result``.
 
-        ``gated`` is whether ``tool`` required approval for this call
-        (PIR-865): the call knot's only possible parent besides its own
-        arguments is the approval gate :meth:`ToolFactory.for_call` wires in
-        that case, so a ``Skipped`` outcome can only be that gate closing.
+        A denied approval's ``Skipped`` already carries ``"approval_denied"``:
+        core propagates the approval check's skip reason to the call knot
+        (PIR-872).
         """
-        return ToolResult.from_result(call_id, outcome, gated=gated)
+        return ToolResult.from_result(call_id, outcome)
 
     def _record_inner_run_meta(self, run_result: RunResult) -> None:
         """Publish the inner run's identifiers and keep its lineage for ``__call__``."""

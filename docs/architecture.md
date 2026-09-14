@@ -187,7 +187,7 @@ REQUIRE_ALL_PARENTS
 
 **`SKIP_IF_PARENT_FAILED`** (default)
 
-If any parent produced `Err` or `Skipped`, this knot returns `Skipped(reason="parent_failed_or_skipped", detail={...})` without calling `process()`. The Skipped propagates downstream. This is the right choice for most knots that cannot meaningfully proceed without upstream data.
+If any parent produced `Err` or `Skipped`, this knot returns `Skipped(reason="parent_failed_or_skipped", detail={...})` without calling `process()`. The Skipped propagates downstream. The one exception to the generic reason: when every skipped parent carries a propagating skip of one shared reason (a `Gate` closed by a `Check` that sets `skip_reason`, e.g. `"approval_denied"`), the knot records that reason instead. This is the right choice for most knots that cannot meaningfully proceed without upstream data.
 
 Example: a chain `A → B → C` where B fails. Both C (child of B) and any knot downstream of C are Skipped, not Err.
 

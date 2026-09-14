@@ -193,7 +193,10 @@ class ReplaySession:
         self._require_inputs_match(row=row, parent_input_hashes=parent_input_hashes)
 
         if row.outcome == "skipped":
-            return Skipped(reason=row.skip_reason or "replayed_skip")
+            return Skipped(
+                reason=row.skip_reason or "replayed_skip",
+                propagates=row.extra.get("skip_propagates") is True,
+            )
         if row.outcome == "err":
             return Err(record=self._replayed_exception(row))
 

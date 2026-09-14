@@ -17,6 +17,12 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Every inner run is recorded on the knot's lineage row by `_run_inner` itself (success or failure): `extra["inner_run_id"]` / `inner_knot_count` / `inner_failures` for the latest run, and `extra["inner_run_ids"]` in start order once there is more than one. `Tapestry.run(_inner_run_ordinal=)` (internal, passed by `_run_inner`) lets an inherited replay posture serve the n-th inner run from the n-th recording instead of always the last one.
 - `pirn-agents`: `_RaptorAssembler` is `Assembler, NestedRunKnot`; each tree level's cluster summaries run as one `_RaptorSummary` knot per cluster under an `Aggregator` (own lineage row, `Result` and admission per LLM call, clusters summarized concurrently), with the dedup short-circuit and the single final upsert unchanged. `_RaptorAssembler._summarize` moved to `_RaptorSummary._summarize`.
 
+#### A `Check` names the skip reason its `Gate` propagates (PIR-872)
+
+- `Check.skip_reason: ClassVar[str | None]` (default `None`). A `Gate` closed by a check that names one records that reason as its own `skip_reason` instead of `"gate_closed"`, and returns `Skipped(reason=..., propagates=True)`.
+- `Skipped.propagates: bool = False`. Under `SKIP_IF_PARENT_FAILED` a knot with no `Err` parent whose skipped parents all propagate one shared reason records that reason (and propagates it on) instead of `"parent_failed_or_skipped"`; anything else keeps the generic reason. The lineage row carries `extra["skip_propagates"]`, so a replayed skip propagates the same way.
+- `pirn-agents`: `ToolApprovalCheck.skip_reason = "approval_denied"`, so a denied tool call's gate row and tool-knot row both say `approval_denied`. `ToolResult.from_result` lost its `gated=` argument (the reason now arrives on the `Skipped` itself) and renders a skip's reason with underscores read as spaces (`"call skipped: approval denied"`, `"call skipped: gate closed"`); the `gated` plumbing in `ToolInvocation`, `ParallelToolExecutor`, `ParallelToolCaller`, `ToolChain` and `ReActStepExecutor` is deleted.
+
 #### Inner runs inherit the execution plane (ADR agents-speaks-core, WS0b)
 
 - `pirn/core/execution_plane.py` — `ExecutionPlane`: the dispatcher, admission gate + `ConcurrencyLimits`, admission observers, replay posture and identity resolver a run executes under. `Tapestry.run` publishes it for the run's duration (`ExecutionPlane.current()`) and every `SubTapestry` inner run / `LoopSubTapestry` iteration inherits whatever its own tapestry did not name. The gate is inherited **by identity**, so `max_in_flight` and group caps are one budget across the run tree (PIR-841 slice 3).
@@ -194,8 +200,8 @@ through to `for_call`.
   call now sees the new `ToolStatus.SKIPPED` member instead of `ERROR`; the
   rendered message text also changed from `"skipped: <reason>"` to `"call
   skipped: <reason>"` (`"call skipped: approval denied"` specifically for a
-  gated call, regardless of the engine's own generic propagation reason —
-  see `ToolResult.from_result(..., gated=True)`). `ToolResult.to_result()`
+  denied call; since PIR-872 that is the propagated `"approval_denied"`
+  skip reason rendered readably, with no `gated=` argument). `ToolResult.to_result()`
   now round-trips a `SKIPPED` status back to a core `Skipped` instead of
   fabricating an `Err`.
 - `ToolCallRejection` is unchanged and keeps its existing, narrower job: a
@@ -206,16 +212,10 @@ through to `for_call`.
   `pirn_agents.specializations.human_in_the_loop.approval_check.ApprovalCheck`
   already holds that name for an unrelated seam (pausing a whole
   `AgentResponse` for human review).
-- **Known limitation, deferred:** core's `Gate` always records
-  `"gate_closed"` in its own lineage row, and the engine's parent-skip
-  propagation always records `"parent_failed_or_skipped"` on the downstream
-  tool knot's own row — neither is the literal string `"approval_denied"`
-  in lineage. Rendering the accurate "approval denied" message to callers
-  and the model does not depend on that (every call site can only reach a
-  `Skipped` outcome via its own approval gate, so the label is always
-  correct), but a reader of raw lineage rows still sees the engine's generic
-  reason there. Giving `Gate`/`Check` a custom propagated skip reason is a
-  core change, out of this ticket's scope.
+- Lineage names the denial too (PIR-872): the gate's row and the tool knot's
+  row record `"approval_denied"`, not `"gate_closed"` /
+  `"parent_failed_or_skipped"` — see "A `Check` names the skip reason its
+  `Gate` propagates" below.
 
 #### `pirn-agents` hashing seams moved onto `pirn.core.hashing.content_hash` (ADR agents-speaks-core WS2 part 2)
 
@@ -310,7 +310,7 @@ Every public name below was kept importable for exactly one deprecation cycle (e
 - `_FanoutRunner`, `AsyncFanoutEngine` — one knot per item under a core `Aggregator`; per-item timeout/retry via `KnotConfig.timeout`/`KnotConfig.retry`.
 - `AgentTool.invoke()` — `AgentTool.for_call(call)` run as a knot, or `run_view()`.
 
-`ToolResult`/`ToolStatus` are **not** removed: PIR-865 (#348) gave `ToolResult.from_result(gated=)`/`ToolStatus.SKIPPED` a live role rendering gated/approval outcomes to the model, so they remain the codec's rendering type.
+`ToolResult`/`ToolStatus` are **not** removed: PIR-865 (#348) gave `ToolResult.from_result`/`ToolStatus.SKIPPED` a live role rendering gated/approval outcomes to the model, so they remain the codec's rendering type.
 
 **Observability (WS4a):**
 - `Tracer`, `OtelSink`, `LoggingSink`, `SpanEmittingToolInvocationHook`, `Span`, `SpanKind`, `SpanStatus`, `OpenSpanEntry`, `ObservabilitySink` — `AgentCallRecorder.record(...)` emits a core `StatusEvent` through the run's own emitters (`OpenTelemetryEmitter`, `LogEmitter`, or any custom `Emitter`); no separate sink or hook to build.
