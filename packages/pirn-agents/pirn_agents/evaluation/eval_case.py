@@ -1,7 +1,7 @@
-"""``_EvalCase`` — evaluate one dataset item: call the target, score it, check its floors.
+"""``EvalCase`` — evaluate one dataset item: call the target, score it, check its floors.
 
 Internal per-item knot of :meth:`~pirn_agents.evaluation.run_eval.RunEval.run`.
-One ``_EvalCase`` per :class:`~pirn_agents.evaluation.eval_item.EvalItem` runs
+One ``EvalCase`` per :class:`~pirn_agents.evaluation.eval_item.EvalItem` runs
 under the engine, so each item has its own lineage row, ``Result``, admission
 slot (``KnotConfig(concurrency_group=...)`` bounded by ``ConcurrencyLimits``)
 and recorded output — which is what makes a recorded eval replayable: served
@@ -27,38 +27,38 @@ Math:
     \\end{cases}
     $$
 
-Internal API.
+Package-internal: constructed only by :meth:`~pirn_agents.evaluation.run_eval.RunEval.run`.
 """
 
 from __future__ import annotations
 
-import inspect
 from collections.abc import Mapping
 from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents.evaluation._eval_subject import _EvalSubject
 from pirn_agents.evaluation.eval_case_result import EvalCaseResult
 from pirn_agents.evaluation.eval_item import EvalItem
+from pirn_agents.evaluation.eval_subject import EvalSubject
+from pirn_agents.evaluation.metric_result import MetricResult
 from pirn_agents.evaluation.threshold_config import ThresholdConfig
 
 
-class _EvalCase(Knot):
+class EvalCase(Knot):
     """Run the target on one item, score it, and apply the thresholds."""
 
     def __init__(
         self,
         *,
         item: EvalItem,
-        subject: _EvalSubject,
+        subject: EvalSubject,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
         super().__init__(item=item, subject=subject, _config=_config, **kwargs)
 
-    async def process(self, item: EvalItem, subject: _EvalSubject, **_: Any) -> EvalCaseResult:
+    async def process(self, item: EvalItem, subject: EvalSubject, **_: Any) -> EvalCaseResult:
         """Evaluate ``item`` against ``subject``.
 
         Args:
@@ -72,9 +72,9 @@ class _EvalCase(Knot):
         scores: dict[str, float] = {}
         for name, scorer in subject.metrics.items():
             produced = scorer(item, output)
-            metric_result = await produced if inspect.isawaitable(produced) else produced
+            metric_result = produced if isinstance(produced, MetricResult) else await produced
             scores[name] = metric_result.score
-        passed, breaches = _EvalCase._apply_thresholds(scores, subject.thresholds)
+        passed, breaches = EvalCase._apply_thresholds(scores, subject.thresholds)
         detail: dict[str, Any] = {"output": dict(output)}
         if breaches:
             detail["breaches"] = breaches

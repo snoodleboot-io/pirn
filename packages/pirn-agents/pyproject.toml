@@ -195,6 +195,8 @@ strict = [
     "pirn_agents/caching",
     "pirn_agents/connectors",
     "pirn_agents/control",
+    "pirn_agents/determinism",
+    "pirn_agents/evaluation",
     "pirn_agents/exceptions",
     "pirn_agents/generation",
     "pirn_agents/interfaces",
@@ -202,6 +204,7 @@ strict = [
     "pirn_agents/performance",
     "pirn_agents/planning",
     "pirn_agents/testing",
+    "pirn_agents/tools",
     "pirn_agents/*.py",
 ]
 pythonVersion = "3.12"

@@ -154,6 +154,8 @@ initial cut is not policy — the list is exactly the set of subpackages at 0.
 | pirn-agents | `pirn_agents/caching` | 0 | yes |
 | pirn-agents | `pirn_agents/connectors` | 0 | yes |
 | pirn-agents | `pirn_agents/control` | 0 | yes |
+| pirn-agents | `pirn_agents/determinism` | 0 | yes |
+| pirn-agents | `pirn_agents/evaluation` | 0 | yes |
 | pirn-agents | `pirn_agents/exceptions` | 0 | yes |
 | pirn-agents | `pirn_agents/generation` | 0 | yes |
 | pirn-agents | `pirn_agents/interfaces` | 0 | yes |
@@ -161,6 +163,7 @@ initial cut is not policy — the list is exactly the set of subpackages at 0.
 | pirn-agents | `pirn_agents/performance` | 0 | yes |
 | pirn-agents | `pirn_agents/planning` | 0 | yes |
 | pirn-agents | `pirn_agents/testing` | 0 | yes |
+| pirn-agents | `pirn_agents/tools` | 0 | yes |
 | pirn-agents | `pirn_agents/input` | 27 |  |
 | pirn-agents | `pirn_agents/context` | 33 |  |
 | pirn-agents | `pirn_agents/types` | 33 |  |
@@ -170,11 +173,8 @@ initial cut is not policy — the list is exactly the set of subpackages at 0.
 | pirn-agents | `pirn_agents/security` | 54 |  |
 | pirn-agents | `pirn_agents/batch` | 58 |  |
 | pirn-agents | `pirn_agents/mcp` | 64 |  |
-| pirn-agents | `pirn_agents/determinism` | 73 |  |
-| pirn-agents | `pirn_agents/evaluation` | 75 |  |
 | pirn-agents | `pirn_agents/retrieval` | 82 |  |
 | pirn-agents | `pirn_agents/sessions` | 83 |  |
-| pirn-agents | `pirn_agents/tools` | 88 |  |
 | pirn-agents | `pirn_agents/memory` | 122 |  |
 | pirn-agents | `pirn_agents/llm` | 128 |  |
 | pirn-agents | `pirn_agents/specializations` | 671 |  |
@@ -239,7 +239,7 @@ initial cut is not policy — the list is exactly the set of subpackages at 0.
 | pirn-signal | `pirn_signal/types` | 0 | yes |
 | pirn-signal | `pirn_signal/wavelets` | 0 | yes |
 
-Totals outside the lists: pirn-core 1379, pirn-agents 1709, pirn-data 0 (fully strict;
+Totals outside the lists: pirn-core 1379, pirn-agents 1473, pirn-data 0 (fully strict;
 pyarrow, pandas, ibis, dask.dataframe and ray.data are typed through the local stubs in
 `packages/pirn-data/typings/`),
 pirn-health 0, pirn-ml 0, pirn-oilgas 0, pirn-signal 0. The dominant

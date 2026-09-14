@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``EvalRegressionVerdict`` — the pass/fail verdict of an eval regression check, with a diff."""
 
 from __future__ import annotations
@@ -31,7 +33,7 @@ class EvalRegressionVerdict(PirnOpaqueValue):
 
     passed: bool
     breaches: tuple[Mapping[str, Any], ...] = ()
-    detail: Mapping[str, Any] = field(default_factory=dict)
+    detail: Mapping[str, Any] = field(default_factory=dict[str, Any])
 
     def __post_init__(self) -> None:
         """Normalise ``breaches`` to a tuple.

@@ -1,8 +1,10 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``AgentTool`` — a ``SubTapestry`` agent as a tool capability.
 
 A ``SubTapestry`` IS a ``Knot``, so an agent needs no adapter to be *executed*
-as a tool (ADR agents-speaks-core, WS1).  What remains of the pre-ADR wrapper
-is the declaration policy that is specific to agents — which of the agent's
+as a tool (ADR agents-speaks-core, WS1).  What an agent-as-tool adds is the
+declaration policy that is specific to agents — which of the agent's
 inputs are caller-facing task inputs (versus injected collaborators such as
 ``llm``, ``tools``, ``memory``), the ``{task: str}`` fallback when none
 remain — and the per-call policy
@@ -28,10 +30,12 @@ from pirn.core.knot import Knot
 from pirn.core.ok import Ok
 from pirn.nodes.sub_tapestry import SubTapestry
 
+from pirn_agents._internal.json_shape import JsonShape
 from pirn_agents.agent.agent_response_mapper import AgentResponseMapper
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.performance.run_budget import RunBudget
 from pirn_agents.tools.agent_tool_call import AgentToolCall
+from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_declaration import ToolDeclaration
 from pirn_agents.tools.tool_factory import ToolFactory
@@ -122,8 +126,8 @@ class AgentTool(ToolFactory):
             )
         schema = type(self._agent).input_json_schema()
         hidden = self._dependency_names
-        properties = {
-            k: dict(v) if isinstance(v, Mapping) else v
+        properties: dict[str, Any] = {
+            k: dict(v) if JsonShape.is_mapping(v) else v
             for k, v in schema.get("properties", {}).items()
             if k not in hidden
         }
@@ -178,7 +182,9 @@ class AgentTool(ToolFactory):
 
     def __call__(self, **kwargs: Any) -> Knot:
         """Construct one call: an :class:`AgentToolCall` over the wrapped agent's class."""
-        framework = {key: kwargs.pop(key) for key in tuple(Knot._reserved_kwargs) if key in kwargs}
+        framework = {
+            key: kwargs.pop(key) for key in tuple(Tool.framework_kwarg_names()) if key in kwargs
+        }
         return AgentToolCall(
             arguments=kwargs,
             agent_class=type(self._agent),

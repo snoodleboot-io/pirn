@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TraceInspector`` — step through a recorded :class:`RunTrace` for debugging."""
 
 from __future__ import annotations

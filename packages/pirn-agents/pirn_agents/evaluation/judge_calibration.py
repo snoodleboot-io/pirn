@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``JudgeCalibration`` — score an :class:`EvaluationJudge` against a gold set."""
 
 from __future__ import annotations

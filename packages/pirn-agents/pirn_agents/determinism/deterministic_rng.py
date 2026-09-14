@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``DeterministicRng`` — a seeded, injectable source of randomness for a run."""
 
 from __future__ import annotations

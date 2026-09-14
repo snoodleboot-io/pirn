@@ -3,7 +3,7 @@
 Subclass this alongside your agent's pipeline base to expose the ergonomic
 ``agent.as_tool(...)`` API. The method simply delegates to the
 :meth:`~pirn_agents.tools.as_tool.AsTool.wrap` free function, so the class adds no
-state and stays compatible with the agent's existing construction.
+state and leaves the agent's construction unchanged.
 
 The ``SubTapestry`` requirement is expressed by *inheritance* rather than by an
 assertion. Because :class:`AgentAsToolMixin` derives from
@@ -14,9 +14,8 @@ the type checker and no mixer can opt out of the contract. It declares no
 mixer's ``super().__init__`` chain still reaches ``SubTapestry.__init__`` exactly
 once, and ``process`` still resolves to the concrete agent's override.
 
-The class keeps its historical ``Mixin`` name because it is still combined with
-a pipeline base rather than used on its own, and because it is part of the
-package's pinned public import surface.
+The ``Mixin`` name says how it is used: combined with a pipeline base rather
+than on its own.
 """
 
 from __future__ import annotations

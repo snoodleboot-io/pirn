@@ -1,7 +1,9 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``run_eval`` — run a pattern/pipeline over an eval dataset and report quality.
 
 Runs the evaluation on the engine: one
-:class:`~pirn_agents.evaluation._eval_case._EvalCase` knot per
+:class:`~pirn_agents.evaluation.eval_case.EvalCase` knot per
 :class:`~pirn_agents.evaluation.eval_dataset.EvalDataset` item (target call,
 metric scoring, threshold check) fanned into an
 :class:`~pirn.nodes.aggregator.Aggregator` that assembles the
@@ -22,15 +24,15 @@ records once and replays offline. Name the run with ``run_id=`` to find it again
 ``history``/``data_store`` to replay in another process. A replay whose dataset
 items, target, metrics or thresholds differ from the recording raises
 ``ReplayMismatchError`` rather than serving a stale result (see
-:class:`~pirn_agents.evaluation._eval_subject._EvalSubject` for how callables
+:class:`~pirn_agents.evaluation.eval_subject.EvalSubject` for how callables
 are identified).
 
 Algorithm:
     1. Validate the dataset, metrics and concurrency.
     2. An empty dataset returns an empty report.
-    3. Build a tapestry over ``history``/``data_store``: one ``_EvalCase`` per
+    3. Build a tapestry over ``history``/``data_store``: one ``EvalCase`` per
        item (``KnotConfig(id="eval_item_<index>",
-       concurrency_group="eval_items")``) sharing one ``_EvalSubject``, joined
+       concurrency_group="eval_items")``) sharing one ``EvalSubject``, joined
        by an ``Aggregator`` that orders the results by index.
     4. Run it with ``ConcurrencyLimits(groups={"eval_items": concurrency})``,
        live or under ``replay``.
@@ -53,12 +55,12 @@ from pirn.nodes.aggregator import Aggregator
 from pirn.recording.replay_session import ReplaySession
 from pirn.tapestry import Tapestry
 
-from pirn_agents.evaluation._eval_case import _EvalCase
-from pirn_agents.evaluation._eval_subject import _EvalSubject
+from pirn_agents.evaluation.eval_case import EvalCase
 from pirn_agents.evaluation.eval_case_result import EvalCaseResult
 from pirn_agents.evaluation.eval_dataset import EvalDataset
 from pirn_agents.evaluation.eval_item import EvalItem
 from pirn_agents.evaluation.eval_report import EvalReport
+from pirn_agents.evaluation.eval_subject import EvalSubject
 from pirn_agents.evaluation.metric_result import MetricResult
 from pirn_agents.evaluation.threshold_config import ThresholdConfig
 from pirn_agents.exceptions.eval_run_error import EvalRunError
@@ -145,10 +147,10 @@ class RunEval:
             raise ValueError(f"run_eval: concurrency must be >= 1, got {concurrency}")
         if not dataset.items:
             return EvalReport()
-        subject = _EvalSubject(target=target, metrics=dict(metrics), thresholds=thresholds)
+        subject = EvalSubject(target=target, metrics=dict(metrics), thresholds=thresholds)
         with Tapestry(history=history, data_store=data_store) as tapestry:
             cases: dict[str, Knot] = {
-                f"case_{index}": _EvalCase(
+                f"case_{index}": EvalCase(
                     item=item,
                     subject=subject,
                     _config=KnotConfig(
