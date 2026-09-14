@@ -303,21 +303,19 @@ class TestInheritedEmitters(unittest.TestCase):
 
     def test_nothing_to_inherit_leaves_the_inner_subscription_alone(self) -> None:
         own = [_Recorder()]
-        self.assertIsNone(SubTapestry._inherited_emitters(own, None))
+        self.assertIsNone(SubTapestry.inherited_emitters(own, None))
 
     def test_an_empty_inherited_list_is_also_a_no_override(self) -> None:
         """`run(emitters=[])` must not be turned into 'use the inner defaults'."""
-        self.assertIsNone(SubTapestry._inherited_emitters([], []))
+        self.assertIsNone(SubTapestry.inherited_emitters([], []))
 
     def test_inherited_emitters_are_appended_after_the_tapestry_s_own(self) -> None:
         own, outer = _Recorder(), _Recorder()
-        self.assertEqual([own, outer], SubTapestry._inherited_emitters([own], [outer]))
+        self.assertEqual([own, outer], SubTapestry.inherited_emitters([own], [outer]))
 
     def test_a_shared_instance_appears_once(self) -> None:
         shared, other = _Recorder(), _Recorder()
-        self.assertEqual(
-            [shared, other], SubTapestry._inherited_emitters([shared], [shared, other])
-        )
+        self.assertEqual([shared, other], SubTapestry.inherited_emitters([shared], [shared, other]))
 
     def test_deduplication_is_by_identity_not_equality(self) -> None:
         class _AlwaysEqual(Emitter):
@@ -328,7 +326,7 @@ class TestInheritedEmitters(unittest.TestCase):
                 return 0
 
         first, second = _AlwaysEqual(), _AlwaysEqual()
-        merged = SubTapestry._inherited_emitters([first], [second])
+        merged = SubTapestry.inherited_emitters([first], [second])
         assert merged is not None
         self.assertEqual(2, len(merged))
         self.assertIs(first, merged[0])

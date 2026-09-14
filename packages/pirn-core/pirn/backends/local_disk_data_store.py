@@ -20,11 +20,11 @@ import os
 from pathlib import Path
 from uuid import uuid4
 
-from pirn.backends.base._cloud_object_store import _CloudObjectStore
+from pirn.backends.base.cloud_object_store import CloudObjectStore
 from pirn.backends.signer import Signer
 
 
-class LocalDiskDataStore(_CloudObjectStore):
+class LocalDiskDataStore(CloudObjectStore):
     """``DataStore`` backed by a directory tree on local disk.
 
     cloudpickle is used because we control both writers and readers and

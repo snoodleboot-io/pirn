@@ -4,7 +4,7 @@ import asyncio
 from typing import Any
 
 from pirn.backends.base.run_history import RunHistory
-from pirn.backends.postgres._lazy_pool import _LazyPool
+from pirn.backends.postgres.lazy_pool import LazyPool
 from pirn.core.knot_lineage import KnotLineage
 from pirn.core.knot_source_record import KnotSourceRecord
 
@@ -77,7 +77,7 @@ class PostgresHistory(RunHistory):
         Raises:
             TypeError: If neither ``pool`` nor ``dsn`` is provided.
         """
-        self._pool = _LazyPool(pool=pool, dsn=dsn)
+        self._pool = LazyPool(pool=pool, dsn=dsn)
         self._initialized = False
         self._init_lock: asyncio.Lock = asyncio.Lock()
 

@@ -61,14 +61,14 @@ class InlineTransport(DataTransport):
             type_name=type_name,
             size_bytes=0,
             checksum="",
-            _inline_value=value,
+            inline_value=value,
         )
 
     async def read(self, handle: TransportHandle) -> Any:
-        return handle._inline_value
+        return handle.inline_value
 
     async def exists(self, handle: TransportHandle) -> bool:
-        return handle._inline_value is not None
+        return handle.inline_value is not None
 
     async def end_run(self, run_id: str, *, success: bool) -> None:
         pass

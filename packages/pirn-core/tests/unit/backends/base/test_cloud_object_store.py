@@ -1,4 +1,4 @@
-"""Tests for _CloudObjectStore serialization/signing mixin."""
+"""Tests for CloudObjectStore serialization/signing mixin."""
 
 from __future__ import annotations
 
@@ -6,15 +6,15 @@ import unittest
 from collections.abc import AsyncIterator
 from typing import Any
 
-from pirn.backends.base._cloud_object_store import _CloudObjectStore
+from pirn.backends.base.cloud_object_store import CloudObjectStore
 from pirn.backends.signer import Signer
 from pirn.connectors.object_store import ObjectStore
 
 
-def _make_concrete_store(**kwargs: Any) -> _CloudObjectStore:
+def _make_concrete_store(**kwargs: Any) -> CloudObjectStore:
     """Build a minimal concrete subclass for testing the mixin."""
 
-    class _ConcreteStore(_CloudObjectStore):
+    class _ConcreteStore(CloudObjectStore):
         def __init__(self, storage: dict[str, bytes], **kw: Any) -> None:
             super().__init__(**kw)
             self._storage = storage
@@ -60,10 +60,10 @@ class TestCloudObjectStoreUnsignedGuard(unittest.TestCase):
 class TestCloudObjectStoreOperations(unittest.IsolatedAsyncioTestCase):
     """put/get/has/scrub route through the serialization layer."""
 
-    def _make_unsigned(self) -> _CloudObjectStore:
+    def _make_unsigned(self) -> CloudObjectStore:
         return _make_concrete_store(allow_unsigned=True)
 
-    def _make_signed(self) -> _CloudObjectStore:
+    def _make_signed(self) -> CloudObjectStore:
         return _make_concrete_store(signer=Signer.test_signer())
 
     async def test_unsigned_round_trip(self) -> None:
@@ -113,32 +113,32 @@ class TestCloudObjectStoreOperations(unittest.IsolatedAsyncioTestCase):
             await store.get("sha256:abc")
 
     async def test_abstract_put_bytes_raises(self) -> None:
-        store = _CloudObjectStore(allow_unsigned=True)
+        store = CloudObjectStore(allow_unsigned=True)
         with self.assertRaises(NotImplementedError):
             await store._put_bytes("k", b"")
 
     async def test_abstract_get_bytes_raises(self) -> None:
-        store = _CloudObjectStore(allow_unsigned=True)
+        store = CloudObjectStore(allow_unsigned=True)
         with self.assertRaises(NotImplementedError):
             await store._get_bytes("k")
 
     async def test_abstract_has_key_raises(self) -> None:
-        store = _CloudObjectStore(allow_unsigned=True)
+        store = CloudObjectStore(allow_unsigned=True)
         with self.assertRaises(NotImplementedError):
             await store._has_key("k")
 
     async def test_abstract_delete_key_raises(self) -> None:
-        store = _CloudObjectStore(allow_unsigned=True)
+        store = CloudObjectStore(allow_unsigned=True)
         with self.assertRaises(NotImplementedError):
             await store._delete_key("k")
 
     def test_abstract_build_object_store_raises(self) -> None:
-        store = _CloudObjectStore(allow_unsigned=True)
+        store = CloudObjectStore(allow_unsigned=True)
         with self.assertRaises(NotImplementedError):
             store._build_object_store()
 
     def test_default_object_key_strips_prefix_and_applies_configured_prefix(self) -> None:
-        store = _CloudObjectStore(allow_unsigned=True, prefix="p/")
+        store = CloudObjectStore(allow_unsigned=True, prefix="p/")
         self.assertEqual(store._object_key("sha256:abc"), "p/abc")
 
 
@@ -190,7 +190,7 @@ class _FakeObjectStore(ObjectStore):
         self.closed += 1
 
 
-class _ComposedStore(_CloudObjectStore):
+class _ComposedStore(CloudObjectStore):
     """A data store that composes over ``_FakeObjectStore`` and counts builds."""
 
     def __init__(self, **kw: Any) -> None:

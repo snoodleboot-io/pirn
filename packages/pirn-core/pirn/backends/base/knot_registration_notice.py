@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import json
 from contextlib import AbstractContextManager
-from typing import Any
 
+from pirn.core.shape_guard import ShapeGuard
 from pirn.tapestry import Tapestry
 
 
@@ -14,7 +14,7 @@ class KnotRegistrationNotice:
 
     ``InMemoryStore`` calls subscribers synchronously inside the
     registering task, so the ambient run id that PIR-808's
-    ``_RunScopedSubscriber`` reads is right for free.  The durable stores
+    ``RunScopedSubscriber`` reads is right for free.  The durable stores
     do not: ``PostgresStore`` delivers from a background LISTEN task and
     ``ValKeyStore`` from a pub/sub callback on a dedicated connection.
     Neither inherits the registering task's context — and worse, whatever
@@ -100,15 +100,15 @@ class KnotRegistrationNotice:
             The decoded notice.
         """
         try:
-            parsed: Any = json.loads(payload)
+            parsed: object = json.loads(payload)
         except ValueError:
             return cls(payload, None)
-        if not isinstance(parsed, dict):
+        if not ShapeGuard.is_str_keyed_dict(parsed):
             return cls(payload, None)
-        knot_id: Any = parsed.get(cls._knot_id_field)
+        knot_id = parsed.get(cls._knot_id_field)
         if not isinstance(knot_id, str):
             return cls(payload, None)
-        run_id: Any = parsed.get(cls._run_id_field)
+        run_id = parsed.get(cls._run_id_field)
         return cls(knot_id, run_id if isinstance(run_id, str) else None)
 
     def run_scope(self) -> AbstractContextManager[None]:
@@ -122,4 +122,4 @@ class KnotRegistrationNotice:
             A context manager binding ``Tapestry.current_run_id()`` to
             :attr:`run_id` for the duration of the block.
         """
-        return Tapestry._run_id_scope(self._run_id)
+        return Tapestry.run_id_scope(self._run_id)

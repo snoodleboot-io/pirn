@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Iterator, Mapping
 
+from pirn.core.shape_guard import ShapeGuard
+
 
 class GroupLimits(Mapping[str, int]):
     """Immutable ``{group name: limit}`` that pickles, copies and hashes.
@@ -43,7 +45,7 @@ class GroupLimits(Mapping[str, int]):
         return hash(frozenset(self._pairs))
 
     def __eq__(self, other: object) -> bool:
-        if isinstance(other, Mapping):
+        if ShapeGuard.is_mapping(other):
             return self._index == dict(other.items())
         return NotImplemented
 

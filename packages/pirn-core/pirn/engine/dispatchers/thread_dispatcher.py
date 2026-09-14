@@ -22,7 +22,7 @@ class ThreadDispatcher(Dispatcher):
     worker thread — cost is per-knot and small.
 
     The dispatched knot runs under a **copy of the caller's context**, so the
-    contextvars the engine relies on — ``_current_history``, ``_current_run_id``
+    contextvars the engine relies on — ``RunContextVars.history``, ``RunContextVars.run_id``
     — survive the thread hop.  Without that, a knot that starts an inner run on
     a worker thread cannot see the store the outer run is writing to: the inner
     run is recorded nowhere and is orphaned from its parent.  See PIR-767.

@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Mapping
+from types import ModuleType
 from typing import Any
 
 from pirn.core.knot import Knot
@@ -37,19 +38,19 @@ class RayDispatcher:
         self,
         *,
         address: str | None = None,
-        ray_module: Any = None,
+        ray_module: ModuleType | None = None,
     ) -> None:
         self._address = address
         # ``ray_module`` is injected by tests; production passes None and
         # we import ray lazily.
-        self._ray = ray_module
+        self._ray: ModuleType | None = ray_module
         self._initialized = False
 
     @property
     def name(self) -> str:
         return "RayDispatcher"
 
-    def _ensure_ray(self) -> Any:
+    def _ensure_ray(self) -> ModuleType:
         if self._ray is not None:
             return self._ray
         ray = OptionalDependency.require("ray", extra="ray")
@@ -77,8 +78,10 @@ class RayDispatcher:
         remote_fn = ray.remote(RayDispatcher._run_knot)
         ref = remote_fn.remote(knot, dict(inputs))
 
-        # Bridge ray.get (blocking) to async via asyncio.to_thread.
-        return await asyncio.to_thread(ray.get, ref)
+        # Bridge ray.get (blocking) to async via asyncio.to_thread.  The remote
+        # function is ``_run_knot``, whose return value is the knot's ``Result``.
+        outcome: Result[Any] = await asyncio.to_thread(ray.get, ref)
+        return outcome
 
     @staticmethod
     def _run_knot(knot: Knot, inputs: dict[str, Any]) -> Result[Any]:

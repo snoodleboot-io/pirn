@@ -1323,7 +1323,7 @@ flowchart TD
 | `pirn/core/error_policy.py` | `ErrorPolicy` enum |
 | `pirn/core/run_request.py`, `pirn/core/run_result.py`, `pirn/core/run_context.py` | `RunRequest`, `RunResult`, `RunContext` |
 | `pirn/core/content_hasher.py` | `ContentHasher` (`.hash()`, `._canonicalise()`) |
-| `pirn/core/_unhashable_error.py` | `_UnhashableError` |
+| `pirn/core/unhashable_error.py` | `UnhashableError` |
 | `pirn/core/lineage.py` | `KnotLineage` Pydantic model |
 | `pirn/core/parameter.py` | `Parameter` knot (external input binding) |
 | `pirn/core/result.py` | `Ok`, `Err`, `Skipped` |

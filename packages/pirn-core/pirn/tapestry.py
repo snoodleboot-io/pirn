@@ -18,8 +18,9 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
-from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any
+
+from pirn.core.run_context_vars import RunContextVars
 
 _logger = logging.getLogger(__name__)
 
@@ -31,7 +32,6 @@ if TYPE_CHECKING:
     from pirn.core.execution_plane import ExecutionPlane
     from pirn.core.identity.identity_resolver import IdentityResolver
     from pirn.core.knot import Knot
-    from pirn.core.run_nesting import RunNesting
     from pirn.core.run_request import RunRequest
     from pirn.core.run_result import RunResult
     from pirn.core.transport.data_transport import DataTransport
@@ -40,109 +40,6 @@ if TYPE_CHECKING:
     from pirn.engine.admission.admission_observer import AdmissionObserver
     from pirn.engine.dispatchers.dispatcher import Dispatcher
     from pirn.recording.replay_session import ReplaySession
-
-
-# ContextVar carrying the active tapestry inside a `with` block.  None when
-# no tapestry context is active.  Async-safe because contextvars are
-# task-local in asyncio.
-_current_tapestry: ContextVar[Tapestry | None] = ContextVar("pirn_current_tapestry", default=None)
-
-# ContextVar carrying the run_id of the currently-executing outer run.
-# Set by Tapestry.run() so that SubTapestry._run_inner() can link inner
-# runs to the correct outer run without requiring process() to know it.
-_current_run_id: ContextVar[str | None] = ContextVar("pirn_current_run_id", default=None)
-
-# ContextVar carrying the history of the currently-executing run.  Set by
-# Tapestry.run() so that SubTapestry nodes constructed dynamically mid-run
-# (outside any `with Tapestry():` block) can still inherit the outer history
-# and record their inner runs to the same store.
-_current_history: ContextVar[Any] = ContextVar("pirn_current_history", default=None)
-
-#: The emitter list the enclosing run is fanning events to, and the policy that
-#: run applies when one of them raises.  Inner runs read both so a knot executing
-#: inside a SubTapestry body reaches the same emitters as one executing at the
-#: top level.  History was already forwarded to inner runs and emitters were not,
-#: so the two observability planes disagreed about the same execution: an inner
-#: knot appeared in ``history.children_of(...)`` but produced no status, lineage
-#: or run-result event at all.  See PIR-834.
-#:
-#: ``None`` means "no enclosing run".  That is deliberately distinct from an
-#: enclosing run whose emitter list is empty — ``run(emitters=[])`` is an
-#: explicit opt-out, and an inner run must honour it rather than falling back to
-#: the construction-time capture.
-_current_emitters: ContextVar[list[Any] | None] = ContextVar("pirn_current_emitters", default=None)
-_current_emitter_error_policy: ContextVar[Any] = ContextVar(
-    "pirn_current_emitter_error_policy", default=None
-)
-
-#: The data store the enclosing run is writing knot outputs into.  Inner runs
-#: read this so a value produced inside a ``SubTapestry`` body lands in the same
-#: store as the lineage row that references it.  History was already forwarded
-#: to inner runs and the data store was not, so an inner ``KnotLineage`` row
-#: recorded an ``output_hash`` that resolved against nothing: the record's
-#: lineage half was durable and its value half was written to a throwaway
-#: ``InMemoryDataStore`` discarded when the inner run ended.  See PIR-837.
-#:
-#: ``None`` means "no enclosing run"; the construction-time capture is then the
-#: right answer.  Unlike ``_current_emitters`` there is no empty-but-meaningful
-#: value to distinguish — a run always has exactly one data store.
-_current_data_store: ContextVar[Any] = ContextVar("pirn_current_data_store", default=None)
-
-#: The transport the enclosing run is moving values over.  Inner runs read this
-#: so a pipeline configured with a disk- or object-store-backed transport keeps
-#: that transport inside a ``SubTapestry`` body instead of silently dropping
-#: back to ``InlineTransport`` — which would defeat the memory-pressure reason
-#: the transport was chosen for, precisely where the bulk of the work often
-#: lives.  Unlike the data store this yields to an inner tapestry that chose its
-#: own transport; see ``_apply_inherited_value_plane``.  See PIR-837.
-_current_transport: ContextVar[Any] = ContextVar("pirn_current_transport", default=None)
-
-#: The traceback filter the enclosing run is using.  Inner runs read this so a
-#: filter set once at the top covers the whole tree — without it, an exception
-#: raised inside a SubTapestry is redacted in the outer record but stored
-#: verbatim in the inner run's own record, which run history persists.
-#: See PIR-725.
-_current_traceback_filter: ContextVar[Any] = ContextVar(
-    "pirn_current_traceback_filter", default=None
-)
-
-#: The nested-run frame of the enclosing run: its depth, the enclosing run
-#: ids, the container knots on the path, and the tightest
-#: ``max_nesting_depth`` set on that path.  ``Tapestry.run`` derives an inner
-#: run's frame from it (``RunNesting.child``), which is where the depth cap and
-#: the re-entry guard are enforced, and publishes the new frame for the run's
-#: duration so knots can read ``RunNesting.current()`` (ADR agents-speaks-core,
-#: WS0).  ``None`` means "no enclosing run": the run about to start is a root.
-_current_nesting: ContextVar[RunNesting | None] = ContextVar("pirn_current_nesting", default=None)
-
-#: The execution plane of the enclosing run -- its dispatcher, admission gate
-#: and limits, admission observers, replay posture and identity resolver.
-#: ``Tapestry.run`` derives an inner run's plane from it (everything the inner
-#: tapestry did not name itself is inherited; the gate by identity, so limits
-#: are one budget across the run tree) and publishes the derived plane for the
-#: run's duration.  Read yours with ``ExecutionPlane.current()``.  ``None``
-#: means "no enclosing run" (ADR agents-speaks-core, WS0b; PIR-841 slice 3).
-_current_execution_plane: ContextVar[ExecutionPlane | None] = ContextVar(
-    "pirn_current_execution_plane", default=None
-)
-
-# ContextVar carrying the store of the currently-executing extensible run.
-# Set only when extensible=True.  Knots can call Tapestry.current_store() during
-# process() to register new knots into the running tapestry — the engine
-# merges them into the run as soon as it processes the next knot completion.
-# None in non-extensible runs.
-_current_store: ContextVar[TapestryStore | None] = ContextVar("pirn_current_store", default=None)
-
-# ContextVar carrying the id of the knot the engine is executing in the current
-# task.  The engine sets it inside each dispatched knot's own task, so it is
-# visible to that knot's process() and to a thread hop made under a copy of the
-# context, and nowhere else.  A mid-run registration reads it to learn which
-# knot registered the newcomer, which fixes where the newcomer sits in the run's
-# reported order regardless of which knot happens to finish first (PIR-841).
-# None outside a dispatched knot.
-_current_dispatching_knot_id: ContextVar[str | None] = ContextVar(
-    "pirn_current_dispatching_knot_id", default=None
-)
 
 
 class Tapestry:
@@ -289,7 +186,7 @@ class Tapestry:
         return self._history
 
     @property
-    def data_store(self) -> Any:
+    def data_store(self) -> DataStore:
         return self._data_store
 
     @property
@@ -320,6 +217,71 @@ class Tapestry:
         return list(self._admission_observers)
 
     # ------------------------------------------------------------- knot ops
+
+    def adopt_history(self, history: RunHistory) -> None:
+        """Record this tapestry's runs into *history*, an enclosing run's store.
+
+        A container knot calls this on the inner tapestry it is about to run so
+        inner runs land in the store the enclosing run is writing to and appear
+        beside it in the explorer (PIR-764).
+
+        Args:
+            history: The enclosing run's history.
+        """
+        self._history = history
+
+    def adopt_value_plane(
+        self,
+        *,
+        data_store: DataStore | None,
+        transport: DataTransport | None,
+    ) -> None:
+        """Point this tapestry at an enclosing run's value plane.
+
+        The *value plane* is the pair a run writes its outputs into: the
+        ``DataStore`` that holds each value by content hash, and the
+        ``DataTransport`` that moves it between edges.  An inner tapestry is
+        constructed with defaults, so without this its values go to a fresh
+        ``InMemoryDataStore`` that is discarded the moment the inner run ends —
+        while the inner *lineage* rows, written to the forwarded outer history, keep
+        advertising ``output_hash`` values that now resolve against nothing
+        (PIR-837).
+
+        The two halves are not treated identically, because they are not the same
+        kind of thing:
+
+        * **The data store is forwarded unconditionally**, exactly as the history
+          is.  A lineage row and the value it names are two halves of one record;
+          routing the row to the outer history while routing the value elsewhere
+          recreates the dangling reference this fixes.  Whoever owns the history
+          owns the store that answers it.
+        * **The transport yields to an inner tapestry that chose its own.**  A
+          transport is a movement layer inside a single run, not part of any
+          durable record: its handles never leave the run that created them and no
+          lineage row references one.  Inheriting it keeps a disk- or object-store-
+          backed pipeline from silently dropping to ``InlineTransport`` inside a
+          ``SubTapestry`` body, which is where the bulk of a pipeline's data often
+          moves.  But a ``LoopSubTapestry`` iteration built as
+          ``Tapestry(transport=...)`` inside ``step()`` named that transport
+          deliberately, and overwriting it would be the same silent override in the
+          opposite direction.
+
+        Sharing one transport instance across the outer and inner runs is safe:
+        every ``DataTransport`` method is keyed by ``run_id``, and the inner run has
+        its own, so ``begin_run`` / ``end_run`` allocate and release inner-run
+        resources without touching the outer run's.  Sharing one data store is safe
+        for a different reason: it is content-addressed, so an inner value that
+        collides with an outer one is the same value.
+
+        Args:
+            data_store: The enclosing run's data store, or ``None`` when there is
+                no enclosing run to inherit from.
+            transport: The enclosing run's transport, or ``None`` likewise.
+        """
+        if data_store is not None:
+            self._data_store = data_store
+        if transport is not None and not self._transport_explicit:
+            self._transport = transport
 
     def register(self, knot: Knot) -> None:
         """Add a knot to this tapestry.  Called automatically by ``Knot.__init__``
@@ -455,8 +417,8 @@ class Tapestry:
         # Nested-run frame (WS0).  A root run starts its own frame; an inner
         # run derives its frame from the enclosing run's, which is where the
         # depth cap and the re-entry guard fire.
-        enclosing = _current_nesting.get(None)
-        enclosing_run_id = _current_run_id.get(None)
+        enclosing = RunContextVars.nesting.get(None)
+        enclosing_run_id = RunContextVars.run_id.get(None)
         if enclosing is None or enclosing_run_id is None:
             # A root run started by a container outside any engine run (a
             # SubTapestry awaited directly) still puts that container on
@@ -510,21 +472,21 @@ class Tapestry:
         active_filter = traceback_filter if traceback_filter is not None else self._traceback_filter
 
         engine = Engine(dispatcher=plane.dispatcher)
-        token_run_id = _current_run_id.set(request.run_id)
-        token_nesting = _current_nesting.set(nesting)
-        token_plane = _current_execution_plane.set(plane)
-        token_store = _current_store.set(self._store if extensible else None)
-        token_history = _current_history.set(self._history)
+        token_run_id = RunContextVars.run_id.set(request.run_id)
+        token_nesting = RunContextVars.nesting.set(nesting)
+        token_plane = RunContextVars.execution_plane.set(plane)
+        token_store = RunContextVars.store.set(self._store if extensible else None)
+        token_history = RunContextVars.history.set(self._history)
         # The value plane travels with the history: the store holds the value a
         # lineage row's output_hash names, so publishing one without the other
         # is what left inner rows pointing at nothing (PIR-837).
-        token_data_store = _current_data_store.set(self._data_store)
-        token_transport = _current_transport.set(self._transport)
-        token_filter = _current_traceback_filter.set(active_filter)
+        token_data_store = RunContextVars.data_store.set(self._data_store)
+        token_transport = RunContextVars.transport.set(self._transport)
+        token_filter = RunContextVars.traceback_filter.set(active_filter)
         # Publish this run's emitter subscription so nested runs inherit it, the
         # same way they already inherit history and the traceback filter.
-        token_emitters = _current_emitters.set(active_emitters)
-        token_emitter_policy = _current_emitter_error_policy.set(active_policy)
+        token_emitters = RunContextVars.emitters.set(active_emitters)
+        token_emitter_policy = RunContextVars.emitter_error_policy.set(active_policy)
         try:
             return await engine.execute(
                 terminals=chosen,
@@ -547,16 +509,16 @@ class Tapestry:
                 limits_inherited=limits_inherited,
             )
         finally:
-            _current_run_id.reset(token_run_id)
-            _current_nesting.reset(token_nesting)
-            _current_execution_plane.reset(token_plane)
-            _current_store.reset(token_store)
-            _current_history.reset(token_history)
-            _current_data_store.reset(token_data_store)
-            _current_transport.reset(token_transport)
-            _current_traceback_filter.reset(token_filter)
-            _current_emitters.reset(token_emitters)
-            _current_emitter_error_policy.reset(token_emitter_policy)
+            RunContextVars.run_id.reset(token_run_id)
+            RunContextVars.nesting.reset(token_nesting)
+            RunContextVars.execution_plane.reset(token_plane)
+            RunContextVars.store.reset(token_store)
+            RunContextVars.history.reset(token_history)
+            RunContextVars.data_store.reset(token_data_store)
+            RunContextVars.transport.reset(token_transport)
+            RunContextVars.traceback_filter.reset(token_filter)
+            RunContextVars.emitters.reset(token_emitters)
+            RunContextVars.emitter_error_policy.reset(token_emitter_policy)
 
     async def _resolve_execution_plane(
         self,
@@ -598,7 +560,7 @@ class Tapestry:
         from pirn.engine.admission.chained_admission import ChainedAdmission
         from pirn.engine.engine import Engine
 
-        enclosing = _current_execution_plane.get(None)
+        enclosing = RunContextVars.execution_plane.get(None)
         own_limits = request.concurrency if request.concurrency is not None else self._concurrency
 
         if dispatcher is not None:
@@ -665,7 +627,7 @@ class Tapestry:
     ) -> list[AdmissionObserver]:
         """Combine a run's own observers with the enclosing run's, own first.
 
-        De-duplicated by identity, like ``SubTapestry._inherited_emitters``:
+        De-duplicated by identity, like ``NestedRunKnot.inherited_emitters``:
         the same controller registered at both levels must hear each
         admission once.
 
@@ -818,7 +780,7 @@ class Tapestry:
         — an LLM call, a tool call, a retrieval step, none of which is a
         per-knot lifecycle transition the engine already reports — had no
         supported way to reach the run's emitters, only the private
-        ``_current_emitters``. This exposes the same list under a
+        ``RunContextVars.emitters``. This exposes the same list under a
         supported name; see
         :meth:`pirn.engine.emitter_fanout.EmitterFanout.emit_status` for
         the sanctioned way to deliver an event to it.
@@ -828,7 +790,7 @@ class Tapestry:
         opt-out that a caller reading this accessor must honour rather
         than falling back to some other source of emitters.
         """
-        return list(_current_emitters.get(None) or [])
+        return list(RunContextVars.emitters.get(None) or [])
 
     @staticmethod
     def current_emitter_error_policy() -> EmitterErrorPolicy:
@@ -842,13 +804,13 @@ class Tapestry:
         """
         from pirn.emitters.emitter_error_policy import EmitterErrorPolicy as _EmitterErrorPolicy
 
-        policy = _current_emitter_error_policy.get(None)
+        policy = RunContextVars.emitter_error_policy.get(None)
         return policy if policy is not None else _EmitterErrorPolicy.WARN
 
     @staticmethod
     def current() -> Tapestry | None:
         """Return the tapestry active in the current `with` context, or None."""
-        return _current_tapestry.get(None)
+        return RunContextVars.tapestry.get(None)
 
     @staticmethod
     def current_store() -> TapestryStore | None:
@@ -871,7 +833,7 @@ class Tapestry:
             if store is not None:
                 store.register(NextKnot(data=self, _config=KnotConfig(id="next")))
         """
-        return _current_store.get(None)
+        return RunContextVars.store.get(None)
 
     @staticmethod
     def current_run_id() -> str | None:
@@ -879,7 +841,7 @@ class Tapestry:
 
         Downstream packages need run identity to correlate their own telemetry
         with the engine's lineage and status streams.  Without a public accessor
-        they have to read the private ``_current_run_id``, so this exposes the
+        they have to read the private ``RunContextVars.run_id``, so this exposes the
         same value under a supported name.
 
         Returns ``None`` outside a run, and ``None`` in an interpreter that never
@@ -896,7 +858,7 @@ class Tapestry:
         is never ambient — a knot reads ``self.knot_id``, and callers that are not
         knots must be told which knot they belong to.
         """
-        return _current_run_id.get(None)
+        return RunContextVars.run_id.get(None)
 
     async def close(self) -> None:
         """Close every registered emitter and the data store, releasing held resources.
@@ -933,7 +895,7 @@ class Tapestry:
 
     @staticmethod
     @contextmanager
-    def _run_id_scope(run_id: str | None) -> Generator[None, None, None]:
+    def run_id_scope(run_id: str | None) -> Generator[None, None, None]:
         """Bind ``Tapestry.current_run_id()`` to ``run_id`` for the duration of the block.
 
         Internal.  ``Tapestry.run()`` owns run identity for real runs; this
@@ -955,13 +917,13 @@ class Tapestry:
         ``subscribe()`` started it -- for an inner run, a knot of the outer
         run -- which would otherwise be reported as the registrar (PIR-841).
         """
-        token = _current_run_id.set(run_id)
-        knot_token = _current_dispatching_knot_id.set(None)
+        token = RunContextVars.run_id.set(run_id)
+        knot_token = RunContextVars.dispatching_knot_id.set(None)
         try:
             yield
         finally:
-            _current_dispatching_knot_id.reset(knot_token)
-            _current_run_id.reset(token)
+            RunContextVars.dispatching_knot_id.reset(knot_token)
+            RunContextVars.run_id.reset(token)
 
     # ----------------------------------------------------------- with-block
 
@@ -969,13 +931,13 @@ class Tapestry:
         # Set the ContextVar; remember the token so we can reset on exit.
         # If a tapestry is already active, we replace it for this block —
         # ContextVar.reset restores whatever was there before.
-        self._token = _current_tapestry.set(self)
+        self._token = RunContextVars.tapestry.set(self)
         return self
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         token, self._token = self._token, None
         if token is not None:
-            _current_tapestry.reset(token)
+            RunContextVars.tapestry.reset(token)
 
     async def __aenter__(self) -> Tapestry:
         """Async form of :meth:`__enter__`; identical contextvar wiring."""

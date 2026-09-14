@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 _logger = logging.getLogger(__name__)
 
 
-class _CloudObjectStore(DataStore):
+class CloudObjectStore(DataStore):
     """Serialization + signing base for object-store backends.
 
     Subclasses either implement ``_build_object_store() -> ObjectStore`` (the

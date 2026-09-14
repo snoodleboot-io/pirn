@@ -51,7 +51,7 @@ class KnotFactory:
     def __make_async_process(fn: Callable[..., Any]) -> Callable[..., Any]:
         # design-decision-override: closure over fn, used as the process() of the dynamic Knot subclass
         @functools.wraps(fn)
-        async def process(self, **kwargs: Any) -> Any:
+        async def process(self: Knot, **kwargs: Any) -> Any:
             return await fn(**kwargs)
 
         return process
@@ -60,7 +60,7 @@ class KnotFactory:
     def __make_sync_process(fn: Callable[..., Any]) -> Callable[..., Any]:
         # design-decision-override: closure over fn, used as the process() of the dynamic Knot subclass
         @functools.wraps(fn)
-        async def process(self, **kwargs: Any) -> Any:
+        async def process(self: Knot, **kwargs: Any) -> Any:
             return await asyncio.to_thread(fn, **kwargs)
 
         return process
@@ -120,7 +120,7 @@ class KnotFactory:
                 framework-reserved property, or requires an undeclared one.
         """
         schema = JsonSchemaTypeBuilder.validate_input_schema(
-            input_schema, reserved=Knot._reserved_kwargs
+            input_schema, reserved=Knot.reserved_kwargs()
         )
         make_process = (
             cls.__make_async_process if iscoroutinefunction(process) else cls.__make_sync_process

@@ -176,7 +176,7 @@ class Tool(Knot):
     @staticmethod
     def framework_kwarg_names() -> frozenset[str]:
         """The construction kwargs core reserves for the framework (``_config``, ``tapestry``)."""
-        return Knot._reserved_kwargs
+        return Knot.reserved_kwargs()
 
     @staticmethod
     def declared_input_schema(knot_class: type[Knot]) -> Mapping[str, Any] | None:

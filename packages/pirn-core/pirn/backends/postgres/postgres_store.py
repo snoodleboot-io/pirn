@@ -10,7 +10,7 @@ from pirn.backends.base.knot_registration_notice import KnotRegistrationNotice
 from pirn.backends.base.subscribable_store import SubscribableStore
 from pirn.backends.base.tapestry_snapshot import TapestrySnapshot
 from pirn.backends.base.tapestry_store import TapestryStore
-from pirn.backends.postgres._lazy_pool import _LazyPool
+from pirn.backends.postgres.lazy_pool import LazyPool
 from pirn.exceptions.duplicate_knot_error import DuplicateKnotError
 
 _logger = logging.getLogger(__name__)
@@ -58,7 +58,7 @@ class PostgresStore(TapestryStore, SubscribableStore):
         Raises:
             TypeError: If neither ``pool`` nor ``dsn`` is provided.
         """
-        self._pool = _LazyPool(pool=pool, dsn=dsn)
+        self._pool = LazyPool(pool=pool, dsn=dsn)
         self._live: dict[str, Knot] = {}
         self._initialized = False
         self._init_lock: asyncio.Lock = asyncio.Lock()
@@ -241,7 +241,10 @@ class PostgresStore(TapestryStore, SubscribableStore):
         Args:
             token: The token returned by :meth:`subscribe`.
         """
-        self._subscribers.pop(token, None)  # type: ignore[arg-type]
+        # Tokens this store issues are ints; any other object was never a
+        # subscription here and is ignored like an already-cancelled one.
+        if isinstance(token, int):
+            self._subscribers.pop(token, None)
         if not self._subscribers and self._listener_task is not None:
             self._listener_task.cancel()
             self._listener_task = None

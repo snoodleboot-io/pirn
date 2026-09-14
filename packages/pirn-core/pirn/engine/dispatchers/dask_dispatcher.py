@@ -72,7 +72,7 @@ class DaskDispatcher:
 
     async def shutdown(self) -> None:
         if self._client is not None:
-            await self._client.close()  # type: ignore[misc]
+            await self._client.close()
 
     @staticmethod
     def _dask_run_knot(knot: Knot, inputs: dict[str, Any]) -> Result[Any]:

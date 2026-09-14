@@ -19,8 +19,8 @@ In both failure paths the original exception is captured and stored in
 configured" looks very different to "network timeout" in the audit trail.
 
 ``isinstance(x, Optional)`` works for every outcome via
-:class:`_OptionalMeta.__instancecheck__`, which checks for the
-:class:`_OptionalMarker` mixin that is applied to all results.
+:class:`OptionalMeta.__instancecheck__`, which checks for the
+:class:`OptionalMarker` mixin that is applied to all results.
 
 Why not a wrapper knot?
 -----------------------
@@ -28,13 +28,13 @@ A wrapper knot would add a second node to the graph for every Optional use,
 doubling the node count and polluting lineage.  This design keeps the graph
 flat — one node per source, Optional semantics baked in.
 
-Why separate ``_OptionalMarker``?
+Why separate ``OptionalMarker``?
 ----------------------------------
 If ``Optional`` itself appeared in the MRO of the decorated class,
 constructing the decorated class would re-trigger ``Optional.__new__``,
-causing infinite recursion.  ``_OptionalMarker`` is a plain mixin with no
-``__new__``; ``_OptionalMeta.__instancecheck__`` then makes
-``isinstance(x, Optional)`` delegate to ``_OptionalMarker``.
+causing infinite recursion.  ``OptionalMarker`` is a plain mixin with no
+``__new__``; ``OptionalMeta.__instancecheck__`` then makes
+``isinstance(x, Optional)`` delegate to ``OptionalMarker``.
 
 Example::
 
@@ -54,14 +54,14 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from pirn.core._optional_marker import _OptionalMarker
-from pirn.core._optional_meta import _OptionalMeta
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_marker import OptionalMarker
+from pirn.core.optional_meta import OptionalMeta
 from pirn.core.skipped import Skipped
 
 
-class Optional(metaclass=_OptionalMeta):
+class Optional(metaclass=OptionalMeta):
     """Decorator that converts any knot construction or runtime failure to ``Ok(Skipped(...))``.
 
     Not a knot itself.  Returns an instance of the target knot class (or a
@@ -94,12 +94,12 @@ class Optional(metaclass=_OptionalMeta):
         try:
             # Build a dynamic subclass of the target that inherits all of its
             # behaviour but overrides __call__ with our error-catching wrapper.
-            # We inherit from _OptionalMarker (not Optional) to avoid
+            # We inherit from OptionalMarker (not Optional) to avoid
             # triggering Optional.__new__ again when this subclass is
             # constructed.
             decorated_cls = type(
                 knot_class.__name__,
-                (knot_class, _OptionalMarker),
+                (knot_class, OptionalMarker),
                 {"__call__": Optional._decorated_call},
             )
             return decorated_cls(_config=_config, **kwargs)
@@ -145,7 +145,7 @@ class Optional(metaclass=_OptionalMeta):
 
         stub_cls = type(
             class_name,
-            (Knot, _OptionalMarker),
+            (Knot, OptionalMarker),
             {"process": process, "__call__": Optional._decorated_call},
         )
         return stub_cls(_config=config)

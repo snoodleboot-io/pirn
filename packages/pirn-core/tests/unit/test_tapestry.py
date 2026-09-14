@@ -7,9 +7,10 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
+from pirn.core.run_context_vars import RunContextVars
 from pirn.core.run_result import RunResult
 from pirn.emitters.emitter import Emitter
-from pirn.tapestry import Tapestry, _current_tapestry
+from pirn.tapestry import Tapestry
 
 
 @KnotFactory.knot
@@ -59,11 +60,11 @@ class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
         assert t.terminals() == []
 
     def test_with_block_sets_contextvar(self):
-        assert _current_tapestry.get(None) is None
+        assert RunContextVars.tapestry.get(None) is None
         with Tapestry() as t:
-            assert _current_tapestry.get(None) is t
+            assert RunContextVars.tapestry.get(None) is t
             assert Tapestry.current() is t
-        assert _current_tapestry.get(None) is None
+        assert RunContextVars.tapestry.get(None) is None
 
     def test_with_block_restores_outer_context(self):
         """Nested with-blocks restore the outer tapestry on exit."""

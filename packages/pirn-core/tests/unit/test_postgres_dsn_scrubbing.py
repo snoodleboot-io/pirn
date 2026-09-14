@@ -7,23 +7,23 @@ import unittest.mock
 
 class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
     def test_sanitize_dsn_with_user_and_password(self) -> None:
-        from pirn.backends.postgres._lazy_pool import _LazyPool
+        from pirn.backends.postgres.lazy_pool import LazyPool
 
-        pool = _LazyPool(dsn="postgresql://user:s3cr3t@host/db")
+        pool = LazyPool(dsn="postgresql://user:s3cr3t@host/db")
         assert pool._dsn_display == "postgresql://<redacted>@host/db"
         assert "s3cr3t" not in pool._dsn_display
 
     def test_sanitize_dsn_without_credentials(self) -> None:
-        from pirn.backends.postgres._lazy_pool import _LazyPool
+        from pirn.backends.postgres.lazy_pool import LazyPool
 
         dsn = "postgresql://host/db"
-        pool = _LazyPool(dsn=dsn)
+        pool = LazyPool(dsn=dsn)
         assert pool._dsn_display == dsn
 
     def test_sanitize_dsn_with_port_and_options(self) -> None:
-        from pirn.backends.postgres._lazy_pool import _LazyPool
+        from pirn.backends.postgres.lazy_pool import LazyPool
 
-        pool = _LazyPool(dsn="postgresql://user:pass@host:5432/db?sslmode=require")
+        pool = LazyPool(dsn="postgresql://user:pass@host:5432/db?sslmode=require")
         assert pool._dsn_display == "postgresql://<redacted>@host:5432/db?sslmode=require"
         assert "pass" not in pool._dsn_display
 
@@ -39,9 +39,9 @@ class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
             raise OSError(f"could not connect to server: {d}")
 
         with unittest.mock.patch.object(asyncpg, "create_pool", _fake_create_pool):
-            from pirn.backends.postgres._lazy_pool import _LazyPool
+            from pirn.backends.postgres.lazy_pool import LazyPool
 
-            lazy = _LazyPool(dsn=dsn)
+            lazy = LazyPool(dsn=dsn)
             with self.assertRaises(OSError) as exc_info:
                 await lazy.get()
 

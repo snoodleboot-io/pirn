@@ -16,9 +16,9 @@ A `while` loop inside `process()` is opaque: it produces one output, one timelin
 outer tapestry
   └─ my_loop (LoopSubTapestry)
        └─ inner tapestry (extensible)
-            ├─ step_1 (_IterationChainKnot)
-            ├─ step_2 (_IterationChainKnot)  ← registered by step_1 at runtime
-            ├─ step_3 (_IterationChainKnot)  ← registered by step_2 at runtime
+            ├─ step_1 (IterationChainKnot)
+            ├─ step_2 (IterationChainKnot)  ← registered by step_1 at runtime
+            ├─ step_3 (IterationChainKnot)  ← registered by step_2 at runtime
             └─ __loop_terminal__             ← registered by step_3 at runtime
 ```
 
@@ -230,7 +230,7 @@ This is the **supported** escape: the outer dispatcher carries the entire nested
 
 ### Do not set a dispatcher on an *inner* tapestry
 
-Setting a per-**inner**-tapestry dispatcher (for example a `ThreadDispatcher` on a `SubTapestry`/`LoopSubTapestry`'s own inner tapestry) is **not supported and is unsafe** for agent-as-tool workloads.  The agent-as-tool machinery relies on two `contextvars` values: core's `RunNesting` frame (`pirn.tapestry._current_nesting`, read by `RunNesting.current()`), which carries depth and the cycle path, and the agents-only `AgentToolPolicy` (`pirn_agents/agent/agent_tool_policy.py`), which carries the shared budget meter and pooled provider.  An inner dispatcher crosses the thread boundary *after* both are set, and `loop.run_in_executor` — unlike `asyncio.to_thread` — does **not** copy the context into the worker thread.  The inner knot then sees neither:
+Setting a per-**inner**-tapestry dispatcher (for example a `ThreadDispatcher` on a `SubTapestry`/`LoopSubTapestry`'s own inner tapestry) is **not supported and is unsafe** for agent-as-tool workloads.  The agent-as-tool machinery relies on two `contextvars` values: core's `RunNesting` frame (`RunContextVars.nesting`, read by `RunNesting.current()`), which carries depth and the cycle path, and the agents-only `AgentToolPolicy` (`pirn_agents/agent/agent_tool_policy.py`), which carries the shared budget meter and pooled provider.  An inner dispatcher crosses the thread boundary *after* both are set, and `loop.run_in_executor` — unlike `asyncio.to_thread` — does **not** copy the context into the worker thread.  The inner knot then sees neither:
 
 ```python
 # pirn_agents/tools/agent_tool_call.py

@@ -22,12 +22,12 @@ from __future__ import annotations
 import hashlib
 import inspect
 import textwrap
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict
 
 if TYPE_CHECKING:
-    pass
+    from pirn.core.knot import Knot
 
 
 class KnotSourceRecord(BaseModel):
@@ -53,7 +53,7 @@ class KnotSourceRecord(BaseModel):
     pirn_version: str
 
     @classmethod
-    def from_knot(cls, knot: Any, pirn_version: str) -> KnotSourceRecord | None:
+    def from_knot(cls, knot: Knot, pirn_version: str) -> KnotSourceRecord | None:
         """Extract the source code of *knot* and return an immutable record.
 
         Args:

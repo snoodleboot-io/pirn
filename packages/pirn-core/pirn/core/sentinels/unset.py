@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-class _Unset:
+class Unset:
     """Sentinel for 'no value provided'.
 
     Use the class itself as the sentinel — not an instance — so it works

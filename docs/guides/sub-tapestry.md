@@ -262,7 +262,7 @@ Any exception raised inside `process()` (before returning the sink) is caught by
 
 The outer tapestry's history backend is captured at construction time and automatically injected into the inner tapestry at run time. Inner runs appear in the same history store as the outer run, linked by `parent_run_id` and `parent_knot_id`. The explorer's drill-down navigation follows these links — you can inspect the inner graph's per-knot outputs without any extra instrumentation.
 
-If the `SubTapestry` is constructed outside a `with Tapestry():` block (e.g. dynamically mid-run), it falls back to the `_current_history` context var set by the enclosing `tapestry.run()` call.
+If the `SubTapestry` is constructed outside a `with Tapestry():` block (e.g. dynamically mid-run), it falls back to the `RunContextVars.history` context var set by the enclosing `tapestry.run()` call.
 
 The outer tapestry's **data store** travels with its history, so the `output_hash` on an inner knot's lineage row resolves against the same store as an outer knot's. It used to be left behind: the inner tapestry kept the fresh `InMemoryDataStore` it was constructed with, that store was discarded when the inner run ended, and every inner lineage row became a dangling reference — durable lineage pointing at values nobody could fetch (PIR-837). An inner tapestry does not get to keep a data store of its own, because a row recorded in the outer history and a value written somewhere else is exactly that defect.
 

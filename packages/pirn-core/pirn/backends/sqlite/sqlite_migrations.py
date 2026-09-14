@@ -4,7 +4,7 @@ from collections.abc import Callable
 from typing import Any
 
 
-class _SqliteMigrations:
+class SqliteMigrations:
     """Versioned schema migrations recorded in ``pirn_schema_version``."""
 
     @staticmethod

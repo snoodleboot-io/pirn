@@ -1,20 +1,24 @@
-"""``_IterationChainKnot`` — one link in a ``LoopSubTapestry`` chain."""
+"""``IterationChainKnot`` — one link in a ``LoopSubTapestry`` chain."""
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes._loop_terminal import _LoopTerminal
+from pirn.core.run_context_vars import RunContextVars
+from pirn.nodes.loop_terminal import LoopTerminal
 from pirn.tapestry import Tapestry
 
 if TYPE_CHECKING:
+    from pirn.backends.base.run_history import RunHistory
     from pirn.nodes.loop_sub_tapestry import LoopSubTapestry
-    from pirn.tapestry import Tapestry
+
+#: The loop state type, shared with the ``LoopSubTapestry`` the chain belongs to.
+S = TypeVar("S")
 
 
-class _IterationChainKnot(Knot):
+class IterationChainKnot(Knot, Generic[S]):
     """One link in a LoopSubTapestry chain.
 
     Runs its pre-planned iteration tapestry, folds the result into state,
@@ -44,10 +48,10 @@ class _IterationChainKnot(Knot):
     def __init__(
         self,
         *,
-        _loop_sub: LoopSubTapestry,  # type: ignore[type-arg]
+        _loop_sub: LoopSubTapestry[S],
         _iter_tapestry: Tapestry,
         _iteration_idx: int,
-        _outer_history: Any = None,
+        _outer_history: RunHistory | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -59,7 +63,7 @@ class _IterationChainKnot(Knot):
         self._mutable_iteration_idx = _iteration_idx
         self._mutable_outer_history = _outer_history
 
-    async def process(self, state: Any, **_: Any) -> Any:  # type: ignore[override]
+    async def process(self, state: Any, **_: Any) -> Any:
         """Run this iteration's tapestry, fold the result into state, and register the next iteration or terminal knot.
 
         Args:
@@ -71,23 +75,14 @@ class _IterationChainKnot(Knot):
         from pirn.core.run_request import RunRequest
         from pirn.nodes.loop_sub_tapestry import LoopSubTapestry
         from pirn.nodes.nested_run_knot import NestedRunKnot
-        from pirn.tapestry import (
-            _current_data_store,
-            _current_emitter_error_policy,
-            _current_emitters,
-            _current_history,
-            _current_run_id,
-            _current_traceback_filter,
-            _current_transport,
-        )
 
-        loop: LoopSubTapestry = self._mutable_loop_sub  # type: ignore[type-arg]
+        loop: LoopSubTapestry[S] = self._mutable_loop_sub
         iter_tapestry: Tapestry = self._mutable_iter_tapestry
         iteration_idx: int = self._mutable_iteration_idx
-        outer_history: Any = self._mutable_outer_history
+        outer_history: RunHistory | None = self._mutable_outer_history
 
         if outer_history is None:
-            outer_history = _current_history.get(None)
+            outer_history = RunContextVars.history.get(None)
         if outer_history is not None:
             # Always record.  This used to be skipped when the store was an
             # InMemoryHistory, on the sound reasoning that an open-ended loop
@@ -100,7 +95,7 @@ class _IterationChainKnot(Knot):
             # The growth guard now lives where it belongs: the store declares a
             # `retention` capability and keeps a bounded window. Recording is
             # bounded rather than absent. See PIR-765.
-            iter_tapestry._history = outer_history
+            iter_tapestry.adopt_history(outer_history)
 
         # The value plane is inherited from the contextvars alone, with no
         # construction-time capture, for the same reason as emitters below: the
@@ -117,17 +112,16 @@ class _IterationChainKnot(Knot):
         # history growth above is: the store declares a `retention` capability
         # and evicts to stay within it, so the value plane is bounded rather
         # than either unbounded or thrown away.  See PIR-839.
-        NestedRunKnot._apply_inherited_value_plane(
-            iter_tapestry,
-            data_store=_current_data_store.get(None),
-            transport=_current_transport.get(None),
+        iter_tapestry.adopt_value_plane(
+            data_store=RunContextVars.data_store.get(None),
+            transport=RunContextVars.transport.get(None),
         )
 
         # Emitters are inherited from the contextvar alone, with no
         # construction-time capture to fall back on.  The var is set by the
         # loop's own inner run, which `SubTapestry._run_inner` already seeded
         # with the outer subscription, so it is correct at every nesting depth
-        # and needs no threading through `_IterationChainKnot.__init__` the way
+        # and needs no threading through `IterationChainKnot.__init__` the way
         # `_outer_history` does.  A dispatcher that crosses a process boundary
         # starts from an empty context and so inherits nothing — which is the
         # only honest answer for emitters, since an arbitrary emitter is not
@@ -140,10 +134,10 @@ class _IterationChainKnot(Knot):
         # emitter analogue, because emitters are always explicitly attached and
         # their intake is proportional to work the loop actually performed.
         # Consumers that need a ceiling can filter on `RunResult.parent_run_id`.
-        inherited = NestedRunKnot._inherited_emitters(
-            iter_tapestry.emitters, _current_emitters.get(None)
+        inherited = NestedRunKnot.inherited_emitters(
+            iter_tapestry.emitters, RunContextVars.emitters.get(None)
         )
-        parent_run_id = _current_run_id.get(None)
+        parent_run_id = RunContextVars.run_id.get(None)
         # No ``_nesting_key``: an iteration run counts one level of nesting
         # depth but adds nothing to the guard's path -- the loop's own class is
         # already there, and a loop inside another loop's iteration is not a
@@ -153,13 +147,13 @@ class _IterationChainKnot(Knot):
             _parent_run_id=parent_run_id,
             _parent_knot_id=self.knot_id,
             # Same inheritance as SubTapestry._run_inner — see PIR-725.
-            traceback_filter=_current_traceback_filter.get(None),
+            traceback_filter=RunContextVars.traceback_filter.get(None),
             emitters=inherited,
             emitter_error_policy=(
-                _current_emitter_error_policy.get(None) if inherited is not None else None
+                RunContextVars.emitter_error_policy.get(None) if inherited is not None else None
             ),
         )
-        if not result.succeeded and not loop._tolerate_iteration_failures:
+        if not result.succeeded and not loop.tolerates_iteration_failures():
             from pirn.nodes.sub_tapestry_error import SubTapestryError
 
             raise SubTapestryError(result)
@@ -180,7 +174,7 @@ class _IterationChainKnot(Knot):
 
         if next_outcome is not None:
             next_tapestry, next_state = next_outcome
-            next_knot = _IterationChainKnot(
+            next_knot = IterationChainKnot(
                 _loop_sub=loop,
                 _iter_tapestry=next_tapestry,
                 _iteration_idx=next_idx,
@@ -200,7 +194,7 @@ class _IterationChainKnot(Knot):
             store.register(next_knot)
         else:
             store.register(
-                _LoopTerminal(state=self, _config=KnotConfig(id=LoopSubTapestry._terminal_id))
+                LoopTerminal(state=self, _config=KnotConfig(id=LoopSubTapestry.terminal_id()))
             )
 
         return new_state

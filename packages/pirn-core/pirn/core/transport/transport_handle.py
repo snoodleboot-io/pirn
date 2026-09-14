@@ -24,7 +24,7 @@ class TransportHandle:
     key:
         Location or identity of the stored value within the backend
         (e.g. a filesystem path, an object-store key, a Redis key, or
-        an empty string for inline handles where ``_inline_value`` holds
+        an empty string for inline handles where ``inline_value`` holds
         the data directly).
     type_name:
         Fully-qualified class name of the stored value, used by the
@@ -35,7 +35,7 @@ class TransportHandle:
     checksum:
         Hex digest of the serialised bytes, or empty string when the
         backend does not compute one (inline transport).
-    _inline_value:
+    inline_value:
         Only populated by ``InlineTransport``. Holds the actual Python
         object so that inline transport imposes no serialisation overhead.
         All other transports leave this as ``None``.
@@ -46,4 +46,4 @@ class TransportHandle:
     type_name: str
     size_bytes: int = 0
     checksum: str = ""
-    _inline_value: Any = field(default=None, compare=False, hash=False)
+    inline_value: Any = field(default=None, compare=False, hash=False)

@@ -193,7 +193,7 @@ class GovernedDispatch:
         """Run one attempt, converting a timeout into ``Err(KnotTimeoutError)``."""
         dispatcher = (
             self._dispatcher
-            if type(knot)._holds_admission_slot
+            if knot.holds_admission_slot()
             else self._dispatcher.dispatcher_for_container(knot)
         )
         if timeout is None:

@@ -21,7 +21,7 @@ class TestCloudObjectStoreUnsignedGate(unittest.TestCase):
         os.environ["PIRN_ALLOW_UNSIGNED"] = "1"
         import importlib
 
-        import pirn.backends.base._cloud_object_store as mod
+        import pirn.backends.base.cloud_object_store as mod
 
         importlib.reload(mod)
         import pirn.backends.local_disk_data_store as disk_mod
@@ -33,7 +33,7 @@ class TestCloudObjectStoreUnsignedGate(unittest.TestCase):
         try:
             with tempfile.TemporaryDirectory() as tmp:
                 with self.assertLogs(
-                    "pirn.backends.base._cloud_object_store", level="WARNING"
+                    "pirn.backends.base.cloud_object_store", level="WARNING"
                 ) as cm:
                     LocalDiskDataStore(tmp, allow_unsigned=True)
                 assert any("allow_unsigned" in line for line in cm.output)

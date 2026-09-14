@@ -48,12 +48,18 @@ import collections
 import hmac as _hmac
 import json
 import time
-from collections.abc import AsyncIterator
-from typing import Any
+from collections.abc import AsyncIterator, Callable
+from typing import TYPE_CHECKING
 
 from pirn.core.optional_dependency import OptionalDependency
 from pirn.core.run_request import RunRequest
+from pirn.core.shape_guard import ShapeGuard
 from pirn.triggers.trigger import Trigger
+
+if TYPE_CHECKING:
+    from starlette.applications import Starlette
+    from starlette.requests import Request
+    from starlette.responses import JSONResponse
 
 
 class WebhookTrigger(Trigger):
@@ -76,7 +82,7 @@ class WebhookTrigger(Trigger):
         self,
         *,
         path: str = "/run",
-        request_builder: Any = None,
+        request_builder: Callable[[object, Request], RunRequest] | None = None,
         auth_token: str | None = None,
         rate_limit_rpm: int | None = None,
     ) -> None:
@@ -85,7 +91,7 @@ class WebhookTrigger(Trigger):
         Args:
             path: URL path for the POST endpoint.  Defaults to
                 ``"/run"``.
-            request_builder: Callable ``(payload: dict, request) ->
+            request_builder: Callable ``(payload: object, request) ->
                 RunRequest`` for extracting run parameters from the
                 inbound request.  Defaults to treating the JSON body
                 as the ``RunRequest`` parameters dict.
@@ -99,23 +105,26 @@ class WebhookTrigger(Trigger):
                 requests return HTTP 429.
         """
         self._path = path
-        self._builder = request_builder or WebhookTrigger.__default_request_builder
+        self._builder: Callable[[object, Request], RunRequest] = (
+            request_builder or WebhookTrigger.__default_request_builder
+        )
         self._auth_token = auth_token
         self._rate_limit_rpm = rate_limit_rpm
-        self._rate_windows: dict = collections.defaultdict(collections.deque)
-        self._queue: asyncio.Queue[RunRequest] = asyncio.Queue()
+        self._rate_windows: collections.defaultdict[str, collections.deque[float]] = (
+            collections.defaultdict(collections.deque)
+        )
+        # ``None`` is the sentinel close() pushes to wake the consumer.
+        self._queue: asyncio.Queue[RunRequest | None] = asyncio.Queue()
         self._closed = False
-        # Sentinel pushed on close() to wake the consumer.
-        self._sentinel: Any = object()
         # Build the ASGI app lazily in case starlette isn't installed.
-        self._app: Any = None
+        self._app: Starlette | None = None
 
     @property
     def name(self) -> str:
         return "WebhookTrigger"
 
     @property
-    def app(self) -> Any:
+    def app(self) -> Starlette:
         """The Starlette ASGI app exposing this trigger's endpoint.
 
         Mount on any ASGI server::
@@ -127,7 +136,7 @@ class WebhookTrigger(Trigger):
             self._app = self._build_app()
         return self._app
 
-    async def _handle_request(self, request: Any) -> Any:
+    async def _handle_request(self, request: Request) -> JSONResponse:
         """Handle an inbound POST request and enqueue a ``RunRequest``.
 
         Validates the Bearer token and rate limit (if configured),
@@ -164,7 +173,7 @@ class WebhookTrigger(Trigger):
 
         try:
             body = await request.body()
-            payload = json.loads(body) if body else {}
+            payload: object = json.loads(body) if body else {}
             run_request = self._builder(payload, request)
         except Exception as exc:
             return responses.JSONResponse(
@@ -174,7 +183,7 @@ class WebhookTrigger(Trigger):
         await self._queue.put(run_request)
         return responses.JSONResponse({"run_id": run_request.run_id, "queued": True})
 
-    def _build_app(self) -> Any:
+    def _build_app(self) -> Starlette:
         """Build and return the Starlette ASGI application.
 
         Returns:
@@ -201,7 +210,7 @@ class WebhookTrigger(Trigger):
         """
         while not self._closed:
             item = await self._queue.get()
-            if item is self._sentinel:
+            if item is None:
                 return
             yield item
 
@@ -219,11 +228,11 @@ class WebhookTrigger(Trigger):
     async def close(self) -> None:
         """Signal the trigger to stop and unblock any waiting ``stream()`` consumer."""
         self._closed = True
-        await self._queue.put(self._sentinel)
+        await self._queue.put(None)
 
     @staticmethod
-    def __default_request_builder(payload: dict, request: Any) -> RunRequest:
-        if not isinstance(payload, dict):
+    def __default_request_builder(payload: object, request: Request) -> RunRequest:
+        if not ShapeGuard.is_str_keyed_dict(payload):
             raise TypeError(
                 f"WebhookTrigger: expected JSON object body, got {type(payload).__name__}"
             )

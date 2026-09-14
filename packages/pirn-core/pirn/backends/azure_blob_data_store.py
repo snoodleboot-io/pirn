@@ -19,14 +19,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from pirn.backends.base._cloud_object_store import _CloudObjectStore
+from pirn.backends.base.cloud_object_store import CloudObjectStore
 from pirn.backends.signer import Signer
 
 if TYPE_CHECKING:
     from pirn.connectors.object_store import ObjectStore
 
 
-class AzureBlobDataStore(_CloudObjectStore):
+class AzureBlobDataStore(CloudObjectStore):
     """``DataStore`` backed by Azure Blob Storage.
 
     Each value is one blob at ``{container}/{prefix}{hash}``.

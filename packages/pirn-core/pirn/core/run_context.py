@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import importlib.metadata
 import logging
 import socket
@@ -46,7 +47,7 @@ class RunContext:
         # Strong references to in-flight, fire-and-forget emitter tasks
         # (EmitterFanout.subscribe_emitters_to_status); without this, Python's GC
         # may reclaim them before they complete. Lives as long as the run.
-        self.emitter_tasks: list[Any] = []
+        self.emitter_tasks: list[asyncio.Task[None]] = []
         # Deduplicated source snapshots keyed by source_hash — populated
         # during the run, persisted after finalization.
         self.knot_sources: dict[str, KnotSourceRecord] = {}

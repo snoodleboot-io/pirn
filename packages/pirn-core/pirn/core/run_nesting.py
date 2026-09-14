@@ -47,6 +47,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from pirn.core.run_context_vars import RunContextVars
 from pirn.exceptions.nested_run_cycle_error import NestedRunCycleError
 from pirn.exceptions.nesting_depth_exceeded_error import NestingDepthExceededError
 
@@ -77,9 +78,8 @@ class RunNesting:
         ``process()`` it is the frame of the run that dispatched the knot, so a
         knot that starts nested work can read how deep it already is.
         """
-        from pirn.tapestry import _current_nesting  # local: avoids a circular import
 
-        frame = _current_nesting.get(None)
+        frame = RunContextVars.nesting.get(None)
         return frame if frame is not None else RunNesting()
 
     @property

@@ -487,7 +487,7 @@ Healthcare formats (DICOM, FHIR, HL7v2, EDF/BDF, CDA) include built-in PHI redac
 
 ### ML deserialization security
 
-`JoblibFormat` and `PytorchFormat` use pickle internally. Both constructors refuse to proceed without either a `_Signer` instance (HMAC-SHA256 signs payloads before emission and verifies before deserialisation) or an explicit `allow_unsigned=True` acknowledgement (intended for single-tenant dev/test environments only). `SafetensorsFormat` is RCE-safe by design and requires no signer. See [docs/domains/ml.md](docs/domains/ml.md) for the full security property table.
+`JoblibFormat` and `PytorchFormat` use pickle internally. Both constructors refuse to proceed without either a `Signer` instance (HMAC-SHA256 signs payloads before emission and verifies before deserialisation) or an explicit `allow_unsigned=True` acknowledgement (intended for single-tenant dev/test environments only). `SafetensorsFormat` is RCE-safe by design and requires no signer. See [docs/domains/ml.md](docs/domains/ml.md) for the full security property table.
 
 ## Philosophy
 

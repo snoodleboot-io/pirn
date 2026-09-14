@@ -9,7 +9,7 @@ and other Python objects that benefit from compressed numpy storage.
 sink.
 
 This module mirrors the trust-boundary contract used by
-:class:`pirn.backends.base._cloud_object_store._CloudObjectStore`:
+:class:`pirn.backends.base.cloud_object_store.CloudObjectStore`:
 construction REFUSES to proceed without an explicit acknowledgement
 that the caller understands the risk. The caller must either pass a
 :class:`pirn.backends.signer.Signer` (production) or set
