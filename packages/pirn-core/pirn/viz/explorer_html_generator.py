@@ -29,9 +29,9 @@ class ExplorerHtmlGenerator:
     @classmethod
     def generate(cls, folder: str | Path) -> str:
         folder = Path(folder).resolve()
-        from pirn.viz.tapestry_graph_scanner import scan_folder
+        from pirn.viz.tapestry_graph_scanner import TapestryGraphScanner
 
-        tapestries, runs = scan_folder(folder)
+        tapestries, runs = TapestryGraphScanner.scan(folder)
         data = json.dumps(
             {
                 "tapestries": [t.to_dict() for t in tapestries],
@@ -1536,6 +1536,5 @@ function esc(s) {
 """
 
 
-def generate_explorer_html(folder: str | Path) -> str:
-    """Public wrapper around :meth:`ExplorerHtmlGenerator.generate`."""
-    return ExplorerHtmlGenerator.generate(folder)
+#: Public name for :meth:`ExplorerHtmlGenerator.generate` (bare alias, not a ``def``).
+generate_explorer_html = ExplorerHtmlGenerator.generate

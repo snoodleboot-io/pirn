@@ -60,19 +60,19 @@ class StreamingSource:
     async def close(self) -> None:
         raise NotImplementedError(f"{type(self).__name__} must implement close()")
 
+    @staticmethod
+    def _bind_value(base_params: dict[str, Any], parameter_name: str, value: Any) -> RunRequest:
+        """Build the ``RunRequest`` for one streamed ``value``.
 
-def _bind_stream_value(base_params: dict[str, Any], parameter_name: str, value: Any) -> RunRequest:
-    """Build the ``RunRequest`` for one streamed ``value``.
+        A static method (not a closure) so ``run_stream`` can bind
+        ``base_params`` and ``parameter_name`` via ``functools.partial``
+        instead of nesting a function that captures them.
+        """
+        from pirn.core.run_request import RunRequest
 
-    Module-level (not a closure) so ``run_stream`` can bind ``base_params``
-    and ``parameter_name`` via ``functools.partial`` instead of nesting a
-    function that captures them.
-    """
-    from pirn.core.run_request import RunRequest
-
-    params = dict(base_params)
-    params[parameter_name] = value
-    return RunRequest(parameters=params)
+        params = dict(base_params)
+        params[parameter_name] = value
+        return RunRequest(parameters=params)
 
 
 async def run_stream(
@@ -106,7 +106,7 @@ async def run_stream(
     ``asyncio.CancelledError`` re-raise inside ``_RunDriver.drive``.
     """
     base_params = dict(extra_parameters or {})
-    to_request = functools.partial(_bind_stream_value, base_params, source.parameter_name)
+    to_request = functools.partial(StreamingSource._bind_value, base_params, source.parameter_name)
 
     await _RunDriver.drive(
         source.stream(),

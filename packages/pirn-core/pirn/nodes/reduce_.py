@@ -35,7 +35,7 @@ import inspect
 from collections.abc import Callable
 from typing import Any, ClassVar
 
-from pirn.core.async_callable import is_async_callable
+from pirn.core.async_callable import AsyncCallable
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -155,7 +155,7 @@ class Reduce(Knot):
         # forms, so the node emitted a coroutine object as its output instead
         # of the reduced value — silently, since a coroutine is a perfectly
         # good `Any`. See PIR-768.
-        is_async = is_async_callable(combine)
+        is_async = AsyncCallable.is_async_callable(combine)
         if form == "whole":
             result = combine(of)
             return await result if is_async else result

@@ -43,9 +43,9 @@ class ExploreCli:
 
         output = Path(args.output) if args.output else folder / "pirn_explorer.html"
 
-        from pirn.viz.explorer_html_generator import generate_explorer_html
+        from pirn.viz.explorer_html_generator import ExplorerHtmlGenerator
 
-        html = generate_explorer_html(folder)
+        html = ExplorerHtmlGenerator.generate(folder)
         output.write_text(html, encoding="utf-8")
         print(f"pirn-explore: wrote {output}")
 
@@ -54,11 +54,11 @@ class ExploreCli:
 
         return 0
 
-
-def main(argv: list[str] | None = None) -> int:
-    """Public entry point - thin wrapper around :class:`ExploreCli`."""
-    return ExploreCli().run(argv)
+    @staticmethod
+    def main(argv: list[str] | None = None) -> int:
+        """Console-script entry point - thin wrapper around :meth:`run`."""
+        return ExploreCli().run(argv)
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(ExploreCli.main())

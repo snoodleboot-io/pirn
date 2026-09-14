@@ -139,11 +139,7 @@ class MermaidRenderer:
         return qualname.rsplit(".", 1)[-1]
 
 
-def mermaid_for_tapestry(tapestry: Tapestry) -> str:
-    """Public wrapper around :meth:`MermaidRenderer.for_tapestry`."""
-    return MermaidRenderer.for_tapestry(tapestry)
-
-
-def mermaid_for_run(result: RunResult) -> str:
-    """Public wrapper around :meth:`MermaidRenderer.for_run`."""
-    return MermaidRenderer.for_run(result)
+#: Public names for :meth:`MermaidRenderer.for_tapestry` / :meth:`MermaidRenderer.for_run`
+#: (bare aliases, not ``def``\\s).
+mermaid_for_tapestry = MermaidRenderer.for_tapestry
+mermaid_for_run = MermaidRenderer.for_run

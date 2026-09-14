@@ -67,6 +67,23 @@ class PipelineLoader:
     a YAML pipeline.
     """
 
+    @classmethod
+    def load_yaml(
+        cls,
+        yaml_text: str,
+        *,
+        tapestry: Tapestry | None = None,
+        known_callables: Mapping[str, Any] | None = None,
+        allowed_module_prefixes: list[str] | None = None,
+    ) -> Tapestry:
+        """Load ``yaml_text`` with a fresh loader; see :meth:`load` for the arguments."""
+        return cls().load(
+            yaml_text,
+            tapestry=tapestry,
+            known_callables=known_callables,
+            allowed_module_prefixes=allowed_module_prefixes,
+        )
+
     def load(
         self,
         yaml_text: str,
@@ -431,17 +448,5 @@ class PipelineLoader:
         return getattr(module, attr)
 
 
-def load_pipeline(
-    yaml_text: str,
-    *,
-    tapestry: Tapestry | None = None,
-    known_callables: Mapping[str, Any] | None = None,
-    allowed_module_prefixes: list[str] | None = None,
-) -> Tapestry:
-    """Backwards-compatible wrapper around :meth:`PipelineLoader.load`."""
-    return PipelineLoader().load(
-        yaml_text,
-        tapestry=tapestry,
-        known_callables=known_callables,
-        allowed_module_prefixes=allowed_module_prefixes,
-    )
+#: Public name for :meth:`PipelineLoader.load_yaml` (bare alias, not a ``def``).
+load_pipeline = PipelineLoader.load_yaml

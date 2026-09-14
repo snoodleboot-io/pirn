@@ -826,6 +826,38 @@ class Tapestry:
                     "Tapestry.close: emitter %r raised while closing", emitter.name, exc_info=True
                 )
 
+    @staticmethod
+    @contextmanager
+    def _run_id_scope(run_id: str | None) -> Iterator[None]:
+        """Bind ``current_run_id()`` to ``run_id`` for the duration of the block.
+
+        Internal.  ``Tapestry.run()`` owns run identity for real runs; this
+        exists for the one case where a run's identity has to be *restored*
+        rather than established — a durable store delivering a knot
+        registration from a background LISTEN/pub-sub task that never
+        inherited the registering task's context.  The store reads the
+        registering run off the notification payload and rebinds it here so
+        that everything downstream of ``subscribe()`` reads ambient run
+        identity exactly as it does under ``InMemoryStore``, which delivers
+        synchronously in the registering context (PIR-815).
+
+        ``None`` is a legitimate value: it restores "no run in scope", which
+        is what an unowned registration means.
+
+        The block also runs with no dispatching knot in scope.  The
+        notification does not say which knot registered, and the listener
+        task's own context holds whatever knot happened to be executing when
+        ``subscribe()`` started it -- for an inner run, a knot of the outer
+        run -- which would otherwise be reported as the registrar (PIR-841).
+        """
+        token = _current_run_id.set(run_id)
+        knot_token = _current_dispatching_knot_id.set(None)
+        try:
+            yield
+        finally:
+            _current_dispatching_knot_id.reset(knot_token)
+            _current_run_id.reset(token)
+
     # ----------------------------------------------------------- with-block
 
     def __enter__(self) -> Tapestry:
@@ -893,43 +925,10 @@ def current_run_id() -> str | None:
 #: Bare-function aliases for :meth:`Tapestry.current_emitters` /
 #: :meth:`Tapestry.current_emitter_error_policy`, so
 #: ``pirn.tapestry.current_emitters()`` calls exactly like
-#: :func:`current_run_id` (house convention reserves a bare module-level
-#: ``def`` for a genuine decorator or "only-way" adapter; `current_run_id`/
-#: `current_tapestry`/`get_current_store` predate that convention taking
-#: hold here, and are grandfathered by the conventions-gate baseline rather
-#: than a pattern to keep extending — see the two methods' docstrings for
-#: the accessors themselves).
+#: :func:`current_run_id`. The house convention allows a bare module-level
+#: ``def`` only for the documented public entry points enumerated in
+#: ``scripts/check_conventions.py`` (``current_run_id``/``current_tapestry``/
+#: ``get_current_store`` are on that list, PIR-869); anything else is a
+#: ``@staticmethod``, optionally re-exported under a bare alias like these.
 current_emitters = Tapestry.current_emitters
 current_emitter_error_policy = Tapestry.current_emitter_error_policy
-
-
-@contextmanager
-def _run_id_scope(run_id: str | None) -> Iterator[None]:
-    """Bind ``current_run_id()`` to ``run_id`` for the duration of the block.
-
-    Internal.  ``Tapestry.run()`` owns run identity for real runs; this
-    exists for the one case where a run's identity has to be *restored*
-    rather than established — a durable store delivering a knot
-    registration from a background LISTEN/pub-sub task that never
-    inherited the registering task's context.  The store reads the
-    registering run off the notification payload and rebinds it here so
-    that everything downstream of ``subscribe()`` reads ambient run
-    identity exactly as it does under ``InMemoryStore``, which delivers
-    synchronously in the registering context (PIR-815).
-
-    ``None`` is a legitimate value: it restores "no run in scope", which
-    is what an unowned registration means.
-
-    The block also runs with no dispatching knot in scope.  The notification
-    does not say which knot registered, and the listener task's own context
-    holds whatever knot happened to be executing when ``subscribe()`` started
-    it -- for an inner run, a knot of the outer run -- which would otherwise
-    be reported as the registrar (PIR-841).
-    """
-    token = _current_run_id.set(run_id)
-    knot_token = _current_dispatching_knot_id.set(None)
-    try:
-        yield
-    finally:
-        _current_dispatching_knot_id.reset(knot_token)
-        _current_run_id.reset(token)

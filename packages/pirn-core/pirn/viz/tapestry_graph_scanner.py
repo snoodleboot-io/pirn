@@ -23,6 +23,11 @@ class TapestryGraphScanner:
         "create_pipeline",
     )
 
+    @classmethod
+    def scan(cls, folder: Path) -> tuple[list[TapestryGraph], list[dict[str, Any]]]:
+        """Scan *folder* with a fresh scanner; see :meth:`scan_folder`."""
+        return cls().scan_folder(folder)
+
     def scan_folder(self, folder: Path) -> tuple[list[TapestryGraph], list[dict[str, Any]]]:
         """Return (tapestries, runs) found under *folder*."""
         tapestries = self._scan_tapestries(folder)
@@ -355,9 +360,9 @@ class TapestryGraphScanner:
 
             raw = _yaml.safe_load(path.read_text())
             name = (raw or {}).get("name") or path.stem
-            from pirn.yaml_loader.pipeline_loader import load_pipeline
+            from pirn.yaml_loader.pipeline_loader import PipelineLoader
 
-            tapestry = load_pipeline(path.read_text())
+            tapestry = PipelineLoader.load_yaml(path.read_text())
             return cls._tapestry_to_graph(tapestry, name, source)
         except Exception as exc:
             return TapestryGraph(name=path.stem, source=source, error=str(exc))
@@ -413,6 +418,5 @@ class TapestryGraphScanner:
         return results
 
 
-def scan_folder(folder: Path) -> tuple[list[TapestryGraph], list[dict[str, Any]]]:
-    """Public wrapper around :meth:`TapestryGraphScanner.scan_folder`."""
-    return TapestryGraphScanner().scan_folder(folder)
+#: Public name for :meth:`TapestryGraphScanner.scan` (bare alias, not a ``def``).
+scan_folder = TapestryGraphScanner.scan

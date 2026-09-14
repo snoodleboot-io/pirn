@@ -74,83 +74,89 @@ class KnotDiff:
             return f"~ {self.knot_id}{outcome_note}"
         return f"= {self.knot_id}"
 
+    @staticmethod
+    async def replay_run(
+        *,
+        history: RunHistory,
+        run_id: str,
+        tapestry: Tapestry,
+        base_parameters: dict[str, Any],
+        parameter_overrides: dict[str, Any] | None = None,
+        new_run_id: str | None = None,
+    ) -> RunResult:
+        """Re-execute a past run against *tapestry*, optionally overriding parameters.
 
-async def replay_run(
-    *,
-    history: RunHistory,
-    run_id: str,
-    tapestry: Tapestry,
-    base_parameters: dict[str, Any],
-    parameter_overrides: dict[str, Any] | None = None,
-    new_run_id: str | None = None,
-) -> RunResult:
-    """Re-execute a past run against *tapestry*, optionally overriding parameters.
+        Verifies the original run exists in *history*, then executes a new run
+        with *base_parameters* merged with *parameter_overrides*.
 
-    Verifies the original run exists in *history*, then executes a new run
-    with *base_parameters* merged with *parameter_overrides*.
+        Parameters are not stored in ``RunResult`` (they live in the original
+        ``RunRequest`` which the caller retains), so the caller must supply
+        *base_parameters*.  Use *parameter_overrides* to change individual
+        values without restating the full set.
 
-    Parameters are not stored in ``RunResult`` (they live in the original
-    ``RunRequest`` which the caller retains), so the caller must supply
-    *base_parameters*.  Use *parameter_overrides* to change individual values
-    without restating the full set.
+        Args:
+            history: The ``RunHistory`` that stored the original run.
+            run_id: ID of the run to replay (verified to exist in history).
+            tapestry: The tapestry to execute against.
+            base_parameters: The original parameter set to replay from.
+            parameter_overrides: Parameter values to change for the replay.
+                Merged on top of *base_parameters*.
+            new_run_id: Override the auto-generated run id for the replay.
 
-    Args:
-        history: The ``RunHistory`` that stored the original run.
-        run_id: ID of the run to replay (verified to exist in history).
-        tapestry: The tapestry to execute against.
-        base_parameters: The original parameter set to replay from.
-        parameter_overrides: Parameter values to change for the replay.
-            Merged on top of *base_parameters*.
-        new_run_id: Override the auto-generated run id for the replay.
+        Returns:
+            The ``RunResult`` for the replayed run.
 
-    Returns:
-        The ``RunResult`` for the replayed run.
+        Raises:
+            KeyError: If *run_id* is not found in *history*.
+        """
+        from pirn.core.run_request import RunRequest
 
-    Raises:
-        KeyError: If *run_id* is not found in *history*.
-    """
-    from pirn.core.run_request import RunRequest
+        original: RunResult | None = await history.get_run(run_id)
+        if original is None:
+            raise KeyError(f"run {run_id!r} not found in history")
 
-    original: RunResult = await history.get_run(run_id)
-    if original is None:
-        raise KeyError(f"run {run_id!r} not found in history")
+        params: dict[str, Any] = dict(base_parameters)
+        if parameter_overrides:
+            params.update(parameter_overrides)
 
-    params: dict[str, Any] = dict(base_parameters)
-    if parameter_overrides:
-        params.update(parameter_overrides)
+        if new_run_id is not None:
+            request = RunRequest(parameters=params, run_id=new_run_id)
+        else:
+            request = RunRequest(parameters=params)
+        return await tapestry.run(request)
 
-    if new_run_id is not None:
-        request = RunRequest(parameters=params, run_id=new_run_id)
-    else:
-        request = RunRequest(parameters=params)
-    return await tapestry.run(request)
+    @staticmethod
+    def compare_runs(left: RunResult, right: RunResult) -> list[KnotDiff]:
+        """Diff two ``RunResult`` objects knot-by-knot by output hash.
+
+        Returns one ``KnotDiff`` per knot that appears in either run, sorted
+        by knot id.  Knots present in only one run have ``None`` for the
+        missing side.
+
+        Args:
+            left: The first (typically original) run.
+            right: The second (typically replayed) run.
+
+        Returns:
+            List of ``KnotDiff`` records, one per knot, sorted by knot_id.
+        """
+        left_map = {rec.knot_id: rec for rec in left.lineage}
+        right_map = {rec.knot_id: rec for rec in right.lineage}
+        all_ids = sorted(left_map.keys() | right_map.keys())
+
+        return [
+            KnotDiff(
+                knot_id=knot_id,
+                left_outcome=left_map[knot_id].outcome if knot_id in left_map else None,
+                right_outcome=right_map[knot_id].outcome if knot_id in right_map else None,
+                left_hash=left_map[knot_id].output_hash if knot_id in left_map else None,
+                right_hash=right_map[knot_id].output_hash if knot_id in right_map else None,
+            )
+            for knot_id in all_ids
+        ]
 
 
-def compare_runs(left: RunResult, right: RunResult) -> list[KnotDiff]:
-    """Diff two ``RunResult`` objects knot-by-knot by output hash.
-
-    Returns one ``KnotDiff`` per knot that appears in either run, sorted
-    by knot id.  Knots present in only one run have ``None`` for the missing
-    side.
-
-    Args:
-        left: The first (typically original) run.
-        right: The second (typically replayed) run.
-
-    Returns:
-        List of ``KnotDiff`` records, one per knot, sorted by knot_id.
-    """
-    left_map = {rec.knot_id: rec for rec in left.lineage}
-    right_map = {rec.knot_id: rec for rec in right.lineage}
-    all_ids = sorted(left_map.keys() | right_map.keys())
-
-    return [
-        KnotDiff(
-            knot_id=knot_id,
-            left_outcome=left_map[knot_id].outcome if knot_id in left_map else None,
-            right_outcome=right_map[knot_id].outcome if knot_id in right_map else None,
-            left_hash=left_map[knot_id].output_hash if knot_id in left_map else None,
-            right_hash=right_map[knot_id].output_hash if knot_id in right_map else None,
-        )
-        for knot_id in all_ids
-    ]
+#: Public names for :meth:`KnotDiff.replay_run` / :meth:`KnotDiff.compare_runs`
+#: (bare aliases, not ``def``\s).
+replay_run = KnotDiff.replay_run
+compare_runs = KnotDiff.compare_runs

@@ -19,6 +19,10 @@ apply a library's ``dataclass_transform`` to construction sites in a *downstream
 package that merely imports these configs, so consumers such as pirn-agents still
 suppress the resulting ``reportCallIssue`` at the call site. Shipping typed stubs
 for pirn-core would be the way to extend this across the package boundary.
+
+The decorator itself is :meth:`ConnectionConfigDecorator.apply`; the module-level
+``connection_config`` name is a bare alias to it (house rule: no module-level
+``def`` outside the documented allowlist) and is the spelling every config uses.
 """
 
 from __future__ import annotations
@@ -30,37 +34,46 @@ from typing import Any, TypeVar, dataclass_transform, overload
 _T = TypeVar("_T")
 
 
-@overload
-def connection_config(cls: type[_T], /) -> type[_T]: ...
-@overload
-def connection_config(
-    *, frozen: bool = True, **dataclass_kwargs: Any
-) -> Callable[[type[_T]], type[_T]]: ...
+class ConnectionConfigDecorator:
+    """Holder for the ``@connection_config`` decorator (see module docstring)."""
+
+    @overload
+    @staticmethod
+    def apply(target: type[_T], /) -> type[_T]: ...
+    @overload
+    @staticmethod
+    def apply(
+        *, frozen: bool = True, **dataclass_kwargs: Any
+    ) -> Callable[[type[_T]], type[_T]]: ...
+
+    @dataclass_transform(frozen_default=True)
+    @staticmethod
+    def apply(
+        target: type[_T] | None = None,
+        /,
+        *,
+        frozen: bool = True,
+        **dataclass_kwargs: Any,
+    ) -> type[_T] | Callable[[type[_T]], type[_T]]:
+        """Decorator wrapper around :func:`dataclasses.dataclass` with safe defaults.
+
+        Always passes ``repr=False`` to dataclass so the inherited
+        :meth:`ConnectionConfig.__repr__` survives. Strips any locally-generated
+        ``__repr__`` defensively in case the underlying dataclass behaviour
+        changes in a future Python version.
+        """
+
+        # design-decision-override: decorator factory closure over frozen/dataclass_kwargs
+        def wrap(cls: type[_T]) -> type[_T]:
+            decorated = dataclasses.dataclass(frozen=frozen, repr=False, **dataclass_kwargs)(cls)
+            if "__repr__" in decorated.__dict__:
+                del decorated.__dict__["__repr__"]  # type: ignore[arg-type]
+            return decorated
+
+        if target is None:
+            return wrap
+        return wrap(target)
 
 
-@dataclass_transform(frozen_default=True)
-def connection_config(
-    cls: type[_T] | None = None,
-    /,
-    *,
-    frozen: bool = True,
-    **dataclass_kwargs: Any,
-) -> type[_T] | Callable[[type[_T]], type[_T]]:
-    """Decorator wrapper around :func:`dataclasses.dataclass` with safe defaults.
-
-    Always passes ``repr=False`` to dataclass so the inherited
-    :meth:`ConnectionConfig.__repr__` survives. Strips any locally-generated
-    ``__repr__`` defensively in case the underlying dataclass behaviour
-    changes in a future Python version.
-    """
-
-    # design-decision-override: decorator factory closure over frozen/dataclass_kwargs
-    def wrap(target: type[_T]) -> type[_T]:
-        decorated = dataclasses.dataclass(frozen=frozen, repr=False, **dataclass_kwargs)(target)
-        if "__repr__" in decorated.__dict__:
-            del decorated.__dict__["__repr__"]  # type: ignore[arg-type]
-        return decorated
-
-    if cls is None:
-        return wrap
-    return wrap(cls)
+#: The decorator under its documented name (bare alias, not a ``def``).
+connection_config = ConnectionConfigDecorator.apply

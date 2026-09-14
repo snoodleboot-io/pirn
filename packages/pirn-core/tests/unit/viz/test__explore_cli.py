@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from pirn.viz._explore_cli import ExploreCli, main
+from pirn.viz._explore_cli import ExploreCli
 
 
 class TestExploreCli(unittest.TestCase):
@@ -19,7 +19,8 @@ class TestExploreCli(unittest.TestCase):
     def test_valid_folder_no_open_returns_0(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             with patch(
-                "pirn.viz.explorer_html_generator.generate_explorer_html", return_value="<html/>"
+                "pirn.viz.explorer_html_generator.ExplorerHtmlGenerator.generate",
+                return_value="<html/>",
             ):
                 result = ExploreCli().run([tmp, "--no-open"])
         self.assertEqual(result, 0)
@@ -28,7 +29,7 @@ class TestExploreCli(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             out = str(Path(tmp) / "out.html")
             with patch(
-                "pirn.viz.explorer_html_generator.generate_explorer_html",
+                "pirn.viz.explorer_html_generator.ExplorerHtmlGenerator.generate",
                 return_value="<html>hi</html>",
             ):
                 ExploreCli().run([tmp, "--output", out, "--no-open"])
@@ -38,19 +39,21 @@ class TestExploreCli(unittest.TestCase):
     def test_default_output_path(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             with patch(
-                "pirn.viz.explorer_html_generator.generate_explorer_html", return_value="<html/>"
+                "pirn.viz.explorer_html_generator.ExplorerHtmlGenerator.generate",
+                return_value="<html/>",
             ):
                 ExploreCli().run([tmp, "--no-open"])
             default_out = Path(tmp) / "pirn_explorer.html"
             self.assertTrue(default_out.exists())
 
     def test_main_wrapper_callable(self) -> None:
-        self.assertTrue(callable(main))
+        self.assertTrue(callable(ExploreCli.main))
 
     def test_main_delegates_to_cli(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             with patch(
-                "pirn.viz.explorer_html_generator.generate_explorer_html", return_value="<html/>"
+                "pirn.viz.explorer_html_generator.ExplorerHtmlGenerator.generate",
+                return_value="<html/>",
             ):
-                code = main([tmp, "--no-open"])
+                code = ExploreCli.main([tmp, "--no-open"])
         self.assertEqual(code, 0)

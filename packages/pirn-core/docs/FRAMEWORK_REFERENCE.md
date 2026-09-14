@@ -110,7 +110,7 @@ All subclass `Knot`. These are the graph-shape primitives.
 |---|---|---|
 | `Trigger` | interface-base | `name` (prop), `stream() -> AsyncIterator[RunRequest]`, `async close()` — all raise `NotImplementedError` |
 | `Cron` / `Http` / `Kafka` / `Valkey` triggers | concrete | async generators yielding one `RunRequest` per event |
-| `run_forever(trigger, tapestry, *, on_result, on_error)` | driver fn | pulls requests, calls `tapestry.run` per event, `close()`s on exit — a legitimate module-level driver |
+| `run_forever(trigger, tapestry, *, on_result, on_error)` | driver fn | pulls requests, calls `tapestry.run` per event, `close()`s on exit — an allowlisted module-level driver (`scripts/check_conventions.py`, PIR-869) |
 | `StreamingSource` (`streaming/base.py`) | interface-base | streaming input adapters; `trigger_adapter.py` bridges a stream to the trigger loop |
 
 **Idiom (the trigger loop):** a `Trigger` is an async generator of `RunRequest`s; `run_forever` is the runtime that consumes them and runs the tapestry. Downstream event-driven agents should implement `Trigger`, not hand-roll a consume loop.
@@ -221,7 +221,7 @@ Return/branch on `Ok \| Err \| Skipped`. `Err` carries an `ExceptionRecord`. Nev
 - **Is it event-driven?** → implement `Trigger` and use `run_forever`, don't hand-roll a consume loop.
 - **Is it parallel execution?** → compose a `Dispatcher`, don't re-implement concurrency.
 - **Does something succeed/fail/skip?** → `Ok \| Err \| Skipped`, not a new enum.
-- **Is it pure logic with no state?** → a plain class with methods; a module-level function only for a genuine decorator or a true "only-way" adapter.
+- **Is it pure logic with no state?** → a plain class with methods; a module-level function only when it is a documented public entry point on the `scripts/check_conventions.py` allowlist (PIR-869) — a genuine decorator, an ambient accessor or a driver. Anything else is a `@staticmethod`, optionally re-exported under a bare alias for a name that predates the rule.
 
 ---
 
@@ -479,6 +479,27 @@ vocabulary, every constructor sample verified against the real signature
 `PirnOpaqueValue` value objects, `DsnScrubber` composition, HITL suspend/resume
 (rightly avoids a `Trigger` loop), and raise-site exceptions kept orthogonal
 to `ExceptionRecord`.
+
+### House conventions — the three core-side decisions (PIR-869)
+
+- **Module-level functions are an enumerated exemption.** The only bare
+  module-level `def`s in core are the documented public entry points listed in
+  `scripts/check_conventions.py` (`get_current_store`, `current_tapestry`,
+  `current_run_id`, `discover_installed_domains`, `run_forever`, `run_stream`,
+  `knot`); the conventions gate counts every other one, and the core baseline
+  is 0. Every former wrapper is now a static/class method with the old public
+  name kept as a bare alias: `content_hash = _ContentHasher.hash`,
+  `detect_cycle = CycleDetector.detect`, `load_pipeline = PipelineLoader.load_yaml`,
+  `validate_tapestry = _TapestryValidator.validate`,
+  `redact_common_secrets = _TracebackRedactor.redact_common_secrets`,
+  `continues = WithContinuation.attach`, `connection_config =
+  ConnectionConfigDecorator.apply`, `is_async_callable = AsyncCallable.is_async_callable`,
+  `extract_knot_source = KnotSourceRecord.from_knot`,
+  `replay_run`/`compare_runs = KnotDiff.replay_run`/`.compare_runs`,
+  `register_celery_worker_task = CeleryDispatcher.register_worker_task`, the
+  viz aliases (`mermaid_for_*`, `html_for_*`, `scan_folder`,
+  `generate_explorer_html`). The console scripts point at
+  `TapestryCheckCli.main`, `ExploreCli.main` and `ImportMigrationCli.main`.
 
 ---
 

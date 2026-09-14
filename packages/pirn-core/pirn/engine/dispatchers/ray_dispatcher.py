@@ -78,18 +78,23 @@ class RayDispatcher:
         # cache this per dispatcher instance, but the `@ray.remote`
         # decorator's result is also cached internally so the cost is
         # low.
-        remote_fn = ray.remote(_ray_run_knot)
+        remote_fn = ray.remote(RayDispatcher._run_knot)
         ref = remote_fn.remote(knot, dict(inputs))
 
         # Bridge ray.get (blocking) to async via asyncio.to_thread.
         return await asyncio.to_thread(ray.get, ref)
 
+    @staticmethod
+    def _run_knot(knot: Knot, inputs: dict[str, Any]) -> Result[Any]:
+        """Run a knot in a Ray worker.
+
+        A static method so the function Ray pickles by reference resolves
+        through a normal import of this module, exactly like
+        ``CeleryDispatcher._run_knot_sync``.
+        """
+        return asyncio.run(knot(inputs))
+
     def shutdown(self) -> None:
         if self._initialized and self._ray is not None:
             self._ray.shutdown()
             self._initialized = False
-
-
-def _ray_run_knot(knot: Knot, inputs: dict[str, Any]) -> Result[Any]:
-    """Run a knot in a Ray worker."""
-    return asyncio.run(knot(inputs))

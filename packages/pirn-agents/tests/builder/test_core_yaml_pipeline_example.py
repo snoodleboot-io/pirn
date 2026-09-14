@@ -56,7 +56,7 @@ class TestTheCoreYamlPipelineExample(unittest.IsolatedAsyncioTestCase):
         module = _ExampleLoader.load()
         result = validate_tapestry(module.build_tapestry())
 
-        # Assert: the same check pirn.check.main / `tapestry-check` runs.
+        # Assert: the same check pirn.check.tapestry_check_cli / `tapestry-check` runs.
         assert result.ok, result.issues
         assert not result.errors
 
