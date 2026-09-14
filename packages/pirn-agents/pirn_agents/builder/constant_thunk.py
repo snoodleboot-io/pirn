@@ -1,4 +1,4 @@
-"""``_ConstantThunk`` — adapts a pre-bound value into a zero-argument callable.
+"""``ConstantThunk`` — adapts a pre-bound value into a zero-argument callable.
 
 :meth:`~pirn_agents.builder.agent_references.AgentReferences.as_known_callables`
 hands a caller-owned live object (an ``LLMProvider``, a ``MemoryStore``, a
@@ -31,7 +31,7 @@ from __future__ import annotations
 from typing import Any
 
 
-class _ConstantThunk:
+class ConstantThunk:
     """A zero-argument callable that always returns one fixed value."""
 
     def __init__(self, value: Any, *, label: str) -> None:

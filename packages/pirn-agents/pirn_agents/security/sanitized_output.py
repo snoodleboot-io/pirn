@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SanitizedOutput`` — the result of sanitizing one tool payload.
 
 A frozen record of what

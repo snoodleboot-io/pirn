@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SecretRedactor`` — redact secrets in tool args, results, and log text.
 
 Layers structured redaction on top of

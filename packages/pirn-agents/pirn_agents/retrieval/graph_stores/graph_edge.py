@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``GraphEdge`` — one upsertable (id, source, target, type, properties) edge.
 
 The neutral write/read unit every

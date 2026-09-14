@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MemoryProvenance`` — where a memory came from and how much to trust it.
 
 Every :class:`~pirn_agents.memory.management.memory_record.MemoryRecord` carries a

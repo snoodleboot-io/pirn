@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SemanticMemoryUpsert`` — extract and deduplicate facts from an :class:`AgentResponse`.
 
 Extracts factual claims from an :class:`AgentResponse` via an LLM, checks

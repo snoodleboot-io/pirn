@@ -33,7 +33,7 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 #### pirn-agents on the WS0b seams
 
 - `MapAgent` no longer assigns its inner tapestry's private `_concurrency` / `_dispatcher` / `_admission_observers` (`_apply_run_settings` is gone); it overrides `SubTapestry._inner_dispatcher` / `_inner_concurrency` / `_inner_admission_observers` instead, and `tests/core_seams/test_execution_plane_reach_through.py` ratchets the reach-through inventory at empty.
-- `MapAgent.run()` yields each `BatchItemResult` the instant its item settles again (resumed items first, then completion order), via the new `_BatchItemStreamer` emitter over `Emitter.on_knot_result`; the streamed result carries the item's attempt count and latency from its lineage row. Closing the stream early or cancelling its consumer cancels the run.
+- `MapAgent.run()` yields each `BatchItemResult` the instant its item settles again (resumed items first, then completion order), via the new `BatchItemStreamer` emitter over `Emitter.on_knot_result`; the streamed result carries the item's attempt count and latency from its lineage row. Closing the stream early or cancelling its consumer cancels the run.
 
 #### `@tool` decorator and scalar auto-coercion
 

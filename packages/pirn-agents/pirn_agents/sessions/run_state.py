@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``RunState`` — the read-model projected from a session's run chain.
 
 ADR "agents speaks core" WS3 part 2. Before this, ``RunState`` was itself the

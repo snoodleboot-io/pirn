@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``EpisodicEpisodeWriter`` — persist a tuple of messages as one episode.
 
 Inner stage knot used by :class:`EpisodicMemoryPipeline`. Serialises

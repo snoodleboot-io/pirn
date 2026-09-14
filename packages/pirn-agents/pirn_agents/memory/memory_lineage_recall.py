@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MemoryLineageRecall`` — recall memory records straight from core's lineage.
 
 ADR "agents speaks core" WS3's forward recall path. A writer knot (see

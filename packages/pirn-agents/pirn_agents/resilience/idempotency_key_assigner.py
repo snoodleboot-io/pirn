@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``IdempotencyKeyAssigner`` — derive caller-stable idempotency keys.
 
 ADR agents-speaks-core WS2 part 2 — **breaking key-format change, sanctioned**:
@@ -35,6 +37,8 @@ from typing import Any
 
 from pirn.core.content_hasher import ContentHasher
 from pirn.exceptions.unhashable_value_error import UnhashableValueError
+
+from pirn_agents._internal.json_shape import JsonShape
 
 
 class IdempotencyKeyAssigner:
@@ -120,9 +124,9 @@ class IdempotencyKeyAssigner:
                 address, not content, so a retry could never derive the same
                 key from an equal-but-distinct instance.
         """
-        if isinstance(value, Mapping):
+        if JsonShape.is_any_mapping(value):
             return {k: cls._normalise(v) for k, v in value.items()}
-        if isinstance(value, (list, tuple)):
+        if JsonShape.is_list_or_tuple(value):
             return [cls._normalise(v) for v in value]
         try:
             ContentHasher.hash(value, strict=True)

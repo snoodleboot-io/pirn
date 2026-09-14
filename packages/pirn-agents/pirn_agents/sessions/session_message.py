@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SessionMessage`` — one role/content message captured in a run's state."""
 
 from __future__ import annotations

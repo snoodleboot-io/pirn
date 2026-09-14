@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SessionToolResult`` — a tool invocation's outcome recorded in run state."""
 
 from __future__ import annotations

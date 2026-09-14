@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``LLMProviderIdentityMixin`` — content-identity + canonicalisation for HTTP LLM providers.
 
 Extracted from :class:`~pirn_agents.llm.base_llm_provider.BaseLLMProvider` (PIR-856,

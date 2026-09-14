@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PromptPackLoader`` — parse a *prompt pack* file into :class:`PromptTemplate` values.
 
 A prompt pack is the operator-facing file format behind

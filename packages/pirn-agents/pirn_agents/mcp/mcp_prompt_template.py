@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``McpPromptTemplate`` — a reusable message template built from an MCP prompt.
 
 An MCP prompt definition (a name, an argument spec, and one or more message

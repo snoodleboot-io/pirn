@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``AdaptiveConcurrencyController`` — AIMD concurrency control on the core admission gate.
 
 ADR agents-speaks-core, WS4b: this used to be a bare AIMD counter that
@@ -17,7 +19,7 @@ Two signals drive the AIMD, matching the pre-migration behaviour exactly:
   specific.
 * **Decrease** — multiplicative, but *only* from :meth:`on_throttle`, called
   directly by the per-item knot
-  (:class:`~pirn_agents.batch._map_item._MapItem`) when it observes a
+  (:class:`~pirn_agents.batch.map_item.MapItem`) when it observes a
   :class:`~pirn_agents.batch.rate_limit_signal.RateLimitSignal`.
   ``AdmissionEvent`` carries only a coarse ``"ok"/"err"/"skipped"/"aborted"``
   outcome — not *why* a knot failed — so backing off on every ``"err"``

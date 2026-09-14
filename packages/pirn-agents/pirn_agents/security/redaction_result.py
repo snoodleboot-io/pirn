@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``RedactionResult`` — the redacted value plus what was found.
 
 A frozen pairing of the redacted ``value`` (a string, or a structurally-copied

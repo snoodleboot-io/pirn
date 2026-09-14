@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``McpTool`` — one discovered MCP server tool as a schema-declared tool capability.
 
 An MCP server advertises a tool as a descriptor — ``name``, ``description``

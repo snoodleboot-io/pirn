@@ -38,9 +38,14 @@ class FailoverResult(PirnOpaqueValue):
     value: Any
     attempts: tuple[FailoverAttempt, ...]
 
+    @staticmethod
+    def _audit_all(values: tuple[PirnOpaqueValue, ...]) -> list[Any]:
+        """Audit each child through the ``PirnOpaqueValue`` contract it shares with this value."""
+        return [value._pirn_audit_dict() for value in values]
+
     def _pirn_audit_dict(self) -> dict[str, Any]:
         return {
             "succeeded": self.succeeded,
             "chosen": self.chosen,
-            "attempts": [attempt._pirn_audit_dict() for attempt in self.attempts],
+            "attempts": self._audit_all(self.attempts),
         }

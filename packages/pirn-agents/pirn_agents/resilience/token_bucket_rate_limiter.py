@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TokenBucketRateLimiter`` — a shared async token bucket.
 
 One limiter is shared across all concurrent callers for a given provider/key.

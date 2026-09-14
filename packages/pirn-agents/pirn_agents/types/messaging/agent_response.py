@@ -138,7 +138,7 @@ class AgentResponse(Payload[GenerationFrame, str]):
         return AgentResponse(content=content, **fields)
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
-        audit = dict(self._metadata._pirn_audit_dict())
+        audit = dict(super()._pirn_audit_dict())
         audit["content"] = self.content
         return audit
 

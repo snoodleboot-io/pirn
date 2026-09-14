@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MemoryContent`` — the domain-data half of a memory ``Payload``.
 
 ADR "agents speaks core" WS3 makes

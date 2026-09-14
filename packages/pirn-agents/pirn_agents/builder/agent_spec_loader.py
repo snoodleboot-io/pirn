@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``AgentSpecLoader`` — parse/serialise :class:`AgentSpec` from JSON and YAML.
 
 JSON support uses only the standard library. YAML support is lazily provided
@@ -36,6 +38,7 @@ from typing import Any
 
 from pirn.yaml_loader.specs.pipeline_spec import PipelineSpec
 
+from pirn_agents._internal.json_shape import JsonShape
 from pirn_agents._internal.optional_import import OptionalImport
 from pirn_agents.builder.agent_spec import AgentSpec
 from pirn_agents.tools.filesystem._path_guard import PathGuard
@@ -85,7 +88,7 @@ class AgentSpecLoader:
             parsed = json.loads(text)
         except json.JSONDecodeError as exc:
             raise ValueError(f"AgentSpecLoader.from_json: invalid JSON: {exc}") from exc
-        if not isinstance(parsed, dict):
+        if not JsonShape.is_dict(parsed):
             raise TypeError(
                 f"AgentSpecLoader.from_json: top-level JSON must be an object, "
                 f"got {type(parsed).__name__}"
@@ -109,7 +112,7 @@ class AgentSpecLoader:
             parsed = yaml.safe_load(text)
         except yaml.YAMLError as exc:
             raise ValueError(f"AgentSpecLoader.from_yaml: invalid YAML: {exc}") from exc
-        if not isinstance(parsed, dict):
+        if not JsonShape.is_dict(parsed):
             raise TypeError(
                 f"AgentSpecLoader.from_yaml: top-level YAML must be a mapping, "
                 f"got {type(parsed).__name__}"

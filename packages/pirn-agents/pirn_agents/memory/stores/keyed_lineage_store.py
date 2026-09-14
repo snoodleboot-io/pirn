@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``KeyedLineageStore`` — a caller-chosen key is a knot id, not a KV slot.
 
 ADR "agents speaks core" WS3 part 4. Retires the reason

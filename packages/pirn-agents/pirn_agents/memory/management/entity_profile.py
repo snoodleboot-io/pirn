@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``EntityProfile`` — durable, cross-session per-user/per-entity state.
 
 A profile aggregates what the agent has learned about one subject across many

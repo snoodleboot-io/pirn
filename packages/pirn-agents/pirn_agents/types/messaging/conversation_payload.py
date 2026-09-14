@@ -6,6 +6,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 from pirn.core.payload import Payload
+from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 from pirn_agents.types.messaging.agent_message import AgentMessage
 from pirn_agents.types.messaging.conversation_frame import ConversationFrame
@@ -96,9 +97,14 @@ class ConversationPayload(Payload[ConversationFrame, tuple[AgentMessage, ...]]):
         fields.update(frame_overrides)
         return ConversationPayload(messages, **fields)
 
+    @staticmethod
+    def _audit_all(values: tuple[PirnOpaqueValue, ...]) -> list[Any]:
+        """Audit each child through the ``PirnOpaqueValue`` contract it shares with this value."""
+        return [value._pirn_audit_dict() for value in values]
+
     def _pirn_audit_dict(self) -> dict[str, Any]:
-        audit = dict(self._metadata._pirn_audit_dict())
-        audit["messages"] = [m._pirn_audit_dict() for m in self.messages]
+        audit = dict(super()._pirn_audit_dict())
+        audit["messages"] = self._audit_all(self.messages)
         return audit
 
     def __repr__(self) -> str:

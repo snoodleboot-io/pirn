@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ConversationTurn`` — one indexed role/content turn in a durable thread."""
 
 from __future__ import annotations

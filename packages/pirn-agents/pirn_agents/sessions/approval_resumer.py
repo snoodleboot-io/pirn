@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ApprovalResumer`` — resume a suspended run by replaying its prefix.
 
 ADR "agents speaks core" WS3 part 2. Starts a **new** engine run chained to

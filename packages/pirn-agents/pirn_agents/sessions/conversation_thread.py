@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ConversationThread`` — a durable, session-keyed multi-turn conversation."""
 
 from __future__ import annotations
