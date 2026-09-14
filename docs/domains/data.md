@@ -558,7 +558,7 @@ The `pirn_data.specialisations` package bundles higher-level knot compositions f
 | Class | What it does |
 |-------|-------------|
 | `ScdType1` | Overwrite current record (no history). |
-| `ScdType1Overwrite` | Full-table SCD Type 1 overwrite. |
+| `ScdType1Overwrite` | **Deprecated** (PIR-870) — full-table SCD Type 1 overwrite; the identical per-row select/update/insert logic now lives in `MergeUpsert` (`specializations/incremental/merge_upsert.py`). Construct `MergeUpsert` directly in new pipelines. |
 | `ScdType1MergeKnot` | SCD Type 1 upsert via lakehouse merge. |
 | `ScdType2` | Maintain row history with `valid_from` / `valid_to` timestamps. |
 | `ScdType2History` | Resolves historical SCD-2 records for a given key + timestamp. |
