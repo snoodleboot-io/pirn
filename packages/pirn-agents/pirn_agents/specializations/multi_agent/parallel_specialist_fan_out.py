@@ -37,6 +37,7 @@ References:
 
 from __future__ import annotations
 
+import functools
 from collections.abc import Mapping
 from typing import Any
 
@@ -57,24 +58,16 @@ class ParallelSpecialistFanOut(AgentPipeline):
     """Runs every registered specialist concurrently on the same task."""
 
     @staticmethod
-    def _make_mapping_combine(
-        order: list[tuple[str, str]],
-    ) -> Any:
-        """Build the aggregator combine that reassembles ``{name: response}``.
+    def _reassemble(
+        order: list[tuple[str, str]], **responses: AgentResponse
+    ) -> dict[str, AgentResponse]:
+        """Aggregator combine (bound to ``order`` with ``functools.partial``): ``{name: response}``.
 
         ``order`` pairs each parent kwarg key with its original specialist
         name, so the mapping is rebuilt in the specialists' registration
         order regardless of the keys used to wire the parents.
         """
-
-        # design-decision-override: Aggregator's combine hook takes only the
-        # resolved **responses kwargs, so the parent-key-to-specialist-name
-        # mapping can only reach it by closing over `order` in a
-        # factory-built callable.
-        def combine(**responses: AgentResponse) -> dict[str, AgentResponse]:
-            return {name: responses[key] for key, name in order}
-
-        return combine
+        return {name: responses[key] for key, name in order}
 
     def __init__(
         self,
@@ -117,7 +110,7 @@ class ParallelSpecialistFanOut(AgentPipeline):
             )
             order.append((key, name))
         return Aggregator(
-            combine=ParallelSpecialistFanOut._make_mapping_combine(order),
+            combine=functools.partial(ParallelSpecialistFanOut._reassemble, order),
             _config=KnotConfig(id="fan_out_aggregate"),
             **parents,
         )

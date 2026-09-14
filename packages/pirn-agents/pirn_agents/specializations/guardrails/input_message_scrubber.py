@@ -103,26 +103,18 @@ class InputMessageScrubber(Knot):
                     f"AgentMessage, got {type(message).__name__}"
                 )
             content = message.content
-
-            def _check_deny(content_str: str = content) -> re.Pattern[str] | None:
-                for p in deny_compiled:
-                    if p.search(content_str):
-                        return p
-                return None
-
-            denied = await asyncio.to_thread(_check_deny)
+            denied = await asyncio.to_thread(
+                InputMessageScrubber._first_deny_match, deny_compiled, content
+            )
             if denied is not None:
                 raise ValueError(
                     f"InputMessageScrubber: messages[{index}] matched "
                     f"deny pattern {denied.pattern!r}"
                 )
 
-            def _apply_pii(content_str: str = content) -> str:
-                for p in pii_compiled:
-                    content_str = p.sub("<redacted>", content_str)
-                return content_str
-
-            redacted_content = await asyncio.to_thread(_apply_pii)
+            redacted_content = await asyncio.to_thread(
+                InputMessageScrubber._redact_pii, pii_compiled, content
+            )
             cleaned.append(
                 AgentMessage(
                     role=message.role,
@@ -133,3 +125,20 @@ class InputMessageScrubber(Knot):
                 )
             )
         return tuple(cleaned)
+
+    @staticmethod
+    def _first_deny_match(
+        patterns: Sequence[re.Pattern[str]], content: str
+    ) -> re.Pattern[str] | None:
+        """Return the first deny pattern ``content`` matches, or ``None``."""
+        for pattern in patterns:
+            if pattern.search(content):
+                return pattern
+        return None
+
+    @staticmethod
+    def _redact_pii(patterns: Sequence[re.Pattern[str]], content: str) -> str:
+        """Replace every PII pattern match in ``content`` with ``<redacted>``."""
+        for pattern in patterns:
+            content = pattern.sub("<redacted>", content)
+        return content

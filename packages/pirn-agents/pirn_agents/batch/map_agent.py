@@ -557,7 +557,7 @@ class MapAgent(SubTapestry):
         # Aggregator's combine hook takes only the resolved **inputs kwargs,
         # so the per-item order/resumed lookup can only reach it by closing
         # over them in a factory-built callable (same shape as
-        # ParallelSpecialistFanOut._make_mapping_combine).
+        # DebateFramework._make_round_combine).
         # design-decision-override
         def combine(**inputs: Result[Any]) -> list[BatchItemResult]:
             by_index: dict[int, BatchItemResult] = dict(resumed)
