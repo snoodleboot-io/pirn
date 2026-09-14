@@ -55,6 +55,7 @@ from pirn_agents.specializations.multi_agent.debate_judge import (
 from pirn_agents.specializations.multi_agent.debate_round_framer import (
     DebateRoundFramer,
 )
+from pirn_agents.specializations.multi_agent.specialist_handle import SpecialistHandle
 from pirn_agents.specializations.multi_agent.specialist_invocation import (
     SpecialistInvocation,
 )
@@ -156,7 +157,7 @@ class DebateFramework(AgentPipeline):
             invocations: dict[str, Knot] = {}
             for debater_index, debater in enumerate(debater_tuple):
                 invocations[f"debater_{debater_index}"] = SpecialistInvocation(
-                    specialist=debater,
+                    specialist=SpecialistHandle(debater),
                     task=framer,
                     _config=KnotConfig(id=f"debate_r{round_index}_d{debater_index}"),
                 )

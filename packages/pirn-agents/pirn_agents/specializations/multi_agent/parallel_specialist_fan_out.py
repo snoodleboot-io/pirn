@@ -24,8 +24,8 @@ record has no retrieval path there.
 
 Algorithm:
     1. Validate ``specialists`` (non-empty mapping) and ``task`` (str).
-    2. Build one :class:`SpecialistInvocation` per specialist, each holding its
-       specialist on a ``_mutable_`` slot and receiving the shared ``task``.
+    2. Build one :class:`SpecialistInvocation` per specialist, each receiving its
+       specialist as a :class:`SpecialistHandle` and the shared ``task``.
     3. Wire all invocations as parents of an :class:`Aggregator` whose combine
        reassembles the ``{name: AgentResponse}`` mapping in registration order.
     4. Return the aggregator as the inner pipeline's sink.
@@ -46,6 +46,7 @@ from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
+from pirn_agents.specializations.multi_agent.specialist_handle import SpecialistHandle
 from pirn_agents.specializations.multi_agent.specialist_invocation import (
     SpecialistInvocation,
 )
@@ -110,7 +111,7 @@ class ParallelSpecialistFanOut(AgentPipeline):
         for index, (name, specialist) in enumerate(specialists_dict.items()):
             key = f"invocation_{index}"
             parents[key] = SpecialistInvocation(
-                specialist=specialist,
+                specialist=SpecialistHandle(specialist),
                 task=task,
                 _config=KnotConfig(id=f"invoke_{index}"),
             )

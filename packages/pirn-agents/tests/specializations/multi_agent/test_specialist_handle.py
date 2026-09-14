@@ -1,4 +1,4 @@
-"""Tests for :meth:`_SpecialistInvoker.invoke_specialist`."""
+"""Tests for :meth:`SpecialistHandle.run`."""
 
 from __future__ import annotations
 
@@ -10,9 +10,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
-from pirn_agents.specializations.multi_agent._specialist_invoker import (
-    _SpecialistInvoker,
-)
+from pirn_agents.specializations.multi_agent.specialist_handle import SpecialistHandle
 from pirn_agents.specializations.multi_agent.specialist_invocation_error import (
     SpecialistInvocationError,
 )
@@ -46,14 +44,14 @@ class TestInvokeSpecialist(unittest.IsolatedAsyncioTestCase):
         """The whole point: ``process()`` returns a Knot, ``__call__`` runs it."""
         with Tapestry():
             spec = _EchoSpecialist(_config=KnotConfig(id="echo"))
-        result = await _SpecialistInvoker.invoke_specialist(spec, task="hello")
+        result = await SpecialistHandle(spec).run(task="hello")
         assert isinstance(result, AgentResponse)
         assert result.content == "echo:hello"
 
     async def test_inputs_override_construction_values(self) -> None:
         with Tapestry():
             spec = _EchoSpecialist(task="at-construction", _config=KnotConfig(id="echo2"))
-        result = await _SpecialistInvoker.invoke_specialist(spec, task="at-call")
+        result = await SpecialistHandle(spec).run(task="at-call")
         assert isinstance(result, AgentResponse)
         assert result.content == "echo:at-call"
 
@@ -63,7 +61,7 @@ class TestInvokeSpecialist(unittest.IsolatedAsyncioTestCase):
         with Tapestry():
             spec = _ExplodingSpecialist(_config=KnotConfig(id="boom"))
         with self.assertRaises(SpecialistInvocationError) as ctx:
-            await _SpecialistInvoker.invoke_specialist(spec, task="anything")
+            await SpecialistHandle(spec).run(task="anything")
         assert ctx.exception.specialist_id == "boom"
         assert "specialist blew up" in ctx.exception.reason
 
@@ -74,3 +72,7 @@ class TestSpecialistInvocationError(unittest.TestCase):
         assert err.specialist_id == "spec_a"
         assert err.reason == "ValueError: nope"
         assert str(err) == "specialist 'spec_a' produced no output: ValueError: nope"
+
+    def test_a_non_sub_tapestry_is_refused(self) -> None:
+        with self.assertRaises(TypeError):
+            SpecialistHandle(object())  # type: ignore[arg-type]

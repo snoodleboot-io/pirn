@@ -569,8 +569,8 @@ fix unilaterally):
 
 ### Authoring, payload types, and docs (WS6a, WS6b)
 
-The builder's `AgentPatternRegistry` (66 canonical pattern names plus the
-`rag` alias for `naive_rag`, 67 total — `AgentPatternRegistry.pattern_names()`)
+The builder's `AgentPatternRegistry` (67 canonical pattern names plus the
+`rag` alias for `naive_rag`, 68 total — `AgentPatternRegistry.pattern_names()`)
 used to be a table disjoint from the `sweet_tea` registry core's YAML loader
 reads; every name is now aliased into that same registry at `pirn_agents`
 import time (`AgentPatternRegistry.register_with_core_registry`), so a core

@@ -556,7 +556,8 @@ Pre-built `SubTapestry` agents backed by `ReActLoop`:
 |---|---|
 | `BrowserAgent` | Web search + scraping tasks |
 | `CodeAgent` | Code generation + linting loop |
-| `SQLAgent` | NL → SQL → execute → format |
+| `SQLAgent` | NL → SQL → execute → format (read-only) |
+| `ReadWriteSQLAgent` | `SQLAgent` whose generated statement may write |
 | `ResearchAgent` | Multi-source research with citations |
 | `DataAnalystAgent` | Statistical analysis with tool use |
 
@@ -1400,6 +1401,7 @@ class-name mismatch here fails that suite.
 | `rag_fusion` | `RagFusionPipeline` | `query` |
 | `raptor_tree_builder` | `RaptorTreeBuilder` | `text` |
 | `react` | `ReActLoop` | `messages` |
+| `read_write_sql_agent` | `ReadWriteSQLAgent` | `question` |
 | `reflexion` | `ReflexionPipeline` | `task` |
 | `reranker` | `Reranker` | `query` |
 | `research_agent` | `ResearchAgent` | `topic` |
