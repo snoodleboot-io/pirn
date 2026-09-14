@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``AudioResampler`` — resample an audio :class:`SignalPayload`.
 
 Algorithm:
@@ -97,7 +99,7 @@ class AudioResampler(Knot):
     @staticmethod
     def _resample(data: np.ndarray, orig_sr: int, target_sr: int, res_type: str) -> np.ndarray:
         try:
-            import librosa  # type: ignore[import-not-found]
+            import librosa
         except ImportError as exc:
             raise ImportError(
                 "AudioResampler requires 'librosa'. Install via pip install pirn-signal[signal]"

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TimeSynchronizer`` — align two signals via cross-correlation time offset estimation.
 
 Algorithm:
@@ -30,9 +32,11 @@ import asyncio
 from typing import Any
 
 import numpy as np
+from numpy.typing import NDArray
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.bindings.scipy_signal_binding import ScipySignalBinding
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -93,16 +97,11 @@ class TimeSynchronizer(Knot):
 
     @staticmethod
     def _synchronize(
-        ref_data: np.ndarray,
-        tgt_data: np.ndarray,
+        ref_data: NDArray[np.floating[Any]],
+        tgt_data: NDArray[np.floating[Any]],
         max_lag: int,
-    ) -> np.ndarray:
-        try:
-            from scipy import signal as ss  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "TimeSynchronizer requires 'scipy'. Install via pip install pirn-signal[signal]"
-            ) from exc
+    ) -> NDArray[np.floating[Any]]:
+        ss = ScipySignalBinding.load()
         ref_ch = ref_data[0] if ref_data.ndim > 1 else ref_data
         tgt_ch = tgt_data[0] if tgt_data.ndim > 1 else tgt_data
         corr = ss.correlate(ref_ch, tgt_ch, mode="full")

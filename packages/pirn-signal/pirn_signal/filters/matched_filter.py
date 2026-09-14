@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MatchedFilter`` — correlate the input with a known template.
 
 Algorithm:
@@ -30,9 +32,11 @@ from collections.abc import Sequence
 from typing import Any
 
 import numpy as np
+from numpy.typing import NDArray
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.bindings.scipy_signal_binding import ScipySignalBinding
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -43,7 +47,7 @@ class MatchedFilter(Knot):
         self,
         *,
         signal: Knot,
-        template: Knot | tuple,
+        template: Knot | tuple[float, ...],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
@@ -86,19 +90,18 @@ class MatchedFilter(Knot):
         )
         return signal.derive(
             "matched",
-            np.asarray(filtered),
+            filtered,
         )
 
     @staticmethod
-    def _correlate_multichannel(data: np.ndarray, template: np.ndarray) -> np.ndarray:
+    def _correlate_multichannel(
+        data: NDArray[np.floating[Any]], template: NDArray[np.float64]
+    ) -> NDArray[np.floating[Any]]:
         """Cross-correlate each channel of data with template, returning full-mode output."""
-        try:
-            from scipy import signal as ss  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "MatchedFilter requires 'scipy'. Install via pip install pirn-signal[signal]"
-            ) from exc
+        ss = ScipySignalBinding.load()
         if data.ndim == 1:
             return ss.correlate(data, template, mode="full")
-        rows = [ss.correlate(data[i], template, mode="full") for i in range(data.shape[0])]
+        rows: list[NDArray[np.floating[Any]]] = [
+            ss.correlate(data[i], template, mode="full") for i in range(data.shape[0])
+        ]
         return np.stack(rows, axis=0)

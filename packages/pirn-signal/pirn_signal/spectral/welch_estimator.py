@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``WelchEstimator`` — power spectral density via Welch's method.
 
 Algorithm:
@@ -28,6 +30,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.bindings.scipy_signal_binding import ScipySignalBinding
 from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.spectrum_frame import SpectrumFrame
 from pirn_signal.types.spectrum_payload import SpectrumPayload
@@ -74,12 +77,7 @@ class WelchEstimator(Knot):
         Raises:
             ValueError: If segment_length or overlap are invalid.
         """
-        try:
-            from scipy import signal as ss  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "WelchEstimator requires 'scipy'. Install via pip install pirn-signal[signal]"
-            ) from exc
+        ss = ScipySignalBinding.load()
         if not isinstance(segment_length, int) or segment_length <= 0:
             raise ValueError("WelchEstimator: segment_length must be a positive integer")
         if not isinstance(overlap, int) or overlap < 0:

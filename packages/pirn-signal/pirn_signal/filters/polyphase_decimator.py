@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PolyphaseDecimator`` — efficient downsampling via polyphase FIR.
 
 Algorithm:
@@ -27,10 +29,10 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.bindings.scipy_signal_binding import ScipySignalBinding
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -74,12 +76,7 @@ class PolyphaseDecimator(Knot):
         Raises:
             ValueError: If decimation_factor or filter_taps are invalid.
         """
-        try:
-            from scipy import signal as ss  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "PolyphaseDecimator requires 'scipy'. Install via pip install pirn-signal[signal]"
-            ) from exc
+        ss = ScipySignalBinding.load()
         if not isinstance(decimation_factor, int) or decimation_factor <= 1:
             raise ValueError("PolyphaseDecimator: decimation_factor must be an integer > 1")
         if not isinstance(filter_taps, int) or filter_taps <= 0:
@@ -91,6 +88,6 @@ class PolyphaseDecimator(Knot):
         new_rate = signal.frame.sample_rate_hz / decimation_factor
         return signal.derive(
             "polyphase-dec",
-            np.asarray(decimated),
+            decimated,
             sample_rate_hz=new_rate,
         )

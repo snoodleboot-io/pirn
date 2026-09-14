@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``Decimator`` — anti-alias filter then integer downsample.
 
 Algorithm:
@@ -31,9 +33,11 @@ import asyncio
 from typing import Any
 
 import numpy as np
+from numpy.typing import NDArray
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.bindings.scipy_signal_binding import ScipySignalBinding
 from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
 
@@ -88,11 +92,8 @@ class Decimator(Knot):
         return SignalPayload(metadata=new_frame, data=decimated)
 
     @staticmethod
-    def _decimate(data: np.ndarray, decimation_factor: int) -> np.ndarray:
-        try:
-            from scipy import signal as ss  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "Decimator requires 'scipy'. Install via pip install pirn-signal[signal]"
-            ) from exc
-        return ss.decimate(data, q=decimation_factor, axis=-1)
+    def _decimate(
+        data: NDArray[np.floating[Any]], decimation_factor: int
+    ) -> NDArray[np.floating[Any]]:
+        ss = ScipySignalBinding.load()
+        return ss.decimate(data, decimation_factor, axis=-1)

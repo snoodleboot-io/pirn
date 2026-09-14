@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PCADecomposer`` — principal component analysis on a multichannel signal.
 
 Algorithm:
@@ -33,9 +35,11 @@ import asyncio
 from typing import Any
 
 import numpy as np
+from numpy.typing import NDArray
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.bindings.sklearn_decomposition_binding import SklearnDecompositionBinding
 from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.source_frame import SourceFrame
 from pirn_signal.types.source_payload import SourcePayload
@@ -98,16 +102,12 @@ class PCADecomposer(Knot):
                 source_count=component_count,
                 mixing_matrix_shape=(signal.frame.channel_count, component_count),
             ),
-            data=np.asarray(components),
+            data=components,
         )
 
     @staticmethod
-    def _run_pca(data: np.ndarray, component_count: int, whiten: bool) -> np.ndarray:
-        try:
-            from sklearn.decomposition import PCA  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "PCADecomposer requires 'scikit-learn'. Install via pip install pirn-signal[separation]"
-            ) from exc
-        pca = PCA(n_components=component_count, whiten=whiten)
-        return pca.fit_transform(data.T).T
+    def _run_pca(
+        data: NDArray[np.floating[Any]], component_count: int, whiten: bool
+    ) -> NDArray[np.float64]:
+        decomposition = SklearnDecompositionBinding.load()
+        return decomposition.pca(data.T, component_count, whiten).T

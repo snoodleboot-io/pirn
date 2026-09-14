@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``CombFilter`` — feedforward comb filter.
 
 Algorithm:
@@ -29,6 +31,7 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.bindings.scipy_signal_binding import ScipySignalBinding
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -72,12 +75,7 @@ class CombFilter(Knot):
         Raises:
             ValueError: If delay_samples or gain are invalid.
         """
-        try:
-            from scipy import signal as ss  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "CombFilter requires 'scipy'. Install via pip install pirn-signal[signal]"
-            ) from exc
+        ss = ScipySignalBinding.load()
         if not isinstance(delay_samples, int) or delay_samples <= 0:
             raise ValueError("CombFilter: delay_samples must be a positive integer")
         if not isinstance(gain, (int, float)) or not (0.0 <= gain <= 1.0):
@@ -91,5 +89,5 @@ class CombFilter(Knot):
         )
         return signal.derive(
             "comb",
-            np.asarray(filtered),
+            filtered,
         )

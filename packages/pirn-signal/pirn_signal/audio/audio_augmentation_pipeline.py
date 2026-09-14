@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``AudioAugmentationPipeline`` — stochastic audio augmentation pipeline.
 
 Algorithm:
@@ -62,7 +64,7 @@ class AudioAugmentationPipeline(Knot):
         self,
         *,
         signal: Knot,
-        augmentations: Knot | tuple,
+        augmentations: Knot | tuple[str, ...],
         seed: Knot | int,
         _config: KnotConfig,
         **kwargs: Any,
@@ -126,7 +128,7 @@ class AudioAugmentationPipeline(Knot):
         per channel from the same seeded recipe.
         """
         try:
-            import librosa  # type: ignore[import-not-found]
+            import librosa
         except ImportError as exc:
             raise ImportError(
                 "AudioAugmentationPipeline requires 'librosa'. Install via pip install pirn-signal[signal]"

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FractionalDelayFilter`` — sub-sample delay via Lagrange interpolation.
 
 Algorithm:
@@ -26,9 +28,11 @@ import asyncio
 from typing import Any
 
 import numpy as np
+from numpy.typing import NDArray
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.bindings.scipy_signal_binding import ScipySignalBinding
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -93,9 +97,9 @@ class FractionalDelayFilter(Knot):
         )
 
     @staticmethod
-    def _lagrange_coeffs(delay: float, order: int) -> np.ndarray:
+    def _lagrange_coeffs(delay: float, order: int) -> NDArray[np.float64]:
         tap_count = order + 1
-        tap_weights = np.ones(tap_count)
+        tap_weights: NDArray[np.float64] = np.ones(tap_count, dtype=np.float64)
         for tap_index in range(tap_count):
             for basis_index in range(tap_count):
                 if basis_index != tap_index:
@@ -103,12 +107,9 @@ class FractionalDelayFilter(Knot):
         return tap_weights
 
     @staticmethod
-    def _apply_fractional_delay(data: np.ndarray, delay: float, order: int) -> np.ndarray:
-        try:
-            from scipy import signal as ss  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "FractionalDelayFilter requires 'scipy'. Install via pip install pirn-signal[signal]"
-            ) from exc
+    def _apply_fractional_delay(
+        data: NDArray[np.floating[Any]], delay: float, order: int
+    ) -> NDArray[np.floating[Any]]:
+        ss = ScipySignalBinding.load()
         tap_weights = FractionalDelayFilter._lagrange_coeffs(delay, order)
-        return np.asarray(ss.lfilter(tap_weights, [1.0], data, axis=-1))
+        return ss.lfilter(tap_weights, [1.0], data, axis=-1)
