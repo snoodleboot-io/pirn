@@ -29,9 +29,11 @@ from __future__ import annotations
 
 import importlib
 import pkgutil
+from pathlib import Path
 
 import pytest
 from pirn.nodes.sub_tapestry import SubTapestry
+from sweet_tea.registry import Registry
 
 import pirn_agents.specializations as _specializations_pkg
 from pirn_agents.builder.agent_pattern_registry import AgentPatternRegistry
@@ -116,6 +118,21 @@ _EXPECTED_EXCLUSIONS = frozenset(
     }
 )
 
+#: Registry-visible ``AgentPipeline`` subclasses outside ``specializations/``,
+#: so the pkgutil walk ``_discover_pipelines`` performs never sees them and
+#: they cannot belong in ``_EXPECTED_EXCLUSIONS`` (that set's own completeness
+#: tests are cross-checked *against* that same walk). Found only by
+#: ``test_every_registry_visible_agent_pipeline_has_seed_metadata``'s
+#: sweet_tea-Registry-based check (PIR-870); justified the same way as any
+#: other private loop body.
+_REGISTRY_ONLY_EXCLUSIONS = frozenset(
+    {
+        # Private: the loop body FailoverChain drives internally (ADR
+        # agents-speaks-core WS5b); lives in resilience/, not specializations/.
+        "pirn_agents.resilience._failover_loop._FailoverLoop",
+    }
+)
+
 
 def _qualified(cls: type) -> str:
     """Return ``module.QualName`` for a class."""
@@ -176,6 +193,43 @@ def test_the_registry_names_nothing_that_is_not_a_shipped_pipeline() -> None:
 
     # Assert: the other direction — no row pointing at a class that moved away.
     assert stale == []
+
+
+def test_every_registry_visible_agent_pipeline_has_seed_metadata() -> None:
+    """PIR-870: cross-check against the *sweet_tea* Registry itself, not pkgutil.
+
+    ``_discover_pipelines`` above walks the filesystem; this walks the very
+    registry ``PatternDescriptor.knot_class()`` resolves classes through
+    (``Registry.typed_entries(AgentPipeline)``, scoped to the ``pirn``
+    library `fill_registry` filled). Every class it reports an ``AgentPipeline``
+    subclass either has seed metadata here (a row's ``class_name`` names it) or
+    is one of the already-justified exclusions -- so a class that is
+    registry-visible but was never fed into this table (e.g. a future change to
+    how the registry is filled) cannot pass silently.
+    """
+    # Arrange. ``canonical_names()`` is one row per class (aliases map onto an
+    # already-covered class_name, so they add nothing here).
+    named_classes = {
+        AgentPatternRegistry.descriptor(name).class_name
+        for name in AgentPatternRegistry.canonical_names()
+    }
+    exclusion_class_names = {
+        excluded.rsplit(".", 1)[1]
+        for excluded in (_EXPECTED_EXCLUSIONS | _REGISTRY_ONLY_EXCLUSIONS)
+    }
+
+    # Act.
+    missing = []
+    for entry in Registry.typed_entries(AgentPipeline):
+        if entry.library != "pirn":
+            continue
+        cls = entry.class_def
+        if cls.__name__ in named_classes or cls.__name__ in exclusion_class_names:
+            continue
+        missing.append(_qualified(cls))
+
+    # Assert: every registry-visible AgentPipeline is named or justified.
+    assert sorted(set(missing)) == []
 
 
 def test_the_exclusion_set_is_exactly_what_is_excluded() -> None:
@@ -309,22 +363,21 @@ def test_pattern_names_are_unique_and_aliases_resolve_to_canonicals() -> None:
 
 def test_listing_and_resolving_names_never_touches_the_classes() -> None:
     """A row is data until asked for the class — that is what keeps it a table."""
-    # Arrange: a row whose target could not possibly import.
-    bogus = PatternDescriptor("bogus", "pirn_agents.no_such_module:Nope", "query")
+    # Arrange: a row naming a class that is not registered anywhere.
+    bogus = PatternDescriptor("bogus", "NoSuchClassAnywherePir870", "query")
 
-    # Act / Assert: everything name-shaped works.
+    # Act / Assert: everything name-shaped works, with no registry lookup.
     assert bogus.name == "bogus"
-    assert bogus.module_name == "pirn_agents.no_such_module"
-    assert bogus.class_name == "Nope"
+    assert bogus.class_name == "NoSuchClassAnywherePir870"
 
     # Assert: only asking for the class fails, and it says which row.
-    with pytest.raises(ModuleNotFoundError):
+    with pytest.raises(ImportError, match="NoSuchClassAnywherePir870"):
         bogus.knot_class()
 
 
 def test_a_row_pointing_at_a_non_pipeline_is_rejected_on_resolution() -> None:
     # Arrange: a real class that is not a SubTapestry.
-    bad = PatternDescriptor("bad", "pirn_agents.builder.agent:Agent", "query")
+    bad = PatternDescriptor("bad", "Agent", "query")
 
     # Act / Assert.
     with pytest.raises(TypeError, match="must be a SubTapestry subclass"):
@@ -333,10 +386,43 @@ def test_a_row_pointing_at_a_non_pipeline_is_rejected_on_resolution() -> None:
 
 def test_a_row_declaring_a_seed_the_class_lacks_is_rejected() -> None:
     # Arrange: right class, wrong seed parameter.
-    wrong = PatternDescriptor(
-        "wrong", "pirn_agents.specializations.rag.naive_rag_pipeline:NaiveRAGPipeline", "prompt"
-    )
+    wrong = PatternDescriptor("wrong", "NaiveRAGPipeline", "prompt")
 
     # Act / Assert: the row is checked against the constructor it names.
     with pytest.raises(ValueError, match="is not a constructor parameter"):
         wrong.knot_class()
+
+
+# --- documentation ---------------------------------------------------------
+
+#: BUILDER.md and PATTERNS.md, read together — a pattern's class name only
+#: needs to be mentioned in one of the two, not both.
+_DOC_PATHS = (
+    Path(__file__).resolve().parents[2] / "pirn_agents" / "builder" / "BUILDER.md",
+    Path(__file__).resolve().parents[2] / "pirn_agents" / "PATTERNS.md",
+)
+
+
+def test_builder_and_patterns_docs_list_every_registered_pattern() -> None:
+    """PIR-870: the class name of every registered pattern is documented somewhere.
+
+    Generates the expected list from ``AgentPatternRegistry`` itself (not a
+    second hand-typed copy) and checks each class name appears in the
+    concatenated text of BUILDER.md and PATTERNS.md, so a pattern added to the
+    registry without a matching doc update is caught here rather than left for
+    a reader to notice.
+    """
+    # Arrange.
+    combined_text = "\n".join(path.read_text() for path in _DOC_PATHS)
+    class_names = {
+        AgentPatternRegistry.descriptor(name).class_name
+        for name in AgentPatternRegistry.canonical_names()
+    }
+
+    # Assert (guard): the two named in PIR-856/870 specifically.
+    assert "ConsensusPipeline" in class_names
+    assert "ConstitutionalFilter" in class_names
+
+    # Act / Assert.
+    undocumented = sorted(name for name in class_names if name not in combined_text)
+    assert undocumented == []

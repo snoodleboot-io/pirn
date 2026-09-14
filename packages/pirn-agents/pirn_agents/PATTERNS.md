@@ -1371,3 +1371,88 @@ and citations live in
 ### FLARE
 - **Active retrieval** — `FlareActiveRagPipeline`: monitors per-sentence
   confidence and retrieves mid-generation under a max-retrieval-calls budget.
+
+---
+
+## Full Pattern Reference
+
+Every name `Agent.builder().pattern(...)` accepts (and `callable:` resolves to
+in a core YAML pipeline document), generated from
+`AgentPatternRegistry.canonical_names()` — see `builder/BUILDER.md`. `seed` is
+the constructor parameter bound from `.input(...)`; every other required
+parameter is a component supplied via `.component(name, value)`
+(`AgentPatternRegistry.required_components(name)`). Kept in sync with the
+registry by `tests/builder/test_pattern_registry_coverage.py` (PIR-870): a
+class-name mismatch here fails that suite.
+
+| Pattern name | Class | Seed |
+|---|---|---|
+| `adaptive_rag` | `AdaptiveRAGPipeline` | `query` |
+| `agentic_rag` | `AgenticRagPipeline` | `query` |
+| `auto_merging_ingestor` | `AutoMergingIngestor` | `text` |
+| `browser_agent` | `BrowserAgent` | `goal` |
+| `code_agent` | `CodeAgent` | `task` |
+| `consensus` | `ConsensusPipeline` | `responses` |
+| `constitutional_filter` | `ConstitutionalFilter` | `response` |
+| `contextual_chunk_enricher` | `ContextualChunkEnricher` | `documents` |
+| `contextual_compressor` | `ContextualCompressor` | `query` |
+| `contextual_retrieval` | `ContextualRetrievalPipeline` | `query` |
+| `corrective_rag` | `CorrectiveRAGPipeline` | `query` |
+| `corrective_router` | `CorrectiveRouter` | `query` |
+| `data_analyst_agent` | `DataAnalystAgent` | `question` |
+| `debate` | `DebateFramework` | `topic` |
+| `document_ingestion` | `DocumentIngestionPipeline` | `source` |
+| `document_qa` | `DocumentQAPipeline` | `question` |
+| `document_summarizer` | `DocumentSummarizerPipeline` | `source` |
+| `document_translation` | `DocumentTranslationPipeline` | `source` |
+| `enum_classifier` | `EnumClassifierPipeline` | `prompt` |
+| `evaluator_optimizer` | `EvaluatorOptimizerPipeline` | `task` |
+| `fact_check` | `FactCheck` | `response` |
+| `fallback_chain` | `FallbackChain` | `ordered` |
+| `flare_rag` | `FlareActiveRagPipeline` | `query` |
+| `fusion_retriever` | `FusionRetriever` | `queries` |
+| `graph_rag` | `GraphRAGPipeline` | `query` |
+| `hyde_rag` | `HyDERAGPipeline` | `query` |
+| `ingestion` | `IngestionPipeline` | `source_connector` |
+| `input_guardrail` | `InputGuardrailCheck` | `messages` |
+| `iterative_retriever` | `IterativeRetriever` | `query` |
+| `json_extractor` | `JsonExtractorPipeline` | `prompt` |
+| `lats` | `LatsSearch` | `task` |
+| `model_cascade` | `ModelCascadeRouter` | `request` |
+| `multi_hop_rag` | `MultiHopRAGPipeline` | `query` |
+| `naive_rag` | `NaiveRAGPipeline` | `query` |
+| `orchestrator` | `OrchestratorAgent` | `task` |
+| `orchestrator_workers` | `OrchestratorWorkers` | `tasks` |
+| `output_guardrail` | `OutputGuardrailCheck` | `response` |
+| `parallel_specialists` | `ParallelSpecialistFanOut` | `task` |
+| `parallel_tool_call` | `ParallelToolCaller` | `tool_calls` |
+| `parent_document_ingestor` | `ParentDocumentIngestor` | `text` |
+| `pii_redactor` | `PiiRedactorCheck` | `response` |
+| `plan_react` | `PlanReActPipeline` | `task` |
+| `prompt_chain` | `PromptChainPipeline` | `task` |
+| `pydantic_validator` | `PydanticValidatorPipeline` | `prompt` |
+| `rag_fusion` | `RagFusionPipeline` | `query` |
+| `raptor_tree_builder` | `RaptorTreeBuilder` | `text` |
+| `react` | `ReActLoop` | `messages` |
+| `reflexion` | `ReflexionPipeline` | `task` |
+| `reranker` | `Reranker` | `query` |
+| `research_agent` | `ResearchAgent` | `topic` |
+| `retry_on_parse_failure` | `RetryOnParseFailure` | `prompt` |
+| `rewoo` | `ReWooPipeline` | `goal` |
+| `round_robin_review` | `RoundRobinReview` | `response` |
+| `router_fallback` | `RouterFallbackPipeline` | `candidates` |
+| `router_rag` | `RouterRagPipeline` | `query` |
+| `self_ask` | `SelfAskPipeline` | `task` |
+| `self_consistency` | `SelfConsistencyEnsemble` | `prompt` |
+| `self_query_rag` | `SelfQueryRagPipeline` | `query` |
+| `self_rag` | `SelfRAGPipeline` | `query` |
+| `speculative_rag` | `SpeculativeRagPipeline` | `query` |
+| `sql_agent` | `SQLAgent` | `question` |
+| `sub_question_rag` | `SubQuestionRagPipeline` | `query` |
+| `sub_question_retriever` | `SubQuestionRetriever` | `sub_questions` |
+| `tool_chain` | `ToolChain` | `initial_call` |
+| `tree_of_thought` | `TreeOfThought` | `prompt` |
+| `yaml_extractor` | `YamlExtractorPipeline` | `prompt` |
+
+Plus the `rag` alias for `naive_rag` (67 names total via
+`AgentPatternRegistry.pattern_names()`).

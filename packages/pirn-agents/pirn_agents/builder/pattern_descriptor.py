@@ -10,34 +10,59 @@ required parameter to a pipeline immediately makes it a required component at
 the builder, and renaming one immediately renames it.
 
 That derivation is what lets one registry table cover every shipped pattern
-instead of one bespoke ``_build_x`` method per pattern (PIR-730). The name is
-the only thing stated by hand, deliberately: it is the public API surface and
-must stay stable even when a class is renamed.
+instead of one bespoke ``_build_x`` method per pattern (PIR-730). The name and
+the seed/kind are the only things stated by hand, deliberately: the name is
+the public API surface and must stay stable even when a class is renamed, and
+the seed is a choice about which parameter varies per run (PIR-870) — this is
+the "companion metadata" the class itself cannot tell us.
 
-Patterns are named by a ``"module:ClassName"`` target and imported **on first
-use**. This keeps the table declarative — a row is data, not 52 import
-statements — and keeps the builder package free of import cycles with the
-specialization tree it points at. It is *not* an install-size win today:
-``pirn_agents/__init__.py`` calls ``Registry.fill_registry()``, which imports
-every knot module in the package, so by the time anything reaches this table the
-classes are already loaded. Lazy targets simply mean the registry does not add a
-second reason to load them.
+**Class resolution is a bare class name looked up in the sweet_tea
+``Registry``, not a hand-typed ``"module:ClassName"`` string (PIR-870).**
+``pirn_agents/__init__.py`` calls ``Registry.fill_registry()`` before this
+table is ever consulted, which imports every knot module in the package and
+registers each class it finds under its own lowercased name
+(``library="pirn"``). A descriptor's :attr:`class_name` is just that
+registration key with its original casing — the *module path* is derived
+by asking the resolved class for its own ``__module__`` rather than being
+restated by hand per row. Before this, ``target`` duplicated exactly what
+``fill_registry`` already knew (52 hand-typed module paths that could drift
+if a file moved), and doubled the cost of a rename: the class *and* the row
+both had to change. Resolution is still performed once per class and cached,
+and still on first use — nothing about the row's laziness or the freedom from
+import cycles this package needs from its own ``specializations/`` tree
+changes.
 
 References:
     - :class:`pirn_agents.builder.agent_pattern_registry.AgentPatternRegistry`
+    - :class:`sweet_tea.registry.Registry`
 """
 
 from __future__ import annotations
 
-import importlib
 import inspect
 from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Any, ClassVar
 
 from pirn.nodes.sub_tapestry import SubTapestry
+from sweet_tea.registry import Registry
 
 from pirn_agents.builder.pattern_seed_kind import PatternSeedKind
+
+#: The ``library`` every pattern class is auto-registered under by
+#: ``Registry.fill_registry(module="pirn_agents", library="pirn")``
+#: (``pirn_agents/__init__.py``). Scopes a bare-class-name lookup to this
+#: package's own classes so it can never resolve to another library's
+#: same-named class sharing the one process-wide sweet_tea registry.
+_AUTO_FILL_LIBRARY = "pirn"
+
+#: ``Registry.fill_registry`` calls ``Registry.register`` with no ``label``,
+#: so every auto-discovered class carries the empty label. Distinguishes an
+#: auto-discovered entry from one ``AgentPatternRegistry.register_with_core_registry``
+#: adds later under ``label="pattern"`` for the *pattern name* (not the class
+#: name), which would otherwise also match a lookup keyed by class name for a
+#: pattern whose name happens to lowercase to its own class's key.
+_AUTO_FILL_LABEL = ""
 
 
 @dataclass(frozen=True)
@@ -48,9 +73,10 @@ class PatternDescriptor:
     ----------
     name:
         The public pattern name (e.g. ``"naive_rag"``). Stable API surface.
-    target:
-        ``"module:ClassName"`` locating the :class:`SubTapestry` subclass this
-        name builds. Imported on first use.
+    class_name:
+        The :class:`SubTapestry` subclass's own name (e.g.
+        ``"NaiveRAGPipeline"``), resolved through the sweet_tea ``Registry``
+        rather than a hand-typed module path. Imported on first use.
     seed:
         The constructor parameter that receives the builder's ``.input(...)``.
         Conventionally the pipeline's first parameter — the subject it acts on.
@@ -62,89 +88,107 @@ class PatternDescriptor:
     #: ``ClassVar`` excludes it from the dataclass's own fields.
     _reserved_parameters: ClassVar[frozenset[str]] = frozenset({"self", "_config"})
 
-    #: Import cache, keyed by target. Descriptors are frozen, so the cache
+    #: Import cache, keyed by class_name. Descriptors are frozen, so the cache
     #: lives on the class instead of an instance.
     _resolved: ClassVar[dict[str, type[SubTapestry]]] = {}
 
-    #: Rows already checked against their class, keyed by ``(target, seed)``.
-    #: Keyed by the pair, not the target: two rows may share a class and
+    #: Rows already checked against their class, keyed by ``(class_name, seed)``.
+    #: Keyed by the pair, not the class name: two rows may share a class and
     #: differ in seed, and the second must still be checked.
     _validated: ClassVar[set[tuple[str, str]]] = set()
 
     name: str
-    target: str
+    class_name: str
     seed: str
     seed_kind: PatternSeedKind = PatternSeedKind.VALUE
 
     def __post_init__(self) -> None:
-        """Validate the row's own shape (not the class, which is not yet imported).
+        """Validate the row's own shape (not the class, which is not yet resolved).
 
         Raises:
-            TypeError: If ``name``, ``target`` or ``seed`` is not a string.
-            ValueError: If any is empty, or ``target`` is not ``module:Class``.
+            TypeError: If ``name``, ``class_name`` or ``seed`` is not a string.
+            ValueError: If any is empty.
         """
-        for label, value in (("name", self.name), ("target", self.target), ("seed", self.seed)):
+        for label, value in (
+            ("name", self.name),
+            ("class_name", self.class_name),
+            ("seed", self.seed),
+        ):
             if not isinstance(value, str):
                 raise TypeError(
                     f"PatternDescriptor: {label} must be a str, got {type(value).__name__}"
                 )
             if not value:
                 raise ValueError(f"PatternDescriptor: {label} must be a non-empty string")
-        if self.target.count(":") != 1:
-            raise ValueError(
-                f"PatternDescriptor {self.name!r}: target must be 'module:ClassName', "
-                f"got {self.target!r}"
-            )
-
-    @property
-    def module_name(self) -> str:
-        """The module half of :attr:`target` (no import performed)."""
-        return self.target.split(":", 1)[0]
-
-    @property
-    def class_name(self) -> str:
-        """The class half of :attr:`target` (no import performed)."""
-        return self.target.split(":", 1)[1]
 
     def knot_class(self) -> type[SubTapestry]:
-        """Import and return the pattern's :class:`SubTapestry` subclass.
+        """Resolve and return the pattern's :class:`SubTapestry` subclass.
 
-        The import is performed once per target and cached. Resolution is also
-        where the row is checked against reality — that the class exists, is a
-        :class:`SubTapestry`, and actually has the declared seed parameter.
+        Looked up in the sweet_tea ``Registry`` by :attr:`class_name` — see the
+        module docstring — rather than imported from a stored module path.
+        Resolution is performed once per class name and cached. It is also
+        where the row is checked against reality — that the class exists
+        uniquely, is a :class:`SubTapestry`, and actually has the declared
+        seed parameter.
 
         Raises:
-            ImportError: If the module or class cannot be imported.
-            TypeError: If the target is not a :class:`SubTapestry` subclass.
-            ValueError: If :attr:`seed` is not one of its constructor parameters.
+            ImportError: If no class named :attr:`class_name` is registered
+                under the ``pirn`` library, or more than one is (which would
+                mean the registry-uniqueness gate this codebase enforces
+                elsewhere has itself been violated).
+            TypeError: If the resolved class is not a :class:`SubTapestry`
+                subclass.
+            ValueError: If :attr:`seed` is not one of its constructor
+                parameters.
         """
-        resolved = type(self)._resolved.get(self.target)
+        resolved = type(self)._resolved.get(self.class_name)
         if resolved is None:
-            module = importlib.import_module(self.module_name)
-            # `vars(...)` rather than `getattr`: the class name is data, so the
-            # lookup is a dict lookup, and the house rule reserves `getattr` for
-            # cases with no plainer form (conventions/languages/python.md).
-            candidate = vars(module).get(self.class_name)
-            if candidate is None:
-                raise ImportError(
-                    f"PatternDescriptor {self.name!r}: {self.module_name!r} has no "
-                    f"{self.class_name!r}"
-                )
+            candidate = self._resolve_from_registry()
             if not (isinstance(candidate, type) and issubclass(candidate, SubTapestry)):
                 raise TypeError(
-                    f"PatternDescriptor {self.name!r}: {self.target} must be a SubTapestry "
-                    f"subclass, got {candidate!r}"
+                    f"PatternDescriptor {self.name!r}: {self.class_name} must be a "
+                    f"SubTapestry subclass, got {candidate!r}"
                 )
-            type(self)._resolved[self.target] = candidate
+            type(self)._resolved[self.class_name] = candidate
             resolved = candidate
-        if (self.target, self.seed) not in type(self)._validated:
+        if (self.class_name, self.seed) not in type(self)._validated:
             if self.seed not in self.parameters():
                 raise ValueError(
                     f"PatternDescriptor {self.name!r}: seed {self.seed!r} is not a constructor "
                     f"parameter of {self.class_name}; parameters are {sorted(self.parameters())!r}"
                 )
-            type(self)._validated.add((self.target, self.seed))
+            type(self)._validated.add((self.class_name, self.seed))
         return resolved
+
+    def _resolve_from_registry(self) -> type:
+        """Return the unique ``pirn``-library class named :attr:`class_name`.
+
+        Raises:
+            ImportError: If zero, or more than one, class of that name is
+                registered under the ``pirn`` library with the auto-fill
+                label — the latter can only mean this codebase's own
+                registry-uniqueness invariant was violated elsewhere.
+        """
+        matches = [
+            entry.class_def
+            for entry in Registry.entries()
+            if entry.key == self.class_name.lower()
+            and entry.library == _AUTO_FILL_LIBRARY
+            and entry.label == _AUTO_FILL_LABEL
+        ]
+        if not matches:
+            raise ImportError(
+                f"PatternDescriptor {self.name!r}: no class named {self.class_name!r} is "
+                f"registered under the {_AUTO_FILL_LIBRARY!r} library; is it defined under "
+                "pirn_agents and has Registry.fill_registry() run yet?"
+            )
+        if len(matches) > 1:
+            raise ImportError(
+                f"PatternDescriptor {self.name!r}: {len(matches)} classes named "
+                f"{self.class_name!r} are registered under the {_AUTO_FILL_LIBRARY!r} "
+                "library; class names must be globally unique"
+            )
+        return matches[0]
 
     def parameters(self) -> MappingProxyType[str, bool]:
         """Return the bindable constructor parameters, mapped to *has a default*.
@@ -153,7 +197,7 @@ class PatternDescriptor:
         any ``*args``/``**kwargs`` catch-all, which absorbs anything and so
         tells the builder nothing.
         """
-        knot_class = type(self)._resolved.get(self.target) or self.knot_class()
+        knot_class = type(self)._resolved.get(self.class_name) or self.knot_class()
         signature = inspect.signature(knot_class.__init__)
         return MappingProxyType(
             {
@@ -187,11 +231,15 @@ class PatternDescriptor:
         return parameter in self.parameters()
 
     def describe(self) -> dict[str, Any]:
-        """Return a plain, printable summary of this pattern's contract."""
+        """Return a plain, printable summary of this pattern's contract.
+
+        Resolves the class (to read its ``required``/``optional`` parameters
+        and its true ``module``), unlike the purely name-shaped accessors.
+        """
         return {
             "name": self.name,
             "class": self.class_name,
-            "module": self.module_name,
+            "module": self.knot_class().__module__,
             "seed": self.seed,
             "seed_kind": self.seed_kind.value,
             "required": list(self.required_components()),
