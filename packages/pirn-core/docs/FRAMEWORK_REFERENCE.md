@@ -476,9 +476,19 @@ fix unilaterally):
 - `rag/indexing/_raptor_assembler.py`'s clustering loop — a deliberate ETL
   exception (atomic read-check-transform-write cycle against the vector
   store; a content-hash dedup short-circuit and a final upsert that must see
-  a consistent store). Decomposing it into engine-tracked knots risks
-  breaking that atomicity guarantee; whether per-summary observability is
-  worth that trade is a product call, not made here.
+  a consistent store). PIR-867 re-evaluated giving each level's per-cluster
+  summarization its own lineage row via `SubTapestry._run_inner` called
+  *inside* the atomic method (keeping the dedup short-circuit and the single
+  final upsert): `_run_inner` depends on hooks and constructor state that
+  only exist on `SubTapestry`, whose `__call__` in turn hard-requires
+  `process()` to return a `Knot` — the opposite of what this atomic
+  assembler needs (return the built `RaptorTree` value once). Getting the
+  method without the contract means multiply inheriting `SubTapestry`
+  alongside `Assembler` and overriding `__call__` back to `Knot.__call__`,
+  a fragile coupling for one knot's observability. Still deferred: a core
+  primitive for "run a nested tapestry from a plain `Knot`" would resolve
+  it; absent that, whether per-summary observability is worth the coupling
+  is a product call, not made here.
 - `agent/parallel_tool_executor.py::ParallelToolExecutor`'s own
   `asyncio.gather` is a deliberate deferral — its per-call retry/timeout
   richness needs real inter-attempt backoff sleep, not expressible as a
