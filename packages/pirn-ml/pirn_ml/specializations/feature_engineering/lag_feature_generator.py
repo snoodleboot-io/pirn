@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``LagFeatureGenerator`` — generate ``<column>_lag_<N>`` features for
 time-series datasets.
 
@@ -11,7 +13,7 @@ Algorithm:
     1. Receive ``split`` (SplitManifest), ``time_column``, ``columns``, and
        ``lags`` via process().
     2. Validate all inputs.
-    3. Wire _LagAppendKnot in an inner Tapestry.
+    3. Wire LagAppendKnot in an inner Tapestry.
     4. Run via _run_inner() and return the extended SplitManifest.
 
 Math:
@@ -34,8 +36,8 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.nodes.sub_tapestry import SubTapestry
 
-from pirn_ml.specializations.feature_engineering._lag_append_knot import (
-    _LagAppendKnot,
+from pirn_ml.specializations.feature_engineering.lag_append_knot import (
+    LagAppendKnot,
 )
 from pirn_ml.types.split_manifest import SplitManifest
 
@@ -106,7 +108,7 @@ class LagFeatureGenerator(SubTapestry):
         split_node = Parameter(
             "split", SplitManifest, default=split, _config=KnotConfig(id="split")
         )
-        return _LagAppendKnot(
+        return LagAppendKnot(
             split=split_node,
             time_column=time_column,
             columns=column_tuple,

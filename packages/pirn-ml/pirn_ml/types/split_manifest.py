@@ -20,9 +20,16 @@ class SplitManifest(PirnOpaqueValue):
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
         return {
-            "train": self.train._pirn_audit_dict(),  # pyright: ignore[reportPrivateUsage]  # composes the nested value's own audit form
+            "train": SplitManifest._nested_audit_dict(self.train),
             "validation": (
-                None if self.validation is None else self.validation._pirn_audit_dict()  # pyright: ignore[reportPrivateUsage]  # composes the nested value's own audit form
+                None
+                if self.validation is None
+                else SplitManifest._nested_audit_dict(self.validation)
             ),
-            "test": self.test._pirn_audit_dict(),  # pyright: ignore[reportPrivateUsage]  # composes the nested value's own audit form
+            "test": SplitManifest._nested_audit_dict(self.test),
         }
+
+    @staticmethod
+    def _nested_audit_dict(value: PirnOpaqueValue) -> Any:
+        """The audit form of a nested partition, through the ``PirnOpaqueValue`` contract."""
+        return value._pirn_audit_dict()

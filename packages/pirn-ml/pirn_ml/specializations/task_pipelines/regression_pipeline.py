@@ -9,7 +9,7 @@ Algorithm:
     2. Validate all inputs.
     3. Wire DatasetLoader → TrainTestSplit → Scaler → Trainer → Evaluator
        in an inner Tapestry (shared graph-building lives in
-       :class:`~pirn_ml.specializations.task_pipelines._supervised_task_pipeline._SupervisedTaskPipeline`).
+       :class:`~pirn_ml.specializations.task_pipelines.supervised_task_pipeline.SupervisedTaskPipeline`).
     4. Run via _run_inner() and return the EvalMetadata.
 
 Math:
@@ -33,12 +33,12 @@ from pirn.connectors.database_connection_pool import (
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_ml.specializations.task_pipelines._supervised_task_pipeline import (
-    _SupervisedTaskPipeline,
+from pirn_ml.specializations.task_pipelines.supervised_task_pipeline import (
+    SupervisedTaskPipeline,
 )
 
 
-class RegressionPipeline(_SupervisedTaskPipeline):
+class RegressionPipeline(SupervisedTaskPipeline):
     """End-to-end regression SubTapestry."""
 
     _dataset_name: ClassVar[str] = "regression"

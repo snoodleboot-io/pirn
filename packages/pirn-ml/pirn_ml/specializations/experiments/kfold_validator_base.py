@@ -1,4 +1,4 @@
-"""``_KFoldValidatorBase`` — shared per-fold wiring for the k-fold family.
+"""``KFoldValidatorBase`` — shared per-fold wiring for the k-fold family.
 
 ``KFoldCrossValidator``, ``GroupKFoldCrossValidator``, and
 ``StratifiedKFoldValidator`` each: request ``k`` logical folds from
@@ -64,6 +64,7 @@ from pirn.nodes.sub_tapestry import SubTapestry
 from pirn_ml.data_prep.cross_validator import CrossValidator
 from pirn_ml.evaluation.evaluator import Evaluator
 from pirn_ml.training.trainer import Trainer
+from pirn_ml.types.eval_report_payload import EvalReportPayload
 from pirn_ml.types.split_manifest import SplitManifest
 
 
@@ -72,7 +73,7 @@ async def _extract_fold(folds: tuple[SplitManifest, ...], index: int) -> SplitMa
     return folds[index]
 
 
-class _KFoldValidatorBase(SubTapestry):
+class KFoldValidatorBase(SubTapestry):
     """Shared per-fold Trainer/Evaluator wiring and Aggregator collection."""
 
     def _extract_folds_via_cross_validator(self, dataset: Knot, k: int) -> list[Knot]:
@@ -138,7 +139,12 @@ class _KFoldValidatorBase(SubTapestry):
     def _collect(eval_nodes: Sequence[Knot], collect_id: str) -> Knot:
         """Fan per-fold Evaluator outputs into a single Aggregator list."""
         return Aggregator(
-            combine=lambda **kw: list(kw.values()),
+            combine=KFoldValidatorBase._reports_in_order,
             _config=KnotConfig(id=collect_id),
             **{f"r{i}": eval_nodes[i] for i in range(len(eval_nodes))},
         )
+
+    @staticmethod
+    def _reports_in_order(**reports: EvalReportPayload) -> list[EvalReportPayload]:
+        """Aggregator ``combine``: the parent evaluation reports as a list, in wiring order."""
+        return list(reports.values())

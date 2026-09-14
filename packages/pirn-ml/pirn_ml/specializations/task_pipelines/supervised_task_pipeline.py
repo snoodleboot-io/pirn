@@ -1,4 +1,4 @@
-"""``_SupervisedTaskPipeline`` — shared tabular supervised-task graph.
+"""``SupervisedTaskPipeline`` — shared tabular supervised-task graph.
 
 Five ``task_pipelines`` SubTapestries (``BinaryClassificationPipeline``,
 ``MulticlassClassificationPipeline``, ``RegressionPipeline``,
@@ -52,7 +52,7 @@ from pirn_ml.features.scaler import Scaler
 from pirn_ml.training.trainer import Trainer
 
 
-class _SupervisedTaskPipeline(SubTapestry):
+class SupervisedTaskPipeline(SubTapestry):
     """Shared DatasetLoader -> TrainTestSplit -> [Scaler] -> Trainer -> Evaluator graph."""
 
     _dataset_name: ClassVar[str] = ""

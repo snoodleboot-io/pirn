@@ -1,4 +1,4 @@
-"""Unit tests for :class:`_LagAppendKnot`."""
+"""Unit tests for :class:`LagAppendKnot`."""
 
 from __future__ import annotations
 
@@ -10,8 +10,8 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
-from pirn_ml.specializations.feature_engineering._lag_append_knot import (
-    _LagAppendKnot,
+from pirn_ml.specializations.feature_engineering.lag_append_knot import (
+    LagAppendKnot,
 )
 from pirn_ml.types.dataset_manifest import DatasetManifest
 from pirn_ml.types.split_manifest import SplitManifest
@@ -30,7 +30,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_appends_lag_feature_names(self) -> None:
         with Tapestry() as t:
             src = _SplitSource(_config=KnotConfig(id="src"))
-            _LagAppendKnot(
+            LagAppendKnot(
                 split=src,
                 time_column="date",
                 columns=["sales"],

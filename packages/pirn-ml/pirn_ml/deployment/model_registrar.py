@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ModelRegistrar`` — write the serialised model + metadata to a
 :class:`LineageStore` and an :class:`ObjectStore`.
 
@@ -71,9 +73,9 @@ class ModelRegistrar(Knot):
         Raises:
             TypeError: If serialized is not bytes or model is not a ModelManifest.
         """
-        if not isinstance(serialized, (bytes, bytearray)):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(serialized, (bytes, bytearray)):
             raise TypeError("ModelRegistrar: serialized must resolve to bytes")
-        if not isinstance(model, ModelManifest):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(model, ModelManifest):
             raise TypeError("ModelRegistrar: model must resolve to a ModelManifest")
         if store is None:
             raise TypeError("ModelRegistrar: store must be an ObjectStore")

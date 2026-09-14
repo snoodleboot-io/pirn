@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ActiveLearningLoop`` — trains on labeled pool, queries most
 uncertain unlabeled samples, adds them to the labeled pool, and repeats
 for N rounds.
@@ -8,7 +10,7 @@ Algorithm:
     2. Validate all inputs.
     3. Wire DatasetLoader → TrainTestSplit → Trainer → Evaluator in an
        inner Tapestry (shared graph-building lives in
-       :class:`~pirn_ml.specializations.task_pipelines._supervised_task_pipeline._SupervisedTaskPipeline`,
+       :class:`~pirn_ml.specializations.task_pipelines.supervised_task_pipeline.SupervisedTaskPipeline`,
        with no ``Scaler`` stage for this pipeline).
     4. Run via _run_inner() and return the final EvalMetadata.
 
@@ -34,12 +36,12 @@ from pirn.connectors.database_connection_pool import (
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_ml.specializations.task_pipelines._supervised_task_pipeline import (
-    _SupervisedTaskPipeline,
+from pirn_ml.specializations.task_pipelines.supervised_task_pipeline import (
+    SupervisedTaskPipeline,
 )
 
 
-class ActiveLearningLoop(_SupervisedTaskPipeline):
+class ActiveLearningLoop(SupervisedTaskPipeline):
     """Train on labeled pool, query uncertain samples, and iterate for N rounds."""
 
     _dataset_name: ClassVar[str] = "active-learning"
