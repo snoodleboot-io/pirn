@@ -398,7 +398,7 @@ called from inside one already running) and emit `DeprecationWarning`.
 **Resolved (PIR-870), three admission/dispatch refinements noted as future
 work above WS0b landed:**
 - An inner run naming a *bounded* `ConcurrencyLimits` of its own now gets a
-  `ChainedAdmissionGate` — a ticket from both its own gate and the enclosing
+  `ChainedAdmission` — a ticket from both its own gate and the enclosing
   run's, released together — instead of an unrelated gate that let the two
   budgets add rather than compose. An explicitly unbounded
   `ConcurrencyLimits()` is unaffected: it stays the documented opt-out.

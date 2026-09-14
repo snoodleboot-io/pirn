@@ -31,7 +31,7 @@ Algorithm:
        else the enclosing plane's, else the tapestry's default.
     3. *Gate and limits*: when the request or the tapestry names *bounded*
        ``ConcurrencyLimits``, the run gets a gate chained under the
-       enclosing plane's gate (``ChainedAdmissionGate``, PIR-870) -- both
+       enclosing plane's gate (``ChainedAdmission``, PIR-870) -- both
        budgets apply, released together.  Naming explicitly *unbounded*
        ``ConcurrencyLimits()`` still gets an independent, unchained gate --
        the documented way to opt a run out of the enclosing budget entirely.

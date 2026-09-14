@@ -609,7 +609,7 @@ class Tapestry:
             unused-group warning for limits declared for the whole tree).
         """
         from pirn.core.execution_plane import ExecutionPlane as _ExecutionPlane
-        from pirn.engine.admission.chained_admission_gate import ChainedAdmissionGate
+        from pirn.engine.admission.chained_admission import ChainedAdmission
         from pirn.engine.engine import Engine
 
         enclosing = _current_execution_plane.get(None)
@@ -643,7 +643,7 @@ class Tapestry:
             # (falls to the branch below): it opts a run out of the shared
             # budget entirely, which chaining it to an always-admitting own
             # gate would defeat.
-            gate = ChainedAdmissionGate(own=Engine.gate_for(own_limits), parent=enclosing.gate)
+            gate = ChainedAdmission(own=Engine.gate_for(own_limits), parent=enclosing.gate)
             limits = own_limits
             inherited = False
             observers = own_observers

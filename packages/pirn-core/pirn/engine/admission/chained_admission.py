@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from pirn.core.knot import Knot
 
 
-class ChainedAdmissionGate(AdmissionGate):
+class ChainedAdmission(AdmissionGate):
     """Admits a knot only when both an *own* gate and a *parent* gate admit it.
 
     An inner run that declares its own ``ConcurrencyLimits`` under an
@@ -23,7 +23,7 @@ class ChainedAdmissionGate(AdmissionGate):
     ``Engine.gate_for(own_limits)`` alone -- entirely unrelated to the
     enclosing run's gate -- so its leaves ran under their own cap *in
     addition to* whatever the enclosing run already had in flight, with no
-    shared ceiling at all.  ``ChainedAdmissionGate`` fixes that by requiring
+    shared ceiling at all.  ``ChainedAdmission`` fixes that by requiring
     a ticket from both the *own* gate (this run's declared limits) and the
     *parent* gate (the enclosing run's -- itself possibly another chain
     further up the tree) before admitting, and releasing both together.
@@ -75,7 +75,7 @@ class ChainedAdmissionGate(AdmissionGate):
             own: The gate built from this run's own ``ConcurrencyLimits``.
             parent: The enclosing run's gate -- shared by identity with
                 every other run in the tree that inherits it, and possibly
-                itself a ``ChainedAdmissionGate`` further up the tree.
+                itself a ``ChainedAdmission`` further up the tree.
         """
         self._own = own
         self._parent = parent
