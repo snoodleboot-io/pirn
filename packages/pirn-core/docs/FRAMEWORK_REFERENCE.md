@@ -705,6 +705,41 @@ replaced by `_DocumentSource` (a `Source` knot modeled on
 `Assembler`, bytes in, no I/O); `DocumentIngestionPipeline`'s public
 constructor is unchanged.
 
+### Agents vocabulary and house conventions (PIR-872)
+
+- **No agents module-level functions remain.** The 19 agents entries of
+  `_MODULE_LEVEL_FUNCTION_ALLOWLIST` are gone: each former wrapper is its
+  owning class's static method, with no alias (`OptionalImport.require`,
+  `ApprovalHook.authorize`, `ConnectorLifespan.manage`, `AsTool.wrap`,
+  `ToolDecorator.decorate`, `ReciprocalRankFusion.fuse`, `DecayFunction.score`,
+  `ToolTestHarness.assert_tool_schema`/`assert_tool_schema_shape`/`invoke_tool`/
+  `collect_tool_stream`, `Bundles.*_toolset`). The agents conventions baseline is
+  0 in every category: `EvalGate` (not a `Gate`) is `EvalRegressionCheck`; every
+  `process()` catch-all is `**_`; the six unmarked closures are static methods.
+- **Knot Rules 1 and 4 hold without exceptions.** `MapAgent` wires every setting
+  as a declared input and validates in `process()`; a delegated specialist
+  reaches `SpecialistInvocation`/`_ReviewerInvocation` as a `SpecialistHandle`
+  (a non-`Knot` `PirnOpaqueValue`, so an ordinary input rather than a parent);
+  the SQL write policy is a `ClassVar` on distinct classes (`SQLAgent` read-only,
+  `ReadWriteSQLAgent` writes) instead of instance state, so no upstream knot can
+  flip it. `docs/contributing/knot-design-rules.md` Rule 4 now describes that
+  shape instead of a constructor-state exception.
+- **An outcome is `Ok|Err|Skipped`.** `BatchItemStatus`, `ToolStatus` and
+  `FailoverOutcome` are deleted: `BatchItemResult.outcome`, `ToolResult.outcome`
+  and `FailoverAttempt.result` are the `Result`; a timeout is an `Err` whose error
+  type is `KnotTimeoutError`; a resumed item or open circuit is a `Skipped` with a
+  reason. `ToolResult.status` survives only as a model-facing string derived from
+  the `Result`. `RetryClassification` was never an outcome — it is
+  `RetrySafetyClassifier.is_safe() -> bool`.
+- **Stores and structural types are named inventories.** `ResultCache` no longer
+  re-exposes `get`/`put`/`has` over its `DataStore` (raw access is `cache.store`)
+  and `VectorMemoIndex` is deleted. The keyed stores that remain are listed with a
+  reason in `tests/test_store_inventory_ratchet.py` (the `MemoryStore` similarity
+  seam, its vector-database and S3 adapters, and `KeyedLineageStore` onto core's
+  lineage plane); the content blocks, `AgentMessage` and `FinishReason` are listed
+  in `tests/types/test_types_are_payload_or_frame.py`. `BatchProgress` is a pure
+  per-fire summary; `RunState` is a `RunHistory` read model, not a checkpoint.
+
 ---
 
 ## 7. The core / agents boundary
