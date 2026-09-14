@@ -24,8 +24,8 @@ lineage lives in the inner ``RunResult`` reachable via
 Algorithm:
     1. Validate debaters (≥ 2, all :class:`SubTapestry`) and ``rounds`` (> 0).
     2. For each round ``r`` in ``[0, rounds)``:
-       a. Build a :class:`DebateRoundFramer` fed by rounds ``0..r-1``'s
-          aggregators.
+       a. Build a :class:`DebateRoundFramer` fed by an :class:`Aggregator`
+          over rounds ``0..r-1``'s aggregators (the empty tuple for round 0).
        b. Build one :class:`SpecialistInvocation` per debater, each receiving
           the framer as its (Knot-valued) task.
        c. Wire the invocations into an :class:`Aggregator` producing the
@@ -75,6 +75,11 @@ class DebateFramework(AgentPipeline):
             return [responses[f"debater_{index}"] for index in range(count)]
 
         return combine
+
+    @staticmethod
+    def _collect_prior_rounds(**rounds: list[AgentResponse]) -> tuple[list[AgentResponse], ...]:
+        """Order the prior rounds' response lists by round index (``round_0`` first)."""
+        return tuple(rounds[f"round_{index}"] for index in range(len(rounds)))
 
     def __init__(
         self,
@@ -132,12 +137,21 @@ class DebateFramework(AgentPipeline):
 
         round_aggregators: list[Knot] = []
         for round_index in range(rounds):
+            prior_rounds: Knot | tuple[list[AgentResponse], ...] = (
+                Aggregator(
+                    combine=DebateFramework._collect_prior_rounds,
+                    _config=KnotConfig(id=f"debate_history_r{round_index}"),
+                    **{f"round_{prior}": round_aggregators[prior] for prior in range(round_index)},
+                )
+                if round_aggregators
+                else ()
+            )
             framer = DebateRoundFramer(
                 topic=topic,
                 round_index=round_index,
                 rounds=rounds,
+                prior_rounds=prior_rounds,
                 _config=KnotConfig(id=f"debate_frame_r{round_index}"),
-                **{f"round_{prior}": round_aggregators[prior] for prior in range(round_index)},
             )
             invocations: dict[str, Knot] = {}
             for debater_index, debater in enumerate(debater_tuple):

@@ -37,7 +37,7 @@ class Writer(Knot):
     describing what was written.
     """
 
-    async def process(self, **kwargs: Any) -> Any:
+    async def process(self, **_: Any) -> Any:
         """Persist state and return a storage handle.
 
         Concrete subclasses override this with their own keyword parameters and
