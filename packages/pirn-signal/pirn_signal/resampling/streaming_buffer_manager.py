@@ -3,10 +3,12 @@
 Algorithm:
     1. Receive the input signal frame, frame_size, and hop_size.
     2. Validate frame_size and hop_size (positive integers with hop_size <= frame_size).
-    3. Partition the signal into overlapping frames of length frame_size spaced
+    3. Partition every channel of the signal independently (concurrently, via
+       ``asyncio.gather``) into overlapping frames of length frame_size spaced
        by hop_size samples using overlap-add or overlap-save framing.
     4. Manage the ring buffer state to handle frame boundaries across calls.
-    5. Return a SignalPayload representing the current buffered output.
+    5. Stack the per-channel frame arrays back into one array shaped
+       ``(channels, n_frames, frame_size)`` and return it as a SignalPayload.
 
 Math:
     Number of complete frames from $N$ input samples:
@@ -77,8 +79,9 @@ class StreamingBufferManager(Knot):
                 must not exceed frame_size).
 
         Returns:
-            SignalPayload representing the overlap-add buffered output with shape
-            (n_frames, frame_size).
+            SignalPayload representing the overlap-add buffered output, one
+            framed sub-array per input channel, with shape
+            (channels, n_frames, frame_size).
 
         Raises:
             ValueError: If frame_size or hop_size are invalid.
@@ -90,21 +93,34 @@ class StreamingBufferManager(Knot):
         if hop_size > frame_size:
             raise ValueError("StreamingBufferManager: hop_size must not exceed frame_size")
 
-        frames = await asyncio.to_thread(
-            StreamingBufferManager._frame_signal, signal.data, frame_size, hop_size
+        channels = np.atleast_2d(signal.data)
+        per_channel_frames = await asyncio.gather(
+            *(
+                asyncio.to_thread(
+                    StreamingBufferManager._frame_channel, channel, frame_size, hop_size
+                )
+                for channel in channels
+            )
         )
-        n_frames = frames.shape[0]
 
-        return signal.derive(
-            "framed",
-            frames,
-            channel_count=n_frames,
-        )
+        return signal.derive("framed", np.stack(per_channel_frames, axis=0))
 
     @staticmethod
-    def _frame_signal(data: np.ndarray, frame_size: int, hop_size: int) -> np.ndarray:
-        ch = data[0] if data.ndim > 1 else data
-        n_samples = ch.shape[-1]
+    def _frame_channel(channel: np.ndarray, frame_size: int, hop_size: int) -> np.ndarray:
+        """Partition one channel's samples into overlapping frames.
+
+        Args:
+            channel: One channel's 1-D sample array.
+            frame_size: Number of samples per frame.
+            hop_size: Number of samples between successive frame starts.
+
+        Returns:
+            Array of shape ``(n_frames, frame_size)`` for this channel alone.
+        """
+        n_samples = channel.shape[-1]
         n_frames = max(0, (n_samples - frame_size) // hop_size + 1)
-        frames = np.stack([ch[i * hop_size : i * hop_size + frame_size] for i in range(n_frames)])
-        return frames
+        if n_frames == 0:
+            return np.empty((0, frame_size), dtype=channel.dtype)
+        return np.stack(
+            [channel[i * hop_size : i * hop_size + frame_size] for i in range(n_frames)]
+        )
