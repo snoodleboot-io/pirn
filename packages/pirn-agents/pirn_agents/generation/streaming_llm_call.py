@@ -85,6 +85,6 @@ class StreamingLLMCall(Knot):
                 f"StreamingLLMCall: model must be a non-empty string or None, got {model!r}"
             )
         wire_messages = tuple(
-            {"role": message.role, "content": message.content} for message in context.messages
+            {"role": message.role, "content": message.content} for message in context.data
         )
         return llm.stream_chat(messages=wire_messages, model=model)

@@ -82,8 +82,8 @@ class ProceduralMemoryWriter(MemoryWriterBase):
         key = f"procedure:{digest}"
         payload: dict[str, Any] = {
             "task": task_description,
-            "response": agent_response.content,
-            "finish_reason": agent_response.finish_reason,
+            "response": agent_response.data,
+            "finish_reason": agent_response.metadata.finish_reason,
             "stored_at": datetime.now(UTC).isoformat(),
         }
         await store.store(key, payload)

@@ -78,15 +78,15 @@ class TestSpecialistInvocationProcess(unittest.IsolatedAsyncioTestCase):
         inv = _make_invocation(spec)
         out = await inv.process(specialist=SpecialistHandle(spec), task="ask")
         assert isinstance(out, AgentResponse)
-        assert out.content == "echo:ask"
+        assert out.data == "echo:ask"
 
     async def test_normalises_non_agent_response(self) -> None:
         spec = _make_specialist(_RawStringSpecialist, "raw")
         inv = _make_invocation(spec)
         out = await inv.process(specialist=SpecialistHandle(spec), task="ask")
         assert isinstance(out, AgentResponse)
-        assert out.content == "plain:ask"
-        assert out.finish_reason == "stop"
+        assert out.data == "plain:ask"
+        assert out.metadata.finish_reason == "stop"
 
     async def test_holds_specialist_off_the_parent_set(self) -> None:
         # The specialist must NOT be a graph parent — it is an opaque handle
@@ -115,4 +115,4 @@ class TestSpecialistInvocationProcess(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         out = result.outputs["inv"]
         assert isinstance(out, AgentResponse)
-        assert out.content == "echo:hello"
+        assert out.data == "echo:hello"

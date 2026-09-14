@@ -96,7 +96,7 @@ class Planner(Knot):
                 ),
             }
         ]
-        for message in context.messages:
+        for message in context.data:
             wire_messages.append({"role": message.role, "content": message.content})
         response = await RecordedLlmCall.chat(
             knot_id=self.knot_id, llm=llm, messages=tuple(wire_messages)

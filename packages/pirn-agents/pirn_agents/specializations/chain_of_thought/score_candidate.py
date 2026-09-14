@@ -17,7 +17,7 @@ class ScoreCandidate(Knot):
     """Ask the LLM to rate one candidate reasoning path."""
 
     _scoring_system: ClassVar[PromptBinding] = PromptBinding(
-        name="specializations.chain_of_thought.tree_of_thought.scoring_system",
+        name="specializations.chain_of_thought.score_candidate.scoring_system",
         default=(
             "You are a reasoning evaluator. Rate the quality of the following "
             "reasoning step on a scale from 1 to 10. Reply with a single integer only."

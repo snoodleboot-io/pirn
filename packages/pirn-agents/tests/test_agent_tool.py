@@ -91,7 +91,7 @@ class TestAgentToolAsAKnot(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded, result.exceptions
         response = result.outputs["c1"]
         self.assertIsInstance(response, AgentResponse)
-        self.assertEqual(response.content, "done:quantum")
+        self.assertEqual(response.data, "done:quantum")
         # The agent itself ran under its own id in the call's inner run.
         children = await t.history.children_of(result.run_id)
         inner_ids = {row.knot_id for child in children for row in child.lineage}
@@ -103,7 +103,7 @@ class TestAgentToolAsAKnot(unittest.IsolatedAsyncioTestCase):
 
         view = await tool.run_view({"input": "search this"})
 
-        self.assertEqual(view.result.content, "did:search this")
+        self.assertEqual(view.result.data, "did:search this")
 
     async def test_the_view_carries_tokens_from_the_response_usage(self) -> None:
         tool = self._tool(reply="done", usage={"input_tokens": 2, "output_tokens": 3})

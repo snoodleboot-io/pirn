@@ -36,7 +36,7 @@ from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class ProceduralMemoryPipeline(SubTapestry):
-    """Persists ``(task_description, agent_response.content)`` recipes."""
+    """Persists ``(task_description, agent_response.data)`` recipes."""
 
     def __init__(
         self,

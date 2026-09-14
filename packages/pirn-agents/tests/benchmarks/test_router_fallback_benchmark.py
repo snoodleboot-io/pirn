@@ -52,7 +52,7 @@ async def test_router_fallback_fewer_invocations_than_naive(
     run = await t.run(RunRequest())
     assert run.succeeded
     result = run.outputs["rf"]
-    router_invocations = len(result.attempted)
+    router_invocations = len(result.metadata.attempted)
 
     # Naive baseline: retry candidates in declaration order until one succeeds.
     naive_invocations = 0

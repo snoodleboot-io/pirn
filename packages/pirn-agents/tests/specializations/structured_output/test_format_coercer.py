@@ -87,4 +87,4 @@ class TestFormatCoercerProcess(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         out = result.outputs["fc"]
-        assert out.content == '{"x": 1}'
+        assert out.data == '{"x": 1}'

@@ -79,8 +79,8 @@ class TestReActLoopProcess(unittest.IsolatedAsyncioTestCase):
         assert run.succeeded
         response = run.outputs["loop"]
         assert isinstance(response, AgentResponse)
-        assert response.finish_reason == "stop"
-        assert response.content == "42 is the answer"
+        assert response.metadata.finish_reason == "stop"
+        assert response.data == "42 is the answer"
         assert tool.invocations == [{"input": "foo"}]
 
     async def test_falls_through_when_iterations_exhausted(self) -> None:
@@ -99,8 +99,8 @@ class TestReActLoopProcess(unittest.IsolatedAsyncioTestCase):
         assert run.succeeded
         response = run.outputs["loop"]
         assert isinstance(response, AgentResponse)
-        assert response.finish_reason == "length"
-        assert "Still thinking" in response.content
+        assert response.metadata.finish_reason == "length"
+        assert "Still thinking" in response.data
         assert len(llm.calls) == 2
 
     async def test_final_answer_costs_exactly_one_llm_call(self) -> None:
@@ -123,8 +123,8 @@ class TestReActLoopProcess(unittest.IsolatedAsyncioTestCase):
                 run = await t.run(RunRequest())
                 assert run.succeeded
                 assert len(llm.calls) == 1
-                assert run.outputs["loop"].content == "42"
-                assert run.outputs["loop"].finish_reason == "stop"
+                assert run.outputs["loop"].data == "42"
+                assert run.outputs["loop"].metadata.finish_reason == "stop"
 
     async def test_final_answer_survives_later_unrolled_steps(self) -> None:
         """PIR-753: the answer used to be silently overwritten.
@@ -153,6 +153,6 @@ class TestReActLoopProcess(unittest.IsolatedAsyncioTestCase):
         run = await t.run(RunRequest())
         assert run.succeeded
         response = run.outputs["loop"]
-        assert response.content == "42"
-        assert response.finish_reason == "stop"
+        assert response.data == "42"
+        assert response.metadata.finish_reason == "stop"
         assert len(llm.calls) == 1

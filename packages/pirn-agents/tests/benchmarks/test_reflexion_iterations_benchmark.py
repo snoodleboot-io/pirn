@@ -57,12 +57,12 @@ async def test_reflexion_iterations_to_success(
     run = await t.run(RunRequest())
     assert run.succeeded
     result = run.outputs["rx"]
-    assert result.succeeded is True
+    assert result.metadata.succeeded is True
 
     benchmark_recorder.record(
         "ReflexionIterationsToSuccess",
-        iterations=result.iterations,
-        succeeded=1.0 if result.succeeded else 0.0,
+        iterations=result.metadata.iterations,
+        succeeded=1.0 if result.metadata.succeeded else 0.0,
     )
     report = benchmark_recorder.report()
     assert report.metric("ReflexionIterationsToSuccess", "iterations") == 3

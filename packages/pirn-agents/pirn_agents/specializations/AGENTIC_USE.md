@@ -143,7 +143,7 @@ with Tapestry() as t:
 
 result = await t.run(RunRequest())
 answer = result.outputs["react"]   # an AgentResponse = Payload[GenerationFrame, str]
-print(answer.content)
+print(answer.data)
 ```
 
 ---

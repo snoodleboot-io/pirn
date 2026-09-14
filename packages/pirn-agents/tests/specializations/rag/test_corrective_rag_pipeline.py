@@ -40,7 +40,7 @@ class TestCorrectiveRAGPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         response = result.outputs["crag"]
         assert isinstance(response, AgentResponse)
-        assert response.content == "from-docs"
+        assert response.data == "from-docs"
         assert tool.invocations == []
 
     async def test_falls_back_to_tool_when_no_docs_relevant(self) -> None:
@@ -61,7 +61,7 @@ class TestCorrectiveRAGPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         response = result.outputs["crag"]
         assert isinstance(response, AgentResponse)
-        assert response.content == "from-fallback"
+        assert response.data == "from-fallback"
         assert tool.invocations == [{"input": "elephants"}]
         prompt_body = llm.calls[0][-1]["content"]
         assert "fallback" in prompt_body

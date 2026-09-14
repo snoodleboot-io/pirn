@@ -16,14 +16,11 @@ writer knot simply *return* a ``MemoryRecord`` as its output: the engine
 content-addresses it into ``DataStore`` and records its ``KnotLineage`` row
 like any other knot output, with no separate keyed write.
 
-``MemoryRecord``'s own constructor and every domain-readable accessor
-(``.id``, ``.kind``, ``.content``, ``.provenance``, ``.created_at``,
-``.importance``, ``.last_accessed``) are unchanged from before this split, so
-every existing caller — the ``memory_patterns/`` writers, the eviction and
-ranking knots, ``MemoryConsolidator`` — keeps working with no changes of its
-own. What changed is what backs those accessors: they now read through
-``Payload.metadata`` (the frame) and ``Payload.data`` (the content) rather
-than being the record's own dataclass fields.
+``MemoryRecord``'s constructor takes the record's fields by name; they are read
+back through the ``Payload`` contract only — ``data.id``/``data.kind``/
+``data.content``/``data.tags`` and ``metadata.created_at``/``metadata.importance``/
+``metadata.last_accessed`` (``metadata`` is the provenance frame itself).
+:meth:`recency_anchor` is the one derived value it adds.
 
 It still round-trips through the untyped
 :class:`~pirn_agents.memory.stores.memory_store.MemoryStore` mapping interface
@@ -118,46 +115,23 @@ class MemoryRecord(Payload[MemoryProvenance, MemoryContent]):
         )
         super().__init__(metadata=frame, data=data)
 
-    # -- domain-readable properties, backed by Payload.metadata / Payload.data --
-
-    @property
-    def id(self) -> str:
-        return self.data.id
-
-    @property
-    def kind(self) -> MemoryKind:
-        return self.data.kind
-
-    @property
-    def content(self) -> str:
-        return self.data.content
-
-    @property
-    def tags(self) -> Mapping[str, Any]:
-        return self.data.tags
-
-    @property
-    def provenance(self) -> MemoryProvenance:
-        """The frame carrying source/trust/derivation and this record's lifecycle."""
-        return self.metadata
-
-    @property
-    def created_at(self) -> datetime:
-        created = self.metadata.created_at
-        assert created is not None  # always set by __init__
-        return created
-
-    @property
-    def importance(self) -> float:
-        return self.metadata.importance
-
-    @property
-    def last_accessed(self) -> datetime | None:
-        return self.metadata.last_accessed
-
     def recency_anchor(self) -> datetime:
         """Return ``last_accessed`` when set, else ``created_at`` (the recency time)."""
-        return self.last_accessed if self.last_accessed is not None else self.created_at
+        if self.metadata.last_accessed is not None:
+            return self.metadata.last_accessed
+        return self._created_at()
+
+    def _created_at(self) -> datetime:
+        """Return the frame's ``created_at``, which ``__init__`` always sets on a record.
+
+        Raises:
+            ValueError: If the frame carries no ``created_at`` (never for a record
+                built through ``__init__``).
+        """
+        created = self.metadata.created_at
+        if created is None:
+            raise ValueError("MemoryRecord: frame carries no created_at")
+        return created
 
     def derive(
         self,
@@ -206,7 +180,7 @@ class MemoryRecord(Payload[MemoryProvenance, MemoryContent]):
         Returns:
             The derived :class:`MemoryRecord`.
         """
-        base = self.provenance
+        base = self.metadata
         new_provenance = MemoryProvenance(
             source=source if source is not None else base.source,
             timestamp=timestamp if timestamp is not None else base.timestamp,
@@ -215,34 +189,36 @@ class MemoryRecord(Payload[MemoryProvenance, MemoryContent]):
         )
         return MemoryRecord(
             id=id,
-            kind=kind if kind is not None else self.kind,
+            kind=kind if kind is not None else self.data.kind,
             content=content,
             provenance=new_provenance,
-            created_at=created_at if created_at is not None else self.created_at,
-            importance=importance if importance is not None else self.importance,
+            created_at=created_at if created_at is not None else self._created_at(),
+            importance=importance if importance is not None else self.metadata.importance,
             last_accessed=last_accessed,
-            metadata=metadata if metadata is not None else dict(self.tags),
+            metadata=metadata if metadata is not None else dict(self.data.tags),
         )
 
     def to_payload(self) -> dict[str, Any]:
         """Return a JSON-friendly mapping for storage under a ``MemoryStore``."""
         base_provenance = MemoryProvenance(
-            source=self.provenance.source,
-            timestamp=self.provenance.timestamp,
-            trust_signal=self.provenance.trust_signal,
-            derivation=self.provenance.derivation,
+            source=self.metadata.source,
+            timestamp=self.metadata.timestamp,
+            trust_signal=self.metadata.trust_signal,
+            derivation=self.metadata.derivation,
         )
         return {
-            "id": self.id,
-            "kind": self.kind,
-            "content": self.content,
+            "id": self.data.id,
+            "kind": self.data.kind,
+            "content": self.data.content,
             "provenance": base_provenance.to_payload(),
-            "created_at": self.created_at.isoformat(),
-            "importance": float(self.importance),
+            "created_at": self._created_at().isoformat(),
+            "importance": float(self.metadata.importance),
             "last_accessed": (
-                self.last_accessed.isoformat() if self.last_accessed is not None else None
+                self.metadata.last_accessed.isoformat()
+                if self.metadata.last_accessed is not None
+                else None
             ),
-            "metadata": dict(self.tags),
+            "metadata": dict(self.data.tags),
         }
 
     @classmethod
@@ -288,10 +264,10 @@ class MemoryRecord(Payload[MemoryProvenance, MemoryContent]):
         return self.metadata == other.metadata and self.data == other.data
 
     def __hash__(self) -> int:
-        return hash((type(self), self.id))
+        return hash((type(self), self.data.id))
 
     def __repr__(self) -> str:
         return (
-            f"MemoryRecord(id={self.id!r}, kind={self.kind!r}, "
-            f"importance={self.importance!r}, provenance={self.provenance!r})"
+            f"MemoryRecord(id={self.data.id!r}, kind={self.data.kind!r}, "
+            f"importance={self.metadata.importance!r}, provenance={self.metadata!r})"
         )

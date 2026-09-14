@@ -89,6 +89,7 @@ from pirn_agents.tools.tool_call_rejection import ToolCallRejection
 from pirn_agents.tools.tool_factory import ToolFactory
 from pirn_agents.tools.tool_result import ToolResult
 from pirn_agents.types.messaging.agent_message import AgentMessage
+from pirn_agents.types.messaging.conversation_payload import ConversationPayload
 
 
 @KnotFactory.knot
@@ -263,8 +264,8 @@ class ReActStepExecutor(AgentPipeline):
 
     def _render_prompt(self, context: Any, tools: Sequence[ToolFactory]) -> str:
         messages: tuple[AgentMessage, ...]
-        if hasattr(context, "messages"):
-            messages = tuple(context.messages)
+        if isinstance(context, ConversationPayload):
+            messages = context.data
         else:
             messages = tuple(context) if context else ()
         rendered = "\n".join(f"{m.role}: {m.content}" for m in messages)

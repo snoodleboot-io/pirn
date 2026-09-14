@@ -54,7 +54,7 @@ async def test_react_loop_solves_task_with_three_base_tools() -> None:
     assert run.succeeded
     response = run.outputs["loop"]
     assert isinstance(response, AgentResponse)
-    assert response.content == "done"
+    assert response.data == "done"
 
     # The retriever actually queried the store.
     assert store.searched == ["greeting"]

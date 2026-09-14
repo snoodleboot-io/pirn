@@ -303,7 +303,7 @@ def plan_next_actions(ctx: SessionContext) -> list[PlannedAction]:
 
 
 def _seed_messages(ctx: SessionContext, system: str) -> tuple[AgentMessage, ...]:
-    prior = " | ".join(s.response.content[:60] for s in ctx.scratchpad[-3:])
+    prior = " | ".join(s.response.data[:60] for s in ctx.scratchpad[-3:])
     user_content = ctx.current_message
     if prior:
         user_content = f"{user_content}\n\nPrior findings: {prior}"
@@ -514,16 +514,16 @@ class AgentDecider(Knot):
         msg_steps = [s for s in new_ctx.scratchpad if s.msg_idx == new_ctx.msg_idx]
 
         synthesised = any(
-            "Final Answer" in s.response.content or "synthesise" in s.response.content
+            "Final Answer" in s.response.data or "synthesise" in s.response.data
             for s in step_results
         )
         enough = len(msg_steps) >= 2 and rng.random() < 0.55
 
         if synthesised or enough or new_ctx.msg_iteration >= MAX_ITERATIONS_PER_MSG:
             best = max(
-                step_results, key=lambda s: len(s.response.content), default=None
+                step_results, key=lambda s: len(s.response.data), default=None
             )
-            summary = best.response.content[:120] if best else "Completed."
+            summary = best.response.data[:120] if best else "Completed."
             new_ctx = new_ctx.evolve(
                 responses=(*new_ctx.responses, summary),
                 msg_idx=new_ctx.msg_idx + 1,

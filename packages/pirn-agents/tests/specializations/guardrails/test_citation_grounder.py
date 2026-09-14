@@ -36,14 +36,14 @@ class TestCitationGrounderProcess(unittest.IsolatedAsyncioTestCase):
             llm=llm,
         )
         assert isinstance(grounded, AgentResponse)
-        assert "[1]" in grounded.content
+        assert "[1]" in grounded.data
 
     async def test_preserves_finish_reason(self) -> None:
         llm = StubLLMProvider(["cited content"])
         k = _make_knot(llm)
         response = AgentResponse(content="raw", finish_reason="length")
         result = await k.process(response=response, sources=["src"], llm=llm)
-        assert result.finish_reason == "length"
+        assert result.metadata.finish_reason == "length"
 
     async def test_rejects_non_agent_response(self) -> None:
         llm = StubLLMProvider(["x"])

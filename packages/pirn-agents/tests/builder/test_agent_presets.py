@@ -32,7 +32,7 @@ class TestResearchPreset(unittest.IsolatedAsyncioTestCase):
         # Assert
         assert isinstance(agent, SubTapestry)
         assert run.succeeded
-        assert run.outputs[agent.knot_id].content == "researched"
+        assert run.outputs[agent.knot_id].data == "researched"
 
     async def test_accepts_tool_override(self) -> None:
         llm = StubLLMProvider(["Final Answer: ok"])
@@ -52,7 +52,7 @@ class TestRagChatPreset(unittest.IsolatedAsyncioTestCase):
             agent = AgentPresets.rag_chat(llm=llm, memory=memory, input="hello", top_k=1)
         run = await t.run(RunRequest())
         assert run.succeeded
-        assert run.outputs[agent.knot_id].content == "chat answer"
+        assert run.outputs[agent.knot_id].data == "chat answer"
         assert memory.search_queries == ["hello"]
 
 
@@ -64,7 +64,7 @@ class TestCodingPreset(unittest.IsolatedAsyncioTestCase):
                 agent = AgentPresets.coding(llm=llm, input="write code", root=root)
             run = await t.run(RunRequest())
         assert run.succeeded
-        assert run.outputs[agent.knot_id].content == "coded"
+        assert run.outputs[agent.knot_id].data == "coded"
 
     async def test_accepts_tool_override(self) -> None:
         llm = StubLLMProvider(["Final Answer: ok"])
@@ -121,7 +121,7 @@ class TestPresetShapeIsALoadedCorePipelineDocument(unittest.IsolatedAsyncioTestC
             agent = AgentPresets.research(llm=llm, input="q", tools=[])
         run = await t.run(RunRequest())
         assert run.succeeded, run.exceptions
-        assert run.outputs[agent.knot_id].content == "ok"
+        assert run.outputs[agent.knot_id].data == "ok"
 
 
 if __name__ == "__main__":

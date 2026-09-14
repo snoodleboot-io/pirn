@@ -54,18 +54,6 @@ class ConversationPayload(Payload[ConversationFrame, tuple[AgentMessage, ...]]):
         )
         super().__init__(metadata=frame, data=tuple(messages))
 
-    @property
-    def frame(self) -> ConversationFrame:
-        return self._metadata
-
-    @property
-    def messages(self) -> tuple[AgentMessage, ...]:
-        return self._data
-
-    @property
-    def extra(self) -> Mapping[str, Any]:
-        return self._metadata.extra
-
     def derive(
         self, messages: Sequence[AgentMessage], **frame_overrides: Any
     ) -> ConversationPayload:
@@ -86,11 +74,11 @@ class ConversationPayload(Payload[ConversationFrame, tuple[AgentMessage, ...]]):
             ``messages``.
         """
         fields: dict[str, Any] = {
-            "session_id": self.frame.session_id,
-            "turn_id": self.frame.turn_id,
-            "token_count": self.frame.token_count,
-            "truncated": self.frame.truncated,
-            "extra": dict(self.frame.extra),
+            "session_id": self.metadata.session_id,
+            "turn_id": self.metadata.turn_id,
+            "token_count": self.metadata.token_count,
+            "truncated": self.metadata.truncated,
+            "extra": dict(self.metadata.extra),
         }
         fields.update(frame_overrides)
         return ConversationPayload(messages, **fields)
@@ -102,8 +90,8 @@ class ConversationPayload(Payload[ConversationFrame, tuple[AgentMessage, ...]]):
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
         audit = dict(super()._pirn_audit_dict())
-        audit["messages"] = self._audit_all(self.messages)
+        audit["messages"] = self._audit_all(self.data)
         return audit
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}(messages={self.messages!r}, frame={self._metadata!r})"
+        return f"{type(self).__name__}(messages={self.data!r}, frame={self._metadata!r})"

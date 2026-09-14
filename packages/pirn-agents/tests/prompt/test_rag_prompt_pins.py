@@ -350,7 +350,7 @@ class RagHelperPromptPins(unittest.IsolatedAsyncioTestCase):
             "Evidence:\n(no evidence retrieved)"
         )
 
-    async def test_iterative_retriever_decide_prompt(self) -> None:
+    async def test_decide_follow_up_decide_prompt(self) -> None:
         llm = StubLLMProvider(["DONE"])
         await DecideFollowUp.decide(llm, "OQ", {}, "CQ")
         assert llm.calls[0][0]["content"] == (

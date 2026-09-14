@@ -22,9 +22,9 @@ class TestSelfAskPipeline(unittest.IsolatedAsyncioTestCase):
         assert run.succeeded
         result = run.outputs["sa"]
         assert isinstance(result, SelfAskResult)
-        assert result.subquestions == ("who?", "when?")
-        assert result.subanswers == ("Napoleon", "1804")
-        assert result.final_answer == "Napoleon crowned in 1804"
+        assert result.metadata.subquestions == ("who?", "when?")
+        assert result.metadata.subanswers == ("Napoleon", "1804")
+        assert result.data == "Napoleon crowned in 1804"
 
     async def test_falls_back_to_direct_answer(self) -> None:
         # No "- " lines -> single sub-question is the task itself.
@@ -33,8 +33,8 @@ class TestSelfAskPipeline(unittest.IsolatedAsyncioTestCase):
             SelfAskPipeline(task="what is 2+2?", llm=llm, _config=KnotConfig(id="sa"))
         run = await t.run(RunRequest())
         result = run.outputs["sa"]
-        assert result.subquestions == ("what is 2+2?",)
-        assert result.final_answer == "final"
+        assert result.metadata.subquestions == ("what is 2+2?",)
+        assert result.data == "final"
 
     async def test_bounds_subquestions(self) -> None:
         llm = StubLLMProvider(["- a\n- b\n- c\n- d", "1", "2", "final"])
@@ -42,7 +42,7 @@ class TestSelfAskPipeline(unittest.IsolatedAsyncioTestCase):
             SelfAskPipeline(task="q", llm=llm, max_subquestions=2, _config=KnotConfig(id="sa"))
         run = await t.run(RunRequest())
         result = run.outputs["sa"]
-        assert result.subquestions == ("a", "b")
+        assert result.metadata.subquestions == ("a", "b")
 
     async def test_rejects_non_positive_max(self) -> None:
         llm = StubLLMProvider(["- a", "x", "y"])

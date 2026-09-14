@@ -43,7 +43,7 @@ class TestOpenAICompatibleStructuredOutput(unittest.IsolatedAsyncioTestCase):
             [{"role": "user", "content": "hi"}], request_options=options
         )
 
-        assert response.content == '{"ok": true}'
+        assert response.data == '{"ok": true}'
         posted = client.post_calls[0]["json"]
         assert posted["response_format"]["json_schema"]["name"] == "Rec"
         # Existing shaping is preserved.

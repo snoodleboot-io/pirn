@@ -37,7 +37,11 @@ async def _run(node_budget: int, max_depth: int) -> tuple[float, int, bool]:
         )
     run = await t.run(RunRequest())
     result = run.outputs["lats"]
-    return result.best_value, result.nodes_expanded, result.budget_exhausted
+    return (
+        result.metadata.best_value,
+        result.metadata.nodes_expanded,
+        result.metadata.budget_exhausted,
+    )
 
 
 @pytest.mark.benchmark

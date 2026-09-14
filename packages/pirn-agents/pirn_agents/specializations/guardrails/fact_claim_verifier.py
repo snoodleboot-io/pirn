@@ -116,8 +116,8 @@ class FactClaimVerifier(AgentPipeline):
         warning_lines = "\n".join(f"- {claim}" for claim in unverified)
         warning = "\n\n[fact_check] Unverified claims:\n" + warning_lines
         return AgentResponse(
-            content=response.content + warning,
-            tool_calls=response.tool_calls,
-            finish_reason=response.finish_reason,
-            usage=response.usage,
+            content=response.data + warning,
+            tool_calls=response.metadata.tool_calls,
+            finish_reason=response.metadata.finish_reason,
+            usage=response.metadata.usage,
         )

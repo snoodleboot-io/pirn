@@ -45,9 +45,9 @@ class TestReWooSynthesizerProcess(unittest.IsolatedAsyncioTestCase):
         assert run.succeeded
         out = run.outputs["synth"]
         assert isinstance(out, ReWooResult)
-        assert out.answer == "the final answer"
-        assert len(out.plan) == 2
-        assert len(out.results) == 2
+        assert out.data == "the final answer"
+        assert len(out.metadata.plan) == 2
+        assert len(out.metadata.results) == 2
 
     async def test_evidence_contains_tool_results(self) -> None:
         llm = StubLLMProvider(["done"])

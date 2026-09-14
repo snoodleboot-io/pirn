@@ -86,7 +86,7 @@ class ReflectionCheck(Knot):
                 "role": "system",
                 "content": type(self)._reflection_prompt.resolve(type(self).reflection_prompt),
             },
-            {"role": "user", "content": response.content},
+            {"role": "user", "content": response.data},
         )
         raw = await llm.chat(messages=wire_messages)
         text = self._extract_text(raw)

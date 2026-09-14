@@ -78,32 +78,32 @@ class TestMessagesWireMapping(unittest.IsolatedAsyncioTestCase):
         # Arrange / Act / Assert
         provider = _messages(FakeAsyncClient(post_results=[_messages_response("end_turn")]))
         response = await provider.chat_response([{"role": "user", "content": "hi"}])
-        assert response.finish_reason == "stop"
+        assert response.metadata.finish_reason == "stop"
 
     async def test_max_tokens_maps_to_length(self) -> None:
         # Arrange / Act / Assert
         provider = _messages(FakeAsyncClient(post_results=[_messages_response("max_tokens")]))
         response = await provider.chat_response([{"role": "user", "content": "hi"}])
-        assert response.finish_reason == "length"
+        assert response.metadata.finish_reason == "length"
 
     async def test_tool_use_maps_to_tool_use(self) -> None:
         # Arrange / Act / Assert
         provider = _messages(FakeAsyncClient(post_results=[_messages_response("tool_use")]))
         response = await provider.chat_response([{"role": "user", "content": "hi"}])
-        assert response.finish_reason == "tool_use"
+        assert response.metadata.finish_reason == "tool_use"
 
     async def test_unknown_wire_value_passes_through(self) -> None:
         # Arrange / Act / Assert: an unmapped vendor value is surfaced verbatim
         # rather than silently coerced to a neutral member.
         provider = _messages(FakeAsyncClient(post_results=[_messages_response("stop_sequence")]))
         response = await provider.chat_response([{"role": "user", "content": "hi"}])
-        assert response.finish_reason == "stop_sequence"
+        assert response.metadata.finish_reason == "stop_sequence"
 
     async def test_missing_wire_value_defaults_to_stop(self) -> None:
         # Arrange / Act / Assert
         provider = _messages(FakeAsyncClient(post_results=[_messages_response(None)]))
         response = await provider.chat_response([{"role": "user", "content": "hi"}])
-        assert response.finish_reason == "stop"
+        assert response.metadata.finish_reason == "stop"
 
 
 class TestChatCompletionsWireMapping(unittest.IsolatedAsyncioTestCase):
@@ -111,13 +111,13 @@ class TestChatCompletionsWireMapping(unittest.IsolatedAsyncioTestCase):
         # Arrange / Act / Assert
         provider = _openai(FakeAsyncClient(post_results=[_chat_completion("stop")]))
         response = await provider.chat_response([{"role": "user", "content": "hi"}])
-        assert response.finish_reason == "stop"
+        assert response.metadata.finish_reason == "stop"
 
     async def test_length_maps_to_length(self) -> None:
         # Arrange / Act / Assert
         provider = _openai(FakeAsyncClient(post_results=[_chat_completion("length")]))
         response = await provider.chat_response([{"role": "user", "content": "hi"}])
-        assert response.finish_reason == "length"
+        assert response.metadata.finish_reason == "length"
 
     async def test_tool_calls_maps_to_tool_use(self) -> None:
         # Arrange: the chat-completions terminal for "the model wants tools".
@@ -128,31 +128,31 @@ class TestChatCompletionsWireMapping(unittest.IsolatedAsyncioTestCase):
 
         # Assert: normalised onto the neutral member the rest of the framework
         # consumes — previously leaked out as the raw wire value "tool_calls".
-        assert response.finish_reason == "tool_use"
+        assert response.metadata.finish_reason == "tool_use"
 
     async def test_function_call_maps_to_tool_use(self) -> None:
         # Arrange / Act / Assert: the legacy spelling normalises identically.
         provider = _openai(FakeAsyncClient(post_results=[_chat_completion("function_call")]))
         response = await provider.chat_response([{"role": "user", "content": "hi"}])
-        assert response.finish_reason == "tool_use"
+        assert response.metadata.finish_reason == "tool_use"
 
     async def test_content_filter_maps_to_content_filter(self) -> None:
         # Arrange / Act / Assert
         provider = _openai(FakeAsyncClient(post_results=[_chat_completion("content_filter")]))
         response = await provider.chat_response([{"role": "user", "content": "hi"}])
-        assert response.finish_reason == "content_filter"
+        assert response.metadata.finish_reason == "content_filter"
 
     async def test_unknown_wire_value_passes_through(self) -> None:
         # Arrange / Act / Assert
         provider = _openai(FakeAsyncClient(post_results=[_chat_completion("weird_reason")]))
         response = await provider.chat_response([{"role": "user", "content": "hi"}])
-        assert response.finish_reason == "weird_reason"
+        assert response.metadata.finish_reason == "weird_reason"
 
     async def test_missing_wire_value_defaults_to_stop(self) -> None:
         # Arrange / Act / Assert
         provider = _openai(FakeAsyncClient(post_results=[_chat_completion(None)]))
         response = await provider.chat_response([{"role": "user", "content": "hi"}])
-        assert response.finish_reason == "stop"
+        assert response.metadata.finish_reason == "stop"
 
 
 class TestStreamingNormalisation(unittest.IsolatedAsyncioTestCase):
@@ -165,7 +165,7 @@ class TestStreamingNormalisation(unittest.IsolatedAsyncioTestCase):
         response = await provider.stream_response([{"role": "user", "content": "hi"}])
 
         # Assert: the streaming path normalises exactly like the buffered one.
-        assert response.finish_reason == "tool_use"
+        assert response.metadata.finish_reason == "tool_use"
 
     async def test_messages_stream_normalises_end_turn(self) -> None:
         # Arrange
@@ -183,7 +183,7 @@ class TestStreamingNormalisation(unittest.IsolatedAsyncioTestCase):
         response = await provider.stream_response([{"role": "user", "content": "hi"}])
 
         # Assert
-        assert response.finish_reason == "stop"
+        assert response.metadata.finish_reason == "stop"
 
 
 class TestFinishReasonEnum(unittest.TestCase):
@@ -197,8 +197,8 @@ class TestFinishReasonEnum(unittest.TestCase):
 
     def test_agent_response_defaults_to_stop(self) -> None:
         # Arrange / Act / Assert
-        assert AgentResponse(content="x").finish_reason == "stop"
-        assert AgentResponse(content="x").finish_reason == FinishReason.STOP
+        assert AgentResponse(content="x").metadata.finish_reason == "stop"
+        assert AgentResponse(content="x").metadata.finish_reason == FinishReason.STOP
 
     def test_both_providers_agree_on_the_tool_terminal(self) -> None:
         # Arrange / Act / Assert: the two wire spellings converge on one neutral

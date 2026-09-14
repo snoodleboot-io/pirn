@@ -35,7 +35,7 @@ class TestConsensusSynthesisCallerProcess(unittest.IsolatedAsyncioTestCase):
         }
         out = await k.process(responses=responses, llm=llm)
         assert isinstance(out, AgentResponse)
-        assert out.content == "consensus answer"
+        assert out.data == "consensus answer"
 
     async def test_rejects_empty_responses(self) -> None:
         k = _make_knot()
@@ -77,4 +77,4 @@ class TestConsensusSynthesisCallerProcess(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         assert result.succeeded
-        assert result.outputs["csc"].content == "the synthesis"
+        assert result.outputs["csc"].data == "the synthesis"

@@ -30,7 +30,7 @@ class RagTool(Tool):
     tool_name: ClassVar[str] = "rag"
 
     _system_prompt_binding: ClassVar[PromptBinding] = PromptBinding(
-        name="tools.retrieval.rag_tool.system_prompt",
+        name="tools.retrieval.rag_tool.system_prompt_binding",
         default=(
             "Answer the question using only the provided context. "
             "If the context is insufficient, say so."

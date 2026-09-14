@@ -36,7 +36,7 @@ The decorator also has a **rich, parametrised form** alongside the bare
         ...
 
 * ``args_model`` — a pydantic model or dataclass whose JSON schema is the
-  declared input schema (``Knot._input_schema_override``); incoming arguments
+  declared input schema (``Knot.declared_input_schema()``); incoming arguments
   are validated/coerced through it and the validated object is passed to the
   function.
 * Return-type schema is derived from the function's return annotation and

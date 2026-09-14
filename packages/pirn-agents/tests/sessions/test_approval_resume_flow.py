@@ -38,7 +38,7 @@ class Finalize(Knot):
 
     async def process(self, response: AgentResponse, decision: HumanDecision, **_: Any) -> str:
         verdict = "approved" if decision.approved else "rejected"
-        return f"{verdict}:{response.content}"
+        return f"{verdict}:{response.data}"
 
 
 _RESPONSE = AgentResponse(content="delete the production database")

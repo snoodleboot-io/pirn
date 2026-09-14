@@ -73,8 +73,8 @@ class TestSelfRAGPipelineNoRetrieval(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         response = result.outputs["self_rag"]
         assert isinstance(response, AgentResponse)
-        assert response.content == "I know the answer already."
-        assert response.finish_reason == "stop"
+        assert response.data == "I know the answer already."
+        assert response.metadata.finish_reason == "stop"
         assert memory.search_queries == []
 
 
@@ -94,5 +94,5 @@ class TestSelfRAGPipelineWithRetrieval(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         response = result.outputs["self_rag"]
         assert isinstance(response, AgentResponse)
-        assert response.content == "final answer with context"
+        assert response.data == "final answer with context"
         assert memory.search_queries == ["complex question"]

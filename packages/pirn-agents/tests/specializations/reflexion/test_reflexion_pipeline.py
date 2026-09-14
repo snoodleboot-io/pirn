@@ -54,9 +54,9 @@ class TestReflexionPipeline(unittest.IsolatedAsyncioTestCase):
         assert run.succeeded
         result = run.outputs["rx"]
         assert isinstance(result, ReflexionResult)
-        assert result.succeeded is True
-        assert result.iterations == 1
-        assert result.answer == "answer"
+        assert result.metadata.succeeded is True
+        assert result.metadata.iterations == 1
+        assert result.data == "answer"
 
     async def test_reflection_written_and_read_back(self) -> None:
         # iter1: actor a1, eval FAIL, reflect "be longer"; iter2: actor a2, eval PASS
@@ -66,8 +66,8 @@ class TestReflexionPipeline(unittest.IsolatedAsyncioTestCase):
             ReflexionPipeline(task="q", llm=llm, memory=store, _config=KnotConfig(id="rx"))
         run = await t.run(RunRequest())
         result = run.outputs["rx"]
-        assert result.succeeded is True
-        assert result.iterations == 2
+        assert result.metadata.succeeded is True
+        assert result.metadata.iterations == 2
         # Reflection was persisted to memory ...
         assert "reflexion:0" in store.writes
         assert store.data["reflexion:0"]["text"] == "be longer"
@@ -89,9 +89,9 @@ class TestReflexionPipeline(unittest.IsolatedAsyncioTestCase):
             )
         run = await t.run(RunRequest())
         result = run.outputs["rx"]
-        assert result.succeeded is False
-        assert result.iterations == 2
-        assert len(result.attempts) == 2
+        assert result.metadata.succeeded is False
+        assert result.metadata.iterations == 2
+        assert len(result.metadata.attempts) == 2
 
     async def test_rejects_non_memory_store(self) -> None:
         llm = StubLLMProvider(["a", "PASS"])

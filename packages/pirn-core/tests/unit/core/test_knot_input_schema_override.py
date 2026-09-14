@@ -152,5 +152,5 @@ class TestKnotDecoratorWithSchema(unittest.TestCase):
         async def add(x: int, **_: Any) -> int:
             return x + 1
 
-        self.assertIsNone(add.knot_class._input_schema_override)
+        self.assertIsNone(add.knot_class.declared_input_schema())
         self.assertEqual(add.knot_class.input_json_schema()["required"], ["x"])

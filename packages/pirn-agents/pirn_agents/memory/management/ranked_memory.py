@@ -43,7 +43,7 @@ class RankedMemory(PirnOpaqueValue):
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
         return {
-            "record": self.record.id,
+            "record": self.record.data.id,
             "score": float(self.score),
             "relevance": float(self.relevance),
             "recency": float(self.recency),

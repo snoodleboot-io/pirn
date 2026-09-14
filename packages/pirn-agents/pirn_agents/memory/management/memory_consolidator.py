@@ -41,7 +41,6 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.context.summarizer import Summarizer
 from pirn_agents.memory.management.conflict_resolution_policy import ConflictResolutionPolicy
-from pirn_agents.memory.management.memory_provenance import MemoryProvenance
 from pirn_agents.memory.management.memory_record import MemoryRecord
 from pirn_agents.memory.management.near_duplicate_grouper import NearDuplicateGrouper
 from pirn_agents.memory.management.recency_trust_conflict_policy import RecencyTrustConflictPolicy
@@ -111,7 +110,9 @@ class MemoryConsolidator(Knot):
                 f"MemoryConsolidator: store must be a MemoryStore or None, "
                 f"got {type(store).__name__}"
             )
-        episodic = [self._require_record(record) for record in records if record.kind == "episodic"]
+        episodic = [
+            self._require_record(record) for record in records if record.data.kind == "episodic"
+        ]
         consolidated: list[MemoryRecord] = []
         for group in grouper.group(episodic):
             if len(group) < 2:
@@ -119,7 +120,7 @@ class MemoryConsolidator(Knot):
             consolidated.append(await self._consolidate_group(group, summarizer, conflict_policy))
         if store is not None:
             for record in consolidated:
-                await store.store(record.id, record.to_payload())
+                await store.store(record.data.id, record.to_payload())
         return consolidated
 
     @staticmethod
@@ -140,22 +141,15 @@ class MemoryConsolidator(Knot):
     ) -> MemoryRecord:
         """Reduce one near-duplicate ``group`` to a single semantic record."""
         winner = conflict_policy.resolve(group)
-        summary = await summarizer.summarize([record.content for record in group])
-        source_ids = tuple(sorted(record.id for record in group))
+        summary = await summarizer.summarize([record.data.content for record in group])
+        source_ids = tuple(sorted(record.data.id for record in group))
         digest = hashlib.sha1(":".join(source_ids).encode("utf-8")).hexdigest()
-        provenance = MemoryProvenance(
-            source="consolidator",
-            timestamp=winner.provenance.timestamp,
-            trust_signal=winner.provenance.trust_signal,
-            derivation=f"consolidated-from:{','.join(source_ids)}",
-        )
-        return MemoryRecord(
+        return winner.derive(
             id=f"semantic:consolidated:{digest}",
             kind="semantic",
             content=summary,
-            provenance=provenance,
-            created_at=winner.created_at,
-            importance=max(record.importance for record in group),
-            last_accessed=None,
+            source="consolidator",
+            derivation=f"consolidated-from:{','.join(source_ids)}",
+            importance=max(record.metadata.importance for record in group),
             metadata={"source_ids": list(source_ids), "merged_count": len(source_ids)},
         )

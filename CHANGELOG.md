@@ -248,6 +248,48 @@ Two new hooks on `SubTapestry` support specialised subclasses:
 
 ### Removed
 
+#### Built-in prompt names that no longer matched their owner (PIR-872)
+
+Seventeen `PromptBinding` names still named the module their class was split out of (or dropped the attribute's suffix). Each is now `<module path>.<attribute>` per `pirn_agents/prompt/PROMPTS.md`, with no alias; a prompt pack keyed on an old name must use the new one.
+
+| Removed name | Name |
+|---|---|
+| `security.llm_injection_classifier.system_prompt` | `security.llm_injection_classifier.system_prompt_binding` |
+| `specializations.chain_of_thought.tree_of_thought.expansion_system` | `specializations.chain_of_thought.expand_one_thought.expansion_system` |
+| `specializations.chain_of_thought.tree_of_thought.scoring_system` | `specializations.chain_of_thought.score_candidate.scoring_system` |
+| `specializations.document_processing._map_reduce_summariser.chunk_summary_system` | `specializations.document_processing.chunk_summariser.chunk_summary_system` |
+| `specializations.document_processing._map_reduce_summariser.reduce_system` | `specializations.document_processing.summary_reducer.reduce_system` |
+| `specializations.document_processing.chunk_translator.system_prompt` | `specializations.document_processing.chunk_translation.system_prompt` |
+| `specializations.plan_and_execute.plan_executor.step_system` | `specializations.plan_and_execute.plan_step_call.step_system` |
+| `specializations.rag.adaptive_rag_pipeline.decompose_prompt` | `specializations.rag.complex_rag_arm.decompose_prompt` |
+| `specializations.rag.agentic_rag_pipeline.next_question_prompt` | `specializations.rag.follow_up_decision.next_question_prompt` |
+| `specializations.rag.contextual_chunk_enricher.enrichment_prompt` | `specializations.rag.chunk_enricher.enrichment_prompt` |
+| `specializations.rag.contextual_compressor.compression_prompt` | `specializations.rag.document_compressor.compression_prompt` |
+| `specializations.rag.flare_active_rag_pipeline.generation_prompt` | `specializations.rag.flare_loop.generation_prompt` |
+| `specializations.rag.flare_active_rag_pipeline.regeneration_prompt` | `specializations.rag.flare_regenerate_prompt_builder.regeneration_prompt` |
+| `specializations.rag.indexing.raptor_assembler.summary_prompt` | `specializations.rag.indexing.raptor_summary.summary_prompt` |
+| `specializations.rag.iterative_retriever.decide_prompt` | `specializations.rag.decide_follow_up.decide_prompt` |
+| `specializations.rag.reranker.score_prompt` | `specializations.rag.document_relevance_scorer.score_prompt` |
+| `tools.retrieval.rag_tool.system_prompt` | `tools.retrieval.rag_tool.system_prompt_binding` |
+
+#### `Tool`'s knot-introspection wrappers (PIR-872)
+
+- `Tool.framework_kwarg_names()`, `Tool.declared_input_schema(cls)`, `Tool.input_annotations(cls)` — `Knot` (pirn-core) answers "what does this knot class accept" itself: `knot_class.reserved_kwargs()`, `knot_class.declared_input_schema()`, `knot_class.input_annotations()` (all classmethods, next to `input_json_schema()`). `ToolFactory` and `AgentTool` read those.
+
+#### Agents payload field-name alias properties (PIR-872)
+
+Deleted outright; every caller, test and doc reads the canonical `Payload` access. Constructors keep their field names.
+
+| Removed | Replacement |
+|---|---|
+| `AgentResponse.content` / `.frame` / `.tool_calls` / `.finish_reason` / `.usage` / `.cost` / `.model` / `.provider` | `.data` / `.metadata` / `.metadata.tool_calls` / `.metadata.finish_reason` / `.metadata.usage` / `.metadata.cost` / `.metadata.model` / `.metadata.provider` |
+| `ConversationPayload.messages` / `.frame` / `.extra` | `.data` / `.metadata` / `.metadata.extra` |
+| `MemoryRecord.id` / `.kind` / `.content` / `.tags` / `.provenance` / `.created_at` / `.importance` / `.last_accessed` | `.data.id` / `.data.kind` / `.data.content` / `.data.tags` / `.metadata` / `.metadata.created_at` / `.metadata.importance` / `.metadata.last_accessed` (`recency_anchor()` stays: it is derived) |
+| `EvaluatorOptimizerResult.answer`, `ReflexionResult.answer`, `ReWooResult.answer`, `SelfAskResult.final_answer`, `PromptChainResult.final`, `PlanReActResult.final`, `SimulationResult.worst_case`, `LatsResult.best_trajectory`, `OrchestratorWorkersResult.results`, `WorkerTaskResult.result`, `FallbackResult.result` | `.data` |
+| every other field property of those eleven results (`score`, `accepted`, `iterations`, `succeeded`, `attempts`, `plan`, `results`, `subquestions`, `subanswers`, `outputs`, `step_responses`, `best_case`, `neutral_case`, `best_value`, `nodes_expanded`, `budget_exhausted`, `total`, `task`, `chosen`, `attempted`, `skipped`) | `.metadata.<field>` |
+
+`MemoryConsolidator` builds its consolidated record with `MemoryRecord.derive` (same fields as before).
+
 #### Agents record/replay adapters and harness wrappers (PIR-872)
 
 - `pirn_agents.evaluation.run_recorder.RunRecorder`, `null_run_recorder.NullRunRecorder`, `cassette_run_recorder.CassetteRunRecorder` and `RunEval.run(recorder=)` — an eval item is a knot: record with `RunEval.run(history=, data_store=, run_id=)`, replay with `RunEval.run(replay=ReplaySession.from_history(...))`.
@@ -378,8 +420,8 @@ strict. `ToolCallCodec.encode_results` and `ToolCallCodec.views` take only
 `{call_id: Ok | Err | Skipped}`; the sequence-of-`ToolResult` input is deleted.
 `SqliteConnector._clear_credentials` (never called) is deleted. `ToolFactory`
 gained `with_parameters(parameters)` (a copy declaring a different `parameters`
-schema) and reads a knot class's input contract through `Tool.framework_kwarg_names()`,
-`Tool.declared_input_schema(cls)` and `Tool.input_annotations(cls)`.
+schema) and reads a knot class's input contract through core's public
+`Knot.reserved_kwargs()`, `Knot.declared_input_schema()` and `Knot.input_annotations()`.
 `ToolDecorator.decorate` is overloaded (bare form returns a `FunctionTool`, the
 parametrised form a decorator) and takes the function positionally only.
 `RunTrace`/`TraceEvent`/`TraceDiff`/`ToolDeclaration.from_payload` are typed

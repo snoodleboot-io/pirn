@@ -52,8 +52,9 @@ class AgentResult(Payload[M, D], NestedAuditValue):
 
     Declares no fields and no behaviour beyond structural equality; each
     concrete ``Payload[<Frame>, D]`` subclass supplies its own frame type,
-    ``__init__`` (accepting the pattern's named fields), read-only properties
-    for those field names, and :meth:`_pirn_audit_dict`.
+    ``__init__`` (accepting the pattern's named fields) and
+    :meth:`_pirn_audit_dict`. A field is read back through ``metadata``/``data``;
+    no concrete re-exposes a field under its constructor name.
     """
 
     def __eq__(self, other: object) -> bool:

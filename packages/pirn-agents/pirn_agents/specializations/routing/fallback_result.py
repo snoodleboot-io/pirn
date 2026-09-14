@@ -18,9 +18,9 @@ class FallbackResult(AgentResult[FallbackFrame, ToolResult | None]):
     (PIR-868, following the ADR agents-speaks-core WS6b pattern) — ``data``
     is the successful :class:`ToolResult` (or ``None`` on exhaustion), and
     ``metadata`` is the :class:`FallbackFrame` carrying the
-    succeeded/chosen/attempted/skipped facts. ``succeeded``, ``chosen``,
-    ``attempted`` and ``skipped`` read the frame and ``result`` reads the data,
-    as read-only properties.
+    succeeded/chosen/attempted/skipped facts. Read ``succeeded``, ``chosen``,
+    ``attempted`` and ``skipped`` as ``metadata.<field>`` and ``result`` as
+    ``data``.
     """
 
     def __init__(
@@ -36,29 +36,9 @@ class FallbackResult(AgentResult[FallbackFrame, ToolResult | None]):
         )
         super().__init__(metadata=frame, data=result)
 
-    @property
-    def succeeded(self) -> bool:
-        return self._metadata.succeeded
-
-    @property
-    def chosen(self) -> str | None:
-        return self._metadata.chosen
-
-    @property
-    def result(self) -> ToolResult | None:
-        return self._data
-
-    @property
-    def attempted(self) -> tuple[str, ...]:
-        return self._metadata.attempted
-
-    @property
-    def skipped(self) -> tuple[str, ...]:
-        return self._metadata.skipped
-
     def _pirn_audit_dict(self) -> dict[str, Any]:
         audit = dict(super()._pirn_audit_dict())
-        audit["result"] = None if self.result is None else FallbackResult._audit_of(self.result)
+        audit["result"] = None if self.data is None else FallbackResult._audit_of(self.data)
         return audit
 
     @staticmethod

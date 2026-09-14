@@ -51,5 +51,5 @@ class TypedMemoryWriter(MemoryWriterBase):
         Returns:
             The key (the record ``id``) under which the payload was stored.
         """
-        await store.store(record.id, record.to_payload())
-        return record.id
+        await store.store(record.data.id, record.to_payload())
+        return record.data.id

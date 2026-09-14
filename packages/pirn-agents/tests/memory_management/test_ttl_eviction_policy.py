@@ -20,7 +20,7 @@ class TestTtlEvictionPolicy(unittest.TestCase):
         fresh = make_record(id="fresh", created_at=now - timedelta(seconds=60))
         policy = TtlEvictionPolicy(ttl_seconds=3600)
         evicted = policy.select([old, fresh], now=now)
-        assert [r.id for r in evicted] == ["old"]
+        assert [r.data.id for r in evicted] == ["old"]
 
     def test_keeps_records_at_or_under_ttl(self) -> None:
         now = datetime(2026, 6, 1, tzinfo=UTC)

@@ -122,11 +122,11 @@ class IntentClassifier(Knot):
         )
 
     def _last_user_content(self, context: ConversationPayload) -> str:
-        for message in reversed(context.messages):
+        for message in reversed(context.data):
             if message.role == "user":
                 return message.content
-        if context.messages:
-            return context.messages[-1].content
+        if context.data:
+            return context.data[-1].content
         raise ValueError("IntentClassifier: context has no messages to classify")
 
     def _extract_text(self, response: Any) -> str:

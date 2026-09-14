@@ -14,6 +14,7 @@ import time
 
 import pytest
 
+from pirn_agents.testing.tool_test_harness import ToolTestHarness
 from pirn_agents.tools.tool_decorator import ToolDecorator
 
 
@@ -43,7 +44,7 @@ async def test_streaming_first_output_beats_full_result() -> None:
     time_to_first = time.perf_counter() - start
 
     start = time.perf_counter()
-    full = await batched.invoke({"count": n})
+    full = await ToolTestHarness.run_tool(batched, {"count": n})
     time_to_full = time.perf_counter() - start
 
     assert first_chunk == "chunk0"

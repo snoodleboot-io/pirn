@@ -30,7 +30,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         k = _make_knot(llm)
         response = await k.process(prompt="Why do apples fall?", llm=llm)
         assert isinstance(response, AgentResponse)
-        assert response.content == "gravity pulls objects"
+        assert response.data == "gravity pulls objects"
 
     async def test_makes_two_llm_calls(self) -> None:
         llm = StubLLMProvider(["background", "answer"])

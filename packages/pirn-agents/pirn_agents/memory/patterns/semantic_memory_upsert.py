@@ -9,7 +9,7 @@ new facts into a :class:`~pirn_agents.memory.stores.keyed_lineage_store.KeyedLin
 Algorithm
 ---------
 1. Validate inputs.
-2. Build a prompt from ``fact_extraction_prompt`` and ``response.content``.
+2. Build a prompt from ``fact_extraction_prompt`` and ``response.data``.
 3. Call the LLM and parse one fact per line.
 4. For each fact, check whether it is already recorded (see "Dedup" below).
 5. If not, ``store.put`` a typed
@@ -112,7 +112,7 @@ class SemanticMemoryUpsert(Knot):
                 "SemanticMemoryUpsert: fact_extraction_prompt must be a non-empty string"
             )
         instruction = type(self)._fact_extraction_prompt.resolve(fact_extraction_prompt)
-        prompt = f"{instruction}\n\nText: {response.content}\n\nReturn one fact per line."
+        prompt = f"{instruction}\n\nText: {response.data}\n\nReturn one fact per line."
         raw = await llm.chat([{"role": "user", "content": prompt}])
         text = LlmResponseText().extract(raw)
         facts: list[str] = []

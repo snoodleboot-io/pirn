@@ -26,7 +26,7 @@ class TestLowValueEvictionPolicy(unittest.TestCase):
         high = make_record(id="high", importance=0.9, created_at=now)
         policy = LowValueEvictionPolicy()
         evicted = policy.select([high, low, mid], now=now, capacity=2)
-        assert [r.id for r in evicted] == ["low"]
+        assert [r.data.id for r in evicted] == ["low"]
 
     def test_under_capacity_evicts_nothing(self) -> None:
         now = datetime(2026, 1, 1, tzinfo=UTC)
@@ -44,4 +44,4 @@ class TestLowValueEvictionPolicy(unittest.TestCase):
         b = make_record(id="b", importance=0.5, created_at=now)
         c = make_record(id="c", importance=0.5, created_at=now)
         evicted = LowValueEvictionPolicy().select([c, b, a], now=now, capacity=2)
-        assert [r.id for r in evicted] == ["a"]
+        assert [r.data.id for r in evicted] == ["a"]

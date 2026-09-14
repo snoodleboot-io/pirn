@@ -44,7 +44,7 @@ class TestConsensusPipelineProcess(unittest.IsolatedAsyncioTestCase):
         assert run.succeeded
         consensus = run.outputs["con"]
         assert isinstance(consensus, AgentResponse)
-        assert consensus.content == "42"
+        assert consensus.data == "42"
 
     async def test_llm_synthesis_returns_synthesised_text(self) -> None:
         llm = StubLLMProvider(["the synthesis"])
@@ -63,7 +63,7 @@ class TestConsensusPipelineProcess(unittest.IsolatedAsyncioTestCase):
         assert run.succeeded
         consensus = run.outputs["con"]
         assert isinstance(consensus, AgentResponse)
-        assert consensus.content == "the synthesis"
+        assert consensus.data == "the synthesis"
 
     async def test_rejects_unsupported_strategy(self) -> None:
         k = _make_knot()
@@ -94,4 +94,4 @@ class TestConsensusPipelineProcess(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         assert result.succeeded
-        assert result.outputs["con"].content == "the synthesis"
+        assert result.outputs["con"].data == "the synthesis"

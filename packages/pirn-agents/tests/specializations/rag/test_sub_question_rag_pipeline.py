@@ -30,7 +30,7 @@ class TestSubQuestionRagPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         response = result.outputs["subq"]
         assert isinstance(response, AgentResponse)
-        assert response.content == "combined answer"
+        assert response.data == "combined answer"
         assert sorted(memory.search_queries) == ["sub one", "sub two"]
 
     def test_rejects_non_llm(self) -> None:

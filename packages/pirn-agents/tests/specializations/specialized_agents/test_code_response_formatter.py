@@ -38,8 +38,8 @@ class TestCodeResponseFormatterProcess(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         out = result.outputs["crf"]
         assert isinstance(out, AgentResponse)
-        assert out.content == "def f(): pass"
-        assert out.finish_reason == "stop"
+        assert out.data == "def f(): pass"
+        assert out.metadata.finish_reason == "stop"
 
     async def test_records_lint_warnings_count_in_usage(self) -> None:
         with Tapestry() as t:
@@ -52,7 +52,7 @@ class TestCodeResponseFormatterProcess(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         out = result.outputs["crf"]
-        assert out.usage["lint_warnings"] == 2
+        assert out.metadata.usage["lint_warnings"] == 2
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
@@ -62,12 +62,12 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             object.__setattr__(k, "_config", KnotConfig(id="x"))
         result = await k.process(code="def f(): pass", warnings=[])
         assert isinstance(result, AgentResponse)
-        assert result.content == "def f(): pass"
-        assert result.usage["lint_warnings"] == 0
+        assert result.data == "def f(): pass"
+        assert result.metadata.usage["lint_warnings"] == 0
 
     async def test_process_records_warning_count(self) -> None:
         with Tapestry():
             k = CodeResponseFormatter.__new__(CodeResponseFormatter)
             object.__setattr__(k, "_config", KnotConfig(id="x"))
         result = await k.process(code="code", warnings=["w1", "w2", "w3"])
-        assert result.usage["lint_warnings"] == 3
+        assert result.metadata.usage["lint_warnings"] == 3

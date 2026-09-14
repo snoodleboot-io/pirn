@@ -75,3 +75,24 @@ class TestMemoryRecordRoundTrip(unittest.TestCase):
     def test_from_payload_rejects_non_mapping(self) -> None:
         with self.assertRaises(TypeError):
             MemoryRecord.from_payload(123)
+
+
+class TestMemoryRecordNoFieldNameAliases(unittest.TestCase):
+    def test_fields_are_read_through_payload_access_only(self) -> None:
+        # Arrange: the constructor's field names (its ``metadata`` kwarg lands on ``data.tags``).
+        names = (
+            "id",
+            "kind",
+            "content",
+            "tags",
+            "provenance",
+            "created_at",
+            "importance",
+            "last_accessed",
+        )
+
+        # Act.
+        aliases = [name for name in names if hasattr(MemoryRecord, name)]
+
+        # Assert: PIR-872 deleted every alias; read ``.data.<field>`` / ``.metadata.<field>``.
+        self.assertEqual(aliases, [])

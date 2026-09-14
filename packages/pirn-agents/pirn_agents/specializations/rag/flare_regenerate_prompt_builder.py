@@ -18,7 +18,7 @@ class FlareRegeneratePromptBuilder(Knot):
     """Build the prompt asking the LLM to rewrite a sentence grounded in evidence."""
 
     _regeneration_prompt: ClassVar[PromptBinding] = PromptBinding(
-        name="specializations.rag.flare_active_rag_pipeline.regeneration_prompt",
+        name="specializations.rag.flare_regenerate_prompt_builder.regeneration_prompt",
         default=(
             "Rewrite the tentative sentence so it is fully supported by the evidence. Reply with "
             "only the corrected sentence.\n\nQuestion: {{ query }}\n\n"

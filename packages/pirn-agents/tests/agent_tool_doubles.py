@@ -106,7 +106,7 @@ class NestingAgent(AgentAsToolMixin, SubTapestry):
             response = AgentResponse(content=f"leaf[{me}]@{depth}")
         else:
             inner = await next_tool.run_view({"task": task})
-            body = inner.result.content if inner.result is not None else inner.error
+            body = inner.result.data if inner.result is not None else inner.error
             response = AgentResponse(content=f"{me}@{depth}->{body}")
         return _source_returning(response)
 

@@ -8,7 +8,7 @@ response into a single prompt and asks the LLM to produce a
 consensus reply. Returns the synthesised :class:`AgentResponse`.
 
 Algorithm:
-    1. Render each ``(name, response.content)`` pair into a numbered list.
+    1. Render each ``(name, response.data)`` pair into a numbered list.
     2. Build a synthesis prompt instructing the LLM to reconcile replies.
     3. Call ``llm.chat`` with the prompt and extract the text from the reply.
     4. Wrap the extracted text in a new :class:`AgentResponse`.
@@ -73,7 +73,7 @@ class ConsensusSynthesisCaller(Knot):
         """
         if not isinstance(responses, Mapping) or not responses:
             raise ValueError("ConsensusSynthesisCaller: responses must be a non-empty mapping")
-        rendered = "\n".join(f"[{name}] {response.content}" for name, response in responses.items())
+        rendered = "\n".join(f"[{name}] {response.data}" for name, response in responses.items())
         prompt = type(self)._synthesis_prompt.render(
             {"replies": rendered},
         )

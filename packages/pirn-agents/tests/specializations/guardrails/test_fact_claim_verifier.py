@@ -74,7 +74,7 @@ class TestFactClaimVerifierProcess(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         assert result.succeeded, result.exceptions
-        assert result.outputs["fcv"].content == "ok"
+        assert result.outputs["fcv"].data == "ok"
 
     async def test_appends_warning_for_unverified_claim(self) -> None:
         store = _HitStore(supported=())  # no hits
@@ -89,8 +89,8 @@ class TestFactClaimVerifierProcess(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         assert result.succeeded, result.exceptions
         out = result.outputs["fcv"]
-        assert "Unverified" in out.content
-        assert "moon is cheese" in out.content
+        assert "Unverified" in out.data
+        assert "moon is cheese" in out.data
 
     async def test_no_valid_claims_returns_original_response(self) -> None:
         store = _HitStore(supported=())
@@ -104,7 +104,7 @@ class TestFactClaimVerifierProcess(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         assert result.succeeded, result.exceptions
-        assert result.outputs["fcv"].content == "ok"
+        assert result.outputs["fcv"].data == "ok"
 
     async def test_mixed_claims_only_unverified_ones_listed(self) -> None:
         store = _HitStore(supported=("water is wet",))
@@ -119,8 +119,8 @@ class TestFactClaimVerifierProcess(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         assert result.succeeded, result.exceptions
         out = result.outputs["fcv"]
-        assert "moon is cheese" in out.content
-        assert "water is wet" not in out.content.split("Unverified claims:")[1]
+        assert "moon is cheese" in out.data
+        assert "water is wet" not in out.data.split("Unverified claims:")[1]
 
     async def test_rejects_non_agent_response(self) -> None:
         store = _HitStore(supported=())

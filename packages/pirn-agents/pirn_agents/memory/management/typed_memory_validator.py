@@ -68,8 +68,8 @@ class TypedMemoryValidator(Knot):
                 raise ValueError(
                     f"TypedMemoryValidator: allowed_kinds holds a non-kind {candidate!r}"
                 )
-        if record.kind not in allowed:
+        if record.data.kind not in allowed:
             raise ValueError(
-                f"TypedMemoryValidator: record kind {record.kind!r} not in allowed {allowed!r}"
+                f"TypedMemoryValidator: record kind {record.data.kind!r} not in allowed {allowed!r}"
             )
         return record

@@ -35,7 +35,6 @@ from pirn_agents.agent.agent_response_mapper import AgentResponseMapper
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.performance.run_budget import RunBudget
 from pirn_agents.tools.agent_tool_call import AgentToolCall
-from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_declaration import ToolDeclaration
 from pirn_agents.tools.tool_factory import ToolFactory
@@ -182,9 +181,7 @@ class AgentTool(ToolFactory):
 
     def __call__(self, **kwargs: Any) -> Knot:
         """Construct one call: an :class:`AgentToolCall` over the wrapped agent's class."""
-        framework = {
-            key: kwargs.pop(key) for key in tuple(Tool.framework_kwarg_names()) if key in kwargs
-        }
+        framework = {key: kwargs.pop(key) for key in tuple(Knot.reserved_kwargs()) if key in kwargs}
         return AgentToolCall(
             arguments=kwargs,
             agent_class=type(self._agent),
@@ -208,7 +205,7 @@ class AgentTool(ToolFactory):
         outcome = await self.run_call(call)
         tokens: int | None = None
         if isinstance(outcome, Ok) and isinstance(outcome.value, AgentResponse):
-            tokens = AgentResponseMapper().summarise_tokens(outcome.value.usage)
+            tokens = AgentResponseMapper().summarise_tokens(outcome.value.metadata.usage)
         return ToolResult.from_result(call.call_id, outcome, tokens=tokens)
 
     def _clear_credentials(self) -> None:

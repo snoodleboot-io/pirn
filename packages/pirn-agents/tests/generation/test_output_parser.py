@@ -28,9 +28,9 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         response: AgentResponse = await k.process(
             response={"content": "all good", "stop_reason": "stop"},
         )
-        assert response.content == "all good"
-        assert response.finish_reason == "stop"
-        assert response.tool_calls == ()
+        assert response.data == "all good"
+        assert response.metadata.finish_reason == "stop"
+        assert response.metadata.tool_calls == ()
 
     async def test_parses_block_content_with_tool_use(self) -> None:
         k = _make_knot()
@@ -50,11 +50,11 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
                 "usage": {"input_tokens": 7, "output_tokens": 3},
             }
         )
-        assert response.content == "hello world"
-        assert response.finish_reason == "tool_use"
-        assert len(response.tool_calls) == 1
-        assert response.tool_calls[0].tool_name == "search"
-        assert response.usage["input_tokens"] == 7
+        assert response.data == "hello world"
+        assert response.metadata.finish_reason == "tool_use"
+        assert len(response.metadata.tool_calls) == 1
+        assert response.metadata.tool_calls[0].tool_name == "search"
+        assert response.metadata.usage["input_tokens"] == 7
 
     async def test_rejects_unrecognised_shape(self) -> None:
         k = _make_knot()

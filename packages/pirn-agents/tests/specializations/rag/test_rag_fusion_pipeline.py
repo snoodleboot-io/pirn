@@ -32,7 +32,7 @@ class TestRagFusionPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         response = result.outputs["fusion"]
         assert isinstance(response, AgentResponse)
-        assert response.content == "fused answer"
+        assert response.data == "fused answer"
         # Original + 3 variants -> 4 searches.
         assert len(memory.search_queries) == 4
         assert memory.search_queries[0] == "quantum facts"

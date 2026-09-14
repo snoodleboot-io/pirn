@@ -55,10 +55,10 @@ class TestOrchestratorWorkers(unittest.IsolatedAsyncioTestCase):
         assert run.succeeded
         result = run.outputs["ow"]
         assert isinstance(result, OrchestratorWorkersResult)
-        assert result.total == 3
-        assert result.succeeded == 3
-        assert [r.task for r in result.results] == ["t1", "t2", "t3"]
-        assert result.results[0].result.result == "done:t1"
+        assert result.metadata.total == 3
+        assert result.metadata.succeeded == 3
+        assert [r.metadata.task for r in result.data] == ["t1", "t2", "t3"]
+        assert result.data[0].data.result == "done:t1"
 
     async def test_worker_count_scales_with_task_list(self) -> None:
         worker = StubTool(name="w", handler=_echo)
@@ -66,7 +66,7 @@ class TestOrchestratorWorkers(unittest.IsolatedAsyncioTestCase):
         with Tapestry() as t:
             OrchestratorWorkers(tasks=tasks, worker=worker, _config=KnotConfig(id="ow"))
         run = await t.run(RunRequest())
-        assert len(run.outputs["ow"].results) == 7
+        assert len(run.outputs["ow"].data) == 7
 
     async def test_max_concurrency_bounds_workers(self) -> None:
         probe = _ConcurrencyProbe()
@@ -90,8 +90,8 @@ class TestOrchestratorWorkers(unittest.IsolatedAsyncioTestCase):
             )
         run = await t.run(RunRequest())
         result = run.outputs["ow"]
-        assert result.succeeded == 2
-        statuses = {r.task: r.result.status for r in result.results}
+        assert result.metadata.succeeded == 2
+        statuses = {r.metadata.task: r.data.status for r in result.data}
         assert statuses["bad"] == "error"
         assert statuses["ok1"] == "ok"
 
@@ -108,10 +108,10 @@ class TestOrchestratorWorkers(unittest.IsolatedAsyncioTestCase):
             )
         run = await t.run(RunRequest())
         result = run.outputs["ow"]
-        assert result.total == 2
-        first = result.results[0].result.result
+        assert result.metadata.total == 2
+        first = result.data[0].data.result
         assert isinstance(first, AgentResponse)
-        assert first.content == "w:alpha"
+        assert first.data == "w:alpha"
 
     async def test_rejects_non_tool_worker(self) -> None:
         with Tapestry():

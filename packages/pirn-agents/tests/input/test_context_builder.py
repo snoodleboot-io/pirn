@@ -34,14 +34,14 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         k = _make_knot()
         ctx: ConversationPayload = await k.process(messages=_MESSAGES, system_prompt=None)
         assert isinstance(ctx, ConversationPayload)
-        assert len(ctx.messages) == 2
+        assert len(ctx.data) == 2
 
     async def test_prepends_system_prompt(self) -> None:
         k = _make_knot()
         ctx: ConversationPayload = await k.process(messages=_MESSAGES, system_prompt="Be helpful.")
-        assert ctx.messages[0].role == "system"
-        assert ctx.messages[0].content == "Be helpful."
-        assert len(ctx.messages) == 3
+        assert ctx.data[0].role == "system"
+        assert ctx.data[0].content == "Be helpful."
+        assert len(ctx.data) == 3
 
     async def test_rejects_non_string_system_prompt(self) -> None:
         k = _make_knot()

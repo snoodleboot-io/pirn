@@ -45,7 +45,7 @@ class TestSelfQueryRagPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         response = result.outputs["selfquery"]
         assert isinstance(response, AgentResponse)
-        assert response.content == "grounded answer"
+        assert response.data == "grounded answer"
         # Synthesis prompt should only carry the Ho document.
         synth_prompt = llm.calls[-1][-1]["content"]
         assert "ho paper" in synth_prompt

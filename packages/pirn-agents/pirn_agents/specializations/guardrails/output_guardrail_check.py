@@ -1,7 +1,7 @@
 """``OutputGuardrailCheck`` — post-LLM safety check.
 
 A :class:`SubTapestry` wrapping :class:`OutputResponseValidator`.
-Scans :class:`AgentResponse.content` for deny patterns and ensures
+Scans the :class:`AgentResponse`'s ``data`` (its reply text) for deny patterns and ensures
 every ``tool_calls`` entry refers to a tool in
 ``allowed_tool_names``. Returns the validated response unchanged on
 success and raises :class:`ValueError` (surfaced as a failed run) on
@@ -12,7 +12,7 @@ Algorithm:
        :class:`OutputResponseValidator` with ``deny_patterns`` and
        ``allowed_tool_names`` forwarded from the caller.
     2. The validator checks each compiled deny pattern against
-       ``response.content`` and each ``tool_calls`` entry against
+       ``response.data`` and each ``tool_calls`` entry against
        ``allowed_tool_names``, raising :class:`ValueError` on any violation.
     3. Extract the validated :class:`AgentResponse` from the inner result and
        return it unchanged.

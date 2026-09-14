@@ -15,23 +15,15 @@ class PromptChainResult(AgentResult[PromptChainFrame, str]):
     following the ADR agents-speaks-core WS6b pattern) — ``data`` is the
     last link's output (the overall result), and ``metadata`` is the
     :class:`PromptChainFrame` carrying every link's output in order. The constructor takes
-    the pattern's named fields (``outputs``, ``final``), and each is also a read-only
-    property.
+    the pattern's named fields (``outputs``, ``final``); read them back as
+    ``metadata.outputs`` and ``data``.
     """
 
     def __init__(self, outputs: tuple[str, ...], final: str) -> None:
         frame = PromptChainFrame(outputs=outputs)
         super().__init__(metadata=frame, data=final)
 
-    @property
-    def outputs(self) -> tuple[str, ...]:
-        return self._metadata.outputs
-
-    @property
-    def final(self) -> str:
-        return self._data
-
     def _pirn_audit_dict(self) -> dict[str, Any]:
         audit = dict(super()._pirn_audit_dict())
-        audit["final"] = self.final
+        audit["final"] = self.data
         return audit

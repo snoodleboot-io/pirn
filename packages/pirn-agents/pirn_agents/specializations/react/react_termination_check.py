@@ -37,6 +37,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.types.messaging.agent_message import AgentMessage
+from pirn_agents.types.messaging.conversation_payload import ConversationPayload
 
 
 class ReActTerminationCheck(Knot):
@@ -119,8 +120,8 @@ class ReActTerminationCheck(Knot):
             return (latest_response,)
         if ReActTerminationCheck._is_sequence(latest_response):
             return tuple(item for item in latest_response if isinstance(item, AgentMessage))
-        if hasattr(latest_response, "messages"):
-            return tuple(m for m in latest_response.messages if isinstance(m, AgentMessage))
+        if isinstance(latest_response, ConversationPayload):
+            return tuple(m for m in latest_response.data if isinstance(m, AgentMessage))
         return ()
 
     @staticmethod

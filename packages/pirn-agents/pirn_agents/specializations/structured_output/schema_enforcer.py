@@ -11,7 +11,7 @@ Algorithm:
     1. Receive ``response`` (AgentResponse) and ``model_class`` (type[BaseModel]).
     2. Validate that ``response`` is an AgentResponse and ``model_class`` is a
        BaseModel subclass; raise ``TypeError`` on failure.
-    3. Attempt to parse ``response.content`` as JSON; raise ``ValueError`` on
+    3. Attempt to parse ``response.data`` as JSON; raise ``ValueError`` on
        ``JSONDecodeError``.
     4. Call ``model_class.model_validate(data)`` and return the model instance.
 
@@ -72,7 +72,7 @@ class SchemaEnforcer(Knot):
                 f"SchemaEnforcer: model_class must be a BaseModel subclass, got {model_class!r}"
             )
         try:
-            data = json.loads(response.content)
+            data = json.loads(response.data)
         except json.JSONDecodeError as exc:
             raise ValueError(f"SchemaEnforcer: response content is not valid JSON: {exc}") from exc
         return model_class.model_validate(data)

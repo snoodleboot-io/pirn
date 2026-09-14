@@ -16,23 +16,15 @@ class WorkerTaskResult(AgentResult[WorkerTaskFrame, ToolResult]):
     (PIR-868, following the ADR agents-speaks-core WS6b pattern) — ``data``
     is the :class:`ToolResult` the worker (an F7 agent-as-tool) returned,
     and ``metadata`` is the :class:`WorkerTaskFrame` carrying the task
-    string. The constructor takes the pattern's named fields (``task``, ``result``), and
-    each is also a read-only property.
+    string. The constructor takes the pattern's named fields (``task``, ``result``); read
+    them back as ``metadata.task`` and ``data``.
     """
 
     def __init__(self, task: str, result: ToolResult) -> None:
         frame = WorkerTaskFrame(task=task)
         super().__init__(metadata=frame, data=result)
 
-    @property
-    def task(self) -> str:
-        return self._metadata.task
-
-    @property
-    def result(self) -> ToolResult:
-        return self._data
-
     def _pirn_audit_dict(self) -> dict[str, Any]:
         audit = dict(super()._pirn_audit_dict())
-        audit["result"] = self._audit_form(self.result)
+        audit["result"] = self._audit_form(self.data)
         return audit

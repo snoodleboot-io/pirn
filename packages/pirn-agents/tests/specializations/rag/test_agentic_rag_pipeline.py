@@ -40,7 +40,7 @@ class TestAgenticRagPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         response = result.outputs["agentic"]
         assert isinstance(response, AgentResponse)
-        assert response.content == "answer for sharper question"
+        assert response.data == "answer for sharper question"
         assert [inv["question"] for inv in tool.invocations] == [
             "original question",
             "sharper question",

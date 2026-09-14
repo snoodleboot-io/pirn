@@ -18,12 +18,6 @@ invoking an async ``combine`` without awaiting, and that changes nothing here.
 The reduce is a **hard barrier**, not a pairwise fold — folding would turn one
 LLM call into N-1 and change the output.
 
-Note:
-    The ``PromptBinding`` name still reads ``_map_reduce_summariser.*`` even
-    though that module is gone. Deliberate: the binding name is an
-    **operator-facing override key**, and renaming it would silently break any
-    deployment overriding this prompt.
-
 Internal API.
 """
 
@@ -43,7 +37,7 @@ class SummaryReducer(Knot):
     """Reduce N per-chunk summaries to one, short-circuiting the degenerate cases."""
 
     _reduce_system: ClassVar[PromptBinding] = PromptBinding(
-        name="specializations.document_processing._map_reduce_summariser.reduce_system",
+        name="specializations.document_processing.summary_reducer.reduce_system",
         default=(
             "Combine the following per-chunk summaries into one "
             "coherent summary of the entire document. Avoid "

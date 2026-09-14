@@ -16,9 +16,9 @@ class TestSimulationResult(unittest.TestCase):
             neutral_case="moderate outcome",
             worst_case="catastrophic failure",
         )
-        assert sr.best_case == "all goes well"
-        assert sr.neutral_case == "moderate outcome"
-        assert sr.worst_case == "catastrophic failure"
+        assert sr.metadata.best_case == "all goes well"
+        assert sr.metadata.neutral_case == "moderate outcome"
+        assert sr.data == "catastrophic failure"
 
     def test_is_frozen(self) -> None:
         sr = SimulationResult(
@@ -27,7 +27,7 @@ class TestSimulationResult(unittest.TestCase):
             worst_case="bad",
         )
         with self.assertRaises((AttributeError, TypeError)):
-            sr.best_case = "modified"  # type: ignore[misc]
+            sr.data = "modified"  # type: ignore[misc]
 
     def test_pirn_audit_dict(self) -> None:
         sr = SimulationResult(

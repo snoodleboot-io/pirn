@@ -30,7 +30,7 @@ class DocumentRelevanceScorer(Knot):
     """
 
     _score_prompt: ClassVar[PromptBinding] = PromptBinding(
-        name="specializations.rag.reranker.score_prompt",
+        name="specializations.rag.document_relevance_scorer.score_prompt",
         default=(
             "Score the relevance of the following document to the query "
             "on a scale from 0.0 (not relevant) to 1.0 (highly relevant). "

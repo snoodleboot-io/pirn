@@ -20,8 +20,8 @@ class AgentResponse(Payload[GenerationFrame, str]):
     ``metadata`` is the :class:`~pirn_agents.types.messaging.generation_frame.GenerationFrame`
     describing how the turn ended. The constructor takes the turn's fields by
     name (``content``, ``tool_calls``, ``finish_reason``, ``usage``, ``cost``,
-    ``model``, ``provider``) and each is readable as a property of the same
-    name; build a changed copy with :meth:`derive`.
+    ``model``, ``provider``); read the reply as ``data`` and every other field as
+    ``metadata.<field>``, and build a changed copy with :meth:`derive`.
 
     Attributes
     ----------
@@ -73,38 +73,6 @@ class AgentResponse(Payload[GenerationFrame, str]):
         )
         super().__init__(metadata=frame, data=content)
 
-    @property
-    def frame(self) -> GenerationFrame:
-        return self._metadata
-
-    @property
-    def content(self) -> str:
-        return self._data
-
-    @property
-    def tool_calls(self) -> tuple[ToolCall, ...]:
-        return self._metadata.tool_calls
-
-    @property
-    def finish_reason(self) -> str:
-        return self._metadata.finish_reason
-
-    @property
-    def usage(self) -> Mapping[str, int]:
-        return self._metadata.usage
-
-    @property
-    def cost(self) -> float | None:
-        return self._metadata.cost
-
-    @property
-    def model(self) -> str | None:
-        return self._metadata.model
-
-    @property
-    def provider(self) -> str | None:
-        return self._metadata.provider
-
     def derive(self, content: str, **frame_overrides: Any) -> AgentResponse:
         """Build a new :class:`AgentResponse` derived from this one.
 
@@ -124,20 +92,20 @@ class AgentResponse(Payload[GenerationFrame, str]):
             A new ``AgentResponse`` with the derived frame and ``content``.
         """
         fields: dict[str, Any] = {
-            "tool_calls": self.tool_calls,
-            "finish_reason": self.finish_reason,
-            "usage": dict(self.usage),
-            "cost": self.cost,
-            "model": self.model,
-            "provider": self.provider,
+            "tool_calls": self.metadata.tool_calls,
+            "finish_reason": self.metadata.finish_reason,
+            "usage": dict(self.metadata.usage),
+            "cost": self.metadata.cost,
+            "model": self.metadata.model,
+            "provider": self.metadata.provider,
         }
         fields.update(frame_overrides)
         return AgentResponse(content=content, **fields)
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
         audit = dict(super()._pirn_audit_dict())
-        audit["content"] = self.content
+        audit["content"] = self.data
         return audit
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}(content={self.content!r}, frame={self._metadata!r})"
+        return f"{type(self).__name__}(content={self.data!r}, frame={self._metadata!r})"

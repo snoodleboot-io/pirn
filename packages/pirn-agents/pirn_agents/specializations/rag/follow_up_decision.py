@@ -17,7 +17,7 @@ class FollowUpDecision(Knot):
     """Ask the LLM whether the tool's answer resolves the original question."""
 
     _next_question_prompt: ClassVar[PromptBinding] = PromptBinding(
-        name="specializations.rag.agentic_rag_pipeline.next_question_prompt",
+        name="specializations.rag.follow_up_decision.next_question_prompt",
         default=(
             "You are an agent answering a question with a retrieval tool. Given the "
             "original question and the tool's latest answer, reply with exactly 'DONE' if "

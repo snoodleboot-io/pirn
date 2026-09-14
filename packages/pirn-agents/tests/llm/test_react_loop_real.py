@@ -70,6 +70,6 @@ async def test_react_loop_against_real_local_backend(request: pytest.FixtureRequ
         assert run.succeeded
         response = run.outputs["loop"]
         assert isinstance(response, AgentResponse)
-        assert isinstance(response.content, str)
+        assert isinstance(response.data, str)
     finally:
         await provider.close()

@@ -42,7 +42,7 @@ class TestConstitutionalFilterProcess(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         response = result.outputs["cf"]
         assert isinstance(response, AgentResponse)
-        assert response.content == "A helpful and safe reply."
+        assert response.data == "A helpful and safe reply."
 
     async def test_violation_triggers_revision(self) -> None:
         llm = StubLLMProvider(["Revised: safe reply.", "COMPLIANT"])
@@ -58,7 +58,7 @@ class TestConstitutionalFilterProcess(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         assert result.succeeded
         response = result.outputs["cf"]
-        assert response.content == "Revised: safe reply."
+        assert response.data == "Revised: safe reply."
 
     async def test_raises_after_max_revisions(self) -> None:
         llm = StubLLMProvider(["still bad"] * 5)

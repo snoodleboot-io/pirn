@@ -38,9 +38,9 @@ class TestSQLResponseFormatterProcess(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         out = result.outputs["srf"]
         assert isinstance(out, AgentResponse)
-        assert "SELECT * FROM t" in out.content
-        assert "Rows (1)" in out.content
-        assert out.finish_reason == "stop"
+        assert "SELECT * FROM t" in out.data
+        assert "Rows (1)" in out.data
+        assert out.metadata.finish_reason == "stop"
 
     async def test_zero_rows_included(self) -> None:
         with Tapestry() as t:
@@ -52,7 +52,7 @@ class TestSQLResponseFormatterProcess(unittest.IsolatedAsyncioTestCase):
                 _config=KnotConfig(id="srf"),
             )
         result = await t.run(RunRequest())
-        assert "Rows (0)" in result.outputs["srf"].content
+        assert "Rows (0)" in result.outputs["srf"].data
 
 
 class TestProcess(unittest.IsolatedAsyncioTestCase):
@@ -62,5 +62,5 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             object.__setattr__(k, "_config", KnotConfig(id="x"))
         result = await k.process(sql="SELECT 1", rows=[(42,)])
         assert isinstance(result, AgentResponse)
-        assert "SELECT 1" in result.content
-        assert "Rows (1)" in result.content
+        assert "SELECT 1" in result.data
+        assert "Rows (1)" in result.data

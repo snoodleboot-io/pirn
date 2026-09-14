@@ -216,7 +216,7 @@ class ToolFactory(KnotFactory, PirnOpaqueValue):
                 framework-reserved property, or requires an undeclared one.
         """
         schema = JsonSchemaTypeBuilder.validate_input_schema(
-            input_schema, reserved=Tool.framework_kwarg_names()
+            input_schema, reserved=Tool.reserved_kwargs()
         )
         if iscoroutinefunction(process):
             # design-decision-override: closure over ``process``, the body of
@@ -328,13 +328,13 @@ class ToolFactory(KnotFactory, PirnOpaqueValue):
 
     def _input_annotations(self) -> dict[str, Any]:
         """Name -> validation annotation for each declared ``process()`` input."""
-        schema = Tool.declared_input_schema(self.knot_class)
+        schema = self.knot_class.declared_input_schema()
         if schema is not None:
             return {
                 name: JsonSchemaTypeBuilder.python_type(fragment, root=schema)
                 for name, fragment in schema.get("properties", {}).items()
             }
-        return Tool.input_annotations(self.knot_class)
+        return self.knot_class.input_annotations()
 
     # ------------------------------------------------------------ envelope
 
@@ -462,7 +462,9 @@ class ToolFactory(KnotFactory, PirnOpaqueValue):
         merged = {**self._defaults, **self._bound, **kwargs}
         if self._packs_arguments:
             framework = {
-                key: merged.pop(key) for key in tuple(Tool.framework_kwarg_names()) if key in merged
+                key: merged.pop(key)
+                for key in tuple(self.knot_class.reserved_kwargs())
+                if key in merged
             }
             return self.knot_class(arguments=merged, **framework)
         for name, default in self._process_defaults().items():
@@ -471,7 +473,7 @@ class ToolFactory(KnotFactory, PirnOpaqueValue):
 
     def _process_defaults(self) -> dict[str, Any]:
         """Name -> default for every ``process()`` parameter that declares one."""
-        if Tool.declared_input_schema(self.knot_class) is not None:
+        if self.knot_class.declared_input_schema() is not None:
             return {}
         return {
             name: parameter.default

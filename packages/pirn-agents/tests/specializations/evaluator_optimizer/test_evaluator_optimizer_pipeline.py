@@ -29,10 +29,10 @@ class TestEvaluatorOptimizerPipeline(unittest.IsolatedAsyncioTestCase):
         assert run.succeeded
         result = run.outputs["eo"]
         assert isinstance(result, EvaluatorOptimizerResult)
-        assert result.accepted is True
-        assert result.iterations == 1
-        assert result.answer == "cand1"
-        assert result.score == 9.0
+        assert result.metadata.accepted is True
+        assert result.metadata.iterations == 1
+        assert result.data == "cand1"
+        assert result.metadata.score == 9.0
 
     async def test_refines_until_threshold_met(self) -> None:
         llm = StubLLMProvider(["c1", "SCORE: 5\nweak", "c2", "SCORE: 9\nstrong"])
@@ -42,9 +42,9 @@ class TestEvaluatorOptimizerPipeline(unittest.IsolatedAsyncioTestCase):
             )
         run = await t.run(RunRequest())
         result = run.outputs["eo"]
-        assert result.accepted is True
-        assert result.iterations == 2
-        assert result.answer == "c2"
+        assert result.metadata.accepted is True
+        assert result.metadata.iterations == 2
+        assert result.data == "c2"
         # The second generation was fed the judge feedback from round one.
         second_gen_user = llm.calls[2][-1]["content"]
         assert "weak" in second_gen_user
@@ -61,8 +61,8 @@ class TestEvaluatorOptimizerPipeline(unittest.IsolatedAsyncioTestCase):
             )
         run = await t.run(RunRequest())
         result = run.outputs["eo"]
-        assert result.accepted is False
-        assert result.iterations == 2
+        assert result.metadata.accepted is False
+        assert result.metadata.iterations == 2
 
     async def test_reflection_gate_early_stop(self) -> None:
         # gen, judge (below threshold), then ReflectionCheck says "no" -> stop.
@@ -78,8 +78,8 @@ class TestEvaluatorOptimizerPipeline(unittest.IsolatedAsyncioTestCase):
             )
         run = await t.run(RunRequest())
         result = run.outputs["eo"]
-        assert result.accepted is False
-        assert result.iterations == 1
+        assert result.metadata.accepted is False
+        assert result.metadata.iterations == 1
         assert len(llm.calls) == 3
 
     async def test_reflection_gate_never_calls_the_llm_for_an_accepted_candidate(self) -> None:
@@ -97,8 +97,8 @@ class TestEvaluatorOptimizerPipeline(unittest.IsolatedAsyncioTestCase):
             )
         run = await t.run(RunRequest())
         result = run.outputs["eo"]
-        assert result.accepted is True
-        assert result.iterations == 1
+        assert result.metadata.accepted is True
+        assert result.metadata.iterations == 1
         assert len(llm.calls) == 2
 
     async def test_rejects_non_positive_iterations(self) -> None:

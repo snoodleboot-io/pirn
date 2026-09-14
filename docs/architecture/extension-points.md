@@ -64,7 +64,7 @@ node = search(query=upstream, limit=5, _config=KnotConfig(id="search"))
 async def lookup(**arguments): ...
 ```
 
-The schema's `properties` are the declared inputs (parents or config, like any knot), `required` the ones construction must supply, each `default` fills an omitted input, and each property fragment becomes the `TypeAdapter` `validate_io` applies (`pirn/core/json_schema_type_builder.py` covers scalars, `enum`/`const`, nullable forms, `anyOf`/`oneOf`, arrays, nested objects, local `$ref`s and the numeric/string/array bounds). The generated class carries the schema as `_input_schema_override`, and `input_json_schema()` returns it unchanged.
+The schema's `properties` are the declared inputs (parents or config, like any knot), `required` the ones construction must supply, each `default` fills an omitted input, and each property fragment becomes the `TypeAdapter` `validate_io` applies (`pirn/core/json_schema_type_builder.py` covers scalars, `enum`/`const`, nullable forms, `anyOf`/`oneOf`, arrays, nested objects, local `$ref`s and the numeric/string/array bounds). The generated class's `declared_input_schema()` returns the schema, and `input_json_schema()` returns it unchanged.
 
 **The inverse.** Every knot class can render the declaration its hints imply: `MyKnot.input_json_schema()` returns `{"type": "object", "properties": ..., "required": ...}` from the same annotations `validate_io` checks against — `T` for a `Knot | T` input, `Annotated` constraints kept, defaults recorded, `$defs` hoisted — and excludes Knot-typed and `PirnOpaqueValue`-typed inputs (a live resource is wired, never supplied by a caller) and the `**_` catch-all. A model-facing tool declaration derives from this rather than re-introspecting the signature.
 

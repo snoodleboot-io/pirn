@@ -30,7 +30,7 @@ class TestSpeculativeRagPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         response = result.outputs["spec"]
         assert isinstance(response, AgentResponse)
-        assert response.content == "verified final answer"
+        assert response.data == "verified final answer"
         # The verification prompt should carry both the draft and the evidence.
         verify_prompt = llm.calls[-1][-1]["content"]
         assert "speculative draft" in verify_prompt

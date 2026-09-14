@@ -30,7 +30,7 @@ class TestDraftVerifier(unittest.IsolatedAsyncioTestCase):
             llm=llm,
         )
         assert isinstance(response, AgentResponse)
-        assert response.content == "verified [1]"
+        assert response.data == "verified [1]"
         prompt = llm.calls[0][-1]["content"]
         assert "draft claim" in prompt
         assert "supporting evidence" in prompt
@@ -39,7 +39,7 @@ class TestDraftVerifier(unittest.IsolatedAsyncioTestCase):
         llm = StubLLMProvider(["unverified"])
         knot = _verifier()
         response = await knot.process(query="q", draft="d", documents=[], llm=llm)
-        assert response.content == "unverified"
+        assert response.data == "unverified"
         assert "(no documents retrieved)" in llm.calls[0][-1]["content"]
 
     async def test_rejects_non_string_draft(self) -> None:

@@ -132,7 +132,7 @@ class TestMixinMatchesFreeFunction(unittest.IsolatedAsyncioTestCase):
         # Assert
         self.assertIsNotNone(result.result)
         assert result.result is not None
-        self.assertEqual(result.result.content, "did:thing")
+        self.assertEqual(result.result.data, "did:thing")
 
 
 class TestMixerSubTapestryContract(unittest.TestCase):

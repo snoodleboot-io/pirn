@@ -25,7 +25,7 @@ class ChunkTranslation(Knot):
     """Translate one chunk into ``target_language`` via a single LLM call."""
 
     _system_prompt: ClassVar[PromptBinding] = PromptBinding(
-        name="specializations.document_processing.chunk_translator.system_prompt",
+        name="specializations.document_processing.chunk_translation.system_prompt",
         default=(
             "Translate the supplied text into {{ target_language }}. "
             "Preserve formatting and named entities. Reply with the "

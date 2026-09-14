@@ -15,8 +15,8 @@ class SelfAskResult(AgentResult[SelfAskFrame, str]):
     the ADR agents-speaks-core WS6b pattern) — ``data`` is the composed
     final answer, and ``metadata`` is the :class:`SelfAskFrame` carrying the
     sub-questions and sub-answers. The constructor takes the pattern's named fields
-    (``final_answer``, ``subquestions``, ``subanswers``), and each is also a read-only
-    property.
+    (``final_answer``, ``subquestions``, ``subanswers``); read them back as ``data``
+    and ``metadata.<field>``.
     """
 
     def __init__(
@@ -25,19 +25,7 @@ class SelfAskResult(AgentResult[SelfAskFrame, str]):
         frame = SelfAskFrame(subquestions=subquestions, subanswers=subanswers)
         super().__init__(metadata=frame, data=final_answer)
 
-    @property
-    def final_answer(self) -> str:
-        return self._data
-
-    @property
-    def subquestions(self) -> tuple[str, ...]:
-        return self._metadata.subquestions
-
-    @property
-    def subanswers(self) -> tuple[str, ...]:
-        return self._metadata.subanswers
-
     def _pirn_audit_dict(self) -> dict[str, Any]:
         audit = dict(super()._pirn_audit_dict())
-        audit["final_answer"] = self.final_answer
+        audit["final_answer"] = self.data
         return audit

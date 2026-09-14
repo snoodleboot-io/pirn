@@ -76,4 +76,4 @@ class DecayScorer(Knot):
             ValueError: If ``half_life_seconds`` is not positive.
         """
         age_seconds = (now - record.recency_anchor()).total_seconds()
-        return DecayFunction.score(record.importance, age_seconds, half_life_seconds)
+        return DecayFunction.score(record.metadata.importance, age_seconds, half_life_seconds)

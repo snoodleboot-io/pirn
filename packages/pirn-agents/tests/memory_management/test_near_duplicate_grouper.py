@@ -30,7 +30,7 @@ class TestNearDuplicateGrouperGrouping(unittest.TestCase):
             make_record(id="c", content="quantum physics is hard"),
         ]
         groups = grouper.group(records)
-        ids = {tuple(r.id for r in group) for group in groups}
+        ids = {tuple(r.data.id for r in group) for group in groups}
         assert ("a", "b") in ids
         assert ("c",) in ids
 
@@ -44,7 +44,7 @@ class TestNearDuplicateGrouperGrouping(unittest.TestCase):
         groups = grouper.group(records)
         # a~b and b~c link all three even though a and c share less.
         assert len(groups) == 1
-        assert [r.id for r in groups[0]] == ["a", "b", "c"]
+        assert [r.data.id for r in groups[0]] == ["a", "b", "c"]
 
     def test_distinct_content_stays_separate(self) -> None:
         grouper = NearDuplicateGrouper(threshold=0.6)
@@ -66,7 +66,7 @@ class TestNearDuplicateGrouperGrouping(unittest.TestCase):
             make_record(id="c", content="shared shared shared token"),
         ]
         groups = grouper.group(records)
-        assert groups[0][0].id == "a"
+        assert groups[0][0].data.id == "a"
 
     def test_audit_dict_emits_the_threshold(self) -> None:
         assert NearDuplicateGrouper()._pirn_audit_dict() == {"threshold": 0.6}

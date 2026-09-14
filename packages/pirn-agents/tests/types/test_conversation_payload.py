@@ -12,12 +12,12 @@ from pirn_agents.types.messaging.conversation_payload import ConversationPayload
 class TestRoundtrip(unittest.TestCase):
     def test_default_frame_is_empty(self) -> None:
         payload = ConversationPayload(())
-        assert payload.messages == ()
-        assert dict(payload.extra) == {}
-        assert payload.frame.session_id is None
-        assert payload.frame.turn_id is None
-        assert payload.frame.token_count == 0
-        assert payload.frame.truncated is False
+        assert payload.data == ()
+        assert dict(payload.metadata.extra) == {}
+        assert payload.metadata.session_id is None
+        assert payload.metadata.turn_id is None
+        assert payload.metadata.token_count == 0
+        assert payload.metadata.truncated is False
 
     def test_construct_with_messages_and_frame_fields(self) -> None:
         m1 = AgentMessage(role="user", content="a")
@@ -30,15 +30,15 @@ class TestRoundtrip(unittest.TestCase):
             token_count=42,
             truncated=True,
         )
-        assert payload.messages == (m1, m2)
-        assert payload.extra["k"] == "v"
-        assert payload.frame == ConversationFrame(
+        assert payload.data == (m1, m2)
+        assert payload.metadata.extra["k"] == "v"
+        assert payload.metadata == ConversationFrame(
             session_id="s1", turn_id="t1", token_count=42, truncated=True, extra={"k": "v"}
         )
 
     def test_metadata_is_the_frame_not_the_extra_bag(self) -> None:
         payload = ConversationPayload((), extra={"a": 1})
-        assert payload.metadata is payload.frame
+        assert payload.metadata is payload.metadata
         assert isinstance(payload.metadata, ConversationFrame)
 
     def test_audit_dict_includes_messages_and_frame(self) -> None:
@@ -59,6 +59,18 @@ class TestRoundtrip(unittest.TestCase):
             token_count=10,
         )
         derived = original.derive((AgentMessage(role="assistant", content="b"),), token_count=20)
-        assert derived.messages[0].content == "b"
-        assert derived.frame.session_id == "s1"
-        assert derived.frame.token_count == 20
+        assert derived.data[0].content == "b"
+        assert derived.metadata.session_id == "s1"
+        assert derived.metadata.token_count == 20
+
+
+class TestNoFieldNameAliases(unittest.TestCase):
+    def test_fields_are_read_through_payload_access_only(self) -> None:
+        # Arrange: the constructor's field names, plus the old ``frame`` alias of ``metadata``.
+        names = ("frame", "messages", "extra", "session_id", "turn_id", "token_count", "truncated")
+
+        # Act.
+        aliases = [name for name in names if hasattr(ConversationPayload, name)]
+
+        # Assert: PIR-872 deleted every alias; read ``.data`` / ``.metadata.<field>``.
+        self.assertEqual(aliases, [])

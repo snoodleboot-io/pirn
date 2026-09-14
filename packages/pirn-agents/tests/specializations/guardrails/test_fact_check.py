@@ -68,8 +68,8 @@ class TestFactCheckProcess(unittest.IsolatedAsyncioTestCase):
         assert run.succeeded
         result = run.outputs["fc"]
         assert isinstance(result, AgentResponse)
-        assert "Unverified claims" in result.content
-        assert "moon is made of cheese" in result.content
+        assert "Unverified claims" in result.data
+        assert "moon is made of cheese" in result.data
 
     async def test_process_returns_original_when_all_verified(self) -> None:
         llm = StubLLMProvider(["- earth orbits sun"])
@@ -80,7 +80,7 @@ class TestFactCheckProcess(unittest.IsolatedAsyncioTestCase):
         run = await t.run(RunRequest())
         assert run.succeeded
         result = run.outputs["fc"]
-        assert "Unverified" not in result.content
+        assert "Unverified" not in result.data
 
 
 class TestFactCheckHappyPath(unittest.IsolatedAsyncioTestCase):
@@ -105,6 +105,6 @@ class TestFactCheckHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         verified = result.outputs["fc"]
         assert isinstance(verified, AgentResponse)
-        assert "Unverified claims" in verified.content
-        assert "moon is made of cheese" in verified.content
-        assert "earth orbits sun" not in verified.content.split("Unverified claims:")[1]
+        assert "Unverified claims" in verified.data
+        assert "moon is made of cheese" in verified.data
+        assert "earth orbits sun" not in verified.data.split("Unverified claims:")[1]

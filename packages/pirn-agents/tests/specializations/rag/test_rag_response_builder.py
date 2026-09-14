@@ -37,8 +37,8 @@ class TestRAGResponseBuilderProcess(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         out = result.outputs["rrb"]
         assert isinstance(out, AgentResponse)
-        assert out.content == "The answer is 42."
-        assert out.finish_reason == "stop"
+        assert out.data == "The answer is 42."
+        assert out.metadata.finish_reason == "stop"
 
     async def test_rejects_non_string_answer(self) -> None:
         with Tapestry() as t:
@@ -66,5 +66,5 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             object.__setattr__(k, "_config", KnotConfig(id="x"))
         result = await k.process(answer="hello world")
         assert isinstance(result, AgentResponse)
-        assert result.content == "hello world"
-        assert result.finish_reason == "stop"
+        assert result.data == "hello world"
+        assert result.metadata.finish_reason == "stop"

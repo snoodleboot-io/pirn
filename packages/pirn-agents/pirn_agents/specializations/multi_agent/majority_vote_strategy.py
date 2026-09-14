@@ -95,10 +95,10 @@ class MajorityVoteStrategy(ConsensusStrategy):
                     "MajorityVoteStrategy: every response must be an "
                     f"AgentResponse, got {type(response).__name__}"
                 )
-        counter: Counter[str] = Counter(r.content for r in of)
+        counter: Counter[str] = Counter(r.data for r in of)
         winning_content = counter.most_common(1)[0][0]
         for response in of:
-            if response.content == winning_content:
+            if response.data == winning_content:
                 return response
         # Unreachable — counter was populated from `of`.
         return of[0]

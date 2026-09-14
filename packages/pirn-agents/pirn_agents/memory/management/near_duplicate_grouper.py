@@ -77,7 +77,7 @@ class NearDuplicateGrouper(PirnOpaqueValue):
                     f"NearDuplicateGrouper: records[{index}] must be a MemoryRecord, "
                     f"got {type(record).__name__}"
                 )
-        token_sets = [self._tokenize(record.content) for record in items]
+        token_sets = [self._tokenize(record.data.content) for record in items]
         parent = list(range(len(items)))
         for i in range(len(items)):
             for j in range(i + 1, len(items)):

@@ -17,7 +17,7 @@ class ExpandOneThought(Knot):
     """Ask the LLM for the next reasoning step continuing one parent path."""
 
     _expansion_system: ClassVar[PromptBinding] = PromptBinding(
-        name="specializations.chain_of_thought.tree_of_thought.expansion_system",
+        name="specializations.chain_of_thought.expand_one_thought.expansion_system",
         default=(
             "You are a reasoning assistant. Generate the next reasoning step "
             "that continues the following thought chain."

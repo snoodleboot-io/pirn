@@ -70,6 +70,6 @@ class TestResearchAgentHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         response = result.outputs["research"]
         assert isinstance(response, AgentResponse)
-        assert response.finish_reason == "stop"
-        assert "1000 qubits" in response.content
+        assert response.metadata.finish_reason == "stop"
+        assert "1000 qubits" in response.data
         assert tool.invocations == [{"input": "quantum computing 2024"}]

@@ -29,7 +29,7 @@ class TestSelfCritiqueReviseProcess(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         response = result.outputs["scr"]
         assert isinstance(response, AgentResponse)
-        assert response.content == "revised answer"
+        assert response.data == "revised answer"
 
     async def test_makes_three_llm_calls(self) -> None:
         llm = StubLLMProvider(["gen", "crit", "rev"])

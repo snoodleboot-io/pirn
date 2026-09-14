@@ -32,7 +32,7 @@ class TestRouterRagPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         response = result.outputs["router"]
         assert isinstance(response, AgentResponse)
-        assert response.content == "routed answer"
+        assert response.data == "routed answer"
         assert code.search_queries == ["how do I call the api"]
         assert docs.search_queries == []
 

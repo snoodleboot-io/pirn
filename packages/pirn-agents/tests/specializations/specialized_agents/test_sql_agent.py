@@ -69,8 +69,8 @@ class TestSQLAgentHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         response = result.outputs["sql"]
         assert isinstance(response, AgentResponse)
-        assert "SELECT id, name FROM users" in response.content
-        assert "Ada" in response.content
+        assert "SELECT id, name FROM users" in response.data
+        assert "Ada" in response.data
         assert pool.queries == ["SELECT id, name FROM users WHERE id = ?"]
 
 

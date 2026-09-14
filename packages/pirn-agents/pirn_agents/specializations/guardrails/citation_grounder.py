@@ -77,13 +77,13 @@ class CitationGrounder(Knot):
         """
         sources_text = "\n\n".join(f"[{i + 1}]: {src}" for i, src in enumerate(sources))
         prompt = type(self)._grounding_prompt.render(
-            {"sources": sources_text, "response": response.content},
+            {"sources": sources_text, "response": response.data},
         )
         raw = await llm.chat([{"role": "user", "content": prompt}])
         new_content = LlmResponseText().extract(raw).strip()
         return AgentResponse(
             content=new_content,
-            tool_calls=response.tool_calls,
-            finish_reason=response.finish_reason,
-            usage=response.usage,
+            tool_calls=response.metadata.tool_calls,
+            finish_reason=response.metadata.finish_reason,
+            usage=response.metadata.usage,
         )

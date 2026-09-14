@@ -76,9 +76,9 @@ class TestFallbackChain(unittest.IsolatedAsyncioTestCase):
         assert run.succeeded
         result = run.outputs["fc"]
         assert isinstance(result, FallbackResult)
-        assert result.succeeded is True
-        assert result.chosen == "c"
-        assert result.attempted == ("c",)
+        assert result.metadata.succeeded is True
+        assert result.metadata.chosen == "c"
+        assert result.metadata.attempted == ("c",)
 
     async def test_falls_through_failures(self) -> None:
         ordered = (
@@ -95,9 +95,9 @@ class TestFallbackChain(unittest.IsolatedAsyncioTestCase):
         run = await t.run(RunRequest())
         assert run.succeeded
         result = run.outputs["fc"]
-        assert result.succeeded is True
-        assert result.chosen == "c"
-        assert result.attempted == ("a", "c")
+        assert result.metadata.succeeded is True
+        assert result.metadata.chosen == "c"
+        assert result.metadata.attempted == ("a", "c")
 
     async def test_skips_low_confidence(self) -> None:
         ordered = (
@@ -114,9 +114,9 @@ class TestFallbackChain(unittest.IsolatedAsyncioTestCase):
         run = await t.run(RunRequest())
         assert run.succeeded
         result = run.outputs["fc"]
-        assert result.chosen == "c"
-        assert result.skipped == ("a",)
-        assert result.attempted == ("c",)
+        assert result.metadata.chosen == "c"
+        assert result.metadata.skipped == ("a",)
+        assert result.metadata.attempted == ("c",)
 
     async def test_exhausts_chain(self) -> None:
         ordered = (RouteCandidate(name="a", tool=StubTool(name="a", handler=_raise)),)
@@ -130,8 +130,8 @@ class TestFallbackChain(unittest.IsolatedAsyncioTestCase):
         run = await t.run(RunRequest())
         assert run.succeeded
         result = run.outputs["fc"]
-        assert result.succeeded is False
-        assert result.chosen is None
+        assert result.metadata.succeeded is False
+        assert result.metadata.chosen is None
 
 
 class TestRouterFallbackPipeline(unittest.IsolatedAsyncioTestCase):
@@ -147,10 +147,10 @@ class TestRouterFallbackPipeline(unittest.IsolatedAsyncioTestCase):
         assert run.succeeded
         result = run.outputs["rf"]
         assert isinstance(result, FallbackResult)
-        assert result.succeeded is True
-        assert result.chosen == "c"
+        assert result.metadata.succeeded is True
+        assert result.metadata.chosen == "c"
         # c has highest confidence, so it is tried first and succeeds immediately.
-        assert result.attempted == ("c",)
+        assert result.metadata.attempted == ("c",)
 
     async def test_rejects_bad_candidate(self) -> None:
         with Tapestry():

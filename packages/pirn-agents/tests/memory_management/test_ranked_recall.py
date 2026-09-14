@@ -46,7 +46,7 @@ class TestRankedRecall(unittest.IsolatedAsyncioTestCase):
             now=_NOW,
             weights=RecallWeights(relevance=1.0, recency=0.0, importance=0.0),
         )
-        assert [r.record.id for r in ranked] == ["high_rel", "high_imp"]
+        assert [r.record.data.id for r in ranked] == ["high_rel", "high_imp"]
 
     async def test_importance_weight_orders_by_importance(self) -> None:
         knot = _make_knot()
@@ -56,7 +56,7 @@ class TestRankedRecall(unittest.IsolatedAsyncioTestCase):
             now=_NOW,
             weights=RecallWeights(relevance=0.0, recency=0.0, importance=1.0),
         )
-        assert [r.record.id for r in ranked] == ["high_imp", "high_rel"]
+        assert [r.record.data.id for r in ranked] == ["high_imp", "high_rel"]
 
     async def test_recency_weight_orders_by_recency(self) -> None:
         knot = _make_knot()
@@ -72,7 +72,7 @@ class TestRankedRecall(unittest.IsolatedAsyncioTestCase):
             now=_NOW,
             weights=RecallWeights(relevance=0.0, recency=1.0, importance=0.0),
         )
-        assert ranked[0].record.id == "recent"
+        assert ranked[0].record.data.id == "recent"
 
     async def test_components_are_normalised_into_unit_range(self) -> None:
         knot = _make_knot()
@@ -92,13 +92,13 @@ class TestRankedRecall(unittest.IsolatedAsyncioTestCase):
             weights=RecallWeights(relevance=1.0, recency=0.0, importance=0.0),
             reranker=reranker,
         )
-        assert [r.record.id for r in ranked] == ["high_imp", "high_rel"]
+        assert [r.record.data.id for r in ranked] == ["high_imp", "high_rel"]
         assert reranker.calls == ["q"]
 
     async def test_default_weights_are_provider_neutral_equal_blend(self) -> None:
         knot = _make_knot()
         ranked = await knot.process(query="q", candidates=_candidates(), now=_NOW)
-        assert {r.record.id for r in ranked} == {"high_rel", "high_imp"}
+        assert {r.record.data.id for r in ranked} == {"high_rel", "high_imp"}
 
     async def test_rejects_non_candidate(self) -> None:
         knot = _make_knot()

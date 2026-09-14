@@ -28,5 +28,5 @@ class AssembleOrchestratorWorkersResult:
         results = tuple(
             WorkerTaskResult(task=task, result=task_results[key]) for key, task in order
         )
-        succeeded = sum(1 for item in results if item.result.succeeded)
+        succeeded = sum(1 for item in results if item.data.succeeded)
         return OrchestratorWorkersResult(results=results, succeeded=succeeded, total=len(results))

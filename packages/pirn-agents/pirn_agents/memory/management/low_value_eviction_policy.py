@@ -73,7 +73,7 @@ class LowValueEvictionPolicy(MemoryEvictionPolicy):
             raise ValueError(f"LowValueEvictionPolicy: capacity must be >= 0, got {capacity!r}")
         if len(candidates) <= capacity:
             return ()
-        ranked = sorted(candidates, key=lambda record: (self._value(record, now), record.id))
+        ranked = sorted(candidates, key=lambda record: (self._value(record, now), record.data.id))
         evict_count = len(candidates) - capacity
         return tuple(ranked[:evict_count])
 
@@ -90,4 +90,4 @@ class LowValueEvictionPolicy(MemoryEvictionPolicy):
     def _value(self, record: MemoryRecord, now: datetime) -> float:
         """Return ``record``'s decayed value at ``now``."""
         age_seconds = (now - record.recency_anchor()).total_seconds()
-        return DecayFunction.score(record.importance, age_seconds, self._half_life_seconds)
+        return DecayFunction.score(record.metadata.importance, age_seconds, self._half_life_seconds)

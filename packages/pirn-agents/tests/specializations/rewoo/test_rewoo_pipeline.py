@@ -31,10 +31,10 @@ class TestReWooPipeline(unittest.IsolatedAsyncioTestCase):
         assert run.succeeded
         result = run.outputs["rewoo"]
         assert isinstance(result, ReWooResult)
-        assert result.answer == "final answer"
-        assert len(result.plan) == 2
-        assert len(result.results) == 2
-        assert all(r.status == "ok" for r in result.results)
+        assert result.data == "final answer"
+        assert len(result.metadata.plan) == 2
+        assert len(result.metadata.results) == 2
+        assert all(r.status == "ok" for r in result.metadata.results)
 
     async def test_only_two_llm_round_trips(self) -> None:
         llm = StubLLMProvider(["1. search: a\n2. search: b\n3. search: c", "answer"])
