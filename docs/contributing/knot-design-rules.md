@@ -419,6 +419,20 @@ References:
 
 ---
 
+## Rule 10 — Optional-engine types go through `_annotation_imports`
+
+A knot whose `process()` annotations name a type from an optional dependency (pandas,
+Polars, DuckDB, ...) imports that dependency only under `if TYPE_CHECKING:` and declares
+each annotation name in `_annotation_imports` (`AnnotationImport(module, extra=,
+package=, attribute=)`). `Knot` resolves the declared imports on first construction, so
+validation matches an eager import, importing the module never loads the engine, and a
+missing engine raises the package's install hint at construction. Runtime use of the
+engine is a plain import inside the method. Full pattern:
+`docs/contributing/domain-knots.md`, "Knots whose annotations name an optional engine's
+types".
+
+---
+
 ## A note on `pirn/nodes/*` and framework primitives
 
 `pirn/nodes/` (`Gate`, `SubTapestry`, `LoopSubTapestry`, `Aggregator`, `Parameter`, …) and
@@ -463,3 +477,4 @@ Before opening a PR with a new or modified Knot:
 - [ ] Module docstring has an `Algorithm:` section describing the steps.
 - [ ] Module docstring has a `Math:` section with LaTeX formulae for any quantitative computation.
 - [ ] Module docstring has a `References:` section for any externally-derived algorithm, pattern, or API; alternatives cited with rationale where multiple approaches exist.
+- [ ] Optional-engine types are imported under `if TYPE_CHECKING:` and declared in `_annotation_imports` (Rule 10).

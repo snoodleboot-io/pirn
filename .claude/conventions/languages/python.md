@@ -97,9 +97,11 @@ Environment vars:    UPPER_SNAKE_CASE always
   package="pirn-<pkg>")`, which raises an `ImportError` naming
   `pip install "pirn-<pkg>[<extra>]"`. No per-package helper, no hand-rolled
   `try: import ... except ImportError: raise ImportError(<hint>)`, and no module-scope import of an optional backend:
-  a type used only in annotations goes under `if TYPE_CHECKING:` (never one in a Knot's
-  `process()` signature, which `Knot` resolves at runtime), and runtime use imports inside
-  the method. CI's install-isolation job imports every submodule of every package in a
+  a type used in annotations goes under `if TYPE_CHECKING:` — for a Knot, also declared in
+  `_annotation_imports` so `Knot` can resolve `process()`'s hints at construction
+  (`docs/contributing/knot-design-rules.md` Rule 10) — and runtime use imports inside
+  the method (a plain import in a knot whose `_annotation_imports` already resolved the
+  engine, `OptionalDependency.require` anywhere else). CI's install-isolation job imports every submodule of every package in a
   clean env and fails on either. The returned `ModuleType` is the typed
   boundary: convert what you read off it to precise types at the call site.
 - **Suppressions name a rule and carry a reason.** `# pyright: ignore[<rule>]` only where

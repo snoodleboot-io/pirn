@@ -227,6 +227,7 @@ Return/branch on `Ok \| Err \| Skipped`. `Err` carries an `ExceptionRecord`. Nev
 - **Is it parallel execution?** → compose a `Dispatcher`, don't re-implement concurrency.
 - **Does something succeed/fail/skip?** → `Ok \| Err \| Skipped`, not a new enum.
 - **Is it pure logic with no state?** → a plain class with `@staticmethod`s; there are no module-level functions (`scripts/check_conventions.py` fails on any). A replaced name is deleted, never kept as a bare alias (alpha policy, `docs/guides/versioning.md`).
+- **Does it depend on an optional engine (pandas, Polars, a cloud SDK)?** → never import it at module scope: annotations import it under `if TYPE_CHECKING:` and a knot declares those names in `_annotation_imports` (`pirn.core.annotation_import.AnnotationImport`, resolved through `OptionalDependency.require` on first construction); runtime use imports inside the method (`docs/contributing/knot-design-rules.md` Rule 10).
 
 ---
 

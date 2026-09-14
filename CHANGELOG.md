@@ -11,6 +11,12 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+#### `Knot._annotation_imports` — optional-engine types without an import-time engine (PIR-872)
+
+- `pirn/core/annotation_import.py` — `AnnotationImport(module, extra, package="pirn-core", attribute=None)`. A knot imports an optional engine only under `if TYPE_CHECKING:` and declares each name its `process()` annotations use in `_annotation_imports: ClassVar[Mapping[str, AnnotationImport]]` (inherited and merged down the MRO). `Knot` resolves the mapping through `OptionalDependency.require` the first time the class's hints are needed (construction, `input_annotations()`, `input_json_schema()`), never at module import, and caches it per class: validation matches an eager import and a missing engine raises the package's install hint at construction.
+- `Knot | T` scalar coercion is resolved on first construction instead of at class creation, with the same namespace; an unresolvable annotation warns then.
+- `pirn-data`: every tier-engine module (`frames/{datafusion,duckdb,pandas,polars,pyarrow}`, `lazy/{dask,ibis,ray}`) imports its engine only under `TYPE_CHECKING` and every tier-engine knot declares it, so `import pirn_data` / `import pirn_ml` load no optional engine.
+
 #### `NestedRunKnot` — nested runs from a plain knot (PIR-872)
 
 - `pirn/nodes/nested_run_knot.py` — `NestedRunKnot(Knot)`: a knot whose `process()` awaits `self._run_inner(inner)` for as many inner runs as its work needs and returns its own value. It is the machinery `SubTapestry` used to own — the construction-time capture of the enclosing history/emitters/value plane, `_run_inner`, the `_inner_dispatcher` / `_inner_concurrency` / `_inner_admission_observers` / `_make_inner_tapestry` hooks, `_nesting_key`, `_inner_failures_reach_sink`, slot-free admission and the `concurrency_group` refusal — moved out from under the sink-returning contract. `SubTapestry` is now `SubTapestry(NestedRunKnot)` and adds only that contract; its behaviour is unchanged.

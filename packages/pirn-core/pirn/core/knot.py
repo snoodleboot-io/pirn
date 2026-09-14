@@ -38,11 +38,13 @@ import inspect
 import json
 import types as _types
 import warnings
+import weakref
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, ClassVar, Union, get_args, get_origin, get_type_hints
 
 from pydantic import TypeAdapter, ValidationError
 
+from pirn.core.annotation_import import AnnotationImport
 from pirn.core.dict_map import DictMap
 from pirn.core.err import Err
 from pirn.core.json_schema_type_builder import JsonSchemaTypeBuilder
@@ -98,9 +100,28 @@ class Knot:
     # refused if it declares ``*args`` in ``process``.
     _dynamic_process_signature: ClassVar[bool] = False
 
-    # Populated by __init_subclass__ for each class that defines process().
-    # Maps param name -> scalar type extracted from ``Knot | T`` union hints.
-    _coercible_params: dict[str, Any] = {}  # noqa: RUF012
+    # Names ``process()``'s annotations use that the knot's module imports only
+    # under ``if TYPE_CHECKING:`` -- an optional engine's types (PIR-872).  Maps the
+    # name as written in the annotation to where it comes from and the extra that
+    # installs it, e.g. ``{"pd": AnnotationImport("pandas", extra="data",
+    # package="pirn-data")}``.  Inherited and merged down the MRO (a subclass
+    # entry overrides its base's).  Resolved through ``OptionalDependency.require``
+    # the first time the class's hints are needed -- never at module import --
+    # and cached per class, so a missing engine raises its install hint at
+    # construction.  See ``pirn.core.annotation_import``.
+    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {}
+
+    # Per-class caches, filled on first need (weak keys: a class generated at run
+    # time by ``KnotFactory`` does not outlive its last reference because of them).
+    # ``_annotation_namespaces``: class -> resolved ``_annotation_imports``.
+    # ``_coercible_param_cache``: class -> param name -> ``(coerce_type,
+    # adapter_type)`` extracted from ``Knot | T`` union hints.
+    _annotation_namespaces: ClassVar[weakref.WeakKeyDictionary[type[Knot], dict[str, Any]]] = (
+        weakref.WeakKeyDictionary()
+    )
+    _coercible_param_cache: ClassVar[
+        weakref.WeakKeyDictionary[type[Knot], dict[str, tuple[Any, Any]]]
+    ] = weakref.WeakKeyDictionary()
 
     # A JSON object schema declaring the inputs of a knot that has no Python
     # signature to introspect -- an MCP-declared tool, an OpenAPI operation
@@ -216,29 +237,6 @@ class Knot:
                     f"{cls.__name__}.process must include '**_: Any' to absorb "
                     "implicit dependencies; add it after all named parameters"
                 )
-
-            # Cache which params have ``Knot | T`` union hints so __init__ can
-            # auto-coerce scalar values to Parameter nodes without the author
-            # needing to call any explicit helper.
-            try:
-                hints = get_type_hints(cls.__dict__["process"])
-            except Exception as exc:
-                warnings.warn(
-                    f"{cls.__name__}.process: get_type_hints() failed ({exc!r}); "
-                    "Knot | T scalar auto-coercion is disabled for this class. "
-                    "This usually means a forward-referenced annotation cannot "
-                    "be resolved (e.g. a name only imported under TYPE_CHECKING).",
-                    stacklevel=2,
-                )
-                hints = {}
-            coercible: dict[str, Any] = {}
-            for pname, hint in hints.items():
-                if pname in ("self", "return"):
-                    continue
-                result = cls._extract_coercible_type(hint)
-                if result is not None:
-                    coercible[pname] = result  # (coerce_type, adapter_type)
-            cls._coercible_params = coercible
 
     def __init__(self, **kwargs: Any) -> None:
         config, explicit_tapestry, kwargs = self._extract_framework_kwargs(kwargs)
@@ -425,7 +423,7 @@ class Knot:
         Wraps the scalar in a ``Parameter(default=value)`` so it becomes a
         real graph node with lineage, rather than invisible config.
         """
-        coercible = cls._coercible_params
+        coercible = cls._coercible_params()
         if not coercible:
             return kwargs
 
@@ -952,18 +950,76 @@ class Knot:
         domain in its signature instead of re-checking it by hand in
         ``process``.
         """
+        namespace = cls._annotation_namespace()
         try:
-            return get_type_hints(cls.process, include_extras=True)
+            return get_type_hints(cls.process, localns=namespace or None, include_extras=True)
         except Exception as exc:
             warnings.warn(
                 f"{cls.__name__}.process: get_type_hints() failed ({exc!r}); "
                 "input/output validation is disabled for this class regardless "
                 "of KnotConfig.validate_io. This usually means a forward-"
                 "referenced annotation cannot be resolved (e.g. a name only "
-                "imported under TYPE_CHECKING).",
+                "imported under TYPE_CHECKING and missing from _annotation_imports).",
                 stacklevel=3,
             )
             return {}
+
+    @classmethod
+    def _annotation_namespace(cls) -> dict[str, Any]:
+        """The resolved ``_annotation_imports`` of this class, merged down the MRO.
+
+        Resolved on first call and cached per class. A missing module raises its
+        ``OptionalDependency`` install hint and caches nothing, so every
+        construction of the class raises it again.
+        """
+        cached = Knot._annotation_namespaces.get(cls)
+        if cached is not None:
+            return cached
+        declared_imports: dict[str, AnnotationImport] = {}
+        for klass in reversed(cls.__mro__):
+            own: Mapping[str, AnnotationImport] | None = klass.__dict__.get("_annotation_imports")
+            if own is not None:
+                declared_imports.update(own)
+        namespace = {name: spec.resolve() for name, spec in declared_imports.items()}
+        Knot._annotation_namespaces[cls] = namespace
+        return namespace
+
+    @classmethod
+    def _coercible_params(cls) -> dict[str, tuple[Any, Any]]:
+        """Param name -> ``(coerce_type, adapter_type)`` for every ``Knot | T`` ``process()`` hint.
+
+        Lets ``__init__`` auto-coerce scalar values to ``Parameter`` nodes without
+        the author calling any helper. Read from the nearest class in the MRO that
+        defines ``process``, resolved with this class's annotation namespace on
+        first need and cached per class.
+        """
+        cached = Knot._coercible_param_cache.get(cls)
+        if cached is not None:
+            return cached
+        owner = next((klass for klass in cls.__mro__ if "process" in klass.__dict__), Knot)
+        coercible: dict[str, tuple[Any, Any]] = {}
+        if owner is not Knot:
+            namespace = cls._annotation_namespace()
+            try:
+                hints = get_type_hints(owner.__dict__["process"], localns=namespace or None)
+            except Exception as exc:
+                warnings.warn(
+                    f"{cls.__name__}.process: get_type_hints() failed ({exc!r}); "
+                    "Knot | T scalar auto-coercion is disabled for this class. "
+                    "This usually means a forward-referenced annotation cannot "
+                    "be resolved (e.g. a name only imported under TYPE_CHECKING "
+                    "and missing from _annotation_imports).",
+                    stacklevel=3,
+                )
+                hints = {}
+            for pname, hint in hints.items():
+                if pname in ("self", "return"):
+                    continue
+                result = cls._extract_coercible_type(hint)
+                if result is not None:
+                    coercible[pname] = result
+        Knot._coercible_param_cache[cls] = coercible
+        return coercible
 
     @classmethod
     def _input_annotations(cls, sig: inspect.Signature, hints: Mapping[str, Any]) -> dict[str, Any]:
@@ -976,7 +1032,7 @@ class Knot:
         ``T``, not ``Knot``: the annotation is ``T`` (``None``-preserving).
         An unannotated parameter maps to ``Any``.
         """
-        coercible = cls._coercible_params
+        coercible = cls._coercible_params()
         annotations: dict[str, Any] = {}
         for name, param in sig.parameters.items():
             if name == "self":

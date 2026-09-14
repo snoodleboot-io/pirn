@@ -242,6 +242,51 @@ Rules:
   precise types at the call site.
 - Formats with **no** optional dependency (CSV, plain text, FASTQ's stdlib path) need no guard.
 
+### Knots whose annotations name an optional engine's types
+
+`Knot` resolves `process()`'s annotations at runtime (on first construction) to build
+its validation adapters, so a name an annotation uses must be importable then — but a
+knot built on an optional engine must not import that engine at module scope. Import
+the engine only under `if TYPE_CHECKING:` and declare every such name in
+`_annotation_imports`:
+
+```python
+from __future__ import annotations
+
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any, ClassVar
+
+from pirn.core.annotation_import import AnnotationImport
+from pirn.core.knot import Knot
+
+if TYPE_CHECKING:
+    import pandas as pd
+
+
+class FrameSummary(Knot):
+    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
+        "pd": AnnotationImport("pandas", extra="data", package="pirn-data"),
+        # a bare class name: AnnotationImport("pandas", extra="data", package="pirn-data", attribute="DataFrame")
+    }
+
+    async def process(self, frame: pd.DataFrame, **_: Any) -> int:
+        import pandas as pd  # runtime use: typed, and the engine already resolved
+
+        return int(pd.DataFrame(frame).shape[0])
+```
+
+- Keys are the names exactly as the annotations spell them; values say where each comes
+  from and which extra installs it. The mapping is inherited and merged down the MRO (a
+  subclass entry overrides its base's).
+- `Knot` resolves the mapping through `OptionalDependency.require` the first time the
+  class's hints are needed — its first construction, or `input_annotations()` /
+  `input_json_schema()` — never at module import, and caches it per class. Validation is
+  identical to an eagerly imported type; a missing engine raises
+  `pip install "<package>[<extra>]"` at construction.
+- Declare the engine even when no annotation names it, so a knot that uses the engine at
+  run time always fails at construction with the install hint rather than mid-run.
+- The module must use `from __future__ import annotations`.
+
 ---
 
 ## Step 4 — PHI Safety Conventions (healthcare formats)
