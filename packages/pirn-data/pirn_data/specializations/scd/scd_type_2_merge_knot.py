@@ -47,10 +47,11 @@ from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_data.specializations._pool_merge_knot import _PoolMergeKnot
+from pirn_data.specializations.pool_merge_knot import PoolMergeKnot
+from pirn_data.specializations.scd.scd_type_2_queries import ScdType2Queries
 
 
-class ScdType2MergeKnot(_PoolMergeKnot):
+class ScdType2MergeKnot(PoolMergeKnot):
     """Merge a source row stream into a Type 2 effective-dated target."""
 
     def __init__(
@@ -78,41 +79,6 @@ class ScdType2MergeKnot(_PoolMergeKnot):
             current_flag_column=current_flag_column,
             _config=_config,
             **kwargs,
-        )
-
-    @staticmethod
-    def _select_query(
-        target_table: str, column_names: tuple[str, ...], current_flag_column: str
-    ) -> str:
-        column_list = ", ".join(column_names)
-        return f"SELECT {column_list} FROM {target_table} WHERE {current_flag_column} = 1"
-
-    @staticmethod
-    def _insert_query(
-        target_table: str,
-        column_names: tuple[str, ...],
-        effective_date_column: str,
-        expiry_date_column: str,
-        current_flag_column: str,
-    ) -> str:
-        all_cols = [*column_names, effective_date_column, expiry_date_column, current_flag_column]
-        column_list = ", ".join(all_cols)
-        placeholders = ", ".join(["?"] * len(all_cols))
-        return f"INSERT INTO {target_table} ({column_list}) VALUES ({placeholders})"
-
-    @staticmethod
-    def _expire_query(
-        target_table: str,
-        primary_keys: tuple[str, ...],
-        expiry_date_column: str,
-        current_flag_column: str,
-    ) -> str:
-        where_clause = " AND ".join(f"{k} = ?" for k in primary_keys)
-        return (
-            f"UPDATE {target_table} SET "
-            f"{expiry_date_column} = ?, "
-            f"{current_flag_column} = 0 "
-            f"WHERE {where_clause} AND {current_flag_column} = 1"
         )
 
     async def process(
@@ -151,15 +117,15 @@ class ScdType2MergeKnot(_PoolMergeKnot):
         materialised: list[tuple[Any, ...]] = [tuple(r) for r in rows]
         if not materialised:
             return {"inserted": 0, "expired": 0}
-        select_q = ScdType2MergeKnot._select_query(target_table, column_tuple, current_flag_column)
-        insert_q = ScdType2MergeKnot._insert_query(
+        select_q = ScdType2Queries.select_query(target_table, column_tuple, current_flag_column)
+        insert_q = ScdType2Queries.insert_query(
             target_table,
             column_tuple,
             effective_date_column,
             expiry_date_column,
             current_flag_column,
         )
-        expire_q = ScdType2MergeKnot._expire_query(
+        expire_q = ScdType2Queries.expire_query(
             target_table, primary_key_tuple, expiry_date_column, current_flag_column
         )
         existing_rows = await target_pool.fetch_all(select_q)

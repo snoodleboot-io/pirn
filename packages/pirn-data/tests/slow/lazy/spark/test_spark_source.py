@@ -55,33 +55,3 @@ async def test_source_runs_sql_query(_spark_session) -> None:
     assert len(rows) == 1
     assert rows[0]["id"] == 1
     assert rows[0]["region"] == "EU"
-
-
-def test_construct_rejects_missing_session(_spark_session) -> None:
-    with Tapestry():
-        with pytest.raises(TypeError, match="spark_session"):
-            SparkSource(
-                spark_session=None,
-                path="/tmp/x.parquet",
-                _config=KnotConfig(id="bad"),
-            )
-
-
-def test_construct_rejects_path_and_query(_spark_session) -> None:
-    with Tapestry():
-        with pytest.raises(TypeError, match="mutually exclusive"):
-            SparkSource(
-                spark_session=_spark_session,
-                path="/tmp/x.parquet",
-                query="SELECT 1",
-                _config=KnotConfig(id="bad"),
-            )
-
-
-def test_construct_rejects_neither_path_nor_query(_spark_session) -> None:
-    with Tapestry():
-        with pytest.raises(TypeError, match="either path"):
-            SparkSource(
-                spark_session=_spark_session,
-                _config=KnotConfig(id="bad"),
-            )

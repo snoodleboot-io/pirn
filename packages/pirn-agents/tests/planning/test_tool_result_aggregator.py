@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import KnotFactory
+from pirn.core.ok import Ok
+from pirn.managers.exception_record import ExceptionRecord
 from pirn.tapestry import Tapestry
 
 from pirn_agents.planning.tool_result_aggregator import ToolResultAggregator
@@ -27,12 +30,15 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         k = _make_knot()
         out = await k.process(
             results=(
-                ToolResult(call_id="a", result={"answer": 1}, error=None),
-                ToolResult(call_id="b", result=None, error="boom"),
+                ToolResult(call_id="a", outcome=Ok(value={"answer": 1})),
+                ToolResult(
+                    call_id="b",
+                    outcome=Err(record=ExceptionRecord.for_knot("b", RuntimeError("boom"))),
+                ),
             )
         )
         assert out["a"] == {"answer": 1}
-        assert out["b"] == {"error": "boom"}
+        assert out["b"] == {"error": "RuntimeError: boom"}
 
     async def test_empty_results_returns_empty_dict(self) -> None:
         k = _make_knot()

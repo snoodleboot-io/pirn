@@ -7,7 +7,6 @@ from pirn_agents.specializations.multi_agent.orchestrator_workers_result import 
 )
 from pirn_agents.specializations.multi_agent.worker_task_result import WorkerTaskResult
 from pirn_agents.tools.tool_result import ToolResult
-from pirn_agents.tools.tool_status import ToolStatus
 
 
 class _AssembleOrchestratorWorkersResult:
@@ -29,5 +28,5 @@ class _AssembleOrchestratorWorkersResult:
         results = tuple(
             WorkerTaskResult(task=task, result=task_results[key]) for key, task in order
         )
-        succeeded = sum(1 for item in results if item.result.status is ToolStatus.OK)
+        succeeded = sum(1 for item in results if item.result.succeeded)
         return OrchestratorWorkersResult(results=results, succeeded=succeeded, total=len(results))

@@ -11,8 +11,9 @@ shim this replaces.
 from __future__ import annotations
 
 from pirn.backends.in_memory.in_memory_history import InMemoryHistory
+from pirn.core.knot_config import KnotConfig
+from pirn.core.skipped import Skipped
 
-from pirn_agents.batch.batch_item_status import BatchItemStatus
 from pirn_agents.batch.map_agent import MapAgent
 from tests.batch.batch_doubles import StubAgent
 
@@ -23,7 +24,13 @@ async def _drain(runner: MapAgent, inputs: object) -> list:
 
 async def test_completed_items_get_an_ok_lineage_row() -> None:
     history = InMemoryHistory()
-    runner = MapAgent(StubAgent(), batch_id="b1", concurrency=4, history=history)
+    runner = MapAgent(
+        run_item=StubAgent(),
+        _config=KnotConfig(id="map-agent"),
+        batch_id="b1",
+        concurrency=4,
+        history=history,
+    )
 
     await _drain(runner, ["a", "b", "c"])
 
@@ -36,15 +43,31 @@ async def test_resume_skips_already_completed_items() -> None:
     history = InMemoryHistory()
 
     first = StubAgent()
-    await _drain(MapAgent(first, batch_id="b1", concurrency=4, history=history), ["a", "b", "c"])
+    await _drain(
+        MapAgent(
+            run_item=first,
+            _config=KnotConfig(id="map-agent"),
+            batch_id="b1",
+            concurrency=4,
+            history=history,
+        ),
+        ["a", "b", "c"],
+    )
 
     # Second run over the same inputs, same history: everything is already done.
     second = StubAgent()
     results = await _drain(
-        MapAgent(second, batch_id="b1", concurrency=4, history=history), ["a", "b", "c"]
+        MapAgent(
+            run_item=second,
+            _config=KnotConfig(id="map-agent"),
+            batch_id="b1",
+            concurrency=4,
+            history=history,
+        ),
+        ["a", "b", "c"],
     )
 
-    assert all(r.status is BatchItemStatus.SKIPPED for r in results)
+    assert all(isinstance(r.outcome, Skipped) for r in results)
     assert second.calls == []  # the agent is never invoked for completed items
 
 
@@ -56,20 +79,34 @@ async def test_partial_resume_runs_only_remaining_items() -> None:
     # never mentions "b").
     seed = StubAgent()
     await _drain(
-        MapAgent(seed, batch_id="b1", concurrency=4, key_fn=by_value, history=history),
+        MapAgent(
+            run_item=seed,
+            _config=KnotConfig(id="map-agent"),
+            batch_id="b1",
+            concurrency=4,
+            key_fn=by_value,
+            history=history,
+        ),
         ["a", "c"],
     )
 
     agent = StubAgent()
     results = await _drain(
-        MapAgent(agent, batch_id="b1", concurrency=4, key_fn=by_value, history=history),
+        MapAgent(
+            run_item=agent,
+            _config=KnotConfig(id="map-agent"),
+            batch_id="b1",
+            concurrency=4,
+            key_fn=by_value,
+            history=history,
+        ),
         ["a", "b", "c"],
     )
 
     by_key = {r.key: r for r in results}
-    assert by_key["a"].status is BatchItemStatus.SKIPPED
-    assert by_key["c"].status is BatchItemStatus.SKIPPED
-    assert by_key["b"].status is BatchItemStatus.OK
+    assert isinstance(by_key["a"].outcome, Skipped)
+    assert isinstance(by_key["c"].outcome, Skipped)
+    assert by_key["b"].succeeded
     assert agent.calls == ["b"]  # only the one uncompleted item ran
 
 
@@ -78,7 +115,16 @@ async def test_failed_items_are_not_recorded_and_retry_on_resume() -> None:
 
     # First pass: item "bad" (index 1) fails permanently, the others succeed.
     first = StubAgent(fail_items={"bad"})
-    await _drain(MapAgent(first, batch_id="b1", concurrency=4, history=history), ["a", "bad", "c"])
+    await _drain(
+        MapAgent(
+            run_item=first,
+            _config=KnotConfig(id="map-agent"),
+            batch_id="b1",
+            concurrency=4,
+            history=history,
+        ),
+        ["a", "bad", "c"],
+    )
 
     rows = await history.query_lineage_by_knot_id("item:b1:1")
     assert not any(row.outcome == "ok" for row in rows)  # failed item not recorded as ok
@@ -86,17 +132,26 @@ async def test_failed_items_are_not_recorded_and_retry_on_resume() -> None:
     # Resume: the previously-failed item re-runs (now succeeds); others skip.
     second = StubAgent()
     results = await _drain(
-        MapAgent(second, batch_id="b1", concurrency=4, history=history), ["a", "bad", "c"]
+        MapAgent(
+            run_item=second,
+            _config=KnotConfig(id="map-agent"),
+            batch_id="b1",
+            concurrency=4,
+            history=history,
+        ),
+        ["a", "bad", "c"],
     )
     by_key = {r.key: r for r in results}
-    assert by_key["1"].status is BatchItemStatus.OK
+    assert by_key["1"].succeeded
     assert second.calls == ["bad"]
 
 
 async def test_no_history_means_no_resume() -> None:
     """The default: without a ``history=``, every item runs every time."""
     agent = StubAgent()
-    runner = MapAgent(agent, batch_id="b1", concurrency=4)
+    runner = MapAgent(
+        run_item=agent, _config=KnotConfig(id="map-agent"), batch_id="b1", concurrency=4
+    )
 
     await _drain(runner, ["a", "b"])
     await _drain(runner, ["a", "b"])
@@ -111,18 +166,26 @@ async def test_checkpoint_scope_isolates_resume_state() -> None:
     seeded = [
         result
         async for result in MapAgent(
-            StubAgent(), batch_id="b1", concurrency=4, history=history
+            run_item=StubAgent(),
+            _config=KnotConfig(id="map-agent"),
+            batch_id="b1",
+            concurrency=4,
+            history=history,
         ).run(["x"], checkpoint_scope="scope-a")
     ]
-    assert seeded[0].status is BatchItemStatus.OK
+    assert seeded[0].succeeded
 
     # A different scope has never seen "x" and runs it.
     second_agent = StubAgent()
     results = [
         result
         async for result in MapAgent(
-            second_agent, batch_id="b1", concurrency=4, history=history
+            run_item=second_agent,
+            _config=KnotConfig(id="map-agent"),
+            batch_id="b1",
+            concurrency=4,
+            history=history,
         ).run(["x"], checkpoint_scope="scope-b")
     ]
     assert second_agent.calls == ["x"]
-    assert results[0].status is BatchItemStatus.OK
+    assert results[0].succeeded

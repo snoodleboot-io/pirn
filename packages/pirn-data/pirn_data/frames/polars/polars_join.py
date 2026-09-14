@@ -42,6 +42,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_data.frames.polars.polars_data_batch import PolarsDataBatch
 from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.value_shape import ValueShape
 
 
 class PolarsJoin(Knot):
@@ -146,7 +147,7 @@ class PolarsJoin(Knot):
             return None
         if isinstance(value, str):
             keys: tuple[str, ...] = (value,)
-        elif isinstance(value, Sequence) and not isinstance(value, bytes):
+        elif ValueShape.is_sequence(value) and not isinstance(value, bytes):
             keys = tuple(value)
         else:
             raise TypeError(

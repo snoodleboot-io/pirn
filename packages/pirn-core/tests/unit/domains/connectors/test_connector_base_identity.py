@@ -139,7 +139,7 @@ def test_no_credential_or_configuration_appears_in_the_canonical_form(
         credential=CredentialRef(secret=sentinel_secret),
     )
 
-    # Act — the canonical form and the token are what content_hash consumes.
+    # Act — the canonical form and the token are what ContentHasher.hash consumes.
     canonical = json.dumps(connector.__pirn_canonical__())
     token = connector._pirn_identity_token()
 

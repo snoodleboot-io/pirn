@@ -41,7 +41,7 @@ class TimeSeriesResampler(Knot):
     def __init__(
         self,
         *,
-        rows: Knot | list,
+        rows: Knot | list[dict[str, Any]],
         timestamp_column: Knot | str,
         value_column: Knot | str,
         frequency_seconds: Knot | float,

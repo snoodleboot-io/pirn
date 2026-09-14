@@ -1,6 +1,6 @@
-"""``as_tool`` — free-function helper wrapping a ``SubTapestry`` as an ``AgentTool``.
+"""``AsTool`` — wraps a ``SubTapestry`` as an ``AgentTool``.
 
-This is the functional form of the agent-as-tool API. The
+:meth:`AsTool.wrap` is the functional form of the agent-as-tool API. The
 :class:`~pirn_agents.tools.agent_as_tool_mixin.AgentAsToolMixin` delegates its
 ``agent.as_tool(...)`` method here so both spellings share one implementation.
 """
@@ -56,31 +56,3 @@ class AsTool:
             budget=budget,
             max_depth=max_depth,
         )
-
-
-def as_tool(
-    agent: SubTapestry,
-    *,
-    name: str | None = None,
-    description: str | None = None,
-    input_schema: Mapping[str, Any] | None = None,
-    provider: LLMProvider | None = None,
-    budget: RunBudget | None = None,
-    max_depth: int = 8,
-) -> AgentTool:
-    """Wrap ``agent`` as an :class:`AgentTool` with no hand-written adapter.
-
-    Thin wrapper kept for the pinned public import path (see
-    ``tests/test_ws5_s1_import_surface.py``) and the
-    :meth:`~pirn_agents.tools.agent_as_tool_mixin.AgentAsToolMixin.as_tool`
-    delegation; see :meth:`AsTool.wrap`.
-    """
-    return AsTool.wrap(
-        agent,
-        name=name,
-        description=description,
-        input_schema=input_schema,
-        provider=provider,
-        budget=budget,
-        max_depth=max_depth,
-    )

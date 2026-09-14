@@ -18,7 +18,6 @@ from pirn_agents.performance.budget_breach_error import BudgetBreachError
 from pirn_agents.performance.run_budget import RunBudget
 from pirn_agents.performance.run_budget_meter import RunBudgetMeter
 from pirn_agents.tools.agent_tool import AgentTool
-from pirn_agents.tools.tool_status import ToolStatus
 from tests.agent_tool_doubles import (
     AGENT_CALLS,
     ROUTE_REGISTRY,
@@ -132,7 +131,7 @@ class TestBudgetPropagation(unittest.IsolatedAsyncioTestCase):
             agent, budget=RunBudget(max_tokens=100, max_iterations=10)
         ).run_view({"topic": "t"})
 
-        self.assertEqual(result.status, ToolStatus.OK)
+        self.assertEqual(result.status, "ok")
 
 
 class TestSharedProviderReuse(unittest.IsolatedAsyncioTestCase):

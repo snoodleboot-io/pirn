@@ -49,7 +49,7 @@ class PandasDataBatch:
 
     @property
     def column_names(self) -> tuple[str, ...]:
-        return tuple(self.frame.columns)
+        return tuple(self.frame.columns.tolist())
 
     def with_frame(self, frame: pd.DataFrame) -> PandasDataBatch:
         """Return a copy with ``frame`` replaced; metadata preserved."""

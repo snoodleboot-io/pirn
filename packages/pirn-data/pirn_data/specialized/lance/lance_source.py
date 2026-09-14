@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``LanceSource`` — Tier-4 source knot that opens a Lance dataset on disk.
 
 Calls :func:`lance.dataset` against the configured path at run time and
@@ -28,6 +30,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.source import Source
 
+from pirn_data.data_optional_dependency import DataOptionalDependency
 from pirn_data.specialized.lance.lance_dataset import LanceDataset
 
 
@@ -54,12 +57,9 @@ class LanceSource(Source):
         Returns:
             A LanceDataset wrapping the opened Lance dataset.
         """
-        if not isinstance(path, str) or not path:  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(path, str) or not path:
             raise ValueError("LanceSource: path must be a non-empty string")
 
-        from lance.dataset import (  # pyright: ignore[reportMissingImports]  # optional extra; absent from the CI image
-            LanceDataset as _LanceDataset,  # pyright: ignore[reportUnknownVariableType]  # untyped when the extra is absent
-        )
-
-        dataset = _LanceDataset(path)  # pyright: ignore[reportUnknownVariableType]  # untyped when the extra is absent
+        lance_dataset = DataOptionalDependency.require("lance.dataset", extra="lance")
+        dataset = lance_dataset.LanceDataset(path)
         return LanceDataset(dataset=dataset, source_uri=path)

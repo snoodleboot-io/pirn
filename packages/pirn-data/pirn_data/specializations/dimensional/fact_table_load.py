@@ -36,6 +36,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.value_shape import ValueShape
 
 
 class FactTableLoad(Knot):
@@ -117,12 +118,12 @@ class FactTableLoad(Knot):
         fact_col_tuple = tuple(fact_columns)
         IdentifierValidator.validate_columns("source_columns", src_col_tuple)
         IdentifierValidator.validate_columns("fact_columns", fact_col_tuple)
-        if not isinstance(dim_lookups, (list, tuple)) or not dim_lookups:
+        if not ValueShape.is_list_or_tuple(dim_lookups) or not dim_lookups:
             raise ValueError("FactTableLoad: dim_lookups must be a non-empty sequence")
-        validated_lookups = []
+        validated_lookups: list[dict[str, Any]] = []
         for idx, spec in enumerate(dim_lookups):
             label = f"dim_lookups[{idx}]"
-            if not isinstance(spec, dict):
+            if not ValueShape.is_str_mapping(spec):
                 raise TypeError(f"FactTableLoad: {label} must be a dict")
             _required_keys = (
                 "dim_table",
@@ -165,7 +166,7 @@ class FactTableLoad(Knot):
         for row in source_rows:
             row_dict = dict(zip(src_col_tuple, row, strict=False))
             fact_values = tuple(row_dict[c] for c in fact_col_tuple)
-            fk_values = []
+            fk_values: list[Any] = []
             for spec in validated_lookups:
                 pool = spec["dim_pool"] or target_pool
                 lookup_q = self._build_dim_lookup_query(spec)

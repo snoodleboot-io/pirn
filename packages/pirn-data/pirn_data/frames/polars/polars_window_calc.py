@@ -38,6 +38,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.frames.polars.polars_data_batch import PolarsDataBatch
+from pirn_data.value_shape import ValueShape
 
 
 class PolarsWindowCalc(Knot):
@@ -68,7 +69,7 @@ class PolarsWindowCalc(Knot):
         Returns:
             A new PolarsDataBatch with the window expression columns appended.
         """
-        if not isinstance(windows, Sequence) or isinstance(windows, (str, bytes)):
+        if not ValueShape.is_sequence(windows) or isinstance(windows, (str, bytes)):
             raise TypeError("PolarsWindowCalc: windows must be a sequence of polars.Expr")
         if not windows:
             raise ValueError("PolarsWindowCalc: windows must be non-empty")

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``StackingEnsembleBuilder`` — train base models, use their OOF predictions
 as features for a meta-learner.
 
@@ -120,7 +122,7 @@ class StackingEnsembleBuilder(SubTapestry):
         split_node = Parameter(
             "split", SplitManifest, default=split, _config=KnotConfig(id="split")
         )
-        base_models = []
+        base_models: list[Knot] = []
         for i, alg in enumerate(base_tuple):
             model = Trainer(
                 split=split_node,

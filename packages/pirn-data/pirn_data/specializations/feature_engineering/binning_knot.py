@@ -77,7 +77,7 @@ class BinningKnot(Knot):
     def __init__(
         self,
         *,
-        rows: Knot | list,
+        rows: Knot | list[dict[str, Any]],
         column: Knot | str,
         num_bins: Knot | int,
         strategy: Knot | str,

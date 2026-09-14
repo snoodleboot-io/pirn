@@ -51,7 +51,7 @@ class LateArrivingEventHandler(Knot):
     def __init__(
         self,
         *,
-        rows: Knot | list,
+        rows: Knot | list[dict[str, Any]],
         timestamp_column: Knot | str,
         value_column: Knot | str,
         bucket_seconds: Knot | float,
@@ -145,7 +145,7 @@ class LateArrivingEventHandler(Knot):
                 watermark = ts
             bucket = LateArrivingEventHandler._floor(ts, bucket_td)
             buckets.setdefault(bucket, []).append(row[value_column])
-            is_late = watermark is not None and ts < (watermark - lateness_td)
+            is_late = ts < (watermark - lateness_td)
             forwarded = dict(row)
             forwarded["is_correction"] = False
             result.append(forwarded)

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``DataSplitObjectStoreDisassembler`` — serialise a :class:`DataSplitPayload` to numpy npz bytes.
 
 Sits between domain knots that produce a :class:`DataSplitPayload` and an
@@ -66,7 +68,7 @@ class DataSplitObjectStoreDisassembler(Disassembler):
         Raises:
             TypeError: If ``payload`` is not a :class:`DataSplitPayload`.
         """
-        if not isinstance(payload, DataSplitPayload):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(payload, DataSplitPayload):
             raise TypeError(
                 f"DataSplitObjectStoreDisassembler: payload must be DataSplitPayload, "
                 f"got {type(payload).__name__}"

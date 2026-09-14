@@ -11,7 +11,7 @@ graphs share the engine's content-addressed cache exactly like hand-wired ones.
 ADR agents-speaks-core WS2 part 2 - breaking id-format change, sanctioned:
 :meth:`derive` now digests the structural signature via
 :meth:`pirn.core.content_hasher.ContentHasher.hash` (``strict=True``) instead of
-:class:`~pirn_agents.serialization.canonical_json.CanonicalJson`. The
+the former ``CanonicalJson`` (deleted, PIR-872). The
 signature is always plain JSON-safe data (strings, lists, dicts) built by
 this factory itself, so ``strict=True`` here is behaviourally identical to
 the previous default ``OpaquePolicy.RAISE`` - both refuse a non-JSON value

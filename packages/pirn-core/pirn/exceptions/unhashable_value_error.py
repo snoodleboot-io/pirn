@@ -39,7 +39,7 @@ class UnhashableValueError(PirnError, TypeError):
         """
         self._type_name = type_name
         super().__init__(
-            f"content_hash: cannot canonically hash a value of type {type_name!r}; "
+            f"ContentHasher.hash: cannot canonically hash a value of type {type_name!r}; "
             f"it has no __pirn_canonical__() hook, no pydantic core schema, and is "
             f"not a container this hasher recurses into. Give the type one of those, "
             f"convert it to a JSON-encodable value first, or pass strict=False to "

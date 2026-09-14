@@ -25,21 +25,12 @@ keyed by the same content-hash string :meth:`key_for` has always produced;
 the embeddings stay in the vended
 :class:`~pirn_agents.caching.similarity_index.SimilarityIndex` resource.
 ``DataStore`` is async-only (``put``/``get``/``has``/``scrub``, and
-deliberately exposes no enumeration), so the three methods that used to be
-synchronous — ``invalidate``, ``purge_expired``, ``__len__`` — are now
-:meth:`ainvalidate`, :meth:`apurge_expired`, and :meth:`asize`.
-:meth:`purge_expired` has no ``DataStore``-native "walk every entry"
+deliberately exposes no enumeration), so the cache's management surface is
+async too: :meth:`ainvalidate`, :meth:`apurge_expired`, and :meth:`asize`.
+:meth:`apurge_expired` has no ``DataStore``-native "walk every entry"
 primitive to call, so it mirrors :class:`SemanticResultCache`'s own
 ``_keys`` bookkeeping: a parallel ``set[str]`` of live keys, checked one at a
 time against the store.
-
-The old synchronous names (:meth:`invalidate`, :meth:`purge_expired`,
-:meth:`__len__`) remain for one deprecation cycle as thin wrappers that
-bridge to the event loop and emit ``DeprecationWarning``. They raise
-``RuntimeError`` when called from inside an already-running event loop —
-this cache's own :meth:`get_or_compute` is itself async, so that is the one
-context a synchronous bridge cannot support; call the async method directly
-there.
 
 Eviction bound: delegated to ``InMemoryDataStore(max_values=max_entries)``,
 which evicts the least-recently-*read* entry once full — a change from the
@@ -50,11 +41,9 @@ policy :class:`SemanticResultCache` already uses for the same reason (one
 
 from __future__ import annotations
 
-import asyncio
 import time
-import warnings
-from collections.abc import Awaitable, Callable, Coroutine, Mapping, Sequence
-from typing import Any, TypeVar
+from collections.abc import Awaitable, Callable, Mapping, Sequence
+from typing import Any
 
 from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
 from pirn.core.content_hasher import ContentHasher
@@ -62,8 +51,6 @@ from pirn.exceptions.value_evicted_error import ValueEvictedError
 
 from pirn_agents.caching.cache_entry import CacheEntry
 from pirn_agents.caching.similarity_index import SimilarityIndex
-
-T = TypeVar("T")
 
 
 class PromptCache:
@@ -119,15 +106,6 @@ class PromptCache:
     async def asize(self) -> int:
         """Return the number of live (not yet evicted) entries."""
         return len(self._keys)
-
-    def __len__(self) -> int:
-        """Deprecated: use :meth:`asize`."""
-        warnings.warn(
-            "PromptCache.__len__() (len(cache)) is deprecated; await cache.asize() instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self._run_sync(self.asize())
 
     @staticmethod
     def key_for(prompt: str, params: Mapping[str, Any] | None = None) -> str:
@@ -188,15 +166,6 @@ class PromptCache:
         """Explicitly drop the exact entry for ``prompt``/``params`` (a no-op if absent)."""
         await self._adiscard(self.key_for(prompt, params))
 
-    def invalidate(self, prompt: str, *, params: Mapping[str, Any] | None = None) -> None:
-        """Deprecated: use :meth:`ainvalidate`."""
-        warnings.warn(
-            "PromptCache.invalidate() is deprecated; await cache.ainvalidate(...) instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        self._run_sync(self.ainvalidate(prompt, params=params))
-
     async def apurge_expired(self) -> int:
         """Evict every expired entry, returning the number removed."""
         now = self._clock()
@@ -208,15 +177,6 @@ class PromptCache:
         for key in stale:
             await self._adiscard(key)
         return len(stale)
-
-    def purge_expired(self) -> int:
-        """Deprecated: use :meth:`apurge_expired`."""
-        warnings.warn(
-            "PromptCache.purge_expired() is deprecated; await cache.apurge_expired() instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self._run_sync(self.apurge_expired())
 
     async def _get_entry(self, key: str) -> CacheEntry | None:
         """Return the stored entry for ``key``, or ``None`` on a miss or eviction."""
@@ -266,23 +226,3 @@ class PromptCache:
     def _is_expired(entry: CacheEntry, now: float) -> bool:
         """Return whether ``entry`` has passed its expiry stamp at ``now``."""
         return entry.expires_at is not None and now >= entry.expires_at
-
-    @staticmethod
-    def _run_sync(coro: Coroutine[Any, Any, T]) -> T:
-        """Bridge a coroutine to a blocking call for the deprecated sync wrappers.
-
-        Raises rather than deadlocking or silently misbehaving when called
-        from inside a running event loop — this cache's own async API is the
-        only way to use it from async code, which is where it is used
-        exclusively today.
-        """
-        try:
-            asyncio.get_running_loop()
-        except RuntimeError:
-            return asyncio.run(coro)
-        coro.close()
-        raise RuntimeError(
-            "PromptCache: this deprecated synchronous method cannot be called "
-            "from inside a running event loop; call the async method directly "
-            "(ainvalidate/apurge_expired/asize)."
-        )

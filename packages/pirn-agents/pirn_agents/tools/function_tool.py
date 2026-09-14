@@ -1,6 +1,6 @@
-"""``FunctionTool`` — the capability the ``@tool`` decorator produces.
+"""``FunctionTool`` — the capability the ``@ToolDecorator.decorate`` decorator produces.
 
-``@tool`` is ``@KnotFactory.knot`` plus a declaration (ADR agents-speaks-core, WS1): the
+``@ToolDecorator.decorate`` is ``@KnotFactory.knot`` plus a declaration (ADR agents-speaks-core, WS1): the
 decorated function becomes the ``process()`` of a generated
 :class:`~pirn_agents.tools.tool.Tool` subclass, exactly as
 :class:`~pirn.core.knot_factory.KnotFactory.create` does for ``@KnotFactory.knot`` — the

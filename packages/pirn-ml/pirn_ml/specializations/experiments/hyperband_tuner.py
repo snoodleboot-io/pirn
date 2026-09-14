@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``HyperbandTuner`` — successive-halving hyperparameter optimisation.
 
 Trains many configurations for a few iterations, retains the top half,

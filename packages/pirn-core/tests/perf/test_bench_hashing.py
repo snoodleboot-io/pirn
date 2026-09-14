@@ -1,4 +1,4 @@
-"""Benchmark: content_hash overhead for various payload sizes.
+"""Benchmark: ContentHasher.hash overhead for various payload sizes.
 
 Run with:
     pytest tests/perf/bench_hashing.py --benchmark-only

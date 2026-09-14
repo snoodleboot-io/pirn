@@ -337,7 +337,7 @@ def test_simulated_shared_address_would_expose_an_id_only_token(
 
 def test_non_weakrefable_mutated_shallow_copy_does_not_hash_equal_to_the_original() -> None:
     # Arrange — copy.copy shares the instance dict's values, nonce included.
-    # A connector is the realistic case: content_hash reaches the token through
+    # A connector is the realistic case: ContentHasher.hash reaches the token through
     # ConnectorBase.__pirn_canonical__ (a bare tuple subclass hashes its items).
     original = TupleConnector()
     original.base_url = "https://a.example/v1"

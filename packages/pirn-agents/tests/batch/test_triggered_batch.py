@@ -17,6 +17,7 @@ from __future__ import annotations
 import asyncio
 
 import pytest
+from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 
 from pirn_agents.batch.batch_progress import BatchProgress
@@ -33,7 +34,9 @@ async def _fake_sleep(delay: float) -> None:
 
 async def test_runs_one_batch_per_fire_with_failure_report() -> None:
     trigger = IntervalTrigger(interval=0.0, max_fires=2, sleep=_fake_sleep)
-    runner = MapAgent(StubAgent(fail_items={"bad"}), concurrency=4)
+    runner = MapAgent(
+        run_item=StubAgent(fail_items={"bad"}), _config=KnotConfig(id="map-agent"), concurrency=4
+    )
 
     triggered = TriggeredBatch(
         trigger=trigger, map_agent=runner, inputs_fn=lambda ordinal: ["ok1", "bad", "ok2"]
@@ -49,7 +52,7 @@ async def test_runs_one_batch_per_fire_with_failure_report() -> None:
 
 async def test_inputs_fn_receives_the_fire_ordinal() -> None:
     trigger = IntervalTrigger(interval=0.0, max_fires=3, sleep=_fake_sleep)
-    runner = MapAgent(StubAgent(), concurrency=2)
+    runner = MapAgent(run_item=StubAgent(), _config=KnotConfig(id="map-agent"), concurrency=2)
     seen_ordinals: list[int] = []
 
     def inputs_fn(ordinal: int) -> list[object]:
@@ -67,7 +70,7 @@ async def test_closes_the_trigger_when_the_stream_ends() -> None:
     trigger = RecordingTrigger(fires=2)
     triggered = TriggeredBatch(
         trigger=trigger,
-        map_agent=MapAgent(StubAgent(), concurrency=1),
+        map_agent=MapAgent(run_item=StubAgent(), _config=KnotConfig(id="map-agent"), concurrency=1),
         inputs_fn=lambda o: ["a"],
         owns_trigger=True,
     )
@@ -82,7 +85,7 @@ async def test_closes_the_trigger_when_the_consumer_abandons_the_generator() -> 
     trigger = RecordingTrigger(fires=5)
     triggered = TriggeredBatch(
         trigger=trigger,
-        map_agent=MapAgent(StubAgent(), concurrency=1),
+        map_agent=MapAgent(run_item=StubAgent(), _config=KnotConfig(id="map-agent"), concurrency=1),
         inputs_fn=lambda o: ["a"],
         owns_trigger=True,
     )
@@ -98,7 +101,7 @@ async def test_a_failing_close_does_not_sink_the_run() -> None:
     trigger = RecordingTrigger(fires=1, close_error=RuntimeError("close blew up"))
     triggered = TriggeredBatch(
         trigger=trigger,
-        map_agent=MapAgent(StubAgent(), concurrency=1),
+        map_agent=MapAgent(run_item=StubAgent(), _config=KnotConfig(id="map-agent"), concurrency=1),
         inputs_fn=lambda o: ["a"],
         owns_trigger=True,
     )
@@ -117,7 +120,7 @@ async def test_on_result_observes_every_run() -> None:
 
     triggered = TriggeredBatch(
         trigger=RecordingTrigger(fires=2),
-        map_agent=MapAgent(StubAgent(), concurrency=1),
+        map_agent=MapAgent(run_item=StubAgent(), _config=KnotConfig(id="map-agent"), concurrency=1),
         inputs_fn=lambda o: ["a"],
         on_result=on_result,
     )
@@ -140,7 +143,7 @@ async def test_on_error_absorbs_a_failed_run_and_the_stream_continues() -> None:
 
     triggered = TriggeredBatch(
         trigger=RecordingTrigger(fires=3),
-        map_agent=MapAgent(StubAgent(), concurrency=1),
+        map_agent=MapAgent(run_item=StubAgent(), _config=KnotConfig(id="map-agent"), concurrency=1),
         inputs_fn=inputs_fn,
         on_error=on_error,
     )
@@ -161,7 +164,7 @@ async def test_without_on_error_a_failed_run_propagates() -> None:
 
     triggered = TriggeredBatch(
         trigger=trigger,
-        map_agent=MapAgent(StubAgent(), concurrency=1),
+        map_agent=MapAgent(run_item=StubAgent(), _config=KnotConfig(id="map-agent"), concurrency=1),
         inputs_fn=inputs_fn,
         owns_trigger=True,
     )
@@ -183,7 +186,7 @@ async def test_on_error_never_swallows_cancellation() -> None:
     trigger = RecordingTrigger(fires=2)
     triggered = TriggeredBatch(
         trigger=trigger,
-        map_agent=MapAgent(StubAgent(), concurrency=1),
+        map_agent=MapAgent(run_item=StubAgent(), _config=KnotConfig(id="map-agent"), concurrency=1),
         inputs_fn=inputs_fn,
         owns_trigger=True,
         on_error=on_error,
@@ -199,7 +202,9 @@ async def test_the_caller_keeps_ownership_of_the_trigger_by_default() -> None:
     """The default must not close a trigger the caller constructed and still holds."""
     trigger = RecordingTrigger(fires=2)
     triggered = TriggeredBatch(
-        trigger=trigger, map_agent=MapAgent(StubAgent(), concurrency=1), inputs_fn=lambda o: ["a"]
+        trigger=trigger,
+        map_agent=MapAgent(run_item=StubAgent(), _config=KnotConfig(id="map-agent"), concurrency=1),
+        inputs_fn=lambda o: ["a"],
     )
 
     progresses = [progress async for progress in triggered.run()]
@@ -211,7 +216,7 @@ async def test_the_caller_keeps_ownership_of_the_trigger_by_default() -> None:
 async def test_an_interval_trigger_can_be_reused_across_runs() -> None:
     """A caller-owned trigger re-fires on a second run instead of doing nothing."""
     trigger = IntervalTrigger(interval=0.0, max_fires=2, sleep=_fake_sleep)
-    runner = MapAgent(StubAgent(), concurrency=1)
+    runner = MapAgent(run_item=StubAgent(), _config=KnotConfig(id="map-agent"), concurrency=1)
 
     def make() -> TriggeredBatch:
         return TriggeredBatch(trigger=trigger, map_agent=runner, inputs_fn=lambda o: ["a"])
@@ -231,7 +236,7 @@ async def test_reusing_a_closed_event_trigger_fails_fast_and_never_hangs() -> No
     with the sentinel already consumed.
     """
     trigger = EventTrigger()
-    runner = MapAgent(StubAgent(), concurrency=1)
+    runner = MapAgent(run_item=StubAgent(), _config=KnotConfig(id="map-agent"), concurrency=1)
 
     def make() -> TriggeredBatch:
         return TriggeredBatch(trigger=trigger, map_agent=runner, inputs_fn=lambda o: ["a"])
@@ -250,7 +255,7 @@ async def test_reusing_a_closed_event_trigger_fails_fast_and_never_hangs() -> No
 
 
 def test_validates_constructor_arguments() -> None:
-    runner = MapAgent(StubAgent(), concurrency=1)
+    runner = MapAgent(run_item=StubAgent(), _config=KnotConfig(id="map-agent"), concurrency=1)
     trigger = IntervalTrigger(interval=0.0, max_fires=1, sleep=_fake_sleep)
     with pytest.raises(TypeError):
         TriggeredBatch(trigger="nope", map_agent=runner, inputs_fn=lambda o: [])  # type: ignore[arg-type]

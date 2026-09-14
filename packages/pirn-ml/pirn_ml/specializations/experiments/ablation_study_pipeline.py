@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``AblationStudyPipeline`` — train ``len(feature_groups) + 1`` models
 (one full + one per leave-one-group-out) and report per-group metric
 impact relative to the full-feature model.
@@ -138,7 +140,7 @@ class AblationStudyPipeline(SubTapestry):
         split_node = Parameter(
             "split", SplitManifest, default=split, _config=KnotConfig(id="split")
         )
-        arm_report_nodes = []
+        arm_report_nodes: list[Knot] = []
         for arm in arm_names:
             model = Trainer(
                 split=split_node,
@@ -158,7 +160,7 @@ class AblationStudyPipeline(SubTapestry):
             "arm_names", list, default=arm_names, _config=KnotConfig(id="arm_names")
         )
         collected_reports = Aggregator(
-            combine=lambda **kw: list(kw.values()),
+            combine=self._reports_in_order,
             _config=KnotConfig(id="collect-reports"),
             **{f"r{i}": arm_report_nodes[i] for i in range(len(arm_report_nodes))},
         )
@@ -167,3 +169,8 @@ class AblationStudyPipeline(SubTapestry):
             arm_reports=collected_reports,
             _config=KnotConfig(id="combine"),
         )
+
+    @staticmethod
+    def _reports_in_order(**reports: EvalReportPayload) -> list[EvalReportPayload]:
+        """Aggregator ``combine``: the parent evaluation reports as a list, in wiring order."""
+        return list(reports.values())

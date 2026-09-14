@@ -11,14 +11,14 @@ and lineage planes; see ``.prompticorn/sessions/agents-realignment-proposal-
   (``store``/``retrieve``/``forget``, ``put``/``get``, ``save``/``load``, or a
   namespaced ``search``) — a *fourth* ad hoc keyed store appearing here
   without shrinking an existing one is exactly the growth WS3 exists to stop;
-* every module importing ``RunState``, ``RunCheckpoint``, or a ``*Cassette*``
-  name — the session/determinism value shapes a future workstream replaces
-  with ``RunResult``/``ReplaySession`` adapters.
+* every module importing ``RunCheckpoint`` or a ``*Cassette*`` name — the
+  session/determinism value shapes replaced by ``RunResult``/``ReplaySession``.
 
-Both allowlists are asserted by **exact equality**: a new entry fails because
-it is not in the list (growth caught); removing/renaming a store or importer
-without updating the list also fails, because the list still names it
-(the burn-down is visible here, one line at a time).
+PIR-872 turned the first into a named design inventory (every keyed store with
+the reason it is not a shadow of core) and burned the second to empty. Both are
+asserted by **exact equality**: a new entry fails because it is not named
+(growth caught); removing/renaming a store without updating the inventory also
+fails, because the inventory still names it.
 """
 
 from __future__ import annotations
@@ -28,40 +28,50 @@ import unittest
 
 from tests.store_inventory import StoreInventory
 
-# --- known keyed stores, frozen ---------------------------------------------
-# Regenerate by running StoreInventory.discover_store_classes() from the
-# package root (packages/pirn-agents) and pasting the sorted keys below.
+# --- keyed-store design inventory --------------------------------------------
+# Every class with a keyed-store method surface, each named with the reason it
+# is not a shadow of core's ``DataStore``/``RunHistory``. PIR-872 collapsed the
+# shadows: ``ResultCache``/``InMemoryResultCache``/``SemanticResultCache`` no
+# longer re-expose ``get``/``put``/``has`` over their ``DataStore`` (raw keyed
+# access is ``cache.store``), and ``VectorMemoIndex`` -- a private key->vector
+# dict beside ``DataStore`` -- is deleted (``EmbeddingCache`` stores vectors in
+# an ``InMemoryDataStore``). What remains is design, not drift: an agents-layer
+# similarity-memory seam core has no equivalent of, its adapters to external
+# systems, and the keyed-identity adapter onto core's own lineage plane. A new
+# keyed store fails here until it is justified the same way. Regenerate the
+# keys with StoreInventory.discover_store_classes() from packages/pirn-agents.
 
-STORE_CLASSES = frozenset(
-    {
-        "caching/in_memory_result_cache.py::InMemoryResultCache",
-        "caching/result_cache.py::ResultCache",
-        "caching/semantic_result_cache.py::SemanticResultCache",
-        # ADR agents-speaks-core WS2: a vended similarity INDEX (a PirnOpaqueValue
-        # resource like the vector backends); it maps embeddings to content_hash
-        # keys and holds no values — values live in core DataStore. Not a KV store.
-        "caching/vector_memo_index.py::VectorMemoIndex",
-        "connectors/streaming_s3_store.py::StreamingS3Store",
-        "memory/stores/data_store_memory_store.py::DataStoreMemoryStore",
-        # ADR agents-speaks-core WS3 part 4: the keyed-identity primitive every
-        # other keyed store (DataStoreMemoryStore, SemanticMemoryUpsert,
-        # CrossSessionProfileUpdater) now delegates to — a caller-chosen key is
-        # a knot id, backed by RunHistory/DataStore, not a hashed row in a KV
-        # table. ThreadRepository/PersistedSessionStore/SessionStore/
-        # InMemorySessionStore/CassetteStore/InMemoryCassetteStore/
-        # FileCassetteStore/BatchCheckpointer -- the one-cycle shims this store
-        # existed to eventually replace -- are deleted (PIR-864).
-        "memory/stores/keyed_lineage_store.py::KeyedLineageStore",
-        "memory/stores/memory_store.py::MemoryStore",
-        "retrieval/vector_stores/chroma_memory_store.py::ChromaMemoryStore",
-        "retrieval/vector_stores/in_memory_vector_store.py::InMemoryVectorStore",
-        "retrieval/vector_stores/pgvector_memory_store.py::PgvectorMemoryStore",
-        "retrieval/vector_stores/qdrant_memory_store.py::QdrantMemoryStore",
-        "retrieval/vector_stores/vector_memory_store.py::VectorMemoryStore",
-    }
-)
+KEYED_STORE_DESIGN_INVENTORY: dict[str, str] = {
+    "connectors/streaming_s3_store.py::StreamingS3Store": (
+        "external-system adapter: core S3Store subclass adding a multipart streaming put"
+    ),
+    "memory/stores/data_store_memory_store.py::DataStoreMemoryStore": (
+        "MemoryStore backend whose values are core DataStore/RunHistory rows via KeyedLineageStore"
+    ),
+    "memory/stores/keyed_lineage_store.py::KeyedLineageStore": (
+        "adapter onto core's lineage plane: a caller key is a knot id, values in DataStore"
+    ),
+    "memory/stores/memory_store.py::MemoryStore": (
+        "agents-layer similarity-memory seam (keyed recall + vector search); core has no search"
+    ),
+    "retrieval/vector_stores/chroma_memory_store.py::ChromaMemoryStore": (
+        "external-system adapter: Chroma vector database client"
+    ),
+    "retrieval/vector_stores/in_memory_vector_store.py::InMemoryVectorStore": (
+        "in-process reference backend of the vector seam (nearest-neighbour search, no service)"
+    ),
+    "retrieval/vector_stores/pgvector_memory_store.py::PgvectorMemoryStore": (
+        "external-system adapter: Postgres pgvector client"
+    ),
+    "retrieval/vector_stores/qdrant_memory_store.py::QdrantMemoryStore": (
+        "external-system adapter: Qdrant vector database client"
+    ),
+    "retrieval/vector_stores/vector_memory_store.py::VectorMemoryStore": (
+        "vector-native base (upsert/query) shared by the vector database adapters"
+    ),
+}
 
-# --- known RunState/RunCheckpoint/Cassette* importers, frozen ---------------
+# --- known RunCheckpoint/Cassette* importers ----------------------------------
 # Regenerate by running StoreInventory.discover_lifecycle_importers() from the
 # package root and pasting the sorted keys below.
 
@@ -75,15 +85,17 @@ STORE_CLASSES = frozenset(
 # run chain (ResumeToken-shaped fork point + ReplaySession(allow_new_knots=
 # True)), not a RunCheckpoint rewind. PIR-864 deleted the remaining five
 # one-cycle shims this list named (sessions/* and batch/batch_checkpointer.py),
-# leaving two real, non-deprecated importers: batch/batch_progress.py (its
-# to_run_state()/from_run_state() bridge, kept for a possible future durable
-# caller — see its module docstring) and sessions/run_resumer.py.
-LIFECYCLE_IMPORTERS = frozenset(
-    {
-        "batch/batch_progress.py",
-        "sessions/run_resumer.py",
-    }
-)
+# leaving two real, non-deprecated importers; PIR-872 deleted
+# batch/batch_progress.py's to_run_state()/from_run_state() bridge (a per-fire
+# summary checkpoints nothing), leaving sessions/run_resumer.py.
+# PIR-872 emptied this. batch/batch_progress.py's RunState bridge is deleted
+# (a per-fire summary checkpoints nothing). RunState itself is no longer a
+# lifecycle checkpoint value: since ADR WS3 part 2 it is a read model projected
+# from a session's RunHistory chain (RunState.from_chain) and never persisted,
+# so sessions/run_resumer.py -- which projects it from RunHistory -- is reading
+# core's lineage plane, not a parallel one; StoreInventory no longer counts the
+# name. RunCheckpoint and any Cassette* name still trip. Empty, not deleted.
+LIFECYCLE_IMPORTERS: frozenset[str] = frozenset()
 
 
 class TestStoreInventoryIsFrozen(unittest.TestCase):
@@ -92,20 +104,37 @@ class TestStoreInventoryIsFrozen(unittest.TestCase):
     def test_the_store_walk_is_not_vacuous(self) -> None:
         """A guard that finds nothing passes for the wrong reason."""
         found = StoreInventory.discover_store_classes()
-        assert len(found) >= 10, len(found)
+        assert len(found) >= 5, len(found)
 
     def test_the_importer_walk_is_not_vacuous(self) -> None:
-        # PIR-864 deleted five of the seven prior importers (one-cycle shims);
-        # two real importers remain -- see LIFECYCLE_IMPORTERS above.
-        found = StoreInventory.discover_lifecycle_importers()
-        assert len(found) >= 2, len(found)
+        # Every importer is gone (LIFECYCLE_IMPORTERS above), so vacuity is
+        # checked on the scanner: it must still read real import syntax.
+        matched = StoreInventory._lifecycle_imports(
+            "from pirn_agents.sessions.run_checkpoint import RunCheckpoint\n"
+        )
+        assert matched == ("RunCheckpoint",)
 
-    def test_keyed_store_classes_are_frozen(self) -> None:
+    def test_keyed_store_classes_match_the_design_inventory(self) -> None:
         found = frozenset(StoreInventory.discover_store_classes())
-        assert found == STORE_CLASSES, {
-            "new keyed stores": sorted(found - STORE_CLASSES),
-            "shrunk — remove from STORE_CLASSES": sorted(STORE_CLASSES - found),
+        named = frozenset(KEYED_STORE_DESIGN_INVENTORY)
+        assert found == named, {
+            "unjustified keyed stores": sorted(found - named),
+            "gone — remove from KEYED_STORE_DESIGN_INVENTORY": sorted(named - found),
         }
+
+    def test_every_inventory_entry_names_its_reason(self) -> None:
+        for label, reason in KEYED_STORE_DESIGN_INVENTORY.items():
+            assert reason.strip(), label
+
+    def test_the_collapsed_shadows_stay_collapsed(self) -> None:
+        found = frozenset(StoreInventory.discover_store_classes())
+        for label in (
+            "caching/in_memory_result_cache.py::InMemoryResultCache",
+            "caching/result_cache.py::ResultCache",
+            "caching/semantic_result_cache.py::SemanticResultCache",
+            "caching/vector_memo_index.py::VectorMemoIndex",
+        ):
+            assert label not in found, label
 
     def test_lifecycle_importers_are_frozen(self) -> None:
         found = frozenset(StoreInventory.discover_lifecycle_importers())
@@ -187,11 +216,12 @@ class TestDetectorsAreDiscriminating(unittest.TestCase):
 
     # -- _lifecycle_imports ---------------------------------------------------
 
-    def test_run_state_import_trips(self) -> None:
+    def test_run_state_read_model_import_does_not_trip(self) -> None:
+        """RunState is a RunHistory projection, not a checkpoint (PIR-872)."""
         matched = StoreInventory._lifecycle_imports(
             "from pirn_agents.sessions.run_state import RunState\n"
         )
-        assert "RunState" in matched
+        assert matched == ()
 
     def test_run_checkpoint_import_trips(self) -> None:
         matched = StoreInventory._lifecycle_imports(
@@ -228,6 +258,6 @@ class TestDetectorsAreDiscriminating(unittest.TestCase):
             "from pirn_agents.sessions.session_message import SessionMessage\n"
         )
         assert StoreInventory._lifecycle_imports(source) == ()
-        tree_source = "from pirn_agents.sessions.run_state import RunState\n"
+        tree_source = "from pirn_agents.sessions.run_checkpoint import RunCheckpoint\n"
         assert ast.parse(tree_source) is not None
-        assert "RunState" in StoreInventory._lifecycle_imports(tree_source)
+        assert "RunCheckpoint" in StoreInventory._lifecycle_imports(tree_source)

@@ -4,9 +4,8 @@ Issues a per-row SELECT + INSERT or UPDATE to provide upsert semantics
 without requiring a database-level MERGE statement, keeping the
 implementation database-agnostic across the supported pool types.
 
-This is also the SCD Type 1 (overwrite, no history) upsert pattern: an
-existing key's non-key columns are overwritten in place and no history row
-is kept.
+This is also the SCD Type 1 (overwrite, no history) upsert pattern over a
+source query; the summary dict splits ``rows_inserted`` / ``rows_updated``.
 
 Algorithm:
     1. Receive resolved ``source_pool``, ``source_query``, ``target_pool``,
@@ -23,7 +22,7 @@ Algorithm:
 
 References:
     [1] pirn — DatabaseConnectionPool interface:
-        pirn/connectors/database_connection_pool.py
+        pirn/domains/connectors/database_connection_pool.py
     [2] pirn — IdentifierValidator (SQL injection guard):
         pirn_data/identifier_validator.py
 """
@@ -36,10 +35,10 @@ from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_data.specializations._pool_merge_knot import _PoolMergeKnot
+from pirn_data.specializations.pool_merge_knot import PoolMergeKnot
 
 
-class MergeUpsert(_PoolMergeKnot):
+class MergeUpsert(PoolMergeKnot):
     """Insert new rows and update changed rows; never delete."""
 
     def __init__(

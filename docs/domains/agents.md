@@ -121,17 +121,17 @@ class WebSearchTool(Tool):
 web_search = WebSearchTool.bind(client=my_client)   # a ToolFactory — pass it anywhere a tool is accepted
 ```
 
-For plain functions, use the `@tool` decorator instead of subclassing — it is `@KnotFactory.knot` plus a declaration. It derives the name from the function name, the description from the docstring's first paragraph, and the parameters from type annotations. Both sync and async functions are accepted.
+For plain functions, use the `@ToolDecorator.decorate` decorator instead of subclassing — it is `@KnotFactory.knot` plus a declaration. It derives the name from the function name, the description from the docstring's first paragraph, and the parameters from type annotations. Both sync and async functions are accepted.
 
 ```python
-from pirn_agents.tools.tool_decorator import tool
+from pirn_agents.tools.tool_decorator import ToolDecorator
 
-@tool
+@ToolDecorator.decorate
 async def web_search(query: str, max_results: int = 5) -> str:
     """Search the web and return a summary of the top results."""
     ...  # your implementation
 
-@tool
+@ToolDecorator.decorate
 def lookup_policy(topic: str) -> str:
     """Look up an internal policy document by topic keyword."""
     return POLICIES.get(topic, "No policy found.")
@@ -140,7 +140,7 @@ def lookup_policy(topic: str) -> str:
 react = ReActLoop(messages=msgs, llm=provider, tools=[web_search, lookup_policy], ...)
 ```
 
-`@tool` produces a `FunctionTool`, a `ToolFactory` over a generated `Tool` class. Use `Tool` subclassing directly when the tool needs bound dependencies (API keys, HTTP clients, connection pools) or wants to declare `permissions` / `streaming`. An agent becomes a tool with `agent.as_tool()` (`AgentTool`), whose nested run is guarded by core's `RunNesting`.
+`@ToolDecorator.decorate` produces a `FunctionTool`, a `ToolFactory` over a generated `Tool` class. Use `Tool` subclassing directly when the tool needs bound dependencies (API keys, HTTP clients, connection pools) or wants to declare `permissions` / `streaming`. An agent becomes a tool with `agent.as_tool()` (`AgentTool`), whose nested run is guarded by core's `RunNesting`.
 
 ### MemoryStore
 
@@ -220,13 +220,13 @@ Runs one per-item agent over a dataset through the core engine's own scheduler
 
 | Class | Description |
 |-------|-------------|
-| `MapAgent` | A `SubTapestry` whose inner graph is one `_MapItem` knot per input item joined by a core `Aggregator`. Per-item isolation is `ErrorPolicy.RECEIVE_ERRORS` (a failing item never skips its siblings); bounded concurrency is `KnotConfig(concurrency_group=)` + `ConcurrencyLimits` on the run; per-item timeout/retry is `KnotConfig.timeout`/`KnotConfig.retry` (`GovernedDispatch`'s job). Wire `items=` a parent knot to use it inside a bigger pipeline, or call `.run(inputs)` for the standalone streaming shim described below. |
+| `MapAgent` | A `SubTapestry` whose inner graph is one `_MapItem` knot per input item joined by a core `Aggregator`. Per-item isolation is `ErrorPolicy.RECEIVE_ERRORS` (a failing item never skips its siblings); bounded concurrency is `KnotConfig(concurrency_group=)` + `ConcurrencyLimits` on the run; per-item timeout/retry is `KnotConfig.timeout`/`KnotConfig.retry` (`GovernedDispatch`'s job). Wire `items=` a parent knot to use it inside a bigger pipeline, or call `.run(inputs)` for the standalone stream described below. Every setting is a declared knot input: the constructor only wires them and `process()` validates them. |
 | `AdaptiveConcurrencyController` | An `AdmissionObserver`: additively raises the run's group cap on a successful `on_release`, and multiplicatively lowers it when `on_throttle()` is called directly by a rate-limited item (an `AdmissionEvent` carries no exception detail, so the decrease can't be driven from `on_release` alone without also firing on ordinary bugs). |
 | `TokenBucketRateLimiter` (`resilience/`) | A shared async token bucket pacing request *rate*; complements the controller, which paces *concurrency*. Its `on_pause` hook can feed an `AdaptiveConcurrencyController` the same `Retry-After` signal it just honoured. |
 | `RateLimitSignal` | The provider-neutral exception a `run_item` callable raises to report a 429-style throttle; `MapAgent` reacts by pausing the bucket and backing off the controller. |
 | `TriggeredBatch` | Binds a core `Trigger` to a `MapAgent`: each fire fetches fresh inputs, runs the batch, and yields a `BatchProgress` summary. Composes `IntervalTrigger`/`EventTrigger` (themselves thin `Trigger` subclasses — an interval schedule delegates to `CronTrigger`, an event source wraps an `asyncio.Queue`) with no scheduling loop of its own. |
 
-**Resume-after-crash** is a `RunHistory` lineage query, not a checkpoint store: pass the same `history=` (and, for a standalone `.run()`, `data_store=`) to a fresh `MapAgent` and a re-run skips any item whose knot id (`item:<batch_id>:<key>`) already has an `Ok` lineage row. `checkpoint_scope=` on `.run()` (or `TriggeredBatch`'s per-fire scoping) namespaces that id so concurrent or repeated batches don't share a skip-set. `BatchCheckpointer`/`BatchScheduler` — the pre-migration F14-session-store-backed checkpoint stack — were kept as one-cycle `DeprecationWarning` shims and are now deleted (PIR-864); `BatchProgress` stays as the plain value type `TriggeredBatch` still returns as its per-fire summary.
+**Resume-after-crash** is a `RunHistory` lineage query, not a checkpoint store: pass the same `history=` (and, for a standalone `.run()`, `data_store=`) to a fresh `MapAgent` and a re-run skips any item whose knot id (`item:<batch_id>:<key>`) already has an `Ok` lineage row. `checkpoint_scope=` on `.run()` (or `TriggeredBatch`'s per-fire scoping) namespaces that id so concurrent or repeated batches don't share a skip-set. `BatchCheckpointer`/`BatchScheduler` — the pre-migration F14-session-store-backed checkpoint stack — were kept as one-cycle `DeprecationWarning` shims and are now deleted (PIR-864); `BatchProgress` is a pure per-fire summary `TriggeredBatch` returns; it checkpoints nothing (its `RunState` bridge is deleted, PIR-872). A `BatchItemResult`'s `outcome` is the item's core `Result` — `Ok`, `Err` (a timeout is an `Err` carrying `KnotTimeoutError`, read as `timed_out`) or `Skipped(reason="resumed")`.
 
 `MapAgent.run()`'s streaming contract (`async for result in map_agent.run(inputs)`) yields each `BatchItemResult` the instant its item settles, before the `Aggregator` join completes: a `_BatchItemStreamer` emitter turns core's `Emitter.on_knot_result` (ADR WS0b) into the stream, so a failed item's full `ExceptionRecord`, its attempt count and its latency ride along from the lineage row. Closing the stream early or cancelling its consumer cancels the run and its in-flight items. Disclosed trade-off that remains: the input iterable is materialised up front (the resume lookup and the item graph need every key before the run starts), so the pre-migration lazy pull does not apply. The batch's dispatcher, group cap and admission observers reach the inner run through core's per-container overrides (`SubTapestry._inner_dispatcher` / `_inner_concurrency` / `_inner_admission_observers`), and an unset dispatcher inherits the enclosing run's execution plane — nothing assigns an inner tapestry's private fields (ratcheted in `tests/core_seams/test_execution_plane_reach_through.py`).
 
@@ -263,7 +263,7 @@ content.
 | `ConversationPayload` | The conversation window: `Payload[ConversationFrame, tuple[AgentMessage, ...]]` — `data` is the message tuple, `frame` carries session/turn ids, token count, and truncation state, plus a free-form `extra` mapping. `AgentContext` was the pre-ADR name and is deleted (PIR-864). |
 | `AgentResponse` | Outcome of one agent turn: `Payload[GenerationFrame, str]` — `data` is the reply text, `frame` carries `tool_calls`, `finish_reason`, `usage`, `cost`, `model`, `provider`. The pre-ADR field names (`content`, `tool_calls`, `finish_reason`, `usage`, `cost`) stay available as properties. |
 | `ToolCall` | A single tool invocation requested by the LLM: `tool_name`, `arguments` mapping, `call_id`. |
-| `ToolResult` | The model-facing view of a tool call's `Ok | Err | Skipped`: `call_id`, `result` (any), optional `error`, built by `ToolResult.from_result(call_id, result, lineage)`. PIR-865 gave it and `ToolStatus.SKIPPED` a live role rendering gated/approval outcomes. |
+| `ToolResult` | The model-facing view of a tool call's `Ok | Err | Skipped`: `call_id`, `outcome` (the `Result` itself), `latency`, `tokens`, and derived `result`/`error`/`status` (a string: `"ok"`, `"error"`, `"timeout"`, `"skipped"`), built by `ToolResult.from_result(call_id, result, lineage)`. PIR-865 gave it its gated/approval rendering (`"call skipped: approval denied"`); PIR-872 deleted the parallel `ToolStatus` enum. |
 | `Plan` | An ordered `tuple` of plan step strings plus an optional `rationale` string. |
 
 ---

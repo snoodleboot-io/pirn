@@ -203,6 +203,7 @@ class AgentPatternRegistry:
         ),
         PatternDescriptor("research_agent", "ResearchAgent", "topic"),
         PatternDescriptor("sql_agent", "SQLAgent", "question"),
+        PatternDescriptor("read_write_sql_agent", "ReadWriteSQLAgent", "question"),
         # --- structured output
         PatternDescriptor(
             "enum_classifier",

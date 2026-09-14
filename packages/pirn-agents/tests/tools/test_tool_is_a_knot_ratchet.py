@@ -8,8 +8,8 @@ ratchet inventories (see ``tests/tools/tool_knot_inventory.py``):
 
 * classes carrying an ``invoke`` method — a second execution verb beside
   ``Knot.process()``;
-* modules importing the parallel vocabulary (``ToolResult``, ``ToolStatus``,
-  ``ToolSchemaCompiler``, ``ArgumentValidator``, ``AgentTool``);
+* modules importing the parallel vocabulary (``ToolStatus``,
+  ``ToolSchemaCompiler``, ``ArgumentValidator`` — all deleted);
 * call sites that ``await <x>.invoke(...)`` instead of wiring a knot.
 
 The allowlists are asserted by **exact equality**, deliberately:
@@ -55,37 +55,10 @@ INVOKE_CLASSES = frozenset(
     }
 )
 
-PARALLEL_VOCABULARY_IMPORTERS = frozenset(
-    {
-        "agent/agent_response_mapper.py",
-        "agent/parallel_tool_executor.py",
-        "planning/tool_executor.py",
-        "planning/tool_result_aggregator.py",
-        "specializations/multi_agent/_assemble_orchestrator_workers_result.py",
-        "specializations/multi_agent/_worker_invocation.py",
-        "specializations/multi_agent/worker_task_result.py",
-        "specializations/rag/_agentic_rag_loop.py",
-        "specializations/rag/_fallback_document.py",
-        "specializations/rag/_follow_up_decision.py",
-        "specializations/react/react_step_executor.py",
-        "specializations/rewoo/rewoo_frame.py",
-        "specializations/rewoo/rewoo_result.py",
-        "specializations/rewoo/rewoo_synthesizer.py",
-        "specializations/routing/_fallback_chain_state.py",
-        "specializations/routing/_fold_candidate_result.py",
-        "specializations/routing/fallback_result.py",
-        "specializations/tool_use/parallel_tool_caller.py",
-        "specializations/tool_use/tool_chain.py",
-        "specializations/tool_use/tool_result_formatter.py",
-        "tools/agent_as_tool_mixin.py",
-        "tools/agent_tool.py",
-        "tools/as_tool.py",
-        "tools/tool_call_codec.py",
-        "tools/tool_invocation.py",
-        "tools/tool_result.py",
-        "types/content/tool_result_block.py",
-    }
-)
+# ToolStatus is deleted and ToolResult/AgentTool are the composed shapes, not
+# parallel ones (PIR-872; see ToolKnotInventory.PARALLEL_NAMES). Empty, not
+# deleted: importing a reintroduced parallel name fails here.
+PARALLEL_VOCABULARY_IMPORTERS: frozenset[str] = frozenset()
 
 AWAITED_INVOKE_CALL_SITES = frozenset(
     {
@@ -109,9 +82,14 @@ class TestToolKnotInventoryIsFrozen(unittest.TestCase):
         }
 
     def test_the_walk_is_not_vacuous(self) -> None:
-        """A guard that finds nothing passes for the wrong reason."""
+        """A guard that finds nothing passes for the wrong reason.
+
+        PIR-872 emptied the importer inventory, so the non-empty ``invoke``
+        inventories (5 classes, 3 call sites) carry the vacuity check.
+        """
         total = sum(len(labels) for labels in self.found.values())
-        assert total >= 10, self.found
+        assert total >= 5, self.found
+        assert self.found["invoke_classes"], self.found
 
     def test_classes_with_an_invoke_method_are_frozen(self) -> None:
         self._assert_frozen("invoke_classes", INVOKE_CLASSES, "INVOKE_CLASSES")
@@ -147,8 +125,12 @@ class TestDetectorsAreDiscriminating(unittest.TestCase):
         assert not ToolKnotInventory.defines_invoke(node)
 
     def test_parallel_import_trips(self) -> None:
+        tree = ast.parse("from pirn_agents.tools.tool_status import ToolStatus\n")
+        assert ToolKnotInventory.imports_parallel_name(tree) == frozenset({"ToolStatus"})
+
+    def test_composed_tool_result_import_does_not_trip(self) -> None:
         tree = ast.parse("from pirn_agents.tools.tool_result import ToolResult\n")
-        assert ToolKnotInventory.imports_parallel_name(tree) == frozenset({"ToolResult"})
+        assert ToolKnotInventory.imports_parallel_name(tree) == frozenset()
 
     def test_core_result_import_does_not_trip(self) -> None:
         tree = ast.parse("from pirn.core.ok import Ok\nfrom pirn.core.err import Err\n")

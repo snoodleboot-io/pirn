@@ -174,16 +174,14 @@ extension). These may be held as instance state *only* in a dedicated vending Kn
 sole purpose is to construct and return that resource (see Rule 6). Consumers of the
 resource receive its value in `process()` as a resolved argument.
 
-**Exception — policy values that must not be knot-driven.** A small number of
-constructor arguments are safety or governance policy, not data — a value that must be
-fixed at pipeline-build time and must never be swappable by wiring in a different
-upstream Knot at run time (e.g. `SQLAgent.read_only`, PIR-817: whether a SQL-executing
-agent may run mutating statements is a decision the pipeline author makes once, not
-something an upstream Knot's output should be able to flip). These may be held as
-constructor state — typed as a plain scalar, not `Knot | scalar_type` — **only** when the
-class docstring states which argument this applies to and why it must not be knot-driven.
-This is a narrow, documented exception, not a general escape from Rule 4; when in doubt,
-the input is data and belongs in `process()`.
+**Policy values that must not be knot-driven are classes, not state.** A small number of
+settings are safety or governance policy, not data — fixed at pipeline-build time and never
+swappable by wiring in a different upstream Knot at run time (e.g. whether a SQL-executing
+agent may run mutating statements, PIR-817). Such a policy is not a constructor argument at
+all: it is a `ClassVar` on distinct classes, and the pipeline author chooses the policy by
+choosing the class (`SQLAgent` is read-only, `ReadWriteSQLAgent` may write; each runs its
+statement through `_SQLExecutor` or `_ReadWriteSQLExecutor` respectively). Nothing is held on
+the instance, and because the class is not an input, no upstream Knot's output can flip it.
 
 ---
 

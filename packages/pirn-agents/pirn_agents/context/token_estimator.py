@@ -6,7 +6,7 @@ single tokenization. A :class:`TokenEstimator` is the pluggable strategy behind
 models one provider's tokenization (a byte-pair encoder, a word-piece encoder,
 or a cheap character heuristic). The interface is deliberately tiny —
 :meth:`estimate` maps text to an integer token count — so a real encoder can be
-dropped in later behind a lazy ``_require``-guarded import + a flat extra without
+dropped in later behind a lazy ``OptionalImport.require``-guarded import + a flat extra without
 changing any caller.
 """
 

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ConceptDriftDetector`` — Knot that monitors model prediction
 distribution over time via ADWIN or Page-Hinkley test and signals
 drift when detected.

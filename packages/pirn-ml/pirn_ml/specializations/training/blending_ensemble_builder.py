@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``BlendingEnsembleBuilder`` — train base models on 80% of data, blend
 predictions on 20% holdout using a weighted average.
 
@@ -137,7 +139,7 @@ class BlendingEnsembleBuilder(SubTapestry):
         split_node = Parameter(
             "blend_split", SplitManifest, default=blend_split, _config=KnotConfig(id="blend_split")
         )
-        base_models = []
+        base_models: list[Knot] = []
         for i, alg in enumerate(base_tuple):
             model = Trainer(
                 split=split_node,

@@ -1,10 +1,12 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``StratifiedKFoldValidator`` — K-fold cross-validation with target
 stratification.
 
 Composition:
 
 1. k logical :class:`SplitManifest` folds are extracted via
-   :meth:`~pirn_ml.specializations.experiments._kfold_validator_base._KFoldValidatorBase._extract_folds_via_cross_validator`
+   :meth:`~pirn_ml.specializations.experiments.kfold_validator_base.KFoldValidatorBase._extract_folds_via_cross_validator`
    from the upstream :class:`DatasetManifest`.
 2. For each fold, :class:`Trainer` fits the configured algorithm and
    :class:`Evaluator` scores it on the fold's test partition.
@@ -21,7 +23,7 @@ Algorithm:
        ``metrics``, and ``k`` via process().
     2. Validate all inputs.
     3. Extract k logical folds (shared strategy in
-       :class:`~pirn_ml.specializations.experiments._kfold_validator_base._KFoldValidatorBase`).
+       :class:`~pirn_ml.specializations.experiments.kfold_validator_base.KFoldValidatorBase`).
     4. Wire Trainer + Evaluator per fold (shared wiring, same base class).
     5. Aggregate per-fold metrics (mean) and return an EvalMetadata.
 
@@ -44,8 +46,8 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 
-from pirn_ml.specializations.experiments._kfold_validator_base import (
-    _KFoldValidatorBase,
+from pirn_ml.specializations.experiments.kfold_validator_base import (
+    KFoldValidatorBase,
 )
 from pirn_ml.types.dataset_manifest import DatasetManifest
 from pirn_ml.types.eval_metadata import EvalMetadata
@@ -91,7 +93,7 @@ async def _aggregate_stratified_kfold_reports(
     )
 
 
-class StratifiedKFoldValidator(_KFoldValidatorBase):
+class StratifiedKFoldValidator(KFoldValidatorBase):
     """K-fold cross-validation with target stratification."""
 
     def __init__(

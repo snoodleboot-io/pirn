@@ -17,7 +17,6 @@ from pirn_agents.tools.filesystem.list_dir_tool import ListDirTool
 from pirn_agents.tools.filesystem.read_file_tool import ReadFileTool
 from pirn_agents.tools.filesystem.write_file_tool import WriteFileTool
 from pirn_agents.tools.tool_call import ToolCall
-from pirn_agents.tools.tool_status import ToolStatus
 from tests.tools.tool_runner import ToolRunner
 
 
@@ -83,7 +82,7 @@ class TestReadFile:
         tool = ReadFileTool.bind(root=tmp_path)
         call = ToolCall(tool_name="read_file", arguments={"path": "nope.txt"}, call_id="c")
         outcome = await ToolRunner.view(tool, call)
-        assert outcome.status is ToolStatus.ERROR
+        assert outcome.status == "error"
         assert outcome.error is not None
 
 

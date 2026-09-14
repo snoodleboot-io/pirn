@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import unittest
 
+from pirn.core.ok import Ok
+
 from pirn_agents.llm.anthropic_messages_tool_adapter import AnthropicMessagesToolAdapter
 from pirn_agents.tools.tool_call_codec import ToolCallCodec
 from pirn_agents.tools.tool_result import ToolResult
@@ -55,7 +57,7 @@ class TestAnthropicMessagesToolAdapter(unittest.TestCase):
 
     def test_encode_result_is_user_tool_result_message(self) -> None:
         codec = ToolCallCodec(AnthropicMessagesToolAdapter())
-        native = codec.encode_results([ToolResult(call_id="tu1", result="done")])
+        native = codec.encode_results([ToolResult(call_id="tu1", outcome=Ok(value="done"))])
         assert native == [
             {
                 "role": "user",

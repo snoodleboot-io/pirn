@@ -21,7 +21,6 @@ from pirn_agents.testing.stub_tool import StubTool
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_permissions import ToolPermissions
 from pirn_agents.tools.tool_result import ToolResult
-from pirn_agents.tools.tool_status import ToolStatus
 from pirn_agents.tools.toolset import Toolset
 
 
@@ -44,7 +43,7 @@ class TestParallelToolExecutorApproval(unittest.IsolatedAsyncioTestCase):
         run = await t.run(RunRequest())
         assert run.succeeded, run.exceptions
         results: tuple[ToolResult, ...] = run.outputs["pte"]
-        assert results[0].status is ToolStatus.OK
+        assert results[0].status == "ok"
         assert results[0].result == "ran"
 
     async def test_denied_call_is_skipped_not_an_error(self) -> None:
@@ -61,7 +60,7 @@ class TestParallelToolExecutorApproval(unittest.IsolatedAsyncioTestCase):
         run = await t.run(RunRequest())
         assert run.succeeded, run.exceptions
         results: tuple[ToolResult, ...] = run.outputs["pte"]
-        assert results[0].status is ToolStatus.SKIPPED
+        assert results[0].status == "skipped"
         assert results[0].error == "call skipped: approval denied"
         assert danger.invocations == []
 
@@ -83,8 +82,8 @@ class TestParallelToolExecutorApproval(unittest.IsolatedAsyncioTestCase):
         run = await t.run(RunRequest())
         assert run.succeeded, run.exceptions
         results: tuple[ToolResult, ...] = run.outputs["pte"]
-        assert results[0].status is ToolStatus.SKIPPED
-        assert results[1].status is ToolStatus.OK
+        assert results[0].status == "skipped"
+        assert results[1].status == "ok"
         assert results[1].result == "fine"
 
 

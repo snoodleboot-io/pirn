@@ -62,8 +62,8 @@ response = run.outputs[agent.knot_id]  # knot_id is stable & derived, not random
 
 ## Every shipped pattern is reachable by name
 
-`Agent.patterns()` returns every registered pattern name — 66 canonical names
-plus the `rag` alias for `naive_rag` (67 total, `AgentPatternRegistry.pattern_names()`) —
+`Agent.patterns()` returns every registered pattern name — 67 canonical names
+plus the `rag` alias for `naive_rag` (68 total, `AgentPatternRegistry.pattern_names()`) —
 the RAG patterns, the guardrail checks,
 the multi-agent orchestrations (e.g. `.pattern("consensus")` →
 `ConsensusPipeline`), the specialized agents, the structured-output

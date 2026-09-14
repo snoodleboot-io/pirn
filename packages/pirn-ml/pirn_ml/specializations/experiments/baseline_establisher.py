@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``BaselineEstablisher`` — train a simple baseline algorithm and record
 its :class:`EvalMetadata` so subsequent experiments can be compared
 against a documented starting point.

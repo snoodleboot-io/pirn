@@ -44,6 +44,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_data.frames.duckdb.duckdb_data_batch import DuckdbDataBatch
 from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.value_shape import ValueShape
 
 
 class DuckdbRename(Knot):
@@ -74,7 +75,7 @@ class DuckdbRename(Knot):
         Returns:
             A new DuckdbDataBatch with the applicable columns renamed.
         """
-        if not isinstance(mapping, Mapping) or not mapping:
+        if not ValueShape.is_mapping(mapping) or not mapping:
             raise TypeError("DuckdbRename: mapping must be a non-empty Mapping[old_name, new_name]")
         for old, new in mapping.items():
             if not isinstance(old, str) or not isinstance(new, str) or not old or not new:

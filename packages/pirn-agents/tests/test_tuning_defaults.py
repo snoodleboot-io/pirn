@@ -38,7 +38,7 @@ from pirn_agents.specializations.rewoo.rewoo_pipeline import ReWooPipeline
 from pirn_agents.tools.agent_as_tool_mixin import AgentAsToolMixin
 from pirn_agents.tools.agent_tool import AgentTool
 from pirn_agents.tools.agent_tool_call import AgentToolCall
-from pirn_agents.tools.as_tool import as_tool
+from pirn_agents.tools.as_tool import AsTool
 
 
 def _default_of(target: Callable[..., Any], parameter: str) -> Any:
@@ -53,7 +53,7 @@ class TestAgentNestingDepthDefaults:
         "target",
         [
             AgentTool.__init__,
-            as_tool,
+            AsTool.wrap,
             AgentAsToolMixin.as_tool,
             AgentToolCall.__init__,
             AgentToolCall.process,
@@ -65,7 +65,7 @@ class TestAgentNestingDepthDefaults:
     def test_chain_agrees_end_to_end(self) -> None:
         depths = {
             _default_of(AgentTool.__init__, "max_depth"),
-            _default_of(as_tool, "max_depth"),
+            _default_of(AsTool.wrap, "max_depth"),
             _default_of(AgentAsToolMixin.as_tool, "max_depth"),
             _default_of(AgentToolCall.__init__, "max_depth"),
         }

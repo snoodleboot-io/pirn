@@ -6,15 +6,16 @@ the F1 :class:`~pirn_agents.tools.tool_result.ToolResult` shape instead. This
 module holds the single, shared translation so every agent-as-tool path maps
 identically: the whole structured response is carried through as
 ``result`` (not just ``.content``), token usage is summarised onto ``tokens``,
-and a successful turn is tagged :attr:`ToolStatus.OK`.
+and a successful turn's outcome is ``Ok``.
 """
 
 from __future__ import annotations
 
 from collections.abc import Mapping
 
+from pirn.core.ok import Ok
+
 from pirn_agents.tools.tool_result import ToolResult
-from pirn_agents.tools.tool_status import ToolStatus
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
@@ -59,12 +60,11 @@ class AgentResponseMapper:
             latency: Wall-clock seconds the nested run took, when measured.
 
         Returns:
-            An ``OK`` :class:`ToolResult` wrapping the structured response.
+            An ``Ok`` :class:`ToolResult` wrapping the structured response.
         """
         return ToolResult(
             call_id=call_id,
-            result=response,
-            status=ToolStatus.OK,
+            outcome=Ok(value=response),
             latency=latency,
             tokens=self.summarise_tokens(response.usage),
         )

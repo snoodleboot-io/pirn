@@ -18,7 +18,7 @@ from typing import Any
 
 from pirn.core.knot_retry_policy import KnotRetryPolicy
 
-from pirn_agents._internal._require import _require
+from pirn_agents._internal.optional_import import OptionalImport
 from pirn_agents.retrieval.embeddings.base_embedding_provider import BaseEmbeddingProvider
 
 
@@ -58,7 +58,7 @@ class LocalEmbeddingProvider(BaseEmbeddingProvider):
         """Return the factory-built model, or lazily load a ``SentenceTransformer``."""
         if self._model_factory is not None:
             return self._model_factory()
-        sentence_transformers = _require("local-embed", "sentence_transformers")
+        sentence_transformers = OptionalImport.require("local-embed", "sentence_transformers")
         return sentence_transformers.SentenceTransformer(self._model_name)
 
     async def _embed_batch(self, texts: Sequence[str], model: str | None) -> list[list[float]]:

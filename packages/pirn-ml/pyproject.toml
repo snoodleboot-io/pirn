@@ -119,6 +119,8 @@ strict = [
     "pirn_ml/disassemblers",
     "pirn_ml/evaluation",
     "pirn_ml/features",
+    "pirn_ml/specializations",
+    "pirn_ml/training",
     "pirn_ml/types",
     "pirn_ml/*.py",
 ]

@@ -37,6 +37,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.frames.pyarrow.pyarrow_data_batch import PyarrowDataBatch
+from pirn_data.value_shape import ValueShape
 
 
 class PyarrowFilter(Knot):
@@ -85,7 +86,7 @@ class PyarrowFilter(Knot):
         if expression is not None and predicate is not None:
             raise TypeError("PyarrowFilter: pass either expression= or predicate=, not both")
         if expression is not None:
-            if not isinstance(expression, pc.Expression):  # type: ignore[attr-defined]
+            if not isinstance(expression, pc.Expression):
                 raise TypeError(
                     "PyarrowFilter: expression must be a pyarrow.compute.Expression; "
                     "for row-by-row Python callables use the Tier-1 "
@@ -93,7 +94,7 @@ class PyarrowFilter(Knot):
                 )
             return batch.with_table(batch.table.filter(expression))
         assert predicate is not None
-        if not callable(predicate):
+        if not ValueShape.is_callable(predicate):
             raise TypeError(
                 "PyarrowFilter: predicate must be callable(table) -> "
                 "pyarrow.Array[bool] | pyarrow.compute.Expression"

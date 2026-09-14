@@ -171,3 +171,14 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
         k = self._make_knot()
         with self.assertRaisesRegex(ValueError, "overlap"):
             await self._call(k, key_columns=("id", "name"), non_key_columns=("name", "dept"))
+
+    async def test_static_query_helpers(self) -> None:
+        assert MergeUpsert._select_existing_query("customers", ("id",)) == (
+            "SELECT 1 FROM customers WHERE id = ?"
+        )
+        assert MergeUpsert._update_query("customers", ("id",), ("name",)) == (
+            "UPDATE customers SET name = ? WHERE id = ?"
+        )
+        assert MergeUpsert._insert_query("customers", ("id", "name")) == (
+            "INSERT INTO customers (id, name) VALUES (?, ?)"
+        )

@@ -5,11 +5,11 @@ from __future__ import annotations
 import unittest
 
 from pirn_agents.testing.stub_tool import StubTool
-from pirn_agents.tools.tool_decorator import tool
+from pirn_agents.tools.tool_decorator import ToolDecorator
 from tests.tools.tool_runner import ToolRunner
 
 
-@tool
+@ToolDecorator.decorate
 async def counted_stream(n: int) -> str:
     """Yield ``n`` chunks incrementally."""
     for i in range(n):
@@ -21,7 +21,7 @@ class TestFunctionToolStreaming(unittest.IsolatedAsyncioTestCase):
         assert counted_stream.streaming is True
 
     def test_plain_tool_is_not_streaming(self) -> None:
-        @tool
+        @ToolDecorator.decorate
         async def plain(x: str) -> str:
             """Plain."""
             return x
@@ -39,7 +39,7 @@ class TestFunctionToolStreaming(unittest.IsolatedAsyncioTestCase):
         assert await ToolRunner.value(counted_stream, {"n": 2}) == ["chunk0", "chunk1"]
 
     def test_stream_on_non_streaming_raises(self) -> None:
-        @tool
+        @ToolDecorator.decorate
         async def plain(x: str) -> str:
             """Plain."""
             return x

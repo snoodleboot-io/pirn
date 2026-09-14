@@ -28,6 +28,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.value_shape import ValueShape
 
 
 class LookupEnricher(Knot):
@@ -36,8 +37,8 @@ class LookupEnricher(Knot):
     def __init__(
         self,
         *,
-        rows: Knot | list,
-        lookup_table: Knot | list,
+        rows: Knot | list[dict[str, Any]],
+        lookup_table: Knot | list[dict[str, Any]],
         join_keys: Knot | tuple[str, ...],
         enrich_columns: Knot | tuple[str, ...],
         _config: KnotConfig,
@@ -65,7 +66,7 @@ class LookupEnricher(Knot):
         enrich_tuple = tuple(enrich_columns)
         IdentifierValidator.validate_columns("join_keys", key_tuple)
         IdentifierValidator.validate_columns("enrich_columns", enrich_tuple)
-        if not isinstance(lookup_table, list):
+        if not ValueShape.is_list(lookup_table):
             raise TypeError("LookupEnricher: lookup_table must be a list of dicts")
         index: dict[tuple[Any, ...], dict[str, Any]] = {}
         for entry in lookup_table:

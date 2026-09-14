@@ -10,6 +10,9 @@ PySpark version constraint: ``pyspark>=4.0`` for Python 3.13+.
 
 from __future__ import annotations
 
+import os
+import sys
+
 import pytest
 
 pyspark = pytest.importorskip("pyspark")
@@ -18,8 +21,15 @@ pytest.importorskip("pyspark.sql")
 
 @pytest.fixture(scope="session", autouse=True)
 def _spark_session():
-    """Start a single local SparkSession once per test session."""
+    """Start a single local SparkSession once per test session.
+
+    The Python workers must run the interpreter that drives the session: PySpark
+    refuses to mix minor versions, and a bare ``python3`` on PATH need not match.
+    """
     from pyspark.sql import SparkSession
+
+    os.environ.setdefault("PYSPARK_PYTHON", sys.executable)
+    os.environ.setdefault("PYSPARK_DRIVER_PYTHON", sys.executable)
 
     session = (
         SparkSession.builder.master("local[1]")

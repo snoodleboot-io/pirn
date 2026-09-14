@@ -12,7 +12,6 @@ from pirn_agents.tools.agent_tool import AgentTool
 from pirn_agents.tools.agent_tool_call import AgentToolCall
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_factory import ToolFactory
-from pirn_agents.tools.tool_status import ToolStatus
 from pirn_agents.types.messaging.agent_response import AgentResponse
 from tests.agent_tool_doubles import AGENT_CALLS, StubAgent, reset_doubles
 
@@ -111,7 +110,7 @@ class TestAgentToolAsAKnot(unittest.IsolatedAsyncioTestCase):
 
         view = await tool.run_view({"topic": "quantum"})
 
-        self.assertEqual(view.status, ToolStatus.OK)
+        self.assertEqual(view.status, "ok")
         self.assertEqual(view.tokens, 5)
 
     async def test_call_id_taken_from_arguments(self) -> None:
@@ -137,7 +136,7 @@ class TestAgentToolAsAKnot(unittest.IsolatedAsyncioTestCase):
 
         view = await tool.run_view({"topic": "boom"})
 
-        self.assertEqual(view.status, ToolStatus.ERROR)
+        self.assertEqual(view.status, "error")
         self.assertIsNone(view.result)
         self.assertIsNotNone(view.error)
         self.assertIn("boom", view.error or "")

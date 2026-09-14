@@ -1,10 +1,10 @@
-"""``@tool`` decorator — ``@KnotFactory.knot`` plus a declaration.
+"""``ToolDecorator`` — the tool decorator: ``@KnotFactory.knot`` plus a declaration.
 
 Basic usage stays a one-liner::
 
-    from pirn_agents.tools.tool_decorator import tool
+    from pirn_agents.tools.tool_decorator import ToolDecorator
 
-    @tool
+    @ToolDecorator.decorate
     async def web_search(query: str, max_results: int = 5) -> str:
         \"\"\"Search the web and return a summary of the top results.\"\"\"
         ...  # your implementation
@@ -22,7 +22,7 @@ hints.  Both sync and async functions are accepted; an async-generator
 function becomes a *streaming* tool whose call returns the drained chunks.
 
 The decorator also has a **rich, parametrised form** that stays fully backward
-compatible with the bare ``@tool`` above::
+compatible with the bare ``@ToolDecorator.decorate`` above::
 
     from pydantic import BaseModel, Field
 
@@ -30,7 +30,7 @@ compatible with the bare ``@tool`` above::
         query: str = Field(description="the search query")
         max_results: int = 5
 
-    @tool(args_model=SearchArgs, scope="web:read", cost_hint=1.0)
+    @ToolDecorator.decorate(args_model=SearchArgs, scope="web:read", cost_hint=1.0)
     async def web_search(args: SearchArgs) -> list[str]:
         \"\"\"Search the web.\"\"\"
         ...
@@ -71,7 +71,7 @@ from pirn_agents.tools.tool_permissions import ToolPermissions
 
 
 class ToolDecorator:
-    """Namespace for the ``@tool`` decorator's implementation."""
+    """Namespace for the ``@ToolDecorator.decorate`` decorator's implementation."""
 
     @staticmethod
     def build(
@@ -87,7 +87,7 @@ class ToolDecorator:
     ) -> FunctionTool:
         """Generate the ``Tool`` subclass for ``fn`` and wrap it as a :class:`FunctionTool`."""
         if not callable(fn):
-            raise TypeError(f"@tool requires a callable, got {type(fn).__name__}")
+            raise TypeError(f"@ToolDecorator.decorate requires a callable, got {type(fn).__name__}")
         if args_model is not None and not ToolDecorator._is_arg_model(args_model):
             raise TypeError("args_model must be a pydantic BaseModel subclass or a dataclass type")
 
@@ -285,12 +285,12 @@ class ToolDecorator:
     ) -> FunctionTool | Callable[[Callable[..., Any]], FunctionTool]:
         """Decorate a function as a pirn tool capability.
 
-        Used bare (``@tool``) the function's name, docstring, and
+        Used bare (``@ToolDecorator.decorate``) the function's name, docstring, and
         type-annotated parameters populate the declaration. Both sync and
         async functions are accepted; an async-generator function becomes a
         streaming tool.
 
-        Used with arguments (``@tool(...)``) it additionally accepts:
+        Used with arguments (``@ToolDecorator.decorate(...)``) it additionally accepts:
 
         * ``args_model`` — a pydantic model or dataclass describing the arguments.
         * ``arg_docs`` / ``examples`` — per-argument descriptions/examples for the
@@ -318,49 +318,7 @@ class ToolDecorator:
             state=state,
         )
         if fn is not None:
-            # Bare `@tool` / direct `tool(fn)` call.
+            # Bare `@ToolDecorator.decorate` / direct `ToolDecorator.decorate(fn)` call.
             return decorate(fn)
-        # Parametrised `@tool(...)` — return the decorator.
+        # Parametrised `@ToolDecorator.decorate(...)` — return the decorator.
         return decorate
-
-
-def tool(
-    fn: Callable[..., Any] | None = None,
-    *,
-    name: str | None = None,
-    description: str | None = None,
-    args_model: type | None = None,
-    arg_docs: Mapping[str, str] | None = None,
-    examples: Mapping[str, Any] | None = None,
-    scope: str | None = None,
-    mutating: bool = False,
-    approval_required: bool = False,
-    cost_hint: float | None = None,
-    state: Any | None = None,
-) -> FunctionTool | Callable[[Callable[..., Any]], FunctionTool]:
-    """Decorate a function as a pirn tool capability (``@KnotFactory.knot`` plus a declaration).
-
-    Thin wrapper kept for the pinned public import path (see
-    ``tests/test_ws5_s1_import_surface.py``) and the module docstring's
-    ``@tool`` usage examples; see :meth:`ToolDecorator.decorate`.
-
-    Example::
-
-        @tool
-        async def calculate(expression: str) -> str:
-            \"\"\"Evaluate a mathematical expression and return the result.\"\"\"
-            return str(eval(expression, {"__builtins__": {}}))
-    """
-    return ToolDecorator.decorate(
-        fn,
-        name=name,
-        description=description,
-        args_model=args_model,
-        arg_docs=arg_docs,
-        examples=examples,
-        scope=scope,
-        mutating=mutating,
-        approval_required=approval_required,
-        cost_hint=cost_hint,
-        state=state,
-    )

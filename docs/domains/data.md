@@ -20,7 +20,7 @@ pip install 'pirn-data[all-lazy]'          # every Tier-3 push-down engine
 
 Available extras: `data`, `xarray`, `awkward`, `polars`, `datafusion`, `duckdb`, `modin`, `ibis`, `spark`, `dask`, `ray-data`, `pathway`, `bytewax`, `lance`, `eland`, `delta`, `iceberg`, `hudi`, `pandera`, `great-expectations`, and the `all-frames` / `all-lazy` aggregates.
 
-**Registration (ADR-4):** `import pirn_data` self-registers the data-domain knots under `library="pirn"`, so a YAML pipeline can resolve them by bare name. In Python you import the knot classes directly (same effect). To register every installed domain at once, call `DomainDiscovery.discover_installed_domains()` (`pirn.domain_discovery`).
+**Registration (ADR-4):** `import pirn_data` self-registers the data-domain knots under `library="pirn"`, so a YAML pipeline can resolve them by bare name. In Python you import the knot classes directly (same effect). To register every installed domain at once, call `pirn.discover_installed_domains()`.
 
 ---
 

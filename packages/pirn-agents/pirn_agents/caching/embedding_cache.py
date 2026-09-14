@@ -13,24 +13,22 @@ The wrapped embed function is the sole backend seam — any
 plain async callable) fits — so the cache is provider-neutral and no vendor SDK
 is imported here.
 
-ADR agents-speaks-core WS2 part 2: this is pure exact-key memoisation (no
-similarity scan anywhere), so unlike
-:class:`~pirn_agents.caching.semantic_result_cache.SemanticResultCache` there
-is no separate "index vs. value" to split across a resource and a
-``DataStore`` — the vector *is* the value. The vectors instead live in a
-vended :class:`~pirn_agents.caching.vector_memo_index.VectorMemoIndex`
-resource rather than a bare private dict, consistent with the other
-embedding-indexed caches in this package. Keys hash through
-:meth:`pirn.core.content_hasher.ContentHasher.hash` (``strict=True``) directly.
+This is pure exact-key memoisation (no similarity scan anywhere), so the vector
+*is* the value, and values live in a core
+:class:`~pirn.backends.in_memory.in_memory_data_store.InMemoryDataStore` keyed
+by the content hash — the same store :class:`PromptCache` and
+:class:`SemanticResultCache` use (PIR-872 deleted the private ``VectorMemoIndex``
+key-value table this used to keep beside it). ``DataStore`` is async-only, so
+:meth:`invalidate` is a coroutine.
 """
 
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Sequence
 
+from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
 from pirn.core.content_hasher import ContentHasher
-
-from pirn_agents.caching.vector_memo_index import VectorMemoIndex
+from pirn.exceptions.value_evicted_error import ValueEvictedError
 
 
 class EmbeddingCache:
@@ -47,7 +45,9 @@ class EmbeddingCache:
         Args:
             embed: Async function returning one vector per input text, in order —
                 the only backend seam.
-            max_entries: Optional FIFO bound on distinct cached vectors.
+            max_entries: Optional bound on distinct cached vectors, enforced by
+                the underlying :class:`InMemoryDataStore` (evicts the
+                least-recently-read vector once full).
 
         Raises:
             ValueError: If ``max_entries`` is set and less than 1.
@@ -57,12 +57,16 @@ class EmbeddingCache:
                 f"EmbeddingCache: max_entries must be >= 1 or None, got {max_entries!r}"
             )
         self._embed = embed
-        self._index = VectorMemoIndex(max_entries=max_entries)
+        self._store = InMemoryDataStore(max_values=max_entries)
+        self._bounded = max_entries is not None
+        # DataStore exposes no count or enumeration; the live key set answers
+        # __len__ and is pruned against the store after every write.
+        self._keys: set[str] = set()
         self.provider_calls = 0
         self.served_from_cache = 0
 
     def __len__(self) -> int:
-        return len(self._index)
+        return len(self._keys)
 
     @staticmethod
     def key_for(text: str, model: str | None = None) -> str:
@@ -94,7 +98,16 @@ class EmbeddingCache:
             raise TypeError("EmbeddingCache.embed: texts must be a sequence of strings, not a str")
         items = list(texts)
         keys = [self.key_for(text, model) for text in items]
-        missing_indices = [i for i, key in enumerate(keys) if key not in self._index]
+        vectors: dict[str, tuple[float, ...]] = {}
+        missing_indices: list[int] = []
+        for index, key in enumerate(keys):
+            if key in vectors:
+                continue
+            cached = await self._cached(key)
+            if cached is None:
+                missing_indices.append(index)
+            else:
+                vectors[key] = cached
 
         if missing_indices:
             to_embed = [items[i] for i in missing_indices]
@@ -107,11 +120,32 @@ class EmbeddingCache:
                     f"{len(fresh_list)} vectors for {len(to_embed)} texts"
                 )
             for index, vector in zip(missing_indices, fresh_list, strict=True):
-                self._index.put(keys[index], vector)
+                key = keys[index]
+                vectors[key] = tuple(float(x) for x in vector)
+                await self._store.put(key, vectors[key])
+                self._keys.add(key)
+            if self._bounded:
+                await self._prune_evicted()
 
         self.served_from_cache += len(items) - len(missing_indices)
-        return [self._index.get(key) for key in keys]
+        return [vectors[key] for key in keys]
 
-    def invalidate(self, text: str, *, model: str | None = None) -> None:
+    async def invalidate(self, text: str, *, model: str | None = None) -> None:
         """Drop the cached vector for ``text``/``model`` (a no-op if absent)."""
-        self._index.discard(self.key_for(text, model))
+        key = self.key_for(text, model)
+        await self._store.scrub(key)
+        self._keys.discard(key)
+
+    async def _cached(self, key: str) -> tuple[float, ...] | None:
+        """Return the stored vector under ``key``, or ``None`` on a miss or eviction."""
+        try:
+            return await self._store.get(key)
+        except (KeyError, ValueEvictedError):
+            self._keys.discard(key)
+            return None
+
+    async def _prune_evicted(self) -> None:
+        """Drop keys the store's bound evicted, so ``len()`` counts what is retrievable."""
+        for key in list(self._keys):
+            if not await self._store.has(key):
+                self._keys.discard(key)

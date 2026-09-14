@@ -146,8 +146,8 @@ class BridgeTableBuilder(Knot):
         source_rows = await source_pool.fetch_all(source_query)
         await target_pool.execute(self._truncate_query(bridge_table))
         rows_as_dicts = [dict(zip(src_col_tuple, row, strict=False)) for row in source_rows]
+        group_counts: dict[tuple[Any, ...], int] = defaultdict(int)
         if auto_weight:
-            group_counts: dict[tuple[Any, ...], int] = defaultdict(int)
             for row_dict in rows_as_dicts:
                 group_key = tuple(row_dict[k] for k in gk_tuple)
                 group_counts[group_key] += 1
@@ -158,7 +158,7 @@ class BridgeTableBuilder(Knot):
             rk_values = tuple(row_dict[k] for k in rk_tuple)
             if auto_weight:
                 group_key = tuple(row_dict[k] for k in gk_tuple)
-                weight = 1.0 / group_counts[group_key]  # type: ignore[possibly-undefined]
+                weight = 1.0 / group_counts[group_key]
             else:
                 weight = row_dict[weight_column]
             await target_pool.execute(insert_q, (*lk_values, *rk_values, weight))

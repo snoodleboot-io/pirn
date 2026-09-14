@@ -10,7 +10,6 @@ from pirn.core.knot_config import KnotConfig
 from pirn_agents.specializations.routing._fallback_chain_state import _FallbackChainState
 from pirn_agents.specializations.routing.route_candidate import RouteCandidate
 from pirn_agents.tools.tool_result import ToolResult
-from pirn_agents.tools.tool_status import ToolStatus
 
 
 class _FoldCandidateResult(Knot):
@@ -38,7 +37,7 @@ class _FoldCandidateResult(Knot):
     ) -> _FallbackChainState:
         """Record ``candidate`` as attempted, locking the chain on success."""
         attempted = (*prior.attempted, candidate.name)
-        if tool_result.status is ToolStatus.OK:
+        if tool_result.succeeded:
             return _FallbackChainState(
                 attempted=attempted,
                 skipped=prior.skipped,

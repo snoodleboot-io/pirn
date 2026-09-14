@@ -103,8 +103,8 @@ class SchemaVersionMigrator(Knot):
 
         rows = await pool.fetch_all(f"SELECT version FROM {migration_table}")
         applied_versions: set[int] = {row[0] for row in rows}
-        applied = []
-        skipped = []
+        applied: list[int] = []
+        skipped: list[int] = []
         expected_next = (max(applied_versions) + 1) if applied_versions else 1
         for version, ddl in mig_list:
             if version in applied_versions:

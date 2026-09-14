@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FeatureStoreReader`` — fetch features from a
 :class:`FeatureStoreProvider` and join the feature names onto every
 partition of a :class:`SplitManifest`.
@@ -6,7 +8,7 @@ Algorithm:
     1. Receive ``split`` (SplitManifest), ``feature_store`` (FeatureStoreProvider),
        ``entity_keys`` (Sequence[str]), and ``feature_names`` (Sequence[str]) via process().
     2. Validate all sequence inputs.
-    3. Wire _FeatureStoreReaderKnot in an inner Tapestry.
+    3. Wire FeatureStoreReaderKnot in an inner Tapestry.
     4. Run via _run_inner() and return the extended SplitManifest.
 
 
@@ -25,8 +27,8 @@ from pirn.core.parameter import Parameter
 from pirn.nodes.sub_tapestry import SubTapestry
 
 from pirn_ml.feature_store_provider import FeatureStoreProvider
-from pirn_ml.specializations.feature_engineering._feature_store_reader_knot import (
-    _FeatureStoreReaderKnot,
+from pirn_ml.specializations.feature_engineering.feature_store_reader_knot import (
+    FeatureStoreReaderKnot,
 )
 from pirn_ml.types.split_manifest import SplitManifest
 
@@ -95,7 +97,7 @@ class FeatureStoreReader(SubTapestry):
         split_node = Parameter(
             "split", SplitManifest, default=split, _config=KnotConfig(id="split")
         )
-        return _FeatureStoreReaderKnot(
+        return FeatureStoreReaderKnot(
             split=split_node,
             feature_store=feature_store,
             entity_keys=key_tuple,

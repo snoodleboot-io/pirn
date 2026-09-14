@@ -160,7 +160,6 @@ initial cut is not policy — the list is exactly the set of subpackages at 0.
 | pirn-agents | `pirn_agents/observability` | 0 | yes |
 | pirn-agents | `pirn_agents/performance` | 0 | yes |
 | pirn-agents | `pirn_agents/planning` | 0 | yes |
-| pirn-agents | `pirn_agents/serialization` | 0 | yes |
 | pirn-agents | `pirn_agents/testing` | 0 | yes |
 | pirn-agents | `pirn_agents/input` | 27 |  |
 | pirn-agents | `pirn_agents/context` | 33 |  |
@@ -180,16 +179,16 @@ initial cut is not policy — the list is exactly the set of subpackages at 0.
 | pirn-agents | `pirn_agents/llm` | 128 |  |
 | pirn-agents | `pirn_agents/specializations` | 671 |  |
 | pirn-data | `pirn_data/*.py` | 0 | yes |
+| pirn-data | `pirn_data/frames` | 0 | yes |
 | pirn-data | `pirn_data/lakehouse` | 0 | yes |
+| pirn-data | `pirn_data/lazy` | 0 | yes |
 | pirn-data | `pirn_data/quality` | 0 | yes |
 | pirn-data | `pirn_data/sinks` | 0 | yes |
 | pirn-data | `pirn_data/sources` | 0 | yes |
+| pirn-data | `pirn_data/specializations` | 0 | yes |
 | pirn-data | `pirn_data/specialized` | 0 | yes |
 | pirn-data | `pirn_data/transforms` | 0 | yes |
 | pirn-data | `pirn_data/validation` | 0 | yes |
-| pirn-data | `pirn_data/lazy` | 69 |  |
-| pirn-data | `pirn_data/specializations` | 191 |  |
-| pirn-data | `pirn_data/frames` | 254 |  |
 | pirn-health | `pirn_health/*.py` | 0 | yes |
 | pirn-health | `pirn_health/assemblers` | 0 | yes |
 | pirn-health | `pirn_health/clinical` | 0 | yes |
@@ -209,9 +208,9 @@ initial cut is not policy — the list is exactly the set of subpackages at 0.
 | pirn-ml | `pirn_ml/disassemblers` | 0 | yes |
 | pirn-ml | `pirn_ml/evaluation` | 0 | yes |
 | pirn-ml | `pirn_ml/features` | 0 | yes |
+| pirn-ml | `pirn_ml/specializations` | 0 | yes |
+| pirn-ml | `pirn_ml/training` | 0 | yes |
 | pirn-ml | `pirn_ml/types` | 0 | yes |
-| pirn-ml | `pirn_ml/training` | 28 |  |
-| pirn-ml | `pirn_ml/specializations` | 258 |  |
 | pirn-oilgas | `pirn_oilgas/*.py` | 0 | yes |
 | pirn-oilgas | `pirn_oilgas/assemblers` | 0 | yes |
 | pirn-oilgas | `pirn_oilgas/disassemblers` | 0 | yes |
@@ -240,8 +239,10 @@ initial cut is not policy — the list is exactly the set of subpackages at 0.
 | pirn-signal | `pirn_signal/types` | 0 | yes |
 | pirn-signal | `pirn_signal/wavelets` | 0 | yes |
 
-Totals outside the lists: pirn-core 1379, pirn-agents 1709, pirn-data 514,
-pirn-health 0, pirn-ml 286, pirn-oilgas 0, pirn-signal 0. The dominant
+Totals outside the lists: pirn-core 1379, pirn-agents 1709, pirn-data 0 (fully strict;
+pyarrow, pandas, ibis, dask.dataframe and ray.data are typed through the local stubs in
+`packages/pirn-data/typings/`),
+pirn-health 0, pirn-ml 0, pirn-oilgas 0, pirn-signal 0. The dominant
 remaining categories are `reportUnknownMemberType` / `reportUnknownVariableType`
 on untyped third-party returns (cloud SDKs, `cloudpickle`, DB drivers,
 numpy-heavy domain code), `reportMissingTypeStubs`, `reportPrivateUsage` on

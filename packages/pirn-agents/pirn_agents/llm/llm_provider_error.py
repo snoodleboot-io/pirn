@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from pirn.exceptions.pirn_error import PirnError
 
-class LLMProviderError(Exception):
+
+class LLMProviderError(PirnError):
     """Base class for every error raised by an LLM provider connector.
 
     Concrete subclasses distinguish rate limiting

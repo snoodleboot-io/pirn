@@ -10,7 +10,6 @@ from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.rewoo.rewoo_pipeline import ReWooPipeline
 from pirn_agents.specializations.rewoo.rewoo_result import ReWooResult
-from pirn_agents.tools.tool_status import ToolStatus
 from tests.specializations.conftest import StubLLMProvider, StubTool
 
 
@@ -35,7 +34,7 @@ class TestReWooPipeline(unittest.IsolatedAsyncioTestCase):
         assert result.answer == "final answer"
         assert len(result.plan) == 2
         assert len(result.results) == 2
-        assert all(r.status is ToolStatus.OK for r in result.results)
+        assert all(r.status == "ok" for r in result.results)
 
     async def test_only_two_llm_round_trips(self) -> None:
         llm = StubLLMProvider(["1. search: a\n2. search: b\n3. search: c", "answer"])

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ABTestDeployer`` — SubTapestry that splits traffic 50/50 between two
 model versions, collects metrics, runs a statistical significance test,
 and returns the comparison result.

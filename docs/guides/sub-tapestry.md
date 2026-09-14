@@ -187,7 +187,7 @@ result = await t.run(RunRequest())
 ```python
 async def process(self, name: str, ...) -> Knot:
     agg = Aggregator(...)
-    return _DatasetAssembler(batch=agg, name=name, ...)   # Assembler is the sink
+    return DatasetAssembler(batch=agg, name=name, ...)   # Assembler is the sink
 ```
 
 **Not this:**

@@ -6,7 +6,6 @@ hit path, TTL expiry, and eviction is fully reproducible with no backend.
 
 from __future__ import annotations
 
-import asyncio
 from collections.abc import Awaitable, Callable, Sequence
 
 import pytest
@@ -176,55 +175,6 @@ class TestEviction:
         # InMemoryResultCache/SemanticResultCache's identical `_keys` mirror
         # — so it is not asserted here without such a read.)
         assert calls[0] == 3
-
-
-class TestDeprecatedSyncWrappers:
-    def test_len_warns_and_delegates_to_asize(self) -> None:
-        cache = PromptCache()
-
-        async def _seed() -> None:
-            await cache.get_or_compute("p", lambda: _resolved(1))
-
-        asyncio.run(_seed())
-
-        with pytest.deprecated_call():
-            assert len(cache) == 1
-
-    def test_invalidate_warns_and_delegates_to_ainvalidate(self) -> None:
-        cache = PromptCache()
-
-        async def _seed() -> None:
-            await cache.get_or_compute("p", lambda: _resolved(1))
-
-        asyncio.run(_seed())
-
-        with pytest.deprecated_call():
-            cache.invalidate("p")
-
-        assert asyncio.run(cache.asize()) == 0
-
-    def test_purge_expired_warns_and_delegates_to_apurge_expired(self) -> None:
-        clock = _FakeClock()
-        cache = PromptCache(ttl_seconds=1.0, clock=clock)
-
-        async def _seed() -> None:
-            await cache.get_or_compute("p", lambda: _resolved(1))
-
-        asyncio.run(_seed())
-        clock.now = 5.0
-
-        with pytest.deprecated_call():
-            removed = cache.purge_expired()
-
-        assert removed == 1
-
-    async def test_sync_wrapper_raises_inside_a_running_loop(self) -> None:
-        cache = PromptCache()
-        await cache.get_or_compute("p", lambda: _resolved(1))
-
-        with pytest.raises(RuntimeError, match="running event loop"):
-            with pytest.deprecated_call():
-                cache.invalidate("p")
 
 
 async def _resolved(value: int) -> int:

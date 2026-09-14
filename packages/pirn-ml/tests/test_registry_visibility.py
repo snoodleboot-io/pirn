@@ -30,13 +30,9 @@ def _walk_knot_subclasses(package: object) -> tuple[set[str], list[str]]:
     package, dotted names of submodules that failed to import).
 
     Identity is keyed by the class's own ``__module__.__qualname__``, not by
-    whatever module-level attribute name it happens to be bound to. A
-    module-level alias (``OldName = NewName``) would bind a second name to the
-    *same* class object (the house alpha policy forbids one, but the check must
-    not misreport it if it appears); sweet_tea's
-    ``Registry`` likewise registers both names but with an identical
-    ``class_def``, so comparing by alias name would flag the alias as
-    "missing" even though the class it refers to is fully registered.
+    whatever module-level attribute name it happens to be bound to: a class
+    imported into another module's namespace is the *same* class object, and
+    sweet_tea's ``Registry`` keys its entries by that ``class_def``.
     """
     found: set[str] = set()
     failed: list[str] = []

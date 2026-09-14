@@ -152,3 +152,23 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
                 values="value",
                 aggregate_function="first",
             )
+
+    async def test_count_is_the_len_aggregation(self) -> None:
+        k = self._make_knot()
+        long = PolarsDataBatch(
+            frame=pl.DataFrame(
+                {
+                    "user": ["alice", "alice", "alice"],
+                    "metric": ["clicks", "clicks", "views"],
+                    "value": [1, 2, 3],
+                }
+            )
+        )
+        counted = await k.process(
+            batch=long, on="metric", index="user", values="value", aggregate_function="count"
+        )
+        with_len = await k.process(
+            batch=long, on="metric", index="user", values="value", aggregate_function="len"
+        )
+        assert counted.frame.equals(with_len.frame)
+        assert counted.frame["clicks"].to_list() == [2]

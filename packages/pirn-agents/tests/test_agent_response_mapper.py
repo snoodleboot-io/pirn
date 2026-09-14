@@ -5,7 +5,6 @@ from __future__ import annotations
 import unittest
 
 from pirn_agents.agent.agent_response_mapper import AgentResponseMapper
-from pirn_agents.tools.tool_status import ToolStatus
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
@@ -35,7 +34,7 @@ class TestAgentResponseToToolResult(unittest.TestCase):
 
         self.assertIs(result.result, response)
         self.assertEqual(result.call_id, "c1")
-        self.assertEqual(result.status, ToolStatus.OK)
+        self.assertEqual(result.status, "ok")
         self.assertEqual(result.latency, 0.5)
         self.assertEqual(result.tokens, 3)
 

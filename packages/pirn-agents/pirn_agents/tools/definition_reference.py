@@ -37,7 +37,7 @@ class DefinitionReference:
         Args:
             target: A class or plain function.
             unwrap_binding: Maps the object the module binds at ``qualname`` to the
-                definition it stands for, e.g. a ``@tool`` rebinding a function's
+                definition it stands for, e.g. a ``@ToolDecorator.decorate`` rebinding a function's
                 name to the tool wrapping it. Defaults to the identity.
 
         Returns:

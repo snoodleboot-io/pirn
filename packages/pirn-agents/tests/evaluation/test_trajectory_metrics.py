@@ -107,27 +107,23 @@ class _AddressOnly:
 
 
 class _ContentRendered:
-    """A step argument that renders its content."""
+    """A step argument that declares its canonical content form."""
 
     def __init__(self, amount: int) -> None:
         self.amount = amount
 
-    def __str__(self) -> str:
-        return f"_ContentRendered({self.amount})"
+    def __pirn_canonical__(self) -> dict[str, int]:
+        return {"amount": self.amount}
 
 
 class TrajectoryCallKeyContentKeyingTests(unittest.TestCase):
     """PIR-826 — the key promises stability, so it must not key on an address."""
 
-    # ---- what actually changed: the address-keyed case is now refused -------
+    # ---- the address-keyed case is refused -----------------------------------
     #
-    # Note the shape of this fix. An argument that renders content — anything
-    # with its own __str__, plus datetime/UUID/Decimal/Path/Enum — was ALREADY
-    # keyed correctly by the previous `default=str`, and still is, byte for
-    # byte. So there is no "used to score wrong, now scores right" case to
-    # assert: the repair is that the *unfixable* case stops producing a number
-    # at all. Only an argument whose sole rendering is its memory address was
-    # ever broken, and for that no stable key exists to compute.
+    # The key is core's ContentHasher.hash(strict=True): an argument with no
+    # canonical form (no __pirn_canonical__, no pydantic schema) has no stable
+    # key to compute, so the metric declines instead of scoring wrong.
 
     def test_address_keyed_argument_is_refused(self) -> None:
         with self.assertRaises(TypeError):

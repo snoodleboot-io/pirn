@@ -10,7 +10,6 @@ from __future__ import annotations
 from pirn_agents.tools.retrieval.rag_tool import RagTool
 from pirn_agents.tools.retrieval.retriever_tool import RetrieverTool
 from pirn_agents.tools.tool_call import ToolCall
-from pirn_agents.tools.tool_status import ToolStatus
 from tests.conftest import StubLLMProvider, StubMemoryStore
 from tests.tools.tool_runner import ToolRunner
 
@@ -43,7 +42,7 @@ class TestRetrieverTool:
         tool = RetrieverTool.bind(store=store)
         call = ToolCall(tool_name="retriever", arguments={"query": "q"}, call_id="c1")
         outcome = await ToolRunner.view(tool, call)
-        assert outcome.status is ToolStatus.OK
+        assert outcome.status == "ok"
         assert outcome.result["count"] == 1
 
     def test_rejects_non_store(self) -> None:

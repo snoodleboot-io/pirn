@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TrainedModelObjectStoreAssembler`` — assemble a :class:`TrainedModelPayload` from raw model bytes.
 
 Sits between an object-store read connector (which produces ``bytes``) and
@@ -32,6 +34,7 @@ from pirn.core.assembler import Assembler
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_ml.ml_optional_dependency import MlOptionalDependency
 from pirn_ml.types.fitted_estimator import FittedEstimator
 from pirn_ml.types.model_manifest import ModelManifest
 from pirn_ml.types.trained_model_payload import TrainedModelPayload
@@ -75,11 +78,11 @@ class TrainedModelObjectStoreAssembler(Assembler):
             TypeError: If ``body`` is not ``bytes`` or ``algorithm`` is not a ``str``.
             ValueError: If ``algorithm`` is empty or ``body`` is empty.
         """
-        if not isinstance(body, bytes):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(body, bytes):
             raise TypeError(
                 f"TrainedModelObjectStoreAssembler: body must be bytes, got {type(body).__name__}"
             )
-        if not isinstance(algorithm, str):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(algorithm, str):
             raise TypeError(
                 f"TrainedModelObjectStoreAssembler: algorithm must be str, got {type(algorithm).__name__}"
             )
@@ -92,21 +95,10 @@ class TrainedModelObjectStoreAssembler(Assembler):
         )
 
     @staticmethod
-    def _load_joblib() -> Any:
-        try:
-            import joblib  # type: ignore[import-untyped]
-        except ImportError as exc:
-            raise ImportError(
-                "TrainedModelObjectStoreAssembler requires joblib. "
-                "Install with `pip install pirn-ml[ml]`."
-            ) from exc
-        return joblib
-
-    @staticmethod
     def _deserialize(body: bytes, algorithm: str) -> TrainedModelPayload:
-        joblib = TrainedModelObjectStoreAssembler._load_joblib()
+        joblib = MlOptionalDependency.require("joblib", extra="ml")
         try:
-            raw = joblib.load(io.BytesIO(body))
+            raw: object = joblib.load(io.BytesIO(body))
         except Exception:
             raw = pickle.loads(body)
         estimator = FittedEstimator(estimator=raw, algorithm=algorithm)

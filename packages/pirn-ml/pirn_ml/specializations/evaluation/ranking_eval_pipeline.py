@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``RankingEvalPipeline`` — SubTapestry for ranking model evaluation.
 
 Computes NDCG@k, MRR, and MAP@k for a ranking model on a held-out split.
@@ -7,7 +9,7 @@ Algorithm:
     2. Validate k is an int >= 1.
     3. Wire an inner Tapestry with Evaluator using NDCG@k, MRR, MAP@k metrics
        (shared with the other ``*_eval_pipeline`` SubTapestries via
-       :class:`~pirn_ml.specializations.evaluation._eval_pipeline_base._EvalPipelineBase`).
+       :class:`~pirn_ml.specializations.evaluation.eval_pipeline_base.EvalPipelineBase`).
     4. Run the inner Tapestry via _run_inner() and return the EvalMetadata.
 
 
@@ -22,12 +24,12 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_ml.specializations.evaluation._eval_pipeline_base import _EvalPipelineBase
+from pirn_ml.specializations.evaluation.eval_pipeline_base import EvalPipelineBase
 from pirn_ml.types.model_manifest import ModelManifest
 from pirn_ml.types.split_manifest import SplitManifest
 
 
-class RankingEvalPipeline(_EvalPipelineBase):
+class RankingEvalPipeline(EvalPipelineBase):
     """Evaluate a ranking model with NDCG@k, MRR, and MAP@k."""
 
     def __init__(

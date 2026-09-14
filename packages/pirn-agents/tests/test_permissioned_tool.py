@@ -5,13 +5,13 @@ from __future__ import annotations
 import unittest
 
 from pirn_agents.testing.stub_tool import StubTool
-from pirn_agents.tools.tool_decorator import tool
+from pirn_agents.tools.tool_decorator import ToolDecorator
 from pirn_agents.tools.tool_permissions import ToolPermissions
 
 
 class TestPermissionMetadataOnTool(unittest.TestCase):
     def test_decorator_attaches_metadata(self) -> None:
-        @tool(scope="db:read", mutating=False, cost_hint=0.5)
+        @ToolDecorator.decorate(scope="db:read", mutating=False, cost_hint=0.5)
         async def reader(x: str) -> str:
             """Read-only tool."""
             return x
@@ -21,7 +21,7 @@ class TestPermissionMetadataOnTool(unittest.TestCase):
         assert reader.permissions.cost_hint == 0.5
 
     def test_mutating_classification(self) -> None:
-        @tool(mutating=True)
+        @ToolDecorator.decorate(mutating=True)
         async def writer(x: str) -> str:
             """Mutating tool."""
             return x
@@ -29,7 +29,7 @@ class TestPermissionMetadataOnTool(unittest.TestCase):
         assert writer.permissions.mutating is True
 
     def test_metadata_in_describe_schema(self) -> None:
-        @tool(scope="s", approval_required=True)
+        @ToolDecorator.decorate(scope="s", approval_required=True)
         async def gated(x: str) -> str:
             """Gated tool."""
             return x
@@ -39,7 +39,7 @@ class TestPermissionMetadataOnTool(unittest.TestCase):
 
 class TestPermissionedToolFacet(unittest.TestCase):
     def test_function_tool_exposes_scope(self) -> None:
-        @tool(scope="s")
+        @ToolDecorator.decorate(scope="s")
         async def scoped() -> str:
             """Scoped."""
             return ""
@@ -51,7 +51,7 @@ class TestPermissionedToolFacet(unittest.TestCase):
         assert stub.permissions.mutating is True
 
     def test_plain_tool_falls_back_to_default(self) -> None:
-        @tool
+        @ToolDecorator.decorate
         async def plain(x: str) -> str:
             """Plain."""
             return x
@@ -65,7 +65,7 @@ class TestPermissionedToolFacet(unittest.TestCase):
 
 class TestRequiresApproval(unittest.TestCase):
     def test_true_when_flagged(self) -> None:
-        @tool(approval_required=True, scope="x")
+        @ToolDecorator.decorate(approval_required=True, scope="x")
         async def gated() -> str:
             """Gated."""
             return ""
@@ -75,7 +75,7 @@ class TestRequiresApproval(unittest.TestCase):
         assert gated.requires_approval() is True
 
     def test_false_by_default(self) -> None:
-        @tool
+        @ToolDecorator.decorate
         async def plain() -> str:
             """Plain."""
             return ""

@@ -20,10 +20,11 @@ Algorithm:
     1. Receive the ``sql`` query string and ``pool`` connection pool.
     2. Raise :class:`ValueError` if ``sql`` is empty.
     3. Run ``pool._reject_inline_interpolation(sql)`` — always, in both modes.
-    4. In read-only mode (the default), run
+    4. On this read-only executor, run
        :meth:`ReadOnlySqlGuard.assert_read_only`, then read via ``fetch_all``.
-    5. When writes are opted in, execute on an acquired connection and commit
-       or roll back exactly the transaction this statement opened.
+    5. On :class:`_ReadWriteSQLExecutor` (writes opted in by class choice),
+       execute on an acquired connection and commit or roll back exactly the
+       transaction this statement opened.
     6. Return the rows as a plain list.
 
 Math:
@@ -48,17 +49,18 @@ from pirn_agents.tools.sql._read_only_sql_guard import ReadOnlySqlGuard
 
 
 class _SQLExecutor(Knot):
-    """Validate the SQL through both guards and run it, read-only by default."""
+    """Validate the SQL through both guards and run it — read-only."""
 
     # Shared, stateless guard — built once per class, mirroring the ClassVar
     # prompt bindings on ``_SQLGenerator``.
     _guard: ClassVar[ReadOnlySqlGuard] = ReadOnlySqlGuard()
 
-    # Class-level fail-safe default, overridden per instance in ``__init__``
-    # (the pattern ``Knot._frozen`` itself uses). An instance that somehow
-    # reached ``process`` without running ``__init__`` stays read-only rather
-    # than silently becoming writable.
-    _read_only: bool = True
+    #: The write policy is the class, never an input (PIR-817): this executor
+    #: is read-only, and :class:`_ReadWriteSQLExecutor` is the one subclass that
+    #: may run a mutating statement. A knot input is a graph edge another knot's
+    #: output could drive — on this pipeline, output derived from model text —
+    #: so the policy is fixed by which class the pipeline author constructs.
+    _read_only: ClassVar[bool] = True
 
     def __init__(
         self,
@@ -66,36 +68,8 @@ class _SQLExecutor(Knot):
         sql: Knot | str,
         pool: Knot | DatabaseConnectionPool,
         _config: KnotConfig,
-        read_only: bool = True,
         **kwargs: Any,
     ) -> None:
-        """Bind the statement source, the pool, and the write policy.
-
-        Args:
-            sql: The SQL statement, or the knot producing it.
-            pool: The database connection pool, or the knot producing it.
-            _config: Framework knot configuration.
-            read_only: When ``True`` (the default), reject any statement that is
-                not a single ``SELECT``/``WITH``. A :class:`SQLAgent` that
-                writes is the exceptional case, so it must be opted into
-                explicitly rather than being the default for model-generated
-                SQL.
-
-        Note:
-            ``read_only`` is deliberately *not* forwarded to ``super().__init__``
-            as a knot input. Knot inputs are graph edges, so a policy passed that
-            way could be driven by another knot's output — including, on this
-            pipeline, one derived from model text. Holding it as plain
-            constructor state keeps the decision the operator's, fixed at
-            construction, exactly as ``SqlServiceConnector`` and ``SqlQueryTool``
-            hold theirs. This is a deliberate, documented exception to Knot
-            Design Rule 4 (no instance state for inputs) — see
-            ``docs/contributing/knot-design-rules.md`` and PIR-817 — made for
-            this specific security property, not a general license to store
-            inputs on ``self``. ``read_only`` is correspondingly *not* a
-            ``process()`` parameter.
-        """
-        self._read_only = read_only
         super().__init__(sql=sql, pool=pool, _config=_config, **kwargs)
 
     async def process(self, sql: str, pool: DatabaseConnectionPool, **_: Any) -> list[Any]:
@@ -110,7 +84,7 @@ class _SQLExecutor(Knot):
 
         Raises:
             ValueError: If ``sql`` is empty, carries an inline-interpolation
-                marker, or — in read-only mode — is not a single read.
+                marker, or — on a read-only executor — is not a single read.
         """
         if not isinstance(sql, str) or not sql:
             raise ValueError("SQLAgent: generator returned empty SQL")

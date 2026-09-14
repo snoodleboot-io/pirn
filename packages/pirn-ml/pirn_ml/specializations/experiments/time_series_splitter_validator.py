@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TimeSeriesSplitterValidator`` — walk-forward time-series CV.
 
 Splits the upstream :class:`DatasetManifest` chronologically: each split's
@@ -16,7 +18,7 @@ Algorithm:
     2. Validate all inputs.
     3. Build chronological train/test splits via row-count partitioning.
     4. Wire Trainer + Evaluator per split (shared wiring in
-       :class:`~pirn_ml.specializations.experiments._kfold_validator_base._KFoldValidatorBase`).
+       :class:`~pirn_ml.specializations.experiments.kfold_validator_base.KFoldValidatorBase`).
     5. Aggregate per-split metrics and return an EvalMetadata.
 
 Math:
@@ -41,8 +43,8 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 
-from pirn_ml.specializations.experiments._kfold_validator_base import (
-    _KFoldValidatorBase,
+from pirn_ml.specializations.experiments.kfold_validator_base import (
+    KFoldValidatorBase,
 )
 from pirn_ml.types.dataset_manifest import DatasetManifest
 from pirn_ml.types.eval_metadata import EvalMetadata
@@ -89,7 +91,7 @@ async def _aggregate_tscv_reports(
     )
 
 
-class TimeSeriesSplitterValidator(_KFoldValidatorBase):
+class TimeSeriesSplitterValidator(KFoldValidatorBase):
     """Walk-forward time-series cross-validation."""
 
     def __init__(

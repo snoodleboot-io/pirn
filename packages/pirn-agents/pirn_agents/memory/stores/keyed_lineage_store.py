@@ -36,6 +36,7 @@ What this does **not** give you, and why:
 
 from __future__ import annotations
 
+import functools
 from collections.abc import Mapping
 from typing import Any, ClassVar
 
@@ -159,15 +160,10 @@ class KeyedLineageStore(PirnOpaqueValue):
         """
         identity = self.identity(namespace, key)
 
-        # design-decision-override: closure captures the already-resolved
-        # value so _ThunkSource.bind() has a zero-arg thunk to call; there is
-        # no other value to close over here, so a module-level function would
-        # need the value threaded through as a second parameter for no gain.
-        async def _thunk() -> Any:
-            return value
-
         with Tapestry(history=self._history, data_store=self._data_store) as tapestry:
-            _ThunkSource(_config=KnotConfig(id=identity)).bind(_thunk)
+            _ThunkSource(_config=KnotConfig(id=identity)).bind(
+                functools.partial(KeyedLineageStore._resolved, value)
+            )
             await tapestry.run(RunRequest())
         return identity
 
@@ -220,3 +216,8 @@ class KeyedLineageStore(PirnOpaqueValue):
         same.
         """
         await self.put(namespace=namespace, key=key, value=type(self)._tombstone)
+
+    @staticmethod
+    async def _resolved(value: Any) -> Any:
+        """Return ``value`` — bound with ``functools.partial`` as the write's zero-arg thunk."""
+        return value

@@ -25,7 +25,7 @@ pirn_agents/memory_management/
 ├── memory_consolidator.py          MemoryConsolidator         — dedup+summarize (knot, uses F17 Summarizer)
 │
 │  ── S2 Decay / forgetting + eviction ──
-├── decay_function.py               decay_score()              — importance x half-life recency
+├── decay_function.py               DecayFunction.score()              — importance x half-life recency
 ├── decay_scorer.py                 DecayScorer                — per-record decayed value (knot)
 ├── memory_eviction_policy.py       MemoryEvictionPolicy       — eviction interface
 ├── ttl_eviction_policy.py          TtlEvictionPolicy          — expire older than TTL

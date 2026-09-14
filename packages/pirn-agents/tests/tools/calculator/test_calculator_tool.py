@@ -14,7 +14,6 @@ import pytest
 from pirn_agents.tools.calculator._safe_evaluator import _SafeEvaluator
 from pirn_agents.tools.calculator.calculator_tool import CalculatorTool
 from pirn_agents.tools.tool_call import ToolCall
-from pirn_agents.tools.tool_status import ToolStatus
 from tests.tools.tool_runner import ToolRunner
 
 
@@ -113,7 +112,7 @@ class TestCalculatorTool:
         tool = CalculatorTool.factory()
         call = ToolCall(tool_name="calculator", arguments={"expression": "2 + 2"}, call_id="c1")
         outcome = await ToolRunner.view(tool, call)
-        assert outcome.status is ToolStatus.OK
+        assert outcome.status == "ok"
         assert outcome.call_id == "c1"
         assert outcome.result["result"] == 4
         assert outcome.error is None
@@ -127,7 +126,7 @@ class TestCalculatorTool:
             call_id="c2",
         )
         outcome = await ToolRunner.view(tool, call)
-        assert outcome.status is ToolStatus.ERROR
+        assert outcome.status == "error"
         assert outcome.result is None
         assert outcome.error is not None
 

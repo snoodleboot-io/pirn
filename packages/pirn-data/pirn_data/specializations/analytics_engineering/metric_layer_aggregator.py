@@ -170,7 +170,7 @@ class MetricLayerAggregator(Knot):
             )
         )
         if dim_tuple:
-            records = []
+            records: list[dict[str, Any]] = []
             for row in rows:
                 dim_vals = dict(zip(dim_tuple, row[: len(dim_tuple)], strict=False))
                 records.append({"dimensions": dim_vals, "value": row[-1]})

@@ -1,5 +1,5 @@
-# Runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md).
 # pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MetricCheck`` — check downstream knots by a metric threshold.
 
 Algorithm:

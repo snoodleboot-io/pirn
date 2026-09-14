@@ -13,7 +13,7 @@ the whole suite still green. Both outputs escape the process:
   cache entries and their lineage continuity.
 
 These pins were recorded *before* the hashers were moved onto
-:class:`~pirn_agents.serialization.canonical_json.CanonicalJson`, so they prove
+the former ``CanonicalJson`` (deleted, PIR-872), so they prove
 the move was byte-identical rather than merely plausible.
 
 ADR agents-speaks-core WS2 part 2 (2026-09-13) intentionally moved the
@@ -102,7 +102,7 @@ class TestIdempotencyKeyPins:
 
     def test_derivation_uses_content_hash(self) -> None:
         # The assigner hashes {"operation": ..., "arguments": ...} through
-        # content_hash directly for JSON-native arguments; spelling that out
+        # ContentHasher.hash directly for JSON-native arguments; spelling that out
         # here is what makes the ADR WS2 part 2 migration verifiable rather
         # than asserted.
         from pirn.core.content_hasher import ContentHasher
@@ -137,7 +137,7 @@ class TestAgentKnotIdPins:
 
     def test_digest_is_the_first_twelve_hex_of_the_content_hash_digest(self) -> None:
         # Pins the truncation as well as the canonicalisation: the factory
-        # takes content_hash's digest (minus its sha256: prefix) and slices
+        # takes ContentHasher.hash's digest (minus its sha256: prefix) and slices
         # it, rather than hashing differently.
         from pirn.core.content_hasher import ContentHasher
 

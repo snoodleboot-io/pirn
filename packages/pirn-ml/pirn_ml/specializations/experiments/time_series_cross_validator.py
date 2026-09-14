@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TimeSeriesCrossValidator`` — expanding-window time series cross-validation.
 
 Each fold adds one period of training data and evaluates on the next
@@ -9,7 +11,7 @@ Algorithm:
     2. Validate all inputs.
     3. For each fold, compute expanding train/test row counts and emit split partitions.
     4. Wire Trainer + Evaluator per fold (shared wiring in
-       :class:`~pirn_ml.specializations.experiments._kfold_validator_base._KFoldValidatorBase`).
+       :class:`~pirn_ml.specializations.experiments.kfold_validator_base.KFoldValidatorBase`).
     5. Aggregate per-fold metrics and return an EvalMetadata.
 
 Math:
@@ -33,8 +35,8 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 
-from pirn_ml.specializations.experiments._kfold_validator_base import (
-    _KFoldValidatorBase,
+from pirn_ml.specializations.experiments.kfold_validator_base import (
+    KFoldValidatorBase,
 )
 from pirn_ml.types.dataset_manifest import DatasetManifest
 from pirn_ml.types.eval_metadata import EvalMetadata
@@ -75,7 +77,7 @@ async def _aggregate_ts_cv_reports(
     )
 
 
-class TimeSeriesCrossValidator(_KFoldValidatorBase):
+class TimeSeriesCrossValidator(KFoldValidatorBase):
     """Expanding-window time series CV with configurable number of folds."""
 
     def __init__(

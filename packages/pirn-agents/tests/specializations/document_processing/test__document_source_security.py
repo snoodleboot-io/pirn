@@ -155,7 +155,7 @@ class TestSSRFGuards(unittest.IsolatedAsyncioTestCase):
     async def test_guard_rejects_before_optional_extra_is_resolved(self) -> None:
         """The SSRF guard must fire even when the ``web`` extra is absent.
 
-        Regression test for the ordering bug where ``_require("web", "httpx")`` ran
+        Regression test for the ordering bug where ``OptionalImport.require("web", "httpx")`` ran
         ahead of the guard, so a hostile URL raised ImportError instead of ValueError
         on an install without the extra. Forces the missing-extra path regardless of
         whether httpx happens to be installed, so CI pins the ordering too.
@@ -165,10 +165,8 @@ class TestSSRFGuards(unittest.IsolatedAsyncioTestCase):
         def _no_extra(extra: str, module: str) -> NoReturn:
             raise ImportError(f"{module!r} is required for this feature")
 
-        require_path = (
-            "pirn_agents.specializations.document_processing._document_source_reader._require"
-        )
-        # Both rejection paths, so _require cannot be relocated between them.
+        require_path = "pirn_agents._internal.optional_import.OptionalImport.require"
+        # Both rejection paths, so OptionalImport.require cannot be relocated between them.
         with unittest.mock.patch(
             "pirn.security.ssrf_guard.SsrfGuard._resolve_all",
             staticmethod(lambda host: ("169.254.169.254",)),

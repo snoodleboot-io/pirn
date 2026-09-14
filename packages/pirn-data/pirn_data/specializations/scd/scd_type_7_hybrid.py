@@ -59,10 +59,11 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.identifier_validator import IdentifierValidator
-from pirn_data.specializations._pool_merge_knot import _PoolMergeKnot
+from pirn_data.specializations.pool_merge_knot import PoolMergeKnot
+from pirn_data.value_shape import ValueShape
 
 
-class ScdType7Hybrid(_PoolMergeKnot):
+class ScdType7Hybrid(PoolMergeKnot):
     """Maintain SCD Type 7 (current + history columns on every row)."""
 
     def __init__(
@@ -180,7 +181,7 @@ class ScdType7Hybrid(_PoolMergeKnot):
         tracked_tuple = tuple(tracked_columns)
         self._validate_identifier("key_columns", key_tuple)
         self._validate_identifier("tracked_columns", tracked_tuple)
-        if not isinstance(current_columns, Mapping):
+        if not ValueShape.is_mapping(current_columns):
             raise TypeError("ScdType7Hybrid: current_columns must be a Mapping[str, str]")
         missing = [c for c in tracked_tuple if c not in current_columns]
         if missing:

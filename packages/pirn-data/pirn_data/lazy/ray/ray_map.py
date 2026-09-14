@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``RayMap`` — Tier-3 batch transform that extends the deferred
 ``ray.data.Dataset`` plan with ``ds.map_batches(fn)``.
 

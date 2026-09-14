@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TimeSeriesEvalPipeline`` — SubTapestry for forecasting evaluation.
 
 Computes MAPE, sMAPE, and MASE for a time-series forecasting model.
@@ -10,7 +12,7 @@ Algorithm:
     2. Validate time_column is a non-empty string.
     3. Wire an inner Tapestry with Evaluator using forecasting metrics
        (shared with the other ``*_eval_pipeline`` SubTapestries via
-       :class:`~pirn_ml.specializations.evaluation._eval_pipeline_base._EvalPipelineBase`).
+       :class:`~pirn_ml.specializations.evaluation.eval_pipeline_base.EvalPipelineBase`).
     4. Run the inner Tapestry via _run_inner() and decorate the EvalMetadata
        with time_column in its details mapping.
 
@@ -29,7 +31,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 
-from pirn_ml.specializations.evaluation._eval_pipeline_base import _EvalPipelineBase
+from pirn_ml.specializations.evaluation.eval_pipeline_base import EvalPipelineBase
 from pirn_ml.types.eval_metadata import EvalMetadata
 from pirn_ml.types.eval_metrics import EvalMetrics
 from pirn_ml.types.eval_report_payload import EvalReportPayload
@@ -57,7 +59,7 @@ async def _decorate_time_column(
     )
 
 
-class TimeSeriesEvalPipeline(_EvalPipelineBase):
+class TimeSeriesEvalPipeline(EvalPipelineBase):
     """Evaluate a forecasting model with MAPE, sMAPE, and MASE."""
 
     _metrics: ClassVar[tuple[str, ...]] = ("mape", "smape", "mase")

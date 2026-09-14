@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``Scaler`` — fit a scaler on the train split and emit a transformed
 :class:`SplitManifest` reference.
 
@@ -78,7 +80,7 @@ class Scaler(Knot):
         if not column_tuple:
             raise ValueError("Scaler: columns must be non-empty")
         for column in column_tuple:
-            if not isinstance(column, str) or not column:  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+            if not isinstance(column, str) or not column:
                 raise ValueError("Scaler: every column name must be a non-empty string")
         if method not in self.valid_methods:
             raise ValueError(f"Scaler: method must be one of {sorted(self.valid_methods)}")

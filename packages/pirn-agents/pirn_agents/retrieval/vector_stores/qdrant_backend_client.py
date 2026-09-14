@@ -18,7 +18,7 @@ from typing import Any
 
 from pirn.security.credential_ref import CredentialRef
 
-from pirn_agents._internal._require import _require
+from pirn_agents._internal.optional_import import OptionalImport
 from pirn_agents.retrieval.vector_stores.vector_backend_client import VectorBackendClient
 
 
@@ -49,12 +49,12 @@ class QdrantBackendClient(VectorBackendClient):
 
     def _models(self) -> Any:
         """Return the lazily-imported ``qdrant_client.models`` module."""
-        return _require("qdrant", "qdrant_client.models")
+        return OptionalImport.require("qdrant", "qdrant_client.models")
 
     async def _get_client(self) -> Any:
         """Build the async client and ensure the collection exists, once."""
         if self._client is None:
-            qdrant_client = _require("qdrant", "qdrant_client")
+            qdrant_client = OptionalImport.require("qdrant", "qdrant_client")
             models = self._models()
             api_key = self._credential.reveal() if self._credential is not None else None
             client = qdrant_client.AsyncQdrantClient(location=self._url, api_key=api_key)

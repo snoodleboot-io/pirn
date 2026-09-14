@@ -110,7 +110,7 @@ class ScdType3PreviousValue(Knot):
         tracked_columns: tuple[str, ...],
         previous_columns: tuple[str, ...],
     ) -> str:
-        set_parts = []
+        set_parts: list[str] = []
         for current_col, previous_col in zip(tracked_columns, previous_columns, strict=False):
             set_parts.append(f"{previous_col} = {current_col}")
             set_parts.append(f"{current_col} = ?")

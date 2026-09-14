@@ -7,7 +7,7 @@ Composition:
    inner tapestry as proxy emitters so the inner :class:`Evaluator`
    reads them as upstream knots (shared with the other
    ``*_eval_pipeline`` SubTapestries via
-   :class:`~pirn_ml.specializations.evaluation._eval_pipeline_base._EvalPipelineBase`).
+   :class:`~pirn_ml.specializations.evaluation.eval_pipeline_base.EvalPipelineBase`).
 2. :class:`Evaluator` computes the classification metrics
    (accuracy, precision, recall, F1, ROC-AUC, confusion matrix).
 
@@ -30,12 +30,12 @@ from typing import Any, ClassVar
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_ml.specializations.evaluation._eval_pipeline_base import _EvalPipelineBase
+from pirn_ml.specializations.evaluation.eval_pipeline_base import EvalPipelineBase
 from pirn_ml.types.model_manifest import ModelManifest
 from pirn_ml.types.split_manifest import SplitManifest
 
 
-class ClassificationEvalPipeline(_EvalPipelineBase):
+class ClassificationEvalPipeline(EvalPipelineBase):
     """Evaluate a classifier with the canonical classification metric set."""
 
     _metrics: ClassVar[tuple[str, ...]] = (

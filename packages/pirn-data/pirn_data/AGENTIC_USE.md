@@ -49,6 +49,7 @@ pip install pirn[oilgas]        # SEG-Y, DLIS, LAS, WITSML
 pirn_data/
 ├── data_batch.py               # Tier-1 exchange type: immutable tuple of dicts
 ├── data_schema.py              # Optional schema metadata attached to DataBatch
+├── column_profile.py           # Per-column statistics inside a DataProfile
 ├── data_profile.py             # Statistical profile of a DataBatch
 ├── quality/                    # Quality checks and reports
 │   ├── quality_check.py

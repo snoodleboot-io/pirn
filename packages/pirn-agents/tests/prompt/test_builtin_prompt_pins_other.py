@@ -18,6 +18,7 @@ from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
 from pirn.backends.in_memory.in_memory_history import InMemoryHistory
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.ok import Ok
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -505,7 +506,7 @@ class ReWooPromptPins(unittest.IsolatedAsyncioTestCase):
         llm = StubLLMProvider(responses=["final"])
         knot = _bare(ReWooSynthesizer)
         call = ToolCall(tool_name="search", arguments={"input": "x"}, call_id="c0")
-        result = ToolResult(call_id="c0", result="found")
+        result = ToolResult(call_id="c0", outcome=Ok(value="found"))
         await knot.process(goal="find", plan=(call,), results=(result,), llm=llm)
         assert llm.calls[0][0]["content"] == (
             "You are a solver. Using only the tool evidence below, write the "

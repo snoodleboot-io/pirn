@@ -40,7 +40,7 @@ class SessionizationKnot(Knot):
     def __init__(
         self,
         *,
-        rows: Knot | list,
+        rows: Knot | list[dict[str, Any]],
         entity_columns: Knot | Sequence[str],
         timestamp_column: Knot | str,
         inactivity_minutes: Knot | float,

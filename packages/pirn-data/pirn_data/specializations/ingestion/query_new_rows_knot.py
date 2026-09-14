@@ -68,7 +68,7 @@ class QueryNewRowsKnot(Knot):
         watermark_column: Any,
         high_water_mark: Any,
         **_: Any,
-    ) -> list:
+    ) -> list[Any]:
         """Validate inputs, build the SELECT query, execute it, and return the rows.
 
         Args:

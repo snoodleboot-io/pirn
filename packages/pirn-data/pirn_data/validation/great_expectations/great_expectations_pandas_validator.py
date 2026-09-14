@@ -62,12 +62,11 @@ from uuid import uuid4
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_data._value_shape import (
-    _ValueShape,  # pyright: ignore[reportPrivateUsage]  # package-internal helper
-)
+from pirn_data.data_optional_dependency import DataOptionalDependency
 from pirn_data.frames.pandas.pandas_data_batch import PandasDataBatch
 from pirn_data.quality_check import QualityCheck
 from pirn_data.quality_report import QualityReport
+from pirn_data.value_shape import ValueShape
 
 
 class GreatExpectationsPandasValidator(Knot):
@@ -107,7 +106,7 @@ class GreatExpectationsPandasValidator(Knot):
         # Local import: keeps the module importable even when GE is not
         # installed. The type check above will already have raised TypeError
         # before this line runs in a real pipeline.
-        import great_expectations as gx
+        gx = DataOptionalDependency.require("great_expectations", extra="great-expectations")
 
         frame = batch.frame
         row_count = batch.row_count
@@ -116,9 +115,9 @@ class GreatExpectationsPandasValidator(Knot):
         # absolute and parallel pipeline runs don't trample each other's
         # registered assets. The cost is negligible for in-memory frames.
         # GE's public API is only partially typed (``Mapping[Unknown, Unknown]``
-        # parameters, unparameterised generics); the context is the vendor client
-        # and is typed ``Any`` per the optional-SDK convention.
-        context: Any = gx.get_context(mode="ephemeral")  # pyright: ignore[reportUnknownMemberType]  # GE overloads carry untyped params
+        # parameters, unparameterised generics), so it is read off the module
+        # returned by DataOptionalDependency; the context is the vendor client.
+        context = gx.get_context(mode="ephemeral")
         # Names are random to keep ``add_pandas`` calls unique across
         # invocations should the underlying context ever be reused.
         suffix = uuid4().hex[:8]
@@ -218,7 +217,7 @@ class GreatExpectationsPandasValidator(Knot):
         """
         if not result_dict:
             return ""
-        if not _ValueShape.is_str_mapping(result_dict):
+        if not ValueShape.is_str_mapping(result_dict):
             return str(result_dict)
         for key in (
             "partial_unexpected_list",
