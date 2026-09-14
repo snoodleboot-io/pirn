@@ -85,7 +85,7 @@ object and producing a Payload:
 ```python
 # WRONG — ingestor anti-pattern
 class AudioFileIngestor(Knot):
-    async def process(self, path: str, ...) -> SignalPayload:
+    async def process(self, path: str, **_: Any) -> SignalPayload:
         y, sr = librosa.load(path, sr=None, mono=False)  # I/O inside process()
         return SignalPayload(metadata=..., data=y)
 ```

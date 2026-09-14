@@ -37,13 +37,17 @@ filtered = FilterByScore(
 
 **Combining with `Optional`:**
 
+`Optional` is a class decorator, not a base class: `Optional(KnotClass, _config=..., **kwargs)` constructs the knot with its failures made non-fatal.
+
 ```python
-class FetchPrefs(Optional, Knot):
+class FetchPrefs(Knot):
     async def process(self, user_id: str) -> dict:
         return await prefs_api.get(user_id)  # might 404 or timeout
+
+prefs = Optional(FetchPrefs, user_id=upstream_knot, _config=KnotConfig(id="prefs"))
 ```
 
-If `process()` raises, the outcome is converted from `Err` to `Skipped`, making failure tolerable for downstream consumers.
+If `process()` raises, the result is `Ok(Skipped(reason="optional", ...))` instead of `Err`: the knot is recorded as succeeded and its consumers receive the `Skipped` as a value. If construction itself fails, `Optional` returns a same-named stub knot that emits the same `Skipped`, carrying the construction error in `detail`.
 
 **Declaring inputs with a JSON schema instead of a signature.** A capability with no Python signature to introspect — an MCP-declared tool, an OpenAPI operation — declares its inputs with a JSON object schema, and the framework validates it with exactly the machinery a hinted knot gets:
 
@@ -72,7 +76,7 @@ The schema's `properties` are the declared inputs (parents or config, like any k
 
 ## Custom TapestryStore
 
-Implement the `TapestryStore` base class from `pirn.backends`:
+Subclass `pirn.backends.base.tapestry_store.TapestryStore`:
 
 ```python
 from pirn.backends.base.tapestry_store import TapestryStore
@@ -80,7 +84,7 @@ from pirn.core.knot import Knot
 from pirn.backends.base.tapestry_snapshot import TapestrySnapshot
 
 
-class RedisStore:
+class RedisStore(TapestryStore):
     """TapestryStore backed by Redis (example)."""
 
     def register(self, knot: Knot) -> None:
@@ -105,13 +109,13 @@ For mid-run extension (`extensible=True`), also implement `SubscribableStore`:
 ```python
 from pirn.backends.base.subscribable_store import SubscribableStore
 
-class SubscribableRedisStore(RedisStore):
-    def subscribe(self, callback) -> int:
+class SubscribableRedisStore(RedisStore, SubscribableStore):
+    def subscribe(self, callback) -> object:
         token = id(callback)
         self._subscribers[token] = callback
         return token
 
-    def unsubscribe(self, token: int) -> None:
+    def unsubscribe(self, token: object) -> None:
         self._subscribers.pop(token, None)
 ```
 
@@ -119,7 +123,7 @@ class SubscribableRedisStore(RedisStore):
 
 ## Custom RunHistory
 
-Implement `pirn.backends.RunHistory`:
+Subclass `pirn.backends.base.run_history.RunHistory`:
 
 ```python
 from pirn.backends.base.run_history import RunHistory
@@ -127,7 +131,7 @@ from pirn.core.run_result import RunResult
 from pirn.core.knot_lineage import KnotLineage
 
 
-class BigQueryHistory:
+class BigQueryHistory(RunHistory):
     async def record_run(self, result: RunResult) -> None:
         rows = [self._lineage_to_row(rec) for rec in result.lineage]
         await self._bq_client.insert_rows_json(self._table, rows)
@@ -175,13 +179,13 @@ test_backend_conformance.py` is the executable definition every shipped store pa
 
 ## Custom DataStore
 
-Implement `pirn.backends.DataStore`:
+Subclass `pirn.backends.base.data_store.DataStore`:
 
 ```python
 from pirn.backends.base.data_store import DataStore
 
 
-class GCSDataStore:
+class BucketDataStore(DataStore):
     def __init__(self, bucket: str, prefix: str = "pirn/"):
         self._bucket = bucket
         self._prefix = prefix
@@ -232,7 +236,7 @@ single knot's output lives *between* the moment the upstream knot produces it an
 moment the downstream knot consumes it, on one edge of the graph. The executor calls
 `write`/`read` — knot `process()` methods only ever see materialised Python values.
 
-Implement `pirn.core.transport.data_transport.DataTransport`:
+Subclass `pirn.core.transport.data_transport.DataTransport`:
 
 ```python
 from pirn.core.transport.data_transport import DataTransport
@@ -286,7 +290,7 @@ with Tapestry(transport=RedisTransport(redis_client)) as t:
 
 ## Custom Dispatchers
 
-Implement `pirn.engine.dispatchers.Dispatcher`:
+Subclass `pirn.engine.dispatchers.dispatcher.Dispatcher`:
 
 ```python
 from pirn.engine.dispatchers.dispatcher import Dispatcher
@@ -295,7 +299,7 @@ from pirn.core.result import Result
 from collections.abc import Mapping
 
 
-class KubernetesJobDispatcher:
+class KubernetesJobDispatcher(Dispatcher):
     """Submits each knot as a Kubernetes Job and waits for completion."""
 
     @property
@@ -499,7 +503,7 @@ t.add_emitter(DatadogEmitter(statsd))
 
 ## Custom Triggers
 
-Implement `pirn.triggers.trigger.Trigger`:
+Subclass `pirn.triggers.trigger.Trigger`:
 
 ```python
 from pirn.triggers.trigger import Trigger
@@ -508,7 +512,7 @@ from collections.abc import AsyncIterator
 import boto3
 
 
-class SQSTrigger:
+class SQSTrigger(Trigger):
     """Fire one run per SQS message."""
 
     def __init__(self, queue_url: str, region: str = "us-east-1"):
@@ -550,14 +554,14 @@ await trigger.run_forever(tapestry, on_result=handle_result)
 
 ## Custom StreamingSources
 
-Implement `pirn.streaming.streaming_source.StreamingSource`:
+Subclass `pirn.streaming.streaming_source.StreamingSource`:
 
 ```python
 from pirn.streaming.streaming_source import StreamingSource
 from collections.abc import AsyncIterator
 
 
-class WebSocketSource:
+class WebSocketSource(StreamingSource):
     """Stream events from a WebSocket connection."""
 
     def __init__(self, ws_uri: str, parameter_name: str = "event"):

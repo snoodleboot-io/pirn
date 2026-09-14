@@ -116,10 +116,10 @@ with Tapestry() as t:
 
 ## Constraints and gotchas
 
-- **`MemorySearchRetriever` requires a `MemoryStore`** — any object implementing the `MemoryStore` interface from `pirn_agents.knots`.
-- **`GraphRAGPipeline` requires a graph store** (Neo4j, Memgraph, or ArangoDB pool) in addition to a vector store for entity resolution.
+- **`MemorySearchRetriever` requires a `MemoryStore`** — any subclass of `pirn_agents.memory.stores.memory_store.MemoryStore`.
+- **`GraphRAGPipeline` reads its graph from a `MemoryStore`** passed as `graph_memory=`; `hop_count` (default `2`) bounds the traversal.
 - **`AdaptiveRAGPipeline` uses an LLM call to classify the query.** This adds one extra LLM call per invocation — budget accordingly.
-- **`MultiHopRAGPipeline(max_hops=N)` defaults to `max_hops=3`.** Each hop is a retrieval + LLM call chain; latency scales linearly.
+- **`MultiHopRAGPipeline(num_hops=N)` defaults to `num_hops=3`.** The question is decomposed into N sub-questions, each retrieved separately; latency scales with N.
 
 ---
 

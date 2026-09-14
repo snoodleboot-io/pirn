@@ -28,7 +28,7 @@ For each input, decide both sides of the signature split:
 
 | `__init__` hint | `process()` hint | When to use |
 |-----------------|-----------------|-------------|
-| Specific Knot class (e.g. `DatafusionDataBatchKnot`) | The value the Knot produces (e.g. `DatafusionDataBatch`) | Upstream is always a known Knot kind |
+| Specific Knot class (e.g. `DataBatchToDatafusion`) | The value the Knot produces (e.g. `DatafusionDataBatch`) | Upstream is always a known Knot kind |
 | `Knot \| scalar_type` | `scalar_type` only | Value may be a scalar or come from upstream |
 | A new vending Knot class | The opaque resource type | Input is an unserialisable resource |
 
@@ -62,7 +62,7 @@ but call `super()`, delete it entirely.
 
 ```python
 # Before
-def __init__(self, *, batch: Knot, column: str, max_age: timedelta, ...) -> None:
+def __init__(self, *, batch: Knot, column: str, max_age: timedelta, **kwargs: Any) -> None:
     if not column:
         raise ValueError(...)
     self._column = column
@@ -73,7 +73,7 @@ def __init__(self, *, batch: Knot, column: str, max_age: timedelta, ...) -> None
 def __init__(
     self,
     *,
-    batch: DataBatchKnot,
+    batch: Knot,
     column: Knot | str,
     max_age: Knot | timedelta,
     _config: KnotConfig,
@@ -195,7 +195,7 @@ Describe what the Knot does step by step. Use numbered plain-language steps. Whe
 logic benefits from showing the structure more concisely, follow with a fenced `text`
 pseudocode block.
 
-```python
+````python
 """
 Algorithm:
     For each column in ``thresholds``:
@@ -213,7 +213,7 @@ Algorithm:
         emit QualityCheck(passed=(rate <= threshold), actual=rate)
     ```
 """
-```
+````
 
 ### Math
 
@@ -277,7 +277,7 @@ parameters, testing it requires no tapestry or engine.
 ```python
 # Before (testing via constructor)
 with pytest.raises(ValueError):
-    FreshnessGate(batch=..., column="", max_age=timedelta(hours=1), ...)
+    FreshnessCheck(batch=upstream, column="", max_age=timedelta(hours=1), _config=KnotConfig(id="fc"))
 
 # After (testing process() directly)
 knot = FreshnessCheck(

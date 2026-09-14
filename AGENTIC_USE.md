@@ -22,7 +22,7 @@ pirn/
 ├── core/
 │   ├── knot.py              ← Knot base class: constructor wiring, freeze guard, fan-out logic, __call__ framework entry point
 │   ├── knot_config.py       ← KnotConfig Pydantic model: id (required), error_policy, validate_io, description, tags
-│   ├── knot_factory.py      ← @knot decorator and KnotFactory: promotes a plain async/sync function into a Knot subclass factory
+│   ├── knot_factory.py      ← KnotFactory and its @KnotFactory.knot decorator: promotes a plain async/sync function into a Knot subclass factory
 │   ├── parameter.py         ← Parameter knot: no parents, value supplied via RunRequest or default at run time
 │   ├── run_request.py       ← RunRequest: carries parameters dict and optional run_id for a single execution
 │   ├── run_result.py        ← RunResult: outputs dict, lineage list, succeeded bool, exceptions list
@@ -43,10 +43,9 @@ pirn/
 │   ├── aggregator.py        ← Aggregator: N parents merged via a combine callable
 │   ├── branch/branch.py     ← Branch: one parent + selector → tagged paths; non-selected paths are Skipped
 │   ├── reduce_.py           ← Reduce node: folds a list parent to one value (whole-list or pairwise)
-│   ├── continuation.py      ← WithContinuation / continues(): deterministic successor attachment post-run
+│   ├── with_continuation.py ← WithContinuation.attach(): dynamic successor attachment post-run
 │   └── loop_sub_tapestry.py ← LoopSubTapestry: iterative SubTapestry with knots in one extensible run
-├── tapestry.py              ← Tapestry class: context manager, register(), run(), terminals(), get_current_store()
-├── domains/                 ← domain-specific knot libraries (data, agents, ml, health, signal, oilgas); deps via optional extras
+├── tapestry.py              ← Tapestry class: context manager, register(), run(), terminals(), current_store()
 ├── backends/                ← pluggable storage backends (in_memory, sqlite, postgres, duckdb, valkey, s3, local_disk)
 ├── engine/                  ← internal execution engine and dispatchers (Local, Thread, Dask, Ray, Celery)
 ├── emitters/                ← run-event fan-out (Log, Kafka, OpenTelemetry, Webhook, ValKey)
@@ -61,23 +60,23 @@ pirn/
 
 Three equivalent ways to define a knot:
 
-### A — `@knot` decorator (functions, quick prototyping)
+### A — `@KnotFactory.knot` decorator (functions, quick prototyping)
 
 ```python
 import asyncio
 from typing import Any
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 # **_: Any is mandatory — absorbs implicit ordering dependencies.
-@knot
+@KnotFactory.knot
 async def clean(rows: list[dict], drop_nulls: bool, **_: Any) -> list[dict]:
     return [r for r in rows if all(r.values())] if drop_nulls else rows
 
-@knot
+@KnotFactory.knot
 async def summarise(rows: list[dict], **_: Any) -> dict:
     return {"count": len(rows)}
 
@@ -144,7 +143,7 @@ nodes:
 
   - id: normalise
     type: knot
-    callable: myapp.knots.normalise   # must be a @knot function or Knot subclass
+    callable: myapp.knots.normalise   # must be a @KnotFactory.knot function or Knot subclass
     parents:
       rows: raw                       # kwarg name: source node id
 
@@ -158,12 +157,12 @@ nodes:
 ```python
 import asyncio
 from pirn.core.run_request import RunRequest
-from pirn.yaml_loader.pipeline_loader import load_pipeline
+from pirn.yaml_loader.pipeline_loader import PipelineLoader
 import pathlib
 
 async def main():
-    t = load_pipeline(pathlib.Path("pipeline.yaml").read_text(),
-                      known_callables={})   # known_callables overrides callable refs
+    t = PipelineLoader.load_yaml(pathlib.Path("pipeline.yaml").read_text(),
+                                 known_callables={})   # known_callables overrides callable refs
     result = await t.run(RunRequest(parameters={"raw": [{"name": "  Alice  "}]}))
     print(result.outputs["summarise"])
 
@@ -250,7 +249,7 @@ class SignalObjectStoreAssembler(Assembler):
         return _decode(body, signal_id)
 ```
 
-Lives in `pirn/domains/{domain}/assemblers/`. Named `{Subject}{Source}Assembler`.
+Lives in `packages/pirn-{domain}/pirn_{domain}/assemblers/`. Named `{Subject}{Source}Assembler`.
 
 ### Disassembler
 
@@ -267,7 +266,7 @@ class SignalObjectStoreDisassembler(Disassembler):
         return _encode(payload)
 ```
 
-Lives in `pirn/domains/{domain}/disassemblers/`. Named `{Subject}{Sink}Disassembler`.
+Lives in `packages/pirn-{domain}/pirn_{domain}/disassemblers/`. Named `{Subject}{Sink}Disassembler`.
 
 ### SubTapestry
 
@@ -406,10 +405,10 @@ with Tapestry() as t:
 - **Default error policy skips downstream on failure**: if a parent knot produces `Err` or `Skipped`, all children are `Skipped` by default. To receive the error in `process()`, set `error_policy=ErrorPolicy.RECEIVE_ERRORS` in `KnotConfig` — your method then receives `Result` objects rather than bare values.
 - **`tapestry.run()` is a coroutine**: always `await` it. Calling without `await` returns a coroutine object and nothing executes.
 - **`SubTapestry._run_inner` raises on any inner exception**: the outer pipeline sees `Err`, not the inner `RunResult`. The `RunResult` is attached to the `SubTapestryError` for inspection if needed.
-- **Mid-run extension requires `InMemoryStore`**: `tapestry.run(extensible=True)` and `get_current_store()` only work with the default in-memory backend. SQLite, Postgres, and ValKey stores do not yet support it.
+- **Mid-run extension requires `InMemoryStore`**: `tapestry.run(extensible=True)` and `Tapestry.current_store()` only work with the default in-memory backend. SQLite, Postgres, and ValKey stores do not yet support it.
 - **Pickle is used by S3, ValKey, and LocalDisk data stores**: these backends serialize intermediate values with pickle. Only use them when the backing store is not writable by adversaries.
 - **`WebhookTrigger` has no built-in authentication**: always place an authenticating proxy in front of it before exposing to any network.
-- **Streaming sources via `run_stream`, not `run`**: continuous data pipelines use `pirn.streaming.run_stream(source, tapestry)`, not `tapestry.run()`.
+- **Streaming sources via `run_stream`, not `run`**: continuous data pipelines use `await source.run_stream(tapestry)` (a `StreamingSource` method), not `tapestry.run()`.
 - **YAML `allow_callable_refs: true` executes arbitrary imports**: only use with YAML from trusted authors, never user-supplied YAML.
 - **`Optional` is a mixin, not a flag**: to make a knot's `Err` propagate as `Skipped`, declare `class MyKnot(Optional, Knot):` — do not try to pass it as an argument.
 
@@ -422,23 +421,23 @@ with Tapestry() as t:
 ```python
 import asyncio
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
-@knot
+@KnotFactory.knot
 async def extract(source_csv: str, **_) -> list[dict]:
     import csv, io
     return list(csv.DictReader(io.StringIO(source_csv)))
 
-@knot
+@KnotFactory.knot
 async def clean(rows: list[dict], drop_empty: bool, **_) -> list[dict]:
     if not drop_empty:
         return rows
     return [r for r in rows if all(v.strip() for v in r.values())]
 
-@knot
+@KnotFactory.knot
 async def summarise(rows: list[dict], **_) -> dict:
     return {"count": len(rows), "ids": [r.get("id") for r in rows]}
 
@@ -472,11 +471,11 @@ from dataclasses import dataclass
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
+from pirn.core.knot import Knot
 from pirn.tapestry import Tapestry
-from pirn.core.run_result import RunResult
 from pirn.nodes.sub_tapestry import SubTapestry
 
 @dataclass
@@ -485,7 +484,7 @@ class Order:
     items: list[str]
     total: float
 
-@knot
+@KnotFactory.knot
 async def check_inventory(order: Order, **_) -> list[str]:
     catalog = {"widget", "gadget"}
     missing = [i for i in order.items if i not in catalog]
@@ -493,7 +492,7 @@ async def check_inventory(order: Order, **_) -> list[str]:
         raise ValueError(f"unknown items: {missing}")
     return order.items
 
-@knot
+@KnotFactory.knot
 async def charge(order: Order, **_) -> str:
     if order.total >= 10_000:
         raise ValueError("payment declined")
@@ -501,16 +500,15 @@ async def charge(order: Order, **_) -> str:
 
 class ValidateOrder(SubTapestry):
     """Inner tapestry: inventory + payment must both succeed."""
-    async def process(self, order: Order, **_: Any) -> RunResult:
-        with Tapestry() as inner:
-            p = Parameter("order", Order, default=order, _config=KnotConfig(id="order"))
-            check_inventory(order=p, _config=KnotConfig(id="inventory"))
-            charge(order=p,          _config=KnotConfig(id="charge"))
-        return await self._run_inner(inner)
+    async def process(self, order: Order, **_: Any) -> Knot:
+        # The base class owns the inner Tapestry context and runs it.
+        p = Parameter("order", Order, default=order, _config=KnotConfig(id="order"))
+        inventory = check_inventory(order=p, _config=KnotConfig(id="inventory"))
+        # inventory is an implicit (ordering) parent; charge's output is the sink.
+        return charge(order=p, inventory=inventory, _config=KnotConfig(id="charge"))
 
-@knot
-async def notify(order: Order, validation: RunResult, **_) -> str:
-    auth = validation.outputs["charge"]
+@KnotFactory.knot
+async def notify(order: Order, auth: str, **_) -> str:
     return f"Order {order.order_id} confirmed. Auth: {auth}"
 
 async def main():
@@ -523,7 +521,7 @@ async def main():
         )
         notify(
             order=order_param,
-            validation=validated,
+            auth=validated,
             _config=KnotConfig(id="notify", validate_io=False),
         )
 
@@ -546,7 +544,7 @@ asyncio.run(main())
 
 | Task | How |
 |------|-----|
-| Define a knot (decorator) | `@knot` on an `async def f(x: T, **_: Any) -> R` |
+| Define a knot (decorator) | `@KnotFactory.knot` on an `async def f(x: T, **_: Any) -> R` |
 | Define a knot (class) | `class MyKnot(Knot): async def process(self, x: T, **_: Any) -> R` |
 | Wire two knots | pass upstream knot as kwarg: `B(input=a_knot, _config=KnotConfig(id="b"))` |
 | Inject a constant (config) | pass scalar for a non-`Knot|T` param — stays invisible in lineage |
@@ -556,7 +554,7 @@ asyncio.run(main())
 | Check success | `result.succeeded` (False if any knot produced Err) |
 | Handle upstream errors | `KnotConfig(error_policy=ErrorPolicy.RECEIVE_ERRORS)` — `process()` receives `Result` |
 | Skip on predicate | `Gate(input=knot, predicate=fn, _config=KnotConfig(id="g"))` |
-| Fan over a list | `Map(over=list_knot, each=per_item_factory, bind="item", _config=...)` |
+| Fan over a list | wrap the list-producing parent: `PerItem(item=Map(list_knot), _config=KnotConfig(id="each"))` — output is `list[R]` |
 | Compose sub-pipelines | subclass `SubTapestry`; build inner graph in `process()`; return terminal `Knot` |
 | Iterative / agentic loop | subclass `LoopSubTapestry[S]`; implement `step()` and `fold()`; wire `state=initial` |
 | Custom step IDs in history | override `step_id(state, idx) -> str` on `LoopSubTapestry` subclass |
@@ -564,8 +562,8 @@ asyncio.run(main())
 | Add observability | `Tapestry(emitters=[LogEmitter(), OpenTelemetryEmitter()])` |
 | Scale to threads | `Tapestry(dispatcher=ThreadDispatcher(max_workers=8))` |
 | Persist lineage | `Tapestry(history=SQLiteHistory(path="pirn.db"))` |
-| Visualise a run | `from pirn import html_for_run; Path("run.html").write_text(html_for_run(result))` |
-| Load pipeline from YAML | `from pirn import load_pipeline; t = load_pipeline(yaml_text, known_callables={...})` |
+| Visualise a run | `from pirn.viz.tapestry_html_renderer import TapestryHtmlRenderer; Path("run.html").write_text(TapestryHtmlRenderer.for_run(result))` |
+| Load pipeline from YAML | `from pirn.yaml_loader.pipeline_loader import PipelineLoader; t = PipelineLoader.load_yaml(yaml_text, known_callables={...})` |
 
 ---
 
@@ -577,12 +575,12 @@ domain guide alongside this file before writing domain code.
 
 | Domain | Guide | Install extra |
 |--------|-------|---------------|
-| Agents — LLM pipelines, tool use, RAG, ReAct, multi-agent | [packages/pirn-agents/src/pirn_agents/AGENTIC_USE.md](packages/pirn-agents/src/pirn_agents/AGENTIC_USE.md) | `pirn-agents` |
-| Data — tiered dataframe transforms (Polars, DuckDB, Ibis, …) | [pirn/domains/data/AGENTIC_USE.md](pirn/domains/data/AGENTIC_USE.md) | `pirn[data]` |
-| ML — training, evaluation, deployment, artifact formats | [pirn/domains/ml/AGENTIC_USE.md](pirn/domains/ml/AGENTIC_USE.md) | `pirn[ml]` |
-| Health — DICOM, FHIR, HL7v2, EDF, genomics, PHI redaction | [pirn/domains/health/AGENTIC_USE.md](pirn/domains/health/AGENTIC_USE.md) | `pirn[health]` |
-| Signal — DSP, filters, spectral, wavelets, audio | [packages/pirn-signal/src/pirn_signal/AGENTIC_USE.md](packages/pirn-signal/src/pirn_signal/AGENTIC_USE.md) | `pirn-signal[signal]` |
-| Oil & Gas — SEG-Y, LAS, WITSML, seismic, well, production | [pirn/domains/oilgas/AGENTIC_USE.md](pirn/domains/oilgas/AGENTIC_USE.md) | `pirn[oilgas]` |
+| Agents — LLM pipelines, tool use, RAG, ReAct, multi-agent | [packages/pirn-agents/pirn_agents/AGENTIC_USE.md](packages/pirn-agents/pirn_agents/AGENTIC_USE.md) | `pirn-agents` |
+| Data — tiered dataframe transforms (Polars, DuckDB, Ibis, …) | [packages/pirn-data/pirn_data/AGENTIC_USE.md](packages/pirn-data/pirn_data/AGENTIC_USE.md) | `pirn-data` |
+| ML — training, evaluation, deployment, artifact formats | [packages/pirn-ml/pirn_ml/AGENTIC_USE.md](packages/pirn-ml/pirn_ml/AGENTIC_USE.md) | `pirn-ml` |
+| Health — DICOM, FHIR, HL7v2, EDF, genomics, PHI redaction | [packages/pirn-health/pirn_health/AGENTIC_USE.md](packages/pirn-health/pirn_health/AGENTIC_USE.md) | `pirn-health` |
+| Signal — DSP, filters, spectral, wavelets, audio | [packages/pirn-signal/pirn_signal/AGENTIC_USE.md](packages/pirn-signal/pirn_signal/AGENTIC_USE.md) | `pirn-signal[signal]` |
+| Oil & Gas — SEG-Y, LAS, WITSML, seismic, well, production | [packages/pirn-oilgas/pirn_oilgas/AGENTIC_USE.md](packages/pirn-oilgas/pirn_oilgas/AGENTIC_USE.md) | `pirn-oilgas` |
 
 ---
 

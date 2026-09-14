@@ -1,21 +1,21 @@
-Performs asset integrity and HSE analytics — corrosion monitoring, inspection risk scoring, pig run analysis, PSV test record parsing, and Scope 1 emissions reporting. Does NOT interface with inspection management systems; ingest data via DatabaseQuerySource.
+Performs asset integrity and HSE analytics — corrosion monitoring, wall-thickness assessment, inspection risk scoring, pig run analysis, PSV test record parsing, gas composition, and Scope 1 emissions reporting. Does NOT interface with inspection management systems; fetch the records upstream (e.g. with `DatabaseQuerySource`) and pass them in.
 
 ## Mental model
 
-Asset integrity analytics is a risk-reduction pipeline: measurement knots (pig runs, wall thickness, corrosion coupons) feed rate estimators, which feed risk-based inspection scorers that prioritise which assets require intervention. HSE knots (emissions, energy KPIs) operate in parallel on the same source data. All knots are stateless transforms — they do not write back to inspection management systems.
+Asset integrity analytics is a risk-reduction pipeline: measurement knots (pig runs, wall thickness) feed the corrosion rate estimator, which feeds the risk-based inspection scorer that prioritises which assets require intervention. HSE knots (emissions, energy KPIs, gas chromatography) operate in parallel on their own inputs. All knots are stateless transforms — they do not write back to inspection management systems.
 
 ## Source map
 
 ```
-├── cathodic_protection_analyzer.py      CathodicProtectionAnalyzer      — evaluates CP system effectiveness from survey potential readings
-├── corrosion_rate_estimator.py          CorrosionRateEstimator          — estimates corrosion rate (mm/yr) from wall thickness or coupon data
-├── energy_efficiency_kpi_calculator.py  EnergyEfficiencyKpiCalculator   — computes energy intensity and efficiency KPIs for facilities
-├── gas_chromatography_analyzer.py       GasChromatographyAnalyzer       — processes GC compositional analysis results
-├── pig_run_data_processor.py            PigRunDataProcessor             — processes inline inspection pig run data into anomaly records
-├── psv_test_record_parser.py            PSVTestRecordParser             — parses PSV test records to check set-pressure compliance
-├── risk_based_inspection_scorer.py      RiskBasedInspectionScorer       — scores assets using API 581 or custom RBI methodology
-├── scope1_emissions_reporter.py         Scope1EmissionsReporter         — calculates and formats Scope 1 GHG emissions for regulatory reporting
-├── wall_thickness_loss_estimator.py     WallThicknessLossEstimator      — estimates wall thickness loss rate from UT or MFL inspection data
+├── cathodic_protection_analyzer.py      CathodicProtectionAnalyzer      — assesses CP coverage from a ScadaPayload potential series
+├── corrosion_rate_estimator.py          CorrosionRateEstimator          — estimates metal-loss corrosion rate (mpy) between two pig runs
+├── energy_efficiency_kpi_calculator.py  EnergyEfficiencyKpiCalculator   — computes energy / production efficiency KPIs from two ScadaPayloads
+├── gas_chromatography_analyzer.py       GasChromatographyAnalyzer       — computes component mole fractions and heating value from a GC report
+├── pig_run_data_processor.py            PigRunDataProcessor             — processes an inline-inspection pig run into a feature-table summary
+├── psv_test_record_parser.py            PSVTestRecordParser             — parses a pressure safety valve test record and checks required fields
+├── risk_based_inspection_scorer.py      RiskBasedInspectionScorer       — scores an asset as probability of failure x consequence (API RP 580/581)
+├── scope1_emissions_reporter.py         Scope1EmissionsReporter         — aggregates Scope 1 GHG emissions from flaring, venting, and combustion events
+├── wall_thickness_analyzer.py           WallThicknessAnalyzer           — assesses remaining wall thickness against the minimum allowable
 ```
 
 ## Canonical pattern
@@ -25,67 +25,78 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
-from pirn_oilgas.integrity import (
-    PigRunDataProcessor,
-    WallThicknessLossEstimator,
-    CorrosionRateEstimator,
-    RiskBasedInspectionScorer,
-)
+from pirn_oilgas.integrity.corrosion_rate_estimator import CorrosionRateEstimator
+from pirn_oilgas.integrity.pig_run_data_processor import PigRunDataProcessor
+from pirn_oilgas.integrity.risk_based_inspection_scorer import RiskBasedInspectionScorer
+from pirn_oilgas.integrity.wall_thickness_analyzer import WallThicknessAnalyzer
 
 with Tapestry() as t:
-    pig_data = Parameter("pig_data", object)   # DataFrame from DatabaseQuerySource
+    previous_path = Parameter("previous_run_path", str)
+    current_path = Parameter("current_run_path", str)
 
-    anomalies = PigRunDataProcessor(
-        pig_run=pig_data,
-        _config=KnotConfig(id="pig_process", params={"tool_type": "mfl"}),
+    previous_run = PigRunDataProcessor(
+        pipeline_id="PL-7",
+        run_path=previous_path,
+        _config=KnotConfig(id="pig_previous"),
+    )
+    current_run = PigRunDataProcessor(
+        pipeline_id="PL-7",
+        run_path=current_path,
+        _config=KnotConfig(id="pig_current"),
     )
 
-    thickness_loss = WallThicknessLossEstimator(
-        anomalies=anomalies,
-        _config=KnotConfig(id="wt_loss"),
+    wall = WallThicknessAnalyzer(
+        pig_run=current_run,
+        nominal_thickness_in=0.500,
+        minimum_allowable_thickness_in=0.300,
+        _config=KnotConfig(id="wall_thickness"),
     )
 
-    corrosion_rate = CorrosionRateEstimator(
-        thickness_history=thickness_loss,
-        _config=KnotConfig(id="corr_rate", params={"method": "linear"}),
+    corrosion = CorrosionRateEstimator(
+        previous_run=previous_run,
+        current_run=current_run,
+        years_between=3.0,
+        _config=KnotConfig(id="corrosion_rate"),
     )
 
-    rbi_score = RiskBasedInspectionScorer(
-        corrosion_rate=corrosion_rate,
-        _config=KnotConfig(id="rbi", params={"methodology": "api_581"}),
+    rbi = RiskBasedInspectionScorer(
+        corrosion_assessment=corrosion,
+        consequence_score=0.7,
+        _config=KnotConfig(id="rbi"),
     )
 
-result = await t.run(RunRequest(parameters={"pig_data": df}))
+result = await t.run(
+    RunRequest(parameters={"previous_run_path": "ili/2023.csv", "current_run_path": "ili/2026.csv"})
+)
 ```
 
 ## Anti-patterns
 
-**Running RiskBasedInspectionScorer without upstream CorrosionRateEstimator** — passing raw thickness readings without a computed rate causes the scorer to fall back to default corrosion assumptions, silently understating risk for active corrosion loops.
+**Running RiskBasedInspectionScorer on raw pig-run output** — the scorer derives probability of failure from `max_rate_mpy` in its `corrosion_assessment` input; a dict without that key scores as a zero corrosion rate, silently understating risk. Feed it `CorrosionRateEstimator` output.
 
-**Using Scope1EmissionsReporter before GasChromatographyAnalyzer** — emissions factors depend on gas composition; using default methane-only factors when compositional data is available produces non-compliant regulatory reports.
-
-**Passing coupon data directly to WallThicknessLossEstimator** — the estimator expects inspection-tool UT or MFL data; coupon data must first go through CorrosionRateEstimator directly, bypassing the thickness estimator.
+**Relying on Scope1EmissionsReporter default factors for unlisted gases** — with `co2_eq_factors=None` the reporter uses `{"ch4": 25.0, "n2o": 298.0, "co2": 1.0}`, and any event `gas_type` missing from the factor dict is weighted 1.0. Pass explicit factors covering every gas type your events carry.
 
 ## Constraints and gotchas
 
-- `RiskBasedInspectionScorer` with `methodology="api_581"` requires fluid toxicity and flammability inputs; missing fields raise `RbiInputError`.
-- `PigRunDataProcessor` validates that clock-distance alignment is within 0.5% of nominal pipe length; misaligned runs are rejected with `PigAlignmentError`.
-- `Scope1EmissionsReporter` uses GWP-100 factors from the configured IPCC assessment report version; changing the version between runs produces non-comparable outputs — pin it in `_config.params`.
-- `PSVTestRecordParser` flags PSVs where measured set pressure deviates more than ±3% from nameplate; these are emitted as `ComplianceFlag` records, not errors.
-- Install extra: `pip install pirn[oilgas]`
+- `CorrosionRateEstimator` requires `years_between > 0` and a `feature_count` field in `current_run`; otherwise it raises `ValueError`.
+- `RiskBasedInspectionScorer` requires `consequence_score` in [0, 1]; out-of-range values raise `ValueError`.
+- `WallThicknessAnalyzer` raises `ValueError` unless both thicknesses are positive and `minimum_allowable_thickness_in < nominal_thickness_in`.
+- `PSVTestRecordParser` raises `ValueError` naming any of `required_fields` (default `tag`, `set_pressure_psi`, `test_date`, `pass_fail`) missing from the record.
+- `CathodicProtectionAnalyzer` and `EnergyEfficiencyKpiCalculator` accept only `ScadaPayload` inputs (e.g. from `ScadaDatabaseAssembler`); anything else raises `TypeError`.
+- Install extra: `pip install "pirn-oilgas[oilgas]"`
 
 ## Quick reference
 
 | Task | How |
 |------|-----|
-| Process MFL or UT pig run data | `PigRunDataProcessor(pig_run=param)` |
-| Estimate wall thickness loss rate | `WallThicknessLossEstimator(anomalies=pig_output)` |
-| Compute corrosion rate (mm/yr) | `CorrosionRateEstimator(thickness_history=wt_loss)` |
-| Score assets for inspection priority | `RiskBasedInspectionScorer(corrosion_rate=rate)` |
-| Evaluate cathodic protection survey | `CathodicProtectionAnalyzer(cp_survey=param)` |
-| Parse PSV test records for compliance | `PSVTestRecordParser(test_records=param)` |
-| Process GC compositional analysis | `GasChromatographyAnalyzer(gc_data=param)` |
-| Report Scope 1 GHG emissions | `Scope1EmissionsReporter(production_data=param, gc=gc_output)` |
-| Calculate facility energy KPIs | `EnergyEfficiencyKpiCalculator(energy_data=param)` |
+| Process an ILI pig run | `PigRunDataProcessor(pipeline_id=..., run_path=...)` |
+| Assess remaining wall thickness | `WallThicknessAnalyzer(pig_run=..., nominal_thickness_in=..., minimum_allowable_thickness_in=...)` |
+| Compute corrosion rate (mpy) | `CorrosionRateEstimator(previous_run=..., current_run=..., years_between=...)` |
+| Score assets for inspection priority | `RiskBasedInspectionScorer(corrosion_assessment=..., consequence_score=...)` |
+| Evaluate cathodic protection coverage | `CathodicProtectionAnalyzer(potential_series=..., protection_threshold_mv=...)` |
+| Parse a PSV test record | `PSVTestRecordParser(raw_record=...)` |
+| Process GC compositional analysis | `GasChromatographyAnalyzer(gc_report=...)` |
+| Report Scope 1 GHG emissions | `Scope1EmissionsReporter(events=..., co2_eq_factors=...)` |
+| Calculate facility energy KPIs | `EnergyEfficiencyKpiCalculator(energy_consumption=..., production=...)` |
 
 *See also: [oilgas AGENTIC_USE.md](../AGENTIC_USE.md)*

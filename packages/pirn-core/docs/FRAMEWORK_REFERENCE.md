@@ -54,7 +54,7 @@ Core defines **every** interface as a **plain base class whose contract methods 
 
 ```python
 class LLMProvider(PirnOpaqueValue):
-    async def chat(self, messages, *, model=None, ...) -> Mapping[str, Any]:
+    async def chat(self, messages, *, model=None, max_tokens=None, temperature=None) -> Mapping[str, Any]:
         raise NotImplementedError(f"{type(self).__name__} must implement chat()")
 ```
 
@@ -288,8 +288,8 @@ example of the boundary this ADR draws.
 ### Outcomes, errors, and hashing (WS2)
 
 `Ok|Err|Skipped` is now the outcome vocabulary agents targets: `BatchItemResult`
-gained `to_result()`/`from_result()` bridges; `pirn_agents.resilience.FailoverAttempt`
-→ `Result` per candidate, replacing the `FailoverOutcome` enum (deleted, PIR-872; a circuit-open candidate is `Skipped(reason="circuit_open")`, and `RetryClassification` became `RetrySafetyClassifier.is_safe() -> bool`); `ModelCascadeRouter`/
+gained `to_result()`/`from_result()` bridges; `pirn_agents.resilience.failover_attempt.FailoverAttempt`
+carries a `Result` per candidate, replacing the `FailoverOutcome` enum (deleted, PIR-872; a circuit-open candidate is `Skipped(reason="circuit_open")`, and `RetryClassification` became `RetrySafetyClassifier.is_safe() -> bool`); `ModelCascadeRouter`/
 `FallbackChain`/`FailoverChain`'s fold-accumulator chains now run as a
 `LoopSubTapestry` (`CascadeLoop`/`FallbackLoop`/`FailoverLoop`) that stops
 scheduling once the chain locks, rather than a static unrolled chain that
@@ -427,7 +427,7 @@ The synchronous `invalidate`/`purge_expired`/`__len__` bridges are deleted
 **Resolved (PIR-866), superseded by full deletion (PIR-864).** PIR-866 first
 turned `BackpressureSemaphore`/`Bulkhead` into `Admission` subclasses
 delegating to a real `LimitedAdmission` through a shared
-`pirn_agents.performance._backpressure_admission._BackpressureAdmission` (the
+`_BackpressureAdmission` helper (the
 one place `max_queue_depth`/`acquire_timeout` — backpressure knobs core's
 `Admission` has no equivalent for outside a running `Tapestry` — were
 still implemented directly), and gave `ConcurrencyConfig`/`BulkheadConfig` a
@@ -788,7 +788,7 @@ constructor is unchanged.
 
 **What belongs where:**
 - **Core** — the dataflow engine: `Knot`, `Result` (`Ok\|Err\|Skipped`), `Payload`, `Tapestry`, transports, triggers, nodes, dispatchers, connectors + capabilities, backend stores, and emitters. Provider-neutral; no LLM-orchestration semantics — core does not even own the model-wire provider contracts.
-- **Agents (and sibling domains)** — the LLM-interaction layer: the `LLMProvider`/`EmbeddingProvider` model-wire contracts (each consuming domain owns its own copy — `pirn_agents.llm_provider`/`pirn_agents.embedding_provider`, `pirn_health.llm_provider`, `pirn_ml.embedding_provider`), `Tool`/`ToolCall`/`ToolResult`, the frame nouns that pair with core's `Payload` (`GenerationFrame`, `ConversationFrame` — WS6b), agent patterns (RAG/ReAct/plan-execute/…), prompt composition, the tool-calling loop, agent-as-tool.
+- **Agents (and sibling domains)** — the LLM-interaction layer: the `LLMProvider`/`EmbeddingProvider` model-wire contracts (each consuming domain owns its own copy — `pirn_agents.llm.llm_provider.LLMProvider`/`pirn_agents.retrieval.embeddings.embedding_provider.EmbeddingProvider`, `pirn_health.health_llm_provider.HealthLLMProvider`, `pirn_ml.ml_embedding_provider.MLEmbeddingProvider`), `Tool`/`ToolCall`/`ToolResult`, the frame nouns that pair with core's `Payload` (`GenerationFrame`, `ConversationFrame` — WS6b), agent patterns (RAG/ReAct/plan-execute/…), prompt composition, the tool-calling loop, agent-as-tool.
 
 **Canonical case — the Tool. RESOLVED (ADR WS1, 2026-09-13).** A `Tool` is correctly agents-layer (core has no notion of a name + NL description + JSON schema *for a model*), and it is now **composed from** core:
 - `Tool(Knot)` — a tool is a `Knot` *class*; `process()` is its execution and its declared inputs are the call's arguments. `Tool.declaration()` (name, description, `input_json_schema()`) is the only agents-layer addition. One call = one tool knot the engine runs (`ToolFactory.for_call(call)`), so each call has its own `Result`, lineage row, timeout/retry (`KnotConfig`) and concurrency group (`"tools"`).

@@ -32,7 +32,7 @@ pirn is an async Python pipeline framework for defining, executing, and observin
 - **Dependency tracking without ceremony.** Wiring a knot's output to another knot's input is a constructor argument. The framework derives execution order automatically.
 - **Content-addressed lineage.** Every value that flows through a run is hashed and recorded in a lineage ledger. Two runs that produce identical values share the same hash, enabling cross-run comparisons without extra infrastructure.
 - **Failure isolation.** Three error policies (SKIP_IF_PARENT_FAILED, RECEIVE_ERRORS, REQUIRE_ALL_PARENTS) control how failure propagates through the graph without manually writing try/except chains.
-- **Swappable backends.** Storage (TapestryStore, RunHistory, DataStore), dispatch (LocalDispatcher, ThreadDispatcher, CeleryDispatcher, DaskDispatcher, RayDispatcher), and observability (Emitter) are all protocols. Production deployments swap to Postgres/S3/Kafka without touching pipeline code.
+- **Swappable backends.** Storage (TapestryStore, RunHistory, DataStore), dispatch (LocalDispatcher, ThreadDispatcher, CeleryDispatcher, DaskDispatcher, RayDispatcher), and observability (Emitter) are all base classes you subclass. Production deployments swap to Postgres/S3/Kafka without touching pipeline code.
 - **Run replay and diffing.** `KnotDiff.replay_run` / `KnotDiff.compare_runs` in `pirn/knot_diff.py` let operators re-execute a past run with altered parameters and diff the results knot-by-knot by output hash.
 
 ### Version / Phase Status
@@ -40,7 +40,7 @@ pirn is an async Python pipeline framework for defining, executing, and observin
 | Phase | Status | Key additions |
 |-------|--------|---------------|
 | 1 | Complete | Knot/Tapestry/Engine core, InMemory backends, LocalDispatcher |
-| 2 | Complete | Skipped result, ErrorPolicy, Optional mixin, ThreadDispatcher, StreamingSource, Trigger, Branch, Gate, Map, Reduce, Aggregator, YAML loader |
+| 2 | Complete | Skipped result, ErrorPolicy, Optional, ThreadDispatcher, StreamingSource, Trigger, Branch, Gate, Map, Reduce, Aggregator, YAML loader |
 | 3 | Complete | Postgres/SQLite/DuckDB/ValKey/S3/Disk backends, CeleryDispatcher, DaskDispatcher, RayDispatcher, OpenTelemetry/Kafka/Valkey/Webhook emitters, Cron/HTTP/Kafka/Valkey triggers, mid-run extension, replay/diff utilities, tapestry-check CLI |
 
 ### High-Level Component Map
@@ -81,7 +81,7 @@ User Code
     └── Tooling
             ├── YAML Loader    ← pirn/yaml_loader/
             ├── tapestry-check ← pirn/check/
-            └── replay / diff  ← pirn/replay.py
+            └── replay / diff  ← pirn/knot_diff.py, pirn/recording/
 ```
 
 ---
@@ -118,14 +118,14 @@ After the constructor runs, `TypeAdapter`s are built from `get_type_hints(type(s
 Registration happens at the end of `Knot.__init__`:
 
 ```python
-target_tapestry = explicit_tapestry or _CURRENT_TAPESTRY.get(None)
+target_tapestry = tapestry or RunContextVars.tapestry.get(None)
 if target_tapestry is not None:
     target_tapestry.register(self)
 ```
 
-`_CURRENT_TAPESTRY` is a `contextvars.ContextVar` — async-safe, task-local. Inside a `with Tapestry() as t:` block the var is set; knots register themselves without any explicit call.
+`RunContextVars.tapestry` (`pirn/core/run_context_vars.py`) is a `contextvars.ContextVar` — async-safe, task-local. Inside a `with Tapestry() as t:` block the var is set; knots register themselves without any explicit call.
 
-The tapestry delegates to its `TapestryStore.register(knot)`. `InMemoryStore` checks identity: the same instance registered twice is a no-op; two different instances with the same id raise `ValueError`.
+The tapestry delegates to its `TapestryStore.register(knot)`. `InMemoryStore` checks identity: the same instance registered twice is a no-op; two different instances with the same id raise `DuplicateKnotError`.
 
 **Execution** (`Knot.__call__`)
 
@@ -137,7 +137,7 @@ The engine calls `await knot(parent_results)`. The flow inside `__call__`:
 4. If `validate_io`, validate the return value → returns `Err` on failure.
 5. Return `Ok(value=result)`.
 
-Any exception from `process()` is caught with `except BaseException` and becomes `Err(record=_pending_record(...))`. The engine re-registers these placeholder records with the live `ExceptionManager`.
+Any exception from `process()` is caught with `except BaseException` and becomes `Err(record=ExceptionRecord.for_knot(knot_id, exc))` — a placeholder with `run_id="<unbound>"` (a cancellation of the task running the knot is the one exception and propagates). The engine re-registers these placeholder records with the live `ExceptionManager`.
 
 After `_frozen = True` is set (last line of `__init__`), `__setattr__` rejects any attribute writes that do not start with `_mutable_`:
 
@@ -177,7 +177,7 @@ All three are frozen Pydantic models. The engine produces one per knot per run.
 
 **File:** `pirn/core/error_policy.py:ErrorPolicy` (StrEnum)
 
-Applied per knot in `Engine._decide()` (`pirn/engine/engine.py:384`):
+Applied per knot in `Engine._decide()` (`pirn/engine/engine.py`):
 
 ```
 SKIP_IF_PARENT_FAILED   (default)
@@ -208,20 +208,24 @@ async def process(self, left: Result[int], right: Result[int]) -> int:
 
 If any parent produced `Err` or `Skipped`, the engine injects a synthetic `Err` (without calling `process()`) by creating an `ExceptionRecord` via `ctx.exceptions.record(knot_id, RuntimeError(...))`. Use when partial inputs are meaningless and a clear failure signal is preferable to silent skips.
 
-### 2.4 Optional Mixin
+### 2.4 Optional
 
-**File:** `pirn/core/knot.py:Optional`
+**File:** `pirn/core/optional.py:Optional`
+
+`Optional` is a class decorator, not a mixin or a knot subclass. `Optional(KnotClass, _config=..., **kwargs)` constructs `KnotClass` with its failures made non-fatal:
 
 ```python
-class FetchPrefs(Optional, Knot):
+class FetchPrefs(Knot):
     async def process(self, user_id: str) -> dict: ...
+
+prefs = Optional(FetchPrefs, user_id=user, _config=KnotConfig(id="prefs"))
 ```
 
-`Optional` is a plain Python mixin with no methods. Its presence is tested via `isinstance(self, Optional)` / `knot.is_optional`. The semantic difference from `ErrorPolicy` is about *the knot's own outcome*, not how it handles parent failures:
+- On successful construction it returns an instance of a dynamic subclass of `FetchPrefs` (same class name, one graph node) whose `__call__` converts an `Err` — or a `Skipped` the knot returned — into `Ok(Skipped(reason="optional", detail={...}))`. The engine records the knot as succeeded; `detail` carries the phase, error type and message.
+- If construction raises, it returns a same-named stub knot with the same id that emits that `Skipped`, with the construction error in `detail`.
+- `isinstance(knot, Optional)` is true for both outcomes (`OptionalMeta.__instancecheck__` checks the `OptionalMarker` mixin).
 
-- A knot with `error_policy=SKIP_IF_PARENT_FAILED` skips if *its parents* failed.
-- An `Optional` knot signals that *its own* failure or skip should be tolerable for the pipeline. Downstream visualizations and status reports can distinguish "this knot crashed" from "this knot opted out" using the `Skipped` vs `Err` distinction.
-- `Optional` does **not** prevent error propagation on its own — children still apply their own `error_policy` when they see the Optional parent's `Err` or `Skipped` result. The distinction is visible and useful to `RECEIVE_ERRORS` children and to emitters.
+The difference from `ErrorPolicy` is about *the knot's own outcome*, not how it handles parent failures: `error_policy=SKIP_IF_PARENT_FAILED` skips a knot whose *parents* failed, while `Optional` turns the knot's *own* failure into a value (`Skipped`) its consumers receive — an `Aggregator` can then pick the first non-skipped source.
 
 ### 2.5 Content-Addressed Lineage
 
@@ -304,7 +308,7 @@ with Tapestry(store=..., history=..., data_store=..., dispatcher=..., emitters=[
     # enriched is now registered with `t`
 ```
 
-`Tapestry.__enter__` sets `_CURRENT_TAPESTRY` via `ContextVar.set`; `__exit__` resets via the saved token. The ContextVar is async-safe and task-local in asyncio.
+`Tapestry.__enter__` sets `RunContextVars.tapestry` via `ContextVar.set`; `__exit__` resets via the saved token. The ContextVar is async-safe and task-local in asyncio.
 
 **Connection to the next layer:**
 
@@ -354,7 +358,7 @@ The `Shed` (`pirn/engine/shed/`) is a per-run, ephemeral view of the subgraph re
 
 `Edge` is a frozen Pydantic model: `(child_id, parent_id, name)`.
 
-After BFS, a DFS cycle check runs (`_has_cycle`). If a cycle is found, `ShedError` is raised.
+After BFS, a DFS cycle check runs (`CycleDetector.detect`, `pirn/engine/shed/cycle_detector.py`). If a cycle is found, `ShedError` is raised.
 
 The shed also computes `topological_order()` via Kahn's algorithm with sorted-within-layer determinism.
 
@@ -406,13 +410,16 @@ Returns one of:
 - `Skipped` — knot will be skipped.
 - `Err` — synthetic failure (REQUIRE_ALL_PARENTS policy).
 
-**Dispatcher protocol:**
+**Dispatcher base class** (`pirn/engine/dispatchers/dispatcher.py`):
 
 ```python
-class Dispatcher(Protocol):
+class Dispatcher:
     @property
-    def name(self) -> str: ...
-    async def dispatch(self, knot: Knot, inputs: Mapping[str, Any]) -> Result[Any]: ...
+    def name(self) -> str:
+        raise NotImplementedError
+
+    async def dispatch(self, knot: Knot, inputs: Mapping[str, Any]) -> Result[Any]:
+        raise NotImplementedError
 ```
 
 `LocalDispatcher` calls `await knot(inputs)` directly in the event loop.  
