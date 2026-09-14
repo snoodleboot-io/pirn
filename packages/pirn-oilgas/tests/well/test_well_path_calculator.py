@@ -62,5 +62,5 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         out = result.outputs["wp"]
         assert isinstance(out, WellPath3DPayload)
-        assert out.path.well_id == "W"
-        assert out.points.shape == (3, 3)
+        assert out.metadata.well_id == "W"
+        assert out.data.shape == (3, 3)

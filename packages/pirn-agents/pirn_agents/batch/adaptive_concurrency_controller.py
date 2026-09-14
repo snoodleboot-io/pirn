@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``AdaptiveConcurrencyController`` — AIMD concurrency control on the core admission gate.
 
 ADR agents-speaks-core, WS4b: this used to be a bare AIMD counter that

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``CorrelationDimensionEstimator`` — Grassberger-Procaccia dimension.
 
 Algorithm:
@@ -111,7 +109,7 @@ class CorrelationDimensionEstimator(Knot):
         )
         return FeaturePayload(
             metadata=FeatureFrame(
-                signal_id=f"{signal.frame.signal_id}:correlation-dimension",
+                signal_id=f"{signal.metadata.signal_id}:correlation-dimension",
                 channel_count=channels.shape[0],
                 feature_names=("correlation_dimension",),
             ),

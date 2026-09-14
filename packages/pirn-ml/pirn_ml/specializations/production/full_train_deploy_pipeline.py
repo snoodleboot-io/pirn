@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FullTrainDeployPipeline`` — end-to-end SubTapestry: data load,
 train/test split, train, evaluate, serialise, register, predict on a
 holdout slice.

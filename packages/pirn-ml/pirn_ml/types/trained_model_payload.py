@@ -9,10 +9,4 @@ from pirn_ml.types.model_manifest import ModelManifest
 
 
 class TrainedModelPayload(Payload[ModelManifest, FittedEstimator]):
-    @property
-    def manifest(self) -> ModelManifest:
-        return self._metadata
-
-    @property
-    def estimator(self) -> FittedEstimator:
-        return self._data
+    """``metadata`` is the :class:`ModelManifest`; ``data`` is the ``FittedEstimator``."""

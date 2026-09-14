@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``Chunk`` — one text span emitted by a chunking strategy (F25-S2 / PIR-575).
 
 The neutral output unit of the chunking library: a frozen, opaque span carrying

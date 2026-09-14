@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``IncrementalUpserter`` — content-hash change detection + delta re-embed (F25-S4 / PIR-623).
 
 Keeps a per-document *manifest* (the ordered list of chunk content hashes and

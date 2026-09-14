@@ -54,7 +54,7 @@ class TestAudioFeatureExtractor(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, n_mfcc=13, n_fft=512, hop_length=256)
         assert isinstance(out, FeaturePayload)
-        assert out.frame.feature_names == (
+        assert out.metadata.feature_names == (
             "rms_energy",
             "zero_crossing_rate",
             "spectral_centroid",
@@ -69,6 +69,6 @@ class TestAudioFeatureExtractor(unittest.IsolatedAsyncioTestCase):
         multichannel = make_signal_payload(channel_count=2, samples_per_channel=2048)
         out = await knot.process(multichannel, n_mfcc=13, n_fft=512, hop_length=256)
         assert isinstance(out, FeaturePayload)
-        assert out.frame.channel_count == 2
+        assert out.metadata.channel_count == 2
         assert out.data.shape[0] == 2
         assert out.data.shape[1] == 5

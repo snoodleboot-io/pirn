@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``RayMap`` — Tier-3 batch transform that extends the deferred
 ``ray.data.Dataset`` plan with ``ds.map_batches(fn)``.
 
@@ -41,9 +39,10 @@ References:
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import Any
+from collections.abc import Callable, Mapping
+from typing import Any, ClassVar
 
+from pirn.core.annotation_import import AnnotationImport
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -52,6 +51,11 @@ from pirn_data.lazy.ray.ray_dataset import RayDataset
 
 class RayMap(Knot):
     """Apply ``ds.map_batches(fn)`` to a deferred Ray Dataset."""
+
+    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
+        "ray": AnnotationImport("ray", extra="ray-data", package="pirn-data"),
+        "ray_data": AnnotationImport("ray.data", extra="ray-data", package="pirn-data"),
+    }
 
     def __init__(
         self,

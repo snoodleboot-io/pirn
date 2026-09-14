@@ -11,8 +11,7 @@ from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
-
-from pirn_signal.signal_optional_dependency import SignalOptionalDependency
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class SklearnClusterBinding:
@@ -23,7 +22,7 @@ class SklearnClusterBinding:
 
     @classmethod
     def load(cls) -> SklearnClusterBinding:
-        """Import ``sklearn.cluster`` lazily through :class:`SignalOptionalDependency`.
+        """Import ``sklearn.cluster`` lazily through :class:`OptionalDependency`.
 
         Returns:
             A binding over the imported module.
@@ -32,7 +31,9 @@ class SklearnClusterBinding:
             ImportError: If ``sklearn.cluster`` is not installed; the message names
                 ``pirn-signal[separation]``.
         """
-        return cls(SignalOptionalDependency.require("sklearn.cluster", extra="separation"))
+        return cls(
+            OptionalDependency.require("sklearn.cluster", extra="separation", package="pirn-signal")
+        )
 
     def kmeans_labels(
         self, samples: NDArray[np.floating[Any]], cluster_count: int

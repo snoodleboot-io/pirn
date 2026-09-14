@@ -78,5 +78,5 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         assert result.succeeded
         report: EvalReportPayload = result.outputs["ts-eval"]
-        assert set(report.metrics.scores.keys()) == {"mape", "smape", "mase"}
-        assert report.metrics.details["time_column"] == "ts"
+        assert set(report.data.scores.keys()) == {"mape", "smape", "mase"}
+        assert report.data.details["time_column"] == "ts"

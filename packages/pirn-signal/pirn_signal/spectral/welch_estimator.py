@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``WelchEstimator`` — power spectral density via Welch's method.
 
 Algorithm:
@@ -88,7 +86,7 @@ class WelchEstimator(Knot):
         freqs, pxx = await asyncio.to_thread(
             ss.welch,
             signal.data,
-            fs=signal.frame.sample_rate_hz,
+            fs=signal.metadata.sample_rate_hz,
             window="hann",
             nperseg=segment_length,
             noverlap=overlap,
@@ -97,12 +95,14 @@ class WelchEstimator(Knot):
 
         freq_bins = len(freqs)
         freq_res = (
-            signal.frame.sample_rate_hz / segment_length if signal.frame.sample_rate_hz > 0 else 0.0
+            signal.metadata.sample_rate_hz / segment_length
+            if signal.metadata.sample_rate_hz > 0
+            else 0.0
         )
 
         return SpectrumPayload(
             metadata=SpectrumFrame(
-                signal_id=signal.frame.signal_id,
+                signal_id=signal.metadata.signal_id,
                 frequency_bins=freq_bins,
                 frequency_resolution_hz=freq_res,
             ),

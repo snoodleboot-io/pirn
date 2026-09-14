@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ModelRegistrar`` — write the serialised model + metadata to a
 :class:`LineageStore` and an :class:`ObjectStore`.
 

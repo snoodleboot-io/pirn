@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ESPRITEstimator`` — rotational-invariance subspace frequency estimator.
 
 Algorithm:
@@ -82,7 +80,7 @@ class ESPRITEstimator(Knot):
         """
         if not isinstance(signal_subspace_dim, int) or signal_subspace_dim <= 0:
             raise ValueError("ESPRITEstimator: signal_subspace_dim must be a positive integer")
-        rate = signal.frame.sample_rate_hz
+        rate = signal.metadata.sample_rate_hz
         channels = np.atleast_2d(signal.data)
         freqs = await asyncio.gather(
             *(
@@ -93,7 +91,7 @@ class ESPRITEstimator(Knot):
         padded = [f + [float("nan")] * (signal_subspace_dim - len(f)) for f in freqs]
         return FeaturePayload(
             metadata=FeatureFrame(
-                signal_id=f"{signal.frame.signal_id}:esprit",
+                signal_id=f"{signal.metadata.signal_id}:esprit",
                 channel_count=channels.shape[0],
                 feature_names=tuple(f"freq_{i}" for i in range(signal_subspace_dim)),
             ),

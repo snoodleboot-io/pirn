@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TimeSeriesCrossValidator`` — expanding-window time series cross-validation.
 
 Each fold adds one period of training data and evaluates on the next
@@ -53,7 +51,7 @@ async def _aggregate_ts_cv_reports(
     n_splits: int,
 ) -> EvalReportPayload:
     per_fold = [
-        {name: float(value) for name, value in report.metrics.scores.items()} for report in reports
+        {name: float(value) for name, value in report.data.scores.items()} for report in reports
     ]
     if not per_fold:
         aggregated: dict[str, float] = {}

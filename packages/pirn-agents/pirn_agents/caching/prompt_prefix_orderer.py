@@ -33,7 +33,7 @@ class PromptPrefixOrderer:
         Raises:
             TypeError: If ``separator`` is not a str.
         """
-        if not isinstance(separator, str):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(separator, str):
             raise TypeError(
                 f"PromptPrefixOrderer: separator must be a str, got {type(separator).__name__}"
             )
@@ -76,7 +76,7 @@ class PromptPrefixOrderer:
         """Return ``segments`` as a tuple, raising on any non-:class:`PromptSegment`."""
         out = tuple(segments)
         for index, segment in enumerate(out):
-            if not isinstance(segment, PromptSegment):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+            if not isinstance(segment, PromptSegment):
                 raise TypeError(
                     f"PromptPrefixOrderer: segments[{index}] must be a PromptSegment, got "
                     f"{type(segment).__name__}"

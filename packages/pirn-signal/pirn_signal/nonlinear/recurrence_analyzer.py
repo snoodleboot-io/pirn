@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``RecurrenceAnalyzer`` — recurrence-quantification analysis (RQA).
 
 Algorithm:
@@ -109,7 +107,7 @@ class RecurrenceAnalyzer(Knot):
         )
         return FeaturePayload(
             metadata=FeatureFrame(
-                signal_id=f"{signal.frame.signal_id}:rqa",
+                signal_id=f"{signal.metadata.signal_id}:rqa",
                 channel_count=channels.shape[0],
                 feature_names=("rr", "det", "lam"),
             ),

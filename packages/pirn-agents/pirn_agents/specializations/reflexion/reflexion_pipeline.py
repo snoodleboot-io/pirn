@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``ReflexionPipeline`` — bounded actor/evaluator/reflection loop with F4 memory.
 
 A :class:`SubTapestry` that runs, up to ``max_iterations`` times:

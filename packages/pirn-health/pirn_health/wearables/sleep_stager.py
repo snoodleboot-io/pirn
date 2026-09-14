@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SleepStager`` — stage sleep epochs as wake / N1 / N2 / N3 / REM.
 
 Algorithm:
@@ -29,8 +27,8 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
-from pirn_health.health_optional_dependency import HealthOptionalDependency
 from pirn_health.types.health_signal_payload import HealthSignalPayload
 
 
@@ -75,14 +73,14 @@ class SleepStager(Knot):
         if float(epoch_length_sec) <= 0:
             raise ValueError("SleepStager: epoch_length_sec must be positive")
         eeg = signal.data if signal.data.ndim == 1 else signal.data[0]
-        fs = signal.frame.sample_rate_hz
+        fs = signal.metadata.sample_rate_hz
         epoch_samples = max(1, int(epoch_length_sec * fs))
         return await asyncio.to_thread(self._stage_all_epochs, eeg, fs, epoch_samples)
 
     @staticmethod
     def _band_power(epoch: np.ndarray, fs: float, low: float, high: float) -> float:
         """Compute average power in a frequency band using Welch's method."""
-        signal = HealthOptionalDependency.require("scipy.signal", extra="health")
+        signal = OptionalDependency.require("scipy.signal", extra="health", package="pirn-health")
         nperseg = min(epoch.size, max(4, int(fs * 2)))
         freqs: np.ndarray
         psd: np.ndarray

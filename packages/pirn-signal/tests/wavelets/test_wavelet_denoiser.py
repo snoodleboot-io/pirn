@@ -60,5 +60,5 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         out = result.outputs["d"]
         assert isinstance(out, SignalPayload)
-        assert out.frame.signal_id == "test:denoised-soft"
-        assert out.frame.sample_rate_hz == 1000.0
+        assert out.metadata.signal_id == "test:denoised-soft"
+        assert out.metadata.sample_rate_hz == 1000.0

@@ -41,4 +41,4 @@ class TestFIRFilter(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, coefficients=(0.25, 0.5, 0.25))
         assert isinstance(out, SignalPayload)
-        assert out.frame.signal_id == "test:fir"
+        assert out.metadata.signal_id == "test:fir"

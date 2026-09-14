@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``ContextualCompressor`` — trim retrieved docs to the query-relevant span.
 
 Contextual compression shrinks each retrieved document down to only the spans
@@ -11,7 +9,7 @@ cuts token cost. Each surviving document keeps its identity keys (``id``,
 The per-document extraction is expressed as a graph rather than a hand-rolled
 ``for doc in documents: await llm.chat(...)`` loop: each document becomes its
 own :class:`~pirn_agents.specializations.rag.document_compressor.DocumentCompressor`
-invocation, fanned out with a core :class:`~pirn.nodes.map_markers.Map`, and
+invocation, fanned out with a core :class:`~pirn.core.map.Map`, and
 folded back into the surviving list with a :class:`~pirn.nodes.reduce_.Reduce`.
 The engine schedules the per-document extractions concurrently — every ready
 sibling starts as its own task (PIR-841) — so extraction runs *through* the
@@ -39,8 +37,8 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.map import Map
 from pirn.core.parameter import Parameter
-from pirn.nodes.map_markers import Map
 from pirn.nodes.reduce_ import Reduce
 
 from pirn_agents.llm.llm_provider import LLMProvider

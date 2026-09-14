@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PisarenkoEstimator`` — Pisarenko harmonic decomposition.
 
 Algorithm:
@@ -80,7 +78,7 @@ class PisarenkoEstimator(Knot):
         """
         if not isinstance(sinusoid_count, int) or sinusoid_count <= 0:
             raise ValueError("PisarenkoEstimator: sinusoid_count must be a positive integer")
-        rate = signal.frame.sample_rate_hz
+        rate = signal.metadata.sample_rate_hz
         channels = np.atleast_2d(signal.data)
         freqs = await asyncio.gather(
             *(
@@ -91,7 +89,7 @@ class PisarenkoEstimator(Knot):
         padded = [f + [float("nan")] * (sinusoid_count - len(f)) for f in freqs]
         return FeaturePayload(
             metadata=FeatureFrame(
-                signal_id=f"{signal.frame.signal_id}:pisarenko",
+                signal_id=f"{signal.metadata.signal_id}:pisarenko",
                 channel_count=channels.shape[0],
                 feature_names=tuple(f"freq_{i}" for i in range(sinusoid_count)),
             ),

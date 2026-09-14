@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ThresholdConfig`` — the set of per-metric thresholds a run must clear."""
 
 from __future__ import annotations

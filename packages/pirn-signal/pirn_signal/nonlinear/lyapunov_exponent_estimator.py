@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``LyapunovExponentEstimator`` — largest-Lyapunov-exponent estimation.
 
 Algorithm:
@@ -100,7 +98,7 @@ class LyapunovExponentEstimator(Knot):
         )
         return FeaturePayload(
             metadata=FeatureFrame(
-                signal_id=f"{signal.frame.signal_id}:lyapunov-exponent",
+                signal_id=f"{signal.metadata.signal_id}:lyapunov-exponent",
                 channel_count=channels.shape[0],
                 feature_names=("lyapunov_exponent",),
             ),

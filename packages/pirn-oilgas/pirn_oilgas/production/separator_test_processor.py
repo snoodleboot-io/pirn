@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SeparatorTestProcessor`` — process separator test data to compute GOR, WOR, and shrinkage factors.
 
 Algorithm:

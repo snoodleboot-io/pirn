@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``SentenceWindowRetriever`` — match a sentence, return its window.
 
 The retrieval half of sentence-window. It embeds the query, matches the most

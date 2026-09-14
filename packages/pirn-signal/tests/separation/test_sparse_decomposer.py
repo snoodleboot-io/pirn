@@ -58,4 +58,4 @@ class TestSparseDecomposer(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, atom_count=8, sparsity_target=3)
         assert isinstance(out, SourcePayload)
-        assert out.frame.source_count == 8
+        assert out.metadata.source_count == 8

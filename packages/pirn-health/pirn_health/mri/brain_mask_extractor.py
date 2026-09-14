@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``BrainMaskExtractor`` — skull-strip a brain MRI.
 
 Uses dipy ``median_otsu`` for robust brain extraction without antspyx.
@@ -25,8 +23,7 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-
-from pirn_health.health_optional_dependency import HealthOptionalDependency
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class BrainMaskExtractor(Knot):
@@ -76,8 +73,10 @@ class BrainMaskExtractor(Knot):
 
     @staticmethod
     def _extract_mask(nifti_path: str, output_mask_path: str) -> None:
-        nib = HealthOptionalDependency.require("nibabel", extra="mri")
-        mask_module = HealthOptionalDependency.require("dipy.segment.mask", extra="mri")
+        nib = OptionalDependency.require("nibabel", extra="mri", package="pirn-health")
+        mask_module = OptionalDependency.require(
+            "dipy.segment.mask", extra="mri", package="pirn-health"
+        )
         img = nib.load(nifti_path)
         data: np.ndarray = np.asarray(img.dataobj)
         mask: np.ndarray

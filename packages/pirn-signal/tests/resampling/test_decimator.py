@@ -41,5 +41,5 @@ class TestDecimator(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, decimation_factor=2)
         assert isinstance(out, SignalPayload)
-        assert out.frame.signal_id == "test:decimate"
-        assert out.frame.sample_rate_hz == 500.0
+        assert out.metadata.signal_id == "test:decimate"
+        assert out.metadata.sample_rate_hz == 500.0

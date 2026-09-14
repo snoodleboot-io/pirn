@@ -44,12 +44,12 @@ class TestLyapunovExponentEstimator(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, embedding_dim=3, time_delay=1)
         assert isinstance(out, FeaturePayload)
-        assert out.frame.feature_names == ("lyapunov_exponent",)
+        assert out.metadata.feature_names == ("lyapunov_exponent",)
         assert out.data.shape == (1, 1)
 
     async def test_multichannel_computes_per_channel(self) -> None:
         knot = self._make()
         out = await knot.process(_MULTICHANNEL_SIGNAL, embedding_dim=3, time_delay=1)
         assert isinstance(out, FeaturePayload)
-        assert out.frame.channel_count == 2
+        assert out.metadata.channel_count == 2
         assert out.data.shape == (2, 1)

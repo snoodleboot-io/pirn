@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ChampionChallengerCheck`` — compare a challenger model against the
 current champion on a shared test split and check downstream by an
 improvement threshold on a primary metric.
@@ -64,8 +62,8 @@ async def _build_champion_challenger_result(
     primary_metric: str,
     min_imp: float,
 ) -> dict[str, Any]:
-    champion_score = float(champion_report.metrics.scores[primary_metric])
-    challenger_score = float(challenger_report.metrics.scores[primary_metric])
+    champion_score = float(champion_report.data.scores[primary_metric])
+    challenger_score = float(challenger_report.data.scores[primary_metric])
     delta = challenger_score - champion_score
     challenger_wins = delta >= min_imp
     comparison_metrics: dict[str, float] = {

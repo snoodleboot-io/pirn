@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``STFTDecomposer`` — short-time Fourier transform.
 
 Algorithm:
@@ -86,7 +84,7 @@ class STFTDecomposer(Knot):
             raise ValueError("STFTDecomposer: hop_length must not exceed window_length")
 
         overlap = window_length - hop_length
-        sample_rate = signal.frame.sample_rate_hz
+        sample_rate = signal.metadata.sample_rate_hz
 
         _freqs, _times, stft_data = await asyncio.to_thread(
             ss.stft,
@@ -103,7 +101,7 @@ class STFTDecomposer(Knot):
 
         return SpectrumPayload(
             metadata=SpectrumFrame(
-                signal_id=signal.frame.signal_id,
+                signal_id=signal.metadata.signal_id,
                 frequency_bins=freq_bins,
                 frequency_resolution_hz=freq_res,
             ),

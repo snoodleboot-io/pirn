@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TissueSegmenter`` — separate tissue from background on WSI tiles.
 
 Uses Otsu thresholding in grayscale space to compute tissue fraction per tile.
@@ -103,7 +101,7 @@ class TissueSegmenter(Knot):
     ) -> tuple[WSITilePayload, ...]:
         result: list[WSITilePayload] = []
         for p in payloads:
-            gray = np.mean(p.pixels.astype(float), axis=2)
+            gray = np.mean(p.data.astype(float), axis=2)
             tau = TissueSegmenter._otsu_threshold(gray)
             tissue_fraction = float(np.mean(gray < tau))
             if tissue_fraction >= threshold:

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``AudioFeatureExtractor`` — standard audio feature extraction.
 
 Algorithm:
@@ -39,6 +37,7 @@ from typing import Any, ClassVar
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
 from pirn_signal.types.feature_frame import FeatureFrame
 from pirn_signal.types.feature_payload import FeaturePayload
@@ -109,7 +108,7 @@ class AudioFeatureExtractor(Knot):
             raise ValueError("AudioFeatureExtractor: n_fft must be a positive integer")
         if not isinstance(hop_length, int) or hop_length <= 0:
             raise ValueError("AudioFeatureExtractor: hop_length must be a positive integer")
-        sr = int(signal.frame.sample_rate_hz)
+        sr = int(signal.metadata.sample_rate_hz)
         channels = np.atleast_2d(signal.data)
         results = await asyncio.gather(
             *(
@@ -121,7 +120,7 @@ class AudioFeatureExtractor(Knot):
         )
         return FeaturePayload(
             metadata=FeatureFrame(
-                signal_id=f"{signal.frame.signal_id}:audio-features",
+                signal_id=f"{signal.metadata.signal_id}:audio-features",
                 channel_count=channels.shape[0],
                 feature_names=AudioFeatureExtractor._feature_names,
             ),
@@ -131,12 +130,7 @@ class AudioFeatureExtractor(Knot):
     @staticmethod
     def _extract_features(mono: np.ndarray, sr: int, n_fft: int, hop_length: int) -> np.ndarray:
         """Compute the five feature curves for a single channel, stacked as (5, n_frames)."""
-        try:
-            import librosa
-        except ImportError as exc:
-            raise ImportError(
-                "AudioFeatureExtractor requires 'librosa'. Install via pip install pirn-signal[signal]"
-            ) from exc
+        librosa = OptionalDependency.require("librosa", extra="signal", package="pirn-signal")
         rms = librosa.feature.rms(y=mono, frame_length=n_fft, hop_length=hop_length)
         zcr = librosa.feature.zero_crossing_rate(mono, frame_length=n_fft, hop_length=hop_length)
         centroid = librosa.feature.spectral_centroid(

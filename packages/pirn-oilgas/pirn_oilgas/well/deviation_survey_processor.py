@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``DeviationSurveyProcessor`` — clean and resample a deviation survey.
 
 Algorithm:
@@ -84,11 +82,11 @@ class DeviationSurveyProcessor(Knot):
         if target_md_step <= 0.0:
             raise ValueError("DeviationSurveyProcessor: target_md_step must be positive")
         new_stations = await asyncio.to_thread(
-            DeviationSurveyProcessor._resample_survey, survey.stations, target_md_step
+            DeviationSurveyProcessor._resample_survey, survey.data, target_md_step
         )
         return DeviationSurveyPayload(
             metadata=DeviationSurvey(
-                well_id=survey.survey.well_id,
+                well_id=survey.metadata.well_id,
                 station_count=len(new_stations),
             ),
             data=new_stations,

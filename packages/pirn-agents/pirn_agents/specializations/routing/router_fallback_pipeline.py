@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``RouterFallbackPipeline`` — confidence router wired to a typed fallback chain.
 
 A :class:`SubTapestry` that wires, as a static inner tapestry:

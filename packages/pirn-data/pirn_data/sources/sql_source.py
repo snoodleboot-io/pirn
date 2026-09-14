@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SqlSource`` — execute a SQL query via :class:`DatabaseConnectionPool` and
 materialise the results as a :class:`DataBatch`.
 

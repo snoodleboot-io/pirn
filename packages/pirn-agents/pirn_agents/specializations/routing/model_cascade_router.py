@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``ModelCascadeRouter`` — try a cheap model first, escalate only when needed.
 
 Cost-first routing: tiers are supplied cheapest-first and the router invokes them

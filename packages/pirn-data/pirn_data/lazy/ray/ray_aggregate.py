@@ -41,19 +41,27 @@ References:
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
-from typing import Any
+from collections.abc import Callable, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, ClassVar
 
-import ray.data
+from pirn.core.annotation_import import AnnotationImport
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.lazy.ray.ray_dataset import RayDataset
 from pirn_data.value_shape import ValueShape
 
+if TYPE_CHECKING:
+    import ray.data
+
 
 class RayAggregate(Knot):
     """Group rows and apply Ray Data aggregations.  Result remains deferred."""
+
+    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
+        "ray": AnnotationImport("ray", extra="ray-data", package="pirn-data"),
+        "ray_data": AnnotationImport("ray.data", extra="ray-data", package="pirn-data"),
+    }
 
     def __init__(
         self,

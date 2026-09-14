@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``BcfFormat`` — Binary Variant Call Format encoder/decoder.
 
 BCF is the binary, BGZF-compressed companion of VCF. Decoding requires

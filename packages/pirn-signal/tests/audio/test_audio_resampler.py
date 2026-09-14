@@ -46,5 +46,5 @@ class TestAudioResampler(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, target_sample_rate_hz=22050.0, quality="polyphase")
         assert isinstance(out, SignalPayload)
-        assert out.frame.signal_id == "test:resampled"
-        assert out.frame.sample_rate_hz == 22050.0
+        assert out.metadata.signal_id == "test:resampled"
+        assert out.metadata.sample_rate_hz == 22050.0

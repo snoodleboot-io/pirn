@@ -12,8 +12,7 @@ from typing import Any
 
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
-
-from pirn_signal.signal_optional_dependency import SignalOptionalDependency
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class ScipyInterpolateBinding:
@@ -24,7 +23,7 @@ class ScipyInterpolateBinding:
 
     @classmethod
     def load(cls) -> ScipyInterpolateBinding:
-        """Import ``scipy.interpolate`` lazily through :class:`SignalOptionalDependency`.
+        """Import ``scipy.interpolate`` lazily through :class:`OptionalDependency`.
 
         Returns:
             A binding over the imported module.
@@ -33,7 +32,9 @@ class ScipyInterpolateBinding:
             ImportError: If ``scipy.interpolate`` is not installed; the message names
                 ``pirn-signal[signal]``.
         """
-        return cls(SignalOptionalDependency.require("scipy.interpolate", extra="signal"))
+        return cls(
+            OptionalDependency.require("scipy.interpolate", extra="signal", package="pirn-signal")
+        )
 
     def interp1d_extrapolate(
         self,

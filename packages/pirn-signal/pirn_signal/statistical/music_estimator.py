@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MUSICEstimator`` — high-resolution sinusoid frequency estimation.
 
 Algorithm:
@@ -84,7 +82,7 @@ class MUSICEstimator(Knot):
             raise ValueError("MUSICEstimator: signal_subspace_dim must be a positive integer")
         if not isinstance(frequency_grid_size, int) or frequency_grid_size <= 0:
             raise ValueError("MUSICEstimator: frequency_grid_size must be a positive integer")
-        rate = signal.frame.sample_rate_hz
+        rate = signal.metadata.sample_rate_hz
         channels = np.atleast_2d(signal.data)
         results = await asyncio.gather(
             *(
@@ -102,7 +100,7 @@ class MUSICEstimator(Knot):
         resolution = (rate / 2.0) / (frequency_grid_size - 1) if frequency_grid_size > 1 else 0.0
         return SpectrumPayload(
             metadata=SpectrumFrame(
-                signal_id=f"{signal.frame.signal_id}:music-pseudospectrum",
+                signal_id=f"{signal.metadata.signal_id}:music-pseudospectrum",
                 frequency_bins=frequency_grid_size,
                 frequency_resolution_hz=resolution,
             ),

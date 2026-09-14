@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SparkSource`` — pirn :class:`Source` that emits a deferred
 :class:`SparkDataFrame`.
 
@@ -47,9 +45,9 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 from pirn.nodes.source import Source
 
-from pirn_data.data_optional_dependency import DataOptionalDependency
 from pirn_data.lazy.spark.spark_dataframe import SparkDataFrame
 
 
@@ -98,7 +96,7 @@ class SparkSource(Source):
         Returns:
             A SparkDataFrame wrapping the newly created deferred Spark logical plan.
         """
-        DataOptionalDependency.require("pyspark.sql", extra="spark")
+        OptionalDependency.require("pyspark.sql", extra="spark", package="pirn-data")
 
         if spark_session is None:
             raise TypeError("SparkSource: spark_session is required")

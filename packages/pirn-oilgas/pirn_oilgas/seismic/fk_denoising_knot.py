@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FKDenoisingKnot`` — F-K domain noise attenuation for seismic gathers.
 
 Algorithm:

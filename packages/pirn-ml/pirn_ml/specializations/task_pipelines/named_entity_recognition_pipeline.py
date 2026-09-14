@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``NamedEntityRecognitionPipeline`` — tokenise → NER model inference →
 entity extraction, returning a list of (entity, label, span) tuples.
 

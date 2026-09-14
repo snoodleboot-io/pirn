@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``WebpFormat`` — Google WebP encoder/decoder.
 
 Reads and writes use ``Pillow`` (which links libwebp). WebP is a

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``DicomFormat`` — DICOM (medical imaging) batch encoder/decoder.
 
 DICOM (Digital Imaging and Communications in Medicine) is the de-facto

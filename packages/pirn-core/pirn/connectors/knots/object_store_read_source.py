@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ObjectStoreReadSource`` — a pirn :class:`Source` that reads bytes from
 any :class:`ObjectStore` backend at a configured key.
 

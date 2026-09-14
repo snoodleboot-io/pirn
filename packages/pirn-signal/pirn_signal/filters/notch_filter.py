@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``NotchFilter`` — narrow-bandstop / IIR notch filter.
 
 Algorithm:
@@ -84,7 +82,7 @@ class NotchFilter(Knot):
         if not isinstance(quality_factor, (int, float)) or quality_factor <= 0:
             raise ValueError("NotchFilter: quality_factor must be positive")
 
-        fs = signal.frame.sample_rate_hz
+        fs = signal.metadata.sample_rate_hz
         b, a = await asyncio.to_thread(ss.iirnotch, notch_hz, quality_factor, fs)
         sos = await asyncio.to_thread(ss.tf2sos, b, a)
         filtered = await asyncio.to_thread(ss.sosfilt, sos, signal.data, axis=-1)

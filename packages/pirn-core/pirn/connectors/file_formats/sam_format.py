@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SamFormat`` — Sequence Alignment/Map (SAM) text encoder/decoder.
 
 SAM is the text-format companion to BAM/CRAM. Each record describes one

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``DatasetObjectStoreDisassembler`` — serialise a :class:`DatasetPayload` to numpy npz bytes.
 
 Sits between domain knots that produce a :class:`DatasetPayload` and an
@@ -78,7 +76,7 @@ class DatasetObjectStoreDisassembler(Disassembler):
     @staticmethod
     def _serialize(payload: DatasetPayload) -> bytes:
         buf = io.BytesIO()
-        features = payload.features
+        features = payload.data
         arrays: dict[str, Any] = {"feature_matrix": features.feature_matrix}
         if features.target_vector is not None:
             arrays["target_vector"] = features.target_vector

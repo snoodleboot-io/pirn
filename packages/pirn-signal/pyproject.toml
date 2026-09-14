@@ -32,11 +32,10 @@ dependencies = ["pirn-core>=0.9.0,<0.10.0"]  # lockstep floor (ADR-6 / constrain
 
 [project.optional-dependencies]
 # Heavy DSP backends — the pure-Python orchestration layer imports without
-# these. Each concrete knot imports its optional dependency lazily, inside
-# the method (or module-level helper) that actually uses it, guarded by
-# try/except ImportError raising a message naming the extra to install
-# (see docs/contributing/domain-knots.md Step 3). There is no loader module;
-# `pirn_signal.extras_loader.ExtrasLoader` does not exist.
+# these. Each binding imports its optional dependency lazily, inside the
+# method that uses it, through pirn.core.optional_dependency.OptionalDependency.require,
+# which raises an ImportError naming the extra to install
+# (see docs/contributing/domain-knots.md Step 3).
 signal     = ["scipy>=1.12", "pywavelets>=1.5", "librosa>=0.10", "vmdpy>=0.2"]
 emd        = ["EMD-signal>=1.6", "scipy>=1.12"]
 separation = ["scikit-learn>=1.3"]
@@ -106,27 +105,14 @@ runner = ".venv/bin/python -m pytest tests -x -q --no-header"
 venvPath = "../.."
 venv = ".venv"
 include = ["pirn_signal"]
-# Per-subpackage strict ratchet (PIR-869): every path here passes strict with 0 errors,
-# new subpackages start strict, a subpackage joins when its count hits 0 and may never
-# regress. Enforced by scripts/check_pyright_strict_list.py; burn-down table in
-# docs/architecture/ci-pipelines.md.
-strict = [
-    "pirn_signal/adaptive",
-    "pirn_signal/assemblers",
-    "pirn_signal/audio",
-    "pirn_signal/beamforming",
-    "pirn_signal/bindings",
-    "pirn_signal/disassemblers",
-    "pirn_signal/filters",
-    "pirn_signal/nonlinear",
-    "pirn_signal/resampling",
-    "pirn_signal/separation",
-    "pirn_signal/spectral",
-    "pirn_signal/statistical",
-    "pirn_signal/types",
-    "pirn_signal/wavelets",
-    "pirn_signal/*.py",
-]
+# Every module in the package is type-checked in strict mode (PIR-872).
+typeCheckingMode = "strict"
+# The one strict rule the house style contradicts, switched off once for the whole
+# package: process() and constructor validation guard runtime-bound inputs with an
+# explicit type check, then a value check (TypeError before ValueError), and strict
+# mode reports each such guard as unnecessary. See the type-then-value guard rule in
+# .claude/conventions/languages/python.md ("Type Checking Enforcement").
+reportUnnecessaryIsInstance = "none"
 pythonVersion = "3.12"
 reportMissingImports = "none"
 reportMissingModuleSource = "none"

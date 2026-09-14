@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``DataSplitObjectStoreDisassembler`` — serialise a :class:`DataSplitPayload` to numpy npz bytes.
 
 Sits between domain knots that produce a :class:`DataSplitPayload` and an
@@ -78,7 +76,7 @@ class DataSplitObjectStoreDisassembler(Disassembler):
     @staticmethod
     def _serialize(payload: DataSplitPayload) -> bytes:
         buf = io.BytesIO()
-        arrays = payload.arrays
+        arrays = payload.data
         named: dict[str, Any] = {
             "X_train": arrays.X_train,
             "X_test": arrays.X_test,

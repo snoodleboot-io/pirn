@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``MemorySearchRetriever`` — top-k similarity search over a :class:`MemoryStore`.
 
 Wraps :meth:`MemoryStore.search` (a single ``await`` away from a concrete

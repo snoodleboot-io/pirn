@@ -22,7 +22,9 @@ class TestMainReturnCodes(unittest.TestCase):
         tap._store.all.return_value = []
         ok_result = ValidationResult()
 
-        with patch("pirn.check.tapestry_check_cli._Loader.load_factory", return_value=lambda: tap):
+        with patch(
+            "pirn.check.tapestry_check_cli.FactorySpecLoader.load_factory", return_value=lambda: tap
+        ):
             with patch(
                 "pirn.check.tapestry_check_cli.TapestryValidator.validate", return_value=ok_result
             ):
@@ -33,7 +35,9 @@ class TestMainReturnCodes(unittest.TestCase):
         tap = MagicMock()
         error_result = ValidationResult(issues=[ValidationIssue("error", None, "cycle detected")])
 
-        with patch("pirn.check.tapestry_check_cli._Loader.load_factory", return_value=lambda: tap):
+        with patch(
+            "pirn.check.tapestry_check_cli.FactorySpecLoader.load_factory", return_value=lambda: tap
+        ):
             with patch(
                 "pirn.check.tapestry_check_cli.TapestryValidator.validate",
                 return_value=error_result,
@@ -47,7 +51,9 @@ class TestMainReturnCodes(unittest.TestCase):
             issues=[ValidationIssue("warning", None, "too many terminals")]
         )
 
-        with patch("pirn.check.tapestry_check_cli._Loader.load_factory", return_value=lambda: tap):
+        with patch(
+            "pirn.check.tapestry_check_cli.FactorySpecLoader.load_factory", return_value=lambda: tap
+        ):
             with patch(
                 "pirn.check.tapestry_check_cli.TapestryValidator.validate",
                 return_value=warn_result,
@@ -61,7 +67,9 @@ class TestMainReturnCodes(unittest.TestCase):
             issues=[ValidationIssue("warning", None, "too many terminals")]
         )
 
-        with patch("pirn.check.tapestry_check_cli._Loader.load_factory", return_value=lambda: tap):
+        with patch(
+            "pirn.check.tapestry_check_cli.FactorySpecLoader.load_factory", return_value=lambda: tap
+        ):
             with patch(
                 "pirn.check.tapestry_check_cli.TapestryValidator.validate",
                 return_value=warn_result,
@@ -73,6 +81,8 @@ class TestMainReturnCodes(unittest.TestCase):
         def bad_factory():
             raise RuntimeError("bad")
 
-        with patch("pirn.check.tapestry_check_cli._Loader.load_factory", return_value=bad_factory):
+        with patch(
+            "pirn.check.tapestry_check_cli.FactorySpecLoader.load_factory", return_value=bad_factory
+        ):
             code = TapestryCheckCli.main(["mymod:build"])
         self.assertEqual(code, 2)

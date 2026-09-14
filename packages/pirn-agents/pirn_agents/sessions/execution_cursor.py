@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ExecutionCursor`` — how far a run has progressed through its plan."""
 
 from __future__ import annotations

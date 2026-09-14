@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Async Azure Cosmos DB pool backed by :mod:`azure.cosmos.aio`."""
 
 from __future__ import annotations

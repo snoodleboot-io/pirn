@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SklearnTrainerPipeline`` — train an sklearn-flavoured model, score
 it, serialise the artifact, and register it with a
 :class:`LineageStore` + :class:`ObjectStore`.

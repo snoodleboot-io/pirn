@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``ForcedToolChoiceExtractor`` — one-pass extraction via a forced tool call.
 
 The S2 building block. It synthesises a single :class:`ExtractionTool` whose

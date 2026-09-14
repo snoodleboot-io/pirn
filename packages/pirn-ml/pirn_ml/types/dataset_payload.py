@@ -9,10 +9,4 @@ from pirn_ml.types.ml_features import MLFeatures
 
 
 class DatasetPayload(Payload[DatasetManifest, MLFeatures]):
-    @property
-    def manifest(self) -> DatasetManifest:
-        return self._metadata
-
-    @property
-    def features(self) -> MLFeatures:
-        return self._data
+    """``metadata`` is the :class:`DatasetManifest`; ``data`` is the ``MLFeatures``."""

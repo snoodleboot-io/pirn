@@ -42,4 +42,4 @@ class TestAudioDenoiser(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, noise_estimate_frames=10, over_subtraction_factor=1.0)
         assert isinstance(out, SignalPayload)
-        assert out.frame.signal_id == "test:denoised"
+        assert out.metadata.signal_id == "test:denoised"

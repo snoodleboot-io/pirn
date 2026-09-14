@@ -2,7 +2,7 @@
 
 Demonstrates the "SQL driver lazily imported behind an extra" pattern: the
 ``aiosqlite`` backend is imported only inside :meth:`execute` via
-:meth:`~pirn_agents._internal.optional_import.OptionalImport.require`, so importing this module stays
+:meth:`~pirn.core.optional_dependency.OptionalDependency.require`, so importing this module stays
 backend-free. Install with ``pip install "pirn-agents[sql]"``.
 """
 
@@ -11,7 +11,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-from pirn_agents._internal.optional_import import OptionalImport
+from pirn.core.optional_dependency import OptionalDependency
+
 from pirn_agents.tools.sql.sql_connector import SqlConnector
 
 
@@ -61,7 +62,7 @@ class AiosqliteConnector(SqlConnector):
         Raises:
             ImportError: If the ``aiosqlite`` backend is not installed.
         """
-        aiosqlite = OptionalImport.require("sql", "aiosqlite")
+        aiosqlite = OptionalDependency.require("aiosqlite", extra="sql", package="pirn-agents")
         async with aiosqlite.connect(self._database) as db:
             try:
                 cursor = await db.execute(query, tuple(parameters or ()))

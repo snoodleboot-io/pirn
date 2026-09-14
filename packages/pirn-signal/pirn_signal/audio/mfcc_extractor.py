@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MFCCExtractor`` — mel-frequency cepstral coefficients.
 
 Algorithm:
@@ -34,6 +32,7 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
 from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.spectrum_frame import SpectrumFrame
@@ -94,7 +93,7 @@ class MFCCExtractor(Knot):
             raise ValueError("MFCCExtractor: hop_length must be a positive integer")
         if hop_length > n_fft:
             raise ValueError("MFCCExtractor: hop_length must not exceed n_fft")
-        sr = int(signal.frame.sample_rate_hz)
+        sr = int(signal.metadata.sample_rate_hz)
         channels = np.atleast_2d(signal.data)
         results = await asyncio.gather(
             *(
@@ -106,7 +105,7 @@ class MFCCExtractor(Knot):
         )
         return SpectrumPayload(
             metadata=SpectrumFrame(
-                signal_id=f"{signal.frame.signal_id}:mfcc",
+                signal_id=f"{signal.metadata.signal_id}:mfcc",
                 frequency_bins=n_mfcc,
                 frequency_resolution_hz=0.0,
             ),
@@ -117,12 +116,7 @@ class MFCCExtractor(Knot):
     def _compute_mfcc(
         mono: np.ndarray, sr: int, n_mfcc: int, n_fft: int, hop_length: int
     ) -> np.ndarray:
-        try:
-            import librosa
-        except ImportError as exc:
-            raise ImportError(
-                "MFCCExtractor requires 'librosa'. Install via pip install pirn-signal[signal]"
-            ) from exc
+        librosa = OptionalDependency.require("librosa", extra="signal", package="pirn-signal")
         return librosa.feature.mfcc(
             y=mono, sr=sr, n_mfcc=n_mfcc, n_fft=n_fft, hop_length=hop_length
         )

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``Hdf5Format`` — Hierarchical Data Format v5 batch encoder/decoder.
 
 HDF5 is a binary container with an internal directory tree. ``h5py`` is

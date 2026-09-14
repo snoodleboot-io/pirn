@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Stripe SaaS connector wrapping the synchronous ``stripe`` SDK.
 
 Stripe's modern Python SDK ships a per-instance ``stripe.StripeClient``.

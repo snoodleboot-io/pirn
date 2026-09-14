@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``ReWooSynthesizer`` — fold the parallel tool evidence into one final answer.
 
 Algorithm:

@@ -29,9 +29,10 @@ References:
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import Any
+from collections.abc import Callable, Mapping
+from typing import Any, ClassVar
 
+from pirn.core.annotation_import import AnnotationImport
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -41,6 +42,11 @@ from pirn_data.value_shape import ValueShape
 
 class RayFilter(Knot):
     """Apply ``ds.filter(predicate)`` to a deferred Ray Dataset."""
+
+    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
+        "ray": AnnotationImport("ray", extra="ray-data", package="pirn-data"),
+        "ray_data": AnnotationImport("ray.data", extra="ray-data", package="pirn-data"),
+    }
 
     def __init__(
         self,

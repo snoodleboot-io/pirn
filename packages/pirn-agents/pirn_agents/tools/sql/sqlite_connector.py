@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SqliteConnector`` — a zero-extra :class:`SqlConnector` over stdlib sqlite3.
 
 Wraps an existing :class:`sqlite3.Connection` (e.g. an in-memory database) and

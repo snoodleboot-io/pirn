@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PorosityCalculator`` — derive a porosity curve from density / neutron logs.
 
 Algorithm:
@@ -140,7 +138,7 @@ class PorosityCalculator(Knot):
         if fluid_density >= matrix_density:
             raise ValueError("PorosityCalculator: fluid_density must be less than matrix_density")
 
-        curve_data = payload.curve_data
+        curve_data = payload.data
 
         if method == "density":
             phi = await asyncio.to_thread(
@@ -160,9 +158,9 @@ class PorosityCalculator(Knot):
         new_curve_data = {**curve_data, mnemonic: phi}
         return LASPayload(
             metadata=LASFile(
-                well_id=payload.las.well_id,
-                curves=(*payload.las.curves, mnemonic),
-                depth_unit=payload.las.depth_unit,
+                well_id=payload.metadata.well_id,
+                curves=(*payload.metadata.curves, mnemonic),
+                depth_unit=payload.metadata.depth_unit,
             ),
             data=new_curve_data,
         )

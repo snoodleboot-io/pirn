@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Async Google Cloud Firestore pool backed by :mod:`google.cloud.firestore_v1`."""
 
 from __future__ import annotations

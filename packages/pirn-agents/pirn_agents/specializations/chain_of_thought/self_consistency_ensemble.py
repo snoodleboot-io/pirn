@@ -1,12 +1,10 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``SelfConsistencyEnsemble`` — majority-vote aggregation over N parallel LLM samples.
 
 Algorithm:
     1. Receive the resolved ``prompt`` string, ``LLMProvider``, and ``samples`` count.
     2. Validate input types at process time.
     3. Fan out ``samples`` independent ``llm.chat`` calls over the same user
-       message with a core :class:`~pirn.nodes.map_markers.Map` (rather than a
+       message with a core :class:`~pirn.core.map.Map` (rather than a
        hand-rolled ``asyncio.gather``), so each sample gets its own engine
        ``Result``, history record, and lineage.
     4. Extract text from each raw response.
@@ -24,8 +22,8 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.map import Map
 from pirn.core.parameter import Parameter
-from pirn.nodes.map_markers import Map
 from pirn.nodes.reduce_ import Reduce
 
 from pirn_agents.llm.llm_provider import LLMProvider

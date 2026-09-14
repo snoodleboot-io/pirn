@@ -313,7 +313,7 @@ PromptCatalog.shared().load_path(untrusted_name, allowed_root="/etc/pirn/prompts
 * Pass `allowed_root` when the path may come from an untrusted or multi-tenant
   source; it is vetted by the shared `PathGuard`.
 * **PyYAML is an optional extra.** Nothing here imports it at module level; a
-  `.yaml`/`.yml` pack pulls it in lazily via `OptionalImport.require`, which raises
+  `.yaml`/`.yml` pack pulls it in lazily via `OptionalDependency.require`, which raises
   `pip install "pirn-agents[yaml]"` when it is missing. JSON packs and every
   built-in default work with the base install.
 

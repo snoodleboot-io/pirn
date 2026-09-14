@@ -22,11 +22,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import datafusion as df
 from pydantic import GetCoreSchemaHandler
 from pydantic_core import CoreSchema, core_schema
+
+if TYPE_CHECKING:
+    import datafusion as df
 
 
 @dataclass(frozen=True)

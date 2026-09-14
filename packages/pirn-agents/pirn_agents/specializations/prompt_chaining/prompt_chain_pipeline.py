@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``PromptChainPipeline`` — run a fixed sequence of LLM calls, chaining outputs.
 
 A :class:`SubTapestry` that walks an ordered list of instruction ``steps``: the

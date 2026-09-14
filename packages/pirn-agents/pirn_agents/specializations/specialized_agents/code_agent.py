@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``CodeAgent`` — code generation with linting and stubbed test execution.
 
 A :class:`SubTapestry` that asks the LLM to emit code for a given task in

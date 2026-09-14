@@ -12,8 +12,7 @@ from typing import Any
 
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
-
-from pirn_signal.signal_optional_dependency import SignalOptionalDependency
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class ScipyNdimageBinding:
@@ -24,7 +23,7 @@ class ScipyNdimageBinding:
 
     @classmethod
     def load(cls) -> ScipyNdimageBinding:
-        """Import ``scipy.ndimage`` lazily through :class:`SignalOptionalDependency`.
+        """Import ``scipy.ndimage`` lazily through :class:`OptionalDependency`.
 
         Returns:
             A binding over the imported module.
@@ -33,7 +32,9 @@ class ScipyNdimageBinding:
             ImportError: If ``scipy.ndimage`` is not installed; the message names
                 ``pirn-signal[signal]``.
         """
-        return cls(SignalOptionalDependency.require("scipy.ndimage", extra="signal"))
+        return cls(
+            OptionalDependency.require("scipy.ndimage", extra="signal", package="pirn-signal")
+        )
 
     def median_filter(
         self, data: ArrayLike, size: int | tuple[int, ...]

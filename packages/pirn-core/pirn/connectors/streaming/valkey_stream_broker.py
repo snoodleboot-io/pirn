@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Valkey Streams :class:`MessageBroker` implementation."""
 
 from __future__ import annotations

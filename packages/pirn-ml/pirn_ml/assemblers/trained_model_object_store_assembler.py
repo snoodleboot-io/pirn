@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TrainedModelObjectStoreAssembler`` — assemble a :class:`TrainedModelPayload` from raw model bytes.
 
 Sits between an object-store read connector (which produces ``bytes``) and
@@ -33,8 +31,8 @@ from typing import Any
 from pirn.core.assembler import Assembler
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
-from pirn_ml.ml_optional_dependency import MlOptionalDependency
 from pirn_ml.types.fitted_estimator import FittedEstimator
 from pirn_ml.types.model_manifest import ModelManifest
 from pirn_ml.types.trained_model_payload import TrainedModelPayload
@@ -96,7 +94,7 @@ class TrainedModelObjectStoreAssembler(Assembler):
 
     @staticmethod
     def _deserialize(body: bytes, algorithm: str) -> TrainedModelPayload:
-        joblib = MlOptionalDependency.require("joblib", extra="ml")
+        joblib = OptionalDependency.require("joblib", extra="ml", package="pirn-ml")
         try:
             raw: object = joblib.load(io.BytesIO(body))
         except Exception:

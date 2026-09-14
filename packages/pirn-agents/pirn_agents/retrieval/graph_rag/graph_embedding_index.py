@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``GraphEmbeddingIndex`` — node/edge embeddings over the F4 vector stack.
 
 Generates embeddings for graph elements provider-neutrally through the existing

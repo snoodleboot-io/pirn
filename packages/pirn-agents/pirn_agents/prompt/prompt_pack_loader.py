@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PromptPackLoader`` — parse a *prompt pack* file into :class:`PromptTemplate` values.
 
 A prompt pack is the operator-facing file format behind
@@ -25,7 +23,7 @@ the default version) or a mapping with an explicit ``template`` plus optional
 JSON support uses only the standard library. YAML support is lazily provided by
 the optional ``yaml`` extra (PyYAML): importing this module — and importing
 ``pirn_agents`` as a whole — never pulls in PyYAML. The backend is imported the
-first time :meth:`from_yaml` is called, via the shared :meth:`~pirn_agents._internal.optional_import.OptionalImport.require` helper,
+first time :meth:`from_yaml` is called, via the shared :meth:`~pirn.core.optional_dependency.OptionalDependency.require` helper,
 which raises a friendly ``pip install "pirn-agents[yaml]"`` message when absent.
 This mirrors :class:`~pirn_agents.builder.agent_spec_loader.AgentSpecLoader`.
 """
@@ -37,8 +35,9 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, ClassVar
 
+from pirn.core.optional_dependency import OptionalDependency
+
 from pirn_agents._internal.json_shape import JsonShape
-from pirn_agents._internal.optional_import import OptionalImport
 from pirn_agents.prompt.prompt_template import PromptTemplate
 from pirn_agents.tools.filesystem._path_guard import PathGuard
 
@@ -120,7 +119,7 @@ class PromptPackLoader:
             TypeError: If the top-level YAML value is not a mapping.
             ValueError: If ``text`` is not valid YAML or the pack is invalid.
         """
-        yaml = OptionalImport.require("yaml", "yaml")
+        yaml = OptionalDependency.require("yaml", extra="yaml", package="pirn-agents")
         try:
             parsed = yaml.safe_load(text)
         except yaml.YAMLError as exc:

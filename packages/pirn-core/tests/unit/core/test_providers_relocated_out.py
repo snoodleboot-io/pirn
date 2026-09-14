@@ -4,8 +4,8 @@ Supersedes the former ``test_provider_relocation.py`` ATDD (SCD-08/SCD-09), whic
 locked the provider bases INTO core. The design was reversed: each consuming
 domain now owns its own copy (``pirn_agents``/``pirn_health`` for ``LLMProvider``,
 ``pirn_agents``/``pirn_ml`` for ``EmbeddingProvider``), avoiding cross-domain
-edges via duplication rather than centralisation. Per convention there is no
-re-export shim, so a stale ``pirn.core.providers`` import must fail loudly.
+edges via duplication rather than centralisation. There is no re-export
+module, so a stale ``pirn.core.providers`` import must fail loudly.
 
 This is a pure-core test — it imports no domain package.
 """

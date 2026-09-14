@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``BeatTracker`` — beat / tempo tracking.
 
 Algorithm:
@@ -38,6 +36,7 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
 from pirn_signal.types.feature_frame import FeatureFrame
 from pirn_signal.types.feature_payload import FeaturePayload
@@ -96,7 +95,7 @@ class BeatTracker(Knot):
             raise ValueError("BeatTracker: tempo_min_bpm must be positive")
         if not isinstance(tempo_max_bpm, (int, float)) or tempo_max_bpm <= tempo_min_bpm:
             raise ValueError("BeatTracker: tempo_max_bpm must exceed tempo_min_bpm")
-        sr = int(signal.frame.sample_rate_hz)
+        sr = int(signal.metadata.sample_rate_hz)
         channels = np.atleast_2d(signal.data)
         results = await asyncio.gather(
             *(
@@ -111,7 +110,7 @@ class BeatTracker(Knot):
         ]
         return FeaturePayload(
             metadata=FeatureFrame(
-                signal_id=f"{signal.frame.signal_id}:beats",
+                signal_id=f"{signal.metadata.signal_id}:beats",
                 channel_count=channels.shape[0],
                 feature_names=("tempo_bpm", *(f"beat_frame_{i}" for i in range(max_beats))),
             ),
@@ -120,11 +119,6 @@ class BeatTracker(Knot):
 
     @staticmethod
     def _track_beats(mono: np.ndarray, sr: int, hop_length: int) -> tuple[float, np.ndarray]:
-        try:
-            import librosa
-        except ImportError as exc:
-            raise ImportError(
-                "BeatTracker requires 'librosa'. Install via pip install pirn-signal[signal]"
-            ) from exc
+        librosa = OptionalDependency.require("librosa", extra="signal", package="pirn-signal")
         tempo, beat_frames = librosa.beat.beat_track(y=mono, sr=sr, hop_length=hop_length)
         return float(np.atleast_1d(tempo)[0]), beat_frames

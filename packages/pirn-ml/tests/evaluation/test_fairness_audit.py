@@ -48,8 +48,8 @@ class TestFairnessAuditHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         out: EvalReportPayload = result.outputs["audit"]
         assert isinstance(out, EvalReportPayload)
-        assert "parity_gender" in out.metrics.scores
-        assert "parity_race" in out.metrics.scores
+        assert "parity_gender" in out.data.scores
+        assert "parity_race" in out.data.scores
 
 
 class TestFairnessAuditProcess(unittest.IsolatedAsyncioTestCase):

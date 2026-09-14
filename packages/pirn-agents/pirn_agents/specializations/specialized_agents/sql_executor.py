@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``SQLExecutor`` — internal helper Knot for :class:`SQLAgent`.
 
 Validates an LLM-written SQL statement through two independent guards and

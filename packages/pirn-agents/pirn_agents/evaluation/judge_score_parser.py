@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``JudgeScoreParser`` — read a normalised 0..1 score from judge free text."""
 
 from __future__ import annotations

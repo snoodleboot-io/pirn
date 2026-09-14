@@ -226,7 +226,8 @@ Return/branch on `Ok \| Err \| Skipped`. `Err` carries an `ExceptionRecord`. Nev
 - **Is it event-driven?** → implement `Trigger` and use `Trigger.run_forever`, don't hand-roll a consume loop.
 - **Is it parallel execution?** → compose a `Dispatcher`, don't re-implement concurrency.
 - **Does something succeed/fail/skip?** → `Ok \| Err \| Skipped`, not a new enum.
-- **Is it pure logic with no state?** → a plain class with methods; a module-level function only when it is a documented public entry point on the `scripts/check_conventions.py` allowlist (PIR-869) — a genuine decorator, an ambient accessor or a driver. Anything else is a `@staticmethod`; a replaced name is deleted, never kept as a bare alias (alpha policy, `docs/guides/versioning.md`).
+- **Is it pure logic with no state?** → a plain class with `@staticmethod`s; there are no module-level functions (`scripts/check_conventions.py` fails on any). A replaced name is deleted, never kept as a bare alias (alpha policy, `docs/guides/versioning.md`).
+- **Does it depend on an optional engine (pandas, Polars, a cloud SDK)?** → never import it at module scope: annotations import it under `if TYPE_CHECKING:` and a knot declares those names in `_annotation_imports` (`pirn.core.annotation_import.AnnotationImport`, resolved through `OptionalDependency.require` on first construction); runtime use imports inside the method (`docs/contributing/knot-design-rules.md` Rule 10).
 
 ---
 
@@ -681,22 +682,20 @@ to `ExceptionRecord`.
   `KnotDiff.replay_run` / `KnotDiff.compare_runs`,
   `CeleryDispatcher.register_worker_task`, `MermaidRenderer.for_tapestry` /
   `.for_run`, `TapestryHtmlRenderer.for_tapestry` / `.for_run`,
-  `TapestryGraphScanner.scan`, `ExplorerHtmlGenerator.generate`. The core
-  entries of `scripts/check_conventions.py`'s module-level-function allowlist
-  are gone, and the core conventions baseline is 0 in every category. The
-  console scripts point at `TapestryCheckCli.main` and `ExploreCli.main`.
+  `TapestryGraphScanner.scan`, `ExplorerHtmlGenerator.generate`. Core has no
+  module-level functions and no house-convention findings. The console scripts
+  point at `TapestryCheckCli.main` and `ExploreCli.main`.
 - **Names and constants (PIR-872).** `*Gate` is reserved for `Gate`
   subclasses: the admission interface is `Admission`
   (`engine/admission/admission.py`) with `LimitedAdmission` and
   `UnboundedAdmission`, next to `ChainedAdmission`. Class-level configuration
   is a lowercase `ClassVar`: `InMemoryDataStore.default_max_values`,
   `InMemoryHistory.default_max_runs`, `InvocationIdentity.uncomparable_marker`.
-- **Deleted, not deprecated (PIR-872).** The `pirn/emitters/base.py`,
-  `pirn/triggers/base.py` and `pirn/streaming/base.py` module shims, the
-  `pirn.domains.*` import shim and its `pirn-migrate-imports` codemod
-  (`pirn/_migrate/`), and the `Knot._deprecated_since` /
-  `_deprecation_notice` construction-warning seam (with its last user,
-  `pirn_data`'s `ScdType1Overwrite` — use `MergeUpsert`).
+- **No compatibility layer (PIR-872).** Core has no re-export modules at old
+  import paths, no import codemod and no construction-time warning seam;
+  `scripts/check_conventions.py` fails on a re-export module, a module-scope
+  alias or any deprecation reference. `pirn_data`'s SCD Type-1 upsert is
+  `MergeUpsert`.
 - **Private-in-name-only is public (PIR-872).** Classes other modules import
   are public: `Signer` (`backends/signer.py`), `CloudObjectStore`, `LazyPool`,
   `LazyClient`, `SqliteMigrations`, `RunScopedSubscriber`,
@@ -727,14 +726,10 @@ to `ExceptionRecord`.
   `account_url`, `S3Config.region` became `str | None` (same default).
   `LocalDiskDataStore` keeps the raw-bytes primitives (its atomic-rename
   write has no connector counterpart).
-- **pyright strict is per subpackage, ratcheted.** Each package's
-  `[tool.pyright].strict` lists the subpackages that pass strict with 0
-  errors (core: every subpackage and the root modules except `connectors`,
-  which is the burn-down). New subpackages start strict, a subpackage
-  joins at 0, none regresses — `scripts/check_pyright_strict_list.py` enforces
-  it in CI and `docs/architecture/ci-pipelines.md` holds the table. The only
-  strict rule the house style contradicts, `reportUnnecessaryIsInstance`, is
-  suppressed per file with a reason; the runtime guard is never deleted.
+- **Every package is pyright strict.** Each package's `[tool.pyright]` sets
+  `typeCheckingMode = "strict"`. The only strict rule the house style
+  contradicts, `reportUnnecessaryIsInstance`, is off once in that config; the
+  runtime type-then-value guard is never deleted.
 
 **PIR-868 (WS6b follow-on).** The 11 specialization-pattern `*Result` value
 objects (`EvaluatorOptimizerResult`, `LatsResult`, `OrchestratorWorkersResult`,
@@ -753,14 +748,13 @@ constructor is unchanged.
 
 ### Agents vocabulary and house conventions (PIR-872)
 
-- **No agents module-level functions remain.** The 19 agents entries of
-  `_MODULE_LEVEL_FUNCTION_ALLOWLIST` are gone: each former wrapper is its
-  owning class's static method, with no alias (`OptionalImport.require`,
-  `ApprovalHook.authorize`, `ConnectorLifespan.manage`, `AsTool.wrap`,
+- **Agents has no module-level functions.** Each entry point is its
+  owning class's static method (`ApprovalHook.authorize`,
+  `ConnectorLifespan.manage`, `AsTool.wrap`,
   `ToolDecorator.decorate`, `ReciprocalRankFusion.fuse`, `DecayFunction.score`,
   `ToolTestHarness.assert_tool_schema`/`assert_tool_schema_shape`/`run_tool`/
-  `collect_tool_stream`, `Bundles.*_toolset`). The agents conventions baseline is
-  0 in every category: `EvalGate` (not a `Gate`) is `EvalRegressionCheck`; every
+  `collect_tool_stream`, `Bundles.*_toolset`). Agents has no house-convention
+  findings: `EvalGate` (not a `Gate`) is `EvalRegressionCheck`; every
   `process()` catch-all is `**_`; the six unmarked closures are static methods.
 - **Knot Rules 1 and 4 hold without exceptions.** `MapAgent` wires every setting
   as a declared input and validates in `process()`; a delegated specialist

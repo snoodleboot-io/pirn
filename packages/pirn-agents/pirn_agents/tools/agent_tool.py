@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``AgentTool`` — a ``SubTapestry`` agent as a tool capability.
 
 A ``SubTapestry`` IS a ``Knot``, so an agent needs no adapter to be *executed*

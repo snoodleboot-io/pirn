@@ -44,21 +44,21 @@ class NullableInput(Knot):
 
 class _StandaloneTests(unittest.TestCase):
     def test_coercible_params_detected_on_class(self):
-        coerce_type, adapter_type = StepRouter._coercible_params["step"]
+        coerce_type, adapter_type = StepRouter._coercible_params()["step"]
         assert coerce_type is str
         assert adapter_type is str
 
     def test_coercible_params_int(self):
-        coerce_type, adapter_type = MultiCoerceKnot._coercible_params["max_results"]
+        coerce_type, adapter_type = MultiCoerceKnot._coercible_params()["max_results"]
         assert coerce_type is int
         assert adapter_type is int
 
     def test_typing_union_also_detected(self):
-        assert "step" in TypingUnionRouter._coercible_params
+        assert "step" in TypingUnionRouter._coercible_params()
 
     def test_nullable_union_coercible(self):
         # Knot | str | None — coerce_type=str, adapter_type=str|None
-        coerce_type, adapter_type = NullableInput._coercible_params["value"]
+        coerce_type, adapter_type = NullableInput._coercible_params()["value"]
         assert coerce_type is str
         # adapter_type must accept None (Optional[str])
         from pydantic import TypeAdapter

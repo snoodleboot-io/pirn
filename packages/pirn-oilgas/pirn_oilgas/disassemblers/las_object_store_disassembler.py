@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``LasObjectStoreDisassembler`` — serialize a :class:`LASPayload` to raw LAS bytes.
 
 Sits between upstream domain knots that produce
@@ -11,7 +9,7 @@ Algorithm:
     1. Receive a :class:`LASPayload` from an upstream knot.
     2. Validate type and non-emptiness of curve data.
     3. On a thread, build a ``lasio.LASFile``, populate header items and curves
-       from ``payload.las`` and ``payload.curve_data``, write to
+       from ``payload.las`` and ``payload.data``, write to
        ``io.StringIO`` and encode the result to UTF-8 bytes.
     4. Return the raw LAS bytes.
 
@@ -30,8 +28,8 @@ import numpy as np
 from pirn.core.disassembler import Disassembler
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
-from pirn_oilgas.oilgas_optional_import import OilgasOptionalImport
 from pirn_oilgas.types.las_payload import LASPayload
 
 
@@ -45,16 +43,14 @@ class LasObjectStoreDisassembler(Disassembler):
 
     @staticmethod
     def _encode(payload: LASPayload) -> bytes:
-        lasio = OilgasOptionalImport.require(
-            "lasio", "LasObjectStoreDisassembler: encoding LAS bytes"
-        )
+        lasio = OptionalDependency.require("lasio", extra="oilgas", package="pirn-oilgas")
 
         las = lasio.LASFile()
 
-        las.well["WELL"].value = payload.las.well_id
-        las.well["DEPT"].unit = payload.las.depth_unit
+        las.well["WELL"].value = payload.metadata.well_id
+        las.well["DEPT"].unit = payload.metadata.depth_unit
 
-        curve_data = payload.curve_data
+        curve_data = payload.data
         mnemonics = list(curve_data.keys())
 
         depth_array: np.ndarray = curve_data.get("DEPT", curve_data.get("DEPTH", np.array([])))
@@ -62,7 +58,7 @@ class LasObjectStoreDisassembler(Disassembler):
             first_mnemonic = mnemonics[0]
             depth_array = np.arange(len(curve_data[first_mnemonic]), dtype=np.float64)
 
-        las.append_curve("DEPT", depth_array, unit=payload.las.depth_unit)
+        las.append_curve("DEPT", depth_array, unit=payload.metadata.depth_unit)
 
         for mnemonic, values in curve_data.items():
             if mnemonic in ("DEPT", "DEPTH"):
@@ -97,12 +93,12 @@ class LasObjectStoreDisassembler(Disassembler):
 
         Raises:
             TypeError: If ``payload`` is not a :class:`LASPayload`.
-            ValueError: If ``payload.curve_data`` is empty.
+            ValueError: If ``payload.data`` is empty.
         """
         if not isinstance(payload, LASPayload):
             raise TypeError(
                 f"LasObjectStoreDisassembler: payload must be LASPayload, got {type(payload).__name__}"
             )
-        if len(payload.curve_data) == 0:
-            raise ValueError("LasObjectStoreDisassembler: payload.curve_data must be non-empty")
+        if len(payload.data) == 0:
+            raise ValueError("LasObjectStoreDisassembler: payload.data must be non-empty")
         return await asyncio.to_thread(LasObjectStoreDisassembler._encode, payload)

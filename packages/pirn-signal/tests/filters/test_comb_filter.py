@@ -47,4 +47,4 @@ class TestCombFilter(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, delay_samples=100, gain=0.5)
         assert isinstance(out, SignalPayload)
-        assert out.frame.signal_id == "test:comb"
+        assert out.metadata.signal_id == "test:comb"

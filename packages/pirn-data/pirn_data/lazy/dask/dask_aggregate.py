@@ -60,19 +60,26 @@ References:
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
-from typing import Any
+from collections.abc import Callable, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, ClassVar
 
-import dask.dataframe as dd
+from pirn.core.annotation_import import AnnotationImport
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.lazy.dask.dask_dataframe import DaskDataFrame
 from pirn_data.value_shape import ValueShape
 
+if TYPE_CHECKING:
+    import dask.dataframe as dd
+
 
 class DaskAggregate(Knot):
     """Group rows and apply Dask aggregations.  Result remains deferred."""
+
+    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
+        "dd": AnnotationImport("dask.dataframe", extra="dask", package="pirn-data"),
+    }
 
     def __init__(
         self,

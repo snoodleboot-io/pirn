@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``DicomObjectStoreDisassembler`` — disassemble a :class:`DICOMPayload` into bytes.
 
 Sits between domain knots that produce :class:`~pirn_health.types.dicom_payload.DICOMPayload`
@@ -8,7 +6,7 @@ and an object store sink connector that expects raw ``bytes``.
 Algorithm:
     1. Receive a :class:`DICOMPayload`.
     2. Validate the payload type.
-    3. On a thread, serialise ``payload.dataset`` with
+    3. On a thread, serialise ``payload.data`` with
        ``dataset.save_as(BytesIO())`` — no filesystem I/O.
     4. Return the resulting ``bytes``.
 
@@ -64,10 +62,10 @@ class DicomObjectStoreDisassembler(Disassembler):
                 f"DicomObjectStoreDisassembler: payload must be DICOMPayload, "
                 f"got {type(payload).__name__}"
             )
-        dataset = payload.dataset
+        dataset = payload.data
         if not hasattr(dataset, "save_as"):
             raise TypeError(
-                "DicomObjectStoreDisassembler: payload.dataset must be a pydicom Dataset "
+                "DicomObjectStoreDisassembler: payload.data must be a pydicom Dataset "
                 f"(support save_as), got {type(dataset).__name__}"
             )
         return await asyncio.to_thread(self._serialise, dataset)

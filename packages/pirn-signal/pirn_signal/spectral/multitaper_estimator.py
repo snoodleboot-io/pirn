@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MultitaperEstimator`` — Slepian-taper PSD with low spectral leakage.
 
 Algorithm:
@@ -90,14 +88,14 @@ class MultitaperEstimator(Knot):
 
         freq_bins = sample_count // 2 + 1
         freq_res = (
-            signal.frame.sample_rate_hz / sample_count
-            if signal.frame.sample_rate_hz > 0 and sample_count > 0
+            signal.metadata.sample_rate_hz / sample_count
+            if signal.metadata.sample_rate_hz > 0 and sample_count > 0
             else 0.0
         )
 
         return SpectrumPayload(
             metadata=SpectrumFrame(
-                signal_id=signal.frame.signal_id,
+                signal_id=signal.metadata.signal_id,
                 frequency_bins=freq_bins,
                 frequency_resolution_hz=freq_res,
             ),

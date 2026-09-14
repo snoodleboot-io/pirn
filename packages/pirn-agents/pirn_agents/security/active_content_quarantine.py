@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ActiveContentQuarantine`` — pull active content out of tool output.
 
 Tool / RAG / MCP payloads may embed content that an agent (or a downstream

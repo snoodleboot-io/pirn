@@ -268,7 +268,7 @@ Nonlinear dynamics and complexity analysis knots.
 
 High-level audio analysis knots backed by `librosa`.
 
-> **Note:** `AudioFileIngestor` has been removed. Use `SignalObjectStoreAssembler` to receive raw bytes from an `ObjectStoreReadSource` connector and produce a `SignalPayload`. The ingestor pattern is abolished in this domain. See [Connector boundaries](#connector-boundaries) below.
+> **Note:** Use `SignalObjectStoreAssembler` to receive raw bytes from an `ObjectStoreReadSource` connector and produce a `SignalPayload`. See [Connector boundaries](#connector-boundaries) below.
 
 | Knot | Description |
 |---|---|
@@ -358,7 +358,7 @@ decomposed = DWTDecomposer(
 
 The `pirn_signal.types` package exposes shared typed containers used across sub-packages.
 Each `*Frame` is a small, immutable lineage/metadata record; each corresponding
-`*Payload` pairs that frame with the actual array data (`payload.frame` / `payload.data`).
+`*Payload` pairs that frame with the actual array data (`payload.metadata` / `payload.data`).
 
 | Frame | Frame fields | Payload `data` | Description |
 |---|---|---|---|

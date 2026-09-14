@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``CodeGenerator`` — internal helper Knot for :class:`CodeAgent`.
 
 Asks the LLM to emit code for the supplied task. Internal API; the

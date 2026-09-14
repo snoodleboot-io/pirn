@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SummaryMemoryCompactor`` — compact older turns into a pinned summary.
 
 The default :class:`~pirn_agents.context.compaction_strategy.CompactionStrategy`:

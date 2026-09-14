@@ -73,9 +73,7 @@ class EgressPolicy:
             if optional:
                 return None
             return frozenset()
-        if isinstance(hosts, str) or not isinstance(  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime guard; hosts is caller-supplied
-            hosts, Sequence
-        ):
+        if isinstance(hosts, str) or not isinstance(hosts, Sequence):
             raise TypeError(f"EgressPolicy: {label} must be a sequence of hostnames or None")
         return frozenset(str(host) for host in hosts)
 

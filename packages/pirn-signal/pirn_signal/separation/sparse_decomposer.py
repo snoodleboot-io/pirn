@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SparseDecomposer`` — sparse decomposition over a fixed dictionary.
 
 Algorithm:
@@ -105,9 +103,9 @@ class SparseDecomposer(Knot):
         )
         return SourcePayload(
             metadata=SourceFrame(
-                signal_id=f"{signal.frame.signal_id}:sparse",
+                signal_id=f"{signal.metadata.signal_id}:sparse",
                 source_count=atom_count,
-                mixing_matrix_shape=(signal.frame.channel_count, atom_count),
+                mixing_matrix_shape=(signal.metadata.channel_count, atom_count),
             ),
             data=components,
         )

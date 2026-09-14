@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``DocumentTranslationPipeline`` — chunk-by-chunk LLM translation.
 
 A :class:`SubTapestry` that loads a document, splits it into fixed-size

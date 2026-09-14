@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``NativeSchemaMapper`` — target schema → native structured-output request.
 
 The S1 building block. Given a target pydantic model *or* a raw JSON Schema, it

@@ -84,8 +84,8 @@ KEYED_STORE_DESIGN_INVENTORY: dict[str, str] = {
 # longer import RunState/RunCheckpoint either — a fork is now a branch of the
 # run chain (ResumeToken-shaped fork point + ReplaySession(allow_new_knots=
 # True)), not a RunCheckpoint rewind. PIR-864 deleted the remaining five
-# one-cycle shims this list named (sessions/* and batch/batch_checkpointer.py),
-# leaving two real, non-deprecated importers; PIR-872 deleted
+# modules this list named (sessions/* and batch/batch_checkpointer.py),
+# leaving two real importers; PIR-872 deleted
 # batch/batch_progress.py's to_run_state()/from_run_state() bridge (a per-fire
 # summary checkpoints nothing), leaving sessions/run_resumer.py.
 # PIR-872 emptied this. batch/batch_progress.py's RunState bridge is deleted

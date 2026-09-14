@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``CWTDecomposer`` — continuous wavelet transform decomposition.
 
 Algorithm:
@@ -88,10 +86,10 @@ class CWTDecomposer(Knot):
             signal.data,
             wavelet_name,
             scale_count,
-            signal.frame.sample_rate_hz,
+            signal.metadata.sample_rate_hz,
         )
         frame = WaveletFrame(
-            signal_id=signal.frame.signal_id,
+            signal_id=signal.metadata.signal_id,
             wavelet_name=wavelet_name,
             scale_count=len(coeff_arrays),
         )

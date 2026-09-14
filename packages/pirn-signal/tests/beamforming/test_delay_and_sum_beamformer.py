@@ -49,4 +49,4 @@ class TestDelayAndSumBeamformer(unittest.IsolatedAsyncioTestCase):
             _SIGNAL, num_elements=8, element_spacing_m=0.05, steering_angle_deg=0.0
         )
         assert isinstance(out, SignalPayload)
-        assert out.frame.signal_id == "test:das"
+        assert out.metadata.signal_id == "test:das"

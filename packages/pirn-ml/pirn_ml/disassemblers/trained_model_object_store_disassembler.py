@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TrainedModelObjectStoreDisassembler`` — serialise a :class:`TrainedModelPayload` to raw bytes.
 
 Sits between domain knots that produce a :class:`TrainedModelPayload` and an
@@ -30,8 +28,8 @@ from typing import Any
 from pirn.core.disassembler import Disassembler
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
-from pirn_ml.ml_optional_dependency import MlOptionalDependency
 from pirn_ml.types.trained_model_payload import TrainedModelPayload
 
 
@@ -76,7 +74,7 @@ class TrainedModelObjectStoreDisassembler(Disassembler):
 
     @staticmethod
     def _serialize(payload: TrainedModelPayload) -> bytes:
-        joblib = MlOptionalDependency.require("joblib", extra="ml")
+        joblib = OptionalDependency.require("joblib", extra="ml", package="pirn-ml")
         buf = io.BytesIO()
-        joblib.dump(payload.estimator.estimator, buf)
+        joblib.dump(payload.data.estimator, buf)
         return buf.getvalue()

@@ -118,7 +118,7 @@ class SqlIdentifier:
             ValueError: If ``raw`` has more than two dot-separated parts, or any
                 part is not a portable unquoted SQL identifier.
         """
-        if not isinstance(raw, str):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(raw, str):
             raise TypeError(f"SqlIdentifier: identifier must be a str, got {type(raw).__name__}")
         match = self._pattern.fullmatch(raw)
         if match is None:

@@ -29,5 +29,5 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         knot = self._make_knot()
         out = await knot.process(decline_parameters=_PARAMS, forecast_months=24)
         assert isinstance(out, ScadaPayload)
-        assert out.series.sensor_id == "forecast"
-        assert out.series.sample_count == 24
+        assert out.metadata.sensor_id == "forecast"
+        assert out.metadata.sample_count == 24

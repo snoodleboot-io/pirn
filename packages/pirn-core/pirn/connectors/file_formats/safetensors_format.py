@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SafetensorsFormat`` — Hugging Face safetensors encoder/decoder.
 
 Safetensors stores tensor weights in a flat header + payload layout

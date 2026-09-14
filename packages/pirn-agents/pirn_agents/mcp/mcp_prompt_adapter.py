@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``McpPromptAdapter`` — turn MCP prompt definitions into reusable templates.
 
 The adapter lists a server's prompts and builds an

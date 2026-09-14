@@ -43,11 +43,19 @@ defaults:
 
 jobs:
   # ===========================================================================
-  # Dependency-aware change detection. Declared edges: domains → core; ml → data.
-  # A package is affected when (a) its own packages/pirn-<x>/ tree changed,
-  # (b) an upstream pirn dep is affected (core → all; data → ml), or (c) shared
-  # CI tooling changed — now ONLY `.github/` or `scripts/` (no shared root config
-  # exists anymore). Output `packages` is the JSON array the matrices consume.
+  # Dependency-aware change detection (scripts/workspace_packages.py, PIR-872).
+  # The changed-file list is the FULL diff between the PR head and its merge base
+  # with the base branch (full-history checkout; nothing is shallow-fetched). A
+  # package is affected when its packages/pirn-<x>/ tree changed or a pirn package
+  # it depends on is affected (edges read from the pyprojects: core -> all,
+  # data -> ml); any change under .github/ or scripts/ affects all seven. The
+  # script fails if a package the diff touches is missing from its result.
+  #
+  # The previous shell implementation piped `printf "$changed" | grep -q` under
+  # `set -o pipefail`: grep -q exits at its first match, printf dies of SIGPIPE
+  # once the list outgrows the pipe buffer, the pipeline reports failure, and
+  # the match reads as "not changed" — PR #368 (83 KB of paths touching all seven
+  # packages, .github/ and scripts/) came out as ["pirn-signal","pirn-oilgas"].
   # ===========================================================================
   changes:
     name: Detect affected packages
@@ -64,50 +72,25 @@ jobs:
         run: |
           set -euo pipefail
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            git fetch --no-tags --depth=1 origin "${{ github.base_ref }}" || true
-            changed="$(git diff --name-only "origin/${{ github.base_ref }}"...HEAD \
-                       || git diff --name-only HEAD~1...HEAD || echo '')"
+            base='${{ github.event.pull_request.base.sha }}'
+            head='${{ github.event.pull_request.head.sha }}'
+            git fetch --no-tags origin "$base" "$head"
+            merge_base="$(git merge-base "$base" "$head")"
+            git diff --name-only "$merge_base" "$head" > "$RUNNER_TEMP/changed.txt"
           else
-            changed=""
+            # push to main / dispatch: an empty list selects every package.
+            : > "$RUNNER_TEMP/changed.txt"
           fi
-          echo "changed files:"; printf '%s\n' "$changed"
-
-          # Only shared CI tooling forces the whole fleet (no shared root config).
-          shared='^(\.github/|scripts/)'
-          all=false
-          if [ -z "$changed" ] || printf '%s\n' "$changed" | grep -qE "$shared"; then all=true; fi
-
-          raw () { [ "$all" = true ] && { echo true; return; }; \
-                   printf '%s\n' "$changed" | grep -qE "^packages/pirn-$1/" && echo true || echo false; }
-          r_core=$(raw core); r_signal=$(raw signal); r_data=$(raw data)
-          r_ml=$(raw ml); r_agents=$(raw agents); r_health=$(raw health); r_oilgas=$(raw oilgas)
-
-          on () { case "true" in "$1"|"$2"|"$3") echo true;; *) echo false;; esac; }
-          a_core=$r_core
-          a_signal=$(on "$r_signal" "$a_core" false)
-          a_data=$(on "$r_data" "$a_core" false)
-          a_agents=$(on "$r_agents" "$a_core" false)
-          a_health=$(on "$r_health" "$a_core" false)
-          a_oilgas=$(on "$r_oilgas" "$a_core" false)
-          a_ml=$(on "$r_ml" "$a_core" "$a_data")     # ml -> core, data
-
-          pkgs=()
-          [ "$a_core"   = true ] && pkgs+=('"pirn-core"')
-          [ "$a_signal" = true ] && pkgs+=('"pirn-signal"')
-          [ "$a_data"   = true ] && pkgs+=('"pirn-data"')
-          [ "$a_ml"     = true ] && pkgs+=('"pirn-ml"')
-          [ "$a_agents" = true ] && pkgs+=('"pirn-agents"')
-          [ "$a_health" = true ] && pkgs+=('"pirn-health"')
-          [ "$a_oilgas" = true ] && pkgs+=('"pirn-oilgas"')
-          json="[$(IFS=,; echo "${pkgs[*]:-}")]"
-          echo "affected: $json"
-          echo "packages=$json" >> "$GITHUB_OUTPUT"
-          [ "${#pkgs[@]}" -gt 0 ] && echo "any=true" >> "$GITHUB_OUTPUT" || echo "any=false" >> "$GITHUB_OUTPUT"
+          python3 scripts/workspace_packages.py affected \
+            --changed-file "$RUNNER_TEMP/changed.txt" --github-output "$GITHUB_OUTPUT"
 
   # ===========================================================================
   # Build every package's wheel into one wheelhouse artifact. Each package builds
   # standalone (`uv build <path>`) — no workspace. Downstream jobs install their
-  # package + cross-package deps from this wheelhouse with `--find-links`.
+  # package's pirn closure from this wheelhouse BY WHEEL PATH
+  # (`scripts/workspace_packages.py closure-wheels`): a pirn-* requirement given by
+  # name resolves against the public index too, where a published release with a
+  # higher version wins over this build.
   # ===========================================================================
   build-wheelhouse:
     name: Build wheelhouse (all packages)
@@ -160,14 +143,12 @@ jobs:
           p='${{ matrix.package }}'
           if [ "$p" = "pirn-core" ]; then imp=pirn; else imp="${p/pirn-/pirn_}"; fi
           echo "imp=$imp" >> "$GITHUB_OUTPUT"
-          # Type-check against current cross-package code, not the wheel baked into
-          # the image: a sibling's annotations (or its py.typed marker) change what
-          # pyright sees. Same refresh as the test job.
-          case "$p" in
-            pirn-core) xr="" ;;
-            pirn-ml)   xr="--reinstall-package pirn-core --reinstall-package pirn-data" ;;
-            *)         xr="--reinstall-package pirn-core" ;;
-          esac
+          # Type-check against this build's cross-package code, not the wheel baked
+          # into the image: a sibling's annotations (or its py.typed marker) change
+          # what pyright sees. Same refresh as the test job.
+          deps=$(python3 scripts/workspace_packages.py closure-wheels "$p" --dist dist --exclude-self)
+          xr=""; for d in $(python3 scripts/workspace_packages.py closure "$p" --exclude-self); do xr="$xr --reinstall-package $d"; done
+          echo "deps=$deps" >> "$GITHUB_OUTPUT"
           echo "xr=$xr" >> "$GITHUB_OUTPUT"
       - name: Install package editable (deps pre-baked) + ruff + pyright
         run: |
@@ -180,6 +161,7 @@ jobs:
           # workspace-wide reformat of questionable value, not bundled here. Keep these
           # aligned with .pre-commit-config.yaml.
           uv pip install --system --find-links dist/ ${{ steps.pkg.outputs.xr }} \
+            ${{ steps.pkg.outputs.deps }} \
             -e "packages/${{ matrix.package }}" 'ruff==0.15.22' 'pyright==1.1.411'
       - name: Ruff lint + format (package's own config)
         # Run from INSIDE the package, like the pyright step below (PIR-760).
@@ -210,13 +192,6 @@ jobs:
           ruff format --check tests
       - name: Pyright (package's own config)
         run: cd packages/${{ matrix.package }} && pyright
-      - name: Pyright strict list is exact (ratcheted per subpackage, PIR-869)
-        # Measures every top-level subpackage of the package in strict mode and
-        # fails if a strict-listed subpackage regressed, if a subpackage with 0
-        # strict errors is missing from [tool.pyright].strict, or if the list
-        # names a path that is not a subpackage. Policy and burn-down table:
-        # docs/architecture/ci-pipelines.md. Stdlib-only apart from pyright.
-        run: python scripts/check_pyright_strict_list.py packages/${{ matrix.package }}
 
   # ===========================================================================
   # Per-package test matrix × Python 3.11–3.14. Editable-install the package with
@@ -247,15 +222,15 @@ jobs:
           p='${{ matrix.package }}'
           if [ "$p" = "pirn-core" ]; then imp=pirn; else imp="${p/pirn-/pirn_}"; fi
           echo "imp=$imp" >> "$GITHUB_OUTPUT"
-          extras=$(python3 -c "import tomllib;d=tomllib.load(open('packages/${{ matrix.package }}/pyproject.toml','rb'));e=list(d.get('project',{}).get('optional-dependencies',{}));h={'pytorch','tensorflow','tflite'};print(','.join(x for x in e if x not in h))")
+          # Extras minus the heavy ML ones and any extra that pulls another pirn
+          # distribution (core's all-domains), which would resolve from the index.
+          extras=$(python3 scripts/workspace_packages.py test-extras "${{ matrix.package }}")
           if [ -n "$extras" ]; then echo "spec=packages/${{ matrix.package }}[$extras]" >> "$GITHUB_OUTPUT";
           else echo "spec=packages/${{ matrix.package }}" >> "$GITHUB_OUTPUT"; fi
-          # Force-refresh cross-package deps so current code (not the baked wheel) is tested.
-          case "${{ matrix.package }}" in
-            pirn-core) xr="" ;;
-            pirn-ml)   xr="--reinstall-package pirn-core --reinstall-package pirn-data" ;;
-            *)         xr="--reinstall-package pirn-core" ;;
-          esac
+          # Force-refresh cross-package deps with this build's wheels, by path.
+          deps=$(python3 scripts/workspace_packages.py closure-wheels "$p" --dist dist --exclude-self)
+          xr=""; for d in $(python3 scripts/workspace_packages.py closure "$p" --exclude-self); do xr="$xr --reinstall-package $d"; done
+          echo "deps=$deps" >> "$GITHUB_OUTPUT"
           echo "xr=$xr" >> "$GITHUB_OUTPUT"
           # Core connector extras some domain test suites exercise (the per-package
           # image bakes only that domain's own extras, not core's).
@@ -268,7 +243,10 @@ jobs:
       - name: Install editable (deps pre-baked) + refresh cross-deps + test tooling
         run: |
           set -euo pipefail
+          # The cross-deps' wheels are given by path, so the pirn-core[...] extra
+          # below binds to this build's pirn-core, never an index release.
           uv pip install --system --find-links dist/ ${{ steps.spec.outputs.xr }} \
+            ${{ steps.spec.outputs.deps }} \
             -e "${{ steps.spec.outputs.spec }}" ${{ steps.spec.outputs.cte }} \
             pytest pytest-asyncio pytest-cov pytest-timeout anyio
       - name: Run tests (own config) + per-package coverage
@@ -286,8 +264,85 @@ jobs:
           fail_ci_if_error: false
 
   # ===========================================================================
+  # Slow-marked tests per affected package (PIR-872). Every package's addopts
+  # deselects `slow`, so the `test` job never runs them; this job runs exactly
+  # `-m slow` with the same extras (minus heavy ML) on py3.12. A package with no
+  # slow tests exits 5 (nothing collected) and passes. Any skipped slow test
+  # FAILS the job: a slow test that skips on a missing backend is not running.
+  # ===========================================================================
+  slow-tests:
+    name: Slow tests (${{ matrix.package }})
+    needs: [changes, build-wheelhouse, lint]
+    if: needs.changes.outputs.any == 'true'
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/${{ github.repository_owner }}/pirn-ci-${{ matrix.package }}:py3.12
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJSON(needs.changes.outputs.packages) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v7.0.0 (match upload-artifact v7; v8 digest-verify mismatched v7 uploads -> stale wheelhouse)
+        with: { name: wheelhouse, path: dist/ }
+      - name: Compute install spec (extras minus heavy ML) + cross-dep refresh
+        id: spec
+        run: |
+          set -euo pipefail
+          p='${{ matrix.package }}'
+          # Extras minus the heavy ML ones and any extra that pulls another pirn
+          # distribution (core's all-domains), which would resolve from the index.
+          extras=$(python3 scripts/workspace_packages.py test-extras "${{ matrix.package }}")
+          if [ -n "$extras" ]; then echo "spec=packages/$p[$extras]" >> "$GITHUB_OUTPUT";
+          else echo "spec=packages/$p" >> "$GITHUB_OUTPUT"; fi
+          deps=$(python3 scripts/workspace_packages.py closure-wheels "$p" --dist dist --exclude-self)
+          xr=""; for d in $(python3 scripts/workspace_packages.py closure "$p" --exclude-self); do xr="$xr --reinstall-package $d"; done
+          echo "deps=$deps" >> "$GITHUB_OUTPUT"
+          echo "xr=$xr" >> "$GITHUB_OUTPUT"
+          case "$p" in
+            pirn-data)   cte="pirn-core[sqlite]" ;;
+            pirn-agents) cte="pirn-core[http]" ;;
+            *)           cte="" ;;
+          esac
+          echo "cte=$cte" >> "$GITHUB_OUTPUT"
+      - name: Install a JVM for the Spark slow tests
+        # pirn-data's slow suite boots a local SparkSession (the `spark` extra);
+        # pyspark needs a Java runtime the base image does not carry.
+        if: matrix.package == 'pirn-data'
+        run: |
+          set -euo pipefail
+          apt-get update -qq
+          apt-get install -y --no-install-recommends default-jre-headless
+          java -version
+      - name: Install editable (deps pre-baked) + refresh cross-deps + test tooling
+        run: |
+          set -euo pipefail
+          # The cross-deps' wheels are given by path, so the pirn-core[...] extra
+          # below binds to this build's pirn-core, never an index release.
+          uv pip install --system --find-links dist/ ${{ steps.spec.outputs.xr }} \
+            ${{ steps.spec.outputs.deps }} \
+            -e "${{ steps.spec.outputs.spec }}" ${{ steps.spec.outputs.cte }} \
+            pytest pytest-asyncio pytest-timeout anyio
+      - name: Run slow tests (fail on any failure or skip)
+        run: |
+          # GitHub runs bash with -e; turn it off so exit code 5 (nothing collected) is inspected.
+          set +e -uo pipefail
+          cd packages/${{ matrix.package }}
+          python -m pytest tests -m slow --timeout=600 -q -rs --junitxml=slow-results.xml
+          rc=$?
+          if [ "$rc" -eq 5 ]; then
+            echo "no slow-marked tests in ${{ matrix.package }}"
+            exit 0
+          fi
+          [ "$rc" -eq 0 ] || exit "$rc"
+          python3 -c "import sys, xml.etree.ElementTree as E; r=E.parse('slow-results.xml').getroot(); s=sum(int(x.get('skipped', 0)) for x in r.iter('testsuite')); print(f'skipped slow tests: {s}'); sys.exit(1 if s else 0)"
+
+  # ===========================================================================
   # Clean-env install-isolation (SCD-25). Install ONLY the package's wheel from
-  # the wheelhouse and assert the resolved pirn-* tree equals the declared closure.
+  # the wheelhouse, assert the resolved pirn-* tree equals the declared closure,
+  # then import EVERY submodule of the package: each must import without any
+  # extra, and no optional backend outside the package's hard-dependency closure
+  # may end up imported (scripts/check_install_isolation.py, every package).
   # ===========================================================================
   install-isolation:
     name: Install isolation (${{ matrix.package }})
@@ -307,9 +362,15 @@ jobs:
       - name: Clean-env install + dependency-tree closure gate
         run: |
           set -euo pipefail
+          p='${{ matrix.package }}'
           uv venv /tmp/iso
-          uv pip install --python /tmp/iso/bin/python --find-links dist/ "${{ matrix.package }}"
-          /tmp/iso/bin/python scripts/check_install_isolation.py --package "${{ matrix.package }}"
+          # This build's wheels for the package and its pirn closure, by path: by
+          # name, uv resolved the published release from the index (0.10.0 over the
+          # wheelhouse's 0.9.0) and the gate checked that instead of the PR.
+          wheels=$(python3 scripts/workspace_packages.py closure-wheels "$p" --dist dist)
+          uv pip install --python /tmp/iso/bin/python --find-links dist/ $wheels
+          /tmp/iso/bin/python scripts/check_install_isolation.py --package "$p" \
+            --expect-version "$(python3 scripts/workspace_packages.py version "$p")"
 
   # ===========================================================================
   # Per-extra clean-venv install+import (PIR-137). For each pirn-agents extra
@@ -340,9 +401,12 @@ jobs:
           # Install pirn-agents from the SOURCE tree (not by name) so this PR's
           # code + extras are exercised: installing `pirn-agents[<extra>]` by name
           # can resolve to an already-published same-version wheel on PyPI that
-          # lacks the extra. pirn-core comes from the wheelhouse; backends from PyPI.
+          # lacks the extra. pirn-core is this build's wheel, by path; backends from PyPI.
           uv pip install --python /tmp/extra/bin/python --find-links dist/ \
+            $(python3 scripts/workspace_packages.py closure-wheels pirn-agents --dist dist --exclude-self) \
             "packages/pirn-agents[${{ matrix.extra }}]"
+          /tmp/extra/bin/python -c "import importlib.metadata as m, sys; v = m.version('pirn-core'); want = sys.argv[1]; assert v == want, (v, want)" \
+            "$(python3 scripts/workspace_packages.py version pirn-core)"
           /tmp/extra/bin/python -c "import pirn_agents; print(pirn_agents.available_extras())"
 
   # ===========================================================================
@@ -397,10 +461,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v7.0.0 (match upload-artifact v7; v8 digest-verify mismatched v7 uploads -> stale wheelhouse)
         with: { name: wheelhouse, path: dist/ }
-      - name: Install bare pirn-core (from wheelhouse)
+      - name: Install bare pirn-core (this build's wheel, by path)
         run: |
+          set -euo pipefail
           uv venv .venv
-          uv pip install --find-links dist/ pirn-core
+          uv pip install --find-links dist/ $(python3 scripts/workspace_packages.py closure-wheels pirn-core --dist dist)
       - name: Core is a sink, no backend at import, package DAG acyclic
         run: uv run --no-sync python scripts/check_import_graph.py
 
@@ -430,29 +495,23 @@ jobs:
         # is missing or matches nothing, so a future miswiring fails loudly
         # instead of passing vacuously. Stdlib-only — no install needed.
         run: python scripts/check_no_import_forwarding.py packages/ examples/ scripts/
-      - name: House-convention AST gate (ratcheted, PIR-856)
+      - name: House-convention AST gate (PIR-856)
         # Stdlib-only, source-only (packages/*/pirn*/**/*.py; tests/ excluded).
-        # Ratcheted against scripts/conventions_baseline.json: fails only when a
-        # package/rule count regresses past its recorded baseline. Re-run with
-        # --write-baseline to lower the baseline once a rule's count drops.
+        # No baseline: any finding of any rule fails.
         run: >
           python scripts/check_conventions.py
           packages/pirn-core/pirn packages/pirn-agents/pirn_agents
           packages/pirn-data/pirn_data packages/pirn-health/pirn_health
           packages/pirn-ml/pirn_ml packages/pirn-oilgas/pirn_oilgas
           packages/pirn-signal/pirn_signal
-      - name: No UPPER_SNAKE constants (ratcheted, PIR-856)
-        # Same ratchet semantics as above, over the same package source trees.
-        # pirn-agents currently carries pre-existing violations the agents-rules
-        # PIR-856 lane is fixing concurrently; --baseline keeps this gate green
-        # in the meantime instead of masking it entirely.
+      - name: No UPPER_SNAKE constants (PIR-856)
+        # Same package source trees as above; any finding fails.
         run: >
           python scripts/check_no_caps_constants.py
           packages/pirn-core/pirn packages/pirn-agents/pirn_agents
           packages/pirn-data/pirn_data packages/pirn-health/pirn_health
           packages/pirn-ml/pirn_ml packages/pirn-oilgas/pirn_oilgas
           packages/pirn-signal/pirn_signal
-          --baseline scripts/caps_constants_baseline.json
       - name: Install pytest (base image ships python + uv only)
         # Floor matches every package's own pytest requirement.
         run: uv pip install --system 'pytest>=9.1.0'
@@ -483,7 +542,7 @@ jobs:
   # ===========================================================================
   ci-status:
     name: CI status (all green)
-    needs: [changes, build-wheelhouse, lint, test, install-isolation, agents-extras-install, unified, import-graph, import-forwarding, version-lockstep]
+    needs: [changes, build-wheelhouse, lint, test, slow-tests, install-isolation, agents-extras-install, unified, import-graph, import-forwarding, version-lockstep]
     if: always()
     runs-on: ubuntu-latest
     steps:

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``EarlyStoppingTrainer`` — wrap a trainer with early stopping.
 
 Monitors a validation metric and stops training when no improvement has

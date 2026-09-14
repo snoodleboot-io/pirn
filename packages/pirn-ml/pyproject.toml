@@ -108,22 +108,14 @@ runner = ".venv/bin/python -m pytest tests -x -q --no-header"
 venvPath = "../.."
 venv = ".venv"
 include = ["pirn_ml"]
-# Per-subpackage strict ratchet (PIR-869): every path here passes strict with 0 errors,
-# new subpackages start strict, a subpackage joins when its count hits 0 and may never
-# regress. Enforced by scripts/check_pyright_strict_list.py; burn-down table in
-# docs/architecture/ci-pipelines.md.
-strict = [
-    "pirn_ml/assemblers",
-    "pirn_ml/data_prep",
-    "pirn_ml/deployment",
-    "pirn_ml/disassemblers",
-    "pirn_ml/evaluation",
-    "pirn_ml/features",
-    "pirn_ml/specializations",
-    "pirn_ml/training",
-    "pirn_ml/types",
-    "pirn_ml/*.py",
-]
+# Every module in the package is type-checked in strict mode (PIR-872).
+typeCheckingMode = "strict"
+# The one strict rule the house style contradicts, switched off once for the whole
+# package: process() and constructor validation guard runtime-bound inputs with an
+# explicit type check, then a value check (TypeError before ValueError), and strict
+# mode reports each such guard as unnecessary. See the type-then-value guard rule in
+# .claude/conventions/languages/python.md ("Type Checking Enforcement").
+reportUnnecessaryIsInstance = "none"
 pythonVersion = "3.12"
 reportMissingImports = "none"
 reportMissingModuleSource = "none"

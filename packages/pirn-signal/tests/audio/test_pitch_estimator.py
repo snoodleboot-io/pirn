@@ -53,7 +53,7 @@ class TestPitchEstimator(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, f_min_hz=80.0, f_max_hz=400.0)
         assert isinstance(out, FeaturePayload)
-        assert out.frame.feature_names == ("f0_hz",)
+        assert out.metadata.feature_names == ("f0_hz",)
         assert out.data.shape[0] == 1
 
     async def test_multichannel_computes_per_channel(self) -> None:
@@ -61,5 +61,5 @@ class TestPitchEstimator(unittest.IsolatedAsyncioTestCase):
         multichannel = make_signal_payload(channel_count=2, samples_per_channel=2048)
         out = await knot.process(multichannel, f_min_hz=80.0, f_max_hz=400.0)
         assert isinstance(out, FeaturePayload)
-        assert out.frame.channel_count == 2
+        assert out.metadata.channel_count == 2
         assert out.data.shape[0] == 2

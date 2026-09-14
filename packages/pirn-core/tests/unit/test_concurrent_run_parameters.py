@@ -146,7 +146,7 @@ class EngineDoesNotUseBindValueTests(unittest.IsolatedAsyncioTestCase):
     """``bind_value`` writes to shared graph state; the engine must not call it.
 
     PIR-802 deliberately kept ``bind_value`` for direct, single-owner use of a
-    standalone ``Parameter``, so it is not deprecated -- but it is now the one
+    standalone ``Parameter`` -- but it is now the one
     call that would reintroduce that defect.  A refactor that "simplified"
     ``bound_copy`` back into it would restore silent cross-run contamination
     and pass every other test in this file, because those assert on observable

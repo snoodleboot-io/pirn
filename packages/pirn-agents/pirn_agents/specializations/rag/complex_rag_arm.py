@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``ComplexRagArm`` — the multi-hop decomposition arm, gated behind route selection.
 
 Wrapped as its own :class:`~pirn.nodes.sub_tapestry.SubTapestry` so the engine

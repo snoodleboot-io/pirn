@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``DWTDecomposer`` — discrete wavelet transform decomposition.
 
 Algorithm:
@@ -87,7 +85,7 @@ class DWTDecomposer(Knot):
             DWTDecomposer._run_dwt, signal.data, wavelet_name, level_count
         )
         frame = WaveletFrame(
-            signal_id=signal.frame.signal_id,
+            signal_id=signal.metadata.signal_id,
             wavelet_name=wavelet_name,
             scale_count=len(coeffs),
         )

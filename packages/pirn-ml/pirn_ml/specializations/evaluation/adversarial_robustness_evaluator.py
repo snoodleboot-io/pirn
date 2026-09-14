@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``AdversarialRobustnessEvaluator`` — SubTapestry that applies FGSM or
 PGD perturbations to inputs and evaluates model accuracy under attack.
 

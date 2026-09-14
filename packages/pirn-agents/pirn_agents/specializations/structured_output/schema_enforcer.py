@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``SchemaEnforcer`` — validate AgentResponse content against a Pydantic model.
 
 A :class:`Knot` that parses the JSON content of an :class:`AgentResponse`

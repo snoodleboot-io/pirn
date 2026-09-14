@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MemoryConsolidator`` — merge near-duplicate episodic records into semantic facts.
 
 The S1 consolidation job. It runs off the hot path (batch/background) over a

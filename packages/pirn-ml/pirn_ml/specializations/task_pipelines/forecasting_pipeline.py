@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ForecastingPipeline`` — end-to-end time-series forecasting
 SubTapestry: data load → split → train → evaluate via
 :class:`TimeSeriesEvalPipeline`.

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``GasOilRatioCalculator`` — compute GOR from oil- and gas-rate series.
 
 Algorithm:
@@ -73,16 +71,16 @@ class GasOilRatioCalculator(Knot):
             raise TypeError("GasOilRatioCalculator: oil_rate must be a ScadaPayload")
         if not isinstance(gas_rate, ScadaPayload):
             raise TypeError("GasOilRatioCalculator: gas_rate must be a ScadaPayload")
-        aligned_count = min(len(oil_rate.values), len(gas_rate.values))
+        aligned_count = min(len(oil_rate.data), len(gas_rate.data))
         gor = await asyncio.to_thread(
-            GasOilRatioCalculator._compute_gor, oil_rate.values, gas_rate.values, aligned_count
+            GasOilRatioCalculator._compute_gor, oil_rate.data, gas_rate.data, aligned_count
         )
-        sensor_id = f"gor:{oil_rate.series.sensor_id}:{gas_rate.series.sensor_id}"
+        sensor_id = f"gor:{oil_rate.metadata.sensor_id}:{gas_rate.metadata.sensor_id}"
         return ScadaPayload(
             metadata=ScadaTimeSeries(
                 sensor_id=sensor_id,
                 sample_count=aligned_count,
-                sample_interval_sec=oil_rate.series.sample_interval_sec,
+                sample_interval_sec=oil_rate.metadata.sample_interval_sec,
             ),
             data=gor,
         )

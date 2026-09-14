@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``DifferentialExpressionAnalyzer`` — case/control DE analysis.
 
 Production version wraps DESeq2 / edgeR / limma-voom (R) or PyDESeq2.
@@ -36,8 +34,7 @@ from typing import Any, ClassVar
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-
-from pirn_health.health_optional_dependency import HealthOptionalDependency
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class DifferentialExpressionAnalyzer(Knot):
@@ -102,7 +99,7 @@ class DifferentialExpressionAnalyzer(Knot):
         gene_ids: list[str],
     ) -> dict[str, dict[str, float]]:
         """Compute log2FC, Welch t-test p-value, and BH-adjusted p-value per gene."""
-        stats = HealthOptionalDependency.require("scipy.stats", extra="health")
+        stats = OptionalDependency.require("scipy.stats", extra="health", package="pirn-health")
         log2fcs: list[float] = []
         pvalues: list[float] = []
 

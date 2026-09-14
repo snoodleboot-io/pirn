@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``EpubFormat`` — EPUB e-book encoder/decoder backed by ``ebooklib``.
 
 EPUB is a zipped bundle of HTML chapters with a manifest. Reads use

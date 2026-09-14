@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SessionIdentity`` — the stable identity + lifecycle stamp of a session.
 
 This is the durable-session identity F14 owns and the plug point the F27 memory

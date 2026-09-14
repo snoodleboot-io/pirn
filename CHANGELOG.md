@@ -11,6 +11,12 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+#### `Knot._annotation_imports` — optional-engine types without an import-time engine (PIR-872)
+
+- `pirn/core/annotation_import.py` — `AnnotationImport(module, extra, package="pirn-core", attribute=None)`. A knot imports an optional engine only under `if TYPE_CHECKING:` and declares each name its `process()` annotations use in `_annotation_imports: ClassVar[Mapping[str, AnnotationImport]]` (inherited and merged down the MRO). `Knot` resolves the mapping through `OptionalDependency.require` the first time the class's hints are needed (construction, `input_annotations()`, `input_json_schema()`), never at module import, and caches it per class: validation matches an eager import and a missing engine raises the package's install hint at construction.
+- `Knot | T` scalar coercion is resolved on first construction instead of at class creation, with the same namespace; an unresolvable annotation warns then.
+- `pirn-data`: every tier-engine module (`frames/{datafusion,duckdb,pandas,polars,pyarrow}`, `lazy/{dask,ibis,ray}`) imports its engine only under `TYPE_CHECKING` and every tier-engine knot declares it, so `import pirn_data` / `import pirn_ml` load no optional engine.
+
 #### `NestedRunKnot` — nested runs from a plain knot (PIR-872)
 
 - `pirn/nodes/nested_run_knot.py` — `NestedRunKnot(Knot)`: a knot whose `process()` awaits `self._run_inner(inner)` for as many inner runs as its work needs and returns its own value. It is the machinery `SubTapestry` used to own — the construction-time capture of the enclosing history/emitters/value plane, `_run_inner`, the `_inner_dispatcher` / `_inner_concurrency` / `_inner_admission_observers` / `_make_inner_tapestry` hooks, `_nesting_key`, `_inner_failures_reach_sink`, slot-free admission and the `concurrency_group` refusal — moved out from under the sink-returning contract. `SubTapestry` is now `SubTapestry(NestedRunKnot)` and adds only that contract; its behaviour is unchanged.
@@ -247,6 +253,40 @@ Two new hooks on `SubTapestry` support specialised subclasses:
 ---
 
 ### Removed
+
+#### Per-package optional-import helpers, the `map_markers` module and `_Loader` (PIR-872)
+
+Every optional backend is imported through `pirn.core.optional_dependency.OptionalDependency.require(module, extra=..., package="pirn-<pkg>")`; the install hint still names the package's own extra.
+
+| Removed name | Replacement |
+|---|---|
+| `pirn_signal.signal_optional_dependency.SignalOptionalDependency.require(module, extra=)` | `OptionalDependency.require(module, extra=, package="pirn-signal")` |
+| `pirn_health.health_optional_dependency.HealthOptionalDependency.require(module, extra=)` | `OptionalDependency.require(module, extra=, package="pirn-health")` |
+| `pirn_data.data_optional_dependency.DataOptionalDependency.require(module, extra=)` | `OptionalDependency.require(module, extra=, package="pirn-data")` |
+| `pirn_ml.ml_optional_dependency.MlOptionalDependency.require(module, extra=)` | `OptionalDependency.require(module, extra=, package="pirn-ml")` |
+| `pirn_oilgas.oilgas_optional_import.OilgasOptionalImport.require(module, purpose)` | `OptionalDependency.require(module, extra="oilgas", package="pirn-oilgas")` |
+| `pirn_agents._internal.optional_import.OptionalImport.require(extra, module)` | `OptionalDependency.require(module, extra=extra, package="pirn-agents")` |
+| `pirn.nodes.map_markers` (`Map`, `ZipMap`, `DictMap`, `MapTypeError`) | `pirn.core.map.Map`, `pirn.core.zip_map.ZipMap`, `pirn.core.dict_map.DictMap`, `pirn.core.map_type_error.MapTypeError` |
+| `pirn.check._loader._Loader` | `pirn.check.factory_spec_loader.FactorySpecLoader` |
+
+#### Domain payload field-name alias properties (PIR-872)
+
+Each domain `Payload` subclass exposed its `metadata` and `data` under a second, domain-specific property name. Those aliases are deleted; read `.metadata` / `.data`.
+
+| Removed property | Read instead |
+|---|---|
+| `SignalPayload.frame`, `SpectrumPayload.frame`, `WaveletPayload.frame`, `SourcePayload.frame`, `FeaturePayload.frame` (pirn-signal) | `.metadata` |
+| `HealthSignalPayload.frame`, `DICOMPayload.series`, `WSITilePayload.tile` (pirn-health) | `.metadata` |
+| `DICOMPayload.dataset`, `WSITilePayload.pixels` (pirn-health) | `.data` |
+| `DatasetPayload.manifest`, `DataSplitPayload.manifest`, `TrainedModelPayload.manifest`, `EvalReportPayload.report` (pirn-ml) | `.metadata` |
+| `DatasetPayload.features`, `DataSplitPayload.arrays`, `TrainedModelPayload.estimator`, `EvalReportPayload.metrics` (pirn-ml) | `.data` |
+| `LASPayload.las`, `SegyPayload.volume`, `ScadaPayload.series`, `DeviationSurveyPayload.survey`, `WellPath3DPayload.path` (pirn-oilgas) | `.metadata` |
+| `LASPayload.curve_data`, `SegyPayload.traces`, `ScadaPayload.values`, `DeviationSurveyPayload.stations`, `WellPath3DPayload.points` (pirn-oilgas) | `.data` |
+
+#### Type-checking and convention ratchets (PIR-872)
+
+- `scripts/check_pyright_strict_list.py` and each package's `[tool.pyright] strict = [...]` list: every package sets `typeCheckingMode = "strict"` and `reportUnnecessaryIsInstance = "none"` in config, and the per-file `# pyright: reportUnnecessaryIsInstance=false` headers are gone.
+- `scripts/conventions_baseline.json`, `scripts/caps_constants_baseline.json`, the `--baseline` / `--write-baseline` options of `check_conventions.py` and `check_no_caps_constants.py`, and `check_conventions.py`'s `_MODULE_LEVEL_FUNCTION_ALLOWLIST`: both gates fail on any finding.
 
 #### Built-in prompt names that no longer matched their owner (PIR-872)
 

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``MajorityVoteStrategy`` — the ``majority_vote`` consensus mechanism.
 
 Builds a core :class:`~pirn.nodes.reduce_.Reduce` over the specialist

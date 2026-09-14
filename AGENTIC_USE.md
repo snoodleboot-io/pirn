@@ -32,6 +32,7 @@ pirn/
 │   ├── skipped.py           ← Skipped result wrapper
 │   ├── optional.py          ← Optional mixin: makes Err from this knot propagate as Skipped to downstream
 │   ├── result.py            ← Result union type (Ok | Err | Skipped)
+│   ├── map.py / zip_map.py / dict_map.py ← Map / ZipMap / DictMap marker wrappers for fan-out construction
 │   ├── assembler.py         ← Assembler marker base: thin Knot subclass identifying raw→Payload boundary knots
 │   └── disassembler.py      ← Disassembler marker base: thin Knot subclass identifying Payload→raw boundary knots
 ├── nodes/
@@ -41,7 +42,6 @@ pirn/
 │   ├── gate/gate.py         ← Gate: one parent + predicate callable → Ok(value) if truthy, Skipped if falsy
 │   ├── aggregator.py        ← Aggregator: N parents merged via a combine callable
 │   ├── branch/branch.py     ← Branch: one parent + selector → tagged paths; non-selected paths are Skipped
-│   ├── map_markers.py       ← Map / ZipMap / DictMap marker wrappers for fan-out construction
 │   ├── reduce_.py           ← Reduce node: folds a list parent to one value (whole-list or pairwise)
 │   ├── continuation.py      ← WithContinuation / continues(): deterministic successor attachment post-run
 │   └── loop_sub_tapestry.py ← LoopSubTapestry: iterative SubTapestry with knots in one extensible run

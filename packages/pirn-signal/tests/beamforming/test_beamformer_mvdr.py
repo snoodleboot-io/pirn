@@ -60,7 +60,7 @@ class TestBeamformerMVDR(unittest.IsolatedAsyncioTestCase):
             _SIGNAL, num_elements=8, element_spacing_m=0.05, steering_angle_deg=30.0
         )
         assert isinstance(out, SignalPayload)
-        assert out.frame.signal_id == "test:mvdr"
+        assert out.metadata.signal_id == "test:mvdr"
 
     async def test_rejects_non_positive_speed_of_sound(self) -> None:
         knot = self._make()
@@ -84,5 +84,5 @@ class TestBeamformerMVDR(unittest.IsolatedAsyncioTestCase):
             speed_of_sound=1500.0,
         )
         assert isinstance(out, SignalPayload)
-        assert out.frame.channel_count == 1
+        assert out.metadata.channel_count == 1
         assert out.data.shape == (1, 1024)

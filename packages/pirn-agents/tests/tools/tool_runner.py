@@ -7,7 +7,7 @@ helpers give tests the three shapes they need without a tapestry each time:
 * :meth:`value` — construct the call knot and run its ``process()`` directly
   with the resolved inputs, so the tool's own exceptions propagate unchanged
   (the sanctioned standalone path for a knot body);
-* :meth:`view` — run the call outside the engine and return the deprecated
+* :meth:`view` — run the call outside the engine and return the
   :class:`ToolResult` view of its ``Result``;
 * :meth:`run` — run the call in a real tapestry and return the ``RunResult``
   so lineage can be asserted.

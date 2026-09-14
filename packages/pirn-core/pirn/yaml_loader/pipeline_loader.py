@@ -31,7 +31,7 @@ from __future__ import annotations
 
 import importlib
 from collections.abc import Callable, Mapping
-from typing import Any
+from typing import Any, TypeGuard
 
 import yaml
 
@@ -39,12 +39,12 @@ from pirn.core.error_policy import ErrorPolicy
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import KnotFactory
+from pirn.core.map import Map
 from pirn.core.parameter import Parameter
 from pirn.exceptions.pipeline_load_error import PipelineLoadError
 from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.branch.branch import Branch
 from pirn.nodes.gate.gate import Gate
-from pirn.nodes.map_markers import Map
 from pirn.nodes.reduce_ import Reduce
 from pirn.tapestry import Tapestry
 from pirn.yaml_loader.specs.aggregator_spec import AggregatorSpec
@@ -231,10 +231,10 @@ class PipelineLoader:
             )
             if isinstance(callable_obj, KnotFactory):
                 factory = callable_obj
-            elif isinstance(callable_obj, type) and issubclass(callable_obj, Knot):
+            elif PipelineLoader._is_knot_class(callable_obj):
                 return callable_obj(_config=cfg, tapestry=tapestry)
             else:
-                factory = KnotFactory.knot(callable_obj)  # pyright: ignore[reportUnknownArgumentType]  # a non-Knot class resolves as a plain callable
+                factory = KnotFactory.knot(callable_obj)
             return factory(_config=cfg, tapestry=tapestry)
 
         if isinstance(node_spec, (KnotSpec, SinkSpec)):
@@ -254,13 +254,13 @@ class PipelineLoader:
             # (1) callable_obj is a Knot class -> instantiate.
             # (2) callable_obj is a KnotFactory (from @KnotFactory.knot) -> call it.
             # (3) callable_obj is a plain function -> wrap with @KnotFactory.knot first.
-            if isinstance(callable_obj, type) and issubclass(callable_obj, Knot):
+            if PipelineLoader._is_knot_class(callable_obj):
                 return callable_obj(**kwargs)
             if isinstance(callable_obj, KnotFactory):
                 return callable_obj(**kwargs)
             # Plain function — wrap with @KnotFactory.knot.
 
-            factory = KnotFactory.knot(callable_obj)  # pyright: ignore[reportUnknownArgumentType]  # a non-Knot class resolves as a plain callable
+            factory = KnotFactory.knot(callable_obj)
             return factory(**kwargs)
 
         if isinstance(node_spec, AggregatorSpec):
@@ -341,6 +341,16 @@ class PipelineLoader:
             return Reduce(**kwargs)
 
         raise TypeError(f"unknown node spec type: {type(node_spec).__name__}")
+
+    @staticmethod
+    def _is_knot_class(obj: object) -> TypeGuard[type[Knot]]:
+        """True when ``obj`` is a ``Knot`` subclass (the class itself, not an instance).
+
+        A ``TypeGuard`` rather than an inline ``isinstance``/``issubclass`` pair: the
+        negative branch keeps the resolved reference typed as the plain callable it
+        is, instead of narrowing it to a partially unknown ``type``.
+        """
+        return isinstance(obj, type) and issubclass(obj, Knot)
 
     @staticmethod
     def _resolve_callable(

@@ -4,7 +4,7 @@
 
 ## Mental model
 
-Tier 2 knots materialize data into an in-memory frame, transform it, and emit a `DataBatch`. Each engine (Polars, pandas, PyArrow, DataFusion) has an identical set of operation knots (filter, join, aggregate, cast, rename, deduplicate). Pick the engine by throughput need and existing dependencies — Polars is the default for new code (fastest single-node), pandas for compatibility with ecosystem libraries.
+Tier 2 knots materialize data into an in-memory frame, transform it, and emit a `DataBatch`. Each engine (Polars, pandas, PyArrow, DataFusion) has an identical set of operation knots (filter, join, aggregate, cast, rename, deduplicate). Pick the engine by throughput need and existing dependencies — Polars is the default for new code (fastest single-node), pandas when an ecosystem library expects a pandas frame.
 
 Bridge knots convert between engine frame types so you can mix engines within one tapestry.
 

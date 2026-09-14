@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``VcfFormat`` — Variant Call Format (text) encoder/decoder.
 
 VCF is a tab-delimited text format used in genomics for variant calls.

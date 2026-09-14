@@ -54,7 +54,7 @@ def documented_calc(expression: str) -> str:
     return str(eval(expression, {"__builtins__": {}}))
 
 
-# ----------------------------------------------------------------- backward compat
+# ----------------------------------------------------------------- plain-docstring tools
 
 
 class TestBackwardCompatibility(unittest.TestCase):

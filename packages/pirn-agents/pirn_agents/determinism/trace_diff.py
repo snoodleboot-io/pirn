@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TraceDiff`` — the structured result of diffing two recorded runs."""
 
 from __future__ import annotations

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``BatchItemResult`` — the isolated outcome of one item in a batch run.
 
 The outcome *is* core's ``Ok | Err | Skipped`` ``Result`` (ADR agents-speaks-core

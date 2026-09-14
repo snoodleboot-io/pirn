@@ -99,4 +99,4 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
         assert set(reports.keys()) == {"full", "g1", "g2"}
         for _arm, report in reports.items():
             assert isinstance(report, EvalReportPayload)
-            assert "accuracy" in report.metrics.scores
+            assert "accuracy" in report.data.scores

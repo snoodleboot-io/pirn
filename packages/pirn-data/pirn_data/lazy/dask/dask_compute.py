@@ -42,10 +42,11 @@ References:
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, ClassVar
 
+from pirn.core.annotation_import import AnnotationImport
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.sink import Sink
@@ -58,6 +59,10 @@ from pirn_data.lazy.dask.dask_execution_receipt import (
 
 class DaskCompute(Sink):
     """Compute the deferred Dask graph and return a receipt or pandas frame."""
+
+    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
+        "dd": AnnotationImport("dask.dataframe", extra="dask", package="pirn-data"),
+    }
 
     def __init__(
         self,

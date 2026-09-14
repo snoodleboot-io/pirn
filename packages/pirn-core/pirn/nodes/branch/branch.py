@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Branch — route a value to one of N named paths.
 
 A ``Branch`` takes one input and a selector function that returns the

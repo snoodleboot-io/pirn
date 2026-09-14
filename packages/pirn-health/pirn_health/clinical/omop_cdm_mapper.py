@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``OMOPCDMMapper`` — map a :class:`ClinicalRecord` to OMOP CDM rows.
 
 Production version would resolve source codes against the OMOP

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MemoryEvictor`` — apply an eviction policy and forget the selected records.
 
 The S2 write-side knot. Given the candidate records the caller listed from a

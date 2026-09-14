@@ -1216,11 +1216,6 @@ with Tapestry(concurrency=ConcurrencyLimits(groups={"search": 4})) as t:
     # a second knot naming concurrency_group="search" shares the same cap
 ```
 
-The former `ConcurrencyConfig`/`BackpressureSemaphore` (a shared config value
-plus a limiter wrapping a private pool, for a caller with no `Tapestry` to
-attach a group to) and `Bulkhead`/`BulkheadConfig` (the same shape, one pool
-per backend) were one-cycle shims over this pattern and are deleted (PIR-864).
-
 ### Caching — content-addressed result cache + semantic + prompt-cache passthrough
 
 `ResultCache.get_or_compute(payload, compute)` memoises idempotent tool calls
@@ -1239,10 +1234,7 @@ result = await cache.get_or_compute({"tool": "search", "args": {"q": "dicom"}}, 
 
 ### Observability — AgentCallRecorder emits through core's own emitters
 
-ADR "agents speaks core" (WS4a) retired the standalone span/callback plane
-(`Tracer`/`Span`/`ObservabilitySink`/`OtelSink`/`LoggingSink`/
-`SpanEmittingToolInvocationHook` — removed after their one-cycle deprecation
-window, PIR-864) in favour of one call:
+Agent observability is one call:
 `AgentCallRecorder.record(...)` emits a core `StatusEvent` — `run_id` sourced
 from `pirn.tapestry.Tapestry.current_run_id`, `knot_id` supplied by the caller (never
 ambient) — through the run's own emitters

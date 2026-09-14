@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FailoverChain`` — try ordered candidates until one succeeds.
 
 Walks an ordered list of :class:`FailoverCandidate` values, returning the first

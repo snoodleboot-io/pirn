@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ExtractionSchema`` — the target entity/relation types guiding extraction.
 
 A frozen, hashable value naming the entity and relation types the

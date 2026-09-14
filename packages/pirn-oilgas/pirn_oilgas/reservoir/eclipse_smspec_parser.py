@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``EclipseSmspecParser`` — parse an Eclipse SMSPEC summary file.
 
 Algorithm:
@@ -27,6 +25,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
 from pirn_oilgas.types.scada_time_series import ScadaTimeSeries
 
@@ -79,10 +78,7 @@ class EclipseSmspecParser(Knot):
         if not isinstance(vector_name, str) or not vector_name:
             raise ValueError("EclipseSmspecParser: vector_name must be a non-empty string")
 
-        try:
-            import resfo
-        except ImportError as exc:
-            raise ImportError("EclipseSmspecParser requires resfo — install pirn[oilgas]") from exc
+        resfo = OptionalDependency.require("resfo", extra="oilgas", package="pirn-oilgas")
 
         if not os.path.isfile(smspec_path):
             raise FileNotFoundError(f"EclipseSmspecParser: SMSPEC file not found: {smspec_path}")

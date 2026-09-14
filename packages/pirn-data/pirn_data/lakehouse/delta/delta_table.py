@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``DeltaTable`` — :class:`LakehouseTable` adapter over ``deltalake``.
 
 Wraps the Rust-backed `deltalake` Python binding and exposes pirn's
@@ -15,7 +13,8 @@ from datetime import datetime
 from types import ModuleType
 from typing import Any
 
-from pirn_data.data_optional_dependency import DataOptionalDependency
+from pirn.core.optional_dependency import OptionalDependency
+
 from pirn_data.lakehouse.delta.delta_table_config import DeltaTableConfig
 from pirn_data.lakehouse.lakehouse_table import LakehouseTable
 
@@ -230,12 +229,14 @@ class DeltaTable(LakehouseTable):
 
     @staticmethod
     def _import_deltalake() -> ModuleType:
-        return DataOptionalDependency.require("deltalake", extra="delta")
+        return OptionalDependency.require("deltalake", extra="delta", package="pirn-data")
 
     @staticmethod
     def _import_write_deltalake() -> Any:
-        return DataOptionalDependency.require("deltalake", extra="delta").write_deltalake
+        return OptionalDependency.require(
+            "deltalake", extra="delta", package="pirn-data"
+        ).write_deltalake
 
     @staticmethod
     def _import_pyarrow() -> ModuleType:
-        return DataOptionalDependency.require("pyarrow", extra="data")
+        return OptionalDependency.require("pyarrow", extra="data", package="pirn-data")

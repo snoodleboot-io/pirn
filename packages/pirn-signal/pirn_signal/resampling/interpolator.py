@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``Interpolator`` — generic interpolation knot.
 
 Algorithm:
@@ -88,7 +86,7 @@ class Interpolator(Knot):
                 "Interpolator: kind must be 'linear', 'cubic', 'quadratic', or 'spline'"
             )
 
-        src_rate = signal.frame.sample_rate_hz
+        src_rate = signal.metadata.sample_rate_hz
         result = await asyncio.to_thread(
             Interpolator._interpolate, signal.data, src_rate, float(target_sample_rate_hz), kind
         )

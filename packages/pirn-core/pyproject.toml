@@ -352,7 +352,7 @@ all = [
     "pyteomics>=4.7", "psims>=1.3",
     "pybids>=0.17",
     # oilgas extras (segyio/lasio/resfo) moved to pirn-oilgas (SCD-12).
-    # scientific / domain file formats (formerly misplaced in core)
+    # scientific / domain file formats
     "asdf>=5.3.0",
     "astropy>=7.2.0",
     "cfgrib>=0.9.15.1",
@@ -440,28 +440,14 @@ runner = ".venv/bin/python -m pytest tests -x -q --no-header"
 venvPath = "../.."
 venv = ".venv"
 include = ["pirn"]
-# Per-subpackage strict ratchet (PIR-869): every path here passes strict with 0 errors,
-# new subpackages start strict, a subpackage joins when its count hits 0 and may never
-# regress. Enforced by scripts/check_pyright_strict_list.py; burn-down table in
-# docs/architecture/ci-pipelines.md.
-strict = [
-    "pirn/backends",
-    "pirn/check",
-    "pirn/core",
-    "pirn/connectors",
-    "pirn/emitters",
-    "pirn/engine",
-    "pirn/exceptions",
-    "pirn/managers",
-    "pirn/nodes",
-    "pirn/recording",
-    "pirn/security",
-    "pirn/streaming",
-    "pirn/triggers",
-    "pirn/viz",
-    "pirn/yaml_loader",
-    "pirn/*.py",
-]
+# Every module in the package is type-checked in strict mode (PIR-872).
+typeCheckingMode = "strict"
+# The one strict rule the house style contradicts, switched off once for the whole
+# package: process() and constructor validation guard runtime-bound inputs with an
+# explicit type check, then a value check (TypeError before ValueError), and strict
+# mode reports each such guard as unnecessary. See the type-then-value guard rule in
+# .claude/conventions/languages/python.md ("Type Checking Enforcement").
+reportUnnecessaryIsInstance = "none"
 # Local stubs for untyped third-party boundaries (PIR-872): asyncpg and cloudpickle
 # ship no py.typed, and aiokafka and celery ship no types at all. typings/ declares
 # exactly the subset pirn-core uses; extend it when new API is used.

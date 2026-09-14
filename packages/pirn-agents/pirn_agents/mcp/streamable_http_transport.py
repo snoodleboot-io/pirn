@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``StreamableHttpTransport`` — MCP JSON-RPC over streamable HTTP (``[mcp]`` extra).
 
 Mirrors :class:`~pirn_agents.mcp.stdio_transport.StdioTransport` but drives a
@@ -7,7 +5,7 @@ remote server over the MCP streamable-HTTP transport instead of a subprocess.
 The thin JSON-RPC core owns the protocol; this class owns only the HTTP session
 plumbing, reusing the optional ``mcp`` SDK's ``streamablehttp_client``. Frames
 are translated between the SDK's message object and the plain mappings the core
-speaks. The backend is imported lazily via ``OptionalImport.require`` so importing this module
+speaks. The backend is imported lazily via ``OptionalDependency.require`` so importing this module
 never pulls in ``mcp``.
 """
 
@@ -18,7 +16,8 @@ from contextlib import AsyncExitStack
 from types import ModuleType
 from typing import Any
 
-from pirn_agents._internal.optional_import import OptionalImport
+from pirn.core.optional_dependency import OptionalDependency
+
 from pirn_agents.mcp.mcp_transport import McpTransport
 
 
@@ -57,7 +56,7 @@ class StreamableHttpTransport(McpTransport):
         """Open the streamable-HTTP session and enter its stream context."""
         if self.is_open:
             return
-        mcp = OptionalImport.require("mcp", "mcp")
+        mcp = OptionalDependency.require("mcp", extra="mcp", package="pirn-agents")
         http = mcp.client.streamable_http
         stack = AsyncExitStack()
         streams = await stack.enter_async_context(
@@ -74,7 +73,7 @@ class StreamableHttpTransport(McpTransport):
         """Serialise ``message`` to an SDK JSON-RPC object and write it."""
         if self._write is None:
             raise RuntimeError("StreamableHttpTransport.send: transport is not open")
-        mcp_types = OptionalImport.require("mcp", "mcp").types
+        mcp_types = OptionalDependency.require("mcp", extra="mcp", package="pirn-agents").types
         rpc = mcp_types.JSONRPCMessage.model_validate(dict(message))
         await self._write.send(StreamableHttpTransport._wrap_session_message(mcp_types, rpc))
 

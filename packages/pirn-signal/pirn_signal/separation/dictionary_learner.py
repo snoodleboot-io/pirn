@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``DictionaryLearner`` — sparse-coding dictionary learning.
 
 Algorithm:
@@ -107,9 +105,9 @@ class DictionaryLearner(Knot):
         )
         return SourcePayload(
             metadata=SourceFrame(
-                signal_id=f"{signal.frame.signal_id}:dict",
+                signal_id=f"{signal.metadata.signal_id}:dict",
                 source_count=atom_count,
-                mixing_matrix_shape=(signal.frame.channel_count, atom_count),
+                mixing_matrix_shape=(signal.metadata.channel_count, atom_count),
             ),
             data=codes,
         )

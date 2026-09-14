@@ -26,18 +26,26 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any, ClassVar
 
-import pyarrow as pa
+from pirn.core.annotation_import import AnnotationImport
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.data_batch import DataBatch
 from pirn_data.frames.pyarrow.pyarrow_data_batch import PyarrowDataBatch
 
+if TYPE_CHECKING:
+    pass
+
 
 class DataBatchToPyarrow(Knot):
     """Construct a :class:`PyarrowDataBatch` from a Tier-1 :class:`DataBatch`."""
+
+    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
+        "pa": AnnotationImport("pyarrow", extra="data", package="pirn-data"),
+    }
 
     def __init__(
         self,
@@ -57,6 +65,8 @@ class DataBatchToPyarrow(Knot):
         Returns:
             A PyarrowDataBatch wrapping a PyArrow table built from the row dicts.
         """
+        import pyarrow as pa
+
         if not batch.rows:
             # PyArrow has no concept of a 0-column "empty table" beyond a
             # zero-row table with a schema; without column hints we hand

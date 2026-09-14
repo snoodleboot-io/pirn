@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``AudioResampler`` — resample an audio :class:`SignalPayload`.
 
 Algorithm:
@@ -33,6 +31,7 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
 from pirn_signal.types.signal_payload import SignalPayload
 
@@ -85,7 +84,7 @@ class AudioResampler(Knot):
                 "AudioResampler: quality must be 'kaiser_best', 'kaiser_fast', "
                 "'linear', or 'polyphase'"
             )
-        orig_sr = int(signal.frame.sample_rate_hz)
+        orig_sr = int(signal.metadata.sample_rate_hz)
         target_sr = int(target_sample_rate_hz)
         result = await asyncio.to_thread(
             AudioResampler._resample, signal.data, orig_sr, target_sr, quality
@@ -98,12 +97,7 @@ class AudioResampler(Knot):
 
     @staticmethod
     def _resample(data: np.ndarray, orig_sr: int, target_sr: int, res_type: str) -> np.ndarray:
-        try:
-            import librosa
-        except ImportError as exc:
-            raise ImportError(
-                "AudioResampler requires 'librosa'. Install via pip install pirn-signal[signal]"
-            ) from exc
+        librosa = OptionalDependency.require("librosa", extra="signal", package="pirn-signal")
         if data.ndim == 1:
             return librosa.resample(data, orig_sr=orig_sr, target_sr=target_sr, res_type=res_type)
         return np.stack(

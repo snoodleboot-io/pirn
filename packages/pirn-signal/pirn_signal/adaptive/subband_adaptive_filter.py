@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SubbandAdaptiveFilter`` — subband-decomposition adaptive filter.
 
 Algorithm:
@@ -95,7 +93,7 @@ class SubbandAdaptiveFilter(Knot):
             )
         if not isinstance(step_size, (int, float)) or step_size <= 0:
             raise ValueError("SubbandAdaptiveFilter: step_size must be positive")
-        if signal.frame.sample_rate_hz != reference.frame.sample_rate_hz:
+        if signal.metadata.sample_rate_hz != reference.metadata.sample_rate_hz:
             raise ValueError("SubbandAdaptiveFilter: signal and reference sample rates must match")
 
         sig_channels = np.atleast_2d(signal.data)

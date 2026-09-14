@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``WaveletObjectStoreDisassembler`` — serialize a :class:`WaveletPayload` to raw npz bytes.
 
 Sits between upstream domain knots that produce

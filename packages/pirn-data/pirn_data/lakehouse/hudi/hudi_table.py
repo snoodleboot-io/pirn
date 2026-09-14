@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``HudiTable`` — :class:`LakehouseTable` adapter for Apache Hudi.
 
 The Python ecosystem for Hudi is limited as of mid-2026:
@@ -25,6 +23,8 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Mapping, Sequence
 from datetime import datetime
 from typing import Any
+
+from pirn.core.optional_dependency import OptionalDependency
 
 from pirn_data.lakehouse.hudi.hudi_table_config import HudiTableConfig
 from pirn_data.lakehouse.lakehouse_table import LakehouseTable
@@ -175,13 +175,7 @@ class HudiTable(LakehouseTable):
         # them. This skips Hudi's log-merge semantics for MERGE_ON_READ
         # tables — adequate for COPY_ON_WRITE tables and a
         # documented-limitation read for MOR tables.
-        try:
-            import pyarrow.dataset as ds
-        except ImportError as exc:
-            raise ImportError(
-                "HudiTable read requires pyarrow. Install via "
-                "`pip install pirn[data]` or `pip install pirn[hudi]`."
-            ) from exc
+        ds = OptionalDependency.require("pyarrow.dataset", extra="data", package="pirn-data")
         if self._config is None or not self._config.table_path:
             raise RuntimeError("HudiTable: missing config.table_path and no injected table")
         kwargs: dict[str, Any] = {}

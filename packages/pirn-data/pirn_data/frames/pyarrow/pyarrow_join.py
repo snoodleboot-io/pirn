@@ -28,9 +28,10 @@ References:
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Any, ClassVar
 
+from pirn.core.annotation_import import AnnotationImport
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -41,6 +42,10 @@ from pirn_data.value_shape import ValueShape
 
 class PyarrowJoin(Knot):
     """Binary join over two :class:`PyarrowDataBatch` parents."""
+
+    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
+        "pa": AnnotationImport("pyarrow", extra="data", package="pirn-data"),
+    }
 
     _allowed_how: ClassVar[tuple[str, ...]] = (
         "inner",

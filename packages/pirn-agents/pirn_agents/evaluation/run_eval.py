@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``run_eval`` — run a pattern/pipeline over an eval dataset and report quality.
 
 Runs the evaluation on the engine: one

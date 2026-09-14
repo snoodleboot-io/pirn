@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``VectorMemoryStore`` — a :class:`MemoryStore` over a vector upsert/query core.
 
 Every concrete vector store (in-memory, pgvector, Qdrant, Chroma) shares one

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PgvectorMemoryStore`` — a pgvector-backed :class:`VectorMemoryStore`.
 
 Persists vectors in a Postgres table using the `pgvector` extension, driven by
@@ -21,9 +19,9 @@ import json
 from collections.abc import Iterator, Mapping, Sequence
 from typing import Any
 
+from pirn.core.optional_dependency import OptionalDependency
 from pirn.security.credential_ref import CredentialRef
 
-from pirn_agents._internal.optional_import import OptionalImport
 from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
 from pirn_agents.retrieval.vector_stores.vector_match import VectorMatch
 from pirn_agents.retrieval.vector_stores.vector_memory_store import VectorMemoryStore
@@ -72,7 +70,7 @@ class PgvectorMemoryStore(VectorMemoryStore):
     async def _get_pool(self) -> Any:
         """Return the connection pool, building it once via ``asyncpg``."""
         if self._pool is None:
-            asyncpg = OptionalImport.require("pgvector", "asyncpg")
+            asyncpg = OptionalDependency.require("asyncpg", extra="pgvector", package="pirn-agents")
             self._pool = await asyncpg.create_pool(self._dsn)
         return self._pool
 

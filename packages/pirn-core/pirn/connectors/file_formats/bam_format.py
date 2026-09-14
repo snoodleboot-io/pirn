@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``BamFormat`` — Binary Alignment/Map (BAM) encoder/decoder.
 
 BAM is the BGZF-compressed binary form of SAM. Same record structure as

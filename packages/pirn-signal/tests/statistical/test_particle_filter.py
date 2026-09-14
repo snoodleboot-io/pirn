@@ -54,7 +54,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         out = result.outputs["pf"]
         assert isinstance(out, SignalPayload)
-        assert out.frame.signal_id == "test:particle"
+        assert out.metadata.signal_id == "test:particle"
 
     async def test_multichannel_computes_per_channel(self) -> None:
         with Tapestry():
@@ -63,5 +63,5 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         multichannel = make_signal_payload(channel_count=2, samples_per_channel=32)
         out = await k.process(signal=multichannel, state_dim=2, particle_count=20)
         assert isinstance(out, SignalPayload)
-        assert out.frame.channel_count == 2
+        assert out.metadata.channel_count == 2
         assert out.data.shape == (2, 32)

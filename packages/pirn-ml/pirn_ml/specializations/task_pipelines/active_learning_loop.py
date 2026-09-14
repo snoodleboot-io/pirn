@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ActiveLearningLoop`` — trains on labeled pool, queries most
 uncertain unlabeled samples, adds them to the labeled pool, and repeats
 for N rounds.

@@ -59,6 +59,6 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         report: EvalReportPayload = result.outputs["bin"]
         assert isinstance(report, EvalReportPayload)
-        assert "accuracy" in report.metrics.scores
-        assert "f1" in report.metrics.scores
-        assert "roc_auc" in report.metrics.scores
+        assert "accuracy" in report.data.scores
+        assert "f1" in report.data.scores
+        assert "roc_auc" in report.data.scores

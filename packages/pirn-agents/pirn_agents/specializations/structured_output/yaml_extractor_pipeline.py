@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``YamlExtractorPipeline`` — schema-targeted YAML extraction with retry.
 
 Same shape as :class:`JsonExtractorPipeline` but YAML output. Uses

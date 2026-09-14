@@ -7,8 +7,8 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
-from pirn_health.health_optional_dependency import HealthOptionalDependency
 from pirn_health.mri.white_matter_analyzer import WhiteMatterAnalyzer
 
 _CFG = KnotConfig(id="w")
@@ -57,7 +57,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         }
         with (
             patch.object(
-                HealthOptionalDependency,
+                OptionalDependency,
                 "require",
                 side_effect=lambda module, **_: modules[module],
             ),

@@ -41,8 +41,8 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         out = result.outputs["ar"]
         assert isinstance(out, FeaturePayload)
-        assert out.frame.signal_id == "test:ar-burg"
-        assert out.frame.feature_names == (
+        assert out.metadata.signal_id == "test:ar-burg"
+        assert out.metadata.feature_names == (
             "ar_coeff_0",
             "ar_coeff_1",
             "ar_coeff_2",
@@ -57,7 +57,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         for idx in range(1, samples.size):
             samples[idx] = 0.8 * samples[idx - 1] + rng.standard_normal()
         payload = SignalPayload(
-            metadata=make_signal_payload(samples_per_channel=samples.size).frame,
+            metadata=make_signal_payload(samples_per_channel=samples.size).metadata,
             data=samples,
         )
         with Tapestry():
@@ -70,7 +70,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         # Assert: the recovered coefficient matches the generating process and the
         # ordinary-least-squares fit on the same data.
         assert isinstance(out, FeaturePayload)
-        assert out.frame.signal_id == "test:ar-yule_walker"
+        assert out.metadata.signal_id == "test:ar-yule_walker"
         assert out.data.shape == (1, 2)
         assert abs(out.data[0, 0] - 0.8) < 0.05
         ols = await k.process(signal=payload, order=1, method="ols")
@@ -84,5 +84,5 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         multichannel = make_signal_payload(channel_count=2, samples_per_channel=64)
         out = await k.process(signal=multichannel, order=3, method="burg")
         assert isinstance(out, FeaturePayload)
-        assert out.frame.channel_count == 2
+        assert out.metadata.channel_count == 2
         assert out.data.shape == (2, 4)

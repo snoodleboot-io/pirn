@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MultiRateFusionPipeline`` — fuse two signals at different rates by resampling to a common rate.
 
 Algorithm:
@@ -88,13 +86,13 @@ class MultiRateFusionPipeline(Knot):
             asyncio.to_thread(
                 MultiRateFusionPipeline._resample_to_rate,
                 signal_a.data,
-                signal_a.frame.sample_rate_hz,
+                signal_a.metadata.sample_rate_hz,
                 float(output_rate_hz),
             ),
             asyncio.to_thread(
                 MultiRateFusionPipeline._resample_to_rate,
                 signal_b.data,
-                signal_b.frame.sample_rate_hz,
+                signal_b.metadata.sample_rate_hz,
                 float(output_rate_hz),
             ),
         )

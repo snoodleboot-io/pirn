@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``LasObjectStoreAssembler`` — assemble a :class:`LASPayload` from raw LAS bytes.
 
 Sits between :class:`~pirn.connectors.knots.object_store_read_source.ObjectStoreReadSource`
@@ -31,8 +29,8 @@ import numpy as np
 from pirn.core.assembler import Assembler
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
-from pirn_oilgas.oilgas_optional_import import OilgasOptionalImport
 from pirn_oilgas.types.las_file import LASFile
 from pirn_oilgas.types.las_payload import LASPayload
 
@@ -47,7 +45,7 @@ class LasObjectStoreAssembler(Assembler):
         curves: tuple[str, ...],
         depth_unit: str,
     ) -> LASPayload:
-        lasio = OilgasOptionalImport.require("lasio", "LasObjectStoreAssembler: decoding LAS bytes")
+        lasio = OptionalDependency.require("lasio", extra="oilgas", package="pirn-oilgas")
 
         las = lasio.read(io.StringIO(body.decode("utf-8", errors="replace")))
         available: set[str] = {str(curve_entry.mnemonic) for curve_entry in las.curves}

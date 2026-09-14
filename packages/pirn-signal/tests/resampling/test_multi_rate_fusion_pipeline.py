@@ -43,4 +43,4 @@ class TestMultiRateFusionPipeline(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL_A, _SIGNAL_B, output_rate_hz=2000.0)
         assert isinstance(out, SignalPayload)
-        assert out.frame.sample_rate_hz == 2000.0
+        assert out.metadata.sample_rate_hz == 2000.0

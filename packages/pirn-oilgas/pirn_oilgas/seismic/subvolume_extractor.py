@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SubvolumeExtractor`` — crop a seismic volume to a sub-cube of interest.
 
 Algorithm:

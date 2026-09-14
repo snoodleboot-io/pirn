@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ImageRegistrar`` — rigid / affine / nonlinear image registration.
 
 Uses SimpleITK for robust image registration without antspyx.
@@ -24,8 +22,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-
-from pirn_health.health_optional_dependency import HealthOptionalDependency
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class ImageRegistrar(Knot):
@@ -88,7 +85,7 @@ class ImageRegistrar(Knot):
 
     @staticmethod
     def _register(moving_path: str, fixed_path: str, transform: str, output_path: str) -> None:
-        sitk = HealthOptionalDependency.require("SimpleITK", extra="mri")
+        sitk = OptionalDependency.require("SimpleITK", extra="mri", package="pirn-health")
         fixed = sitk.ReadImage(fixed_path, sitk.sitkFloat32)
         moving = sitk.ReadImage(moving_path, sitk.sitkFloat32)
 

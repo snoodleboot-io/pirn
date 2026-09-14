@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``EegBandpassFilter`` — bandpass filter an EEG/MEG signal frame.
 
 Algorithm:
@@ -29,8 +27,8 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
-from pirn_health.health_optional_dependency import HealthOptionalDependency
 from pirn_health.types.health_signal_frame import HealthSignalFrame
 from pirn_health.types.health_signal_payload import HealthSignalPayload
 
@@ -85,23 +83,23 @@ class EegBandpassFilter(Knot):
         if float(low_hz) >= float(high_hz):
             raise ValueError("EegBandpassFilter: low_hz must be < high_hz")
 
-        fs = signal.frame.sample_rate_hz
+        fs = signal.metadata.sample_rate_hz
         filtered = await asyncio.to_thread(
             self._apply_bandpass, signal.data, float(low_hz), float(high_hz), fs
         )
 
         frame = HealthSignalFrame(
-            signal_id=signal.frame.signal_id + ":bandpass",
-            channel_count=signal.frame.channel_count,
-            sample_rate_hz=signal.frame.sample_rate_hz,
-            samples_per_channel=signal.frame.samples_per_channel,
-            fetched_at=signal.frame.fetched_at,
+            signal_id=signal.metadata.signal_id + ":bandpass",
+            channel_count=signal.metadata.channel_count,
+            sample_rate_hz=signal.metadata.sample_rate_hz,
+            samples_per_channel=signal.metadata.samples_per_channel,
+            fetched_at=signal.metadata.fetched_at,
         )
         return HealthSignalPayload(metadata=frame, data=filtered)
 
     @staticmethod
     def _apply_bandpass(data: np.ndarray, low_hz: float, high_hz: float, fs: float) -> np.ndarray:
-        signal = HealthOptionalDependency.require("scipy.signal", extra="health")
+        signal = OptionalDependency.require("scipy.signal", extra="health", package="pirn-health")
         sos: np.ndarray = signal.butter(4, [low_hz, high_hz], btype="bandpass", fs=fs, output="sos")
         filtered: np.ndarray = signal.sosfiltfilt(sos, data, axis=-1)
         return filtered

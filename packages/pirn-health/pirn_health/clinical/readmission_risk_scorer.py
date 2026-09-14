@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ReadmissionRiskScorer`` — stub readmission-risk model.
 
 Production deployments would call a trained classifier (sklearn,

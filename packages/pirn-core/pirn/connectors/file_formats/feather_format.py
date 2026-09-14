@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FeatherFormat`` — Apache Arrow Feather v2 encoder/decoder.
 
 Feather is the random-access on-disk form of the Arrow columnar

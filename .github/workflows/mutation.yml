@@ -77,10 +77,13 @@ jobs:
         run: |
           set -euo pipefail
           for p in pirn-core pirn-signal pirn-data pirn-ml pirn-agents pirn-health pirn-oilgas; do uv build "packages/$p" -o dist/; done
-          extras=$(python3 -c "import tomllib;d=tomllib.load(open('packages/${{ matrix.package }}/pyproject.toml','rb'));print(','.join(k for k in d.get('project',{}).get('optional-dependencies',{}) if k not in {'pytorch','tensorflow','tflite'}))")
+          extras=$(python3 scripts/workspace_packages.py test-extras "${{ matrix.package }}")
           spec="packages/${{ matrix.package }}"; [ -n "$extras" ] && spec="packages/${{ matrix.package }}[$extras]"
           uv venv .venv
-          uv pip install --find-links dist/ -e "$spec" pytest pytest-asyncio pytest-timeout mutmut
+          # This build's pirn dependencies, by wheel path (a name resolves against the index too).
+          uv pip install --find-links dist/ \
+            $(python3 scripts/workspace_packages.py closure-wheels "${{ matrix.package }}" --dist dist --exclude-self) \
+            -e "$spec" pytest pytest-asyncio pytest-timeout mutmut
       - name: Identify changed source files in this package
         id: changed
         run: |
@@ -141,10 +144,13 @@ jobs:
         run: |
           set -euo pipefail
           for p in pirn-core pirn-signal pirn-data pirn-ml pirn-agents pirn-health pirn-oilgas; do uv build "packages/$p" -o dist/; done
-          extras=$(python3 -c "import tomllib;d=tomllib.load(open('packages/${{ matrix.package }}/pyproject.toml','rb'));print(','.join(k for k in d.get('project',{}).get('optional-dependencies',{}) if k not in {'pytorch','tensorflow','tflite'}))")
+          extras=$(python3 scripts/workspace_packages.py test-extras "${{ matrix.package }}")
           spec="packages/${{ matrix.package }}"; [ -n "$extras" ] && spec="packages/${{ matrix.package }}[$extras]"
           uv venv .venv
-          uv pip install --find-links dist/ -e "$spec" pytest pytest-asyncio pytest-timeout mutmut
+          # This build's pirn dependencies, by wheel path (a name resolves against the index too).
+          uv pip install --find-links dist/ \
+            $(python3 scripts/workspace_packages.py closure-wheels "${{ matrix.package }}" --dist dist --exclude-self) \
+            -e "$spec" pytest pytest-asyncio pytest-timeout mutmut
       - name: Run mutmut (full package)
         run: |
           uv run --no-sync mutmut run \

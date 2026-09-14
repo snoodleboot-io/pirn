@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SegyFormat`` — SEG-Y seismic data batch encoder/decoder.
 
 SEG-Y is the industry-standard format for seismic reflection data. Each

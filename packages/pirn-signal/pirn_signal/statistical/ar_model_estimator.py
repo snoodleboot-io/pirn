@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ARModelEstimator`` — fit an autoregressive model to a signal.
 
 Algorithm:
@@ -100,7 +98,7 @@ class ARModelEstimator(Knot):
         feature_names = (*(f"ar_coeff_{i}" for i in range(order)), "variance")
         return FeaturePayload(
             metadata=FeatureFrame(
-                signal_id=f"{signal.frame.signal_id}:ar-{method}",
+                signal_id=f"{signal.metadata.signal_id}:ar-{method}",
                 channel_count=channels.shape[0],
                 feature_names=feature_names,
             ),

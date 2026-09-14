@@ -278,24 +278,6 @@ _COMPOSED_STAGES = frozenset(
     }
 )
 
-#: Deprecated ``*Gate`` alias classes (PIR-856, Knot Design Rule 7): each was a
-#: thin subclass kept importable for one cycle; the registry names the
-#: replacement ``*Check`` class, so the alias itself was never reachable by
-#: name. Empty now that FactCheckGate/InputGuardrailGate/OutputGuardrailGate
-#: have been deleted, PIR-864 -- kept as a frozenset rather than removed so a
-#: reintroduced ``*Gate`` shim is still caught by
-#: :func:`test_the_exclusion_set_is_exactly_what_is_excluded`.
-_DEPRECATED_ALIASES: frozenset[str] = frozenset()
-
-#: Deprecated rename aliases that are not the ``*Gate`` shape above (ADR
-#: agents-speaks-core WS5b): each was a thin subclass of its replacement, kept
-#: importable for one cycle; the registry names the replacement class, so the
-#: alias itself was never reachable by name. Empty now that
-#: ``ConsensusAggregator`` (the only member) has been deleted, PIR-864 --
-#: kept as a frozenset rather than removed so a reintroduced rename shim is
-#: still caught by :func:`test_the_exclusion_set_is_exactly_what_is_excluded`.
-_DEPRECATED_RENAMES: frozenset[str] = frozenset()
-
 
 def _drivers_of(qualified: str, discovered: dict[str, type]) -> list[str]:
     """Return the other ``specializations`` modules that bind ``qualified``'s class.
@@ -322,9 +304,7 @@ def test_the_excluded_bases_are_bases_and_the_internal_stages_are_driven_interna
     # Arrange.
     discovered = _discover_pipelines()
     bases = {_qualified(AgentPipeline), _qualified(AgentLoopPipeline)}
-    categorised = (
-        bases | _ITERATION_STEPS | _COMPOSED_STAGES | _DEPRECATED_ALIASES | _DEPRECATED_RENAMES
-    )
+    categorised = bases | _ITERATION_STEPS | _COMPOSED_STAGES
 
     # Act.
     internal = sorted(set(_EXPECTED_EXCLUSIONS) - categorised)
@@ -368,14 +348,9 @@ def test_the_excluded_bases_are_bases_and_the_internal_stages_are_driven_interna
         ]
     )
     # The named categories never overlap, so every exclusion has exactly one
-    # justification: base, internal stage, iteration step, composed stage, or
-    # deprecated alias/rename.
-    named = [bases, _ITERATION_STEPS, _COMPOSED_STAGES, _DEPRECATED_ALIASES, _DEPRECATED_RENAMES]
+    # justification: base, internal stage, iteration step or composed stage.
+    named = [bases, _ITERATION_STEPS, _COMPOSED_STAGES]
     assert sum(len(category) for category in named) == len(categorised)
-    for alias in _DEPRECATED_ALIASES:
-        assert alias.rsplit(".", 1)[1].endswith("Gate")
-    for rename in _DEPRECATED_RENAMES:
-        assert not rename.rsplit(".", 1)[1].endswith("Gate")
 
 
 # --- resolvability --------------------------------------------------------

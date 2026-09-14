@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ButterworthFilter`` — maximally-flat IIR filter (no passband ripple).
 
 Algorithm:
@@ -101,7 +99,7 @@ class ButterworthFilter(Knot):
             if not isinstance(cutoff_hz, (int, float)) or cutoff_hz <= 0:
                 raise ValueError("ButterworthFilter: cutoff_hz must be a positive scalar")
 
-        fs = signal.frame.sample_rate_hz
+        fs = signal.metadata.sample_rate_hz
         filtered = await asyncio.to_thread(
             ButterworthDesign.design_and_apply, signal.data, order, cutoff_hz, band_type, fs
         )

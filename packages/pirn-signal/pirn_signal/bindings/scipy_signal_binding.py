@@ -14,8 +14,7 @@ from typing import Any
 
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
-
-from pirn_signal.signal_optional_dependency import SignalOptionalDependency
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class ScipySignalBinding:
@@ -26,7 +25,7 @@ class ScipySignalBinding:
 
     @classmethod
     def load(cls) -> ScipySignalBinding:
-        """Import ``scipy.signal`` lazily through :class:`SignalOptionalDependency`.
+        """Import ``scipy.signal`` lazily through :class:`OptionalDependency`.
 
         Returns:
             A binding over the imported module.
@@ -35,7 +34,9 @@ class ScipySignalBinding:
             ImportError: If ``scipy.signal`` is not installed; the message names
                 ``pirn-signal[signal]``.
         """
-        return cls(SignalOptionalDependency.require("scipy.signal", extra="signal"))
+        return cls(
+            OptionalDependency.require("scipy.signal", extra="signal", package="pirn-signal")
+        )
 
     # --- IIR design (second-order sections) ----------------------------------
 

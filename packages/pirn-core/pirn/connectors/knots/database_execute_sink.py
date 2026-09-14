@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``DatabaseExecuteSink`` — a pirn :class:`Sink` that runs a parameterised
 ``INSERT`` / ``UPDATE`` / ``DELETE`` against any
 :class:`DatabaseConnectionPool` backend, taking its row sequence from a

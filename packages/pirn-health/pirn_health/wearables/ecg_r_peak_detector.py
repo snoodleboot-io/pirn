@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ECGRPeakDetector`` — detect R-peaks in an ECG signal using Pan-Tompkins.
 
 Algorithm:
@@ -32,8 +30,8 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
-from pirn_health.health_optional_dependency import HealthOptionalDependency
 from pirn_health.types.health_signal_payload import HealthSignalPayload
 
 
@@ -76,7 +74,7 @@ class ECGRPeakDetector(Knot):
                 "ECGRPeakDetector: method must be one of pan_tompkins/neurokit/elgendi"
             )
         ecg = signal.data if signal.data.ndim == 1 else signal.data[0]
-        fs = signal.frame.sample_rate_hz
+        fs = signal.metadata.sample_rate_hz
         return await asyncio.to_thread(self._pan_tompkins, ecg, fs)
 
     @staticmethod
@@ -90,7 +88,7 @@ class ECGRPeakDetector(Knot):
         Returns:
             Tuple of integer sample indices for detected R-peaks.
         """
-        signal = HealthOptionalDependency.require("scipy.signal", extra="health")
+        signal = OptionalDependency.require("scipy.signal", extra="health", package="pirn-health")
         sos: np.ndarray = signal.butter(2, [5.0, 15.0], btype="bandpass", fs=fs, output="sos")
         filtered: np.ndarray = signal.sosfiltfilt(sos, ecg)
         deriv = np.diff(filtered, prepend=filtered[0])

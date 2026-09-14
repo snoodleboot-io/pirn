@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``RaptorTree`` — a built RAPTOR summary tree handle.
 
 The value a RAPTOR build returns: a content-addressed handle describing the tree

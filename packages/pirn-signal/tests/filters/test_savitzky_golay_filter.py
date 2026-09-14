@@ -52,4 +52,4 @@ class TestSavitzkyGolayFilter(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, window_length=11, polynomial_order=3)
         assert isinstance(out, SignalPayload)
-        assert out.frame.signal_id == "test:savgol"
+        assert out.metadata.signal_id == "test:savgol"

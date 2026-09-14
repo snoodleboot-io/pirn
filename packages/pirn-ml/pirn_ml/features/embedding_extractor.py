@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``EmbeddingExtractor`` — append an embedding-derived feature to every
 :class:`DatasetManifest` in a :class:`SplitManifest`.
 

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``WhiteMatterAnalyzer`` — white-matter integrity / FA / MD analysis.
 
 Production version uses dipy + nibabel for DTI fitting.
@@ -30,8 +28,7 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-
-from pirn_health.health_optional_dependency import HealthOptionalDependency
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class WhiteMatterAnalyzer(Knot):
@@ -102,9 +99,11 @@ class WhiteMatterAnalyzer(Knot):
         bval_path: str,
         tracts: list[str],
     ) -> dict[str, dict[str, float]]:
-        nib = HealthOptionalDependency.require("nibabel", extra="mri")
-        gradients = HealthOptionalDependency.require("dipy.core.gradients", extra="mri")
-        dti = HealthOptionalDependency.require("dipy.reconst.dti", extra="mri")
+        nib = OptionalDependency.require("nibabel", extra="mri", package="pirn-health")
+        gradients = OptionalDependency.require(
+            "dipy.core.gradients", extra="mri", package="pirn-health"
+        )
+        dti = OptionalDependency.require("dipy.reconst.dti", extra="mri", package="pirn-health")
         img = nib.load(dwi_nifti_path)
         data: np.ndarray = np.asarray(img.dataobj, dtype=float)
         bvecs: np.ndarray = np.loadtxt(bvec_path)

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FIRParksMcClellanFilter`` — equiripple FIR via Parks-McClellan algorithm.
 
 Algorithm:
@@ -93,7 +91,7 @@ class FIRParksMcClellanFilter(Knot):
         if not isinstance(desired, tuple) or len(desired) != len(bands) // 2:
             raise ValueError("FIRParksMcClellanFilter: desired must have one value per band")
 
-        fs = signal.frame.sample_rate_hz
+        fs = signal.metadata.sample_rate_hz
         tap_weights = await asyncio.to_thread(ss.remez, num_taps, bands, desired, fs)
         filtered = await asyncio.to_thread(
             ss.lfilter, tap_weights, np.array([1.0]), signal.data, axis=-1

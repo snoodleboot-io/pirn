@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``DataDriftDetector`` — Knot that compares input feature distributions
 (PSI, KS test) between reference and current windows and flags drifted features.
 

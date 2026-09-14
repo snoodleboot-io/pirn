@@ -47,4 +47,4 @@ class TestNotchFilter(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, notch_hz=50.0, quality_factor=30.0)
         assert isinstance(out, SignalPayload)
-        assert out.frame.signal_id == "test:notch"
+        assert out.metadata.signal_id == "test:notch"

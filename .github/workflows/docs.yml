@@ -31,8 +31,8 @@ jobs:
           set -euo pipefail
           for p in pirn-core pirn-signal pirn-data pirn-ml pirn-agents pirn-health pirn-oilgas; do uv build "packages/$p" -o dist/; done
           uv venv .venv
-          uv pip install --find-links dist/ "pirn-core[docs]" \
-            pirn-signal pirn-data pirn-ml pirn-agents pirn-health pirn-oilgas
+          # This build, by wheel path: a pirn-* name resolves against the index too.
+          uv pip install --find-links dist/ dist/pirn_*.whl "pirn-core[docs]"
 
       - name: Build docs
         run: uv run --no-sync mkdocs build

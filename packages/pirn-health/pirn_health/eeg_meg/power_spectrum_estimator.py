@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PowerSpectrumEstimator`` — estimate the PSD of a signal payload.
 
 Algorithm:
@@ -26,8 +24,8 @@ from typing import Any, ClassVar
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
-from pirn_health.health_optional_dependency import HealthOptionalDependency
 from pirn_health.types.health_signal_payload import HealthSignalPayload
 
 
@@ -81,12 +79,12 @@ class PowerSpectrumEstimator(Knot):
         if method not in ("welch", "multitaper"):
             raise ValueError("PowerSpectrumEstimator: method must be one of welch/multitaper")
 
-        fs = signal.frame.sample_rate_hz
+        fs = signal.metadata.sample_rate_hz
         return await asyncio.to_thread(self._compute_band_power, signal.data, fs)
 
     @staticmethod
     def _compute_band_power(data: np.ndarray, fs: float) -> dict[str, float]:
-        signal = HealthOptionalDependency.require("scipy.signal", extra="health")
+        signal = OptionalDependency.require("scipy.signal", extra="health", package="pirn-health")
         channel = data[0] if data.ndim > 1 else data
         freqs: np.ndarray
         psd: np.ndarray

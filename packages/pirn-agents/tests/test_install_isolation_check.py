@@ -1,10 +1,10 @@
-"""Unit tests for the shared install-isolation gate's pirn-agents extensions.
+"""Unit tests for the shared install-isolation gate, run from pirn-agents.
 
 The clean-venv *closure* check only works in CI (the dev venv has all seven
 ``pirn-*`` packages installed, so the closure assertion intentionally fails
 here). These tests exercise the new backend-leak DETECTION logic directly,
-independent of the resolved environment, so PIR-136's additive behavior is
-covered without a clean venv.
+independent of the resolved environment, so the per-package denylist and the
+submodule walk are covered without a clean venv.
 
 The shared script lives at ``<repo>/scripts/check_install_isolation.py`` and is
 NOT importable by name, so it is loaded by file path via importlib.
@@ -45,47 +45,53 @@ _ISO = _load_isolation_module()
 
 
 class BackendDenylistSelectionTests(unittest.TestCase):
-    """`_backend_denylist_for` picks the right denylist per package."""
+    """`_backend_denylist_for` is the shared denylist minus the hard-dependency closure."""
 
-    def test_pirn_core_keeps_original_backend_set(self) -> None:
-        # The pirn-core code path must be byte-for-byte unaffected: the helper
-        # returns the existing broad heavy-backend denylist for pirn-core.
-        result = _ISO._backend_denylist_for("pirn-core")
-        assert result is _ISO._BACKEND_DENYLIST
-        assert "numpy" in result
-        assert "torch" in result
+    def test_every_package_allows_pirn_core_hard_dependency_numpy(self) -> None:
+        # numpy is a pirn-core hard dependency, so it is hard for every package.
+        for pkg in sorted(_ISO._EXPECTED_PIRN_CLOSURE):
+            result = _ISO._backend_denylist_for(pkg)
+            assert "numpy" not in result
+            assert result <= _ISO._BACKEND_DENYLIST
 
-    def test_unknown_package_falls_back_to_core_denylist(self) -> None:
-        # Other domains are unchanged: they fall back to the core denylist.
-        for pkg in ("pirn-signal", "pirn-data", "pirn-ml", "pirn-health", "pirn-oilgas"):
-            assert _ISO._backend_denylist_for(pkg) is _ISO._BACKEND_DENYLIST
-
-    def test_pirn_agents_forbids_connector_backends(self) -> None:
+    def test_pirn_agents_forbids_its_connector_backends(self) -> None:
         result = _ISO._backend_denylist_for("pirn-agents")
-        assert result == frozenset(
-            {
-                "httpx",
-                "openai",
-                "anthropic",
-                "qdrant_client",
-                "mcp",
-                "sentence_transformers",
-                "asyncpg",
-                "pgvector",
-                "chromadb",
-                "neo4j",
-                "kuzu",
-                "aiosqlite",
-                "aioboto3",
-                "boto3",
-                "opentelemetry",
-                "outlines",
-                "pypdf",
-                "docx",
-                "bs4",
-                "ragas",
-            }
-        )
+        assert {
+            "httpx",
+            "openai",
+            "anthropic",
+            "qdrant_client",
+            "mcp",
+            "sentence_transformers",
+            "asyncpg",
+            "pgvector",
+            "chromadb",
+            "neo4j",
+            "kuzu",
+            "aiosqlite",
+            "aioboto3",
+            "boto3",
+            "opentelemetry",
+            "outlines",
+            "pypdf",
+            "docx",
+            "bs4",
+            "ragas",
+        } <= result
+
+    def test_domain_packages_forbid_every_optional_backend(self) -> None:
+        for pkg in ("pirn-signal", "pirn-data", "pirn-ml", "pirn-health", "pirn-oilgas"):
+            result = _ISO._backend_denylist_for(pkg)
+            assert {
+                "pandas",
+                "polars",
+                "pyarrow",
+                "scipy",
+                "sklearn",
+                "torch",
+                "pydicom",
+                "segyio",
+            } <= result
 
 
 class SubmoduleWalkLeakDetectionTests(unittest.TestCase):

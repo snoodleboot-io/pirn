@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Amplitude Analytics ingestion connector wrapping the sync ``Amplitude`` SDK.
 
 The official ``amplitude-analytics`` SDK is synchronous and

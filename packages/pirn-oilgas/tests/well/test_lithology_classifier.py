@@ -34,4 +34,4 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         knot = self._make_knot()
         out = await knot.process(payload=_LAS, method="rule_based")
         assert isinstance(out, LASPayload)
-        assert "LITH" in out.curve_data
+        assert "LITH" in out.data

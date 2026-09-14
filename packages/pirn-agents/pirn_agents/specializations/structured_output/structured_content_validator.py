@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``StructuredContentValidator`` — parse-and-validate native JSON content.
 
 A small collaborator shared by the content-returning native paths

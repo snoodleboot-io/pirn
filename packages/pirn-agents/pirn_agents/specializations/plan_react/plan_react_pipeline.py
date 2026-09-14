@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``PlanReActPipeline`` — compose TaskPlanner then a ReActLoop per plan step.
 
 A :class:`SubTapestry` that is a pure composition of two existing knots:

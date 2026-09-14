@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``ParentDocumentRetriever`` — match children, return their parents.
 
 The retrieval half of small-to-big. It embeds the query, matches precise child

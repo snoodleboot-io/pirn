@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """RabbitMQ :class:`MessageBroker` backed by :mod:`aio_pika`."""
 
 from __future__ import annotations

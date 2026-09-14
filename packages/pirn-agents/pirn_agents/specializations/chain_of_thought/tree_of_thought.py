@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``TreeOfThought`` — beam-search-style reasoning with LLM-scored candidates.
 
 Algorithm:
@@ -12,7 +10,7 @@ Algorithm:
        a. ``RepeatBeamForExpansion`` flattens the current beam into one
           entry per ``(path, candidate index)`` pair.
        b. ``ExpandOneThought`` is fanned out over that flat list with a
-          core :class:`~pirn.nodes.map_markers.Map`, generating one next-thought
+          core :class:`~pirn.core.map.Map`, generating one next-thought
           per entry.
        c. A :class:`~pirn.nodes.reduce_.Reduce` combines each thought with its
           parent path into a new candidate.
@@ -24,7 +22,7 @@ Algorithm:
     5. Return the best-scoring path as an ``AgentResponse``.
 
 Every LLM call — expansion and scoring alike — is its own engine-scheduled
-:class:`~pirn.nodes.map_markers.Map` invocation rather than a hand-rolled
+:class:`~pirn.core.map.Map` invocation rather than a hand-rolled
 ``asyncio.gather``, so each gets its own ``Result``, history record, and
 lineage, and the engine (not a local gather) schedules the concurrency
 (PIR-841).
@@ -40,8 +38,8 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.map import Map
 from pirn.core.parameter import Parameter
-from pirn.nodes.map_markers import Map
 from pirn.nodes.reduce_ import Reduce
 
 from pirn_agents.llm.llm_provider import LLMProvider

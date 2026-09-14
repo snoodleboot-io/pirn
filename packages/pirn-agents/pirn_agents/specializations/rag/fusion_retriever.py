@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``FusionRetriever`` — concurrent multi-query retrieval fused with RRF.
 
 The retrieval stage of RAG-Fusion. Given a list of query variants, it searches
@@ -11,7 +9,7 @@ de-duplicated by identity and returned in fused-score order, each carrying its
 The fan-out is expressed as a graph rather than a hand-rolled
 ``asyncio.gather`` over a semaphore: each query variant becomes its own
 :class:`~pirn_agents.specializations.rag.variant_search.VariantSearch`
-invocation, fanned out with a core :class:`~pirn.nodes.map_markers.Map`, and
+invocation, fanned out with a core :class:`~pirn.core.map.Map`, and
 folded into the fused ranking with a :class:`~pirn.nodes.reduce_.Reduce`. The
 engine schedules the per-variant searches concurrently — every ready sibling
 starts as its own task (PIR-841) — so retrieval runs *through* the engine,
@@ -54,8 +52,8 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.map import Map
 from pirn.core.parameter import Parameter
-from pirn.nodes.map_markers import Map
 from pirn.nodes.reduce_ import Reduce
 
 from pirn_agents.interfaces.retriever import Retriever

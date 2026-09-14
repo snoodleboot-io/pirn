@@ -28,4 +28,4 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         knot = self._make_knot()
         out = await knot.process(injection_rate=_SERIES)
         assert isinstance(out, ScadaPayload)
-        assert "cumulative_inj" in out.series.sensor_id
+        assert "cumulative_inj" in out.metadata.sensor_id

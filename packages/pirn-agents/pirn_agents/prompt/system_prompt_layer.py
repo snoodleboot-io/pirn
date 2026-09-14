@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SystemPromptLayer`` — one labelled slice of a composed system prompt."""
 
 from __future__ import annotations

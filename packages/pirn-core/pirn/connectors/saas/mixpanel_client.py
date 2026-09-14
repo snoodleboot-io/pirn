@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Mixpanel ingestion connector wrapping the sync ``mixpanel.Mixpanel`` SDK.
 
 The official ``mixpanel`` SDK is synchronous and ingestion-only; calls

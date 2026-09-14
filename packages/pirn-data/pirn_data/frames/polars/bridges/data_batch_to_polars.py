@@ -21,18 +21,26 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any, ClassVar
 
-import polars as pl
+from pirn.core.annotation_import import AnnotationImport
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.data_batch import DataBatch
 from pirn_data.frames.polars.polars_data_batch import PolarsDataBatch
 
+if TYPE_CHECKING:
+    pass
+
 
 class DataBatchToPolars(Knot):
     """Construct a :class:`PolarsDataBatch` from a Tier-1 :class:`DataBatch`."""
+
+    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
+        "pl": AnnotationImport("polars", extra="polars", package="pirn-data"),
+    }
 
     def __init__(
         self,
@@ -52,6 +60,8 @@ class DataBatchToPolars(Knot):
         Returns:
             A PolarsDataBatch wrapping a Polars DataFrame with source_uri and fetched_at preserved.
         """
+        import polars as pl
+
         if not batch.rows:
             frame = pl.DataFrame()
         else:

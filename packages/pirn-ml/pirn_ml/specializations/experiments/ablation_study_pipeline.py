@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``AblationStudyPipeline`` — train ``len(feature_groups) + 1`` models
 (one full + one per leave-one-group-out) and report per-group metric
 impact relative to the full-feature model.

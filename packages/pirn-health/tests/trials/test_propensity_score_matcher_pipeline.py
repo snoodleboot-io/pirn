@@ -16,9 +16,9 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 from pirn.tapestry import Tapestry
 
-from pirn_health.health_optional_dependency import HealthOptionalDependency
 from pirn_health.trials.propensity_score_matcher_pipeline import (
     PropensityScoreMatcherPipeline,
 )
@@ -128,7 +128,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         mock_lr_cls = MagicMock(return_value=mock_lr_instance)
         modules = {"sklearn.linear_model": MagicMock(LogisticRegression=mock_lr_cls)}
         with patch.object(
-            HealthOptionalDependency,
+            OptionalDependency,
             "require",
             side_effect=lambda module, **_: modules[module],
         ):
@@ -184,7 +184,7 @@ class TestRunPsmMatchedTreated(unittest.TestCase):
             "sklearn.linear_model": MagicMock(LogisticRegression=MagicMock(return_value=model))
         }
         with patch.object(
-            HealthOptionalDependency,
+            OptionalDependency,
             "require",
             side_effect=lambda module, **_: modules[module],
         ):

@@ -44,7 +44,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         out = result.outputs["m"]
         assert isinstance(out, SpectrumPayload)
-        assert out.frame.frequency_bins == 128
+        assert out.metadata.frequency_bins == 128
         assert out.data.shape == (1, 128)
 
     async def test_multichannel_computes_per_channel(self) -> None:

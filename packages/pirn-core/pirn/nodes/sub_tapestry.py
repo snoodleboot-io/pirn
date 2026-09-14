@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound process() return: explicit type guards are house style (docs/contributing/domain-knots.md)
 """SubTapestry — a knot whose execution body is a complete inner tapestry.
 
 Subclass ``SubTapestry`` and implement ``process(**kwargs) -> Knot``.  Inside

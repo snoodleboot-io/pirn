@@ -21,18 +21,26 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any, ClassVar
 
-import pandas as pd
+from pirn.core.annotation_import import AnnotationImport
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.data_batch import DataBatch
 from pirn_data.frames.pandas.pandas_data_batch import PandasDataBatch
 
+if TYPE_CHECKING:
+    pass
+
 
 class DataBatchToPandas(Knot):
     """Construct a :class:`PandasDataBatch` from a Tier-1 :class:`DataBatch`."""
+
+    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
+        "pd": AnnotationImport("pandas", extra="data", package="pirn-data"),
+    }
 
     def __init__(
         self,
@@ -52,6 +60,8 @@ class DataBatchToPandas(Knot):
         Returns:
             A PandasDataBatch wrapping a Pandas DataFrame with source_uri and fetched_at preserved.
         """
+        import pandas as pd
+
         if not batch.rows:
             frame = pd.DataFrame()
         else:

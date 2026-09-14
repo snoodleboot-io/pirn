@@ -28,18 +28,25 @@ References:
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
-import polars as pl
+from pirn.core.annotation_import import AnnotationImport
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.frames.polars.polars_data_batch import PolarsDataBatch
 from pirn_data.value_shape import ValueShape
 
+if TYPE_CHECKING:
+    import polars as pl
+
 
 class PolarsCast(Knot):
     """Coerce values per column to caller-specified Polars dtypes."""
+
+    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
+        "pl": AnnotationImport("polars", extra="polars", package="pirn-data"),
+    }
 
     def __init__(
         self,
@@ -66,6 +73,8 @@ class PolarsCast(Knot):
         Returns:
             A new PolarsDataBatch with the configured columns cast to their target dtypes.
         """
+        import polars as pl
+
         if not ValueShape.is_mapping(casts) or not casts:
             raise TypeError("PolarsCast: casts must be a non-empty Mapping[column, dtype]")
         for column in casts:
@@ -87,6 +96,8 @@ class PolarsCast(Knot):
 
     def _normalise_dtype(self, column: str, dtype: Any) -> pl.DataType | type[pl.DataType]:
         # Already a Polars dtype? Pass through.
+        import polars as pl
+
         if isinstance(dtype, pl.DataType) or (
             isinstance(dtype, type) and issubclass(dtype, pl.DataType)
         ):

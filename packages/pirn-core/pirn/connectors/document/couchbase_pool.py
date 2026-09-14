@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Sync Couchbase pool (wrapped in asyncio.to_thread) backed by the Couchbase SDK."""
 
 from __future__ import annotations

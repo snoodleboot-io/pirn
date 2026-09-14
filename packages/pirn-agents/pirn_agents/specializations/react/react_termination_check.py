@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``ReActTerminationCheck`` — decide whether a ReAct loop should stop.
 
 The gate inspects the trailing assistant message produced by the most

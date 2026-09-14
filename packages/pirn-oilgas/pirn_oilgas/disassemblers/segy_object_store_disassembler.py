@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SegyObjectStoreDisassembler`` — serialize a :class:`SegyPayload` to raw SEG-Y bytes.
 
 Sits between upstream domain knots that produce
@@ -41,8 +39,8 @@ import numpy as np
 from pirn.core.disassembler import Disassembler
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
-from pirn_oilgas.oilgas_optional_import import OilgasOptionalImport
 from pirn_oilgas.types.segy_payload import SegyPayload
 
 
@@ -56,11 +54,9 @@ class SegyObjectStoreDisassembler(Disassembler):
 
     @staticmethod
     def _encode(payload: SegyPayload) -> bytes:
-        segyio = OilgasOptionalImport.require(
-            "segyio", "SegyObjectStoreDisassembler: encoding SEG-Y bytes"
-        )
+        segyio = OptionalDependency.require("segyio", extra="oilgas", package="pirn-oilgas")
 
-        traces: np.ndarray = payload.traces
+        traces: np.ndarray = payload.data
         if traces.ndim == 1:
             traces = traces.reshape(1, -1)
 
@@ -110,12 +106,12 @@ class SegyObjectStoreDisassembler(Disassembler):
 
         Raises:
             TypeError: If ``payload`` is not a :class:`SegyPayload`.
-            ValueError: If ``payload.traces`` is empty.
+            ValueError: If ``payload.data`` is empty.
         """
         if not isinstance(payload, SegyPayload):
             raise TypeError(
                 f"SegyObjectStoreDisassembler: payload must be SegyPayload, got {type(payload).__name__}"
             )
-        if payload.traces.size == 0:
-            raise ValueError("SegyObjectStoreDisassembler: payload.traces must be non-empty")
+        if payload.data.size == 0:
+            raise ValueError("SegyObjectStoreDisassembler: payload.data must be non-empty")
         return await asyncio.to_thread(SegyObjectStoreDisassembler._encode, payload)

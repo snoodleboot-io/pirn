@@ -44,13 +44,13 @@ class TestEntropyEstimator(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, entropy_kind="sample", embedding_dim=2)
         assert isinstance(out, FeaturePayload)
-        assert out.frame.feature_names == ("sample",)
-        assert out.frame.signal_id == "test:sample-entropy"
+        assert out.metadata.feature_names == ("sample",)
+        assert out.metadata.signal_id == "test:sample-entropy"
         assert out.data.shape == (1, 1)
 
     async def test_multichannel_computes_per_channel(self) -> None:
         knot = self._make()
         out = await knot.process(_MULTICHANNEL_SIGNAL, entropy_kind="sample", embedding_dim=2)
         assert isinstance(out, FeaturePayload)
-        assert out.frame.channel_count == 3
+        assert out.metadata.channel_count == 3
         assert out.data.shape == (3, 1)

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ParquetFormat`` — Apache Parquet encoder/decoder using ``pyarrow.parquet``.
 
 Streaming on the encode/decode boundary: the body is drained into a

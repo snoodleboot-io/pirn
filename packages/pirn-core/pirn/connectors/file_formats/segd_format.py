@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SegdFormat`` — SEG-D seismic field-tape batch decoder.
 
 SEG-D is a binary tape format used to record seismic field data. It

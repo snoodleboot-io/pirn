@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``SubQuestionRetriever`` — concurrent per-sub-question retrieval + union.
 
 The retrieval stage of sub-question RAG. Each sub-question is searched against
@@ -11,7 +9,7 @@ retrieved it.
 The fan-out is expressed as a graph rather than a hand-rolled
 ``asyncio.gather`` over a semaphore: each sub-question becomes its own
 :class:`~pirn_agents.specializations.rag.sub_question_search.SubQuestionSearch`
-invocation, fanned out with a core :class:`~pirn.nodes.map_markers.Map`, and
+invocation, fanned out with a core :class:`~pirn.core.map.Map`, and
 folded into the deduplicated union with a :class:`~pirn.nodes.reduce_.Reduce`.
 The engine schedules the per-sub-question searches concurrently — every ready
 sibling starts as its own task (PIR-841) — so retrieval runs *through* the
@@ -43,8 +41,8 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.map import Map
 from pirn.core.parameter import Parameter
-from pirn.nodes.map_markers import Map
 from pirn.nodes.reduce_ import Reduce
 
 from pirn_agents.interfaces.retriever import Retriever

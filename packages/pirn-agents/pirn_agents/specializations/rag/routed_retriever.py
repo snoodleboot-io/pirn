@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``RoutedRetriever`` — retrieve from the store a classifier selected.
 
 The dispatch stage of Router RAG. Given a chosen ``route`` name and the

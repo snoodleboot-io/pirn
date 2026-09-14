@@ -49,7 +49,7 @@ class TestEchoCanceller(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_MIC, _FAR, filter_length=64, step_size=0.05)
         assert isinstance(out, SignalPayload)
-        assert out.frame.sample_rate_hz == 1000.0
+        assert out.metadata.sample_rate_hz == 1000.0
 
     async def test_rejects_mismatched_channel_counts(self) -> None:
         knot = self._make()
@@ -65,5 +65,5 @@ class TestEchoCanceller(unittest.IsolatedAsyncioTestCase):
         far = make_signal_payload(signal_id="reference", channel_count=2, samples_per_channel=128)
         out = await knot.process(mic, far, filter_length=64, step_size=0.05)
         assert isinstance(out, SignalPayload)
-        assert out.frame.channel_count == 2
+        assert out.metadata.channel_count == 2
         assert out.data.shape == (2, 128)

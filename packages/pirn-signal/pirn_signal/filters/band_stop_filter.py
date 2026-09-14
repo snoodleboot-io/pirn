@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``BandStopFilter`` — reject a frequency band, pass elsewhere.
 
 Algorithm:
@@ -95,7 +93,7 @@ class BandStopFilter(Knot):
         if not isinstance(order, int) or order <= 0:
             raise ValueError("BandStopFilter: order must be a positive integer")
 
-        fs = signal.frame.sample_rate_hz
+        fs = signal.metadata.sample_rate_hz
         filtered = await asyncio.to_thread(
             ButterworthDesign.design_and_apply,
             signal.data,

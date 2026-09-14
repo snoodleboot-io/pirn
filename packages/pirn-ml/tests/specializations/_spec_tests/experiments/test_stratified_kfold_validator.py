@@ -81,7 +81,7 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         report = result.outputs["cv"]
         assert isinstance(report, EvalReportPayload)
-        assert "accuracy" in report.metrics.scores
-        assert report.metrics.details["k"] == 3
-        per_fold = report.metrics.details["per_fold_metrics"]
+        assert "accuracy" in report.data.scores
+        assert report.data.details["k"] == 3
+        per_fold = report.data.details["per_fold_metrics"]
         assert isinstance(per_fold, list) and len(per_fold) == 3

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``EvalDataset`` — an ordered, JSON-round-trippable set of eval items."""
 
 from __future__ import annotations

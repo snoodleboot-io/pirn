@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``SubQuestionDecomposer`` — split a compound query into sub-questions.
 
 The first stage of sub-question RAG. A complex question ("Compare X and Y on

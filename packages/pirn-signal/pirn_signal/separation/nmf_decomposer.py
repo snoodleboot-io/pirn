@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``NMFDecomposer`` — non-negative matrix factorisation.
 
 Algorithm:
@@ -94,9 +92,9 @@ class NMFDecomposer(Knot):
         )
         return SourcePayload(
             metadata=SourceFrame(
-                signal_id=f"{signal.frame.signal_id}:nmf",
+                signal_id=f"{signal.metadata.signal_id}:nmf",
                 source_count=component_count,
-                mixing_matrix_shape=(signal.frame.channel_count, component_count),
+                mixing_matrix_shape=(signal.metadata.channel_count, component_count),
             ),
             data=components,
         )

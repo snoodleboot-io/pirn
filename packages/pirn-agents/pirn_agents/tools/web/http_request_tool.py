@@ -19,11 +19,11 @@ from typing import Annotated, Any, ClassVar, Literal
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 from pirn.security.ssrf_guard import SsrfGuard
 from pirn.security.vetted_endpoint import VettedEndpoint
 from pydantic import Field
 
-from pirn_agents._internal.optional_import import OptionalImport
 from pirn_agents.tools.tool import Tool
 
 
@@ -115,7 +115,7 @@ class HttpRequestTool(Tool):
         endpoint = guard.assert_public_host(url)
         if client is not None:
             return await self._request(client, verb, url, endpoint, max_bytes)
-        httpx = OptionalImport.require("web", "httpx")
+        httpx = OptionalDependency.require("httpx", extra="web", package="pirn-agents")
         limits = httpx.Timeout(timeout, connect=connect_timeout)
         async with httpx.AsyncClient(timeout=limits, follow_redirects=False) as own_client:
             return await self._request(own_client, verb, url, endpoint, max_bytes)

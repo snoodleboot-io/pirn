@@ -62,4 +62,4 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         out = result.outputs["m"]
         assert isinstance(out, SpectrumPayload)
-        assert out.frame.frequency_bins == 1024 // 2 + 1
+        assert out.metadata.frequency_bins == 1024 // 2 + 1

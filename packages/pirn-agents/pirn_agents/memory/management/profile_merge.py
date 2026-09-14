@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Merge new session data into a profile without clobbering unrelated fields.
 
 The S3 merge primitive, kept pure so it is trivially testable and reusable. It

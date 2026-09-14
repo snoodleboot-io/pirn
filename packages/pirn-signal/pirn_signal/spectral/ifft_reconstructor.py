@@ -56,7 +56,7 @@ class IFFTReconstructor(Knot):
 
         return SignalPayload(
             metadata=SignalFrame(
-                signal_id=f"{spectrum.frame.signal_id}:ifft",
+                signal_id=f"{spectrum.metadata.signal_id}:ifft",
                 channel_count=1,
                 sample_rate_hz=0.0,
                 samples_per_channel=n_samples,

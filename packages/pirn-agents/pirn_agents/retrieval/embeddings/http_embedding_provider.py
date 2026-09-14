@@ -17,9 +17,9 @@ from collections.abc import Awaitable, Callable, Sequence
 from typing import Any
 
 from pirn.core.knot_retry_policy import KnotRetryPolicy
+from pirn.core.optional_dependency import OptionalDependency
 from pirn.security.credential_ref import CredentialRef
 
-from pirn_agents._internal.optional_import import OptionalImport
 from pirn_agents.retrieval.embeddings.base_embedding_provider import BaseEmbeddingProvider
 
 
@@ -80,7 +80,7 @@ class HttpEmbeddingProvider(BaseEmbeddingProvider):
         """Return the injected client, or lazily build an ``httpx.AsyncClient``."""
         if self._injected_client is not None:
             return self._injected_client
-        httpx = OptionalImport.require("web", "httpx")
+        httpx = OptionalDependency.require("httpx", extra="web", package="pirn-agents")
         headers: dict[str, str] = {}
         if self._credential is not None:
             headers["Authorization"] = f"Bearer {self._credential.reveal()}"

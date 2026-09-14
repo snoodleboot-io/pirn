@@ -26,15 +26,17 @@ import asyncio
 import unittest
 from typing import Any
 
+from pirn.core.dict_map import DictMap
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import KnotFactory
+from pirn.core.map import Map
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.core.run_result import RunResult
+from pirn.core.zip_map import ZipMap
 from pirn.nodes.branch.branch import Branch
 from pirn.nodes.gate.gate import Gate
-from pirn.nodes.map_markers import DictMap, Map, ZipMap
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 

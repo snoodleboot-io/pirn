@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SpeakerDiarizationPipeline`` — segment audio by speaker identity.
 
 Algorithm:
@@ -39,6 +37,7 @@ import numpy as np
 from numpy.typing import NDArray
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
 from pirn_signal.bindings.sklearn_cluster_binding import SklearnClusterBinding
 from pirn_signal.types.feature_frame import FeatureFrame
@@ -105,7 +104,7 @@ class SpeakerDiarizationPipeline(Knot):
             raise ValueError(
                 "SpeakerDiarizationPipeline: embedding_model must be a non-empty string"
             )
-        sr = int(signal.frame.sample_rate_hz)
+        sr = int(signal.metadata.sample_rate_hz)
         channels = np.atleast_2d(signal.data)
         results = await asyncio.gather(
             *(
@@ -115,7 +114,7 @@ class SpeakerDiarizationPipeline(Knot):
         )
         return FeaturePayload(
             metadata=FeatureFrame(
-                signal_id=f"{signal.frame.signal_id}:diarization",
+                signal_id=f"{signal.metadata.signal_id}:diarization",
                 channel_count=channels.shape[0],
                 feature_names=("speaker_label",),
             ),
@@ -129,12 +128,7 @@ class SpeakerDiarizationPipeline(Knot):
         num_speakers: int,
     ) -> np.ndarray:
         """Diarize a single channel, returning per-frame speaker labels."""
-        try:
-            import librosa
-        except ImportError as exc:
-            raise ImportError(
-                "SpeakerDiarizationPipeline requires 'librosa'. Install via pip install pirn-signal[signal]"
-            ) from exc
+        librosa = OptionalDependency.require("librosa", extra="signal", package="pirn-signal")
         cluster = SklearnClusterBinding.load()
         mfcc = librosa.feature.mfcc(
             y=channel,

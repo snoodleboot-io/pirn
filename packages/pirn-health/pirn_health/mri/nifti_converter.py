@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``NIfTIConverter`` — convert a DICOM series to NIfTI format.
 
 Production version uses ``dcm2niix`` / ``nibabel``. Accepts a
@@ -13,7 +11,7 @@ of the subprocess call.
 Algorithm:
     1. Receive payload DICOMPayload and output_nifti_path string.
     2. Validate payload is a DICOMPayload and output_nifti_path is non-empty.
-    3. Write ``payload.dataset`` to a temporary directory via ``save_as``.
+    3. Write ``payload.data`` to a temporary directory via ``save_as``.
     4. Run dcm2niix against that temporary directory to produce the NIfTI file.
     5. Remove the temporary directory and return the output NIfTI path.
 
@@ -79,7 +77,7 @@ class NIfTIConverter(Knot):
             raise ValueError("NIfTIConverter: output_nifti_path must be non-empty string")
         output_dir = os.path.dirname(output_nifti_path) or "."
         with tempfile.TemporaryDirectory(prefix="nifti_converter_") as staging_dir:
-            await asyncio.to_thread(self._stage_dataset, payload.dataset, staging_dir)
+            await asyncio.to_thread(self._stage_dataset, payload.data, staging_dir)
             cmd = ["dcm2niix", "-o", output_dir, staging_dir]
             await self._run_subprocess(cmd)
         return output_nifti_path

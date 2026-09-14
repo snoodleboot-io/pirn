@@ -56,16 +56,16 @@ class HilbertTransformer(Knot):
         """
         ss = ScipySignalBinding.load()
         analytic = await asyncio.to_thread(ss.hilbert, signal.data, axis=-1)
-        freq_bins = signal.frame.samples_per_channel
+        freq_bins = signal.metadata.samples_per_channel
         freq_res = (
-            signal.frame.sample_rate_hz / freq_bins
-            if freq_bins > 0 and signal.frame.sample_rate_hz > 0
+            signal.metadata.sample_rate_hz / freq_bins
+            if freq_bins > 0 and signal.metadata.sample_rate_hz > 0
             else 0.0
         )
 
         return SpectrumPayload(
             metadata=SpectrumFrame(
-                signal_id=f"{signal.frame.signal_id}:analytic",
+                signal_id=f"{signal.metadata.signal_id}:analytic",
                 frequency_bins=freq_bins,
                 frequency_resolution_hz=freq_res,
             ),

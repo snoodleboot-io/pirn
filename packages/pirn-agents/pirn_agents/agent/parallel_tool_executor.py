@@ -146,7 +146,7 @@ class ParallelToolExecutor(SubTapestry):
         """
         call_list = list(tool_calls)
         for index, call in enumerate(call_list):
-            if not isinstance(call, ToolCall):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+            if not isinstance(call, ToolCall):
                 raise TypeError(
                     f"ParallelToolExecutor: tool_calls[{index}] must be a "
                     f"ToolCall, got {type(call).__name__}"
@@ -154,7 +154,7 @@ class ParallelToolExecutor(SubTapestry):
         # Kept, not redundant: ReWooPipeline wires this knot with
         # KnotConfig(validate_io=False), so this guard is the only protection
         # ``toolset`` gets there.
-        if not isinstance(toolset, Toolset):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(toolset, Toolset):
             raise TypeError(
                 f"ParallelToolExecutor: toolset must be a Toolset, got {type(toolset).__name__}"
             )

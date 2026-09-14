@@ -54,7 +54,7 @@ class TestMelSpectrogramExtractor(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, n_mels=128, n_fft=512, hop_length=256)
         assert isinstance(out, SpectrumPayload)
-        assert out.frame.frequency_bins == 128
+        assert out.metadata.frequency_bins == 128
         assert out.data.shape[0] == 1
         assert out.data.shape[1] == 128
 

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``NumpyNpzFormat`` — NumPy zip-of-arrays ``.npz`` batch encoder/decoder.
 
 The ``.npz`` format is a zip archive of one or more named ``.npy``

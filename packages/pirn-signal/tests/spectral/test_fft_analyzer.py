@@ -73,7 +73,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         out = result.outputs["fft"]
         assert isinstance(out, SpectrumPayload)
-        assert out.frame.signal_id == "test"
-        assert out.frame.frequency_bins == 257
-        assert out.frame.frequency_resolution_hz == pytest.approx(1000.0 / 512)
+        assert out.metadata.signal_id == "test"
+        assert out.metadata.frequency_bins == 257
+        assert out.metadata.frequency_resolution_hz == pytest.approx(1000.0 / 512)
         assert out.data.shape[-1] == 257

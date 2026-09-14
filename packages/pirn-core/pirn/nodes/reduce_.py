@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Reduce — fold a list (typically from a Map) into one value.
 
 A ``Reduce`` takes one parent producing a list and a ``combine``

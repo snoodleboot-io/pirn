@@ -68,8 +68,8 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         out = result.outputs["x"]
         assert isinstance(out, SpectrumPayload)
-        assert out.frame.signal_id == "test|other"
-        assert out.frame.frequency_bins == 65
+        assert out.metadata.signal_id == "test|other"
+        assert out.metadata.frequency_bins == 65
 
     async def test_rejects_mismatched_sample_rates(self) -> None:
         with Tapestry() as t:

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TimeSeriesEvalPipeline`` — SubTapestry for forecasting evaluation.
 
 Computes MAPE, sMAPE, and MASE for a time-series forecasting model.
@@ -44,16 +42,16 @@ async def _decorate_time_column(
     report: EvalReportPayload,
     time_column: str,
 ) -> EvalReportPayload:
-    decorated_details: dict[str, Any] = dict(report.metrics.details)
+    decorated_details: dict[str, Any] = dict(report.data.details)
     decorated_details["time_column"] = time_column
     return EvalReportPayload(
         metadata=EvalMetadata(
-            model_id=report.report.model_id,
-            dataset_name=report.report.dataset_name,
-            evaluated_at=report.report.evaluated_at,
+            model_id=report.metadata.model_id,
+            dataset_name=report.metadata.dataset_name,
+            evaluated_at=report.metadata.evaluated_at,
         ),
         data=EvalMetrics(
-            scores=report.metrics.scores,
+            scores=report.data.scores,
             details=MappingProxyType(decorated_details),
         ),
     )

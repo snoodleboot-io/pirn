@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``RaptorAssembler`` — build the RAPTOR summary tree from leaf chunks.
 
 Internal terminal knot of :class:`RaptorTreeBuilder`. It recursively clusters

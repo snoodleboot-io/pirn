@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``SpecialistHandle`` — a delegated specialist, invoked through ``__call__``, never ``process()``.
 
 Four multi-agent pipelines delegate to specialists that are themselves

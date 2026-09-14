@@ -32,19 +32,26 @@ References:
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import Any
+from collections.abc import Callable, Mapping
+from typing import TYPE_CHECKING, Any, ClassVar
 
-import pandas as pd
+from pirn.core.annotation_import import AnnotationImport
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.frames.pandas.pandas_data_batch import PandasDataBatch
 from pirn_data.value_shape import ValueShape
 
+if TYPE_CHECKING:
+    pass
+
 
 class PandasFilter(Knot):
     """Apply a callable boolean-mask predicate to a :class:`PandasDataBatch`."""
+
+    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
+        "pd": AnnotationImport("pandas", extra="data", package="pirn-data"),
+    }
 
     def __init__(
         self,
@@ -71,6 +78,8 @@ class PandasFilter(Knot):
         Returns:
             A new PandasDataBatch containing only the rows for which the predicate returns True.
         """
+        import pandas as pd
+
         if not ValueShape.is_callable(predicate):
             raise TypeError(
                 "PandasFilter: predicate must be a callable "

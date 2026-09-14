@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PropensityScoreMatcherPipeline`` — match treated and control cohorts using propensity score matching.
 
 Algorithm:
@@ -39,8 +37,7 @@ from typing import Any, SupportsFloat, SupportsIndex
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-
-from pirn_health.health_optional_dependency import HealthOptionalDependency
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class PropensityScoreMatcherPipeline(Knot):
@@ -180,7 +177,9 @@ class PropensityScoreMatcherPipeline(Knot):
 
         ps = np.full(len(cohort), 0.5)
         if len(np.unique(treatment_labels)) > 1:
-            linear_model = HealthOptionalDependency.require("sklearn.linear_model", extra="health")
+            linear_model = OptionalDependency.require(
+                "sklearn.linear_model", extra="health", package="pirn-health"
+            )
             try:
                 lr = linear_model.LogisticRegression(max_iter=500, random_state=0)
                 lr.fit(covariate_matrix, treatment_labels)

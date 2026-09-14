@@ -89,4 +89,4 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
         assert isinstance(out, dict)
         assert isinstance(out["best_model"], ModelManifest)
         assert isinstance(out["eval_report"], EvalReportPayload)
-        assert "accuracy" in out["eval_report"].metrics.scores
+        assert "accuracy" in out["eval_report"].data.scores

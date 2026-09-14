@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``BlendingEnsembleBuilder`` — train base models on 80% of data, blend
 predictions on 20% holdout using a weighted average.
 

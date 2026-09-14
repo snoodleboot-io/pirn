@@ -6,8 +6,7 @@ core ``Gate`` wired in front of it; a denial closes the gate, so the tool's
 own ``process()`` is never called and the call's outcome is a core
 ``Skipped`` rather than an ``Err``. Covers both call shapes ``for_call``
 builds a knot for: an ordinary ``Tool`` subclass (named inputs) and a
-schema-declared, packed-arguments capability (``StubTool``, MCP tools, the
-deprecated ``invoke``-shaped shim).
+schema-declared, packed-arguments capability (``StubTool``, MCP tools).
 """
 
 from __future__ import annotations
@@ -134,7 +133,7 @@ class TestForCallOrdinaryShape(unittest.IsolatedAsyncioTestCase):
 
 
 class TestForCallPackedShape(unittest.IsolatedAsyncioTestCase):
-    """``StubTool`` (and MCP tools, and the deprecated invoke shim) pack all
+    """``StubTool`` (and MCP tools) pack all
     arguments into one declared ``arguments`` input -- the approval gate must
     not corrupt that payload."""
 

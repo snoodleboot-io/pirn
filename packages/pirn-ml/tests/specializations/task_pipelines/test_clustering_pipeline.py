@@ -59,4 +59,4 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         report: EvalReportPayload = result.outputs["cl"]
         assert isinstance(report, EvalReportPayload)
-        assert "silhouette" in report.metrics.scores
+        assert "silhouette" in report.data.scores

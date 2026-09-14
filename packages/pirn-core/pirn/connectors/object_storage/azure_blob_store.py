@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Azure Blob :class:`ObjectStore` backed by :mod:`azure-storage-blob` aio."""
 
 from __future__ import annotations

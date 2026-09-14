@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``CompressedFileFormat`` — transparent codec wrapper around any
 :class:`FileFormat`.
 

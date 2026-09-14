@@ -7,7 +7,7 @@ under ``planning``, and the RAG relevance check under its canonical name. This
 test pins the *post-move* public import surface -- every symbol below must be
 importable at its NEW module path, so the move is proven to preserve the public
 API -- and asserts that each OLD module path is GONE (guarding against a
-regression that would leave a stale shim behind).
+regression that would leave a re-export module behind).
 
 Imports are performed with :func:`importlib.import_module` inside the test body
 (not at module top) so this file always COLLECTS cleanly even before the moves

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``OnnxFormat`` — ONNX (Open Neural Network Exchange) model encoder/decoder.
 
 ONNX artefacts are whole-model protobufs. They cannot be streamed

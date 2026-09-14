@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MedicationReconciliationPipeline`` — ingest → normalise → dedup pipeline.
 
 Composed pipeline: :class:`RxNormNormalizer` resolves drug names to

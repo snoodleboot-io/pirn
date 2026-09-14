@@ -14,8 +14,8 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
-from pirn_health.health_optional_dependency import HealthOptionalDependency
 from pirn_health.mri.region_of_interest_extractor import RegionOfInterestExtractor
 
 _CFG = KnotConfig(id="r")
@@ -57,7 +57,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         knot = self._make_knot()
         mock_nib = self._mock_nib()
         with patch.object(
-            HealthOptionalDependency,
+            OptionalDependency,
             "require",
             side_effect=lambda module, **_: {"nibabel": mock_nib}[module],
         ):

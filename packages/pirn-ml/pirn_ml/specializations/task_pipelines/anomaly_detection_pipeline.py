@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``AnomalyDetectionPipeline`` — end-to-end anomaly detection pipeline:
 fits Isolation Forest, LOF, or autoencoder on normal data, scores the
 test set, and returns anomaly flags and scores.

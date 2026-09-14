@@ -39,8 +39,8 @@ class TestProcessDirect(unittest.IsolatedAsyncioTestCase):
         spectrum = SpectrumPayload(metadata=frame, data=np.zeros(257, dtype=complex))
         result = await k.process(spectrum=spectrum)
         assert isinstance(result, SignalPayload)
-        assert result.frame.signal_id == "spec:ifft"
-        assert result.frame.samples_per_channel == (257 - 1) * 2
+        assert result.metadata.signal_id == "spec:ifft"
+        assert result.metadata.samples_per_channel == (257 - 1) * 2
         assert result.data.shape[-1] == (257 - 1) * 2
 
 
@@ -52,5 +52,5 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         out = result.outputs["ifft"]
         assert isinstance(out, SignalPayload)
-        assert out.frame.signal_id == "spec:ifft"
-        assert out.frame.samples_per_channel == (257 - 1) * 2
+        assert out.metadata.signal_id == "spec:ifft"
+        assert out.metadata.samples_per_channel == (257 - 1) * 2

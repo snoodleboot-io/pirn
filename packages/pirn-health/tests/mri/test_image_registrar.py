@@ -7,8 +7,8 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
-from pirn_health.health_optional_dependency import HealthOptionalDependency
 from pirn_health.mri.image_registrar import ImageRegistrar
 
 _CFG = KnotConfig(id="r")
@@ -49,7 +49,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         mock_sitk.Resample.return_value = mock_img
 
         with patch.object(
-            HealthOptionalDependency,
+            OptionalDependency,
             "require",
             side_effect=lambda module, **_: {"SimpleITK": mock_sitk}[module],
         ):

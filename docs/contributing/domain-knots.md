@@ -16,11 +16,9 @@ Read and follow every convention here — these are enforced by CI:
   plain base class whose methods raise `NotImplementedError` for subclasses to override
   (see `.claude/conventions/languages/python.md`). `BatchFileFormat` and
   `StreamingFileFormat` are themselves written this way.
-- Methods belong to classes; no module-level functions (use `@staticmethod` inside the class instead).
-  Module-level functions are allowed only as documented public entry points listed in
-  `scripts/check_conventions.py`'s `_MODULE_LEVEL_FUNCTION_ALLOWLIST` (PIR-869); everything
-  else is a `@staticmethod`. A replaced public name is deleted and its callers move to the
-  class form (`PipelineLoader.load_yaml`) — never kept as a bare alias.
+- Methods belong to classes; no module-level functions (use `@staticmethod` inside the class
+  instead) — `scripts/check_conventions.py` fails on any. A replaced public name is deleted and
+  its callers move to the class form (`PipelineLoader.load_yaml`) — never kept as a bare alias.
 - No nested function definitions that can be expressed as a `@staticmethod`.
 - No bare `except:` — always catch a specific exception type.
 - All constructor parameter validation is explicit (type check then value check; raise `TypeError` before `ValueError`).
@@ -71,6 +69,7 @@ from typing import Any, ClassVar
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class WidgetFormat(BatchFileFormat):
@@ -107,26 +106,14 @@ class WidgetFormat(BatchFileFormat):
     async def _decode_full(
         self, payload: bytes
     ) -> Iterable[Mapping[str, Any]]:
-        try:
-            import widgetlib  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "WidgetFormat requires 'widgetlib'. "
-                "Install via `pip install pirn[widget]`."
-            ) from exc
+        widgetlib = OptionalDependency.require("widgetlib", extra="widget", package="pirn-core")
         widgets = widgetlib.load(payload, version=self._schema_version)
         return [{"id": w.id, "value": w.value} for w in widgets]
 
     async def _encode_full(
         self, records: Iterable[Mapping[str, Any]]
     ) -> bytes:
-        try:
-            import widgetlib  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "WidgetFormat requires 'widgetlib'. "
-                "Install via `pip install pirn[widget]`."
-            ) from exc
+        widgetlib = OptionalDependency.require("widgetlib", extra="widget", package="pirn-core")
         widgets = [
             widgetlib.Widget(id=r["id"], value=r["value"]) for r in records
         ]
@@ -228,27 +215,77 @@ Notes:
 
 ## Step 3 — Handling Optional Dependencies
 
-Every format that requires a third-party library follows the **lazy import pattern**:
+Every format that requires a third-party library imports it lazily through
+`pirn.core.optional_dependency.OptionalDependency.require` — the one lazy importer in
+the workspace:
 
 ```python
+from pirn.core.optional_dependency import OptionalDependency
+
+
 async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
-    try:
-        import widgetlib  # type: ignore[import-not-found]
-    except ImportError as exc:
-        raise ImportError(
-            "WidgetFormat requires 'widgetlib'. "
-            "Install via `pip install pirn[widget]`."
-        ) from exc
+    widgetlib = OptionalDependency.require("widgetlib", extra="widget", package="pirn-core")
     ...
 ```
 
 Rules:
 
-- The import happens inside the method, not at module top-level.
-- The re-raised `ImportError` must include the exact `pip install pirn[<extra>]` command.
-- Use `from exc` to preserve the original traceback.
-- Add `# type: ignore[import-not-found]` so pyright does not complain when the optional package is absent.
+- The import happens inside the method, not at module top-level, so importing the
+  package (and the registry walk it triggers) never loads the backend.
+- `extra` is the real optional-dependency extra that installs the module and `package`
+  is the distribution that declares it (`pirn-core`, or the domain package's own name);
+  a missing module raises `ImportError` naming `pip install "<package>[<extra>]"`,
+  chained to the original error.
+- Never hand-roll `try: import ... except ImportError` or a per-package helper, and
+  never add `# type: ignore` / `# pyright: ignore` for the optional import: the
+  returned `ModuleType` is the typed boundary, and values read off it are converted to
+  precise types at the call site.
 - Formats with **no** optional dependency (CSV, plain text, FASTQ's stdlib path) need no guard.
+
+### Knots whose annotations name an optional engine's types
+
+`Knot` resolves `process()`'s annotations at runtime (on first construction) to build
+its validation adapters, so a name an annotation uses must be importable then — but a
+knot built on an optional engine must not import that engine at module scope. Import
+the engine only under `if TYPE_CHECKING:` and declare every such name in
+`_annotation_imports`:
+
+```python
+from __future__ import annotations
+
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any, ClassVar
+
+from pirn.core.annotation_import import AnnotationImport
+from pirn.core.knot import Knot
+
+if TYPE_CHECKING:
+    import pandas as pd
+
+
+class FrameSummary(Knot):
+    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
+        "pd": AnnotationImport("pandas", extra="data", package="pirn-data"),
+        # a bare class name: AnnotationImport("pandas", extra="data", package="pirn-data", attribute="DataFrame")
+    }
+
+    async def process(self, frame: pd.DataFrame, **_: Any) -> int:
+        import pandas as pd  # runtime use: typed, and the engine already resolved
+
+        return int(pd.DataFrame(frame).shape[0])
+```
+
+- Keys are the names exactly as the annotations spell them; values say where each comes
+  from and which extra installs it. The mapping is inherited and merged down the MRO (a
+  subclass entry overrides its base's).
+- `Knot` resolves the mapping through `OptionalDependency.require` the first time the
+  class's hints are needed — its first construction, or `input_annotations()` /
+  `input_json_schema()` — never at module import, and caches it per class. Validation is
+  identical to an eagerly imported type; a missing engine raises
+  `pip install "<package>[<extra>]"` at construction.
+- Declare the engine even when no annotation names it, so a knot that uses the engine at
+  run time always fails at construction with the install hint rather than mid-run.
+- The module must use `from __future__ import annotations`.
 
 ---
 

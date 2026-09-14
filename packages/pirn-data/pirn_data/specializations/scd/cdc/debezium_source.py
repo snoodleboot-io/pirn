@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``DebeziumSource`` — pirn :class:`Source` that yields parsed Debezium
 change events from a message broker topic.
 

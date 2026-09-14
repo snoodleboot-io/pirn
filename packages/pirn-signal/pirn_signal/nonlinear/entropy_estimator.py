@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``EntropyEstimator`` — sample / approximate / permutation entropy.
 
 Algorithm:
@@ -110,7 +108,7 @@ class EntropyEstimator(Knot):
         )
         return FeaturePayload(
             metadata=FeatureFrame(
-                signal_id=f"{signal.frame.signal_id}:{entropy_kind}-entropy",
+                signal_id=f"{signal.metadata.signal_id}:{entropy_kind}-entropy",
                 channel_count=channels.shape[0],
                 feature_names=(entropy_kind,),
             ),

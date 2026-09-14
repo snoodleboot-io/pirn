@@ -1,7 +1,7 @@
 """``PdfLoader`` — extract text from a PDF via the lazy ``pdf`` extra (F25-S1).
 
 Wraps ``pypdf`` (imported lazily through
-:meth:`~pirn_agents._internal.optional_import.OptionalImport.require`, so importing this module never pulls the
+:meth:`~pirn.core.optional_dependency.OptionalDependency.require`, so importing this module never pulls the
 backend). Concatenates the extracted text of every page into one normalized
 :class:`LoadedDocument`, recording the page count in metadata. Multimodal PDF
 content (embedded images) is out of scope until F15 (see :class:`Loader`).
@@ -11,7 +11,8 @@ from __future__ import annotations
 
 import io
 
-from pirn_agents._internal.optional_import import OptionalImport
+from pirn.core.optional_dependency import OptionalDependency
+
 from pirn_agents.specializations.document_processing.loaders.loaded_document import (
     LoadedDocument,
 )
@@ -45,7 +46,7 @@ class PdfLoader(Loader):
             ValueError: If the bytes are not a parseable PDF.
         """
         raw = self._require_bytes("PdfLoader", data)
-        pypdf = OptionalImport.require("pdf", "pypdf")
+        pypdf = OptionalDependency.require("pypdf", extra="pdf", package="pirn-agents")
         try:
             reader = pypdf.PdfReader(io.BytesIO(raw))
             pages = [(page.extract_text() or "") for page in reader.pages]

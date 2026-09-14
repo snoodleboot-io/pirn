@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``StdioTransport`` — MCP JSON-RPC over a stdio subprocess (``[mcp]`` extra).
 
 The thin JSON-RPC core (:class:`~pirn_agents.mcp.mcp_client.McpClient`) owns the
@@ -7,7 +5,7 @@ protocol; this transport owns only the *plumbing* — spawning the server proces
 and moving frames over its stdin/stdout. It uses the optional ``mcp`` SDK's
 low-level ``stdio_client`` for the subprocess + framing (the piece worth reusing)
 and translates each frame between the SDK's message object and the plain
-mappings the core speaks. The backend is imported lazily via ``OptionalImport.require`` so
+mappings the core speaks. The backend is imported lazily via ``OptionalDependency.require`` so
 ``import pirn_agents`` — and even importing this module — never pulls in ``mcp``.
 """
 
@@ -18,7 +16,8 @@ from contextlib import AsyncExitStack
 from types import ModuleType
 from typing import Any
 
-from pirn_agents._internal.optional_import import OptionalImport
+from pirn.core.optional_dependency import OptionalDependency
+
 from pirn_agents.mcp.mcp_transport import McpTransport
 
 
@@ -60,7 +59,7 @@ class StdioTransport(McpTransport):
         """Spawn the server and enter its stdio stream context."""
         if self.is_open:
             return
-        mcp = OptionalImport.require("mcp", "mcp")
+        mcp = OptionalDependency.require("mcp", extra="mcp", package="pirn-agents")
         stdio = mcp.client.stdio
         params = stdio.StdioServerParameters(command=self._command, args=self._args, env=self._env)
         stack = AsyncExitStack()
@@ -73,7 +72,7 @@ class StdioTransport(McpTransport):
         """Serialise ``message`` to an SDK JSON-RPC object and write it."""
         if self._write is None:
             raise RuntimeError("StdioTransport.send: transport is not open")
-        mcp_types = OptionalImport.require("mcp", "mcp").types
+        mcp_types = OptionalDependency.require("mcp", extra="mcp", package="pirn-agents").types
         rpc = mcp_types.JSONRPCMessage.model_validate(dict(message))
         await self._write.send(StdioTransport._wrap_session_message(mcp_types, rpc))
 

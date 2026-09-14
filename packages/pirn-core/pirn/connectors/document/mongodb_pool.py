@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Async MongoDB connection pool backed by :mod:`motor`."""
 
 from __future__ import annotations

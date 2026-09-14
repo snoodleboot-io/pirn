@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``McpClient`` — a thin async JSON-RPC 2.0 core speaking Model Context Protocol.
 
 OD-3 resolution: rather than depend on the official SDK for protocol logic, the

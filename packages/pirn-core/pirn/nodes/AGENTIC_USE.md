@@ -12,14 +12,15 @@ All of these are `Knot` subclasses and wire into a `Tapestry` context the same w
 
 ## Source map
 
+The fan-out markers are not nodes: `Map` (`pirn/core/map.py`, one call per list element),
+`ZipMap` (`pirn/core/zip_map.py`, one call per zip of N lists) and `DictMap`
+(`pirn/core/dict_map.py`, one call per dict entry) live in `pirn.core`.
+
 ```
 pirn/nodes/
 ├── source.py            Source              — zero-parent entry knot; subclass and implement process(**_)
 ├── sink.py              Sink                — terminal consumer; return value is conventionally None
 ├── aggregator.py        Aggregator          — merge N parents via a combine callable
-├── map_markers.py       Map                 — fan-out marker: invoke knot once per list element
-│                        ZipMap              — fan-out marker: invoke knot once per zip of N lists
-│                        DictMap             — fan-out marker: invoke knot once per dict entry (key+value)
 ├── reduce_.py           Reduce              — fold a list parent to a single value
 ├── gate/
 │   └── gate.py          Gate                — pass input through if predicate is truthy; else Skipped
@@ -72,7 +73,7 @@ with Tapestry() as t:
 ### Map — fan a knot over a list
 
 ```python
-from pirn.nodes.map_markers import Map
+from pirn.core.map import Map
 
 with Tapestry() as t:
     rows    = LoadRows(_config=KnotConfig(id="load"))
@@ -84,7 +85,7 @@ with Tapestry() as t:
 ### ZipMap — parallel fan-out over two lists element-wise
 
 ```python
-from pirn.nodes.map_markers import ZipMap
+from pirn.core.zip_map import ZipMap
 
 with Tapestry() as t:
     texts  = LoadTexts(_config=KnotConfig(id="texts"))
@@ -96,7 +97,7 @@ with Tapestry() as t:
 ### DictMap — fan over dict entries
 
 ```python
-from pirn.nodes.map_markers import DictMap
+from pirn.core.dict_map import DictMap
 
 with Tapestry() as t:
     config  = LoadConfig(_config=KnotConfig(id="cfg"))

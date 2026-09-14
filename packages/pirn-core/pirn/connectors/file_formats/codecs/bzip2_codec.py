@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``Bzip2Codec`` — bzip2 compression using stdlib :mod:`bz2`.
 
 Same buffering trade-off as :class:`GzipCodec`: drain the byte stream

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ToolResultBlock`` — the tool-result variant of the content-block union (F15-S1).
 
 A tool result can appear *inline* in a message body (correlated to the call it

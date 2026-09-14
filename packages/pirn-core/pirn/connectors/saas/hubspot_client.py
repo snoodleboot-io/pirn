@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """HubSpot SaaS connector wrapping the synchronous ``hubspot-api-client`` SDK.
 
 The HubSpot SDK exposes resource-specific high-level methods, but it also

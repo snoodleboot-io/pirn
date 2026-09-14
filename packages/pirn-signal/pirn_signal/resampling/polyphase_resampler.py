@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PolyphaseResampler`` — polyphase rate-conversion filter bank.
 
 Algorithm:
@@ -95,7 +93,7 @@ class PolyphaseResampler(Knot):
         result = await asyncio.to_thread(
             PolyResampling.resample_poly, signal.data, upsample_factor, downsample_factor
         )
-        new_rate = (signal.frame.sample_rate_hz * upsample_factor) / downsample_factor
+        new_rate = (signal.metadata.sample_rate_hz * upsample_factor) / downsample_factor
 
         return signal.derive(
             "polyphase",

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``EegNotchFilter`` — notch-filter at a specific frequency (e.g. 50/60 Hz).
 
 Algorithm:
@@ -27,8 +25,8 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
-from pirn_health.health_optional_dependency import HealthOptionalDependency
 from pirn_health.types.health_signal_frame import HealthSignalFrame
 from pirn_health.types.health_signal_payload import HealthSignalPayload
 
@@ -75,21 +73,21 @@ class EegNotchFilter(Knot):
         if not isinstance(notch_hz, (int, float)) or float(notch_hz) <= 0:
             raise ValueError("EegNotchFilter: notch_hz must be a positive number")
 
-        fs = signal.frame.sample_rate_hz
+        fs = signal.metadata.sample_rate_hz
         filtered = await asyncio.to_thread(self._apply_notch, signal.data, float(notch_hz), fs)
 
         frame = HealthSignalFrame(
-            signal_id=signal.frame.signal_id + ":notch",
-            channel_count=signal.frame.channel_count,
-            sample_rate_hz=signal.frame.sample_rate_hz,
-            samples_per_channel=signal.frame.samples_per_channel,
-            fetched_at=signal.frame.fetched_at,
+            signal_id=signal.metadata.signal_id + ":notch",
+            channel_count=signal.metadata.channel_count,
+            sample_rate_hz=signal.metadata.sample_rate_hz,
+            samples_per_channel=signal.metadata.samples_per_channel,
+            fetched_at=signal.metadata.fetched_at,
         )
         return HealthSignalPayload(metadata=frame, data=filtered)
 
     @staticmethod
     def _apply_notch(data: np.ndarray, notch_hz: float, fs: float) -> np.ndarray:
-        signal = HealthOptionalDependency.require("scipy.signal", extra="health")
+        signal = OptionalDependency.require("scipy.signal", extra="health", package="pirn-health")
         numerator_coeffs: np.ndarray
         denominator_coeffs: np.ndarray
         numerator_coeffs, denominator_coeffs = signal.iirnotch(notch_hz, Q=30.0, fs=fs)

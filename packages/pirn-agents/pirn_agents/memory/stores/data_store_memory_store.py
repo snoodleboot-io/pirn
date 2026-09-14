@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``DataStoreMemoryStore`` — the plain key-value :class:`MemoryStore` (PIR-787).
 
 Before this adapter the only concrete :class:`MemoryStore` implementations were
@@ -16,11 +14,9 @@ row in a hashed key-value table. This adapter's ``store``/``retrieve``/
 which writes each value as a single-knot ``Tapestry`` run (the engine
 content-addresses it into ``DataStore`` and records one ``KnotLineage`` row)
 and reads "the current value under this key" via
-``RunHistory.query_latest_lineage_by_knot_id``. The ``content_hash(key)``
-method that used to fabricate a fake content hash by hashing the caller's
-*key* — inverting what a ``DataStore`` hash means, since a hash stopped
-identifying a value and started identifying a caller-chosen name — is gone;
-there is no longer a hash to compute from a bare key at all.
+``RunHistory.query_latest_lineage_by_knot_id``. There is no hash to compute
+from a bare key: a ``DataStore`` hash identifies a value, never a caller-chosen
+name.
 
 **Missing keys are not errors.** ``KeyedLineageStore.get`` already returns
 ``None`` for an absent (or evicted) key, matching the ``MemoryStore``

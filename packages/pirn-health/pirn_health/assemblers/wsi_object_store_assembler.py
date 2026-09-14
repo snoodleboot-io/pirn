@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``WsiObjectStoreAssembler`` — assemble a :class:`WSITilePayload` from image bytes.
 
 Sits between an object store connector (which produces ``bytes``) and downstream
@@ -29,6 +27,7 @@ import numpy as np
 from pirn.core.assembler import Assembler
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
 from pirn_health.types.wsi_tile import WSITile
 from pirn_health.types.wsi_tile_payload import WSITilePayload
@@ -97,12 +96,7 @@ class WsiObjectStoreAssembler(Assembler):
 
     @staticmethod
     def _assemble_tile(body: bytes, slide_id: str, tile_index: int) -> WSITilePayload:
-        try:
-            from PIL import Image
-        except ImportError as exc:
-            raise ImportError(
-                "WsiObjectStoreAssembler requires 'PIL' — install with: pip install 'pirn-health[health]'"
-            ) from exc
+        Image = OptionalDependency.require("PIL.Image", extra="health", package="pirn-health")
         img = Image.open(io.BytesIO(body)).convert("RGB")
         pixels = np.array(img, dtype=np.uint8)
         height, width = pixels.shape[:2]

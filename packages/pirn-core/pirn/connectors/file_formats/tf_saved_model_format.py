@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TfSavedModelFormat`` — TensorFlow SavedModel directory bundle.
 
 TensorFlow's SavedModel is a directory layout (``saved_model.pb`` plus a

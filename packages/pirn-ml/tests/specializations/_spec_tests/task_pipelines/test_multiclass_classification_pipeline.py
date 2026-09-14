@@ -48,5 +48,5 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         report: EvalReportPayload = result.outputs["mc"]
         assert isinstance(report, EvalReportPayload)
-        assert "f1_macro" in report.metrics.scores
-        assert "precision_macro" in report.metrics.scores
+        assert "f1_macro" in report.data.scores
+        assert "precision_macro" in report.data.scores

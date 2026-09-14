@@ -88,7 +88,7 @@ class HurstExponentEstimator(Knot):
         )
         return FeaturePayload(
             metadata=FeatureFrame(
-                signal_id=f"{signal.frame.signal_id}:hurst-exponent",
+                signal_id=f"{signal.metadata.signal_id}:hurst-exponent",
                 channel_count=channels.shape[0],
                 feature_names=("hurst_exponent",),
             ),

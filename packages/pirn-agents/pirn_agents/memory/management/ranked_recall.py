@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``RankedRecall`` — fuse relevance, recency, and importance into a recall order.
 
 The S4 ranking knot. It takes candidates the retrieval layer already scored

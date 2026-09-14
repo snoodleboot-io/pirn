@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``DefineXMLGenerator`` — emit a CDISC Define-XML metadata snippet.
 
 Production version uses ``define-xml`` / ``odm-lib`` to build a

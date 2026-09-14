@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MarkdownFormat`` — CommonMark Markdown encoder/decoder.
 
 Reads parse the document with ``markdown-it-py`` and walk the token

@@ -46,13 +46,13 @@ class TestTrainedModelObjectStoreAssembler(unittest.IsolatedAsyncioTestCase):
         knot = _make()
         body = _joblib_bytes({"coef": [1.0, 2.0]})
         result = await knot.process(body=body, algorithm="LogisticRegression")
-        assert result.estimator.estimator == {"coef": [1.0, 2.0]}
+        assert result.data.estimator == {"coef": [1.0, 2.0]}
 
     async def test_manifest_algorithm_matches(self) -> None:
         knot = _make()
         body = _joblib_bytes({"coef": [1.0]})
         result = await knot.process(body=body, algorithm="LogisticRegression")
-        assert result.manifest.algorithm == "LogisticRegression"
+        assert result.metadata.algorithm == "LogisticRegression"
 
     async def test_falls_back_to_pickle_on_joblib_failure(self) -> None:
         import pickle
@@ -60,7 +60,7 @@ class TestTrainedModelObjectStoreAssembler(unittest.IsolatedAsyncioTestCase):
         knot = _make()
         body = pickle.dumps({"coef": [3.0]})
         result = await knot.process(body=body, algorithm="RandomForest")
-        assert result.estimator.estimator == {"coef": [3.0]}
+        assert result.data.estimator == {"coef": [3.0]}
 
     async def test_rejects_non_bytes_body(self) -> None:
         knot = _make()

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``DataAnalystAgent`` — SQL agent followed by LLM analysis.
 
 A :class:`SubTapestry` that runs a :class:`SQLAgent` to fetch rows for a

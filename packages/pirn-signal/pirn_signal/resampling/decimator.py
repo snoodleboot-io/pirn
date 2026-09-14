@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``Decimator`` — anti-alias filter then integer downsample.
 
 Algorithm:
@@ -84,10 +82,10 @@ class Decimator(Knot):
         decimated = await asyncio.to_thread(Decimator._decimate, signal.data, decimation_factor)
 
         new_frame = SignalFrame(
-            signal_id=f"{signal.frame.signal_id}:decimate",
-            channel_count=signal.frame.channel_count,
-            sample_rate_hz=signal.frame.sample_rate_hz / decimation_factor,
-            samples_per_channel=signal.frame.samples_per_channel // decimation_factor,
+            signal_id=f"{signal.metadata.signal_id}:decimate",
+            channel_count=signal.metadata.channel_count,
+            sample_rate_hz=signal.metadata.sample_rate_hz / decimation_factor,
+            samples_per_channel=signal.metadata.samples_per_channel // decimation_factor,
         )
         return SignalPayload(metadata=new_frame, data=decimated)
 

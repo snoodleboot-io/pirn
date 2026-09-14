@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``EpochExtractor`` — extract event-locked epochs from a signal.
 
 Algorithm:
@@ -88,7 +86,7 @@ class EpochExtractor(Knot):
         if float(tmin_sec) >= float(tmax_sec):
             raise ValueError("EpochExtractor: tmin_sec must be < tmax_sec")
 
-        fs = signal.frame.sample_rate_hz
+        fs = signal.metadata.sample_rate_hz
         arrays = await asyncio.to_thread(
             self._extract_epochs, signal.data, fs, event_times_sec, float(tmin_sec), float(tmax_sec)
         )
@@ -96,11 +94,11 @@ class EpochExtractor(Knot):
         for idx, arr in enumerate(arrays):
             epoch_samples = arr.shape[-1]
             frame = HealthSignalFrame(
-                signal_id=f"{signal.frame.signal_id}-epoch-{idx}",
-                channel_count=signal.frame.channel_count,
+                signal_id=f"{signal.metadata.signal_id}-epoch-{idx}",
+                channel_count=signal.metadata.channel_count,
                 sample_rate_hz=fs,
                 samples_per_channel=epoch_samples,
-                fetched_at=signal.frame.fetched_at,
+                fetched_at=signal.metadata.fetched_at,
             )
             result.append(HealthSignalPayload(metadata=frame, data=arr))
         return tuple(result)

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MapAgent`` — map an agent over a dataset through core's own scheduler.
 
 ADR agents-speaks-core, WS4b. ``MapAgent`` is a

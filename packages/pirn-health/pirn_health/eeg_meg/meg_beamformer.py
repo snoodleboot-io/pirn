@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MEGBeamformer`` — spatial filter (LCMV beamformer) for MEG source localization.
 
 Algorithm:
@@ -71,7 +69,7 @@ class MEGBeamformer(Knot):
             raise TypeError("MEGBeamformer: signal must be a HealthSignalPayload")
         if not isinstance(steering_vector, list):
             raise TypeError("MEGBeamformer: steering_vector must be a list of float")
-        n_channels = signal.frame.channel_count
+        n_channels = signal.metadata.channel_count
         if len(steering_vector) != n_channels:
             raise ValueError(
                 f"MEGBeamformer: steering_vector length {len(steering_vector)} "

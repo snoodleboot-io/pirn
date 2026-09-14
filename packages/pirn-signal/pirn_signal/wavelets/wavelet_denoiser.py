@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``WaveletDenoiser`` — threshold-based wavelet denoising.
 
 Algorithm:
@@ -99,9 +97,9 @@ class WaveletDenoiser(Knot):
             WaveletDenoiser._run_denoising, signal.data, wavelet, level, threshold_mode
         )
         out_frame = SignalFrame(
-            signal_id=f"{signal.frame.signal_id}:denoised-{threshold_mode}",
-            channel_count=signal.frame.channel_count,
-            sample_rate_hz=signal.frame.sample_rate_hz,
+            signal_id=f"{signal.metadata.signal_id}:denoised-{threshold_mode}",
+            channel_count=signal.metadata.channel_count,
+            sample_rate_hz=signal.metadata.sample_rate_hz,
             samples_per_channel=denoised.shape[-1],
         )
         return SignalPayload(metadata=out_frame, data=denoised)

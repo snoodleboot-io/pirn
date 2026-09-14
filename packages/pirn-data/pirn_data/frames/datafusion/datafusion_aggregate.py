@@ -30,9 +30,9 @@ References:
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
-import datafusion as df
+from pirn.core.annotation_import import AnnotationImport
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -42,9 +42,16 @@ from pirn_data.frames.datafusion.datafusion_data_batch import (
 from pirn_data.identifier_validator import IdentifierValidator
 from pirn_data.value_shape import ValueShape
 
+if TYPE_CHECKING:
+    import datafusion as df
+
 
 class DatafusionAggregate(Knot):
     """Group rows by ``by`` and apply DataFusion aggregation expressions."""
+
+    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
+        "df": AnnotationImport("datafusion", extra="datafusion", package="pirn-data"),
+    }
 
     def __init__(
         self,
@@ -75,6 +82,8 @@ class DatafusionAggregate(Knot):
         Returns:
             A new DatafusionDataBatch containing the aggregated result.
         """
+        import datafusion as df
+
         IdentifierValidator.validate_columns("DatafusionAggregate.by", by)
         if not ValueShape.is_mapping(aggs) or not aggs:
             raise TypeError(

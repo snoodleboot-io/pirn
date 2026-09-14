@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``WaterSaturationCalculator`` — derive a water-saturation curve.
 
 Algorithm:
@@ -160,7 +158,7 @@ class WaterSaturationCalculator(Knot):
             if value <= 0.0:
                 raise ValueError(f"WaterSaturationCalculator: {label} must be positive")
 
-        curve_data = payload.curve_data
+        curve_data = payload.data
         phi = WaterSaturationCalculator._find_porosity_curve(curve_data)
 
         if "RT" not in curve_data:
@@ -181,9 +179,9 @@ class WaterSaturationCalculator(Knot):
         new_curve_data = {**curve_data, mnemonic: sw}
         return LASPayload(
             metadata=LASFile(
-                well_id=payload.las.well_id,
-                curves=(*payload.las.curves, mnemonic),
-                depth_unit=payload.las.depth_unit,
+                well_id=payload.metadata.well_id,
+                curves=(*payload.metadata.curves, mnemonic),
+                depth_unit=payload.metadata.depth_unit,
             ),
             data=new_curve_data,
         )

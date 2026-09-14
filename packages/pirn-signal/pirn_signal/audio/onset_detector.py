@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``OnsetDetector`` — note / event onset detection.
 
 Algorithm:
@@ -35,6 +33,7 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
 from pirn_signal.types.feature_frame import FeatureFrame
 from pirn_signal.types.feature_payload import FeaturePayload
@@ -87,7 +86,7 @@ class OnsetDetector(Knot):
             raise ValueError("OnsetDetector: hop_length must be a positive integer")
         if not isinstance(threshold, (int, float)) or threshold <= 0:
             raise ValueError("OnsetDetector: threshold must be positive")
-        sr = int(signal.frame.sample_rate_hz)
+        sr = int(signal.metadata.sample_rate_hz)
         channels = np.atleast_2d(signal.data)
         onset_lists = await asyncio.gather(
             *(
@@ -102,7 +101,7 @@ class OnsetDetector(Knot):
         ]
         return FeaturePayload(
             metadata=FeatureFrame(
-                signal_id=f"{signal.frame.signal_id}:onsets",
+                signal_id=f"{signal.metadata.signal_id}:onsets",
                 channel_count=channels.shape[0],
                 feature_names=tuple(f"onset_{i}" for i in range(max_onsets)),
             ),
@@ -111,10 +110,5 @@ class OnsetDetector(Knot):
 
     @staticmethod
     def _detect_onsets(mono: np.ndarray, sr: int, hop_length: int) -> np.ndarray:
-        try:
-            import librosa
-        except ImportError as exc:
-            raise ImportError(
-                "OnsetDetector requires 'librosa'. Install via pip install pirn-signal[signal]"
-            ) from exc
+        librosa = OptionalDependency.require("librosa", extra="signal", package="pirn-signal")
         return librosa.onset.onset_detect(y=mono, sr=sr, hop_length=hop_length, units="time")

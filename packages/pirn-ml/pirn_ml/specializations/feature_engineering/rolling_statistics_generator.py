@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``RollingStatisticsGenerator`` — compute rolling statistics for time
 series features over configurable windows.
 

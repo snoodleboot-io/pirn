@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``GATKCaller`` — GATK HaplotypeCaller variant caller.
 
 Production version invokes the GATK CLI in safe mode; this stub

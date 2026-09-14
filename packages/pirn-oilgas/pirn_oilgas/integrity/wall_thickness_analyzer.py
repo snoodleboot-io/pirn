@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``WallThicknessAnalyzer`` — assess remaining wall thickness vs. allowable.
 
 Algorithm:

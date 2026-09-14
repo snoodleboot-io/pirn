@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ZstdCodec`` — Zstandard compression via the ``zstandard`` library.
 
 Uses true streaming primitives:

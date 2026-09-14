@@ -20,13 +20,17 @@ References:
 
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any, ClassVar
 
-import duckdb
+from pirn.core.annotation_import import AnnotationImport
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.frames.duckdb.duckdb_connection import DuckDBConnection
+
+if TYPE_CHECKING:
+    pass
 
 
 class DuckDBConnectionKnot(Knot):
@@ -36,6 +40,10 @@ class DuckDBConnectionKnot(Knot):
     time. Downstream Knots declare this Knot as a typed ``__init__`` parameter
     and receive the :class:`DuckDBConnection` value in ``process()``.
     """
+
+    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
+        "duckdb": AnnotationImport("duckdb", extra="duckdb", package="pirn-data"),
+    }
 
     def __init__(self, *, _config: KnotConfig, **kwargs: Any) -> None:
         super().__init__(_config=_config, **kwargs)
@@ -47,4 +55,6 @@ class DuckDBConnectionKnot(Knot):
             A new :class:`DuckDBConnection` wrapping a ``duckdb.DuckDBPyConnection``
             connected to ``:memory:``.
         """
+        import duckdb
+
         return DuckDBConnection(duckdb.connect(database=":memory:"))

@@ -58,7 +58,7 @@ class TestSubbandAdaptiveFilter(unittest.IsolatedAsyncioTestCase):
             _SIGNAL, _REF, subband_count=4, filter_length_per_band=8, step_size=0.1
         )
         assert isinstance(out, SignalPayload)
-        assert out.frame.signal_id == "test:subband-adaptive"
+        assert out.metadata.signal_id == "test:subband-adaptive"
 
     async def test_rejects_mismatched_channel_counts(self) -> None:
         knot = self._make()
@@ -74,5 +74,5 @@ class TestSubbandAdaptiveFilter(unittest.IsolatedAsyncioTestCase):
         ref = make_signal_payload(signal_id="reference", channel_count=2, samples_per_channel=64)
         out = await knot.process(sig, ref, subband_count=4, filter_length_per_band=8, step_size=0.1)
         assert isinstance(out, SignalPayload)
-        assert out.frame.channel_count == 2
+        assert out.metadata.channel_count == 2
         assert out.data.shape == (2, 64)

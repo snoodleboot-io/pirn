@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``OrcFormat`` — Apache ORC batch encoder/decoder.
 
 Uses ``pyarrow.orc`` (which depends on the bundled C++ ORC reader).

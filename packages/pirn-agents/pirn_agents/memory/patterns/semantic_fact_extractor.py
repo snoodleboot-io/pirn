@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SemanticFactExtractor`` — extract discrete factual claims via an LLM.
 
 Inner stage knot used by :class:`SemanticMemoryPipeline`. Renders the

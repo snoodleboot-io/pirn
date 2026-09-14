@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``NumpyNpyFormat`` — NumPy single-array ``.npy`` batch encoder/decoder.
 
 The ``.npy`` format stores a single ndarray with header-encoded dtype

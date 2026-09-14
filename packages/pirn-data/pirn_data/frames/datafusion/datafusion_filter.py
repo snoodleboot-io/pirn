@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``DatafusionFilter`` — Tier-2 row predicate using either a SQL
 predicate string or a callable producing a DataFusion expression.
 
@@ -36,10 +34,10 @@ References:
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import Any
+from collections.abc import Callable, Mapping
+from typing import TYPE_CHECKING, Any, ClassVar
 
-import datafusion as df
+from pirn.core.annotation_import import AnnotationImport
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -48,9 +46,16 @@ from pirn_data.frames.datafusion.datafusion_data_batch import (
 )
 from pirn_data.value_shape import ValueShape
 
+if TYPE_CHECKING:
+    import datafusion as df
+
 
 class DatafusionFilter(Knot):
     """Apply a DataFusion predicate to a :class:`DatafusionDataBatch`."""
+
+    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
+        "df": AnnotationImport("datafusion", extra="datafusion", package="pirn-data"),
+    }
 
     def __init__(
         self,

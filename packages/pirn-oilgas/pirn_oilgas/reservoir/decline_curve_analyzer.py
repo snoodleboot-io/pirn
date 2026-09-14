@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``DeclineCurveAnalyzer`` — fit an Arps-style decline curve to a series.
 
 Algorithm:
@@ -39,8 +37,8 @@ from typing import Any, ClassVar
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
-from pirn_oilgas.oilgas_optional_import import OilgasOptionalImport
 from pirn_oilgas.types.scada_payload import ScadaPayload
 
 # Nominal decline initial guess: 15 %/year converted to per-day.
@@ -91,7 +89,7 @@ class DeclineCurveAnalyzer(Knot):
                 f"DeclineCurveAnalyzer: method must be one of {sorted(self.valid_methods)}"
             )
 
-        rate_array = rate_series.values.astype(np.float64)
+        rate_array = rate_series.data.astype(np.float64)
         if len(rate_array) < 2:
             return {
                 "qi": float(rate_array[0]) if len(rate_array) == 1 else 0.0,
@@ -102,7 +100,7 @@ class DeclineCurveAnalyzer(Knot):
         # Convert sample-index time to days using the SCADA channel interval
         time_days = (
             np.arange(len(rate_array), dtype=np.float64)
-            * rate_series.series.sample_interval_sec
+            * rate_series.metadata.sample_interval_sec
             / 86400.0
         )
 
@@ -144,8 +142,8 @@ class DeclineCurveAnalyzer(Knot):
 
     @staticmethod
     def _fit_hyperbolic(rate_array: np.ndarray, time_days: np.ndarray) -> dict[str, float]:
-        optimize = OilgasOptionalImport.require(
-            "scipy.optimize", "DeclineCurveAnalyzer: hyperbolic fitting"
+        optimize = OptionalDependency.require(
+            "scipy.optimize", extra="oilgas", package="pirn-oilgas"
         )
 
         qi0 = float(rate_array[0]) if rate_array[0] > 0 else 1.0

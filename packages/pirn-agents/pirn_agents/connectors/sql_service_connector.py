@@ -95,17 +95,10 @@ class SqlServiceConnector(ConnectorBase, SqlConnector):
 
     async def _create_client(self) -> ColumnAwarePool:
         """Build the core-backed column-aware pool for the configured driver."""
-        # pyright can't see the config fields as __init__ params: core's
-        # @ConnectionConfigDecorator.apply decorator wraps dataclasses.dataclass but is not
-        # annotated @dataclass_transform, so the synthesised __init__ is invisible.
-        # The construction is runtime-correct (core's own tests build these the same
-        # way). Tracked upstream as PIR-749.
         if self._driver == "aiosqlite":
-            return ColumnAwareSqlitePool(
-                SqliteConfig(database=self._database or ":memory:")  # pyright: ignore[reportCallIssue]
-            )
+            return ColumnAwareSqlitePool(SqliteConfig(database=self._database or ":memory:"))
         dsn = self._dsn or (self._credential.reveal() if self._credential is not None else None)
-        return ColumnAwarePostgresPool(PostgresConfig(dsn=dsn))  # pyright: ignore[reportCallIssue]
+        return ColumnAwarePostgresPool(PostgresConfig(dsn=dsn))
 
     async def execute(
         self,

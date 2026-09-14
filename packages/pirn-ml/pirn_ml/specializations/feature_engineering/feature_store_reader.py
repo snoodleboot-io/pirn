@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FeatureStoreReader`` — fetch features from a
 :class:`FeatureStoreProvider` and join the feature names onto every
 partition of a :class:`SplitManifest`.

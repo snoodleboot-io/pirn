@@ -17,7 +17,7 @@ from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 @dataclass(frozen=True)
 class _OpaqueValue(PirnOpaqueValue):
-    """Frozen dataclass leveraging the PirnOpaqueValue Pydantic shim."""
+    """Frozen dataclass using PirnOpaqueValue's opaque Pydantic schema."""
 
     name: str
     count: int

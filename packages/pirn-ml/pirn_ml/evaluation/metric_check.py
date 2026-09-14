@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MetricCheck`` — check downstream knots by a metric threshold.
 
 Algorithm:
@@ -80,7 +78,7 @@ class MetricCheck(Knot):
             raise TypeError("MetricCheck: min_value must be numeric")
         if not isinstance(raise_on_fail, bool):
             raise TypeError("MetricCheck: raise_on_fail must be a bool")
-        scores = report.metrics.scores
+        scores = report.data.scores
         if metric not in scores:
             raise KeyError(
                 f"MetricCheck: report has no metric named {metric!r}; "

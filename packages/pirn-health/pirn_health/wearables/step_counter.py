@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``StepCounter`` — derive step count from accelerometer data.
 
 Algorithm:
@@ -26,8 +24,8 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
-from pirn_health.health_optional_dependency import HealthOptionalDependency
 from pirn_health.types.health_signal_payload import HealthSignalPayload
 
 
@@ -68,7 +66,7 @@ class StepCounter(Knot):
             raise TypeError("StepCounter: signal must be a HealthSignalPayload")
         if not isinstance(threshold, (int, float)) or float(threshold) < 0:
             raise ValueError("StepCounter: threshold must be a non-negative number")
-        fs = signal.frame.sample_rate_hz
+        fs = signal.metadata.sample_rate_hz
         return await asyncio.to_thread(self._count_steps, signal.data, fs)
 
     @staticmethod
@@ -82,7 +80,7 @@ class StepCounter(Knot):
         Returns:
             Number of detected steps.
         """
-        signal = HealthOptionalDependency.require("scipy.signal", extra="health")
+        signal = OptionalDependency.require("scipy.signal", extra="health", package="pirn-health")
         if data.ndim > 1:
             magnitude = np.sqrt(np.sum(data**2, axis=0))
         else:

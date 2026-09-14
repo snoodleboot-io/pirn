@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Google Analytics 4 Data API connector wrapping the sync ``BetaAnalyticsDataClient``.
 
 The official ``google-analytics-data`` SDK is synchronous; calls run in a

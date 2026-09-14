@@ -44,21 +44,21 @@ class TestScadaDatabaseAssembler(unittest.IsolatedAsyncioTestCase):
         result = await knot.process(
             rows=_ROWS, tag="PUMP-01", since=_SINCE, sample_interval_sec=1.0
         )
-        assert result.series.sensor_id == "PUMP-01"
+        assert result.metadata.sensor_id == "PUMP-01"
 
     async def test_sample_count_matches_rows(self) -> None:
         knot = _make()
         result = await knot.process(
             rows=_ROWS, tag="PUMP-01", since=_SINCE, sample_interval_sec=1.0
         )
-        assert result.series.sample_count == 5
+        assert result.metadata.sample_count == 5
 
     async def test_values_array_shape(self) -> None:
         knot = _make()
         result = await knot.process(
             rows=_ROWS, tag="PUMP-01", since=_SINCE, sample_interval_sec=1.0
         )
-        assert result.values.shape == (5,)
+        assert result.data.shape == (5,)
 
     async def test_rejects_non_list_rows(self) -> None:
         knot = _make()

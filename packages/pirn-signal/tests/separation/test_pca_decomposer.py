@@ -52,4 +52,4 @@ class TestPCADecomposer(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, component_count=2)
         assert isinstance(out, SourcePayload)
-        assert out.frame.source_count == 2
+        assert out.metadata.source_count == 2

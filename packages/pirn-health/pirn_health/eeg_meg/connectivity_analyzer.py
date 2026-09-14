@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ConnectivityAnalyzer`` — pairwise channel connectivity via PLV.
 
 Algorithm:
@@ -30,8 +28,8 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
-from pirn_health.health_optional_dependency import HealthOptionalDependency
 from pirn_health.types.health_signal_payload import HealthSignalPayload
 
 
@@ -90,7 +88,7 @@ class ConnectivityAnalyzer(Knot):
 
     @staticmethod
     def _plv(signal_a: np.ndarray, signal_b: np.ndarray) -> float:
-        signal = HealthOptionalDependency.require("scipy.signal", extra="health")
+        signal = OptionalDependency.require("scipy.signal", extra="health", package="pirn-health")
         analytic_a: np.ndarray = np.asarray(signal.hilbert(signal_a))
         analytic_b: np.ndarray = np.asarray(signal.hilbert(signal_b))
         phase_a = np.angle(analytic_a)

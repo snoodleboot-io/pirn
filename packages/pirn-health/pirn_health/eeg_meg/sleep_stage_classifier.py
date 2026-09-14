@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SleepStageClassifier`` — classify 30-second PSG epochs into sleep stages (W, N1, N2, N3, REM).
 
 Algorithm:
@@ -30,8 +28,8 @@ from typing import Any, ClassVar
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
-from pirn_health.health_optional_dependency import HealthOptionalDependency
 from pirn_health.types.health_signal_payload import HealthSignalPayload
 
 
@@ -86,7 +84,7 @@ class SleepStageClassifier(Knot):
         if not isinstance(channels, tuple) or len(channels) == 0:
             raise ValueError("SleepStageClassifier: channels must be a non-empty tuple")
 
-        fs = signal.frame.sample_rate_hz
+        fs = signal.metadata.sample_rate_hz
         stage_labels = await asyncio.to_thread(
             self._classify_signal, signal.data, fs, epoch_duration_sec
         )
@@ -103,7 +101,7 @@ class SleepStageClassifier(Knot):
 
     @staticmethod
     def _band_power(epoch: np.ndarray, fs: float, low: float, high: float) -> float:
-        signal = HealthOptionalDependency.require("scipy.signal", extra="health")
+        signal = OptionalDependency.require("scipy.signal", extra="health", package="pirn-health")
         freqs: np.ndarray
         psd: np.ndarray
         freqs, psd = signal.welch(epoch, fs=fs)

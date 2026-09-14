@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TiffFormat`` — Tagged Image File Format encoder/decoder.
 
 Reads and writes use ``tifffile`` — the de-facto scientific TIFF

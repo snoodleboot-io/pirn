@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PatientCohortBuilder`` — compose multiple eligibility filters.
 
 Pipeline: feed an initial record set through several

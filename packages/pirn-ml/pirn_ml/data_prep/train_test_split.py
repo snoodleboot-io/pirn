@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TrainTestSplit`` — partition an :class:`DatasetManifest` into train / val / test
 references.
 
@@ -90,7 +88,7 @@ class TrainTestSplit(Knot):
             ValueError: If dataset.row_count is negative or fractions exceed dataset size.
         """
         if isinstance(dataset, DatasetPayload):
-            dataset = dataset.manifest
+            dataset = dataset.metadata
         if not isinstance(test_fraction, (int, float)):
             raise TypeError("TrainTestSplit: test_fraction must be numeric")
         if not isinstance(validation_fraction, (int, float)):

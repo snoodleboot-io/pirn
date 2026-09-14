@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``KFoldCrossValidator`` — plain K-fold cross-validation.
 
 Splits the upstream :class:`DatasetManifest` into K folds, trains and evaluates
@@ -53,7 +51,7 @@ async def _aggregate_kfold_reports(
     k: int,
 ) -> EvalReportPayload:
     per_fold = [
-        {name: float(value) for name, value in report.metrics.scores.items()} for report in reports
+        {name: float(value) for name, value in report.data.scores.items()} for report in reports
     ]
     if not per_fold:
         aggregated: dict[str, float] = {}

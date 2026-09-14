@@ -197,7 +197,7 @@ Beyond `Knot`, pirn ships a handful of specialised classes:
 from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.branch.branch import Branch
 from pirn.nodes.gate.gate import Gate
-from pirn.nodes.map_markers import Map
+from pirn.core.map import Map
 from pirn.nodes.reduce_ import Reduce
 
 # Map an inner knot over a collection-producing parent.

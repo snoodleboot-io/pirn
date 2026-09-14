@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``CathodicProtectionAnalyzer`` — assess cathodic-protection coverage.
 
 Algorithm:
@@ -79,7 +77,7 @@ class CathodicProtectionAnalyzer(Knot):
             raise TypeError("CathodicProtectionAnalyzer: protection_threshold_mv must be numeric")
 
         threshold = float(protection_threshold_mv)
-        potentials = potential_series.values
+        potentials = potential_series.data
 
         if len(potentials) == 0:
             return {"coverage_fraction": 0.0, "threshold_mv": threshold}

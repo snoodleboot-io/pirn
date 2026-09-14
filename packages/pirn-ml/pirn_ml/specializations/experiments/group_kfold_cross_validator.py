@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``GroupKFoldCrossValidator`` — K-fold cross-validation that keeps all
 samples from the same group in the same fold.
 
@@ -54,7 +52,7 @@ async def _aggregate_group_kfold_reports(
     group_column: str,
 ) -> EvalReportPayload:
     per_fold = [
-        {name: float(value) for name, value in report.metrics.scores.items()} for report in reports
+        {name: float(value) for name, value in report.data.scores.items()} for report in reports
     ]
     if not per_fold:
         aggregated: dict[str, float] = {}

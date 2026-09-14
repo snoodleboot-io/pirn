@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``RationalResamplerPipeline`` — upsample / filter / downsample at a ratio.
 
 Algorithm:
@@ -94,7 +92,7 @@ class RationalResamplerPipeline(Knot):
         down = downsample_factor // common
 
         result = await asyncio.to_thread(PolyResampling.resample_poly, signal.data, up, down)
-        new_rate = (signal.frame.sample_rate_hz * up) / down
+        new_rate = (signal.metadata.sample_rate_hz * up) / down
 
         return signal.derive(
             "rational",

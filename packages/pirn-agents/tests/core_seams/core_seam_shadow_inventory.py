@@ -16,9 +16,9 @@ equality) and by nothing else yet — keeping the walk and the detector here mea
 the ratchet only compares "what the tree looks like now" against what it froze.
 
 A class is a *shadow* of a seam when its name matches one of that seam's
-patterns **and** it does not subclass the core seam class (a thin deprecation
-shim over the core class keeps the public name but is no longer a parallel
-implementation, so it drops out of the inventory).  Detection is a source-only
+patterns **and** it does not subclass the core seam class (a subclass of the
+core class is not a parallel implementation, so it drops out of the
+inventory).  Detection is a source-only
 AST pass: bases are matched by their final name, since full import resolution is
 out of scope for a gate that must run before the tree imports cleanly.
 """
@@ -37,7 +37,7 @@ class CoreSeamShadowInventory:
     """Discovers ``pirn_agents`` classes that shadow a WS0 core seam."""
 
     #: Seam name -> (class-name patterns that mark a shadow, core seam class
-    #: names a subclass of which is a shim rather than a shadow).
+    #: names a subclass of which is not a shadow).
     SEAMS: ClassVar[dict[str, tuple[tuple[str, ...], frozenset[str]]]] = {
         "retry_timeout": (
             (r"^RetryPolicy$", r"^ToolTimeoutError$"),

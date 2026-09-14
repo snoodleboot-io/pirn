@@ -80,6 +80,6 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         assert result.succeeded
         report: EvalReportPayload = result.outputs["rank"]
-        assert "ndcg_at_5" in report.metrics.scores
-        assert "mrr" in report.metrics.scores
-        assert "map_at_5" in report.metrics.scores
+        assert "ndcg_at_5" in report.data.scores
+        assert "mrr" in report.data.scores
+        assert "map_at_5" in report.data.scores

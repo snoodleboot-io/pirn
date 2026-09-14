@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Async ``ApiClient`` wrapper around the synchronous PyGithub SDK.
 
 PyGithub is sync; calls run in a worker thread via

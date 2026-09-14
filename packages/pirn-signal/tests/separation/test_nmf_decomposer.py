@@ -52,4 +52,4 @@ class TestNMFDecomposer(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, component_count=4)
         assert isinstance(out, SourcePayload)
-        assert out.frame.source_count == 4
+        assert out.metadata.source_count == 4

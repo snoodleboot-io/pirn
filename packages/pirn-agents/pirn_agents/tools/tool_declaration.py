@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ToolDeclaration`` — the provider-neutral envelope a tool is declared with.
 
 Every provider is told about a tool with the same three facts: a ``name``, a

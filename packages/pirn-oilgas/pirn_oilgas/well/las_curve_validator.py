@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``LasCurveValidator`` — assert required curves are present in a LAS payload.
 
 Algorithm:
@@ -66,7 +64,7 @@ class LasCurveValidator(Knot):
             The same LASPayload passed in, unchanged.
 
         Raises:
-            ValueError: If any required curve is absent from ``payload.curve_data``.
+            ValueError: If any required curve is absent from ``payload.data``.
         """
         required_tuple = tuple(required_curves)
         if not required_tuple:
@@ -76,10 +74,10 @@ class LasCurveValidator(Knot):
                 raise ValueError(
                     "LasCurveValidator: every required curve must be a non-empty string"
                 )
-        present = set(payload.curve_data.keys())
+        present = set(payload.data.keys())
         missing = [c for c in required_tuple if c not in present]
         if missing:
             raise ValueError(
-                f"LasCurveValidator({payload.las.well_id!r}): missing required curve(s) {missing!r}"
+                f"LasCurveValidator({payload.metadata.well_id!r}): missing required curve(s) {missing!r}"
             )
         return payload

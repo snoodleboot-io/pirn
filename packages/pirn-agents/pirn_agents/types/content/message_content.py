@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MessageContent`` — a normalized, typed sequence of content blocks (F15-S1).
 
 The typed replacement for a message's plain-string body: an ordered tuple of

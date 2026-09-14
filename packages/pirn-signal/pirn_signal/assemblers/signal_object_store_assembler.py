@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SignalObjectStoreAssembler`` — assemble a :class:`SignalPayload` from raw audio bytes.
 
 Sits between :class:`~pirn.connectors.knots.object_store_read_source.ObjectStoreReadSource`
@@ -29,6 +27,7 @@ import numpy as np
 from pirn.core.assembler import Assembler
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
 from pirn_signal.types.signal_frame import SignalFrame
 from pirn_signal.types.signal_payload import SignalPayload
@@ -86,12 +85,7 @@ class SignalObjectStoreAssembler(Assembler):
 
     @staticmethod
     def _decode(body: bytes, signal_id: str) -> SignalPayload:
-        try:
-            import librosa
-        except ImportError as exc:
-            raise ImportError(
-                "SignalObjectStoreAssembler requires 'librosa'. Install via pip install pirn-signal[signal]"
-            ) from exc
+        librosa = OptionalDependency.require("librosa", extra="signal", package="pirn-signal")
         samples, sample_rate = librosa.load(io.BytesIO(body), sr=None, mono=False)
         if samples.ndim == 1:
             samples = samples[np.newaxis, :]

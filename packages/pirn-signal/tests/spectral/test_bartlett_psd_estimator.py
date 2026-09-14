@@ -52,4 +52,4 @@ class TestBartlettPSDEstimator(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         out = result.outputs["bpsd"]
         assert isinstance(out, SpectrumPayload)
-        assert out.frame.signal_id == "test"
+        assert out.metadata.signal_id == "test"

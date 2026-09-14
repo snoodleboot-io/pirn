@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Shared identifier-validation helper for tabular transform knots.
 
 Aggregations, joins, casts and renames all need to confirm that

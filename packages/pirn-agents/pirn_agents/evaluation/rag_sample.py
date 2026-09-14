@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``RagSample`` — the ``(query, contexts, answer)`` tuple RAG metrics score."""
 
 from __future__ import annotations

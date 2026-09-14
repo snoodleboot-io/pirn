@@ -71,12 +71,12 @@ class ToolRouter(Router):
             TypeError: If tools contains something that is not a tool capability.
             ValueError: If step is empty, tools is empty, or no tool name appears in the step.
         """
-        if not isinstance(tools, Sequence) or isinstance(tools, (str, bytes)):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(tools, Sequence) or isinstance(tools, (str, bytes)):
             raise TypeError("ToolRouter: tools must be a sequence of tool capabilities")
         if not tools:
             raise ValueError("ToolRouter: tools must be non-empty")
         factories = [ToolFactory.of(tool) for tool in tools]
-        if not isinstance(step, str) or not step:  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(step, str) or not step:
             raise ValueError(f"ToolRouter: step must be a non-empty string, got {step!r}")
         step_lower = step.lower()
         for factory in factories:

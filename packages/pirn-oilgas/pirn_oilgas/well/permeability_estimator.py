@@ -93,7 +93,7 @@ class PermeabilityEstimator(Knot):
                 f"PermeabilityEstimator: method must be one of {sorted(_valid_methods)}"
             )
 
-        curve_data = payload.curve_data
+        curve_data = payload.data
         phi = PermeabilityEstimator._find_porosity_curve(curve_data)
         swi = PermeabilityEstimator._find_swi(curve_data, len(phi))
 
@@ -111,9 +111,9 @@ class PermeabilityEstimator(Knot):
         new_curve_data = {**curve_data, mnemonic: permeability_curve}
         return LASPayload(
             metadata=LASFile(
-                well_id=payload.las.well_id,
-                curves=(*payload.las.curves, mnemonic),
-                depth_unit=payload.las.depth_unit,
+                well_id=payload.metadata.well_id,
+                curves=(*payload.metadata.curves, mnemonic),
+                depth_unit=payload.metadata.depth_unit,
             ),
             data=new_curve_data,
         )

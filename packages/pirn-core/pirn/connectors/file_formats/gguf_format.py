@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``GgufFormat`` — GGUF (llama.cpp quantised LLM weight) encoder/decoder.
 
 GGUF is the binary container used by ``llama.cpp`` for quantised LLM

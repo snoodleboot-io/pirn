@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``RtfFormat`` — Rich Text Format encoder/decoder.
 
 Reads use ``striprtf`` to extract plain text from an RTF document.

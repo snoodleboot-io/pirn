@@ -1,7 +1,7 @@
 """``HtmlLoader`` — extract visible text from HTML via the lazy ``html`` extra (F25-S1).
 
 Wraps ``beautifulsoup4`` (imported lazily through
-:meth:`~pirn_agents._internal.optional_import.OptionalImport.require`) with the stdlib ``html.parser`` backend
+:meth:`~pirn.core.optional_dependency.OptionalDependency.require`) with the stdlib ``html.parser`` backend
 so no compiled parser (lxml) is required. Strips ``<script>`` and ``<style>``
 subtrees, collapses the remaining text, and records the document title in
 metadata.
@@ -9,7 +9,8 @@ metadata.
 
 from __future__ import annotations
 
-from pirn_agents._internal.optional_import import OptionalImport
+from pirn.core.optional_dependency import OptionalDependency
+
 from pirn_agents.specializations.document_processing.loaders.loaded_document import (
     LoadedDocument,
 )
@@ -42,7 +43,7 @@ class HtmlLoader(Loader):
             TypeError: If ``data`` is not bytes.
         """
         raw = self._require_bytes("HtmlLoader", data)
-        bs4 = OptionalImport.require("html", "bs4")
+        bs4 = OptionalDependency.require("bs4", extra="html", package="pirn-agents")
         soup = bs4.BeautifulSoup(raw, "html.parser")
         for tag in soup(["script", "style"]):
             tag.decompose()

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ArrowIpcFormat`` — Apache Arrow IPC stream encoder/decoder.
 
 Uses ``pyarrow.ipc`` to read and write the Arrow IPC streaming format

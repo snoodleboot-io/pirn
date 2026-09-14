@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``HybridRetriever`` — concurrent dense + lexical retrieval fused with RRF.
 
 A :class:`~pirn.nodes.sub_tapestry.SubTapestry` that retrieves from a dense

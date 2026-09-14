@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SandboxExecutor`` — opt-in, timeout-bounded execution front-end (OD-1).
 
 Resolves open design question OD-1: sandboxed code/command execution is provided

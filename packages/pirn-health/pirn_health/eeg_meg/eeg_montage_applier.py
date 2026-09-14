@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``EEGMontageApplier`` — apply electrode montage (re-reference, set channel positions) to EEG data.
 
 Algorithm:
@@ -86,7 +84,7 @@ class EEGMontageApplier(Knot):
                 "EEGMontageApplier: reference must be one of "
                 "'average', 'linked_mastoids', 'cz', 'nose'"
             )
-        n_channels = signal.frame.channel_count - len(drop_channels)
+        n_channels = signal.metadata.channel_count - len(drop_channels)
         n_channels = max(0, n_channels)
         return await asyncio.to_thread(self._apply_montage, n_channels, montage_name)
 

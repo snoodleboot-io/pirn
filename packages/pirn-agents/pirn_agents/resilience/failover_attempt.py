@@ -17,8 +17,7 @@ class FailoverAttempt(PirnOpaqueValue):
     """The traced disposition of a single candidate during a failover run.
 
     ``result`` is a core :class:`~pirn.core.result.Result` (ADR
-    agents-speaks-core WS5a; the parallel ``FailoverOutcome`` enum is deleted,
-    PIR-872): ``Ok(value)`` on success, ``Err(record)`` on a raised exception
+    agents-speaks-core WS5a): ``Ok(value)`` on success, ``Err(record)`` on a raised exception
     or timeout (a timeout is the ``Err`` whose error type is ``TimeoutError``),
     ``Skipped(reason=circuit_open_reason)`` when the circuit breaker was open
     and no call was attempted at all — which is exactly the distinction

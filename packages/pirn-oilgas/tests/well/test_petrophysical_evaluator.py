@@ -58,6 +58,6 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             result = await t.run(RunRequest(parameters={"body": b"las-bytes"}))
         out = result.outputs["pe"]
         assert isinstance(out, LASPayload)
-        assert "VSH" in out.curve_data
-        assert "PHIE" in out.curve_data
-        assert "SW" in out.curve_data
+        assert "VSH" in out.data
+        assert "PHIE" in out.data
+        assert "SW" in out.data

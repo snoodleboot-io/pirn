@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``NoSilentInvocationPolicy`` — untrusted data may not steer the agent.
 
 The wrapping in S1 makes untrusted content *visible*; this policy makes it

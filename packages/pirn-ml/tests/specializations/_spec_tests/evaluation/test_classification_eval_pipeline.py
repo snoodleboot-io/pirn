@@ -71,7 +71,7 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         report: EvalReportPayload = result.outputs["eval-pipeline"]
         assert isinstance(report, EvalReportPayload)
-        assert set(report.metrics.scores.keys()) == {
+        assert set(report.data.scores.keys()) == {
             "accuracy",
             "precision",
             "recall",
@@ -79,4 +79,4 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
             "roc_auc",
             "confusion_matrix",
         }
-        assert report.report.model_id == "m1"
+        assert report.metadata.model_id == "m1"

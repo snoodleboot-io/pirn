@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ChromaMemoryStore`` — a Chroma-backed :class:`VectorMemoryStore`.
 
 Adapts the neutral vector-store contract onto Chroma. As with the Qdrant

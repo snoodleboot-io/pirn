@@ -11,18 +11,12 @@ Rules
 -----
 1. ``multi_class_file`` — a file defines more than one top-level class.
 2. ``module_level_function`` — a module-level ``def``, excluding
-   ``__dunder__``-named functions (PEP 562 ``__getattr__`` shims and similar),
+   ``__dunder__``-named functions (PEP 562 ``__getattr__`` and similar) and
    functions decorated with ``@KnotFactory.knot`` (``pirn.core.knot_factory.KnotFactory.knot``
    turns a plain function into a Knot factory — it is not "a function", it is
-   a Knot definition written in function syntax), and the documented public
-   entry points enumerated in ``_MODULE_LEVEL_FUNCTION_ALLOWLIST`` below
-   (PIR-869). The allowlist is keyed ``<package>:<dotted.module>:<function>``
-   and every entry carries a one-line reason; a module-level function that is
-   not on the list counts, whatever its name. Everything else is a
-   ``@staticmethod`` on a class; a replaced public name is deleted outright,
-   never kept as a bare alias (``name = Class.method``). An allowlist entry that the
-   scan did not encounter is printed as a "stale allowlist entry" note so the
-   list cannot silently outlive the function it exempts.
+   a Knot definition written in function syntax). Every other function is a
+   ``@staticmethod`` on a class, whatever its name; a replaced public name is
+   deleted outright, never kept as a bare alias (``name = Class.method``).
 3. ``nested_def_missing_override`` — a ``def``/``class`` nested inside another
    function (a closure or a function-local class) with no
    ``# design-decision-override`` comment (with or without the space) on one of the three lines immediately
@@ -54,6 +48,33 @@ Rules
    ``OpenAIClient`` in ``openai_client.py`` passes even though naive
    snake-casing of ``OpenAIClient`` would not round-trip. Files with no public
    (non-``_``-prefixed) top-level class are not checked.
+10. ``deprecation_reference`` — a code reference (a name, not text in a
+    string or comment) to ``DeprecationWarning`` or
+    ``PendingDeprecationWarning``, or any ``_deprecated_since`` identifier or
+    string. pirn is alpha: a replaced name is deleted, never deprecated.
+11. ``module_alias_assignment`` — a module-scope assignment (including inside
+    a module-level ``if``/``try``) whose value is a bare name or an attribute
+    of a class or function defined in the module or a name imported into it:
+    ``name = Class.method``, ``OldName = NewName``. Calls, subscripts
+    (``JsonValue = dict[str, Any]``) and literals are not aliases.
+12. ``reexport_module`` — a module whose only statements, after its
+    docstring, ``from __future__`` imports and an ``__all__`` assignment, are
+    imports: a module that exists only to re-export names from another
+    module under an old path.
+13. ``suppression_without_rule_or_reason`` — a ``# type: ignore`` or
+    ``# pyright: ignore`` comment that does not name a rule in brackets and
+    carry a reason comment on the same line
+    (``# pyright: ignore[reportPrivateUsage]  # <reason>``).
+14. ``file_level_pyright_directive`` — any ``# pyright: <setting>`` comment
+    other than a per-line ``ignore``: the type-checking mode and rule
+    overrides live in each package's ``[tool.pyright]`` only.
+15. ``payload_alias_property`` — a ``@property`` on a ``Payload`` /
+    ``PirnOpaqueValue`` subclass (by base name, followed through subclasses
+    defined in the scanned roots) whose body is only
+    ``return self.<metadata|data>[.<field>]`` (or the same over
+    ``self._metadata`` / ``self._data``): a field-name alias for the canonical
+    access. The canonical ``metadata``/``data`` accessors returning
+    ``self._metadata``/``self._data`` are not aliases.
 
 "Knot-like" (rules 5-8)
 -----------------------
@@ -91,32 +112,22 @@ add to it only for another framework-internal class with a similar,
 documented reason. Rule 8 (process ``**kwargs`` naming) still applies to
 these files.
 
-Ratchet semantics
-------------------
-Counts are compared against ``scripts/conventions_baseline.json``
-(``{package: {rule: count}}``, package keyed by the distribution directory
-name under ``packages/``, e.g. ``"pirn-core"``). The gate FAILS only when a
-package/rule count *exceeds* its baseline value; a count at or below baseline
-passes, and a count strictly below baseline prints a "baseline can be
-lowered" note (so a fix is visible without requiring one). ``--write-baseline``
-regenerates the file from the current tree unconditionally and always exits 0.
-
-The baseline in this repository was generated from the PIR-856 docs-ci
-lane's own branch. Other lanes are concurrently lowering several of these
-counts in the same remediation effort; the integrator is expected to run
-``--write-baseline`` again after every lane merges so the ratchet reflects
-the post-merge state rather than freezing this lane's snapshot.
+Failure semantics
+-----------------
+There is no baseline: any finding of any rule fails the gate. Every
+violation is printed with its file, line and rule, followed by a per-package
+count of each rule that fired.
 
 CLI contract
 ------------
 Positional arguments are Knot **import root directories**
 (``packages/<dist>/<import_pkg>``, e.g. ``packages/pirn-core/pirn`` —
 typically supplied via the shell glob ``packages/*/pirn*``). The package name
-used in the baseline is the *parent* directory's name (``pirn-core`` for
+a finding is reported under is the *parent* directory's name (``pirn-core`` for
 ``packages/pirn-core/pirn``).
 
-* ``0`` — no count exceeds its baseline.
-* ``1`` — at least one count exceeds its baseline; violations are listed.
+* ``0`` — no finding.
+* ``1`` — at least one finding; every violation is listed.
 * ``2`` — the invocation itself was unusable: a path that does not exist, is
   not a directory, or no arguments were given.
 """
@@ -125,29 +136,18 @@ from __future__ import annotations
 
 import argparse
 import ast
+import io
 import re
-import json
 import sys
+import tokenize
 from pathlib import Path
 
 # Scoped to the PIR-856 core lane's own framework primitives (see module
-# docstring "Core-lane allowlist"). Keys are package names as used in the
-# baseline; values are path prefixes/files relative to the package's import
+# docstring "Core-lane allowlist"). Keys are package names (the distribution
+# directory under ``packages/``); values are path prefixes/files relative to the package's import
 # root's parent (i.e. relative to ``packages/<dist>/``).
 _KNOT_PURITY_ALLOWLIST: dict[str, tuple[str, ...]] = {
     "pirn-core": ("pirn/nodes/", "pirn/core/parameter.py"),
-}
-
-# Documented public module-level entry points (PIR-869). Key format is
-# ``<package>:<dotted.module>:<function>`` where ``<package>`` is the
-# distribution directory name under ``packages/`` and ``<dotted.module>`` is the
-# import path of the module (``pirn.tapestry``, not ``pirn/tapestry.py``). The
-# value is the one-line reason the function is a bare ``def`` rather than a
-# ``@staticmethod``. Add an entry only for a documented public entry point;
-# private helpers, CLI mains and thin wrappers over a class method are never
-# allowlisted — they become static methods, and a replaced public name is deleted
-# (no bare alias) with every caller moved to the class form.
-_MODULE_LEVEL_FUNCTION_ALLOWLIST: dict[str, str] = {
 }
 
 _KNOT_BASE_NAMES = frozenset(
@@ -179,7 +179,25 @@ _RULES = (
     "knot_property",
     "knot_process_kwargs_name",
     "filename_mismatch",
+    "deprecation_reference",
+    "module_alias_assignment",
+    "reexport_module",
+    "suppression_without_rule_or_reason",
+    "file_level_pyright_directive",
+    "payload_alias_property",
 )
+
+_DEPRECATION_NAMES = frozenset({"DeprecationWarning", "PendingDeprecationWarning"})
+_DEPRECATED_SINCE = "_deprecated_since"
+
+_SUPPRESSION = re.compile(r"#\s*(?:type|pyright)\s*:\s*ignore\b")
+_SUPPRESSION_WITH_RULE_AND_REASON = re.compile(
+    r"#\s*(?:type|pyright)\s*:\s*ignore\[[^\]\s][^\]]*\]\s*#\s*\S"
+)
+_PYRIGHT_DIRECTIVE = re.compile(r"#\s*pyright\s*:\s*(?!ignore\b)\S")
+
+_PAYLOAD_ROOT_NAMES = frozenset({"Payload", "PirnOpaqueValue"})
+_PAYLOAD_FIELDS = frozenset({"metadata", "data", "_metadata", "_data"})
 
 
 class _Violation:
@@ -472,25 +490,7 @@ def _check_nested_defs(
     return violations
 
 
-def _module_name(relative_posix: str) -> str:
-    """``pirn/viz/_explore_cli.py`` -> ``pirn.viz._explore_cli``; ``pkg/__init__.py`` -> ``pkg``."""
-    parts = relative_posix.removesuffix(".py").split("/")
-    if parts and parts[-1] == "__init__":
-        parts = parts[:-1]
-    return ".".join(parts)
-
-
-def _allowlist_key(package: str, relative_posix: str, function_name: str) -> str:
-    return f"{package}:{_module_name(relative_posix)}:{function_name}"
-
-
-def _check_module_level_functions(
-    tree: ast.Module,
-    path: Path,
-    package: str = "",
-    relative_posix: str = "",
-    seen_allowlist_keys: set[str] | None = None,
-) -> list[_Violation]:
+def _check_module_level_functions(tree: ast.Module, path: Path) -> list[_Violation]:
     violations: list[_Violation] = []
     for stmt in tree.body:
         if not isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -498,11 +498,6 @@ def _check_module_level_functions(
         if _is_dunder(stmt.name):
             continue
         if "knot" in _decorator_names(stmt.decorator_list):
-            continue
-        key = _allowlist_key(package, relative_posix, stmt.name)
-        if key in _MODULE_LEVEL_FUNCTION_ALLOWLIST:
-            if seen_allowlist_keys is not None:
-                seen_allowlist_keys.add(key)
             continue
         violations.append(
             _Violation(
@@ -616,11 +611,266 @@ def _check_knot_purity_rules(
     return violations
 
 
+def _check_deprecation_references(
+    tree: ast.Module, source: str, path: Path
+) -> list[_Violation]:
+    violations: list[_Violation] = []
+    for node in ast.walk(tree):
+        name: str | None = None
+        if isinstance(node, ast.Name):
+            name = node.id
+        elif isinstance(node, ast.Attribute):
+            name = node.attr
+        if name in _DEPRECATION_NAMES:
+            violations.append(
+                _Violation(
+                    "deprecation_reference",
+                    path,
+                    node.lineno,
+                    f"{name} referenced — pirn is alpha: delete the name, never deprecate it",
+                )
+            )
+    for lineno, line in enumerate(source.splitlines(), start=1):
+        if _DEPRECATED_SINCE in line:
+            violations.append(
+                _Violation(
+                    "deprecation_reference",
+                    path,
+                    lineno,
+                    f"{_DEPRECATED_SINCE} marker — pirn is alpha: delete the name, never deprecate it",
+                )
+            )
+    return violations
+
+
+def _module_scope_statements(body: list[ast.stmt]) -> list[ast.stmt]:
+    """Module-level statements, descending into module-level ``if``/``try`` blocks."""
+    statements: list[ast.stmt] = []
+    for stmt in body:
+        statements.append(stmt)
+        if isinstance(stmt, ast.If):
+            statements.extend(_module_scope_statements(stmt.body))
+            statements.extend(_module_scope_statements(stmt.orelse))
+        elif isinstance(stmt, ast.Try):
+            statements.extend(_module_scope_statements(stmt.body))
+            for handler in stmt.handlers:
+                statements.extend(_module_scope_statements(handler.body))
+            statements.extend(_module_scope_statements(stmt.orelse))
+            statements.extend(_module_scope_statements(stmt.finalbody))
+    return statements
+
+
+def _root_name(node: ast.expr) -> str | None:
+    """``a`` for ``a``, ``a.b`` or ``a.b.c``; ``None`` for anything else."""
+    while isinstance(node, ast.Attribute):
+        node = node.value
+    return node.id if isinstance(node, ast.Name) else None
+
+
+def _check_module_alias_assignments(tree: ast.Module, path: Path) -> list[_Violation]:
+    statements = _module_scope_statements(tree.body)
+    bound: set[str] = set()
+    for stmt in statements:
+        if isinstance(stmt, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+            bound.add(stmt.name)
+        elif isinstance(stmt, ast.Import):
+            for alias in stmt.names:
+                bound.add(alias.asname or alias.name.split(".", 1)[0])
+        elif isinstance(stmt, ast.ImportFrom):
+            for alias in stmt.names:
+                bound.add(alias.asname or alias.name)
+    violations: list[_Violation] = []
+    for stmt in statements:
+        if isinstance(stmt, ast.Assign):
+            targets = stmt.targets
+            value: ast.expr | None = stmt.value
+        elif isinstance(stmt, ast.AnnAssign):
+            targets = [stmt.target]
+            value = stmt.value
+        else:
+            continue
+        if value is None or not isinstance(value, (ast.Name, ast.Attribute)):
+            continue
+        root = _root_name(value)
+        if root is None or root not in bound:
+            continue
+        names = [_dotted_name(target) or "<target>" for target in targets]
+        violations.append(
+            _Violation(
+                "module_alias_assignment",
+                path,
+                stmt.lineno,
+                f"module-scope alias {', '.join(names)} = {_dotted_name(value)} — "
+                "delete the old name and move callers to the real one",
+            )
+        )
+    return violations
+
+
+def _is_dunder_all_assignment(stmt: ast.stmt) -> bool:
+    targets: list[ast.expr] = []
+    if isinstance(stmt, ast.Assign):
+        targets = stmt.targets
+    elif isinstance(stmt, (ast.AnnAssign, ast.AugAssign)):
+        targets = [stmt.target]
+    return any(isinstance(t, ast.Name) and t.id == "__all__" for t in targets)
+
+
+def _check_reexport_module(tree: ast.Module, path: Path) -> list[_Violation]:
+    body = tree.body
+    if body and _is_docstring_stmt(body[0]):
+        body = body[1:]
+    remaining = [
+        stmt
+        for stmt in body
+        if not (isinstance(stmt, ast.ImportFrom) and stmt.module == "__future__")
+        and not _is_dunder_all_assignment(stmt)
+    ]
+    if not remaining or not all(
+        isinstance(stmt, (ast.Import, ast.ImportFrom)) for stmt in remaining
+    ):
+        return []
+    return [
+        _Violation(
+            "reexport_module",
+            path,
+            remaining[0].lineno,
+            "module only re-exports imported names — delete it and import from the real module",
+        )
+    ]
+
+
+def _comments(source: str) -> list[tuple[int, str]]:
+    comments: list[tuple[int, str]] = []
+    try:
+        for token in tokenize.generate_tokens(io.StringIO(source).readline):
+            if token.type == tokenize.COMMENT:
+                comments.append((token.start[0], token.string))
+    except (tokenize.TokenError, SyntaxError):  # pragma: no cover - ast.parse already succeeded
+        pass
+    return comments
+
+
+def _check_suppression_comments(source: str, path: Path) -> list[_Violation]:
+    violations: list[_Violation] = []
+    for lineno, comment in _comments(source):
+        if _PYRIGHT_DIRECTIVE.search(comment):
+            violations.append(
+                _Violation(
+                    "file_level_pyright_directive",
+                    path,
+                    lineno,
+                    f"{comment.strip()!r} — pyright settings live in [tool.pyright], not in a file",
+                )
+            )
+        if _SUPPRESSION.search(comment) and not _SUPPRESSION_WITH_RULE_AND_REASON.search(
+            comment
+        ):
+            violations.append(
+                _Violation(
+                    "suppression_without_rule_or_reason",
+                    path,
+                    lineno,
+                    f"{comment.strip()!r} — a suppression names its rule in brackets and "
+                    "carries a '# reason' on the same line",
+                )
+            )
+    return violations
+
+
+def _subscript_base(base: ast.expr) -> ast.expr:
+    return base.value if isinstance(base, ast.Subscript) else base
+
+
+def _class_base_names(node: ast.ClassDef) -> list[str]:
+    return _base_names([_subscript_base(base) for base in node.bases])
+
+
+def payload_class_names(import_roots: list[Path]) -> frozenset[str]:
+    """Every class name that derives, by base name, from ``Payload``/``PirnOpaqueValue``."""
+    bases_by_class: dict[str, set[str]] = {}
+    for import_root in import_roots:
+        for file_path in _iter_source_files(import_root):
+            try:
+                tree = ast.parse(file_path.read_text(encoding="utf-8"))
+            except (SyntaxError, UnicodeDecodeError):  # pragma: no cover - defensive
+                continue
+            for node in ast.walk(tree):
+                if isinstance(node, ast.ClassDef):
+                    bases_by_class.setdefault(node.name, set()).update(
+                        _class_base_names(node)
+                    )
+    names = set(_PAYLOAD_ROOT_NAMES)
+    changed = True
+    while changed:
+        changed = False
+        for class_name, bases in bases_by_class.items():
+            if class_name not in names and bases & names:
+                names.add(class_name)
+                changed = True
+    return frozenset(names)
+
+
+def _is_payload_field_access(node: ast.expr, property_name: str) -> bool:
+    """``self.<metadata|data|_metadata|_data>`` optionally followed by one ``.field`` / ``[key]``."""
+    inner = node
+    if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Attribute):
+        inner = node.value
+    elif isinstance(node, ast.Subscript) and isinstance(node.slice, ast.Constant):
+        inner = node.value
+    if not (
+        isinstance(inner, ast.Attribute)
+        and isinstance(inner.value, ast.Name)
+        and inner.value.id == "self"
+        and inner.attr in _PAYLOAD_FIELDS
+    ):
+        return False
+    if inner is node and inner.attr.lstrip("_") == property_name:
+        return False  # the canonical ``metadata``/``data`` accessor itself
+    return True
+
+
+def _check_payload_alias_properties(
+    tree: ast.Module, path: Path, payload_names: frozenset[str]
+) -> list[_Violation]:
+    violations: list[_Violation] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ClassDef):
+            continue
+        if not set(_class_base_names(node)) & payload_names:
+            continue
+        for stmt in node.body:
+            if not isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            if "property" not in _decorator_names(stmt.decorator_list):
+                continue
+            body = stmt.body
+            if body and _is_docstring_stmt(body[0]):
+                body = body[1:]
+            if (
+                len(body) == 1
+                and isinstance(body[0], ast.Return)
+                and body[0].value is not None
+                and _is_payload_field_access(body[0].value, stmt.name)
+            ):
+                violations.append(
+                    _Violation(
+                        "payload_alias_property",
+                        path,
+                        stmt.lineno,
+                        f"{node.name}.{stmt.name} only returns "
+                        f"{ast.unparse(body[0].value)} — delete the alias and read the "
+                        "canonical field",
+                    )
+                )
+    return violations
+
+
 def check_file(
     path: Path,
     package: str,
     relative_posix: str,
-    seen_allowlist_keys: set[str] | None = None,
+    payload_names: frozenset[str] = _PAYLOAD_ROOT_NAMES,
 ) -> list[_Violation]:
     try:
         source = path.read_text(encoding="utf-8")
@@ -631,15 +881,16 @@ def check_file(
     source_lines = source.splitlines()
     violations: list[_Violation] = []
     violations.extend(_check_multi_class_file(tree, path))
-    violations.extend(
-        _check_module_level_functions(
-            tree, path, package, relative_posix, seen_allowlist_keys
-        )
-    )
+    violations.extend(_check_module_level_functions(tree, path))
     violations.extend(_check_nested_defs(tree, source_lines, path))
     violations.extend(_check_gate_naming(tree, path))
     violations.extend(_check_knot_purity_rules(tree, path, package, relative_posix))
     violations.extend(_check_filename(tree, path))
+    violations.extend(_check_deprecation_references(tree, source, path))
+    violations.extend(_check_module_alias_assignments(tree, path))
+    violations.extend(_check_reexport_module(tree, path))
+    violations.extend(_check_suppression_comments(source, path))
+    violations.extend(_check_payload_alias_properties(tree, path, payload_names))
     return violations
 
 
@@ -656,54 +907,23 @@ def _iter_source_files(import_root: Path) -> list[Path]:
 
 def collect_counts(
     import_roots: list[Path],
-    seen_allowlist_keys: set[str] | None = None,
 ) -> tuple[dict[str, dict[str, int]], list[_Violation]]:
-    """Scan every package's import root; return (counts, all violations).
-
-    ``seen_allowlist_keys``, when given, collects every
-    ``_MODULE_LEVEL_FUNCTION_ALLOWLIST`` key the scan actually matched so the
-    caller can report entries that no longer correspond to a function.
-    """
+    """Scan every package's import root; return (counts, all violations)."""
     counts: dict[str, dict[str, int]] = {}
     all_violations: list[_Violation] = []
+    payload_names = payload_class_names(import_roots)
     for import_root in import_roots:
         package = import_root.parent.name
         package_root = import_root.parent
         rule_counts = counts.setdefault(package, dict.fromkeys(_RULES, 0))
         for file_path in _iter_source_files(import_root):
             relative_posix = file_path.relative_to(package_root).as_posix()
-            violations = check_file(
-                file_path, package, relative_posix, seen_allowlist_keys
-            )
+            violations = check_file(file_path, package, relative_posix, payload_names)
             for violation in violations:
                 if violation.rule in rule_counts:
                     rule_counts[violation.rule] += 1
                 all_violations.append(violation)
     return counts, all_violations
-
-
-def stale_allowlist_entries(
-    scanned_packages: set[str], seen_allowlist_keys: set[str]
-) -> list[str]:
-    """Allowlist keys for a scanned package that no module-level ``def`` matched."""
-    return sorted(
-        key
-        for key in _MODULE_LEVEL_FUNCTION_ALLOWLIST
-        if key.split(":", 1)[0] in scanned_packages and key not in seen_allowlist_keys
-    )
-
-
-def _load_baseline(baseline_path: Path) -> dict[str, dict[str, int]]:
-    if not baseline_path.exists():
-        return {}
-    with baseline_path.open(encoding="utf-8") as fh:
-        return json.load(fh)
-
-
-def _write_baseline(baseline_path: Path, counts: dict[str, dict[str, int]]) -> None:
-    with baseline_path.open("w", encoding="utf-8") as fh:
-        json.dump(counts, fh, indent=2, sort_keys=True)
-        fh.write("\n")
 
 
 def resolve_import_roots(args: list[str]) -> tuple[list[Path], list[str]]:
@@ -729,23 +949,10 @@ def main(argv: list[str] | None = None) -> int:
         nargs="*",
         help="Knot import root directories, e.g. packages/*/pirn*",
     )
-    parser.add_argument(
-        "--baseline",
-        default="scripts/conventions_baseline.json",
-        help="Path to the ratchet baseline JSON (default: scripts/conventions_baseline.json)",
-    )
-    parser.add_argument(
-        "--write-baseline",
-        action="store_true",
-        help="Regenerate the baseline file from the current tree and exit 0.",
-    )
     args = parser.parse_args(argv)
 
     if not args.import_roots:
-        print(
-            "usage: check_conventions.py <import-root>... [--baseline PATH] [--write-baseline]",
-            file=sys.stderr,
-        )
+        print("usage: check_conventions.py <import-root>...", file=sys.stderr)
         return 2
 
     import_roots, errors = resolve_import_roots(args.import_roots)
@@ -754,43 +961,15 @@ def main(argv: list[str] | None = None) -> int:
     if errors:
         return 2
 
-    seen_allowlist_keys: set[str] = set()
-    counts, violations = collect_counts(import_roots, seen_allowlist_keys)
-    baseline_path = Path(args.baseline)
-
-    if args.write_baseline:
-        _write_baseline(baseline_path, counts)
-        print(f"wrote baseline for {len(counts)} package(s) to {baseline_path}")
-        return 0
-
-    baseline = _load_baseline(baseline_path)
-    failed = False
-    notes: list[str] = []
-    for package, rule_counts in sorted(counts.items()):
-        baseline_for_package = baseline.get(package, {})
-        for rule, count in rule_counts.items():
-            baseline_count = baseline_for_package.get(rule, 0)
-            if count > baseline_count:
-                failed = True
-                notes.append(
-                    f"{package}: {rule} count {count} exceeds baseline {baseline_count}"
-                )
-            elif count < baseline_count:
-                notes.append(
-                    f"baseline can be lowered: {package}: {rule} is {count}, baseline says {baseline_count}"
-                )
-
-    for key in stale_allowlist_entries(set(counts), seen_allowlist_keys):
-        notes.append(
-            f"stale allowlist entry: {key} matched no module-level function — remove it"
-        )
-
+    counts, violations = collect_counts(import_roots)
     for violation in violations:
         print(violation)
-    for note in notes:
-        print(note)
+    for package, rule_counts in sorted(counts.items()):
+        for rule, count in rule_counts.items():
+            if count:
+                print(f"{package}: {rule} {count}")
 
-    return 1 if failed else 0
+    return 1 if violations else 0
 
 
 if __name__ == "__main__":

@@ -54,6 +54,6 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         out = result.outputs["w"]
         assert isinstance(out, WaveletPayload)
-        assert out.frame.wavelet_name == "db4"
-        assert out.frame.scale_count == 8
+        assert out.metadata.wavelet_name == "db4"
+        assert out.metadata.scale_count == 8
         assert len(out.data) == 8

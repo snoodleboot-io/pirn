@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``CandidateRouter`` — order typed candidates best-first by confidence.
 
 Algorithm:

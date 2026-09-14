@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PlainTextFormat`` — UTF-8 plain-text encoder/decoder using stdlib only.
 
 Three split modes:

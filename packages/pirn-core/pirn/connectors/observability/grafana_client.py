@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Async ``ApiClient`` wrapper around the Grafana HTTP REST API.
 
 Grafana exposes a fully-documented HTTP REST API at

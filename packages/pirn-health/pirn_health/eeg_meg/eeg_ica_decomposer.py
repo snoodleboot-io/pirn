@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``EEGICADecomposer`` — independent component analysis decomposition of EEG data for artifact removal.
 
 Algorithm:
@@ -24,8 +22,7 @@ from typing import Any, ClassVar
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-
-from pirn_health.health_optional_dependency import HealthOptionalDependency
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class EEGICADecomposer(Knot):
@@ -93,7 +90,9 @@ class EEGICADecomposer(Knot):
     @staticmethod
     def _run_ica(data_2d: np.ndarray, n_components: int, max_iter: int) -> dict[str, Any]:
         """Run FastICA and return mixing/unmixing matrices and component variances."""
-        decomposition = HealthOptionalDependency.require("sklearn.decomposition", extra="health")
+        decomposition = OptionalDependency.require(
+            "sklearn.decomposition", extra="health", package="pirn-health"
+        )
         ica = decomposition.FastICA(n_components=n_components, max_iter=max_iter, random_state=0)
         sources: np.ndarray = np.asarray(ica.fit_transform(data_2d.T))  # (n_samples, n_components)
         mixing: np.ndarray = np.asarray(ica.mixing_)  # (n_channels, n_components)

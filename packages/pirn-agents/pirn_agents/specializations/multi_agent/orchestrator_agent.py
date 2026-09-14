@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``OrchestratorAgent`` — top-level coordinator with specialist routing.
 
 A :class:`SubTapestry` that:

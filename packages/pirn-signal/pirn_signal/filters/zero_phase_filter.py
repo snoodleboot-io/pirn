@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ZeroPhaseFilter`` — zero-phase forward-backward IIR filter.
 
 Algorithm:
@@ -109,7 +107,7 @@ class ZeroPhaseFilter(Knot):
             "bandpass": "bandpass",
             "bandstop": "bandstop",
         }
-        fs = signal.frame.sample_rate_hz
+        fs = signal.metadata.sample_rate_hz
         sos = await asyncio.to_thread(ss.butter_sos, order, cutoff_hz, btype_map[filter_type], fs)
         filtered = await asyncio.to_thread(ss.sosfiltfilt, sos, signal.data, axis=-1)
         return signal.derive(

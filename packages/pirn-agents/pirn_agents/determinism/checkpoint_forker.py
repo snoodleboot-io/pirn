@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``CheckpointForker`` — branch a run chain at a recorded point for what-if runs.
 
 ADR "agents speaks core" WS3 part 3. A fork is a branch of the session chain:

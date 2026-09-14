@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Async ``ApiClient`` wrapper around the Alation REST API.
 
 Alation uses a refresh-token + access-token flow. The simplest correct

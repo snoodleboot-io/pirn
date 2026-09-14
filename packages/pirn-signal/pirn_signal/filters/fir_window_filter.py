@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FIRWindowFilter`` — FIR filter designed via the window method.
 
 Algorithm:
@@ -97,7 +95,7 @@ class FIRWindowFilter(Knot):
             )
 
         tap_weights = await asyncio.to_thread(
-            ss.firwin, num_taps, cutoff_hz, window, signal.frame.sample_rate_hz
+            ss.firwin, num_taps, cutoff_hz, window, signal.metadata.sample_rate_hz
         )
         filtered = await asyncio.to_thread(
             ss.lfilter, tap_weights, np.array([1.0]), signal.data, axis=-1

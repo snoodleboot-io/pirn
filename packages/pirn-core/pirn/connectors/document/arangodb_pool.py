@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Sync ArangoDB pool (wrapped in asyncio.to_thread) backed by :mod:`arango`."""
 
 from __future__ import annotations

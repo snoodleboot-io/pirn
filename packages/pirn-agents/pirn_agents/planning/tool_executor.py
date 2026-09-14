@@ -8,11 +8,9 @@ call is resolved, and the call itself is a tool knot constructed there
 agents-speaks-core, WS1).  The call therefore runs *through the engine*, under
 its own id, with its own ``Result`` and lineage row in the inner run.
 
-Its output is, for one deprecation cycle, the :class:`ToolResult` *view* of
-that outcome — an ``Aggregator`` over the call knot with
-``error_policy=RECEIVE_ERRORS`` builds it through the single
-:meth:`ToolResult.from_result` — so consumers of the pre-ADR shape keep
-working.  A call naming an unregistered tool, or whose arguments the
+Its output is the :class:`ToolResult` *view* of that outcome — an
+``Aggregator`` over the call knot with ``error_policy=RECEIVE_ERRORS`` builds
+it through the single :meth:`ToolResult.from_result`.  A call naming an unregistered tool, or whose arguments the
 declaration refuses, is a :class:`ToolCallRejection` recorded as that call's
 own ``Err`` (``ToolNotFoundError`` / ``ToolArgumentValidationError``).
 
@@ -101,7 +99,7 @@ class ToolExecutor(SubTapestry):
             TypeError: If tools is not a sequence of tool capabilities.
             ValueError: If tools is empty.
         """
-        if not isinstance(tools, Sequence) or isinstance(tools, (str, bytes)):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(tools, Sequence) or isinstance(tools, (str, bytes)):
             raise TypeError("ToolExecutor: tools must be a sequence of tool capabilities")
         if not tools:
             raise ValueError("ToolExecutor: tools must be non-empty")
@@ -128,5 +126,5 @@ class ToolExecutor(SubTapestry):
 
     @staticmethod
     def _view(call_id: str, *, outcome: Result[Any]) -> ToolResult:
-        """Build the deprecated view from the call knot's ``Result``."""
+        """Build the :class:`ToolResult` view from the call knot's ``Result``."""
         return ToolResult.from_result(call_id, outcome)

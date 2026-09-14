@@ -1,3 +1,5 @@
+"""``FactorySpecLoader`` — resolve the ``tapestry-check`` ``MODULE:FUNCTION`` spec."""
+
 from __future__ import annotations
 
 import importlib
@@ -5,7 +7,7 @@ import sys
 from typing import Any
 
 
-class _Loader:  # pyright: ignore[reportUnusedClass]  # imported by tapestry_check_cli
+class FactorySpecLoader:
     """Resolve a ``MODULE:FUNCTION`` spec string to the callable it names."""
 
     @staticmethod

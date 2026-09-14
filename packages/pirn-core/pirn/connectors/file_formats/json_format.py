@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``JsonFormat`` — whole-document JSON encoder/decoder using stdlib ``json``.
 
 Two shapes:

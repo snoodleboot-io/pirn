@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``FallbackChain`` — invoke ordered candidates until one succeeds.
 
 Algorithm:

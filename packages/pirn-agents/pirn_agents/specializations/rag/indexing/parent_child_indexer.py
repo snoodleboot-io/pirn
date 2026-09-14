@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``ParentChildIndexer`` — index small child chunks under larger parents.
 
 Internal terminal knot shared by the parent-doc and auto-merging ingestors. It

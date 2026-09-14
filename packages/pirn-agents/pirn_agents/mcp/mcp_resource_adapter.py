@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``McpResourceAdapter`` — surface MCP resources for agent context injection.
 
 MCP resources are read-only context (files, records, docs). This adapter lists

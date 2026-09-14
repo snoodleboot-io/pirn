@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MultimodalAdapter`` — provider-neutral multimodal encode/decode base (F15-S2).
 
 The multimodal counterpart to

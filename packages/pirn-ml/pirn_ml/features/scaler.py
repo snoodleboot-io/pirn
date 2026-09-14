@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``Scaler`` — fit a scaler on the train split and emit a transformed
 :class:`SplitManifest` reference.
 

@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TtlEvictionPolicy`` — evict memories older than a fixed time-to-live.
 
 The simplest S2 eviction rule: any record whose age at ``now`` — measured from its

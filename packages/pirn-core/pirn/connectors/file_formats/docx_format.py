@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``DocxFormat`` — Microsoft Word ``.docx`` (Office Open XML) encoder/decoder.
 
 Reads and writes use ``python-docx``. ``.docx`` is a zipped XML bundle:

@@ -86,7 +86,7 @@ class TestHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         report = result.outputs["tscv"]
         assert isinstance(report, EvalReportPayload)
-        assert "rmse" in report.metrics.scores
-        assert report.metrics.details["n_splits"] == 3
-        per_split = report.metrics.details["per_split_metrics"]
+        assert "rmse" in report.data.scores
+        assert report.data.details["n_splits"] == 3
+        per_split = report.data.details["per_split_metrics"]
         assert isinstance(per_split, list) and len(per_split) == 3

@@ -50,7 +50,7 @@ class TestRecurrenceAnalyzer(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, embedding_dim=3, time_delay=1, recurrence_threshold=0.1)
         assert isinstance(out, FeaturePayload)
-        assert out.frame.feature_names == ("rr", "det", "lam")
+        assert out.metadata.feature_names == ("rr", "det", "lam")
         assert out.data.shape == (1, 3)
 
     async def test_multichannel_computes_per_channel(self) -> None:
@@ -59,5 +59,5 @@ class TestRecurrenceAnalyzer(unittest.IsolatedAsyncioTestCase):
             _MULTICHANNEL_SIGNAL, embedding_dim=3, time_delay=1, recurrence_threshold=0.1
         )
         assert isinstance(out, FeaturePayload)
-        assert out.frame.channel_count == 2
+        assert out.metadata.channel_count == 2
         assert out.data.shape == (2, 3)

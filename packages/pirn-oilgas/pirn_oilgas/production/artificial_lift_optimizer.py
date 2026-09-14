@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ArtificialLiftOptimizer`` — recommend a lift-system operating point.
 
 Algorithm:
@@ -82,7 +80,7 @@ class ArtificialLiftOptimizer(Knot):
                 f"ArtificialLiftOptimizer: lift_type must be one of {sorted(_valid_lift_types)}"
             )
 
-        return await asyncio.to_thread(self._optimize, production.values, lift_type)
+        return await asyncio.to_thread(self._optimize, production.data, lift_type)
 
     @staticmethod
     def _optimize(values: np.ndarray, lift_type: str) -> dict[str, Any]:

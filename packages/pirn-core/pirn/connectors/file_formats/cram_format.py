@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``CramFormat`` — Compressed Reference-aligned/Map (CRAM) encoder/decoder.
 
 CRAM is a reference-based compression of BAM: instead of writing the

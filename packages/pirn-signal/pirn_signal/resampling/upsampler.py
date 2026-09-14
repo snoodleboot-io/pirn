@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``Upsampler`` — zero-stuff upsample (no filter).
 
 Algorithm:
@@ -80,10 +78,10 @@ class Upsampler(Knot):
         upsampled = await asyncio.to_thread(Upsampler._zero_stuff, signal.data, upsample_factor)
 
         new_frame = SignalFrame(
-            signal_id=f"{signal.frame.signal_id}:upsample",
-            channel_count=signal.frame.channel_count,
-            sample_rate_hz=signal.frame.sample_rate_hz * upsample_factor,
-            samples_per_channel=signal.frame.samples_per_channel * upsample_factor,
+            signal_id=f"{signal.metadata.signal_id}:upsample",
+            channel_count=signal.metadata.channel_count,
+            sample_rate_hz=signal.metadata.sample_rate_hz * upsample_factor,
+            samples_per_channel=signal.metadata.samples_per_channel * upsample_factor,
         )
         return SignalPayload(metadata=new_frame, data=upsampled)
 

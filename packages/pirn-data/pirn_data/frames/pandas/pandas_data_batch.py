@@ -14,11 +14,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import pandas as pd
 from pydantic import GetCoreSchemaHandler
 from pydantic_core import CoreSchema, core_schema
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 
 @dataclass(frozen=True)

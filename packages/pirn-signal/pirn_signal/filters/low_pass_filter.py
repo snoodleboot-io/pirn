@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``LowPassFilter`` — pass low frequencies, attenuate high.
 
 Algorithm:
@@ -83,7 +81,7 @@ class LowPassFilter(Knot):
         if not isinstance(order, int) or order <= 0:
             raise ValueError("LowPassFilter: order must be a positive integer")
 
-        fs = signal.frame.sample_rate_hz
+        fs = signal.metadata.sample_rate_hz
         filtered = await asyncio.to_thread(
             ButterworthDesign.design_and_apply, signal.data, order, cutoff_hz, "lowpass", fs
         )

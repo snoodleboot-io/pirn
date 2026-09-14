@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``BWAAligner`` — BWA-MEM read aligner.
 
 Production version invokes the BWA executable (``subprocess.run`` with

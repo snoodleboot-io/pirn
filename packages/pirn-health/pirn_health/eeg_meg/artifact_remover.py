@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ArtifactRemover`` — ICA-based artifact removal.
 
 Algorithm:
@@ -31,8 +29,8 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
-from pirn_health.health_optional_dependency import HealthOptionalDependency
 from pirn_health.types.health_signal_frame import HealthSignalFrame
 from pirn_health.types.health_signal_payload import HealthSignalPayload
 
@@ -91,17 +89,19 @@ class ArtifactRemover(Knot):
         reconstructed = await asyncio.to_thread(self._apply_ica, signal.data, n_components)
 
         frame = HealthSignalFrame(
-            signal_id=signal.frame.signal_id + ":ica",
-            channel_count=signal.frame.channel_count,
-            sample_rate_hz=signal.frame.sample_rate_hz,
-            samples_per_channel=signal.frame.samples_per_channel,
-            fetched_at=signal.frame.fetched_at,
+            signal_id=signal.metadata.signal_id + ":ica",
+            channel_count=signal.metadata.channel_count,
+            sample_rate_hz=signal.metadata.sample_rate_hz,
+            samples_per_channel=signal.metadata.samples_per_channel,
+            fetched_at=signal.metadata.fetched_at,
         )
         return HealthSignalPayload(metadata=frame, data=reconstructed)
 
     @staticmethod
     def _apply_ica(data: np.ndarray, n_components: int) -> np.ndarray:
-        decomposition = HealthOptionalDependency.require("sklearn.decomposition", extra="health")
+        decomposition = OptionalDependency.require(
+            "sklearn.decomposition", extra="health", package="pirn-health"
+        )
         ica = decomposition.FastICA(n_components=n_components, random_state=0)
         sources: np.ndarray = np.asarray(ica.fit_transform(data.T))
         reconstructed: np.ndarray = np.asarray(ica.inverse_transform(sources))

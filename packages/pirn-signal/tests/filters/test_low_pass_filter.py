@@ -41,7 +41,7 @@ class TestLowPassFilter(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, cutoff_hz=400.0)
         assert isinstance(out, SignalPayload)
-        assert out.frame.signal_id == "test:lowpass"
+        assert out.metadata.signal_id == "test:lowpass"
 
     async def test_rejects_non_positive_order(self) -> None:
         knot = self._make()
@@ -52,5 +52,5 @@ class TestLowPassFilter(unittest.IsolatedAsyncioTestCase):
         knot = self._make()
         out = await knot.process(_SIGNAL, cutoff_hz=400.0, order=2)
         assert isinstance(out, SignalPayload)
-        assert out.frame.signal_id == "test:lowpass"
+        assert out.metadata.signal_id == "test:lowpass"
         assert out.data.shape == _SIGNAL.data.shape

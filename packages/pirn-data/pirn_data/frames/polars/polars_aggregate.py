@@ -29,10 +29,10 @@ References:
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import Any
+from collections.abc import Mapping, Sequence
+from typing import TYPE_CHECKING, Any, ClassVar
 
-import polars as pl
+from pirn.core.annotation_import import AnnotationImport
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -40,9 +40,16 @@ from pirn_data.frames.polars.polars_data_batch import PolarsDataBatch
 from pirn_data.identifier_validator import IdentifierValidator
 from pirn_data.value_shape import ValueShape
 
+if TYPE_CHECKING:
+    import polars as pl
+
 
 class PolarsAggregate(Knot):
     """Group rows by ``by`` and apply Polars aggregation expressions."""
+
+    _annotation_imports: ClassVar[Mapping[str, AnnotationImport]] = {
+        "pl": AnnotationImport("polars", extra="polars", package="pirn-data"),
+    }
 
     def __init__(
         self,
@@ -72,6 +79,8 @@ class PolarsAggregate(Knot):
         Returns:
             A new PolarsDataBatch containing the aggregated result.
         """
+        import polars as pl
+
         IdentifierValidator.validate_columns("PolarsAggregate.by", by)
         if not ValueShape.is_sequence(aggs) or isinstance(aggs, (str, bytes)):
             raise TypeError("PolarsAggregate: aggs must be a sequence of polars.Expr")

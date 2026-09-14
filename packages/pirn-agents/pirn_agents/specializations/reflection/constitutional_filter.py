@@ -1,5 +1,3 @@
-# pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
 """``ConstitutionalFilter`` — evaluate and revise a response against a set of principles.
 
 A :class:`SubTapestry` that drives the evaluate-and-revise loop with

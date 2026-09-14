@@ -61,4 +61,4 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         out = result.outputs["r"]
         assert isinstance(out, SpectrumPayload)
-        assert out.frame.frequency_bins == 65
+        assert out.metadata.frequency_bins == 65
