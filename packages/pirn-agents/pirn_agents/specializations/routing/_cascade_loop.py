@@ -1,6 +1,6 @@
-"""``_CascadeLoop`` — try cascade tiers one at a time, stopping at the first accept.
+"""``CascadeLoop`` — try cascade tiers one at a time, stopping at the first accept.
 
-Replaces the static chain of one ``_AttemptTier`` knot per tier that
+Replaces the static chain of one ``AttemptTier`` knot per tier that
 ``ModelCascadeRouter`` unrolled up front — every tier got a knot even after
 the chain had already locked, each locked tier merely passing the state
 through unchanged — with a ``LoopSubTapestry`` that builds only the tiers
@@ -23,15 +23,15 @@ from pirn.tapestry import Tapestry
 
 from pirn_agents.performance.spend_cap_policy import SpendCapPolicy
 from pirn_agents.specializations.base.agent_loop_pipeline import AgentLoopPipeline
-from pirn_agents.specializations.routing._attempt_tier import _AttemptTier
-from pirn_agents.specializations.routing._cascade_chain_state import _CascadeChainState
+from pirn_agents.specializations.routing._attempt_tier import AttemptTier
+from pirn_agents.specializations.routing._cascade_chain_state import CascadeChainState
 from pirn_agents.specializations.routing.cascade_tier import CascadeTier
 
 if TYPE_CHECKING:
     from pirn.core.run_result import RunResult
 
 
-class _CascadeLoop(AgentLoopPipeline[_CascadeChainState]):
+class CascadeLoop(AgentLoopPipeline[CascadeChainState]):
     """Attempt cascade tiers in order, stopping at the first accepted (or downshifted) tier."""
 
     #: Per-iteration knot id (Rule: no module-level constants).
@@ -54,7 +54,7 @@ class _CascadeLoop(AgentLoopPipeline[_CascadeChainState]):
         self._spend_cap_policy = spend_cap_policy
         super().__init__(**kwargs)
 
-    def step(self, state: _CascadeChainState) -> tuple[Tapestry, _CascadeChainState] | None:
+    def step(self, state: CascadeChainState) -> tuple[Tapestry, CascadeChainState] | None:
         """Build the next tier's attempt, or None once locked or exhausted.
 
         Args:
@@ -70,7 +70,7 @@ class _CascadeLoop(AgentLoopPipeline[_CascadeChainState]):
 
         attempt = Tapestry()
         with attempt:
-            _AttemptTier(
+            AttemptTier(
                 prior=state,
                 tier=self._tiers[index],
                 index=index,
@@ -82,19 +82,19 @@ class _CascadeLoop(AgentLoopPipeline[_CascadeChainState]):
             )
         return attempt, state
 
-    def fold(self, state: _CascadeChainState, result: RunResult) -> _CascadeChainState:
+    def fold(self, state: CascadeChainState, result: RunResult) -> CascadeChainState:
         """Adopt the tier's folded state.
 
         Args:
-            state: State as ``step`` returned it (unused -- ``_AttemptTier``
+            state: State as ``step`` returned it (unused -- ``AttemptTier``
                 already folded ``prior`` into its own resolved output).
             result: The attempt's run result.
 
         Returns:
-            The state ``_AttemptTier`` returned.
+            The state ``AttemptTier`` returned.
         """
         return result.outputs[self._attempt_id]
 
-    def step_id(self, state: _CascadeChainState, idx: int) -> str:
+    def step_id(self, state: CascadeChainState, idx: int) -> str:
         """Name each attempt for run history."""
         return f"attempt_{idx}"

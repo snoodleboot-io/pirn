@@ -20,7 +20,7 @@ from typing import Any
 from pirn_agents._internal.optional_import import OptionalImport
 
 
-class _GrammarBackend:
+class GrammarBackend:
     """Namespace for the lazy grammar-compilation backend."""
 
     @staticmethod

@@ -1,7 +1,7 @@
-"""``_FlareReplyParser`` — parse a FLARE generation reply.
+"""``FlareReplyParser`` — parse a FLARE generation reply.
 
-Shared by :class:`~pirn_agents.specializations.rag._needs_retrieval_check._NeedsRetrievalCheck`
-and :class:`~pirn_agents.specializations.rag._flare_sentence_extractor._FlareSentenceExtractor`
+Shared by :class:`~pirn_agents.specializations.rag._needs_retrieval_check.NeedsRetrievalCheck`
+and :class:`~pirn_agents.specializations.rag._flare_sentence_extractor.FlareSentenceExtractor`
 so the ``CONF=<f>: <text>`` regex lives in one place.
 
 Internal API. See PIR-856.
@@ -12,7 +12,7 @@ from __future__ import annotations
 import re
 
 
-class _FlareReplyParser:
+class FlareReplyParser:
     """Parse a FLARE generation reply into ``DONE``-ness or ``(confidence, sentence)``."""
 
     @staticmethod

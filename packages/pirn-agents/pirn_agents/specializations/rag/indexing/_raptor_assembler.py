@@ -1,4 +1,6 @@
-"""``_RaptorAssembler`` — build the RAPTOR summary tree from leaf chunks.
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
+"""``RaptorAssembler`` — build the RAPTOR summary tree from leaf chunks.
 
 Internal terminal knot of :class:`RaptorTreeBuilder`. It recursively clusters
 nodes and summarizes each cluster with the LLM, embedding and upserting every
@@ -34,7 +36,7 @@ short-circuit and the final upsert must see a consistent store).
 Per-summary lineage (PIR-872). It is also a
 :class:`~pirn.nodes.nested_run_knot.NestedRunKnot`: each level's cluster
 summaries run as a nested run — one
-:class:`~pirn_agents.specializations.rag.indexing._raptor_summary._RaptorSummary`
+:class:`~pirn_agents.specializations.rag.indexing._raptor_summary.RaptorSummary`
 per cluster, joined in cluster order by an
 :class:`~pirn.nodes.aggregator.Aggregator` — so every LLM summary call has its
 own lineage row (knot id ``<prefix>:<level>:<index>``, the id of the node it
@@ -68,12 +70,12 @@ from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
 from pirn_agents.retrieval.vector_stores.vector_memory_store import VectorMemoryStore
 from pirn_agents.retrieval.vector_stores.vector_record import VectorRecord
-from pirn_agents.specializations.rag.indexing._raptor_summary import _RaptorSummary
+from pirn_agents.specializations.rag.indexing._raptor_summary import RaptorSummary
 from pirn_agents.specializations.rag.indexing.raptor_node import RaptorNode
 from pirn_agents.specializations.rag.indexing.raptor_tree import RaptorTree
 
 
-class _RaptorAssembler(Assembler, NestedRunKnot):
+class RaptorAssembler(Assembler, NestedRunKnot):
     """Recursively cluster + summarize leaves into a stored RAPTOR tree."""
 
     def __init__(
@@ -127,11 +129,11 @@ class _RaptorAssembler(Assembler, NestedRunKnot):
         """
         if not isinstance(cluster_size, int) or cluster_size <= 1:
             raise ValueError(
-                f"_RaptorAssembler: cluster_size must be an int > 1, got {cluster_size!r}"
+                f"RaptorAssembler: cluster_size must be an int > 1, got {cluster_size!r}"
             )
         if not isinstance(max_levels, int) or max_levels <= 0:
             raise ValueError(
-                f"_RaptorAssembler: max_levels must be a positive int, got {max_levels!r}"
+                f"RaptorAssembler: max_levels must be a positive int, got {max_levels!r}"
             )
         content_hash = hashlib.sha256("\n".join(chunks).encode("utf-8")).hexdigest()[:16]
         prefix = f"raptor:{content_hash}"
@@ -231,13 +233,13 @@ class _RaptorAssembler(Assembler, NestedRunKnot):
         with Tapestry() as inner:
             provider = Parameter("llm", LLMProvider, default=llm, _config=KnotConfig(id="llm"))
             per_cluster: dict[str, Knot] = {
-                f"summary_{index}": _RaptorSummary(
+                f"summary_{index}": RaptorSummary(
                     texts=texts, llm=provider, _config=KnotConfig(id=ids[index])
                 )
                 for index, texts in enumerate(clusters)
             }
             Aggregator(
-                combine=_RaptorAssembler._in_cluster_order,
+                combine=RaptorAssembler._in_cluster_order,
                 _config=KnotConfig(id="summaries"),
                 **per_cluster,
             )

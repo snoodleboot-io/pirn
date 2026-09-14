@@ -1,4 +1,4 @@
-"""``_RetryOnParseFailureLoop`` — the parse-retry loop as a core node.
+"""``RetryOnParseFailureLoop`` — the parse-retry loop as a core node.
 
 Replaces the hand-rolled ``for attempt_index in range(max_retries): ...
 try/except`` that ran every attempt through its own ``_run_inner`` call
@@ -24,14 +24,14 @@ from pirn.tapestry import Tapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_loop_pipeline import AgentLoopPipeline
-from pirn_agents.specializations.structured_output._llm_call_knot import _LLMCallKnot
-from pirn_agents.specializations.structured_output._retry_state import _RetryState
+from pirn_agents.specializations.structured_output._llm_call_knot import LLMCallKnot
+from pirn_agents.specializations.structured_output._retry_state import RetryState
 
 if TYPE_CHECKING:
     from pirn.core.run_result import RunResult
 
 
-class _RetryOnParseFailureLoop(AgentLoopPipeline[_RetryState]):
+class RetryOnParseFailureLoop(AgentLoopPipeline[RetryState]):
     """Retry the LLM call, feeding the parse error back, until it parses or is exhausted."""
 
     #: Per-iteration knot id (Rule: no module-level constants).
@@ -52,7 +52,7 @@ class _RetryOnParseFailureLoop(AgentLoopPipeline[_RetryState]):
         self._max_retries = max_retries
         super().__init__(**kwargs)
 
-    def step(self, state: _RetryState) -> tuple[Tapestry, _RetryState] | None:
+    def step(self, state: RetryState) -> tuple[Tapestry, RetryState] | None:
         """Build the next attempt, or return None once parsed or exhausted.
 
         Args:
@@ -67,14 +67,14 @@ class _RetryOnParseFailureLoop(AgentLoopPipeline[_RetryState]):
 
         attempt = Tapestry()
         with attempt:
-            _LLMCallKnot(
+            LLMCallKnot(
                 prompt=state.prompt,
                 llm=self._llm,
                 _config=KnotConfig(id=self._call_id),
             )
         return attempt, state
 
-    def fold(self, state: _RetryState, result: RunResult) -> _RetryState:
+    def fold(self, state: RetryState, result: RunResult) -> RetryState:
         """Try to parse the attempt's raw text; feed a failure back as context.
 
         Args:
@@ -96,14 +96,14 @@ class _RetryOnParseFailureLoop(AgentLoopPipeline[_RetryState]):
                 f"{self._original_prompt}\n\nPrevious attempt failed with: {last_error}\n"
                 "Please fix the issue and try again."
             )
-            return _RetryState(
+            return RetryState(
                 prompt=retry_prompt,
                 parsed_value=None,
                 succeeded=False,
                 last_error=last_error,
                 attempts=state.attempts + 1,
             )
-        return _RetryState(
+        return RetryState(
             prompt=state.prompt,
             parsed_value=parsed,
             succeeded=True,
@@ -111,6 +111,6 @@ class _RetryOnParseFailureLoop(AgentLoopPipeline[_RetryState]):
             attempts=state.attempts + 1,
         )
 
-    def step_id(self, state: _RetryState, idx: int) -> str:
+    def step_id(self, state: RetryState, idx: int) -> str:
         """Name each attempt for run history."""
         return f"attempt_{idx}"

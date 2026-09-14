@@ -1,4 +1,4 @@
-"""``_BackendRerank`` — rank documents with a provider-neutral backend."""
+"""``BackendRerank`` — rank documents with a provider-neutral backend."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn_agents.retrieval.rerank.reranker_backend import RerankerBackend
 
 
-class _BackendRerank(Knot):
+class BackendRerank(Knot):
     """Rank documents with a provider-neutral :class:`RerankerBackend` in one call."""
 
     def __init__(

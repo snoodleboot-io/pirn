@@ -1,4 +1,4 @@
-"""``_DocumentCompressor`` — extract one document's query-relevant span."""
+"""``DocumentCompressor`` — extract one document's query-relevant span."""
 
 from __future__ import annotations
 
@@ -7,13 +7,14 @@ from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.map import Map
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.llm_response_text import LlmResponseText
 
 
-class _DocumentCompressor(Knot):
+class DocumentCompressor(Knot):
     """Extract one document's query-relevant span via the LLM, or drop it.
 
     Algorithm:
@@ -40,7 +41,7 @@ class _DocumentCompressor(Knot):
         self,
         *,
         query: Knot | str,
-        document: Knot | Mapping[str, Any],
+        document: Knot | Map | Mapping[str, Any],
         llm: Knot | LLMProvider,
         _config: KnotConfig,
         **kwargs: Any,
@@ -65,8 +66,8 @@ class _DocumentCompressor(Knot):
             The compressed document mapping, or ``None`` when nothing in it is
             relevant to ``query``.
         """
-        text = _DocumentCompressor._doc_text(document)
-        prompt = _DocumentCompressor._compression_prompt.render({"query": query, "text": text})
+        text = DocumentCompressor._doc_text(document)
+        prompt = DocumentCompressor._compression_prompt.render({"query": query, "text": text})
         raw = await llm.chat([{"role": "user", "content": prompt}])
         extracted = LlmResponseText().extract(raw).strip()
         if not extracted or extracted.upper() == "NONE":

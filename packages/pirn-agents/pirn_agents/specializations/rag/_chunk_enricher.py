@@ -1,4 +1,4 @@
-"""``_ChunkEnricher`` — prefix one chunk with a situating context sentence."""
+"""``ChunkEnricher`` — prefix one chunk with a situating context sentence."""
 
 from __future__ import annotations
 
@@ -7,13 +7,14 @@ from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.map import Map
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.llm_response_text import LlmResponseText
 
 
-class _ChunkEnricher(Knot):
+class ChunkEnricher(Knot):
     """Prefix one chunk with an LLM-generated situating context sentence."""
 
     _enrichment_prompt: ClassVar[PromptBinding] = PromptBinding(
@@ -28,7 +29,7 @@ class _ChunkEnricher(Knot):
     def __init__(
         self,
         *,
-        document: Knot | Mapping[str, Any],
+        document: Knot | Map | Mapping[str, Any],
         document_text: Knot | str,
         llm: Knot | LLMProvider,
         _config: KnotConfig,
@@ -60,8 +61,8 @@ class _ChunkEnricher(Knot):
             The enriched chunk mapping, with ``context``, ``raw_text``, and a
             context-prefixed ``text``.
         """
-        chunk_text = _ChunkEnricher._doc_text(document)
-        prompt = _ChunkEnricher._enrichment_prompt.render(
+        chunk_text = ChunkEnricher._doc_text(document)
+        prompt = ChunkEnricher._enrichment_prompt.render(
             {"document_text": document_text, "chunk_text": chunk_text}
         )
         raw = await llm.chat([{"role": "user", "content": prompt}])

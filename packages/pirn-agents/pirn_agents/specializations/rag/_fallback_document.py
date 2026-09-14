@@ -1,4 +1,4 @@
-"""``_FallbackDocument`` — wrap a fallback tool's result into the doc shape."""
+"""``FallbackDocument`` — wrap a fallback tool's result into the doc shape."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn_agents.tools.tool_result import ToolResult
 
 
-class _FallbackDocument(Knot):
+class FallbackDocument(Knot):
     """Wrap the fallback tool's result into the single-doc list shape."""
 
     def __init__(

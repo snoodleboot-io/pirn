@@ -1,4 +1,4 @@
-"""``_FlareRegeneratePromptBuilder`` — build the grounded-rewrite prompt.
+"""``FlareRegeneratePromptBuilder`` — build the grounded-rewrite prompt.
 
 Internal API. See ``_flare_loop.py``.
 """
@@ -14,7 +14,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn_agents.prompt.prompt_binding import PromptBinding
 
 
-class _FlareRegeneratePromptBuilder(Knot):
+class FlareRegeneratePromptBuilder(Knot):
     """Build the prompt asking the LLM to rewrite a sentence grounded in evidence."""
 
     _regeneration_prompt: ClassVar[PromptBinding] = PromptBinding(

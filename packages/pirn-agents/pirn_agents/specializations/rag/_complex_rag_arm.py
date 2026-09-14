@@ -1,4 +1,6 @@
-"""``_ComplexRagArm`` — the multi-hop decomposition arm, gated behind route selection.
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
+"""``ComplexRagArm`` — the multi-hop decomposition arm, gated behind route selection.
 
 Wrapped as its own :class:`~pirn.nodes.sub_tapestry.SubTapestry` so the engine
 can skip *calling* it entirely, rather than merely discarding its result:
@@ -23,6 +25,7 @@ Internal API. See PIR-856.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
@@ -40,7 +43,7 @@ from pirn_agents.specializations.rag.rag_prompt_builder import RAGPromptBuilder
 from pirn_agents.specializations.rag.rag_response_builder import RAGResponseBuilder
 
 
-class _ComplexRagArm(AgentPipeline):
+class ComplexRagArm(AgentPipeline):
     """Decompose into sub-questions, retrieve per sub-question, then answer."""
 
     _decompose_prompt: ClassVar[PromptBinding] = PromptBinding(
@@ -74,14 +77,13 @@ class _ComplexRagArm(AgentPipeline):
         )
 
     @staticmethod
-    def _merge_hits(**per_question: Any) -> list[Any]:
+    def _merge_hits(**per_question: list[Mapping[str, Any]]) -> list[Mapping[str, Any]]:
         """Flatten the per-sub-question retrieval results into one hit list.
 
-        Same combine as :meth:`AdaptiveRAGPipeline._merge_hits` — duplicated
-        rather than shared because each is a private, class-scoped
-        ``@staticmethod`` (Rule: no module-level functions).
+        Each keyword is one ``MemorySearchRetriever``'s hit list, named
+        ``hits_<index>``; the lists are concatenated in sub-question order.
         """
-        merged: list[Any] = []
+        merged: list[Mapping[str, Any]] = []
         for key in sorted(per_question, key=lambda name: int(name.rsplit("_", 1)[1])):
             hits = per_question[key]
             if isinstance(hits, list):
@@ -132,7 +134,7 @@ class _ComplexRagArm(AgentPipeline):
             for index, sub_q in enumerate(sub_questions)
         }
         merged = Aggregator(
-            combine=_ComplexRagArm._merge_hits,
+            combine=ComplexRagArm._merge_hits,
             _config=KnotConfig(id="merge"),
             **retrievers,
         )

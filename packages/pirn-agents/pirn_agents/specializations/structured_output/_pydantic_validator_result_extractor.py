@@ -1,9 +1,9 @@
-"""``_PydanticValidatorResultExtractor`` — final loop state to the public validated instance.
+"""``PydanticValidatorResultExtractor`` — final loop state to the public validated instance.
 
-The loop's output is the accumulated ``_PydanticValidatorState``;
+The loop's output is the accumulated ``PydanticValidatorState``;
 ``PydanticValidatorPipeline``'s contract is the validated model instance (or
 a raised ``ValueError`` on exhaustion). This knot is the conversion,
-mirroring ``_JsonExtractorResultExtractor``.
+mirroring ``JsonExtractorResultExtractor``.
 
 Internal API. See PIR-856.
 """
@@ -17,11 +17,11 @@ from pirn.core.knot_config import KnotConfig
 from pydantic import BaseModel
 
 from pirn_agents.specializations.structured_output._pydantic_validator_state import (
-    _PydanticValidatorState,
+    PydanticValidatorState,
 )
 
 
-class _PydanticValidatorResultExtractor(Knot):
+class PydanticValidatorResultExtractor(Knot):
     """Convert the loop's final state into the pipeline's public validated instance."""
 
     def __init__(
@@ -33,7 +33,7 @@ class _PydanticValidatorResultExtractor(Knot):
     ) -> None:
         super().__init__(state=state, _config=_config, **kwargs)
 
-    async def process(self, state: _PydanticValidatorState, **_: Any) -> BaseModel:
+    async def process(self, state: PydanticValidatorState, **_: Any) -> BaseModel:
         """Return the validated instance, or raise once retries are exhausted.
 
         Args:

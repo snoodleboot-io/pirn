@@ -1,7 +1,7 @@
-"""``_FlareSentenceExtractor`` — pull the tentative sentence out of a generation reply.
+"""``FlareSentenceExtractor`` — pull the tentative sentence out of a generation reply.
 
-Runs downstream of the ``Gate(input=generate, check=_NeedsRetrievalCheck(...))``
-in :class:`~pirn_agents.specializations.rag._flare_loop._FlareLoop`, so this
+Runs downstream of the ``Gate(input=generate, check=NeedsRetrievalCheck(...))``
+in :class:`~pirn_agents.specializations.rag._flare_loop.FlareLoop`, so this
 knot (and the retrieval + regeneration it feeds) is skipped along with the
 gate whenever retrieval is not needed (ADR agents-speaks-core WS5b).
 
@@ -15,10 +15,10 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents.specializations.rag._flare_reply_parser import _FlareReplyParser
+from pirn_agents.specializations.rag._flare_reply_parser import FlareReplyParser
 
 
-class _FlareSentenceExtractor(Knot):
+class FlareSentenceExtractor(Knot):
     """Extract the tentative sentence text from a (gated) generation reply."""
 
     def __init__(
@@ -39,5 +39,5 @@ class _FlareSentenceExtractor(Knot):
         Returns:
             The tentative sentence text.
         """
-        _confidence, sentence = _FlareReplyParser.parse(reply)
+        _confidence, sentence = FlareReplyParser.parse(reply)
         return sentence

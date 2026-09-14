@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``SubQuestionRetriever`` — concurrent per-sub-question retrieval + union.
 
 The retrieval stage of sub-question RAG. Each sub-question is searched against
@@ -8,7 +10,7 @@ retrieved it.
 
 The fan-out is expressed as a graph rather than a hand-rolled
 ``asyncio.gather`` over a semaphore: each sub-question becomes its own
-:class:`~pirn_agents.specializations.rag._sub_question_search._SubQuestionSearch`
+:class:`~pirn_agents.specializations.rag._sub_question_search.SubQuestionSearch`
 invocation, fanned out with a core :class:`~pirn.nodes.map_markers.Map`, and
 folded into the deduplicated union with a :class:`~pirn.nodes.reduce_.Reduce`.
 The engine schedules the per-sub-question searches concurrently — every ready
@@ -25,7 +27,7 @@ than strictly capping it).
 Algorithm:
     1. Validate ``sub_questions`` (list), ``store`` (:class:`MemoryStore`),
        ``top_k`` and ``max_concurrency`` (positive ints).
-    2. Fan out one ``_SubQuestionSearch`` invocation per sub-question.
+    2. Fan out one ``SubQuestionSearch`` invocation per sub-question.
     3. A :class:`~pirn.nodes.reduce_.Reduce` unions the hits, keying by ``id``
        (or a stable fallback) so a document retrieved by several sub-questions
        appears once, in first-seen order.
@@ -48,8 +50,8 @@ from pirn.nodes.reduce_ import Reduce
 from pirn_agents.interfaces.retriever import Retriever
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.rag._sub_question_search import _SubQuestionSearch
-from pirn_agents.specializations.rag._union_sub_question_hits import _UnionSubQuestionHits
+from pirn_agents.specializations.rag._sub_question_search import SubQuestionSearch
+from pirn_agents.specializations.rag._union_sub_question_hits import UnionSubQuestionHits
 
 
 class SubQuestionRetriever(AgentPipeline, Retriever):
@@ -124,18 +126,14 @@ class SubQuestionRetriever(AgentPipeline, Retriever):
             default=sub_questions,
             _config=KnotConfig(id="sub_questions"),
         )
-        searched = _SubQuestionSearch(
-            # Core's Map marker is consumed at construction by
-            # `knot.py:199-205` and is deliberately not a Knot, so it does not
-            # satisfy the declared `Knot | str`. Inline suppression is the
-            # house idiom for this; see PIR-715/PIR-716.
-            sub_question=Map(sub_questions_knot),  # pyright: ignore[reportArgumentType]
+        searched = SubQuestionSearch(
+            sub_question=Map(sub_questions_knot),
             store=store,
             top_k=top_k,
             _config=KnotConfig(id="search_each", concurrency_group="sub_question_retriever_search"),
         )
         return Reduce(
             of=searched,
-            combine=_UnionSubQuestionHits.combine,
+            combine=UnionSubQuestionHits.combine,
             _config=KnotConfig(id="union"),
         )

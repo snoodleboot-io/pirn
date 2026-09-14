@@ -1,4 +1,4 @@
-"""``_VariantSearch`` — search the store for one query variant."""
+"""``VariantSearch`` — search the store for one query variant."""
 
 from __future__ import annotations
 
@@ -7,17 +7,18 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.map import Map
 
 from pirn_agents.memory.stores.memory_store import MemoryStore
 
 
-class _VariantSearch(Knot):
+class VariantSearch(Knot):
     """Search the store for one query variant and return its ranked hits."""
 
     def __init__(
         self,
         *,
-        query: Knot | str,
+        query: Knot | Map | str,
         store: Knot | MemoryStore,
         top_k: Knot | int,
         _config: KnotConfig,

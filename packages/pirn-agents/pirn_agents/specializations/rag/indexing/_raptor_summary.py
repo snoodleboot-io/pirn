@@ -1,9 +1,9 @@
-"""``_RaptorSummary`` — summarize one RAPTOR cluster with the LLM.
+"""``RaptorSummary`` — summarize one RAPTOR cluster with the LLM.
 
 Internal per-cluster knot of
-:class:`~pirn_agents.specializations.rag.indexing._raptor_assembler._RaptorAssembler`.
+:class:`~pirn_agents.specializations.rag.indexing._raptor_assembler.RaptorAssembler`.
 Each tree level's clusters are independent of one another, so the assembler
-runs one ``_RaptorSummary`` per cluster inside a nested run
+runs one ``RaptorSummary`` per cluster inside a nested run
 (:class:`~pirn.nodes.nested_run_knot.NestedRunKnot`) joined by an
 :class:`~pirn.nodes.aggregator.Aggregator`: every summary call gets its own
 lineage row, ``Result`` and admission, while the assembler keeps its atomic
@@ -34,7 +34,7 @@ from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
 
 
-class _RaptorSummary(Knot):
+class RaptorSummary(Knot):
     """Summarize one cluster of RAPTOR node texts into a single summary."""
 
     _summary_prompt: ClassVar[PromptBinding] = PromptBinding(
@@ -65,13 +65,13 @@ class _RaptorSummary(Knot):
         Returns:
             The summary text.
         """
-        return await _RaptorSummary._summarize(llm, texts)
+        return await RaptorSummary._summarize(llm, texts)
 
     @staticmethod
     async def _summarize(llm: LLMProvider, texts: tuple[str, ...]) -> str:
         """Summarize a cluster of node texts into one concise summary."""
         joined = "\n\n".join(texts)
-        prompt = _RaptorSummary._summary_prompt.render({"joined": joined})
+        prompt = RaptorSummary._summary_prompt.render({"joined": joined})
         raw = await llm.chat([{"role": "user", "content": prompt}])
         if isinstance(raw, str):
             return raw

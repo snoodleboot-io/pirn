@@ -1,4 +1,4 @@
-"""``_JsonExtractorLoop`` — the extraction-retry loop as a core node.
+"""``JsonExtractorLoop`` — the extraction-retry loop as a core node.
 
 Replaces the hand-rolled ``for attempt_index in range(max_retries): ...
 await self._run_inner(...)`` that ran every attempt through a Python loop
@@ -20,17 +20,17 @@ from pirn.tapestry import Tapestry
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_loop_pipeline import AgentLoopPipeline
 from pirn_agents.specializations.structured_output._json_extractor_attempt import (
-    _JsonExtractorAttempt,
+    JsonExtractorAttempt,
 )
 from pirn_agents.specializations.structured_output._json_extractor_state import (
-    _JsonExtractorState,
+    JsonExtractorState,
 )
 
 if TYPE_CHECKING:
     from pirn.core.run_result import RunResult
 
 
-class _JsonExtractorLoop(AgentLoopPipeline[_JsonExtractorState]):
+class JsonExtractorLoop(AgentLoopPipeline[JsonExtractorState]):
     """Retry the extraction attempt, feeding the parse error back, until it succeeds or is exhausted."""
 
     #: Per-iteration knot id (Rule: no module-level constants).
@@ -51,7 +51,7 @@ class _JsonExtractorLoop(AgentLoopPipeline[_JsonExtractorState]):
         self._max_retries = max_retries
         super().__init__(**kwargs)
 
-    def step(self, state: _JsonExtractorState) -> tuple[Tapestry, _JsonExtractorState] | None:
+    def step(self, state: JsonExtractorState) -> tuple[Tapestry, JsonExtractorState] | None:
         """Build the next attempt, or return None once parsed or exhausted.
 
         Args:
@@ -66,7 +66,7 @@ class _JsonExtractorLoop(AgentLoopPipeline[_JsonExtractorState]):
 
         attempt = Tapestry()
         with attempt:
-            _JsonExtractorAttempt(
+            JsonExtractorAttempt(
                 prompt=self._prompt,
                 llm=self._llm,
                 schema=self._schema,
@@ -75,7 +75,7 @@ class _JsonExtractorLoop(AgentLoopPipeline[_JsonExtractorState]):
             )
         return attempt, state
 
-    def fold(self, state: _JsonExtractorState, result: RunResult) -> _JsonExtractorState:
+    def fold(self, state: JsonExtractorState, result: RunResult) -> JsonExtractorState:
         """Record success, or the error to feed back as the next attempt's context.
 
         Args:
@@ -87,21 +87,24 @@ class _JsonExtractorLoop(AgentLoopPipeline[_JsonExtractorState]):
             for the next attempt's self-correction.
         """
         outcome = result.outputs[self._attempt_id]
-        if isinstance(outcome, dict):
-            return _JsonExtractorState(
-                prior_error=state.prior_error,
-                result=outcome,
-                last_error=state.last_error,
-                attempts=state.attempts + 1,
-            )
+        match outcome:
+            case {**parsed}:
+                return JsonExtractorState(
+                    prior_error=state.prior_error,
+                    result=parsed,
+                    last_error=state.last_error,
+                    attempts=state.attempts + 1,
+                )
+            case _:
+                pass
         error = str(outcome) if outcome is not None else "no output"
-        return _JsonExtractorState(
+        return JsonExtractorState(
             prior_error=error,
             result=None,
             last_error=error,
             attempts=state.attempts + 1,
         )
 
-    def step_id(self, state: _JsonExtractorState, idx: int) -> str:
+    def step_id(self, state: JsonExtractorState, idx: int) -> str:
         """Name each attempt for run history."""
         return f"attempt_{idx}"

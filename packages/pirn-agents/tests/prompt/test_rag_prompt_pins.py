@@ -17,19 +17,19 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
-from pirn_agents.specializations.rag._flare_loop import _FlareLoop
+from pirn_agents.specializations.rag._decide_follow_up import DecideFollowUp
+from pirn_agents.specializations.rag._flare_loop import FlareLoop
 from pirn_agents.specializations.rag._flare_regenerate_prompt_builder import (
-    _FlareRegeneratePromptBuilder,
+    FlareRegeneratePromptBuilder,
 )
+from pirn_agents.specializations.rag._follow_up_decision import FollowUpDecision
 from pirn_agents.specializations.rag.adaptive_rag_pipeline import AdaptiveRAGPipeline
-from pirn_agents.specializations.rag.agentic_rag_pipeline import AgenticRagPipeline
 from pirn_agents.specializations.rag.contextual_chunk_enricher import ContextualChunkEnricher
 from pirn_agents.specializations.rag.contextual_compressor import ContextualCompressor
 from pirn_agents.specializations.rag.draft_verifier import DraftVerifier
 from pirn_agents.specializations.rag.graph_rag_pipeline import GraphRAGPipeline
 from pirn_agents.specializations.rag.hyde_rag_pipeline import HyDERAGPipeline
-from pirn_agents.specializations.rag.indexing._raptor_summary import _RaptorSummary
-from pirn_agents.specializations.rag.iterative_retriever import IterativeRetriever
+from pirn_agents.specializations.rag.indexing._raptor_summary import RaptorSummary
 from pirn_agents.specializations.rag.multi_hop_rag_pipeline import MultiHopRAGPipeline
 from pirn_agents.specializations.rag.multi_query_expander import MultiQueryExpander
 from pirn_agents.specializations.rag.query_route_classifier import QueryRouteClassifier
@@ -320,7 +320,7 @@ class RagHelperPromptPins(unittest.IsolatedAsyncioTestCase):
 
     async def test_agentic_next_question_prompt(self) -> None:
         llm = StubLLMProvider(["DONE"])
-        await AgenticRagPipeline._next_question(llm, "Q", "A")
+        await FollowUpDecision.next_question(llm, "Q", "A")
         assert llm.calls[0][0]["content"] == (
             "You are an agent answering a question with a retrieval tool. Given the "
             "original question and the tool's latest answer, reply with exactly 'DONE' if "
@@ -329,18 +329,18 @@ class RagHelperPromptPins(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_flare_generate_prompt(self) -> None:
-        # The generation prompt now renders inside _FlareLoop (ADR
+        # The generation prompt now renders inside FlareLoop (ADR
         # agents-speaks-core WS5b), not on FlareActiveRagPipeline itself.
-        assert _FlareLoop._generate_prompt("Q", ()) == (
+        assert FlareLoop._generate_prompt("Q", ()) == (
             "Answer the question one sentence at a time. Reply with 'DONE' if the answer is "
             "complete, otherwise reply exactly 'CONF=<0-1>: <the next sentence>' where the number "
             "is your confidence.\n\nQuestion: Q\n\nAnswer so far: (nothing yet)"
         )
 
     async def test_flare_regenerate_prompt(self) -> None:
-        # The regeneration prompt now renders inside _FlareRegeneratePromptBuilder,
+        # The regeneration prompt now renders inside FlareRegeneratePromptBuilder,
         # a real knot in the round's tapestry (ADR agents-speaks-core WS5b).
-        builder = _FlareRegeneratePromptBuilder(
+        builder = FlareRegeneratePromptBuilder(
             query="Q", sentence="S", docs=[], _config=KnotConfig(id="rp")
         )
         prompt = await builder.process(query="Q", sentence="S", docs=[])
@@ -352,7 +352,7 @@ class RagHelperPromptPins(unittest.IsolatedAsyncioTestCase):
 
     async def test_iterative_retriever_decide_prompt(self) -> None:
         llm = StubLLMProvider(["DONE"])
-        await IterativeRetriever._decide(llm, "OQ", {}, "CQ")
+        await DecideFollowUp.decide(llm, "OQ", {}, "CQ")
         assert llm.calls[0][0]["content"] == (
             "You are running iterative retrieval. Given the original question and the "
             "evidence gathered so far, reply with exactly 'DONE' if the evidence is "
@@ -363,7 +363,7 @@ class RagHelperPromptPins(unittest.IsolatedAsyncioTestCase):
 
     async def test_raptor_summarize_prompt(self) -> None:
         llm = StubLLMProvider(["summary"])
-        await _RaptorSummary._summarize(llm, ("a", "b"))
+        await RaptorSummary._summarize(llm, ("a", "b"))
         assert llm.calls[0][0]["content"] == (
             "Summarize the following passages into one concise summary that preserves the "
             "key facts.\n\na\n\nb\n\nSummary:"

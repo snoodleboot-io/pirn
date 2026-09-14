@@ -1,4 +1,4 @@
-"""``_CandidateAttempt`` — skip, or invoke, one fallback candidate."""
+"""``CandidateAttempt`` — skip, or invoke, one fallback candidate."""
 
 from __future__ import annotations
 
@@ -10,14 +10,14 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.routing._fallback_chain_state import _FallbackChainState
-from pirn_agents.specializations.routing._fold_candidate_result import _FoldCandidateResult
+from pirn_agents.specializations.routing._fallback_chain_state import FallbackChainState
+from pirn_agents.specializations.routing._fold_candidate_result import FoldCandidateResult
 from pirn_agents.specializations.routing.route_candidate import RouteCandidate
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_invocation import ToolInvocation
 
 
-class _CandidateAttempt(AgentPipeline):
+class CandidateAttempt(AgentPipeline):
     """Skip, or invoke, one candidate depending on the chain's state so far.
 
     The inner graph's shape depends on the resolved ``prior``/``confidences``
@@ -30,7 +30,7 @@ class _CandidateAttempt(AgentPipeline):
     def __init__(
         self,
         *,
-        prior: Knot | _FallbackChainState,
+        prior: Knot | FallbackChainState,
         candidate: Knot | RouteCandidate,
         arguments: Knot | Mapping[str, Any],
         confidences: Knot | Mapping[str, float],
@@ -48,7 +48,7 @@ class _CandidateAttempt(AgentPipeline):
 
     async def process(
         self,
-        prior: _FallbackChainState,
+        prior: FallbackChainState,
         candidate: RouteCandidate,
         arguments: Mapping[str, Any],
         confidences: Mapping[str, float],
@@ -67,19 +67,19 @@ class _CandidateAttempt(AgentPipeline):
         """
         if prior.locked:
             return Parameter(
-                "locked", _FallbackChainState, default=prior, _config=KnotConfig(id="locked")
+                "locked", FallbackChainState, default=prior, _config=KnotConfig(id="locked")
             )
         if confidences.get(candidate.name, 0.0) < candidate.min_confidence:
             return Parameter(
                 "skip",
-                _FallbackChainState,
-                default=_FallbackChainState(
+                FallbackChainState,
+                default=FallbackChainState(
                     attempted=prior.attempted, skipped=(*prior.skipped, candidate.name)
                 ),
                 _config=KnotConfig(id="skip"),
             )
         call = ToolCall(tool_name=candidate.tool.name, arguments=arguments, call_id=candidate.name)
         invoke = ToolInvocation(tool=candidate.tool, call=call, _config=KnotConfig(id="call"))
-        return _FoldCandidateResult(
+        return FoldCandidateResult(
             prior=prior, candidate=candidate, tool_result=invoke, _config=KnotConfig(id="fold")
         )

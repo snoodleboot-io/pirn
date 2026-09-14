@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``JsonExtractorPipeline`` — schema-targeted JSON extraction with retry.
 
 A :class:`SubTapestry` that asks an :class:`LLMProvider` to produce
@@ -15,17 +17,17 @@ of this knot for strict validation.
 Algorithm:
     1. Receive ``prompt``, ``llm``, ``schema``, and ``max_retries`` in :meth:`process`.
     2. Validate inputs: llm must be LLMProvider, schema a Mapping, max_retries positive.
-    3. Drive the attempts with a :class:`_JsonExtractorLoop`
+    3. Drive the attempts with a :class:`JsonExtractorLoop`
        (``LoopSubTapestry``): each attempt is one real, individually-traceable
-       :class:`_JsonExtractorAttempt` invocation rather than a step inside a
+       :class:`JsonExtractorAttempt` invocation rather than a step inside a
        hand-rolled Python ``for`` loop (ADR agents-speaks-core WS5b).
-    4. Extract the parsed mapping with :class:`_JsonExtractorResultExtractor`,
+    4. Extract the parsed mapping with :class:`JsonExtractorResultExtractor`,
        which raises ``ValueError`` if every attempt was exhausted.
 
 
 References:
     - :class:`pirn_agents.llm.llm_provider.LLMProvider`
-    - :class:`pirn_agents.specializations.structured_output._json_extractor_attempt._JsonExtractorAttempt`
+    - :class:`pirn_agents.specializations.structured_output._json_extractor_attempt.JsonExtractorAttempt`
 """
 
 from __future__ import annotations
@@ -40,13 +42,13 @@ from pirn.core.parameter import Parameter
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.structured_output._json_extractor_loop import (
-    _JsonExtractorLoop,
+    JsonExtractorLoop,
 )
 from pirn_agents.specializations.structured_output._json_extractor_result_extractor import (
-    _JsonExtractorResultExtractor,
+    JsonExtractorResultExtractor,
 )
 from pirn_agents.specializations.structured_output._json_extractor_state import (
-    _JsonExtractorState,
+    JsonExtractorState,
 )
 
 
@@ -108,12 +110,12 @@ class JsonExtractorPipeline(AgentPipeline):
 
         initial = Parameter(
             "json_extractor_state",
-            _JsonExtractorState,
-            default=_JsonExtractorState(
+            JsonExtractorState,
+            default=JsonExtractorState(
                 prior_error="", result=None, last_error="no attempts were made", attempts=0
             ),
         )
-        loop = _JsonExtractorLoop(
+        loop = JsonExtractorLoop(
             prompt=prompt,
             llm=llm,
             schema=schema_dict,
@@ -121,4 +123,4 @@ class JsonExtractorPipeline(AgentPipeline):
             state=initial,
             _config=KnotConfig(id="json_extractor_loop"),
         )
-        return _JsonExtractorResultExtractor(state=loop, _config=KnotConfig(id="result"))
+        return JsonExtractorResultExtractor(state=loop, _config=KnotConfig(id="result"))

@@ -1,4 +1,4 @@
-"""``_TopKByScore`` — Reduce ``combine`` target picking the top-K documents."""
+"""``TopKByScore`` — Reduce ``combine`` target picking the top-K documents."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from typing import Any
 
 
-class _TopKByScore:
+class TopKByScore:
     """Reduce ``combine`` target: pick the top-K ``(score, document)`` pairs."""
 
     @staticmethod

@@ -1,4 +1,4 @@
-"""``_YamlExtractorState`` — the value threaded through the extraction-retry loop.
+"""``YamlExtractorState`` — the value threaded through the extraction-retry loop.
 
 Internal API. See ``_yaml_extractor_loop.py``.
 """
@@ -11,7 +11,7 @@ from typing import Any
 
 
 @dataclass(frozen=True)
-class _YamlExtractorState:
+class YamlExtractorState:
     """One attempt's worth of accumulated YAML-extraction state.
 
     Frozen; ``fold`` returns a new instance rather than mutating, matching

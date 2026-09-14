@@ -1,6 +1,8 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``ForcedToolChoiceExtractor`` — one-pass extraction via a forced tool call.
 
-The S2 building block. It synthesises a single :class:`_ExtractionTool` whose
+The S2 building block. It synthesises a single :class:`ExtractionTool` whose
 parameters are the target model's JSON schema, declares it to the provider
 through F1's :class:`pirn_agents.tools.tool_call_codec.ToolCallCodec` (the codec the
 provider already drives), and forces tool-choice to that one tool. The provider
@@ -18,7 +20,7 @@ from typing import Any
 
 from pydantic import BaseModel, ValidationError
 
-from pirn_agents.specializations.structured_output._extraction_tool import _ExtractionTool
+from pirn_agents.specializations.structured_output._extraction_tool import ExtractionTool
 from pirn_agents.specializations.structured_output.structured_decode_error import (
     StructuredDecodeError,
 )
@@ -64,7 +66,7 @@ class ForcedToolChoiceExtractor:
 
     def toolset(self) -> Toolset:
         """Return the single-tool toolset the forced call is declared from."""
-        tool = _ExtractionTool(
+        tool = ExtractionTool(
             name=self._tool_name,
             description=self._description,
             parameters_schema=self._model_class.model_json_schema(),

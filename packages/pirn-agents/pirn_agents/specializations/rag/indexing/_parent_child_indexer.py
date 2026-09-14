@@ -1,4 +1,6 @@
-"""``_ParentChildIndexer`` — index small child chunks under larger parents.
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
+"""``ParentChildIndexer`` — index small child chunks under larger parents.
 
 Internal terminal knot shared by the parent-doc and auto-merging ingestors. It
 groups consecutive child chunks into parents, embeds every child, and upserts
@@ -30,7 +32,7 @@ from pirn_agents.retrieval.vector_stores.vector_memory_store import VectorMemory
 from pirn_agents.retrieval.vector_stores.vector_record import VectorRecord
 
 
-class _ParentChildIndexer(Knot):
+class ParentChildIndexer(Knot):
     """Group children under parents, embed them, and upsert child records."""
 
     def __init__(
@@ -80,7 +82,7 @@ class _ParentChildIndexer(Knot):
         """
         if not isinstance(group_size, int) or group_size <= 0:
             raise ValueError(
-                f"_ParentChildIndexer: group_size must be a positive int, got {group_size!r}"
+                f"ParentChildIndexer: group_size must be a positive int, got {group_size!r}"
             )
         if not chunks:
             return 0

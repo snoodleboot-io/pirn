@@ -1,4 +1,4 @@
-"""``_IterativeRetrievalLoop`` — drive the retrieve/merge/decide loop."""
+"""``IterativeRetrievalLoop`` — drive the retrieve/merge/decide loop."""
 
 from __future__ import annotations
 
@@ -11,13 +11,13 @@ from pirn.tapestry import Tapestry
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.specializations.base.agent_loop_pipeline import AgentLoopPipeline
-from pirn_agents.specializations.rag._decide_follow_up import _DecideFollowUp
-from pirn_agents.specializations.rag._iterative_retrieval_state import _IterativeRetrievalState
-from pirn_agents.specializations.rag._merge_hits import _MergeHits
-from pirn_agents.specializations.rag._retrieval_round import _RetrievalRound
+from pirn_agents.specializations.rag._decide_follow_up import DecideFollowUp
+from pirn_agents.specializations.rag._iterative_retrieval_state import IterativeRetrievalState
+from pirn_agents.specializations.rag._merge_hits import MergeHits
+from pirn_agents.specializations.rag._retrieval_round import RetrievalRound
 
 
-class _IterativeRetrievalLoop(AgentLoopPipeline[_IterativeRetrievalState]):
+class IterativeRetrievalLoop(AgentLoopPipeline[IterativeRetrievalState]):
     """Drive the retrieve / merge / decide loop under a round budget."""
 
     def __init__(
@@ -36,8 +36,8 @@ class _IterativeRetrievalLoop(AgentLoopPipeline[_IterativeRetrievalState]):
         super().__init__(**kwargs)
 
     def step(
-        self, state: _IterativeRetrievalState
-    ) -> tuple[Tapestry, _IterativeRetrievalState] | None:
+        self, state: IterativeRetrievalState
+    ) -> tuple[Tapestry, IterativeRetrievalState] | None:
         """Build the next round, or return None to terminate.
 
         Args:
@@ -53,20 +53,20 @@ class _IterativeRetrievalLoop(AgentLoopPipeline[_IterativeRetrievalState]):
         is_last_round = state.iteration == self._max_iterations - 1
 
         with Tapestry() as t:
-            hits = _RetrievalRound(
+            hits = RetrievalRound(
                 memory=self._memory,
                 query=state.current_query,
                 top_k=self._top_k,
                 _config=KnotConfig(id="search"),
             )
-            merged = _MergeHits(
+            merged = MergeHits(
                 prior_merged=state.merged,
                 hits=hits,
                 iteration=state.iteration,
                 _config=KnotConfig(id="merge"),
             )
             if not is_last_round:
-                _DecideFollowUp(
+                DecideFollowUp(
                     original_query=state.original_query,
                     current_query=state.current_query,
                     merged=merged,
@@ -75,7 +75,7 @@ class _IterativeRetrievalLoop(AgentLoopPipeline[_IterativeRetrievalState]):
                 )
         return t, state
 
-    def fold(self, state: _IterativeRetrievalState, result: RunResult) -> _IterativeRetrievalState:
+    def fold(self, state: IterativeRetrievalState, result: RunResult) -> IterativeRetrievalState:
         """Integrate one round's outputs into a new state.
 
         Args:
@@ -86,10 +86,10 @@ class _IterativeRetrievalLoop(AgentLoopPipeline[_IterativeRetrievalState]):
             A new state carrying the round's merged hits and next query.
         """
         merged = result.outputs["merge"]
-        # Absent on the last round (no _DecideFollowUp was built) or when the
+        # Absent on the last round (no DecideFollowUp was built) or when the
         # LLM's reply was not a REFINE instruction. Either way, stop.
         follow_up = result.outputs.get("decide")
-        return _IterativeRetrievalState(
+        return IterativeRetrievalState(
             original_query=state.original_query,
             current_query=follow_up if follow_up is not None else state.current_query,
             merged=merged,
@@ -97,6 +97,6 @@ class _IterativeRetrievalLoop(AgentLoopPipeline[_IterativeRetrievalState]):
             done=follow_up is None,
         )
 
-    def step_id(self, state: _IterativeRetrievalState, idx: int) -> str:
+    def step_id(self, state: IterativeRetrievalState, idx: int) -> str:
         """Name each round for run history."""
         return f"round_{idx}"

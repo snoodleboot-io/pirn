@@ -1,4 +1,4 @@
-"""``_FallbackChainState`` — state threaded across fallback candidates."""
+"""``FallbackChainState`` — state threaded across fallback candidates."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from pirn_agents.tools.tool_result import ToolResult
 
 
 @dataclass
-class _FallbackChainState:
+class FallbackChainState:
     """State threaded across fallback candidates."""
 
     attempted: tuple[str, ...] = ()

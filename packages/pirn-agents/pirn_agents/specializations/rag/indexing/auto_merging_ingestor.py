@@ -4,9 +4,9 @@ Auto-merging retrieval indexes fine-grained leaf chunks but merges them back up
 to their parent at query time when enough leaves of one parent are retrieved
 together. Ingest is structurally identical to parent-doc — this ingestor reuses
 the existing sliding-window
-:class:`~pirn_agents.specializations.document_processing._document_chunker._DocumentChunker`
+:class:`~pirn_agents.specializations.document_processing._document_chunker.DocumentChunker`
 and the shared
-:class:`~pirn_agents.specializations.rag.indexing._parent_child_indexer._ParentChildIndexer`;
+:class:`~pirn_agents.specializations.rag.indexing._parent_child_indexer.ParentChildIndexer`;
 the merge behaviour lives in :class:`AutoMergingRetriever`.
 
 References:
@@ -23,8 +23,8 @@ from pirn.core.knot_config import KnotConfig
 from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
 from pirn_agents.retrieval.vector_stores.vector_memory_store import VectorMemoryStore
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.document_processing._document_chunker import _DocumentChunker
-from pirn_agents.specializations.rag.indexing._parent_child_indexer import _ParentChildIndexer
+from pirn_agents.specializations.document_processing._document_chunker import DocumentChunker
+from pirn_agents.specializations.rag.indexing._parent_child_indexer import ParentChildIndexer
 
 
 class AutoMergingIngestor(AgentPipeline):
@@ -66,7 +66,7 @@ class AutoMergingIngestor(AgentPipeline):
         group_size: int = 4,
         **_: Any,
     ) -> Knot:
-        """Wire ``_DocumentChunker`` → ``_ParentChildIndexer`` and return the sink.
+        """Wire ``DocumentChunker`` → ``ParentChildIndexer`` and return the sink.
 
         Args:
             text: The full source document to ingest.
@@ -78,15 +78,15 @@ class AutoMergingIngestor(AgentPipeline):
             group_size: Number of consecutive leaves per parent.
 
         Returns:
-            The ``_ParentChildIndexer`` sink knot whose output is the leaf count.
+            The ``ParentChildIndexer`` sink knot whose output is the leaf count.
         """
-        chunks = _DocumentChunker(
+        chunks = DocumentChunker(
             text=text,
             chunk_size=leaf_chunk_size,
             chunk_overlap=chunk_overlap,
             _config=KnotConfig(id="chunk"),
         )
-        return _ParentChildIndexer(
+        return ParentChildIndexer(
             chunks=chunks,
             embedder=embedder,
             store=store,

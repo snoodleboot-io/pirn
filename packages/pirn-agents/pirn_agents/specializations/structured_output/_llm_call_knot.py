@@ -1,4 +1,4 @@
-"""``_LLMCallKnot`` — internal single-prompt LLM call knot for RetryOnParseFailure.
+"""``LLMCallKnot`` — internal single-prompt LLM call knot for RetryOnParseFailure.
 
 Algorithm:
     1. Receive ``prompt`` (string) and ``llm`` provider.
@@ -27,7 +27,7 @@ from pirn_agents.observability.agent_call_recorder import AgentCallRecorder
 from pirn_agents.specializations.llm_response_text import LlmResponseText
 
 
-class _LLMCallKnot(Knot):
+class LLMCallKnot(Knot):
     """Inner knot that calls the LLM with a single prompt string."""
 
     def __init__(

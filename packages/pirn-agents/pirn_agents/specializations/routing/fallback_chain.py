@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``FallbackChain`` — invoke ordered candidates until one succeeds.
 
 Algorithm:
@@ -5,10 +7,10 @@ Algorithm:
        ``arguments``, and the ``confidences`` mapping.
     2. Validate types at process time.
     3. Drive the candidates with a
-       :class:`~pirn_agents.specializations.routing._fallback_loop._FallbackLoop`
+       :class:`~pirn_agents.specializations.routing._fallback_loop.FallbackLoop`
        (``LoopSubTapestry``, ADR agents-speaks-core WS5b): each candidate is
        one real, individually-traceable
-       :class:`~pirn_agents.specializations.routing._candidate_attempt._CandidateAttempt`
+       :class:`~pirn_agents.specializations.routing._candidate_attempt.CandidateAttempt`
        invocation, skipping the call (no ``ToolInvocation``) when its
        confidence is below its ``min_confidence`` floor, or invoking the
        candidate's tool and folding the outcome in; once a candidate
@@ -38,9 +40,9 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.routing._fallback_chain_result import _FallbackChainResult
-from pirn_agents.specializations.routing._fallback_chain_state import _FallbackChainState
-from pirn_agents.specializations.routing._fallback_loop import _FallbackLoop
+from pirn_agents.specializations.routing._fallback_chain_result import FallbackChainResult
+from pirn_agents.specializations.routing._fallback_chain_state import FallbackChainState
+from pirn_agents.specializations.routing._fallback_loop import FallbackLoop
 from pirn_agents.specializations.routing.route_candidate import RouteCandidate
 
 
@@ -103,14 +105,14 @@ class FallbackChain(AgentPipeline):
 
         initial = Parameter(
             "initial",
-            _FallbackChainState,
-            default=_FallbackChainState(),
+            FallbackChainState,
+            default=FallbackChainState(),
         )
-        loop = _FallbackLoop(
+        loop = FallbackLoop(
             ordered=candidate_tuple,
             arguments=arguments,
             confidences=confidences,
             state=initial,
             _config=KnotConfig(id="fallback_loop"),
         )
-        return _FallbackChainResult(state=loop, _config=KnotConfig(id="result"))
+        return FallbackChainResult(state=loop, _config=KnotConfig(id="result"))

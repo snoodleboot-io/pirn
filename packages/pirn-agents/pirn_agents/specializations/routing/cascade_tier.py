@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``CascadeTier`` — one rung of a cost-ordered model cascade."""
 
 from __future__ import annotations

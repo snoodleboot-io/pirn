@@ -1,4 +1,4 @@
-"""``_RetryState`` — the value threaded through the parse-retry loop.
+"""``RetryState`` — the value threaded through the parse-retry loop.
 
 Internal API. See ``_retry_on_parse_failure_loop.py``.
 """
@@ -10,7 +10,7 @@ from typing import Any
 
 
 @dataclass(frozen=True)
-class _RetryState:
+class RetryState:
     """One attempt's worth of accumulated parse-retry state.
 
     Frozen; ``fold`` returns a new instance rather than mutating, matching

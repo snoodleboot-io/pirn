@@ -1,4 +1,4 @@
-"""``_NeedsRetrievalCheck`` — should this sentence trigger a forward retrieval?
+"""``NeedsRetrievalCheck`` — should this sentence trigger a forward retrieval?
 
 The ``Check`` (core role, ``pirn.nodes.check.Check``) behind the
 :class:`~pirn.nodes.gate.gate.Gate` that keeps the retrieval + regeneration
@@ -16,11 +16,11 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.check import Check
 
-from pirn_agents.specializations.rag._flare_reply_parser import _FlareReplyParser
+from pirn_agents.specializations.rag._flare_reply_parser import FlareReplyParser
 from pirn_agents.specializations.rag.sentence_confidence_monitor import SentenceConfidenceMonitor
 
 
-class _NeedsRetrievalCheck(Check):
+class NeedsRetrievalCheck(Check):
     """``True`` when the reply is low-confidence and the retrieval budget remains."""
 
     def __init__(
@@ -62,9 +62,9 @@ class _NeedsRetrievalCheck(Check):
             ``False`` when the reply signals ``DONE``, the budget is spent,
             or the sentence is already confident; ``True`` otherwise.
         """
-        if _FlareReplyParser.is_done(reply):
+        if FlareReplyParser.is_done(reply):
             return False
         if retrieval_calls_so_far >= max_retrieval_calls:
             return False
-        confidence, _sentence = _FlareReplyParser.parse(reply)
+        confidence, _sentence = FlareReplyParser.parse(reply)
         return SentenceConfidenceMonitor.needs_retrieval(confidence, confidence_threshold)

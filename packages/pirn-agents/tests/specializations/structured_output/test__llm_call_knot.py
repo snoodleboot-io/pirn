@@ -1,4 +1,4 @@
-"""Unit tests for :class:`_LLMCallKnot`."""
+"""Unit tests for :class:`LLMCallKnot`."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.structured_output._llm_call_knot import (
-    _LLMCallKnot,
+    LLMCallKnot,
 )
 from tests.specializations.conftest import StubLLMProvider
 
@@ -18,7 +18,7 @@ class TestLLMCallKnotProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_llm_text(self) -> None:
         llm = StubLLMProvider(["hello from llm"])
         with Tapestry() as t:
-            _LLMCallKnot(
+            LLMCallKnot(
                 prompt="say hello",
                 llm=llm,
                 _config=KnotConfig(id="lck"),
@@ -29,7 +29,7 @@ class TestLLMCallKnotProcess(unittest.IsolatedAsyncioTestCase):
     async def test_prompt_sent_to_llm(self) -> None:
         llm = StubLLMProvider(["response"])
         with Tapestry() as t:
-            _LLMCallKnot(
+            LLMCallKnot(
                 prompt="my custom prompt",
                 llm=llm,
                 _config=KnotConfig(id="lck"),
@@ -45,7 +45,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         # normally rather than via __new__ + a bare _config attribute.
         llm = StubLLMProvider(["direct result"])
         with Tapestry():
-            k = _LLMCallKnot(prompt="ask something", llm=llm, _config=KnotConfig(id="x"))
+            k = LLMCallKnot(prompt="ask something", llm=llm, _config=KnotConfig(id="x"))
         result = await k.process(prompt="ask something", llm=llm)
         assert isinstance(result, str)
         assert result == "direct result"

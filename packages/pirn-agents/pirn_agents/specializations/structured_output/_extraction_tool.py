@@ -1,4 +1,4 @@
-"""``_ExtractionTool`` — a synthetic single-purpose tool for forced extraction.
+"""``ExtractionTool`` — a synthetic single-purpose tool for forced extraction.
 
 An internal tool capability whose declared ``parameters`` are the target
 model's JSON schema. Forcing tool-choice to this one tool (S2) makes the
@@ -16,7 +16,7 @@ from typing import Any
 from pirn_agents.tools.tool_factory import ToolFactory
 
 
-class _ExtractionTool(ToolFactory):
+class ExtractionTool(ToolFactory):
     """A schema-shaped tool capability used only to force a structured tool call."""
 
     def __init__(

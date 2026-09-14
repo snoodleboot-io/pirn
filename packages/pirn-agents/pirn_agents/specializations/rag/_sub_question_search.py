@@ -1,4 +1,4 @@
-"""``_SubQuestionSearch`` — search the store for one sub-question."""
+"""``SubQuestionSearch`` — search the store for one sub-question."""
 
 from __future__ import annotations
 
@@ -7,17 +7,18 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.map import Map
 
 from pirn_agents.memory.stores.memory_store import MemoryStore
 
 
-class _SubQuestionSearch(Knot):
+class SubQuestionSearch(Knot):
     """Search the store for one sub-question and return its hits with provenance."""
 
     def __init__(
         self,
         *,
-        sub_question: Knot | str,
+        sub_question: Knot | Map | str,
         store: Knot | MemoryStore,
         top_k: Knot | int,
         _config: KnotConfig,

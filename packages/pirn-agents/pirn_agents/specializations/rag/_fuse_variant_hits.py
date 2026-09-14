@@ -1,4 +1,4 @@
-"""``_FuseVariantHits`` — Reduce ``combine`` target fusing per-variant rankings."""
+"""``FuseVariantHits`` — Reduce ``combine`` target fusing per-variant rankings."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from typing import Any
 from pirn_agents.retrieval.reciprocal_rank_fusion import ReciprocalRankFusion
 
 
-class _FuseVariantHits:
+class FuseVariantHits:
     """Reduce ``combine`` target: fuse per-variant rankings with RRF."""
 
     @staticmethod
@@ -31,7 +31,7 @@ class _FuseVariantHits:
         for hits in items:
             ranking: list[str] = []
             for hit in hits:
-                key = _FuseVariantHits._doc_key(hit)
+                key = FuseVariantHits._doc_key(hit)
                 representative.setdefault(key, hit)
                 ranking.append(key)
             rankings.append(ranking)

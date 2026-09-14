@@ -11,7 +11,7 @@ from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.retrieval.vector_stores.in_memory_vector_store import InMemoryVectorStore
-from pirn_agents.specializations.rag.indexing._raptor_assembler import _RaptorAssembler
+from pirn_agents.specializations.rag.indexing._raptor_assembler import RaptorAssembler
 from pirn_agents.specializations.rag.indexing.raptor_retriever import RaptorRetriever
 from pirn_agents.specializations.rag.indexing.raptor_tree import RaptorTree
 from pirn_agents.specializations.rag.indexing.raptor_tree_builder import RaptorTreeBuilder
@@ -108,7 +108,7 @@ class TestRaptorPerSummaryLineage(unittest.IsolatedAsyncioTestCase):
     ) -> tuple[Any, InMemoryHistory]:
         history = InMemoryHistory()
         with Tapestry(history=history) as t:
-            _RaptorAssembler(
+            RaptorAssembler(
                 chunks=["a", "b", "c", "d"],
                 llm=llm,
                 embedder=StubEmbeddingProvider(dimension=4),

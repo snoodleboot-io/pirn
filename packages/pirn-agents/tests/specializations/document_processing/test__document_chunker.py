@@ -1,4 +1,4 @@
-"""Unit tests for :class:`_DocumentChunker`."""
+"""Unit tests for :class:`DocumentChunker`."""
 
 from __future__ import annotations
 
@@ -8,13 +8,13 @@ from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.document_processing._document_chunker import (
-    _DocumentChunker,
+    DocumentChunker,
 )
 
 
-def _make_knot() -> _DocumentChunker:
+def _make_knot() -> DocumentChunker:
     with Tapestry():
-        return _DocumentChunker(
+        return DocumentChunker(
             text="",
             chunk_size=10,
             chunk_overlap=0,

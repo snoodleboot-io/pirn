@@ -1,4 +1,4 @@
-"""``_FlareResultExtractor`` — assemble the final :class:`AgentResponse`.
+"""``FlareResultExtractor`` — assemble the final :class:`AgentResponse`.
 
 Replaces the inline ``_ResultSource(Source)`` that closed over an
 already-computed :class:`AgentResponse` (ADR agents-speaks-core WS5b;
@@ -14,11 +14,11 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents.specializations.rag._flare_state import _FlareState
+from pirn_agents.specializations.rag._flare_state import FlareState
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
-class _FlareResultExtractor(Knot):
+class FlareResultExtractor(Knot):
     """Join the loop's accumulated sentences into the final :class:`AgentResponse`."""
 
     def __init__(
@@ -30,7 +30,7 @@ class _FlareResultExtractor(Knot):
     ) -> None:
         super().__init__(state=state, _config=_config, **kwargs)
 
-    async def process(self, state: _FlareState, **_: Any) -> AgentResponse:
+    async def process(self, state: FlareState, **_: Any) -> AgentResponse:
         """Join the loop's accumulated sentence parts into the final response.
 
         Args:

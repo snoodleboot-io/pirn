@@ -1,4 +1,4 @@
-"""``_JsonExtractorState`` — the value threaded through the extraction-retry loop.
+"""``JsonExtractorState`` — the value threaded through the extraction-retry loop.
 
 Internal API. See ``_json_extractor_loop.py``.
 """
@@ -11,7 +11,7 @@ from typing import Any
 
 
 @dataclass(frozen=True)
-class _JsonExtractorState:
+class JsonExtractorState:
     """One attempt's worth of accumulated JSON-extraction state.
 
     Frozen; ``fold`` returns a new instance rather than mutating, matching

@@ -1,14 +1,14 @@
-"""``_TierAttemptFold`` — fold a tier's model-call ``Result`` into cascade state.
+"""``TierAttemptFold`` — fold a tier's model-call ``Result`` into cascade state.
 
 Internal knot for
-:class:`~pirn_agents.specializations.routing._attempt_tier._AttemptTier`
+:class:`~pirn_agents.specializations.routing._attempt_tier.AttemptTier`
 (PIR-867). Wired with ``error_policy=RECEIVE_ERRORS`` over the tier's
 :class:`~pirn_agents.specializations.rag.llm_chat_call.LLMChatCall` knot
 (PIR-872), so ``outcome`` here is the call's raw ``Ok``/``Err`` — never
 short-circuited to a knot-level failure — exactly like
 :class:`~pirn_agents.specializations.react.react_step_executor._observation_assembler`
 does for a tool call. A failed invocation folds into an "escalate" decision
-the same way ``_AttemptTier.process()`` used to fold a caught exception,
+the same way ``AttemptTier.process()`` used to fold a caught exception,
 without the exception ever leaving the engine's own outcome handling.
 
 Internal API.
@@ -23,19 +23,20 @@ from pirn.core.err import Err
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.ok import Ok
+from pirn.core.skipped import Skipped
 
-from pirn_agents.specializations.routing._cascade_chain_state import _CascadeChainState
+from pirn_agents.specializations.routing._cascade_chain_state import CascadeChainState
 from pirn_agents.specializations.routing.cascade_outcome import CascadeOutcome
 from pirn_agents.specializations.routing.cascade_tier import CascadeTier
 
 
-class _TierAttemptFold(Knot):
+class TierAttemptFold(Knot):
     """Fold one tier invocation's outcome (success or failure) into cascade state."""
 
     def __init__(
         self,
         *,
-        prior: Knot | _CascadeChainState,
+        prior: Knot | CascadeChainState,
         tier: Knot | CascadeTier,
         index: Knot | int,
         confidence: Any,
@@ -57,14 +58,14 @@ class _TierAttemptFold(Knot):
 
     async def process(
         self,
-        prior: _CascadeChainState,
+        prior: CascadeChainState,
         tier: CascadeTier,
         index: int,
         confidence: Callable[[Any], Awaitable[float]],
         meter: Any,
-        outcome: Any,
+        outcome: Ok[str] | Err | Skipped,
         **_: Any,
-    ) -> _CascadeChainState:
+    ) -> CascadeChainState:
         """Fold this tier's invocation outcome into ``prior``.
 
         Args:
@@ -89,7 +90,7 @@ class _TierAttemptFold(Knot):
         if not isinstance(outcome, Ok):
             message = outcome.record.message if isinstance(outcome, Err) else "skipped"
             decisions.append(f"{tier.name}: failed ({message}) -> escalate")
-            return _CascadeChainState(
+            return CascadeChainState(
                 attempted=tuple(attempted),
                 decisions=tuple(decisions),
                 best_value=prior.best_value,
@@ -113,14 +114,14 @@ class _TierAttemptFold(Knot):
                 decisions=tuple(decisions),
                 confidence=score,
             )
-            return _CascadeChainState(
+            return CascadeChainState(
                 attempted=tuple(attempted),
                 decisions=tuple(decisions),
                 accepted_outcome=cascade_outcome,
                 locked=True,
             )
         decisions.append(f"{tier.name}: low confidence={score} -> escalate")
-        return _CascadeChainState(
+        return CascadeChainState(
             attempted=tuple(attempted),
             decisions=tuple(decisions),
             best_value=value,

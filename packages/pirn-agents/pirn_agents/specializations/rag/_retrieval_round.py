@@ -1,4 +1,4 @@
-"""``_RetrievalRound`` — search the store for the current round's query."""
+"""``RetrievalRound`` — search the store for the current round's query."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn_agents.memory.stores.memory_store import MemoryStore
 
 
-class _RetrievalRound(Knot):
+class RetrievalRound(Knot):
     """Search the store for the current round's query."""
 
     def __init__(

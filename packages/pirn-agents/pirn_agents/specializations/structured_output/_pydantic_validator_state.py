@@ -1,4 +1,4 @@
-"""``_PydanticValidatorState`` — the value threaded through the extraction-retry loop.
+"""``PydanticValidatorState`` — the value threaded through the extraction-retry loop.
 
 Internal API. See ``_pydantic_validator_loop.py``.
 """
@@ -11,7 +11,7 @@ from pydantic import BaseModel
 
 
 @dataclass(frozen=True)
-class _PydanticValidatorState:
+class PydanticValidatorState:
     """One attempt's worth of accumulated extraction + validation state.
 
     Frozen; ``fold`` returns a new instance rather than mutating, matching

@@ -1,4 +1,4 @@
-"""``_CascadeChainState`` — state threaded across cascade tiers."""
+"""``CascadeChainState`` — state threaded across cascade tiers."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from pirn_agents.specializations.routing.cascade_outcome import CascadeOutcome
 
 
 @dataclass
-class _CascadeChainState:
+class CascadeChainState:
     """State threaded across cascade tiers."""
 
     attempted: tuple[str, ...] = ()

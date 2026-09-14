@@ -1,4 +1,4 @@
-"""``_DocumentRelevanceScorer`` — score one document's relevance via the LLM."""
+"""``DocumentRelevanceScorer`` — score one document's relevance via the LLM."""
 
 from __future__ import annotations
 
@@ -7,13 +7,14 @@ from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.map import Map
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.llm_response_text import LlmResponseText
 
 
-class _DocumentRelevanceScorer(Knot):
+class DocumentRelevanceScorer(Knot):
     """Score one document's relevance to the query via the LLM.
 
     Algorithm:
@@ -42,7 +43,7 @@ class _DocumentRelevanceScorer(Knot):
         self,
         *,
         query: Knot | str,
-        document: Knot | Mapping[str, Any],
+        document: Knot | Map | Mapping[str, Any],
         llm: Knot | LLMProvider,
         _config: KnotConfig,
         **kwargs: Any,
@@ -67,8 +68,8 @@ class _DocumentRelevanceScorer(Knot):
             A ``(score, document)`` pair, ``score`` defaulting to 0.0 when the
             LLM's reply does not parse as a float.
         """
-        text = _DocumentRelevanceScorer._doc_text(document)
-        prompt = _DocumentRelevanceScorer._score_prompt.render({"query": query, "text": text})
+        text = DocumentRelevanceScorer._doc_text(document)
+        prompt = DocumentRelevanceScorer._score_prompt.render({"query": query, "text": text})
         raw = await llm.chat([{"role": "user", "content": prompt}])
         score_text = LlmResponseText().extract(raw).strip()
         try:

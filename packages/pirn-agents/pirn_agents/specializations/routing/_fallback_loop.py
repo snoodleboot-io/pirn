@@ -1,6 +1,6 @@
-"""``_FallbackLoop`` — try fallback candidates one at a time, stopping at the first success.
+"""``FallbackLoop`` — try fallback candidates one at a time, stopping at the first success.
 
-Replaces the static chain of one ``_CandidateAttempt`` knot per candidate that
+Replaces the static chain of one ``CandidateAttempt`` knot per candidate that
 ``FallbackChain`` unrolled up front — every candidate got a knot even after
 the chain had already locked, each locked candidate merely passing the state
 through unchanged — with a ``LoopSubTapestry`` that builds only the
@@ -22,15 +22,15 @@ from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.base.agent_loop_pipeline import AgentLoopPipeline
-from pirn_agents.specializations.routing._candidate_attempt import _CandidateAttempt
-from pirn_agents.specializations.routing._fallback_chain_state import _FallbackChainState
+from pirn_agents.specializations.routing._candidate_attempt import CandidateAttempt
+from pirn_agents.specializations.routing._fallback_chain_state import FallbackChainState
 from pirn_agents.specializations.routing.route_candidate import RouteCandidate
 
 if TYPE_CHECKING:
     from pirn.core.run_result import RunResult
 
 
-class _FallbackLoop(AgentLoopPipeline[_FallbackChainState]):
+class FallbackLoop(AgentLoopPipeline[FallbackChainState]):
     """Attempt fallback candidates in order, stopping at the first success."""
 
     #: Per-iteration knot id (Rule: no module-level constants).
@@ -49,7 +49,7 @@ class _FallbackLoop(AgentLoopPipeline[_FallbackChainState]):
         self._confidences = confidences
         super().__init__(**kwargs)
 
-    def step(self, state: _FallbackChainState) -> tuple[Tapestry, _FallbackChainState] | None:
+    def step(self, state: FallbackChainState) -> tuple[Tapestry, FallbackChainState] | None:
         """Build the next candidate's attempt, or None once locked or exhausted.
 
         Args:
@@ -65,7 +65,7 @@ class _FallbackLoop(AgentLoopPipeline[_FallbackChainState]):
 
         attempt = Tapestry()
         with attempt:
-            _CandidateAttempt(
+            CandidateAttempt(
                 prior=state,
                 candidate=self._ordered[index],
                 arguments=self._arguments,
@@ -74,19 +74,19 @@ class _FallbackLoop(AgentLoopPipeline[_FallbackChainState]):
             )
         return attempt, state
 
-    def fold(self, state: _FallbackChainState, result: RunResult) -> _FallbackChainState:
+    def fold(self, state: FallbackChainState, result: RunResult) -> FallbackChainState:
         """Adopt the candidate's folded state.
 
         Args:
-            state: State as ``step`` returned it (unused -- ``_CandidateAttempt``
+            state: State as ``step`` returned it (unused -- ``CandidateAttempt``
                 already folded ``prior`` into its own resolved output).
             result: The attempt's run result.
 
         Returns:
-            The state ``_CandidateAttempt`` returned.
+            The state ``CandidateAttempt`` returned.
         """
         return result.outputs[self._attempt_id]
 
-    def step_id(self, state: _FallbackChainState, idx: int) -> str:
+    def step_id(self, state: FallbackChainState, idx: int) -> str:
         """Name each attempt for run history."""
         return f"attempt_{idx}"

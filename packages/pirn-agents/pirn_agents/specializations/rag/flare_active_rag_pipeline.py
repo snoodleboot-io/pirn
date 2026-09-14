@@ -10,7 +10,7 @@ Algorithm:
     1. Validate ``query`` (str), ``memory`` (:class:`MemoryStore`), ``llm``
        (:class:`LLMProvider`), and the numeric budgets.
     2. Drive the rounds with a
-       :class:`~pirn_agents.specializations.rag._flare_loop._FlareLoop`
+       :class:`~pirn_agents.specializations.rag._flare_loop.FlareLoop`
        (``LoopSubTapestry``): each round's generation call is a real,
        individually-traceable knot, and the conditional retrieval +
        regeneration call is gated by a core
@@ -18,7 +18,7 @@ Algorithm:
        pair rather than a Python ``if`` inside a hand-rolled loop (ADR
        agents-speaks-core WS5b).
     3. Extract the assembled answer as an :class:`AgentResponse` with
-       :class:`~pirn_agents.specializations.rag._flare_result_extractor._FlareResultExtractor`.
+       :class:`~pirn_agents.specializations.rag._flare_result_extractor.FlareResultExtractor`.
 
 References:
     - Jiang et al., "Active Retrieval Augmented Generation" (FLARE, EMNLP 2023):
@@ -37,9 +37,9 @@ from pydantic import PositiveInt
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.rag._flare_loop import _FlareLoop
-from pirn_agents.specializations.rag._flare_result_extractor import _FlareResultExtractor
-from pirn_agents.specializations.rag._flare_state import _FlareState
+from pirn_agents.specializations.rag._flare_loop import FlareLoop
+from pirn_agents.specializations.rag._flare_result_extractor import FlareResultExtractor
+from pirn_agents.specializations.rag._flare_state import FlareState
 
 
 class FlareActiveRagPipeline(AgentPipeline):
@@ -97,10 +97,10 @@ class FlareActiveRagPipeline(AgentPipeline):
         """
         initial = Parameter(
             "flare_state",
-            _FlareState,
-            default=_FlareState(parts=(), retrieval_calls=0, done=False, index=0),
+            FlareState,
+            default=FlareState(parts=(), retrieval_calls=0, done=False, index=0),
         )
-        loop = _FlareLoop(
+        loop = FlareLoop(
             query=query,
             memory=memory,
             llm=llm,
@@ -111,4 +111,4 @@ class FlareActiveRagPipeline(AgentPipeline):
             state=initial,
             _config=KnotConfig(id="flare_loop"),
         )
-        return _FlareResultExtractor(state=loop, _config=KnotConfig(id="result"))
+        return FlareResultExtractor(state=loop, _config=KnotConfig(id="result"))

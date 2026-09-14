@@ -1,4 +1,4 @@
-"""``_PassThroughEnriched`` — Reduce ``combine`` target for enriched chunks."""
+"""``PassThroughEnriched`` — Reduce ``combine`` target for enriched chunks."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from typing import Any
 
 
-class _PassThroughEnriched:
+class PassThroughEnriched:
     """Reduce ``combine`` target: surface the enriched documents unchanged."""
 
     @staticmethod

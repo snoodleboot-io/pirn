@@ -1,4 +1,4 @@
-"""``_DropEmptyCompressions`` — Reduce ``combine`` target for compression."""
+"""``DropEmptyCompressions`` — Reduce ``combine`` target for compression."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from typing import Any
 
 
-class _DropEmptyCompressions:
+class DropEmptyCompressions:
     """Reduce ``combine`` target: drop documents compressed to nothing."""
 
     @staticmethod

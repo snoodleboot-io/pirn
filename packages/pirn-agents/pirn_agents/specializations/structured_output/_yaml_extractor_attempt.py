@@ -1,4 +1,4 @@
-"""``_YamlExtractorAttempt`` — internal helper Knot for :class:`YamlExtractorPipeline`.
+"""``YamlExtractorAttempt`` — internal helper Knot for :class:`YamlExtractorPipeline`.
 
 Single LLM attempt: builds the YAML prompt, calls the LLM, parses the
 YAML response, and returns either the parsed mapping or an error string
@@ -35,7 +35,7 @@ from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
 
 
-class _YamlExtractorAttempt(Knot):
+class YamlExtractorAttempt(Knot):
     """Single LLM attempt: build the YAML prompt, call the LLM, parse YAML."""
 
     _system_prompt: ClassVar[PromptBinding] = PromptBinding(
@@ -120,31 +120,28 @@ class _YamlExtractorAttempt(Knot):
             parsed = yaml.safe_load(text)
         except yaml.YAMLError as exc:
             return f"invalid YAML: {exc}"
-        if not isinstance(parsed, dict):
-            return f"expected YAML mapping at the root, got {type(parsed).__name__}"
-        if schema_dict is not None:
-            missing = [key for key in schema_dict if key not in parsed]
-            if missing:
-                return f"missing required keys: {sorted(missing)}"
-        return parsed
+        match parsed:
+            case {**fields}:
+                if schema_dict is not None:
+                    missing = [key for key in schema_dict if key not in fields]
+                    if missing:
+                        return f"missing required keys: {sorted(missing)}"
+                return fields
+            case _:
+                return f"expected YAML mapping at the root, got {type(parsed).__name__}"
 
     @staticmethod
-    def _extract_text(raw: Any) -> str:
-        if isinstance(raw, str):
-            return raw
-        if isinstance(raw, dict):
-            content = raw.get("content")
-            if isinstance(content, str):
+    def _extract_text(raw: Mapping[str, Any] | str) -> str:
+        match raw:
+            case str():
+                return raw
+            case {"content": str() as content}:
                 return content
-            if isinstance(content, list) and content:
-                first = content[0]
-                if isinstance(first, dict):
-                    text = first.get("text")
-                    if isinstance(text, str):
-                        return text
-                if isinstance(first, str):
-                    return first
-            text = raw.get("text")
-            if isinstance(text, str):
+            case {"content": [{"text": str() as text}, *_]}:
                 return text
-        return str(raw)
+            case {"content": [str() as first, *_]}:
+                return first
+            case {"text": str() as text}:
+                return text
+            case _:
+                return str(raw)

@@ -1,9 +1,9 @@
-"""``_YamlExtractorResultExtractor`` — final loop state to the public parsed mapping.
+"""``YamlExtractorResultExtractor`` — final loop state to the public parsed mapping.
 
-The loop's output is the accumulated ``_YamlExtractorState``;
+The loop's output is the accumulated ``YamlExtractorState``;
 ``YamlExtractorPipeline``'s contract is the bare parsed mapping (or a raised
 ``ValueError`` on exhaustion). This knot is the conversion, mirroring
-``_JsonExtractorResultExtractor``.
+``JsonExtractorResultExtractor``.
 
 Internal API. See PIR-856.
 """
@@ -17,11 +17,11 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.specializations.structured_output._yaml_extractor_state import (
-    _YamlExtractorState,
+    YamlExtractorState,
 )
 
 
-class _YamlExtractorResultExtractor(Knot):
+class YamlExtractorResultExtractor(Knot):
     """Convert the loop's final state into the pipeline's public parsed mapping."""
 
     def __init__(
@@ -33,7 +33,7 @@ class _YamlExtractorResultExtractor(Knot):
     ) -> None:
         super().__init__(state=state, _config=_config, **kwargs)
 
-    async def process(self, state: _YamlExtractorState, **_: Any) -> Mapping[str, Any]:
+    async def process(self, state: YamlExtractorState, **_: Any) -> Mapping[str, Any]:
         """Return the parsed mapping, or raise once retries are exhausted.
 
         Args:

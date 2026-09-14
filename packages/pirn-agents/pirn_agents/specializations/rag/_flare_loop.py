@@ -1,4 +1,4 @@
-"""``_FlareLoop`` — the sentence-by-sentence FLARE generation loop as a core node.
+"""``FlareLoop`` — the sentence-by-sentence FLARE generation loop as a core node.
 
 Replaces the hand-rolled ``for _step in range(max_sentences): await
 llm.chat(...)`` (with a nested, conditionally-awaited retrieval + regenerate
@@ -9,12 +9,12 @@ Each round wires:
 
 * ``generate`` — the next sentence, as ``DONE`` or ``CONF=<f>: <text>``.
 * ``needs_retrieval`` — a :class:`~pirn.nodes.check.Check`
-  (:class:`~pirn_agents.specializations.rag._needs_retrieval_check._NeedsRetrievalCheck`)
+  (:class:`~pirn_agents.specializations.rag._needs_retrieval_check.NeedsRetrievalCheck`)
   reading ``generate``'s reply, the confidence threshold, and the retrieval
   budget spent so far.
 * ``gated_reply`` — ``Gate(input=generate, check=needs_retrieval)``: the
   tentative sentence, retrieval, and regeneration all skip together when the
-  gate is closed, the same escalation-stops-here shape ``_AttemptTier`` and
+  gate is closed, the same escalation-stops-here shape ``AttemptTier`` and
   ``_ReflexionLoop`` use — so a confident sentence never pays for retrieval.
 * ``retrieve`` / ``regenerate`` — only reached when the gate is open.
 
@@ -37,12 +37,12 @@ from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.base.agent_loop_pipeline import AgentLoopPipeline
 from pirn_agents.specializations.rag._flare_regenerate_prompt_builder import (
-    _FlareRegeneratePromptBuilder,
+    FlareRegeneratePromptBuilder,
 )
-from pirn_agents.specializations.rag._flare_reply_parser import _FlareReplyParser
-from pirn_agents.specializations.rag._flare_sentence_extractor import _FlareSentenceExtractor
-from pirn_agents.specializations.rag._flare_state import _FlareState
-from pirn_agents.specializations.rag._needs_retrieval_check import _NeedsRetrievalCheck
+from pirn_agents.specializations.rag._flare_reply_parser import FlareReplyParser
+from pirn_agents.specializations.rag._flare_sentence_extractor import FlareSentenceExtractor
+from pirn_agents.specializations.rag._flare_state import FlareState
+from pirn_agents.specializations.rag._needs_retrieval_check import NeedsRetrievalCheck
 from pirn_agents.specializations.rag.llm_chat_call import LLMChatCall
 from pirn_agents.specializations.rag.memory_search_retriever import MemorySearchRetriever
 
@@ -50,7 +50,7 @@ if TYPE_CHECKING:
     from pirn.core.run_result import RunResult
 
 
-class _FlareLoop(AgentLoopPipeline[_FlareState]):
+class FlareLoop(AgentLoopPipeline[FlareState]):
     """Generate one sentence per round, retrieving forward on low confidence."""
 
     #: Per-iteration knot ids (Rule: no module-level constants).
@@ -87,7 +87,7 @@ class _FlareLoop(AgentLoopPipeline[_FlareState]):
         self._top_k = top_k
         super().__init__(**kwargs)
 
-    def step(self, state: _FlareState) -> tuple[Tapestry, _FlareState] | None:
+    def step(self, state: FlareState) -> tuple[Tapestry, FlareState] | None:
         """Build the next round, or None once done or the sentence cap is reached.
 
         Args:
@@ -107,7 +107,7 @@ class _FlareLoop(AgentLoopPipeline[_FlareState]):
             generate = LLMChatCall(
                 prompt=prompt, llm=self._llm, _config=KnotConfig(id=self._generate_id)
             )
-            needs_retrieval = _NeedsRetrievalCheck(
+            needs_retrieval = NeedsRetrievalCheck(
                 reply=generate,
                 confidence_threshold=self._confidence_threshold,
                 retrieval_calls_so_far=state.retrieval_calls,
@@ -117,14 +117,14 @@ class _FlareLoop(AgentLoopPipeline[_FlareState]):
             gated_reply = Gate(
                 input=generate, check=needs_retrieval, _config=KnotConfig(id="gated_reply")
             )
-            sentence = _FlareSentenceExtractor(reply=gated_reply, _config=KnotConfig(id="sentence"))
+            sentence = FlareSentenceExtractor(reply=gated_reply, _config=KnotConfig(id="sentence"))
             retrieved = MemorySearchRetriever(
                 store=self._memory,
                 query=sentence,
                 top_k=self._top_k,
                 _config=KnotConfig(id="retrieve"),
             )
-            prompt_builder = _FlareRegeneratePromptBuilder(
+            prompt_builder = FlareRegeneratePromptBuilder(
                 query=self._query,
                 sentence=sentence,
                 docs=retrieved,
@@ -135,7 +135,7 @@ class _FlareLoop(AgentLoopPipeline[_FlareState]):
             )
         return round_tapestry, state
 
-    def fold(self, state: _FlareState, result: RunResult) -> _FlareState:
+    def fold(self, state: FlareState, result: RunResult) -> FlareState:
         """Integrate this round's reply (regenerated, when retrieval ran) into state.
 
         Args:
@@ -149,12 +149,12 @@ class _FlareLoop(AgentLoopPipeline[_FlareState]):
         """
         reply = result.outputs[self._generate_id]
         index = state.index + 1
-        if _FlareReplyParser.is_done(reply):
-            return _FlareState(
+        if FlareReplyParser.is_done(reply):
+            return FlareState(
                 parts=state.parts, retrieval_calls=state.retrieval_calls, done=True, index=index
             )
 
-        _confidence, sentence = _FlareReplyParser.parse(reply)
+        _confidence, sentence = FlareReplyParser.parse(reply)
         regenerated = result.outputs.get(self._regenerate_id)
         retrieval_calls = state.retrieval_calls
         if regenerated is not None:
@@ -162,9 +162,9 @@ class _FlareLoop(AgentLoopPipeline[_FlareState]):
             retrieval_calls += 1
 
         parts = (*state.parts, sentence) if sentence else state.parts
-        return _FlareState(parts=parts, retrieval_calls=retrieval_calls, done=False, index=index)
+        return FlareState(parts=parts, retrieval_calls=retrieval_calls, done=False, index=index)
 
-    def step_id(self, state: _FlareState, idx: int) -> str:
+    def step_id(self, state: FlareState, idx: int) -> str:
         """Name each round for run history."""
         return f"sentence_{idx}"
 

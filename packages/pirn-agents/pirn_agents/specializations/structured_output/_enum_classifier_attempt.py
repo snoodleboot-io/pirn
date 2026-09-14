@@ -1,4 +1,4 @@
-"""``_EnumClassifierAttempt`` — internal helper Knot for :class:`EnumClassifierPipeline`.
+"""``EnumClassifierAttempt`` — internal helper Knot for :class:`EnumClassifierPipeline`.
 
 Single LLM call: builds the classification prompt, parses the LLM reply,
 and returns the matched label or raises :class:`ValueError` when no
@@ -19,7 +19,7 @@ References:
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
@@ -29,7 +29,7 @@ from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
 
 
-class _EnumClassifierAttempt(Knot):
+class EnumClassifierAttempt(Knot):
     """Single LLM call: prompt, parse the reply, return the matched label."""
 
     _system_prompt: ClassVar[PromptBinding] = PromptBinding(
@@ -90,22 +90,17 @@ class _EnumClassifierAttempt(Knot):
         )
 
     @staticmethod
-    def _extract_text(raw: Any) -> str:
-        if isinstance(raw, str):
-            return raw
-        if isinstance(raw, dict):
-            content = raw.get("content")
-            if isinstance(content, str):
+    def _extract_text(raw: Mapping[str, Any] | str) -> str:
+        match raw:
+            case str():
+                return raw
+            case {"content": str() as content}:
                 return content
-            if isinstance(content, list) and content:
-                first = content[0]
-                if isinstance(first, dict):
-                    text = first.get("text")
-                    if isinstance(text, str):
-                        return text
-                if isinstance(first, str):
-                    return first
-            text = raw.get("text")
-            if isinstance(text, str):
+            case {"content": [{"text": str() as text}, *_]}:
                 return text
-        return str(raw)
+            case {"content": [str() as first, *_]}:
+                return first
+            case {"text": str() as text}:
+                return text
+            case _:
+                return str(raw)

@@ -4,7 +4,7 @@ Replaces the inline ``_PromptChainResultSource(Source)`` that closed over an
 already-computed :class:`PromptChainResult` (ADR agents-speaks-core WS5b;
 PIR-856's imperative-loop inventory: a "returns inline Source" bypass). Pure
 extraction — no LLM/tool call here — mirroring
-``_RetryResultExtractor``/``_CascadeResult``.
+``RetryResultExtractor``/``CascadeResult``.
 
 Internal API. See PIR-856.
 """

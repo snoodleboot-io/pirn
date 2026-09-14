@@ -95,7 +95,7 @@ UNRUN_TAPESTRY: frozenset[str] = frozenset()
 #: runs via `process()`, never touching `.invoke()` itself), so it isn't
 #: listed. PIR-856 fixed three call sites (`ParallelToolCaller`, `ToolChain`,
 #: `ReActStepExecutor`). PIR-872 removed the last one: a cascade tier is a model
-#: call, so `CascadeTier` carries an `LLMProvider` and `_AttemptTier` wires the
+#: call, so `CascadeTier` carries an `LLMProvider` and `AttemptTier` wires the
 #: shared `LLMChatCall` knot for it — `CascadeTier.invoke` and its
 #: `_TierInvocation` wrapper are deleted. Kept as a `frozenset()` assertion so a
 #: future instance regresses loudly.

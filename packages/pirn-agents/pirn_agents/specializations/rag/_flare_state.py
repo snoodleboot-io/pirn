@@ -1,4 +1,4 @@
-"""``_FlareState`` — the value threaded through the FLARE sentence-generation loop.
+"""``FlareState`` — the value threaded through the FLARE sentence-generation loop.
 
 Internal API. See ``_flare_loop.py``.
 """
@@ -9,7 +9,7 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class _FlareState:
+class FlareState:
     """One round's worth of accumulated FLARE generation state.
 
     Frozen; ``afold`` returns a new instance rather than mutating, matching

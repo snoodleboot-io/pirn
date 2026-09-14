@@ -1,4 +1,4 @@
-"""``_PydanticValidatorLoop`` — the extract-and-validate retry loop as a core node.
+"""``PydanticValidatorLoop`` — the extract-and-validate retry loop as a core node.
 
 Replaces the hand-rolled ``for attempt_index in range(max_retries): ...
 await self._run_inner(...)`` that ran every attempt through a Python loop
@@ -8,7 +8,7 @@ PIR-856's imperative-loop inventory).
 
 ``model_class.model_validate`` is a synchronous, in-process call (no LLM or
 tool call), so it runs inside ``fold`` -- exactly where the original ran it
-inside the Python loop body -- mirroring how ``_RetryOnParseFailureLoop``
+inside the Python loop body -- mirroring how ``RetryOnParseFailureLoop``
 runs its ``parser`` callable in ``fold``.
 
 Internal API. See PIR-856.
@@ -27,17 +27,17 @@ from pydantic import BaseModel, ValidationError
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_loop_pipeline import AgentLoopPipeline
 from pirn_agents.specializations.structured_output._json_extractor_attempt import (
-    _JsonExtractorAttempt,
+    JsonExtractorAttempt,
 )
 from pirn_agents.specializations.structured_output._pydantic_validator_state import (
-    _PydanticValidatorState,
+    PydanticValidatorState,
 )
 
 if TYPE_CHECKING:
     from pirn.core.run_result import RunResult
 
 
-class _PydanticValidatorLoop(AgentLoopPipeline[_PydanticValidatorState]):
+class PydanticValidatorLoop(AgentLoopPipeline[PydanticValidatorState]):
     """Retry extraction + validation, feeding the error back, until it succeeds or is exhausted."""
 
     #: Per-iteration knot id (Rule: no module-level constants).
@@ -60,9 +60,7 @@ class _PydanticValidatorLoop(AgentLoopPipeline[_PydanticValidatorState]):
         self._max_retries = max_retries
         super().__init__(**kwargs)
 
-    def step(
-        self, state: _PydanticValidatorState
-    ) -> tuple[Tapestry, _PydanticValidatorState] | None:
+    def step(self, state: PydanticValidatorState) -> tuple[Tapestry, PydanticValidatorState] | None:
         """Build the next attempt, or return None once validated or exhausted.
 
         Args:
@@ -77,7 +75,7 @@ class _PydanticValidatorLoop(AgentLoopPipeline[_PydanticValidatorState]):
 
         attempt = Tapestry()
         with attempt:
-            _JsonExtractorAttempt(
+            JsonExtractorAttempt(
                 prompt=self._prompt,
                 llm=self._llm,
                 schema=self._schema,
@@ -86,7 +84,7 @@ class _PydanticValidatorLoop(AgentLoopPipeline[_PydanticValidatorState]):
             )
         return attempt, state
 
-    def fold(self, state: _PydanticValidatorState, result: RunResult) -> _PydanticValidatorState:
+    def fold(self, state: PydanticValidatorState, result: RunResult) -> PydanticValidatorState:
         """Validate the extracted mapping; record success or the error to feed back.
 
         Args:
@@ -100,24 +98,24 @@ class _PydanticValidatorLoop(AgentLoopPipeline[_PydanticValidatorState]):
         outcome = result.outputs[self._extract_id]
         if not isinstance(outcome, dict):
             error = str(outcome) if outcome is not None else "no output"
-            return _PydanticValidatorState(
+            return PydanticValidatorState(
                 prior_error=error, validated=None, last_error=error, attempts=state.attempts + 1
             )
         try:
             validated = self._model_class.model_validate(outcome)
         except ValidationError as exc:
             error = self._summarise_validation_error(exc)
-            return _PydanticValidatorState(
+            return PydanticValidatorState(
                 prior_error=error, validated=None, last_error=error, attempts=state.attempts + 1
             )
-        return _PydanticValidatorState(
+        return PydanticValidatorState(
             prior_error=state.prior_error,
             validated=validated,
             last_error=state.last_error,
             attempts=state.attempts + 1,
         )
 
-    def step_id(self, state: _PydanticValidatorState, idx: int) -> str:
+    def step_id(self, state: PydanticValidatorState, idx: int) -> str:
         """Name each attempt for run history."""
         return f"extract_{idx}"
 

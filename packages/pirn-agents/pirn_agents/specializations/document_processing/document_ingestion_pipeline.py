@@ -14,7 +14,7 @@ Algorithm:
        under the shared SSRF / path-traversal guards and returns its raw
        bytes; ``_DocumentAssembler`` decodes those bytes to text with no I/O
        of its own (PIR-868 split of the former ``_DocumentLoader`` ingestor).
-    2. ``_DocumentChunker`` partitions the text into overlapping windows of
+    2. ``DocumentChunker`` partitions the text into overlapping windows of
        ``chunk_size`` characters with ``overlap`` stride.
     3. ``_ChunkEmbedderStore`` calls the ``EmbeddingProvider`` once per chunk, then
        writes each ``(embedding, text)`` pair to the ``MemoryStore`` under the key
@@ -48,7 +48,7 @@ from pirn_agents.specializations.document_processing._document_assembler import 
     _DocumentAssembler,
 )
 from pirn_agents.specializations.document_processing._document_chunker import (
-    _DocumentChunker,
+    DocumentChunker,
 )
 from pirn_agents.specializations.document_processing._document_source import (
     _DocumentSource,
@@ -144,7 +144,7 @@ class DocumentIngestionPipeline(AgentPipeline):
             _config=KnotConfig(id="source"),
         )
         loaded = _DocumentAssembler(body=source_node, _config=KnotConfig(id="load"))
-        chunks = _DocumentChunker(
+        chunks = DocumentChunker(
             text=loaded,
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,

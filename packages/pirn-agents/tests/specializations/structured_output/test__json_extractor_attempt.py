@@ -1,4 +1,4 @@
-"""Unit tests for :class:`_JsonExtractorAttempt`."""
+"""Unit tests for :class:`JsonExtractorAttempt`."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.structured_output._json_extractor_attempt import (
-    _JsonExtractorAttempt,
+    JsonExtractorAttempt,
 )
 from tests.specializations.conftest import StubLLMProvider
 
@@ -19,7 +19,7 @@ class TestJsonExtractorAttemptProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_parsed_mapping_on_success(self) -> None:
         llm = StubLLMProvider(['{"name": "Alice", "age": 30}'])
         with Tapestry() as t:
-            _JsonExtractorAttempt(
+            JsonExtractorAttempt(
                 prompt="extract person",
                 llm=llm,
                 schema={"name": "string", "age": "integer"},
@@ -34,7 +34,7 @@ class TestJsonExtractorAttemptProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_error_string_on_invalid_json(self) -> None:
         llm = StubLLMProvider(["not valid json"])
         with Tapestry() as t:
-            _JsonExtractorAttempt(
+            JsonExtractorAttempt(
                 prompt="extract",
                 llm=llm,
                 schema={"x": "str"},
@@ -49,7 +49,7 @@ class TestJsonExtractorAttemptProcess(unittest.IsolatedAsyncioTestCase):
     async def test_returns_error_string_on_missing_keys(self) -> None:
         llm = StubLLMProvider(['{"name": "Bob"}'])
         with Tapestry() as t:
-            _JsonExtractorAttempt(
+            JsonExtractorAttempt(
                 prompt="extract",
                 llm=llm,
                 schema={"name": "str", "age": "int"},
@@ -64,7 +64,7 @@ class TestJsonExtractorAttemptProcess(unittest.IsolatedAsyncioTestCase):
     async def test_prior_error_included_in_system_prompt(self) -> None:
         llm = StubLLMProvider(['{"x": 1}'])
         with Tapestry() as t:
-            _JsonExtractorAttempt(
+            JsonExtractorAttempt(
                 prompt="extract",
                 llm=llm,
                 schema={"x": "int"},
@@ -80,7 +80,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_process_rejects_non_string_prompt(self) -> None:
         llm = StubLLMProvider(['{"x": 1}'])
         with Tapestry():
-            k = _JsonExtractorAttempt(
+            k = JsonExtractorAttempt(
                 prompt="p",
                 llm=llm,
                 schema={"x": "int"},

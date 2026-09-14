@@ -1,4 +1,4 @@
-"""``_UnionSubQuestionHits`` — Reduce ``combine`` target unioning hits."""
+"""``UnionSubQuestionHits`` — Reduce ``combine`` target unioning hits."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from typing import Any
 
 
-class _UnionSubQuestionHits:
+class UnionSubQuestionHits:
     """Reduce ``combine`` target: union per-sub-question hits, deduplicated."""
 
     @staticmethod
@@ -24,7 +24,7 @@ class _UnionSubQuestionHits:
         merged: dict[str, Mapping[str, Any]] = {}
         for sub_question, hits in items:
             for hit in hits:
-                key = _UnionSubQuestionHits._doc_key(hit)
+                key = UnionSubQuestionHits._doc_key(hit)
                 if key not in merged:
                     enriched = dict(hit)
                     enriched.setdefault("sub_question", sub_question)

@@ -30,7 +30,7 @@ class RAGResponseBuilder(Knot):
     def __init__(
         self,
         *,
-        answer: Knot,
+        answer: Knot | str,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:

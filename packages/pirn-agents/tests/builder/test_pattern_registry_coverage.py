@@ -58,16 +58,16 @@ _EXPECTED_EXCLUSIONS = frozenset(
         # constructor parameter is state only a driving loop can supply.
         "pirn_agents.specializations.react.react_step_executor.ReActStepExecutor",
         # Private: the loop body IterativeRetriever drives internally (PIR-856).
-        "pirn_agents.specializations.rag._iterative_retrieval_loop._IterativeRetrievalLoop",
+        "pirn_agents.specializations.rag._iterative_retrieval_loop.IterativeRetrievalLoop",
         # Private: the loop body RoundRobinReview drives internally
         # (ADR agents-speaks-core WS5a).
         "pirn_agents.specializations.multi_agent._round_robin_loop._RoundRobinLoop",
         # Private: the loop body AgenticRagPipeline drives internally (PIR-856).
-        "pirn_agents.specializations.rag._agentic_rag_loop._AgenticRagLoop",
+        "pirn_agents.specializations.rag._agentic_rag_loop.AgenticRagLoop",
         # Private: the loop body RetryOnParseFailure drives internally
         # (ADR agents-speaks-core WS5a).
         "pirn_agents.specializations.structured_output._retry_on_parse_failure_loop"
-        "._RetryOnParseFailureLoop",
+        ".RetryOnParseFailureLoop",
         # Private: the loop body SelfAskPipeline drives internally
         # (ADR agents-speaks-core WS5b).
         "pirn_agents.specializations.self_ask._self_ask_loop._SelfAskLoop",
@@ -80,40 +80,40 @@ _EXPECTED_EXCLUSIONS = frozenset(
         "._ConstitutionalFilterLoop",
         # Private: the loop body JsonExtractorPipeline drives internally
         # (ADR agents-speaks-core WS5b).
-        "pirn_agents.specializations.structured_output._json_extractor_loop._JsonExtractorLoop",
+        "pirn_agents.specializations.structured_output._json_extractor_loop.JsonExtractorLoop",
         # Private: the loop body YamlExtractorPipeline drives internally
         # (ADR agents-speaks-core WS5b).
-        "pirn_agents.specializations.structured_output._yaml_extractor_loop._YamlExtractorLoop",
+        "pirn_agents.specializations.structured_output._yaml_extractor_loop.YamlExtractorLoop",
         # Private: the loop body PydanticValidatorPipeline drives internally
         # (ADR agents-speaks-core WS5b).
         "pirn_agents.specializations.structured_output._pydantic_validator_loop"
-        "._PydanticValidatorLoop",
+        ".PydanticValidatorLoop",
         # Private: the loop body ReflexionPipeline drives internally
         # (ADR agents-speaks-core WS5b).
         "pirn_agents.specializations.reflexion._reflexion_loop._ReflexionLoop",
         # Private: the loop body FlareActiveRagPipeline drives internally
         # (ADR agents-speaks-core WS5b).
-        "pirn_agents.specializations.rag._flare_loop._FlareLoop",
+        "pirn_agents.specializations.rag._flare_loop.FlareLoop",
         # Private: the complex-route arm AdaptiveRAGPipeline drives internally,
         # gated as a whole knot behind its Branch arm (ADR agents-speaks-core
         # WS5b) -- not a loop body, but the same "internal component another
-        # pipeline wires, never named on its own" shape as _CandidateAttempt.
-        "pirn_agents.specializations.rag._complex_rag_arm._ComplexRagArm",
+        # pipeline wires, never named on its own" shape as CandidateAttempt.
+        "pirn_agents.specializations.rag._complex_rag_arm.ComplexRagArm",
         # Private: the loop body ModelCascadeRouter drives internally
         # (ADR agents-speaks-core WS5b).
-        "pirn_agents.specializations.routing._cascade_loop._CascadeLoop",
+        "pirn_agents.specializations.routing._cascade_loop.CascadeLoop",
         # Private: the loop body FallbackChain drives internally (ADR
         # agents-speaks-core WS5b).
-        "pirn_agents.specializations.routing._fallback_loop._FallbackLoop",
+        "pirn_agents.specializations.routing._fallback_loop.FallbackLoop",
         # Private: the per-candidate step FallbackChain drives internally (PIR-856).
-        "pirn_agents.specializations.routing._candidate_attempt._CandidateAttempt",
+        "pirn_agents.specializations.routing._candidate_attempt.CandidateAttempt",
         # PIR-867: newly AgentPipeline (was a plain Knot before its bypass fix)
         # — private fan-out bodies another pipeline drives internally.
         "pirn_agents.specializations.document_processing._chunk_embedder_store._ChunkEmbedderStore",
         "pirn_agents.specializations.document_processing._chunk_translator._ChunkTranslator",
         "pirn_agents.specializations.document_processing._ingestion_runner._IngestionRunner",
         "pirn_agents.specializations.plan_and_execute._plan_step_loop._PlanStepLoop",
-        "pirn_agents.specializations.routing._attempt_tier._AttemptTier",
+        "pirn_agents.specializations.routing._attempt_tier.AttemptTier",
         # PIR-867: public but composed-internally, the same shape as
         # ReActStepExecutor's exclusion above — reachable only through the
         # pipeline that wires it (FactCheck registers as "fact_check";
@@ -304,37 +304,37 @@ def test_the_excluded_bases_are_bases_and_the_excluded_private_is_private() -> N
         assert _qualified(base) in _EXPECTED_EXCLUSIONS
         assert base.__module__.startswith("pirn_agents.specializations.base")
     private = sorted(
-        name for name in _EXPECTED_EXCLUSIONS if name.rsplit(".", 1)[1].startswith("_")
+        name for name in _EXPECTED_EXCLUSIONS if name.rsplit(".", 2)[1].startswith("_")
     )
     assert private == sorted(
         [
             "pirn_agents.specializations.evaluator_optimizer._evaluator_optimizer_loop"
             "._EvaluatorOptimizerLoop",
-            "pirn_agents.specializations.rag._iterative_retrieval_loop._IterativeRetrievalLoop",
-            "pirn_agents.specializations.rag._agentic_rag_loop._AgenticRagLoop",
-            "pirn_agents.specializations.routing._candidate_attempt._CandidateAttempt",
+            "pirn_agents.specializations.rag._iterative_retrieval_loop.IterativeRetrievalLoop",
+            "pirn_agents.specializations.rag._agentic_rag_loop.AgenticRagLoop",
+            "pirn_agents.specializations.routing._candidate_attempt.CandidateAttempt",
             "pirn_agents.specializations.multi_agent._round_robin_loop._RoundRobinLoop",
             "pirn_agents.specializations.structured_output._retry_on_parse_failure_loop"
-            "._RetryOnParseFailureLoop",
+            ".RetryOnParseFailureLoop",
             "pirn_agents.specializations.self_ask._self_ask_loop._SelfAskLoop",
             "pirn_agents.specializations.prompt_chaining._prompt_chain_loop._PromptChainLoop",
             "pirn_agents.specializations.reflection._constitutional_filter_loop"
             "._ConstitutionalFilterLoop",
-            "pirn_agents.specializations.structured_output._json_extractor_loop._JsonExtractorLoop",
-            "pirn_agents.specializations.structured_output._yaml_extractor_loop._YamlExtractorLoop",
+            "pirn_agents.specializations.structured_output._json_extractor_loop.JsonExtractorLoop",
+            "pirn_agents.specializations.structured_output._yaml_extractor_loop.YamlExtractorLoop",
             "pirn_agents.specializations.structured_output._pydantic_validator_loop"
-            "._PydanticValidatorLoop",
+            ".PydanticValidatorLoop",
             "pirn_agents.specializations.reflexion._reflexion_loop._ReflexionLoop",
-            "pirn_agents.specializations.rag._flare_loop._FlareLoop",
-            "pirn_agents.specializations.rag._complex_rag_arm._ComplexRagArm",
-            "pirn_agents.specializations.routing._cascade_loop._CascadeLoop",
-            "pirn_agents.specializations.routing._fallback_loop._FallbackLoop",
+            "pirn_agents.specializations.rag._flare_loop.FlareLoop",
+            "pirn_agents.specializations.rag._complex_rag_arm.ComplexRagArm",
+            "pirn_agents.specializations.routing._cascade_loop.CascadeLoop",
+            "pirn_agents.specializations.routing._fallback_loop.FallbackLoop",
             "pirn_agents.specializations.document_processing._chunk_embedder_store"
             "._ChunkEmbedderStore",
             "pirn_agents.specializations.document_processing._chunk_translator._ChunkTranslator",
             "pirn_agents.specializations.document_processing._ingestion_runner._IngestionRunner",
             "pirn_agents.specializations.plan_and_execute._plan_step_loop._PlanStepLoop",
-            "pirn_agents.specializations.routing._attempt_tier._AttemptTier",
+            "pirn_agents.specializations.routing._attempt_tier.AttemptTier",
         ]
     )
     # Every exclusion falls into exactly one justified category: base,

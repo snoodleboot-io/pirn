@@ -1,16 +1,18 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``Reranker`` — LLM-based relevance re-ranking of retrieved documents.
 
 Takes a list of retrieved documents and a query, scores the relevance of each
 document, and returns the top-K reranked documents. Two interchangeable
 scoring backings are supported: the default LLM path (one
-:class:`~pirn_agents.specializations.rag._document_relevance_scorer._DocumentRelevanceScorer`
+:class:`~pirn_agents.specializations.rag._document_relevance_scorer.DocumentRelevanceScorer`
 invocation per document) and a provider-neutral
 :class:`~pirn_agents.retrieval.rerank.reranker_backend.RerankerBackend` (e.g.
 the cross-encoder adapter) injected via ``reranker``.
 
 The LLM path is expressed as a graph rather than a hand-rolled
 ``for doc in documents: await llm.chat(...)`` loop: each document becomes its
-own ``_DocumentRelevanceScorer`` invocation, fanned out with a core
+own ``DocumentRelevanceScorer`` invocation, fanned out with a core
 :class:`~pirn.nodes.map_markers.Map`, and folded back into the top-K list with
 a :class:`~pirn.nodes.reduce_.Reduce`. The engine schedules the per-document
 scorers concurrently — every ready sibling starts as its own task (PIR-841) —
@@ -24,9 +26,9 @@ Algorithm:
        ``reranker`` must be provided, ``top_k`` a positive integer.
     3. If ``documents`` is empty, return ``[]`` immediately (as a real graph
        node, via :class:`~pirn.core.parameter.Parameter`).
-    4. Backend path — a single ``_BackendRerank`` invocation scores every
+    4. Backend path — a single ``BackendRerank`` invocation scores every
        document in one call.
-    5. LLM path — one ``_DocumentRelevanceScorer`` invocation per document,
+    5. LLM path — one ``DocumentRelevanceScorer`` invocation per document,
        fanned out with ``Map``; each parses its LLM reply as a float in
        [0.0, 1.0], defaulting to 0.0 on parse error.
     6. A :class:`~pirn.nodes.reduce_.Reduce` sorts the ``(score, document)``
@@ -60,9 +62,9 @@ from pirn.nodes.reduce_ import Reduce
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.retrieval.rerank.reranker_backend import RerankerBackend
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.rag._backend_rerank import _BackendRerank
-from pirn_agents.specializations.rag._document_relevance_scorer import _DocumentRelevanceScorer
-from pirn_agents.specializations.rag._top_k_by_score import _TopKByScore
+from pirn_agents.specializations.rag._backend_rerank import BackendRerank
+from pirn_agents.specializations.rag._document_relevance_scorer import DocumentRelevanceScorer
+from pirn_agents.specializations.rag._top_k_by_score import TopKByScore
 
 
 class Reranker(AgentPipeline):
@@ -70,7 +72,7 @@ class Reranker(AgentPipeline):
 
     Two interchangeable scoring backings are supported: the default LLM path
     (score each document with an :class:`LLMProvider`, fanned out over a
-    ``_DocumentRelevanceScorer`` per document) and a provider-neutral
+    ``DocumentRelevanceScorer`` per document) and a provider-neutral
     :class:`~pirn_agents.retrieval.rerank.reranker_backend.RerankerBackend` (e.g. the
     cross-encoder adapter) injected via ``reranker``. Exactly one of ``llm`` or
     ``reranker`` must be supplied.
@@ -145,7 +147,7 @@ class Reranker(AgentPipeline):
             )
 
         if reranker is not None:
-            return _BackendRerank(
+            return BackendRerank(
                 query=query,
                 documents=documents,
                 reranker=reranker,
@@ -160,18 +162,14 @@ class Reranker(AgentPipeline):
             default=documents,
             _config=KnotConfig(id="documents"),
         )
-        scored = _DocumentRelevanceScorer(
+        scored = DocumentRelevanceScorer(
             query=query,
-            # Core's Map marker is consumed at construction by
-            # `knot.py:199-205` and is deliberately not a Knot, so it does not
-            # satisfy the declared `Knot | Mapping`. Inline suppression is the
-            # house idiom for this; see PIR-715/PIR-716.
-            document=Map(documents_knot),  # pyright: ignore[reportArgumentType]
+            document=Map(documents_knot),
             llm=llm,
             _config=KnotConfig(id="score_each"),
         )
         return Reduce(
             of=scored,
-            combine=functools.partial(_TopKByScore.combine, top_k=top_k),
+            combine=functools.partial(TopKByScore.combine, top_k=top_k),
             _config=KnotConfig(id="top_k"),
         )

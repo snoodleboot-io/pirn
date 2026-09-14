@@ -1,4 +1,4 @@
-"""``_MergeHits`` — union this round's hits into the accumulated set."""
+"""``MergeHits`` — union this round's hits into the accumulated set."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 
-class _MergeHits(Knot):
+class MergeHits(Knot):
     """Union this round's hits into the accumulated, deduplicated set."""
 
     def __init__(
@@ -44,7 +44,7 @@ class _MergeHits(Knot):
         """
         merged = dict(prior_merged)
         for hit in hits:
-            key = _MergeHits._doc_key(hit)
+            key = MergeHits._doc_key(hit)
             if key not in merged:
                 enriched = dict(hit)
                 enriched.setdefault("iteration", iteration)

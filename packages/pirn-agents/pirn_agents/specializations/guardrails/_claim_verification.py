@@ -1,4 +1,4 @@
-"""``_ClaimVerification`` — search a memory store for support of one claim.
+"""``ClaimVerification`` — search a memory store for support of one claim.
 
 Internal per-claim knot for
 :class:`~pirn_agents.specializations.guardrails.fact_claim_verifier.FactClaimVerifier`'s
@@ -19,7 +19,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn_agents.memory.stores.memory_store import MemoryStore
 
 
-class _ClaimVerification(Knot):
+class ClaimVerification(Knot):
     """Search the memory store for one claim; ``True`` when at least one hit."""
 
     def __init__(

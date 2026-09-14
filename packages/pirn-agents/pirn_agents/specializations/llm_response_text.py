@@ -8,13 +8,14 @@ module centralises that so each pattern does not re-implement it.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 
 class LlmResponseText:
     """Normalise a provider chat-completion value down to plain text."""
 
-    def extract(self, raw: Any) -> str:
+    def extract(self, raw: Mapping[str, Any] | str) -> str:
         """Return the plain-text body of a chat-completion response.
 
         Args:
@@ -26,16 +27,12 @@ class LlmResponseText:
             The extracted text, or ``str(raw)`` as a last resort when no known
             shape matches.
         """
-        if isinstance(raw, str):
-            return raw
-        if isinstance(raw, dict):
-            content = raw.get("content")
-            if isinstance(content, str):
+        match raw:
+            case str():
+                return raw
+            case {"content": str() as content}:
                 return content
-            if isinstance(content, list) and content:
-                first = content[0]
-                if isinstance(first, dict):
-                    text = first.get("text")
-                    if isinstance(text, str):
-                        return text
-        return str(raw)
+            case {"content": [{"text": str() as text}, *_]}:
+                return text
+            case _:
+                return str(raw)
