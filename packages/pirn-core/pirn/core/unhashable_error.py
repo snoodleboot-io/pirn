@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from pirn.exceptions.pirn_error import PirnError
 
-class UnhashableError(Exception):
+
+class UnhashableError(PirnError):
     """Internal sentinel used by ``ContentHasher._canonicalise`` to bail on opaque values.
 
     Carries the offending leaf's type name so ``ContentHasher.hash(...,
