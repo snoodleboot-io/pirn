@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``AudioBlock`` — the audio variant of the content-block union (F15-S1)."""
 
 from __future__ import annotations
@@ -55,6 +57,6 @@ class AudioBlock(ContentBlock):
     def _pirn_audit_dict(self) -> dict[str, Any]:
         return {
             "modality": "audio",
-            "source": self.source._pirn_audit_dict(),
+            "source": self._audit_value(self.source),
             "transcript": self.transcript,
         }

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``AgentSpec`` — declarative, serialisable description of an agent graph.
 
 An :class:`AgentSpec` is the config-driven counterpart of the fluent
@@ -16,7 +18,7 @@ producing a half-wired agent.
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
@@ -25,6 +27,7 @@ from pirn.yaml_loader.specs.knot_spec import KnotSpec
 from pirn.yaml_loader.specs.pipeline_spec import PipelineSpec
 from pirn.yaml_loader.specs.yaml_parameter_spec import YamlParameterSpec
 
+from pirn_agents._internal.json_shape import JsonShape
 from pirn_agents.builder.agent_pattern_registry import AgentPatternRegistry
 
 
@@ -69,8 +72,10 @@ class AgentSpec(PirnOpaqueValue):
     llm: str | None = None
     memory: str | None = None
     tools: tuple[str, ...] = ()
-    components: Mapping[str, str] = field(default_factory=dict)
-    options: Mapping[str, str | int | float | bool] = field(default_factory=dict)
+    components: Mapping[str, str] = field(default_factory=dict[str, str])
+    options: Mapping[str, str | int | float | bool] = field(
+        default_factory=dict[str, str | int | float | bool]
+    )
 
     def __post_init__(self) -> None:
         """Validate field types and value domains.
@@ -163,7 +168,7 @@ class AgentSpec(PirnOpaqueValue):
         if "pattern" not in data:
             raise ValueError("AgentSpec.from_dict: required field 'pattern' is missing")
         raw_tools = data.get("tools", ())
-        if isinstance(raw_tools, str) or not isinstance(raw_tools, Sequence):
+        if isinstance(raw_tools, str) or not JsonShape.is_sequence(raw_tools):
             raise TypeError(
                 f"AgentSpec.from_dict: tools must be a sequence, got {type(raw_tools).__name__}"
             )

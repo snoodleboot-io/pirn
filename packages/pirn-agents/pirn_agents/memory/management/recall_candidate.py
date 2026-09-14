@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``RecallCandidate`` — a record paired with its raw query-relevance score.
 
 Ranked recall takes candidates the retrieval layer already scored: a

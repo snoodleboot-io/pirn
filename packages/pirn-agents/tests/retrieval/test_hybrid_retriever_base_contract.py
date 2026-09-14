@@ -97,16 +97,26 @@ def test_hybrid_graph_retriever_overrides_base_process() -> None:
     assert HybridGraphRetriever.process is not HybridRetrieverBase.process
 
 
-def test_base_process_signature_returns_list_of_mappings() -> None:
-    """Guard that the base declares the umbrella ``list[Mapping]`` return type."""
+def test_base_is_generic_in_process_return_per_concrete() -> None:
+    """A leaf hybrid retriever returns hits; a SubTapestry one returns its inner graph."""
     # Arrange
-    import inspect
+    import typing
 
+    from pirn.core.knot import Knot
+
+    from pirn_agents.retrieval.graph_rag.hybrid_graph_retriever import HybridGraphRetriever
+    from pirn_agents.retrieval.hybrid_retriever import HybridRetriever
     from pirn_agents.retrieval.hybrid_retriever_base import HybridRetrieverBase
 
     # Act
-    signature = inspect.signature(HybridRetrieverBase.process)
+    graph_base = HybridGraphRetriever.__orig_bases__[0]
+    dense_base = next(
+        base
+        for base in HybridRetriever.__orig_bases__
+        if typing.get_origin(base) is HybridRetrieverBase
+    )
 
-    # Assert -- the annotation resolves to list[Mapping[str, Any]] at authoring time.
-    expected: Any = list[Mapping[str, Any]]
-    assert signature.return_annotation in (expected, "list[Mapping[str, Any]]")
+    # Assert
+    assert typing.get_origin(graph_base) is HybridRetrieverBase
+    assert typing.get_args(graph_base) == (list[Mapping[str, Any]],)
+    assert typing.get_args(dense_base) == (Knot,)

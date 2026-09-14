@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``AgentReferences`` — bind the labels in an :class:`AgentSpec` to live objects.
 
 A spec is data: it names its LLM provider, memory store, tools and components by
@@ -35,7 +37,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from typing import Any
 
-from pirn_agents.builder._constant_thunk import _ConstantThunk
+from pirn_agents.builder.constant_thunk import ConstantThunk
 from pirn_agents.tools.tool_factory import ToolFactory
 
 
@@ -138,4 +140,4 @@ class AgentReferences:
             A fresh mapping, safe to pass straight to ``PipelineLoader.load_yaml`` or to
             merge with other ``known_callables`` entries.
         """
-        return {label: _ConstantThunk(value, label=label) for label, value in self._objects.items()}
+        return {label: ConstantThunk(value, label=label) for label, value in self._objects.items()}

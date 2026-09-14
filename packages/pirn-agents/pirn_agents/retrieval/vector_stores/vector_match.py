@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``VectorMatch`` — one scored hit returned by a vector query.
 
 The neutral read unit every
@@ -37,7 +39,7 @@ class VectorMatch(PirnOpaqueValue):
 
     id: str
     score: float
-    metadata: Mapping[str, Any] = field(default_factory=dict)
+    metadata: Mapping[str, Any] = field(default_factory=dict[str, Any])
     document: str | None = None
 
     def __post_init__(self) -> None:

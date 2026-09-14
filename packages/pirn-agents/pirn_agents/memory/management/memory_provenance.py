@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MemoryProvenance`` — where a memory came from and how much to trust it.
 
 Every :class:`~pirn_agents.memory.management.memory_record.MemoryRecord` carries a
@@ -25,12 +27,13 @@ defaults.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
+
+from pirn_agents._internal.json_shape import JsonShape
 
 
 @dataclass(frozen=True)
@@ -126,7 +129,7 @@ class MemoryProvenance(PirnOpaqueValue):
         Raises:
             TypeError: If ``payload`` is not a mapping.
         """
-        if not isinstance(payload, Mapping):
+        if not JsonShape.is_mapping(payload):
             raise TypeError(
                 f"MemoryProvenance.from_payload: payload must be a Mapping, "
                 f"got {type(payload).__name__}"

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PromptTemplate`` — a typed, versioned prompt template with safe rendering.
 
 A template pairs a ``(name, version)`` identity with a body containing
@@ -52,7 +54,7 @@ class PromptTemplate(PirnOpaqueValue):
     name: str
     version: str
     template: str
-    partials: Mapping[str, str] = field(default_factory=dict)
+    partials: Mapping[str, str] = field(default_factory=dict[str, str])
     description: str = ""
 
     def __post_init__(self) -> None:

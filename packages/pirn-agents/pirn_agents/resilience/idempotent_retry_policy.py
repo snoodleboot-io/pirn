@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``IdempotentRetryPolicy`` — retry only safe calls, reusing one key.
 
 Ties the three S5 pieces together: it assigns a stable idempotency key once via

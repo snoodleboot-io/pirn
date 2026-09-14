@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ToolOutputSanitizer`` — clean tool output before it re-enters the prompt.
 
 The sanitizer runs three cheap, inline passes over a raw tool payload:

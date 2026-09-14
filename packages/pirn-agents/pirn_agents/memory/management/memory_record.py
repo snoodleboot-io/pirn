@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MemoryRecord`` — one typed, provenance-carrying unit of agent memory.
 
 The single value object every F27 memory-management piece reads and writes.
@@ -38,6 +40,7 @@ from typing import Any
 
 from pirn.core.payload import Payload
 
+from pirn_agents._internal.json_shape import JsonShape
 from pirn_agents.memory.management.memory_content import MemoryContent
 from pirn_agents.memory.management.memory_kind import MemoryKind
 from pirn_agents.memory.management.memory_kind_guard import MemoryKindGuard
@@ -115,7 +118,7 @@ class MemoryRecord(Payload[MemoryProvenance, MemoryContent]):
         )
         super().__init__(metadata=frame, data=data)
 
-    # -- domain-readable aliases, backed by Payload.metadata / Payload.data --
+    # -- domain-readable properties, backed by Payload.metadata / Payload.data --
 
     @property
     def id(self) -> str:
@@ -256,7 +259,7 @@ class MemoryRecord(Payload[MemoryProvenance, MemoryContent]):
         Raises:
             TypeError: If ``payload`` is not a mapping.
         """
-        if not isinstance(payload, Mapping):
+        if not JsonShape.is_mapping(payload):
             raise TypeError(
                 f"MemoryRecord.from_payload: payload must be a Mapping, "
                 f"got {type(payload).__name__}"

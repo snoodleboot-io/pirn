@@ -23,6 +23,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from pirn_agents._internal.json_shape import JsonShape
 from pirn_agents.llm.base_llm_provider import BaseLLMProvider
 from pirn_agents.specializations.structured_output.structured_output_provider import (
     StructuredOutputProvider,
@@ -78,9 +79,9 @@ class HttpStructuredOutputProvider(BaseLLMProvider, StructuredOutputProvider):
         """
         merged = dict(payload)
         for key, value in request_options.items():
-            if key == "extra_body" and isinstance(value, Mapping):
+            if key == "extra_body" and JsonShape.is_mapping(value):
                 existing = merged.get("extra_body")
-                base = dict(existing) if isinstance(existing, Mapping) else {}
+                base = dict(existing) if JsonShape.is_mapping(existing) else {}
                 merged["extra_body"] = {**base, **dict(value)}
             else:
                 merged[key] = value

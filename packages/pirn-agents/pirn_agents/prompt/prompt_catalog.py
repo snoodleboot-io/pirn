@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PromptCatalog`` — the lookup layer a :class:`PromptBinding` resolves against.
 
 A catalog wraps a :class:`PromptTemplateRegistry` and adds the two things a

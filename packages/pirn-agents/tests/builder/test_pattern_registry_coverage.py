@@ -135,7 +135,7 @@ _REGISTRY_ONLY_EXCLUSIONS = frozenset(
     {
         # Internal stage: the loop body FailoverChain drives internally (ADR
         # agents-speaks-core WS5b); lives in resilience/, not specializations/.
-        "pirn_agents.resilience._failover_loop._FailoverLoop",
+        "pirn_agents.resilience.failover_loop.FailoverLoop",
     }
 )
 

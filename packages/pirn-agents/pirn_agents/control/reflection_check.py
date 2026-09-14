@@ -20,9 +20,7 @@ from typing import Any, ClassVar
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents._internal._json_shape import (
-    _JsonShape,  # pyright: ignore[reportPrivateUsage]  # package-internal helper
-)
+from pirn_agents._internal.json_shape import JsonShape
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.types.messaging.agent_response import AgentResponse
@@ -107,14 +105,14 @@ class ReflectionCheck(Knot):
 
     def _text_from_mapping(self, raw: Any) -> str | None:
         """Return the text carried by a chat-completion mapping, or ``None``."""
-        if not _JsonShape.is_dict(raw):
+        if not JsonShape.is_dict(raw):
             return None
         content = raw.get("content")
         if isinstance(content, str):
             return content
-        if _JsonShape.is_list(content) and content:
+        if JsonShape.is_list(content) and content:
             first = content[0]
-            if _JsonShape.is_dict(first):
+            if JsonShape.is_dict(first):
                 text = first.get("text")
                 if isinstance(text, str):
                     return text

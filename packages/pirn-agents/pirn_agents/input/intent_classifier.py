@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``IntentClassifier`` — pick the closest declared intent for a context.
 
 Algorithm:
@@ -23,6 +25,7 @@ from typing import Any, ClassVar
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents._internal.json_shape import JsonShape
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.types.messaging.conversation_payload import ConversationPayload
@@ -129,14 +132,16 @@ class IntentClassifier(Knot):
     def _extract_text(self, response: Any) -> str:
         if isinstance(response, str):
             return response
-        if isinstance(response, dict):
+        if JsonShape.is_dict(response):
             content = response.get("content")
             if isinstance(content, str):
                 return content
-            if isinstance(content, list) and content:
+            if JsonShape.is_list(content) and content:
                 first = content[0]
-                if isinstance(first, dict) and isinstance(first.get("text"), str):
-                    return first["text"]
+                if JsonShape.is_dict(first):
+                    text = first.get("text")
+                    if isinstance(text, str):
+                        return text
         raise TypeError(
             "IntentClassifier: cannot extract text from LLM response of type "
             f"{type(response).__name__}"

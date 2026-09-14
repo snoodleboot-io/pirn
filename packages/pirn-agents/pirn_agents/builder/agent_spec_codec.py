@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``AgentSpecCodec`` — round-trips an :class:`AgentBuilder` through :class:`AgentSpec`.
 
 Extracted from :class:`~pirn_agents.builder.agent_builder.AgentBuilder` (PIR-856,
@@ -101,9 +103,9 @@ class AgentSpecCodec:
             raise ValueError("AgentBuilder.to_spec: no pattern selected; call .pattern(...)")
         return AgentSpec(
             pattern=pattern,
-            llm=builder._component_label("llm"),
-            memory=builder._component_label("memory"),
+            llm=builder.component_label("llm"),
+            memory=builder.component_label("memory"),
             tools=tuple(tool.name for tool in builder.tool_list),
-            components=builder._component_labels(),
+            components=builder.component_labels(),
             options=dict(builder.options),
         )

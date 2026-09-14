@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MediaHandle`` — a by-reference or inline pointer to binary media (F15-S1).
 
 Image / audio / file content blocks do not embed their bytes in the message

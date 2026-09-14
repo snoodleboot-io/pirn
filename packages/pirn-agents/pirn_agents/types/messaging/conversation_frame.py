@@ -42,7 +42,7 @@ class ConversationFrame(PirnOpaqueValue):
     turn_id: str | None = None
     token_count: int = 0
     truncated: bool = False
-    extra: Mapping[str, Any] = field(default_factory=dict)
+    extra: Mapping[str, Any] = field(default_factory=dict[str, Any])
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
         return {

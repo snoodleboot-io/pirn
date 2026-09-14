@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``CompactionRequest`` — the input bundle for a compaction pass.
 
 Bundling the inputs into one stable value is what makes
@@ -70,9 +72,14 @@ class CompactionRequest(PirnOpaqueValue):
             return self.budget.available()
         return self.budget
 
+    @staticmethod
+    def _audit_all(values: tuple[PirnOpaqueValue, ...]) -> list[Any]:
+        """Audit each child through the ``PirnOpaqueValue`` contract it shares with this value."""
+        return [value._pirn_audit_dict() for value in values]
+
     def _pirn_audit_dict(self) -> dict[str, Any]:
         return {
-            "items": [item._pirn_audit_dict() for item in self.items],
+            "items": self._audit_all(self.items),
             "available_tokens": self.available_tokens(),
             "fill_threshold": self.fill_threshold,
             "persist_key": self.persist_key,

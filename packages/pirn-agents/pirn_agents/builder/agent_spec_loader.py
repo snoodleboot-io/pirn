@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``AgentSpecLoader`` — parse/serialise :class:`AgentSpec` from JSON and YAML.
 
 JSON support uses only the standard library. YAML support is lazily provided
@@ -18,13 +20,11 @@ single-knot-plus-tagged-parameters shape
 ``PipelineSpec`` and converted via
 :meth:`~pirn_agents.builder.agent_spec.AgentSpec.from_pipeline_spec`.
 
-The legacy flat dialect — a top-level ``pattern``/``llm``/``memory``/
-``tools``/``components``/``options`` mapping, with no converter to core's own
-vocabulary — was accepted here for one deprecation cycle and is now deleted
-(PIR-864); a mapping with no top-level ``nodes`` key is rejected.
-:meth:`~pirn_agents.builder.agent_spec.AgentSpec.from_dict` still constructs
-an :class:`AgentSpec` directly from that flat shape for a caller that already
-has one in hand — only this loader's text-parsing dispatch onto it is gone.
+A mapping with no top-level ``nodes`` key is rejected: this loader parses only
+core pipeline documents (the flat ``pattern``/``llm``/``memory``/``tools``/
+``components``/``options`` dialect it once read is deleted, PIR-864).
+:meth:`~pirn_agents.builder.agent_spec.AgentSpec.from_dict` constructs an
+:class:`AgentSpec` directly from a flat mapping a caller already has in hand.
 """
 
 from __future__ import annotations
@@ -36,6 +36,7 @@ from typing import Any
 
 from pirn.yaml_loader.specs.pipeline_spec import PipelineSpec
 
+from pirn_agents._internal.json_shape import JsonShape
 from pirn_agents._internal.optional_import import OptionalImport
 from pirn_agents.builder.agent_spec import AgentSpec
 from pirn_agents.tools.filesystem._path_guard import PathGuard
@@ -50,9 +51,8 @@ class AgentSpecLoader:
 
         Raises:
             TypeError: If ``data`` is not a mapping.
-            ValueError: If ``data`` has no top-level ``"nodes"`` key (the
-                legacy flat dialect, deleted PIR-864), or the pipeline
-                document is otherwise invalid (see
+            ValueError: If ``data`` has no top-level ``"nodes"`` key, or the
+                pipeline document is otherwise invalid (see
                 :meth:`~pirn_agents.builder.agent_spec.AgentSpec.from_pipeline_spec`).
         """
         if not isinstance(data, Mapping):
@@ -85,7 +85,7 @@ class AgentSpecLoader:
             parsed = json.loads(text)
         except json.JSONDecodeError as exc:
             raise ValueError(f"AgentSpecLoader.from_json: invalid JSON: {exc}") from exc
-        if not isinstance(parsed, dict):
+        if not JsonShape.is_dict(parsed):
             raise TypeError(
                 f"AgentSpecLoader.from_json: top-level JSON must be an object, "
                 f"got {type(parsed).__name__}"
@@ -109,7 +109,7 @@ class AgentSpecLoader:
             parsed = yaml.safe_load(text)
         except yaml.YAMLError as exc:
             raise ValueError(f"AgentSpecLoader.from_yaml: invalid YAML: {exc}") from exc
-        if not isinstance(parsed, dict):
+        if not JsonShape.is_dict(parsed):
             raise TypeError(
                 f"AgentSpecLoader.from_yaml: top-level YAML must be a mapping, "
                 f"got {type(parsed).__name__}"

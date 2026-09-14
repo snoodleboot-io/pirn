@@ -19,6 +19,8 @@ This base declares only the two projections every block shares:
 
 from __future__ import annotations
 
+from typing import Any
+
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 
@@ -44,3 +46,8 @@ class ContentBlock(PirnOpaqueValue):
         returns its text and media blocks return any caption they carry.
         """
         return ""
+
+    @staticmethod
+    def _audit_value(value: PirnOpaqueValue) -> Any:
+        """Audit a nested value through the ``PirnOpaqueValue`` contract every block shares."""
+        return value._pirn_audit_dict()

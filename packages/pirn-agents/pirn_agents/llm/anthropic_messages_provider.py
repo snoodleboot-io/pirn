@@ -27,6 +27,7 @@ import json
 from collections.abc import AsyncIterator, Mapping, Sequence
 from typing import Any
 
+from pirn_agents._internal.json_shape import JsonShape
 from pirn_agents.llm.anthropic_messages_multimodal_adapter import (
     AnthropicMessagesMultimodalAdapter,
 )
@@ -138,7 +139,8 @@ class AnthropicMessagesProvider(HttpStructuredOutputProvider):
 
     def _content_text(self, data: Mapping[str, Any]) -> str:
         parts: list[str] = []
-        for block in data.get("content") or []:
+        blocks: list[Any] = data.get("content") or []
+        for block in blocks:
             if block.get("type") == "text":
                 text = block.get("text")
                 if isinstance(text, str):
@@ -164,7 +166,7 @@ class AnthropicMessagesProvider(HttpStructuredOutputProvider):
                 continue
             event = json.loads(body)
             if event.get("type") == "content_block_start":
-                block = event.get("content_block") or {}
+                block: Mapping[str, Any] = event.get("content_block") or {}
                 if block.get("type") == "tool_use":
                     tool_indices.add(int(event.get("index", 0)))
             delta = self._stream_event_to_delta(event, tool_indices)
@@ -176,24 +178,25 @@ class AnthropicMessagesProvider(HttpStructuredOutputProvider):
     ) -> StreamDelta | None:
         event_type = event.get("type")
         if event_type == "message_start":
-            usage_raw = (event.get("message") or {}).get("usage")
+            message: Mapping[str, Any] = event.get("message") or {}
+            usage_raw = message.get("usage")
             if usage_raw:
                 return StreamDelta(usage=self._normalise_usage(usage_raw))
             return None
         if event_type == "content_block_start":
-            block = event.get("content_block") or {}
-            if block.get("type") == "tool_use":
+            started: Mapping[str, Any] = event.get("content_block") or {}
+            if started.get("type") == "tool_use":
                 return StreamDelta(
                     tool_call={
                         "index": event.get("index", 0),
-                        "id": block.get("id"),
-                        "name": block.get("name"),
+                        "id": started.get("id"),
+                        "name": started.get("name"),
                         "arguments": "",
                     }
                 )
             return None
         if event_type == "content_block_delta":
-            delta = event.get("delta") or {}
+            delta: Mapping[str, Any] = event.get("delta") or {}
             if delta.get("type") == "text_delta":
                 return StreamDelta(content=str(delta.get("text", "")))
             if delta.get("type") == "input_json_delta":
@@ -212,7 +215,8 @@ class AnthropicMessagesProvider(HttpStructuredOutputProvider):
                 return None
             return StreamDelta(tool_call={"index": index, "arguments": "", "done": True})
         if event_type == "message_delta":
-            stop = (event.get("delta") or {}).get("stop_reason")
+            message_delta: Mapping[str, Any] = event.get("delta") or {}
+            stop = message_delta.get("stop_reason")
             usage_raw = event.get("usage")
             return StreamDelta(
                 finish_reason=self._map_stop_reason(stop) if stop is not None else None,
@@ -244,7 +248,7 @@ class AnthropicMessagesProvider(HttpStructuredOutputProvider):
         # Only surface fields actually present: streaming reports input tokens
         # on ``message_start`` and output tokens on ``message_delta``, so a fixed
         # ``0`` default would clobber the earlier value when the two are merged.
-        usage: Mapping[str, Any] = usage_raw if isinstance(usage_raw, Mapping) else {}
+        usage: Mapping[str, Any] = usage_raw if JsonShape.is_mapping(usage_raw) else {}
         normalised: dict[str, int] = {}
         if "input_tokens" in usage:
             normalised["input_tokens"] = int(usage.get("input_tokens", 0))
