@@ -41,6 +41,6 @@ class ReWooResult(AgentResult[ReWooFrame, str]):
         return self._metadata.results
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
-        audit = dict(self._metadata._pirn_audit_dict())
+        audit = dict(super()._pirn_audit_dict())
         audit["answer"] = self.answer
         return audit

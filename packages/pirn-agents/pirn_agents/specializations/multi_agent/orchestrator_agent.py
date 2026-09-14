@@ -42,7 +42,7 @@ from pirn.tapestry import Tapestry
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.multi_agent._orchestrator_result_normalizer import (
-    _OrchestratorResultNormalizer,
+    OrchestratorResultNormalizer,
 )
 from pirn_agents.specializations.multi_agent.orchestrator_router import (
     OrchestratorRouter,
@@ -95,4 +95,4 @@ class OrchestratorAgent(AgentPipeline):
             chosen_name = next(iter(specialists_dict))
         specialist = specialists_dict[chosen_name]
         raw = await SpecialistHandle(specialist).run(task=task)
-        return _OrchestratorResultNormalizer(raw=raw, _config=KnotConfig(id="result"))
+        return OrchestratorResultNormalizer(raw=raw, _config=KnotConfig(id="result"))

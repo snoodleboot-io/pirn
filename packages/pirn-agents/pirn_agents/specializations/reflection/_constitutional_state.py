@@ -1,4 +1,4 @@
-"""``_ConstitutionalState`` — the value threaded through the revision loop.
+"""``ConstitutionalState`` — the value threaded through the revision loop.
 
 Internal API. See ``_constitutional_filter_loop.py``.
 """
@@ -9,7 +9,7 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class _ConstitutionalState:
+class ConstitutionalState:
     """One revision attempt's worth of accumulated constitutional-review state.
 
     Frozen; ``fold`` returns a new instance rather than mutating, matching

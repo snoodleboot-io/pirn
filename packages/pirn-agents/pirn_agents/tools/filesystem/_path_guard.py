@@ -3,7 +3,7 @@
 :class:`PathGuard` binds to a single root directory (resolved once in the
 constructor) and resolves caller-supplied *relative* paths against it, refusing
 anything that could escape. It mirrors the hardening in
-:class:`pirn_agents.specializations.document_processing._document_source_reader._DocumentSourceReader`:
+:class:`pirn_agents.specializations.document_processing._document_source_reader.DocumentSourceReader`:
 
 * absolute inputs are rejected outright;
 * ``..`` segments are rejected before resolution (belt and suspenders);

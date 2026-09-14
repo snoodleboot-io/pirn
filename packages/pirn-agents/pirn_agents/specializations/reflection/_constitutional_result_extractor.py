@@ -1,6 +1,6 @@
-"""``_ConstitutionalResultExtractor`` — final loop state to the public response.
+"""``ConstitutionalResultExtractor`` — final loop state to the public response.
 
-The loop's output is the accumulated ``_ConstitutionalState``;
+The loop's output is the accumulated ``ConstitutionalState``;
 ``ConstitutionalFilter``'s contract is a compliant ``AgentResponse`` (or a
 raised ``ConstitutionalViolationError`` on exhaustion). This knot is the
 conversion.
@@ -15,14 +15,14 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents.specializations.reflection._constitutional_state import _ConstitutionalState
+from pirn_agents.specializations.reflection._constitutional_state import ConstitutionalState
 from pirn_agents.specializations.reflection.constitutional_violation_error import (
     ConstitutionalViolationError,
 )
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
-class _ConstitutionalResultExtractor(Knot):
+class ConstitutionalResultExtractor(Knot):
     """Convert the loop's final state into a compliant :class:`AgentResponse`."""
 
     def __init__(
@@ -34,7 +34,7 @@ class _ConstitutionalResultExtractor(Knot):
     ) -> None:
         super().__init__(state=state, _config=_config, **kwargs)
 
-    async def process(self, state: _ConstitutionalState, **_: Any) -> AgentResponse:
+    async def process(self, state: ConstitutionalState, **_: Any) -> AgentResponse:
         """Return the compliant response, or raise once revisions are exhausted.
 
         Args:

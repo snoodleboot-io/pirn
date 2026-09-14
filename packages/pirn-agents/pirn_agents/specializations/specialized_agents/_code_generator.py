@@ -1,4 +1,4 @@
-"""``_CodeGenerator`` — internal helper Knot for :class:`CodeAgent`.
+"""``CodeGenerator`` — internal helper Knot for :class:`CodeAgent`.
 
 Asks the LLM to emit code for the supplied task. Internal API; the
 leading-underscore filename signals "implementation detail of CodeAgent".
@@ -27,9 +27,10 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 
 
-class _CodeGenerator(Knot):
+class CodeGenerator(Knot):
     """Ask the LLM to emit code for the supplied task."""
 
     _system_prompt: ClassVar[PromptBinding] = PromptBinding(
@@ -78,25 +79,4 @@ class _CodeGenerator(Knot):
             {"role": "user", "content": task},
         ]
         raw = await llm.chat(chat_messages)
-        return _CodeGenerator._extract_text(raw)
-
-    @staticmethod
-    def _extract_text(raw: Any) -> str:
-        if isinstance(raw, str):
-            return raw
-        if isinstance(raw, dict):
-            content = raw.get("content")
-            if isinstance(content, str):
-                return content
-            if isinstance(content, list) and content:
-                first = content[0]
-                if isinstance(first, dict):
-                    text = first.get("text")
-                    if isinstance(text, str):
-                        return text
-                if isinstance(first, str):
-                    return first
-            text = raw.get("text")
-            if isinstance(text, str):
-                return text
-        return str(raw)
+        return LlmResponseText().extract(raw)

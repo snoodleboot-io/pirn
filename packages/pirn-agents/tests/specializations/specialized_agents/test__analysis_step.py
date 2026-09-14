@@ -1,4 +1,4 @@
-"""Unit tests for :class:`_AnalysisStep`."""
+"""Unit tests for :class:`AnalysisStep`."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.specialized_agents._analysis_step import (
-    _AnalysisStep,
+    AnalysisStep,
 )
 from pirn_agents.types.messaging.agent_response import AgentResponse
 from tests.specializations.conftest import StubLLMProvider
@@ -24,7 +24,7 @@ class TestAnalysisStepProcess(unittest.IsolatedAsyncioTestCase):
             finish_reason="stop",
         )
         with Tapestry() as t:
-            _AnalysisStep(
+            AnalysisStep(
                 question="What is total revenue?",
                 sql_response=sql_response,
                 llm=llm,
@@ -40,7 +40,7 @@ class TestAnalysisStepProcess(unittest.IsolatedAsyncioTestCase):
         llm = StubLLMProvider(["x"])
         valid_response = AgentResponse(content="ok", finish_reason="stop")
         with Tapestry():
-            k = _AnalysisStep(
+            k = AnalysisStep(
                 question="q",
                 sql_response=valid_response,
                 llm=llm,
@@ -62,7 +62,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         llm = StubLLMProvider(["x"])
         valid_response = AgentResponse(content="ok", finish_reason="stop")
         with Tapestry():
-            k = _AnalysisStep(
+            k = AnalysisStep(
                 question="q", sql_response=valid_response, llm=llm, _config=KnotConfig(id="x")
             )
         result = await k({"question": "q", "sql_response": "not-an-agent-response", "llm": llm})

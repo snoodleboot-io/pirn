@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from pirn.core.pirn_opaque_value import PirnOpaqueValue
+
 from pirn_agents.specializations.base.agent_result import AgentResult
 from pirn_agents.specializations.multi_agent.worker_task_frame import WorkerTaskFrame
 from pirn_agents.tools.tool_result import ToolResult
@@ -34,6 +36,7 @@ class WorkerTaskResult(AgentResult[WorkerTaskFrame, ToolResult]):
         return self._data
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
-        audit = dict(self._metadata._pirn_audit_dict())
-        audit["result"] = self.result._pirn_audit_dict()
+        audit = dict(super()._pirn_audit_dict())
+        result: PirnOpaqueValue = self.result
+        audit["result"] = result._pirn_audit_dict()
         return audit

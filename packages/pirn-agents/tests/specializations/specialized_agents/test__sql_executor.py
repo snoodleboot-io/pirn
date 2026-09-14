@@ -1,4 +1,4 @@
-"""Unit tests for :class:`_SQLExecutor`."""
+"""Unit tests for :class:`SQLExecutor`."""
 
 from __future__ import annotations
 
@@ -15,10 +15,10 @@ from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.specialized_agents._read_write_sql_executor import (
-    _ReadWriteSQLExecutor,
+    ReadWriteSQLExecutor,
 )
 from pirn_agents.specializations.specialized_agents._sql_executor import (
-    _SQLExecutor,
+    SQLExecutor,
 )
 from tests.specializations.conftest import (
     StubDatabaseConnectionPool,
@@ -39,7 +39,7 @@ class TestSQLExecutorProcess(unittest.IsolatedAsyncioTestCase):
         pool = StubDatabaseConnectionPool(rows=[(1, "Alice"), (2, "Bob")])
         with Tapestry() as t:
             src = _SqlSource("SELECT id, name FROM users", _config=KnotConfig(id="sql"))
-            _SQLExecutor(sql=src, pool=pool, _config=KnotConfig(id="ex"))
+            SQLExecutor(sql=src, pool=pool, _config=KnotConfig(id="ex"))
         result = await t.run(RunRequest())
         rows = result.outputs["ex"]
         assert rows == [(1, "Alice"), (2, "Bob")]
@@ -48,7 +48,7 @@ class TestSQLExecutorProcess(unittest.IsolatedAsyncioTestCase):
         pool = StubDatabaseConnectionPool()
         with Tapestry() as t:
             src = _SqlSource("", _config=KnotConfig(id="sql"))
-            _SQLExecutor(sql=src, pool=pool, _config=KnotConfig(id="ex"))
+            SQLExecutor(sql=src, pool=pool, _config=KnotConfig(id="ex"))
         result = await t.run(RunRequest())
         assert not result.succeeded
 
@@ -56,7 +56,7 @@ class TestSQLExecutorProcess(unittest.IsolatedAsyncioTestCase):
         pool = StubDatabaseConnectionPool()
         with Tapestry() as t:
             src = _SqlSource("SELECT * FROM t WHERE x = {value}", _config=KnotConfig(id="sql"))
-            _SQLExecutor(sql=src, pool=pool, _config=KnotConfig(id="ex"))
+            SQLExecutor(sql=src, pool=pool, _config=KnotConfig(id="ex"))
         result = await t.run(RunRequest())
         assert not result.succeeded
 
@@ -65,18 +65,18 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_process_rejects_empty_sql(self) -> None:
         pool = StubDatabaseConnectionPool()
         with Tapestry():
-            k = _SQLExecutor.__new__(_SQLExecutor)
+            k = SQLExecutor.__new__(SQLExecutor)
             object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaises(ValueError):
             await k.process(sql="", pool=pool)
 
 
-def _build(sql: str, pool: Any, *, read_only: bool = True) -> _SQLExecutor:
+def _build(sql: str, pool: Any, *, read_only: bool = True) -> SQLExecutor:
     """Construct a configured executor outside any enclosing run.
 
     ``read_only`` selects the class — the write policy is never an input.
     """
-    executor_class = _SQLExecutor if read_only else _ReadWriteSQLExecutor
+    executor_class = SQLExecutor if read_only else ReadWriteSQLExecutor
     with Tapestry():
         return executor_class(
             sql=sql,
@@ -88,7 +88,7 @@ def _build(sql: str, pool: Any, *, read_only: bool = True) -> _SQLExecutor:
 class TestSQLExecutorIsReadOnlyByDefault:
     """Regression (PIR-817): model-generated SQL ran with no read-only guard.
 
-    ``_SQLExecutor`` is the only consumer of :class:`SQLAgent`'s LLM-written
+    ``SQLExecutor`` is the only consumer of :class:`SQLAgent`'s LLM-written
     statement, and its sole check was ``_reject_inline_interpolation`` — an
     *injection* guard, which stops the model splicing values into statement
     text and says nothing about the model emitting ``DROP TABLE``. Every other
@@ -143,13 +143,13 @@ class TestSQLExecutorIsReadOnlyByDefault:
         pool = StubDatabaseConnectionPool()
         with Tapestry() as t:
             src = _SqlSource("DROP TABLE users", _config=KnotConfig(id="sql"))
-            _SQLExecutor(sql=src, pool=pool, _config=KnotConfig(id="ex"))
+            SQLExecutor(sql=src, pool=pool, _config=KnotConfig(id="ex"))
         result = await t.run(RunRequest())
         assert not result.succeeded
         assert pool.queries == []
 
     async def test_a_write_still_needs_the_interpolation_guard(self) -> None:
-        """``_ReadWriteSQLExecutor`` opts out of the read guard only — not the other one.
+        """``ReadWriteSQLExecutor`` opts out of the read guard only — not the other one.
 
         The two guards defend different threats: ``ReadOnlySqlGuard`` limits
         what the statement may *do*, ``_reject_inline_interpolation`` limits
@@ -167,7 +167,7 @@ class TestSQLExecutorIsReadOnlyByDefault:
 class TestSQLExecutorWriteDurability:
     """Regression (PIR-817): a permitted write was routed through a path that never commits.
 
-    ``_SQLExecutor`` preferred ``pool.fetch_all``, and core's
+    ``SQLExecutor`` preferred ``pool.fetch_all``, and core's
     ``SqlitePool.fetch_all`` — unlike its ``execute`` — issues no ``COMMIT``.
     A write therefore vanished when the connection closed, silently and with
     no error, the same shape PIR-801 fixed for ``fetch_columns``. The path both
@@ -269,14 +269,14 @@ class TestWritePolicyIsTheClass:
         pool = StubDatabaseConnectionPool()
         executor = _build("SELECT 1", pool)
         assert "_read_only" not in vars(executor)
-        assert vars(_SQLExecutor)["_read_only"] is True
-        assert vars(_ReadWriteSQLExecutor)["_read_only"] is False
+        assert vars(SQLExecutor)["_read_only"] is True
+        assert vars(ReadWriteSQLExecutor)["_read_only"] is False
 
     def test_read_only_is_not_an_accepted_input(self) -> None:
         pool = StubDatabaseConnectionPool()
         smuggled: dict[str, Any] = {"read_only": False}
         with Tapestry(), pytest.raises(TypeError):
-            _SQLExecutor(
+            SQLExecutor(
                 sql="DROP TABLE users",
                 pool=pool,
                 _config=KnotConfig(id="ex"),

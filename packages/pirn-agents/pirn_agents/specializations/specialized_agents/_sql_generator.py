@@ -1,4 +1,4 @@
-"""``_SQLGenerator`` — internal helper Knot for :class:`SQLAgent`.
+"""``SQLGenerator`` — internal helper Knot for :class:`SQLAgent`.
 
 Asks the LLM to emit a single SQL statement for a natural-language
 question, optionally informed by a schema description. Internal API.
@@ -30,9 +30,10 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 
 
-class _SQLGenerator(Knot):
+class SQLGenerator(Knot):
     """Ask the LLM to emit a single SQL statement for the question."""
 
     _system_prompt: ClassVar[PromptBinding] = PromptBinding(
@@ -103,25 +104,4 @@ class _SQLGenerator(Knot):
             {"role": "user", "content": question},
         ]
         raw = await llm.chat(chat_messages)
-        return _SQLGenerator._extract_text(raw).strip()
-
-    @staticmethod
-    def _extract_text(raw: Any) -> str:
-        if isinstance(raw, str):
-            return raw
-        if isinstance(raw, dict):
-            content = raw.get("content")
-            if isinstance(content, str):
-                return content
-            if isinstance(content, list) and content:
-                first = content[0]
-                if isinstance(first, dict):
-                    text = first.get("text")
-                    if isinstance(text, str):
-                        return text
-                if isinstance(first, str):
-                    return first
-            text = raw.get("text")
-            if isinstance(text, str):
-                return text
-        return str(raw)
+        return LlmResponseText().extract(raw).strip()

@@ -1,4 +1,4 @@
-"""``_ReflexionState`` — the value threaded through the actor/evaluator/reflection loop.
+"""``ReflexionState`` — the value threaded through the actor/evaluator/reflection loop.
 
 Internal API. See ``_reflexion_loop.py``.
 """
@@ -11,7 +11,7 @@ from pirn_agents.specializations.reflexion.reflexion_attempt import ReflexionAtt
 
 
 @dataclass(frozen=True)
-class _ReflexionState:
+class ReflexionState:
     """One iteration's worth of accumulated Reflexion state.
 
     Frozen; ``afold`` returns a new instance rather than mutating, matching

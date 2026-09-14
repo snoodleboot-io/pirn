@@ -1,4 +1,4 @@
-"""``_SelfAskState`` — the value threaded through the sub-answer loop.
+"""``SelfAskState`` — the value threaded through the sub-answer loop.
 
 Internal API. See ``_self_ask_loop.py``.
 """
@@ -9,7 +9,7 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class _SelfAskState:
+class SelfAskState:
     """One round's worth of accumulated Self-Ask sub-answer state.
 
     Frozen; ``fold`` returns a new instance rather than mutating, matching

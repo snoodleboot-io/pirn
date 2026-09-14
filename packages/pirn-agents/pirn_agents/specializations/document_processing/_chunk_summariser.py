@@ -1,4 +1,4 @@
-"""``_ChunkSummariser`` — summarise one document chunk.
+"""``ChunkSummariser`` — summarise one document chunk.
 
 The map half of the map-reduce summariser, split out of
 ``_MapReduceSummariser`` so the fan-out is expressed as a core ``ZipMap`` rather
@@ -7,7 +7,7 @@ becomes its own engine-scheduled invocation with its own ``Result``.
 
 ``ZipMap`` rather than ``Map``: the prompt embeds ``"Chunk {i} of {n}"`` and
 ``Map`` injects only the element, so the position labels arrive from
-:class:`_ChunkPositions` as a second zipped collection.
+:class:`ChunkPositions` as a second zipped collection.
 
 Note:
     The ``PromptBinding`` name still reads ``_map_reduce_summariser.*`` even
@@ -28,9 +28,10 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 
 
-class _ChunkSummariser(Knot):
+class ChunkSummariser(Knot):
     """Summarise a single chunk, positioned within the document."""
 
     _chunk_summary_system: ClassVar[PromptBinding] = PromptBinding(
@@ -74,25 +75,4 @@ class _ChunkSummariser(Knot):
             },
         ]
         raw = await llm.chat(chat_messages)
-        return _ChunkSummariser._extract_text(raw)
-
-    @staticmethod
-    def _extract_text(raw: Any) -> str:
-        if isinstance(raw, str):
-            return raw
-        if isinstance(raw, dict):
-            content = raw.get("content")
-            if isinstance(content, str):
-                return content
-            if isinstance(content, list) and content:
-                first = content[0]
-                if isinstance(first, dict):
-                    text = first.get("text")
-                    if isinstance(text, str):
-                        return text
-                if isinstance(first, str):
-                    return first
-            text = raw.get("text")
-            if isinstance(text, str):
-                return text
-        return str(raw)
+        return LlmResponseText().extract(raw)

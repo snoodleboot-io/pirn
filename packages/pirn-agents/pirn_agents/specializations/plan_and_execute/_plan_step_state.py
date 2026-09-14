@@ -1,4 +1,4 @@
-"""``_PlanStepState`` — state threaded across sequential plan-step executions."""
+"""``PlanStepState`` — state threaded across sequential plan-step executions."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 
 @dataclass
-class _PlanStepState:
+class PlanStepState:
     """State threaded across ``PlanExecutor``'s sequential step loop.
 
     Attributes

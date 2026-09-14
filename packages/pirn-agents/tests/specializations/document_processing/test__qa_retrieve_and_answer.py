@@ -1,4 +1,4 @@
-"""Unit tests for :class:`_QARetrieveAndAnswer`."""
+"""Unit tests for :class:`QARetrieveAndAnswer`."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.document_processing._qa_retrieve_and_answer import (
-    _QARetrieveAndAnswer,
+    QARetrieveAndAnswer,
 )
 from pirn_agents.types.messaging.agent_response import AgentResponse
 from tests.specializations.conftest import (
@@ -17,9 +17,9 @@ from tests.specializations.conftest import (
 )
 
 
-def _make_knot(llm: StubLLMProvider, embedder: StubEmbeddingProvider) -> _QARetrieveAndAnswer:
+def _make_knot(llm: StubLLMProvider, embedder: StubEmbeddingProvider) -> QARetrieveAndAnswer:
     with Tapestry():
-        return _QARetrieveAndAnswer(
+        return QARetrieveAndAnswer(
             chunks=[],
             question="q",
             llm=llm,

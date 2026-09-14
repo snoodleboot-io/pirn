@@ -39,6 +39,6 @@ class SelfAskResult(AgentResult[SelfAskFrame, str]):
         return self._metadata.subanswers
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
-        audit = dict(self._metadata._pirn_audit_dict())
+        audit = dict(super()._pirn_audit_dict())
         audit["final_answer"] = self.final_answer
         return audit

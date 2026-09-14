@@ -15,7 +15,7 @@ Each round wires:
 * ``gated_reply`` — ``Gate(input=generate, check=needs_retrieval)``: the
   tentative sentence, retrieval, and regeneration all skip together when the
   gate is closed, the same escalation-stops-here shape ``_AttemptTier`` and
-  ``_ReflexionLoop`` use — so a confident sentence never pays for retrieval.
+  ``ReflexionLoop`` use — so a confident sentence never pays for retrieval.
 * ``retrieve`` / ``regenerate`` — only reached when the gate is open.
 
 ``afold`` reads whichever reply is present (``regenerate`` when retrieval

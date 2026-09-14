@@ -1,23 +1,23 @@
-"""``_DocumentSource`` — the guarded connector source for document ingestion.
+"""``DocumentSource`` — the guarded connector source for document ingestion.
 
 Replaces ``_DocumentLoader`` (deleted; PIR-868), which read files and HTTP(S)
 URLs directly inside ``process()`` — the "ingestor anti-pattern" documented in
 ``docs/contributing/assembler-disassembler-pattern.md``. This is the Layer-2
 connector-source half of the split: it owns the I/O and the SSRF /
-path-traversal guards (delegated, unchanged, to :class:`_DocumentSourceReader`
+path-traversal guards (delegated, unchanged, to :class:`DocumentSourceReader`
 — the one implementation every document-processing loader shares) and
-produces raw ``bytes``. The bytes-in half, :class:`_DocumentAssembler`, does
+produces raw ``bytes``. The bytes-in half, :class:`DocumentAssembler`, does
 the (guard-free) decode.
 
 Algorithm:
-    1. Delegate to :class:`_DocumentSourceReader` — the shared guarded
+    1. Delegate to :class:`DocumentSourceReader` — the shared guarded
        reader — which validates ``source``, resolves the scheme, and
        either streams an SSRF-vetted HTTP(S) response or reads a
        path-traversal-guarded local file, decoding the result as text.
     2. Re-encode the decoded text as UTF-8 bytes so the connector boundary
        is byte-shaped, matching :class:`~pirn.connectors.knots.object_store_read_source.ObjectStoreReadSource`'s
        contract — the framework's own template for a Layer-2 connector
-       Source. :class:`_DocumentAssembler` decodes it back on the other
+       Source. :class:`DocumentAssembler` decodes it back on the other
        side, so the guarded reader's decoding logic (HTTP charset
        handling, ``errors="replace"``) is preserved unchanged; only the
        connector boundary's shape changes.
@@ -39,17 +39,17 @@ from pirn.core.knot_config import KnotConfig
 from pirn.nodes.source import Source
 
 from pirn_agents.specializations.document_processing._document_source_reader import (
-    _DocumentSourceReader,
+    DocumentSourceReader,
 )
 
 
-class _DocumentSource(Source):
+class DocumentSource(Source):
     """Read a document ``source`` (local path or HTTP(S) URL) and return its bytes.
 
     All SSRF and path-traversal guarding is delegated unchanged to
-    :class:`_DocumentSourceReader` — the single shared implementation every
+    :class:`DocumentSourceReader` — the single shared implementation every
     document-processing loader composes. This class adds nothing but the
-    connector-boundary shape (``bytes`` out) that :class:`_DocumentAssembler`
+    connector-boundary shape (``bytes`` out) that :class:`DocumentAssembler`
     expects.
     """
 
@@ -60,9 +60,9 @@ class _DocumentSource(Source):
         _config: KnotConfig,
         allowed_root: Knot | str | None = None,
         allowed_hosts: Knot | tuple[str, ...] | None = None,
-        max_bytes: Knot | int = _DocumentSourceReader.max_bytes,
-        request_timeout: Knot | float = _DocumentSourceReader.request_timeout,
-        connect_timeout: Knot | float = _DocumentSourceReader.connect_timeout,
+        max_bytes: Knot | int = DocumentSourceReader.max_bytes,
+        request_timeout: Knot | float = DocumentSourceReader.request_timeout,
+        connect_timeout: Knot | float = DocumentSourceReader.connect_timeout,
         **kwargs: Any,
     ) -> None:
         super().__init__(
@@ -81,9 +81,9 @@ class _DocumentSource(Source):
         source: str,
         allowed_root: str | None = None,
         allowed_hosts: tuple[str, ...] | None = None,
-        max_bytes: int = _DocumentSourceReader.max_bytes,
-        request_timeout: float = _DocumentSourceReader.request_timeout,
-        connect_timeout: float = _DocumentSourceReader.connect_timeout,
+        max_bytes: int = DocumentSourceReader.max_bytes,
+        request_timeout: float = DocumentSourceReader.request_timeout,
+        connect_timeout: float = DocumentSourceReader.connect_timeout,
         **_: Any,
     ) -> bytes:
         """Read ``source`` under the shared security policy and return its bytes.
@@ -106,7 +106,7 @@ class _DocumentSource(Source):
                 ``allowed_root``, the file exceeds ``max_bytes``, or the host is
                 unresolvable, private/loopback/link-local, or not allow-listed.
         """
-        reader = _DocumentSourceReader(
+        reader = DocumentSourceReader(
             allowed_root=allowed_root,
             allowed_hosts=allowed_hosts,
             max_bytes=max_bytes,

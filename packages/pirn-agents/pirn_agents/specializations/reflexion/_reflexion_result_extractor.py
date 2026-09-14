@@ -1,4 +1,4 @@
-"""``_ReflexionResultExtractor`` — final loop state to the public :class:`ReflexionResult`.
+"""``ReflexionResultExtractor`` — final loop state to the public :class:`ReflexionResult`.
 
 Replaces the inline ``_ReflexionResultSource(Source)`` that closed over an
 already-computed :class:`ReflexionResult` (ADR agents-speaks-core WS5b;
@@ -14,11 +14,11 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents.specializations.reflexion._reflexion_state import _ReflexionState
+from pirn_agents.specializations.reflexion._reflexion_state import ReflexionState
 from pirn_agents.specializations.reflexion.reflexion_result import ReflexionResult
 
 
-class _ReflexionResultExtractor(Knot):
+class ReflexionResultExtractor(Knot):
     """Convert the loop's final state into the pipeline's public :class:`ReflexionResult`."""
 
     def __init__(
@@ -30,7 +30,7 @@ class _ReflexionResultExtractor(Knot):
     ) -> None:
         super().__init__(state=state, _config=_config, **kwargs)
 
-    async def process(self, state: _ReflexionState, **_: Any) -> ReflexionResult:
+    async def process(self, state: ReflexionState, **_: Any) -> ReflexionResult:
         """Wrap the loop's final accumulated state as a :class:`ReflexionResult`.
 
         Args:

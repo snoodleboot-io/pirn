@@ -1,9 +1,9 @@
-"""``_IngestionRunner`` — the terminal knot that runs the ETL (F25-S5 / PIR-633).
+"""``IngestionRunner`` — the terminal knot that runs the ETL (F25-S5 / PIR-633).
 
 Internal terminal :class:`~pirn_agents.specializations.base.agent_pipeline.AgentPipeline`
 for :class:`IngestionPipeline`. It pulls every :class:`SourceDocument` from
 the source connector, then wires one
-:class:`~pirn_agents.specializations.document_processing._document_ingest._DocumentIngest`
+:class:`~pirn_agents.specializations.document_processing._document_ingest.DocumentIngest`
 knot per document — each running load → chunk → incremental upsert — into an
 :class:`~pirn.nodes.aggregator.Aggregator` (PIR-867; before this, documents
 were processed under a hand-rolled ``asyncio.Semaphore`` and
@@ -12,7 +12,7 @@ concurrency is now a :class:`~pirn.core.concurrency.concurrency_limits.Concurren
 group cap on the inner run — the same lever
 :class:`~pirn_agents.batch.map_agent.MapAgent` uses — rather than a semaphore
 held inside the knot. A failure on any one source is isolated by
-``_DocumentIngest`` and recorded on the returned :class:`IngestionReport`
+``DocumentIngest`` and recorded on the returned :class:`IngestionReport`
 rather than aborting the run.
 
 Internal API.
@@ -30,8 +30,8 @@ from pirn.core.parameter import Parameter
 from pirn.nodes.aggregator import Aggregator
 
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.document_processing._document_ingest import _DocumentIngest
-from pirn_agents.specializations.document_processing._document_outcome import _DocumentOutcome
+from pirn_agents.specializations.document_processing._document_ingest import DocumentIngest
+from pirn_agents.specializations.document_processing._document_outcome import DocumentOutcome
 from pirn_agents.specializations.document_processing.chunking.chunking_strategy import (
     ChunkingStrategy,
 )
@@ -45,7 +45,7 @@ from pirn_agents.specializations.document_processing.sources.source_connector im
 )
 
 
-class _IngestionRunner(AgentPipeline):
+class IngestionRunner(AgentPipeline):
     """Fetch every source document and wire one ingest knot per document."""
 
     _concurrency_group: ClassVar[str] = "ingest_docs"
@@ -108,7 +108,7 @@ class _IngestionRunner(AgentPipeline):
         Returns:
             The sink of the inner pipeline: a ``Parameter`` defaulting to an
             empty :class:`IngestionReport` when the source yields no
-            documents, or an :class:`Aggregator` over one ``_DocumentIngest``
+            documents, or an :class:`Aggregator` over one ``DocumentIngest``
             per document whose output is the aggregate :class:`IngestionReport`.
 
         Raises:
@@ -116,7 +116,7 @@ class _IngestionRunner(AgentPipeline):
         """
         if max_concurrency < 1:
             raise ValueError(
-                f"_IngestionRunner: max_concurrency must be >= 1, got {max_concurrency}"
+                f"IngestionRunner: max_concurrency must be >= 1, got {max_concurrency}"
             )
         documents = [doc async for doc in source_connector.fetch()]
         source_errors: tuple[tuple[str, str], ...] = tuple(source_connector.errors)
@@ -136,7 +136,7 @@ class _IngestionRunner(AgentPipeline):
                 _config=KnotConfig(id="empty_report"),
             )
         per_document: dict[str, Knot] = {
-            f"doc_{index}": _DocumentIngest(
+            f"doc_{index}": DocumentIngest(
                 document=document,
                 loader=loader,
                 chunking_strategy=chunking_strategy,
@@ -155,7 +155,7 @@ class _IngestionRunner(AgentPipeline):
     def _build_report(
         count: int,
         source_errors: tuple[tuple[str, str], ...],
-        **outcomes: _DocumentOutcome,
+        **outcomes: DocumentOutcome,
     ) -> IngestionReport:
         """Fold every document's outcome (in document order) into the aggregate report."""
         processed = 0

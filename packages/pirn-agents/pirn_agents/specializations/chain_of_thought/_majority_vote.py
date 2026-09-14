@@ -1,11 +1,11 @@
-"""``_MajorityVote`` — Reduce ``combine`` target for self-consistency."""
+"""``MajorityVote`` — Reduce ``combine`` target for self-consistency."""
 
 from __future__ import annotations
 
 from collections import Counter
 
 
-class _MajorityVote:
+class MajorityVote:
     """Reduce ``combine`` target: case-insensitive majority vote over samples."""
 
     @staticmethod

@@ -1,7 +1,7 @@
-"""``_ChunkTranslation`` — translate one text chunk via a single LLM call.
+"""``ChunkTranslation`` — translate one text chunk via a single LLM call.
 
 Internal per-chunk knot for
-:class:`~pirn_agents.specializations.document_processing._chunk_translator._ChunkTranslator`'s
+:class:`~pirn_agents.specializations.document_processing._chunk_translator.ChunkTranslator`'s
 fan-out (PIR-867): each chunk's translation is independent of every other
 chunk's, so it is one node per chunk rather than a hand-rolled ``for`` loop
 awaiting ``llm.chat`` directly.
@@ -18,9 +18,10 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 
 
-class _ChunkTranslation(Knot):
+class ChunkTranslation(Knot):
     """Translate one chunk into ``target_language`` via a single LLM call."""
 
     _system_prompt: ClassVar[PromptBinding] = PromptBinding(
@@ -70,25 +71,4 @@ class _ChunkTranslation(Knot):
             {"role": "user", "content": chunk},
         ]
         raw = await llm.chat(chat_messages)
-        return _ChunkTranslation._extract_text(raw)
-
-    @staticmethod
-    def _extract_text(raw: Any) -> str:
-        if isinstance(raw, str):
-            return raw
-        if isinstance(raw, dict):
-            content = raw.get("content")
-            if isinstance(content, str):
-                return content
-            if isinstance(content, list) and content:
-                first = content[0]
-                if isinstance(first, dict):
-                    text = first.get("text")
-                    if isinstance(text, str):
-                        return text
-                if isinstance(first, str):
-                    return first
-            text = raw.get("text")
-            if isinstance(text, str):
-                return text
-        return str(raw)
+        return LlmResponseText().extract(raw)

@@ -1,4 +1,4 @@
-"""Unit tests for :class:`_CodeResponseFormatter`."""
+"""Unit tests for :class:`CodeResponseFormatter`."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.specialized_agents._code_response_formatter import (
-    _CodeResponseFormatter,
+    CodeResponseFormatter,
 )
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
@@ -30,7 +30,7 @@ class TestCodeResponseFormatterProcess(unittest.IsolatedAsyncioTestCase):
         with Tapestry() as t:
             code_src = _Src("def f(): pass", _config=KnotConfig(id="cs"))
             warn_src = _Src([], _config=KnotConfig(id="ws"))
-            _CodeResponseFormatter(
+            CodeResponseFormatter(
                 code=code_src,
                 warnings=warn_src,
                 _config=KnotConfig(id="crf"),
@@ -45,7 +45,7 @@ class TestCodeResponseFormatterProcess(unittest.IsolatedAsyncioTestCase):
         with Tapestry() as t:
             code_src = _Src("code", _config=KnotConfig(id="cs"))
             warn_src = _Src(["w1", "w2"], _config=KnotConfig(id="ws"))
-            _CodeResponseFormatter(
+            CodeResponseFormatter(
                 code=code_src,
                 warnings=warn_src,
                 _config=KnotConfig(id="crf"),
@@ -58,7 +58,7 @@ class TestCodeResponseFormatterProcess(unittest.IsolatedAsyncioTestCase):
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_process_returns_agent_response_with_code(self) -> None:
         with Tapestry():
-            k = _CodeResponseFormatter.__new__(_CodeResponseFormatter)
+            k = CodeResponseFormatter.__new__(CodeResponseFormatter)
             object.__setattr__(k, "_config", KnotConfig(id="x"))
         result = await k.process(code="def f(): pass", warnings=[])
         assert isinstance(result, AgentResponse)
@@ -67,7 +67,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_process_records_warning_count(self) -> None:
         with Tapestry():
-            k = _CodeResponseFormatter.__new__(_CodeResponseFormatter)
+            k = CodeResponseFormatter.__new__(CodeResponseFormatter)
             object.__setattr__(k, "_config", KnotConfig(id="x"))
         result = await k.process(code="code", warnings=["w1", "w2", "w3"])
         assert result.usage["lint_warnings"] == 3

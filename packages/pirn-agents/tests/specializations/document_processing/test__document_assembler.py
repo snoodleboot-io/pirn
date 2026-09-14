@@ -1,4 +1,4 @@
-"""Unit tests for :class:`_DocumentAssembler`."""
+"""Unit tests for :class:`DocumentAssembler`."""
 
 from __future__ import annotations
 
@@ -8,13 +8,13 @@ from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.document_processing._document_assembler import (
-    _DocumentAssembler,
+    DocumentAssembler,
 )
 
 
-def _make_knot() -> _DocumentAssembler:
+def _make_knot() -> DocumentAssembler:
     with Tapestry():
-        return _DocumentAssembler(body=b"placeholder", _config=KnotConfig(id="asm"))
+        return DocumentAssembler(body=b"placeholder", _config=KnotConfig(id="asm"))
 
 
 class TestDocumentAssembler(unittest.IsolatedAsyncioTestCase):

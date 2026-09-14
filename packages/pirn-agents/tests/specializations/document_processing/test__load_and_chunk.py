@@ -1,4 +1,4 @@
-"""Unit tests for :class:`_LoadAndChunk`."""
+"""Unit tests for :class:`LoadAndChunk`."""
 
 from __future__ import annotations
 
@@ -11,13 +11,13 @@ from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.document_processing._load_and_chunk import (
-    _LoadAndChunk,
+    LoadAndChunk,
 )
 
 
-def _make_knot(source: str, chunk_size: int) -> _LoadAndChunk:
+def _make_knot(source: str, chunk_size: int) -> LoadAndChunk:
     with Tapestry():
-        return _LoadAndChunk(
+        return LoadAndChunk(
             source=source,
             chunk_size=chunk_size,
             _config=KnotConfig(id="lac"),

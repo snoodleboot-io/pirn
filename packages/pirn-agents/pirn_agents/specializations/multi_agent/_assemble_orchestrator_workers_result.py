@@ -1,4 +1,4 @@
-"""``_AssembleOrchestratorWorkersResult`` — Aggregator ``combine`` target."""
+"""``AssembleOrchestratorWorkersResult`` — Aggregator ``combine`` target."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from pirn_agents.specializations.multi_agent.worker_task_result import WorkerTas
 from pirn_agents.tools.tool_result import ToolResult
 
 
-class _AssembleOrchestratorWorkersResult:
+class AssembleOrchestratorWorkersResult:
     """Aggregator ``combine`` target: reassemble the ordered outcome."""
 
     @staticmethod

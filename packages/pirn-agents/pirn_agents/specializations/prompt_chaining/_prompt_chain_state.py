@@ -1,4 +1,4 @@
-"""``_PromptChainState`` — the value threaded through the prompt chain loop.
+"""``PromptChainState`` — the value threaded through the prompt chain loop.
 
 Internal API. See ``_prompt_chain_loop.py``.
 """
@@ -9,7 +9,7 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class _PromptChainState:
+class PromptChainState:
     """One link's worth of accumulated prompt-chain state.
 
     Frozen; ``fold`` returns a new instance rather than mutating, matching

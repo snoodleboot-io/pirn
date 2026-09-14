@@ -51,7 +51,7 @@ class OraclePool(DatabaseConnectionPool):
     one it found already open. This is the guarantee
     :class:`~pirn.connectors.databases.sqlite_pool.SqlitePool` (PIR-819),
     ``ColumnAwareSqlitePool`` (PIR-801), ``AiosqliteConnector`` /
-    ``SqliteConnector`` (PIR-807) and ``_SQLExecutor`` (PIR-817) already make.
+    ``SqliteConnector`` (PIR-807) and ``SQLExecutor`` (PIR-817) already make.
 
     python-oracledb does **not** autocommit, and this pool holds one long-lived
     connection that ``acquire`` hands to every caller, so without this the

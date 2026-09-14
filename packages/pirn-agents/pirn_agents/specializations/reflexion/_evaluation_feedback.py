@@ -1,4 +1,4 @@
-"""``_EvaluationFeedback`` — project the evaluator's feedback string.
+"""``EvaluationFeedback`` — project the evaluator's feedback string.
 
 The reflector needs ``feedback`` as a bare string (Rule 2:
 ``knot-design-rules.md``), not the whole
@@ -18,7 +18,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn_agents.specializations.reflexion.reflexion_evaluation import ReflexionEvaluation
 
 
-class _EvaluationFeedback(Knot):
+class EvaluationFeedback(Knot):
     """Project ``evaluation.feedback`` as a bare string."""
 
     def __init__(

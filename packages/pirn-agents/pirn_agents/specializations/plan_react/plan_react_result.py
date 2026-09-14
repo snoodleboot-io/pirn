@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from pirn.core.pirn_opaque_value import PirnOpaqueValue
+
 from pirn_agents.specializations.base.agent_result import AgentResult
 from pirn_agents.specializations.plan_react.plan_react_frame import PlanReActFrame
 from pirn_agents.types.messaging.agent_response import AgentResponse
@@ -43,6 +45,7 @@ class PlanReActResult(AgentResult[PlanReActFrame, AgentResponse]):
         return self._data
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
-        audit = dict(self._metadata._pirn_audit_dict())
-        audit["final"] = self.final._pirn_audit_dict()
+        audit = dict(super()._pirn_audit_dict())
+        final: PirnOpaqueValue = self.final
+        audit["final"] = final._pirn_audit_dict()
         return audit

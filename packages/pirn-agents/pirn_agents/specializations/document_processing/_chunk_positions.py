@@ -1,4 +1,4 @@
-"""``_ChunkPositions`` — the position labels the chunk summariser fans out over.
+"""``ChunkPositions`` — the position labels the chunk summariser fans out over.
 
 The per-chunk prompt embeds ``"Chunk {i} of {n}"``, but core's ``Map`` marker
 injects **only the element** — no index, no total (``knot.py:551``). So the
@@ -19,7 +19,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 
-class _ChunkPositions(Knot):
+class ChunkPositions(Knot):
     """Render ``"Chunk i of n"`` for each chunk, preserving order."""
 
     def __init__(

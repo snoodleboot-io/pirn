@@ -1,4 +1,4 @@
-"""``_SQLExecutor`` — internal helper Knot for :class:`SQLAgent`.
+"""``SQLExecutor`` — internal helper Knot for :class:`SQLAgent`.
 
 Validates an LLM-written SQL statement through two independent guards and
 executes it. Internal API.
@@ -22,7 +22,7 @@ Algorithm:
     3. Run ``pool._reject_inline_interpolation(sql)`` — always, in both modes.
     4. On this read-only executor, run
        :meth:`ReadOnlySqlGuard.assert_read_only`, then read via ``fetch_all``.
-    5. On :class:`_ReadWriteSQLExecutor` (writes opted in by class choice),
+    5. On :class:`ReadWriteSQLExecutor` (writes opted in by class choice),
        execute on an acquired connection and commit or roll back exactly the
        transaction this statement opened.
     6. Return the rows as a plain list.
@@ -48,15 +48,15 @@ from pirn.core.knot_config import KnotConfig
 from pirn_agents.tools.sql._read_only_sql_guard import ReadOnlySqlGuard
 
 
-class _SQLExecutor(Knot):
+class SQLExecutor(Knot):
     """Validate the SQL through both guards and run it — read-only."""
 
     # Shared, stateless guard — built once per class, mirroring the ClassVar
-    # prompt bindings on ``_SQLGenerator``.
+    # prompt bindings on ``SQLGenerator``.
     _guard: ClassVar[ReadOnlySqlGuard] = ReadOnlySqlGuard()
 
     #: The write policy is the class, never an input (PIR-817): this executor
-    #: is read-only, and :class:`_ReadWriteSQLExecutor` is the one subclass that
+    #: is read-only, and :class:`ReadWriteSQLExecutor` is the one subclass that
     #: may run a mutating statement. A knot input is a graph edge another knot's
     #: output could drive — on this pipeline, output derived from model text —
     #: so the policy is fixed by which class the pipeline author constructs.

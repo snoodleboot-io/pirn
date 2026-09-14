@@ -1,7 +1,7 @@
-"""Unit tests for :class:`_ChunkTranslator`.
+"""Unit tests for :class:`ChunkTranslator`.
 
 PIR-867: chunk translations are independent of each other, so
-``_ChunkTranslator`` fans them out (one ``_ChunkTranslation`` knot per chunk
+``ChunkTranslator`` fans them out (one ``ChunkTranslation`` knot per chunk
 wired into an ``Aggregator``) rather than awaiting ``llm.chat`` in a
 hand-rolled ``for`` loop. ``process`` therefore returns the sink of an inner
 pipeline instead of the translated string directly, so the outcome tests run
@@ -25,7 +25,7 @@ from pirn.tapestry import Tapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.document_processing._chunk_translator import (
-    _ChunkTranslator,
+    ChunkTranslator,
 )
 
 
@@ -56,7 +56,7 @@ class _KeyedLLMProvider(LLMProvider):
 
 def _run(llm: _KeyedLLMProvider, chunks: list[str], target_language: str) -> Any:
     with Tapestry() as t:
-        _ChunkTranslator(
+        ChunkTranslator(
             chunks=chunks,
             target_language=target_language,
             llm=llm,

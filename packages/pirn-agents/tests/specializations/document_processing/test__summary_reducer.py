@@ -1,4 +1,4 @@
-"""Unit tests for :class:`_SummaryReducer`."""
+"""Unit tests for :class:`SummaryReducer`."""
 
 from __future__ import annotations
 
@@ -8,14 +8,14 @@ from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.document_processing._summary_reducer import (
-    _SummaryReducer,
+    SummaryReducer,
 )
 from tests.specializations.conftest import StubLLMProvider
 
 
-def _make_knot(llm: StubLLMProvider) -> _SummaryReducer:
+def _make_knot(llm: StubLLMProvider) -> SummaryReducer:
     with Tapestry():
-        return _SummaryReducer(summaries=[], llm=llm, _config=KnotConfig(id="summarise"))
+        return SummaryReducer(summaries=[], llm=llm, _config=KnotConfig(id="summarise"))
 
 
 class TestSummaryReducerProcess(unittest.IsolatedAsyncioTestCase):

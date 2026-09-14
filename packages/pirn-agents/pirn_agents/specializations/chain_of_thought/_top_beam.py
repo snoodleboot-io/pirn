@@ -1,9 +1,9 @@
-"""``_TopBeam`` — Reduce ``combine`` target keeping the top-scoring beam."""
+"""``TopBeam`` — Reduce ``combine`` target keeping the top-scoring beam."""
 
 from __future__ import annotations
 
 
-class _TopBeam:
+class TopBeam:
     """Reduce ``combine`` target: keep the top-``beam_width`` scoring candidates."""
 
     @staticmethod

@@ -1,4 +1,4 @@
-"""``_ReviewerInvocation`` — run one reviewer as a graph node.
+"""``ReviewerInvocation`` — run one reviewer as a graph node.
 
 Sibling of :class:`~pirn_agents.specializations.multi_agent.specialist_invocation.SpecialistInvocation`
 for the round-robin review shape: a reviewer is invoked with ``response=``
@@ -34,7 +34,7 @@ from pirn_agents.specializations.multi_agent.specialist_handle import Specialist
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
-class _ReviewerInvocation(Knot):
+class ReviewerInvocation(Knot):
     """Invoke one reviewer on the running draft and surface the revised response."""
 
     def __init__(

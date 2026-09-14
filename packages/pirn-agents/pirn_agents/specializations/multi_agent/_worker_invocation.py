@@ -1,4 +1,4 @@
-"""``_WorkerInvocation`` — invoke one worker for one task, admission-bounded."""
+"""``WorkerInvocation`` — invoke one worker for one task, admission-bounded."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from pirn_agents.tools.tool_factory import ToolFactory
 from pirn_agents.tools.tool_result import ToolResult
 
 
-class _WorkerInvocation(Knot):
+class WorkerInvocation(Knot):
     """Invoke one worker for one task.
 
     Never raises: a failed call becomes a :class:`ToolResult` whose outcome is ``Err``. An F7

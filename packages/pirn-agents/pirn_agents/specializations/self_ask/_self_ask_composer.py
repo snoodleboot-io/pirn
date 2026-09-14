@@ -1,4 +1,4 @@
-"""``_SelfAskComposer`` — compose the final answer from sub-question/answer pairs.
+"""``SelfAskComposer`` — compose the final answer from sub-question/answer pairs.
 
 Replaces the inline ``_SelfAskResultSource(Source)`` that closed over an
 already-computed :class:`SelfAskResult` (ADR agents-speaks-core WS5b;
@@ -9,7 +9,7 @@ answer Python already had.
 
 Algorithm:
     1. Receive ``task``, the sub-answer loop's final ``state`` (a
-       :class:`_SelfAskState`), and ``llm``.
+       :class:`SelfAskState`), and ``llm``.
     2. Render the sub-question/answer pairs and the compose system prompt.
     3. Call the LLM and extract its text, reporting the outcome through
        :class:`~pirn_agents.observability.agent_call_recorder.AgentCallRecorder`
@@ -30,11 +30,11 @@ from pirn.core.knot_config import KnotConfig
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.observability.agent_call_recorder import AgentCallRecorder
 from pirn_agents.specializations.llm_response_text import LlmResponseText
-from pirn_agents.specializations.self_ask._self_ask_state import _SelfAskState
+from pirn_agents.specializations.self_ask._self_ask_state import SelfAskState
 from pirn_agents.specializations.self_ask.self_ask_result import SelfAskResult
 
 
-class _SelfAskComposer(Knot):
+class SelfAskComposer(Knot):
     """Compose the final answer from the accumulated sub-question/answer pairs."""
 
     def __init__(
@@ -59,7 +59,7 @@ class _SelfAskComposer(Knot):
     async def process(
         self,
         task: str,
-        state: _SelfAskState,
+        state: SelfAskState,
         llm: LLMProvider,
         compose_system: str,
         **_: Any,

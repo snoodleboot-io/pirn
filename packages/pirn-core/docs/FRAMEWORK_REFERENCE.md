@@ -524,15 +524,15 @@ construction; `HybridGraphRetriever.process()` receives the traversal's
 resolved `Subgraph` like any other parent's output.
 
 Three more `LOOP_AWAITS_LLM_OR_TOOL_CALL` sites fixed in PIR-867:
-`_ChunkTranslator` (`specializations/document_processing/`) and
+`ChunkTranslator` (`specializations/document_processing/`) and
 `FactClaimVerifier` (`specializations/guardrails/`) translate/verify
 independent items — chunk N's translation and claim N's search never depend
 on item N-1's outcome — so each now fans out one per-item knot
-(`_ChunkTranslation` / `_ClaimVerification`) into an `Aggregator`, in the
+(`ChunkTranslation` / `_ClaimVerification`) into an `Aggregator`, in the
 `ParallelToolCaller` style, instead of awaiting `llm.chat`/`store.search` in a
 hand-rolled `for` loop. `PlanExecutor` (`specializations/plan_and_execute/`)
 is different: step N's prompt genuinely includes every prior step's result,
-so it wires a `LoopSubTapestry` (`_PlanStepLoop`) instead — the state
+so it wires a `LoopSubTapestry` (`PlanStepLoop`) instead — the state
 threaded across iterations is the running tuple of step results.
 
 Three more `USES_ASYNCIO_GATHER` sites fixed in PIR-867: `HybridRetriever`
@@ -543,14 +543,14 @@ internally via `asyncio.to_thread`) into an `Aggregator`, so it is a
 plain `Retriever`/`Knot` base since `HybridGraphRetriever` still needs that
 shape, so `HybridRetriever` picks up `SubTapestry` itself
 (`class HybridRetriever(SubTapestry, HybridRetrieverBase)`).
-`_ChunkEmbedderStore` (`specializations/document_processing/`) wires one
-`_ChunkStoreWrite` per chunk into an `Aggregator` (the batched embedding call
+`ChunkEmbedderStore` (`specializations/document_processing/`) wires one
+`ChunkStoreWrite` per chunk into an `Aggregator` (the batched embedding call
 itself stays a single call — batching is the reason the embedder gets every
-chunk at once). `_IngestionRunner` (`specializations/document_processing/`)
-wires one `_DocumentIngest` per source document into an `Aggregator`, with a
+chunk at once). `IngestionRunner` (`specializations/document_processing/`)
+wires one `DocumentIngest` per source document into an `Aggregator`, with a
 `ConcurrencyLimits` group cap set via the `_inner_concurrency()` hook
 (`MapAgent`'s own lever) replacing the hand-held `asyncio.Semaphore`; each
-document's failure is still isolated inside `_DocumentIngest` and folded into
+document's failure is still isolated inside `DocumentIngest` and folded into
 the `IngestionReport` rather than raised, so isolation survives the move to
 the engine's own scheduling.
 
@@ -571,8 +571,8 @@ deleted and nothing awaits an invoke inside `process()`.
 
 `GatedAgentResponse` (the `CHECK_ROLE` shadow — a knot joining a value with a
 `Gate` so a single-parent gate could feed a multi-input knot) is deleted
-(PIR-872): `_EvaluatorOptimizerLoop` gates the candidate itself with
-`Gate(input=candidate, check=_CandidateRejectedCheck(accepted))`, and
+(PIR-872): `EvaluatorOptimizerLoop` gates the candidate itself with
+`Gate(input=candidate, check=CandidateRejectedCheck(accepted))`, and
 `AcceptCheck` is a `Check`. `ConversationMemoryPruner`'s `while True`
 (`HAND_ROLLED_WHILE_TRUE_RETRY`) was a pruning loop, not a retry; it now loops
 on its real condition.
@@ -726,8 +726,8 @@ objects (`EvaluatorOptimizerResult`, `LatsResult`, `OrchestratorWorkersResult`,
 `Payload` base; pre-ADR field names stay readable as properties.
 `document_processing/_document_loader.py`'s ingestor (reading files/HTTP
 inside `process()`) is deleted per the assembler/disassembler pattern and
-replaced by `_DocumentSource` (a `Source` knot modeled on
-`ObjectStoreReadSource`, bytes out) feeding `_DocumentAssembler` (an
+replaced by `DocumentSource` (a `Source` knot modeled on
+`ObjectStoreReadSource`, bytes out) feeding `DocumentAssembler` (an
 `Assembler`, bytes in, no I/O); `DocumentIngestionPipeline`'s public
 constructor is unchanged.
 
@@ -744,7 +744,7 @@ constructor is unchanged.
   `process()` catch-all is `**_`; the six unmarked closures are static methods.
 - **Knot Rules 1 and 4 hold without exceptions.** `MapAgent` wires every setting
   as a declared input and validates in `process()`; a delegated specialist
-  reaches `SpecialistInvocation`/`_ReviewerInvocation` as a `SpecialistHandle`
+  reaches `SpecialistInvocation`/`ReviewerInvocation` as a `SpecialistHandle`
   (a non-`Knot` `PirnOpaqueValue`, so an ordinary input rather than a parent);
   the SQL write policy is a `ClassVar` on distinct classes (`SQLAgent` read-only,
   `ReadWriteSQLAgent` writes) instead of instance state, so no upstream knot can

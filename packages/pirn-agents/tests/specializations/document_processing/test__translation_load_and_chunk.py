@@ -1,4 +1,4 @@
-"""Unit tests for :class:`_TranslationLoadAndChunk`."""
+"""Unit tests for :class:`TranslationLoadAndChunk`."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.document_processing._translation_load_and_chunk import (
-    _TranslationLoadAndChunk,
+    TranslationLoadAndChunk,
 )
 
 
@@ -22,7 +22,7 @@ class TestTranslationLoadAndChunkProcess(unittest.IsolatedAsyncioTestCase):
             fpath = os.path.join(tmpdir, "doc.txt")
             Path(fpath).write_text("abcde12345", encoding="utf-8")
             with Tapestry() as t:
-                _TranslationLoadAndChunk(
+                TranslationLoadAndChunk(
                     source=fpath,
                     chunk_size=5,
                     allowed_root=tmpdir,
@@ -36,7 +36,7 @@ class TestTranslationLoadAndChunkProcess(unittest.IsolatedAsyncioTestCase):
             fpath = os.path.join(tmpdir, "empty.txt")
             Path(fpath).write_text("", encoding="utf-8")
             with Tapestry() as t:
-                _TranslationLoadAndChunk(
+                TranslationLoadAndChunk(
                     source=fpath,
                     chunk_size=10,
                     allowed_root=tmpdir,
@@ -47,7 +47,7 @@ class TestTranslationLoadAndChunkProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_empty_source(self) -> None:
         with Tapestry() as t:
-            _TranslationLoadAndChunk(
+            TranslationLoadAndChunk(
                 source="",
                 chunk_size=10,
                 _config=KnotConfig(id="tlac"),
@@ -59,7 +59,7 @@ class TestTranslationLoadAndChunkProcess(unittest.IsolatedAsyncioTestCase):
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_process_rejects_empty_source(self) -> None:
         with Tapestry():
-            k = _TranslationLoadAndChunk.__new__(_TranslationLoadAndChunk)
+            k = TranslationLoadAndChunk.__new__(TranslationLoadAndChunk)
             object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaises(TypeError):
             await k.process(source="", chunk_size=10)
@@ -69,7 +69,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             fpath = os.path.join(tmpdir, "test.txt")
             Path(fpath).write_text("hellworld", encoding="utf-8")
             with Tapestry():
-                k = _TranslationLoadAndChunk.__new__(_TranslationLoadAndChunk)
+                k = TranslationLoadAndChunk.__new__(TranslationLoadAndChunk)
                 object.__setattr__(k, "_config", KnotConfig(id="x"))
             chunks = await k.process(source=fpath, chunk_size=5, allowed_root=tmpdir)
         assert chunks == ["hellw", "orld"]

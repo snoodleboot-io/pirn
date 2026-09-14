@@ -1,4 +1,4 @@
-"""``_RepeatBeamForExpansion`` — flatten the beam for expansion fan-out."""
+"""``RepeatBeamForExpansion`` — flatten the beam for expansion fan-out."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 
-class _RepeatBeamForExpansion(Knot):
+class RepeatBeamForExpansion(Knot):
     """Flatten the beam into one entry per ``(path, candidate index)`` pair."""
 
     def __init__(

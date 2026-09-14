@@ -1,4 +1,4 @@
-"""``_TreeOfThoughtResult`` — extract the best-scoring path from the beam."""
+"""``TreeOfThoughtResult`` — extract the best-scoring path from the beam."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
-class _TreeOfThoughtResult(Knot):
+class TreeOfThoughtResult(Knot):
     """Extract the best-scoring path from the final beam."""
 
     def __init__(

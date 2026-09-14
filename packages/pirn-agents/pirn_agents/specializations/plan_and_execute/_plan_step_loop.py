@@ -1,4 +1,4 @@
-"""``_PlanStepLoop`` — drive the sequential plan-step execution loop.
+"""``PlanStepLoop`` — drive the sequential plan-step execution loop.
 
 Each step's prompt includes every prior step's result, so steps cannot be
 fanned out independently — the loop genuinely depends on its own accumulated
@@ -17,18 +17,18 @@ from pirn.tapestry import Tapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_loop_pipeline import AgentLoopPipeline
-from pirn_agents.specializations.plan_and_execute._plan_step_call import _PlanStepCall
-from pirn_agents.specializations.plan_and_execute._plan_step_state import _PlanStepState
+from pirn_agents.specializations.plan_and_execute._plan_step_call import PlanStepCall
+from pirn_agents.specializations.plan_and_execute._plan_step_state import PlanStepState
 
 
-class _PlanStepLoop(AgentLoopPipeline[_PlanStepState]):
+class PlanStepLoop(AgentLoopPipeline[PlanStepState]):
     """Execute a plan's steps in order, threading each step's result forward."""
 
     def __init__(self, *, llm: LLMProvider, **kwargs: Any) -> None:
         self._llm = llm
         super().__init__(**kwargs)
 
-    def step(self, state: _PlanStepState) -> tuple[Tapestry, _PlanStepState] | None:
+    def step(self, state: PlanStepState) -> tuple[Tapestry, PlanStepState] | None:
         """Build the next step's call, or return ``None`` once every step has run.
 
         Args:
@@ -41,7 +41,7 @@ class _PlanStepLoop(AgentLoopPipeline[_PlanStepState]):
         if state.index >= len(state.steps):
             return None
         with Tapestry() as t:
-            _PlanStepCall(
+            PlanStepCall(
                 step_index=state.index,
                 step_text=state.steps[state.index],
                 prior_results=state.step_results,
@@ -50,7 +50,7 @@ class _PlanStepLoop(AgentLoopPipeline[_PlanStepState]):
             )
         return t, state
 
-    def fold(self, state: _PlanStepState, result: RunResult) -> _PlanStepState:
+    def fold(self, state: PlanStepState, result: RunResult) -> PlanStepState:
         """Append the completed step's result and advance to the next index.
 
         Args:
@@ -60,12 +60,12 @@ class _PlanStepLoop(AgentLoopPipeline[_PlanStepState]):
         Returns:
             A new state carrying the step's result and the next index.
         """
-        return _PlanStepState(
+        return PlanStepState(
             steps=state.steps,
             step_results=(*state.step_results, result.outputs["call"]),
             index=state.index + 1,
         )
 
-    def step_id(self, state: _PlanStepState, idx: int) -> str:
+    def step_id(self, state: PlanStepState, idx: int) -> str:
         """Name each iteration for run history."""
         return f"step_{idx}"

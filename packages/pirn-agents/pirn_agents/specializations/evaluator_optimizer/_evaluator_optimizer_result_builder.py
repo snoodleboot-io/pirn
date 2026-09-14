@@ -1,4 +1,4 @@
-"""``_EvaluatorOptimizerResultBuilder`` — final loop state to the public result.
+"""``EvaluatorOptimizerResultBuilder`` — final loop state to the public result.
 
 The loop's output is the accumulated state; the pipeline's contract is an
 :class:`EvaluatorOptimizerResult`. This knot is the conversion, so the pipeline
@@ -16,14 +16,14 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.specializations.evaluator_optimizer._evaluator_optimizer_state import (
-    _EvaluatorOptimizerState,
+    EvaluatorOptimizerState,
 )
 from pirn_agents.specializations.evaluator_optimizer.evaluator_optimizer_result import (
     EvaluatorOptimizerResult,
 )
 
 
-class _EvaluatorOptimizerResultBuilder(Knot):
+class EvaluatorOptimizerResultBuilder(Knot):
     """Convert the loop's final state into the pipeline's public result."""
 
     def __init__(
@@ -47,10 +47,10 @@ class _EvaluatorOptimizerResultBuilder(Knot):
         Raises:
             TypeError: If ``state`` is not the loop's state object.
         """
-        if not isinstance(state, _EvaluatorOptimizerState):
+        if not isinstance(state, EvaluatorOptimizerState):
             raise TypeError(
-                "_EvaluatorOptimizerResultBuilder: state must be an "
-                f"_EvaluatorOptimizerState, got {type(state).__name__}"
+                "EvaluatorOptimizerResultBuilder: state must be an "
+                f"EvaluatorOptimizerState, got {type(state).__name__}"
             )
         return EvaluatorOptimizerResult(
             answer=state.best_answer,

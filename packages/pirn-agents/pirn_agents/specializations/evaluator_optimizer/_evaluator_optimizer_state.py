@@ -1,4 +1,4 @@
-"""``_EvaluatorOptimizerState`` — the value threaded through the refine loop.
+"""``EvaluatorOptimizerState`` — the value threaded through the refine loop.
 
 Internal API.
 """
@@ -9,7 +9,7 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class _EvaluatorOptimizerState:
+class EvaluatorOptimizerState:
     """One iteration's worth of accumulated loop state.
 
     Frozen, and ``fold`` returns a *new* instance rather than mutating: PIR-754

@@ -52,6 +52,6 @@ class LatsResult(AgentResult[LatsFrame, tuple[str, ...]]):
         return self._metadata.budget_exhausted
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
-        audit = dict(self._metadata._pirn_audit_dict())
+        audit = dict(super()._pirn_audit_dict())
         audit["best_trajectory"] = list(self.best_trajectory)
         return audit

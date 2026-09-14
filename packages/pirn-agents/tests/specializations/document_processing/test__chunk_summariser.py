@@ -1,4 +1,4 @@
-"""Unit tests for :class:`_ChunkSummariser`."""
+"""Unit tests for :class:`ChunkSummariser`."""
 
 from __future__ import annotations
 
@@ -8,14 +8,14 @@ from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.document_processing._chunk_summariser import (
-    _ChunkSummariser,
+    ChunkSummariser,
 )
 from tests.specializations.conftest import StubLLMProvider
 
 
-def _make_knot(llm: StubLLMProvider) -> _ChunkSummariser:
+def _make_knot(llm: StubLLMProvider) -> ChunkSummariser:
     with Tapestry():
-        return _ChunkSummariser(
+        return ChunkSummariser(
             chunk="",
             position="",
             llm=llm,
@@ -41,8 +41,3 @@ class TestChunkSummariserProcess(unittest.IsolatedAsyncioTestCase):
         llm = StubLLMProvider(["s"])
         await _make_knot(llm).process(chunk="body", position="Chunk 1 of 2", llm=llm)
         assert llm.calls[0][1]["content"] == "Chunk 1 of 2.\n\nbody"
-
-    async def test_extracts_text_from_a_content_mapping(self) -> None:
-        assert _ChunkSummariser._extract_text({"content": "hello"}) == "hello"
-        assert _ChunkSummariser._extract_text({"content": [{"text": "hi"}]}) == "hi"
-        assert _ChunkSummariser._extract_text("plain") == "plain"

@@ -44,6 +44,6 @@ class EvaluatorOptimizerResult(AgentResult[EvaluatorOptimizerFrame, str]):
         return self._metadata.iterations
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
-        audit = dict(self._metadata._pirn_audit_dict())
+        audit = dict(super()._pirn_audit_dict())
         audit["answer"] = self.answer
         return audit

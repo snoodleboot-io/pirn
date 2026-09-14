@@ -1,8 +1,8 @@
 """Security tests for the three chunking loaders (SSRF + path traversal).
 
-`_LoadAndChunk`, `_QALoadAndChunk` and `_TranslationLoadAndChunk` previously
+`LoadAndChunk`, `QALoadAndChunk` and `TranslationLoadAndChunk` previously
 fetched arbitrary URLs and read arbitrary local paths with no guard at all
-(PIR-740). They now read through the shared `_DocumentSourceReader`, so this
+(PIR-740). They now read through the shared `DocumentSourceReader`, so this
 file asserts each one enforces the same policy `_DocumentLoader` always did.
 
 Every case here runs without the optional ``web`` extra installed — the guard
@@ -21,21 +21,21 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.specializations.document_processing._load_and_chunk import _LoadAndChunk
+from pirn_agents.specializations.document_processing._load_and_chunk import LoadAndChunk
 from pirn_agents.specializations.document_processing._qa_load_and_chunk import (
-    _QALoadAndChunk,
+    QALoadAndChunk,
 )
 from pirn_agents.specializations.document_processing._translation_load_and_chunk import (
-    _TranslationLoadAndChunk,
+    TranslationLoadAndChunk,
 )
 
 _RESOLVE = "pirn.security.ssrf_guard.SsrfGuard._resolve_all"
 _REQUIRE = "pirn_agents._internal.optional_import.OptionalImport.require"
 
 _LOADERS: tuple[type[Knot], ...] = (
-    _LoadAndChunk,
-    _QALoadAndChunk,
-    _TranslationLoadAndChunk,
+    LoadAndChunk,
+    QALoadAndChunk,
+    TranslationLoadAndChunk,
 )
 
 

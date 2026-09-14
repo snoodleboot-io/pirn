@@ -159,7 +159,7 @@ class TestTransactionOwnership:
     committed a transaction the caller had opened themselves.
 
     This is the guarantee ``ColumnAwareSqlitePool.fetch_columns`` (PIR-801),
-    ``AiosqliteConnector``/``SqliteConnector`` (PIR-807) and ``_SQLExecutor``
+    ``AiosqliteConnector``/``SqliteConnector`` (PIR-807) and ``SQLExecutor``
     (PIR-817) already make. These exercise a real aiosqlite file: the behaviour
     under test is SQLite's own (``OR FAIL`` keeps rows already changed;
     ``COMMIT`` upgrades to an exclusive lock), so a hand-written double cannot

@@ -30,7 +30,8 @@ class PlanReActFrame(PirnOpaqueValue):
     step_responses: tuple[AgentResponse, ...]
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
+        step_responses: tuple[PirnOpaqueValue, ...] = self.step_responses
         return {
             "plan": list(self.plan),
-            "step_responses": [response._pirn_audit_dict() for response in self.step_responses],
+            "step_responses": [response._pirn_audit_dict() for response in step_responses],
         }

@@ -11,7 +11,7 @@ A :class:`SubTapestry` that runs, up to ``max_iterations`` times:
 
 The loop is strictly bounded by ``max_iterations`` and returns a typed
 :class:`ReflexionResult` on either success or exhaustion. Driven by
-:class:`~pirn_agents.specializations.reflexion._reflexion_loop._ReflexionLoop`
+:class:`~pirn_agents.specializations.reflexion._reflexion_loop.ReflexionLoop`
 (a :class:`~pirn.nodes.loop_sub_tapestry.LoopSubTapestry`): every iteration
 wires the actor and evaluator as real parent/child knots the engine actually
 runs, instead of calling their ``process()`` methods directly inside a
@@ -32,11 +32,11 @@ from pirn.core.parameter import Parameter
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.reflexion._reflexion_loop import _ReflexionLoop
+from pirn_agents.specializations.reflexion._reflexion_loop import ReflexionLoop
 from pirn_agents.specializations.reflexion._reflexion_result_extractor import (
-    _ReflexionResultExtractor,
+    ReflexionResultExtractor,
 )
-from pirn_agents.specializations.reflexion._reflexion_state import _ReflexionState
+from pirn_agents.specializations.reflexion._reflexion_state import ReflexionState
 
 
 class ReflexionPipeline(AgentPipeline):
@@ -94,12 +94,12 @@ class ReflexionPipeline(AgentPipeline):
 
         initial = Parameter(
             "reflexion_state",
-            _ReflexionState,
-            default=_ReflexionState(
+            ReflexionState,
+            default=ReflexionState(
                 reflection_keys=(), attempts=(), final_answer="", succeeded=False, index=0
             ),
         )
-        loop = _ReflexionLoop(
+        loop = ReflexionLoop(
             task=task,
             llm=llm,
             memory=memory,
@@ -108,4 +108,4 @@ class ReflexionPipeline(AgentPipeline):
             state=initial,
             _config=KnotConfig(id="reflexion_loop"),
         )
-        return _ReflexionResultExtractor(state=loop, _config=KnotConfig(id="reflexion_result"))
+        return ReflexionResultExtractor(state=loop, _config=KnotConfig(id="reflexion_result"))

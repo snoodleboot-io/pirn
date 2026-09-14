@@ -29,7 +29,7 @@ from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.plan_and_execute.task_planner import TaskPlanner
 from pirn_agents.specializations.plan_react._plan_react_result_extractor import (
-    _PlanReActResultExtractor,
+    PlanReActResultExtractor,
 )
 from pirn_agents.specializations.react.react_loop import ReActLoop
 from pirn_agents.tools.tool_factory import ToolFactory
@@ -116,7 +116,7 @@ class PlanReActPipeline(AgentPipeline):
             else:
                 step_responses.append(AgentResponse(content=str(response)))
 
-        return _PlanReActResultExtractor(
+        return PlanReActResultExtractor(
             plan=steps,
             step_responses=tuple(step_responses),
             _config=KnotConfig(id="plan_react_result"),

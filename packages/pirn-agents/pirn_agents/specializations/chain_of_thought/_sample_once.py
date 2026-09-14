@@ -1,4 +1,4 @@
-"""``_SampleOnce`` — draw one independent LLM sample for the same prompt."""
+"""``SampleOnce`` — draw one independent LLM sample for the same prompt."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.llm_response_text import LlmResponseText
 
 
-class _SampleOnce(Knot):
+class SampleOnce(Knot):
     """Draw one independent sample from the LLM for the same prompt."""
 
     def __init__(

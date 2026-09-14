@@ -1,8 +1,8 @@
-"""``_ChunkEmbedderStore`` — internal helper Knot for :class:`DocumentIngestionPipeline`.
+"""``ChunkEmbedderStore`` — internal helper Knot for :class:`DocumentIngestionPipeline`.
 
 Each chunk's persisted write is independent of every other chunk's, so
 persisting them is a fan-out — one
-:class:`~pirn_agents.specializations.document_processing._chunk_store_write._ChunkStoreWrite`
+:class:`~pirn_agents.specializations.document_processing._chunk_store_write.ChunkStoreWrite`
 knot per chunk wired into an :class:`~pirn.nodes.aggregator.Aggregator` —
 rather than a hand-rolled ``asyncio.gather`` over bare coroutines (PIR-867;
 before this, no chunk's write had its own lineage row). The embedding call
@@ -16,7 +16,7 @@ Algorithm:
     3. Derive a deterministic ``doc_id`` from ``source`` via SHA-256 (first 16 hex chars).
     4. Call ``embedder.embed(chunks)`` in one batch.
     5. Validate vector count matches chunk count.
-    6. Build one ``_ChunkStoreWrite`` per ``{doc_id}:{index}`` key and wire
+    6. Build one ``ChunkStoreWrite`` per ``{doc_id}:{index}`` key and wire
        them as the parents of an ``Aggregator`` whose combine returns the
        chunk count.
 
@@ -44,11 +44,11 @@ from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.document_processing._chunk_store_write import (
-    _ChunkStoreWrite,
+    ChunkStoreWrite,
 )
 
 
-class _ChunkEmbedderStore(AgentPipeline):
+class ChunkEmbedderStore(AgentPipeline):
     """Embed each chunk and persist it under ``{doc_id}:{chunk_idx}``."""
 
     def __init__(
@@ -89,7 +89,7 @@ class _ChunkEmbedderStore(AgentPipeline):
         Returns:
             The sink of the inner pipeline: a ``Parameter`` defaulting to
             ``0`` when ``chunks`` is empty, or an :class:`Aggregator` over
-            one ``_ChunkStoreWrite`` per chunk whose output is the number of
+            one ``ChunkStoreWrite`` per chunk whose output is the number of
             chunks stored.
 
         Raises:
@@ -105,7 +105,7 @@ class _ChunkEmbedderStore(AgentPipeline):
                 f"{len(embeddings)} vectors for {len(chunks)} chunks"
             )
         per_chunk: dict[str, Knot] = {
-            f"chunk_{index}": _ChunkStoreWrite(
+            f"chunk_{index}": ChunkStoreWrite(
                 key=f"{doc_id}:{index}",
                 payload={
                     "doc_id": doc_id,

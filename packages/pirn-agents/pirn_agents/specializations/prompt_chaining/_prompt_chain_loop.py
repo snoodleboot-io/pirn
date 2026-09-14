@@ -1,4 +1,4 @@
-"""``_PromptChainLoop`` — the sequential link chain as a core node.
+"""``PromptChainLoop`` — the sequential link chain as a core node.
 
 Replaces the hand-rolled ``for step in step_tuple: await llm.chat(...)`` that
 ran outside the engine, so each link is an engine knot with its own
@@ -8,7 +8,7 @@ PIR-856's imperative-loop inventory).
 ``steps`` is a resolved sequence known in full before this loop starts (a
 constructor-time value, not decided by an earlier LLM call), but the loop
 still uses ``LoopSubTapestry`` rather than a static unroll: each link must be
-a real, individually-traceable knot, the same reasoning ``_RoundRobinLoop``
+a real, individually-traceable knot, the same reasoning ``RoundRobinLoop``
 documents for ``RoundRobinReview``.
 
 Internal API. See PIR-856.
@@ -23,14 +23,14 @@ from pirn.tapestry import Tapestry
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_loop_pipeline import AgentLoopPipeline
-from pirn_agents.specializations.prompt_chaining._prompt_chain_state import _PromptChainState
+from pirn_agents.specializations.prompt_chaining._prompt_chain_state import PromptChainState
 from pirn_agents.specializations.rag.llm_chat_call import LLMChatCall
 
 if TYPE_CHECKING:
     from pirn.core.run_result import RunResult
 
 
-class _PromptChainLoop(AgentLoopPipeline[_PromptChainState]):
+class PromptChainLoop(AgentLoopPipeline[PromptChainState]):
     """Run each link in turn, one ``LLMChatCall`` per link."""
 
     #: Per-iteration knot id (Rule: no module-level constants).
@@ -45,7 +45,7 @@ class _PromptChainLoop(AgentLoopPipeline[_PromptChainState]):
         self._llm = llm
         super().__init__(**kwargs)
 
-    def step(self, state: _PromptChainState) -> tuple[Tapestry, _PromptChainState] | None:
+    def step(self, state: PromptChainState) -> tuple[Tapestry, PromptChainState] | None:
         """Build the next link's round, or None once every step has run.
 
         Args:
@@ -68,7 +68,7 @@ class _PromptChainLoop(AgentLoopPipeline[_PromptChainState]):
             )
         return round_tapestry, state
 
-    def fold(self, state: _PromptChainState, result: RunResult) -> _PromptChainState:
+    def fold(self, state: PromptChainState, result: RunResult) -> PromptChainState:
         """Advance the cursor, carrying this link's output as the next link's input.
 
         Args:
@@ -79,13 +79,13 @@ class _PromptChainLoop(AgentLoopPipeline[_PromptChainState]):
             A new state with the output appended and an advanced index.
         """
         output = result.outputs[self._call_id]
-        return _PromptChainState(
+        return PromptChainState(
             steps=state.steps,
             index=state.index + 1,
             current=output,
             outputs=(*state.outputs, output),
         )
 
-    def step_id(self, state: _PromptChainState, idx: int) -> str:
+    def step_id(self, state: PromptChainState, idx: int) -> str:
         """Name each link for run history."""
         return f"link_{idx}"

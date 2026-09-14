@@ -1,12 +1,12 @@
-"""``_DocumentIngest`` — load, chunk, and upsert one source document.
+"""``DocumentIngest`` — load, chunk, and upsert one source document.
 
 Internal per-document knot for
-:class:`~pirn_agents.specializations.document_processing._ingestion_runner._IngestionRunner`'s
+:class:`~pirn_agents.specializations.document_processing._ingestion_runner.IngestionRunner`'s
 fan-out (PIR-867): each document's ETL is independent of every other
 document's, so it is one node per document rather than a hand-rolled
 ``asyncio.gather`` over bare coroutines. A failure on this document is
 isolated here — caught and carried back as an errored
-:class:`~pirn_agents.specializations.document_processing._document_outcome._DocumentOutcome`
+:class:`~pirn_agents.specializations.document_processing._document_outcome.DocumentOutcome`
 rather than raised — so one bad document never fails the run or its
 siblings; the runner folds the isolated outcomes into the final report.
 
@@ -20,7 +20,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents.specializations.document_processing._document_outcome import _DocumentOutcome
+from pirn_agents.specializations.document_processing._document_outcome import DocumentOutcome
 from pirn_agents.specializations.document_processing.chunking.chunking_strategy import (
     ChunkingStrategy,
 )
@@ -33,7 +33,7 @@ from pirn_agents.specializations.document_processing.sources.source_document imp
 )
 
 
-class _DocumentIngest(Knot):
+class DocumentIngest(Knot):
     """Load, chunk, and upsert one document; isolate its failure as an outcome."""
 
     def __init__(
@@ -62,7 +62,7 @@ class _DocumentIngest(Knot):
         chunking_strategy: ChunkingStrategy,
         upserter: IncrementalUpserter,
         **_: Any,
-    ) -> _DocumentOutcome:
+    ) -> DocumentOutcome:
         """Load, chunk, and upsert ``document``, isolating any failure.
 
         Returns:
@@ -74,8 +74,8 @@ class _DocumentIngest(Knot):
             chunks = await chunking_strategy.chunk(loaded.text)
             plan = await upserter.upsert(document.source_id, chunks)
         except Exception as exc:
-            return _DocumentOutcome(source_id=document.source_id, error=str(exc))
-        return _DocumentOutcome(
+            return DocumentOutcome(source_id=document.source_id, error=str(exc))
+        return DocumentOutcome(
             source_id=document.source_id,
             embedded=plan.embedded_count,
             unchanged=plan.unchanged_count,

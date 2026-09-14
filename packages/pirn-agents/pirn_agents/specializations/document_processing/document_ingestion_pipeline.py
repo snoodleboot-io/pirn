@@ -10,13 +10,13 @@ Returns the number of chunks stored. The deterministic key shape lets
 downstream pipelines fetch chunks by index without scanning the store.
 
 Algorithm:
-    1. ``_DocumentSource`` resolves the source (file path or HTTP/HTTPS URL)
+    1. ``DocumentSource`` resolves the source (file path or HTTP/HTTPS URL)
        under the shared SSRF / path-traversal guards and returns its raw
-       bytes; ``_DocumentAssembler`` decodes those bytes to text with no I/O
+       bytes; ``DocumentAssembler`` decodes those bytes to text with no I/O
        of its own (PIR-868 split of the former ``_DocumentLoader`` ingestor).
-    2. ``_DocumentChunker`` partitions the text into overlapping windows of
+    2. ``DocumentChunker`` partitions the text into overlapping windows of
        ``chunk_size`` characters with ``overlap`` stride.
-    3. ``_ChunkEmbedderStore`` calls the ``EmbeddingProvider`` once per chunk, then
+    3. ``ChunkEmbedderStore`` calls the ``EmbeddingProvider`` once per chunk, then
        writes each ``(embedding, text)`` pair to the ``MemoryStore`` under the key
        ``{doc_id}:{chunk_idx}``.
     4. The pipeline returns the total number of chunks written.
@@ -42,19 +42,19 @@ from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.document_processing._chunk_embedder_store import (
-    _ChunkEmbedderStore,
+    ChunkEmbedderStore,
 )
 from pirn_agents.specializations.document_processing._document_assembler import (
-    _DocumentAssembler,
+    DocumentAssembler,
 )
 from pirn_agents.specializations.document_processing._document_chunker import (
-    _DocumentChunker,
+    DocumentChunker,
 )
 from pirn_agents.specializations.document_processing._document_source import (
-    _DocumentSource,
+    DocumentSource,
 )
 from pirn_agents.specializations.document_processing._document_source_reader import (
-    _DocumentSourceReader,
+    DocumentSourceReader,
 )
 from pirn_agents.specializations.document_processing.chunking.chunking_config import (
     ChunkingConfig,
@@ -75,7 +75,7 @@ class DocumentIngestionPipeline(AgentPipeline):
         chunk_overlap: Knot | int = ChunkingConfig.chunk_overlap,
         allowed_root: Knot | str | None = None,
         allowed_hosts: Knot | tuple[str, ...] | None = None,
-        max_bytes: Knot | int = _DocumentSourceReader.max_bytes,
+        max_bytes: Knot | int = DocumentSourceReader.max_bytes,
         **kwargs: Any,
     ) -> None:
         super().__init__(
@@ -100,7 +100,7 @@ class DocumentIngestionPipeline(AgentPipeline):
         chunk_overlap: int = ChunkingConfig.chunk_overlap,
         allowed_root: str | None = None,
         allowed_hosts: tuple[str, ...] | None = None,
-        max_bytes: int = _DocumentSourceReader.max_bytes,
+        max_bytes: int = DocumentSourceReader.max_bytes,
         **_: Any,
     ) -> Knot:
         """Load, chunk, embed, and store a document; return the number of chunks stored.
@@ -136,21 +136,21 @@ class DocumentIngestionPipeline(AgentPipeline):
                 "negative int strictly less than chunk_size, "
                 f"got {chunk_overlap!r}"
             )
-        source_node = _DocumentSource(
+        source_node = DocumentSource(
             source=source,
             allowed_root=allowed_root,
             allowed_hosts=allowed_hosts,
             max_bytes=max_bytes,
             _config=KnotConfig(id="source"),
         )
-        loaded = _DocumentAssembler(body=source_node, _config=KnotConfig(id="load"))
-        chunks = _DocumentChunker(
+        loaded = DocumentAssembler(body=source_node, _config=KnotConfig(id="load"))
+        chunks = DocumentChunker(
             text=loaded,
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
             _config=KnotConfig(id="chunk"),
         )
-        return _ChunkEmbedderStore(
+        return ChunkEmbedderStore(
             chunks=chunks,
             source=source,
             embedder=embedder,

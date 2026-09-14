@@ -1,4 +1,4 @@
-"""``_SelfAskLoop`` — the sub-answer loop as a core node.
+"""``SelfAskLoop`` — the sub-answer loop as a core node.
 
 Replaces the hand-rolled ``for subquestion in subquestions: await
 llm.chat(...)`` that ran outside the engine, so each sub-answer is an engine
@@ -9,7 +9,7 @@ agents-speaks-core WS5b; PIR-856's imperative-loop inventory).
 (decomposition already ran, in ``SelfAskPipeline.process()``, to produce it),
 but the loop still uses ``LoopSubTapestry`` rather than a static unroll: the
 point is "each sub-answer must be a real, individually-traceable knot", the
-same reasoning ``_RoundRobinLoop`` documents for ``RoundRobinReview``.
+same reasoning ``RoundRobinLoop`` documents for ``RoundRobinReview``.
 
 Internal API. See PIR-856.
 """
@@ -24,13 +24,13 @@ from pirn.tapestry import Tapestry
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_loop_pipeline import AgentLoopPipeline
 from pirn_agents.specializations.rag.llm_chat_call import LLMChatCall
-from pirn_agents.specializations.self_ask._self_ask_state import _SelfAskState
+from pirn_agents.specializations.self_ask._self_ask_state import SelfAskState
 
 if TYPE_CHECKING:
     from pirn.core.run_result import RunResult
 
 
-class _SelfAskLoop(AgentLoopPipeline[_SelfAskState]):
+class SelfAskLoop(AgentLoopPipeline[SelfAskState]):
     """Answer each sub-question in turn, one ``LLMChatCall`` per round."""
 
     #: Per-iteration knot id (Rule: no module-level constants).
@@ -47,7 +47,7 @@ class _SelfAskLoop(AgentLoopPipeline[_SelfAskState]):
         self._subanswer_system = subanswer_system
         super().__init__(**kwargs)
 
-    def step(self, state: _SelfAskState) -> tuple[Tapestry, _SelfAskState] | None:
+    def step(self, state: SelfAskState) -> tuple[Tapestry, SelfAskState] | None:
         """Build the next sub-question's answer round, or None once all have run.
 
         Args:
@@ -70,7 +70,7 @@ class _SelfAskLoop(AgentLoopPipeline[_SelfAskState]):
             )
         return round_tapestry, state
 
-    def fold(self, state: _SelfAskState, result: RunResult) -> _SelfAskState:
+    def fold(self, state: SelfAskState, result: RunResult) -> SelfAskState:
         """Append this round's answer and advance the cursor.
 
         Args:
@@ -80,12 +80,12 @@ class _SelfAskLoop(AgentLoopPipeline[_SelfAskState]):
         Returns:
             A new state with the answer appended and an advanced index.
         """
-        return _SelfAskState(
+        return SelfAskState(
             subquestions=state.subquestions,
             index=state.index + 1,
             subanswers=(*state.subanswers, result.outputs[self._call_id]),
         )
 
-    def step_id(self, state: _SelfAskState, idx: int) -> str:
+    def step_id(self, state: SelfAskState, idx: int) -> str:
         """Name each round for run history."""
         return f"subanswer_{idx}"

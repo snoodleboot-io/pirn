@@ -1,4 +1,4 @@
-"""``_PlanReActResultExtractor`` — surface the plan+ReAct run's :class:`PlanReActResult`.
+"""``PlanReActResultExtractor`` — surface the plan+ReAct run's :class:`PlanReActResult`.
 
 Replaces the inline ``_PlanReActResultSource(Source)`` that closed over an
 already-computed :class:`PlanReActResult` (ADR agents-speaks-core WS5b;
@@ -19,7 +19,7 @@ from pirn_agents.specializations.plan_react.plan_react_result import PlanReActRe
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
-class _PlanReActResultExtractor(Knot):
+class PlanReActResultExtractor(Knot):
     """Wrap the already-computed plan and per-step responses as a :class:`PlanReActResult`."""
 
     def __init__(

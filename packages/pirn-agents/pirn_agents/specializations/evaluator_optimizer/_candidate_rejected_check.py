@@ -1,4 +1,4 @@
-"""``_CandidateRejectedCheck`` — should the reflection check run this iteration?
+"""``CandidateRejectedCheck`` — should the reflection check run this iteration?
 
 The ``Check`` (core role, ``pirn.nodes.check.Check``) behind the
 :class:`~pirn.nodes.gate.gate.Gate` that keeps
@@ -24,7 +24,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.nodes.check import Check
 
 
-class _CandidateRejectedCheck(Check):
+class CandidateRejectedCheck(Check):
     """``True`` when the judge's verdict did not clear the accept threshold."""
 
     def __init__(

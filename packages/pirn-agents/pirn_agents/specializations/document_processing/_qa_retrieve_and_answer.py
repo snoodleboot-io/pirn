@@ -1,4 +1,4 @@
-"""``_QARetrieveAndAnswer`` — internal helper Knot for :class:`DocumentQAPipeline`.
+"""``QARetrieveAndAnswer`` — internal helper Knot for :class:`DocumentQAPipeline`.
 
 Embeds the chunks plus the question, ranks chunks by cosine similarity,
 and asks the LLM to answer using the top-k chunks as context. Internal
@@ -40,10 +40,11 @@ from pirn.core.knot_config import KnotConfig
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
-class _QARetrieveAndAnswer(Knot):
+class QARetrieveAndAnswer(Knot):
     """Embed chunks + question, pick top-k by cosine, ask the LLM."""
 
     _answer_system: ClassVar[PromptBinding] = PromptBinding(
@@ -133,7 +134,7 @@ class _QARetrieveAndAnswer(Knot):
         ]
         raw = await llm.chat(chat_messages)
         return AgentResponse(
-            content=_QARetrieveAndAnswer._extract_text(raw),
+            content=LlmResponseText().extract(raw),
             finish_reason="stop",
         )
 
@@ -147,24 +148,3 @@ class _QARetrieveAndAnswer(Knot):
         if norm_a == 0.0 or norm_b == 0.0:
             return 0.0
         return dot / (norm_a * norm_b)
-
-    @staticmethod
-    def _extract_text(raw: Any) -> str:
-        if isinstance(raw, str):
-            return raw
-        if isinstance(raw, dict):
-            content = raw.get("content")
-            if isinstance(content, str):
-                return content
-            if isinstance(content, list) and content:
-                first = content[0]
-                if isinstance(first, dict):
-                    text = first.get("text")
-                    if isinstance(text, str):
-                        return text
-                if isinstance(first, str):
-                    return first
-            text = raw.get("text")
-            if isinstance(text, str):
-                return text
-        return str(raw)

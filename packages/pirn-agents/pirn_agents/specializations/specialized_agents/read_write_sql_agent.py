@@ -2,7 +2,7 @@
 
 Identical to :class:`~pirn_agents.specializations.specialized_agents.sql_agent.SQLAgent`
 except that the generated statement runs through
-:class:`~pirn_agents.specializations.specialized_agents._read_write_sql_executor._ReadWriteSQLExecutor`:
+:class:`~pirn_agents.specializations.specialized_agents._read_write_sql_executor.ReadWriteSQLExecutor`:
 the read-only guard is skipped, the inline-interpolation guard still applies,
 and a write commits exactly the transaction it opened.
 
@@ -23,13 +23,13 @@ from __future__ import annotations
 from typing import ClassVar
 
 from pirn_agents.specializations.specialized_agents._read_write_sql_executor import (
-    _ReadWriteSQLExecutor,
+    ReadWriteSQLExecutor,
 )
-from pirn_agents.specializations.specialized_agents._sql_executor import _SQLExecutor
+from pirn_agents.specializations.specialized_agents._sql_executor import SQLExecutor
 from pirn_agents.specializations.specialized_agents.sql_agent import SQLAgent
 
 
 class ReadWriteSQLAgent(SQLAgent):
     """Translate natural language to SQL and execute it, permitting writes."""
 
-    _executor_class: ClassVar[type[_SQLExecutor]] = _ReadWriteSQLExecutor
+    _executor_class: ClassVar[type[SQLExecutor]] = ReadWriteSQLExecutor

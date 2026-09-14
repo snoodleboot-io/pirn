@@ -177,7 +177,7 @@ language, a tool name, a rendered evidence block. Bind the **whole** prompt as a
 `{{ slot }}` template and read it through `resolve`'s sibling, `render`:
 
 ```python
-class _CodeGenerator(Knot):
+class CodeGenerator(Knot):
     _system_prompt: ClassVar[PromptBinding] = PromptBinding(
         name="specializations.specialized_agents._code_generator.system_prompt",
         default=(

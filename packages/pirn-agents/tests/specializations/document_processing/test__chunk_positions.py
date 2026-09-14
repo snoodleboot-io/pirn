@@ -1,4 +1,4 @@
-"""Unit tests for :class:`_ChunkPositions`."""
+"""Unit tests for :class:`ChunkPositions`."""
 
 from __future__ import annotations
 
@@ -8,13 +8,13 @@ from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.document_processing._chunk_positions import (
-    _ChunkPositions,
+    ChunkPositions,
 )
 
 
-def _make_knot() -> _ChunkPositions:
+def _make_knot() -> ChunkPositions:
     with Tapestry():
-        return _ChunkPositions(chunks=[], _config=KnotConfig(id="positions"))
+        return ChunkPositions(chunks=[], _config=KnotConfig(id="positions"))
 
 
 class TestChunkPositionsProcess(unittest.IsolatedAsyncioTestCase):

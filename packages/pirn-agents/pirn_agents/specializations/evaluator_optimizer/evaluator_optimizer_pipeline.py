@@ -32,13 +32,13 @@ from pirn.core.parameter import Parameter
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.evaluator_optimizer._evaluator_optimizer_loop import (
-    _EvaluatorOptimizerLoop,
+    EvaluatorOptimizerLoop,
 )
 from pirn_agents.specializations.evaluator_optimizer._evaluator_optimizer_result_builder import (
-    _EvaluatorOptimizerResultBuilder,
+    EvaluatorOptimizerResultBuilder,
 )
 from pirn_agents.specializations.evaluator_optimizer._evaluator_optimizer_state import (
-    _EvaluatorOptimizerState,
+    EvaluatorOptimizerState,
 )
 
 
@@ -106,10 +106,8 @@ class EvaluatorOptimizerPipeline(AgentPipeline):
             )
 
         # A plain Parameter seeds the loop; no bespoke Source needed.
-        initial = Parameter(
-            "eo_state", _EvaluatorOptimizerState, default=_EvaluatorOptimizerState()
-        )
-        loop = _EvaluatorOptimizerLoop(
+        initial = Parameter("eo_state", EvaluatorOptimizerState, default=EvaluatorOptimizerState())
+        loop = EvaluatorOptimizerLoop(
             task=task,
             llm=llm,
             threshold=float(threshold),
@@ -118,7 +116,7 @@ class EvaluatorOptimizerPipeline(AgentPipeline):
             state=initial,
             _config=KnotConfig(id="eo_loop"),
         )
-        return _EvaluatorOptimizerResultBuilder(
+        return EvaluatorOptimizerResultBuilder(
             state=loop,
             _config=KnotConfig(id="eo_result"),
         )

@@ -31,7 +31,9 @@ class ReWooFrame(PirnOpaqueValue):
     results: tuple[ToolResult, ...]
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
+        plan: tuple[PirnOpaqueValue, ...] = self.plan
+        results: tuple[PirnOpaqueValue, ...] = self.results
         return {
-            "plan": [call._pirn_audit_dict() for call in self.plan],
-            "results": [result._pirn_audit_dict() for result in self.results],
+            "plan": [call._pirn_audit_dict() for call in plan],
+            "results": [result._pirn_audit_dict() for result in results],
         }

@@ -9,7 +9,7 @@ Every stage is injected as a provider-neutral component, so the same pipeline
 ingests from object storage or a web crawl, parses any supported format, chunks
 with any strategy, and re-embeds only changed content. Documents are processed
 concurrently (bounded by ``max_concurrency``) and each document's chunks are
-embedded in one batched call (F4); see :class:`_IngestionRunner`. The run returns
+embedded in one batched call (F4); see :class:`IngestionRunner`. The run returns
 an :class:`IngestionReport`.
 
 Example::
@@ -31,7 +31,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.document_processing._ingestion_runner import _IngestionRunner
+from pirn_agents.specializations.document_processing._ingestion_runner import IngestionRunner
 from pirn_agents.specializations.document_processing.chunking.chunking_strategy import (
     ChunkingStrategy,
 )
@@ -88,7 +88,7 @@ class IngestionPipeline(AgentPipeline):
                 defaults to 8.
 
         Returns:
-            The terminal :class:`_IngestionRunner` knot whose output is the
+            The terminal :class:`IngestionRunner` knot whose output is the
             :class:`IngestionReport`.
 
         Raises:
@@ -98,7 +98,7 @@ class IngestionPipeline(AgentPipeline):
             raise ValueError(
                 f"IngestionPipeline: max_concurrency must be >= 1, got {max_concurrency}"
             )
-        return _IngestionRunner(
+        return IngestionRunner(
             source_connector=source_connector,
             loader=loader,
             chunking_strategy=chunking_strategy,

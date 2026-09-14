@@ -1,4 +1,4 @@
-"""``_OrchestratorResultNormalizer`` — normalise a specialist's raw output.
+"""``OrchestratorResultNormalizer`` — normalise a specialist's raw output.
 
 Replaces the inline ``_ResultSource(Source)`` that closed over an
 already-computed :class:`AgentResponse` (ADR agents-speaks-core WS5b;
@@ -21,7 +21,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
-class _OrchestratorResultNormalizer(Knot):
+class OrchestratorResultNormalizer(Knot):
     """Wrap a specialist's raw output as an :class:`AgentResponse` if it is not one."""
 
     def __init__(

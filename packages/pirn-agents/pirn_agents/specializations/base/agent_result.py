@@ -66,6 +66,6 @@ class AgentResult(Payload[M, D]):
         dataclass fields keeps this correct across every concrete without
         each one needing to declare its own.
         """
-        if not isinstance(other, AgentResult) or type(other) is not type(self):
+        if not isinstance(other, type(self)) or type(other) is not type(self):
             return NotImplemented
         return self._metadata == other._metadata and self._data == other._data

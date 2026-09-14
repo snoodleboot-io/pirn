@@ -1,9 +1,9 @@
-"""``_DocumentSourceReader`` — the single guarded reader for document sources.
+"""``DocumentSourceReader`` — the single guarded reader for document sources.
 
 Every document-processing loader reads its ``source`` through this collaborator so
 the SSRF and path-traversal guards exist in exactly one place. Previously only
-:class:`_DocumentLoader` carried them; ``_LoadAndChunk``, ``_QALoadAndChunk`` and
-``_TranslationLoadAndChunk`` fetched arbitrary URLs and read arbitrary paths with
+:class:`_DocumentLoader` carried them; ``LoadAndChunk``, ``QALoadAndChunk`` and
+``TranslationLoadAndChunk`` fetched arbitrary URLs and read arbitrary paths with
 no guard at all (PIR-740).
 
 Algorithm:
@@ -57,7 +57,7 @@ from pirn_agents._internal.optional_import import OptionalImport
 
 
 @dataclass(frozen=True)
-class _DocumentSourceReader(PirnOpaqueValue):
+class DocumentSourceReader(PirnOpaqueValue):
     """Read text from a local path or an HTTP(S) URL under a fixed security policy.
 
     Attributes
@@ -89,11 +89,11 @@ class _DocumentSourceReader(PirnOpaqueValue):
     def __post_init__(self) -> None:
         if not isinstance(self.max_bytes, int) or isinstance(self.max_bytes, bool):
             raise TypeError(
-                f"_DocumentSourceReader: max_bytes must be an int, got {self.max_bytes!r}"
+                f"DocumentSourceReader: max_bytes must be an int, got {self.max_bytes!r}"
             )
         if self.max_bytes <= 0:
             raise ValueError(
-                f"_DocumentSourceReader: max_bytes must be a positive int, got {self.max_bytes!r}"
+                f"DocumentSourceReader: max_bytes must be a positive int, got {self.max_bytes!r}"
             )
 
     async def read(self, source: str) -> str:
@@ -113,7 +113,7 @@ class _DocumentSourceReader(PirnOpaqueValue):
         """
         if not isinstance(source, str) or not source:
             raise TypeError(
-                f"_DocumentSourceReader: source must be a non-empty string, got {source!r}"
+                f"DocumentSourceReader: source must be a non-empty string, got {source!r}"
             )
         parsed = urlparse(source)
         scheme = parsed.scheme.lower()
@@ -121,27 +121,27 @@ class _DocumentSourceReader(PirnOpaqueValue):
             return await self._fetch_url(source)
         if scheme in ("", "file"):
             return await self._read_file(parsed.path if scheme == "file" else source)
-        raise ValueError(f"_DocumentSourceReader: unsupported source scheme: {parsed.scheme!r}")
+        raise ValueError(f"DocumentSourceReader: unsupported source scheme: {parsed.scheme!r}")
 
     async def _read_file(self, path_str: str) -> str:
         if self.allowed_root is None:
-            raise ValueError("_DocumentSourceReader: local file reads require allowed_root")
+            raise ValueError("DocumentSourceReader: local file reads require allowed_root")
         root = Path(self.allowed_root).resolve(strict=True)
         candidate = Path(path_str)
         try:
             resolved = candidate.resolve(strict=True)
         except FileNotFoundError as exc:
-            raise ValueError(f"_DocumentSourceReader: file does not exist: {path_str!r}") from exc
+            raise ValueError(f"DocumentSourceReader: file does not exist: {path_str!r}") from exc
         if not resolved.is_relative_to(root):
             raise ValueError(
-                f"_DocumentSourceReader: refusing to read outside allowed_root: {path_str!r}"
+                f"DocumentSourceReader: refusing to read outside allowed_root: {path_str!r}"
             )
         if candidate.is_symlink():
-            raise ValueError(f"_DocumentSourceReader: refusing to read symlink: {path_str!r}")
+            raise ValueError(f"DocumentSourceReader: refusing to read symlink: {path_str!r}")
         size = resolved.stat().st_size
         if size > self.max_bytes:
             raise ValueError(
-                f"_DocumentSourceReader: file size {size} exceeds max_bytes {self.max_bytes}"
+                f"DocumentSourceReader: file size {size} exceeds max_bytes {self.max_bytes}"
             )
         return await asyncio.to_thread(resolved.read_text, encoding="utf-8")
 
@@ -169,7 +169,7 @@ class _DocumentSourceReader(PirnOpaqueValue):
                 response.raise_for_status()
                 if response.is_redirect:
                     raise ValueError(
-                        f"_DocumentSourceReader: refusing to follow redirect from {url!r} "
+                        f"DocumentSourceReader: refusing to follow redirect from {url!r} "
                         f"to {response.headers.get('location')!r}"
                     )
                 # Streamed and capped: an unbounded read would let a hostile or merely
@@ -181,7 +181,7 @@ class _DocumentSourceReader(PirnOpaqueValue):
                     total += len(chunk)
                     if total > self.max_bytes:
                         raise ValueError(
-                            f"_DocumentSourceReader: response body exceeds "
+                            f"DocumentSourceReader: response body exceeds "
                             f"max_bytes {self.max_bytes}"
                         )
                     chunks.append(chunk)

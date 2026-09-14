@@ -1,4 +1,4 @@
-"""``_LatsResultExtractor`` — surface the search's :class:`LatsResult`.
+"""``LatsResultExtractor`` — surface the search's :class:`LatsResult`.
 
 Replaces the inline ``_LatsResultSource(Source)`` that closed over an
 already-computed :class:`LatsResult` (ADR agents-speaks-core WS5b;
@@ -19,7 +19,7 @@ from pirn_agents.specializations.lats.lats_node import LatsNode
 from pirn_agents.specializations.lats.lats_result import LatsResult
 
 
-class _LatsResultExtractor(Knot):
+class LatsResultExtractor(Knot):
     """Wrap the already-computed search outcome as a :class:`LatsResult`."""
 
     def __init__(

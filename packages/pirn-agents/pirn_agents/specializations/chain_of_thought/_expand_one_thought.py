@@ -1,4 +1,4 @@
-"""``_ExpandOneThought`` — ask the LLM for the next reasoning step."""
+"""``ExpandOneThought`` — ask the LLM for the next reasoning step."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.llm_response_text import LlmResponseText
 
 
-class _ExpandOneThought(Knot):
+class ExpandOneThought(Knot):
     """Ask the LLM for the next reasoning step continuing one parent path."""
 
     _expansion_system: ClassVar[PromptBinding] = PromptBinding(
@@ -44,7 +44,7 @@ class _ExpandOneThought(Knot):
             A ``(parent_path, thought)`` pair.
         """
         messages = [
-            {"role": "system", "content": _ExpandOneThought._expansion_system.resolve()},
+            {"role": "system", "content": ExpandOneThought._expansion_system.resolve()},
             {"role": "user", "content": parent_path},
         ]
         raw = await llm.chat(messages=messages)

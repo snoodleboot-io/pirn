@@ -1,4 +1,4 @@
-"""``_RoundRobinLoop`` — the sequential reviewer chain as a core node.
+"""``RoundRobinLoop`` — the sequential reviewer chain as a core node.
 
 Replaces the hand-rolled ``for reviewer in reviewer_list: await
 SpecialistHandle.run(...)`` that ran outside the engine, so
@@ -32,17 +32,17 @@ from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.base.agent_loop_pipeline import AgentLoopPipeline
 from pirn_agents.specializations.multi_agent._reviewer_invocation import (
-    _ReviewerInvocation,
+    ReviewerInvocation,
 )
-from pirn_agents.specializations.multi_agent._round_robin_state import _RoundRobinState
+from pirn_agents.specializations.multi_agent._round_robin_state import RoundRobinState
 from pirn_agents.specializations.multi_agent.specialist_handle import SpecialistHandle
 
 if TYPE_CHECKING:
     from pirn.core.run_result import RunResult
 
 
-class _RoundRobinLoop(AgentLoopPipeline[_RoundRobinState]):
-    """Iterate the reviewer sequence, one ``_ReviewerInvocation`` per round."""
+class RoundRobinLoop(AgentLoopPipeline[RoundRobinState]):
+    """Iterate the reviewer sequence, one ``ReviewerInvocation`` per round."""
 
     #: Per-iteration knot id (Rule: no module-level constants).
     _invoke_id: ClassVar[str] = "invoke"
@@ -56,7 +56,7 @@ class _RoundRobinLoop(AgentLoopPipeline[_RoundRobinState]):
         self._reviewers = tuple(reviewers)
         super().__init__(**kwargs)
 
-    def step(self, state: _RoundRobinState) -> tuple[Tapestry, _RoundRobinState] | None:
+    def step(self, state: RoundRobinState) -> tuple[Tapestry, RoundRobinState] | None:
         """Build the next reviewer's round, or return None once all have run.
 
         Args:
@@ -71,14 +71,14 @@ class _RoundRobinLoop(AgentLoopPipeline[_RoundRobinState]):
 
         iteration = Tapestry()
         with iteration:
-            _ReviewerInvocation(
+            ReviewerInvocation(
                 reviewer=SpecialistHandle(self._reviewers[state.index]),
                 response=state.response,
                 _config=KnotConfig(id=self._invoke_id),
             )
         return iteration, state
 
-    def fold(self, state: _RoundRobinState, result: RunResult) -> _RoundRobinState:
+    def fold(self, state: RoundRobinState, result: RunResult) -> RoundRobinState:
         """Advance the cursor and carry the reviewer's revised draft forward.
 
         Args:
@@ -88,11 +88,11 @@ class _RoundRobinLoop(AgentLoopPipeline[_RoundRobinState]):
         Returns:
             A new state with the revised response and an advanced index.
         """
-        return _RoundRobinState(
+        return RoundRobinState(
             response=result.outputs[self._invoke_id],
             index=state.index + 1,
         )
 
-    def step_id(self, state: _RoundRobinState, idx: int) -> str:
+    def step_id(self, state: RoundRobinState, idx: int) -> str:
         """Name each round for run history."""
         return f"review_{idx}"

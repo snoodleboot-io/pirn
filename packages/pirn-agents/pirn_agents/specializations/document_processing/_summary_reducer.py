@@ -1,4 +1,4 @@
-"""``_SummaryReducer`` — combine per-chunk summaries into one.
+"""``SummaryReducer`` — combine per-chunk summaries into one.
 
 The reduce half of the map-reduce summariser, split out of
 ``_MapReduceSummariser``.
@@ -36,9 +36,10 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 
 
-class _SummaryReducer(Knot):
+class SummaryReducer(Knot):
     """Reduce N per-chunk summaries to one, short-circuiting the degenerate cases."""
 
     _reduce_system: ClassVar[PromptBinding] = PromptBinding(
@@ -87,25 +88,4 @@ class _SummaryReducer(Knot):
             {"role": "user", "content": joined},
         ]
         raw = await llm.chat(chat_messages)
-        return _SummaryReducer._extract_text(raw)
-
-    @staticmethod
-    def _extract_text(raw: Any) -> str:
-        if isinstance(raw, str):
-            return raw
-        if isinstance(raw, dict):
-            content = raw.get("content")
-            if isinstance(content, str):
-                return content
-            if isinstance(content, list) and content:
-                first = content[0]
-                if isinstance(first, dict):
-                    text = first.get("text")
-                    if isinstance(text, str):
-                        return text
-                if isinstance(first, str):
-                    return first
-            text = raw.get("text")
-            if isinstance(text, str):
-                return text
-        return str(raw)
+        return LlmResponseText().extract(raw)

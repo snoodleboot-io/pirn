@@ -1,7 +1,7 @@
-"""Unit tests for :class:`_ChunkEmbedderStore`.
+"""Unit tests for :class:`ChunkEmbedderStore`.
 
 PIR-867: each chunk's persisted write is independent of every other chunk's,
-so ``_ChunkEmbedderStore`` fans them out (one ``_ChunkStoreWrite`` knot per
+so ``ChunkEmbedderStore`` fans them out (one ``ChunkStoreWrite`` knot per
 chunk wired into an ``Aggregator``) rather than awaiting ``store.store`` under
 a hand-rolled ``asyncio.gather``. ``process`` therefore returns the sink of an
 inner pipeline instead of the stored count directly, so the outcome tests run
@@ -20,7 +20,7 @@ from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.document_processing._chunk_embedder_store import (
-    _ChunkEmbedderStore,
+    ChunkEmbedderStore,
 )
 from tests.specializations.conftest import (
     StubEmbeddingProvider,
@@ -28,9 +28,9 @@ from tests.specializations.conftest import (
 )
 
 
-def _make_knot(embedder: StubEmbeddingProvider, store: StubMemoryStore) -> _ChunkEmbedderStore:
+def _make_knot(embedder: StubEmbeddingProvider, store: StubMemoryStore) -> ChunkEmbedderStore:
     with Tapestry():
-        return _ChunkEmbedderStore(
+        return ChunkEmbedderStore(
             chunks=[],
             source="doc.txt",
             embedder=embedder,
@@ -41,7 +41,7 @@ def _make_knot(embedder: StubEmbeddingProvider, store: StubMemoryStore) -> _Chun
 
 def _run(embedder, store, chunks: list[str], source: str) -> Tapestry:
     with Tapestry() as t:
-        _ChunkEmbedderStore(
+        ChunkEmbedderStore(
             chunks=chunks,
             source=source,
             embedder=embedder,

@@ -3,7 +3,7 @@
 Parent-doc (a.k.a. small-to-big) retrieval indexes *small* child chunks for
 precise matching but returns the *larger* parent for context. This ingestor
 reuses the existing sliding-window
-:class:`~pirn_agents.specializations.document_processing._document_chunker._DocumentChunker`
+:class:`~pirn_agents.specializations.document_processing._document_chunker.DocumentChunker`
 to split the document into children, then wires
 :class:`~pirn_agents.specializations.rag.indexing._parent_child_indexer._ParentChildIndexer`
 to group children under parents and upsert the child records.
@@ -22,7 +22,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
 from pirn_agents.retrieval.vector_stores.vector_memory_store import VectorMemoryStore
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.document_processing._document_chunker import _DocumentChunker
+from pirn_agents.specializations.document_processing._document_chunker import DocumentChunker
 from pirn_agents.specializations.rag.indexing._parent_child_indexer import _ParentChildIndexer
 
 
@@ -65,7 +65,7 @@ class ParentDocumentIngestor(AgentPipeline):
         group_size: int = 3,
         **_: Any,
     ) -> Knot:
-        """Wire ``_DocumentChunker`` → ``_ParentChildIndexer`` and return the sink.
+        """Wire ``DocumentChunker`` → ``_ParentChildIndexer`` and return the sink.
 
         Args:
             text: The full source document to ingest.
@@ -79,7 +79,7 @@ class ParentDocumentIngestor(AgentPipeline):
         Returns:
             The ``_ParentChildIndexer`` sink knot whose output is the child count.
         """
-        chunks = _DocumentChunker(
+        chunks = DocumentChunker(
             text=text,
             chunk_size=child_chunk_size,
             chunk_overlap=chunk_overlap,

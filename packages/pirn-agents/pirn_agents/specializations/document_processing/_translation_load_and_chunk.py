@@ -1,4 +1,4 @@
-"""``_TranslationLoadAndChunk`` — internal helper Knot for :class:`DocumentTranslationPipeline`.
+"""``TranslationLoadAndChunk`` — internal helper Knot for :class:`DocumentTranslationPipeline`.
 
 Reads source text and splits it into fixed-size chunks. Internal API.
 
@@ -25,11 +25,11 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.specializations.document_processing._document_source_reader import (
-    _DocumentSourceReader,
+    DocumentSourceReader,
 )
 
 
-class _TranslationLoadAndChunk(Knot):
+class TranslationLoadAndChunk(Knot):
     """Read the source text and split into fixed-size chunks."""
 
     def __init__(
@@ -40,9 +40,9 @@ class _TranslationLoadAndChunk(Knot):
         _config: KnotConfig,
         allowed_root: Knot | str | None = None,
         allowed_hosts: Knot | tuple[str, ...] | None = None,
-        max_bytes: Knot | int = _DocumentSourceReader.max_bytes,
-        request_timeout: Knot | float = _DocumentSourceReader.request_timeout,
-        connect_timeout: Knot | float = _DocumentSourceReader.connect_timeout,
+        max_bytes: Knot | int = DocumentSourceReader.max_bytes,
+        request_timeout: Knot | float = DocumentSourceReader.request_timeout,
+        connect_timeout: Knot | float = DocumentSourceReader.connect_timeout,
         **kwargs: Any,
     ) -> None:
         super().__init__(
@@ -63,9 +63,9 @@ class _TranslationLoadAndChunk(Knot):
         chunk_size: int,
         allowed_root: str | None = None,
         allowed_hosts: tuple[str, ...] | None = None,
-        max_bytes: int = _DocumentSourceReader.max_bytes,
-        request_timeout: float = _DocumentSourceReader.request_timeout,
-        connect_timeout: float = _DocumentSourceReader.connect_timeout,
+        max_bytes: int = DocumentSourceReader.max_bytes,
+        request_timeout: float = DocumentSourceReader.request_timeout,
+        connect_timeout: float = DocumentSourceReader.connect_timeout,
         **_: Any,
     ) -> list[str]:
         """Load text from source and split it into fixed-size chunks for translation.
@@ -90,7 +90,7 @@ class _TranslationLoadAndChunk(Knot):
             raise TypeError(
                 f"DocumentTranslationPipeline: source must be a non-empty string, got {source!r}"
             )
-        reader = _DocumentSourceReader(
+        reader = DocumentSourceReader(
             allowed_root=allowed_root,
             allowed_hosts=allowed_hosts,
             max_bytes=max_bytes,

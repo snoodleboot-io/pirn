@@ -1,4 +1,4 @@
-"""``_ConstitutionalFilterLoop`` — the evaluate-and-revise loop as a core node.
+"""``ConstitutionalFilterLoop`` — the evaluate-and-revise loop as a core node.
 
 Replaces the hand-rolled ``for _i in range(max_revisions): await
 llm.chat(...)`` that ran outside the engine, so each evaluation attempt is an
@@ -18,13 +18,13 @@ from pirn.tapestry import Tapestry
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_loop_pipeline import AgentLoopPipeline
 from pirn_agents.specializations.rag.llm_chat_call import LLMChatCall
-from pirn_agents.specializations.reflection._constitutional_state import _ConstitutionalState
+from pirn_agents.specializations.reflection._constitutional_state import ConstitutionalState
 
 if TYPE_CHECKING:
     from pirn.core.run_result import RunResult
 
 
-class _ConstitutionalFilterLoop(AgentLoopPipeline[_ConstitutionalState]):
+class ConstitutionalFilterLoop(AgentLoopPipeline[ConstitutionalState]):
     """Evaluate the response against the principles, revising until compliant or exhausted."""
 
     #: Per-iteration knot id (Rule: no module-level constants).
@@ -43,7 +43,7 @@ class _ConstitutionalFilterLoop(AgentLoopPipeline[_ConstitutionalState]):
         self._max_revisions = max_revisions
         super().__init__(**kwargs)
 
-    def step(self, state: _ConstitutionalState) -> tuple[Tapestry, _ConstitutionalState] | None:
+    def step(self, state: ConstitutionalState) -> tuple[Tapestry, ConstitutionalState] | None:
         """Build the next evaluation attempt, or None once compliant or exhausted.
 
         Args:
@@ -66,7 +66,7 @@ class _ConstitutionalFilterLoop(AgentLoopPipeline[_ConstitutionalState]):
             )
         return attempt, state
 
-    def fold(self, state: _ConstitutionalState, result: RunResult) -> _ConstitutionalState:
+    def fold(self, state: ConstitutionalState, result: RunResult) -> ConstitutionalState:
         """Read the evaluation; compliant stops the loop, else the reply becomes the revision.
 
         Args:
@@ -78,19 +78,19 @@ class _ConstitutionalFilterLoop(AgentLoopPipeline[_ConstitutionalState]):
         """
         evaluation = result.outputs[self._call_id].strip()
         if evaluation.upper() == "COMPLIANT":
-            return _ConstitutionalState(
+            return ConstitutionalState(
                 principles_text=state.principles_text,
                 current_content=state.current_content,
                 attempts=state.attempts + 1,
                 compliant=True,
             )
-        return _ConstitutionalState(
+        return ConstitutionalState(
             principles_text=state.principles_text,
             current_content=evaluation,
             attempts=state.attempts + 1,
             compliant=False,
         )
 
-    def step_id(self, state: _ConstitutionalState, idx: int) -> str:
+    def step_id(self, state: ConstitutionalState, idx: int) -> str:
         """Name each attempt for run history."""
         return f"revision_{idx}"

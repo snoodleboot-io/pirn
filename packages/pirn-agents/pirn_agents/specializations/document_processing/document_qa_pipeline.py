@@ -10,13 +10,13 @@ in-process for the lifetime of one request and discarded once the
 answer is produced.
 
 Algorithm:
-    1. ``_QALoadAndChunk`` loads the document from a file path or HTTP/HTTPS URL and
+    1. ``QALoadAndChunk`` loads the document from a file path or HTTP/HTTPS URL and
        splits it into overlapping character windows.
     2. Each chunk is embedded via the ``EmbeddingProvider``; the question is embedded
        using the same provider.
     3. Cosine similarity is computed between the question vector and every chunk
        vector; the top-k chunks are selected.
-    4. ``_QARetrieveAndAnswer`` injects the top-k chunks as context into the LLM
+    4. ``QARetrieveAndAnswer`` injects the top-k chunks as context into the LLM
        prompt and returns the model response as an :class:`AgentResponse`.
 
 Math:
@@ -42,13 +42,13 @@ from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.document_processing._document_source_reader import (
-    _DocumentSourceReader,
+    DocumentSourceReader,
 )
 from pirn_agents.specializations.document_processing._qa_load_and_chunk import (
-    _QALoadAndChunk,
+    QALoadAndChunk,
 )
 from pirn_agents.specializations.document_processing._qa_retrieve_and_answer import (
-    _QARetrieveAndAnswer,
+    QARetrieveAndAnswer,
 )
 from pirn_agents.specializations.document_processing.chunking.chunking_config import (
     ChunkingConfig,
@@ -71,9 +71,9 @@ class DocumentQAPipeline(AgentPipeline):
         top_k: Knot | int = 3,
         allowed_root: Knot | str | None = None,
         allowed_hosts: Knot | tuple[str, ...] | None = None,
-        max_bytes: Knot | int = _DocumentSourceReader.max_bytes,
-        request_timeout: Knot | float = _DocumentSourceReader.request_timeout,
-        connect_timeout: Knot | float = _DocumentSourceReader.connect_timeout,
+        max_bytes: Knot | int = DocumentSourceReader.max_bytes,
+        request_timeout: Knot | float = DocumentSourceReader.request_timeout,
+        connect_timeout: Knot | float = DocumentSourceReader.connect_timeout,
         **kwargs: Any,
     ) -> None:
         super().__init__(
@@ -100,9 +100,9 @@ class DocumentQAPipeline(AgentPipeline):
         top_k: int = 3,
         allowed_root: str | None = None,
         allowed_hosts: tuple[str, ...] | None = None,
-        max_bytes: int = _DocumentSourceReader.max_bytes,
-        request_timeout: float = _DocumentSourceReader.request_timeout,
-        connect_timeout: float = _DocumentSourceReader.connect_timeout,
+        max_bytes: int = DocumentSourceReader.max_bytes,
+        request_timeout: float = DocumentSourceReader.request_timeout,
+        connect_timeout: float = DocumentSourceReader.connect_timeout,
         **_: Any,
     ) -> Knot:
         """Retrieve the top-k relevant chunks from source and answer the question via the LLM.
@@ -140,7 +140,7 @@ class DocumentQAPipeline(AgentPipeline):
             raise TypeError(
                 f"DocumentQAPipeline: question must be a non-empty string, got {question!r}"
             )
-        chunks = _QALoadAndChunk(
+        chunks = QALoadAndChunk(
             source=source,
             chunk_size=self._default_chunk_size,
             allowed_root=allowed_root,
@@ -150,7 +150,7 @@ class DocumentQAPipeline(AgentPipeline):
             connect_timeout=connect_timeout,
             _config=KnotConfig(id="chunk"),
         )
-        return _QARetrieveAndAnswer(
+        return QARetrieveAndAnswer(
             chunks=chunks,
             question=question,
             llm=llm,

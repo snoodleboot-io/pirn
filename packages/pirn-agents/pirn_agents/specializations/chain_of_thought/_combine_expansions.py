@@ -1,9 +1,9 @@
-"""``_CombineExpansions`` — Reduce ``combine`` target folding thoughts."""
+"""``CombineExpansions`` — Reduce ``combine`` target folding thoughts."""
 
 from __future__ import annotations
 
 
-class _CombineExpansions:
+class CombineExpansions:
     """Reduce ``combine`` target: fold each thought into a new candidate path."""
 
     @staticmethod

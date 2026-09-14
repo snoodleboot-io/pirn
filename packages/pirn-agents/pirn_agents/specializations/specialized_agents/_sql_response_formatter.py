@@ -1,4 +1,4 @@
-"""``_SQLResponseFormatter`` — internal helper Knot for :class:`SQLAgent`.
+"""``SQLResponseFormatter`` — internal helper Knot for :class:`SQLAgent`.
 
 Wraps the SQL text plus row results into an :class:`AgentResponse`.
 Internal API.
@@ -28,7 +28,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
-class _SQLResponseFormatter(Knot):
+class SQLResponseFormatter(Knot):
     """Wrap the SQL plus rows into an :class:`AgentResponse`."""
 
     def __init__(
@@ -59,24 +59,3 @@ class _SQLResponseFormatter(Knot):
         rendered_rows = "\n".join(repr(row) for row in rows)
         content = f"SQL:\n{sql}\n\nRows ({len(rows)}):\n{rendered_rows}"
         return AgentResponse(content=content, finish_reason="stop")
-
-    @staticmethod
-    def _extract_text(raw: Any) -> str:
-        if isinstance(raw, str):
-            return raw
-        if isinstance(raw, dict):
-            content = raw.get("content")
-            if isinstance(content, str):
-                return content
-            if isinstance(content, list) and content:
-                first = content[0]
-                if isinstance(first, dict):
-                    text = first.get("text")
-                    if isinstance(text, str):
-                        return text
-                if isinstance(first, str):
-                    return first
-            text = raw.get("text")
-            if isinstance(text, str):
-                return text
-        return str(raw)

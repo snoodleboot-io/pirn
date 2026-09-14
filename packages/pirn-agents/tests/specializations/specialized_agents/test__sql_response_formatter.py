@@ -1,4 +1,4 @@
-"""Unit tests for :class:`_SQLResponseFormatter`."""
+"""Unit tests for :class:`SQLResponseFormatter`."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.specialized_agents._sql_response_formatter import (
-    _SQLResponseFormatter,
+    SQLResponseFormatter,
 )
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
@@ -30,7 +30,7 @@ class TestSQLResponseFormatterProcess(unittest.IsolatedAsyncioTestCase):
         with Tapestry() as t:
             sql_src = _Src("SELECT * FROM t", _config=KnotConfig(id="ss"))
             rows_src = _Src([(1, "Alice")], _config=KnotConfig(id="rs"))
-            _SQLResponseFormatter(
+            SQLResponseFormatter(
                 sql=sql_src,
                 rows=rows_src,
                 _config=KnotConfig(id="srf"),
@@ -46,7 +46,7 @@ class TestSQLResponseFormatterProcess(unittest.IsolatedAsyncioTestCase):
         with Tapestry() as t:
             sql_src = _Src("SELECT 1", _config=KnotConfig(id="ss"))
             rows_src = _Src([], _config=KnotConfig(id="rs"))
-            _SQLResponseFormatter(
+            SQLResponseFormatter(
                 sql=sql_src,
                 rows=rows_src,
                 _config=KnotConfig(id="srf"),
@@ -58,7 +58,7 @@ class TestSQLResponseFormatterProcess(unittest.IsolatedAsyncioTestCase):
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_process_returns_agent_response_with_sql_and_rows(self) -> None:
         with Tapestry():
-            k = _SQLResponseFormatter.__new__(_SQLResponseFormatter)
+            k = SQLResponseFormatter.__new__(SQLResponseFormatter)
             object.__setattr__(k, "_config", KnotConfig(id="x"))
         result = await k.process(sql="SELECT 1", rows=[(42,)])
         assert isinstance(result, AgentResponse)

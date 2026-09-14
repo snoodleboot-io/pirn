@@ -1,4 +1,4 @@
-"""``_ScoreCandidate`` — ask the LLM to rate one candidate reasoning path."""
+"""``ScoreCandidate`` — ask the LLM to rate one candidate reasoning path."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.llm_response_text import LlmResponseText
 
 
-class _ScoreCandidate(Knot):
+class ScoreCandidate(Knot):
     """Ask the LLM to rate one candidate reasoning path."""
 
     _scoring_system: ClassVar[PromptBinding] = PromptBinding(
@@ -52,7 +52,7 @@ class _ScoreCandidate(Knot):
         """
         path, _placeholder = candidate
         messages = [
-            {"role": "system", "content": _ScoreCandidate._scoring_system.resolve()},
+            {"role": "system", "content": ScoreCandidate._scoring_system.resolve()},
             {"role": "user", "content": path},
         ]
         raw = await llm.chat(messages=messages)

@@ -1,4 +1,4 @@
-"""``_ReflexionLoop`` — the actor/evaluator/reflection loop as a core node.
+"""``ReflexionLoop`` — the actor/evaluator/reflection loop as a core node.
 
 Replaces the hand-rolled ``for index in range(max_iterations): ... actor
 .process(...); evaluator.process(...); reflector.process(...)`` that called
@@ -10,7 +10,7 @@ imperative-loop inventory).
 Every iteration now wires ``ReflexionActor`` and ``ReflexionEvaluator`` as
 real parent/child knots in one tapestry the engine actually runs.
 ``ReflexionReflector``'s LLM call runs only on a failed attempt: its
-``answer`` input is ``Gate(input=actor, check=_ShouldReflectCheck(evaluation))``
+``answer`` input is ``Gate(input=actor, check=ShouldReflectCheck(evaluation))``
 (see that check's docstring), so a successful attempt never pays for it —
 the same escalation-stops-here shape ``_AttemptTier`` uses.
 
@@ -33,9 +33,9 @@ from pirn.tapestry import Tapestry
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.specializations.base.agent_loop_pipeline import AgentLoopPipeline
-from pirn_agents.specializations.reflexion._evaluation_feedback import _EvaluationFeedback
-from pirn_agents.specializations.reflexion._reflexion_state import _ReflexionState
-from pirn_agents.specializations.reflexion._should_reflect_check import _ShouldReflectCheck
+from pirn_agents.specializations.reflexion._evaluation_feedback import EvaluationFeedback
+from pirn_agents.specializations.reflexion._reflexion_state import ReflexionState
+from pirn_agents.specializations.reflexion._should_reflect_check import ShouldReflectCheck
 from pirn_agents.specializations.reflexion.reflexion_actor import ReflexionActor
 from pirn_agents.specializations.reflexion.reflexion_attempt import ReflexionAttempt
 from pirn_agents.specializations.reflexion.reflexion_evaluator import ReflexionEvaluator
@@ -45,7 +45,7 @@ if TYPE_CHECKING:
     from pirn.core.run_result import RunResult
 
 
-class _ReflexionLoop(AgentLoopPipeline[_ReflexionState]):
+class ReflexionLoop(AgentLoopPipeline[ReflexionState]):
     """Drive the bounded actor/evaluator/reflection cycle."""
 
     #: Per-iteration knot ids (Rule: no module-level constants).
@@ -70,7 +70,7 @@ class _ReflexionLoop(AgentLoopPipeline[_ReflexionState]):
         self._memory_namespace = memory_namespace
         super().__init__(**kwargs)
 
-    async def astep(self, state: _ReflexionState) -> tuple[Tapestry, _ReflexionState] | None:
+    async def astep(self, state: ReflexionState) -> tuple[Tapestry, ReflexionState] | None:
         """Build the next iteration, or return None once accepted or exhausted.
 
         Reads back every reflection written by an earlier iteration (memory
@@ -102,13 +102,13 @@ class _ReflexionLoop(AgentLoopPipeline[_ReflexionState]):
                 llm=self._llm,
                 _config=KnotConfig(id=self._evaluator_id),
             )
-            should_reflect = _ShouldReflectCheck(
+            should_reflect = ShouldReflectCheck(
                 evaluation=evaluator, _config=KnotConfig(id="should_reflect")
             )
             gated_answer = Gate(
                 input=actor, check=should_reflect, _config=KnotConfig(id="gated_answer")
             )
-            feedback = _EvaluationFeedback(evaluation=evaluator, _config=KnotConfig(id="feedback"))
+            feedback = EvaluationFeedback(evaluation=evaluator, _config=KnotConfig(id="feedback"))
             ReflexionReflector(
                 task=self._task,
                 answer=gated_answer,
@@ -118,7 +118,7 @@ class _ReflexionLoop(AgentLoopPipeline[_ReflexionState]):
             )
         return iteration, state
 
-    async def afold(self, state: _ReflexionState, result: RunResult) -> _ReflexionState:
+    async def afold(self, state: ReflexionState, result: RunResult) -> ReflexionState:
         """Record the attempt; write and key a new reflection on failure.
 
         Args:
@@ -137,7 +137,7 @@ class _ReflexionLoop(AgentLoopPipeline[_ReflexionState]):
                 *state.attempts,
                 ReflexionAttempt(answer=answer, success=True, feedback="", reflection=""),
             )
-            return _ReflexionState(
+            return ReflexionState(
                 reflection_keys=state.reflection_keys,
                 attempts=attempts,
                 final_answer=answer,
@@ -154,7 +154,7 @@ class _ReflexionLoop(AgentLoopPipeline[_ReflexionState]):
                 answer=answer, success=False, feedback=evaluation.feedback, reflection=reflection
             ),
         )
-        return _ReflexionState(
+        return ReflexionState(
             reflection_keys=(*state.reflection_keys, key),
             attempts=attempts,
             final_answer=answer,
@@ -162,7 +162,7 @@ class _ReflexionLoop(AgentLoopPipeline[_ReflexionState]):
             index=index,
         )
 
-    def step_id(self, state: _ReflexionState, idx: int) -> str:
+    def step_id(self, state: ReflexionState, idx: int) -> str:
         """Name each iteration for run history."""
         return f"iteration_{idx}"
 

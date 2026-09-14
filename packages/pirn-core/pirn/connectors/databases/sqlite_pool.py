@@ -23,7 +23,7 @@ class SqlitePool(DatabaseConnectionPool):
     one it found already open. This is the guarantee
     :meth:`~pirn_agents.connectors.column_aware_sqlite_pool.ColumnAwareSqlitePool.fetch_columns`
     (PIR-801), ``AiosqliteConnector``/``SqliteConnector`` (PIR-807) and
-    ``_SQLExecutor`` (PIR-817) already make; ``sqlite3`` starts an implicit
+    ``SQLExecutor`` (PIR-817) already make; ``sqlite3`` starts an implicit
     transaction for DML only, so comparing ``in_transaction`` before and after
     the statement identifies the owner precisely:
 

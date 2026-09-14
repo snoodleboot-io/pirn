@@ -1,4 +1,4 @@
-"""``_PlanStepCall`` — one LLM call executing a single plan step.
+"""``PlanStepCall`` — one LLM call executing a single plan step.
 
 Internal per-iteration knot for :class:`~pirn_agents.specializations.plan_and_execute.plan_executor.PlanExecutor`'s
 sequential loop. Each call receives the prior steps' results as context, so
@@ -25,7 +25,7 @@ from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.llm_response_text import LlmResponseText
 
 
-class _PlanStepCall(Knot):
+class PlanStepCall(Knot):
     """Execute one plan step via a single LLM call, given prior results as context."""
 
     _step_system: ClassVar[PromptBinding] = PromptBinding(

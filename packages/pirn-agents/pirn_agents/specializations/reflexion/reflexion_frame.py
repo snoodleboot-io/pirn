@@ -31,8 +31,9 @@ class ReflexionFrame(PirnOpaqueValue):
     attempts: tuple[ReflexionAttempt, ...]
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
+        attempts: tuple[PirnOpaqueValue, ...] = self.attempts
         return {
             "succeeded": self.succeeded,
             "iterations": self.iterations,
-            "attempts": [attempt._pirn_audit_dict() for attempt in self.attempts],
+            "attempts": [attempt._pirn_audit_dict() for attempt in attempts],
         }

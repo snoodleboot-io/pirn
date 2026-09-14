@@ -1,4 +1,4 @@
-"""``_SelfConsistencyResult`` — wrap the winning answer as an AgentResponse."""
+"""``SelfConsistencyResult`` — wrap the winning answer as an AgentResponse."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
-class _SelfConsistencyResult(Knot):
+class SelfConsistencyResult(Knot):
     """Wrap the majority-vote answer string as an :class:`AgentResponse`."""
 
     def __init__(self, *, winner: Knot | str, _config: KnotConfig, **kwargs: Any) -> None:

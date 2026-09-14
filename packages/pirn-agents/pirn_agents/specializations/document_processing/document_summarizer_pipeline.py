@@ -9,12 +9,12 @@ step issues a single combining call. The pipeline returns the final
 summary string.
 
 Algorithm:
-    1. ``_LoadAndChunk`` reads the document from a file path or HTTP/HTTPS URL and
+    1. ``LoadAndChunk`` reads the document from a file path or HTTP/HTTPS URL and
        partitions it into overlapping character windows of ``chunk_size``.
-    2. Map phase — ``_ChunkPositions`` renders one ``"Chunk i of n"`` label per
-       chunk, and ``_ChunkSummariser`` is fanned out over chunks and labels with
+    2. Map phase — ``ChunkPositions`` renders one ``"Chunk i of n"`` label per
+       chunk, and ``ChunkSummariser`` is fanned out over chunks and labels with
        a core ``ZipMap``, so each chunk is its own engine-scheduled invocation.
-    3. Reduce phase — ``_SummaryReducer`` concatenates the N partial summaries
+    3. Reduce phase — ``SummaryReducer`` concatenates the N partial summaries
        and sends them to the LLM in a single combining prompt. It also absorbs
        the degenerate cases: one chunk passes through, zero chunks yields ``""``.
 
@@ -39,15 +39,15 @@ from pirn.nodes.map_markers import ZipMap
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.document_processing._chunk_positions import _ChunkPositions
-from pirn_agents.specializations.document_processing._chunk_summariser import _ChunkSummariser
+from pirn_agents.specializations.document_processing._chunk_positions import ChunkPositions
+from pirn_agents.specializations.document_processing._chunk_summariser import ChunkSummariser
 from pirn_agents.specializations.document_processing._document_source_reader import (
-    _DocumentSourceReader,
+    DocumentSourceReader,
 )
 from pirn_agents.specializations.document_processing._load_and_chunk import (
-    _LoadAndChunk,
+    LoadAndChunk,
 )
-from pirn_agents.specializations.document_processing._summary_reducer import _SummaryReducer
+from pirn_agents.specializations.document_processing._summary_reducer import SummaryReducer
 
 
 class DocumentSummarizerPipeline(AgentPipeline):
@@ -62,9 +62,9 @@ class DocumentSummarizerPipeline(AgentPipeline):
         chunk_size: Knot | int = 2000,
         allowed_root: Knot | str | None = None,
         allowed_hosts: Knot | tuple[str, ...] | None = None,
-        max_bytes: Knot | int = _DocumentSourceReader.max_bytes,
-        request_timeout: Knot | float = _DocumentSourceReader.request_timeout,
-        connect_timeout: Knot | float = _DocumentSourceReader.connect_timeout,
+        max_bytes: Knot | int = DocumentSourceReader.max_bytes,
+        request_timeout: Knot | float = DocumentSourceReader.request_timeout,
+        connect_timeout: Knot | float = DocumentSourceReader.connect_timeout,
         **kwargs: Any,
     ) -> None:
         super().__init__(
@@ -87,9 +87,9 @@ class DocumentSummarizerPipeline(AgentPipeline):
         chunk_size: int = 2000,
         allowed_root: str | None = None,
         allowed_hosts: tuple[str, ...] | None = None,
-        max_bytes: int = _DocumentSourceReader.max_bytes,
-        request_timeout: float = _DocumentSourceReader.request_timeout,
-        connect_timeout: float = _DocumentSourceReader.connect_timeout,
+        max_bytes: int = DocumentSourceReader.max_bytes,
+        request_timeout: float = DocumentSourceReader.request_timeout,
+        connect_timeout: float = DocumentSourceReader.connect_timeout,
         **_: Any,
     ) -> Knot:
         """Load the document, map-reduce summarise each chunk, and return the combined summary.
@@ -123,7 +123,7 @@ class DocumentSummarizerPipeline(AgentPipeline):
             raise TypeError(
                 f"DocumentSummarizerPipeline: source must be a non-empty string, got {source!r}"
             )
-        chunks = _LoadAndChunk(
+        chunks = LoadAndChunk(
             source=source,
             chunk_size=chunk_size,
             allowed_root=allowed_root,
@@ -133,8 +133,8 @@ class DocumentSummarizerPipeline(AgentPipeline):
             connect_timeout=connect_timeout,
             _config=KnotConfig(id="chunk"),
         )
-        positions = _ChunkPositions(chunks=chunks, _config=KnotConfig(id="positions"))
-        summaries = _ChunkSummariser(
+        positions = ChunkPositions(chunks=chunks, _config=KnotConfig(id="positions"))
+        summaries = ChunkSummariser(
             # Core's ZipMap marker is consumed at construction by
             # `knot.py:199-205` and is deliberately not a Knot, so it does not
             # satisfy the declared `Knot | str`. Inline suppression is the house
@@ -144,7 +144,7 @@ class DocumentSummarizerPipeline(AgentPipeline):
             llm=llm,
             _config=KnotConfig(id="chunk_summaries"),
         )
-        return _SummaryReducer(
+        return SummaryReducer(
             summaries=summaries,
             llm=llm,
             _config=KnotConfig(id="summarise"),

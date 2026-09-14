@@ -1,4 +1,4 @@
-"""``_AnalysisStep`` — internal helper Knot for :class:`DataAnalystAgent`.
+"""``AnalysisStep`` — internal helper Knot for :class:`DataAnalystAgent`.
 
 Sends a SQL result block plus the original question to the LLM for a
 narrative analysis and combines the analysis with the SQL block into a
@@ -31,10 +31,11 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
-class _AnalysisStep(Knot):
+class AnalysisStep(Knot):
     """Send the SQL result to the LLM for narrative analysis."""
 
     _system_prompt: ClassVar[PromptBinding] = PromptBinding(
@@ -91,27 +92,6 @@ class _AnalysisStep(Knot):
             },
         ]
         raw = await llm.chat(chat_messages)
-        analysis = _AnalysisStep._extract_text(raw)
+        analysis = LlmResponseText().extract(raw)
         combined = f"{sql_response.content}\n\nAnalysis:\n{analysis}"
         return AgentResponse(content=combined, finish_reason="stop")
-
-    @staticmethod
-    def _extract_text(raw: Any) -> str:
-        if isinstance(raw, str):
-            return raw
-        if isinstance(raw, dict):
-            content = raw.get("content")
-            if isinstance(content, str):
-                return content
-            if isinstance(content, list) and content:
-                first = content[0]
-                if isinstance(first, dict):
-                    text = first.get("text")
-                    if isinstance(text, str):
-                        return text
-                if isinstance(first, str):
-                    return first
-            text = raw.get("text")
-            if isinstance(text, str):
-                return text
-        return str(raw)

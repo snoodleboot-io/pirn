@@ -1,7 +1,7 @@
 """``ConstitutionalFilter`` — evaluate and revise a response against a set of principles.
 
 A :class:`SubTapestry` that drives the evaluate-and-revise loop with
-:class:`~pirn_agents.specializations.reflection._constitutional_filter_loop._ConstitutionalFilterLoop`
+:class:`~pirn_agents.specializations.reflection._constitutional_filter_loop.ConstitutionalFilterLoop`
 (a :class:`~pirn.nodes.loop_sub_tapestry.LoopSubTapestry`): each revision
 attempt is a real, individually-traceable ``LLMChatCall`` knot instead of a
 step inside a hand-rolled Python ``for`` loop (ADR agents-speaks-core WS5b;
@@ -33,12 +33,12 @@ from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.reflection._constitutional_filter_loop import (
-    _ConstitutionalFilterLoop,
+    ConstitutionalFilterLoop,
 )
 from pirn_agents.specializations.reflection._constitutional_result_extractor import (
-    _ConstitutionalResultExtractor,
+    ConstitutionalResultExtractor,
 )
-from pirn_agents.specializations.reflection._constitutional_state import _ConstitutionalState
+from pirn_agents.specializations.reflection._constitutional_state import ConstitutionalState
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
@@ -111,19 +111,19 @@ class ConstitutionalFilter(AgentPipeline):
 
         initial = Parameter(
             "constitutional_state",
-            _ConstitutionalState,
-            default=_ConstitutionalState(
+            ConstitutionalState,
+            default=ConstitutionalState(
                 principles_text=principles_text,
                 current_content=response.content,
                 attempts=0,
                 compliant=False,
             ),
         )
-        loop = _ConstitutionalFilterLoop(
+        loop = ConstitutionalFilterLoop(
             llm=llm,
             evaluation_system=type(self)._evaluation_system.resolve(),
             max_revisions=max_revisions,
             state=initial,
             _config=KnotConfig(id="constitutional_loop"),
         )
-        return _ConstitutionalResultExtractor(state=loop, _config=KnotConfig(id="result"))
+        return ConstitutionalResultExtractor(state=loop, _config=KnotConfig(id="result"))

@@ -1,4 +1,4 @@
-"""``_CodeResponseFormatter`` — internal helper Knot for :class:`CodeAgent`.
+"""``CodeResponseFormatter`` — internal helper Knot for :class:`CodeAgent`.
 
 Wraps the generated code plus linter warnings into an
 :class:`AgentResponse`. Internal API.
@@ -28,7 +28,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
-class _CodeResponseFormatter(Knot):
+class CodeResponseFormatter(Knot):
     """Wrap the code plus linter warnings into an :class:`AgentResponse`."""
 
     def __init__(
@@ -70,24 +70,3 @@ class _CodeResponseFormatter(Knot):
             finish_reason="stop",
             usage=usage,
         )
-
-    @staticmethod
-    def _extract_text(raw: Any) -> str:
-        if isinstance(raw, str):
-            return raw
-        if isinstance(raw, dict):
-            content = raw.get("content")
-            if isinstance(content, str):
-                return content
-            if isinstance(content, list) and content:
-                first = content[0]
-                if isinstance(first, dict):
-                    text = first.get("text")
-                    if isinstance(text, str):
-                        return text
-                if isinstance(first, str):
-                    return first
-            text = raw.get("text")
-            if isinstance(text, str):
-                return text
-        return str(raw)

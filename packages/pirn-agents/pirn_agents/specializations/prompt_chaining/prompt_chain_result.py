@@ -33,6 +33,6 @@ class PromptChainResult(AgentResult[PromptChainFrame, str]):
         return self._data
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
-        audit = dict(self._metadata._pirn_audit_dict())
+        audit = dict(super()._pirn_audit_dict())
         audit["final"] = self.final
         return audit

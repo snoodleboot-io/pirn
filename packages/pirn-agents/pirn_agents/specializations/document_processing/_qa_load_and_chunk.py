@@ -1,4 +1,4 @@
-"""``_QALoadAndChunk`` — internal helper Knot for :class:`DocumentQAPipeline`.
+"""``QALoadAndChunk`` — internal helper Knot for :class:`DocumentQAPipeline`.
 
 Algorithm:
     1. Receive resolved ``source`` and ``chunk_size``.
@@ -23,11 +23,11 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.specializations.document_processing._document_source_reader import (
-    _DocumentSourceReader,
+    DocumentSourceReader,
 )
 
 
-class _QALoadAndChunk(Knot):
+class QALoadAndChunk(Knot):
     """Read the source text and return fixed-size chunks (default ~1000 chars)."""
 
     def __init__(
@@ -38,9 +38,9 @@ class _QALoadAndChunk(Knot):
         _config: KnotConfig,
         allowed_root: Knot | str | None = None,
         allowed_hosts: Knot | tuple[str, ...] | None = None,
-        max_bytes: Knot | int = _DocumentSourceReader.max_bytes,
-        request_timeout: Knot | float = _DocumentSourceReader.request_timeout,
-        connect_timeout: Knot | float = _DocumentSourceReader.connect_timeout,
+        max_bytes: Knot | int = DocumentSourceReader.max_bytes,
+        request_timeout: Knot | float = DocumentSourceReader.request_timeout,
+        connect_timeout: Knot | float = DocumentSourceReader.connect_timeout,
         **kwargs: Any,
     ) -> None:
         super().__init__(
@@ -61,9 +61,9 @@ class _QALoadAndChunk(Knot):
         chunk_size: int,
         allowed_root: str | None = None,
         allowed_hosts: tuple[str, ...] | None = None,
-        max_bytes: int = _DocumentSourceReader.max_bytes,
-        request_timeout: float = _DocumentSourceReader.request_timeout,
-        connect_timeout: float = _DocumentSourceReader.connect_timeout,
+        max_bytes: int = DocumentSourceReader.max_bytes,
+        request_timeout: float = DocumentSourceReader.request_timeout,
+        connect_timeout: float = DocumentSourceReader.connect_timeout,
         **_: Any,
     ) -> list[str]:
         """Load text from source and return fixed-size chunks for downstream QA retrieval.
@@ -84,7 +84,7 @@ class _QALoadAndChunk(Knot):
             TypeError: If source is not a non-empty string.
             ValueError: If the source is rejected by the SSRF / path-traversal guard.
         """
-        reader = _DocumentSourceReader(
+        reader = DocumentSourceReader(
             allowed_root=allowed_root,
             allowed_hosts=allowed_hosts,
             max_bytes=max_bytes,

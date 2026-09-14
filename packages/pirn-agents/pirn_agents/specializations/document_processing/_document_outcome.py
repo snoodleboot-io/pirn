@@ -1,7 +1,7 @@
-"""``_DocumentOutcome`` — per-document ETL result for the ingestion runner (F25-S5).
+"""``DocumentOutcome`` — per-document ETL result for the ingestion runner (F25-S5).
 
 A tiny internal carrier returned by
-:class:`~pirn_agents.specializations.document_processing._document_ingest._DocumentIngest`
+:class:`~pirn_agents.specializations.document_processing._document_ingest.DocumentIngest`
 for one source document: either the delta counts (embedded/unchanged/removed)
 on success or an ``error`` string on an isolated failure. The runner folds
 these into the final :class:`IngestionReport`. A frozen dataclass rather than
@@ -19,7 +19,7 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class _DocumentOutcome:
+class DocumentOutcome:
     """Per-document result carried back to the aggregation loop."""
 
     source_id: str

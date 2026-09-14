@@ -1,4 +1,4 @@
-"""``_EvaluatorOptimizerLoop`` — the generate/judge/accept loop as a core node.
+"""``EvaluatorOptimizerLoop`` — the generate/judge/accept loop as a core node.
 
 Replaces the hand-rolled ``for index in range(max_iterations)`` that awaited
 ``generator/judge/gate.process()`` directly, so every iteration is an engine
@@ -8,7 +8,7 @@ Both termination decisions live inside the iteration tapestry, per
 :class:`~pirn_agents.specializations.base.agent_loop_pipeline.AgentLoopPipeline`
 — that base explains why. Concretely: ``AcceptCheck`` is a knot rather than an
 awaited call in a Python ``if``, and the optional ``ReflectionCheck`` sits behind
-a core ``Gate(input=candidate, check=_CandidateRejectedCheck(accepted))`` that
+a core ``Gate(input=candidate, check=CandidateRejectedCheck(accepted))`` that
 opens only on "not accepted", so an accepted run does not pay for it.
 
 Internal API. See PIR-713.
@@ -26,10 +26,10 @@ from pirn_agents.control.reflection_check import ReflectionCheck
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_loop_pipeline import AgentLoopPipeline
 from pirn_agents.specializations.evaluator_optimizer._candidate_rejected_check import (
-    _CandidateRejectedCheck,
+    CandidateRejectedCheck,
 )
 from pirn_agents.specializations.evaluator_optimizer._evaluator_optimizer_state import (
-    _EvaluatorOptimizerState,
+    EvaluatorOptimizerState,
 )
 from pirn_agents.specializations.evaluator_optimizer.accept_check import AcceptCheck
 from pirn_agents.specializations.evaluator_optimizer.candidate_generator import (
@@ -43,7 +43,7 @@ if TYPE_CHECKING:
     from pirn.core.run_result import RunResult
 
 
-class _EvaluatorOptimizerLoop(AgentLoopPipeline[_EvaluatorOptimizerState]):
+class EvaluatorOptimizerLoop(AgentLoopPipeline[EvaluatorOptimizerState]):
     """Iterate generate → judge → accept until accepted, stopped, or capped."""
 
     #: Per-iteration knot ids (Rule: no module-level constants).
@@ -72,8 +72,8 @@ class _EvaluatorOptimizerLoop(AgentLoopPipeline[_EvaluatorOptimizerState]):
         super().__init__(**kwargs)
 
     def step(
-        self, state: _EvaluatorOptimizerState
-    ) -> tuple[Tapestry, _EvaluatorOptimizerState] | None:
+        self, state: EvaluatorOptimizerState
+    ) -> tuple[Tapestry, EvaluatorOptimizerState] | None:
         """Build the next iteration, or return None to terminate.
 
         Args:
@@ -106,7 +106,7 @@ class _EvaluatorOptimizerLoop(AgentLoopPipeline[_EvaluatorOptimizerState]):
                 _config=KnotConfig(id=self._gate_id),
             )
             if self._reflection_gate:
-                rejected = _CandidateRejectedCheck(
+                rejected = CandidateRejectedCheck(
                     accepted=accepted, _config=KnotConfig(id=self._rejected_id)
                 )
                 gated_candidate = Gate(
@@ -125,7 +125,7 @@ class _EvaluatorOptimizerLoop(AgentLoopPipeline[_EvaluatorOptimizerState]):
                 )
         return iteration, state
 
-    def fold(self, state: _EvaluatorOptimizerState, result: RunResult) -> _EvaluatorOptimizerState:
+    def fold(self, state: EvaluatorOptimizerState, result: RunResult) -> EvaluatorOptimizerState:
         """Integrate one iteration's outputs into a new state.
 
         Args:
@@ -152,7 +152,7 @@ class _EvaluatorOptimizerLoop(AgentLoopPipeline[_EvaluatorOptimizerState]):
         keep_going = result.outputs.get(self._reflect_id)
         stop = keep_going is False
 
-        return _EvaluatorOptimizerState(
+        return EvaluatorOptimizerState(
             feedback=verdict.feedback if isinstance(verdict, JudgeVerdict) else "",
             best_answer=best_answer,
             best_score=best_score,
@@ -161,6 +161,6 @@ class _EvaluatorOptimizerLoop(AgentLoopPipeline[_EvaluatorOptimizerState]):
             stop=stop,
         )
 
-    def step_id(self, state: _EvaluatorOptimizerState, idx: int) -> str:
+    def step_id(self, state: EvaluatorOptimizerState, idx: int) -> str:
         """Name each iteration for run history."""
         return f"eo_iteration_{idx}"

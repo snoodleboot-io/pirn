@@ -1,4 +1,4 @@
-"""``_DocumentChunker`` — internal helper Knot for :class:`DocumentIngestionPipeline`.
+"""``DocumentChunker`` — internal helper Knot for :class:`DocumentIngestionPipeline`.
 
 Algorithm:
     1. Receive resolved ``text``, ``chunk_size``, and ``chunk_overlap``.
@@ -25,7 +25,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 
-class _DocumentChunker(Knot):
+class DocumentChunker(Knot):
     """Split text into overlapping fixed-size chunks."""
 
     def __init__(

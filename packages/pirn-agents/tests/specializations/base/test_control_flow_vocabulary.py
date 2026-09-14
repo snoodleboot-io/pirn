@@ -45,17 +45,17 @@ from tests.specializations.base.bypass_inventory import BypassInventory
 #: re-inject an already-resolved value into the inner graph — the
 #: `Parameter` use case. `RetryOnParseFailure` is fixed — see its
 #: `_RetryResultExtractor`/`_RetryOnParseFailureLoop` (ADR agents-speaks-core
-#: WS5a). `SelfAskPipeline` is fixed — see its `_SelfAskComposer`/
-#: `_SelfAskLoop`; `PromptChainPipeline` is fixed — see its
-#: `_PromptChainResultExtractor`/`_PromptChainLoop`; `OrchestratorAgent` is
-#: fixed — see its `_OrchestratorResultNormalizer`; `JsonExtractorPipeline`/
+#: WS5a). `SelfAskPipeline` is fixed — see its `SelfAskComposer`/
+#: `SelfAskLoop`; `PromptChainPipeline` is fixed — see its
+#: `PromptChainResultExtractor`/`PromptChainLoop`; `OrchestratorAgent` is
+#: fixed — see its `OrchestratorResultNormalizer`; `JsonExtractorPipeline`/
 #: `YamlExtractorPipeline`/`PydanticValidatorPipeline` are fixed — see their
 #: `*Loop`/`*ResultExtractor` pairs; `ReflexionPipeline` is fixed — see
-#: `_ReflexionLoop`/`_ReflexionResultExtractor`; `PlanReActPipeline` is fixed
-#: — see `_PlanReActResultExtractor`; `FlareActiveRagPipeline` is fixed — see
+#: `ReflexionLoop`/`ReflexionResultExtractor`; `PlanReActPipeline` is fixed
+#: — see `PlanReActResultExtractor`; `FlareActiveRagPipeline` is fixed — see
 #: `_FlareLoop`/`_FlareResultExtractor`; `MultiHopRAGPipeline` is fixed — see
 #: `_MultiHopResultExtractor`; `LatsSearch` is fixed — see
-#: `_LatsResultExtractor` (ADR agents-speaks-core WS5b). Kept as an assertion
+#: `LatsResultExtractor` (ADR agents-speaks-core WS5b). Kept as an assertion
 #: (not deleted) so a future inline `Source` regresses loudly.
 DEFINES_INLINE_SOURCE: frozenset[str] = frozenset()
 

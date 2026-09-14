@@ -1,4 +1,4 @@
-"""Unit tests for :class:`_CodeLinter`."""
+"""Unit tests for :class:`CodeLinter`."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.specialized_agents._code_linter import (
-    _CodeLinter,
+    CodeLinter,
 )
 
 
@@ -29,14 +29,14 @@ class TestCodeLinterProcess(unittest.IsolatedAsyncioTestCase):
         code = "def hello():\n    return 'hello'"
         with Tapestry() as t:
             src = _CodeSource(code, _config=KnotConfig(id="src"))
-            _CodeLinter(code=src, language="python", _config=KnotConfig(id="cl"))
+            CodeLinter(code=src, language="python", _config=KnotConfig(id="cl"))
         result = await t.run(RunRequest())
         assert result.outputs["cl"] == []
 
     async def test_warns_on_empty_code(self) -> None:
         with Tapestry() as t:
             src = _CodeSource("   ", _config=KnotConfig(id="src"))
-            _CodeLinter(code=src, language="python", _config=KnotConfig(id="cl"))
+            CodeLinter(code=src, language="python", _config=KnotConfig(id="cl"))
         result = await t.run(RunRequest())
         warnings = result.outputs["cl"]
         assert any("empty" in w for w in warnings)
@@ -45,7 +45,7 @@ class TestCodeLinterProcess(unittest.IsolatedAsyncioTestCase):
         code = "```python\ndef f(): pass\n```"
         with Tapestry() as t:
             src = _CodeSource(code, _config=KnotConfig(id="src"))
-            _CodeLinter(code=src, language="python", _config=KnotConfig(id="cl"))
+            CodeLinter(code=src, language="python", _config=KnotConfig(id="cl"))
         result = await t.run(RunRequest())
         warnings = result.outputs["cl"]
         assert any("markdown" in w for w in warnings)
@@ -54,7 +54,7 @@ class TestCodeLinterProcess(unittest.IsolatedAsyncioTestCase):
         code = "def broken(\n    pass"
         with Tapestry() as t:
             src = _CodeSource(code, _config=KnotConfig(id="src"))
-            _CodeLinter(code=src, language="python", _config=KnotConfig(id="cl"))
+            CodeLinter(code=src, language="python", _config=KnotConfig(id="cl"))
         result = await t.run(RunRequest())
         warnings = result.outputs["cl"]
         assert any("syntax" in w for w in warnings)
@@ -63,7 +63,7 @@ class TestCodeLinterProcess(unittest.IsolatedAsyncioTestCase):
         code = "function brokenJS( { return 1; }"  # invalid python but JS
         with Tapestry() as t:
             src = _CodeSource(code, _config=KnotConfig(id="src"))
-            _CodeLinter(code=src, language="javascript", _config=KnotConfig(id="cl"))
+            CodeLinter(code=src, language="javascript", _config=KnotConfig(id="cl"))
         result = await t.run(RunRequest())
         # no syntax warning since language != python
         assert all("syntax" not in w for w in result.outputs["cl"])
@@ -72,14 +72,14 @@ class TestCodeLinterProcess(unittest.IsolatedAsyncioTestCase):
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_process_returns_empty_list_for_valid_python(self) -> None:
         with Tapestry():
-            k = _CodeLinter.__new__(_CodeLinter)
+            k = CodeLinter.__new__(CodeLinter)
             object.__setattr__(k, "_config", KnotConfig(id="x"))
         result = await k.process(code="def f(): return 1", language="python")
         assert result == []
 
     async def test_process_returns_warning_for_empty_code(self) -> None:
         with Tapestry():
-            k = _CodeLinter.__new__(_CodeLinter)
+            k = CodeLinter.__new__(CodeLinter)
             object.__setattr__(k, "_config", KnotConfig(id="x"))
         result = await k.process(code="", language="python")
         assert any("empty" in w for w in result)

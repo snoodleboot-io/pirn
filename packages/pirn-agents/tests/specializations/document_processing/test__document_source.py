@@ -1,4 +1,4 @@
-"""Unit tests for :class:`_DocumentSource`."""
+"""Unit tests for :class:`DocumentSource`."""
 
 from __future__ import annotations
 
@@ -11,13 +11,13 @@ from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.document_processing._document_source import (
-    _DocumentSource,
+    DocumentSource,
 )
 
 
-def _make_knot(allowed_root: str | None = None) -> _DocumentSource:
+def _make_knot(allowed_root: str | None = None) -> DocumentSource:
     with Tapestry():
-        return _DocumentSource(
+        return DocumentSource(
             source="placeholder",
             allowed_root=allowed_root,
             _config=KnotConfig(id="ds"),

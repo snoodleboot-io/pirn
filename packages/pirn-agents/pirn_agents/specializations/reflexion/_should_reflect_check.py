@@ -1,4 +1,4 @@
-"""``_ShouldReflectCheck`` — should the reflector run this iteration?
+"""``ShouldReflectCheck`` — should the reflector run this iteration?
 
 The ``Check`` (core role, ``pirn.nodes.check.Check``) behind the
 :class:`~pirn.nodes.gate.gate.Gate` that keeps the reflector's LLM call from
@@ -21,7 +21,7 @@ from pirn.nodes.check import Check
 from pirn_agents.specializations.reflexion.reflexion_evaluation import ReflexionEvaluation
 
 
-class _ShouldReflectCheck(Check):
+class ShouldReflectCheck(Check):
     """``True`` when the evaluator rejected the attempt."""
 
     def __init__(

@@ -1,6 +1,6 @@
-"""``_RoundRobinResponseExtractor`` — final loop state to the public response.
+"""``RoundRobinResponseExtractor`` — final loop state to the public response.
 
-The loop's output is the accumulated ``_RoundRobinState``; ``RoundRobinReview``'s
+The loop's output is the accumulated ``RoundRobinState``; ``RoundRobinReview``'s
 contract is a bare :class:`AgentResponse`. This knot is the conversion, so the
 pipeline returns a real sink rather than a ``Source`` closure wrapping a
 precomputed value.
@@ -15,11 +15,11 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents.specializations.multi_agent._round_robin_state import _RoundRobinState
+from pirn_agents.specializations.multi_agent._round_robin_state import RoundRobinState
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
-class _RoundRobinResponseExtractor(Knot):
+class RoundRobinResponseExtractor(Knot):
     """Convert the loop's final state into the pipeline's public response."""
 
     def __init__(
@@ -43,9 +43,9 @@ class _RoundRobinResponseExtractor(Knot):
         Raises:
             TypeError: If ``state`` is not the loop's state object.
         """
-        if not isinstance(state, _RoundRobinState):
+        if not isinstance(state, RoundRobinState):
             raise TypeError(
-                "_RoundRobinResponseExtractor: state must be a "
-                f"_RoundRobinState, got {type(state).__name__}"
+                "RoundRobinResponseExtractor: state must be a "
+                f"RoundRobinState, got {type(state).__name__}"
             )
         return state.response

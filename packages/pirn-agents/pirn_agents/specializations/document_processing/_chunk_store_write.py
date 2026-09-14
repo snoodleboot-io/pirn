@@ -1,7 +1,7 @@
-"""``_ChunkStoreWrite`` — persist one embedded chunk under its store key.
+"""``ChunkStoreWrite`` — persist one embedded chunk under its store key.
 
 Internal per-chunk knot for
-:class:`~pirn_agents.specializations.document_processing._chunk_embedder_store._ChunkEmbedderStore`'s
+:class:`~pirn_agents.specializations.document_processing._chunk_embedder_store.ChunkEmbedderStore`'s
 fan-out (PIR-867): each chunk's write is independent of every other chunk's,
 so it is one node per chunk rather than a hand-rolled ``asyncio.gather`` over
 bare coroutines.
@@ -20,7 +20,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn_agents.memory.stores.memory_store import MemoryStore
 
 
-class _ChunkStoreWrite(Knot):
+class ChunkStoreWrite(Knot):
     """Persist one chunk's embedding payload under ``key`` in ``store``."""
 
     def __init__(
