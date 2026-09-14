@@ -203,7 +203,6 @@ strict = [
     "pirn_agents/planning",
     "pirn_agents/serialization",
     "pirn_agents/testing",
-    "pirn_agents/validation",
     "pirn_agents/*.py",
 ]
 pythonVersion = "3.12"

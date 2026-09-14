@@ -12,8 +12,7 @@ new invocation site that forgets it fails here rather than silently leaking.
 from __future__ import annotations
 
 import unittest
-from collections.abc import Mapping
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -29,22 +28,10 @@ _SECRET = "s3cr3tp4ssw0rd"
 
 
 class _RaisingTool(Tool):
-    def __init__(self, name: str = "raiser") -> None:
-        self._name = name
+    tool_name: ClassVar[str] = "raiser"
+    tool_description: ClassVar[str] = "always fails"
 
-    @property
-    def name(self) -> str:
-        return self._name
-
-    @property
-    def description(self) -> str:
-        return "always fails"
-
-    @property
-    def parameters_schema(self) -> Mapping[str, Any]:
-        return {"type": "object"}
-
-    async def invoke(self, arguments: Mapping[str, Any]) -> Any:
+    async def process(self, **_: Any) -> Any:
         raise RuntimeError(f"connect failed: {_DSN}")
 
 
@@ -99,7 +86,7 @@ class TestEveryInvocationPathRedacts(unittest.IsolatedAsyncioTestCase):
 
         with Tapestry() as t:
             ToolInvocation(
-                tool=ToolFactory.of(_RaisingTool()),
+                tool=ToolFactory.of(_RaisingTool),
                 call=ToolCall(tool_name="raiser", arguments={}, call_id="c1"),
                 _config=KnotConfig(id="inv"),
             )
@@ -119,7 +106,7 @@ class TestEveryInvocationPathRedacts(unittest.IsolatedAsyncioTestCase):
         with Tapestry() as t:
             ParallelToolExecutor(
                 tool_calls=(ToolCall(tool_name="raiser", arguments={}, call_id="c1"),),
-                toolset=Toolset([_RaisingTool()]),
+                toolset=Toolset([_RaisingTool]),
                 _config=KnotConfig(id="batch"),
             )
 
@@ -135,7 +122,7 @@ class TestEveryInvocationPathRedacts(unittest.IsolatedAsyncioTestCase):
         with Tapestry() as t:
             ToolChain(
                 initial_call=ToolCall(tool_name="raiser", arguments={}, call_id="c1"),
-                tools=(_RaisingTool(),),
+                tools=(_RaisingTool,),
                 _config=KnotConfig(id="chain"),
             )
 

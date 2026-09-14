@@ -3,19 +3,16 @@
 The depth and cycle guard is core's ``RunNesting`` applied by
 :class:`~pirn_agents.tools.agent_tool_call.AgentToolCall`; budget and provider
 ride :class:`~pirn_agents.agent.agent_tool_context.AgentToolContext` around
-each call.  :class:`AgentInvoker` is the deprecated shim over
-:class:`AgentTool` and is exercised once, for its warning and its result shape.
+each call.
 """
 
 from __future__ import annotations
 
 import unittest
-import warnings
 
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.agent.agent_invoker import AgentInvoker
 from pirn_agents.agent.agent_tool_context import (
     AgentToolContext,
     bind_agent_tool_context,
@@ -34,30 +31,6 @@ from tests.agent_tool_doubles import (
     reset_doubles,
 )
 from tests.conftest import StubLLMProvider
-
-
-class TestDeprecatedInvokerShim(unittest.IsolatedAsyncioTestCase):
-    def setUp(self) -> None:
-        reset_doubles()
-
-    async def test_warns_and_returns_the_view(self) -> None:
-        with Tapestry():
-            agent = StubAgent(reply="answer", _config=KnotConfig(id="agent"))
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            invoker = AgentInvoker()
-            result = await invoker.invoke(
-                agent, {"topic": "t"}, name="a", schema={"type": "object", "properties": {}}
-            )
-        self.assertTrue(any(issubclass(w.category, DeprecationWarning) for w in caught))
-        self.assertEqual(result.status, ToolStatus.OK)
-        self.assertEqual(result.result.content, "answer:t")
-
-    async def test_rejects_a_non_agent(self) -> None:
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            with self.assertRaisesRegex(TypeError, "SubTapestry"):
-                await AgentInvoker().invoke(object(), {}, name="a", schema={})
 
 
 class TestNestingGuard(unittest.IsolatedAsyncioTestCase):

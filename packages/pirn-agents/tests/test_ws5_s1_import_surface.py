@@ -25,14 +25,11 @@ import pytest
 # intentionally-underscored modules and the one symbol that stays at root.
 _S1_IMPORT_SURFACE: list[tuple[str, str]] = [
     # agent domain subpackage
-    ("pirn_agents.agent.agent_invoker", "AgentInvoker"),
     ("pirn_agents.agent.agent_introspector", "AgentIntrospector"),
-    ("pirn_agents.agent.agent_schema_deriver", "AgentSchemaDeriver"),
     ("pirn_agents.agent.agent_response_mapper", "AgentResponseMapper"),
     ("pirn_agents.agent.agent_tool_context", "AgentToolContext"),
     ("pirn_agents.agent.agent_tool_context", "current_agent_tool_context"),
     ("pirn_agents.agent.agent_tool_context", "bind_agent_tool_context"),
-    ("pirn_agents.agent.async_fanout_engine", "AsyncFanoutEngine"),
     ("pirn_agents.agent.parallel_tool_executor", "ParallelToolExecutor"),
     ("pirn_agents.agent.approval_hook", "ApprovalHook"),
     ("pirn_agents.agent.approval_hook", "authorize_tool_call"),
@@ -47,8 +44,6 @@ _S1_IMPORT_SURFACE: list[tuple[str, str]] = [
     ("pirn_agents.tools.tool_decorator", "tool"),
     ("pirn_agents.tools.tool_call_codec", "ToolCallCodec"),
     ("pirn_agents.tools.tool_permissions", "ToolPermissions"),
-    ("pirn_agents.tools.tool_invocation_hook", "ToolInvocationHook"),
-    ("pirn_agents.tools.tool_schema_compiler", "ToolSchemaCompiler"),
     ("pirn_agents.tools.streaming_tool_call_parser", "StreamingToolCallParser"),
     # llm domain subpackage
     ("pirn_agents.llm.llm_provider", "LLMProvider"),

@@ -24,7 +24,6 @@ from pirn.core.run_result import RunResult
 from pirn.tapestry import Tapestry
 
 from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
-from pirn_agents.llm.retry_policy import RetryPolicy
 from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_result import ToolResult
@@ -194,30 +193,6 @@ async def test_retry_exhausted_returns_error() -> None:
 
     assert Probe.calls["flaky"] == 2  # initial attempt + 1 retry
     assert results[0].status is ToolStatus.ERROR
-
-
-async def test_deprecated_retries_and_retry_policy_translate_to_a_knot_retry_policy() -> None:
-    toolset = _named(["flaky"], result="ok")
-    Probe.failures_left["flaky"] = 1
-    calls = [ToolCall(tool_name="flaky", arguments={}, call_id="c1")]
-
-    with pytest.warns(DeprecationWarning, match="retry=KnotRetryPolicy"):
-        results, _, _ = await _run(
-            calls, toolset, retries=1, retry_policy=RetryPolicy(base_delay=0.0, jitter=False)
-        )
-
-    assert Probe.calls["flaky"] == 2
-    assert results[0].status is ToolStatus.OK
-
-
-def test_effective_retry_keeps_the_policys_backoff_shape() -> None:
-    policy = RetryPolicy(base_delay=0.1, multiplier=3.0, max_delay=1.0, jitter=False)
-    knot_policy = ParallelToolExecutor._effective_retry(None, 2, policy)
-    assert knot_policy is not None
-    assert knot_policy.max_attempts == 3
-    assert knot_policy.backoff_delay(0) == policy.backoff_delay(0)
-    assert knot_policy.backoff_delay(1) == policy.backoff_delay(1)
-    assert ParallelToolExecutor._effective_retry(None, 0, policy) is None
 
 
 async def test_unknown_tool_yields_error_and_batch_completes() -> None:

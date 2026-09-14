@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import unittest
-import warnings
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
@@ -142,11 +141,3 @@ class TestAgentToolAsAKnot(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(view.result)
         self.assertIsNotNone(view.error)
         self.assertIn("boom", view.error or "")
-
-    async def test_invoke_shim_warns_and_returns_the_view(self) -> None:
-        tool = self._tool(reply="done")
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            view = await tool.invoke({"topic": "quantum"})
-        self.assertEqual(view.result.content, "done:quantum")
-        self.assertTrue(any(issubclass(w.category, DeprecationWarning) for w in caught))

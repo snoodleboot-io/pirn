@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 import unittest
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from typing import Any
 
 from pirn.core.err import Err
@@ -20,7 +20,7 @@ from pirn.core.skipped import Skipped
 from pirn.managers.exception_record import ExceptionRecord
 
 from pirn_agents.llm.provider_adapter import ProviderAdapter
-from pirn_agents.tools.tool import Tool
+from pirn_agents.testing.stub_tool import StubTool as KitStubTool
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_call_codec import ToolCallCodec
 from pirn_agents.tools.tool_result import ToolResult
@@ -28,27 +28,14 @@ from pirn_agents.tools.tool_status import ToolStatus
 from pirn_agents.tools.toolset import Toolset
 
 
-class StubTool(Tool):
-    """Minimal echo tool whose invoke returns its arguments."""
-
-    def __init__(self, name: str, description: str = "stub tool") -> None:
-        self._name = name
-        self._description = description
-
-    @property
-    def name(self) -> str:
-        return self._name
-
-    @property
-    def description(self) -> str:
-        return self._description
-
-    @property
-    def parameters_schema(self) -> Mapping[str, Any]:
-        return {"type": "object", "properties": {"q": {"type": "string"}}}
-
-    async def invoke(self, arguments: Mapping[str, Any]) -> Any:
-        return {"echo": dict(arguments)}
+def _stub_tool(name: str, description: str = "stub tool") -> KitStubTool:
+    """Minimal echo tool: a call's arguments come back wrapped as ``{"echo": ...}``."""
+    return KitStubTool(
+        name=name,
+        description=description,
+        parameters_schema={"type": "object", "properties": {"q": {"type": "string"}}},
+        handler=lambda arguments: {"echo": dict(arguments)},
+    )
 
 
 class StubAdapter(ProviderAdapter):
@@ -111,7 +98,7 @@ class StubLLMProvider:
 
 class TestEncodeTools(unittest.TestCase):
     def test_encode_tools_maps_each_tool_to_native_shape(self) -> None:
-        toolset = Toolset([StubTool("search", "find things"), StubTool("lookup", "look up")])
+        toolset = Toolset([_stub_tool("search", "find things"), _stub_tool("lookup", "look up")])
         codec = ToolCallCodec(StubAdapter())
 
         native = codec.encode_tools(toolset)
@@ -235,16 +222,16 @@ class TestFullRoundTrip(unittest.TestCase):
     async def _run_tools(self, toolset: Toolset, calls: Sequence[ToolCall]) -> list[ToolResult]:
         results: list[ToolResult] = []
         for call in calls:
-            tool = toolset.get(call.tool_name)
-            assert tool is not None
-            value = await tool.invoke(call.arguments)
-            results.append(ToolResult(call_id=call.call_id, result=value))
+            factory = toolset.get(call.tool_name)
+            assert factory is not None
+            outcome = await factory.run_call(call)
+            results.append(ToolResult.from_result(call.call_id, outcome))
         return results
 
     def test_single_call_round_trip(self) -> None:
         import asyncio
 
-        toolset = Toolset([StubTool("search")])
+        toolset = Toolset([_stub_tool("search")])
         codec = ToolCallCodec(StubAdapter())
         codec.encode_tools(toolset)
         provider = StubLLMProvider([{"id": "r1", "name": "search", "arguments": '{"q": "hi"}'}])
@@ -259,7 +246,7 @@ class TestFullRoundTrip(unittest.TestCase):
     def test_parallel_calls_round_trip_align_call_ids(self) -> None:
         import asyncio
 
-        toolset = Toolset([StubTool("search"), StubTool("lookup")])
+        toolset = Toolset([_stub_tool("search"), _stub_tool("lookup")])
         codec = ToolCallCodec(StubAdapter())
         provider = StubLLMProvider(
             [
@@ -278,7 +265,7 @@ class TestFullRoundTrip(unittest.TestCase):
 
 class TestProviderNeutrality(unittest.TestCase):
     def test_same_codec_round_trips_a_different_native_shape(self) -> None:
-        toolset = Toolset([StubTool("search", "find")])
+        toolset = Toolset([_stub_tool("search", "find")])
         codec = ToolCallCodec(StubAdapter2())
 
         native_tools = codec.encode_tools(toolset)

@@ -1,9 +1,10 @@
 """Tests for :class:`pirn_agents.mcp.mcp_tool.McpTool` (S2 / PIR-153, PIR-178).
 
 Proves the descriptor→``Tool`` mapping (name/description/parameters_schema), the
-``invoke``→``tools/call`` raw-value path, structured-content handling, and the
-``as_tool_result`` path that wraps into an F1 :class:`ToolResult` — including a
-server-reported error becoming a ``ToolStatus.ERROR`` result.
+raw-value ``tools/call`` path, structured-content handling, and the
+:meth:`~pirn_agents.tools.tool_result.ToolResult.from_result` view built over a
+call's ``Result`` — including a server-reported error becoming a
+``ToolStatus.ERROR`` result.
 """
 
 from __future__ import annotations
@@ -17,6 +18,7 @@ from pirn_agents.mcp.mcp_error import McpError
 from pirn_agents.mcp.mcp_tool import McpTool
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_factory import ToolFactory
+from pirn_agents.tools.tool_result import ToolResult
 from pirn_agents.tools.tool_status import ToolStatus
 from tests.mcp.stub_mcp import StubMcpTransport
 
@@ -80,7 +82,8 @@ async def test_as_tool_result_ok_round_trips_call_id() -> None:
     tool = await _echo_tool()
     call = ToolCall(tool_name="echo", arguments={"text": "roundtrip"}, call_id="c-1")
 
-    result = await tool.as_tool_result(call)
+    outcome = await tool.run_call(call)
+    result = ToolResult.from_result(call.call_id, outcome)
 
     assert result.call_id == "c-1"
     assert result.status is ToolStatus.OK
@@ -94,7 +97,8 @@ async def test_as_tool_result_maps_server_error_to_error_status() -> None:
     tool = McpTool(client=client, name="boom")
     call = ToolCall(tool_name="boom", arguments={}, call_id="c-2")
 
-    result = await tool.as_tool_result(call)
+    outcome = await tool.run_call(call)
+    result = ToolResult.from_result(call.call_id, outcome)
 
     assert result.status is ToolStatus.ERROR
     assert result.call_id == "c-2"

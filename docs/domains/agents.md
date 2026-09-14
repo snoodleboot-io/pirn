@@ -124,8 +124,6 @@ class WebSearchTool(Tool):
 web_search = WebSearchTool.bind(client=my_client)   # a ToolFactory — pass it anywhere a tool is accepted
 ```
 
-An `invoke`-shaped subclass (properties `name` / `description` / `parameters_schema` plus `async invoke(arguments)`) still works for one cycle through `ToolFactory.of()` / `Toolset` and emits a `DeprecationWarning`.
-
 For plain functions, use the `@tool` decorator instead of subclassing — it is `@knot` plus a declaration. It derives the name from the function name, the description from the docstring's first paragraph, and the parameters from type annotations. Both sync and async functions are accepted.
 
 ```python

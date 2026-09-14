@@ -1,8 +1,8 @@
 """Handoff/swarm integration + Pattern 16 doc example (F7-S6).
 
-Asserts that tool-style agent calls and handoff-style calls (through the
-deprecated :class:`~pirn_agents.agent.agent_invoker.AgentInvoker` shim) run the
-same :class:`~pirn_agents.tools.agent_tool.AgentTool`, that a swarm of
+Asserts that tool-style agent calls and handoff-style calls (a second
+:class:`~pirn_agents.tools.agent_tool.AgentTool` built directly, as a
+transfer/swarm path does) run the same underlying capability, that a swarm of
 agents-as-tools works inside a single ReAct loop, and that the rewritten
 Pattern 16 example runs end-to-end (so the doc cannot silently drift).
 """
@@ -10,17 +10,16 @@ Pattern 16 example runs end-to-end (so the doc cannot silently drift).
 from __future__ import annotations
 
 import unittest
-import warnings
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
-from pirn_agents.agent.agent_invoker import AgentInvoker
 from pirn_agents.specializations.react.react_loop import ReActLoop
 from pirn_agents.specializations.specialized_agents.research_agent import (
     ResearchAgent,
 )
+from pirn_agents.tools.agent_tool import AgentTool
 from pirn_agents.types.messaging.agent_message import AgentMessage
 from pirn_agents.types.messaging.agent_response import AgentResponse
 from tests.agent_tool_doubles import AGENT_CALLS, StubAgent, reset_doubles
@@ -38,15 +37,9 @@ class TestSharedMachinery(unittest.IsolatedAsyncioTestCase):
         tool = agent.as_tool()
         tool_style = await tool.run_view({"topic": "same"})
 
-        # Handoff-style: the deprecated shim a transfer/swarm path used, over the same tool.
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", DeprecationWarning)
-            handoff_style = await AgentInvoker().invoke(
-                agent,
-                {"topic": "same"},
-                name=tool.name,
-                schema=tool.parameters_schema,
-            )
+        # Handoff-style: a second AgentTool built directly over the same
+        # agent, as a transfer/swarm path does.
+        handoff_style = await AgentTool(agent).run_view({"topic": "same"})
 
         self.assertEqual(tool_style.result.content, handoff_style.result.content)
         self.assertEqual(tool_style.result.content, "answer:same")
