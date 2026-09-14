@@ -1,20 +1,38 @@
-"""``_AttemptTier`` — fold one cascade tier's decision into state."""
+"""``_AttemptTier`` — fold one cascade tier's decision into state.
+
+``tier.invoke`` is a bare async callable (the cascade's own provider seam,
+not a :class:`~pirn_agents.tools.tool.Tool`), so it used to be awaited
+directly inside ``process()`` (``AWAITS_INVOKE``). PIR-867 wires it as a
+genuine graph node instead:
+:class:`~pirn_agents.specializations.routing._tier_invocation._TierInvocation`
+calls the provider, and
+:class:`~pirn_agents.specializations.routing._tier_attempt_fold._TierAttemptFold`
+— wired with ``error_policy=RECEIVE_ERRORS`` over it — folds the raw
+``Ok``/``Err`` outcome into the cascade's state, exactly like
+``ReActStepExecutor``'s tool-call assembler does for a tool call. The
+locked / spend-cap decisions that must run *before* any provider call is
+made stay synchronous here, since they decide whether to build that call at
+all.
+"""
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
 from typing import Any
 
+from pirn.core.error_policy import ErrorPolicy
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
 
 from pirn_agents.performance.spend_cap_policy import SpendCapPolicy
+from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.routing._cascade_chain_state import _CascadeChainState
-from pirn_agents.specializations.routing.cascade_outcome import CascadeOutcome
+from pirn_agents.specializations.routing._tier_attempt_fold import _TierAttemptFold
+from pirn_agents.specializations.routing._tier_invocation import _TierInvocation
 from pirn_agents.specializations.routing.cascade_tier import CascadeTier
 
 
-class _AttemptTier(Knot):
+class _AttemptTier(AgentPipeline):
     """Fold one tier's decision into the cascade's accumulated state.
 
     ``confidence`` and ``meter`` are typed ``Any``: ``confidence`` is a bare
@@ -26,6 +44,9 @@ class _AttemptTier(Knot):
     the pre-remediation version of this file routed both around
     ``super().__init__()`` entirely.
     """
+
+    # A failed invocation is delivered to _TierAttemptFold, not to this knot.
+    _inner_failures_reach_sink = True
 
     def __init__(
         self,
@@ -58,12 +79,12 @@ class _AttemptTier(Knot):
         tier: CascadeTier,
         index: int,
         request: Any,
-        confidence: Callable[[Any], Awaitable[float]],
+        confidence: Any,
         meter: Any,
         spend_cap_policy: SpendCapPolicy,
         **_: Any,
-    ) -> _CascadeChainState:
-        """Try ``tier`` unless the chain is already locked.
+    ) -> Knot:
+        """Decide whether to try ``tier``, and return the knot resolving to the folded state.
 
         Args:
             prior: The chain's accumulated state before this tier.
@@ -75,71 +96,48 @@ class _AttemptTier(Knot):
             spend_cap_policy: What to do when a tier would breach the cap.
 
         Returns:
-            ``prior`` unchanged if already locked (accepted or downshifted);
-            otherwise the state folding in this tier's decision.
+            A ``Parameter`` defaulting to ``prior`` unchanged when the chain
+            is already locked, or to the downshift state when the spend cap
+            triggers a skip; otherwise the sink of the inner pipeline — a
+            ``_TierAttemptFold`` over the wired ``_TierInvocation`` — whose
+            output is the state folding in this tier's decision.
 
         Raises:
             pirn_agents.performance.budget_breach_error.BudgetBreachError: When
                 the spend cap is exceeded under an ``ABORT`` policy.
         """
         if prior.locked:
-            return prior
-        decisions = list(prior.decisions)
-        attempted = list(prior.attempted)
+            return Parameter(
+                "locked", _CascadeChainState, default=prior, _config=KnotConfig(id="locked")
+            )
 
         if meter is not None and meter.would_exceed_cost(tier.estimated_cost):
+            decisions = list(prior.decisions)
             if spend_cap_policy is SpendCapPolicy.DOWNSHIFT and index > 0:
                 decisions.append(f"{tier.name}: spend cap reached -> downshift (skip)")
-                return _CascadeChainState(
-                    attempted=tuple(attempted),
-                    decisions=tuple(decisions),
-                    best_value=prior.best_value,
-                    best_tier=prior.best_tier,
-                    best_confidence=prior.best_confidence,
-                    locked=True,
+                return Parameter(
+                    "downshift",
+                    _CascadeChainState,
+                    default=_CascadeChainState(
+                        attempted=prior.attempted,
+                        decisions=tuple(decisions),
+                        best_value=prior.best_value,
+                        best_tier=prior.best_tier,
+                        best_confidence=prior.best_confidence,
+                        locked=True,
+                    ),
+                    _config=KnotConfig(id="downshift"),
                 )
             decisions.append(f"{tier.name}: spend cap exceeded -> abort")
             meter.spend_cost(tier.estimated_cost)  # raises BudgetBreachError
 
-        attempted.append(tier.name)
-        try:
-            value = await tier.invoke(request)
-        except Exception as exc:
-            decisions.append(f"{tier.name}: failed ({exc}) -> escalate")
-            return _CascadeChainState(
-                attempted=tuple(attempted),
-                decisions=tuple(decisions),
-                best_value=prior.best_value,
-                best_tier=prior.best_tier,
-                best_confidence=prior.best_confidence,
-            )
-
-        if meter is not None:
-            meter.spend_cost(tier.estimated_cost)
-
-        score = float(await confidence(value))
-        if score >= tier.min_confidence:
-            decisions.append(f"{tier.name}: accepted (confidence={score})")
-            outcome = CascadeOutcome(
-                value=value,
-                chosen=tier.name,
-                succeeded=True,
-                escalated=index > 0,
-                attempted=tuple(attempted),
-                decisions=tuple(decisions),
-                confidence=score,
-            )
-            return _CascadeChainState(
-                attempted=tuple(attempted),
-                decisions=tuple(decisions),
-                accepted_outcome=outcome,
-                locked=True,
-            )
-        decisions.append(f"{tier.name}: low confidence={score} -> escalate")
-        return _CascadeChainState(
-            attempted=tuple(attempted),
-            decisions=tuple(decisions),
-            best_value=value,
-            best_tier=tier.name,
-            best_confidence=score,
+        outcome = _TierInvocation(tier=tier, request=request, _config=KnotConfig(id="invoke"))
+        return _TierAttemptFold(
+            prior=prior,
+            tier=tier,
+            index=index,
+            confidence=confidence,
+            meter=meter,
+            outcome=outcome,
+            _config=KnotConfig(id="fold", error_policy=ErrorPolicy.RECEIVE_ERRORS),
         )

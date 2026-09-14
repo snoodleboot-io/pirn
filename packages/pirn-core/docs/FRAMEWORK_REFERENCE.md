@@ -452,6 +452,19 @@ document's failure is still isolated inside `_DocumentIngest` and folded into
 the `IngestionReport` rather than raised, so isolation survives the move to
 the engine's own scheduling.
 
+`AWAITS_INVOKE` re-checked in PIR-867: `specializations/routing/_attempt_tier.py::_AttemptTier`
+awaited `CascadeTier.invoke` (the cascade's own bare-callable provider seam,
+not a `Tool`) directly. There is no tool knot to substitute — the fix is the
+same shape `ToolInvocation` plays for tool calls: a dedicated vending knot,
+`_TierInvocation`, whose only body is the call, wired as a real parent;
+`_TierAttemptFold` (`error_policy=RECEIVE_ERRORS`) folds its `Ok`/`Err`
+outcome into the cascade's state. `_AttemptTier` itself became an
+`AgentPipeline` (only the pre-call locked/spend-cap decisions stay
+synchronous, since they decide whether to build the call at all).
+`AWAITS_INVOKE` now names `_TierInvocation` instead of `_AttemptTier` — a
+sanctioned entry, not a fixed one, since the underlying call has to happen
+somewhere.
+
 The bypass ratchet (`tests/specializations/base/test_no_engine_bypass.py`)
 is empty for `AWAITS_CHILD_PROCESS`, `RETURNS_INLINE_SOURCE`, `UNRUN_TAPESTRY`,
 `DEFINES_INLINE_SOURCE`, `LOOP_AWAITS_LLM_OR_TOOL_CALL`, and
@@ -466,9 +479,8 @@ fix unilaterally):
   a consistent store). Decomposing it into engine-tracked knots risks
   breaking that atomicity guarantee; whether per-summary observability is
   worth that trade is a product call, not made here.
-- `specializations/routing/_attempt_tier.py::_AttemptTier` still awaits
-  `.invoke()` directly (`AWAITS_INVOKE`); `agent/parallel_tool_executor.py::ParallelToolExecutor`'s
-  own `asyncio.gather` is a deliberate deferral — its per-call retry/timeout
+- `agent/parallel_tool_executor.py::ParallelToolExecutor`'s own
+  `asyncio.gather` is a deliberate deferral — its per-call retry/timeout
   richness needs real inter-attempt backoff sleep, not expressible as a
   static `Aggregator` fan-out.
 - **Approval denial** stays a `ToolCallRejection` `Err` this cycle

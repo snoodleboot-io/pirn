@@ -91,14 +91,23 @@ RETURNS_INLINE_SOURCE: frozenset[str] = frozenset()
 #: WS5b). Kept as an assertion so a future unrun `Tapestry()` regresses loudly.
 UNRUN_TAPESTRY: frozenset[str] = frozenset()
 
-#: `await <x>.invoke(...)` awaited directly rather than through a
-#: `ToolInvocation` knot. `tools/tool_invocation.py::ToolInvocation` is the one
-#: sanctioned entry — it *is* the knot whose job is to make this call. PIR-856
-#: fixed three call sites (`ParallelToolCaller`, `ToolChain`,
-#: `ReActStepExecutor`); these predate this lane and are out of its scope.
+#: `await <x>.invoke(...)` awaited directly rather than through a dedicated
+#: vending knot whose sole job is to make the call. `tools/tool_invocation.py::ToolInvocation`
+#: doesn't even trip this detector (it wires the tool as a knot the engine
+#: runs via `process()`, never touching `.invoke()` itself), so it isn't
+#: listed. PIR-856 fixed three call sites (`ParallelToolCaller`, `ToolChain`,
+#: `ReActStepExecutor`). PIR-867 re-checked `_AttemptTier`: `CascadeTier.invoke`
+#: is a bare provider callable, not a `Tool`, so there is no tool knot to
+#: construct instead — the fix is `specializations/routing/_tier_invocation.py::_TierInvocation`,
+#: a dedicated vending knot whose only body is this call, wired as a real
+#: parent of `_AttemptTier`'s inner pipeline (`_tier_attempt_fold.py::_TierAttemptFold`
+#: folds its `Ok`/`Err` outcome, via `error_policy=RECEIVE_ERRORS`, into the
+#: cascade's state). `_TierInvocation` is the sanctioned entry now, the same
+#: role `ToolInvocation` plays for tool calls — the call is made exactly
+#: once, inside the one knot whose job is to make it.
 AWAITS_INVOKE = frozenset(
     {
-        "specializations/routing/_attempt_tier.py::_AttemptTier",
+        "specializations/routing/_tier_invocation.py::_TierInvocation",
     }
 )
 

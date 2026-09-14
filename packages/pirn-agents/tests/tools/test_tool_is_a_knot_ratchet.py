@@ -30,8 +30,14 @@ from the package root (``packages/pirn-agents``).
 Two families in the ``invoke`` inventory are not tools at all and are frozen
 here only because the detector is deliberately blunt: the run-recorder
 ``invoke(key=, thunk=)`` seam (``determinism/``, ``evaluation/``) and the
-``CascadeTier.invoke`` provider callable ``_AttemptTier`` awaits.  They belong
-to other workstreams and are listed, not migrated, by WS1.
+``CascadeTier.invoke`` provider callable.  They belong to other workstreams
+and are listed, not migrated, by WS1.  PIR-867 (a different ratchet,
+``tests/specializations/base/test_no_engine_bypass.py``'s ``AWAITS_INVOKE``)
+moved the ``CascadeTier.invoke`` call site from ``_AttemptTier.process``
+into a dedicated ``_TierInvocation`` knot so the call runs through the
+engine; the site this inventory sees moved with it, one line for one line —
+``CascadeTier.invoke`` itself is still not a ``Tool`` and still not WS1's to
+migrate.
 """
 
 from __future__ import annotations
@@ -100,7 +106,7 @@ AWAITED_INVOKE_CALL_SITES = frozenset(
     {
         "evaluation/cassette_run_recorder.py::CassetteRunRecorder.invoke",
         "evaluation/run_eval.py::RunEval.run._run_item",
-        "specializations/routing/_attempt_tier.py::_AttemptTier.process",
+        "specializations/routing/_tier_invocation.py::_TierInvocation.process",
         "tools/tool.py::Tool.invoke",
         "tools/tool_factory.py::ToolFactory.from_legacy.process",
     }
