@@ -54,11 +54,6 @@ class PyWaveletsBinding:
         )
         return reconstructed
 
-    def threshold(self, data: ArrayLike, value: float, mode: str) -> NDArray[np.floating[Any]]:
-        """Threshold ``data`` at ``value`` (``soft``, ``hard``, ``garrote``, ...)."""
-        thresholded: NDArray[np.floating[Any]] = self._module.threshold(data, value, mode=mode)
-        return thresholded
-
     def swt(
         self, data: ArrayLike, wavelet: str, level: int, axis: int = -1
     ) -> list[tuple[NDArray[np.floating[Any]], NDArray[np.floating[Any]]]]:

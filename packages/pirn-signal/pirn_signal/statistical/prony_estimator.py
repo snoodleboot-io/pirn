@@ -3,10 +3,15 @@
 Algorithm:
     1. Receive the input signal frame and component_count.
     2. Validate component_count (positive integer).
-    3. Form the data matrix from 2 * component_count signal samples.
-    4. Solve the linear prediction problem to find the characteristic polynomial.
-    5. Find the polynomial roots to obtain the complex modal frequencies (poles).
-    6. Solve the Vandermonde system to obtain modal amplitudes.
+    3. Form the least-squares linear-prediction system over every sample:
+       row ``r`` is ``[x(r), ..., x(r+p-1)]`` and its target is ``-x(r+p)``, for
+       ``r = 0 .. N-p-1`` (fewer than ``2p`` samples yields no modes).
+    4. Solve it for the prediction coefficients ``c_0 .. c_{p-1}``.
+    5. Take the roots of the characteristic polynomial
+       ``z^p + c_{p-1} z^{p-1} + ... + c_0`` (coefficients highest power first) as
+       the modal poles ``z_k``.
+    6. Solve the Vandermonde system ``x(n) = sum_k A_k z_k^n`` by least squares for
+       the residues ``A_k``, over every sample whose powers ``z_k^n`` stay finite.
     7. Repeat independently for each channel and return a FeaturePayload whose
        data is shaped ``(channel_count, component_count, 2)``, pairing each
        mode's complex pole and residue (NaN-padded when fewer modes are found).
@@ -16,13 +21,19 @@ Math:
 
     $$x(n) = \\sum_{k=1}^{p} A_k z_k^n, \\quad z_k = e^{(\\sigma_k + j\\omega_k) T_s}$$
 
-    Characteristic polynomial:
+    Every such signal obeys the order-:math:`p` linear recurrence
 
-    $$a(z) = \\prod_{k=1}^{p} (1 - z_k z^{-1})$$
+    $$x(n + p) + \\sum_{i=0}^{p-1} c_i\\, x(n + i) = 0$$
+
+    whose characteristic polynomial has exactly the poles as roots:
+
+    $$z^p + \\sum_{i=0}^{p-1} c_i z^i = \\prod_{k=1}^{p} (z - z_k)$$
 
 References:
     - Prony, G.R.B. (1795). "Essai expérimental et analytique." J. Éc. Polytech., 1(2), 24-76.
-    - Kay, S.M. (1988). "Modern Spectral Estimation." Prentice-Hall.
+    - Kay, S.M. (1988). "Modern Spectral Estimation." Prentice-Hall, sec. 11.3
+      (least-squares Prony method).
+    - Hildebrand, F.B. (1956). "Introduction to Numerical Analysis." McGraw-Hill, sec. 9.4.
 """
 
 from __future__ import annotations
@@ -31,6 +42,7 @@ import asyncio
 from typing import Any
 
 import numpy as np
+from numpy.typing import NDArray
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
@@ -104,32 +116,37 @@ class PronyEstimator(Knot):
 
     @staticmethod
     def _prony(signal_array: np.ndarray, num_modes: int) -> tuple[list[complex], list[complex]]:
-        """Prony's method: fit num_modes complex exponentials to signal_array.
+        """Least-squares Prony: fit ``num_modes`` complex exponentials to ``signal_array``.
 
-        Returns (poles, residues).
+        Returns ``(poles, residues)``; both are empty when the signal has fewer than
+        ``2 * num_modes`` samples (the linear-prediction system is underdetermined).
         """
         signal_length = len(signal_array)
-        # Build data matrix for linear prediction
-        half = min(2 * num_modes, signal_length - 1)
-        cols = min(num_modes, half)
-        rows = half - cols
-        if rows <= 0 or cols <= 0:
+        rows = signal_length - num_modes
+        if rows < num_modes:
             return [], []
-        data_matrix = np.array(
-            [
-                [signal_array[row_idx + col_idx] for col_idx in range(cols)]
-                for row_idx in range(rows)
-            ]
-        )
-        target_vector = np.array([-signal_array[row_idx + cols] for row_idx in range(rows)])
+        # Linear prediction over every available sample: row r is
+        # [x(r), x(r+1), ..., x(r+p-1)] and the target is -x(r+p), so the solution
+        # c satisfies x(r+p) + sum_i c_i x(r+i) = 0.
+        data_matrix = np.lib.stride_tricks.sliding_window_view(signal_array[:-1], num_modes)[:rows]
+        target_vector = -signal_array[num_modes:]
         pred_coeffs, _, _, _ = np.linalg.lstsq(data_matrix, target_vector, rcond=None)
-        # Characteristic polynomial: z^num_modes + a[0]*z^(num_modes-1) + ... + a[num_modes-1]
-        poly = np.concatenate([[1.0], pred_coeffs])
+        # That recurrence's characteristic polynomial is
+        # z^p + c_{p-1} z^{p-1} + ... + c_1 z + c_0: highest power first for np.roots,
+        # so the solved coefficients go in reverse order.
+        poly = np.concatenate([[1.0], pred_coeffs[::-1]])
         poles = np.roots(poly)
-        # Vandermonde system to find residues
-        n_pts = min(signal_length, 2 * num_modes)
-        vandermonde = np.array(
-            [[pole**sample_index for pole in poles] for sample_index in range(n_pts)]
-        )
-        residues, _, _, _ = np.linalg.lstsq(vandermonde, signal_array[:n_pts], rcond=None)
-        return list(complex(pole) for pole in poles), list(complex(residue) for residue in residues)
+        # Residues: least squares on the Vandermonde system over every sample whose
+        # power z^n stays finite (a pole outside the unit circle grows geometrically).
+        fit_length = PronyEstimator._finite_power_length(poles, signal_length)
+        vandermonde = np.power.outer(poles, np.arange(fit_length)).T
+        residues, _, _, _ = np.linalg.lstsq(vandermonde, signal_array[:fit_length], rcond=None)
+        return [complex(pole) for pole in poles], [complex(residue) for residue in residues]
+
+    @staticmethod
+    def _finite_power_length(poles: NDArray[np.complexfloating[Any]], signal_length: int) -> int:
+        """Largest sample count ``n <= signal_length`` with every ``|z_k|^n`` below ``1e150``."""
+        largest = float(np.max(np.abs(poles))) if poles.size else 0.0
+        if largest <= 1.0:
+            return signal_length
+        return max(poles.size, min(signal_length, int(150.0 * np.log(10.0) / np.log(largest))))

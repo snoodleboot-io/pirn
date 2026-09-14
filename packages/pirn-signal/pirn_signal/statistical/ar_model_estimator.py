@@ -7,23 +7,43 @@ Algorithm:
        - ``burg``: Burg's recursive lattice method (minimum forward-backward error).
        - ``yule_walker``: Solve the Yule-Walker equations via the Levinson-Durbin recursion.
        - ``ols``: Ordinary least-squares regression on the lag matrix.
-    4. Repeat independently for each channel and return a FeaturePayload with
+    4. Report every method in one sign convention: the AR coefficients
+       ``phi_1 .. phi_p`` of ``x(n) = sum_k phi_k x(n-k) + e(n)``, followed by the
+       innovation variance.
+    5. Repeat independently for each channel and return a FeaturePayload with
        the AR coefficients and residual variance per channel.
 
 Math:
-    AR(p) model:
+    AR(p) model, as reported (``ar_coeff_{k-1}`` is :math:`\\phi_k`):
 
-    $$x(n) = -\\sum_{k=1}^{p} a_k x(n-k) + e(n)$$
+    $$x(n) = \\sum_{k=1}^{p} \\phi_k x(n-k) + e(n), \\qquad \\phi_k = -a_k$$
+
+    where :math:`a` is the prediction polynomial
+    :math:`A(z) = 1 + \\sum_k a_k z^{-k}` the Burg and Levinson-Durbin recursions
+    operate on.
 
     Yule-Walker equations:
 
-    $$\\mathbf{R} \\mathbf{a} = -\\mathbf{r}$$
+    $$\\mathbf{R} \\boldsymbol{\\phi} = \\mathbf{r}$$
 
     where $R_{ij} = R_x(i-j)$ and $r_i = R_x(i)$.
 
+    Burg reflection coefficient at stage :math:`m` over forward errors :math:`f` and
+    delayed backward errors :math:`b`, and the Levinson order update:
+
+    $$k_m = \\frac{-2 \\sum_n f_{m-1}(n)\\, b_{m-1}(n-1)}
+                 {\\sum_n f_{m-1}(n)^2 + \\sum_n b_{m-1}(n-1)^2}, \\qquad
+      a^{(m)}_i = a^{(m-1)}_i + k_m\\, a^{(m-1)}_{m-i}, \\quad a^{(m)}_m = k_m$$
+
+    $$\\sigma_m^2 = \\sigma_{m-1}^2 (1 - k_m^2)$$
+
 References:
+    - Burg, J.P. (1975). "Maximum Entropy Spectral Analysis." PhD thesis, Stanford University.
+    - Kay, S.M. (1988). "Modern Spectral Estimation." Prentice-Hall, sec. 7.6 (Burg), 7.3
+      (Yule-Walker / Levinson-Durbin).
     - Box, G.E.P., Jenkins, G.M. & Reinsel, G.C. (2015). "Time Series Analysis." Wiley.
-    - scipy.signal: https://docs.scipy.org/doc/scipy/reference/signal.html
+    - MATLAB ``arburg`` (reference implementation of the same recursion):
+      https://www.mathworks.com/help/signal/ref/arburg.html
 """
 
 from __future__ import annotations
@@ -107,37 +127,38 @@ class ARModelEstimator(Knot):
 
     @staticmethod
     def _burg(signal_array: np.ndarray, order: int) -> tuple[np.ndarray, float]:
-        """Burg's recursive lattice method for AR coefficient estimation."""
-        signal_length = len(signal_array)
-        ef = signal_array.astype(float).copy()
-        eb = signal_array.astype(float).copy()
-        ar_coeffs = np.zeros(order)
-        variance = float(np.dot(signal_array, signal_array) / signal_length)
-        for lattice_stage in range(order):
-            num = -2.0 * np.dot(
-                eb[lattice_stage : signal_length - 1], ef[lattice_stage + 1 : signal_length]
+        """Burg's lattice method; returns ``(phi, innovation variance)``.
+
+        The recursion runs on the prediction polynomial ``a`` of
+        ``x(n) + sum_k a_k x(n-k) = e(n)`` (Kay 1988, sec. 7.6; MATLAB ``arburg``):
+        at stage ``m`` the forward errors ``f = f[1:]`` and the one-sample-delayed
+        backward errors ``b = b[:-1]`` both shrink by one sample, the reflection
+        coefficient is ``k = -2 <f, b> / (<f, f> + <b, b>)``, and
+        ``a <- [a, 0] + k [0, reversed(a)]``. The AR coefficients are ``phi = -a``,
+        the convention ``yule_walker`` and ``ols`` report.
+        """
+        forward = signal_array.astype(float).copy()
+        backward = signal_array.astype(float).copy()
+        polynomial = np.zeros(order)
+        variance = float(np.dot(forward, forward) / forward.size)
+        for stage in range(order):
+            forward_errors = forward[1:]
+            backward_errors = backward[:-1]
+            denominator = float(
+                np.dot(forward_errors, forward_errors) + np.dot(backward_errors, backward_errors)
             )
-            denom = np.dot(
-                ef[lattice_stage + 1 : signal_length], ef[lattice_stage + 1 : signal_length]
-            ) + np.dot(eb[lattice_stage : signal_length - 1], eb[lattice_stage : signal_length - 1])
-            km = 0.0 if denom == 0.0 else num / denom
-            ef_new = (
-                ef[lattice_stage + 1 : signal_length] + km * eb[lattice_stage : signal_length - 1]
+            reflection = (
+                0.0
+                if denominator == 0.0
+                else -2.0 * float(np.dot(forward_errors, backward_errors)) / denominator
             )
-            eb_new = (
-                eb[lattice_stage : signal_length - 1] + km * ef[lattice_stage + 1 : signal_length]
-            )
-            ef[lattice_stage + 1 : signal_length] = ef_new
-            eb[lattice_stage : signal_length - 1] = eb_new
-            coeffs_new = np.zeros(lattice_stage + 1)
-            coeffs_new[lattice_stage] = km
-            if lattice_stage > 0:
-                coeffs_new[:lattice_stage] = (
-                    ar_coeffs[:lattice_stage] + km * ar_coeffs[:lattice_stage][::-1]
-                )
-            ar_coeffs = coeffs_new
-            variance = variance * (1.0 - km * km)
-        return ar_coeffs, float(variance)
+            forward = forward_errors + reflection * backward_errors
+            backward = backward_errors + reflection * forward_errors
+            previous = polynomial[:stage].copy()
+            polynomial[:stage] = previous + reflection * previous[::-1]
+            polynomial[stage] = reflection
+            variance *= 1.0 - reflection * reflection
+        return -polynomial, variance
 
     @staticmethod
     def _levinson_durbin(signal_array: np.ndarray, order: int) -> np.ndarray:
