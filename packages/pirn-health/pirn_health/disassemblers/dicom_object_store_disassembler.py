@@ -57,7 +57,7 @@ class DicomObjectStoreDisassembler(Disassembler):
                 dataset does not support ``save_as`` (e.g. ``pydicom`` was never
                 available to parse it in the first place).
         """
-        if not isinstance(payload, DICOMPayload):
+        if not isinstance(payload, DICOMPayload):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError(
                 f"DicomObjectStoreDisassembler: payload must be DICOMPayload, "
                 f"got {type(payload).__name__}"

@@ -28,11 +28,8 @@ from pirn_health.types.wsi_tile_payload import WSITilePayload
 
 try:
     from PIL import Image
-
-    _HAS_PIL: bool = True
 except ImportError:
     Image = None  # type: ignore[assignment]
-    _HAS_PIL = False
 
 
 class WsiObjectStoreDisassembler(Disassembler):
@@ -63,7 +60,7 @@ class WsiObjectStoreDisassembler(Disassembler):
         Raises:
             TypeError: If ``payload`` is not a :class:`WSITilePayload`.
         """
-        if not isinstance(payload, WSITilePayload):
+        if not isinstance(payload, WSITilePayload):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError(
                 f"WsiObjectStoreDisassembler: payload must be WSITilePayload, "
                 f"got {type(payload).__name__}"
@@ -72,7 +69,7 @@ class WsiObjectStoreDisassembler(Disassembler):
 
     @staticmethod
     def _to_png_bytes(payload: WSITilePayload) -> bytes:
-        if not _HAS_PIL or Image is None:
+        if Image is None:
             raise ImportError(
                 "Pillow is required for WsiObjectStoreDisassembler — "
                 "install with: pip install 'pirn-health[health]'"

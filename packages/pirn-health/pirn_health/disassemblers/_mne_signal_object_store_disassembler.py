@@ -29,7 +29,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn_health.types.health_signal_payload import HealthSignalPayload
 
 
-class _MneSignalObjectStoreDisassembler(Disassembler):
+class _MneSignalObjectStoreDisassembler(Disassembler):  # pyright: ignore[reportUnusedClass]  # imported by eeg_object_store_disassembler, meg_object_store_disassembler
     """Shared implementation for EEG/MEG object-store disassemblers."""
 
     def __init__(
@@ -57,7 +57,7 @@ class _MneSignalObjectStoreDisassembler(Disassembler):
         Raises:
             TypeError: If ``payload`` is not a :class:`HealthSignalPayload`.
         """
-        if not isinstance(payload, HealthSignalPayload):
+        if not isinstance(payload, HealthSignalPayload):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError(
                 f"{type(self).__name__}: payload must be HealthSignalPayload, "
                 f"got {type(payload).__name__}"

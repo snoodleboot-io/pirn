@@ -27,7 +27,9 @@ from pirn.core.assembler import Assembler
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_health.clinical.phi_hasher import _PhiHasher
+from pirn_health.clinical.phi_hasher import (
+    _PhiHasher,  # pyright: ignore[reportPrivateUsage]  # package-internal helper
+)
 from pirn_health.types.clinical_record import ClinicalRecord
 
 
@@ -65,13 +67,13 @@ class FhirPatientAssembler(Assembler):
             TypeError: If ``records`` is not a ``list`` or ``salt`` is not a ``str``.
             ValueError: If ``records`` is empty or ``salt`` is empty.
         """
-        if not isinstance(records, list):
+        if not isinstance(records, list):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError(
                 f"FhirPatientAssembler: records must be a list, got {type(records).__name__}"
             )
         if not records:
             raise ValueError("FhirPatientAssembler: records must be non-empty")
-        if not isinstance(salt, str):
+        if not isinstance(salt, str):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise TypeError("FhirPatientAssembler: salt must be a string")
         if not salt:
             raise ValueError("FhirPatientAssembler: salt must be non-empty")

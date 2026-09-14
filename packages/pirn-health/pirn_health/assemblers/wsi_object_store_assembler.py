@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``WsiObjectStoreAssembler`` — assemble a :class:`WSITilePayload` from image bytes.
 
 Sits between an object store connector (which produces ``bytes``) and downstream
@@ -33,11 +35,8 @@ from pirn_health.types.wsi_tile_payload import WSITilePayload
 
 try:
     from PIL import Image
-
-    _HAS_PIL: bool = True
 except ImportError:
     Image = None  # type: ignore[assignment]
-    _HAS_PIL = False
 
 
 class WsiObjectStoreAssembler(Assembler):
@@ -103,7 +102,7 @@ class WsiObjectStoreAssembler(Assembler):
 
     @staticmethod
     def _assemble_tile(body: bytes, slide_id: str, tile_index: int) -> WSITilePayload:
-        if not _HAS_PIL or Image is None:
+        if Image is None:
             raise ImportError(
                 "Pillow is required for WsiObjectStoreAssembler — install with: pip install 'pirn-health[health]'"
             )
