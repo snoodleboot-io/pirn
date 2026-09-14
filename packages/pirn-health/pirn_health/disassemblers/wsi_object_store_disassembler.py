@@ -23,6 +23,7 @@ import numpy as np
 from pirn.core.disassembler import Disassembler
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
 from pirn_health.types.wsi_tile_payload import WSITilePayload
 
@@ -64,13 +65,7 @@ class WsiObjectStoreDisassembler(Disassembler):
 
     @staticmethod
     def _to_png_bytes(payload: WSITilePayload) -> bytes:
-        try:
-            from PIL import Image
-        except ImportError as exc:
-            raise ImportError(
-                "WsiObjectStoreDisassembler requires 'PIL' — "
-                "install with: pip install 'pirn-health[health]'"
-            ) from exc
+        Image = OptionalDependency.require("PIL.Image", extra="health", package="pirn-health")
         img = Image.fromarray(payload.data.astype(np.uint8), mode="RGB")
         buf = io.BytesIO()
         img.save(buf, format="PNG")

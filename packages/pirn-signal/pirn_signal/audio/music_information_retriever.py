@@ -40,6 +40,7 @@ from typing import Any, ClassVar
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
 from pirn_signal.types.feature_frame import FeatureFrame
 from pirn_signal.types.feature_payload import FeaturePayload
@@ -143,12 +144,7 @@ class MusicInformationRetriever(Knot):
         Returns a dict keyed by feature name; array-valued features stay as
         ``np.ndarray`` (no ``.tolist()`` conversion).
         """
-        try:
-            import librosa
-        except ImportError as exc:
-            raise ImportError(
-                "MusicInformationRetriever requires 'librosa'. Install via pip install pirn-signal[signal]"
-            ) from exc
+        librosa = OptionalDependency.require("librosa", extra="signal", package="pirn-signal")
         result: dict[str, Any] = {}
 
         if "chroma" in feature_set:

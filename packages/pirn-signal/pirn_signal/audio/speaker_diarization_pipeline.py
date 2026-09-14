@@ -37,6 +37,7 @@ import numpy as np
 from numpy.typing import NDArray
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
 from pirn_signal.bindings.sklearn_cluster_binding import SklearnClusterBinding
 from pirn_signal.types.feature_frame import FeatureFrame
@@ -127,12 +128,7 @@ class SpeakerDiarizationPipeline(Knot):
         num_speakers: int,
     ) -> np.ndarray:
         """Diarize a single channel, returning per-frame speaker labels."""
-        try:
-            import librosa
-        except ImportError as exc:
-            raise ImportError(
-                "SpeakerDiarizationPipeline requires 'librosa'. Install via pip install pirn-signal[signal]"
-            ) from exc
+        librosa = OptionalDependency.require("librosa", extra="signal", package="pirn-signal")
         cluster = SklearnClusterBinding.load()
         mfcc = librosa.feature.mfcc(
             y=channel,

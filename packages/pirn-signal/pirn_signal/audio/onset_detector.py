@@ -33,6 +33,7 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
 from pirn_signal.types.feature_frame import FeatureFrame
 from pirn_signal.types.feature_payload import FeaturePayload
@@ -109,10 +110,5 @@ class OnsetDetector(Knot):
 
     @staticmethod
     def _detect_onsets(mono: np.ndarray, sr: int, hop_length: int) -> np.ndarray:
-        try:
-            import librosa
-        except ImportError as exc:
-            raise ImportError(
-                "OnsetDetector requires 'librosa'. Install via pip install pirn-signal[signal]"
-            ) from exc
+        librosa = OptionalDependency.require("librosa", extra="signal", package="pirn-signal")
         return librosa.onset.onset_detect(y=mono, sr=sr, hop_length=hop_length, units="time")

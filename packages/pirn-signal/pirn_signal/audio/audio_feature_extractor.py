@@ -37,6 +37,7 @@ from typing import Any, ClassVar
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
 from pirn_signal.types.feature_frame import FeatureFrame
 from pirn_signal.types.feature_payload import FeaturePayload
@@ -129,12 +130,7 @@ class AudioFeatureExtractor(Knot):
     @staticmethod
     def _extract_features(mono: np.ndarray, sr: int, n_fft: int, hop_length: int) -> np.ndarray:
         """Compute the five feature curves for a single channel, stacked as (5, n_frames)."""
-        try:
-            import librosa
-        except ImportError as exc:
-            raise ImportError(
-                "AudioFeatureExtractor requires 'librosa'. Install via pip install pirn-signal[signal]"
-            ) from exc
+        librosa = OptionalDependency.require("librosa", extra="signal", package="pirn-signal")
         rms = librosa.feature.rms(y=mono, frame_length=n_fft, hop_length=hop_length)
         zcr = librosa.feature.zero_crossing_rate(mono, frame_length=n_fft, hop_length=hop_length)
         centroid = librosa.feature.spectral_centroid(

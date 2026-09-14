@@ -36,6 +36,7 @@ from typing import Any
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
 from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.spectrum_frame import SpectrumFrame
@@ -123,12 +124,7 @@ class MelSpectrogramExtractor(Knot):
     def _compute_mel_spectrogram(
         mono: np.ndarray, sr: int, n_mels: int, n_fft: int, hop_length: int
     ) -> np.ndarray:
-        try:
-            import librosa
-        except ImportError as exc:
-            raise ImportError(
-                "MelSpectrogramExtractor requires 'librosa'. Install via pip install pirn-signal[signal]"
-            ) from exc
+        librosa = OptionalDependency.require("librosa", extra="signal", package="pirn-signal")
         return librosa.feature.melspectrogram(
             y=mono, sr=sr, n_mels=n_mels, n_fft=n_fft, hop_length=hop_length
         )

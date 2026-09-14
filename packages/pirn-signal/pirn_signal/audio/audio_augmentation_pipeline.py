@@ -43,6 +43,7 @@ from typing import Any, ClassVar
 import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
 from pirn_signal.types.signal_payload import SignalPayload
 
@@ -125,12 +126,7 @@ class AudioAugmentationPipeline(Knot):
         per-channel results remain stackable; noise and masking are re-drawn
         per channel from the same seeded recipe.
         """
-        try:
-            import librosa
-        except ImportError as exc:
-            raise ImportError(
-                "AudioAugmentationPipeline requires 'librosa'. Install via pip install pirn-signal[signal]"
-            ) from exc
+        librosa = OptionalDependency.require("librosa", extra="signal", package="pirn-signal")
         rng = np.random.default_rng(seed)
         result = channel.copy().astype(np.float32)
 
