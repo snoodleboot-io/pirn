@@ -16,6 +16,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pydantic import Field
 
+from pirn_agents._internal.json_shape import JsonShape
 from pirn_agents.agent.recorded_llm_call import RecordedLlmCall
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
@@ -120,9 +121,9 @@ class RagTool(Tool):
         content = response.get("content")
         if isinstance(content, str):
             return content
-        if isinstance(content, list) and content:
+        if JsonShape.is_list(content) and content:
             first = content[0]
-            if isinstance(first, Mapping):
+            if JsonShape.is_mapping(first):
                 text = first.get("text")
                 if isinstance(text, str):
                     return text

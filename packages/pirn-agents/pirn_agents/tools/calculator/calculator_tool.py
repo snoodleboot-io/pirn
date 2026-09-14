@@ -1,6 +1,6 @@
 """``CalculatorTool`` — safe arithmetic evaluation as a tool knot.
 
-Wraps :meth:`~pirn_agents.tools.calculator._safe_evaluator._SafeEvaluator.evaluate`
+Wraps :meth:`~pirn_agents.tools.calculator.safe_evaluator.SafeEvaluator.evaluate`
 (a zero-dependency, ``ast``-based evaluator that never calls ``eval``/``exec``)
 as a :class:`~pirn_agents.tools.tool.Tool`. Invalid or malicious input raises
 :class:`ValueError`, which the engine records as the call's ``Err``.
@@ -15,7 +15,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pydantic import Field
 
-from pirn_agents.tools.calculator._safe_evaluator import _SafeEvaluator
+from pirn_agents.tools.calculator.safe_evaluator import SafeEvaluator
 from pirn_agents.tools.tool import Tool
 
 
@@ -47,5 +47,5 @@ class CalculatorTool(Tool):
         """
         if not expression:
             raise ValueError("calculator: 'expression' must be a non-empty string")
-        value = _SafeEvaluator.evaluate(expression)
+        value = SafeEvaluator.evaluate(expression)
         return {"expression": expression, "result": value}

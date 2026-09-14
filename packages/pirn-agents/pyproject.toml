@@ -198,6 +198,8 @@ strict = [
     "pirn_agents/connectors",
     "pirn_agents/context",
     "pirn_agents/control",
+    "pirn_agents/determinism",
+    "pirn_agents/evaluation",
     "pirn_agents/exceptions",
     "pirn_agents/generation",
     "pirn_agents/input",
@@ -214,6 +216,7 @@ strict = [
     "pirn_agents/security",
     "pirn_agents/sessions",
     "pirn_agents/testing",
+    "pirn_agents/tools",
     "pirn_agents/types",
     "pirn_agents/*.py",
 ]

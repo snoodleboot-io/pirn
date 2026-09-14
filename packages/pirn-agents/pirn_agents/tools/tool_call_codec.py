@@ -92,16 +92,15 @@ class ToolCallCodec(PirnOpaqueValue):
 
     def encode_results(
         self,
-        results: Sequence[ToolResult] | Mapping[str, Result[Any]],
+        results: Mapping[str, Result[Any]],
         *,
         lineage: Sequence[KnotLineage] = (),
     ) -> list[Any]:
         """Encode each call's outcome into a native tool-result message.
 
         Args:
-            results: Either ``{call_id: Ok | Err | Skipped}`` — the engine's
-                outcome for each call knot, keyed by the call's id — or, for
-                one deprecation cycle, a sequence of :class:`ToolResult` views.
+            results: ``{call_id: Ok | Err | Skipped}`` — the engine's outcome
+                for each call knot, keyed by the call's id.
             lineage: The run's lineage rows; the row recorded under a call's
                 knot id supplies its latency to the view.  Optional.
 
@@ -127,18 +126,16 @@ class ToolCallCodec(PirnOpaqueValue):
     @classmethod
     def views(
         cls,
-        results: Sequence[ToolResult] | Mapping[str, Result[Any]],
+        results: Mapping[str, Result[Any]],
         *,
         lineage: Sequence[KnotLineage] = (),
     ) -> list[ToolResult]:
         """The :class:`ToolResult` view of each outcome, built through ``from_result``."""
-        if isinstance(results, Mapping):
-            rows = {row.knot_id: row for row in lineage}
-            return [
-                ToolResult.from_result(call_id, result, rows.get(ToolFactory.knot_id_for(call_id)))
-                for call_id, result in results.items()
-            ]
-        return list(results)
+        rows = {row.knot_id: row for row in lineage}
+        return [
+            ToolResult.from_result(call_id, result, rows.get(ToolFactory.knot_id_for(call_id)))
+            for call_id, result in results.items()
+        ]
 
     @staticmethod
     def outcomes_of(run: RunResult, calls: Sequence[ToolCall]) -> dict[str, Result[Any]]:

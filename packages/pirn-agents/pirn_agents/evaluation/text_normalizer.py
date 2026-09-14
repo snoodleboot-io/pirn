@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TextNormalizer`` — shared case/whitespace normalisation for text metrics."""
 
 from __future__ import annotations

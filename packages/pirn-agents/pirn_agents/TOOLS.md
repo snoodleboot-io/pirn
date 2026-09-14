@@ -86,7 +86,7 @@ tools = Bundles.calculator_toolset() + Bundles.web_toolset() + Bundles.filesyste
 ```
 
 `Toolset` maps a name to a `ToolFactory` (a `Tool` class, a bound factory, a
-`@ToolDecorator.decorate` function or a legacy instance are all normalised through
+`@ToolDecorator.decorate` function or a configured knot are all normalised through
 `ToolFactory.of`). It supports `+` / `merge` (unique names re-checked),
 `get(name)`, iteration, and `schema()` (provider-neutral declaration list).
 

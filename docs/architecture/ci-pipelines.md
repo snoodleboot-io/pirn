@@ -157,6 +157,8 @@ initial cut is not policy — the list is exactly the set of subpackages at 0.
 | pirn-agents | `pirn_agents/connectors` | 0 | yes |
 | pirn-agents | `pirn_agents/context` | 0 | yes |
 | pirn-agents | `pirn_agents/control` | 0 | yes |
+| pirn-agents | `pirn_agents/determinism` | 0 | yes |
+| pirn-agents | `pirn_agents/evaluation` | 0 | yes |
 | pirn-agents | `pirn_agents/exceptions` | 0 | yes |
 | pirn-agents | `pirn_agents/generation` | 0 | yes |
 | pirn-agents | `pirn_agents/input` | 0 | yes |
@@ -174,10 +176,10 @@ initial cut is not policy — the list is exactly the set of subpackages at 0.
 | pirn-agents | `pirn_agents/sessions` | 0 | yes |
 | pirn-agents | `pirn_agents/testing` | 0 | yes |
 | pirn-agents | `pirn_agents/types` | 0 | yes |
-| pirn-agents | `pirn_agents/tools` | 62 |  |
-| pirn-agents | `pirn_agents/determinism` | 68 |  |
-| pirn-agents | `pirn_agents/evaluation` | 74 |  |
-| pirn-agents | `pirn_agents/specializations` | 705 |  |
+| pirn-agents | `pirn_agents/tools` | 0 | yes |
+| pirn-agents | `pirn_agents/determinism` | 0 | yes |
+| pirn-agents | `pirn_agents/evaluation` | 0 | yes |
+| pirn-agents | `pirn_agents/specializations` | 706 |  |
 | pirn-data | `pirn_data/*.py` | 0 | yes |
 | pirn-data | `pirn_data/frames` | 0 | yes |
 | pirn-data | `pirn_data/lakehouse` | 0 | yes |
@@ -239,7 +241,7 @@ initial cut is not policy — the list is exactly the set of subpackages at 0.
 | pirn-signal | `pirn_signal/types` | 0 | yes |
 | pirn-signal | `pirn_signal/wavelets` | 0 | yes |
 
-Totals outside the lists: pirn-core 1379, pirn-agents 909, pirn-data 0 (fully strict;
+Totals outside the lists: pirn-core 1379, pirn-agents 706, pirn-data 0 (fully strict;
 pyarrow, pandas, ibis, dask.dataframe and ray.data are typed through the local stubs in
 `packages/pirn-data/typings/`),
 pirn-health 0, pirn-ml 0, pirn-oilgas 0, pirn-signal 0. The dominant

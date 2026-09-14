@@ -19,7 +19,7 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 #### `RunEval` on the engine; eval determinism is core replay (PIR-872)
 
-- `RunEval.run` runs one `_EvalCase` knot per dataset item (target call, metric scoring, threshold check) under `KnotConfig(concurrency_group="eval_items")` + `ConcurrencyLimits`, joined by an `Aggregator` into the `EvalReport` — same report, dataset order preserved. It gained `history=`, `data_store=`, `run_id=` and `replay=`; a replay is refused when the items, thresholds, metric names or the *code* of the target or any metric differ (bytecode, constants, names, defaults, closure values, a partial's bound arguments; a C builtin falls back to `module.qualname`); a failed item raises the new `pirn_agents.exceptions.eval_run_error.EvalRunError` (a `PirnError` carrying the run) instead of the target's own exception escaping `asyncio.gather`.
+- `RunEval.run` runs one `EvalCase` knot per dataset item (target call, metric scoring, threshold check) under `KnotConfig(concurrency_group="eval_items")` + `ConcurrencyLimits`, joined by an `Aggregator` into the `EvalReport` — same report, dataset order preserved. It gained `history=`, `data_store=`, `run_id=` and `replay=`; a replay is refused when the items, thresholds, metric names or the *code* of the target or any metric differ (bytecode, constants, names, defaults, closure values, a partial's bound arguments; a C builtin falls back to `module.qualname`); a failed item raises the new `pirn_agents.exceptions.eval_run_error.EvalRunError` (a `PirnError` carrying the run) instead of the target's own exception escaping `asyncio.gather`.
 - `ToolTestHarness.run_tool` (and the instance `run`) drives a call through `Tapestry.run` — approval gate included — instead of `ToolFactory.run_call`'s bare-call path.
 
 #### A `Check` names the skip reason its `Gate` propagates (PIR-872)
@@ -357,6 +357,25 @@ pirn is alpha: a replaced name is deleted in the same change, never deprecated
 | `InMemoryDataStore.DEFAULT_MAX_VALUES` | `InMemoryDataStore.default_max_values` |
 | `InMemoryHistory.DEFAULT_MAX_RUNS` | `InMemoryHistory.default_max_runs` |
 | `InvocationIdentity.UNCOMPARABLE_MARKER` | `InvocationIdentity.uncomparable_marker` |
+| `pirn_agents.evaluation._callable_identity._CallableIdentity` | `pirn_agents.evaluation.callable_identity.CallableIdentity` |
+| `pirn_agents.evaluation._eval_subject._EvalSubject` | `pirn_agents.evaluation.eval_subject.EvalSubject` |
+| `pirn_agents.evaluation._eval_case._EvalCase` | `pirn_agents.evaluation.eval_case.EvalCase` |
+| `pirn_agents.tools.calculator._safe_evaluator._SafeEvaluator` | `pirn_agents.tools.calculator.safe_evaluator.SafeEvaluator` |
+| `pirn_agents.tools.web._text_extractor._TextExtractor` | `pirn_agents.tools.web.text_extractor.TextExtractor` |
+| `Tool._call_reported_by_container.set(...)` / `.get()` (read outside `Tool`) | `with Tool.container_reports_call():` / `Tool.call_reported_by_container()` |
+
+The pirn-agents `determinism`, `evaluation` and `tools` subpackages are pyright
+strict. `ToolCallCodec.encode_results` and `ToolCallCodec.views` take only
+`{call_id: Ok | Err | Skipped}`; the sequence-of-`ToolResult` input is deleted.
+`SqliteConnector._clear_credentials` (never called) is deleted. `ToolFactory`
+gained `with_parameters(parameters)` (a copy declaring a different `parameters`
+schema) and reads a knot class's input contract through `Tool.framework_kwarg_names()`,
+`Tool.declared_input_schema(cls)` and `Tool.input_annotations(cls)`.
+`ToolDecorator.decorate` is overloaded (bare form returns a `FunctionTool`, the
+parametrised form a decorator) and takes the function positionally only.
+`RunTrace`/`TraceEvent`/`TraceDiff`/`ToolDeclaration.from_payload` are typed
+`Mapping[str, Any]` (the runtime `TypeError` guard stays); an `EvalSubject`
+metric is typed to return `MetricResult | Awaitable[MetricResult]`.
 | `pirn_agents._internal._json_shape._JsonShape` | `pirn_agents._internal.json_shape.JsonShape` |
 | `pirn_agents.batch._map_item._MapItem` | `pirn_agents.batch.map_item.MapItem` |
 | `pirn_agents.batch._batch_item_streamer._BatchItemStreamer` | `pirn_agents.batch.batch_item_streamer.BatchItemStreamer` |

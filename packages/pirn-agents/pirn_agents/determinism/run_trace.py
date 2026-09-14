@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``RunTrace`` — a versioned, append-only structured trajectory of a run."""
 
 from __future__ import annotations
@@ -34,7 +36,7 @@ class RunTrace(PirnOpaqueValue):
 
     run_id: str
     events: tuple[TraceEvent, ...] = field(default_factory=tuple)
-    metadata: Mapping[str, Any] = field(default_factory=dict)
+    metadata: Mapping[str, Any] = field(default_factory=dict[str, Any])
     schema_version: str = "f29-trace/1"
 
     def __post_init__(self) -> None:
@@ -75,7 +77,7 @@ class RunTrace(PirnOpaqueValue):
         }
 
     @classmethod
-    def from_payload(cls, payload: Any) -> RunTrace:
+    def from_payload(cls, payload: Mapping[str, Any]) -> RunTrace:
         """Reconstruct a trace from a mapping produced by :meth:`to_payload`.
 
         Raises:

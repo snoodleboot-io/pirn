@@ -450,7 +450,7 @@ to read the class-level default now default to a plain literal `8`.
 `evaluation/run_eval.py::RunEval.run` — then the one caller with no `Tapestry` to
 attach a concurrency group to — bounded its per-item concurrency with a plain
 `asyncio.Semaphore(concurrency)` for one cycle. **Resolved (PIR-872):** it
-now runs on the engine — one `_EvalCase` knot per item (target call, metric
+now runs on the engine — one `EvalCase` knot per item (target call, metric
 scoring, threshold check) with `KnotConfig(concurrency_group="eval_items")`,
 capped by `ConcurrencyLimits(groups={"eval_items": concurrency})`, fanned into
 an `Aggregator` that assembles the `EvalReport` in dataset order. Eval
@@ -459,7 +459,7 @@ records each item's result, and `RunEval.run(replay=ReplaySession(...))` serves
 it without calling the target (a replay whose items, thresholds, metric names
 or target/metric *code* differ raises `ReplayMismatchError` — callables are
 identified by bytecode, constants, names, defaults, closure values and bound
-arguments via `_CallableIdentity`; only a callable with no inspectable code,
+arguments via `CallableIdentity`; only a callable with no inspectable code,
 such as a C builtin, falls back to `module.qualname`). The agents recorder seam it
 used to route through — `RunRecorder`, `NullRunRecorder`, `CassetteRunRecorder`,
 `CassetteRecorder`, `Cassette`/`CassetteEntry`/`InteractionKind`/`RecordingMode`,
