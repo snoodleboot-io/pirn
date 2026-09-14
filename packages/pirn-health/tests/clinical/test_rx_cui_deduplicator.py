@@ -1,4 +1,4 @@
-"""Tests for :class:`_DedupRxCUIs`."""
+"""Tests for :class:`RxCuiDeduplicator`."""
 
 from __future__ import annotations
 
@@ -6,21 +6,21 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 
-from pirn_health.clinical._dedup_rx_cuis import _DedupRxCUIs
+from pirn_health.clinical.rx_cui_deduplicator import RxCuiDeduplicator
 
 
 class TestDedupRxCUIsConstruction(unittest.TestCase):
     def test_construction(self) -> None:
-        knot = _DedupRxCUIs(
+        knot = RxCuiDeduplicator(
             rxcuis=("123", "456"),
             _config=KnotConfig(id="dedup"),
         )
-        self.assertIsInstance(knot, _DedupRxCUIs)
+        self.assertIsInstance(knot, RxCuiDeduplicator)
 
 
 class TestDedupRxCUIsProcess(unittest.IsolatedAsyncioTestCase):
     async def test_deduplicates_rxcuis(self) -> None:
-        knot = _DedupRxCUIs(
+        knot = RxCuiDeduplicator(
             rxcuis=("123",),
             _config=KnotConfig(id="dedup"),
         )
@@ -28,7 +28,7 @@ class TestDedupRxCUIsProcess(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result, ("123", "456", "789"))
 
     async def test_preserves_order(self) -> None:
-        knot = _DedupRxCUIs(
+        knot = RxCuiDeduplicator(
             rxcuis=("a",),
             _config=KnotConfig(id="dedup"),
         )
@@ -36,7 +36,7 @@ class TestDedupRxCUIsProcess(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result, ("c", "a", "b"))
 
     async def test_filters_empty_strings(self) -> None:
-        knot = _DedupRxCUIs(
+        knot = RxCuiDeduplicator(
             rxcuis=("a",),
             _config=KnotConfig(id="dedup"),
         )
@@ -44,7 +44,7 @@ class TestDedupRxCUIsProcess(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result, ("a", "b"))
 
     async def test_empty_input_returns_empty(self) -> None:
-        knot = _DedupRxCUIs(
+        knot = RxCuiDeduplicator(
             rxcuis=(),
             _config=KnotConfig(id="dedup"),
         )

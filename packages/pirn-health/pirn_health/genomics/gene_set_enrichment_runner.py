@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``GeneSetEnrichmentRunner`` — run GSEA or over-representation analysis.
 
 Algorithm:

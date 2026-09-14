@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``StructuralVariantDetector`` — large structural-variant caller.
 
 Production version uses Manta / Delly / GRIDSS; this stub validates

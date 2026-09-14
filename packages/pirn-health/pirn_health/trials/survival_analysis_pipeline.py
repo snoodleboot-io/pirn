@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SurvivalAnalysisPipeline`` — Kaplan-Meier and Cox proportional hazards survival analysis.
 
 Algorithm:
@@ -39,13 +41,7 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-try:
-    from scipy import stats as ss
-
-    _HAS_SCIPY: bool = True
-except ImportError:
-    ss = None  # type: ignore[assignment]
-    _HAS_SCIPY = False
+from pirn_health.health_optional_dependency import HealthOptionalDependency
 
 
 class SurvivalAnalysisPipeline(Knot):
@@ -130,20 +126,20 @@ class SurvivalAnalysisPipeline(Knot):
         events_b: np.ndarray,
     ) -> float:
         """Log-rank test p-value (two-group)."""
-        if not _HAS_SCIPY or ss is None:
-            raise ImportError(
-                "scipy is required for SurvivalAnalysisPipeline — install with: pip install 'pirn-health[health]'"
-            )
+        stats = HealthOptionalDependency.require("scipy.stats", extra="health")
         all_times = np.unique(np.concatenate([times_a[events_a == 1], times_b[events_b == 1]]))
         obs_a = exp_a = log_rank_var = 0.0
-        for event_time in all_times:
+        event_time: float
+        for event_time in all_times.tolist():
             at_risk_a = float(np.sum(times_a >= event_time))
             at_risk_b = float(np.sum(times_b >= event_time))
             at_risk_total = at_risk_a + at_risk_b
             if at_risk_total == 0:
                 continue
-            events_a_at_t = float(np.sum((times_a == event_time) & (events_a == 1)))
-            events_b_at_t = float(np.sum((times_b == event_time) & (events_b == 1)))
+            events_a_at_time: np.ndarray = (times_a == event_time) & (events_a == 1)
+            events_b_at_time: np.ndarray = (times_b == event_time) & (events_b == 1)
+            events_a_at_t = float(np.sum(events_a_at_time))
+            events_b_at_t = float(np.sum(events_b_at_time))
             events_total = events_a_at_t + events_b_at_t
             expected_a = at_risk_a * events_total / at_risk_total
             obs_a += events_a_at_t
@@ -159,7 +155,8 @@ class SurvivalAnalysisPipeline(Knot):
         if log_rank_var == 0.0:
             return 1.0
         chi2_stat = (obs_a - exp_a) ** 2 / log_rank_var
-        return float(ss.chi2.sf(chi2_stat, df=1))
+        p_value: float = float(stats.chi2.sf(chi2_stat, df=1))
+        return p_value
 
     @staticmethod
     def _cox_hr(
@@ -169,6 +166,8 @@ class SurvivalAnalysisPipeline(Knot):
         n_iter: int = 20,
     ) -> np.ndarray:
         """Newton-Raphson Cox partial likelihood gradient for single iteration."""
+        n_patients: int
+        n_covariates: int
         n_patients, n_covariates = covariate_matrix.shape
         beta = np.zeros(n_covariates)
         for _ in range(n_iter):

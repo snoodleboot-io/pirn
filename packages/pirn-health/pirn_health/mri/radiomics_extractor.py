@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``RadiomicsExtractor`` — pyradiomics-style radiomic feature extractor.
 
 Production version uses ``pyradiomics`` to compute first-order, texture, and

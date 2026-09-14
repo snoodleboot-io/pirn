@@ -1,10 +1,12 @@
-"""``_MneSignalObjectStoreDisassembler`` — shared bytes serialisation for MNE-backed signal disassemblers.
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
+"""``MneSignalObjectStoreDisassembler`` — shared bytes serialisation for MNE-backed signal disassemblers.
 
 :class:`~pirn_health.disassemblers.eeg_object_store_disassembler.EegObjectStoreDisassembler`
 and :class:`~pirn_health.disassemblers.meg_object_store_disassembler.MegObjectStoreDisassembler`
 were identical modulo their public name and docstrings — both serialise a
 :class:`~pirn_health.types.health_signal_payload.HealthSignalPayload` produced
-by an MNE-backed acquisition knot (EEG or MEG) to raw bytes. This private base
+by an MNE-backed acquisition knot (EEG or MEG) to raw bytes. This shared base
 holds the one real implementation; the public classes are thin subclasses
 that exist to give each modality its own discoverable name.
 
@@ -29,7 +31,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn_health.types.health_signal_payload import HealthSignalPayload
 
 
-class _MneSignalObjectStoreDisassembler(Disassembler):  # pyright: ignore[reportUnusedClass]  # imported by eeg_object_store_disassembler, meg_object_store_disassembler
+class MneSignalObjectStoreDisassembler(Disassembler):
     """Shared implementation for EEG/MEG object-store disassemblers."""
 
     def __init__(
@@ -57,7 +59,7 @@ class _MneSignalObjectStoreDisassembler(Disassembler):  # pyright: ignore[report
         Raises:
             TypeError: If ``payload`` is not a :class:`HealthSignalPayload`.
         """
-        if not isinstance(payload, HealthSignalPayload):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(payload, HealthSignalPayload):
             raise TypeError(
                 f"{type(self).__name__}: payload must be HealthSignalPayload, "
                 f"got {type(payload).__name__}"

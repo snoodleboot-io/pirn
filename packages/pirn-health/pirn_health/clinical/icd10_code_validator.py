@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ICD10CodeValidator`` — bool-valued knot validating ICD-10 strings.
 
 Validates each code against the standard ICD-10-CM regex. A real

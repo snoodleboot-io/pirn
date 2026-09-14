@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``DicomObjectStoreDisassembler`` — disassemble a :class:`DICOMPayload` into bytes.
 
 Sits between domain knots that produce :class:`~pirn_health.types.dicom_payload.DICOMPayload`
@@ -57,7 +59,7 @@ class DicomObjectStoreDisassembler(Disassembler):
                 dataset does not support ``save_as`` (e.g. ``pydicom`` was never
                 available to parse it in the first place).
         """
-        if not isinstance(payload, DICOMPayload):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(payload, DICOMPayload):
             raise TypeError(
                 f"DicomObjectStoreDisassembler: payload must be DICOMPayload, "
                 f"got {type(payload).__name__}"

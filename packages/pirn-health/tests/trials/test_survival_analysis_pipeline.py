@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 import unittest
 
 try:
@@ -10,6 +11,7 @@ except ImportError as _e:
     raise unittest.SkipTest("sklearn not installed") from _e
 
 from typing import Any
+from unittest.mock import patch
 
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
@@ -100,3 +102,14 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             event_col="event",
         )
         assert isinstance(out["n_events"], int)
+
+    async def test_log_rank_raises_without_scipy(self) -> None:
+        knot = _make_knot(group_col="group")
+        with patch.dict(sys.modules, {"scipy.stats": None}):
+            with self.assertRaisesRegex(ImportError, r"pirn-health\[health\]"):
+                await knot.process(
+                    survival_data=_SURVIVAL_DATA,
+                    time_col="time",
+                    event_col="event",
+                    group_col="group",
+                )

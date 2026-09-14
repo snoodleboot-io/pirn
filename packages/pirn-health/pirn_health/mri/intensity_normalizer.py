@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``IntensityNormalizer`` — z-score / WhiteStripe intensity normaliser.
 
 Production version uses ``intensity-normalization`` (zscore, fcm,
@@ -36,13 +38,7 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-try:
-    import nibabel as nib
-
-    _HAS_NIB: bool = True
-except ImportError:
-    nib = None  # type: ignore[assignment]
-    _HAS_NIB = False
+from pirn_health.health_optional_dependency import HealthOptionalDependency
 
 
 class IntensityNormalizer(Knot):
@@ -101,13 +97,11 @@ class IntensityNormalizer(Knot):
 
     @staticmethod
     def _normalize(nifti_path: str, output_nifti_path: str) -> None:
-        if not _HAS_NIB or nib is None:
-            raise ImportError(
-                "nibabel is required for IntensityNormalizer — install with: pip install 'pirn[mri]'"
-            )
+        nib = HealthOptionalDependency.require("nibabel", extra="mri")
         img = nib.load(nifti_path)
-        data = np.asarray(img.dataobj, dtype=float)
-        mean, std = data.mean(), data.std()
-        normalized = (data - mean) / (std if std > 0 else 1.0)
+        data: np.ndarray = np.asarray(img.dataobj, dtype=float)
+        mean = float(data.mean())
+        std = float(data.std())
+        normalized: np.ndarray = (data - mean) / (std if std > 0 else 1.0)
         out_img = nib.Nifti1Image(normalized, img.affine, img.header)
         nib.save(out_img, output_nifti_path)

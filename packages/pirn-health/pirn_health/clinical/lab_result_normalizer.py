@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``LabResultNormalizer`` — normalise lab values via a unit-conversion map.
 
 Mapping is ``(from_unit, to_unit) -> multiplier``. A real deployment

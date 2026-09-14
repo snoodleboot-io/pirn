@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import sys
 import unittest
+from unittest.mock import patch
 
 try:
     import scipy  # noqa: F401
@@ -51,3 +53,40 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         valid_stages = {"W", "N1", "N2", "N3", "REM"}
         for label in out["stage_labels"]:
             assert label in valid_stages
+
+    async def test_full_epochs_integrate_band_power(self) -> None:
+        # Arrange: two full 30 s epochs, a 2 Hz (delta) epoch then a 10 Hz (alpha)
+        # epoch, so the welch + numpy.trapezoid band-power path runs for real.
+        fs = 100.0
+        t = np.arange(int(fs * 30)) / fs
+        delta_epoch = np.sin(2 * np.pi * 2.0 * t)
+        alpha_epoch = np.sin(2 * np.pi * 10.0 * t)
+        channel = np.concatenate([delta_epoch, alpha_epoch])
+        signal = HealthSignalPayload(
+            metadata=HealthSignalFrame(
+                signal_id="psg",
+                channel_count=1,
+                sample_rate_hz=fs,
+                samples_per_channel=channel.size,
+            ),
+            data=channel[np.newaxis, :],
+        )
+
+        # Act
+        out = await _KNOT.process(signal=signal, epoch_duration_sec=30)
+
+        # Assert
+        assert out["stage_labels"] == ["N3", "W"]
+        assert out["total_epochs"] == 2
+        assert out["sleep_efficiency_pct"] == 50.0
+
+    async def test_raises_install_hint_without_scipy(self) -> None:
+        signal = HealthSignalPayload(
+            metadata=HealthSignalFrame(
+                signal_id="psg", channel_count=1, sample_rate_hz=100.0, samples_per_channel=3000
+            ),
+            data=np.zeros((1, 3000)),
+        )
+        with patch.dict(sys.modules, {"scipy.signal": None}):
+            with self.assertRaisesRegex(ImportError, r"pirn-health\[health\]"):
+                await _KNOT.process(signal=signal, epoch_duration_sec=30)
