@@ -70,12 +70,10 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_data._value_shape import (
-    _ValueShape,  # pyright: ignore[reportPrivateUsage]  # package-internal helper
-)
-from pirn_data.data_batch import DataBatch
 from pirn_data.column_profile import ColumnProfile
+from pirn_data.data_batch import DataBatch
 from pirn_data.data_profile import DataProfile
+from pirn_data.value_shape import ValueShape
 
 
 class Profiler(Knot):
@@ -99,7 +97,7 @@ class Profiler(Knot):
         **_: Any,
     ) -> DataProfile:
         if columns is not None and (
-            not _ValueShape.is_tuple(columns) or not all(isinstance(c, str) for c in columns)
+            not ValueShape.is_tuple(columns) or not all(isinstance(c, str) for c in columns)
         ):
             raise TypeError("Profiler: columns must be a tuple of strings")
 

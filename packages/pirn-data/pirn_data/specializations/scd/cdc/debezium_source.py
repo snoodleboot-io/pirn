@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``DebeziumSource`` — pirn :class:`Source` that yields parsed Debezium
 change events from a message broker topic.
 
@@ -68,6 +70,7 @@ from pirn_data.specializations.scd.cdc.cdc_message_broker_knot import (
 from pirn_data.specializations.scd.cdc.message_broker_connection import (
     MessageBrokerConnection,
 )
+from pirn_data.value_shape import ValueShape
 
 
 class DebeziumSource(Source):
@@ -162,7 +165,7 @@ class DebeziumSource(Source):
                 value = json.loads(value)
             except json.JSONDecodeError as exc:
                 raise ValueError("DebeziumSource: message value is not valid JSON") from exc
-        if not isinstance(value, Mapping):
+        if not ValueShape.is_mapping(value):
             raise ValueError("DebeziumSource: message value is not a JSON object")
         for required in self._required_keys:
             if required not in value:

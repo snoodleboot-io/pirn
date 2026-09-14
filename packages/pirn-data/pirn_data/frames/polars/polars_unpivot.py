@@ -30,6 +30,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.frames.polars.polars_data_batch import PolarsDataBatch
+from pirn_data.value_shape import ValueShape
 
 
 class PolarsUnpivot(Knot):
@@ -100,7 +101,7 @@ class PolarsUnpivot(Knot):
             if not value:
                 raise ValueError(f"PolarsUnpivot: {name} must be a non-empty string")
             return (value,)
-        if not isinstance(value, Sequence):
+        if not ValueShape.is_sequence(value):
             raise TypeError(
                 f"PolarsUnpivot: {name} must be a sequence of strings, got {type(value).__name__}"
             )

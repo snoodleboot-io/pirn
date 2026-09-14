@@ -43,6 +43,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_data.identifier_validator import IdentifierValidator
 from pirn_data.lazy.spark.spark_dataframe import SparkDataFrame
+from pirn_data.value_shape import ValueShape
 
 
 class SparkJoin(Knot):
@@ -88,7 +89,7 @@ class SparkJoin(Knot):
         if isinstance(columns, str):
             IdentifierValidator.validate_column(f"SparkJoin: {label}", columns)
             return
-        if not isinstance(columns, Sequence):
+        if not ValueShape.is_sequence(columns):
             raise TypeError(f"SparkJoin: {label} must be a string or sequence of strings")
         IdentifierValidator.validate_columns(f"SparkJoin: {label}", columns)
 

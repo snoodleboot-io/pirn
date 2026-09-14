@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
-import ibis
+import ibis  # pyright: ignore[reportMissingTypeStubs]  # ibis ships no stubs or py.typed; its inline annotations are used
 from pydantic import GetCoreSchemaHandler
 from pydantic_core import CoreSchema, core_schema
 

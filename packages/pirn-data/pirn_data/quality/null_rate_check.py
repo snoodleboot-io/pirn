@@ -49,12 +49,10 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_data._value_shape import (
-    _ValueShape,  # pyright: ignore[reportPrivateUsage]  # package-internal helper
-)
 from pirn_data.data_batch import DataBatch
 from pirn_data.quality_check import QualityCheck
 from pirn_data.quality_report import QualityReport
+from pirn_data.value_shape import ValueShape
 
 
 class NullRateCheck(Knot):
@@ -82,7 +80,7 @@ class NullRateCheck(Knot):
         thresholds: Any,
         **_: Any,
     ) -> QualityReport:
-        if not _ValueShape.is_str_mapping(thresholds) or not thresholds:
+        if not ValueShape.is_str_mapping(thresholds) or not thresholds:
             raise TypeError(
                 "NullRateCheck: thresholds must be a non-empty mapping of "
                 "column name to maximum allowed null rate"

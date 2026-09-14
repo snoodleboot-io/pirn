@@ -62,12 +62,10 @@ from uuid import uuid4
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_data._value_shape import (
-    _ValueShape,  # pyright: ignore[reportPrivateUsage]  # package-internal helper
-)
 from pirn_data.frames.pandas.pandas_data_batch import PandasDataBatch
 from pirn_data.quality_check import QualityCheck
 from pirn_data.quality_report import QualityReport
+from pirn_data.value_shape import ValueShape
 
 
 class GreatExpectationsPandasValidator(Knot):
@@ -218,7 +216,7 @@ class GreatExpectationsPandasValidator(Knot):
         """
         if not result_dict:
             return ""
-        if not _ValueShape.is_str_mapping(result_dict):
+        if not ValueShape.is_str_mapping(result_dict):
             return str(result_dict)
         for key in (
             "partial_unexpected_list",

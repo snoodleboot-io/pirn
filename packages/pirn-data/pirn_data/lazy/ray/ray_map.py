@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``RayMap`` — Tier-3 batch transform that extends the deferred
 ``ray.data.Dataset`` plan with ``ds.map_batches(fn)``.
 
@@ -100,4 +102,4 @@ class RayMap(Knot):
             map_kwargs["batch_format"] = batch_format
         if batch_size is not None:
             map_kwargs["batch_size"] = batch_size
-        return batch.with_dataset(batch.dataset.map_batches(fn, **map_kwargs))
+        return batch.with_dataset(batch.dataset.map_batches(fn, **map_kwargs))  # pyright: ignore[reportUnknownMemberType]  # ray's inline annotations leave this signature partially untyped

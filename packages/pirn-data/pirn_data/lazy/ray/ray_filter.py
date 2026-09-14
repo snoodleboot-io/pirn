@@ -36,6 +36,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.lazy.ray.ray_dataset import RayDataset
+from pirn_data.value_shape import ValueShape
 
 
 class RayFilter(Knot):
@@ -66,6 +67,6 @@ class RayFilter(Knot):
         Returns:
             A new RayDataset with the filter predicate applied to the deferred plan.
         """
-        if not callable(predicate):
+        if not ValueShape.is_callable(predicate):
             raise TypeError("RayFilter: predicate must be a callable (row) -> bool")
-        return batch.with_dataset(batch.dataset.filter(predicate))  # type: ignore[arg-type]
+        return batch.with_dataset(batch.dataset.filter(predicate))  # pyright: ignore[reportUnknownMemberType]  # ray's inline annotations leave this signature partially untyped

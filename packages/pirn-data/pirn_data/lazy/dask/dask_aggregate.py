@@ -68,6 +68,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.lazy.dask.dask_dataframe import DaskDataFrame
+from pirn_data.value_shape import ValueShape
 
 
 class DaskAggregate(Knot):
@@ -91,6 +92,14 @@ class DaskAggregate(Knot):
             _config=_config,
             **kwargs,
         )
+
+    @staticmethod
+    def _group_aggregate(frame: dd.DataFrame, by: list[str], aggs: dict[str, Any]) -> dd.DataFrame:
+        """``frame.groupby(by).agg(aggs).reset_index()``, typed at the dask boundary."""
+        grouped: dd.DataFrame | None = frame.groupby(by).agg(aggs)  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]  # dask's inline annotations leave this signature partially untyped
+        if grouped is None:
+            raise RuntimeError("DaskAggregate: groupby().agg() returned None")
+        return grouped.reset_index()  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]  # dask's inline annotations leave this signature partially untyped
 
     async def process(
         self,
@@ -116,14 +125,14 @@ class DaskAggregate(Knot):
         if aggregator is not None and (by is not None or aggs is not None):
             raise TypeError("DaskAggregate: aggregator is mutually exclusive with by/aggs")
         if aggregator is not None:
-            if not callable(aggregator):
+            if not ValueShape.is_callable(aggregator):
                 raise TypeError(
                     "DaskAggregate: aggregator must be a callable "
                     "(frame) -> dask.dataframe.DataFrame"
                 )
             aggregated = aggregator(batch.frame)
         else:
-            if isinstance(by, (str, bytes)) or not isinstance(by, Sequence):
+            if isinstance(by, (str, bytes)) or not ValueShape.is_sequence(by):
                 raise TypeError("DaskAggregate: by must be a sequence of column names")
             if not by:
                 raise ValueError("DaskAggregate: by must be non-empty")
@@ -132,10 +141,7 @@ class DaskAggregate(Knot):
                     raise TypeError("DaskAggregate: every entry in by must be a non-empty string")
             if aggs is None:
                 raise TypeError("DaskAggregate: aggs is required when by is supplied")
-            if not isinstance(aggs, dict) or not aggs:
+            if not ValueShape.is_str_mapping(aggs) or not aggs:
                 raise TypeError("DaskAggregate: aggs must be a non-empty dict")
-            _grouped = batch.frame.groupby(list(by)).agg(aggs)
-            if _grouped is None:
-                raise RuntimeError("DaskAggregate: groupby().agg() returned None")
-            aggregated = _grouped.reset_index()  # type: ignore[arg-type]
-        return batch.with_frame(aggregated)  # type: ignore[arg-type]
+            aggregated = self._group_aggregate(batch.frame, list(by), aggs)
+        return batch.with_frame(aggregated)

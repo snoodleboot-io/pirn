@@ -50,6 +50,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_data.frames.duckdb.duckdb_data_batch import DuckdbDataBatch
 from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.value_shape import ValueShape
 
 
 class DuckdbCast(Knot):
@@ -80,7 +81,7 @@ class DuckdbCast(Knot):
         Returns:
             A new DuckdbDataBatch with the configured columns cast to their target types.
         """
-        if not isinstance(casts, Mapping) or not casts:
+        if not ValueShape.is_mapping(casts) or not casts:
             raise TypeError("DuckdbCast: casts must be a non-empty Mapping[column, type_name]")
         type_re = re.compile(r"^[A-Z][A-Z0-9_]*(\([0-9, ]+\))?$")
         for column, type_name in casts.items():

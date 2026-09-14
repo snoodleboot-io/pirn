@@ -54,11 +54,12 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from typing import Any
 
-import ibis
+import ibis  # pyright: ignore[reportMissingTypeStubs]  # ibis ships no stubs or py.typed; its inline annotations are used
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.lazy.ibis.ibis_table import IbisTable
+from pirn_data.value_shape import ValueShape
 
 
 class IbisGroupByAggregate(Knot):
@@ -98,7 +99,7 @@ class IbisGroupByAggregate(Knot):
         Returns:
             A new IbisTable with the group-by aggregation appended to the deferred expression.
         """
-        if not isinstance(by, Sequence) or isinstance(by, (str, bytes)):
+        if not ValueShape.is_sequence(by) or isinstance(by, (str, bytes)):
             raise TypeError("IbisGroupByAggregate: by must be a sequence of column names")
         if not by:
             raise ValueError("IbisGroupByAggregate: by must be non-empty")
@@ -107,14 +108,12 @@ class IbisGroupByAggregate(Knot):
                 raise TypeError(
                     "IbisGroupByAggregate: every entry in by must be a non-empty string"
                 )
-        if not callable(aggregations):
+        if not ValueShape.is_callable(aggregations):
             raise TypeError(
                 "IbisGroupByAggregate: aggregations must be a callable "
                 "(table) -> ibis.Expr or sequence of ibis.Expr"
             )
         result = aggregations(batch.expression)
-        if isinstance(result, (list, tuple)):
-            aggregated = batch.expression.group_by(list(by)).aggregate(*result)
-        else:
-            aggregated = batch.expression.group_by(list(by)).aggregate(result)
+        metrics: list[Any] = list(result) if ValueShape.is_list_or_tuple(result) else [result]
+        aggregated = batch.expression.group_by(list(by)).aggregate(*metrics)  # pyright: ignore[reportUnknownMemberType]  # ibis's inline annotations leave this signature partially untyped
         return batch.with_expression(aggregated)

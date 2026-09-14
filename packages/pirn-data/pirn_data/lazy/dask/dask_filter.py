@@ -39,6 +39,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.lazy.dask.dask_dataframe import DaskDataFrame
+from pirn_data.value_shape import ValueShape
 
 
 class DaskFilter(Knot):
@@ -64,9 +65,9 @@ class DaskFilter(Knot):
         Returns:
             A new DaskDataFrame with the predicate applied to the deferred graph.
         """
-        if not callable(predicate):
+        if not ValueShape.is_callable(predicate):
             raise TypeError(
                 "DaskFilter: predicate must be a callable (frame) -> dask.dataframe.Series"
             )
         mask = predicate(batch.frame)
-        return batch.with_frame(batch.frame[mask])
+        return batch.with_frame(batch.frame[mask])  # pyright: ignore[reportUnknownArgumentType]  # dask's inline annotations leave this signature partially untyped

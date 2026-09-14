@@ -35,6 +35,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.frames.pyarrow.pyarrow_data_batch import PyarrowDataBatch
+from pirn_data.value_shape import ValueShape
 
 
 class PyarrowCast(Knot):
@@ -67,7 +68,7 @@ class PyarrowCast(Knot):
             A new PyarrowDataBatch with the configured columns cast to their
             target PyArrow types.
         """
-        if not isinstance(casts, Mapping) or not casts:
+        if not ValueShape.is_mapping(casts) or not casts:
             raise TypeError("PyarrowCast: casts must be a non-empty Mapping[column, dtype]")
         for column in casts:
             if not isinstance(column, str) or not column:

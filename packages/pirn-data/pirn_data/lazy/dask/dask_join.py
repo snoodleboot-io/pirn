@@ -103,7 +103,7 @@ class DaskJoin(Knot):
         if how == "cross":
             if on is not None or left_on is not None or right_on is not None:
                 raise TypeError("DaskJoin: cross join takes no on / left_on / right_on")
-            joined = left.frame.merge(right.frame, how="cross")
+            merge_kwargs: dict[str, Any] = {"how": "cross"}
         else:
             if on is None and (left_on is None or right_on is None):
                 raise TypeError("DaskJoin: must supply on=... OR both left_on= and right_on=")
@@ -111,15 +111,14 @@ class DaskJoin(Knot):
                 raise TypeError("DaskJoin: on is mutually exclusive with left_on/right_on")
             if on is not None:
                 resolved_on = on if isinstance(on, str) else list(on)
-                joined = left.frame.merge(right.frame, on=resolved_on, how=how)
+                merge_kwargs = {"on": resolved_on, "how": how}
             else:
                 assert left_on is not None and right_on is not None
                 resolved_left_on = left_on if isinstance(left_on, str) else list(left_on)
                 resolved_right_on = right_on if isinstance(right_on, str) else list(right_on)
-                joined = left.frame.merge(
-                    right.frame,
-                    left_on=resolved_left_on,
-                    right_on=resolved_right_on,
-                    how=how,
-                )
-        return left.with_frame(joined)
+                merge_kwargs = {
+                    "left_on": resolved_left_on,
+                    "right_on": resolved_right_on,
+                    "how": how,
+                }
+        return left.with_frame(left.frame.merge(right.frame, **merge_kwargs))  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]  # dask's inline annotations leave this signature partially untyped

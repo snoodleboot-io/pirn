@@ -1,5 +1,5 @@
 # pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SqlSource`` — execute a SQL query via :class:`DatabaseConnectionPool` and
 materialise the results as a :class:`DataBatch`.
 
@@ -31,11 +31,9 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.source import Source
 
-from pirn_data._value_shape import (
-    _ValueShape,  # pyright: ignore[reportPrivateUsage]  # package-internal helper
-)
 from pirn_data.data_batch import DataBatch
 from pirn_data.data_schema import DataSchema
+from pirn_data.value_shape import ValueShape
 
 
 class SqlSource(Source):
@@ -102,7 +100,7 @@ class SqlSource(Source):
 
     @staticmethod
     def _normalise_row(row: Any) -> dict[str, Any]:
-        if _ValueShape.is_str_mapping(row):
+        if ValueShape.is_str_mapping(row):
             return row
         if hasattr(row, "_mapping"):
             return dict(row._mapping)
@@ -110,4 +108,6 @@ class SqlSource(Source):
             return {k: row[k] for k in row.keys()}
         if hasattr(row, "_fields"):
             return row._asdict()
-        return dict(enumerate(row))  # type: ignore[arg-type]
+        # A bare positional row carries no column names; key it by position so the
+        # batch keeps its ``Mapping[str, Any]`` row contract.
+        return {str(index): value for index, value in enumerate(row)}

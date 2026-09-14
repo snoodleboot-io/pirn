@@ -1,5 +1,5 @@
 # pyright: reportUnnecessaryIsInstance=false
-# runtime-bound knot inputs: explicit type guards are house style
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FileSource`` — compose ``ObjectStore.get(key)`` with
 ``FileFormat.read`` to materialise a :class:`DataBatch`.
 

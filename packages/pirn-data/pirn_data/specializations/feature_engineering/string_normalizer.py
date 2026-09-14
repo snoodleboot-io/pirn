@@ -44,7 +44,7 @@ class StringNormalizer(Knot):
     def __init__(
         self,
         *,
-        rows: Knot | list,
+        rows: Knot | list[dict[str, Any]],
         columns: Knot | tuple[str, ...],
         lowercase: Knot | bool,
         strip: Knot | bool,
@@ -72,8 +72,8 @@ class StringNormalizer(Knot):
         strip: bool,
         remove_punctuation: bool,
     ) -> str:
-        if unicode_form != "none":
-            value = unicodedata.normalize(unicode_form, value)  # type: ignore[arg-type]
+        if unicode_form in ("NFC", "NFD", "NFKC", "NFKD"):
+            value = unicodedata.normalize(unicode_form, value)
         if lowercase:
             value = value.lower()
         if strip:

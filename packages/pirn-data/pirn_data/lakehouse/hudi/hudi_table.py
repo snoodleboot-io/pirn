@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``HudiTable`` — :class:`LakehouseTable` adapter for Apache Hudi.
 
 The Python ecosystem for Hudi is limited as of mid-2026:
@@ -26,6 +28,7 @@ from typing import Any
 
 from pirn_data.lakehouse.hudi.hudi_table_config import HudiTableConfig
 from pirn_data.lakehouse.lakehouse_table import LakehouseTable
+from pirn_data.value_shape import ValueShape
 
 
 class HudiTable(LakehouseTable):
@@ -47,7 +50,7 @@ class HudiTable(LakehouseTable):
     ) -> None:
         if config is None and table is None:
             raise TypeError("HudiTable requires either config= or table= (injected stub)")
-        if config is not None and not isinstance(config, HudiTableConfig):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if config is not None and not isinstance(config, HudiTableConfig):
             raise TypeError("HudiTable: config must be a HudiTableConfig instance")
         if config is not None and not config.table_path:
             raise ValueError("HudiTable: config.table_path must be a non-empty string")
@@ -154,7 +157,10 @@ class HudiTable(LakehouseTable):
         scan_fn = getattr(table, "scan_pylist", None)
         if not callable(scan_fn):
             raise TypeError("HudiTable: injected table must define scan_pylist() -> list[dict]")
-        rows: list[Any] = list(scan_fn())  # type: ignore[arg-type]
+        produced = scan_fn()
+        if not ValueShape.is_iterable(produced):
+            raise TypeError("HudiTable: injected table's scan_pylist() must return list[dict]")
+        rows: list[Any] = list(produced)
         if columns is None:
             return [dict(row) for row in rows]
         cols = tuple(columns)
@@ -170,7 +176,7 @@ class HudiTable(LakehouseTable):
         # tables — adequate for COPY_ON_WRITE tables and a
         # documented-limitation read for MOR tables.
         try:
-            import pyarrow.dataset as ds  # type: ignore[import-not-found]
+            import pyarrow.dataset as ds
         except ImportError as exc:
             raise ImportError(
                 "HudiTable read requires pyarrow. Install via "
@@ -181,7 +187,7 @@ class HudiTable(LakehouseTable):
         kwargs: dict[str, Any] = {}
         if columns is not None:
             kwargs["columns"] = list(columns)
-        return ds.dataset(self._config.table_path, format="parquet").to_table(**kwargs).to_pylist()  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]  # pyarrow ships no stubs
+        return ds.dataset(self._config.table_path, format="parquet").to_table(**kwargs).to_pylist()
 
     def _read_commit_timeline(self) -> list[Mapping[str, Any]]:
         # Production-quality timeline parsing is a Hudi-native

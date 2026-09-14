@@ -25,12 +25,13 @@ References:
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, Literal
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.frames.polars.polars_data_batch import PolarsDataBatch
+from pirn_data.value_shape import ValueShape
 
 
 class PolarsPivot(Knot):
@@ -79,22 +80,7 @@ class PolarsPivot(Knot):
         Returns:
             A new PolarsDataBatch in wide format with one column per unique value in ``on``.
         """
-        allowed_aggs = (
-            "first",
-            "last",
-            "sum",
-            "mean",
-            "min",
-            "max",
-            "count",
-            "len",
-            None,
-        )
-        if aggregate_function not in allowed_aggs:
-            raise ValueError(
-                f"PolarsPivot: aggregate_function must be one of {list(allowed_aggs)}, "
-                f"got {aggregate_function!r}"
-            )
+        polars_aggregate = self._polars_aggregate_function(aggregate_function)
         on_coerced = self._coerce_columns("on", on)
         index_coerced = self._coerce_columns("index", index)
         values_coerced = self._coerce_columns("values", values)
@@ -103,8 +89,33 @@ class PolarsPivot(Knot):
                 on=list(on_coerced),
                 index=list(index_coerced),
                 values=list(values_coerced),
-                aggregate_function=aggregate_function,  # type: ignore[arg-type]
+                aggregate_function=polars_aggregate,
             )
+        )
+
+    @staticmethod
+    def _polars_aggregate_function(
+        aggregate_function: object,
+    ) -> Literal["first", "last", "sum", "mean", "min", "max", "len"] | None:
+        """Map the accepted ``aggregate_function`` names onto Polars's pivot aggregations.
+
+        ``"count"`` is kept as a spelling of ``"len"``, the name Polars uses for it
+        since 0.20.5 (the old name still works there but warns).
+        """
+        if aggregate_function is None:
+            return None
+        if isinstance(aggregate_function, str):
+            match aggregate_function:
+                case "first" | "last" | "sum" | "mean" | "min" | "max" | "len":
+                    return aggregate_function
+                case "count":
+                    return "len"
+                case _:
+                    pass
+        raise ValueError(
+            "PolarsPivot: aggregate_function must be one of "
+            "['first', 'last', 'sum', 'mean', 'min', 'max', 'count', 'len', None], "
+            f"got {aggregate_function!r}"
         )
 
     @staticmethod
@@ -113,7 +124,7 @@ class PolarsPivot(Knot):
             if not value:
                 raise ValueError(f"PolarsPivot: {name} must be a non-empty string")
             return (value,)
-        if not isinstance(value, Sequence):
+        if not ValueShape.is_sequence(value):
             raise TypeError(
                 f"PolarsPivot: {name} must be a string or sequence of strings, "
                 f"got {type(value).__name__}"

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ElandSource`` — Tier-4 source Knot that opens an Elasticsearch index
 through an ``eland.DataFrame``.
 
@@ -72,7 +74,7 @@ class ElandSource(Source):
         Raises:
             ValueError: If ``index`` is empty or not a string.
         """
-        if not isinstance(index, str) or not index:  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(index, str) or not index:
             raise ValueError("ElandSource: index must be a non-empty string")
         import eland as ed
 

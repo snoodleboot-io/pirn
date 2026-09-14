@@ -36,6 +36,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.frames.pandas.pandas_data_batch import PandasDataBatch
+from pirn_data.value_shape import ValueShape
 
 
 class PandasCast(Knot):
@@ -66,7 +67,7 @@ class PandasCast(Knot):
         Returns:
             A new PandasDataBatch with the configured columns cast to their target dtypes.
         """
-        if not isinstance(casts, Mapping) or not casts:
+        if not ValueShape.is_mapping(casts) or not casts:
             raise TypeError("PandasCast: casts must be a non-empty Mapping[column, dtype]")
         for column in casts:
             if not isinstance(column, str) or not column:
@@ -79,7 +80,7 @@ class PandasCast(Knot):
         }
         if not applicable:
             return batch
-        return batch.with_frame(batch.frame.astype(applicable))
+        return batch.with_frame(batch.frame.astype(applicable))  # pyright: ignore[reportUnknownMemberType]  # pandas' inline annotations leave this signature partially untyped
 
     def _normalise_dtype(self, column: str, dtype: Any) -> Any:
         # Python primitive → pandas/numpy dtype string.

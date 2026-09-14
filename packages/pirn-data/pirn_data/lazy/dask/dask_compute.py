@@ -80,6 +80,11 @@ class DaskCompute(Sink):
             **kwargs,
         )
 
+    @staticmethod
+    def _compute(batch: DaskDataFrame) -> Any:
+        """``batch.frame.compute()`` — the materialised pandas object, typed at the dask boundary."""
+        return batch.frame.compute()  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]  # dask's inline annotations leave this signature partially untyped
+
     async def process(
         self,
         batch: DaskDataFrame,
@@ -130,7 +135,7 @@ class DaskCompute(Sink):
                 executed_at=datetime.now(UTC),
             )
 
-        materialised = batch.frame.compute()
+        materialised = self._compute(batch)
         row_count = self._row_count(materialised)
         if return_pandas:
             return materialised

@@ -54,9 +54,9 @@ class PandasToDataBatch(Knot):
         Returns:
             A Tier-1 DataBatch with materialised rows, source_uri, and fetched_at preserved.
         """
-        rows = tuple(batch.frame.to_dict(orient="records"))
+        records: list[dict[str, Any]] = batch.frame.to_dict(orient="records")  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]  # pandas' inline annotations leave this signature partially untyped
         return DataBatch(
-            rows=rows,
+            rows=tuple(records),
             source_uri=batch.source_uri,
             fetched_at=batch.fetched_at,
         )

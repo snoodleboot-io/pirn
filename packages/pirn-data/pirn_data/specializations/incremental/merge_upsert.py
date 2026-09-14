@@ -35,10 +35,10 @@ from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_data.specializations._pool_merge_knot import _PoolMergeKnot
+from pirn_data.specializations.pool_merge_knot import PoolMergeKnot
 
 
-class MergeUpsert(_PoolMergeKnot):
+class MergeUpsert(PoolMergeKnot):
     """Insert new rows and update changed rows; never delete."""
 
     def __init__(

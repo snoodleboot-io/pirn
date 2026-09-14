@@ -30,7 +30,9 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_data.data_optional_dependency import DataOptionalDependency
 from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.value_shape import ValueShape
 
 
 class TextTokenCounter(Knot):
@@ -39,7 +41,7 @@ class TextTokenCounter(Knot):
     def __init__(
         self,
         *,
-        rows: Knot | list,
+        rows: Knot | list[dict[str, Any]],
         text_column: Knot | str,
         output_column: Knot | str,
         tiktoken_encoding: Knot | str,
@@ -56,14 +58,18 @@ class TextTokenCounter(Knot):
         )
 
     @staticmethod
-    def _make_counter(tiktoken_encoding: str) -> Callable[[str], int]:
-        try:
-            import tiktoken
+    def _make_counter(tiktoken_encoding: str) -> tuple[Callable[[str], int], str]:
+        """Return the token counter and the label of the tokenizer behind it.
 
-            enc = tiktoken.get_encoding(tiktoken_encoding)
-            return lambda text: len(enc.encode(text))
+        tiktoken is optional and imported lazily, so the knot works — with
+        whitespace splitting — when it is absent.
+        """
+        try:
+            tiktoken = DataOptionalDependency.require("tiktoken", extra="tiktoken")
         except ImportError:
-            return lambda text: len(text.split())
+            return (lambda text: len(text.split())), "whitespace"
+        enc = tiktoken.get_encoding(tiktoken_encoding)
+        return (lambda text: len(enc.encode(text))), f"tiktoken:{tiktoken_encoding}"
 
     async def process(
         self,
@@ -74,21 +80,14 @@ class TextTokenCounter(Knot):
         tiktoken_encoding: Any,
         **_: Any,
     ) -> dict[str, Any]:
-        if not isinstance(rows, (list, tuple)):
+        if not ValueShape.is_list_or_tuple(rows):
             raise TypeError("TextTokenCounter: rows must be a list or tuple of dicts")
         if not isinstance(text_column, str) or not text_column:
             raise ValueError("TextTokenCounter: text_column must be a non-empty string")
         IdentifierValidator.validate_column("text_column", text_column)
         IdentifierValidator.validate_column("output_column", output_column)
-        try:
-            import tiktoken as _tiktoken
-
-            _t = _tiktoken
-            tokenizer = f"tiktoken:{tiktoken_encoding}"
-        except ImportError:
-            tokenizer = "whitespace"
-        counter = self._make_counter(tiktoken_encoding)
-        enriched = []
+        counter, tokenizer = self._make_counter(tiktoken_encoding)
+        enriched: list[dict[str, Any]] = []
         for row in rows:
             text = row.get(text_column, "")
             if not isinstance(text, str):

@@ -54,6 +54,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_data.frames.duckdb.duckdb_data_batch import DuckdbDataBatch
 from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.value_shape import ValueShape
 
 
 class DuckdbAggregate(Knot):
@@ -88,7 +89,7 @@ class DuckdbAggregate(Knot):
             A new DuckdbDataBatch containing the aggregated result.
         """
         IdentifierValidator.validate_columns("DuckdbAggregate.by", by)
-        if not isinstance(aggs, Mapping) or not aggs:
+        if not ValueShape.is_mapping(aggs) or not aggs:
             raise TypeError(
                 "DuckdbAggregate: aggs must be a non-empty Mapping[output_name, expression]"
             )
