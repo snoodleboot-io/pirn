@@ -180,10 +180,6 @@ _MODULE_LEVEL_FUNCTION_ALLOWLIST: dict[str, str] = {
     "pirn-agents:pirn_agents.retrieval.reciprocal_rank_fusion:reciprocal_rank_fusion": (
         "RRF fusion documented in PATTERNS.md; S4 retrieval import-surface contract"
     ),
-    # Documented in pirn_agents/PATTERNS.md.
-    "pirn-agents:pirn_agents.caching.content_address:content_address": (
-        "content-address helper documented in PATTERNS.md"
-    ),
     # Documented in pirn_agents/memory/management/MEMORY_MANAGEMENT.md.
     "pirn-agents:pirn_agents.memory.management.decay_function:decay_score": (
         "memory decay scoring documented in MEMORY_MANAGEMENT.md"
