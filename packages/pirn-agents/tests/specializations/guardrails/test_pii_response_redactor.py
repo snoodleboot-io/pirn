@@ -29,8 +29,8 @@ class TestPIIResponseRedactorProcess(unittest.IsolatedAsyncioTestCase):
         k = _make_knot()
         response = AgentResponse(content="Call me at 555-1234.", finish_reason="stop")
         out = await k.process(response=response, patterns=[r"\d{3}-\d{4}"])
-        assert "<redacted>" in out.content
-        assert "555-1234" not in out.content
+        assert "<redacted>" in out.data
+        assert "555-1234" not in out.data
 
     async def test_returns_original_when_no_match(self) -> None:
         k = _make_knot()
@@ -52,8 +52,8 @@ class TestPIIResponseRedactorProcess(unittest.IsolatedAsyncioTestCase):
             usage={"input_tokens": 5},
         )
         out = await k.process(response=response, patterns=[r"\d{3}-\d{2}-\d{4}"])
-        assert out.finish_reason == "stop"
-        assert out.usage["input_tokens"] == 5
+        assert out.metadata.finish_reason == "stop"
+        assert out.metadata.usage["input_tokens"] == 5
 
     async def test_tapestry_run_integration(self) -> None:
         response = AgentResponse(content="Call me at 555-1234.", finish_reason="stop")
@@ -65,4 +65,4 @@ class TestPIIResponseRedactorProcess(unittest.IsolatedAsyncioTestCase):
             )
         result = await t.run(RunRequest())
         out = result.outputs["prr"]
-        assert "<redacted>" in out.content
+        assert "<redacted>" in out.data

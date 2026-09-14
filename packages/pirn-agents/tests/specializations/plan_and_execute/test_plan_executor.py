@@ -47,9 +47,9 @@ class TestPlanExecutorProcess(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded, result.exceptions
         response = result.outputs["exec"]
         assert isinstance(response, AgentResponse)
-        assert "result-one" in response.content
-        assert "result-two" in response.content
-        assert "result-three" in response.content
+        assert "result-one" in response.data
+        assert "result-two" in response.data
+        assert "result-three" in response.data
 
     async def test_makes_one_call_per_step(self) -> None:
         llm = StubLLMProvider(["r1", "r2"])
@@ -69,7 +69,7 @@ class TestPlanExecutorProcess(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded, result.exceptions
         response = result.outputs["exec"]
         assert isinstance(response, AgentResponse)
-        assert response.content == ""
+        assert response.data == ""
 
     async def test_rejects_non_llm_provider(self) -> None:
         llm = StubLLMProvider(["r"])
@@ -119,7 +119,7 @@ class TestPlanExecutorProcess(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         response = result.outputs["exec"]
         assert isinstance(response, AgentResponse)
-        assert "result-one" in response.content
+        assert "result-one" in response.data
 
 
 if __name__ == "__main__":

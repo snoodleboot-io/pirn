@@ -16,8 +16,8 @@ class LatsResult(AgentResult[LatsFrame, tuple[str, ...]]):
     highest-value action trajectory found within budget, and ``metadata``
     is the :class:`LatsFrame` carrying the value/nodes-expanded/budget
     facts. The constructor takes the pattern's named fields (``best_trajectory``,
-    ``best_value``, ``nodes_expanded``, ``budget_exhausted``), and each is also a read-only
-    property.
+    ``best_value``, ``nodes_expanded``, ``budget_exhausted``); read them back as ``data``
+    and ``metadata.<field>``.
     """
 
     def __init__(
@@ -34,23 +34,7 @@ class LatsResult(AgentResult[LatsFrame, tuple[str, ...]]):
         )
         super().__init__(metadata=frame, data=tuple(best_trajectory))
 
-    @property
-    def best_trajectory(self) -> tuple[str, ...]:
-        return self._data
-
-    @property
-    def best_value(self) -> float:
-        return self._metadata.best_value
-
-    @property
-    def nodes_expanded(self) -> int:
-        return self._metadata.nodes_expanded
-
-    @property
-    def budget_exhausted(self) -> bool:
-        return self._metadata.budget_exhausted
-
     def _pirn_audit_dict(self) -> dict[str, Any]:
         audit = dict(super()._pirn_audit_dict())
-        audit["best_trajectory"] = list(self.best_trajectory)
+        audit["best_trajectory"] = list(self.data)
         return audit

@@ -45,7 +45,7 @@ class TestNestingGuard(unittest.IsolatedAsyncioTestCase):
         result = await a.as_tool().run_view({"task": "loop"})
 
         self.assertIsNotNone(result.result)
-        self.assertIn("NestedRunCycleError", result.result.content)
+        self.assertIn("NestedRunCycleError", result.result.data)
         self.assertEqual(len(AGENT_CALLS["A"]), 1)
 
     async def test_two_instances_of_one_agent_class_may_nest(self) -> None:
@@ -56,7 +56,7 @@ class TestNestingGuard(unittest.IsolatedAsyncioTestCase):
 
         result = await a.as_tool().run_view({"task": "go"})
 
-        self.assertEqual(result.result.content, "A@0->leaf[B]@1")
+        self.assertEqual(result.result.data, "A@0->leaf[B]@1")
 
     async def test_the_depth_cap_is_the_tools_max_depth(self) -> None:
         # A -> B -> C, each a distinct agent, under a cap of one agent-as-tool frame.
@@ -70,7 +70,7 @@ class TestNestingGuard(unittest.IsolatedAsyncioTestCase):
         result = await AgentTool(a, max_depth=1).run_view({"task": "deep"})
 
         self.assertIsNotNone(result.result)
-        self.assertIn("NestingDepthExceededError", result.result.content)
+        self.assertIn("NestingDepthExceededError", result.result.data)
 
     async def test_context_state_not_leaked_after_a_call(self) -> None:
         with Tapestry():
@@ -97,7 +97,7 @@ class TestBudgetPropagation(unittest.IsolatedAsyncioTestCase):
 
         # One iteration spent per nested agent entered, across both levels.
         self.assertEqual(meter.iterations, 2)
-        self.assertEqual(result.result.content, "A@0->leaf[B]@1")
+        self.assertEqual(result.result.data, "A@0->leaf[B]@1")
 
     async def test_inherited_budget_breach_stops_execution(self) -> None:
         # A shared meter already at its iteration cap: entering the agent

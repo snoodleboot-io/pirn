@@ -122,7 +122,7 @@ class TestStructuredChat(unittest.IsolatedAsyncioTestCase):
         )
 
         # Assert
-        assert response.content == "hi"
+        assert response.data == "hi"
         posted = client.post_calls[0]["json"]
         assert posted["response_format"] == {"type": "json"}
         assert posted["messages"] == [{"role": "user", "content": "hi"}]

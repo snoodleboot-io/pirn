@@ -201,7 +201,7 @@ class TestBuilderBuildEndToEnd(unittest.IsolatedAsyncioTestCase):
         assert run.succeeded
         response = run.outputs[agent.knot_id]
         assert isinstance(response, AgentResponse)
-        assert response.content == "42"
+        assert response.data == "42"
 
     async def test_rag_agent_runs(self) -> None:
         memory = StubMemoryStore([{"id": 1, "text": "ctx"}])
@@ -217,7 +217,7 @@ class TestBuilderBuildEndToEnd(unittest.IsolatedAsyncioTestCase):
             )
         run = await t.run(RunRequest())
         assert run.succeeded
-        assert run.outputs[agent.knot_id].content == "answer"
+        assert run.outputs[agent.knot_id].data == "answer"
 
     async def test_generated_graph_matches_hand_wired(self) -> None:
         # Arrange: build the same agent two ways and compare knot ids + outputs.
@@ -251,7 +251,7 @@ class TestBuilderBuildEndToEnd(unittest.IsolatedAsyncioTestCase):
 
         # Assert: identical id and identical output content.
         assert built.knot_id == hand.knot_id
-        assert built_run.outputs[built.knot_id].content == hand_run.outputs[hand.knot_id].content
+        assert built_run.outputs[built.knot_id].data == hand_run.outputs[hand.knot_id].data
 
 
 class TestBuilderReachesEveryPattern(unittest.IsolatedAsyncioTestCase):
@@ -276,7 +276,7 @@ class TestBuilderReachesEveryPattern(unittest.IsolatedAsyncioTestCase):
 
         # Assert
         assert run.succeeded, run.exceptions
-        assert run.outputs[agent.knot_id].content == "answer"
+        assert run.outputs[agent.knot_id].data == "answer"
 
     def test_the_spec_snapshot_carries_pattern_specific_components(self) -> None:
         # Arrange

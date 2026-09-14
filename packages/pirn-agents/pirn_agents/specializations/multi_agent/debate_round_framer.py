@@ -88,5 +88,5 @@ class DebateRoundFramer(Knot):
         for round_index, round_responses in enumerate(history):
             lines.append(f"Round {round_index + 1}:")
             for debater_index, response in enumerate(round_responses):
-                lines.append(f"  debater_{debater_index}: {response.content}")
+                lines.append(f"  debater_{debater_index}: {response.data}")
         return "\n".join(lines)

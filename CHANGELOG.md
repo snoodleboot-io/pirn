@@ -248,6 +248,20 @@ Two new hooks on `SubTapestry` support specialised subclasses:
 
 ### Removed
 
+#### Agents payload field-name alias properties (PIR-872)
+
+Deleted outright; every caller, test and doc reads the canonical `Payload` access. Constructors keep their field names.
+
+| Removed | Replacement |
+|---|---|
+| `AgentResponse.content` / `.frame` / `.tool_calls` / `.finish_reason` / `.usage` / `.cost` / `.model` / `.provider` | `.data` / `.metadata` / `.metadata.tool_calls` / `.metadata.finish_reason` / `.metadata.usage` / `.metadata.cost` / `.metadata.model` / `.metadata.provider` |
+| `ConversationPayload.messages` / `.frame` / `.extra` | `.data` / `.metadata` / `.metadata.extra` |
+| `MemoryRecord.id` / `.kind` / `.content` / `.tags` / `.provenance` / `.created_at` / `.importance` / `.last_accessed` | `.data.id` / `.data.kind` / `.data.content` / `.data.tags` / `.metadata` / `.metadata.created_at` / `.metadata.importance` / `.metadata.last_accessed` (`recency_anchor()` stays: it is derived) |
+| `EvaluatorOptimizerResult.answer`, `ReflexionResult.answer`, `ReWooResult.answer`, `SelfAskResult.final_answer`, `PromptChainResult.final`, `PlanReActResult.final`, `SimulationResult.worst_case`, `LatsResult.best_trajectory`, `OrchestratorWorkersResult.results`, `WorkerTaskResult.result`, `FallbackResult.result` | `.data` |
+| every other field property of those eleven results (`score`, `accepted`, `iterations`, `succeeded`, `attempts`, `plan`, `results`, `subquestions`, `subanswers`, `outputs`, `step_responses`, `best_case`, `neutral_case`, `best_value`, `nodes_expanded`, `budget_exhausted`, `total`, `task`, `chosen`, `attempted`, `skipped`) | `.metadata.<field>` |
+
+`MemoryConsolidator` builds its consolidated record with `MemoryRecord.derive` (same fields as before).
+
 #### Agents record/replay adapters and harness wrappers (PIR-872)
 
 - `pirn_agents.evaluation.run_recorder.RunRecorder`, `null_run_recorder.NullRunRecorder`, `cassette_run_recorder.CassetteRunRecorder` and `RunEval.run(recorder=)` — an eval item is a knot: record with `RunEval.run(history=, data_store=, run_id=)`, replay with `RunEval.run(replay=ReplaySession.from_history(...))`.

@@ -72,16 +72,16 @@ class ResponseFormatter(Knot):
                 f"{type(self).supported_formats!r}, got {format!r}"
             )
         if format == "plain":
-            return response.content
+            return response.data
         if format == "markdown":
             return self._render_markdown(response)
         return json.dumps(response._pirn_audit_dict(), sort_keys=True)  # pyright: ignore[reportPrivateUsage]  # PirnOpaqueValue audit hook is the contract
 
     def _render_markdown(self, response: AgentResponse) -> str:
-        sections: list[str] = [response.content] if response.content else []
-        if response.tool_calls:
+        sections: list[str] = [response.data] if response.data else []
+        if response.metadata.tool_calls:
             sections.append("\n**Tool calls:**\n")
-            for call in response.tool_calls:
+            for call in response.metadata.tool_calls:
                 sections.append(
                     f"- `{call.tool_name}` (`{call.call_id}`): "
                     f"{json.dumps(dict(call.arguments), sort_keys=True)}"

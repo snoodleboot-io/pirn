@@ -43,7 +43,7 @@ class TestMajorityVoteStrategy(unittest.TestCase):
 
         winner = MajorityVoteStrategy._combine([a, b, c])
 
-        assert winner.content == "42"
+        assert winner.data == "42"
 
     def test_combine_rejects_non_agent_response_items(self) -> None:
         with self.assertRaises(TypeError):

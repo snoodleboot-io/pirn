@@ -1,7 +1,7 @@
 """``PIIResponseRedactor`` — regex-driven PII redaction over a response.
 
 Inner stage knot used by :class:`PiiRedactorCheck`. Walks each compiled
-PII pattern against the supplied :class:`AgentResponse.content` and
+PII pattern against the supplied the :class:`AgentResponse`'s ``data`` (its reply text) and
 replaces matches with the literal ``"<redacted>"``. Returns a new
 :class:`AgentResponse` with the redacted content; ``tool_calls``,
 ``finish_reason`` and ``usage`` are forwarded unchanged.
@@ -11,7 +11,7 @@ Algorithm:
        :class:`TypeError` otherwise.
     2. Compile each raw string in ``patterns`` into a regex via
        :meth:`SafePatternCompiler.compile_safe_pattern`.
-    3. Apply each compiled pattern sequentially to ``response.content``
+    3. Apply each compiled pattern sequentially to ``response.data``
        using :meth:`re.Pattern.sub`, replacing matches with
        ``"<redacted>"``.
     4. If the resulting string equals the original content, return the
@@ -39,7 +39,7 @@ from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 class PIIResponseRedactor(Knot):
-    """Redacts PII matches in :class:`AgentResponse.content`."""
+    """Redacts PII matches in the :class:`AgentResponse`'s ``data`` (its reply text)."""
 
     #: Stateless helper shared across instances (Knot Rule 4 — class-level constant).
     _pattern_compiler: ClassVar[SafePatternCompiler] = SafePatternCompiler()
@@ -74,7 +74,7 @@ class PIIResponseRedactor(Knot):
             )
             for i, raw in enumerate(patterns)
         )
-        content = response.content
+        content = response.data
 
         # design-decision-override: asyncio.to_thread needs a zero-arg callable;
         # the default-arg trick binds content_str once per call so the closure
@@ -85,11 +85,11 @@ class PIIResponseRedactor(Knot):
             return content_str
 
         redacted = await asyncio.to_thread(_apply_pii)
-        if redacted == response.content:
+        if redacted == response.data:
             return response
         return AgentResponse(
             content=redacted,
-            tool_calls=response.tool_calls,
-            finish_reason=response.finish_reason,
-            usage=response.usage,
+            tool_calls=response.metadata.tool_calls,
+            finish_reason=response.metadata.finish_reason,
+            usage=response.metadata.usage,
         )

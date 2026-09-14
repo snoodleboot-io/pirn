@@ -369,7 +369,7 @@ Three knots in `specializations/human_in_the_loop/` handle points in a pipeline 
 **Key points:**
 - All three return plain values, not booleans that auto-block the graph. Wire their outputs to a `Gate` when you need to halt execution on failure.
 - `ApprovalCheck` accepts `auto_approve=True` for non-production or test use — the request record is still emitted, but the knot always returns `True`.
-- `EscalationRouter` reads `response.usage["confidence"]`; providers that do not populate this field will always escalate (confidence is treated as 0).
+- `EscalationRouter` reads `response.metadata.usage["confidence"]`; providers that do not populate this field will always escalate (confidence is treated as 0).
 
 ```python
 from pirn.core.knot_config import KnotConfig
@@ -463,7 +463,7 @@ async def main():
     run = await t.run(RunRequest(parameters={
         "goal": "Write a market analysis report for solar energy in Texas."
     }))
-    print(run.outputs["executor"].content)
+    print(run.outputs["executor"].data)
     await provider.close()
 ```
 
@@ -536,7 +536,7 @@ Call `self._clear_credentials()` inside `close()` for every provider, tool, or s
 - **`StreamingLLMCall` does not consume the stream.** The knot returns the `AsyncIterator` directly. The caller owns iteration and must exhaust the iterator to avoid resource leaks.
 - **Scalar auto-coercion.** Any knot parameter typed `Knot | T` (e.g. `step: Knot | str`) accepts a plain scalar. The framework wraps it in a `Parameter` node automatically — no manual wrapping needed.
 - **`ResponseFormatter` format options are `"plain"`, `"markdown"`, and `"json"`.** Any other value raises at construction.
-- **`OutputParser` recognises two wire shapes.** Anthropic (`content` / `stop_reason`) and OpenAI (`choices[0].message`). Custom provider responses that use neither shape will produce an empty `AgentResponse.content`.
+- **`OutputParser` recognises two wire shapes.** Anthropic (`content` / `stop_reason`) and OpenAI (`choices[0].message`). Custom provider responses that use neither shape will produce an `AgentResponse` whose `data` is empty.
 
 ---
 

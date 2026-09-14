@@ -88,10 +88,10 @@ class ConsensusMajorityVotePicker(Knot):
                     f"AgentResponse, got {type(response).__name__} for {name!r}"
                 )
             ordered[name] = response
-        counter: Counter[str] = Counter(r.content for r in ordered.values())
+        counter: Counter[str] = Counter(r.data for r in ordered.values())
         winning_content = counter.most_common(1)[0][0]
         for response in ordered.values():
-            if response.content == winning_content:
+            if response.data == winning_content:
                 return response
         # Unreachable — Counter populated from ordered values.
         return next(iter(ordered.values()))

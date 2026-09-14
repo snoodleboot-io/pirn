@@ -30,7 +30,7 @@ class _AppendReviewer(SubTapestry):
     async def process(self, **kwargs: Any) -> Knot:
         suffix = _REVIEWER_REGISTRY.get(self.config.id, "")
         response = kwargs.get("response")
-        content = suffix if response is None else response.content + suffix
+        content = suffix if response is None else response.data + suffix
         return response_sink(
             AgentResponse(content=content, finish_reason="stop"),
             f"{self.config.id}_review",
@@ -66,7 +66,7 @@ class TestRoundRobinReviewProcess(unittest.IsolatedAsyncioTestCase):
         run = await t.run(RunRequest())
         assert run.succeeded
         result = run.outputs["rrr"]
-        assert result.content == "draft-r1-r2"
+        assert result.data == "draft-r1-r2"
 
     async def test_rejects_non_agent_response(self) -> None:
         r1 = _make_reviewer("-r1", "r1")
@@ -93,4 +93,4 @@ class TestRoundRobinReviewProcess(unittest.IsolatedAsyncioTestCase):
                 _config=KnotConfig(id="rrr"),
             )
         result = await t.run(RunRequest())
-        assert result.outputs["rrr"].content == "draft-r1-r2"
+        assert result.outputs["rrr"].data == "draft-r1-r2"

@@ -17,7 +17,8 @@ class ReWooResult(AgentResult[ReWooFrame, str]):
     ADR agents-speaks-core WS6b pattern) — ``data`` is the synthesised final
     answer text, and ``metadata`` is the :class:`ReWooFrame` carrying the
     up-front plan and the gathered tool results. The constructor takes the pattern's named
-    fields (``answer``, ``plan``, ``results``), and each is also a read-only property.
+    fields (``answer``, ``plan``, ``results``); read them back as ``data`` and
+    ``metadata.<field>``.
     """
 
     def __init__(
@@ -26,19 +27,7 @@ class ReWooResult(AgentResult[ReWooFrame, str]):
         frame = ReWooFrame(plan=plan, results=results)
         super().__init__(metadata=frame, data=answer)
 
-    @property
-    def answer(self) -> str:
-        return self._data
-
-    @property
-    def plan(self) -> tuple[ToolCall, ...]:
-        return self._metadata.plan
-
-    @property
-    def results(self) -> tuple[ToolResult, ...]:
-        return self._metadata.results
-
     def _pirn_audit_dict(self) -> dict[str, Any]:
         audit = dict(super()._pirn_audit_dict())
-        audit["answer"] = self.answer
+        audit["answer"] = self.data
         return audit

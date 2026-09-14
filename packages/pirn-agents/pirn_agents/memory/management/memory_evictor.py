@@ -80,6 +80,6 @@ class MemoryEvictor(Knot):
                 raise TypeError(
                     f"MemoryEvictor: policy returned a non-record {type(record).__name__}"
                 )
-            await store.forget(record.id)
-            evicted.append(record.id)
+            await store.forget(record.data.id)
+            evicted.append(record.data.id)
         return tuple(evicted)

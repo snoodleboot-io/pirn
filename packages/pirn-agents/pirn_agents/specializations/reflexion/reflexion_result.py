@@ -16,8 +16,8 @@ class ReflexionResult(AgentResult[ReflexionFrame, str]):
     following the ADR agents-speaks-core WS6b pattern) — ``data`` is the
     best/last answer produced, and ``metadata`` is the :class:`ReflexionFrame`
     carrying the succeeded/iterations/attempts facts. The constructor takes the pattern's
-    named fields (``answer``, ``succeeded``, ``iterations``, ``attempts``), and each is also
-    a read-only property.
+    named fields (``answer``, ``succeeded``, ``iterations``, ``attempts``); read them back
+    as ``data`` and ``metadata.<field>``.
     """
 
     def __init__(
@@ -30,23 +30,7 @@ class ReflexionResult(AgentResult[ReflexionFrame, str]):
         frame = ReflexionFrame(succeeded=succeeded, iterations=iterations, attempts=attempts)
         super().__init__(metadata=frame, data=answer)
 
-    @property
-    def answer(self) -> str:
-        return self._data
-
-    @property
-    def succeeded(self) -> bool:
-        return self._metadata.succeeded
-
-    @property
-    def iterations(self) -> int:
-        return self._metadata.iterations
-
-    @property
-    def attempts(self) -> tuple[ReflexionAttempt, ...]:
-        return self._metadata.attempts
-
     def _pirn_audit_dict(self) -> dict[str, Any]:
         audit = dict(super()._pirn_audit_dict())
-        audit["answer"] = self.answer
+        audit["answer"] = self.data
         return audit

@@ -117,7 +117,7 @@ class ConsensusPipeline(AgentPipeline):
     def _fallback(
         responses: Mapping[str, AgentResponse],
     ) -> AgentResponse:
-        counter: Counter[str] = Counter(r.content for r in responses.values())
+        counter: Counter[str] = Counter(r.data for r in responses.values())
         if not counter:
             return AgentResponse(content="", finish_reason="stop")
         winning_content, _ = counter.most_common(1)[0]

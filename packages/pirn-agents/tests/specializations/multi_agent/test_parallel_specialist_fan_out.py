@@ -73,8 +73,8 @@ class TestParallelSpecialistFanOutProcess(unittest.IsolatedAsyncioTestCase):
         responses = run.outputs["fan"]
         assert set(responses.keys()) == {"a", "b"}
         assert isinstance(responses["a"], AgentResponse)
-        assert responses["a"].content == "A:tell-time"
-        assert responses["b"].content == "B:tell-time"
+        assert responses["a"].data == "A:tell-time"
+        assert responses["b"].data == "B:tell-time"
 
     async def test_rejects_empty_specialists(self) -> None:
         spec = _make_spec("x", "s")
@@ -95,8 +95,8 @@ class TestParallelSpecialistFanOutProcess(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         responses = result.outputs["fan"]
         assert set(responses.keys()) == {"a", "b"}
-        assert responses["a"].content == "A:tell-time"
-        assert responses["b"].content == "B:tell-time"
+        assert responses["a"].data == "A:tell-time"
+        assert responses["b"].data == "B:tell-time"
 
     async def test_failure_mode_unchanged_when_a_specialist_fails(self) -> None:
         # The Aggregator rewrite gains NO per-specialist error isolation:

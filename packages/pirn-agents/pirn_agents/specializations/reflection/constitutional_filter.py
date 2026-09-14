@@ -116,7 +116,7 @@ class ConstitutionalFilter(AgentPipeline):
             ConstitutionalState,
             default=ConstitutionalState(
                 principles_text=principles_text,
-                current_content=response.content,
+                current_content=response.data,
                 attempts=0,
                 compliant=False,
             ),

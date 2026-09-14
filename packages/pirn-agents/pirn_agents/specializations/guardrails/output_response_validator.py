@@ -14,8 +14,8 @@ Algorithm:
     3. Validate that ``response`` is an :class:`AgentResponse`; raise
        :class:`TypeError` otherwise.
     4. Run :meth:`~pirn_agents.security._safe_pattern_compiler.SafePatternCompiler.search_any` over the compiled deny patterns against
-       ``response.content``; raise :class:`ValueError` on the first match.
-    5. Iterate ``response.tool_calls``; raise :class:`ValueError` for any
+       ``response.data``; raise :class:`ValueError` on the first match.
+    5. Iterate ``response.metadata.tool_calls``; raise :class:`ValueError` for any
        ``tool_name`` absent from the allowed set.
     6. Return the response unchanged when all checks pass.
 
@@ -86,13 +86,13 @@ class OutputResponseValidator(Knot):
             for i, raw in enumerate(deny_patterns)
         )
         allowed_set = frozenset(allowed_tool_names)
-        match = await self._pattern_compiler.search_any(deny_compiled, response.content)
+        match = await self._pattern_compiler.search_any(deny_compiled, response.data)
         if match is not None:
             raise ValueError(
                 "OutputResponseValidator: response content matched deny "
                 f"pattern {match.re.pattern!r}"
             )
-        for index, call in enumerate(response.tool_calls):
+        for index, call in enumerate(response.metadata.tool_calls):
             if call.tool_name not in allowed_set:
                 raise ValueError(
                     "OutputResponseValidator: tool_calls"

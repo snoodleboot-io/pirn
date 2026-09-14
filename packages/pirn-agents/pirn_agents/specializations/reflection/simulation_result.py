@@ -16,26 +16,15 @@ class SimulationResult(AgentResult[SimulationFrame, str]):
     worst-case description (the scenario most likely to drive a caller's
     decision), and ``metadata`` is the :class:`SimulationFrame` carrying the
     best and neutral cases. The constructor takes the pattern's named fields (``best_case``,
-    ``neutral_case``, ``worst_case``), and each is also a read-only property.
+    ``neutral_case``, ``worst_case``); read them back as ``metadata.<field>`` and
+    ``data``.
     """
 
     def __init__(self, best_case: str, neutral_case: str, worst_case: str) -> None:
         frame = SimulationFrame(best_case=best_case, neutral_case=neutral_case)
         super().__init__(metadata=frame, data=worst_case)
 
-    @property
-    def best_case(self) -> str:
-        return self._metadata.best_case
-
-    @property
-    def neutral_case(self) -> str:
-        return self._metadata.neutral_case
-
-    @property
-    def worst_case(self) -> str:
-        return self._data
-
     def _pirn_audit_dict(self) -> dict[str, Any]:
         audit = dict(super()._pirn_audit_dict())
-        audit["worst_case"] = self.worst_case
+        audit["worst_case"] = self.data
         return audit

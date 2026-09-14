@@ -81,6 +81,6 @@ class TestBrowserAgentHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         response = result.outputs["browser"]
         assert isinstance(response, AgentResponse)
-        assert response.finish_reason == "stop"
-        assert "Example Domain" in response.content
+        assert response.metadata.finish_reason == "stop"
+        assert "Example Domain" in response.data
         assert tool.invocations == [{"input": "navigate https://example.com"}]

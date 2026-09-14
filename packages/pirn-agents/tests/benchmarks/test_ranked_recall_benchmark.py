@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from datetime import UTC, datetime
 
 import pytest
 from pirn.core.knot_config import KnotConfig
@@ -21,7 +22,7 @@ from pirn_agents.memory.management.recall_candidate import RecallCandidate
 from tests.benchmarks.conftest import BenchmarkRecorder
 from tests.memory_management.conftest import make_record
 
-_NOW = make_record(id="anchor").created_at
+_NOW = datetime(2026, 1, 1, tzinfo=UTC)
 
 
 @pytest.mark.benchmark

@@ -38,7 +38,7 @@ class TestFlareActiveRagPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         response = result.outputs["flare"]
         assert isinstance(response, AgentResponse)
-        assert response.content == "High confidence sentence. Grounded corrected claim."
+        assert response.data == "High confidence sentence. Grounded corrected claim."
         # Retrieval fired once, keyed on the low-confidence sentence.
         assert memory.search_queries == ["Low confidence claim."]
 
@@ -68,7 +68,7 @@ class TestFlareActiveRagPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
         assert len(memory.search_queries) == 1
         response = result.outputs["flare"]
         assert isinstance(response, AgentResponse)
-        assert response.content == "rewritten one. second weak."
+        assert response.data == "rewritten one. second weak."
 
     def test_rejects_non_positive_budget(self) -> None:
         """Each budget's domain rides on PositiveInt, so they are still refused."""

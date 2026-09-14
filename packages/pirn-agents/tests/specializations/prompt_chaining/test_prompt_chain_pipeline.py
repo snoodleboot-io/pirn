@@ -28,8 +28,8 @@ class TestPromptChainPipeline(unittest.IsolatedAsyncioTestCase):
         assert run.succeeded
         result = run.outputs["pc"]
         assert isinstance(result, PromptChainResult)
-        assert result.outputs == ("summary", "french translation")
-        assert result.final == "french translation"
+        assert result.metadata.outputs == ("summary", "french translation")
+        assert result.data == "french translation"
 
     async def test_each_link_feeds_the_next(self) -> None:
         llm = StubLLMProvider(["step1out", "step2out"])

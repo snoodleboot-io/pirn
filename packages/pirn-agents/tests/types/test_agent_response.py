@@ -14,10 +14,10 @@ from pirn_agents.types.messaging.generation_frame import GenerationFrame
 class TestRoundtrip(unittest.TestCase):
     def test_construct_defaults(self) -> None:
         response = AgentResponse(content="hi")
-        assert response.content == "hi"
-        assert response.tool_calls == ()
-        assert response.finish_reason == "stop"
-        assert dict(response.usage) == {}
+        assert response.data == "hi"
+        assert response.metadata.tool_calls == ()
+        assert response.metadata.finish_reason == "stop"
+        assert dict(response.metadata.usage) == {}
 
     def test_construct_full_fields(self) -> None:
         call = ToolCall(tool_name="t", arguments={}, call_id="c1")
@@ -30,12 +30,12 @@ class TestRoundtrip(unittest.TestCase):
             model="claude-sonnet-5",
             provider="anthropic",
         )
-        assert response.tool_calls == (call,)
-        assert response.finish_reason == "tool_use"
-        assert response.usage["input_tokens"] == 10
-        assert response.cost == 0.02
-        assert response.model == "claude-sonnet-5"
-        assert response.provider == "anthropic"
+        assert response.metadata.tool_calls == (call,)
+        assert response.metadata.finish_reason == "tool_use"
+        assert response.metadata.usage["input_tokens"] == 10
+        assert response.metadata.cost == 0.02
+        assert response.metadata.model == "claude-sonnet-5"
+        assert response.metadata.provider == "anthropic"
 
     def test_audit_dict_includes_tool_calls(self) -> None:
         call = ToolCall(tool_name="t", arguments={}, call_id="c1")
@@ -51,9 +51,9 @@ class TestPayloadShape(unittest.TestCase):
         response = AgentResponse(content="hi")
         assert isinstance(response, Payload)
         assert isinstance(response.metadata, GenerationFrame)
-        assert response.metadata is response.frame
+        assert response.metadata is response.metadata
         assert response.data == "hi"
-        assert response.data == response.content
+        assert response.data == response.data
 
     def test_derive_inherits_frame_and_overrides(self) -> None:
         call = ToolCall(tool_name="t", arguments={}, call_id="c1")
@@ -61,7 +61,28 @@ class TestPayloadShape(unittest.TestCase):
             content="a", tool_calls=(call,), finish_reason="tool_use", model="m1"
         )
         derived = original.derive("b", tool_calls=())
-        assert derived.content == "b"
-        assert derived.tool_calls == ()
-        assert derived.finish_reason == "tool_use"
-        assert derived.model == "m1"
+        assert derived.data == "b"
+        assert derived.metadata.tool_calls == ()
+        assert derived.metadata.finish_reason == "tool_use"
+        assert derived.metadata.model == "m1"
+
+
+class TestNoFieldNameAliases(unittest.TestCase):
+    def test_fields_are_read_through_payload_access_only(self) -> None:
+        # Arrange: the constructor's field names, plus the old ``frame`` alias of ``metadata``.
+        names = (
+            "frame",
+            "content",
+            "tool_calls",
+            "finish_reason",
+            "usage",
+            "cost",
+            "model",
+            "provider",
+        )
+
+        # Act.
+        aliases = [name for name in names if hasattr(AgentResponse, name)]
+
+        # Assert: PIR-872 deleted every alias; read ``.data`` / ``.metadata.<field>``.
+        self.assertEqual(aliases, [])

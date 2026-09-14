@@ -163,7 +163,7 @@ class TestConfigDrivenAgentRuns(unittest.IsolatedAsyncioTestCase):
         # Assert
         assert isinstance(agent, SubTapestry)
         assert run.succeeded, run.exceptions
-        assert run.outputs[agent.knot_id].content == "answer"
+        assert run.outputs[agent.knot_id].data == "answer"
         assert memory.search_queries == ["the query"]
 
     async def test_one_spec_serves_many_inputs(self) -> None:
@@ -181,7 +181,7 @@ class TestConfigDrivenAgentRuns(unittest.IsolatedAsyncioTestCase):
 
         # Assert: two agents, one description.
         assert run.succeeded, run.exceptions
-        assert {run.outputs[first.knot_id].content, run.outputs[second.knot_id].content} == {
+        assert {run.outputs[first.knot_id].data, run.outputs[second.knot_id].data} == {
             "first",
             "second",
         }

@@ -36,8 +36,8 @@ class TestMemoryConsolidator(unittest.IsolatedAsyncioTestCase):
         ]
         result = await knot.process(records=records, summarizer=summarizer)
         assert len(result) == 1
-        assert result[0].kind == "semantic"
-        assert result[0].content.startswith("SUMMARY(")
+        assert result[0].data.kind == "semantic"
+        assert result[0].data.content.startswith("SUMMARY(")
         assert summarizer.calls  # F17 summarizer seam was invoked
 
     async def test_derivation_records_source_ids(self) -> None:
@@ -47,10 +47,10 @@ class TestMemoryConsolidator(unittest.IsolatedAsyncioTestCase):
             make_record(id="e2", content="alpha beta gamma delta"),
         ]
         result = await knot.process(records=records, summarizer=StubSummarizer())
-        derivation = result[0].provenance.derivation
+        derivation = result[0].metadata.derivation
         assert derivation is not None
         assert "e1" in derivation and "e2" in derivation
-        assert result[0].tags["merged_count"] == 2
+        assert result[0].data.tags["merged_count"] == 2
 
     async def test_no_op_on_already_clean_data(self) -> None:
         knot = _make_knot()
@@ -78,7 +78,7 @@ class TestMemoryConsolidator(unittest.IsolatedAsyncioTestCase):
             make_record(id="e2", content="shared token phrase here"),
         ]
         result = await knot.process(records=records, summarizer=StubSummarizer(), store=store)
-        assert result[0].id in store.data
+        assert result[0].data.id in store.data
 
     async def test_conflict_winner_seeds_provenance_timestamp(self) -> None:
         knot = _make_knot()
@@ -92,7 +92,7 @@ class TestMemoryConsolidator(unittest.IsolatedAsyncioTestCase):
             make_record(id="e2", content="same words repeated often", timestamp=newer),
         ]
         result = await knot.process(records=records, summarizer=StubSummarizer())
-        assert result[0].provenance.timestamp == newer
+        assert result[0].metadata.timestamp == newer
 
     async def test_deterministic_id_for_same_group(self) -> None:
         knot = _make_knot()
@@ -102,7 +102,7 @@ class TestMemoryConsolidator(unittest.IsolatedAsyncioTestCase):
         ]
         first = await knot.process(records=records, summarizer=StubSummarizer())
         second = await knot.process(records=records, summarizer=StubSummarizer())
-        assert first[0].id == second[0].id
+        assert first[0].data.id == second[0].data.id
 
     async def test_rejects_non_summarizer(self) -> None:
         knot = _make_knot()

@@ -1,7 +1,7 @@
 """``EscalationRouter`` — route low-confidence responses to human escalation.
 
 A :class:`Knot` that inspects the confidence score attached to an
-:class:`AgentResponse` (stored in ``response.usage["confidence"]``).
+:class:`AgentResponse` (stored in ``response.metadata.usage["confidence"]``).
 Responses with a score below ``threshold`` are routed to the human
 escalation queue by returning ``None``; responses at or above the
 threshold are passed through unchanged.
@@ -9,7 +9,7 @@ threshold are passed through unchanged.
 Algorithm:
     1. Receive the resolved ``response`` (AgentResponse) and ``threshold`` (float).
     2. Validate that ``response`` is an AgentResponse instance.
-    3. Read ``response.usage["confidence"]``; if absent, return None (escalate).
+    3. Read ``response.metadata.usage["confidence"]``; if absent, return None (escalate).
     4. Cast confidence to float and compare against threshold.
     5. Return the response unchanged if confidence >= threshold, else return None.
 
@@ -63,7 +63,7 @@ class EscalationRouter(Router):
         Returns:
             The original AgentResponse if confidence >= threshold, else None to indicate escalation.
         """
-        confidence = response.usage.get("confidence")
+        confidence = response.metadata.usage.get("confidence")
         if confidence is None:
             return None
         if float(confidence) >= float(threshold):

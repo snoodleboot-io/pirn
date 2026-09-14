@@ -39,7 +39,7 @@ class TestHyDERAGPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         response = result.outputs["hyde"]
         assert isinstance(response, AgentResponse)
-        assert response.content == "Final answer based on docs"
+        assert response.data == "Final answer based on docs"
         # Two LLM calls: hypothesis + final.
         assert len(llm.calls) == 2
         # The retrieval query must be the hypothesis text, not the original.

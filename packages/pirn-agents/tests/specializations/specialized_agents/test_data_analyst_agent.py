@@ -67,7 +67,7 @@ class TestDataAnalystAgentHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         response = result.outputs["analyst"]
         assert isinstance(response, AgentResponse)
-        assert "SQL:" in response.content
-        assert "Analysis:" in response.content
-        assert "7 users" in response.content
+        assert "SQL:" in response.data
+        assert "Analysis:" in response.data
+        assert "7 users" in response.data
         assert pool.queries == ["SELECT count(*) FROM users"]

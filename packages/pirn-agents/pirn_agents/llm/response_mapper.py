@@ -76,9 +76,9 @@ class ResponseMapper:
     def to_mapping(response: AgentResponse) -> dict[str, Any]:
         """Render an :class:`AgentResponse` as a plain mapping."""
         return {
-            "content": response.content,
-            "tool_calls": [dict(call.arguments) for call in response.tool_calls],
-            "finish_reason": response.finish_reason,
-            "usage": dict(response.usage),
-            "cost": response.cost,
+            "content": response.data,
+            "tool_calls": [dict(call.arguments) for call in response.metadata.tool_calls],
+            "finish_reason": response.metadata.finish_reason,
+            "usage": dict(response.metadata.usage),
+            "cost": response.metadata.cost,
         }

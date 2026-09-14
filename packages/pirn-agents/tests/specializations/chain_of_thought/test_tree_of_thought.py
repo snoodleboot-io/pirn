@@ -43,7 +43,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         response = result.outputs["tot"]
         assert isinstance(response, AgentResponse)
-        assert len(response.content) > 0
+        assert len(response.data) > 0
 
     async def test_scores_determine_best_path(self) -> None:
         responses = ["path-A", "path-B", "10", "1"]
@@ -61,7 +61,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         response = result.outputs["tot"]
         assert isinstance(response, AgentResponse)
-        assert "path-A" in response.content
+        assert "path-A" in response.data
 
     async def test_rejects_non_llm_provider(self) -> None:
         llm = StubLLMProvider(["x"])

@@ -83,7 +83,7 @@ class TestTheCoreYamlPipelineExample(unittest.IsolatedAsyncioTestCase):
 
         # Assert
         assert run.succeeded, run.exceptions
-        assert run.outputs["agent"].content == "Paris"
+        assert run.outputs["agent"].data == "Paris"
 
 
 if __name__ == "__main__":

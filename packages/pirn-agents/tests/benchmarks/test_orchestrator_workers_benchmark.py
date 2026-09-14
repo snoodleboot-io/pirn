@@ -54,7 +54,7 @@ async def test_orchestrator_workers_scaling(benchmark_recorder: BenchmarkRecorde
 
     assert run.succeeded
     result = run.outputs["ow"]
-    assert result.total == n
+    assert result.metadata.total == n
     serial = n * per_task
     assert elapsed < 0.5 * serial  # loose, non-flaky
 

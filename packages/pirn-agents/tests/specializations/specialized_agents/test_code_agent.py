@@ -55,9 +55,9 @@ class TestCodeAgentHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         response = result.outputs["code"]
         assert isinstance(response, AgentResponse)
-        assert "def add" in response.content
-        assert response.usage["lint_warnings"] == 0
-        assert response.usage["tests_skipped"] == 1
+        assert "def add" in response.data
+        assert response.metadata.usage["lint_warnings"] == 0
+        assert response.metadata.usage["tests_skipped"] == 1
 
     async def test_lint_flags_python_syntax_error(self) -> None:
         # Output is not valid python; lint warnings should be non-zero.
@@ -73,4 +73,4 @@ class TestCodeAgentHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         response = result.outputs["code"]
         assert isinstance(response, AgentResponse)
-        assert response.usage["lint_warnings"] >= 1
+        assert response.metadata.usage["lint_warnings"] >= 1

@@ -4,7 +4,7 @@ A :class:`SubTapestry` that:
 
 1. Asks an LLM (via :class:`FactClaimExtractor`) to enumerate the
    factual claims contained in the supplied
-   :class:`AgentResponse.content`.
+   the :class:`AgentResponse`'s ``data`` (its reply text).
 2. Searches the configured :class:`MemoryStore` for each claim (via
    :class:`FactClaimVerifier`) and appends a warning footer when one
    or more claims have no supporting hit.

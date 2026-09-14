@@ -61,4 +61,4 @@ class NativeSchemaStrategy(NativeDecodeStrategy):
         response = await provider.structured_chat(
             [{"role": "user", "content": prompt}], request_options=options
         )
-        return self._validator.validate(response.content)
+        return self._validator.validate(response.data)

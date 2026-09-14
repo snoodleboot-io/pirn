@@ -37,12 +37,12 @@ async def test_evaluator_optimizer_convergence(
     run = await t.run(RunRequest())
     assert run.succeeded
     result = run.outputs["eo"]
-    assert result.accepted is True
+    assert result.metadata.accepted is True
 
     benchmark_recorder.record(
         "EvaluatorOptimizerConvergence",
-        iterations=result.iterations,
-        final_score=result.score,
+        iterations=result.metadata.iterations,
+        final_score=result.metadata.score,
     )
     report = benchmark_recorder.report()
     assert report.metric("EvaluatorOptimizerConvergence", "iterations") == 3

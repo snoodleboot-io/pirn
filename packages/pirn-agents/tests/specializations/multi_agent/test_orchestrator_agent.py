@@ -66,7 +66,7 @@ class TestOrchestratorAgentProcess(unittest.IsolatedAsyncioTestCase):
         assert run.succeeded
         response = run.outputs["orch"]
         assert isinstance(response, AgentResponse)
-        assert response.content == "B:solve riddle"
+        assert response.data == "B:solve riddle"
 
     async def test_rejects_non_llm_provider(self) -> None:
         spec = _make_spec("x", "s")
@@ -96,4 +96,4 @@ class TestOrchestratorAgentProcess(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         response = result.outputs["orch"]
         assert isinstance(response, AgentResponse)
-        assert response.content == "B:solve riddle"
+        assert response.data == "B:solve riddle"

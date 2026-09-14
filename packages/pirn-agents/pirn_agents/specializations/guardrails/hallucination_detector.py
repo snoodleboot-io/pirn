@@ -11,7 +11,7 @@ Algorithm:
        :class:`TypeError` otherwise.
     2. Enumerate ``sources`` as numbered passages ``[Source N]: ...``.
     3. Build a hallucination-detection prompt instructing the LLM to list
-       any claim in ``response.content`` not supported by the sources, one
+       any claim in ``response.data`` not supported by the sources, one
        per line, or reply ``"NONE"`` if all claims are supported.
     4. Send the prompt to the :class:`LLMProvider` and extract the text from
        the reply.
@@ -84,7 +84,7 @@ class HallucinationDetector(Knot):
         """
         sources_text = "\n\n".join(f"[Source {i + 1}]: {src}" for i, src in enumerate(sources))
         prompt = type(self)._detection_prompt.render(
-            {"sources": sources_text, "response": response.content},
+            {"sources": sources_text, "response": response.data},
         )
         raw = await llm.chat([{"role": "user", "content": prompt}])
         text = LlmResponseText().extract(raw).strip()

@@ -208,7 +208,7 @@ class AgentTool(ToolFactory):
         outcome = await self.run_call(call)
         tokens: int | None = None
         if isinstance(outcome, Ok) and isinstance(outcome.value, AgentResponse):
-            tokens = AgentResponseMapper().summarise_tokens(outcome.value.usage)
+            tokens = AgentResponseMapper().summarise_tokens(outcome.value.metadata.usage)
         return ToolResult.from_result(call.call_id, outcome, tokens=tokens)
 
     def _clear_credentials(self) -> None:

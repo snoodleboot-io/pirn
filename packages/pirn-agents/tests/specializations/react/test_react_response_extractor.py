@@ -32,8 +32,8 @@ class TestReActResponseExtractorProcess(unittest.IsolatedAsyncioTestCase):
         ]
         out = await knot.process(messages=msgs)
         assert isinstance(out, AgentResponse)
-        assert out.content == "42"
-        assert out.finish_reason == "stop"
+        assert out.data == "42"
+        assert out.metadata.finish_reason == "stop"
 
     async def test_returns_length_when_no_final_answer(self) -> None:
         knot = self._make()
@@ -41,14 +41,14 @@ class TestReActResponseExtractorProcess(unittest.IsolatedAsyncioTestCase):
             AgentMessage(role="assistant", content="Still thinking..."),
         ]
         out = await knot.process(messages=msgs)
-        assert out.finish_reason == "length"
-        assert out.content == "Still thinking..."
+        assert out.metadata.finish_reason == "length"
+        assert out.data == "Still thinking..."
 
     async def test_empty_messages_returns_empty_content(self) -> None:
         knot = self._make()
         out = await knot.process(messages=[])
-        assert out.content == ""
-        assert out.finish_reason == "length"
+        assert out.data == ""
+        assert out.metadata.finish_reason == "length"
 
     async def test_skips_non_assistant_messages(self) -> None:
         knot = self._make()
@@ -57,5 +57,5 @@ class TestReActResponseExtractorProcess(unittest.IsolatedAsyncioTestCase):
             AgentMessage(role="tool", content="tool output"),
         ]
         out = await knot.process(messages=msgs)
-        assert out.content == ""
-        assert out.finish_reason == "length"
+        assert out.data == ""
+        assert out.metadata.finish_reason == "length"

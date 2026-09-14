@@ -118,10 +118,10 @@ class TestResponseMapping(unittest.IsolatedAsyncioTestCase):
 
         response = await provider.chat_response([{"role": "user", "content": "hi"}])
 
-        assert response.content == "hello"
-        assert response.finish_reason == "stop"
-        assert response.usage == {"input_tokens": 10, "output_tokens": 4}
-        assert response.tool_calls == ()
+        assert response.data == "hello"
+        assert response.metadata.finish_reason == "stop"
+        assert response.metadata.usage == {"input_tokens": 10, "output_tokens": 4}
+        assert response.metadata.tool_calls == ()
 
     async def test_chat_returns_normalised_mapping_with_content(self) -> None:
         client = FakeAsyncClient(post_results=[_ok_response()])
@@ -141,7 +141,7 @@ class TestResponseMapping(unittest.IsolatedAsyncioTestCase):
         response = await provider.chat_response([{"role": "user", "content": "hi"}])
 
         # (10 * 1000 + 4 * 2000) / 1e6 = 18000 / 1e6 = 0.018
-        assert response.cost == 0.018
+        assert response.metadata.cost == 0.018
 
     async def test_cost_is_none_without_pricing(self) -> None:
         client = FakeAsyncClient(post_results=[_ok_response()])
@@ -149,7 +149,7 @@ class TestResponseMapping(unittest.IsolatedAsyncioTestCase):
 
         response = await provider.chat_response([{"role": "user", "content": "hi"}])
 
-        assert response.cost is None
+        assert response.metadata.cost is None
 
     async def test_decodes_tool_calls(self) -> None:
         body_calls = [{"id": "c1", "name": "search", "arguments": {"q": "cats"}}]
@@ -160,10 +160,10 @@ class TestResponseMapping(unittest.IsolatedAsyncioTestCase):
 
         response = await provider.chat_response([{"role": "user", "content": "hi"}])
 
-        assert len(response.tool_calls) == 1
-        assert response.tool_calls[0].call_id == "c1"
-        assert response.tool_calls[0].tool_name == "search"
-        assert response.tool_calls[0].arguments == {"q": "cats"}
+        assert len(response.metadata.tool_calls) == 1
+        assert response.metadata.tool_calls[0].call_id == "c1"
+        assert response.metadata.tool_calls[0].tool_name == "search"
+        assert response.metadata.tool_calls[0].arguments == {"q": "cats"}
 
     async def test_auth_header_uses_credential(self) -> None:
         client = FakeAsyncClient(post_results=[_ok_response()])
@@ -188,7 +188,7 @@ class TestRetryAndRateLimit(unittest.IsolatedAsyncioTestCase):
 
         response = await provider.chat_response([{"role": "user", "content": "hi"}])
 
-        assert response.content == "hello"
+        assert response.data == "hello"
         assert sleeper.delays == [1.5]
 
     async def test_429_without_retry_after_uses_backoff(self) -> None:
@@ -229,7 +229,7 @@ class TestRetryAndRateLimit(unittest.IsolatedAsyncioTestCase):
 
         response = await provider.chat_response([{"role": "user", "content": "hi"}])
 
-        assert response.content == "hello"
+        assert response.data == "hello"
         assert len(sleeper.delays) == 1
 
     async def test_transport_error_is_wrapped_and_retried(self) -> None:
@@ -243,7 +243,7 @@ class TestRetryAndRateLimit(unittest.IsolatedAsyncioTestCase):
 
         response = await provider.chat_response([{"role": "user", "content": "hi"}])
 
-        assert response.content == "hello"
+        assert response.data == "hello"
         assert len(sleeper.delays) == 1
 
     async def test_non_retryable_4xx_raises_immediately(self) -> None:
@@ -280,7 +280,7 @@ class TestStreamingCleanup(unittest.IsolatedAsyncioTestCase):
 
         assert [d.content for d in deltas] == ["He", "llo"]
         response = await provider.collect_stream(_as_aiter(deltas))
-        assert response.content == "Hello"
+        assert response.data == "Hello"
 
     async def test_stream_closed_on_early_cancellation(self) -> None:
         stream = FakeStream(lines=["a", "b", "c"])

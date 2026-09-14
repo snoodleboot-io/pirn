@@ -35,7 +35,7 @@ class TestMultiHopRAGPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         response = result.outputs["mhop"]
         assert isinstance(response, AgentResponse)
-        assert response.content == "final synthesized answer"
+        assert response.data == "final synthesized answer"
         assert len(memory.search_queries) == 3
         assert memory.search_queries[0] == "sub-q1"
         assert memory.search_queries[1] == "sub-q2"
@@ -56,7 +56,7 @@ class TestMultiHopRAGPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         response = result.outputs["mhop"]
         assert isinstance(response, AgentResponse)
-        assert response.content == "fallback answer"
+        assert response.data == "fallback answer"
         assert memory.search_queries == ["simple question"]
 
 

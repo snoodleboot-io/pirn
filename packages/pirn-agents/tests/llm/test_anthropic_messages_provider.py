@@ -67,10 +67,10 @@ class TestChat(unittest.IsolatedAsyncioTestCase):
 
         response = await provider.chat_response([{"role": "user", "content": "hi"}])
 
-        assert response.content == "hello"
-        assert response.finish_reason == "stop"
-        assert response.usage == {"input_tokens": 10, "output_tokens": 3}
-        assert response.cost == 3.0
+        assert response.data == "hello"
+        assert response.metadata.finish_reason == "stop"
+        assert response.metadata.usage == {"input_tokens": 10, "output_tokens": 3}
+        assert response.metadata.cost == 3.0
 
     async def test_tool_use_response_decodes_and_maps_finish(self) -> None:
         client = FakeAsyncClient(
@@ -89,10 +89,10 @@ class TestChat(unittest.IsolatedAsyncioTestCase):
 
         response = await provider.chat_response([{"role": "user", "content": "hi"}], tools=toolset)
 
-        assert response.finish_reason == "tool_use"
-        assert len(response.tool_calls) == 1
-        assert response.tool_calls[0].call_id == "tu1"
-        assert response.tool_calls[0].arguments == {"q": "cats"}
+        assert response.metadata.finish_reason == "tool_use"
+        assert len(response.metadata.tool_calls) == 1
+        assert response.metadata.tool_calls[0].call_id == "tu1"
+        assert response.metadata.tool_calls[0].arguments == {"q": "cats"}
         # tools were encoded in the distinct input_schema shape
         assert client.post_calls[0]["json"]["tools"][0]["input_schema"]["type"] == "object"
 
@@ -112,7 +112,7 @@ class TestChat(unittest.IsolatedAsyncioTestCase):
 
         response = await provider.chat_response([{"role": "user", "content": "hi"}])
 
-        assert response.usage["cached_input_tokens"] == 60
+        assert response.metadata.usage["cached_input_tokens"] == 60
 
 
 class TestPromptCachingHook(unittest.IsolatedAsyncioTestCase):
@@ -172,11 +172,11 @@ class TestStreaming(unittest.IsolatedAsyncioTestCase):
 
         response = await provider.stream_response([{"role": "user", "content": "hi"}])
 
-        assert response.content == "Hello"
-        assert response.finish_reason == "stop"
-        assert response.usage == {"input_tokens": 10, "output_tokens": 2}
+        assert response.data == "Hello"
+        assert response.metadata.finish_reason == "stop"
+        assert response.metadata.usage == {"input_tokens": 10, "output_tokens": 2}
         # text block stop must not create a spurious tool call
-        assert response.tool_calls == ()
+        assert response.metadata.tool_calls == ()
 
     async def test_streamed_tool_use_deltas_assemble(self) -> None:
         events = [
@@ -207,11 +207,11 @@ class TestStreaming(unittest.IsolatedAsyncioTestCase):
 
         response = await provider.stream_response([{"role": "user", "content": "hi"}])
 
-        assert len(response.tool_calls) == 1
-        assert response.tool_calls[0].call_id == "tu1"
-        assert response.tool_calls[0].tool_name == "search"
-        assert response.tool_calls[0].arguments == {"q": "cats"}
-        assert response.finish_reason == "tool_use"
+        assert len(response.metadata.tool_calls) == 1
+        assert response.metadata.tool_calls[0].call_id == "tu1"
+        assert response.metadata.tool_calls[0].tool_name == "search"
+        assert response.metadata.tool_calls[0].arguments == {"q": "cats"}
+        assert response.metadata.finish_reason == "tool_use"
 
 
 if __name__ == "__main__":

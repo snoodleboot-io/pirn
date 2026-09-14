@@ -46,14 +46,14 @@ class TestInvokeSpecialist(unittest.IsolatedAsyncioTestCase):
             spec = _EchoSpecialist(_config=KnotConfig(id="echo"))
         result = await SpecialistHandle(spec).run(task="hello")
         assert isinstance(result, AgentResponse)
-        assert result.content == "echo:hello"
+        assert result.data == "echo:hello"
 
     async def test_inputs_override_construction_values(self) -> None:
         with Tapestry():
             spec = _EchoSpecialist(task="at-construction", _config=KnotConfig(id="echo2"))
         result = await SpecialistHandle(spec).run(task="at-call")
         assert isinstance(result, AgentResponse)
-        assert result.content == "echo:at-call"
+        assert result.data == "echo:at-call"
 
     async def test_a_failing_specialist_raises_instead_of_returning_a_value(self) -> None:
         """``__call__`` captures the failure as ``Err``; silently returning it would

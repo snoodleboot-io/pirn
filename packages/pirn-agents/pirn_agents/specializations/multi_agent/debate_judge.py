@@ -85,7 +85,7 @@ class DebateJudge(Knot):
         if not responses:
             raise ValueError("DebateJudge: final_round must contain at least one response")
         rendered = "\n".join(
-            f"[{index}] {response.content}" for index, response in enumerate(responses)
+            f"[{index}] {response.data}" for index, response in enumerate(responses)
         )
         prompt = type(self)._judging_prompt.render(
             {"topic": topic, "arguments": rendered},

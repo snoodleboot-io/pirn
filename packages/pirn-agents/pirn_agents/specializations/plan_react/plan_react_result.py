@@ -17,7 +17,8 @@ class PlanReActResult(AgentResult[PlanReActFrame, AgentResponse]):
     is the last step's :class:`AgentResponse` (the overall result), and
     ``metadata`` is the :class:`PlanReActFrame` carrying the plan and every
     step's response. The constructor takes the pattern's named fields (``plan``,
-    ``step_responses``, ``final``), and each is also a read-only property.
+    ``step_responses``, ``final``); read them back as ``metadata.<field>`` and
+    ``data``.
     """
 
     def __init__(
@@ -29,19 +30,7 @@ class PlanReActResult(AgentResult[PlanReActFrame, AgentResponse]):
         frame = PlanReActFrame(plan=plan, step_responses=step_responses)
         super().__init__(metadata=frame, data=final)
 
-    @property
-    def plan(self) -> tuple[str, ...]:
-        return self._metadata.plan
-
-    @property
-    def step_responses(self) -> tuple[AgentResponse, ...]:
-        return self._metadata.step_responses
-
-    @property
-    def final(self) -> AgentResponse:
-        return self._data
-
     def _pirn_audit_dict(self) -> dict[str, Any]:
         audit = dict(super()._pirn_audit_dict())
-        audit["final"] = self._audit_form(self.final)
+        audit["final"] = self._audit_form(self.data)
         return audit

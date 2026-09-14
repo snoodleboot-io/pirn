@@ -33,8 +33,8 @@ class TestAnalysisStepProcess(unittest.IsolatedAsyncioTestCase):
         result = await t.run(RunRequest())
         out = result.outputs["as"]
         assert isinstance(out, AgentResponse)
-        assert "Analysis:" in out.content
-        assert "Revenue grew 10%." in out.content
+        assert "Analysis:" in out.data
+        assert "Revenue grew 10%." in out.data
 
     async def test_rejects_non_agent_response(self) -> None:
         llm = StubLLMProvider(["x"])

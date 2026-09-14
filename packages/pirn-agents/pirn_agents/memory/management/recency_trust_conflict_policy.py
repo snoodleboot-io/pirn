@@ -49,8 +49,8 @@ class RecencyTrustConflictPolicy(ConflictResolutionPolicy):
     def _rank(record: MemoryRecord) -> tuple[float, float, float, str]:
         """Return the descending-preference sort key for ``record``."""
         return (
-            record.provenance.timestamp.timestamp(),
-            float(record.provenance.trust_signal),
-            float(record.importance),
-            record.id,
+            record.metadata.timestamp.timestamp(),
+            float(record.metadata.trust_signal),
+            float(record.metadata.importance),
+            record.data.id,
         )

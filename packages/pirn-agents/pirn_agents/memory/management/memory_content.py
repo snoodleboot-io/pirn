@@ -9,9 +9,8 @@ ADR "agents speaks core" WS3 makes
 class is the ``D`` — the stable id, kind, text content, and free-form tags a
 writer knot actually produced. Splitting the two lets generic code program
 against ``.metadata`` / ``.data`` (the ``Payload`` contract every domain
-follows — see ``pirn_signal.types.signal_payload.SignalPayload``) while
-``MemoryRecord`` also exposes the domain-readable properties (``.id``,
-``.kind``, ``.content``, ...) its constructor takes.
+follows — see ``pirn_signal.types.signal_payload.SignalPayload``); a record's
+id, kind, content and tags are read as ``record.data.<field>``.
 """
 
 from __future__ import annotations

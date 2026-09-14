@@ -46,8 +46,8 @@ class TestRAGSynthesizerProcess(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         response = result.outputs["synth"]
         assert isinstance(response, AgentResponse)
-        assert "Paris" in response.content
-        assert response.finish_reason == "stop"
+        assert "Paris" in response.data
+        assert response.metadata.finish_reason == "stop"
 
     async def test_handles_empty_documents(self) -> None:
         llm = StubLLMProvider(["I cannot find relevant information."])

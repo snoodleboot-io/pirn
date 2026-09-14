@@ -161,7 +161,7 @@ class TestBuildEndToEnd(unittest.IsolatedAsyncioTestCase):
         assert run.succeeded
         response = run.outputs[knot.knot_id]
         assert isinstance(response, AgentResponse)
-        assert response.content == "done"
+        assert response.data == "done"
 
     async def test_react_accepts_message_sequence(self) -> None:
         llm = StubLLMProvider(["Final Answer: hey"])
@@ -175,7 +175,7 @@ class TestBuildEndToEnd(unittest.IsolatedAsyncioTestCase):
             )
         run = await t.run(RunRequest())
         assert run.succeeded
-        assert run.outputs[knot.knot_id].content == "hey"
+        assert run.outputs[knot.knot_id].data == "hey"
 
     async def test_naive_rag_runs(self) -> None:
         memory = StubMemoryStore([{"id": 1, "text": "ctx"}])
@@ -190,7 +190,7 @@ class TestBuildEndToEnd(unittest.IsolatedAsyncioTestCase):
             )
         run = await t.run(RunRequest())
         assert run.succeeded
-        assert run.outputs[knot.knot_id].content == "answer"
+        assert run.outputs[knot.knot_id].data == "answer"
         assert memory.search_queries == ["the query"]
 
     async def test_a_pattern_outside_the_original_three_builds_and_runs(self) -> None:
@@ -207,7 +207,7 @@ class TestBuildEndToEnd(unittest.IsolatedAsyncioTestCase):
             )
         run = await t.run(RunRequest())
         assert run.succeeded, run.exceptions
-        assert run.outputs[knot.knot_id].content == "answer"
+        assert run.outputs[knot.knot_id].data == "answer"
 
 
 if __name__ == "__main__":

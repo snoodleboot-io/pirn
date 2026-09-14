@@ -59,9 +59,9 @@ class TestLatsSearch(unittest.IsolatedAsyncioTestCase):
         assert run.succeeded
         result = run.outputs["lats"]
         assert isinstance(result, LatsResult)
-        assert result.best_trajectory == ("right", "right")
-        assert result.best_value == 2.0
-        assert result.budget_exhausted is False
+        assert result.data == ("right", "right")
+        assert result.metadata.best_value == 2.0
+        assert result.metadata.budget_exhausted is False
 
     async def test_value_model_is_pluggable(self) -> None:
         with Tapestry() as t:
@@ -75,7 +75,7 @@ class TestLatsSearch(unittest.IsolatedAsyncioTestCase):
             )
         run = await t.run(RunRequest())
         result = run.outputs["lats"]
-        assert result.best_trajectory == ("left", "left")
+        assert result.data == ("left", "left")
 
     async def test_node_budget_bounds_search(self) -> None:
         with Tapestry() as t:
@@ -89,8 +89,8 @@ class TestLatsSearch(unittest.IsolatedAsyncioTestCase):
             )
         run = await t.run(RunRequest())
         result = run.outputs["lats"]
-        assert result.nodes_expanded == 1
-        assert result.budget_exhausted is True
+        assert result.metadata.nodes_expanded == 1
+        assert result.metadata.budget_exhausted is True
 
     async def test_deadline_only_budget_is_allowed(self) -> None:
         with Tapestry() as t:
@@ -104,7 +104,7 @@ class TestLatsSearch(unittest.IsolatedAsyncioTestCase):
             )
         run = await t.run(RunRequest())
         assert run.succeeded
-        assert run.outputs["lats"].best_value == 2.0
+        assert run.outputs["lats"].metadata.best_value == 2.0
 
     async def test_rejects_unbounded_budget(self) -> None:
         with Tapestry():

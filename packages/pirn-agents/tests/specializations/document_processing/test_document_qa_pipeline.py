@@ -71,8 +71,8 @@ class TestDocumentQAPipelineProcess(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         response = result.outputs["qa"]
         assert isinstance(response, AgentResponse)
-        assert response.content == "The answer is alpha."
-        assert response.finish_reason == "stop"
+        assert response.data == "The answer is alpha."
+        assert response.metadata.finish_reason == "stop"
         assert len(llm.calls) == 1
         prompt_body = llm.calls[0][-1]["content"]
         assert "Document excerpts" in prompt_body

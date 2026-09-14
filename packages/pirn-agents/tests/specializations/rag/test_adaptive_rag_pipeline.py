@@ -33,7 +33,7 @@ class TestAdaptiveRAGPipelineSimple(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         response = result.outputs["adaptive"]
         assert isinstance(response, AgentResponse)
-        assert response.content == "direct answer"
+        assert response.data == "direct answer"
         assert memory.search_queries == []
 
 
@@ -53,7 +53,7 @@ class TestAdaptiveRAGPipelineModerate(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         response = result.outputs["adaptive"]
         assert isinstance(response, AgentResponse)
-        assert response.content == "rag answer"
+        assert response.data == "rag answer"
         assert len(memory.search_queries) == 1
 
 
@@ -73,7 +73,7 @@ class TestAdaptiveRAGPipelineComplex(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         response = result.outputs["adaptive"]
         assert isinstance(response, AgentResponse)
-        assert response.content == "multi-hop answer"
+        assert response.data == "multi-hop answer"
         assert len(memory.search_queries) == 3
 
 
@@ -104,7 +104,7 @@ class TestAdaptiveRAGPipelineHedgedClassification(unittest.IsolatedAsyncioTestCa
         assert result.succeeded
         response = result.outputs["adaptive"]
         assert isinstance(response, AgentResponse)
-        assert response.content == "multi-hop answer"
+        assert response.data == "multi-hop answer"
         assert len(memory.search_queries) == 3
 
     async def test_bare_simple_reply_still_routes_to_direct_llm(self) -> None:
@@ -122,7 +122,7 @@ class TestAdaptiveRAGPipelineHedgedClassification(unittest.IsolatedAsyncioTestCa
         assert result.succeeded
         response = result.outputs["adaptive"]
         assert isinstance(response, AgentResponse)
-        assert response.content == "direct answer"
+        assert response.data == "direct answer"
         assert memory.search_queries == []
 
 

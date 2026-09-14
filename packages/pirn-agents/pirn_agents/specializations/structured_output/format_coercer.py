@@ -85,21 +85,21 @@ class FormatCoercer(Knot):
                 f"FormatCoercer: target_format must be one of "
                 f"{sorted(type(self)._supported_formats)}, got {target_format!r}"
             )
-        if self._already_matches(response.content, target_format):
+        if self._already_matches(response.data, target_format):
             return response
         prompt = type(self)._coercion_prompt.render(
             {
                 "target_format": target_format,
-                "content": response.content,
+                "content": response.data,
             },
         )
         raw = await llm.chat([{"role": "user", "content": prompt}])
         new_content = LlmResponseText().extract(raw).strip()
         return AgentResponse(
             content=new_content,
-            tool_calls=response.tool_calls,
-            finish_reason=response.finish_reason,
-            usage=response.usage,
+            tool_calls=response.metadata.tool_calls,
+            finish_reason=response.metadata.finish_reason,
+            usage=response.metadata.usage,
         )
 
     @staticmethod

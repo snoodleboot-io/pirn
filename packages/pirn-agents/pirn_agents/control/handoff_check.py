@@ -75,5 +75,5 @@ class HandoffCheck(Knot):
             field="escalation_patterns",
             flags=re.IGNORECASE,
         )
-        match = await self._pattern_compiler.search_any(tuple(compiled), response.content)
+        match = await self._pattern_compiler.search_any(tuple(compiled), response.data)
         return match is not None

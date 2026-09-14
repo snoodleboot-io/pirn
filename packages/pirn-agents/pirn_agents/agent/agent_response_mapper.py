@@ -52,7 +52,7 @@ class AgentResponseMapper:
         The full ``response`` is passed through as :attr:`ToolResult.result` so a
         caller retains access to ``content``, ``tool_calls``, ``usage`` and
         ``cost`` — structured passthrough rather than a lossy ``.content`` string.
-        ``tokens`` is derived from :attr:`AgentResponse.usage`.
+        ``tokens`` is derived from :attr:`AgentResponse.metadata.usage <pirn_agents.types.messaging.generation_frame.GenerationFrame.usage>`.
 
         Args:
             response: The outcome of the nested agent turn.
@@ -66,5 +66,5 @@ class AgentResponseMapper:
             call_id=call_id,
             outcome=Ok(value=response),
             latency=latency,
-            tokens=self.summarise_tokens(response.usage),
+            tokens=self.summarise_tokens(response.metadata.usage),
         )

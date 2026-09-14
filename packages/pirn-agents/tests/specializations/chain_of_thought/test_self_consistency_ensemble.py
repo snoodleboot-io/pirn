@@ -36,7 +36,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         response = result.outputs["sce"]
         assert isinstance(response, AgentResponse)
-        assert response.content == "Paris"
+        assert response.data == "Paris"
 
     async def test_makes_n_llm_calls(self) -> None:
         llm = StubLLMProvider(["yes"] * 4)
@@ -52,7 +52,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
             SelfConsistencyEnsemble(prompt="q", llm=llm, samples=1, _config=KnotConfig(id="sce"))
         result = await t.run(RunRequest())
         assert result.succeeded
-        assert result.outputs["sce"].content == "only answer"
+        assert result.outputs["sce"].data == "only answer"
 
     async def test_rejects_non_llm_provider(self) -> None:
         llm = StubLLMProvider(["x"])

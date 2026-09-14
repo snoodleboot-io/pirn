@@ -25,7 +25,7 @@ Namespace scoping
 ------------------
 ``RunHistory.query_lineage_by_knot_id`` returns every invocation across every
 run of that knot id. When the same writer node backs multiple sessions,
-``tag_filter`` narrows the result to records whose :attr:`MemoryRecord.tags`
+``tag_filter`` narrows the result to records whose ``data.tags``
 contains the given key/value pairs (e.g. ``{"session_id": "s1"}``) — the free-
 form namespace a writer knot already stamps into
 :class:`~pirn_agents.memory.management.memory_content.MemoryContent`.
@@ -149,4 +149,6 @@ class MemoryLineageRecall(Retriever):
     @staticmethod
     def _matches(record: MemoryRecord, tag_filter: Mapping[str, Any]) -> bool:
         """True if every ``tag_filter`` entry is present and equal in ``record.tags``."""
-        return all(record.tags.get(key, object()) == value for key, value in tag_filter.items())
+        return all(
+            record.data.tags.get(key, object()) == value for key, value in tag_filter.items()
+        )

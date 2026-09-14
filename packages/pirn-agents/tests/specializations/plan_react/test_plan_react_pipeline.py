@@ -31,10 +31,10 @@ class TestPlanReActPipeline(unittest.IsolatedAsyncioTestCase):
         assert run.succeeded
         result = run.outputs["pr"]
         assert isinstance(result, PlanReActResult)
-        assert result.plan == ("gather facts", "summarise")
-        assert len(result.step_responses) == 2
-        assert isinstance(result.final, AgentResponse)
-        assert "summary" in result.final.content
+        assert result.metadata.plan == ("gather facts", "summarise")
+        assert len(result.metadata.step_responses) == 2
+        assert isinstance(result.data, AgentResponse)
+        assert "summary" in result.data.data
 
     async def test_falls_back_to_task_when_plan_empty(self) -> None:
         llm = StubLLMProvider(["no numbered steps here", "Final Answer: done"])
@@ -44,8 +44,8 @@ class TestPlanReActPipeline(unittest.IsolatedAsyncioTestCase):
             )
         run = await t.run(RunRequest())
         result = run.outputs["pr"]
-        assert result.plan == ("just do it",)
-        assert len(result.step_responses) == 1
+        assert result.metadata.plan == ("just do it",)
+        assert len(result.metadata.step_responses) == 1
 
     async def test_bounds_steps(self) -> None:
         llm = StubLLMProvider(
@@ -57,8 +57,8 @@ class TestPlanReActPipeline(unittest.IsolatedAsyncioTestCase):
             )
         run = await t.run(RunRequest())
         result = run.outputs["pr"]
-        assert result.plan == ("a", "b")
-        assert len(result.step_responses) == 2
+        assert result.metadata.plan == ("a", "b")
+        assert len(result.metadata.step_responses) == 2
 
     async def test_rejects_non_positive_iterations(self) -> None:
         llm = StubLLMProvider(["1. a"])

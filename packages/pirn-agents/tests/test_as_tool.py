@@ -39,7 +39,7 @@ class TestAsToolFunction(unittest.IsolatedAsyncioTestCase):
         result = await tool.run_view({"topic": "thing"})
 
         self.assertIsInstance(tool, AgentTool)
-        self.assertEqual(result.result.content, "did:thing")
+        self.assertEqual(result.result.data, "did:thing")
 
 
 class TestAsToolInReActLoop(unittest.IsolatedAsyncioTestCase):
@@ -71,7 +71,7 @@ class TestAsToolInReActLoop(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(run.succeeded)
         response = run.outputs["outer"]
         self.assertIsInstance(response, AgentResponse)
-        self.assertEqual(response.content, "wrapped up")
+        self.assertEqual(response.data, "wrapped up")
         # The nested agent was actually invoked through the tool.
         self.assertEqual(len(AGENT_CALLS["inner"]), 1)
         self.assertEqual(AGENT_CALLS["inner"][0]["topic"], "investigate")

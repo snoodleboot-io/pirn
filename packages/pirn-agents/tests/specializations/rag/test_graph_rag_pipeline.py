@@ -55,7 +55,7 @@ class TestGraphRAGPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         response = result.outputs["grag"]
         assert isinstance(response, AgentResponse)
-        assert response.content == "Alice works at Acme."
+        assert response.data == "Alice works at Acme."
         prompt_body = llm.calls[0][-1]["content"]
         assert "alice" in prompt_body
         assert "acme" in prompt_body

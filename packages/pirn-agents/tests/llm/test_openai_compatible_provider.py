@@ -75,11 +75,11 @@ class TestChat(unittest.IsolatedAsyncioTestCase):
 
         response = await provider.chat_response([{"role": "user", "content": "hi"}])
 
-        assert response.content == "the answer"
-        assert response.finish_reason == "stop"
-        assert response.usage == {"input_tokens": 12, "output_tokens": 6}
+        assert response.data == "the answer"
+        assert response.metadata.finish_reason == "stop"
+        assert response.metadata.usage == {"input_tokens": 12, "output_tokens": 6}
         # (12 + 6) tokens at 1.0 each = 18 / 1e6 * 1e6 = 18.0
-        assert response.cost == 18.0
+        assert response.metadata.cost == 18.0
 
     async def test_no_auth_header_without_credential(self) -> None:
         client = FakeAsyncClient(post_results=[_chat_completion()])
@@ -115,7 +115,7 @@ class TestChat(unittest.IsolatedAsyncioTestCase):
 
         response = await provider.chat_response([{"role": "user", "content": "hi"}])
 
-        assert response.usage["cached_input_tokens"] == 40
+        assert response.metadata.usage["cached_input_tokens"] == 40
 
 
 class TestToolCalling(unittest.IsolatedAsyncioTestCase):
@@ -129,9 +129,9 @@ class TestToolCalling(unittest.IsolatedAsyncioTestCase):
 
         response = await provider.chat_response([{"role": "user", "content": "hi"}], tools=toolset)
 
-        assert len(response.tool_calls) == 1
-        assert response.tool_calls[0].call_id == "call-1"
-        assert response.tool_calls[0].arguments == {"q": "cats"}
+        assert len(response.metadata.tool_calls) == 1
+        assert response.metadata.tool_calls[0].call_id == "call-1"
+        assert response.metadata.tool_calls[0].arguments == {"q": "cats"}
         # the toolset was encoded into the request
         assert client.post_calls[0]["json"]["tools"][0]["function"]["name"] == "search"
 
@@ -145,8 +145,8 @@ class TestToolCalling(unittest.IsolatedAsyncioTestCase):
 
         response = await provider.chat_response([{"role": "user", "content": "hi"}])
 
-        assert [c.call_id for c in response.tool_calls] == ["a", "b"]
-        assert [c.tool_name for c in response.tool_calls] == ["search", "lookup"]
+        assert [c.call_id for c in response.metadata.tool_calls] == ["a", "b"]
+        assert [c.tool_name for c in response.metadata.tool_calls] == ["search", "lookup"]
 
 
 class TestStreaming(unittest.IsolatedAsyncioTestCase):
@@ -189,8 +189,8 @@ class TestStreaming(unittest.IsolatedAsyncioTestCase):
 
         response = await provider.stream_response([{"role": "user", "content": "hi"}])
 
-        assert response.content == "Hello"
-        assert response.usage == {"input_tokens": 3, "output_tokens": 2}
+        assert response.data == "Hello"
+        assert response.metadata.usage == {"input_tokens": 3, "output_tokens": 2}
 
     async def test_streamed_tool_call_deltas_assemble(self) -> None:
         chunks = [
@@ -221,10 +221,10 @@ class TestStreaming(unittest.IsolatedAsyncioTestCase):
 
         response = await provider.stream_response([{"role": "user", "content": "hi"}])
 
-        assert len(response.tool_calls) == 1
-        assert response.tool_calls[0].call_id == "c1"
-        assert response.tool_calls[0].tool_name == "search"
-        assert response.tool_calls[0].arguments == {"q": "cats"}
+        assert len(response.metadata.tool_calls) == 1
+        assert response.metadata.tool_calls[0].call_id == "c1"
+        assert response.metadata.tool_calls[0].tool_name == "search"
+        assert response.metadata.tool_calls[0].arguments == {"q": "cats"}
 
 
 class TestReActLoopEndToEnd(unittest.IsolatedAsyncioTestCase):
@@ -252,8 +252,8 @@ class TestReActLoopEndToEnd(unittest.IsolatedAsyncioTestCase):
         assert run.succeeded
         response = run.outputs["loop"]
         assert isinstance(response, AgentResponse)
-        assert response.finish_reason == "stop"
-        assert response.content == "42 is the answer"
+        assert response.metadata.finish_reason == "stop"
+        assert response.data == "42 is the answer"
         assert tool.invocations == [{"input": "foo"}]
 
 

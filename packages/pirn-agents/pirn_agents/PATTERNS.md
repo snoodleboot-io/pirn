@@ -300,7 +300,7 @@ results) must be merged into a single coherent response.
 # Simplest: project each prior AgentResponse to an AgentMessage, then synthesise
 class ResponsesToMessages(Knot):
     async def process(self, responses: Sequence[AgentResponse], **_) -> tuple[AgentMessage, ...]:
-        return tuple(AgentMessage(role="assistant", content=r.content) for r in responses)
+        return tuple(AgentMessage(role="assistant", content=r.data) for r in responses)
 
 as_messages = ResponsesToMessages(responses=[resp_a, resp_b, resp_c], _config=KnotConfig(id="to_msgs"))
 ctx_synth   = ContextBuilder(messages=as_messages, _config=KnotConfig(id="ctx_synth"))
@@ -599,8 +599,8 @@ method. No hand-written adapter, no manual schema:
 - `parameters_schema` is derived from the agent's `process` inputs (falling back
   to `{task: str}`).
 - `run_view()` runs the inner agent and maps its `AgentResponse` into the F1
-  `ToolResult` shape (structured passthrough — `content`, `tool_calls`, `usage`,
-  `cost` — not just `.content`); an inner failure surfaces as a tool error.
+  `ToolResult` shape (structured passthrough — the reply `data` plus the frame's `tool_calls`,
+  `usage`, `cost` — not just the text); an inner failure surfaces as a tool error.
 
 Safety and performance come built in and are shared with the handoff/swarm path
 (both funnel through the same `AgentTool` machinery): a **max nesting depth**
@@ -786,7 +786,7 @@ with Tapestry() as t:
         max_concurrency=8,
         _config=KnotConfig(id="rewoo"),
     )
-result = (await t.run(RunRequest())).outputs["rewoo"]   # ReWooResult(answer, plan, results)
+result = (await t.run(RunRequest())).outputs["rewoo"]   # ReWooResult: data = answer; metadata.plan, metadata.results
 ```
 
 ## Pattern 20 — Reflexion (actor / evaluator / self-reflection + memory)
@@ -807,7 +807,7 @@ with Tapestry() as t:
         max_iterations=3,
         _config=KnotConfig(id="rx"),
     )
-result = (await t.run(RunRequest())).outputs["rx"]   # ReflexionResult(answer, succeeded, attempts)
+result = (await t.run(RunRequest())).outputs["rx"]   # ReflexionResult: data = answer; metadata.succeeded, metadata.attempts
 ```
 
 ## Pattern 21 — Evaluator-Optimizer (LLM-as-judge accept loop)
@@ -830,7 +830,7 @@ with Tapestry() as t:
         max_iterations=3,
         _config=KnotConfig(id="eo"),
     )
-result = (await t.run(RunRequest())).outputs["eo"]   # EvaluatorOptimizerResult(answer, score, accepted)
+result = (await t.run(RunRequest())).outputs["eo"]   # EvaluatorOptimizerResult: data = answer; metadata.score, metadata.accepted
 ```
 
 ## Pattern 22 — Router + typed Fallback chain
@@ -855,7 +855,7 @@ with Tapestry() as t:
         arguments={"input": "the query"},
         _config=KnotConfig(id="rf"),
     )
-result = (await t.run(RunRequest())).outputs["rf"]   # FallbackResult(succeeded, chosen, attempted, skipped)
+result = (await t.run(RunRequest())).outputs["rf"]   # FallbackResult: data = result; metadata.succeeded, .chosen, .attempted, .skipped
 ```
 
 ## Pattern 23 — Orchestrator-Workers (dynamic, via F7)
@@ -876,7 +876,7 @@ with Tapestry() as t:
         max_concurrency=4,
         _config=KnotConfig(id="ow"),
     )
-result = (await t.run(RunRequest())).outputs["ow"]   # OrchestratorWorkersResult(results, succeeded, total)
+result = (await t.run(RunRequest())).outputs["ow"]   # OrchestratorWorkersResult: data = results; metadata.succeeded, metadata.total
 ```
 
 ## Pattern 24 — LATS / tree-search act (budgeted)
@@ -898,7 +898,7 @@ with Tapestry() as t:
         max_depth=4,
         _config=KnotConfig(id="lats"),
     )
-result = (await t.run(RunRequest())).outputs["lats"]   # LatsResult(best_trajectory, best_value, nodes_expanded)
+result = (await t.run(RunRequest())).outputs["lats"]   # LatsResult: data = best_trajectory; metadata.best_value, metadata.nodes_expanded
 ```
 
 ## Pattern 25 — Self-Ask
@@ -912,7 +912,7 @@ from pirn_agents.specializations.self_ask.self_ask_pipeline import SelfAskPipeli
 with Tapestry() as t:
     SelfAskPipeline(task="Who directed the highest-grossing film of 1997?", llm=my_provider,
                     _config=KnotConfig(id="sa"))
-result = (await t.run(RunRequest())).outputs["sa"]   # SelfAskResult(final_answer, subquestions, subanswers)
+result = (await t.run(RunRequest())).outputs["sa"]   # SelfAskResult: data = final_answer; metadata.subquestions, metadata.subanswers
 ```
 
 ## Pattern 26 — Plan-ReAct
@@ -926,7 +926,7 @@ from pirn_agents.specializations.plan_react.plan_react_pipeline import PlanReAct
 with Tapestry() as t:
     PlanReActPipeline(task="Research and summarise X.", llm=my_provider, tools=(search_tool,),
                       max_iterations=4, max_steps=5, _config=KnotConfig(id="pr"))
-result = (await t.run(RunRequest())).outputs["pr"]   # PlanReActResult(plan, step_responses, final)
+result = (await t.run(RunRequest())).outputs["pr"]   # PlanReActResult: data = final; metadata.plan, metadata.step_responses
 ```
 
 ## Pattern 27 — Prompt-chaining
@@ -941,7 +941,7 @@ with Tapestry() as t:
     PromptChainPipeline(task=long_document, llm=my_provider,
                         steps=("Summarise in 3 bullets.", "Translate the summary to French."),
                         _config=KnotConfig(id="pc"))
-result = (await t.run(RunRequest())).outputs["pc"]   # PromptChainResult(outputs, final)
+result = (await t.run(RunRequest())).outputs["pc"]   # PromptChainResult: data = final; metadata.outputs
 ```
 
 ---
@@ -1266,7 +1266,7 @@ await AgentCallRecorder.record(
     ok=True,
     latency=time.perf_counter() - start,
     model="gpt-…",
-    tokens=reply.usage.total_tokens,
+    tokens=reply.metadata.usage.get("total_tokens"),
 )
 ```
 

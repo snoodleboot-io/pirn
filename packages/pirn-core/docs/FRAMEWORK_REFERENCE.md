@@ -636,8 +636,9 @@ and generates the pattern list from the registry to verify it against a new
 "Full Pattern Reference" appendix in `pirn_agents/PATTERNS.md`.
 
 `AgentResponse` is `Payload[GenerationFrame, str]` in place — `data` is the
-reply text, `frame` carries `finish_reason`/`usage`/`cost`/`tool_calls`/
-`model`/`provider`; the pre-ADR field names stay readable as properties.
+reply text, `metadata` (the frame) carries `finish_reason`/`usage`/`cost`/`tool_calls`/
+`model`/`provider`. The field-name alias properties (`content`, `tool_calls`, …,
+`frame`) are deleted (PIR-872): read `response.data` / `response.metadata.<field>`.
 `AgentContext` (a flat frozen dataclass with no frame/lineage descriptor) is
 replaced by `ConversationPayload = Payload[ConversationFrame, tuple[AgentMessage, ...]]`;
 `AgentContext` is deleted (PIR-864).
@@ -723,7 +724,9 @@ objects (`EvaluatorOptimizerResult`, `LatsResult`, `OrchestratorWorkersResult`,
 `WorkerTaskResult`, `PlanReActResult`, `PromptChainResult`, `SimulationResult`,
 `ReflexionResult`, `ReWooResult`, `FallbackResult`, `SelfAskResult`) are now
 `Payload[<Frame>, D]` too, with `AgentResult` reduced to a thin generic
-`Payload` base; pre-ADR field names stay readable as properties.
+`Payload` base. Their field-name alias properties — like `AgentResponse`'s,
+`ConversationPayload`'s and `MemoryRecord`'s — are deleted (PIR-872); a field is read
+as `result.data` / `result.metadata.<field>`.
 `document_processing/_document_loader.py`'s ingestor (reading files/HTTP
 inside `process()`) is deleted per the assembler/disassembler pattern and
 replaced by `DocumentSource` (a `Source` knot modeled on

@@ -71,6 +71,6 @@ class LLMCall(Knot):
         if model is not None and (not isinstance(model, str) or not model):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise ValueError(f"LLMCall: model must be a non-empty string or None, got {model!r}")
         wire_messages = tuple(
-            {"role": message.role, "content": message.content} for message in context.messages
+            {"role": message.role, "content": message.content} for message in context.data
         )
         return await llm.chat(messages=wire_messages, model=model)

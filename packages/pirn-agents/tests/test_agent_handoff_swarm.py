@@ -41,8 +41,8 @@ class TestSharedMachinery(unittest.IsolatedAsyncioTestCase):
         # agent, as a transfer/swarm path does.
         handoff_style = await AgentTool(agent).run_view({"topic": "same"})
 
-        self.assertEqual(tool_style.result.content, handoff_style.result.content)
-        self.assertEqual(tool_style.result.content, "answer:same")
+        self.assertEqual(tool_style.result.data, handoff_style.result.data)
+        self.assertEqual(tool_style.result.data, "answer:same")
 
     async def test_swarm_of_agent_tools_in_react_loop(self) -> None:
         outer_llm = StubLLMProvider(
@@ -107,4 +107,4 @@ class TestPattern16DocExample(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(run.succeeded)
         response = run.outputs["outer"]
         self.assertIsInstance(response, AgentResponse)
-        self.assertEqual(response.content, "summarised")
+        self.assertEqual(response.data, "summarised")

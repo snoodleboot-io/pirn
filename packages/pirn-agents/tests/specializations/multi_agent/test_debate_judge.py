@@ -36,14 +36,14 @@ class TestDebateJudgeProcess(unittest.IsolatedAsyncioTestCase):
         llm = StubLLMProvider(["1"])
         responses = [_resp("arg zero"), _resp("arg one")]
         out = await k.process(topic="The question", final_round=responses, judge_llm=llm)
-        assert out.content == "arg one"
+        assert out.data == "arg one"
 
     async def test_falls_back_to_first_on_parse_failure(self) -> None:
         k = _make_knot()
         llm = StubLLMProvider(["not-a-number"])
         responses = [_resp("first"), _resp("second")]
         out = await k.process(topic="topic", final_round=responses, judge_llm=llm)
-        assert out.content == "first"
+        assert out.data == "first"
 
     async def test_rejects_empty_final_round(self) -> None:
         k = _make_knot()
@@ -68,4 +68,4 @@ class TestDebateJudgeProcess(unittest.IsolatedAsyncioTestCase):
                 _config=KnotConfig(id="dj"),
             )
         result = await t.run(RunRequest())
-        assert result.outputs["dj"].content == "arg one"
+        assert result.outputs["dj"].data == "arg one"

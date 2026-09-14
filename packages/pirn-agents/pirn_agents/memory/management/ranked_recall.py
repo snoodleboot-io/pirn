@@ -145,7 +145,7 @@ class RankedRecall(Knot):
         records = [candidate.record for candidate in items]
         relevance_raw = await self._relevance(query, items, reranker)
         recency_raw = [self._recency(record, now, half_life_seconds) for record in records]
-        importance_raw = [float(record.importance) for record in records]
+        importance_raw = [float(record.metadata.importance) for record in records]
         relevance = self._min_max(relevance_raw)
         recency = self._min_max(recency_raw)
         importance = self._min_max(importance_raw)
@@ -163,7 +163,7 @@ class RankedRecall(Knot):
             )
             for index in range(len(records))
         ]
-        ranked.sort(key=lambda item: (-item.score, item.record.id))
+        ranked.sort(key=lambda item: (-item.score, item.record.data.id))
         return ranked
 
     @staticmethod
@@ -186,7 +186,8 @@ class RankedRecall(Knot):
         if reranker is None:
             return [float(candidate.relevance) for candidate in items]
         documents = [
-            {"id": candidate.record.id, "content": candidate.record.content} for candidate in items
+            {"id": candidate.record.data.id, "content": candidate.record.data.content}
+            for candidate in items
         ]
         scores = await reranker.score(query, documents)
         return [float(score) for score in scores]

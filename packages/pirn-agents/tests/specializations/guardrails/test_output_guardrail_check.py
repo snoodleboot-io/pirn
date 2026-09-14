@@ -39,7 +39,7 @@ class TestOutputGuardrailCheckProcessDirect(unittest.IsolatedAsyncioTestCase):
         assert run.succeeded
         result = run.outputs["gate"]
         assert isinstance(result, AgentResponse)
-        assert result.content == "all good"
+        assert result.data == "all good"
 
     async def test_process_raises_for_deny_pattern_match(self) -> None:
         response = AgentResponse(content="this is BAD content", finish_reason="stop")
@@ -94,7 +94,7 @@ class TestOutputGuardrailCheckProcess(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         validated = result.outputs["gate"]
         assert isinstance(validated, AgentResponse)
-        assert validated.content == "all good"
+        assert validated.data == "all good"
 
     async def test_fails_run_when_disallowed_tool_used(self) -> None:
         response = AgentResponse(

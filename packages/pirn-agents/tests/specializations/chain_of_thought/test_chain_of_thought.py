@@ -30,7 +30,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         k = _make_knot(llm)
         response = await k.process(prompt="What is the answer?", llm=llm)
         assert isinstance(response, AgentResponse)
-        assert response.content == "Step 1: reason. Step 2: conclude. Final: 42."
+        assert response.data == "Step 1: reason. Step 2: conclude. Final: 42."
 
     async def test_passes_system_prompt_and_user_prompt_to_llm(self) -> None:
         llm = StubLLMProvider(["reasoning"])

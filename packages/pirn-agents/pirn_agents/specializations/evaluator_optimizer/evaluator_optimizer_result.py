@@ -18,30 +18,15 @@ class EvaluatorOptimizerResult(AgentResult[EvaluatorOptimizerFrame, str]):
     is the best candidate answer produced, and ``metadata`` is the
     :class:`EvaluatorOptimizerFrame` carrying the score/accepted/iterations
     facts. The constructor takes the pattern's named fields (``answer``, ``score``,
-    ``accepted``, ``iterations``), and each is also a read-only property.
+    ``accepted``, ``iterations``); read them back as ``data`` and
+    ``metadata.<field>``.
     """
 
     def __init__(self, answer: str, score: float, accepted: bool, iterations: int) -> None:
         frame = EvaluatorOptimizerFrame(score=score, accepted=accepted, iterations=iterations)
         super().__init__(metadata=frame, data=answer)
 
-    @property
-    def answer(self) -> str:
-        return self._data
-
-    @property
-    def score(self) -> float:
-        return self._metadata.score
-
-    @property
-    def accepted(self) -> bool:
-        return self._metadata.accepted
-
-    @property
-    def iterations(self) -> int:
-        return self._metadata.iterations
-
     def _pirn_audit_dict(self) -> dict[str, Any]:
         audit = dict(super()._pirn_audit_dict())
-        audit["answer"] = self.answer
+        audit["answer"] = self.data
         return audit

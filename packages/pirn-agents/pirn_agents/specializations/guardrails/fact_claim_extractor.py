@@ -1,14 +1,14 @@
 """``FactClaimExtractor`` — list factual claims emitted by an LLM.
 
 Inner stage knot used by :class:`FactCheck`. Renders the supplied
-:class:`AgentResponse.content` into a claim-extraction prompt, calls
+the :class:`AgentResponse`'s ``data`` (its reply text) into a claim-extraction prompt, calls
 the configured :class:`LLMProvider`, and parses out one claim per
 line. Empty lines and common list markers are stripped.
 
 Algorithm:
     1. Validate that ``response`` is an :class:`AgentResponse`; raise
        :class:`TypeError` otherwise.
-    2. Build a claim-extraction prompt embedding ``response.content`` and
+    2. Build a claim-extraction prompt embedding ``response.data`` and
        request one factual claim per line with no editorialising.
     3. Send the prompt to the :class:`LLMProvider` and extract the text from
        the returned value.
@@ -72,7 +72,7 @@ class FactClaimExtractor(Knot):
             A list of factual claim strings extracted from the response content.
         """
         prompt = type(self)._extraction_prompt.render(
-            {"answer": response.content},
+            {"answer": response.data},
         )
         raw = await llm.chat([{"role": "user", "content": prompt}])
         text = self._extract_text(raw)

@@ -148,7 +148,7 @@ class AgentToolCall(SubTapestry):
                 agent_id=values.get("agent_id"),
             )
         if meter is not None and isinstance(result, Ok) and isinstance(result.value, AgentResponse):
-            tokens = AgentResponseMapper().summarise_tokens(result.value.usage)
+            tokens = AgentResponseMapper().summarise_tokens(result.value.metadata.usage)
             if tokens is not None:
                 meter.spend_tokens(tokens)
         return result

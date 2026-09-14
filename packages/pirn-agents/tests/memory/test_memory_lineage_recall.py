@@ -73,7 +73,7 @@ class TestMemoryLineageRecall:
             result = await t.run(RunRequest())
         assert result.succeeded
         recalled = result.outputs["recall"]
-        assert [r.id for r in recalled] == ["e1", "e2"]
+        assert [r.data.id for r in recalled] == ["e1", "e2"]
 
     async def test_unknown_writer_id_recalls_nothing(self) -> None:
         history = InMemoryHistory()
@@ -108,7 +108,7 @@ class TestMemoryLineageRecall:
             result = await t.run(RunRequest())
         assert result.succeeded
         recalled = result.outputs["recall"]
-        assert [r.id for r in recalled] == ["e2"]
+        assert [r.data.id for r in recalled] == ["e2"]
 
     async def test_rejects_non_run_history(self) -> None:
         data_store = InMemoryDataStore()

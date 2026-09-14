@@ -73,7 +73,7 @@ class TestDebateFrameworkProcess(unittest.IsolatedAsyncioTestCase):
         assert run.succeeded
         winner = run.outputs["debate"]
         assert isinstance(winner, AgentResponse)
-        assert winner.content == "against the motion"
+        assert winner.data == "against the motion"
 
     async def test_rejects_too_few_debaters(self) -> None:
         judge = StubLLMProvider(["0"])
@@ -111,7 +111,7 @@ class TestDebateFrameworkProcess(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         winner = result.outputs["debate"]
         assert isinstance(winner, AgentResponse)
-        assert winner.content == "against the motion"
+        assert winner.data == "against the motion"
 
     async def test_failure_mode_unchanged_when_a_debater_fails(self) -> None:
         # Unrolling the rounds into Aggregators gains NO per-debater isolation:

@@ -74,6 +74,6 @@ class TerminationCheck(Knot):
             raise ValueError(
                 f"TerminationCheck: max_iterations must be a positive int, got {max_iterations!r}"
             )
-        if response.finish_reason == FinishReason.STOP.value:
+        if response.metadata.finish_reason == FinishReason.STOP.value:
             return True
         return current_iteration >= max_iterations

@@ -43,4 +43,4 @@ class RecallCandidate(PirnOpaqueValue):
             raise TypeError("RecallCandidate: relevance must be a real number")
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
-        return {"record": self.record.id, "relevance": float(self.relevance)}
+        return {"record": self.record.data.id, "relevance": float(self.relevance)}

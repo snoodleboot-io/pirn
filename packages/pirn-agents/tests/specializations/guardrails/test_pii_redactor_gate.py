@@ -34,9 +34,9 @@ class TestPiiRedactorCheckProcess(unittest.IsolatedAsyncioTestCase):
         assert run.succeeded
         result = run.outputs["pii"]
         assert isinstance(result, AgentResponse)
-        assert "me@x.com" not in result.content
-        assert "555-12-3456" not in result.content
-        assert result.content.count("<redacted>") == 2
+        assert "me@x.com" not in result.data
+        assert "555-12-3456" not in result.data
+        assert result.data.count("<redacted>") == 2
 
     async def test_returns_response_unchanged_when_no_match(self) -> None:
         response = AgentResponse(content="completely benign content", finish_reason="stop")
@@ -50,7 +50,7 @@ class TestPiiRedactorCheckProcess(unittest.IsolatedAsyncioTestCase):
         assert run.succeeded
         result = run.outputs["pii"]
         assert isinstance(result, AgentResponse)
-        assert result.content == "completely benign content"
+        assert result.data == "completely benign content"
 
     async def test_custom_pattern_redacts_match(self) -> None:
         response = AgentResponse(content="my id is ID-99999", finish_reason="stop")
@@ -63,8 +63,8 @@ class TestPiiRedactorCheckProcess(unittest.IsolatedAsyncioTestCase):
         run = await t.run(RunRequest())
         assert run.succeeded
         result = run.outputs["pii"]
-        assert "<redacted>" in result.content
-        assert "ID-99999" not in result.content
+        assert "<redacted>" in result.data
+        assert "ID-99999" not in result.data
 
     async def test_tapestry_run_integration(self) -> None:
         response = AgentResponse(
@@ -80,4 +80,4 @@ class TestPiiRedactorCheckProcess(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         redacted = result.outputs["pii"]
         assert isinstance(redacted, AgentResponse)
-        assert "me@x.com" not in redacted.content
+        assert "me@x.com" not in redacted.data

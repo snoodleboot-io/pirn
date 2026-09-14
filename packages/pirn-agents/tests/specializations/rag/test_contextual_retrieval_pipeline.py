@@ -54,7 +54,7 @@ class TestContextualRetrievalPipelineHappyPath(unittest.IsolatedAsyncioTestCase)
         assert result.succeeded
         response = result.outputs["ctx"]
         assert isinstance(response, AgentResponse)
-        assert response.content == "final grounded answer"
+        assert response.data == "final grounded answer"
         # Synthesis prompt carries the compressed relevant span only.
         synth_prompt = llm.calls[-1][-1]["content"]
         assert "TARGET answer" in synth_prompt

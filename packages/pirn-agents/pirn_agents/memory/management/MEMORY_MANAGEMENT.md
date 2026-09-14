@@ -47,18 +47,19 @@ pirn_agents/memory_management/
 
 ## Typed schema + provenance contract (for F11 trust)
 
-Every managed memory is a `MemoryRecord`:
+Every managed memory is a `MemoryRecord` — a `Payload[MemoryProvenance, MemoryContent]`.
+The constructor takes each field by name; read it back through the `Payload` contract:
 
-| field           | type                | meaning                                            |
-|-----------------|---------------------|----------------------------------------------------|
-| `id`            | `str`               | store key                                          |
-| `kind`          | `MemoryKind`        | `episodic` / `semantic` / `procedural` / `profile` |
-| `content`       | `str`               | text payload                                       |
-| `provenance`    | `MemoryProvenance`  | origin + trust (below)                             |
-| `created_at`    | `datetime`          | creation time (recency anchor when unaccessed)     |
-| `importance`    | `float` in `[0,1]`  | caller-assigned; survives decay, ranks higher      |
-| `last_accessed` | `datetime \| None`  | last read; overrides `created_at` as recency anchor |
-| `metadata`      | `Mapping`           | scalar extras (e.g. `session_id`, `source_ids`)    |
+| constructor field | read as                  | type                | meaning                                            |
+|-------------------|--------------------------|---------------------|----------------------------------------------------|
+| `id`              | `data.id`                | `str`               | store key                                          |
+| `kind`            | `data.kind`              | `MemoryKind`        | `episodic` / `semantic` / `procedural` / `profile` |
+| `content`         | `data.content`           | `str`               | text payload                                       |
+| `provenance`      | `metadata`               | `MemoryProvenance`  | origin + trust (below), with the lifecycle fields folded in |
+| `created_at`      | `metadata.created_at`    | `datetime`          | creation time (recency anchor when unaccessed)     |
+| `importance`      | `metadata.importance`    | `float` in `[0,1]`  | caller-assigned; survives decay, ranks higher      |
+| `last_accessed`   | `metadata.last_accessed` | `datetime \| None`  | last read; overrides `created_at` as recency anchor |
+| `metadata`        | `data.tags`              | `Mapping`           | scalar extras (e.g. `session_id`, `source_ids`)    |
 
 `MemoryProvenance` is the **soft F11 tie** — a value object F11 trust consumes
 without this package depending on F11:

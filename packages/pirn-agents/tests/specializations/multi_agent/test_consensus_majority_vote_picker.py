@@ -34,13 +34,13 @@ class TestConsensusMajorityVotePickerProcess(unittest.IsolatedAsyncioTestCase):
             "c": _resp("red"),
         }
         result = await k.process(responses=responses)
-        assert result.content == "blue"
+        assert result.data == "blue"
 
     async def test_tie_broken_by_first_seen(self) -> None:
         k = _make_knot()
         responses = {"a": _resp("blue"), "b": _resp("red")}
         result = await k.process(responses=responses)
-        assert result.content == "blue"
+        assert result.data == "blue"
 
     async def test_rejects_empty_responses(self) -> None:
         k = _make_knot()
@@ -55,4 +55,4 @@ class TestConsensusMajorityVotePickerProcess(unittest.IsolatedAsyncioTestCase):
     async def test_single_response_returns_that_response(self) -> None:
         k = _make_knot()
         result = await k.process(responses={"only": _resp("sole")})
-        assert result.content == "sole"
+        assert result.data == "sole"

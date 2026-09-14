@@ -14,9 +14,10 @@ These tests pin the substitutability contract the rebase must preserve:
 
 * the base is a non-dataclass ``Payload``/``PirnOpaqueValue`` subclass, and
 * every concrete is a genuine ``AgentResult`` / ``Payload`` / ``PirnOpaqueValue``,
-  overrides ``_pirn_audit_dict``, exposes its named fields as read-only
-  properties (hard-coded per class so the assertion cannot go vacuous), and
-  compares equal to another instance built from the same field values.
+  overrides ``_pirn_audit_dict``, takes its named fields in its constructor
+  (hard-coded per class so the assertion cannot go vacuous) but exposes none of
+  them as an alias property -- a field is read through ``metadata``/``data`` --
+  and compares equal to another instance built from the same field values.
 
 The negative pins guard the seam from over-reach: sub-component frozen value
 objects that are *not* top-level pattern results stay plain ``PirnOpaqueValue``
@@ -240,17 +241,18 @@ def test_result_init_signature_preserves_pre_adr_field_order(
 @pytest.mark.parametrize(
     ("module_path", "class_name", "expected_params"), _RESULT_CLASSES, ids=_RESULT_IDS
 )
-def test_result_exposes_every_field_as_a_read_only_property(
+def test_result_has_no_field_name_alias_properties(
     module_path: str, class_name: str, expected_params: tuple[str, ...]
 ) -> None:
     # Arrange.
     cls = _load(module_path, class_name)
 
-    # Act / Assert: every named field is a property with no setter.
-    for name in expected_params:
-        attr = inspect.getattr_static(cls, name)
-        assert isinstance(attr, property), f"{class_name}.{name} is not a property"
-        assert attr.fset is None, f"{class_name}.{name} must be read-only"
+    # Act.
+    aliases = [name for name in expected_params if hasattr(cls, name)]
+
+    # Assert: a constructor field is read through Payload's own ``metadata``/``data``,
+    # never re-exposed under its constructor name (PIR-872 deleted those aliases).
+    assert aliases == []
 
 
 @pytest.mark.parametrize(
@@ -277,11 +279,13 @@ def test_result_properties_are_frozen(class_name: str, kwargs: dict[str, object]
     module_path = next(mp for mp, name, _ in _RESULT_CLASSES if name == class_name)
     cls = _load(module_path, class_name)
     instance = cls(**kwargs)
-    (first_field, _) = next(iter(kwargs.items()))
 
-    # Act / Assert: no property has a setter, so assignment always raises.
+    # Act / Assert: Payload's ``metadata`` and ``data`` have no setter, so
+    # assignment always raises.
     with pytest.raises(AttributeError):
-        setattr(instance, first_field, "modified")
+        instance.metadata = "modified"
+    with pytest.raises(AttributeError):
+        instance.data = "modified"
 
 
 # --- negative / scope pins -----------------------------------------------

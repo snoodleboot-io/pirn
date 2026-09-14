@@ -25,7 +25,7 @@ async def main() -> None:
     result = await tapestry.run(RunRequest(parameters={"seed_messages": seed}))
     for rec in result.lineage:
         print(f"  {rec.knot_id:<18} {rec.outcome}")
-    print(result.outputs["agent"].content)
+    print(result.outputs["agent"].data)
 
 
 if __name__ == "__main__":

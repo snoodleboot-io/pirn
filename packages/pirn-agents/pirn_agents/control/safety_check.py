@@ -78,6 +78,6 @@ class SafetyCheck(Knot):
             field="deny_patterns",
             flags=re.IGNORECASE,
         )
-        content = message.content
+        content = message.data if isinstance(message, AgentResponse) else message.content
         match = await self._pattern_compiler.search_any(tuple(compiled), content)
         return match is None

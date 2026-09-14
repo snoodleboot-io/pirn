@@ -110,7 +110,7 @@ class ForcedToolChoiceExtractor:
             tools=self.toolset(),
             request_options=options,
         )
-        call = self._single_call(response.tool_calls)
+        call = self._single_call(response.metadata.tool_calls)
         try:
             return self._model_class.model_validate(dict(call.arguments))
         except ValidationError as exc:

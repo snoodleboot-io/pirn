@@ -90,8 +90,8 @@ class TestNaiveRAGPipelineHappyPath(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         response = result.outputs["rag"]
         assert isinstance(response, AgentResponse)
-        assert response.content == "The answer is 42."
-        assert response.finish_reason == "stop"
+        assert response.data == "The answer is 42."
+        assert response.metadata.finish_reason == "stop"
         assert memory.search_queries == ["quantum computing facts"]
         # Prompt should have been forwarded to the LLM with retrieved context.
         assert len(llm.calls) == 1
