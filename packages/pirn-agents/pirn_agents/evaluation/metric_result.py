@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MetricResult`` — one metric's score plus explanatory detail."""
 
 from __future__ import annotations
@@ -31,7 +33,7 @@ class MetricResult(PirnOpaqueValue):
 
     name: str
     score: float
-    detail: Mapping[str, Any] = field(default_factory=dict)
+    detail: Mapping[str, Any] = field(default_factory=dict[str, Any])
 
     def __post_init__(self) -> None:
         """Validate the name and coerce the score to a float.

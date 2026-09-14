@@ -1,6 +1,6 @@
 """Characterise core ``Aggregator``'s behaviour with a ``Skipped`` parent.
 
-ADR agents-speaks-core WS5a asks whether ``_AttemptTier``/``_CandidateAttempt``'s
+ADR agents-speaks-core WS5a asks whether ``AttemptTier``/``CandidateAttempt``'s
 hand-rolled fold-accumulator chains (a Python ``if prior.locked: return prior``
 at the top of ``process()``) could instead be expressed as an ``Aggregator``
 over N sibling attempts, picking whichever one actually ran. This test pins
@@ -24,7 +24,7 @@ Findings (see the WS5a report for the full writeup):
    and can discriminate — this is the shape that *could* replace a fold
    chain, but it requires all N candidates to be constructed as sibling
    knots up front (a static ``Aggregator`` fan-in), which does not fit
-   ``_AttemptTier``/``_CandidateAttempt``: each tier's decision to attempt at
+   ``AttemptTier``/``CandidateAttempt``: each tier's decision to attempt at
    all depends on the *previous* tier's resolved outcome (locked / cost
    accrued so far), a genuine sequential dependency, not a static N-way
    fan-in over independently-computable siblings.

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``GraphRetrievalConfig`` — retrieval breadth for graph-shaped RAG."""
 
 from __future__ import annotations

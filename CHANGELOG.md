@@ -15,11 +15,11 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - `pirn/nodes/nested_run_knot.py` — `NestedRunKnot(Knot)`: a knot whose `process()` awaits `self._run_inner(inner)` for as many inner runs as its work needs and returns its own value. It is the machinery `SubTapestry` used to own — the construction-time capture of the enclosing history/emitters/value plane, `_run_inner`, the `_inner_dispatcher` / `_inner_concurrency` / `_inner_admission_observers` / `_make_inner_tapestry` hooks, `_nesting_key`, `_inner_failures_reach_sink`, slot-free admission and the `concurrency_group` refusal — moved out from under the sink-returning contract. `SubTapestry` is now `SubTapestry(NestedRunKnot)` and adds only that contract; its behaviour is unchanged.
 - Every inner run is recorded on the knot's lineage row by `_run_inner` itself (success or failure): `extra["inner_run_id"]` / `inner_knot_count` / `inner_failures` for the latest run, and `extra["inner_run_ids"]` in start order once there is more than one. `Tapestry.run(_inner_run_ordinal=)` (internal, passed by `_run_inner`) lets an inherited replay posture serve the n-th inner run from the n-th recording instead of always the last one.
-- `pirn-agents`: `_RaptorAssembler` is `Assembler, NestedRunKnot`; each tree level's cluster summaries run as one `_RaptorSummary` knot per cluster under an `Aggregator` (own lineage row, `Result` and admission per LLM call, clusters summarized concurrently), with the dedup short-circuit and the single final upsert unchanged. `_RaptorAssembler._summarize` moved to `_RaptorSummary._summarize`.
+- `pirn-agents`: `RaptorAssembler` is `Assembler, NestedRunKnot`; each tree level's cluster summaries run as one `RaptorSummary` knot per cluster under an `Aggregator` (own lineage row, `Result` and admission per LLM call, clusters summarized concurrently), with the dedup short-circuit and the single final upsert unchanged. `RaptorAssembler._summarize` moved to `RaptorSummary._summarize`.
 
 #### `RunEval` on the engine; eval determinism is core replay (PIR-872)
 
-- `RunEval.run` runs one `_EvalCase` knot per dataset item (target call, metric scoring, threshold check) under `KnotConfig(concurrency_group="eval_items")` + `ConcurrencyLimits`, joined by an `Aggregator` into the `EvalReport` — same report, dataset order preserved. It gained `history=`, `data_store=`, `run_id=` and `replay=`; a replay is refused when the items, thresholds, metric names or the *code* of the target or any metric differ (bytecode, constants, names, defaults, closure values, a partial's bound arguments; a C builtin falls back to `module.qualname`); a failed item raises the new `pirn_agents.exceptions.eval_run_error.EvalRunError` (a `PirnError` carrying the run) instead of the target's own exception escaping `asyncio.gather`.
+- `RunEval.run` runs one `EvalCase` knot per dataset item (target call, metric scoring, threshold check) under `KnotConfig(concurrency_group="eval_items")` + `ConcurrencyLimits`, joined by an `Aggregator` into the `EvalReport` — same report, dataset order preserved. It gained `history=`, `data_store=`, `run_id=` and `replay=`; a replay is refused when the items, thresholds, metric names or the *code* of the target or any metric differ (bytecode, constants, names, defaults, closure values, a partial's bound arguments; a C builtin falls back to `module.qualname`); a failed item raises the new `pirn_agents.exceptions.eval_run_error.EvalRunError` (a `PirnError` carrying the run) instead of the target's own exception escaping `asyncio.gather`.
 - `ToolTestHarness.run_tool` (and the instance `run`) drives a call through `Tapestry.run` — approval gate included — instead of `ToolFactory.run_call`'s bare-call path.
 
 #### A `Check` names the skip reason its `Gate` propagates (PIR-872)
@@ -103,8 +103,8 @@ The last standing entries in `tests/specializations/base/test_no_engine_bypass.p
 - `ChunkTranslator` and `FactClaimVerifier` fan independent per-item work (one chunk's translation, one claim's search) out into per-item knots joined by an `Aggregator`; `PlanExecutor` wires a `LoopSubTapestry` instead, since each step's prompt depends on every prior step's result. All three knots' `process()` now returns the sink of an inner pipeline rather than the computed value directly.
 - `retrieval/hybrid_retriever.py::HybridRetriever` becomes a `SubTapestry` wiring its dense and lexical arms as two knots into an `Aggregator`, in place of a hand-rolled `asyncio.gather`. `specializations/document_processing/chunk_embedder_store.py::ChunkEmbedderStore` and `ingestion_runner.py::IngestionRunner` do the same for their per-chunk writes and per-document ETL; `IngestionRunner`'s bounded concurrency is now a `ConcurrencyLimits` group cap (`_inner_concurrency()`) instead of a held `asyncio.Semaphore`.
 - `specializations/multi_agent/orchestrator_workers.py::OrchestratorWorkers` and its internal `WorkerInvocation` drop their own shared `asyncio.Semaphore` the same way — bounded concurrency is a `KnotConfig(concurrency_group=)` + `ConcurrencyLimits` group cap now, so the admission gate can see and steer it.
-- `specializations/routing/_attempt_tier.py::_AttemptTier` no longer awaits `CascadeTier.invoke` directly: a new `_TierInvocation` knot makes the call, and `_TierAttemptFold` (`error_policy=RECEIVE_ERRORS`) folds its outcome into the cascade's state. `_AttemptTier` becomes an `AgentPipeline`. (PIR-872 then deleted `CascadeTier.invoke` and `_TierInvocation`: a tier is an `LLMChatCall` knot — see "Removed".)
-- `rag/indexing/_raptor_assembler.py` keeps its atomic read-check-transform-write cycle unchanged (the assembler-disassembler ETL exception); giving each level's summarization its own lineage row via `SubTapestry._run_inner` was evaluated and deferred — see the module docstring for why it does not fit without a fragile multiple-inheritance workaround.
+- `specializations/routing/attempt_tier.py::AttemptTier` no longer awaits `CascadeTier.invoke` directly: a new `_TierInvocation` knot makes the call, and `TierAttemptFold` (`error_policy=RECEIVE_ERRORS`) folds its outcome into the cascade's state. `AttemptTier` becomes an `AgentPipeline`. (PIR-872 then deleted `CascadeTier.invoke` and `_TierInvocation`: a tier is an `LLMChatCall` knot — see "Removed".)
+- `rag/indexing/raptor_assembler.py` keeps its atomic read-check-transform-write cycle unchanged (the assembler-disassembler ETL exception); giving each level's summarization its own lineage row via `SubTapestry._run_inner` was evaluated and deferred — see the module docstring for why it does not fit without a fragile multiple-inheritance workaround.
 
 #### Specialization results, document loader, and PromptCache onto core seams (ADR agents-speaks-core WS6b, PIR-868)
 
@@ -254,7 +254,7 @@ Two new hooks on `SubTapestry` support specialised subclasses:
 - `pirn_agents.determinism.cassette_recorder.CassetteRecorder`, `cassette.Cassette`, `cassette_entry.CassetteEntry`, `interaction_kind.InteractionKind`, `recording_mode.RecordingMode`, `pirn_agents.exceptions.missing_cassette_entry_error.MissingCassetteEntryError` — `Tapestry.run(replay=ReplaySession(...))` (a missing recording raises core `ReplayMismatchError`).
 - `ToolTestHarness.invoke` — `ToolTestHarness.run`. The module-level `make_stub_tool` / `assert_tool_schema` / `assert_schema_shape` / `invoke_tool` / `collect_tool_stream` wrappers — `ToolTestHarness.make_stub_tool` / `.assert_tool_schema` / `.assert_tool_schema_shape` / `.run_tool` / `.collect_tool_stream`.
 - `ToolResult.from_result(gated=)` — the approval skip reason arrives on the `Skipped` itself.
-- `_RaptorAssembler._summarize` — `_RaptorSummary._summarize`.
+- `RaptorAssembler._summarize` — `RaptorSummary._summarize`.
 
 #### Agents specializations: pass-through knot deleted, helper knots named publicly (PIR-872)
 
@@ -366,6 +366,25 @@ pirn is alpha: a replaced name is deleted in the same change, never deprecated
 | `InMemoryDataStore.DEFAULT_MAX_VALUES` | `InMemoryDataStore.default_max_values` |
 | `InMemoryHistory.DEFAULT_MAX_RUNS` | `InMemoryHistory.default_max_runs` |
 | `InvocationIdentity.UNCOMPARABLE_MARKER` | `InvocationIdentity.uncomparable_marker` |
+| `pirn_agents.evaluation._callable_identity._CallableIdentity` | `pirn_agents.evaluation.callable_identity.CallableIdentity` |
+| `pirn_agents.evaluation._eval_subject._EvalSubject` | `pirn_agents.evaluation.eval_subject.EvalSubject` |
+| `pirn_agents.evaluation._eval_case._EvalCase` | `pirn_agents.evaluation.eval_case.EvalCase` |
+| `pirn_agents.tools.calculator._safe_evaluator._SafeEvaluator` | `pirn_agents.tools.calculator.safe_evaluator.SafeEvaluator` |
+| `pirn_agents.tools.web._text_extractor._TextExtractor` | `pirn_agents.tools.web.text_extractor.TextExtractor` |
+| `Tool._call_reported_by_container.set(...)` / `.get()` (read outside `Tool`) | `with Tool.container_reports_call():` / `Tool.call_reported_by_container()` |
+
+The pirn-agents `determinism`, `evaluation` and `tools` subpackages are pyright
+strict. `ToolCallCodec.encode_results` and `ToolCallCodec.views` take only
+`{call_id: Ok | Err | Skipped}`; the sequence-of-`ToolResult` input is deleted.
+`SqliteConnector._clear_credentials` (never called) is deleted. `ToolFactory`
+gained `with_parameters(parameters)` (a copy declaring a different `parameters`
+schema) and reads a knot class's input contract through `Tool.framework_kwarg_names()`,
+`Tool.declared_input_schema(cls)` and `Tool.input_annotations(cls)`.
+`ToolDecorator.decorate` is overloaded (bare form returns a `FunctionTool`, the
+parametrised form a decorator) and takes the function positionally only.
+`RunTrace`/`TraceEvent`/`TraceDiff`/`ToolDeclaration.from_payload` are typed
+`Mapping[str, Any]` (the runtime `TypeError` guard stays); an `EvalSubject`
+metric is typed to return `MetricResult | Awaitable[MetricResult]`.
 | `pirn_agents._internal._json_shape._JsonShape` | `pirn_agents._internal.json_shape.JsonShape` |
 | `pirn_agents.batch._map_item._MapItem` | `pirn_agents.batch.map_item.MapItem` |
 | `pirn_agents.batch._batch_item_streamer._BatchItemStreamer` | `pirn_agents.batch.batch_item_streamer.BatchItemStreamer` |

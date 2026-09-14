@@ -65,16 +65,16 @@ from pirn_agents.specializations.specialized_agents.browser_agent import Browser
 from pirn_agents.specializations.specialized_agents.code_generator import CodeGenerator
 from pirn_agents.specializations.specialized_agents.research_agent import ResearchAgent
 from pirn_agents.specializations.specialized_agents.sql_generator import SQLGenerator
-from pirn_agents.specializations.structured_output._enum_classifier_attempt import (
-    _EnumClassifierAttempt,
-)
-from pirn_agents.specializations.structured_output._json_extractor_attempt import (
-    _JsonExtractorAttempt,
-)
-from pirn_agents.specializations.structured_output._yaml_extractor_attempt import (
-    _YamlExtractorAttempt,
+from pirn_agents.specializations.structured_output.enum_classifier_attempt import (
+    EnumClassifierAttempt,
 )
 from pirn_agents.specializations.structured_output.format_coercer import FormatCoercer
+from pirn_agents.specializations.structured_output.json_extractor_attempt import (
+    JsonExtractorAttempt,
+)
+from pirn_agents.specializations.structured_output.yaml_extractor_attempt import (
+    YamlExtractorAttempt,
+)
 from pirn_agents.specializations.tool_use.tool_selector import ToolSelector
 from pirn_agents.tools.retrieval.rag_tool import RagTool
 from pirn_agents.tools.tool_call import ToolCall
@@ -662,7 +662,7 @@ class StructuredOutputPromptPins(unittest.IsolatedAsyncioTestCase):
 
     async def test_enum_classifier_attempt_system_prompt(self) -> None:
         llm = StubLLMProvider(responses=["yes"])
-        knot = _bare(_EnumClassifierAttempt)
+        knot = _bare(EnumClassifierAttempt)
         await knot.process(prompt="pick one", llm=llm, labels=("yes", "no"))
         assert llm.calls[0][0]["content"] == (
             "You are a classifier. Choose exactly one label from the list "
@@ -672,7 +672,7 @@ class StructuredOutputPromptPins(unittest.IsolatedAsyncioTestCase):
 
     async def test_json_extractor_attempt_system_prompt_without_prior_error(self) -> None:
         llm = StubLLMProvider(responses=['{"name": "ada"}'])
-        knot = _bare(_JsonExtractorAttempt)
+        knot = _bare(JsonExtractorAttempt)
         await knot.process(
             prompt="extract",
             llm=llm,
@@ -688,7 +688,7 @@ class StructuredOutputPromptPins(unittest.IsolatedAsyncioTestCase):
 
     async def test_json_extractor_attempt_system_prompt_with_prior_error(self) -> None:
         llm = StubLLMProvider(responses=['{"name": "ada"}'])
-        knot = _bare(_JsonExtractorAttempt)
+        knot = _bare(JsonExtractorAttempt)
         await knot.process(
             prompt="extract",
             llm=llm,
@@ -706,7 +706,7 @@ class StructuredOutputPromptPins(unittest.IsolatedAsyncioTestCase):
 
     async def test_yaml_extractor_attempt_system_prompt_bare(self) -> None:
         llm = StubLLMProvider(responses=["name: ada"])
-        knot = _bare(_YamlExtractorAttempt)
+        knot = _bare(YamlExtractorAttempt)
         await knot.process(prompt="extract", llm=llm, schema=None, prior_error="")
         assert llm.calls[0][0]["content"] == (
             "You are a structured-output assistant.\n"
@@ -715,7 +715,7 @@ class StructuredOutputPromptPins(unittest.IsolatedAsyncioTestCase):
 
     async def test_yaml_extractor_attempt_system_prompt_with_schema_and_error(self) -> None:
         llm = StubLLMProvider(responses=["name: ada"])
-        knot = _bare(_YamlExtractorAttempt)
+        knot = _bare(YamlExtractorAttempt)
         await knot.process(
             prompt="extract",
             llm=llm,

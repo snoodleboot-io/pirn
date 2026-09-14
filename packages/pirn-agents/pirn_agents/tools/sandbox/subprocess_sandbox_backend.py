@@ -76,7 +76,5 @@ class SubprocessSandboxBackend(SandboxBackend):
     @staticmethod
     def _kill_group(proc: asyncio.subprocess.Process) -> None:
         """SIGKILL the child's whole process group, ignoring a vanished process."""
-        if proc.pid is None:
-            return
         with contextlib.suppress(ProcessLookupError, PermissionError):
             os.killpg(os.getpgid(proc.pid), signal.SIGKILL)

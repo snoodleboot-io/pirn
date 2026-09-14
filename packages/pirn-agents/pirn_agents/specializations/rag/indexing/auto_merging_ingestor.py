@@ -6,7 +6,7 @@ together. Ingest is structurally identical to parent-doc — this ingestor reuse
 the existing sliding-window
 :class:`~pirn_agents.specializations.document_processing.document_chunker.DocumentChunker`
 and the shared
-:class:`~pirn_agents.specializations.rag.indexing._parent_child_indexer._ParentChildIndexer`;
+:class:`~pirn_agents.specializations.rag.indexing.parent_child_indexer.ParentChildIndexer`;
 the merge behaviour lives in :class:`AutoMergingRetriever`.
 
 References:
@@ -24,7 +24,7 @@ from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvide
 from pirn_agents.retrieval.vector_stores.vector_memory_store import VectorMemoryStore
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.document_processing.document_chunker import DocumentChunker
-from pirn_agents.specializations.rag.indexing._parent_child_indexer import _ParentChildIndexer
+from pirn_agents.specializations.rag.indexing.parent_child_indexer import ParentChildIndexer
 
 
 class AutoMergingIngestor(AgentPipeline):
@@ -66,7 +66,7 @@ class AutoMergingIngestor(AgentPipeline):
         group_size: int = 4,
         **_: Any,
     ) -> Knot:
-        """Wire ``DocumentChunker`` → ``_ParentChildIndexer`` and return the sink.
+        """Wire ``DocumentChunker`` → ``ParentChildIndexer`` and return the sink.
 
         Args:
             text: The full source document to ingest.
@@ -78,7 +78,7 @@ class AutoMergingIngestor(AgentPipeline):
             group_size: Number of consecutive leaves per parent.
 
         Returns:
-            The ``_ParentChildIndexer`` sink knot whose output is the leaf count.
+            The ``ParentChildIndexer`` sink knot whose output is the leaf count.
         """
         chunks = DocumentChunker(
             text=text,
@@ -86,7 +86,7 @@ class AutoMergingIngestor(AgentPipeline):
             chunk_overlap=chunk_overlap,
             _config=KnotConfig(id="chunk"),
         )
-        return _ParentChildIndexer(
+        return ParentChildIndexer(
             chunks=chunks,
             embedder=embedder,
             store=store,

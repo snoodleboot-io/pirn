@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``FusionRetriever`` — concurrent multi-query retrieval fused with RRF.
 
 The retrieval stage of RAG-Fusion. Given a list of query variants, it searches
@@ -8,7 +10,7 @@ de-duplicated by identity and returned in fused-score order, each carrying its
 
 The fan-out is expressed as a graph rather than a hand-rolled
 ``asyncio.gather`` over a semaphore: each query variant becomes its own
-:class:`~pirn_agents.specializations.rag._variant_search._VariantSearch`
+:class:`~pirn_agents.specializations.rag.variant_search.VariantSearch`
 invocation, fanned out with a core :class:`~pirn.nodes.map_markers.Map`, and
 folded into the fused ranking with a :class:`~pirn.nodes.reduce_.Reduce`. The
 engine schedules the per-variant searches concurrently — every ready sibling
@@ -25,7 +27,7 @@ than strictly capping it).
 Algorithm:
     1. Validate ``queries`` (list of str), ``store`` (:class:`MemoryStore`),
        ``top_k``, ``max_concurrency``, and ``rrf_k`` (positive ints).
-    2. Fan out one ``_VariantSearch`` invocation per query variant.
+    2. Fan out one ``VariantSearch`` invocation per query variant.
     3. A :class:`~pirn.nodes.reduce_.Reduce` keys each hit by its ``id`` (or a
        stable fallback), records the first-seen mapping, builds per-query
        ranked key lists, and fuses them via
@@ -59,8 +61,8 @@ from pirn.nodes.reduce_ import Reduce
 from pirn_agents.interfaces.retriever import Retriever
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.rag._fuse_variant_hits import _FuseVariantHits
-from pirn_agents.specializations.rag._variant_search import _VariantSearch
+from pirn_agents.specializations.rag.fuse_variant_hits import FuseVariantHits
+from pirn_agents.specializations.rag.variant_search import VariantSearch
 
 
 class FusionRetriever(AgentPipeline, Retriever):
@@ -137,18 +139,14 @@ class FusionRetriever(AgentPipeline, Retriever):
         queries_knot = Parameter(
             "queries", list[str], default=queries, _config=KnotConfig(id="queries")
         )
-        searched = _VariantSearch(
-            # Core's Map marker is consumed at construction by
-            # `knot.py:199-205` and is deliberately not a Knot, so it does not
-            # satisfy the declared `Knot | str`. Inline suppression is the
-            # house idiom for this; see PIR-715/PIR-716.
-            query=Map(queries_knot),  # pyright: ignore[reportArgumentType]
+        searched = VariantSearch(
+            query=Map(queries_knot),
             store=store,
             top_k=fetch,
             _config=KnotConfig(id="search_each", concurrency_group="fusion_retriever_search"),
         )
         return Reduce(
             of=searched,
-            combine=functools.partial(_FuseVariantHits.combine, rrf_k=rrf_k, top_k=top_k),
+            combine=functools.partial(FuseVariantHits.combine, rrf_k=rrf_k, top_k=top_k),
             _config=KnotConfig(id="fuse"),
         )

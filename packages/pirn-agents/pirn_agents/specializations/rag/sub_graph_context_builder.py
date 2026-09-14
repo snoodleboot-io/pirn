@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``SubGraphContextBuilder`` — flatten retrieved entity/relation dicts.
 
 Walks the retrieved graph nodes and edges up to ``hop_count`` hops and

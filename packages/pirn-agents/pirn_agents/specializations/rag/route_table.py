@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``RouteTable`` — an opaque name→:class:`MemoryStore` routing map.
 
 Router RAG dispatches a query to one of several named indexes/strategies. The

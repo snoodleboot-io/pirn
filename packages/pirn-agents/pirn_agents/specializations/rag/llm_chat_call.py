@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``LLMChatCall`` — single :meth:`LLMProvider.chat` request.
 
 A thin wrapper around :meth:`LLMProvider.chat` that takes a single
@@ -26,6 +28,7 @@ References:
 from __future__ import annotations
 
 import time
+from collections.abc import Mapping
 from typing import Any
 
 from pirn.core.knot import Knot
@@ -118,22 +121,17 @@ class LLMChatCall(Knot):
         return self._extract_text(response)
 
     @staticmethod
-    def _extract_text(raw: Any) -> str:
-        if isinstance(raw, str):
-            return raw
-        if isinstance(raw, dict):
-            content = raw.get("content")
-            if isinstance(content, str):
+    def _extract_text(raw: Mapping[str, Any] | str) -> str:
+        match raw:
+            case str():
+                return raw
+            case {"content": str() as content}:
                 return content
-            if isinstance(content, list) and content:
-                first = content[0]
-                if isinstance(first, dict):
-                    text = first.get("text")
-                    if isinstance(text, str):
-                        return text
-                if isinstance(first, str):
-                    return first
-            text = raw.get("text")
-            if isinstance(text, str):
+            case {"content": [{"text": str() as text}, *_]}:
                 return text
-        return str(raw)
+            case {"content": [str() as first, *_]}:
+                return first
+            case {"text": str() as text}:
+                return text
+            case _:
+                return str(raw)

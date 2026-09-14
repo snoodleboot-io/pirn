@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``StructuredDecoder`` — the unified, capability-gated structured-output API.
 
 The S4 entry point. Given a prompt, an LLM provider, and a target pydantic

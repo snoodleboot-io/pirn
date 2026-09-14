@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``MultiHopRAGPipeline`` — multi-hop retrieval-augmented generation.
 
 Decomposes the question into sub-questions, retrieves context for each,
@@ -31,6 +33,7 @@ References:
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
@@ -41,12 +44,12 @@ from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.memory.stores.memory_store import MemoryStore
 from pirn_agents.prompt.prompt_binding import PromptBinding
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.rag._multi_hop_result_extractor import (
-    _MultiHopResultExtractor,
-)
 from pirn_agents.specializations.rag.llm_chat_call import LLMChatCall
 from pirn_agents.specializations.rag.memory_search_retriever import (
     MemorySearchRetriever,
+)
+from pirn_agents.specializations.rag.multi_hop_result_extractor import (
+    MultiHopResultExtractor,
 )
 from pirn_agents.specializations.rag.rag_prompt_builder import (
     RAGPromptBuilder,
@@ -130,7 +133,7 @@ class MultiHopRAGPipeline(AgentPipeline):
                     _config=KnotConfig(id="sub_retrieve"),
                 )
             sub_result = await self._run_inner(inner_retrieve)
-            hits = sub_result.outputs.get("sub_retrieve", [])
+            hits: list[Mapping[str, Any]] = sub_result.outputs.get("sub_retrieve", [])
             if isinstance(hits, list):
                 all_hits.extend(hits)
 
@@ -151,4 +154,4 @@ class MultiHopRAGPipeline(AgentPipeline):
             )
         synth_result = await self._run_inner(inner_synth)
         raw = synth_result.outputs.get("response")
-        return _MultiHopResultExtractor(raw=raw, _config=KnotConfig(id="result"))
+        return MultiHopResultExtractor(raw=raw, _config=KnotConfig(id="result"))

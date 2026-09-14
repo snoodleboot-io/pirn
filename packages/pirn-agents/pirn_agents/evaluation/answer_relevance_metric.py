@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``AnswerRelevanceMetric`` — embedding similarity of answer to its question."""
 
 from __future__ import annotations

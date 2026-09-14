@@ -165,6 +165,6 @@ class SelfRAGPipeline(AgentPipeline):
         # behaviour is identical on every reachable path.
         content = draft_answer if isinstance(draft_answer, str) else ""
         return RAGResponseBuilder(
-            answer=content,  # pyright: ignore[reportArgumentType]
+            answer=content,
             _config=KnotConfig(id="direct_response"),
         )

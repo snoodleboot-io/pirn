@@ -44,7 +44,7 @@ from tests.specializations.base.bypass_inventory import BypassInventory
 #: that are returned. All twelve are now fixed; they existed to
 #: re-inject an already-resolved value into the inner graph — the
 #: `Parameter` use case. `RetryOnParseFailure` is fixed — see its
-#: `_RetryResultExtractor`/`_RetryOnParseFailureLoop` (ADR agents-speaks-core
+#: `RetryResultExtractor`/`RetryOnParseFailureLoop` (ADR agents-speaks-core
 #: WS5a). `SelfAskPipeline` is fixed — see its `SelfAskComposer`/
 #: `SelfAskLoop`; `PromptChainPipeline` is fixed — see its
 #: `PromptChainResultExtractor`/`PromptChainLoop`; `OrchestratorAgent` is
@@ -53,8 +53,8 @@ from tests.specializations.base.bypass_inventory import BypassInventory
 #: `*Loop`/`*ResultExtractor` pairs; `ReflexionPipeline` is fixed — see
 #: `ReflexionLoop`/`ReflexionResultExtractor`; `PlanReActPipeline` is fixed
 #: — see `PlanReActResultExtractor`; `FlareActiveRagPipeline` is fixed — see
-#: `_FlareLoop`/`_FlareResultExtractor`; `MultiHopRAGPipeline` is fixed — see
-#: `_MultiHopResultExtractor`; `LatsSearch` is fixed — see
+#: `FlareLoop`/`FlareResultExtractor`; `MultiHopRAGPipeline` is fixed — see
+#: `MultiHopResultExtractor`; `LatsSearch` is fixed — see
 #: `LatsResultExtractor` (ADR agents-speaks-core WS5b). Kept as an assertion
 #: (not deleted) so a future inline `Source` regresses loudly.
 DEFINES_INLINE_SOURCE: frozenset[str] = frozenset()

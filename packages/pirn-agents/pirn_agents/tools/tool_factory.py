@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ToolFactory`` — a tool capability as a value: a knot class plus what is bound to it.
 
 The ADR "agents speaks core" (WS1) makes the *class* the capability and an
@@ -37,9 +39,10 @@ Only :class:`~pirn_agents.tools.tool.Tool` subclasses add the envelope
 attributes; every other class gets a name from its class name and a
 description from its docstring.
 
-Deprecated shape (one cycle): :meth:`of` also wraps a pre-ADR, ``invoke``-shaped
-``Tool`` instance in a schema-declared knot whose single input is the argument
-mapping, so it keeps working as a capability without being a knot.
+A *packed-arguments* capability (``StubTool``, a structured-output
+extraction tool) declares one ``arguments`` object as its knot input and
+shows the model a separate ``parameters`` schema; its calls carry the whole
+argument mapping as that one input.
 """
 
 from __future__ import annotations
@@ -51,7 +54,7 @@ import inspect
 import re
 from collections.abc import AsyncIterator, Callable, Collection, Mapping
 from inspect import iscoroutinefunction
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Self, TypeGuard
 
 from pirn.core.json_schema_type_builder import JsonSchemaTypeBuilder
 from pirn.core.knot import Knot
@@ -70,6 +73,7 @@ from pydantic import (
 )
 from pydantic_core import CoreSchema, core_schema
 
+from pirn_agents._internal.json_shape import JsonShape
 from pirn_agents.exceptions.tool_argument_validation_error import (
     ToolArgumentValidationError,
 )
@@ -132,7 +136,7 @@ class ToolFactory(KnotFactory, PirnOpaqueValue):
     # ------------------------------------------------------------ building
 
     @classmethod
-    def of(cls, candidate: Any) -> ToolFactory:
+    def of(cls, candidate: object) -> ToolFactory:
         """Return *candidate* as a :class:`ToolFactory`.
 
         Accepts a factory (returned as is), a ``KnotFactory`` (``@KnotFactory.knot``,
@@ -147,7 +151,7 @@ class ToolFactory(KnotFactory, PirnOpaqueValue):
             return candidate
         if isinstance(candidate, KnotFactory):
             return cls(candidate.knot_class, fn=candidate.fn)
-        if isinstance(candidate, type) and issubclass(candidate, Knot):
+        if cls._is_knot_class(candidate):
             return cls(candidate)
         if isinstance(candidate, Knot):
             return cls.from_knot(candidate)
@@ -155,6 +159,11 @@ class ToolFactory(KnotFactory, PirnOpaqueValue):
             f"ToolFactory.of: expected a Knot class, a KnotFactory, a configured Knot or a "
             f"ToolFactory, got {type(candidate).__name__}"
         )
+
+    @staticmethod
+    def _is_knot_class(candidate: object) -> TypeGuard[type[Knot]]:
+        """Whether *candidate* is a ``Knot`` subclass."""
+        return isinstance(candidate, type) and issubclass(candidate, Knot)
 
     @classmethod
     def from_knot(cls, instance: Knot) -> ToolFactory:
@@ -207,7 +216,7 @@ class ToolFactory(KnotFactory, PirnOpaqueValue):
                 framework-reserved property, or requires an undeclared one.
         """
         schema = JsonSchemaTypeBuilder.validate_input_schema(
-            input_schema, reserved=Knot._reserved_kwargs
+            input_schema, reserved=Tool.framework_kwarg_names()
         )
         if iscoroutinefunction(process):
             # design-decision-override: closure over ``process``, the body of
@@ -251,6 +260,16 @@ class ToolFactory(KnotFactory, PirnOpaqueValue):
         self._validate_bound(config)
         clone = copy.copy(self)
         clone._bound = {**self._bound, **config}
+        return clone
+
+    def with_parameters(self, parameters: Mapping[str, Any]) -> Self:
+        """Return a copy that declares *parameters* as its JSON ``parameters`` schema.
+
+        The knot class and its input validation are unchanged; only the
+        model-facing declaration differs (argument notes, examples).
+        """
+        clone = copy.copy(self)
+        clone._parameters = dict(parameters)
         return clone
 
     def named(self, name: str, *, description: str | None = None) -> ToolFactory:
@@ -309,15 +328,13 @@ class ToolFactory(KnotFactory, PirnOpaqueValue):
 
     def _input_annotations(self) -> dict[str, Any]:
         """Name -> validation annotation for each declared ``process()`` input."""
-        knot_class = self.knot_class
-        schema = knot_class._input_schema_override
+        schema = Tool.declared_input_schema(self.knot_class)
         if schema is not None:
             return {
                 name: JsonSchemaTypeBuilder.python_type(fragment, root=schema)
                 for name, fragment in schema.get("properties", {}).items()
             }
-        signature = inspect.signature(knot_class.process)
-        return knot_class._input_annotations(signature, knot_class._process_hints(signature))
+        return Tool.input_annotations(self.knot_class)
 
     # ------------------------------------------------------------ envelope
 
@@ -358,8 +375,8 @@ class ToolFactory(KnotFactory, PirnOpaqueValue):
         else:
             schema = self.knot_class.input_json_schema()
             hidden = set(self._bound) | self._hidden
-            properties = {
-                key: dict(value) if isinstance(value, Mapping) else value
+            properties: dict[str, Any] = {
+                key: dict(value) if JsonShape.is_mapping(value) else value
                 for key, value in schema.get("properties", {}).items()
                 if key not in hidden
             }
@@ -445,7 +462,7 @@ class ToolFactory(KnotFactory, PirnOpaqueValue):
         merged = {**self._defaults, **self._bound, **kwargs}
         if self._packs_arguments:
             framework = {
-                key: merged.pop(key) for key in tuple(Knot._reserved_kwargs) if key in merged
+                key: merged.pop(key) for key in tuple(Tool.framework_kwarg_names()) if key in merged
             }
             return self.knot_class(arguments=merged, **framework)
         for name, default in self._process_defaults().items():
@@ -454,7 +471,7 @@ class ToolFactory(KnotFactory, PirnOpaqueValue):
 
     def _process_defaults(self) -> dict[str, Any]:
         """Name -> default for every ``process()`` parameter that declares one."""
-        if self.knot_class._input_schema_override is not None:
+        if Tool.declared_input_schema(self.knot_class) is not None:
             return {}
         return {
             name: parameter.default
@@ -497,8 +514,8 @@ class ToolFactory(KnotFactory, PirnOpaqueValue):
         for required in schema.get("required", []):
             if required not in arguments:
                 detail[str(required)] = "missing_required"
-        # A knot accepts only declared inputs; a deprecated invoke-shaped tool
-        # takes the whole mapping, so there an extra key is refused only when
+        # A knot accepts only declared inputs; a packed-arguments tool takes
+        # the whole mapping, so there an extra key is refused only when
         # its schema says ``additionalProperties: false``.
         refuse_unknown = not self._packs_arguments or schema.get("additionalProperties") is False
         if refuse_unknown:
@@ -515,8 +532,9 @@ class ToolFactory(KnotFactory, PirnOpaqueValue):
             adapter = adapters.get(key)
             if adapter is None:
                 continue
-            fragment = properties.get(key, {})
-            expected = fragment.get("type") if isinstance(fragment, Mapping) else None
+            declared = properties.get(key, {})
+            fragment: Mapping[str, Any] = declared if JsonShape.is_mapping(declared) else {}
+            expected = fragment.get("type")
             # JSON Schema's ``integer``/``number`` exclude booleans; pydantic's lax
             # mode would coerce ``True`` to ``1``, so the check is made here.
             if isinstance(value, bool) and expected in ("integer", "number"):
@@ -525,7 +543,7 @@ class ToolFactory(KnotFactory, PirnOpaqueValue):
             try:
                 adapter.validate_python(value)
             except ValidationError:
-                enum = fragment.get("enum") if isinstance(fragment, Mapping) else None
+                enum = fragment.get("enum")
                 if isinstance(enum, list):
                     expected_name = f"one of {enum!r}"
                 elif isinstance(expected, str):
@@ -604,7 +622,7 @@ class ToolFactory(KnotFactory, PirnOpaqueValue):
         )
         # An extra Knot-valued kwarg no declared input names is accepted as
         # an *implicit* parent (Knot._validate_kwargs_against_signature) for
-        # either call shape below: a legacy packed-arguments knot's sole
+        # either call shape below: a packed-arguments knot's sole
         # declared input is the schema's "arguments" object, and an ordinary
         # tool's is whatever its own process() names, but both process()
         # signatures end with "**_: Any" (a framework requirement for every
@@ -684,15 +702,14 @@ class ToolFactory(KnotFactory, PirnOpaqueValue):
     async def run_call(self, call: ToolCall, *, approval_hook: Any = None) -> Result[Any]:
         """Construct *call* and run it, outside any enclosing engine run.
 
-        For callers with no tapestry to run in — the deprecated ``invoke``
-        shim, a test.  The knot is registered with a throwaway tapestry,
+        For callers with no tapestry to run in — a test, a script.  The knot
+        is registered with a throwaway tapestry,
         never the ambient one, so a caller inside another knot's ``process()``
         does not also wire it into that knot's inner graph.
 
         A capability that does not require approval is awaited directly —
-        ``knot({})`` — exactly as before; it has no real parent to resolve
-        (its arguments are plain config values), so nothing here changes for
-        the overwhelmingly common case. One that *does* require approval
+        ``knot({})``; it has no real parent to resolve (its arguments are
+        plain config values). One that *does* require approval
         (PIR-865) has a genuine parent — the
         :meth:`_approval_gate`-built ``Gate`` — that a bare ``knot({})`` call
         would silently never resolve (it only fills in parents a caller
@@ -725,7 +742,7 @@ class ToolFactory(KnotFactory, PirnOpaqueValue):
     def __get_pydantic_core_schema__(
         cls, source_type: Any, handler: GetCoreSchemaHandler
     ) -> CoreSchema:
-        """Accept a factory, a knot class/factory, a configured knot or a legacy tool.
+        """Accept a factory, a knot class/factory or a configured knot.
 
         A knot input annotated ``ToolFactory`` therefore takes any spelling of
         a capability and ``process()`` always receives a factory — the

@@ -35,10 +35,10 @@ pirn_agents/specializations/structured_output/
 ├── structured_output_provider.py    StructuredOutputProvider    — provider protocol the native paths use
 │
 │  ── Internal attempt knots ──
-├── _json_extractor_attempt.py       (internal — single JSON parse attempt)
-├── _yaml_extractor_attempt.py       (internal — single YAML parse attempt)
-├── _enum_classifier_attempt.py      (internal — single enum classification attempt)
-└── _llm_call_knot.py                (internal — LLM call shared by all pipelines)
+├── json_extractor_attempt.py        (internal — single JSON parse attempt)
+├── yaml_extractor_attempt.py        (internal — single YAML parse attempt)
+├── enum_classifier_attempt.py       (internal — single enum classification attempt)
+└── llm_call_knot.py                 (internal — LLM call shared by all pipelines)
 ```
 
 ---

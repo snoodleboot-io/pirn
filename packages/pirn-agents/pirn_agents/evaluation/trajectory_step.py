@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TrajectoryStep`` — one recorded tool call in an agent trajectory."""
 
 from __future__ import annotations
@@ -25,7 +27,7 @@ class TrajectoryStep(PirnOpaqueValue):
     """
 
     tool_name: str
-    arguments: Mapping[str, Any] = field(default_factory=dict)
+    arguments: Mapping[str, Any] = field(default_factory=dict[str, Any])
     result: Any = None
 
     def __post_init__(self) -> None:

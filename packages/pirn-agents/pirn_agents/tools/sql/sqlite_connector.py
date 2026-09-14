@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SqliteConnector`` — a zero-extra :class:`SqlConnector` over stdlib sqlite3.
 
 Wraps an existing :class:`sqlite3.Connection` (e.g. an in-memory database) and
@@ -114,7 +116,3 @@ class SqliteConnector(SqlConnector):
             for ending it.
         """
         return bool(connection.in_transaction) and not in_transaction_on_entry
-
-    def _clear_credentials(self) -> None:
-        """Drop the connection reference so it becomes garbage-collectable."""
-        self._connection = None  # type: ignore[assignment]

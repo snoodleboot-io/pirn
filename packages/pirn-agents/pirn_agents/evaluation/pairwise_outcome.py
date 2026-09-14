@@ -34,7 +34,7 @@ class PairwiseOutcome(PirnOpaqueValue):
     score_a: float
     score_b: float
     consistent: bool
-    detail: Mapping[str, Any] = field(default_factory=dict)
+    detail: Mapping[str, Any] = field(default_factory=dict[str, Any])
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
         return {

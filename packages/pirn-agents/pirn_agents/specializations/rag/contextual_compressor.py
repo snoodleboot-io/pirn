@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``ContextualCompressor`` — trim retrieved docs to the query-relevant span.
 
 Contextual compression shrinks each retrieved document down to only the spans
@@ -8,7 +10,7 @@ cuts token cost. Each surviving document keeps its identity keys (``id``,
 
 The per-document extraction is expressed as a graph rather than a hand-rolled
 ``for doc in documents: await llm.chat(...)`` loop: each document becomes its
-own :class:`~pirn_agents.specializations.rag._document_compressor._DocumentCompressor`
+own :class:`~pirn_agents.specializations.rag.document_compressor.DocumentCompressor`
 invocation, fanned out with a core :class:`~pirn.nodes.map_markers.Map`, and
 folded back into the surviving list with a :class:`~pirn.nodes.reduce_.Reduce`.
 The engine schedules the per-document extractions concurrently — every ready
@@ -18,7 +20,7 @@ engine, with its own ``Result``, history record, and lineage per document.
 Algorithm:
     1. Validate ``query`` (str), ``documents`` (list of Mappings), and ``llm``
        (:class:`LLMProvider`).
-    2. Fan out one ``_DocumentCompressor`` invocation per document, each
+    2. Fan out one ``DocumentCompressor`` invocation per document, each
        asking the LLM to extract only the query-relevant text, or reply
        ``NONE`` when nothing is relevant.
     3. A :class:`~pirn.nodes.reduce_.Reduce` drops documents compressed to
@@ -43,8 +45,8 @@ from pirn.nodes.reduce_ import Reduce
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.rag._document_compressor import _DocumentCompressor
-from pirn_agents.specializations.rag._drop_empty_compressions import _DropEmptyCompressions
+from pirn_agents.specializations.rag.document_compressor import DocumentCompressor
+from pirn_agents.specializations.rag.drop_empty_compressions import DropEmptyCompressions
 
 
 class ContextualCompressor(AgentPipeline):
@@ -107,18 +109,14 @@ class ContextualCompressor(AgentPipeline):
             default=documents,
             _config=KnotConfig(id="documents"),
         )
-        compressed = _DocumentCompressor(
+        compressed = DocumentCompressor(
             query=query,
-            # Core's Map marker is consumed at construction by
-            # `knot.py:199-205` and is deliberately not a Knot, so it does not
-            # satisfy the declared `Knot | Mapping`. Inline suppression is the
-            # house idiom for this; see PIR-715/PIR-716.
-            document=Map(documents_knot),  # pyright: ignore[reportArgumentType]
+            document=Map(documents_knot),
             llm=llm,
             _config=KnotConfig(id="compress_each"),
         )
         return Reduce(
             of=compressed,
-            combine=_DropEmptyCompressions.combine,
+            combine=DropEmptyCompressions.combine,
             _config=KnotConfig(id="surviving"),
         )

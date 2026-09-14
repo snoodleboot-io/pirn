@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``ModelCascadeRouter`` — try a cheap model first, escalate only when needed.
 
 Cost-first routing: tiers are supplied cheapest-first and the router invokes them
@@ -22,7 +24,7 @@ the spend cap.
 ``tiers`` is a resolved value known in full by the time ``process()`` runs, so
 its length is not data-dependent (unlike an agentic loop), but the chain is
 still driven by a
-:class:`~pirn_agents.specializations.routing._cascade_loop._CascadeLoop`
+:class:`~pirn_agents.specializations.routing.cascade_loop.CascadeLoop`
 (``LoopSubTapestry``) rather than a static unroll (ADR agents-speaks-core
 WS5b): once a tier is accepted, or the spend cap forces a downshift, the
 state is ``locked`` and the loop stops, so a tier past that point is never
@@ -44,9 +46,9 @@ from pirn.core.parameter import Parameter
 from pirn_agents.interfaces.router import Router
 from pirn_agents.performance.spend_cap_policy import SpendCapPolicy
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.routing._cascade_chain_state import _CascadeChainState
-from pirn_agents.specializations.routing._cascade_loop import _CascadeLoop
-from pirn_agents.specializations.routing._cascade_result import _CascadeResult
+from pirn_agents.specializations.routing.cascade_chain_state import CascadeChainState
+from pirn_agents.specializations.routing.cascade_loop import CascadeLoop
+from pirn_agents.specializations.routing.cascade_result import CascadeResult
 from pirn_agents.specializations.routing.cascade_tier import CascadeTier
 
 
@@ -92,7 +94,7 @@ class ModelCascadeRouter(AgentPipeline, Router):
         confidence: Callable[[Any], Awaitable[float]],
         # `meter` is typed `Any`: RunBudgetMeter is a plain class, not a
         # PirnOpaqueValue, and pydantic has no schema for it -- see
-        # `_AttemptTier`'s docstring for why a concrete annotation breaks
+        # `AttemptTier`'s docstring for why a concrete annotation breaks
         # `Knot.__init__`'s eager TypeAdapter construction.
         meter: Any = None,
         spend_cap_policy: SpendCapPolicy = SpendCapPolicy.DOWNSHIFT,
@@ -134,10 +136,10 @@ class ModelCascadeRouter(AgentPipeline, Router):
 
         initial = Parameter(
             "initial",
-            _CascadeChainState,
-            default=_CascadeChainState(),
+            CascadeChainState,
+            default=CascadeChainState(),
         )
-        loop = _CascadeLoop(
+        loop = CascadeLoop(
             request=request,
             tiers=tier_tuple,
             confidence=confidence,
@@ -146,4 +148,4 @@ class ModelCascadeRouter(AgentPipeline, Router):
             state=initial,
             _config=KnotConfig(id="cascade_loop"),
         )
-        return _CascadeResult(state=loop, _config=KnotConfig(id="result"))
+        return CascadeResult(state=loop, _config=KnotConfig(id="result"))

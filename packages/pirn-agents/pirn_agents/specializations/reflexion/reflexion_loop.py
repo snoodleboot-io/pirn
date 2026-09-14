@@ -12,7 +12,7 @@ real parent/child knots in one tapestry the engine actually runs.
 ``ReflexionReflector``'s LLM call runs only on a failed attempt: its
 ``answer`` input is ``Gate(input=actor, check=ShouldReflectCheck(evaluation))``
 (see that check's docstring), so a successful attempt never pays for it —
-the same escalation-stops-here shape ``_AttemptTier`` uses.
+the same escalation-stops-here shape ``AttemptTier`` uses.
 
 Memory I/O (``retrieve`` the accumulated reflections before building the
 iteration, ``store`` a new one after) is not an LLM/tool call, so it runs in

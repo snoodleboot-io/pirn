@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``SelfQueryRetriever`` — vector search under an extracted metadata filter.
 
 The retrieval stage of self-query RAG. It embeds the semantic query and issues a
@@ -81,8 +83,12 @@ class SelfQueryRetriever(Retriever):
         if not isinstance(top_k, int) or top_k <= 0:
             raise ValueError(f"SelfQueryRetriever: top_k must be a positive int, got {top_k!r}")
         semantic_query = str(query_spec.get("query", ""))
-        raw_filter = query_spec.get("metadata_filter")
-        metadata_filter = raw_filter if isinstance(raw_filter, Mapping) else None
+        metadata_filter: Mapping[str, Any] | None
+        match query_spec.get("metadata_filter"):
+            case {**raw_filter}:
+                metadata_filter = raw_filter
+            case _:
+                metadata_filter = None
         vectors = await embedder.embed([semantic_query])
         matches = await store.query(vectors[0], top_k=top_k, metadata_filter=metadata_filter)
         return [

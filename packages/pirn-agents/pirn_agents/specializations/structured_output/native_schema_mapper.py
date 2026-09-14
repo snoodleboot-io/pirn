@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``NativeSchemaMapper`` — target schema → native structured-output request.
 
 The S1 building block. Given a target pydantic model *or* a raw JSON Schema, it
@@ -82,10 +84,10 @@ class NativeSchemaMapper:
 
     def json_schema(self) -> Mapping[str, Any]:
         """Return the target's JSON Schema (derived from the model if needed)."""
-        if self._is_model_class(self._schema):
-            model_class: type[BaseModel] = self._schema  # type: ignore[assignment]
-            return model_class.model_json_schema()
-        return self._schema  # type: ignore[return-value]
+        schema = self._schema
+        if isinstance(schema, Mapping):
+            return schema
+        return schema.model_json_schema()
 
     @staticmethod
     def _is_model_class(schema: Any) -> bool:

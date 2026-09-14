@@ -286,7 +286,7 @@ example of the boundary this ADR draws.
 gained `to_result()`/`from_result()` bridges; `pirn_agents.resilience.FailoverAttempt`
 → `Result` per candidate, replacing the `FailoverOutcome` enum (deleted, PIR-872; a circuit-open candidate is `Skipped(reason="circuit_open")`, and `RetryClassification` became `RetrySafetyClassifier.is_safe() -> bool`); `ModelCascadeRouter`/
 `FallbackChain`/`FailoverChain`'s fold-accumulator chains now run as a
-`LoopSubTapestry` (`_CascadeLoop`/`_FallbackLoop`/`FailoverLoop`) that stops
+`LoopSubTapestry` (`CascadeLoop`/`FallbackLoop`/`FailoverLoop`) that stops
 scheduling once the chain locks, rather than a static unrolled chain that
 still built a knot per candidate past the lock point. 8 of the 18 agents
 exception roots the ADR found now also subclass `pirn.exceptions.pirn_error.PirnError`
@@ -403,7 +403,7 @@ fan-out (`Emitter.on_knot_result` fires the instant each knot settles, so
 Deleted (PIR-864): `BatchCheckpointer`/`BatchScheduler`, `AsyncFanoutEngine`/
 `_FanoutRunner` (machinery removed once `MapAgent` moved onto `Map`/`Aggregator`).
 
-PIR-867 moved `document_processing/_ingestion_runner.py` (`IngestionPipeline`'s
+PIR-867 moved `document_processing/ingestion_runner.py` (`IngestionPipeline`'s
 internal ETL runner) and `multi_agent/orchestrator_workers.py` off a bare
 `asyncio.Semaphore(max_concurrency)` shared across their per-item knots (held
 across the real await) onto `KnotConfig(concurrency_group=)` on the per-item
@@ -450,7 +450,7 @@ to read the class-level default now default to a plain literal `8`.
 `evaluation/run_eval.py::RunEval.run` — then the one caller with no `Tapestry` to
 attach a concurrency group to — bounded its per-item concurrency with a plain
 `asyncio.Semaphore(concurrency)` for one cycle. **Resolved (PIR-872):** it
-now runs on the engine — one `_EvalCase` knot per item (target call, metric
+now runs on the engine — one `EvalCase` knot per item (target call, metric
 scoring, threshold check) with `KnotConfig(concurrency_group="eval_items")`,
 capped by `ConcurrencyLimits(groups={"eval_items": concurrency})`, fanned into
 an `Aggregator` that assembles the `EvalReport` in dataset order. Eval
@@ -459,7 +459,7 @@ records each item's result, and `RunEval.run(replay=ReplaySession(...))` serves
 it without calling the target (a replay whose items, thresholds, metric names
 or target/metric *code* differ raises `ReplayMismatchError` — callables are
 identified by bytecode, constants, names, defaults, closure values and bound
-arguments via `_CallableIdentity`; only a callable with no inspectable code,
+arguments via `CallableIdentity`; only a callable with no inspectable code,
 such as a C builtin, falls back to `module.qualname`). The agents recorder seam it
 used to route through — `RunRecorder`, `NullRunRecorder`, `CassetteRunRecorder`,
 `CassetteRecorder`, `Cassette`/`CassetteEntry`/`InteractionKind`/`RecordingMode`,
@@ -528,7 +528,7 @@ Three more `LOOP_AWAITS_LLM_OR_TOOL_CALL` sites fixed in PIR-867:
 `FactClaimVerifier` (`specializations/guardrails/`) translate/verify
 independent items — chunk N's translation and claim N's search never depend
 on item N-1's outcome — so each now fans out one per-item knot
-(`ChunkTranslation` / `_ClaimVerification`) into an `Aggregator`, in the
+(`ChunkTranslation` / `ClaimVerification`) into an `Aggregator`, in the
 `ParallelToolCaller` style, instead of awaiting `llm.chat`/`store.search` in a
 hand-rolled `for` loop. `PlanExecutor` (`specializations/plan_and_execute/`)
 is different: step N's prompt genuinely includes every prior step's result,
@@ -554,18 +554,18 @@ document's failure is still isolated inside `DocumentIngest` and folded into
 the `IngestionReport` rather than raised, so isolation survives the move to
 the engine's own scheduling.
 
-`AWAITS_INVOKE` re-checked in PIR-867 (superseded by PIR-872, below): `specializations/routing/_attempt_tier.py::_AttemptTier`
+`AWAITS_INVOKE` re-checked in PIR-867 (superseded by PIR-872, below): `specializations/routing/attempt_tier.py::AttemptTier`
 awaited `CascadeTier.invoke` (the cascade's own bare-callable provider seam,
 not a `Tool`) directly. There is no tool knot to substitute — the fix is the
 same shape `ToolInvocation` plays for tool calls: a dedicated vending knot,
 `_TierInvocation`, whose only body is the call, wired as a real parent;
-`_TierAttemptFold` (`error_policy=RECEIVE_ERRORS`) folds its `Ok`/`Err`
-outcome into the cascade's state. `_AttemptTier` itself became an
+`TierAttemptFold` (`error_policy=RECEIVE_ERRORS`) folds its `Ok`/`Err`
+outcome into the cascade's state. `AttemptTier` itself became an
 `AgentPipeline` (only the pre-call locked/spend-cap decisions stay
 synchronous, since they decide whether to build the call at all).
-`AWAITS_INVOKE` then named `_TierInvocation` instead of `_AttemptTier`.
+`AWAITS_INVOKE` then named `_TierInvocation` instead of `AttemptTier`.
 **PIR-872** removed that entry too: a cascade tier *is* a model call, so
-`CascadeTier` carries an `LLMProvider` and `_AttemptTier` wires the shared
+`CascadeTier` carries an `LLMProvider` and `AttemptTier` wires the shared
 `LLMChatCall` knot over it; `CascadeTier.invoke` and `_TierInvocation` are
 deleted and nothing awaits an invoke inside `process()`.
 
@@ -587,18 +587,18 @@ call under an `Aggregator` with `KnotConfig(retry=, timeout=,
 concurrency_group="tools")`, so `GovernedDispatch` owns the inter-attempt
 backoff (PIR-872).
 
-**Resolved (PIR-872): `rag/indexing/_raptor_assembler.py`'s clustering loop.**
+**Resolved (PIR-872): `rag/indexing/raptor_assembler.py`'s clustering loop.**
 It stays a deliberate ETL exception (atomic read-check-transform-write cycle
 against the vector store: a content-hash dedup short-circuit and a single
 final upsert that must see a consistent store), but each level's cluster
-summaries now run as a nested run of one `_RaptorSummary` knot per cluster
+summaries now run as a nested run of one `RaptorSummary` knot per cluster
 joined by an `Aggregator`, so every LLM summary call has its own lineage row,
 `Result` and admission. What made this a coupling problem before —
 `_run_inner` and its hooks lived only on `SubTapestry`, whose `__call__`
 requires `process()` to return a sink `Knot` — is gone: core's new
 `NestedRunKnot` (§3.2) is that machinery without the sink contract, and
 `SubTapestry` is now a `NestedRunKnot` that adds it.
-`_RaptorAssembler(Assembler, NestedRunKnot)` keeps returning its `RaptorTree`
+`RaptorAssembler(Assembler, NestedRunKnot)` keeps returning its `RaptorTree`
 value directly.
 
 **Resolved since (PIR-865):** approval denial is a core `Skipped`, not a

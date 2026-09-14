@@ -147,7 +147,7 @@ class ToolRegistry:
         per name is included — the latest version — so the resulting toolset has
         unique names. Tools are ordered by ``(namespace, name)``.
         """
-        wanted_tags = frozenset(tags) if tags is not None else frozenset()
+        wanted_tags = frozenset(tags) if tags is not None else frozenset[str]()
         chosen: dict[tuple[str, str], tuple[str, ToolFactory]] = {}
         for (ns, name, version), tool in self._by_key.items():
             if namespace is not None and ns != namespace:

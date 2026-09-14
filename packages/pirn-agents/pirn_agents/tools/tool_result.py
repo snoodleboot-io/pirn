@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ToolResult`` — the model-facing rendering of a tool call's ``Result``.
 
 Since the ADR "agents speaks core" (WS1) a tool call is a knot, and its outcome

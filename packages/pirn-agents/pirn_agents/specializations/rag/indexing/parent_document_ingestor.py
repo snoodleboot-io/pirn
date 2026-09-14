@@ -5,7 +5,7 @@ precise matching but returns the *larger* parent for context. This ingestor
 reuses the existing sliding-window
 :class:`~pirn_agents.specializations.document_processing.document_chunker.DocumentChunker`
 to split the document into children, then wires
-:class:`~pirn_agents.specializations.rag.indexing._parent_child_indexer._ParentChildIndexer`
+:class:`~pirn_agents.specializations.rag.indexing.parent_child_indexer.ParentChildIndexer`
 to group children under parents and upsert the child records.
 
 References:
@@ -23,7 +23,7 @@ from pirn_agents.retrieval.embeddings.embedding_provider import EmbeddingProvide
 from pirn_agents.retrieval.vector_stores.vector_memory_store import VectorMemoryStore
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
 from pirn_agents.specializations.document_processing.document_chunker import DocumentChunker
-from pirn_agents.specializations.rag.indexing._parent_child_indexer import _ParentChildIndexer
+from pirn_agents.specializations.rag.indexing.parent_child_indexer import ParentChildIndexer
 
 
 class ParentDocumentIngestor(AgentPipeline):
@@ -65,7 +65,7 @@ class ParentDocumentIngestor(AgentPipeline):
         group_size: int = 3,
         **_: Any,
     ) -> Knot:
-        """Wire ``DocumentChunker`` → ``_ParentChildIndexer`` and return the sink.
+        """Wire ``DocumentChunker`` → ``ParentChildIndexer`` and return the sink.
 
         Args:
             text: The full source document to ingest.
@@ -77,7 +77,7 @@ class ParentDocumentIngestor(AgentPipeline):
             group_size: Number of consecutive children per parent.
 
         Returns:
-            The ``_ParentChildIndexer`` sink knot whose output is the child count.
+            The ``ParentChildIndexer`` sink knot whose output is the child count.
         """
         chunks = DocumentChunker(
             text=text,
@@ -85,7 +85,7 @@ class ParentDocumentIngestor(AgentPipeline):
             chunk_overlap=chunk_overlap,
             _config=KnotConfig(id="chunk"),
         )
-        return _ParentChildIndexer(
+        return ParentChildIndexer(
             chunks=chunks,
             embedder=embedder,
             store=store,
