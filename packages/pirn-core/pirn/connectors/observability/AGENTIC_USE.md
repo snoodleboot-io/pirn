@@ -87,10 +87,10 @@ prom = PrometheusClient(config=PrometheusConfig(
 
 ## Constraints and gotchas
 
-- **Each client requires its own extra:** `pirn[datadog]`, `pirn[grafana]`, `pirn[prometheus]`, `pirn[opentelemetry]`.
+- **Install extras:** `pip install "pirn-core[datadog]"` for `DatadogClient`, `"pirn-core[grafana]"` for `GrafanaClient` and `"pirn-core[http]"` for `PrometheusClient` (both httpx), `"pirn-core[otel]"` for `OpenTelemetrySpanEmitter`.
 - **`PrometheusClient` uses the Pushgateway**, which is suitable for batch/short-lived jobs. Do not use it for long-running services where a pull-based exporter is more appropriate.
 - **`OpenTelemetrySpanEmitter` spans follow the tapestry run hierarchy** — each knot's `process()` is wrapped in a child span under the root run span.
-- **`DatadogClient` uses the v2 API.** Metrics must use the Distribution or Gauge type; the v1 legacy `series` endpoint is not used.
+- **`DatadogClient` targets the v1 endpoints.** `submit_metric`/`emit` post to `/api/v1/series` and `query` reads `/api/v1/query`; use `request` for any other Datadog endpoint.
 
 ---
 

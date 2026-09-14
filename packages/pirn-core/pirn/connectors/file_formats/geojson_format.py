@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``GeoJsonFormat`` — GeoJSON FeatureCollection encoder/decoder.
 
 GeoJSON is JSON, so the standard library ``json`` module is sufficient
@@ -18,7 +20,8 @@ document must be parsed before yielding ``features``). It inherits from
 :class:`StreamingFileFormat` for API consistency with :class:`JsonFormat`;
 downstream consumers should treat ``streaming`` only as advisory.
 
-Install: ``pip install pirn[geojson]``.
+No extra is required; ``pip install "pirn-core[geojson]"`` adds the optional
+``geojson`` package.
 """
 
 from __future__ import annotations
@@ -30,6 +33,7 @@ from typing import Any
 from pirn.connectors.file_formats.streaming_file_format import (
     StreamingFileFormat,
 )
+from pirn.connectors.payload_shape import PayloadShape
 
 
 class GeoJsonFormat(StreamingFileFormat):
@@ -55,8 +59,8 @@ class GeoJsonFormat(StreamingFileFormat):
         if not payload.strip():
             features: list[Mapping[str, Any]] = []
         else:
-            parsed = json.loads(payload.decode(self._encoding))
-            if not isinstance(parsed, dict):
+            parsed: object = json.loads(payload.decode(self._encoding))
+            if not PayloadShape.is_str_dict(parsed):
                 raise ValueError(
                     f"GeoJsonFormat: expected JSON object at root, got {type(parsed).__name__}"
                 )
@@ -66,7 +70,7 @@ class GeoJsonFormat(StreamingFileFormat):
                     f"GeoJsonFormat: expected type='FeatureCollection', got {type_value!r}"
                 )
             raw_features = parsed.get("features", [])
-            if not isinstance(raw_features, list):
+            if not PayloadShape.is_list(raw_features):
                 raise ValueError(
                     f"GeoJsonFormat: 'features' must be a list, got {type(raw_features).__name__}"
                 )
@@ -93,9 +97,9 @@ class GeoJsonFormat(StreamingFileFormat):
 
         return _iter()
 
-    @staticmethod
-    def _feature_to_record(feature: Any) -> Mapping[str, Any]:
-        if not isinstance(feature, dict):
+    @classmethod
+    def _feature_to_record(cls, feature: object) -> Mapping[str, Any]:
+        if not PayloadShape.is_str_dict(feature):
             raise ValueError(
                 f"GeoJsonFormat: each feature must be a JSON object, got {type(feature).__name__}"
             )
@@ -104,16 +108,20 @@ class GeoJsonFormat(StreamingFileFormat):
                 f"GeoJsonFormat: feature missing type='Feature', got {feature.get('type')!r}"
             )
         geometry = feature.get("geometry")
-        if geometry is not None and not isinstance(geometry, dict):
+        if geometry is not None and not PayloadShape.is_str_dict(geometry):
             raise ValueError(
                 "GeoJsonFormat: geometry must be a JSON object or null, "
                 f"got {type(geometry).__name__}"
             )
-        properties = feature.get("properties") or {}
-        if not isinstance(properties, dict):
-            raise ValueError(
-                f"GeoJsonFormat: properties must be a JSON object, got {type(properties).__name__}"
-            )
+        properties_value = feature.get("properties")
+        properties: dict[str, object] = {}
+        if properties_value:
+            if not PayloadShape.is_str_dict(properties_value):
+                raise ValueError(
+                    "GeoJsonFormat: properties must be a JSON object, "
+                    f"got {type(properties_value).__name__}"
+                )
+            properties = properties_value
         feature_id = feature.get("id")
         return {
             "geometry": geometry,
@@ -121,23 +129,27 @@ class GeoJsonFormat(StreamingFileFormat):
             "feature_id": (None if feature_id is None else str(feature_id)),
         }
 
-    @staticmethod
-    def _record_to_feature(record: Mapping[str, Any]) -> Mapping[str, Any]:
+    @classmethod
+    def _record_to_feature(cls, record: Mapping[str, Any]) -> Mapping[str, Any]:
         if "geometry" not in record:
             raise ValueError("GeoJsonFormat: record missing required 'geometry' field")
-        geometry = record["geometry"]
-        if geometry is not None and not isinstance(geometry, Mapping):
-            raise TypeError(
-                f"GeoJsonFormat: geometry must be a Mapping or None, got {type(geometry).__name__}"
-            )
-        properties = record.get("properties") or {}
-        if not isinstance(properties, Mapping):
+        geometry: object = record["geometry"]
+        geometry_dict: dict[object, object] | None = None
+        if geometry is not None:
+            if not PayloadShape.is_mapping(geometry):
+                raise TypeError(
+                    "GeoJsonFormat: geometry must be a Mapping or None, "
+                    f"got {type(geometry).__name__}"
+                )
+            geometry_dict = dict(geometry)
+        properties: object = record.get("properties") or {}
+        if not PayloadShape.is_mapping(properties):
             raise TypeError(
                 f"GeoJsonFormat: properties must be a Mapping, got {type(properties).__name__}"
             )
         feature: dict[str, Any] = {
             "type": "Feature",
-            "geometry": (None if geometry is None else dict(geometry)),
+            "geometry": geometry_dict,
             "properties": dict(properties),
         }
         feature_id = record.get("feature_id")

@@ -152,8 +152,8 @@ class TestNiftiFormatErrors(unittest.IsolatedAsyncioTestCase):
 # ---------------------------------------------------------------------------
 
 
-class TestNiftiFormatMissingDep(unittest.TestCase):
-    def test_load_nibabel_raises_on_missing(self) -> None:
+class TestNiftiFormatMissingDep(unittest.IsolatedAsyncioTestCase):
+    async def test_decode_raises_on_missing_nibabel(self) -> None:
         with patch.dict("sys.modules", {"nibabel": None}):
-            with self.assertRaisesRegex(ImportError, "pirn\\[health\\]"):
-                NiftiFormat._load_nibabel()
+            with self.assertRaisesRegex(ImportError, 'pip install "pirn-health\\[health\\]"'):
+                await NiftiFormat()._decode_full(b"not-nifti")

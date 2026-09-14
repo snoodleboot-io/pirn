@@ -17,7 +17,7 @@ parsed as ``float`` and re-emitted by ``simplekml`` with whatever
 precision it chooses; tests assert structural / value survival rather
 than byte-identity.
 
-Install: ``pip install pirn[kml]``.
+Install: ``pip install "pirn-core[kml]"``.
 """
 
 from __future__ import annotations
@@ -28,6 +28,7 @@ from typing import Any, ClassVar
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class KmlFormat(BatchFileFormat):
@@ -41,7 +42,7 @@ class KmlFormat(BatchFileFormat):
         return "kml"
 
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
-        etree = self._load_lxml()
+        etree = OptionalDependency.require("lxml.etree", extra="kml")
         if not payload.strip():
             return []
         root = etree.fromstring(payload)
@@ -52,7 +53,7 @@ class KmlFormat(BatchFileFormat):
         return records
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
-        simplekml = self._load_simplekml()
+        simplekml = OptionalDependency.require("simplekml", extra="kml")
         document = simplekml.Kml()
         for record in records:
             self._add_placemark(document, record)
@@ -126,7 +127,7 @@ class KmlFormat(BatchFileFormat):
             raise ValueError("KmlFormat: record missing required field 'name'")
         name = record["name"]
         description = record.get("description", "")
-        extended_data = record.get("extended_data") or {}
+        extended_data: Mapping[str, object] = record.get("extended_data") or {}
         if geometry_type == "Point":
             placemark = document.newpoint(name=name, description=description)
             placemark.coords = list(coordinates)
@@ -169,23 +170,3 @@ class KmlFormat(BatchFileFormat):
     @classmethod
     def _find_descendant(cls, element: Any, local_name: str) -> Any:
         return element.find(f".//{{{cls._kml_namespace}}}{local_name}")
-
-    @staticmethod
-    def _load_lxml() -> Any:
-        try:
-            from lxml import etree  # type: ignore[attr-defined]
-        except ImportError as exc:
-            raise ImportError(
-                "KmlFormat requires lxml. Install with `pip install pirn[kml]`."
-            ) from exc
-        return etree
-
-    @staticmethod
-    def _load_simplekml() -> Any:
-        try:
-            import simplekml
-        except ImportError as exc:
-            raise ImportError(
-                "KmlFormat requires simplekml. Install with `pip install pirn[kml]`."
-            ) from exc
-        return simplekml

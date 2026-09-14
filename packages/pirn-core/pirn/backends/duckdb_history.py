@@ -22,6 +22,7 @@ from typing import Any
 from pirn.backends.base.run_history import RunHistory
 from pirn.core.knot_lineage import KnotLineage
 from pirn.core.knot_source_record import KnotSourceRecord
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class DuckDBHistory(RunHistory):
@@ -88,17 +89,12 @@ CREATE TABLE IF NOT EXISTS knot_sources (
 
         Raises:
             ImportError: If the ``duckdb`` package is not installed.  Install
-                with ``pip install pirn[duckdb]``.
+                with ``pip install "pirn-core[duckdb]"``.
         """
-        try:
-            import duckdb
-        except ImportError as exc:
-            raise ImportError(
-                "DuckDBHistory requires the duckdb package; install via `pip install pirn[duckdb]`"
-            ) from exc
+        duckdb = OptionalDependency.require("duckdb", extra="duckdb")
 
         self._path = path
-        self._conn = connection or duckdb.connect(path)  # type: ignore[attr-defined]
+        self._conn = connection or duckdb.connect(path)
         self._initialized = False
 
     def _ensure_init(self) -> None:

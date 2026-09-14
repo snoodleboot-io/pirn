@@ -9,6 +9,7 @@ from typing import Any
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.timeseries.influxdb_config import InfluxDBConfig
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class InfluxDBPool(DatabaseConnectionPool):
@@ -53,7 +54,7 @@ class InfluxDBPool(DatabaseConnectionPool):
 
     async def execute(self, query: str, parameters: Iterable[Any] | None = None) -> str:
         await self._ensure_client()
-        lines = [query] if isinstance(query, str) else list(query)
+        lines = [query]
         try:
             await self._write_api.write(
                 bucket=self._config.bucket if self._config else "",
@@ -100,18 +101,13 @@ class InfluxDBPool(DatabaseConnectionPool):
             self._query_api = self._client.query_api()
 
     async def _create_client(self) -> Any:
-        try:
-            from influxdb_client.client.influxdb_client_async import (
-                InfluxDBClientAsync,
-            )
-        except ImportError as exc:
-            raise ImportError(
-                "InfluxDBPool requires influxdb-client; install via pip install pirn[influxdb]"
-            ) from exc
+        influxdb_client_async = OptionalDependency.require(
+            "influxdb_client.client.influxdb_client_async", extra="influxdb"
+        )
         if self._config is None:
             raise self._missing_config_error("InfluxDBPool", "client")
         try:
-            client = InfluxDBClientAsync(
+            client = influxdb_client_async.InfluxDBClientAsync(
                 url=self._config.url,
                 token=self._config.token,
                 org=self._config.org,

@@ -27,6 +27,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from pirn.core.knot import Knot
+from pirn.core.optional_dependency import OptionalDependency
 from pirn.core.result import Result
 
 
@@ -54,13 +55,8 @@ class CeleryDispatcher:
 
     def _ensure_app(self) -> Any:
         if self._app is None:
-            try:
-                from celery import Celery
-            except ImportError as exc:
-                raise ImportError(
-                    "CeleryDispatcher requires celery; install via `pip install pirn[celery]`"
-                ) from exc
-            self._app = Celery(
+            celery = OptionalDependency.require("celery", extra="celery")
+            self._app = celery.Celery(
                 "pirn",
                 broker=self._broker_url,
                 backend=self._backend_url or self._broker_url,

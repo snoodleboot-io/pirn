@@ -20,9 +20,9 @@ package that merely imports these configs, so consumers such as pirn-agents stil
 suppress the resulting ``reportCallIssue`` at the call site. Shipping typed stubs
 for pirn-core would be the way to extend this across the package boundary.
 
-The decorator itself is :meth:`ConnectionConfigDecorator.apply`; the module-level
-``connection_config`` name is a bare alias to it (house rule: no module-level
-``def`` outside the documented allowlist) and is the spelling every config uses.
+The decorator is :meth:`ConnectionConfigDecorator.apply`, a ``@staticmethod`` on a
+holder class (house rule: no module-level ``def``); every connector config is
+declared with ``@ConnectionConfigDecorator.apply``.
 """
 
 from __future__ import annotations
@@ -67,7 +67,7 @@ class ConnectionConfigDecorator:
         def wrap(cls: type[_T]) -> type[_T]:
             decorated = dataclasses.dataclass(frozen=frozen, repr=False, **dataclass_kwargs)(cls)
             if "__repr__" in decorated.__dict__:
-                del decorated.__dict__["__repr__"]  # type: ignore[arg-type]
+                del decorated.__repr__
             return decorated
 
         if target is None:

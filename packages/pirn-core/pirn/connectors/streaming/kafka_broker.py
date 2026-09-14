@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Kafka :class:`MessageBroker` backed by :mod:`aiokafka`."""
 
 from __future__ import annotations
@@ -8,6 +10,7 @@ from typing import Any
 
 from pirn.connectors.message_broker import MessageBroker
 from pirn.connectors.streaming.kafka_config import KafkaConfig
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class KafkaBroker(MessageBroker):
@@ -97,12 +100,7 @@ class KafkaBroker(MessageBroker):
         return self._producer
 
     async def _build_producer(self) -> Any:
-        try:
-            from aiokafka import AIOKafkaProducer
-        except ImportError as exc:
-            raise ImportError(
-                "KafkaBroker requires aiokafka; install via `pip install pirn[kafka]`"
-            ) from exc
+        aiokafka = OptionalDependency.require("aiokafka", extra="kafka")
         kwargs: dict[str, Any] = dict(self._config.extra_producer_config)
         kwargs.update(
             bootstrap_servers=self._config.bootstrap_servers,
@@ -117,18 +115,13 @@ class KafkaBroker(MessageBroker):
             )
         if self._config.ssl_cafile:
             kwargs.update(ssl_cafile=self._config.ssl_cafile)
-        producer = AIOKafkaProducer(**kwargs)
+        producer = aiokafka.AIOKafkaProducer(**kwargs)
         await producer.start()
         self._logger.debug("kafka.producer.start")
         return producer
 
     async def _build_consumer(self, topic: str, effective_group: str | None) -> Any:
-        try:
-            from aiokafka import AIOKafkaConsumer
-        except ImportError as exc:
-            raise ImportError(
-                "KafkaBroker requires aiokafka; install via `pip install pirn[kafka]`"
-            ) from exc
+        aiokafka = OptionalDependency.require("aiokafka", extra="kafka")
         kwargs: dict[str, Any] = dict(self._config.extra_consumer_config)
         kwargs.update(
             bootstrap_servers=self._config.bootstrap_servers,
@@ -142,4 +135,4 @@ class KafkaBroker(MessageBroker):
                 sasl_plain_username=self._config.sasl_username,
                 sasl_plain_password=self._config.sasl_password,
             )
-        return AIOKafkaConsumer(topic, **kwargs)
+        return aiokafka.AIOKafkaConsumer(topic, **kwargs)

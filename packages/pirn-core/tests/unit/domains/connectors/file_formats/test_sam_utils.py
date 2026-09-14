@@ -1,47 +1,47 @@
-"""Tests for :class:`_SamUtils`."""
+"""Tests for :class:`SamUtils`."""
 
 from __future__ import annotations
 
 import os
 import unittest
 
-from pirn.connectors.file_formats._sam_utils import _SamUtils
+from pirn.connectors.file_formats.sam_utils import SamUtils
 
 
 class TestSamUtilsWriteTempfile(unittest.TestCase):
     def test_write_tempfile_creates_file(self) -> None:
-        path = _SamUtils.write_tempfile(b"hello", suffix=".sam")
-        self.addCleanup(_SamUtils.safe_unlink, path)
+        path = SamUtils.write_tempfile(b"hello", suffix=".sam")
+        self.addCleanup(SamUtils.safe_unlink, path)
         self.assertTrue(os.path.exists(path))
         with open(path, "rb") as fh:
             self.assertEqual(fh.read(), b"hello")
 
     def test_write_tempfile_respects_suffix(self) -> None:
-        path = _SamUtils.write_tempfile(b"data", suffix=".bam")
-        self.addCleanup(_SamUtils.safe_unlink, path)
+        path = SamUtils.write_tempfile(b"data", suffix=".bam")
+        self.addCleanup(SamUtils.safe_unlink, path)
         self.assertTrue(path.endswith(".bam"))
 
 
 class TestSamUtilsMakeTempfilePath(unittest.TestCase):
     def test_creates_empty_file(self) -> None:
-        path = _SamUtils.make_tempfile_path(suffix=".tmp")
-        self.addCleanup(_SamUtils.safe_unlink, path)
+        path = SamUtils.make_tempfile_path(suffix=".tmp")
+        self.addCleanup(SamUtils.safe_unlink, path)
         self.assertTrue(os.path.exists(path))
 
     def test_respects_suffix(self) -> None:
-        path = _SamUtils.make_tempfile_path(suffix=".cram")
-        self.addCleanup(_SamUtils.safe_unlink, path)
+        path = SamUtils.make_tempfile_path(suffix=".cram")
+        self.addCleanup(SamUtils.safe_unlink, path)
         self.assertTrue(path.endswith(".cram"))
 
 
 class TestSamUtilsSafeUnlink(unittest.TestCase):
     def test_safe_unlink_removes_file(self) -> None:
-        path = _SamUtils.make_tempfile_path(suffix=".tmp")
-        _SamUtils.safe_unlink(path)
+        path = SamUtils.make_tempfile_path(suffix=".tmp")
+        SamUtils.safe_unlink(path)
         self.assertFalse(os.path.exists(path))
 
     def test_safe_unlink_nonexistent_does_not_raise(self) -> None:
-        _SamUtils.safe_unlink("/tmp/does_not_exist_pirn_test_12345.tmp")
+        SamUtils.safe_unlink("/tmp/does_not_exist_pirn_test_12345.tmp")
 
 
 class TestSamUtilsValidateRecord(unittest.TestCase):
@@ -61,13 +61,13 @@ class TestSamUtilsValidateRecord(unittest.TestCase):
         }
 
     def test_valid_record_passes(self) -> None:
-        _SamUtils.validate_record(self._valid_record())
+        SamUtils.validate_record(self._valid_record())
 
     def test_missing_field_raises_value_error(self) -> None:
         rec = self._valid_record()
         del rec["qname"]
         with self.assertRaises(ValueError):
-            _SamUtils.validate_record(rec)
+            SamUtils.validate_record(rec)
 
 
 class TestSamUtilsInferHeader(unittest.TestCase):
@@ -90,7 +90,7 @@ class TestSamUtilsInferHeader(unittest.TestCase):
                 "qual": "*",
             },
         ]
-        header = _SamUtils.infer_header(pysam_stub, records)
+        header = SamUtils.infer_header(pysam_stub, records)
         self.assertIn("SQ", header)
         self.assertEqual(header["SQ"][0]["SN"], "chr1")
 
@@ -98,5 +98,5 @@ class TestSamUtilsInferHeader(unittest.TestCase):
         import unittest.mock as mock
 
         pysam_stub = mock.MagicMock()
-        header = _SamUtils.infer_header(pysam_stub, [])
+        header = SamUtils.infer_header(pysam_stub, [])
         self.assertEqual(header["SQ"][0]["SN"], "chr1")

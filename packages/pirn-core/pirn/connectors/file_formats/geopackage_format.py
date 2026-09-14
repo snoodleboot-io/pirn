@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``GeopackageFormat`` — GeoPackage (``.gpkg``) encoder/decoder.
 
 Backed by ``fiona`` (which wraps OGR). GeoPackage is a SQLite database
@@ -15,7 +17,7 @@ Round-trip fidelity matches what fiona/OGR's GPKG driver preserves —
 property types are coerced to fit the inferred schema; tests assert
 structural and value survival of simple Point/property fixtures.
 
-Install: ``pip install pirn[geopackage]``.
+Install: ``pip install "pirn-core[geopackage]"``.
 """
 
 from __future__ import annotations
@@ -28,6 +30,8 @@ from typing import Any
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.connectors.payload_shape import PayloadShape
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class GeopackageFormat(BatchFileFormat):
@@ -51,7 +55,7 @@ class GeopackageFormat(BatchFileFormat):
         return self._layer_name
 
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
-        fiona = self._load_fiona()
+        fiona = OptionalDependency.require("fiona", extra="geopackage")
         path = self._materialise_payload(payload)
         try:
             with fiona.open(path, layer=self._layer_name) as source:
@@ -73,7 +77,7 @@ class GeopackageFormat(BatchFileFormat):
                 pass
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
-        fiona = self._load_fiona()
+        fiona = OptionalDependency.require("fiona", extra="geopackage")
         materialised: list[Mapping[str, Any]] = list(records)
         if not materialised:
             raise ValueError(
@@ -138,8 +142,8 @@ class GeopackageFormat(BatchFileFormat):
         geometry = feature["geometry"]
         if geometry is None:
             return {}
-        if isinstance(geometry, Mapping):
-            return dict(geometry)
+        if PayloadShape.is_mapping(geometry):
+            return {str(key): value for key, value in geometry.items()}
         as_dict = getattr(geometry, "__geo_interface__", None)
         if as_dict is not None:
             return dict(as_dict)
@@ -170,7 +174,7 @@ class GeopackageFormat(BatchFileFormat):
     @classmethod
     def _infer_schema(cls, sample: Mapping[str, Any]) -> Mapping[str, Any]:
         geometry_type = str(sample["geometry"]["type"])
-        properties = sample.get("properties") or {}
+        properties: Mapping[str, Any] = sample.get("properties") or {}
         property_schema: dict[str, str] = {}
         for key, value in properties.items():
             property_schema[str(key)] = cls._fiona_type(value)
@@ -189,13 +193,3 @@ class GeopackageFormat(BatchFileFormat):
         if isinstance(value, float):
             return "float"
         return "str"
-
-    @staticmethod
-    def _load_fiona() -> Any:
-        try:
-            import fiona
-        except ImportError as exc:
-            raise ImportError(
-                "GeopackageFormat requires fiona. Install with `pip install pirn[geopackage]`."
-            ) from exc
-        return fiona

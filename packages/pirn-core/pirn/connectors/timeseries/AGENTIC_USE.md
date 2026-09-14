@@ -89,7 +89,7 @@ with Tapestry() as t:
 
 ## Constraints and gotchas
 
-- **Each pool requires its own extra:** `pirn[influxdb]`, `pirn[timescaledb]`, `pirn[questdb]`, `pirn[kdb]`, `pirn[victoriametrics]`.
+- **Each pool requires its backend extra:** `pip install "pirn-core[influxdb]"`, `"pirn-core[postgres]"` (TimescaleDB and QuestDB, via asyncpg), `"pirn-core[kdb]"`, `"pirn-core[http]"` (VictoriaMetrics, via httpx).
 - **`QuestDBPool` exposes two ports:** ILP port 9009 for high-throughput writes (line protocol), HTTP port 9000 for queries. The pool constructor takes both.
 - **`KdbPool` requires a running kdb+ q process.** The pool speaks the q-IPC binary protocol — it is not SQL.
 - **`VictoriaMetricsPool` in cluster mode requires `tenant_id`** to route writes and queries to the correct tenant shard.
@@ -100,11 +100,11 @@ with Tapestry() as t:
 
 | Database | Config | Pool | Extra |
 |----------|--------|------|-------|
-| InfluxDB v2 | `InfluxDBConfig` | `InfluxDBPool` | `pirn[influxdb]` |
-| TimescaleDB | `TimescaleDBConfig` | `TimescaleDBPool` | `pirn[timescaledb]` |
-| QuestDB | `QuestDBConfig` | `QuestDBPool` | `pirn[questdb]` |
-| kdb+ | `KdbConfig` | `KdbPool` | `pirn[kdb]` |
-| VictoriaMetrics | `VictoriaMetricsConfig` | `VictoriaMetricsPool` | `pirn[victoriametrics]` |
+| InfluxDB v2 | `InfluxDBConfig` | `InfluxDBPool` | `pirn-core[influxdb]` |
+| TimescaleDB | `TimescaleDBConfig` | `TimescaleDBPool` | `pirn-core[postgres]` |
+| QuestDB | `QuestDBConfig` | `QuestDBPool` | `pirn-core[postgres]` |
+| kdb+ | `KdbConfig` | `KdbPool` | `pirn-core[kdb]` |
+| VictoriaMetrics | `VictoriaMetricsConfig` | `VictoriaMetricsPool` | `pirn-core[http]` |
 
 ---
 

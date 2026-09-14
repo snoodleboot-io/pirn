@@ -93,10 +93,11 @@ class TestM4aFormatErrors(unittest.IsolatedAsyncioTestCase):
                 pass
 
 
-class TestM4aFormatMissingDep(unittest.TestCase):
-    def test_import_error_message(self) -> None:
+class TestM4aFormatMissingDep(unittest.IsolatedAsyncioTestCase):
+    async def test_import_error_message(self) -> None:
+        import sys
         import unittest.mock
 
-        with unittest.mock.patch.dict("sys.modules", {"pydub": None}):
-            with self.assertRaisesRegex(ImportError, "pirn\\[audio\\]"):
-                M4aFormat._load_pydub()
+        with unittest.mock.patch.dict(sys.modules, {"pydub": None}):
+            with self.assertRaisesRegex(ImportError, 'pip install "pirn-core\\[audio\\]"'):
+                await M4aFormat()._decode_full(b"not-audio")

@@ -13,6 +13,7 @@ import json
 from collections.abc import AsyncIterator
 from typing import Any
 
+from pirn.core.optional_dependency import OptionalDependency
 from pirn.core.run_request import RunRequest
 from pirn.triggers.trigger import Trigger
 
@@ -49,7 +50,7 @@ class ValKeyTrigger(Trigger):
                 via ``config``.
             config: A ``GlideClientConfiguration`` (or compatible object)
                 used to create a ``GlideClient`` lazily on first use.
-                Requires ``pirn[valkey]``.
+                Requires ``pirn-core[valkey]``.
             request_builder: Callable ``(msg) -> RunRequest``.  Receives
                 the raw pub/sub message object from ``valkey-glide``.
                 Defaults to JSON-decoding ``msg.message`` as a parameter
@@ -80,16 +81,11 @@ class ValKeyTrigger(Trigger):
             ImportError: If ``valkey-glide`` is not installed.
         """
         if self._client is None:
-            try:
-                from glide import GlideClient
-            except ImportError as exc:
-                raise ImportError(
-                    "ValKeyTrigger requires valkey-glide; install via `pip install pirn[valkey]`"
-                ) from exc
+            glide = OptionalDependency.require("glide", extra="valkey")
             # The user's config must include pubsub_subscriptions for
             # this trigger to receive messages; we don't attempt to
             # rewrite it here.
-            self._client = await GlideClient.create(self._config)
+            self._client = await glide.GlideClient.create(self._config)
         return self._client
 
     async def stream(self) -> AsyncIterator[RunRequest]:

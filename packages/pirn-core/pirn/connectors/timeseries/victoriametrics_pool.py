@@ -11,6 +11,7 @@ from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.timeseries.victoriametrics_config import (
     VictoriaMetricsConfig,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class VictoriaMetricsPool(DatabaseConnectionPool):
@@ -104,13 +105,7 @@ class VictoriaMetricsPool(DatabaseConnectionPool):
             self._client = await self._create_client()
 
     async def _create_client(self) -> Any:
-        try:
-            import httpx
-        except ImportError as exc:
-            raise ImportError(
-                "VictoriaMetricsPool requires httpx; install via "
-                "`pip install pirn[victoriametrics]`"
-            ) from exc
+        httpx = OptionalDependency.require("httpx", extra="http")
         if self._config is None:
             raise self._missing_config_error("VictoriaMetricsPool", "client")
         auth = None

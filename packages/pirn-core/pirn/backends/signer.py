@@ -14,7 +14,7 @@ from pirn.exceptions.data_integrity_error import DataIntegrityError
 from pirn.exceptions.pirn_config_error import PirnConfigError
 
 
-class _Signer:
+class Signer:
     """Signs and verifies cloudpickle payloads with HMAC-SHA256.
 
     The digest size is fixed at 32 bytes by the SHA256 algorithm.
@@ -26,8 +26,8 @@ class _Signer:
         self.__key = key
 
     @classmethod
-    def from_env(cls, var: str = "PIRN_SIGNING_KEY") -> _Signer:
-        """Construct a _Signer from a base64-encoded key in an environment variable.
+    def from_env(cls, var: str = "PIRN_SIGNING_KEY") -> Signer:
+        """Construct a Signer from a base64-encoded key in an environment variable.
 
         Raises ``ValueError`` if the variable is unset or empty.
 
@@ -36,7 +36,7 @@ class _Signer:
             import secrets, base64
             key_b64 = base64.b64encode(secrets.token_bytes(32)).decode()
             # Set PIRN_SIGNING_KEY=<key_b64> in your environment, then:
-            store = LocalDiskDataStore("/data", signer=_Signer.from_env())
+            store = LocalDiskDataStore("/data", signer=Signer.from_env())
         """
         raw = os.environ.get(var)
         if not raw:
@@ -54,7 +54,7 @@ class _Signer:
         return cls(decoded)
 
     @classmethod
-    def test_signer(cls) -> _Signer:
+    def test_signer(cls) -> Signer:
         """Return a deterministic signer for unit tests.
 
         Tests that exercise the signing path use this so they don't need
@@ -69,9 +69,9 @@ class _Signer:
         env = os.environ.get("PIRN_ENV", "").lower()
         if env not in ("test", "ci"):
             raise RuntimeError(
-                "_Signer.test_signer() must not be called in production. "
+                "Signer.test_signer() must not be called in production. "
                 "Set PIRN_ENV=test or PIRN_ENV=ci to use this method in a "
-                "test or CI environment. Use _Signer.from_env() for production."
+                "test or CI environment. Use Signer.from_env() for production."
             )
         return cls(b"pirn-test-signer-key-not-for-production")
 

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Async ``ApiClient`` wrapper around the synchronous atlassian Jira SDK.
 
 ``atlassian.Jira`` is sync; calls run in a worker thread via
@@ -10,7 +12,7 @@ The connector exposes:
 2. The :class:`TableSource` capability — ``fetch_page`` runs the
    constructor's ``jql`` and pages via Jira's offset cursor
    (``startAt`` + ``maxResults``).
-3. The legacy :meth:`request` escape hatch.
+3. The generic :meth:`request` escape hatch.
 """
 
 from __future__ import annotations
@@ -23,7 +25,9 @@ from typing import Any
 from pirn.connectors.api_client import ApiClient
 from pirn.connectors.capabilities.table_source import TableSource
 from pirn.connectors.dsn_scrubber import DsnScrubber
+from pirn.connectors.payload_shape import PayloadShape
 from pirn.connectors.saas.jira_config import JiraConfig
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class JiraClient(ApiClient, TableSource):
@@ -108,28 +112,36 @@ class JiraClient(ApiClient, TableSource):
         )
         return self._extract_page(response, start_at, max_results)
 
-    @staticmethod
+    @classmethod
     def _extract_page(
-        response: Any,
+        cls,
+        response: object,
         start_at: int,
         max_results: int,
     ) -> tuple[list[Mapping[str, Any]], str | None]:
-        if not isinstance(response, Mapping):
+        if not PayloadShape.is_str_mapping(response):
             return [], None
-        issues: list[Mapping[str, Any]] = list(response.get("issues") or [])
+        issues = PayloadShape.rows(response.get("issues"), source="JiraClient")
         total = response.get("total")
-        response_start = response.get("startAt", start_at)
-        response_max = response.get("maxResults", max_results)
-        try:
-            start_int = int(response_start)
-            max_int = int(response_max)
-        except (TypeError, ValueError):
+        start_int = cls._int_or_none(response.get("startAt", start_at))
+        max_int = cls._int_or_none(response.get("maxResults", max_results))
+        if start_int is None or max_int is None:
             start_int = start_at
             max_int = max_results
         next_offset = start_int + max_int
         if isinstance(total, int) and next_offset < total:
             return issues, str(next_offset)
         return issues, None
+
+    @staticmethod
+    def _int_or_none(value: object) -> int | None:
+        """Coerce a paging field to ``int``; ``None`` when it is not numeric."""
+        if not isinstance(value, (int, float, str)):
+            return None
+        try:
+            return int(value)
+        except ValueError:
+            return None
 
     async def request(
         self,
@@ -190,12 +202,7 @@ class JiraClient(ApiClient, TableSource):
         return self._client
 
     async def _create_client(self) -> Any:
-        try:
-            from atlassian import Jira  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "JiraClient requires atlassian-python-api; install via `pip install pirn[jira]`"
-            ) from exc
+        atlassian = OptionalDependency.require("atlassian", extra="jira")
         if self._config is None:
             raise self._missing_config_error("JiraClient", "client")
 
@@ -208,7 +215,7 @@ class JiraClient(ApiClient, TableSource):
             kwargs["password"] = self._config.api_token
 
         try:
-            client = await asyncio.to_thread(Jira, **kwargs)
+            client = await asyncio.to_thread(atlassian.Jira, **kwargs)
         except Exception as exc:
             self._reraise_scrubbed(exc)
         self._logger.debug("jira.connect")

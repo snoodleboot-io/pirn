@@ -286,3 +286,34 @@ class TestFetchPage(unittest.IsolatedAsyncioTestCase):
         client = JiraClient(client=FakeJira())
         with self.assertRaisesRegex(RuntimeError, "no jql configured"):
             await client.fetch_page()
+
+
+class _FakeJira:
+    def __init__(self, response: object) -> None:
+        self.response = response
+
+    def get(self, path: str, params: object = None) -> object:
+        return self.response
+
+
+class TestJiraPagingCoercion(unittest.IsolatedAsyncioTestCase):
+    async def test_string_paging_fields_are_coerced(self) -> None:
+        # Arrange
+        fake = _FakeJira({"issues": [{"id": "1"}], "total": 10, "startAt": "0", "maxResults": "5"})
+        client = JiraClient(client=fake, jql="project = X")
+
+        # Act
+        rows, cursor = await client.fetch_page()
+
+        # Assert
+        self.assertEqual(rows, [{"id": "1"}])
+        self.assertEqual(cursor, "5")
+
+    async def test_non_numeric_paging_fields_fall_back_to_request(self) -> None:
+        fake = _FakeJira({"issues": [], "total": 100, "startAt": "abc", "maxResults": None})
+        client = JiraClient(client=fake, jql="project = X")
+
+        rows, cursor = await client.fetch_page("20", page_size=10)
+
+        self.assertEqual(rows, [])
+        self.assertEqual(cursor, "30")

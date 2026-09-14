@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """HubSpot SaaS connector wrapping the synchronous ``hubspot-api-client`` SDK.
 
 The HubSpot SDK exposes resource-specific high-level methods, but it also
@@ -13,7 +15,7 @@ The connector exposes:
    constructor's ``object_type`` over HubSpot's CRM objects API.
 3. The :class:`RecordWriter` capability — ``write_records`` POSTs each
    record to ``/crm/v3/objects/<object_type>``.
-4. The legacy :meth:`request` escape hatch.
+4. The generic :meth:`request` escape hatch.
 """
 
 from __future__ import annotations
@@ -27,7 +29,9 @@ from pirn.connectors.api_client import ApiClient
 from pirn.connectors.capabilities.record_writer import RecordWriter
 from pirn.connectors.capabilities.table_source import TableSource
 from pirn.connectors.dsn_scrubber import DsnScrubber
+from pirn.connectors.payload_shape import PayloadShape
 from pirn.connectors.saas.hubspot_config import HubSpotConfig
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class HubSpotClient(ApiClient, TableSource, RecordWriter):
@@ -95,17 +99,17 @@ class HubSpotClient(ApiClient, TableSource, RecordWriter):
         )
         rows: list[Mapping[str, Any]] = []
         next_cursor: str | None = None
-        if isinstance(response, Mapping):
+        if PayloadShape.is_str_mapping(response):
             if "results" not in response:
                 raise ValueError(
                     "HubSpotClient: response missing required field 'results'; "
                     f"got: {list(response)}"
                 )
-            rows = list(response["results"])
+            rows = PayloadShape.rows(response["results"], source="HubSpotClient")
             paging = response.get("paging")
-            if isinstance(paging, Mapping):
+            if PayloadShape.is_str_mapping(paging):
                 next_block = paging.get("next")
-                if isinstance(next_block, Mapping):
+                if PayloadShape.is_str_mapping(next_block):
                     after_token = next_block.get("after")
                     if after_token is not None:
                         next_cursor = str(after_token)
@@ -167,12 +171,7 @@ class HubSpotClient(ApiClient, TableSource, RecordWriter):
         return self._client
 
     async def _create_client(self) -> Any:
-        try:
-            from hubspot import HubSpot  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "HubSpotClient requires hubspot-api-client; install via `pip install pirn[hubspot]`"
-            ) from exc
+        hubspot = OptionalDependency.require("hubspot", extra="hubspot")
         if self._config is None:
             raise self._missing_config_error("HubSpotClient", "client")
 
@@ -182,7 +181,7 @@ class HubSpotClient(ApiClient, TableSource, RecordWriter):
         if self._config.api_key is not None:
             kwargs["api_key"] = self._config.api_key
         try:
-            client = await asyncio.to_thread(HubSpot, **kwargs)
+            client = await asyncio.to_thread(hubspot.HubSpot, **kwargs)
         except Exception as exc:
             self._reraise_scrubbed(exc)
         self._logger.debug("hubspot.connect")

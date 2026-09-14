@@ -17,7 +17,7 @@ Write is not supported because producing valid ROOT files requires the
 ``uproot`` write API combined with ``awkward-array``, which adds
 substantial complexity outside the scope of this connector.
 
-Install: ``pip install pirn[physics]``.
+Install: ``pip install "pirn-core[root]"``.
 """
 
 from __future__ import annotations
@@ -30,6 +30,7 @@ from typing import Any
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class RootFormat(BatchFileFormat):
@@ -43,7 +44,7 @@ class RootFormat(BatchFileFormat):
         return "root"
 
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
-        uproot = self._load_uproot()
+        uproot = OptionalDependency.require("uproot", extra="root")
         tmp_path = self._write_temp(payload, ".root")
         records: list[Mapping[str, Any]] = []
         try:
@@ -97,13 +98,3 @@ class RootFormat(BatchFileFormat):
             os.remove(tmp_path)
             raise
         return tmp_path
-
-    @staticmethod
-    def _load_uproot() -> Any:
-        try:
-            import uproot
-        except ImportError as exc:
-            raise ImportError(
-                "RootFormat requires uproot. Install with `pip install pirn[physics]`."
-            ) from exc
-        return uproot

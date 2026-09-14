@@ -47,6 +47,7 @@ from pirn.connectors.connector_base import ConnectorBase
 from pirn.core.knot_retry_policy import KnotRetryPolicy
 from pirn.security.credential_ref import CredentialRef
 
+from pirn_agents._internal.optional_import import OptionalImport
 from pirn_agents.llm.http_transport import HttpTransport
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.llm.llm_provider_identity_mixin import LLMProviderIdentityMixin
@@ -78,10 +79,6 @@ class BaseLLMProvider(
     ``ConnectorBase`` first would let its ``__pirn_canonical__`` shadow the
     mixin's override instead of being ``super()``'s target.
     """
-
-    # The httpx backend ships with pirn-agents, so the missing-dependency install
-    # hint must name this distribution, not core's.
-    _install_dist = "pirn-agents"
 
     def __init__(
         self,
@@ -167,7 +164,7 @@ class BaseLLMProvider(
         """
         if self._injected_client is not None:
             return self._injected_client
-        httpx = self._require("web", "httpx")
+        httpx = OptionalImport.require("web", "httpx")
         return httpx.AsyncClient(timeout=self._timeout)
 
     # -- public API (LLMProvider) ---------------------------------------

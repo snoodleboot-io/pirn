@@ -11,8 +11,8 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
-from pirn.backends._signer import _Signer
 from pirn.backends.gcs_data_store import GCSDataStore
+from pirn.backends.signer import Signer
 
 
 class _DownloadStream:
@@ -65,7 +65,7 @@ class TestGCSDataStoreConstruction(unittest.TestCase):
         self.assertIsNotNone(store)
 
     def test_accepts_signer(self) -> None:
-        store = GCSDataStore(bucket="my-bucket", signer=_Signer.test_signer())
+        store = GCSDataStore(bucket="my-bucket", signer=Signer.test_signer())
         self.assertIsNotNone(store)
 
 

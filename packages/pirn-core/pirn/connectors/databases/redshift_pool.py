@@ -15,6 +15,7 @@ from typing import Any
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.databases.redshift_config import RedshiftConfig
 from pirn.connectors.dsn_scrubber import DsnScrubber
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class RedshiftPool(DatabaseConnectionPool):
@@ -91,12 +92,7 @@ class RedshiftPool(DatabaseConnectionPool):
         return self._pool
 
     async def _create_pool(self) -> Any:
-        try:
-            import asyncpg
-        except ImportError as exc:
-            raise ImportError(
-                "RedshiftPool requires asyncpg; install via `pip install pirn[redshift]`"
-            ) from exc
+        asyncpg = OptionalDependency.require("asyncpg", extra="redshift")
         if self._config is None:
             raise self._missing_config_error("RedshiftPool", "pool")
 
@@ -108,7 +104,7 @@ class RedshiftPool(DatabaseConnectionPool):
         }
         try:
             if self._config.dsn:
-                pool = await asyncpg.create_pool(self._config.dsn, **kwargs)
+                pool: Any = await asyncpg.create_pool(self._config.dsn, **kwargs)
             else:
                 pool = await asyncpg.create_pool(
                     host=self._config.host,

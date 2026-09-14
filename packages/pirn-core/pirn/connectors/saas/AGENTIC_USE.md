@@ -14,13 +14,13 @@ Each SaaS service has a `*Config` (API credentials, workspace/org identifiers) a
 pirn/connectors/saas/
 ├── stripe_config.py           StripeConfig           — api_key, webhook_secret
 ├── stripe_client.py           StripeClient           — Stripe API (payments, subscriptions, events)
-├── salesforce_config.py       SalesforceConfig       — instance_url, client_id, client_secret, username
+├── salesforce_config.py       SalesforceConfig       — username, password, security_token, domain, consumer_key/secret
 ├── salesforce_client.py       SalesforceClient       — Salesforce REST API (SOQL, objects, bulk)
 ├── hubspot_config.py          HubSpotConfig          — access_token
 ├── hubspot_client.py          HubSpotClient          — HubSpot CRM API (contacts, deals, pipelines)
 ├── jira_config.py             JiraConfig             — base_url, user, api_token
 ├── jira_client.py             JiraClient             — Jira REST API v3 (issues, projects, boards)
-├── github_config.py           GitHubConfig           — token, base_url (for GHE)
+├── github_config.py           GitHubConfig           — token or app_id + private_key, base_url (for GHE)
 ├── github_client.py           GitHubClient           — GitHub REST + GraphQL API
 ├── zendesk_config.py          ZendeskConfig          — subdomain, user, api_token
 ├── zendesk_client.py          ZendeskClient          — Zendesk Support API (tickets, users, macros)
@@ -37,6 +37,8 @@ pirn/connectors/saas/
 ├── google_analytics_config.py GoogleAnalyticsConfig  — property_id, credentials_json
 └── google_analytics_client.py GoogleAnalyticsClient  — GA4 Data API (reports, metadata)
 ```
+
+Untyped SDK / JSON responses are narrowed with the shared `pirn.connectors.payload_shape.PayloadShape` (type guards + `rows()` record extraction).
 
 ---
 
@@ -65,12 +67,11 @@ from pirn.connectors.saas.salesforce_config import SalesforceConfig
 from pirn.connectors.saas.salesforce_client import SalesforceClient
 
 sf = SalesforceClient(config=SalesforceConfig(
-    instance_url="https://myorg.my.salesforce.com",
-    client_id=os.environ["SF_CLIENT_ID"],
-    client_secret=os.environ["SF_CLIENT_SECRET"],
     username=os.environ["SF_USERNAME"],
+    password=os.environ["SF_PASSWORD"],
+    security_token=os.environ["SF_SECURITY_TOKEN"],
 ))
-# sf.query("SELECT Id, Name FROM Account WHERE CreatedDate = TODAY")
+# async for row in sf.soql("SELECT Id, Name FROM Account WHERE CreatedDate = TODAY"): ...
 ```
 
 ---
@@ -85,9 +86,9 @@ sf = SalesforceClient(config=SalesforceConfig(
 
 ## Constraints and gotchas
 
-- **Each client requires its own extra:** `pirn[stripe]`, `pirn[salesforce]`, `pirn[hubspot]`, `pirn[jira]`, `pirn[github]`, etc.
-- **`SalesforceClient` uses OAuth2 client-credentials flow.** The `username` is only needed for user-context operations.
-- **`GitHubClient` supports both REST and GraphQL.** Use `.graphql(query)` for paginated or nested resource fetches.
+- **Each client requires its own extra:** `pip install "pirn-core[stripe]"`, `"pirn-core[salesforce]"`, `"pirn-core[hubspot]"`, `"pirn-core[jira]"`, `"pirn-core[github]"`, etc. A missing SDK raises `ImportError` naming the exact install command when the client first connects.
+- **`SalesforceClient` authenticates through `simple-salesforce`** with username + password + security token, or a connected-app `consumer_key`/`consumer_secret`.
+- **`GitHubClient` is REST-only** (PyGithub requester). `fetch_page` pages with GitHub's `?page=N` cursor.
 - **`TwilioClient` sends real SMS/calls in production.** Always use test credentials (`AC` prefix test SID) in non-production environments.
 - **`GoogleAnalyticsClient` requires the GA4 Data API**, not the Universal Analytics API. Properties must be migrated to GA4.
 

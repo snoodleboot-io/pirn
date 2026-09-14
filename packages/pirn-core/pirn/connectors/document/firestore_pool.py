@@ -1,7 +1,10 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Async Google Cloud Firestore pool backed by :mod:`google.cloud.firestore_v1`."""
 
 from __future__ import annotations
 
+import json
 import logging
 from collections.abc import Iterable
 from typing import Any
@@ -9,6 +12,8 @@ from typing import Any
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.document.firestore_config import FirestoreConfig
 from pirn.connectors.dsn_scrubber import DsnScrubber
+from pirn.connectors.payload_shape import PayloadShape
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class FirestorePool(DatabaseConnectionPool):
@@ -59,7 +64,7 @@ class FirestorePool(DatabaseConnectionPool):
         await self._ensure_client()
         if self._client is None:
             raise RuntimeError("FirestorePool: not connected — call connect() first")
-        doc_data = parameters if parameters is not None else {}
+        doc_data: Iterable[Any] = parameters if parameters is not None else {}
         _timestamp, doc_ref = await self._client.collection(query).add(doc_data)
         return doc_ref.id
 
@@ -72,7 +77,7 @@ class FirestorePool(DatabaseConnectionPool):
         if self._client is None:
             raise RuntimeError("FirestorePool: not connected — call connect() first")
         col_ref = self._client.collection(query)
-        if isinstance(parameters, dict):
+        if PayloadShape.is_str_dict(parameters):
             for field, value in parameters.items():
                 col_ref = col_ref.where(field, "==", value)
         docs = col_ref.stream()
@@ -86,7 +91,10 @@ class FirestorePool(DatabaseConnectionPool):
         batch = self._client.batch()
         col_ref = self._client.collection(query)
         for row in parameter_seq:
-            doc_data = row if isinstance(row, dict) else (next(iter(row), {}) if row else {})
+            empty: dict[str, object] = {}
+            doc_data: object = (
+                row if PayloadShape.is_str_dict(row) else (next(iter(row), empty) if row else empty)
+            )
             doc_ref = col_ref.document()
             batch.set(doc_ref, doc_data)
         await batch.commit()
@@ -98,22 +106,18 @@ class FirestorePool(DatabaseConnectionPool):
             self._client = await self._create_client()
 
     async def _create_client(self) -> Any:
-        try:
-            from google.cloud.firestore_v1.async_client import AsyncClient
-        except ImportError as exc:
-            raise ImportError(
-                "FirestorePool requires google-cloud-firestore; "
-                "install via pip install pirn[firestore]"
-            ) from exc
+        async_client = OptionalDependency.require(
+            "google.cloud.firestore_v1.async_client", extra="firestore"
+        )
         if self._config is None:
             raise self._missing_config_error("FirestorePool", "client")
 
         try:
-            credentials = None
+            credentials: Any = None
             if self._config.credentials_json:
-                import json
-
-                from google.oauth2 import service_account
+                service_account = OptionalDependency.require(
+                    "google.oauth2.service_account", extra="firestore"
+                )
 
                 try:
                     cred_info = json.loads(self._config.credentials_json)
@@ -123,7 +127,7 @@ class FirestorePool(DatabaseConnectionPool):
                 if cred_info:
                     credentials = service_account.Credentials.from_service_account_info(cred_info)
 
-            firestore_client = AsyncClient(
+            firestore_client: Any = async_client.AsyncClient(
                 project=self._config.project_id,
                 credentials=credentials,
                 database=self._config.database_id,

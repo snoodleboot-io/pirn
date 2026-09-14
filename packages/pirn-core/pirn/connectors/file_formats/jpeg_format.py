@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``JpegFormat`` — JPEG (JFIF) encoder/decoder.
 
 Reads and writes use ``Pillow``. JPEG is a single-image lossy raster
@@ -24,7 +26,7 @@ Security: pirn does not sandbox ``Pillow``. Malformed payloads may
 trigger upstream library bugs (decompression bombs, malformed segments).
 Treat untrusted payloads accordingly.
 
-Install: ``pip install pirn[image]``.
+Install: ``pip install "pirn-core[image]"``.
 """
 
 from __future__ import annotations
@@ -36,6 +38,7 @@ from typing import Any
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class JpegFormat(BatchFileFormat):
@@ -59,7 +62,7 @@ class JpegFormat(BatchFileFormat):
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         if not isinstance(payload, (bytes, bytearray)):
             raise TypeError(f"JpegFormat: payload must be bytes, got {type(payload).__name__}")
-        pil_image = self._load_pil_image()
+        pil_image = OptionalDependency.require("PIL.Image", extra="image")
         with pil_image.open(io.BytesIO(payload)) as image:
             image.load()
             return [
@@ -80,7 +83,7 @@ class JpegFormat(BatchFileFormat):
             )
         record = materialised[0]
         width, height, mode, data = self._validate_record(record)
-        pil_image = self._load_pil_image()
+        pil_image = OptionalDependency.require("PIL.Image", extra="image")
         image = pil_image.frombytes(mode, (width, height), data)
         buf = io.BytesIO()
         image.save(buf, format="JPEG", quality=self._quality)
@@ -109,13 +112,3 @@ class JpegFormat(BatchFileFormat):
         if not isinstance(data, (bytes, bytearray)):
             raise TypeError(f"JpegFormat: 'data' must be bytes, got {type(data).__name__}")
         return width, height, mode, bytes(data)
-
-    @staticmethod
-    def _load_pil_image() -> Any:
-        try:
-            from PIL import Image
-        except ImportError as exc:
-            raise ImportError(
-                "JpegFormat requires Pillow. Install with `pip install pirn[image]`."
-            ) from exc
-        return Image

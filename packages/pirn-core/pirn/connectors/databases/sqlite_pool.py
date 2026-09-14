@@ -13,6 +13,7 @@ from typing import Any
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.databases.sqlite_config import SqliteConfig
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class SqlitePool(DatabaseConnectionPool):
@@ -169,12 +170,7 @@ class SqlitePool(DatabaseConnectionPool):
         return bool(connection.in_transaction) and not in_transaction_on_entry
 
     async def _open_connection(self) -> Any:
-        try:
-            import aiosqlite
-        except ImportError as exc:
-            raise ImportError(
-                "SqlitePool requires aiosqlite; install via `pip install pirn[sqlite]`"
-            ) from exc
+        aiosqlite = OptionalDependency.require("aiosqlite", extra="sqlite")
 
         connection = await aiosqlite.connect(
             str(self._config.database), timeout=self._config.timeout

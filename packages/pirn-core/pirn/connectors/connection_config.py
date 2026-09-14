@@ -19,10 +19,10 @@ from pirn.connectors.dsn_scrubber import DsnScrubber
 class ConnectionConfig:
     """Base class for connector configuration dataclasses.
 
-    Apply :func:`connection_config` (preferred) or
-    ``@dataclass(frozen=True, repr=False)`` (manual) to the subclass —
-    ``repr=False`` is required because the redacting ``__repr__`` lives on
-    this base class.
+    Declare subclasses with
+    :meth:`~pirn.connectors.connection_config_decorator.ConnectionConfigDecorator.apply`,
+    which applies ``@dataclass(frozen=True, repr=False)`` — ``repr=False`` is
+    required because the redacting ``__repr__`` lives on this base class.
 
     Subclasses may declare additional sensitive-field names through
     :attr:`sensitive_fields` for fields whose names don't already contain a

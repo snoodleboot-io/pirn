@@ -15,7 +15,7 @@ Records are emitted as ONE record per file with shape::
         "data":    bytes,             # raw image array bytes
     }
 
-Install: ``pip install pirn[health]``.
+Install: ``pip install "pirn-health[health]"``.
 """
 
 from __future__ import annotations
@@ -23,11 +23,15 @@ from __future__ import annotations
 import tempfile
 from collections.abc import Iterable, Mapping
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
+
+if TYPE_CHECKING:
+    pass
 
 
 class NiftiFormat(BatchFileFormat):
@@ -38,7 +42,7 @@ class NiftiFormat(BatchFileFormat):
         return "nifti"
 
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
-        nib = self._load_nibabel()
+        nib = OptionalDependency.require("nibabel", extra="health", package="pirn-health")
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "image.nii"
             path.write_bytes(payload)
@@ -54,9 +58,9 @@ class NiftiFormat(BatchFileFormat):
         return [record]
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
-        nib = self._load_nibabel()
         import numpy as np
 
+        nib = OptionalDependency.require("nibabel", extra="health", package="pirn-health")
         materialised = list(records)
         if not materialised:
             raise ValueError("NiftiFormat: cannot encode an empty record stream.")
@@ -87,13 +91,3 @@ class NiftiFormat(BatchFileFormat):
             except (KeyError, AttributeError, ValueError):
                 pass
         return result
-
-    @staticmethod
-    def _load_nibabel() -> Any:
-        try:
-            import nibabel as nib
-        except ImportError as exc:
-            raise ImportError(
-                "NiftiFormat requires nibabel. Install with `pip install pirn[health]`."
-            ) from exc
-        return nib

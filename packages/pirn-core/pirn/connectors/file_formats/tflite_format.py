@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TfliteFormat`` — TensorFlow Lite (FlatBuffer) model encoder/decoder.
 
 TFLite artefacts are FlatBuffer-encoded model containers used for
@@ -9,7 +11,7 @@ ML artefacts do not fit the row-of-data model — each artefact is one
 "row". :meth:`_decode_full` yields a single record with the original
 model bytes alongside input/output tensor metadata extracted via
 ``ai_edge_litert.interpreter.Interpreter`` (Google's official TFLite
-successor), falling back to the legacy ``tflite_runtime`` package and
+successor), falling back to the older ``tflite_runtime`` package and
 finally ``tensorflow.lite.Interpreter``.
 
 :meth:`_encode_full` accepts ``model_bytes`` (already a TFLite
@@ -20,7 +22,8 @@ encoder simply round-trips the bytes the caller supplied.
 Security: pirn does not sandbox the interpreter. Malicious TFLite models
 may contain arbitrary custom ops; treat untrusted payloads accordingly.
 
-Install: ``pip install pirn[tflite]`` (or fall back to ``pirn[tensorflow]``).
+Install: ``pip install "pirn-core[tflite]"`` (or fall back to
+``pip install "pirn-core[tensorflow]"``).
 """
 
 from __future__ import annotations
@@ -31,6 +34,7 @@ from typing import Any
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class TfliteFormat(BatchFileFormat):
@@ -47,7 +51,18 @@ class TfliteFormat(BatchFileFormat):
         if not isinstance(payload, (bytes, bytearray)):
             raise TypeError(f"TfliteFormat: payload must be bytes, got {type(payload).__name__}")
         raw = bytes(payload)
-        interpreter_cls = self._load_interpreter()
+        try:
+            litert = OptionalDependency.require("ai_edge_litert.interpreter", extra="tflite")
+            interpreter_cls = litert.Interpreter
+        except ImportError:
+            try:
+                tflite_runtime = OptionalDependency.require(
+                    "tflite_runtime.interpreter", extra="tflite"
+                )
+                interpreter_cls = tflite_runtime.Interpreter
+            except ImportError:
+                tensorflow = OptionalDependency.require("tensorflow", extra="tensorflow")
+                interpreter_cls = tensorflow.lite.Interpreter
         try:
             interpreter = interpreter_cls(model_content=raw)
             interpreter.allocate_tensors()
@@ -106,28 +121,3 @@ class TfliteFormat(BatchFileFormat):
         if len(payload) >= 8 and payload[4:8] == b"TFL3":
             return 3
         return 0
-
-    @staticmethod
-    def _load_interpreter() -> Any:
-        try:
-            from ai_edge_litert.interpreter import Interpreter
-
-            return Interpreter
-        except ImportError:
-            pass
-        try:
-            from tflite_runtime.interpreter import Interpreter
-
-            return Interpreter
-        except ImportError:
-            pass
-        try:
-            from tensorflow.lite import Interpreter as TfInterpreter  # type: ignore[attr-defined]
-
-            return TfInterpreter
-        except ImportError as exc:
-            raise ImportError(
-                "TfliteFormat requires ai-edge-litert, tflite_runtime, or tensorflow. "
-                "Install with `pip install pirn[tflite]` or "
-                "`pip install pirn[tensorflow]`."
-            ) from exc

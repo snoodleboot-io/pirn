@@ -154,11 +154,11 @@ class TestSdtmXptFormatErrors(unittest.IsolatedAsyncioTestCase):
 # ---------------------------------------------------------------------------
 
 
-class TestSdtmXptFormatMissingDep(unittest.TestCase):
-    def test_missing_pyreadstat_raises(self) -> None:
+class TestSdtmXptFormatMissingDep(unittest.IsolatedAsyncioTestCase):
+    async def test_missing_pyreadstat_raises(self) -> None:
         import unittest.mock
 
         fmt = SdtmXptFormat()
         with unittest.mock.patch.dict("sys.modules", {"pyreadstat": None}):
-            with self.assertRaisesRegex(ImportError, "pirn\\[health\\]"):
-                fmt._load_pyreadstat()
+            with self.assertRaisesRegex(ImportError, 'pip install "pirn-core\\[spss\\]"'):
+                await fmt._decode_full(b"")

@@ -146,11 +146,11 @@ class TestHl7v2FormatErrors(unittest.IsolatedAsyncioTestCase):
 # ---------------------------------------------------------------------------
 
 
-class TestHl7v2FormatMissingDep(unittest.TestCase):
-    def test_missing_hl7_raises(self) -> None:
+class TestHl7v2FormatMissingDep(unittest.IsolatedAsyncioTestCase):
+    async def test_missing_hl7_raises(self) -> None:
         import unittest.mock
 
         fmt = Hl7v2Format()
         with unittest.mock.patch.dict("sys.modules", {"hl7": None}):
-            with self.assertRaisesRegex(ImportError, "pirn\\[health\\]"):
-                fmt._load_hl7()
+            with self.assertRaisesRegex(ImportError, "pirn-core\\[hl7\\]"):
+                await fmt._decode_full(b"MSH|^~\\&|")

@@ -6,8 +6,10 @@ No real Stripe account or network needed.
 
 from __future__ import annotations
 
+import sys
 import unittest
 from typing import Any
+from unittest.mock import patch
 
 from pirn.connectors.api_client import ApiClient
 from pirn.connectors.saas.stripe_client import StripeClient
@@ -129,3 +131,16 @@ class TestCredentialSafety(unittest.TestCase):
         text = repr(cfg)
         assert "sk_live_leaks" not in text
         assert "<redacted>" in text
+
+
+class TestMissingSdkHint(unittest.IsolatedAsyncioTestCase):
+    async def test_missing_stripe_sdk_names_the_extra(self) -> None:
+        # Arrange
+        client = StripeClient(config=StripeConfig(api_key="sk_test"))
+
+        # Act / Assert
+        with (
+            patch.dict(sys.modules, {"stripe": None}),
+            self.assertRaisesRegex(ImportError, r'pip install "pirn-core\[stripe\]"'),
+        ):
+            await client.request("GET", "/v1/charges")

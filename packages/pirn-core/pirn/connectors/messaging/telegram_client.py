@@ -46,7 +46,7 @@ class TelegramClient(ApiClient):
         text: str,
         *,
         parse_mode: str | None = None,
-    ) -> dict:
+    ) -> dict[str, object]:
         """Send a text message via ``sendMessage``.
 
         Parameters
@@ -58,7 +58,7 @@ class TelegramClient(ApiClient):
         parse_mode:
             Override the config default parse mode.
         """
-        payload: dict[str, Any] = {"chat_id": chat_id, "text": text}
+        payload: dict[str, object] = {"chat_id": chat_id, "text": text}
         effective_parse_mode = parse_mode
         if effective_parse_mode is None and self._config is not None:
             effective_parse_mode = self._config.parse_mode
@@ -73,7 +73,7 @@ class TelegramClient(ApiClient):
         photo_url: str,
         *,
         caption: str | None = None,
-    ) -> dict:
+    ) -> dict[str, object]:
         """Send a photo via ``sendPhoto``.
 
         Parameters
@@ -85,7 +85,7 @@ class TelegramClient(ApiClient):
         caption:
             Optional caption text.
         """
-        payload: dict[str, Any] = {"chat_id": chat_id, "photo": photo_url}
+        payload: dict[str, object] = {"chat_id": chat_id, "photo": photo_url}
         if caption is not None:
             payload["caption"] = caption
         self._logger.debug("telegram.send_photo chat_id=%s", chat_id)
@@ -104,12 +104,13 @@ class TelegramClient(ApiClient):
         self._logger.debug("telegram.request path=%s", path)
         return await self._call(path, dict(body) if body is not None else {})
 
-    async def _call(self, telegram_method: str, payload: dict) -> dict:
+    async def _call(self, telegram_method: str, payload: Mapping[str, object]) -> dict[str, object]:
         client = await self._ensure_client()
         token = self._bot_token()
         url = f"{self._base_url}/bot{token}/{telegram_method}"
         response = await client.post(url, json=payload)
-        return dict(response)
+        result: dict[str, object] = dict(response)
+        return result
 
     def _bot_token(self) -> str:
         if self._config is not None and self._config.bot_token:
@@ -130,4 +131,4 @@ class TelegramClient(ApiClient):
         if not self._config.bot_token:
             raise ValueError("TelegramClient: config.bot_token must be non-empty")
         self._logger.debug("telegram.connect")
-        return self._build_httpx_client("telegram", quoted=False, timeout=self._config.timeout)
+        return self._build_httpx_client("http", timeout=self._config.timeout)

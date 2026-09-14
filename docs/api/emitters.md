@@ -67,7 +67,7 @@ t = Tapestry(emitters=[LogEmitter(with_payload=False)])
 
 ---
 
-## OpenTelemetryEmitter (`pirn[otel]`)
+## OpenTelemetryEmitter (`pirn-core[otel]`)
 
 Emits OTel spans per knot and per run.
 
@@ -95,7 +95,7 @@ t = Tapestry(emitters=[OpenTelemetryEmitter()])
 
 ---
 
-## KafkaEmitter (`pirn[kafka]`)
+## KafkaEmitter (`pirn-core[kafka]`)
 
 Publishes events to Kafka topics.
 
@@ -121,7 +121,7 @@ t = Tapestry(emitters=[emitter])
 
 ---
 
-## ValKeyEmitter (`pirn[valkey]`)
+## ValKeyEmitter (`pirn-core[valkey]`)
 
 Publishes events to a ValKey pub/sub channel.
 
@@ -133,7 +133,7 @@ Publishes events to a ValKey pub/sub channel.
 
 ---
 
-## WebhookEmitter
+## WebhookEmitter (`pirn-core[http]`)
 
 POSTs JSON to an HTTP endpoint on `on_run_result`.
 

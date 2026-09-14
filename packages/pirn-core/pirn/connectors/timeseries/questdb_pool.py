@@ -9,6 +9,7 @@ from typing import Any
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.timeseries.questdb_config import QuestDBConfig
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class QuestDBPool(DatabaseConnectionPool):
@@ -72,12 +73,7 @@ class QuestDBPool(DatabaseConnectionPool):
         return self._pool
 
     async def _create_pool(self) -> Any:
-        try:
-            import asyncpg
-        except ImportError as exc:
-            raise ImportError(
-                "QuestDBPool requires asyncpg; install via `pip install pirn[questdb]`"
-            ) from exc
+        asyncpg = OptionalDependency.require("asyncpg", extra="postgres")
         if self._config is None:
             raise self._missing_config_error("QuestDBPool", "pool")
         try:

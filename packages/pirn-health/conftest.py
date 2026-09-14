@@ -7,7 +7,7 @@ import os
 import pytest
 
 # Tests run in a test environment. Set these env vars so that:
-#   - _Signer.test_signer() is permitted (requires PIRN_ENV=test or ci)
+#   - Signer.test_signer() is permitted (requires PIRN_ENV=test or ci)
 #   - allow_unsigned=True on DataStores is permitted (requires PIRN_ALLOW_UNSIGNED=1)
 os.environ.setdefault("PIRN_ENV", "test")
 os.environ.setdefault("PIRN_ALLOW_UNSIGNED", "1")

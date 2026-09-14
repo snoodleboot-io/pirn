@@ -1,4 +1,4 @@
-"""``_WebHDFSClient`` — thin synchronous WebHDFS adapter used by :class:`HDFSStore`."""
+"""``WebHdfsClient`` — thin synchronous WebHDFS adapter used by :class:`HDFSStore`."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import asyncio
 from typing import Any
 
 
-class _WebHDFSClient:
+class WebHdfsClient:
     """Thin synchronous WebHDFS adapter (runs in asyncio.to_thread in prod)."""
 
     def __init__(self, *, base_url: str, user: str, session: Any) -> None:

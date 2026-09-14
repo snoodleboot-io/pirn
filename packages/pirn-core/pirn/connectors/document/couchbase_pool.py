@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Sync Couchbase pool (wrapped in asyncio.to_thread) backed by the Couchbase SDK."""
 
 from __future__ import annotations
@@ -10,6 +12,7 @@ from typing import Any
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.document.couchbase_config import CouchbaseConfig
 from pirn.connectors.dsn_scrubber import DsnScrubber
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class CouchbasePool(DatabaseConnectionPool):
@@ -80,25 +83,20 @@ class CouchbasePool(DatabaseConnectionPool):
             self._cluster = await asyncio.to_thread(self._create_cluster)
 
     def _create_cluster(self) -> Any:
-        try:
-            from couchbase.auth import PasswordAuthenticator
-            from couchbase.cluster import Cluster
-            from couchbase.options import ClusterOptions
-        except ImportError as exc:
-            raise ImportError(
-                "CouchbasePool requires couchbase; install via pip install pirn[couchbase]"
-            ) from exc
+        couchbase_auth = OptionalDependency.require("couchbase.auth", extra="couchbase")
+        couchbase_cluster = OptionalDependency.require("couchbase.cluster", extra="couchbase")
+        couchbase_options = OptionalDependency.require("couchbase.options", extra="couchbase")
         if self._config is None:
             raise self._missing_config_error("CouchbasePool", "cluster")
 
         try:
-            auth = PasswordAuthenticator(
+            auth = couchbase_auth.PasswordAuthenticator(
                 self._config.username,
                 self._config.password,
             )
-            cluster = Cluster(
+            cluster: Any = couchbase_cluster.Cluster(
                 self._config.connection_string,
-                ClusterOptions(auth),
+                couchbase_options.ClusterOptions(auth),
             )
             cluster.wait_until_ready(timeout=self._config.kv_timeout_ms / 1000)
         except Exception as exc:

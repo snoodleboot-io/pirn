@@ -9,7 +9,7 @@ import pytest
 
 pytestmark = pytest.mark.heavy
 
-from pirn.backends._signer import _Signer
+from pirn.backends.signer import Signer
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
@@ -41,7 +41,7 @@ class TestPytorchFormatConstruction(unittest.TestCase):
             PytorchFormat(weights_only=False)
 
     def test_unsafe_with_signer_allowed(self) -> None:
-        fmt = PytorchFormat(weights_only=False, signer=_Signer.test_signer())
+        fmt = PytorchFormat(weights_only=False, signer=Signer.test_signer())
         assert fmt.weights_only is False
         assert fmt.signer is not None
 
@@ -102,7 +102,7 @@ class TestPytorchFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
         assert torch.equal(recovered["weight"], state["weight"])
 
     async def test_round_trip_signed(self) -> None:
-        signer = _Signer.test_signer()
+        signer = Signer.test_signer()
         fmt = PytorchFormat(signer=signer)
         state = _tiny_state_dict()
         payload = await FormatRoundTrip.encode(fmt, [{"state_dict": state}])
@@ -110,7 +110,7 @@ class TestPytorchFormatRoundTrip(unittest.IsolatedAsyncioTestCase):
         assert decoded[0]["metadata"]["signed"] is True
 
     async def test_signed_payload_rejects_tamper(self) -> None:
-        signer = _Signer.test_signer()
+        signer = Signer.test_signer()
         fmt = PytorchFormat(signer=signer)
         payload = await FormatRoundTrip.encode(fmt, [{"state_dict": _tiny_state_dict()}])
         tampered = bytes(payload)

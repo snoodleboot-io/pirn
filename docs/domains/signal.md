@@ -15,7 +15,7 @@ pip install 'pirn-signal[emd]'              # EMD-signal + scipy (empirical mode
 pip install 'pirn-signal[separation]'       # scikit-learn (ICA/PCA/NMF/sparse-coding knots + speaker diarization)
 ```
 
-Available extras: `signal`, `emd`, `separation`. (Audio **file-format** decoding — WAV/FLAC/OGG/MP3/AAC/M4A — is a core connector extra, `pirn[audio]`, not a signal-package extra; see [Audio File Formats](#audio-file-formats) below.)
+Available extras: `signal`, `emd`, `separation`. (Audio **file-format** decoding — WAV/FLAC/OGG/MP3/AAC/M4A — is a core connector extra, `pirn-core[audio]`, not a signal-package extra; see [Audio File Formats](#audio-file-formats) below.)
 
 **Registration (ADR-4):** `import pirn_signal` self-registers the signal-domain knots under `library="pirn"`, so a YAML pipeline can resolve them by bare name. In Python you import the knot classes directly (same effect). To register every installed domain at once, call `DomainDiscovery.discover_installed_domains()` (`pirn.domain_discovery`).
 
@@ -60,7 +60,7 @@ Backed by `soundfile` (libsndfile Python binding). Uses a temporary file interna
 }
 ```
 
-**Dependencies:** `soundfile`, `numpy`. Install with `pip install pirn[audio]`.
+**Dependencies:** `soundfile`, `numpy`. Install with `pip install "pirn-core[audio]"`.
 
 ---
 
@@ -68,7 +68,7 @@ Backed by `soundfile` (libsndfile Python binding). Uses a temporary file interna
 
 Ogg Vorbis via `soundfile`. Record shape is identical to `FlacFormat` (float32 interleaved PCM). Uses a temporary file internally.
 
-**Dependencies:** `soundfile`, `numpy`. Install with `pip install pirn[audio]`.
+**Dependencies:** `soundfile`, `numpy`. Install with `pip install "pirn-core[audio]"`.
 
 ---
 
@@ -88,7 +88,7 @@ Backed by `pydub`, which wraps ffmpeg. **ffmpeg must be on `PATH` at runtime.**
 }
 ```
 
-**Dependencies:** `pydub`, ffmpeg on PATH. Install with `pip install pirn[audio]` and ensure `ffmpeg` is installed.
+**Dependencies:** `pydub`, ffmpeg on PATH. Install with `pip install "pirn-core[audio]"` and ensure `ffmpeg` is installed.
 
 **Python 3.13+ note:** `pydub` currently does not publish wheels for Python 3.13 or later. On Python 3.13+, `Mp3Format` (and `AacFormat`, `M4aFormat`) will fail to import with an `ImportError`. Use `FlacFormat` or `OggFormat` for lossless workflows, or WAV for uncompressed PCM, until `pydub` ships compatible wheels.
 

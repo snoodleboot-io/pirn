@@ -104,7 +104,7 @@ If each event should be an independent job with its own full `RunRequest` (diffe
 ## Constraints and gotchas
 
 - **`StreamingSource.run_stream` vs `tapestry.run`**: never call `tapestry.run()` directly inside a streaming loop — `StreamingSource.run_stream` handles request construction, error isolation, and `source.close()`.
-- **`KafkaStreamingSource` requires `pirn[kafka]`.**
+- **`KafkaStreamingSource` requires `pirn-core[kafka]`.**
 - **`IterableSource` exhausts once.** After the underlying iterable is consumed, the driver exits. Wrap in an infinite generator if you need a perpetual source.
 - **`StreamingSourceTrigger` adapts a `StreamingSource` for use with `Trigger.run_forever`** — useful if you have infrastructure that expects a `Trigger` but your data source is a `StreamingSource`.
 

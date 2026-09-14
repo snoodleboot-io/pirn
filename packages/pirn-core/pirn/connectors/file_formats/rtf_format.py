@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``RtfFormat`` — Rich Text Format encoder/decoder.
 
 Reads use ``striprtf`` to extract plain text from an RTF document.
@@ -9,7 +11,7 @@ Records have shape ``{"text": str}``. RTF doesn't have natural record
 boundaries, so reads always yield a single record with the entire
 extracted text.
 
-Install: ``pip install pirn[rtf]``.
+Install: ``pip install "pirn-core[rtf]"``.
 """
 
 from __future__ import annotations
@@ -20,6 +22,7 @@ from typing import Any
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class RtfFormat(BatchFileFormat):
@@ -43,10 +46,10 @@ class RtfFormat(BatchFileFormat):
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
         if not payload:
             return []
-        rtf_to_text = self._load_striprtf()
+        striprtf = OptionalDependency.require("striprtf.striprtf", extra="rtf")
         # RTF is ASCII with escapes; decode permissively then strip.
         rtf_source = payload.decode(self._encoding, errors="replace")
-        plain = rtf_to_text(rtf_source)
+        plain: str = striprtf.rtf_to_text(rtf_source)
         return [{"text": plain}]
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
@@ -103,13 +106,3 @@ class RtfFormat(BatchFileFormat):
                 f"RtfFormat: record 'text' value must be str, got {type(text).__name__}"
             )
         return text
-
-    @staticmethod
-    def _load_striprtf() -> Any:
-        try:
-            from striprtf.striprtf import rtf_to_text
-        except ImportError as exc:
-            raise ImportError(
-                "RtfFormat requires striprtf. Install with `pip install pirn[rtf]`."
-            ) from exc
-        return rtf_to_text

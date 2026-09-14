@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``Hdf5Format`` — Hierarchical Data Format v5 batch encoder/decoder.
 
 HDF5 is a binary container with an internal directory tree. ``h5py`` is
@@ -11,18 +13,24 @@ Records are represented as rows of a numpy structured array stored at
 records' union, ordered by first appearance) and dtypes are inferred
 from values.
 
-Install: ``pip install pirn[hdf5]``.
+Install: ``pip install "pirn-core[hdf5]"``.
 """
 
 from __future__ import annotations
 
 import io
 from collections.abc import Iterable, Mapping
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.connectors.payload_shape import PayloadShape
+from pirn.core.optional_dependency import OptionalDependency
+
+if TYPE_CHECKING:
+    import numpy as np
+    import numpy.typing as npt
 
 
 class Hdf5Format(BatchFileFormat):
@@ -75,7 +83,7 @@ class Hdf5Format(BatchFileFormat):
         return self._compression
 
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
-        h5py, np = self._load_h5py_numpy()
+        h5py = OptionalDependency.require("h5py", extra="hdf5")
         records: list[Mapping[str, Any]] = []
         with h5py.File(io.BytesIO(payload), "r") as handle:
             if self._dataset_path not in handle:
@@ -94,19 +102,19 @@ class Hdf5Format(BatchFileFormat):
             for row in data:
                 record: dict[str, Any] = {}
                 for field in field_names:
-                    record[field] = self._unwrap_scalar(row[field], np)
+                    record[field] = self._unwrap_scalar(row[field])
                 records.append(record)
         return records
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
-        h5py, np = self._load_h5py_numpy()
+        h5py = OptionalDependency.require("h5py", extra="hdf5")
         materialised = [dict(record) for record in records]
         if not materialised:
             raise ValueError(
                 "Hdf5Format: cannot encode an empty record stream "
                 "(HDF5 structured arrays require at least one row)"
             )
-        structured = self._records_to_structured_array(materialised, np)
+        structured = self._records_to_structured_array(materialised)
         buf = io.BytesIO()
         with h5py.File(buf, "w") as handle:
             kwargs: dict[str, Any] = {}
@@ -116,7 +124,9 @@ class Hdf5Format(BatchFileFormat):
         return buf.getvalue()
 
     @classmethod
-    def _records_to_structured_array(cls, records: list[dict[str, Any]], np: Any) -> Any:
+    def _records_to_structured_array(cls, records: list[dict[str, Any]]) -> npt.NDArray[np.void]:
+        import numpy as np
+
         field_order: list[str] = []
         seen: set[str] = set()
         for record in records:
@@ -128,13 +138,14 @@ class Hdf5Format(BatchFileFormat):
         # str fields as variable-length UTF-8 byte strings using
         # h5py's vlen string type.
         string_fields: set[str] = set()
-        dtype_fields: list[tuple[str, Any]] = []
+        dtype_fields: list[tuple[str, type[np.generic] | str]] = []
         for field in field_order:
             sample_value = next((rec[field] for rec in records if field in rec), None)
-            field_dtype = cls._infer_numpy_dtype(sample_value, records, field, np)
+            field_dtype = cls._infer_numpy_dtype(sample_value, records, field)
             if isinstance(sample_value, str):
                 string_fields.add(field)
             dtype_fields.append((field, field_dtype))
+        zero_values = {field: cls._zero_for_dtype(np.dtype(spec)) for field, spec in dtype_fields}
         structured = np.zeros(len(records), dtype=dtype_fields)
         for index, record in enumerate(records):
             for field in field_order:
@@ -145,18 +156,17 @@ class Hdf5Format(BatchFileFormat):
                     else:
                         structured[index][field] = value
                 else:
-                    structured[index][field] = cls._zero_for_dtype(
-                        structured.dtype.fields[field][0]
-                    )
+                    structured[index][field] = zero_values[field]
         return structured
 
     @staticmethod
     def _infer_numpy_dtype(
-        sample_value: Any,
+        sample_value: object,
         records: list[dict[str, Any]],
         field: str,
-        np: Any,
-    ) -> Any:
+    ) -> type[np.generic] | str:
+        import numpy as np
+
         if isinstance(sample_value, bool):
             return np.bool_
         if isinstance(sample_value, int):
@@ -178,7 +188,7 @@ class Hdf5Format(BatchFileFormat):
         return np.float64
 
     @staticmethod
-    def _zero_for_dtype(dtype: Any) -> Any:
+    def _zero_for_dtype(dtype: np.dtype[Any]) -> str | bool | int | float:
         kind = dtype.kind
         if kind in ("U", "S"):
             return ""
@@ -190,23 +200,12 @@ class Hdf5Format(BatchFileFormat):
             return 0.0
         return 0
 
-    @staticmethod
-    def _unwrap_scalar(value: Any, np: Any) -> Any:
+    @classmethod
+    def _unwrap_scalar(cls, value: Any) -> Any:
         if isinstance(value, bytes):
             return value.decode("utf-8")
-        if isinstance(value, np.ndarray) and value.shape == ():
-            return Hdf5Format._unwrap_scalar(value.item(), np)
+        if PayloadShape.is_ndarray(value) and value.shape == ():
+            return cls._unwrap_scalar(value.item())
         if hasattr(value, "item"):
             return value.item()
         return value
-
-    @staticmethod
-    def _load_h5py_numpy() -> tuple[Any, Any]:
-        try:
-            import h5py
-            import numpy as np
-        except ImportError as exc:
-            raise ImportError(
-                "Hdf5Format requires h5py and numpy. Install with `pip install pirn[hdf5]`."
-            ) from exc
-        return h5py, np

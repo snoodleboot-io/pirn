@@ -14,7 +14,7 @@ Records are emitted as one dict per channel per frame::
 
 Encoding raises :exc:`NotImplementedError`.
 
-Install: ``pip install pirn[oilgas]``.
+Install: ``pip install "pirn-core[dlis]"``.
 """
 
 from __future__ import annotations
@@ -27,6 +27,7 @@ from typing import Any
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class DlisFormat(BatchFileFormat):
@@ -37,7 +38,7 @@ class DlisFormat(BatchFileFormat):
         return "dlis"
 
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
-        dlisio = self._load_dlisio()
+        dlisio = OptionalDependency.require("dlisio", extra="dlis")
         records: list[dict[str, Any]] = []
         with tempfile.NamedTemporaryFile(suffix=".dlis", delete=False) as tmp:
             tmp_path = tmp.name
@@ -67,13 +68,3 @@ class DlisFormat(BatchFileFormat):
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
         raise NotImplementedError("DlisFormat: write is not supported")
-
-    @staticmethod
-    def _load_dlisio() -> Any:
-        try:
-            import dlisio
-        except ImportError as exc:
-            raise ImportError(
-                "DlisFormat requires dlisio. Install with `pip install pirn[oilgas]`."
-            ) from exc
-        return dlisio

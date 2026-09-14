@@ -223,17 +223,17 @@ class TestDefineXmlFormatErrors(unittest.IsolatedAsyncioTestCase):
 # ---------------------------------------------------------------------------
 
 
-class TestDefineXmlFormatMissingDep(unittest.TestCase):
-    def test_missing_defusedxml_raises(self) -> None:
+class TestDefineXmlFormatMissingDep(unittest.IsolatedAsyncioTestCase):
+    async def test_missing_defusedxml_raises(self) -> None:
         with unittest.mock.patch.dict(
             sys.modules, {"defusedxml": None, "defusedxml.ElementTree": None}
         ):
             fmt = DefineXmlFormat()
-            with self.assertRaisesRegex(ImportError, "pirn\\[health\\]"):
-                fmt._load_defusedxml()
+            with self.assertRaisesRegex(ImportError, "pirn-health\\[health\\]"):
+                await fmt._decode_full(b"<ODM/>")
 
-    def test_missing_lxml_raises(self) -> None:
+    async def test_missing_lxml_raises(self) -> None:
         with unittest.mock.patch.dict(sys.modules, {"lxml": None, "lxml.etree": None}):
             fmt = DefineXmlFormat()
-            with self.assertRaisesRegex(ImportError, "pirn\\[health\\]"):
-                fmt._load_lxml()
+            with self.assertRaisesRegex(ImportError, "pirn-core\\[html\\]"):
+                await fmt._encode_full([])

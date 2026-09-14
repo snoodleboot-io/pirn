@@ -200,17 +200,18 @@ class TestCdaXmlFormatErrors(unittest.IsolatedAsyncioTestCase):
 # ---------------------------------------------------------------------------
 
 
-class TestCdaXmlFormatMissingDep(unittest.TestCase):
-    def test_missing_defusedxml_raises(self) -> None:
+class TestCdaXmlFormatMissingDep(unittest.IsolatedAsyncioTestCase):
+    async def test_missing_defusedxml_raises(self) -> None:
         with unittest.mock.patch.dict(
             sys.modules, {"defusedxml": None, "defusedxml.ElementTree": None}
         ):
             fmt = CdaXmlFormat()
-            with self.assertRaisesRegex(ImportError, "pirn\\[health\\]"):
-                fmt._load_defusedxml()
+            with self.assertRaisesRegex(ImportError, 'pip install "pirn-health\\[health\\]"'):
+                await fmt._decode_full(b"<ClinicalDocument/>")
 
-    def test_missing_lxml_raises(self) -> None:
+    async def test_missing_lxml_raises(self) -> None:
         with unittest.mock.patch.dict(sys.modules, {"lxml": None, "lxml.etree": None}):
             fmt = CdaXmlFormat()
-            with self.assertRaisesRegex(ImportError, "pirn\\[health\\]"):
-                fmt._load_lxml()
+            record = {"document_id": "d1", "effective_time": "20240101"}
+            with self.assertRaisesRegex(ImportError, 'pip install "pirn-core\\[html\\]"'):
+                await fmt._encode_full([record])

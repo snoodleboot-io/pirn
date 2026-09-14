@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Mixpanel ingestion connector wrapping the sync ``mixpanel.Mixpanel`` SDK.
 
 The official ``mixpanel`` SDK is synchronous and ingestion-only; calls
@@ -8,7 +10,7 @@ exposes:
    single Mixpanel-shaped event (``{"distinct_id", "event", "properties"}``)
    and forwards it to ``Mixpanel.track``.
 2. The vendor-typed :meth:`track` and :meth:`import_data` methods.
-3. The legacy :meth:`request` escape hatch with ``method="POST"`` and
+3. The generic :meth:`request` escape hatch with ``method="POST"`` and
    ``path="/track"`` or ``"/import"``.
 """
 
@@ -23,6 +25,7 @@ from pirn.connectors.api_client import ApiClient
 from pirn.connectors.capabilities.event_emitter import EventEmitter
 from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.saas.mixpanel_config import MixpanelConfig
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class MixpanelClient(ApiClient, EventEmitter):
@@ -137,18 +140,13 @@ class MixpanelClient(ApiClient, EventEmitter):
         return self._client
 
     async def _create_client(self) -> Any:
-        try:
-            from mixpanel import Mixpanel  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "MixpanelClient requires mixpanel; install via `pip install pirn[mixpanel]`"
-            ) from exc
+        mixpanel = OptionalDependency.require("mixpanel", extra="mixpanel")
         if self._config is None:
             raise self._missing_config_error("MixpanelClient", "client")
         if self._config.project_token is None:
             raise RuntimeError("MixpanelClient: config.project_token is required")
         try:
-            client = await asyncio.to_thread(Mixpanel, self._config.project_token)
+            client = await asyncio.to_thread(mixpanel.Mixpanel, self._config.project_token)
         except Exception as exc:
             self._reraise_scrubbed(exc)
         self._logger.debug("mixpanel.connect")

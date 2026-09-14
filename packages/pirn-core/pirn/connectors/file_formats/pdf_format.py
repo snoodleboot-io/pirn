@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PdfFormat`` — Portable Document Format (PDF) encoder/decoder.
 
 Reads use ``pypdf`` to extract per-page text; writes use ``reportlab`` to
@@ -13,7 +15,7 @@ with whitespace normalisation.
 Security: pirn does not sandbox ``pypdf``. Malformed PDFs may trigger
 upstream library bugs. Treat untrusted payloads accordingly.
 
-Install: ``pip install pirn[pdf]``.
+Install: ``pip install "pirn-core[pdf]"``.
 """
 
 from __future__ import annotations
@@ -25,6 +27,7 @@ from typing import Any
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class PdfFormat(BatchFileFormat):
@@ -46,7 +49,7 @@ class PdfFormat(BatchFileFormat):
         return self._extract_layout
 
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
-        pypdf = self._load_pypdf()
+        pypdf = OptionalDependency.require("pypdf", extra="pdf")
         reader = pypdf.PdfReader(io.BytesIO(payload))
         records: list[Mapping[str, Any]] = []
         for index, page in enumerate(reader.pages):
@@ -61,8 +64,8 @@ class PdfFormat(BatchFileFormat):
         return records
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
-        reportlab_canvas = self._load_reportlab_canvas()
-        reportlab_pagesizes = self._load_reportlab_pagesizes()
+        reportlab_canvas = OptionalDependency.require("reportlab.pdfgen.canvas", extra="pdf")
+        reportlab_pagesizes = OptionalDependency.require("reportlab.lib.pagesizes", extra="pdf")
         materialised: list[Mapping[str, Any]] = list(records)
         buf = io.BytesIO()
         page_size = reportlab_pagesizes.LETTER
@@ -107,33 +110,3 @@ class PdfFormat(BatchFileFormat):
             "x1": float(mediabox.right),
             "y1": float(mediabox.top),
         }
-
-    @staticmethod
-    def _load_pypdf() -> Any:
-        try:
-            import pypdf
-        except ImportError as exc:
-            raise ImportError(
-                "PdfFormat requires pypdf. Install with `pip install pirn[pdf]`."
-            ) from exc
-        return pypdf
-
-    @staticmethod
-    def _load_reportlab_canvas() -> Any:
-        try:
-            from reportlab.pdfgen import canvas
-        except ImportError as exc:
-            raise ImportError(
-                "PdfFormat requires reportlab. Install with `pip install pirn[pdf]`."
-            ) from exc
-        return canvas
-
-    @staticmethod
-    def _load_reportlab_pagesizes() -> Any:
-        try:
-            from reportlab.lib import pagesizes
-        except ImportError as exc:
-            raise ImportError(
-                "PdfFormat requires reportlab. Install with `pip install pirn[pdf]`."
-            ) from exc
-        return pagesizes

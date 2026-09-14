@@ -14,7 +14,8 @@ records:
 * Patient ``addr`` (address)
 * Patient ``telecom`` (contact info)
 
-Install: ``pip install pirn[health]``.
+Decoding requires ``defusedxml`` (``pip install "pirn-health[health]"``);
+encoding requires ``lxml`` (``pip install "pirn-core[html]"``).
 """
 
 from __future__ import annotations
@@ -26,6 +27,8 @@ from typing import Any, ClassVar
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.connectors.payload_shape import PayloadShape
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class CdaXmlFormat(BatchFileFormat):
@@ -43,8 +46,10 @@ class CdaXmlFormat(BatchFileFormat):
         return "cda_xml"
 
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
-        defusedxml = self._load_defusedxml()
-        tree = defusedxml.ElementTree.parse(io.BytesIO(payload))
+        element_tree = OptionalDependency.require(
+            "defusedxml.ElementTree", extra="health", package="pirn-health"
+        )
+        tree = element_tree.parse(io.BytesIO(payload))
         root = tree.getroot()
 
         document_id = self._find_extension(root, "id")
@@ -63,7 +68,7 @@ class CdaXmlFormat(BatchFileFormat):
         return [record]
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
-        lxml_etree = self._load_lxml()
+        lxml_etree = OptionalDependency.require("lxml.etree", extra="html")
         materialised = [dict(r) for r in records]
         if not materialised:
             raise ValueError("CdaXmlFormat: cannot encode an empty record stream.")
@@ -95,19 +100,23 @@ class CdaXmlFormat(BatchFileFormat):
         structured_body = lxml_etree.SubElement(
             body_el, f"{{{CdaXmlFormat._cda_ns}}}structuredBody"
         )
-        for code, text in (record.get("body") or {}).items():
+        body: object = record.get("body") or {}
+        if not PayloadShape.is_mapping(body):
+            raise TypeError("CdaXmlFormat: 'body' must be a mapping of section code to text")
+        for code, text in body.items():
             comp_el = lxml_etree.SubElement(structured_body, f"{{{CdaXmlFormat._cda_ns}}}component")
             section_el = lxml_etree.SubElement(comp_el, f"{{{CdaXmlFormat._cda_ns}}}section")
             code_el = lxml_etree.SubElement(section_el, f"{{{CdaXmlFormat._cda_ns}}}code")
             code_el.set("code", str(code))
             text_el = lxml_etree.SubElement(section_el, f"{{{CdaXmlFormat._cda_ns}}}text")
             text_el.text = str(text) if text is not None else ""
-        return lxml_etree.tostring(
+        document: bytes = lxml_etree.tostring(
             root,
             xml_declaration=True,
             encoding="UTF-8",
             pretty_print=True,
         )
+        return document
 
     @classmethod
     def _find_extension(cls, root: Any, tag: str) -> str:
@@ -157,23 +166,3 @@ class CdaXmlFormat(BatchFileFormat):
                     for child in list(el):
                         el.remove(child)
         return body
-
-    @staticmethod
-    def _load_defusedxml() -> Any:
-        try:
-            import defusedxml.ElementTree
-        except ImportError as exc:
-            raise ImportError(
-                "CdaXmlFormat requires defusedxml. Install with `pip install pirn[health]`."
-            ) from exc
-        return defusedxml
-
-    @staticmethod
-    def _load_lxml() -> Any:
-        try:
-            from lxml import etree  # type: ignore[attr-defined]
-        except ImportError as exc:
-            raise ImportError(
-                "CdaXmlFormat requires lxml. Install with `pip install pirn[health]`."
-            ) from exc
-        return etree

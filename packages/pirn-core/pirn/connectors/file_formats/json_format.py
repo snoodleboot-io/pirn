@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``JsonFormat`` — whole-document JSON encoder/decoder using stdlib ``json``.
 
 Two shapes:
@@ -23,6 +25,7 @@ from typing import Any
 from pirn.connectors.file_formats.streaming_file_format import (
     StreamingFileFormat,
 )
+from pirn.connectors.payload_shape import PayloadShape
 
 
 class JsonFormat(StreamingFileFormat):
@@ -70,19 +73,19 @@ class JsonFormat(StreamingFileFormat):
             parsed = json.loads(payload.decode(self._encoding))
 
         if self._array_root:
-            if not isinstance(parsed, list):
+            if not PayloadShape.is_list(parsed):
                 raise ValueError(
                     f"JsonFormat: expected JSON array at root, got {type(parsed).__name__}"
                 )
             records: list[Mapping[str, Any]] = []
             for item in parsed:
-                if not isinstance(item, dict):
+                if not PayloadShape.is_str_dict(item):
                     raise ValueError(
                         f"JsonFormat: array element is not a JSON object: {type(item).__name__}"
                     )
                 records.append(item)
         else:
-            if not isinstance(parsed, dict):
+            if not PayloadShape.is_str_dict(parsed):
                 raise ValueError(
                     f"JsonFormat: expected JSON object at root, got {type(parsed).__name__}"
                 )

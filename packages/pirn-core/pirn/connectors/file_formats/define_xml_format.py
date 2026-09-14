@@ -14,7 +14,8 @@ One record is emitted per ``ItemDef`` element with shape::
         "label":     str | None,
     }
 
-Install: ``pip install pirn[health]``.
+Install: ``pip install "pirn-health[health]"`` (defusedxml) and
+``pip install "pirn-core[html]"`` (lxml, for writes).
 """
 
 from __future__ import annotations
@@ -26,6 +27,7 @@ from typing import Any, ClassVar
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class DefineXmlFormat(BatchFileFormat):
@@ -43,8 +45,10 @@ class DefineXmlFormat(BatchFileFormat):
         return "define_xml"
 
     async def _decode_full(self, payload: bytes) -> Iterable[Mapping[str, Any]]:
-        defusedxml = self._load_defusedxml()
-        tree = defusedxml.ElementTree.parse(io.BytesIO(payload))
+        element_tree = OptionalDependency.require(
+            "defusedxml.ElementTree", extra="health", package="pirn-health"
+        )
+        tree = element_tree.parse(io.BytesIO(payload))
         root = tree.getroot()
         records: list[dict[str, Any]] = []
         for item_def in root.iter(f"{{{DefineXmlFormat._odm_ns}}}ItemDef"):
@@ -52,7 +56,7 @@ class DefineXmlFormat(BatchFileFormat):
         return records
 
     async def _encode_full(self, records: Iterable[Mapping[str, Any]]) -> bytes:
-        lxml_etree = self._load_lxml()
+        lxml_etree = OptionalDependency.require("lxml.etree", extra="html")
         materialised = [dict(r) for r in records]
         nsmap = {
             None: DefineXmlFormat._odm_ns,
@@ -114,23 +118,3 @@ class DefineXmlFormat(BatchFileFormat):
             "length": length,
             "label": label,
         }
-
-    @staticmethod
-    def _load_defusedxml() -> Any:
-        try:
-            import defusedxml.ElementTree
-        except ImportError as exc:
-            raise ImportError(
-                "DefineXmlFormat requires defusedxml. Install with `pip install pirn[health]`."
-            ) from exc
-        return defusedxml
-
-    @staticmethod
-    def _load_lxml() -> Any:
-        try:
-            from lxml import etree  # type: ignore[attr-defined]
-        except ImportError as exc:
-            raise ImportError(
-                "DefineXmlFormat requires lxml. Install with `pip install pirn[health]`."
-            ) from exc
-        return etree

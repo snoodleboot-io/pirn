@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Azure Service Bus :class:`MessageBroker` backed by ``azure-servicebus``."""
 
 from __future__ import annotations
@@ -13,6 +15,7 @@ from pirn.connectors.streaming.azure_servicebus_config import (
 from pirn.connectors.streaming.azure_servicebus_stub_message import (
     AzureServiceBusStubMessage,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class AzureServiceBusBroker(MessageBroker):
@@ -150,9 +153,7 @@ class AzureServiceBusBroker(MessageBroker):
         headers: dict[str, bytes] | None,
     ) -> Any:
         try:
-            from azure.servicebus import (  # type: ignore[import-untyped]
-                ServiceBusMessage,
-            )
+            servicebus = OptionalDependency.require("azure.servicebus", extra="azure-servicebus")
         except ImportError:
             return AzureServiceBusStubMessage(
                 body=bytes(value),
@@ -162,7 +163,7 @@ class AzureServiceBusBroker(MessageBroker):
         message_kwargs: dict[str, Any] = {"body": bytes(value)}
         if key is not None:
             message_kwargs["session_id"] = key.decode("utf-8")
-        message = ServiceBusMessage(**message_kwargs)
+        message = servicebus.ServiceBusMessage(**message_kwargs)
         if headers:
             properties = getattr(message, "application_properties", None)
             if properties is None:
@@ -180,20 +181,16 @@ class AzureServiceBusBroker(MessageBroker):
         return self._client
 
     async def _build_client(self) -> Any:
-        try:
-            from azure.servicebus.aio import (  # type: ignore[import-untyped]
-                ServiceBusClient,
-            )
-        except ImportError as exc:
-            raise ImportError(
-                "AzureServiceBusBroker requires azure-servicebus; install via "
-                "`pip install pirn[azure-servicebus]`"
-            ) from exc
+        servicebus_aio = OptionalDependency.require(
+            "azure.servicebus.aio", extra="azure-servicebus"
+        )
         if self._config.connection_string is None:
             raise ValueError(
                 "AzureServiceBusBroker: connection_string is required to "
                 "construct a ServiceBusClient"
             )
-        client = ServiceBusClient.from_connection_string(self._config.connection_string)
+        client = servicebus_aio.ServiceBusClient.from_connection_string(
+            self._config.connection_string
+        )
         self._logger.debug("azure_servicebus.connect")
         return client

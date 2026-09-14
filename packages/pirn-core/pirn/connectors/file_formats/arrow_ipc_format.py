@@ -1,8 +1,12 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ArrowIpcFormat`` — Apache Arrow IPC stream encoder/decoder.
 
 Uses ``pyarrow.ipc`` to read and write the Arrow IPC streaming format
 (``new_stream`` / ``open_stream``). Suitable for shared-memory hand-off
 and Feather v2 payloads.
+
+Install: ``pip install "pirn-core[arrow]"``.
 """
 
 from __future__ import annotations
@@ -13,6 +17,7 @@ from typing import Any, ClassVar
 from pirn.connectors.file_formats.streaming_file_format import (
     StreamingFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class ArrowIpcFormat(StreamingFileFormat):
@@ -47,13 +52,8 @@ class ArrowIpcFormat(StreamingFileFormat):
         return self._compression
 
     async def read(self, body: AsyncIterator[bytes]) -> AsyncIterator[Mapping[str, Any]]:
-        try:
-            import pyarrow as pa
-            import pyarrow.ipc as ipc
-        except ImportError as exc:
-            raise ImportError(
-                "ArrowIpcFormat requires pyarrow. Install with 'pip install pirn[arrow]'."
-            ) from exc
+        pa = OptionalDependency.require("pyarrow", extra="arrow")
+        ipc = OptionalDependency.require("pyarrow.ipc", extra="arrow")
 
         payload = await self._drain_bytes(body)
         buffer = pa.BufferReader(payload)
@@ -68,13 +68,8 @@ class ArrowIpcFormat(StreamingFileFormat):
         return _iter()
 
     async def write(self, records: AsyncIterator[Mapping[str, Any]]) -> AsyncIterator[bytes]:
-        try:
-            import pyarrow as pa
-            import pyarrow.ipc as ipc
-        except ImportError as exc:
-            raise ImportError(
-                "ArrowIpcFormat requires pyarrow. Install with 'pip install pirn[arrow]'."
-            ) from exc
+        pa = OptionalDependency.require("pyarrow", extra="arrow")
+        ipc = OptionalDependency.require("pyarrow.ipc", extra="arrow")
 
         materialised = await self._drain_records(records)
         rows = [dict(record) for record in materialised]
@@ -82,7 +77,7 @@ class ArrowIpcFormat(StreamingFileFormat):
 
         sink = pa.BufferOutputStream()
         options = (
-            ipc.IpcWriteOptions(compression=self._compression)  # type: ignore[attr-defined]
+            ipc.IpcWriteOptions(compression=self._compression)
             if self._compression is not None
             else None
         )
@@ -94,7 +89,7 @@ class ArrowIpcFormat(StreamingFileFormat):
             writer.write_table(table)
         finally:
             writer.close()
-        payload = sink.getvalue().to_pybytes()
+        payload: bytes = sink.getvalue().to_pybytes()
 
         # design-decision-override: async-generator closure returned lazily; captures locals computed before iteration starts
         async def _iter() -> AsyncIterator[bytes]:

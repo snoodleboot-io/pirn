@@ -1,10 +1,12 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Async ``ApiClient`` wrapper around the Prometheus HTTP query API.
 
 Prometheus exposes a JSON HTTP API at ``/api/v1/query``,
 ``/api/v1/query_range``, ``/api/v1/series``, etc. The official
 ``prometheus-client`` Python package is for *exposing* metrics from a
 Python process — it is not a query client. For querying we use
-:mod:`httpx` directly (installed via the ``pirn[http]`` extra and shared
+:mod:`httpx` directly (installed via ``pip install "pirn-core[http]"`` and shared
 with the rest of pirn's HTTP plumbing).
 
 The connector implements :class:`MetricQuery`. ``query`` routes to the
@@ -26,6 +28,7 @@ from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.observability.prometheus_config import (
     PrometheusConfig,
 )
+from pirn.connectors.payload_shape import PayloadShape
 
 
 class PrometheusClient(ApiClient, MetricQuery):
@@ -85,9 +88,9 @@ class PrometheusClient(ApiClient, MetricQuery):
         if time is not None:
             params["time"] = int(time.timestamp())
         response = await self.request("GET", "/api/v1/query", params=params)
-        if not isinstance(response, Mapping):
-            return {"data": response}
-        return response
+        if PayloadShape.is_str_mapping(response):
+            return response
+        return {"data": response}
 
     async def query_range(
         self,
@@ -109,9 +112,9 @@ class PrometheusClient(ApiClient, MetricQuery):
             "step": step,
         }
         response = await self.request("GET", "/api/v1/query_range", params=params)
-        if not isinstance(response, Mapping):
-            return {"data": response}
-        return response
+        if PayloadShape.is_str_mapping(response):
+            return response
+        return {"data": response}
 
     async def request(
         self,
@@ -143,16 +146,12 @@ class PrometheusClient(ApiClient, MetricQuery):
             safe_message = self._scrubber.scrub(str(exc))
             raise type(exc)(safe_message) from None
 
-        raise_for_status = getattr(response, "raise_for_status", None)
-        if callable(raise_for_status):
-            raise_for_status()
+        response.raise_for_status()
         return response.json()
 
     async def close(self) -> None:
         if self._client is not None:
-            aclose = getattr(self._client, "aclose", None)
-            if callable(aclose):
-                await aclose()  # type: ignore[misc]
+            await self._client.aclose()
             self._client = None
         self._clear_credentials()
         self._closed = True

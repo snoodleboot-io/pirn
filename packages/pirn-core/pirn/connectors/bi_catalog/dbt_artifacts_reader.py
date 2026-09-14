@@ -9,8 +9,8 @@ dependency. Tests inject pre-loaded ``manifest=`` / ``run_results=`` mappings;
 production usage points :class:`DbtArtifactsConfig.target_path` at a real
 ``target/`` directory.
 
-In addition to the legacy :meth:`load_manifest` / :meth:`load_run_results`
-methods, the reader implements the :class:`MetadataCatalog` capability so
+Besides the raw :meth:`load_manifest` / :meth:`load_run_results` accessors
+(``run_results.json`` has no catalog equivalent), the reader implements the :class:`MetadataCatalog` capability so
 that downstream knots can iterate dbt nodes through the same interface
 they use for DataHub / OpenMetadata / Alation.
 """
@@ -30,6 +30,7 @@ from pirn.connectors.bi_catalog.dbt_artifacts_config import (
 from pirn.connectors.capabilities.metadata_catalog import (
     MetadataCatalog,
 )
+from pirn.connectors.payload_shape import PayloadShape
 
 
 class DbtArtifactsReader(MetadataCatalog):
@@ -63,8 +64,8 @@ class DbtArtifactsReader(MetadataCatalog):
         self,
         config: DbtArtifactsConfig | None = None,
         *,
-        manifest: Mapping | None = None,
-        run_results: Mapping | None = None,
+        manifest: Mapping[str, object] | None = None,
+        run_results: Mapping[str, object] | None = None,
     ) -> None:
         if config is None and manifest is None and run_results is None:
             raise TypeError(
@@ -73,8 +74,10 @@ class DbtArtifactsReader(MetadataCatalog):
         if config is not None and config.target_path is not None:
             self._validate_target_path(config.target_path)
         self._config = config
-        self._manifest = dict(manifest) if manifest is not None else None
-        self._run_results = dict(run_results) if run_results is not None else None
+        self._manifest: dict[str, object] | None = dict(manifest) if manifest is not None else None
+        self._run_results: dict[str, object] | None = (
+            dict(run_results) if run_results is not None else None
+        )
         self._logger = logging.getLogger(self.__class__.__module__)
 
     @staticmethod
@@ -94,14 +97,14 @@ class DbtArtifactsReader(MetadataCatalog):
     def config(self) -> DbtArtifactsConfig | None:
         return self._config
 
-    async def load_manifest(self) -> dict:
+    async def load_manifest(self) -> dict[str, object]:
         """Return the parsed ``manifest.json`` contents."""
         if self._manifest is not None:
             return dict(self._manifest)
         path = self._artifact_path(self._manifest_filename)
         return await asyncio.to_thread(self._read_json_file, path)
 
-    async def load_run_results(self) -> dict:
+    async def load_run_results(self) -> dict[str, object]:
         """Return the parsed ``run_results.json`` contents."""
         if self._run_results is not None:
             return dict(self._run_results)
@@ -125,14 +128,12 @@ class DbtArtifactsReader(MetadataCatalog):
         """
         manifest = await self.load_manifest()
         if entity_type == "source":
-            source_entries = manifest.get("sources") or {}
-            entries: list[Mapping[str, Any]] = list(source_entries.values())
+            entries = list(self._section(manifest, "sources").values())
         elif entity_type in self._node_resource_types:
-            node_entries = manifest.get("nodes") or {}
             entries = [
                 node
-                for node in node_entries.values()
-                if isinstance(node, Mapping) and node.get("resource_type") == entity_type
+                for node in self._section(manifest, "nodes").values()
+                if node.get("resource_type") == entity_type
             ]
         else:
             raise ValueError(
@@ -154,15 +155,27 @@ class DbtArtifactsReader(MetadataCatalog):
         Raises :class:`KeyError` if neither contains ``entity_id``.
         """
         manifest = await self.load_manifest()
-        nodes = manifest.get("nodes") or {}
+        nodes = self._section(manifest, "nodes")
         if entity_id in nodes:
             return nodes[entity_id]
-        sources = manifest.get("sources") or {}
+        sources = self._section(manifest, "sources")
         if entity_id in sources:
             return sources[entity_id]
         raise KeyError(
             f"DbtArtifactsReader: entity_id {entity_id!r} not found in manifest nodes or sources"
         )
+
+    @staticmethod
+    def _section(manifest: Mapping[str, object], key: str) -> dict[str, Mapping[str, Any]]:
+        """Return the mapping entries of ``manifest[key]`` (``{}`` when absent or malformed)."""
+        section = manifest.get(key)
+        if not PayloadShape.is_str_mapping(section):
+            return {}
+        return {
+            entry_key: entry
+            for entry_key, entry in section.items()
+            if PayloadShape.is_str_mapping(entry)
+        }
 
     @staticmethod
     def _matches_filter(entity: Mapping[str, Any], filter: Mapping[str, Any]) -> bool:
@@ -179,6 +192,9 @@ class DbtArtifactsReader(MetadataCatalog):
         return os.path.join(self._config.target_path, filename)
 
     @staticmethod
-    def _read_json_file(path: str) -> dict:
+    def _read_json_file(path: str) -> dict[str, object]:
         with open(path, encoding="utf-8") as handle:
-            return json.load(handle)
+            payload: object = json.load(handle)
+        if not PayloadShape.is_str_mapping(payload):
+            raise ValueError(f"DbtArtifactsReader: {path} does not contain a JSON object")
+        return dict(payload)

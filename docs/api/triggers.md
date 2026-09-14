@@ -60,7 +60,7 @@ await trigger.run_forever(tapestry)
 
 ## WebhookTrigger
 
-Fires on each HTTP POST request. `trigger.app` is a Starlette ASGI app you mount on any ASGI server.
+Fires on each HTTP POST request. `trigger.app` is a Starlette ASGI app you mount on any ASGI server. Requires `pirn-core[http]`.
 
 ::: pirn.triggers.webhook_trigger.WebhookTrigger
     options:
@@ -86,7 +86,7 @@ uvicorn.run(trigger.app, host="127.0.0.1", port=8080)
 
 ## KafkaTrigger
 
-Fires on each Kafka message. Requires `pirn[kafka]`.
+Fires on each Kafka message. Requires `pirn-core[kafka]`.
 
 ::: pirn.triggers.kafka_trigger.KafkaTrigger
     options:
@@ -112,7 +112,7 @@ await trigger.run_forever(tapestry)
 
 ## ValKeyTrigger
 
-Fires on ValKey pub/sub messages. Requires `pirn[valkey]`.
+Fires on ValKey pub/sub messages. Requires `pirn-core[valkey]`.
 
 ::: pirn.triggers.valkey_trigger.ValKeyTrigger
     options:

@@ -26,6 +26,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from pirn.core.knot import Knot
+from pirn.core.optional_dependency import OptionalDependency
 from pirn.core.result import Result
 
 
@@ -51,12 +52,7 @@ class RayDispatcher:
     def _ensure_ray(self) -> Any:
         if self._ray is not None:
             return self._ray
-        try:
-            import ray
-        except ImportError as exc:
-            raise ImportError(
-                "RayDispatcher requires ray; install via `pip install pirn[ray]`"
-            ) from exc
+        ray = OptionalDependency.require("ray", extra="ray")
         self._ray = ray
         return ray
 

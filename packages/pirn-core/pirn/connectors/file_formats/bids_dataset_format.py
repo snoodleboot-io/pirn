@@ -17,19 +17,24 @@ Records are emitted as ONE record per file in the dataset::
 
 Write: reconstruct a zip bundle from those records.
 
-Install: ``pip install pirn[health]``.
+Install: ``pip install "pirn-core[bids]"`` for layout validation.
 """
 
 from __future__ import annotations
 
 import io
+import os.path
+import tempfile
+import warnings
 import zipfile
 from collections.abc import Iterable, Mapping
+from pathlib import Path
 from typing import Any
 
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class BidsDatasetFormat(BatchFileFormat):
@@ -94,9 +99,7 @@ class BidsDatasetFormat(BatchFileFormat):
             raise ValueError("BidsDatasetFormat: member path must be non-empty")
         if "\x00" in name:
             raise ValueError(f"BidsDatasetFormat: member path contains NUL byte: {name!r}")
-        import os.path as _osp
-
-        if _osp.isabs(name):
+        if os.path.isabs(name):
             raise ValueError(f"BidsDatasetFormat: member path must be relative, got {name!r}")
         parts = name.replace("\\", "/").split("/")
         if ".." in parts:
@@ -108,11 +111,9 @@ class BidsDatasetFormat(BatchFileFormat):
     ) -> None:
         """Attempt BIDS layout validation; silently skip if pybids missing."""
         try:
-            import bids  # noqa: F401 — presence check only
+            bids = OptionalDependency.require("bids", extra="bids")
         except ImportError:
             return
-        import tempfile
-        from pathlib import Path
 
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
@@ -121,14 +122,8 @@ class BidsDatasetFormat(BatchFileFormat):
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 dest.write_bytes(record["content"])
             try:
-                from bids import BIDSLayout
-
-                BIDSLayout(str(root), validate=False)
-            except ImportError:
-                pass
+                bids.BIDSLayout(str(root), validate=False)
             except Exception as exc:
-                import warnings
-
                 warnings.warn(
                     f"BidsDatasetFormat: BIDS layout validation raised an unexpected error: {exc}",
                     RuntimeWarning,

@@ -20,8 +20,8 @@ import os
 from pathlib import Path
 from uuid import uuid4
 
-from pirn.backends._signer import _Signer
 from pirn.backends.base._cloud_object_store import _CloudObjectStore
+from pirn.backends.signer import Signer
 
 
 class LocalDiskDataStore(_CloudObjectStore):
@@ -40,7 +40,7 @@ class LocalDiskDataStore(_CloudObjectStore):
         self,
         root: str | Path,
         *,
-        signer: _Signer | None = None,
+        signer: Signer | None = None,
         allow_unsigned: bool = False,
     ) -> None:
         """Initialise the store.
@@ -51,7 +51,7 @@ class LocalDiskDataStore(_CloudObjectStore):
         Args:
             root: Root directory for the store.  All value files are written
                 inside this tree.
-            signer: An ``_Signer`` for HMAC payload signing.  Required unless
+            signer: An ``Signer`` for HMAC payload signing.  Required unless
                 ``allow_unsigned=True`` is set.
             allow_unsigned: If ``True``, the store operates without signing.
                 Requires ``PIRN_ALLOW_UNSIGNED=1`` in the environment.

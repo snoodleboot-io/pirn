@@ -7,6 +7,8 @@ live under ``tests/integration`` behind the ``needs_neo4j`` marker.
 from __future__ import annotations
 
 import logging
+import sys
+import types
 import unittest
 import unittest.mock
 from typing import Any
@@ -198,10 +200,6 @@ class TestCredentialSafety(unittest.TestCase):
 
 class TestConnectErrorScrubs(unittest.IsolatedAsyncioTestCase):
     async def test_connect_error_scrubs_password(self) -> None:
-        import sys
-
-        fake_neo4j = type("FakeNeo4j", (), {})()
-
         class FakeAsyncGraphDatabase:
             @staticmethod
             def driver(*args: Any, **kwargs: Any) -> None:
@@ -209,13 +207,19 @@ class TestConnectErrorScrubs(unittest.IsolatedAsyncioTestCase):
                     "could not connect: bolt://neo4j:secret-pw@localhost:7687 timed out"
                 )
 
-        fake_neo4j.AsyncGraphDatabase = FakeAsyncGraphDatabase  # type: ignore[attr-defined]
+        fake_neo4j = types.SimpleNamespace(AsyncGraphDatabase=FakeAsyncGraphDatabase)
         with unittest.mock.patch.dict(sys.modules, {"neo4j": fake_neo4j}):
             pool = Neo4jPool(Neo4jConfig(uri="bolt://localhost:7687", password="secret-pw"))
             with self.assertRaises(ConnectionError) as exc_info:
                 await pool.acquire()
         msg = str(exc_info.exception)
         assert "secret-pw" not in msg
+
+    async def test_missing_driver_names_install_hint(self) -> None:
+        with unittest.mock.patch.dict(sys.modules, {"neo4j": None}):
+            pool = Neo4jPool(Neo4jConfig(uri="bolt://localhost:7687", password="pw"))
+            with self.assertRaisesRegex(ImportError, r'pip install "pirn-core\[neo4j\]"'):
+                await pool.acquire()
 
 
 # ────────────────────────────────────────────────────────────── log events

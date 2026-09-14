@@ -9,10 +9,11 @@ from __future__ import annotations
 import os
 import tempfile
 from collections.abc import Mapping, Sequence
+from types import ModuleType
 from typing import Any
 
 
-class _SamUtils:
+class SamUtils:
     """Namespace for SAM/BAM/CRAM stateless utilities."""
 
     @staticmethod
@@ -22,7 +23,7 @@ class _SamUtils:
             with os.fdopen(fd, "wb") as fh:
                 fh.write(payload)
         except Exception:
-            _SamUtils.safe_unlink(path)
+            SamUtils.safe_unlink(path)
             raise
         return path
 
@@ -76,18 +77,18 @@ class _SamUtils:
 
     @staticmethod
     def build_header(
-        pysam: Any,
+        pysam: ModuleType,
         explicit_lines: tuple[str, ...] | None,
         records: Sequence[Mapping[str, Any]],
     ) -> Any:
         if explicit_lines is not None:
             text = "\n".join(explicit_lines) + "\n"
-            return _SamUtils.header_from_text(pysam, text)
-        return _SamUtils.infer_header(pysam, records)
+            return SamUtils.header_from_text(pysam, text)
+        return SamUtils.infer_header(pysam, records)
 
     @staticmethod
-    def header_from_text(pysam: Any, text: str) -> Any:
-        path = _SamUtils.make_tempfile_path(suffix=".sam")
+    def header_from_text(pysam: ModuleType, text: str) -> Any:
+        path = SamUtils.make_tempfile_path(suffix=".sam")
         try:
             with open(path, "w") as fh:
                 fh.write(text)
@@ -97,10 +98,10 @@ class _SamUtils:
             finally:
                 handle.close()
         finally:
-            _SamUtils.safe_unlink(path)
+            SamUtils.safe_unlink(path)
 
     @staticmethod
-    def infer_header(pysam: Any, records: Sequence[Mapping[str, Any]]) -> Any:
+    def infer_header(pysam: ModuleType, records: Sequence[Mapping[str, Any]]) -> Any:
         contigs: dict[str, int] = {}
         order: list[str] = []
         for record in records:
@@ -125,8 +126,8 @@ class _SamUtils:
         return {"HD": {"VN": "1.6"}, "SQ": sq_entries}
 
     @staticmethod
-    def record_to_alignment(pysam: Any, record: Mapping[str, Any], handle: Any) -> Any:
-        _SamUtils.validate_record(record)
+    def record_to_alignment(pysam: ModuleType, record: Mapping[str, Any], handle: Any) -> Any:
+        SamUtils.validate_record(record)
         alignment = pysam.AlignedSegment(handle.header)
         alignment.query_name = str(record["qname"])
         alignment.flag = int(record["flag"])
