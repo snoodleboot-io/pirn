@@ -142,4 +142,4 @@ class DiscordClient(ApiClient):
                 "DiscordClient: at least one of webhook_url or bot_token must be non-empty"
             )
         self._logger.debug("discord.connect")
-        return self._build_httpx_client("discord", quoted=False, timeout=self._config.timeout)
+        return self._build_httpx_client("http", timeout=self._config.timeout)

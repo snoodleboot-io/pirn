@@ -129,4 +129,4 @@ class TeamsClient(ApiClient):
         if not self._config.webhook_url:
             raise ValueError("TeamsClient: config.webhook_url must be non-empty")
         self._logger.debug("teams.connect")
-        return self._build_httpx_client("teams", quoted=False, timeout=self._config.timeout)
+        return self._build_httpx_client("http", timeout=self._config.timeout)

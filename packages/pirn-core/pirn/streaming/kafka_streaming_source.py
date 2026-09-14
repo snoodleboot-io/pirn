@@ -7,6 +7,7 @@ import logging
 from collections.abc import AsyncIterator
 from typing import Any
 
+from pirn.core.optional_dependency import OptionalDependency
 from pirn.streaming.streaming_source import StreamingSource
 
 _logger = logging.getLogger(__name__)
@@ -60,13 +61,7 @@ class KafkaStreamingSource(StreamingSource):
     @staticmethod
     def _consumer_class() -> Any:
         """Import ``aiokafka.AIOKafkaConsumer`` lazily; the optional SDK is untyped."""
-        try:
-            from aiokafka import AIOKafkaConsumer  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "KafkaStreamingSource requires aiokafka; install via `pip install pirn[kafka]`"
-            ) from exc
-        return AIOKafkaConsumer  # pyright: ignore[reportUnknownVariableType]  # optional SDK ships no types
+        return OptionalDependency.require("aiokafka", extra="kafka").AIOKafkaConsumer
 
     async def _ensure_consumer(self) -> Any:
         if self._consumer is None:

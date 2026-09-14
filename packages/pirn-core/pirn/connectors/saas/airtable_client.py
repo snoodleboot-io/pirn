@@ -203,4 +203,4 @@ class AirtableClient(ApiClient, TableSource):
             raise self._missing_config_error("AirtableClient", "client")
         self._validate_config()
         self._logger.debug("airtable.connect")
-        return self._build_httpx_client("airtable", quoted=False, timeout=self._config.timeout)
+        return self._build_httpx_client("http", timeout=self._config.timeout)

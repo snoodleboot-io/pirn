@@ -98,4 +98,4 @@ class GoogleChatClient(ApiClient):
         if not self._config.webhook_url:
             raise ValueError("GoogleChatClient: config.webhook_url must be non-empty")
         self._logger.debug("google_chat.connect")
-        return self._build_httpx_client("google-chat", quoted=False, timeout=self._config.timeout)
+        return self._build_httpx_client("http", timeout=self._config.timeout)

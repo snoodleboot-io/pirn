@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from pirn.core.optional_dependency import OptionalDependency
 from pirn.emitters.emitter import Emitter
 
 if TYPE_CHECKING:
@@ -43,7 +44,7 @@ class OpenTelemetryEmitter(Emitter):
                 ``None`` the tracer is obtained lazily from
                 ``opentelemetry.trace.get_tracer("pirn")`` on first use,
                 which requires ``opentelemetry-api`` to be installed
-                (``pip install pirn[otel]``).
+                (``pip install "pirn-core[otel]"``).
         """
         self._tracer = tracer
 
@@ -57,13 +58,7 @@ class OpenTelemetryEmitter(Emitter):
             ImportError: If ``opentelemetry-api`` is not installed.
         """
         if self._tracer is None:
-            try:
-                from opentelemetry import trace
-            except ImportError as exc:
-                raise ImportError(
-                    "OpenTelemetryEmitter requires opentelemetry-api; "
-                    "install via `pip install pirn[otel]`"
-                ) from exc
+            trace = OptionalDependency.require("opentelemetry.trace", extra="otel")
             self._tracer = trace.get_tracer("pirn")
         return self._tracer
 

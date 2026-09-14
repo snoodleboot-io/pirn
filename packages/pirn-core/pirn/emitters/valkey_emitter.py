@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
+from pirn.core.optional_dependency import OptionalDependency
 from pirn.emitters.emitter import Emitter
 
 if TYPE_CHECKING:
@@ -61,13 +62,8 @@ class ValKeyEmitter(Emitter):
 
     async def _ensure_client(self) -> Any:
         if self._client is None:
-            try:
-                from glide import GlideClient
-            except ImportError as exc:
-                raise ImportError(
-                    "ValKeyEmitter requires valkey-glide; install via `pip install pirn[valkey]`"
-                ) from exc
-            self._client = await GlideClient.create(self._config)
+            glide = OptionalDependency.require("glide", extra="valkey")
+            self._client = await glide.GlideClient.create(self._config)
         return self._client
 
     async def on_status(self, event: StatusEvent) -> None:

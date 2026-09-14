@@ -190,4 +190,4 @@ class PagerDutyClient(ApiClient):
         if not self._config.api_key:
             raise ValueError("PagerDutyClient: config.api_key must be non-empty")
         self._logger.debug("pagerduty.connect")
-        return self._build_httpx_client("pagerduty", quoted=False, timeout=self._config.timeout)
+        return self._build_httpx_client("http", timeout=self._config.timeout)

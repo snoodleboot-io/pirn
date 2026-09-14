@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
+from pirn.core.optional_dependency import OptionalDependency
 from pirn.emitters.emitter import Emitter
 
 if TYPE_CHECKING:
@@ -75,13 +76,7 @@ class KafkaEmitter(Emitter):
     @staticmethod
     def _producer_class() -> Any:
         """Import ``aiokafka.AIOKafkaProducer`` lazily; the optional SDK is untyped."""
-        try:
-            from aiokafka import AIOKafkaProducer  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "KafkaEmitter requires aiokafka; install via `pip install pirn[kafka]`"
-            ) from exc
-        return AIOKafkaProducer  # pyright: ignore[reportUnknownVariableType]  # optional SDK ships no types
+        return OptionalDependency.require("aiokafka", extra="kafka").AIOKafkaProducer
 
     async def _ensure_producer(self) -> Any:
         if self._producer is None:

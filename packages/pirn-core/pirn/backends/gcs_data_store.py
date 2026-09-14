@@ -5,7 +5,7 @@ Suitable for GCP-hosted deployments.
 
 Requires the ``gcloud-aio-storage`` package::
 
-    pip install pirn[gcs]
+    pip install "pirn-core[gcs]"
 
 Construction accepts an optional pre-built ``aiohttp.ClientSession``
 (``session=``) or a ready ``gcloud.aio.storage.Storage``-like client

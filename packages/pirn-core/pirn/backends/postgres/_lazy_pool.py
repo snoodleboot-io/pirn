@@ -3,6 +3,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from pirn.core.optional_dependency import OptionalDependency
+
 
 class _LazyPool:
     """Wraps either an injected pool (test / sharing) or a DSN string.
@@ -47,13 +49,7 @@ class _LazyPool:
                 redacted.
         """
         if self._pool is None:
-            try:
-                import asyncpg
-            except ImportError as exc:
-                raise ImportError(
-                    "PostgresStore/PostgresHistory require asyncpg; install "
-                    "via `pip install pirn[postgres]`"
-                ) from exc
+            asyncpg = OptionalDependency.require("asyncpg", extra="postgres")
             try:
                 self._pool = await asyncpg.create_pool(self._dsn)
             except Exception as exc:

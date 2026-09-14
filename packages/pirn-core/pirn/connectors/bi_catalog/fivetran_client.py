@@ -22,6 +22,7 @@ from pirn.connectors.api_client import ApiClient
 from pirn.connectors.bi_catalog.fivetran_config import FivetranConfig
 from pirn.connectors.capabilities.table_source import TableSource
 from pirn.connectors.dsn_scrubber import DsnScrubber
+from pirn.core.optional_dependency import OptionalDependency
 
 
 class FivetranClient(ApiClient, TableSource):
@@ -144,7 +145,7 @@ class FivetranClient(ApiClient, TableSource):
         return base.rstrip("/") + path
 
     async def _create_client(self) -> Any:
-        httpx = self._import_httpx("fivetran")
+        httpx = OptionalDependency.require("httpx", extra="fivetran")
         if self._config is None:
             raise self._missing_config_error("FivetranClient", "client")
         if self._config.api_key is None or self._config.api_secret is None:

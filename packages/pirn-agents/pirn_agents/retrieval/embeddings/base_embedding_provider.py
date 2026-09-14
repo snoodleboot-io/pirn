@@ -49,10 +49,6 @@ class BaseEmbeddingProvider(ConnectorBase, EmbeddingProvider):
     the embedding-specific batching layers on top.
     """
 
-    # Optional backends (httpx, sentence-transformers) ship with pirn-agents, so
-    # the missing-dependency install hint must name this distribution, not core's.
-    _install_dist = "pirn-agents"
-
     def __init__(
         self,
         *,

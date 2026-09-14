@@ -130,4 +130,4 @@ class TelegramClient(ApiClient):
         if not self._config.bot_token:
             raise ValueError("TelegramClient: config.bot_token must be non-empty")
         self._logger.debug("telegram.connect")
-        return self._build_httpx_client("telegram", quoted=False, timeout=self._config.timeout)
+        return self._build_httpx_client("http", timeout=self._config.timeout)
