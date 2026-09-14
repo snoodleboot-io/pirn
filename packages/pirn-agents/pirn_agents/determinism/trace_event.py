@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TraceEvent`` — one structured, content-addressed step in a run trajectory."""
 
 from __future__ import annotations
@@ -67,7 +69,7 @@ class TraceEvent(PirnOpaqueValue):
         }
 
     @classmethod
-    def from_payload(cls, payload: Any) -> TraceEvent:
+    def from_payload(cls, payload: Mapping[str, Any]) -> TraceEvent:
         """Reconstruct an event from a mapping produced by :meth:`to_payload`.
 
         Raises:

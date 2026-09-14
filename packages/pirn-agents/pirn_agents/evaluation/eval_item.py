@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``EvalItem`` — one input/gold-output case in an eval dataset."""
 
 from __future__ import annotations
@@ -29,8 +31,8 @@ class EvalItem(PirnOpaqueValue):
 
     item_id: str
     input: Mapping[str, Any]
-    expected: Mapping[str, Any] = field(default_factory=dict)
-    metadata: Mapping[str, Any] = field(default_factory=dict)
+    expected: Mapping[str, Any] = field(default_factory=dict[str, Any])
+    metadata: Mapping[str, Any] = field(default_factory=dict[str, Any])
 
     def __post_init__(self) -> None:
         """Validate field types.

@@ -10,7 +10,7 @@ from pirn.core.knot_config import KnotConfig
 from pydantic import Field
 
 from pirn_agents.tools.tool import Tool
-from pirn_agents.tools.web._text_extractor import _TextExtractor
+from pirn_agents.tools.web.text_extractor import TextExtractor
 
 
 class HtmlToTextTool(Tool):
@@ -49,7 +49,7 @@ class HtmlToTextTool(Tool):
         """
         if max_chars <= 0:
             raise ValueError(f"html_to_text: max_chars must be positive, got {max_chars}")
-        extractor = _TextExtractor()
+        extractor = TextExtractor()
         extractor.feed(html)
         extractor.close()
         text = extractor.text()

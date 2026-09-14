@@ -24,8 +24,8 @@ class RubricScore(PirnOpaqueValue):
     """
 
     overall: float
-    per_criterion: Mapping[str, float] = field(default_factory=dict)
-    detail: Mapping[str, Any] = field(default_factory=dict)
+    per_criterion: Mapping[str, float] = field(default_factory=dict[str, float])
+    detail: Mapping[str, Any] = field(default_factory=dict[str, Any])
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
         return {

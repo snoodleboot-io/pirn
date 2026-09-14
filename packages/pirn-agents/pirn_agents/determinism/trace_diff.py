@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TraceDiff`` — the structured result of diffing two recorded runs."""
 
 from __future__ import annotations
@@ -46,7 +48,7 @@ class TraceDiff(PirnOpaqueValue):
         }
 
     @classmethod
-    def from_payload(cls, payload: Any) -> TraceDiff:
+    def from_payload(cls, payload: Mapping[str, Any]) -> TraceDiff:
         """Reconstruct a diff from a mapping produced by :meth:`to_payload`.
 
         Raises:

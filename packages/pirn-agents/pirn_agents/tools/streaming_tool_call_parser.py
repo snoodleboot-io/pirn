@@ -47,6 +47,7 @@ import json
 from collections.abc import AsyncIterable, AsyncIterator, Mapping
 from typing import Any
 
+from pirn_agents._internal.json_shape import JsonShape
 from pirn_agents.tools.tool_call import ToolCall
 
 
@@ -166,7 +167,7 @@ class StreamingToolCallParser:
                 parsed = json.loads(raw_args)
             except json.JSONDecodeError:
                 return None
-        if not isinstance(parsed, Mapping):
+        if not JsonShape.is_mapping(parsed):
             return None
         return ToolCall(
             tool_name=str(names[index] or ""),

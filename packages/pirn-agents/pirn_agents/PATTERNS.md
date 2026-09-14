@@ -1056,7 +1056,6 @@ from typing import Any
 from pirn_agents.llm.provider_adapter import ProviderAdapter
 from pirn_agents.tools.tool_call_codec import ToolCallCodec
 from pirn_agents.tools.toolset import Toolset
-from pirn_agents.tools.tool_result import ToolResult
 
 class MyAdapter(ProviderAdapter):
     def tool_to_native(self, neutral_tool: dict[str, Any]) -> dict[str, Any]:
@@ -1069,7 +1068,7 @@ class MyAdapter(ProviderAdapter):
 codec = ToolCallCodec(MyAdapter())
 native_tools = codec.encode_tools(toolset)      # declare tools to the provider
 calls = codec.decode_calls(assistant_msg)       # -> list[ToolCall] (single or parallel; args JSON-str or dict)
-tool_msgs = codec.encode_results(results)       # -> native tool-result messages
+tool_msgs = codec.encode_results(outcomes)      # {call_id: Ok | Err | Skipped} -> native messages
 ```
 
 ---

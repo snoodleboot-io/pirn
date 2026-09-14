@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``EvalReport`` — aggregated quality report over an eval run."""
 
 from __future__ import annotations
@@ -72,10 +74,15 @@ class EvalReport(PirnOpaqueValue):
     def to_json(self, *, indent: int | None = 2) -> str:
         """Serialise the report (results + aggregate) to a stable JSON string."""
         payload = {
-            "results": [r._pirn_audit_dict() for r in self.results],
+            "results": self._audit_all(self.results),
             "aggregate": self.aggregate(),
         }
         return json.dumps(payload, indent=indent, sort_keys=True)
 
+    @staticmethod
+    def _audit_all(values: tuple[PirnOpaqueValue, ...]) -> list[dict[str, Any]]:
+        """Audit each child through the ``PirnOpaqueValue`` contract it shares with this value."""
+        return [value._pirn_audit_dict() for value in values]
+
     def _pirn_audit_dict(self) -> dict[str, Any]:
-        return {"results": [r._pirn_audit_dict() for r in self.results]}
+        return {"results": self._audit_all(self.results)}

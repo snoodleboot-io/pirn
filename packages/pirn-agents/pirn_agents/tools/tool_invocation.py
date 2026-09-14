@@ -14,24 +14,22 @@ call, constructs the tool knot inside the inner tapestry, and returns it as
 the sink, so the call's own ``Ok | Err | Skipped`` and lineage row are
 recorded in the inner run under the call's id.
 
-Its output is, for one deprecation cycle, the :class:`ToolResult` *view* of
-that outcome — built through the single
-:meth:`ToolResult.from_result` from the tool knot's ``Result`` and lineage
-row — so every consumer of the pre-ADR shape keeps working unchanged.  A tool
+Its output is the model-facing :class:`ToolResult` view of that outcome —
+built through the single :meth:`ToolResult.from_result` from the tool knot's
+``Result`` and lineage row, and carrying that ``Result`` as its ``outcome``.  A tool
 that raised is therefore an ``ERROR`` view (the tool knot's own ``Err`` is
 in lineage), a denied approval upstream skips this knot outright (core passes
 a skipped sink through as ``Skipped``), and a call whose arguments the
 declaration refuses is recorded as its own ``Err`` through
-:class:`~pirn_agents.tools.tool_call_rejection.ToolCallRejection`.  The next
-cycle drops the view and surfaces the tool knot's ``Result`` directly.
+:class:`~pirn_agents.tools.tool_call_rejection.ToolCallRejection`.
 
 This container reports its one call through
 :class:`~pirn_agents.observability.agent_call_recorder.AgentCallRecorder`
 (ADR WS4a) as a ``"tool"`` event under *its own* id on the *outer* run — the
 attribution a consumer correlating spans to the graph it wired expects — and
-claims that report from the tool knot (``Tool._call_reported_by_container``)
+claims that report from the tool knot (``Tool.container_reports_call``)
 so one call yields one event.  A tool knot wired directly (a fan-out) reports
-itself.  The deprecated ``ToolInvocationHook`` seam is not consulted here.
+itself.
 
 Algorithm:
     1. ``process()`` receives the resolved ``tool`` (any spelling of a
@@ -50,7 +48,6 @@ from __future__ import annotations
 
 import functools
 import time
-from collections.abc import Mapping
 from typing import Any
 
 from pirn.core.error_policy import ErrorPolicy
@@ -64,6 +61,7 @@ from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
 
+from pirn_agents._internal.json_shape import JsonShape
 from pirn_agents.exceptions.tool_argument_validation_error import (
     ToolArgumentValidationError,
 )
@@ -144,12 +142,8 @@ class ToolInvocation(SubTapestry):
 
         Either outcome is also reported through
         :class:`~pirn_agents.observability.agent_call_recorder.AgentCallRecorder`
-        (ADR agents-speaks-core WS4a) — the emitter-path replacement for the old
-        ``ToolInvocationHook``/``SpanEmittingToolInvocationHook`` seam, which only
-        the *executors* fired around their own hand-rolled invocation, never this
-        knot. Every tool call scheduled through the engine as a ``ToolInvocation``
-        is observable this way, regardless of whether the caller configured a
-        hook.
+        (ADR agents-speaks-core WS4a), so every tool call scheduled through the
+        engine as a ``ToolInvocation`` is observable on the run's emitters.
 
         Args:
             tool: The resolved capability.
@@ -198,11 +192,8 @@ class ToolInvocation(SubTapestry):
         """Run as a ``SubTapestry``, attach the call's lineage latency, report the call."""
         self._mutable_inner_lineage: list[Any] = []
         start = time.perf_counter()
-        token = Tool._call_reported_by_container.set(True)
-        try:
+        with Tool.container_reports_call():
             result = await super().__call__(parent_results)
-        finally:
-            Tool._call_reported_by_container.reset(token)
         elapsed = time.perf_counter() - start
         if not isinstance(result, Ok) or not isinstance(result.value, ToolResult):
             return result
@@ -218,7 +209,7 @@ class ToolInvocation(SubTapestry):
             )
             if row is not None:
                 view = view.with_latency(ToolResult.latency_of(row))
-        call = parent_results.get("call") if isinstance(parent_results, Mapping) else None
+        call = parent_results.get("call") if JsonShape.is_mapping(parent_results) else None
         if not isinstance(call, ToolCall):
             call = self.config_values.get("call")
         await AgentCallRecorder.record(

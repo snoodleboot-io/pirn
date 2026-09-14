@@ -55,7 +55,7 @@ class ToolCallRejection(Knot):
         start = time.perf_counter()
         result = await super().__call__(parent_results)
         call = self.config_values.get("call")
-        if isinstance(call, ToolCall) and not Tool._call_reported_by_container.get():
+        if isinstance(call, ToolCall) and not Tool.call_reported_by_container():
             await AgentCallRecorder.record(
                 knot_id=self.knot_id,
                 kind="tool",

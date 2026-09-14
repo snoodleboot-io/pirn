@@ -1,9 +1,10 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TrajectoryEmitter`` — capture a run's trajectory from the engine itself.
 
-ADR "agents speaks core" WS3 part 3. Where ``TrajectoryRecorder`` (a one-cycle
-shim, deleted PIR-864) required every call site to remember to call
-``.record(...)``, an ``Emitter``
-attached to a ``Tapestry`` sees every knot's lineage automatically —
+ADR "agents speaks core" WS3 part 3. Rather than every call site remembering
+to record its step, an ``Emitter`` attached to a ``Tapestry`` sees every
+knot's lineage automatically —
 ``on_lineage`` fires once per knot per run, whether or not the pipeline
 author thought to instrument that particular step. No manual instrumentation,
 no missed steps.

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``CheckpointForker`` — branch a run chain at a recorded point for what-if runs.
 
 ADR "agents speaks core" WS3 part 3. A fork is a branch of the session chain:
@@ -84,17 +86,10 @@ class CheckpointForker:
                 f"CheckpointForker.fork: fork_point must be a ResumeToken, "
                 f"got {type(fork_point).__name__}"
             )
-        # pyright note: see the identical note in
-        # pirn_agents.sessions.approval_resumer — this package's pyright
-        # config resolves pirn-core via the shared workspace .venv's
-        # editable install of the main checkout, not this worktree/branch's
-        # copy, so it cannot see allow_new_knots yet even though it is real
-        # (proven by pytest here, which links this worktree's pirn-core via
-        # PYTHONPATH).
         session = await ReplaySession.from_history(
             history=history,
             run_id=fork_point.run_id,
-            allow_new_knots=True,  # pyright: ignore[reportCallIssue]
+            allow_new_knots=True,
         )
         row = session.row_for(source_knot_id)
         if row is None:
