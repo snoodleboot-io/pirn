@@ -149,9 +149,10 @@ class TestConfigDrivenAgentRuns(unittest.IsolatedAsyncioTestCase):
         # Arrange
         memory = StubMemoryStore([{"id": 1, "text": "ctx"}])
         llm = StubLLMProvider(["answer"])
-        spec = AgentSpecLoader.from_json(
-            '{"pattern": "naive_rag", "llm": "my-llm", "memory": "kb", "options": {"top_k": 1}}'
+        document = AgentSpecLoader.to_json(
+            AgentSpec(pattern="naive_rag", llm="my-llm", memory="kb", options={"top_k": 1})
         )
+        spec = AgentSpecLoader.from_json(document)
         references = AgentReferences().register("my-llm", llm).register("kb", memory)
 
         # Act

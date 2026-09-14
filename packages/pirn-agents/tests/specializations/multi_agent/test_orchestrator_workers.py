@@ -16,34 +16,20 @@ from pirn_agents.specializations.multi_agent.orchestrator_workers_result import 
     OrchestratorWorkersResult,
 )
 from pirn_agents.tools.agent_tool import AgentTool
-from pirn_agents.tools.tool import Tool
-from pirn_agents.tools.tool_factory import ToolFactory
 from pirn_agents.tools.tool_status import ToolStatus
 from pirn_agents.types.messaging.agent_response import AgentResponse
 from tests.agent_tool_doubles import StubAgent, reset_doubles
 from tests.specializations.conftest import StubTool
 
 
-class _ConcurrencyProbeTool(Tool):
+class _ConcurrencyProbe:
     """Records the peak number of simultaneously in-flight invocations."""
 
     def __init__(self) -> None:
         self._current = 0
         self.peak = 0
 
-    @property
-    def name(self) -> str:
-        return "probe"
-
-    @property
-    def description(self) -> str:
-        return "probe"
-
-    @property
-    def parameters_schema(self) -> Mapping[str, Any]:
-        return {"type": "object", "properties": {"task": {"type": "string"}}}
-
-    async def invoke(self, arguments: Mapping[str, Any]) -> Any:
+    async def __call__(self, arguments: Mapping[str, Any]) -> Any:
         self._current += 1
         self.peak = max(self.peak, self._current)
         await asyncio.sleep(0.01)
@@ -84,11 +70,11 @@ class TestOrchestratorWorkers(unittest.IsolatedAsyncioTestCase):
         assert len(run.outputs["ow"].results) == 7
 
     async def test_max_concurrency_bounds_workers(self) -> None:
-        probe = _ConcurrencyProbeTool()
+        probe = _ConcurrencyProbe()
         with Tapestry() as t:
             OrchestratorWorkers(
                 tasks=tuple(f"t{i}" for i in range(6)),
-                worker=ToolFactory.of(probe),
+                worker=StubTool(name="probe", handler=probe),
                 max_concurrency=2,
                 _config=KnotConfig(id="ow"),
             )

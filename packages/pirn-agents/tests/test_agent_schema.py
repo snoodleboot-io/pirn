@@ -1,14 +1,12 @@
-"""Tests for an agent's declaration — ``AgentTool.declaration()`` and the deprecated deriver."""
+"""Tests for an agent's declaration — ``AgentTool.declaration()``."""
 
 from __future__ import annotations
 
 import unittest
-import warnings
 
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.agent.agent_schema_deriver import AgentSchemaDeriver
 from pirn_agents.tools.agent_tool import AgentTool
 from tests.agent_tool_doubles import NoInputAgent, TopicMaxAgent, reset_doubles
 
@@ -51,18 +49,3 @@ class TestAgentDeclaration(unittest.TestCase):
 
         self.assertEqual(schema, AgentTool.default_schema())
         self.assertEqual(schema["properties"], {"task": {"type": "string"}})
-
-
-class TestDeprecatedDeriver(unittest.TestCase):
-    def setUp(self) -> None:
-        reset_doubles()
-
-    def test_warns_and_forwards_to_the_declaration(self) -> None:
-        with Tapestry():
-            agent = TopicMaxAgent(topic="seed", _config=KnotConfig(id="a"))
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            deriver = AgentSchemaDeriver()
-        self.assertTrue(any(issubclass(w.category, DeprecationWarning) for w in caught))
-        self.assertEqual(dict(deriver.derive(agent)), AgentTool(agent).declaration().parameters)
-        self.assertEqual(deriver.derive(object()), AgentTool.default_schema())

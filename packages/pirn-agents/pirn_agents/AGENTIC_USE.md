@@ -55,11 +55,10 @@ pirn_agents/
 │   ├── conversation_payload.py  ConversationPayload   — Payload[ConversationFrame, tuple[AgentMessage, ...]]
 │   ├── conversation_frame.py    ConversationFrame     — session/turn ids, token count, truncation state
 │   ├── agent_response.py        AgentResponse         — Payload[GenerationFrame, str]
-│   ├── generation_frame.py      GenerationFrame       — finish_reason, usage, cost, tool_calls
-│   └── agent_context.py         AgentContext          — deprecated alias of ConversationPayload
+│   └── generation_frame.py      GenerationFrame       — finish_reason, usage, cost, tool_calls
 ├── planning/plan.py             Plan                  — ordered tuple of step strings
 ├── tools/tool_call.py           ToolCall              — LLM-requested tool invocation
-├── tools/tool_result.py         ToolResult            — deprecated view of a ToolCall's Result
+├── tools/tool_result.py         ToolResult            — the model-facing view of a ToolCall's Result
 ├── input/
 │   ├── message_parser.py        MessageParser         — raw input → AgentMessage tuple
 │   ├── context_builder.py       ContextBuilder        — messages + system_prompt → ConversationPayload
@@ -92,9 +91,6 @@ pirn_agents/
     ├── memory_patterns/         Working / Semantic / Episodic / Procedural memory pipelines
     │                            EpisodicMemoryRetriever, SemanticMemoryUpsert, SessionSummarizer
     ├── guardrails/              Input/OutputGuardrailCheck, PiiRedactorCheck, FactCheck
-    │                            (the *Gate names — InputGuardrailGate, OutputGuardrailGate,
-    │                            FactCheckGate — are one-cycle deprecation shims subclassing
-    │                            the *Check class above; construct the *Check name directly)
     │                            HallucinationDetector, CitationGrounder
     ├── structured_output/       JsonExtractor, YamlExtractor, PydanticValidator, EnumClassifier
     │                            SchemaEnforcer, RetryOnParseFailure, FormatCoercer
@@ -158,9 +154,19 @@ class AnthropicProvider(LLMProvider):
 
 ### Tool / @tool decorator
 
-**Contract:** Implement four members — `name` (stable string identifier), `description` (shown to the LLM during planning), `parameters_schema` (JSON Schema object), and `invoke(arguments)` (async, returns raw result). Exceptions raised by `invoke` are caught by `ToolExecutor` and surfaced as `ToolResult.error`; do not suppress them yourself.
+**Contract:** A `Tool` is a `Knot` subclass — the capability is the class, one
+call is an instance built with `KnotConfig(id=call_id)` plus the call's
+arguments as inputs, and the outcome is the engine's `Ok | Err | Skipped` plus
+the run's `KnotLineage` row. `name`/`description`/`parameters` are derived
+from `process()`'s own type hints (`declaration()`), not hand-written
+properties; there is no second execution verb — `process()` **is** how a tool
+runs. A dependency a call never supplies — an API key, an HTTP client, a
+connection pool — is bound once with `bind()`, which hides it from the
+model's declaration.
 
-**When to use `@tool` vs subclassing:** Use `@tool` for plain functions with no constructor dependencies. Use `Tool` subclassing when the tool needs injected API keys, HTTP clients, or connection pools.
+**When to use `@tool` vs subclassing:** Use `@tool` for plain functions with
+no bound dependencies. Use `Tool` subclassing when the tool needs an injected
+API key, HTTP client, or connection pool via `bind()`.
 
 ```python
 # @tool form — name, description, and schema derived automatically
@@ -177,33 +183,28 @@ def lookup_policy(topic: str) -> str:
     return POLICIES.get(topic, "No policy found.")
 
 # Subclass form — use when constructor injection is needed
+from typing import Any, ClassVar
+
+from pirn.core.knot import Knot
+from pirn.core.knot_config import KnotConfig
+
 from pirn_agents.tools.tool import Tool
 
 class WebSearchTool(Tool):
-    def __init__(self, api_key: str) -> None:
-        self._api_key = api_key
+    tool_name: ClassVar[str] = "web_search"
+    tool_description: ClassVar[str] = "Search the web and return a list of result snippets."
 
-    @property
-    def name(self) -> str:
-        return "web_search"
+    def __init__(
+        self, *, query: Knot | str, client: Knot, _config: KnotConfig, **kwargs: Any
+    ) -> None:
+        super().__init__(query=query, client=client, _config=_config, **kwargs)
 
-    @property
-    def description(self) -> str:
-        return "Search the web and return a list of result snippets."
+    async def process(self, query: str, client: Any, **_: Any) -> list[dict[str, str]]:
+        return await client.search(query)  # call your search API here
 
-    @property
-    def parameters_schema(self):
-        return {
-            "type": "object",
-            "properties": {"query": {"type": "string"}},
-            "required": ["query"],
-        }
-
-    async def invoke(self, arguments):
-        ...  # call your search API here
-
-    def _clear_credentials(self) -> None:
-        self._api_key = None
+# `client` is a dependency a call never supplies, so it is bound once and
+# hidden from the model's declaration:
+web_search_tool = WebSearchTool.bind(client=my_client)
 ```
 
 ---

@@ -7,33 +7,29 @@ backend-free. The YAML backend is imported the first time :meth:`from_yaml` or
 :meth:`to_yaml` is called, via the shared :func:`_require` helper, which raises
 a friendly ``pip install "pirn-agents[yaml]"`` message when it is absent.
 
-Two dialects, one return type (ADR agents-speaks-core WS6a). Every ``from_*``
-method here still returns an :class:`AgentSpec`, but the text it accepts can
-now be either shape:
+One dialect, one return type (ADR agents-speaks-core WS6a). Every ``from_*``
+method here returns an :class:`AgentSpec`, parsed from a core pipeline
+document — a top-level ``nodes:`` list, exactly like any other pipeline
+``pirn.yaml_loader.pipeline_loader.load_pipeline`` reads, in the
+single-knot-plus-tagged-parameters shape
+:meth:`~pirn_agents.builder.agent_spec.AgentSpec.to_pipeline_spec` writes
+(see that method's docstring, and the agents section of
+``docs/guides/yaml-pipelines.md``, for the exact shape). Validated as a core
+``PipelineSpec`` and converted via
+:meth:`~pirn_agents.builder.agent_spec.AgentSpec.from_pipeline_spec`.
 
-- **A core pipeline document** — a top-level ``nodes:`` list, exactly like any
-  other pipeline ``pirn.yaml_loader.pipeline_loader.load_pipeline`` reads, in
-  the single-knot-plus-tagged-parameters shape
-  :meth:`~pirn_agents.builder.agent_spec.AgentSpec.to_pipeline_spec` writes
-  (see that method's docstring, and the agents section of
-  ``docs/guides/yaml-pipelines.md``, for the exact shape). Validated as a core
-  ``PipelineSpec`` and converted via
-  :meth:`~pirn_agents.builder.agent_spec.AgentSpec.from_pipeline_spec`.
-- **The legacy flat dialect** — a top-level ``pattern``/``llm``/``memory``/
-  ``tools``/``components``/``options`` mapping, with no converter to core's own
-  vocabulary. Deprecated as of this ADR workstream, one cycle: still parsed
-  (via :meth:`~pirn_agents.builder.agent_spec.AgentSpec.from_dict`), but every
-  load emits a ``DeprecationWarning`` pointing at the core-pipeline-document
-  shape above.
-
-Dispatch is purely structural (presence of a top-level ``nodes`` key) so
-callers do not need to say which dialect they are handing in.
+The legacy flat dialect — a top-level ``pattern``/``llm``/``memory``/
+``tools``/``components``/``options`` mapping, with no converter to core's own
+vocabulary — was accepted here for one deprecation cycle and is now deleted
+(PIR-864); a mapping with no top-level ``nodes`` key is rejected.
+:meth:`~pirn_agents.builder.agent_spec.AgentSpec.from_dict` still constructs
+an :class:`AgentSpec` directly from that flat shape for a caller that already
+has one in hand — only this loader's text-parsing dispatch onto it is gone.
 """
 
 from __future__ import annotations
 
 import json
-import warnings
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -50,41 +46,36 @@ class AgentSpecLoader:
 
     @classmethod
     def from_mapping(cls, data: Mapping[str, Any]) -> AgentSpec:
-        """Build an :class:`AgentSpec` from an already-parsed mapping.
-
-        Dispatches on shape: a top-level ``"nodes"`` key means a core pipeline
-        document (see the module docstring); its absence means the legacy flat
-        dialect, which is parsed but emits a ``DeprecationWarning``.
+        """Build an :class:`AgentSpec` from an already-parsed core pipeline document.
 
         Raises:
             TypeError: If ``data`` is not a mapping.
-            ValueError: If the mapping is invalid in either dialect (see
-                :meth:`~pirn_agents.builder.agent_spec.AgentSpec.from_pipeline_spec`
-                and :meth:`~pirn_agents.builder.agent_spec.AgentSpec.from_dict`).
+            ValueError: If ``data`` has no top-level ``"nodes"`` key (the
+                legacy flat dialect, deleted PIR-864), or the pipeline
+                document is otherwise invalid (see
+                :meth:`~pirn_agents.builder.agent_spec.AgentSpec.from_pipeline_spec`).
         """
         if not isinstance(data, Mapping):
             raise TypeError(
                 f"AgentSpecLoader.from_mapping: data must be a mapping, got {type(data).__name__}"
             )
-        if "nodes" in data:
-            return AgentSpec.from_pipeline_spec(PipelineSpec.model_validate(dict(data)))
-        warnings.warn(
-            "AgentSpecLoader: the flat {pattern, llm, memory, tools, components, "
-            "options} dialect is deprecated (ADR agents-speaks-core WS6a) in favour "
-            "of a core pipeline document (a top-level 'nodes:' list) -- see "
-            "AgentSpec.to_pipeline_spec and the agents section of "
-            "docs/guides/yaml-pipelines.md. This dialect will be removed in a "
-            "future release.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return AgentSpec.from_dict(data)
+        if "nodes" not in data:
+            raise ValueError(
+                "AgentSpecLoader.from_mapping: expected a core pipeline document "
+                "(a top-level 'nodes:' list) -- the flat {pattern, llm, memory, "
+                "tools, components, options} dialect was deleted (PIR-864); see "
+                "AgentSpec.to_pipeline_spec and the agents section of "
+                "docs/guides/yaml-pipelines.md, or call AgentSpec.from_dict(data) "
+                "directly if you already have a flat mapping in hand."
+            )
+        return AgentSpec.from_pipeline_spec(PipelineSpec.model_validate(dict(data)))
 
     @classmethod
     def from_json(cls, text: str) -> AgentSpec:
         """Parse a JSON object string into a validated :class:`AgentSpec`.
 
-        Accepts either dialect described in the module docstring.
+        Accepts the core pipeline document dialect described in the module
+        docstring.
 
         Raises:
             TypeError: If the top-level JSON value is not an object.
@@ -105,7 +96,8 @@ class AgentSpecLoader:
     def from_yaml(cls, text: str) -> AgentSpec:
         """Parse a YAML mapping string into a validated :class:`AgentSpec`.
 
-        Accepts either dialect described in the module docstring.
+        Accepts the core pipeline document dialect described in the module
+        docstring.
 
         Raises:
             ImportError: If the ``yaml`` extra (PyYAML) is not installed.
@@ -170,16 +162,27 @@ class AgentSpecLoader:
 
     @classmethod
     def to_json(cls, spec: AgentSpec, *, indent: int | None = 2) -> str:
-        """Serialise ``spec`` to a JSON object string."""
+        """Serialise ``spec`` to a core pipeline document JSON string.
+
+        Writes the same ``nodes:``-shaped document :meth:`from_json` reads
+        back (via ``spec.to_pipeline_spec()``), so ``to_json``/``from_json``
+        round-trip through the one dialect this loader speaks (PIR-864).
+        """
         if not isinstance(spec, AgentSpec):
             raise TypeError(
                 f"AgentSpecLoader.to_json: spec must be an AgentSpec, got {type(spec).__name__}"
             )
-        return json.dumps(spec.to_dict(), indent=indent, sort_keys=True)
+        return json.dumps(
+            spec.to_pipeline_spec().model_dump(mode="json"), indent=indent, sort_keys=True
+        )
 
     @classmethod
     def to_yaml(cls, spec: AgentSpec) -> str:
-        """Serialise ``spec`` to a YAML mapping string.
+        """Serialise ``spec`` to a core pipeline document YAML string.
+
+        Writes the same ``nodes:``-shaped document :meth:`from_yaml` reads
+        back (via ``spec.to_pipeline_spec()``), so ``to_yaml``/``from_yaml``
+        round-trip through the one dialect this loader speaks (PIR-864).
 
         Raises:
             ImportError: If the ``yaml`` extra (PyYAML) is not installed.
@@ -189,4 +192,4 @@ class AgentSpecLoader:
                 f"AgentSpecLoader.to_yaml: spec must be an AgentSpec, got {type(spec).__name__}"
             )
         yaml = _require("yaml", "yaml")
-        return yaml.safe_dump(spec.to_dict(), sort_keys=True)
+        return yaml.safe_dump(spec.to_pipeline_spec().model_dump(mode="json"), sort_keys=True)

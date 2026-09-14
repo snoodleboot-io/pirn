@@ -124,8 +124,6 @@ class WebSearchTool(Tool):
 web_search = WebSearchTool.bind(client=my_client)   # a ToolFactory — pass it anywhere a tool is accepted
 ```
 
-An `invoke`-shaped subclass (properties `name` / `description` / `parameters_schema` plus `async invoke(arguments)`) still works for one cycle through `ToolFactory.of()` / `Toolset` and emits a `DeprecationWarning`.
-
 For plain functions, use the `@tool` decorator instead of subclassing — it is `@knot` plus a declaration. It derives the name from the function name, the description from the docstring's first paragraph, and the parameters from type annotations. Both sync and async functions are accepted.
 
 ```python
@@ -194,7 +192,7 @@ Knots that handle tool-use reasoning.
 |------|-------------|
 | `Planner` | Asks an `LLMProvider` for an ordered `Plan` grounded in the current `ConversationPayload`. Lines starting with `#` are treated as rationale; everything else becomes a numbered step in the `Plan`. |
 | `ToolRouter` | Accepts a single plan step string and a sequence of tool capabilities. Matches the first tool whose `name` appears as a substring of the step (case-insensitive) and returns a `ToolCall`. |
-| `ToolExecutor` | Accepts a `ToolCall` and a sequence of tool capabilities. Constructs the matching tool knot for the call and runs it as a nested pipeline; the call's `Err` is surfaced as `ToolResult.error` (the deprecated view of the call's `Result`) so callers can decide how to react. |
+| `ToolExecutor` | Accepts a `ToolCall` and a sequence of tool capabilities. Constructs the matching tool knot for the call and runs it as a nested pipeline; the call's `Err` is surfaced as `ToolResult.error` (the model-facing view of the call's `Result`) so callers can decide how to react. |
 | `ToolResultAggregator` | Collects a sequence of `ToolResult`s into a `{call_id: result}` mapping, ready to splice into the conversation context. |
 
 ### `memory/`
@@ -231,7 +229,7 @@ Runs one per-item agent over a dataset through the core engine's own scheduler
 | `RateLimitSignal` | The provider-neutral exception a `run_item` callable raises to report a 429-style throttle; `MapAgent` reacts by pausing the bucket and backing off the controller. |
 | `TriggeredBatch` | Binds a core `Trigger` to a `MapAgent`: each fire fetches fresh inputs, runs the batch, and yields a `BatchProgress` summary. Composes `IntervalTrigger`/`EventTrigger` (themselves thin `Trigger` subclasses — an interval schedule delegates to `CronTrigger`, an event source wraps an `asyncio.Queue`) with no scheduling loop of its own. |
 
-**Resume-after-crash** is a `RunHistory` lineage query, not a checkpoint store: pass the same `history=` (and, for a standalone `.run()`, `data_store=`) to a fresh `MapAgent` and a re-run skips any item whose knot id (`item:<batch_id>:<key>`) already has an `Ok` lineage row. `checkpoint_scope=` on `.run()` (or `TriggeredBatch`'s per-fire scoping) namespaces that id so concurrent or repeated batches don't share a skip-set. `BatchCheckpointer`/`BatchScheduler`/`BatchProgress` — the pre-migration F14-session-store-backed checkpoint stack — are kept, unchanged, as one-cycle `DeprecationWarning` shims for any caller not yet on `history=`.
+**Resume-after-crash** is a `RunHistory` lineage query, not a checkpoint store: pass the same `history=` (and, for a standalone `.run()`, `data_store=`) to a fresh `MapAgent` and a re-run skips any item whose knot id (`item:<batch_id>:<key>`) already has an `Ok` lineage row. `checkpoint_scope=` on `.run()` (or `TriggeredBatch`'s per-fire scoping) namespaces that id so concurrent or repeated batches don't share a skip-set. `BatchCheckpointer`/`BatchScheduler` — the pre-migration F14-session-store-backed checkpoint stack — were kept as one-cycle `DeprecationWarning` shims and are now deleted (PIR-864); `BatchProgress` stays as the plain value type `TriggeredBatch` still returns as its per-fire summary.
 
 `MapAgent.run()`'s streaming contract (`async for result in map_agent.run(inputs)`) yields each `BatchItemResult` the instant its item settles, before the `Aggregator` join completes: a `_BatchItemStreamer` emitter turns core's `Emitter.on_knot_result` (ADR WS0b) into the stream, so a failed item's full `ExceptionRecord`, its attempt count and its latency ride along from the lineage row. Closing the stream early or cancelling its consumer cancels the run and its in-flight items. Disclosed trade-off that remains: the input iterable is materialised up front (the resume lookup and the item graph need every key before the run starts), so the pre-migration lazy pull does not apply. The batch's dispatcher, group cap and admission observers reach the inner run through core's per-container overrides (`SubTapestry._inner_dispatcher` / `_inner_concurrency` / `_inner_admission_observers`), and an unset dispatcher inherits the enclosing run's execution plane — nothing assigns an inner tapestry's private fields (ratcheted in `tests/core_seams/test_execution_plane_reach_through.py`).
 
@@ -265,10 +263,10 @@ content.
 | Type | Description |
 |------|-------------|
 | `AgentMessage` | A single conversational turn: `role`, `content`, optional `name`, `tool_call_id`, `created_at`, and typed multimodal `blocks`. Frozen dataclass. |
-| `ConversationPayload` | The conversation window: `Payload[ConversationFrame, tuple[AgentMessage, ...]]` — `data` is the message tuple, `frame` carries session/turn ids, token count, and truncation state, plus a free-form `extra` mapping. `AgentContext` is the deprecated pre-ADR name, kept importable for one cycle. |
+| `ConversationPayload` | The conversation window: `Payload[ConversationFrame, tuple[AgentMessage, ...]]` — `data` is the message tuple, `frame` carries session/turn ids, token count, and truncation state, plus a free-form `extra` mapping. `AgentContext` was the pre-ADR name, kept importable for one cycle and now deleted (PIR-864). |
 | `AgentResponse` | Outcome of one agent turn: `Payload[GenerationFrame, str]` — `data` is the reply text, `frame` carries `tool_calls`, `finish_reason`, `usage`, `cost`, `model`, `provider`. The pre-ADR field names (`content`, `tool_calls`, `finish_reason`, `usage`, `cost`) stay available as properties. |
 | `ToolCall` | A single tool invocation requested by the LLM: `tool_name`, `arguments` mapping, `call_id`. |
-| `ToolResult` | Deprecated (one cycle) view of a tool call's `Ok | Err | Skipped`: `call_id`, `result` (any), optional `error`, built by `ToolResult.from_result(call_id, result, lineage)`. |
+| `ToolResult` | The model-facing view of a tool call's `Ok | Err | Skipped`: `call_id`, `result` (any), optional `error`, built by `ToolResult.from_result(call_id, result, lineage)`. Not a one-cycle shim — PIR-865 gave it and `ToolStatus.SKIPPED` a live role rendering gated/approval outcomes. |
 | `Plan` | An ordered `tuple` of plan step strings plus an optional `rationale` string. |
 
 ---
@@ -380,14 +378,13 @@ rag = NaiveRAGPipeline(
 
 Before ADR "agents speaks core" WS4b/PIR-866, per-backend concurrency
 isolation was three private classes holding their own `asyncio.Semaphore`:
-`pirn_agents.performance.concurrency_config.ConcurrencyConfig` (sizing),
-`pirn_agents.performance.backpressure_semaphore.BackpressureSemaphore` (one
-bounded pool), and `pirn_agents.resilience.bulkhead.Bulkhead` (one pool per
-backend, keyed lazily) — none of it visible to the core engine's own
-`AdmissionGate`.
+`ConcurrencyConfig` (sizing), `BackpressureSemaphore` (one bounded pool), and
+`Bulkhead` (one pool per backend, keyed lazily) — none of it visible to the
+core engine's own `AdmissionGate`. PIR-866 made all three thin, engine-backed
+shims for one deprecation cycle; PIR-864 deletes them outright.
 
-**A pipeline wired through the engine should not reach for these classes at
-all.** Declare `KnotConfig(concurrency_group=<backend>)` on the knots that
+**A pipeline wired through the engine does not reach for a concurrency class
+at all.** Declare `KnotConfig(concurrency_group=<backend>)` on the knots that
 call a backend and `ConcurrencyLimits(groups={<backend>: n, ...})` on the
 run: every knot in that group is metered together by one shared
 `AdmissionGate`, whether they come from one pipeline or several (see
@@ -396,27 +393,15 @@ two independently-built pipelines bounded by one shared group). This is
 exactly the isolation `Bulkhead` used to promise, produced by the engine
 that already schedules everything else.
 
-All three classes are kept for one deprecation cycle as thin, engine-backed
-shims — each construction warns `DeprecationWarning` — and none holds an
-`asyncio.Semaphore` of its own any more:
-
-- `ConcurrencyConfig.to_concurrency_limits(group=...)` and
-  `BulkheadConfig.to_concurrency_limits()` return the exact
-  `pirn.core.concurrency.concurrency_limits.ConcurrencyLimits` a real run
-  would declare for the same posture. Both stay plain frozen dataclasses
-  rather than `ConcurrencyLimits` subclasses: `agent/parallel_tool_executor.py`
-  and three `specializations/` pipelines read `ConcurrencyConfig.max_concurrency`
-  as a **class-level** literal default, which a pydantic `BaseModel`
-  subclass cannot support.
-- `BackpressureSemaphore` and `Bulkhead` are now subclasses of core's
-  `pirn.engine.admission.admission_gate.AdmissionGate`, delegating every
-  admission decision to a real
-  `pirn.engine.admission.limited_admission_gate.LimitedAdmissionGate`
-  through the shared, private
-  `pirn_agents.performance._backpressure_gate._BackpressureGate` — the one
-  place `max_queue_depth`/`acquire_timeout` (backpressure knobs core's
-  `AdmissionGate` has no equivalent for outside a running `Tapestry`) are
-  still implemented directly.
+One caller has no `Tapestry` to attach a group to:
+`evaluation/run_eval.py::RunEval.run` is a bare `asyncio.gather` loop, not an
+engine run, so it now bounds its per-item concurrency with a plain
+`asyncio.Semaphore(concurrency)` (`concurrency` is a plain `int`, default 8)
+instead of the deleted `BackpressureSemaphore`/`ConcurrencyConfig` pair —
+the `max_queue_depth`/`acquire_timeout` backpressure knobs those shims
+carried (meaningful only outside a running `Tapestry`) have no replacement
+here; wiring this runner onto the engine itself would restore an equivalent,
+core-native backpressure story, and is a larger change than PIR-864's scope.
 
 ## Idempotency keys (resilience)
 
@@ -434,11 +419,11 @@ operation and applies the mutation again.
 
 Operators upgrading must drain in-flight idempotent requests (let outstanding
 retries exhaust their window, or hold new mutating traffic) before or during the
-deploy, rather than rolling it out under live retry traffic. For one deprecation
-cycle, `IdempotencyKeyAssigner.legacy_key(...)` reproduces the pre-upgrade key for
-a given `(operation, arguments, namespace)`, so an operator reconciling a backend's
-dedupe table across the upgrade window can compute what a pre-upgrade retry would
-have used.
+deploy, rather than rolling it out under live retry traffic. `IdempotencyKeyAssigner.legacy_key(...)`
+reproduced the pre-upgrade key for a given `(operation, arguments, namespace)`
+for one deprecation cycle, so an operator reconciling a backend's dedupe table
+across the upgrade window could compute what a pre-upgrade retry would have
+used; that one-cycle bridge is now deleted (PIR-864).
 
 ---
 

@@ -1,11 +1,24 @@
 """``run_eval`` — run a pattern/pipeline over an eval dataset and report quality.
 
 Executes each :class:`~pirn_agents.evaluation.eval_dataset.EvalDataset` item
-concurrently through the shared bounded-concurrency limiter
-(:class:`~pirn_agents.performance.backpressure_semaphore.BackpressureSemaphore`,
-the same F1/F10 executor posture), scores it with the supplied metrics, applies
-threshold pass/fail, and collects an
-:class:`~pirn_agents.evaluation.eval_report.EvalReport`.
+concurrently, bounded by a plain ``asyncio.Semaphore`` sized from
+``concurrency``, scores it with the supplied metrics, applies threshold
+pass/fail, and collects an :class:`~pirn_agents.evaluation.eval_report.EvalReport`.
+
+This runner does not build a ``Tapestry``: it is a bare ``asyncio.gather``
+loop over target invocations, not an engine run, so
+``KnotConfig(concurrency_group=...)`` / ``ConcurrencyLimits`` (the pattern
+every engine-wired caller uses) has nothing to attach to here. It used the
+deprecated :class:`~pirn_agents.performance.backpressure_semaphore.BackpressureSemaphore`
+for this bound before that shim's deletion (PIR-864); the plain semaphore
+below is the same behaviour with one difference -- the deprecated shim's
+``max_queue_depth``/``acquire_timeout`` backpressure knobs (meaningful only
+outside a running ``Tapestry``, see ``ConcurrencyConfig``'s former docstring)
+have no replacement here, since keeping them would mean keeping the shim
+they were defined on. Wiring this runner onto the engine itself (one knot per
+item under an ``Aggregator``) would restore an equivalent, core-native
+backpressure story; that is a larger change than this ticket's shim-deletion
+scope and is not made here.
 
 Determinism is a documented seam: every target invocation is routed through a
 :class:`~pirn_agents.evaluation.run_recorder.RunRecorder` (defaulting to the
@@ -29,8 +42,6 @@ from pirn_agents.evaluation.metric_result import MetricResult
 from pirn_agents.evaluation.null_run_recorder import NullRunRecorder
 from pirn_agents.evaluation.run_recorder import RunRecorder
 from pirn_agents.evaluation.threshold_config import ThresholdConfig
-from pirn_agents.performance.backpressure_semaphore import BackpressureSemaphore
-from pirn_agents.performance.concurrency_config import ConcurrencyConfig
 
 Target = Callable[[Mapping[str, Any]], Awaitable[Mapping[str, Any]]]
 EvalMetric = Callable[[EvalItem, Mapping[str, Any]], "MetricResult | Awaitable[MetricResult]"]
@@ -46,7 +57,7 @@ class RunEval:
         target: Target,
         metrics: Mapping[str, EvalMetric],
         thresholds: ThresholdConfig | None = None,
-        concurrency: ConcurrencyConfig | None = None,
+        concurrency: int = 8,
         recorder: RunRecorder | None = None,
     ) -> EvalReport:
         """Evaluate ``target`` over ``dataset`` and return an :class:`EvalReport`.
@@ -60,8 +71,8 @@ class RunEval:
                 awaitable).
             thresholds: Optional per-metric floors; when given, each item's ``passed``
                 is set and any breach is recorded in its detail.
-            concurrency: Bounded-concurrency posture; defaults to
-                :class:`ConcurrencyConfig` (8-way).
+            concurrency: Maximum number of simultaneously in-flight items; must
+                be >= 1. Defaults to 8.
             recorder: Record/replay seam for the target call; defaults to the live
                 :class:`NullRunRecorder` (F29 supplies a cassette-backed recorder).
 
@@ -72,6 +83,7 @@ class RunEval:
         Raises:
             TypeError: If ``dataset`` is not an :class:`EvalDataset` or ``metrics``
                 is not a mapping.
+            ValueError: If ``concurrency`` is less than 1.
         """
         if not isinstance(dataset, EvalDataset):
             raise TypeError(
@@ -79,16 +91,16 @@ class RunEval:
             )
         if not isinstance(metrics, Mapping):
             raise TypeError(f"run_eval: metrics must be a mapping, got {type(metrics).__name__}")
-        limiter = BackpressureSemaphore(
-            concurrency if concurrency is not None else ConcurrencyConfig()
-        )
+        if concurrency < 1:
+            raise ValueError(f"run_eval: concurrency must be >= 1, got {concurrency}")
+        limiter = asyncio.Semaphore(concurrency)
         active_recorder = recorder if recorder is not None else NullRunRecorder()
 
         # design-decision-override: closure over limiter/active_recorder/
         # metrics/thresholds/target so each item can be scheduled
         # independently under asyncio.gather without a five-parameter helper.
         async def _run_item(item: EvalItem) -> EvalCaseResult:
-            async with limiter.slot():
+            async with limiter:
                 output = await active_recorder.invoke(
                     key=item.item_id, thunk=lambda: target(item.input)
                 )
@@ -133,27 +145,3 @@ class RunEval:
         if not applied:
             return None, []
         return (len(breaches) == 0), breaches
-
-
-async def run_eval(
-    *,
-    dataset: EvalDataset,
-    target: Target,
-    metrics: Mapping[str, EvalMetric],
-    thresholds: ThresholdConfig | None = None,
-    concurrency: ConcurrencyConfig | None = None,
-    recorder: RunRecorder | None = None,
-) -> EvalReport:
-    """Evaluate ``target`` over ``dataset`` and return an :class:`EvalReport`.
-
-    Thin wrapper kept for the documented public import path; see
-    :meth:`RunEval.run`.
-    """
-    return await RunEval.run(
-        dataset=dataset,
-        target=target,
-        metrics=metrics,
-        thresholds=thresholds,
-        concurrency=concurrency,
-        recorder=recorder,
-    )

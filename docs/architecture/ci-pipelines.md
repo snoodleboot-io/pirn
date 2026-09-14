@@ -164,7 +164,6 @@ initial cut is not policy — the list is exactly the set of subpackages at 0.
 | pirn-agents | `pirn_agents/planning` | 0 | yes |
 | pirn-agents | `pirn_agents/serialization` | 0 | yes |
 | pirn-agents | `pirn_agents/testing` | 0 | yes |
-| pirn-agents | `pirn_agents/validation` | 0 | yes |
 | pirn-agents | `pirn_agents/input` | 27 |  |
 | pirn-agents | `pirn_agents/context` | 33 |  |
 | pirn-agents | `pirn_agents/types` | 33 |  |

@@ -31,8 +31,9 @@ class TestAgentSpecLoaderMissingYaml(unittest.TestCase):
 
     def test_from_json_needs_no_backend(self) -> None:
         # Arrange / Act: JSON path must work even with yaml blocked.
+        document = AgentSpecLoader.to_json(AgentSpec(pattern="react"))
         with mock.patch.dict("sys.modules", {"yaml": None}):
-            spec = AgentSpecLoader.from_json('{"pattern": "react"}')
+            spec = AgentSpecLoader.from_json(document)
 
         # Assert
         assert spec.pattern == "react"

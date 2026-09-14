@@ -20,10 +20,10 @@ pre-ADR version hand-rolled is the engine's now:
   ``Aggregator`` combines the batch regardless, so a sibling never skips.
 * **Cancellation** — cancelling the run cancels every in-flight call (core).
 
-Output, for one deprecation cycle, is a tuple of :class:`ToolResult` views in
-input order, built through the single :meth:`ToolResult.from_result`; a call
-naming an unregistered tool, or whose arguments the declaration refuses, is
-recorded through :class:`~pirn_agents.tools.tool_call_rejection.ToolCallRejection`.
+Output is a tuple of :class:`ToolResult` views in input order, built through
+the single :meth:`ToolResult.from_result`; a call naming an unregistered
+tool, or whose arguments the declaration refuses, is recorded through
+:class:`~pirn_agents.tools.tool_call_rejection.ToolCallRejection`.
 
 References:
     - :class:`pirn.engine.governed_dispatch.GovernedDispatch`
@@ -33,8 +33,6 @@ References:
 from __future__ import annotations
 
 import functools
-import logging
-import warnings
 from collections.abc import Sequence
 from typing import Any
 
@@ -53,8 +51,6 @@ from pirn_agents.exceptions.tool_argument_validation_error import (
     ToolArgumentValidationError,
 )
 from pirn_agents.exceptions.tool_not_found_error import ToolNotFoundError
-from pirn_agents.llm.retry_policy import RetryPolicy
-from pirn_agents.performance.concurrency_config import ConcurrencyConfig
 from pirn_agents.security.secret_redactor import SecretRedactor
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_call_rejection import ToolCallRejection
@@ -66,18 +62,9 @@ from pirn_agents.tools.toolset import Toolset
 class ParallelToolExecutor(SubTapestry):
     """Execute a batch of :class:`ToolCall`s as sibling knots under one ``Aggregator``.
 
-    ``retry`` is a :class:`KnotRetryPolicy` applied to every call.  The
-    pre-ADR ``retries`` count and agents ``retry_policy`` (a
-    :class:`~pirn_agents.llm.retry_policy.RetryPolicy`) are still accepted
-    for one cycle and translated: ``retries`` extra attempts on top of the
-    first, with the policy's backoff shape.  ``rng``/``sleep`` (test seams of
-    the hand-rolled loop) and ``hook`` (a
-    :class:`~pirn_agents.tools.tool_invocation_hook.ToolInvocationHook`) are
-    accepted and deprecated: backoff belongs to the engine, and a call's
-    outcome is observable from its lineage row and the run's emitters.  A hook
-    still fires ``on_start`` before the graph runs and ``on_finish`` from the
-    combine, with a ``0.0`` latency, so an existing subscriber keeps its
-    events for the cycle.
+    ``retry`` is a :class:`KnotRetryPolicy` applied to every call; backoff
+    between attempts belongs to the engine's ``GovernedDispatch``.  A call's
+    outcome is observable from its lineage row and the run's emitters.
     """
 
     # Every call's ``Err`` is delivered to the Aggregator, not to this knot.
@@ -88,14 +75,9 @@ class ParallelToolExecutor(SubTapestry):
         *,
         tool_calls: Knot | Sequence[ToolCall],
         toolset: Knot | Toolset,
-        max_concurrency: Knot | int = ConcurrencyConfig.max_concurrency,
+        max_concurrency: Knot | int = 8,
         timeout: Knot | float | None = None,
         retry: Knot | KnotRetryPolicy | None = None,
-        retries: Knot | int = 0,
-        retry_policy: Any = None,
-        rng: Any = None,
-        sleep: Any = None,
-        hook: Any = None,
         approval_hook: Any = None,
         _config: KnotConfig,
         **kwargs: Any,
@@ -106,11 +88,6 @@ class ParallelToolExecutor(SubTapestry):
             max_concurrency=max_concurrency,
             timeout=timeout,
             retry=retry,
-            retries=retries,
-            retry_policy=retry_policy,
-            rng=rng,
-            sleep=sleep,
-            hook=hook,
             approval_hook=approval_hook,
             _config=_config,
             **kwargs,
@@ -140,14 +117,6 @@ class ParallelToolExecutor(SubTapestry):
         max_concurrency: int,
         timeout: float | None = None,
         retry: KnotRetryPolicy | None = None,
-        retries: int = 0,
-        # ``retry_policy`` / ``hook`` are typed ``Any``: the agents
-        # ``RetryPolicy`` and ``ToolInvocationHook`` are bare classes core's
-        # eager per-input ``TypeAdapter`` build cannot schema.
-        retry_policy: Any = None,
-        rng: Any = None,
-        sleep: Any = None,
-        hook: Any = None,
         approval_hook: Any = None,
         **_: Any,
     ) -> Knot:
@@ -161,12 +130,6 @@ class ParallelToolExecutor(SubTapestry):
                 must be >= 1.
             timeout: Per-call time budget in seconds, or ``None`` to disable.
             retry: Retry policy applied to every call, or ``None``.
-            retries: Deprecated: extra attempts granted to a failing call.
-            retry_policy: Deprecated: agents ``RetryPolicy`` supplying the
-                backoff shape for ``retries``.
-            rng: Deprecated and ignored.
-            sleep: Deprecated and ignored.
-            hook: Deprecated :class:`ToolInvocationHook` fired around each call.
             approval_hook: The approval hook to consult for a call whose tool
                 requires approval (PIR-865); see
                 :meth:`~pirn_agents.tools.tool_factory.ToolFactory.for_call`.
@@ -199,8 +162,6 @@ class ParallelToolExecutor(SubTapestry):
             raise ValueError(
                 f"ParallelToolExecutor: max_concurrency must be >= 1, got {max_concurrency}"
             )
-        self._warn_deprecated(rng=rng, sleep=sleep, hook=hook, retries=retries)
-        policy = self._effective_retry(retry, retries, retry_policy)
         if not call_list:
             return Parameter("empty", tuple, default=(), _config=KnotConfig(id="empty"))
 
@@ -212,12 +173,10 @@ class ParallelToolExecutor(SubTapestry):
                 knot_id = f"{knot_id}-{index}"
             used_ids.add(knot_id)
             per_call[f"call_{index}"] = self._call_knot(
-                call, toolset, knot_id, timeout, policy, approval_hook
+                call, toolset, knot_id, timeout, retry, approval_hook
             )
-            if hook is not None:
-                self._fire_start(hook, call)
         return Aggregator(
-            combine=functools.partial(self._views, call_list, toolset, hook),
+            combine=functools.partial(self._views, call_list, toolset),
             _config=KnotConfig(id="results", error_policy=ErrorPolicy.RECEIVE_ERRORS),
             **per_call,
         )
@@ -254,54 +213,10 @@ class ParallelToolExecutor(SubTapestry):
             )
 
     @staticmethod
-    def _effective_retry(
-        retry: KnotRetryPolicy | None, retries: int, retry_policy: Any
-    ) -> KnotRetryPolicy | None:
-        """``retry`` when given; else the deprecated ``retries``/``retry_policy`` pair translated."""
-        if retry is not None:
-            return retry
-        if retries <= 0:
-            return None
-        shape = retry_policy if isinstance(retry_policy, RetryPolicy) else RetryPolicy()
-        return KnotRetryPolicy(
-            max_attempts=retries + 1,
-            base_delay=shape.base_delay,
-            max_delay=shape.max_delay,
-            multiplier=shape.multiplier,
-            jitter=shape.jitter,
-            max_retry_after=shape.max_retry_after,
-        )
-
-    @staticmethod
-    def _warn_deprecated(*, rng: Any, sleep: Any, hook: Any, retries: int) -> None:
-        """One ``DeprecationWarning`` per deprecated input actually supplied."""
-        if retries:
-            warnings.warn(
-                "ParallelToolExecutor(retries=..., retry_policy=...) is deprecated (ADR "
-                "agents-speaks-core WS1): pass retry=KnotRetryPolicy(max_attempts=...)",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-        if rng is not None or sleep is not None:
-            warnings.warn(
-                "ParallelToolExecutor(rng=..., sleep=...) are ignored (ADR agents-speaks-core "
-                "WS1): the engine's GovernedDispatch owns the backoff",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-        if hook is not None:
-            warnings.warn(
-                "ParallelToolExecutor(hook=...) is deprecated (ADR agents-speaks-core WS1): a "
-                "call's outcome is its lineage row and the run's emitters",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-
-    @staticmethod
     def _views(
-        calls: Sequence[ToolCall], toolset: Toolset, hook: Any, **by_key: Result[Any]
+        calls: Sequence[ToolCall], toolset: Toolset, **by_key: Result[Any]
     ) -> tuple[ToolResult, ...]:
-        """Build the views in input order from each call's ``Result``; fire a hook's ``on_finish``.
+        """Build the views in input order from each call's ``Result``.
 
         ``gated`` (PIR-865) is whether the call's tool requires approval: such
         a call's own knot has no possible parent besides its own arguments
@@ -314,50 +229,4 @@ class ParallelToolExecutor(SubTapestry):
             gated = factory.requires_approval() if factory is not None else False
             view = ToolResult.from_result(call.call_id, by_key[f"call_{index}"], gated=gated)
             views.append(view)
-            if hook is not None:
-                ParallelToolExecutor._fire_finish(hook, call, view)
         return tuple(views)
-
-    @staticmethod
-    def _fire_start(hook: Any, call: ToolCall) -> None:
-        """Fire ``hook.on_start`` for ``call``, swallowing any hook exception."""
-        try:
-            hook.on_start(
-                tool_name=call.tool_name,
-                args_digest=ParallelToolExecutor._args_digest(call),
-                call_id=call.call_id,
-            )
-        except Exception:
-            logging.getLogger(__name__).warning(
-                "ToolInvocationHook.on_start raised for call_id=%s; ignoring",
-                call.call_id,
-                exc_info=True,
-            )
-
-    @staticmethod
-    def _args_digest(call: ToolCall) -> str:
-        """A stable 16-hex-char content digest of ``call``'s arguments, or a sentinel."""
-        from pirn.core.hashing import content_hash  # local: keeps the hot path import-free
-
-        try:
-            digest = content_hash(dict(call.arguments))
-        except Exception:
-            return "unhashable-args"
-        return digest.split(":", 1)[-1][:16]
-
-    @staticmethod
-    def _fire_finish(hook: Any, call: ToolCall, view: ToolResult) -> None:
-        """Fire ``hook.on_finish`` for ``view``, swallowing any hook exception."""
-        try:
-            hook.on_finish(
-                tool_name=call.tool_name,
-                call_id=call.call_id,
-                status=view.status,
-                latency=view.latency if view.latency is not None else 0.0,
-            )
-        except Exception:
-            logging.getLogger(__name__).warning(
-                "ToolInvocationHook.on_finish raised for call_id=%s; ignoring",
-                call.call_id,
-                exc_info=True,
-            )

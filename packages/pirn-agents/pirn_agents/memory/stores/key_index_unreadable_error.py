@@ -1,8 +1,8 @@
 """``KeyIndexUnreadableError`` — the key-index record could not be read (PIR-720).
 
-Raised by
-:class:`~pirn_agents.memory.stores.memory_store_key_index.MemoryStoreKeyIndex`
-when the backend cannot return the record the key list lives in: a torn payload
+Raised by ``MemoryStoreKeyIndex`` (deleted PIR-864, along with its one
+consumer ``PersistedSessionStore``) when the backend cannot return the record
+the key list lives in: a torn payload
 left by a half-finished write, a rejected signature, a backend that is down.
 
 It is a distinct type rather than the backend's own error because the correct

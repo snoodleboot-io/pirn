@@ -9,8 +9,7 @@ never tested.)
 from __future__ import annotations
 
 import unittest
-from collections.abc import Mapping
-from typing import Any
+from typing import Any, ClassVar
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import knot
@@ -24,15 +23,10 @@ from pirn_agents.tools.tool_result import ToolResult
 
 
 class _RaisingTool(Tool):
-    @property
-    def name(self) -> str:
-        return "raise_tool"
+    tool_name: ClassVar[str] = "raise_tool"
+    tool_description: ClassVar[str | None] = "always raises with a DSN-containing message"
 
-    @property
-    def description(self) -> str:
-        return "always raises with a DSN-containing message"
-
-    async def invoke(self, arguments: Mapping[str, Any]) -> Any:
+    async def process(self, **_: Any) -> Any:
         raise RuntimeError("failed: postgres://user:s3cr3tp4ssw0rd@host/db")
 
 
@@ -46,7 +40,7 @@ class TestToolExecutorDsnScrubbing(unittest.IsolatedAsyncioTestCase):
             call_knot = call_source(_config=KnotConfig(id="call"))
             ToolExecutor(
                 call=call_knot,
-                tools=[_RaisingTool()],
+                tools=[_RaisingTool],
                 _config=KnotConfig(id="exec"),
             )
 
@@ -65,7 +59,7 @@ class TestToolExecutorDsnScrubbing(unittest.IsolatedAsyncioTestCase):
             call_knot = call_source(_config=KnotConfig(id="call"))
             ToolExecutor(
                 call=call_knot,
-                tools=[_RaisingTool()],
+                tools=[_RaisingTool],
                 _config=KnotConfig(id="exec"),
             )
 
@@ -92,7 +86,7 @@ class TestParallelToolExecutorDsnScrubbing(unittest.IsolatedAsyncioTestCase):
         with Tapestry() as t:
             ParallelToolExecutor(
                 tool_calls=(ToolCall(call_id="c1", tool_name="raise_tool", arguments={}),),
-                toolset=Toolset([_RaisingTool()]),
+                toolset=Toolset([_RaisingTool]),
                 _config=KnotConfig(id="batch"),
             )
 

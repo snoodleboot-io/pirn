@@ -76,9 +76,11 @@ shapes (e.g. a `Knot | T` argument, where the `Knot` case is still correct and o
 the constant case is being replaced by `Parameter`) overrides
 `_deprecation_notice(self, parents, config_values)` to inspect which shape this
 construction used and return `None` for the shapes that stay legitimate. See
-`pirn_agents.specializations.base.resolved_value_knot.ResolvedValueKnot` (unconditional)
-and `pirn_agents.specializations.react.messages_passthrough.MessagesPassthrough`
-(conditional) for both shapes (ADR agents-speaks-core WS5b).
+`pirn_data.specializations.scd.scd_type_1_overwrite.ScdType1Overwrite` for the
+unconditional shape (deprecated toward `MergeUpsert`, PIR-870); the ADR
+agents-speaks-core WS5b examples that motivated the conditional override
+(`ResolvedValueKnot`, `MessagesPassthrough`) were themselves one-cycle shims
+and have since been deleted (PIR-864).
 
 ---
 

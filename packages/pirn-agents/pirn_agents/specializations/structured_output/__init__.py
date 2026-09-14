@@ -8,6 +8,7 @@ or validation failure.
 It also hosts the F20 native, single-pass structured-output paths —
 capability-gated native schema mapping, forced tool-choice extraction, and
 grammar/regex-constrained decoding — behind one unified
-:class:`StructuredDecoder` / :func:`structured_decode` entry point that falls
-back to the retry pipeline when no native path is available.
+:class:`StructuredDecoder` (:meth:`~StructuredDecoder.decode_once` for the
+one-shot entry point) that falls back to the retry pipeline when no native
+path is available.
 """

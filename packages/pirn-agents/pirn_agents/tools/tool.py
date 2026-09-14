@@ -41,14 +41,6 @@ whose declaration hides them from the model.  A
 classes), and executing a :class:`~pirn_agents.tools.tool_call.ToolCall` is
 ``factory.for_call(call)`` — a knot the engine schedules, validates, retries
 and times out through ``KnotConfig``.
-
-Deprecated shape (one cycle).  A subclass that overrides ``name`` /
-``description`` / ``parameters_schema`` as properties and implements
-``invoke(arguments)`` — the pre-ADR interface — still imports and still works
-as a *capability* when handed to a ``Toolset`` or ``ToolFactory.of()``, which
-wrap it in a schema-declared knot; defining one warns ``DeprecationWarning``.
-Such an instance is not a bootstrapped knot and must not be wired as a knot
-input directly.
 """
 
 from __future__ import annotations
@@ -56,7 +48,6 @@ from __future__ import annotations
 import inspect
 import re
 import time
-import warnings
 from collections.abc import AsyncIterator, Mapping
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, ClassVar
@@ -103,46 +94,7 @@ class Tool(Knot):
     # ``Knot._dynamic_process_signature`` for why (PIR-833).
     _dynamic_process_signature: ClassVar[bool] = True
 
-    #: Set by ``__init_subclass__`` on a pre-ADR, ``invoke``-shaped subclass.
-    _legacy_tool: ClassVar[bool] = False
-
     _snake_case_re: ClassVar[re.Pattern[str]] = re.compile(r"(?<!^)(?=[A-Z])")
-
-    def __init_subclass__(cls, **kwargs: Any) -> None:
-        super().__init_subclass__(**kwargs)
-        if "invoke" in cls.__dict__ and "process" not in cls.__dict__:
-            cls._legacy_tool = True
-            if "__init__" not in cls.__dict__:
-                # A pre-ADR subclass that declares no ``__init__`` would reach
-                # ``Knot.__init__`` and be refused for lacking ``_config``; it
-                # is a plain capability object for the cycle, not a knot.
-                cls.__init__ = Tool._legacy_init
-            # Its declaration and factory come from the instance's properties,
-            # not from a process() it does not have.
-            cls.declaration = Tool._legacy_declaration  # type: ignore[method-assign]
-            cls.factory = Tool._legacy_factory  # type: ignore[method-assign]
-            warnings.warn(
-                f"{cls.__qualname__} defines invoke(): the invoke-shaped Tool is deprecated "
-                "(ADR agents-speaks-core WS1). Implement process() and read the name, "
-                "description and schema from declaration(); this class keeps working as a "
-                "capability only through Toolset / ToolFactory.of() for one cycle.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-
-    def _legacy_init(self, *args: Any, **kwargs: Any) -> None:
-        """The ``__init__`` of a deprecated ``invoke``-shaped subclass that declares none."""
-        return None
-
-    def _legacy_factory(self) -> ToolFactory:
-        """A deprecated ``invoke``-shaped instance as a capability."""
-        from pirn_agents.tools.tool_factory import ToolFactory  # local: avoids a cycle
-
-        return ToolFactory.from_legacy(self)
-
-    def _legacy_declaration(self) -> ToolDeclaration:
-        """A deprecated ``invoke``-shaped instance's declaration, read off its properties."""
-        return self._legacy_factory().declaration()
 
     async def process(self, *args: Any, **_: Any) -> Any:
         """Execute one call.  Subclasses name their inputs and return the tool's value.
@@ -170,11 +122,6 @@ class Tool(Knot):
         call itself (``ToolInvocation``, attributing it to the outer run)
         claims the report through :attr:`_call_reported_by_container`.
         """
-        if not hasattr(self, "_mutable_config"):
-            raise TypeError(
-                f"{type(self).__name__} is an invoke-shaped Tool instance, not a knot; wire it "
-                "through Toolset / ToolFactory.of() rather than as a knot input"
-            )
         start = time.perf_counter()
         result = await super().__call__(parent_results)
         latency = time.perf_counter() - start
@@ -267,23 +214,6 @@ class Tool(Knot):
         """Drain :meth:`stream` for ``arguments`` into a list of chunks."""
         return [chunk async for chunk in cls.stream(arguments)]
 
-    @classmethod
-    async def invoke(cls, arguments: Mapping[str, Any]) -> Any:
-        """Deprecated: construct one call and await it outside the engine.
-
-        Kept for one cycle for callers of the pre-ADR ``tool.invoke(arguments)``.
-        The knot shape is ``cls(**arguments, _config=KnotConfig(id=...))``
-        registered in a tapestry, or ``cls.factory().for_call(call)``.
-        """
-        warnings.warn(
-            f"{cls.__qualname__}.invoke() is deprecated (ADR agents-speaks-core WS1): "
-            "construct the tool knot and run it in a tapestry, or use "
-            "ToolFactory.for_call(call)",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return await cls.factory().invoke(arguments)
-
     def _clear_credentials(self) -> None:
         """Drop any in-memory credential reference held by the tool.
 
@@ -294,6 +224,4 @@ class Tool(Knot):
         return None
 
     def __repr__(self) -> str:
-        if hasattr(self, "_mutable_config"):
-            return f"<{type(self).__name__} call={self.knot_id!r}>"
-        return f"<{type(self).__name__} (invoke-shaped, deprecated)>"
+        return f"<{type(self).__name__} call={self.knot_id!r}>"

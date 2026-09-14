@@ -91,8 +91,7 @@ pirn_agents/specializations/
 │   ├── react_step_executor.py       ReActStepExecutor        — dispatches a single tool call
 │   ├── react_step_accumulator.py    ReActStepAccumulator     — builds up trajectory history
 │   ├── react_response_extractor.py  ReActResponseExtractor   — extracts Thought/Action/Observation from LLM output
-│   ├── react_termination_check.py   ReActTerminationCheck    — decides when to stop the loop
-│   └── messages_passthrough.py      MessagesPassthrough      — forwards accumulated messages unchanged
+│   └── react_termination_check.py   ReActTerminationCheck    — decides when to stop the loop
 │
 │  ── Reflection ──
 ├── reflection/

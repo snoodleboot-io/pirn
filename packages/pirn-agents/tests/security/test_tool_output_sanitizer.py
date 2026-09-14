@@ -9,16 +9,22 @@ exercised on a realistic tool-result path with no backend.
 from __future__ import annotations
 
 import pytest
+from pirn.core.ok import Ok
 
 from pirn_agents.security.active_content_quarantine import ActiveContentQuarantine
 from pirn_agents.security.sanitized_output import SanitizedOutput
 from pirn_agents.security.tool_output_sanitizer import ToolOutputSanitizer
 from pirn_agents.testing.stub_tool import StubTool
+from pirn_agents.tools.tool_call import ToolCall
 
 
 async def _tool_output(result: str) -> str:
     tool = StubTool(result=result)
-    return str(await tool.invoke({"input": "x"}))
+    outcome = await tool.run_call(
+        ToolCall(tool_name=tool.name, arguments={"input": "x"}, call_id="c")
+    )
+    assert isinstance(outcome, Ok)
+    return str(outcome.value)
 
 
 async def test_strips_ansi_and_control_sequences() -> None:

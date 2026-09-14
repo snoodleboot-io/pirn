@@ -22,14 +22,12 @@ from typing import Any
 
 from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
+from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.agent.approval_hook import ApprovalHook
 from pirn_agents.input.context_builder import ContextBuilder
-from pirn_agents.specializations.react.messages_passthrough import (
-    MessagesPassthrough,
-)
 from pirn_agents.specializations.react.react_step_executor import (
     ReActStepExecutor,
 )
@@ -49,8 +47,10 @@ class _DenyHook(ApprovalHook):
 
 def _make(llm: StubLLMProvider, tools: tuple = ()) -> ReActStepExecutor:
     with Tapestry():
-        seed = MessagesPassthrough(
-            messages=(AgentMessage(role="user", content="hi"),),
+        seed = Parameter(
+            "seed_messages",
+            tuple[AgentMessage, ...],
+            default=(AgentMessage(role="user", content="hi"),),
             _config=KnotConfig(id="seed"),
         )
         ctx = ContextBuilder(messages=seed, _config=KnotConfig(id="ctx"))
@@ -72,7 +72,12 @@ async def _run_step(
 ) -> tuple[AgentMessage, ...]:
     """Wire a ReActStepExecutor over a real context/seed and run it end to end."""
     with Tapestry() as t:
-        seed = MessagesPassthrough(messages=tuple(context), _config=KnotConfig(id="seed"))
+        seed = Parameter(
+            "seed_messages",
+            tuple[AgentMessage, ...],
+            default=tuple(context),
+            _config=KnotConfig(id="seed"),
+        )
         ctx = ContextBuilder(messages=seed, _config=KnotConfig(id="ctx"))
         ReActStepExecutor(
             context=ctx,
@@ -200,8 +205,10 @@ class TestRunsThroughTheEngine(unittest.IsolatedAsyncioTestCase):
         llm = StubLLMProvider(["Action: search\nAction Input: q"])
         tool = StubTool(name="search", handler="found")
         with Tapestry() as t:
-            seed = MessagesPassthrough(
-                messages=(AgentMessage(role="user", content="hi"),),
+            seed = Parameter(
+                "seed_messages",
+                tuple[AgentMessage, ...],
+                default=(AgentMessage(role="user", content="hi"),),
                 _config=KnotConfig(id="seed"),
             )
             ctx = ContextBuilder(messages=seed, _config=KnotConfig(id="ctx"))

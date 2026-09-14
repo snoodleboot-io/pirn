@@ -15,11 +15,9 @@ from typing import Any
 
 import pytest
 
-from pirn_agents.agent.agent_invoker import AgentInvoker
 from pirn_agents.agent.agent_tool_context import AgentToolContext
 from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
 from pirn_agents.memory.management.near_duplicate_grouper import NearDuplicateGrouper
-from pirn_agents.performance.concurrency_config import ConcurrencyConfig
 from pirn_agents.specializations.document_processing.chunking.fixed_size_chunking_strategy import (
     FixedSizeChunkingStrategy,
 )
@@ -54,7 +52,6 @@ class TestAgentNestingDepthDefaults:
     @pytest.mark.parametrize(
         "target",
         [
-            AgentInvoker.__init__,
             AgentTool.__init__,
             as_tool,
             AgentAsToolMixin.as_tool,
@@ -66,14 +63,8 @@ class TestAgentNestingDepthDefaults:
     def test_context_field_default_is_eight(self) -> None:
         assert AgentToolContext().max_depth == 8
 
-    def test_root_context_seeded_by_invoker_uses_the_same_cap(self) -> None:
-        invoker = AgentInvoker()
-
-        assert invoker._max_depth == AgentToolContext().max_depth
-
     def test_chain_agrees_end_to_end(self) -> None:
         depths = {
-            _default_of(AgentInvoker.__init__, "max_depth"),
             _default_of(AgentTool.__init__, "max_depth"),
             _default_of(as_tool, "max_depth"),
             _default_of(AgentAsToolMixin.as_tool, "max_depth"),
@@ -85,9 +76,6 @@ class TestAgentNestingDepthDefaults:
 
 class TestConcurrencyDefaults:
     """``max_concurrency`` — the shared bounded-concurrency posture."""
-
-    def test_config_default(self) -> None:
-        assert ConcurrencyConfig().max_concurrency == 8
 
     @pytest.mark.parametrize(
         "target",

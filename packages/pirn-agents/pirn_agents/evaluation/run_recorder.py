@@ -1,6 +1,6 @@
 """``RunRecorder`` — the record/replay seam for deterministic evals (F29).
 
-The :func:`~pirn_agents.evaluation.run_eval.run_eval` runner routes every unit of
+The :meth:`~pirn_agents.evaluation.run_eval.RunEval.run` runner routes every unit of
 model/tool I/O for an item through a ``RunRecorder`` keyed by a stable string.
 The default :class:`~pirn_agents.evaluation.null_run_recorder.NullRunRecorder`
 simply executes the work live (no recording), so evals run over stub or live

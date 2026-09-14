@@ -77,22 +77,22 @@ EXCEPTION_ROOTS_WITHOUT_PIRN_ERROR = frozenset(
 # `builder/agent_knot_id_factory.py` now calls `pirn.core.hashing.content_hash`
 # directly and is off this list; `caching/content_address.py` migrated too
 # (part 2 added `content_hash`'s `strict=True` mode, which closes the PIR-785
-# gap that blocked it in part 1). `resilience/idempotency_key_assigner.py`
-# ALSO switched its `assign()` derivation to `content_hash`, but stays on this
-# list: it still imports `CanonicalJson` for `legacy_key()`, the one-cycle
-# bridge that reproduces a pre-upgrade key for operators reconciling a
-# backend's dedupe table across the drain window (see its module docstring
-# and "Idempotency keys" in `docs/domains/agents.md`) — remove it once
-# `legacy_key()` itself is retired. `sessions/run_checkpoint.py` is WS3 part
-# 2's (versioned checkpoint migration); `agent/parallel_tool_executor.py`
+# gap that blocked it in part 1) and its `ContentAddress`/`content_address`
+# one-cycle wrapper is deleted (PIR-864). `resilience/idempotency_key_assigner.py`
+# ALSO switched its `assign()` derivation to `content_hash`; its `legacy_key()`
+# bridge (the last thing that imported `CanonicalJson` there) is deleted
+# (PIR-864), taking it off this list. `sessions/run_checkpoint.py` -- WS3 part
+# 2's versioned-checkpoint-migration importer -- is itself a deleted (PIR-864)
+# one-cycle shim, taking it off this list too. `agent/parallel_tool_executor.py`
 # dropped it with WS1 (the executor no longer digests arguments itself);
-# `evaluation/trajectory_call_key.py` is its own lane's call to make.
+# `determinism/content_digest.py` and `evaluation/trajectory_call_key.py`
+# remain -- non-durable/in-memory-only callers per their own module
+# docstrings, but migrating them off `CanonicalJson` is a decision for
+# whichever lane owns `CanonicalJson`'s own retirement, not this one.
 CANONICAL_JSON_IMPORTERS = frozenset(
     {
         "determinism/content_digest.py",
         "evaluation/trajectory_call_key.py",
-        "resilience/idempotency_key_assigner.py",
-        "sessions/run_checkpoint.py",
     }
 )
 
@@ -112,14 +112,18 @@ CANONICAL_JSON_IMPORTERS = frozenset(
 # bridges to `Ok | Err | Skipped` (see `batch/batch_item_result.py`), kept
 # for one deprecation cycle because `MapAgent`'s scheduling (WS4b) still
 # produces/consumes it directly — so it remains in this inventory until that
-# lane retires it, not because WS2 left it untouched.
+# lane retires it, not because WS2 left it untouched. `ToolStatus` is not a
+# one-cycle shim (PIR-865 gave it a live rendering role — see
+# `tools/tool_result.py`); it stays in this inventory because it is still,
+# structurally, an outcome enum beside `Result`, independent of whether it is
+# deprecated. `SpanStatus` (`observability/span_status.py`) was the
+# observability plane's one-cycle shim and is deleted (PIR-864).
 OUTCOME_ENUMS_BESIDE_RESULT = frozenset(
     {
         "tools/tool_status.py::ToolStatus",
         "batch/batch_item_status.py::BatchItemStatus",
         "resilience/failover_outcome.py::FailoverOutcome",
         "resilience/retry_classification.py::RetryClassification",
-        "observability/span_status.py::SpanStatus",
     }
 )
 

@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import unittest
-import warnings
-from collections.abc import Mapping
 from typing import Annotated, Any, ClassVar
 
 from pirn.core.knot import Knot
@@ -135,76 +133,7 @@ class TestToolIsAKnotClass(unittest.IsolatedAsyncioTestCase):
         detail = scaled.validate_arguments({"left": 1, "scale": 2})
         assert detail == {"scale": "unexpected_property"}
 
-    async def test_invoke_shim_warns_and_runs_the_call_outside_the_engine(self) -> None:
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            value = await Adder.invoke({"left": 4, "right": 4})
-        assert value == 8
-        assert any(issubclass(w.category, DeprecationWarning) for w in caught)
-
-    async def test_invoke_shim_raises_on_a_failed_call(self) -> None:
-        from pirn_agents.exceptions.tool_invocation_error import ToolInvocationError
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            with self.assertRaisesRegex(ToolInvocationError, "ValueError"):
-                await Adder.invoke({"left": -1})
-
     def test_clear_credentials_is_noop_by_default(self) -> None:
         with Tapestry():
             call = Adder(left=1, _config=KnotConfig(id="c"))
         call._clear_credentials()  # must not raise
-
-
-class TestDeprecatedInvokeShapedSubclass(unittest.IsolatedAsyncioTestCase):
-    """The pre-ADR shape keeps working as a capability for one cycle."""
-
-    def _legacy_class(self) -> type[Tool]:
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-
-            class Echo(Tool):
-                @property
-                def name(self) -> str:
-                    return "echo"
-
-                @property
-                def description(self) -> str:
-                    return "echo the arguments"
-
-                @property
-                def parameters_schema(self) -> Mapping[str, Any]:
-                    return {"type": "object", "properties": {"a": {"type": "integer"}}}
-
-                async def invoke(self, arguments: Mapping[str, Any]) -> Any:
-                    return dict(arguments)
-
-        assert any(issubclass(w.category, DeprecationWarning) for w in caught)
-        return Echo
-
-    def test_defining_one_warns_and_marks_it_legacy(self) -> None:
-        echo = self._legacy_class()
-        assert echo._legacy_tool is True
-
-    async def test_it_becomes_a_capability_through_tool_factory(self) -> None:
-        echo = self._legacy_class()()
-        factory = ToolFactory.of(echo)
-        assert factory.name == "echo"
-        assert factory.declaration().parameters == {
-            "type": "object",
-            "properties": {"a": {"type": "integer"}},
-        }
-        outcome = await factory.run_call(
-            ToolCall(tool_name="echo", arguments={"a": 1}, call_id="c")
-        )
-        assert isinstance(outcome, Ok)
-        assert outcome.value == {"a": 1}
-
-    def test_its_declaration_reads_its_properties(self) -> None:
-        echo = self._legacy_class()()
-        assert echo.declaration().name == "echo"
-
-    async def test_run_as_a_knot_it_is_refused_with_the_fix_named(self) -> None:
-        echo = self._legacy_class()()
-        with self.assertRaisesRegex(TypeError, "ToolFactory.of"):
-            await echo({})

@@ -1,12 +1,12 @@
 {
   "pirn-agents": {
     "filename_mismatch": 0,
-    "gate_wrong_base": 5,
+    "gate_wrong_base": 1,
     "knot_init_impure": 5,
     "knot_process_kwargs_name": 5,
     "knot_property": 0,
     "knot_self_assignment": 2,
-    "module_level_function": 2,
+    "module_level_function": 0,
     "multi_class_file": 0,
     "nested_def_missing_override": 6
   },
@@ -45,7 +45,7 @@
   },
   "pirn-ml": {
     "filename_mismatch": 0,
-    "gate_wrong_base": 1,
+    "gate_wrong_base": 0,
     "knot_init_impure": 0,
     "knot_process_kwargs_name": 0,
     "knot_property": 0,
@@ -56,7 +56,7 @@
   },
   "pirn-oilgas": {
     "filename_mismatch": 0,
-    "gate_wrong_base": 1,
+    "gate_wrong_base": 0,
     "knot_init_impure": 0,
     "knot_process_kwargs_name": 0,
     "knot_property": 0,

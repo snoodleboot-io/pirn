@@ -16,7 +16,6 @@ pirn_agents/
 ├── types/messaging/
 │   ├── conversation_payload.py  ConversationPayload  — Payload[ConversationFrame, tuple[AgentMessage, ...]]
 │   ├── conversation_frame.py    ConversationFrame    — session/turn ids, token count, truncation state
-│   ├── agent_context.py         AgentContext         — deprecated alias of ConversationPayload
 │   ├── agent_message.py         AgentMessage
 │   ├── agent_response.py        AgentResponse        — Payload[GenerationFrame, str]
 │   └── generation_frame.py      GenerationFrame      — finish_reason, usage, cost, tool_calls
@@ -598,12 +597,12 @@ function. No hand-written adapter, no manual schema:
 - `name`/`description` default from the agent and are overridable.
 - `parameters_schema` is derived from the agent's `process` inputs (falling back
   to `{task: str}`).
-- `invoke()` runs the inner agent and maps its `AgentResponse` into the F1
+- `run_view()` runs the inner agent and maps its `AgentResponse` into the F1
   `ToolResult` shape (structured passthrough — `content`, `tool_calls`, `usage`,
   `cost` — not just `.content`); an inner failure surfaces as a tool error.
 
 Safety and performance come built in and are shared with the handoff/swarm path
-(both funnel through the same `AgentInvoker` machinery): a **max nesting depth**
+(both funnel through the same `AgentTool` machinery): a **max nesting depth**
 plus **cycle detection** reject a self-referential graph before it recurses
 forever; the parent's **budget/deadline/token** limits are *inherited* by nested
 agents (a nested loop can't outrun the caller); and the parent's **pooled
@@ -1001,11 +1000,9 @@ never aborts its siblings. Results come back in input order, each carrying its
 own `status` and `latency`.
 
 ```python
-import asyncio
-from collections.abc import Mapping
-from typing import Any
-
+from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.knot_retry_policy import KnotRetryPolicy
 from pirn.tapestry import Tapestry
 
 from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
@@ -1015,54 +1012,38 @@ from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_status import ToolStatus
 
 
-class StubTool(Tool):
+class SearchTool(Tool):
     """A provider-neutral tool; a real tool would call an API, DB, etc."""
 
-    def __init__(self, *, name: str, reply: str) -> None:
-        self._name = name
-        self._reply = reply
+    tool_description = "echoes a search query"
 
-    @property
-    def name(self) -> str:
-        return self._name
+    def __init__(self, *, q: Knot | str, _config: KnotConfig, **kwargs) -> None:
+        super().__init__(q=q, _config=_config, **kwargs)
 
-    @property
-    def description(self) -> str:
-        return f"echoes for {self._name}"
-
-    @property
-    def parameters_schema(self) -> Mapping[str, Any]:
-        return {"type": "object", "properties": {"q": {"type": "string"}}}
-
-    async def invoke(self, arguments: Mapping[str, Any]) -> Any:
-        return f"{self._reply}:{arguments.get('q', '')}"
+    async def process(self, q: str, **_) -> str:
+        return f"hit:{q}"
 
 
-toolset = Toolset([StubTool(name="search", reply="hit"),
-                   StubTool(name="lookup", reply="doc")])
-calls = [
-    ToolCall(tool_name="search", arguments={"q": "dicom"}, call_id="c1"),
-    ToolCall(tool_name="lookup", arguments={"q": "policy"}, call_id="c2"),
-]
+toolset = Toolset([SearchTool.bind()])
+calls = [ToolCall(tool_name="search_tool", arguments={"q": "dicom"}, call_id="c1")]
 
-with Tapestry():
+with Tapestry() as tapestry:
     executor = ParallelToolExecutor(
-        tool_calls=[], toolset=Toolset(),
-        _config=KnotConfig(id="pte", validate_io=False),
+        tool_calls=calls, toolset=toolset,
+        max_concurrency=8, timeout=5.0,
+        retry=KnotRetryPolicy(max_attempts=2),
+        _config=KnotConfig(id="pte"),
     )
+run = await tapestry.run()
 
-results = await executor.process(
-    tool_calls=calls, toolset=toolset,
-    max_concurrency=8, timeout=5.0, retries=1,
-)
-for r in results:
+for r in run.outputs["pte"]:
     assert r.status is ToolStatus.OK
     print(r.call_id, r.result, f"{r.latency:.4f}s")
 ```
 
-The construction-time `retry_policy` (a `RetryPolicy`) is the single source of the
-backoff *schedule*; `hook` (below) wires observability. Both are constructor kwargs
-rather than `process` parameters because they configure *how* the executor runs, not *what*
+`retry` (a `KnotRetryPolicy`) is the single source of the backoff *schedule*,
+run by the engine's `GovernedDispatch`; it is a constructor kwarg rather than a
+`process` parameter because it configures *how* the executor runs, not *what*
 it executes.
 
 ---
@@ -1129,71 +1110,48 @@ calls = await parser.parse_to_list(provider_deltas())
 
 results = await executor.process(
     tool_calls=calls, toolset=toolset,
-    max_concurrency=8, timeout=5.0, retries=0,
+    max_concurrency=8, timeout=5.0,
 )
 assert parser.dropped_partial == 0
 ```
 
 ---
 
-## Observability hooks
+## Observability
 
-`ToolInvocationHook` is the seam for observing every tool invocation the
-executor runs — `on_start` just before a tool is invoked and `on_finish` once
-its `ToolResult` is built (for *every* outcome: ok, error, timeout, not-found).
-`on_start` carries a short, stable `args_digest` (a SHA-256 prefix over the
-call's arguments) so you can correlate without recording raw argument values;
-`on_finish` carries the terminal `ToolStatus` and per-call `latency`.
-
-The base class is a genuine **no-op by design**, not a stub: an executor given
-no hook (or the base hook) does zero observability work — the digest is not even
-computed — so the property is **zero-cost when absent**. Subclass it to emit
-spans or metrics (this feeds the metrics and tracing surfaces). Hook exceptions
-are swallowed and logged by the executor, so a misbehaving hook can never abort
-or alter tool execution.
+There is no per-executor hook to wire: every tool call the engine runs (a
+`ParallelToolExecutor` fan-out, a `ToolInvocation`, `run_call`) is reported
+through `AgentCallRecorder` (ADR agents-speaks-core WS4a) as a `"tool"` event
+carrying `run_id`/`knot_id` sourced from the run itself, fanned out to the
+run's own emitters (`OpenTelemetryEmitter`, `LogEmitter`, or any custom
+`Emitter`) via `StatusEvent.extra`. There is nothing to subclass and nothing
+to pass in: instrumentation is automatic the moment a tool knot runs inside a
+`Tapestry`, and a call's outcome — ok, error, timeout, not-found — is always
+available afterwards as its own `KnotLineage` row (`extra["attempts"]` for a
+retried call).
 
 ```python
-import time
-
 from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
-from pirn_agents.tools.tool_invocation_hook import ToolInvocationHook
 from pirn_agents.tools.toolset import Toolset
-from pirn_agents.tools.tool_status import ToolStatus
 
-
-class MetricsHook(ToolInvocationHook):
-    """Emit a counter per invocation and a latency histogram per outcome."""
-
-    def __init__(self, metrics) -> None:  # your provider-neutral metrics sink
-        self._metrics = metrics
-        self._spans: dict[str, float] = {}
-
-    def on_start(self, *, tool_name: str, args_digest: str, call_id: str) -> None:
-        self._metrics.increment("tool.calls", tags={"tool": tool_name})
-        self._spans[call_id] = time.perf_counter()
-
-    def on_finish(self, *, tool_name: str, call_id: str,
-                  status: ToolStatus, latency: float) -> None:
-        self._metrics.observe(
-            "tool.latency", latency,
-            tags={"tool": tool_name, "status": status.value},
-        )
-        self._spans.pop(call_id, None)
-
-
-with Tapestry():
+with Tapestry() as tapestry:
     executor = ParallelToolExecutor(
         tool_calls=[], toolset=Toolset(),
-        hook=MetricsHook(my_metrics),          # omit → zero-cost no-op default
         _config=KnotConfig(id="pte", validate_io=False),
     )
+
+run = await tapestry.run(RunRequest())
+rows = [row for row in run.lineage if row.knot_id.startswith("pte")]
+# each row: latency, retry attempts (extra["attempts"]), and the outcome itself
 ```
 
-Leave `hook` unset (or pass the base `ToolInvocationHook()`) for the inert
-default; the result path is byte-for-byte identical either way.
+Plug a custom `Emitter` into `Tapestry(emitters=[...])` to ship these events
+to a metrics or tracing backend; see `docs/architecture/extension-points.md`
+for the `Emitter` contract.
 
 ---
 
@@ -1237,31 +1195,39 @@ accepts an optional `RunBudgetMeter` (or builds one from a `RunBudget`) and
 calls the same `spend_*` / `checkpoint` methods, so budget semantics never
 diverge between patterns.
 
-### ConcurrencyConfig + BackpressureSemaphore — shared bounded concurrency
+### Shared bounded concurrency — `KnotConfig(concurrency_group=)` + `ConcurrencyLimits`
 
-`ConcurrencyConfig` is the one knob object (max concurrency, optional queue
-depth, acquire timeout) executors and provider call sites consume instead of
-hard-coding an `asyncio.Semaphore(8)`. `BackpressureSemaphore` turns it into a
-limiter whose `slot()` context manager queues by default (never fails) and
-sheds load with a typed `asyncio.QueueFull` only when an explicit
-`max_queue_depth` is set. `ParallelToolExecutor`'s internal
-`asyncio.Semaphore(max_concurrency)` is exactly `ConcurrencyConfig.max_concurrency`
-— a wiring would replace that line with `BackpressureSemaphore(config).slot()`
-around each dispatch, no other change.
+Bounded concurrency for knots that call the same backend is core's own
+admission budget, not a private pool: declare `concurrency_group=<backend>`
+on every knot that calls the backend, and cap that group with
+`ConcurrencyLimits(groups={<backend>: n})` on the run (or the enclosing
+`SubTapestry`'s `_inner_concurrency()` hook). Two independently-built
+pipelines whose knots name the same group are metered by the run's one
+shared budget, not one budget each — see
+`tests/performance/test_shared_concurrency_group.py` for a real `Tapestry`
+run proving it.
 
 ```python
-from pirn_agents.performance.concurrency_config import ConcurrencyConfig
-from pirn_agents.performance.backpressure_semaphore import BackpressureSemaphore
+from pirn.core.concurrency.concurrency_limits import ConcurrencyLimits
+from pirn.core.knot_config import KnotConfig
+from pirn.tapestry import Tapestry
 
-limiter = BackpressureSemaphore(ConcurrencyConfig(max_concurrency=4, max_queue_depth=32))
-async with limiter.slot():        # queues under load; QueueFull past the depth bound
-    await call_provider(...)
+with Tapestry(concurrency=ConcurrencyLimits(groups={"search": 4})) as t:
+    SearchTool.bind(client=my_client)(
+        query="dicom", _config=KnotConfig(id="c1", concurrency_group="search")
+    )
+    # a second knot naming concurrency_group="search" shares the same cap
 ```
+
+The former `ConcurrencyConfig`/`BackpressureSemaphore` (a shared config value
+plus a limiter wrapping a private pool, for a caller with no `Tapestry` to
+attach a group to) and `Bulkhead`/`BulkheadConfig` (the same shape, one pool
+per backend) were one-cycle shims over this pattern and are deleted (PIR-864).
 
 ### Caching — content-addressed result cache + semantic + prompt-cache passthrough
 
 `ResultCache.get_or_compute(payload, compute)` memoises idempotent tool calls
-and embedding lookups keyed off a `content_address` of the inputs (mirrors the
+and embedding lookups keyed off a `content_hash` of the inputs (mirrors the
 DAG's content addressing). `SemanticResultCache.get_or_compute_semantic(text,
 compute)` matches on embedding similarity using a caller-injected embedding fn
 (no backend). `PromptCachePassthrough` defers to a provider's native prompt
@@ -1278,8 +1244,8 @@ result = await cache.get_or_compute({"tool": "search", "args": {"q": "dicom"}}, 
 
 ADR "agents speaks core" (WS4a) retired the standalone span/callback plane
 (`Tracer`/`Span`/`ObservabilitySink`/`OtelSink`/`LoggingSink`/
-`SpanEmittingToolInvocationHook` — still importable for one deprecation cycle,
-each raising `DeprecationWarning`) in favour of one call:
+`SpanEmittingToolInvocationHook` — removed after their one-cycle deprecation
+window, PIR-864) in favour of one call:
 `AgentCallRecorder.record(...)` emits a core `StatusEvent` — `run_id` sourced
 from `pirn.tapestry.current_run_id`, `knot_id` supplied by the caller (never
 ambient) — through the run's own emitters

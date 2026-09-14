@@ -17,7 +17,6 @@ vendor keys untouched.
 from __future__ import annotations
 
 import unittest
-from collections.abc import Mapping
 from dataclasses import FrozenInstanceError
 from typing import Any
 
@@ -25,64 +24,40 @@ import pytest
 
 from pirn_agents.llm.anthropic_messages_tool_adapter import AnthropicMessagesToolAdapter
 from pirn_agents.llm.openai_compatible_tool_adapter import OpenAICompatibleToolAdapter
-from pirn_agents.tools.tool import Tool
+from pirn_agents.testing.stub_tool import StubTool
 from pirn_agents.tools.tool_call_codec import ToolCallCodec
 from pirn_agents.tools.tool_declaration import ToolDeclaration
 from pirn_agents.tools.toolset import Toolset
 
-
-class VendorExtendedTool(Tool):
-    """A tool whose schema is open, recursive and vendor-extended.
-
-    Deliberately unrepresentable by any fixed model class -- exactly what an
-    MCP server may hand us at runtime.
-    """
-
-    @property
-    def name(self) -> str:
-        return "vendor"
-
-    @property
-    def description(self) -> str:
-        return "vendor-extended schema"
-
-    @property
-    def parameters_schema(self) -> Mapping[str, Any]:
-        return {
-            "type": "object",
-            "properties": {
-                "node": {"$ref": "#/$defs/node"},
-                "nullable": {"type": ["string", "null"]},
-                "novalue": None,
-            },
-            "$defs": {
-                "node": {"type": "object", "properties": {"child": {"$ref": "#/$defs/node"}}}
-            },
-            "x-vendor-hint": {"cache": True, "nested": [1, 2, {"deep": None}]},
-            "additionalProperties": False,
-        }
-
-    async def invoke(self, arguments: Mapping[str, Any]) -> Any:
-        return None
+#: A schema that is open, recursive and vendor-extended -- deliberately
+#: unrepresentable by any fixed model class, exactly what an MCP server may
+#: hand us at runtime.
+_VENDOR_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "node": {"$ref": "#/$defs/node"},
+        "nullable": {"type": ["string", "null"]},
+        "novalue": None,
+    },
+    "$defs": {"node": {"type": "object", "properties": {"child": {"$ref": "#/$defs/node"}}}},
+    "x-vendor-hint": {"cache": True, "nested": [1, 2, {"deep": None}]},
+    "additionalProperties": False,
+}
 
 
-class NoArgsTool(Tool):
+def _vendor_extended_tool() -> StubTool:
+    return StubTool(
+        name="vendor", description="vendor-extended schema", parameters_schema=_VENDOR_SCHEMA
+    )
+
+
+def _no_args_tool() -> StubTool:
     """A tool taking no arguments: ``required`` must stay ABSENT, not ``[]``."""
-
-    @property
-    def name(self) -> str:
-        return "noargs"
-
-    @property
-    def description(self) -> str:
-        return "takes nothing"
-
-    @property
-    def parameters_schema(self) -> Mapping[str, Any]:
-        return {"type": "object", "properties": {}}
-
-    async def invoke(self, arguments: Mapping[str, Any]) -> Any:
-        return None
+    return StubTool(
+        name="noargs",
+        description="takes nothing",
+        parameters_schema={"type": "object", "properties": {}},
+    )
 
 
 class TestToolDeclarationPayload(unittest.TestCase):
@@ -147,18 +122,18 @@ class TestToolDeclarationValidation(unittest.TestCase):
 
 class TestToolDeclarationFromTools(unittest.TestCase):
     def test_every_tool_exposes_a_declaration(self) -> None:
-        declaration = NoArgsTool().declaration()
+        declaration = _no_args_tool().declaration()
 
         assert declaration.name == "noargs"
         assert declaration.description == "takes nothing"
         assert declaration.parameters == {"type": "object", "properties": {}}
 
     def test_toolset_declarations_preserve_registration_order(self) -> None:
-        toolset = Toolset([VendorExtendedTool(), NoArgsTool()])
+        toolset = Toolset([_vendor_extended_tool(), _no_args_tool()])
         assert [d.name for d in toolset.declarations()] == ["vendor", "noargs"]
 
     def test_toolset_schema_is_the_serialised_declarations(self) -> None:
-        toolset = Toolset([VendorExtendedTool(), NoArgsTool()])
+        toolset = Toolset([_vendor_extended_tool(), _no_args_tool()])
         assert toolset.schema() == [d.to_payload() for d in toolset.declarations()]
 
 
@@ -166,21 +141,19 @@ class TestJsonSchemaIsCarriedVerbatim(unittest.TestCase):
     """The envelope is modelled; the schema inside it must not be."""
 
     def test_vendor_schema_survives_unchanged(self) -> None:
-        tool = VendorExtendedTool()
+        parameters = _vendor_extended_tool().declaration().to_payload()["parameters"]
 
-        parameters = tool.declaration().to_payload()["parameters"]
-
-        assert parameters == dict(tool.parameters_schema)
+        assert parameters == _VENDOR_SCHEMA
         assert parameters["properties"]["novalue"] is None
         assert parameters["$defs"]["node"]["properties"]["child"] == {"$ref": "#/$defs/node"}
         assert parameters["x-vendor-hint"] == {"cache": True, "nested": [1, 2, {"deep": None}]}
 
     def test_empty_required_is_omitted_not_emitted(self) -> None:
-        parameters = NoArgsTool().declaration().to_payload()["parameters"]
+        parameters = _no_args_tool().declaration().to_payload()["parameters"]
         assert "required" not in parameters
 
     def test_no_title_is_injected(self) -> None:
-        parameters = NoArgsTool().declaration().to_payload()["parameters"]
+        parameters = _no_args_tool().declaration().to_payload()["parameters"]
         assert "title" not in parameters
 
 
@@ -192,7 +165,7 @@ class TestNativeWireShapeIsUnchanged(unittest.TestCase):
     """
 
     def _toolset(self) -> Toolset:
-        return Toolset([NoArgsTool()])
+        return Toolset([_no_args_tool()])
 
     def test_openai_compatible_native_declaration(self) -> None:
         native = ToolCallCodec(OpenAICompatibleToolAdapter()).encode_tools(self._toolset())

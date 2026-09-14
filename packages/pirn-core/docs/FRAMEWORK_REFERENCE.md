@@ -238,8 +238,11 @@ no `run_id`/`knot_id`). The ADR "agents speaks core" (2026-09-13, workstreams
 WS0…WS6b) is what actually closed nearly all of it, seam by seam; this
 section is organized by subsystem rather than by workstream so a reader can
 find "what changed" without reconstructing which PR did it. Deprecated names
-are one-cycle shims (`DeprecationWarning` on construction), not deletions,
-unless marked otherwise.
+were one-cycle shims (`DeprecationWarning` on construction); **PIR-864
+closed that cycle** — every name marked "Deprecated" below has been deleted
+outright (its entry now reads "Deleted"), except the handful explicitly
+marked "kept" or "deferred" with a reason. `CHANGELOG.md`'s "Removed"
+section for this release is the authoritative name → replacement table.
 
 ### Retry, timeout, and nesting (core seams, WS0)
 
@@ -248,11 +251,16 @@ Core now owns per-knot timeout and retry (`KnotConfig.timeout` →
 `GovernedDispatch`, attempts recorded in lineage) and the nested-run depth and
 cycle guard (`RunNesting` on every run, `Tapestry(max_nesting_depth=)`,
 inherited and only tightened by inner tapestries). Agents' `llm/retry_policy.py::RetryPolicy`,
-`exceptions/tool_timeout_error.py::ToolTimeoutError`, `AgentNestingConfig`,
-`AgentToolContext`, `AgentInvoker`, and the `AgentRecursionError` family are
-listed as shadows in `tests/core_seams/test_core_seam_shadows.py` pending
-migration (`AgentToolContext` already composes core's `RunNesting` frame —
-see its module docstring — but is not yet collapsed onto it entirely).
+`exceptions/tool_timeout_error.py::ToolTimeoutError`, and the
+`AgentRecursionError` family are still listed as shadows in
+`tests/core_seams/test_core_seam_shadows.py` pending migration
+(`AgentToolContext` already composes core's `RunNesting` frame — see its
+module docstring — but is not yet collapsed onto it entirely). `AgentInvoker`
+was a one-cycle shim, not a shadow pending migration, and PIR-864 deleted it
+outright (§7, Tool section, and `CHANGELOG.md`); `AgentNestingConfig` was
+checked against the "delete" list and kept — it is not a shim, it is
+`AgentToolContext`'s own live nesting-depth configuration, with no core seam
+yet to fold onto.
 
 ### Tool — RESOLVED (WS1)
 
@@ -275,17 +283,20 @@ exception roots the ADR found now also subclass `pirn.exceptions.pirn_error.Pirn
 `UnsupportedModalityError`, `MissingCassetteEntryError`, `InjectionDetectedError`,
 `McpTrustError`, `UntrustedDirectiveError`); the other 10 are frozen in
 `tests/test_core_vocabulary_ratchet.py`. `content_hash` (§4.4) is the one
-hashing path for new code; `CanonicalJson`/`ContentAddress` are one-cycle
-deprecated wrappers around it.
+hashing path for new code; `ContentAddress`/`content_address()` were a
+one-cycle deprecated wrapper around it, deleted by PIR-864 — every caller now
+calls `content_hash(value, strict=True)` directly.
 
 **Still open:** `BatchItemStatus` is not deleted (`MapAgent` scheduling still
-owns it); `CanonicalJson.digest`/`encode` still compute their own bare-hex
-form at 3 of 7 call sites (`resilience/idempotency_key_assigner.py`,
-`builder/agent_knot_id_factory.py`, `sessions/run_checkpoint.py`) that persist
-or transmit the digest as a durable/dedup key with no migration path yet;
-`caching/content_address.py` is not migrated either, because `content_hash`'s
-best-effort opaque-value fallback would reopen the PIR-785 cache-collision bug
-`ContentAddress` exists to prevent.
+owns it). `CanonicalJson`/`OpaquePolicy` are **not** deleted: PIR-864 checked
+their remaining callers (`resilience/idempotency_key_assigner.py`'s now-only
+derivation path, `determinism/content_digest.py`, `evaluation/trajectory_call_key.py`)
+and found each is a non-durable, in-memory-only key per its own module
+docstring, so retiring `CanonicalJson` itself is a decision for whichever
+lane owns that retirement, not made unilaterally by a shim-deletion lane;
+`IdempotencyKeyAssigner.legacy_key()`, the one caller that *was* this lane's
+call to make (a durable/dedup key with an unmigrated bare-hex form), is
+deleted.
 
 ### Memory, sessions, and determinism (WS3, parts 1-4)
 
@@ -319,9 +330,11 @@ and `RunHistory` both now mix in `PirnOpaqueValue` (§1.3), closing the gap
 that kept `Knot.process()` from declaring either as a typed parameter — WS3's
 own `RunResumer`/`ApprovalResumer` are the first to declare them directly.
 
-Deprecated: `RunCheckpoint`/`RunCheckpointer`/`SessionStore`/
+Deleted (PIR-864): `RunCheckpoint`/`RunCheckpointer`/`SessionStore`/
 `InMemorySessionStore`/`PersistedSessionStore`/`ThreadRepository`/
-`MemoryStoreKeyIndex`, `Cassette*`/`TrajectoryRecorder`/`TraceDiffer`.
+`MemoryStoreKeyIndex`, `CassetteStore`/`InMemoryCassetteStore`/
+`FileCassetteStore`/`TrajectoryRecorder`. `TraceDiffer` was never a shim (no
+`DeprecationWarning`, no listed replacement) and is unaffected.
 
 ### Observability (WS4a)
 
@@ -330,10 +343,11 @@ The second event bus is collapsed: `StatusEvent` gained a typed
 touch) fans an ad hoc `StatusEvent` out to a run's emitters from inside an
 async `process()`; `OpenTelemetryEmitter`/`LogEmitter` (core touch) render a
 non-empty `extra` as span attributes / a log field. `AgentCallRecorder` is now
-the one call every LLM/tool/retrieval call site uses. Deprecated:
+the one call every LLM/tool/retrieval call site uses. Deleted (PIR-864):
 `Tracer`/`Span`/`SpanKind`/`SpanStatus`/`OpenSpanEntry`/`ObservabilitySink`/
-`OtelSink`/`LoggingSink`/`SpanEmittingToolInvocationHook` — all still forward
-into `AgentCallRecorder`.
+`OtelSink`/`LoggingSink`/`SpanEmittingToolInvocationHook` — the entire second
+event bus, with zero production call sites outside `observability/` itself
+(`tests/test_event_bus_ratchet.py`).
 
 **Partially wired:** `SecretRedactor.default_traceback_filter()` returns a
 `Callable[[str], str]` in the exact shape `Tapestry`/`ExceptionManager.traceback_filter`
@@ -374,23 +388,16 @@ fan-out (`Emitter.on_knot_result` fires the instant each knot settles, so
 `MapAgent.run()`'s `async for` yields incrementally again) and
 `RunHistory.query_latest_lineage_by_knot_id`.
 
-Deprecated: `BatchCheckpointer`/`BatchScheduler`, `AsyncFanoutEngine`/
+Deleted (PIR-864): `BatchCheckpointer`/`BatchScheduler`, `AsyncFanoutEngine`/
 `_FanoutRunner` (machinery removed once `MapAgent` moved onto `Map`/`Aggregator`).
 
-**Still open:** `Bulkhead`/`BulkheadConfig` and `BackpressureSemaphore`/
-`ConcurrencyConfig` still hold their own `asyncio.Semaphore`-shaped pools,
-called directly by `agent/parallel_tool_executor.py`, `evaluation/run_eval.py`,
-and `rewoo/rewoo_pipeline.py`. Migrating their *enforcement* to
-`LimitedAdmissionGate` needs those call sites moved onto a knot-scoped
-concurrency group first, or there are two enforcement paths rather than one.
-PIR-867 did that move for the two `specializations/` pipelines this list used
-to also name: `document_processing/_ingestion_runner.py` (`IngestionPipeline`'s
-internal ETL runner) and `multi_agent/orchestrator_workers.py` both built a
-bare `asyncio.Semaphore(max_concurrency)` shared across their per-item knots
-and held it across the real await; both now use `KnotConfig(concurrency_group=)`
-on the per-item knots + a `ConcurrencyLimits` group cap set via
-`_inner_concurrency()` — the same lever `MapAgent` uses — so the bound is the
-admission gate's own budget, not a second, private one it cannot see.
+PIR-867 moved `document_processing/_ingestion_runner.py` (`IngestionPipeline`'s
+internal ETL runner) and `multi_agent/orchestrator_workers.py` off a bare
+`asyncio.Semaphore(max_concurrency)` shared across their per-item knots (held
+across the real await) onto `KnotConfig(concurrency_group=)` on the per-item
+knots + a `ConcurrencyLimits` group cap set via `_inner_concurrency()` — the
+same lever `MapAgent` uses — so the bound is the admission gate's own budget,
+not a second, private one it cannot see.
 
 `caching/prompt_cache.py::PromptCache` — RESOLVED (PIR-868). Entries now
 live in a core `InMemoryDataStore` keyed by content hash, exactly like
@@ -400,45 +407,46 @@ so the previously-synchronous `invalidate`/`purge_expired`/`__len__` are now
 `ainvalidate`/`apurge_expired`/`asize`; the old names remain for one
 deprecation cycle as wrappers that bridge to the event loop (raising if
 called from inside one already running) and emit `DeprecationWarning`.
-**Resolved (PIR-866):** `Bulkhead`/`BulkheadConfig` and `BackpressureSemaphore`/
-`ConcurrencyConfig` no longer hold an `asyncio.Semaphore` of their own.
-`BackpressureSemaphore`/`Bulkhead` are now `AdmissionGate` subclasses,
-delegating every admission decision to a real `LimitedAdmissionGate` through
-the shared `pirn_agents.performance._backpressure_gate._BackpressureGate` —
-the one place `max_queue_depth`/`acquire_timeout` (backpressure knobs core's
-`AdmissionGate` has no equivalent for outside a running `Tapestry`) are still
-implemented directly, documented there as the seam. `ConcurrencyConfig`/
-`BulkheadConfig` gained `to_concurrency_limits()` (the exact `ConcurrencyLimits`
-a real run would declare) but stay plain frozen dataclasses rather than
-`ConcurrencyLimits` subclasses: `agent/parallel_tool_executor.py` and three
-`specializations/` pipelines read `ConcurrencyConfig.max_concurrency` as a
-**class-level** literal default (`max_concurrency: Knot | int =
-ConcurrencyConfig.max_concurrency`), which a pydantic `BaseModel` subclass
-cannot support (no class-level field-default access; a `@property` returns
-the descriptor on class access, not its value) — `tests/performance/test_concurrency_config.py::TestClassLevelDefaultAccess`
-pins it. `agent/parallel_tool_executor.py`
-already used `KnotConfig(concurrency_group="tools")` + `ConcurrencyLimits`
-directly (WS1) and needed no change; `agent/agent_invoker.py`,
-`specializations/lats/lats_search.py`, and
-`specializations/routing/model_cascade_router.py` call no concurrency
-primitive at all. **Still open:** `evaluation/run_eval.py` still constructs
-`BackpressureSemaphore` directly rather than routing its per-item concurrency
-through a knot-scoped group (it runs no `Tapestry` at all — a bare
-`asyncio.gather` loop — so adopting the pattern means wiring it onto the
-engine first, a larger change than this migration's scope); the three
-`specializations/` pipelines this note used to name —
-`document_processing/ingestion_pipeline.py`, `multi_agent/orchestrator_workers.py`,
-`rewoo/rewoo_pipeline.py` — reference `ConcurrencyConfig.max_concurrency` only
-as a literal default value (never instantiate it), but
-`document_processing/_ingestion_runner.py` and
-`multi_agent/orchestrator_workers.py` each still build their own bare
-`asyncio.Semaphore(max_concurrency)` independently of `Bulkhead`/
-`BackpressureSemaphore` entirely — out of this migration's blast radius
-(`specializations/` ownership), flagged for the lane that owns them.
-`caching/prompt_cache.py::PromptCache` also stays outside this migration: its
-`get`/`set`/`__len__` are deliberately synchronous, and `DataStore` is
-async-only, so routing values through it would force a breaking signature
-change this ADR did not authorize unilaterally.
+
+**Resolved (PIR-866), superseded by full deletion (PIR-864).** PIR-866 first
+turned `BackpressureSemaphore`/`Bulkhead` into `AdmissionGate` subclasses
+delegating to a real `LimitedAdmissionGate` through a shared
+`pirn_agents.performance._backpressure_admission._BackpressureAdmission` (the
+one place `max_queue_depth`/`acquire_timeout` — backpressure knobs core's
+`AdmissionGate` has no equivalent for outside a running `Tapestry` — were
+still implemented directly), and gave `ConcurrencyConfig`/`BulkheadConfig` a
+`to_concurrency_limits()` bridge, while documenting a blocker: three
+`specializations/` pipelines plus `agent/parallel_tool_executor.py` read
+`ConcurrencyConfig.max_concurrency` as a **class-level** literal default
+(`max_concurrency: Knot | int = ConcurrencyConfig.max_concurrency`), which a
+pydantic `BaseModel` subclass cannot support (no class-level field-default
+access; a `@property` returns the descriptor on class access, not its
+value), and `evaluation/run_eval.py` ran no `Tapestry` at all (a bare
+`asyncio.gather` loop), so it could not adopt a knot-scoped concurrency group
+without first being wired onto the engine.
+
+**PIR-864 deleted the entire plane outright** rather than resolve the
+blocker: `BackpressureSemaphore`, `Bulkhead`, `ConcurrencyConfig`,
+`BulkheadConfig`, and the now-unreferenced `_backpressure_admission`/
+`_admission_slot_knot` implementation modules are gone, along with every test
+that existed only to exercise them (`tests/performance/test_concurrency_config.py`
+including its `TestClassLevelDefaultAccess` pin, `test_backpressure_semaphore.py`,
+`test_backpressure_admission.py`, `tests/resilience/test_bulkhead.py`,
+`test_bulkhead_config.py`). `agent/parallel_tool_executor.py` and the three
+`specializations/` pipelines (`document_processing/ingestion_pipeline.py`,
+`multi_agent/orchestrator_workers.py`, `rewoo/rewoo_pipeline.py`) that used
+to read the class-level default now default to a plain literal `8`.
+`evaluation/run_eval.py::RunEval.run` — the one caller with no `Tapestry` to
+attach a concurrency group to — bounds its per-item concurrency with a plain
+`asyncio.Semaphore(concurrency)` instead (`concurrency: int = 8`); wiring
+`RunEval` onto the engine itself (a knot per eval item under an `Aggregator`)
+remains open, deliberately out of this shim-deletion lane's scope — it is an
+architecture change to the evaluation harness, not a shim removal, and is
+flagged here for whichever lane picks it up next.
+`caching/prompt_cache.py::PromptCache` stays outside this migration
+entirely: its `get`/`set`/`__len__` are deliberately synchronous, and
+`DataStore` is async-only, so routing values through it would force a
+breaking signature change this ADR did not authorize unilaterally.
 
 **Resolved (PIR-870), three admission/dispatch refinements noted as future
 work above WS0b landed:**
@@ -463,9 +471,11 @@ work above WS0b landed:**
 
 `Check(Knot)` names the boolean-verdict role and `Gate(check=)` consumes it
 directly. `LoopSubTapestry.astep`/`afold` give an awaitable loop step.
-`ResolvedValueKnot`/`MessagesPassthrough`'s constant-seed use →
-`core/parameter.py`'s `Parameter` (16 call sites across 12 files).
-`ConsensusAggregator` → `ConsensusPipeline`. All 12 inventoried imperative
+`ResolvedValueKnot`/`MessagesPassthrough`'s constant-seed use moved onto
+`core/parameter.py`'s `Parameter` (16 call sites across 12 files); both
+classes stayed importable for one deprecation cycle and PIR-864 deleted them
+outright. `ConsensusAggregator` → `ConsensusPipeline`, likewise deleted after
+its one cycle. All 12 inventoried imperative
 loops are now `LoopSubTapestry`s: `RoundRobinReview`/`RetryOnParseFailure`
 (WS5a); `SelfAskPipeline`, `PromptChainPipeline`, `ReflexionPipeline` (its LLM
 call gated by a `Check`→`Gate` pair so a successful attempt never pays for
@@ -602,8 +612,9 @@ and generates the pattern list from the registry to verify it against a new
 reply text, `frame` carries `finish_reason`/`usage`/`cost`/`tool_calls`/
 `model`/`provider`; the pre-ADR field names stay readable as properties.
 `AgentContext` (a flat frozen dataclass with no frame/lineage descriptor) is
-replaced by `ConversationPayload = Payload[ConversationFrame, tuple[AgentMessage, ...]]`,
-with `AgentContext` kept importable for one cycle as a deprecated subclass.
+replaced by `ConversationPayload = Payload[ConversationFrame, tuple[AgentMessage, ...]]`;
+`AgentContext` stayed importable for one cycle as a deprecated subclass and
+PIR-864 deleted it outright.
 `docs/domains/agents.md`, `docs/guides/agentic-loops.md`, and every
 `pirn_agents` authoring doc (`AGENTIC_USE.md` ×2, `PATTERNS.md`, `TOOLS.md`,
 `BUILDER.md`) are rewritten in this vocabulary — core's own nouns first
@@ -689,8 +700,8 @@ constructor is unchanged.
 **Canonical case — the Tool. RESOLVED (ADR WS1, 2026-09-13).** A `Tool` is correctly agents-layer (core has no notion of a name + NL description + JSON schema *for a model*), and it is now **composed from** core:
 - `Tool(Knot)` — a tool is a `Knot` *class*; `process()` is its execution and its declared inputs are the call's arguments. `Tool.declaration()` (name, description, `input_json_schema()`) is the only agents-layer addition. One call = one tool knot the engine runs (`ToolFactory.for_call(call)`), so each call has its own `Result`, lineage row, timeout/retry (`KnotConfig`) and concurrency group (`"tools"`).
 - `ToolFactory(KnotFactory, PirnOpaqueValue)` is the *capability* value a toolset holds: a tool class plus bound collaborators (`Tool.bind(store=…)`), defaults and a name. `@tool` is `@knot` plus a declaration; `McpTool` is `KnotFactory.from_schema` over the remote schema; an agent-as-tool is `AgentTool` over an `AgentToolCall(SubTapestry)` whose cycle/depth guard is core's `RunNesting`.
-- Outcomes are `Ok\|Err\|Skipped`; `ToolResult`/`ToolStatus` survive one cycle as a deprecated *view* built by `ToolResult.from_result(call_id, result, lineage)` and the codec reads `Result` directly. A call refused for validation or an unknown tool is a `ToolCallRejection` knot recording its `Err`, never a raise outside the engine; a call refused for **approval** is a `Skipped`, not a `ToolCallRejection` — see the approval bullet below.
-- Deprecated for one cycle (thin shims that warn): `Tool.invoke`, `ToolFactory.invoke`, `BaseTool`, `ToolSchemaCompiler`, `ArgumentValidator`, `AgentSchemaDeriver`, `AgentInvoker`, `ToolInvocationHook` and `ParallelToolExecutor(hook=, retries=, retry_policy=, rng=, sleep=)`, `_FanoutRunner` and `AsyncFanoutEngine` (machinery removed once `MapAgent` moved onto `Map`/`Aggregator` in WS4b; the names warn on construction).
+- Outcomes are `Ok\|Err\|Skipped`; `ToolResult`/`ToolStatus` are **not** a deprecation shim — PIR-865 gave them a live role rendering a gated/approval outcome back to the model (`ToolResult.from_result(call_id, result, lineage, gated=)`, `ToolStatus.SKIPPED`), so the codec still builds this view and reads `Result` through it rather than around it. A call refused for validation or an unknown tool is a `ToolCallRejection` knot recording its `Err`, never a raise outside the engine; a call refused for **approval** is a `Skipped`, not a `ToolCallRejection` — see the approval bullet below.
+- **Deleted (PIR-864), one deprecation cycle closed:** `Tool.invoke`, `ToolFactory.invoke`/`as_tool_result`/`from_legacy`, `BaseTool`, `ToolSchemaCompiler`, `ArgumentValidator`, `AgentSchemaDeriver`, `AgentInvoker`, `ToolInvocationHook`, `ParallelToolExecutor(hook=, retries=, retry_policy=, rng=, sleep=)`'s legacy constructor kwargs, `_FanoutRunner`, and `AsyncFanoutEngine` (machinery removed once `MapAgent` moved onto `Map`/`Aggregator` in WS4b) — every production and test caller now goes through the composed shapes above. See `CHANGELOG.md`'s "Removed" section for the full name → replacement table.
 - Observability (WS4a wired in): a tool call is one `"tool"` `StatusEvent` through `AgentCallRecorder` — emitted by `ToolInvocation` for its call (outer run, its own id; it claims the report from the tool knot), by a tool knot wired directly (a fan-out) for itself, by `ToolCallRejection` for a refused call and by `AgentToolCall` for an agent-as-tool call. LLM-calling knots in the tools lane (`RagTool`, `Planner`, `ToolSelector`, `ReActStepExecutor`) report `"llm"` events through `RecordedLlmCall`. A denied approval reports no `"tool"` event for the tool's own identity at all — `process()`, and the `Tool.__call__` recorder inside it, never run; a *container* (`ToolInvocation`) that reports its own view regardless of outcome still fires, unchanged, attributed to its own knot id.
 - **Approval — RESOLVED (PIR-865).** `pirn_agents.agent.tool_approval_check.ToolApprovalCheck` (a core `Check`; named `ToolApprovalCheck` rather than `ApprovalCheck` because `specializations/human_in_the_loop/approval_check.py::ApprovalCheck` already holds that name for an unrelated seam) evaluates the same policy `ApprovalHook.authorize` always implemented. `ToolFactory.for_call` wires it behind a core `Gate` — the gate's `input` is a `Parameter` carrying the call's resolved arguments, and the gate itself is passed as an extra, undeclared `Knot`-valued kwarg (an *implicit parent*, `Knot._validate_kwargs_against_signature`'s existing seam for exactly this) to the constructed tool knot — whenever `ToolPermissions.approval_required` is set; an unrestricted capability is never gated. A denial closes the gate, so the engine's default `SKIP_IF_PARENT_FAILED` policy skips the tool knot without ever calling `process()`, and the call's own outcome is `Skipped(reason="parent_failed_or_skipped")` — core's `Gate`/engine propagation have no per-check custom skip-reason seam, so that generic reason (not the literal string `"approval_denied"`) is what a raw lineage row shows; `ToolResult.from_result(..., gated=True)` (every call site passes `gated=factory.requires_approval()`) is where the accurate `"call skipped: approval denied"` message comes from instead, since a gated call's own knot has no possible `Skipped` cause besides that gate. `ToolResult` gained a `SKIPPED` `ToolStatus` member and `to_result()` round-trips it back to a core `Skipped`, instead of the old behaviour of fabricating an `Err`/`ERROR` view for every `Skipped`. All six call sites that construct a tool knot for a call (`ToolFactory.for_call`/`run_call`, `ToolInvocation`, `ParallelToolExecutor`, `ParallelToolCaller`, `ToolChain`, `ReActStepExecutor`) gained an `approval_hook` input threaded to `for_call`. `ToolFactory.run_call` also stopped being a bare `await knot({})` for a gated call specifically: that pattern never resolves a genuine `Knot` parent (only `Aggregator`/engine dispatch does), which would have silently run the tool regardless of the gate's decision — a gated call now runs through a real `Tapestry.run(terminals=knot)` pass instead, reusing `ToolCallCodec.outcomes_of` to read the outcome back out; an ungated call keeps the original fast bare-call path unchanged. `ToolCallRejection` is unchanged and keeps its narrower job (unregistered tool, refused arguments) — that is a rejection, not an approval decision.
 - Core seams this needed (all in `SubTapestry`): `_make_inner_tapestry()` (a container chooses its inner `Tapestry(...)` — traceback filter, `max_nesting_depth`, `ConcurrencyLimits`), `_inner_failures_reach_sink` (a container whose sink *consumes* inner `Err`s does not raise `SubTapestryError`), a `Skipped` sink passes through as `Skipped`, and `_nesting_key` is qualified by the knot id (two instances of one agent class may nest; the same instance may not). `SubTapestryError`'s message now names the inner failures.
@@ -704,8 +715,8 @@ Payload[ConversationFrame, tuple[AgentMessage, ...]]`. `GenerationFrame` and
 `ConversationFrame` are the legitimate agents-layer nouns (LLM-turn and
 conversation-window metadata core has no name for); `Payload` itself,
 `derive()`, and `_pirn_audit_dict()`-based content addressing are core's,
-unchanged. `AgentContext` (the pre-ADR name) is a one-cycle deprecated
-subclass.
+unchanged. `AgentContext` (the pre-ADR name) was a one-cycle deprecated
+subclass; PIR-864 deleted it.
 
 **Rule of thumb.** A new agents abstraction is legitimate when it *names an LLM-interaction concept core lacks*. It is a smell when it *re-implements execution, outcomes, schema, persistence, or concurrency* core already provides — model those the way core does (a `NotImplementedError` base whose execution is a `Knot`). Ratifying this boundary is WS0's core deliverable.
 

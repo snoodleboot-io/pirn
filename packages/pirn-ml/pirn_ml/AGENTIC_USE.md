@@ -108,7 +108,7 @@ pirn_ml/
     │                               # BacktestingEvaluator, RankingEvaluator, NLGEvaluator,
     │                               # FairnessAuditor, AdversarialRobustnessEvaluator
     ├── experiments/                # GridSearchTuner, BayesianSearchTuner, StratifiedKfold, AblationStudy,
-    │                               # ChampionChallengerGate, KFoldCrossValidator, TimeSeriesCrossValidator,
+    │                               # ChampionChallengerCheck, KFoldCrossValidator, TimeSeriesCrossValidator,
     │                               # GroupKFoldCrossValidator, RandomSearchTuner, HyperbandTuner
     ├── feature_engineering/        # FeatureStoreReader/Writer, TextEmbedding, ImageEmbedding, LagFeatures,
     │                               # TargetEncoder, FrequencyEncoder, HashEncoder,

@@ -49,18 +49,15 @@ import copy
 import hashlib
 import inspect
 import re
-import warnings
 from collections.abc import AsyncIterator, Callable, Collection, Mapping
 from inspect import iscoroutinefunction
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import Any, ClassVar
 
-from pirn.core.err import Err
 from pirn.core.json_schema_type_builder import JsonSchemaTypeBuilder
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import KnotFactory
 from pirn.core.knot_retry_policy import KnotRetryPolicy
-from pirn.core.ok import Ok
 from pirn.core.parameter import Parameter
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 from pirn.core.result import Result
@@ -76,15 +73,11 @@ from pydantic_core import CoreSchema, core_schema
 from pirn_agents.exceptions.tool_argument_validation_error import (
     ToolArgumentValidationError,
 )
-from pirn_agents.exceptions.tool_invocation_error import ToolInvocationError
 from pirn_agents.tools.definition_reference import DefinitionReference
 from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_declaration import ToolDeclaration
 from pirn_agents.tools.tool_permissions import ToolPermissions
-
-if TYPE_CHECKING:
-    from pirn_agents.tools.tool_result import ToolResult
 
 
 class ToolFactory(KnotFactory, PirnOpaqueValue):
@@ -134,7 +127,6 @@ class ToolFactory(KnotFactory, PirnOpaqueValue):
         )
         self._hidden: frozenset[str] = frozenset(hidden)
         self._defaults: dict[str, Any] = {}
-        self._legacy: Tool | None = None
         self._packs_arguments = False
 
     # ------------------------------------------------------------ building
@@ -144,9 +136,8 @@ class ToolFactory(KnotFactory, PirnOpaqueValue):
         """Return *candidate* as a :class:`ToolFactory`.
 
         Accepts a factory (returned as is), a ``KnotFactory`` (``@knot``,
-        ``@tool``), a ``Knot`` class, a configured ``Knot`` instance (its
-        literal inputs and defaulted parameters become the binding), or a
-        deprecated ``invoke``-shaped ``Tool`` instance.
+        ``@tool``), a ``Knot`` class, or a configured ``Knot`` instance (its
+        literal inputs and defaulted parameters become the binding).
 
         Raises:
             TypeError: For anything else, or an instance whose inputs are
@@ -158,8 +149,6 @@ class ToolFactory(KnotFactory, PirnOpaqueValue):
             return cls(candidate.knot_class, fn=candidate.fn)
         if isinstance(candidate, type) and issubclass(candidate, Knot):
             return cls(candidate)
-        if isinstance(candidate, Tool) and type(candidate)._legacy_tool:
-            return cls.from_legacy(candidate)
         if isinstance(candidate, Knot):
             return cls.from_knot(candidate)
         raise TypeError(
@@ -186,46 +175,6 @@ class ToolFactory(KnotFactory, PirnOpaqueValue):
                 "constructible per call, so bind it to a value instead"
             )
         return cls(type(instance), bound=bound)
-
-    @classmethod
-    def from_legacy(cls, instance: Tool) -> ToolFactory:
-        """Wrap a deprecated ``invoke``-shaped ``Tool`` instance as a capability.
-
-        The generated knot declares one input, ``arguments``, and forwards it
-        to ``instance.invoke``; the declaration is read off the instance's
-        properties as before.
-        """
-        name = str(instance.name)
-        try:
-            declared = dict(instance.parameters_schema)
-        except (AttributeError, NotImplementedError):
-            declared = {"type": "object", "properties": {}}
-        try:
-            description = str(instance.description)
-        except (AttributeError, NotImplementedError):
-            description = name
-        packed_schema = {
-            "type": "object",
-            "properties": {"arguments": {"type": "object"}},
-            "required": ["arguments"],
-        }
-
-        # design-decision-override: closes over the deprecated instance whose
-        # invoke() is the only body this adapter knot has.
-        async def process(**kwargs: Any) -> Any:
-            return await instance.invoke(kwargs["arguments"])
-
-        knot_class = cls.schema_declared_class(
-            f"{type(instance).__name__}Call",
-            packed_schema,
-            process,
-            description=description,
-            tool_name=name,
-        )
-        factory = cls(knot_class, name=name, description=description, parameters=declared)
-        factory._legacy = instance
-        factory._packs_arguments = True
-        return factory
 
     @classmethod
     def schema_declared_class(
@@ -437,8 +386,6 @@ class ToolFactory(KnotFactory, PirnOpaqueValue):
     @property
     def permissions(self) -> ToolPermissions:
         """Permission / scope metadata for this capability."""
-        if self._legacy is not None:
-            return self._legacy.permissions
         if issubclass(self.knot_class, Tool):
             return self.knot_class.permissions
         return ToolPermissions()
@@ -450,8 +397,6 @@ class ToolFactory(KnotFactory, PirnOpaqueValue):
     @property
     def streaming(self) -> bool:
         """Whether :meth:`stream` yields incremental output."""
-        if self._legacy is not None:
-            return bool(self._legacy.streaming)
         if issubclass(self.knot_class, Tool):
             return self.knot_class.streaming
         return False
@@ -459,15 +404,11 @@ class ToolFactory(KnotFactory, PirnOpaqueValue):
     @property
     def stateful(self) -> bool:
         """Whether this capability carries injected state across calls."""
-        if self._legacy is not None:
-            return bool(self._legacy.stateful)
         return False
 
     @property
     def state(self) -> Any | None:
         """The injected state/resource object, or ``None``."""
-        if self._legacy is not None:
-            return self._legacy.state
         return None
 
     def stream(self, arguments: Mapping[str, Any]) -> AsyncIterator[Any]:
@@ -476,8 +417,6 @@ class ToolFactory(KnotFactory, PirnOpaqueValue):
         Raises:
             TypeError: If this is not a streaming capability.
         """
-        if self._legacy is not None:
-            return self._legacy.stream(arguments)
         if issubclass(self.knot_class, Tool):
             return self.knot_class.stream({**self._bound, **self.resolve_arguments(arguments)})
         raise TypeError(f"tool {self.name!r} is not a streaming tool")
@@ -772,49 +711,6 @@ class ToolFactory(KnotFactory, PirnOpaqueValue):
 
         run_result = await tapestry.run(terminals=knot)
         return ToolCallCodec.outcomes_of(run_result, [call])[call.call_id]
-
-    async def invoke(self, arguments: Mapping[str, Any]) -> Any:
-        """Deprecated: run one call outside the engine and return its value.
-
-        Kept for one cycle for callers of the pre-ADR ``tool.invoke(arguments)``.
-        A call that fails raises :class:`ToolInvocationError` carrying the
-        failure's type and message.
-        """
-        warnings.warn(
-            f"ToolFactory.invoke() is deprecated (ADR agents-speaks-core WS1): run "
-            f"{self.name!r} as a knot in a tapestry, or use for_call(call)",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        call = ToolCall(
-            tool_name=self.name, arguments=dict(arguments), call_id=f"invoke:{self.name}"
-        )
-        result = await self.run_call(call)
-        if isinstance(result, Ok):
-            return result.value
-        if isinstance(result, Err):
-            raise ToolInvocationError(
-                f"{result.record.exc_type}: {result.record.message}", call.call_id
-            )
-        raise ToolInvocationError(f"skipped: {result.reason}", call.call_id)
-
-    async def as_tool_result(self, call: ToolCall) -> ToolResult:
-        """Deprecated: run *call* outside the engine and return the ``ToolResult`` view."""
-        from pirn_agents.tools.tool_result import ToolResult  # local: avoids a cycle
-
-        warnings.warn(
-            "ToolFactory.as_tool_result() is deprecated (ADR agents-speaks-core WS1): run the "
-            "call as a knot and read its Result; ToolResult.from_result() builds the view",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        if not isinstance(call, ToolCall):
-            raise TypeError(f"as_tool_result: call must be a ToolCall, got {type(call).__name__}")
-        try:
-            result = await self.run_call(call)
-        except ToolArgumentValidationError as exc:
-            return ToolResult(call_id=call.call_id, result=None, error=str(exc))
-        return ToolResult.from_result(call.call_id, result)
 
     # ------------------------------------------------------------ pydantic
 

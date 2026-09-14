@@ -51,26 +51,18 @@ from tests.tools.tool_knot_inventory import ToolKnotInventory
 
 INVOKE_CLASSES = frozenset(
     {
-        "agent/agent_invoker.py::AgentInvoker",
         "determinism/cassette_recorder.py::CassetteRecorder",
         "evaluation/cassette_run_recorder.py::CassetteRunRecorder",
         "evaluation/null_run_recorder.py::NullRunRecorder",
         "evaluation/run_recorder.py::RunRecorder",
         "testing/tool_test_harness.py::ToolTestHarness",
-        "tools/agent_tool.py::AgentTool",
-        "tools/tool.py::Tool",
-        "tools/tool_factory.py::ToolFactory",
     }
 )
 
 PARALLEL_VOCABULARY_IMPORTERS = frozenset(
     {
-        "agent/_fanout_runner.py",
-        "agent/agent_invoker.py",
         "agent/agent_response_mapper.py",
-        "agent/agent_schema_deriver.py",
         "agent/parallel_tool_executor.py",
-        "observability/span_emitting_tool_invocation_hook.py",
         "planning/tool_executor.py",
         "planning/tool_result_aggregator.py",
         "specializations/multi_agent/_assemble_orchestrator_workers_result.py",
@@ -92,14 +84,10 @@ PARALLEL_VOCABULARY_IMPORTERS = frozenset(
         "tools/agent_as_tool_mixin.py",
         "tools/agent_tool.py",
         "tools/as_tool.py",
-        "tools/base_tool.py",
         "tools/tool_call_codec.py",
-        "tools/tool_factory.py",
         "tools/tool_invocation.py",
-        "tools/tool_invocation_hook.py",
         "tools/tool_result.py",
         "types/content/tool_result_block.py",
-        "validation/argument_validator.py",
     }
 )
 
@@ -108,8 +96,6 @@ AWAITED_INVOKE_CALL_SITES = frozenset(
         "evaluation/cassette_run_recorder.py::CassetteRunRecorder.invoke",
         "evaluation/run_eval.py::RunEval.run._run_item",
         "specializations/routing/_tier_invocation.py::_TierInvocation.process",
-        "tools/tool.py::Tool.invoke",
-        "tools/tool_factory.py::ToolFactory.from_legacy.process",
     }
 )
 

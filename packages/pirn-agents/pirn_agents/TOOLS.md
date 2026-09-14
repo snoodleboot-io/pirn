@@ -57,9 +57,6 @@ class RetrieverTool(Tool):
   `KnotFactory.from_schema` over the remote tool's schema; an agent is a tool
   through `AgentTool` (`agent.as_tool()`), whose nesting guard is core's
   `RunNesting`.
-* `Tool.invoke(arguments)` and the invoke-shaped subclass (properties `name` /
-  `description` / `parameters_schema`) still work for **one cycle** through
-  `ToolFactory.of()` and emit a `DeprecationWarning`.
 
 ## Tool catalog
 

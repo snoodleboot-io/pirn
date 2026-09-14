@@ -19,9 +19,9 @@ class TraceDiffer:
     """Compare two recorded runs and report what diverged.
 
     :meth:`diff` compares two :class:`RunTrace` values (from
-    :class:`~pirn_agents.determinism.trajectory_recorder.TrajectoryRecorder`
-    or an exported :class:`~pirn_agents.determinism.trajectory_emitter.TrajectoryEmitter`
-    snapshot) step-by-step, aligned by index. :meth:`diff_runs` (ADR
+    :class:`~pirn_agents.determinism.trajectory_emitter.TrajectoryEmitter`,
+    or from the deleted one-cycle ``TrajectoryRecorder`` shim, PIR-864)
+    step-by-step, aligned by index. :meth:`diff_runs` (ADR
     "agents speaks core" WS3 part 3) compares two ``RunResult``s directly via
     core's ``pirn.knot_diff.compare_runs``, aligned by knot id — the more
     precise comparison when both runs are real engine runs, since a step's

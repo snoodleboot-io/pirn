@@ -20,33 +20,20 @@ from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.agent.parallel_tool_executor import ParallelToolExecutor
+from pirn_agents.testing.stub_tool import StubTool as KitStubTool
 from pirn_agents.tools.streaming_tool_call_parser import StreamingToolCallParser
-from pirn_agents.tools.tool import Tool
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_status import ToolStatus
 from pirn_agents.tools.toolset import Toolset
 
 
-class StubTool(Tool):
-    """A tool that echoes the arguments it was invoked with."""
-
-    def __init__(self, name: str) -> None:
-        self._name = name
-
-    @property
-    def name(self) -> str:
-        return self._name
-
-    @property
-    def description(self) -> str:
-        return f"echo {self._name}"
-
-    @property
-    def parameters_schema(self) -> Mapping[str, Any]:
-        return {"type": "object", "properties": {}}
-
-    async def invoke(self, arguments: Mapping[str, Any]) -> Any:
-        return {"tool": self._name, "echo": dict(arguments)}
+def _echo_tool(name: str) -> KitStubTool:
+    """A tool that echoes the arguments it was called with."""
+    return KitStubTool(
+        name=name,
+        description=f"echo {name}",
+        handler=lambda arguments: {"tool": name, "echo": dict(arguments)},
+    )
 
 
 async def _execute(calls: list[ToolCall], toolset: Toolset) -> tuple[Any, ...]:
@@ -66,7 +53,7 @@ async def test_streamed_calls_execute_through_parallel_executor() -> None:
         yield {"index": 1, "done": True, "arguments": ""}
 
     parser = StreamingToolCallParser()
-    toolset = Toolset([StubTool("alpha"), StubTool("beta")])
+    toolset = Toolset([_echo_tool("alpha"), _echo_tool("beta")])
 
     parsed: list[ToolCall] = []
     async for call in parser.parse(stream()):
@@ -93,7 +80,7 @@ async def test_dispatch_starts_before_stream_completes() -> None:
         yield {"index": 1, "id": "c1", "name": "beta", "arguments": '{"y": 2}', "done": True}
 
     parser = StreamingToolCallParser()
-    toolset = Toolset([StubTool("alpha"), StubTool("beta")])
+    toolset = Toolset([_echo_tool("alpha"), _echo_tool("beta")])
 
     dispatched: list[asyncio.Task[tuple[Any, ...]]] = []
     iterator = parser.parse(gated_stream())

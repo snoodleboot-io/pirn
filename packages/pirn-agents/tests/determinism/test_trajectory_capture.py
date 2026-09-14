@@ -4,11 +4,9 @@ from __future__ import annotations
 
 import unittest
 
-from pirn_agents.determinism.frozen_clock import FrozenClock
 from pirn_agents.determinism.run_trace import RunTrace
 from pirn_agents.determinism.trace_event import TraceEvent
 from pirn_agents.determinism.trace_event_kind import TraceEventKind
-from pirn_agents.determinism.trajectory_recorder import TrajectoryRecorder
 
 
 def _event(index: int = 0) -> TraceEvent:
@@ -57,30 +55,6 @@ class RunTraceTests(unittest.TestCase):
     def test_rejects_empty_run_id(self) -> None:
         with self.assertRaises(TypeError):
             RunTrace(run_id="")
-
-
-class TrajectoryRecorderTests(unittest.TestCase):
-    def test_records_ordered_indices_with_injected_clock(self) -> None:
-        recorder = TrajectoryRecorder(run_id="r1", clock=FrozenClock(), metadata={"seed": 1})
-        recorder.record(kind=TraceEventKind.INPUT, name="prompt", payload={"q": "hi"})
-        recorder.record(kind=TraceEventKind.OUTPUT, name="answer", payload={"a": "yo"})
-        trace = recorder.snapshot()
-        assert [e.index for e in trace.events] == [0, 1]
-        assert trace.events[0].timestamp == "1970-01-01T00:00:00+00:00"
-        assert trace.metadata == {"seed": 1}
-
-    def test_snapshot_is_a_point_in_time_copy(self) -> None:
-        recorder = TrajectoryRecorder(run_id="r1", clock=FrozenClock())
-        recorder.record(kind=TraceEventKind.INPUT, name="a", payload=1)
-        first = recorder.snapshot()
-        recorder.record(kind=TraceEventKind.OUTPUT, name="b", payload=2)
-        assert len(first.events) == 1
-        assert recorder.event_count == 2
-
-    def test_rejects_non_kind(self) -> None:
-        recorder = TrajectoryRecorder(run_id="r1", clock=FrozenClock())
-        with self.assertRaises(TypeError):
-            recorder.record(kind="input", name="x", payload=None)  # type: ignore[arg-type]
 
 
 if __name__ == "__main__":

@@ -2,11 +2,12 @@
 
 ``MemoryStore`` had no plain key-value implementation: its only concrete
 subclasses were the ``VectorMemoryStore`` family, whose ``store()`` requires a
-``"vector"`` entry.  Every keyed consumer (``PersistedSessionStore``,
-``ThreadRepository``, ``MemoryWriter``, …) therefore had no shipped backend to
-run against.  These tests exercise the adapter that closes that gap against two
-*real* core ``DataStore`` backends — in-memory and local disk — rather than a
-hand-rolled double.
+``"vector"`` entry.  Every keyed consumer at the time (``PersistedSessionStore``,
+``ThreadRepository`` -- both deprecated shims since deleted, PIR-864 --
+``MemoryWriter``, …) therefore had no shipped backend to run against.  These
+tests exercise the adapter that closes that gap against two *real* core
+``DataStore`` backends — in-memory and local disk — rather than a hand-rolled
+double.
 """
 
 from __future__ import annotations
@@ -23,9 +24,6 @@ from pirn.core.hashing import content_hash
 
 from pirn_agents.memory.stores.data_store_memory_store import DataStoreMemoryStore
 from pirn_agents.memory.stores.memory_store import MemoryStore
-from pirn_agents.sessions.persisted_session_store import PersistedSessionStore
-from pirn_agents.sessions.run_checkpoint import RunCheckpoint
-from tests.sessions.conftest import make_run_state
 
 
 def _disk_store(root: Path) -> LocalDiskDataStore:
@@ -217,32 +215,6 @@ class TestDiskBackend:
     async def test_missing_key_on_disk_returns_none(self, tmp_path: Path) -> None:
         store = DataStoreMemoryStore(data_store=_disk_store(tmp_path))
         assert await store.retrieve("never-written") is None
-
-
-class TestConsumersNowHaveAShippedBackend:
-    """The point of the ticket: keyed consumers run on real core backends."""
-
-    async def test_persisted_session_store_over_in_memory_data_store(self) -> None:
-        adapter = PersistedSessionStore(store=DataStoreMemoryStore(data_store=InMemoryDataStore()))
-        checkpoint = RunCheckpoint.create(make_run_state(session_id="s1", plan=("a", "b")))
-        await adapter.save("s1", checkpoint)
-        assert await adapter.load("s1") == checkpoint
-        assert list(await adapter.list_sessions()) == ["s1"]
-
-    async def test_persisted_session_store_survives_restart_on_disk(self, tmp_path: Path) -> None:
-        # See test_survives_a_fresh_adapter_over_the_same_root_and_history:
-        # a "restart" now needs the same history shared across instances too.
-        history = InMemoryHistory()
-        checkpoint = RunCheckpoint.create(make_run_state(session_id="s1", plan=("a", "b")))
-        await PersistedSessionStore(
-            store=DataStoreMemoryStore(data_store=_disk_store(tmp_path), history=history)
-        ).save("s1", checkpoint)
-
-        reopened = PersistedSessionStore(
-            store=DataStoreMemoryStore(data_store=_disk_store(tmp_path), history=history)
-        )
-        assert await reopened.load("s1") == checkpoint
-        assert list(await reopened.list_sessions()) == ["s1"]
 
 
 class TestBackendNeutrality:

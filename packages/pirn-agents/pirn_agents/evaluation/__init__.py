@@ -18,7 +18,7 @@ capabilities, each provider-neutral and backend-free at import time:
   gold-set calibration.
 * **Datasets, runner, and gates** — an
   :class:`~pirn_agents.evaluation.eval_dataset.EvalDataset` format, the
-  :func:`~pirn_agents.evaluation.run_eval.run_eval` runner, an
+  :meth:`~pirn_agents.evaluation.run_eval.RunEval.run` runner, an
   :class:`~pirn_agents.evaluation.eval_report.EvalReport`, and an
   :class:`~pirn_agents.evaluation.eval_gate.EvalGate` for CI regression control.
 

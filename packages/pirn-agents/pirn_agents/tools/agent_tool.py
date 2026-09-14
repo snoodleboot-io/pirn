@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import copy
 import json
-import warnings
 from collections.abc import Mapping
 from typing import Any, ClassVar
 
@@ -192,19 +191,6 @@ class AgentTool(ToolFactory):
             max_depth=self._max_depth,
             **framework,
         )
-
-    async def invoke(self, arguments: Mapping[str, Any]) -> ToolResult:
-        """Deprecated: run the agent outside the engine and return the ``ToolResult`` view.
-
-        A ``call_id`` argument names the call, as the pre-ADR wrapper allowed.
-        """
-        warnings.warn(
-            "AgentTool.invoke() is deprecated (ADR agents-speaks-core WS1): run the agent-as-tool "
-            "call as a knot in a tapestry (AgentTool.for_call(call)), or read the Result",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return await self.run_view(arguments)
 
     async def run_view(self, arguments: Mapping[str, Any]) -> ToolResult:
         """Run one call outside the engine and return its ``ToolResult`` view."""

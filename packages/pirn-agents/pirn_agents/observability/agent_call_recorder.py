@@ -1,14 +1,12 @@
 """``AgentCallRecorder`` — the sanctioned way to observe an LLM/tool/retrieval call.
 
 ADR "agents speaks core" (PIR-856, WS4a): agents had a *second* event bus —
-:class:`~pirn_agents.observability.tracer.Tracer` opening
-:class:`~pirn_agents.observability.span.Span`\\ s against a pluggable
-:class:`~pirn_agents.observability.observability_sink.ObservabilitySink` —
+``Tracer`` opening ``Span``\\ s against a pluggable ``ObservabilitySink`` —
 entirely disjoint from core's own ``StatusManager``/``Emitter`` stream: a
-:class:`~pirn_agents.observability.span.Span` carried no ``run_id``/``knot_id``
-of its own (``Tracer`` stamped ``run_id`` on manually; nothing stamped
-``knot_id`` because core had no ambient accessor for it), and zero production
-code imported ``pirn.emitters`` from anywhere in this package.
+``Span`` carried no ``run_id``/``knot_id`` of its own (``Tracer`` stamped
+``run_id`` on manually; nothing stamped ``knot_id`` because core had no
+ambient accessor for it), and zero production code imported ``pirn.emitters``
+from anywhere in this package.
 
 This module replaces that second bus with one core-shaped call: build a
 ``StatusEvent`` whose ``run_id`` comes from :func:`pirn.tapestry.current_run_id`
@@ -22,9 +20,9 @@ to render it — see their ``on_status`` for the span/log shape ``extra``
 produces.
 
 ``Tracer``/``Span``/``ObservabilitySink``/``OtelSink``/``LoggingSink``/
-``SpanEmittingToolInvocationHook`` stay importable for one deprecation cycle
-(the ADR's public-name rule) and forward into this recorder where a genuine
-call site exists; new call sites should use :class:`AgentCallRecorder` directly.
+``SpanEmittingToolInvocationHook`` were kept importable for one deprecation
+cycle, forwarding into this recorder, and are now deleted (PIR-864); every
+call site uses :class:`AgentCallRecorder` directly.
 """
 
 from __future__ import annotations

@@ -13,7 +13,8 @@ get typed results end-to-end regardless of how they were produced.
 A provider opts into the native paths by subclassing the
 :class:`StructuredOutputProvider` base; a plain
 :class:`pirn_agents.llm.llm_provider.LLMProvider` simply routes to the
-fallback. The convenience :func:`structured_decode` wraps a one-shot decode.
+fallback. :meth:`StructuredDecoder.decode_once` is the one-shot convenience
+entry point.
 """
 
 from __future__ import annotations
@@ -191,25 +192,3 @@ class StructuredDecoder:
             model_class=model_class, max_retries=max_retries, tool_name=tool_name
         )
         return await decoder.decode(prompt=prompt, llm=llm)
-
-
-async def structured_decode(
-    *,
-    prompt: str,
-    llm: LLMProvider,
-    model_class: type[BaseModel],
-    max_retries: int = 3,
-    tool_name: str = "extract",
-) -> BaseModel:
-    """Decode ``prompt`` into a validated ``model_class`` instance (one shot).
-
-    Thin wrapper kept for the documented public import path (see
-    ``AGENTIC_USE.md``); see :meth:`StructuredDecoder.decode_once`.
-    """
-    return await StructuredDecoder.decode_once(
-        prompt=prompt,
-        llm=llm,
-        model_class=model_class,
-        max_retries=max_retries,
-        tool_name=tool_name,
-    )

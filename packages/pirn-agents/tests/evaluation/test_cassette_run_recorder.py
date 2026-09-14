@@ -1,6 +1,6 @@
 """Mirrored test: F29's cassette recorder closes F12's ``RunRecorder`` seam.
 
-Drives :func:`run_eval` with a :class:`CassetteRunRecorder` in RECORD mode over a
+Drives :meth:`RunEval.run` with a :class:`CassetteRunRecorder` in RECORD mode over a
 call-counting target, then replays the captured cassette in a fresh recorder and
 asserts the report is identical with **zero** further target calls — i.e. the eval
 suite is deterministic and offline.
@@ -18,7 +18,7 @@ from pirn_agents.evaluation.eval_dataset import EvalDataset
 from pirn_agents.evaluation.eval_item import EvalItem
 from pirn_agents.evaluation.exact_match import ExactMatch
 from pirn_agents.evaluation.metric_result import MetricResult
-from pirn_agents.evaluation.run_eval import run_eval
+from pirn_agents.evaluation.run_eval import RunEval
 from pirn_agents.evaluation.run_recorder import RunRecorder
 
 
@@ -54,7 +54,7 @@ class CassetteRunRecorderSeamTests(unittest.IsolatedAsyncioTestCase):
     async def test_record_then_replay_is_deterministic_and_offline(self) -> None:
         target = _CountingTarget()
         rec = CassetteRunRecorder.recording()
-        recorded = await run_eval(
+        recorded = await RunEval.run(
             dataset=_dataset(), target=target, metrics={"exact_match": _em}, recorder=rec
         )
         assert target.calls == 2
@@ -63,7 +63,7 @@ class CassetteRunRecorderSeamTests(unittest.IsolatedAsyncioTestCase):
         # Replay from the captured cassette: no further live target calls.
         replay_target = _CountingTarget()
         replayer = CassetteRunRecorder.replaying(rec.cassette)
-        replayed = await run_eval(
+        replayed = await RunEval.run(
             dataset=_dataset(),
             target=replay_target,
             metrics={"exact_match": _em},
@@ -79,7 +79,7 @@ class CassetteRunRecorderSeamTests(unittest.IsolatedAsyncioTestCase):
 
         replayer = CassetteRunRecorder.replaying(Cassette())
         with self.assertRaises(MissingCassetteEntryError):
-            await run_eval(
+            await RunEval.run(
                 dataset=_dataset(),
                 target=_CountingTarget(),
                 metrics={"exact_match": _em},

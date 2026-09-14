@@ -1,22 +1,21 @@
 """Guard: freeze the "second event bus" inventory (ADR agents-speaks-core WS4a).
 
-``pirn_agents.observability`` forked its own event stream —
-:class:`~pirn_agents.observability.tracer.Tracer` opening
-:class:`~pirn_agents.observability.span.Span`\\ s against a pluggable
-:class:`~pirn_agents.observability.observability_sink.ObservabilitySink` —
-entirely separate from core's ``StatusManager``/``Emitter`` stream that every
-other domain's telemetry already flows through. WS4a replaces it with
+``pirn_agents.observability`` forked its own event stream — a ``Tracer``
+opening ``Span``\\ s against a pluggable ``ObservabilitySink`` — entirely
+separate from core's ``StatusManager``/``Emitter`` stream that every other
+domain's telemetry already flows through. WS4a replaced it with
 :class:`~pirn_agents.observability.agent_call_recorder.AgentCallRecorder`,
 which emits a core ``StatusEvent`` (carrying ``run_id``/``knot_id`` sourced
 from core, not stamped on by hand) through the run's own emitters.
 
 ``Tracer``/``Span``/``SpanKind``/``SpanStatus``/``OpenSpanEntry``/
 ``ObservabilitySink``/``OtelSink``/``LoggingSink``/
-``SpanEmittingToolInvocationHook`` stay importable for one deprecation cycle
-(the ADR's public-name rule — see PIR-856's common brief) rather than being
-deleted outright, so this is a ratchet, not a clean assertion: it freezes
-*which modules currently import a deprecated name*, asserted by exact
-equality in both directions, exactly like ``tests.specializations.base.
+``SpanEmittingToolInvocationHook`` stayed importable for one deprecation
+cycle (the ADR's public-name rule — see PIR-856's common brief) and are now
+deleted (PIR-864). This is still a ratchet, not a clean assertion, kept as
+an empty-set assertion rather than deleted outright: it freezes *which
+modules currently import a deprecated name*, asserted by exact equality in
+both directions, exactly like ``tests.specializations.base.
 test_no_engine_bypass``:
 
 * a new module picking up one of these names fails, because it is not in
@@ -24,11 +23,10 @@ test_no_engine_bypass``:
 * consolidating a module's use of one away *without* updating the allowlist
   also fails, because the allowlist still names it.
 
-Today every hit is inside ``observability/`` itself (the old classes
-importing each other) — zero production call sites outside the package ever
-adopted this plane (see PIR-856's vocabulary-drift review). The allowlist
-below is that starting inventory, frozen before any burn-down in this same
-lane.
+Every hit was inside ``observability/`` itself (the old classes importing
+each other) — zero production call sites outside the package ever adopted
+this plane (see PIR-856's vocabulary-drift review), so deleting the classes
+emptied this allowlist completely rather than shrinking it.
 """
 
 from __future__ import annotations
@@ -40,20 +38,10 @@ from pathlib import Path
 from tests.observability.event_bus_inventory import EventBusInventory
 
 # --- known deprecated-name importers, frozen ------------------------------
-# Every hit today is the old classes importing each other inside
-# observability/; nothing outside the package ever adopted this plane.
-DEPRECATED_IMPORTERS = {
-    "observability/logging_sink.py": frozenset({"ObservabilitySink", "Span"}),
-    "observability/observability_sink.py": frozenset({"Span"}),
-    "observability/otel_sink.py": frozenset({"ObservabilitySink", "Span", "SpanStatus"}),
-    "observability/span.py": frozenset({"ObservabilitySink", "SpanKind", "SpanStatus"}),
-    "observability/span_emitting_tool_invocation_hook.py": frozenset(
-        {"Span", "SpanKind", "SpanStatus", "Tracer"}
-    ),
-    "observability/tracer.py": frozenset(
-        {"ObservabilitySink", "OpenSpanEntry", "Span", "SpanKind", "SpanStatus"}
-    ),
-}
+# Empty since PIR-864 deleted every name this inventory tracked; kept as a
+# frozenset (not deleted) so a reintroduced deprecated-name importer is still
+# caught by test_deprecated_importers_are_frozen.
+DEPRECATED_IMPORTERS: dict[str, frozenset[str]] = {}
 
 
 class TestEventBusInventoryIsFrozen(unittest.TestCase):
@@ -61,10 +49,6 @@ class TestEventBusInventoryIsFrozen(unittest.TestCase):
 
     def setUp(self) -> None:
         self.found = EventBusInventory.discover_modules()
-
-    def test_the_walk_is_not_vacuous(self) -> None:
-        """A guard that finds nothing passes for the wrong reason."""
-        assert len(self.found) > 0
 
     def test_deprecated_importers_are_frozen(self) -> None:
         assert self.found == DEPRECATED_IMPORTERS, {

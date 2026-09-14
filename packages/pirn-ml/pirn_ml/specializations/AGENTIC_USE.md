@@ -57,8 +57,7 @@ pirn_ml/specializations/
 │   ├── hyperband_tuner.py               HyperbandTuner             — Hyperband early-stopping search
 │   ├── group_kfold_cross_validator.py   GroupKFoldCrossValidator   — group-aware k-fold CV
 │   ├── ablation_study_pipeline.py       AblationStudyPipeline      — systematic feature ablation
-│   ├── champion_challenger_check.py     ChampionChallengerCheck    — compare challenger vs champion metrics
-│   └── champion_challenger_gate.py      ChampionChallengerGate     — Gate: pass if challenger wins; Err otherwise
+│   └── champion_challenger_check.py     ChampionChallengerCheck    — compare challenger vs champion metrics
 ```
 
 ---
@@ -131,7 +130,7 @@ with Tapestry() as t:
 
 - **All pipelines require `pirn[ml]` and the relevant model library** (e.g. `pirn[torch]`, `pirn[sklearn]`).
 - **`CanaryDeployer` manages traffic weights externally** — it emits a weight configuration; the serving layer (model server, feature flag system) must apply it. pirn does not serve models.
-- **`ChampionChallengerGate` is a `Gate`** — if the challenger does not beat the champion metric, it emits `Err`, stopping the downstream promote-to-production knot chain.
+- **`ChampionChallengerCheck` reports, it does not halt** — it returns `{"challenger_wins": bool, "comparison": ...}`; wire a real `Gate(check=result["challenger_wins"], ...)` downstream if a losing challenger should stop the promote-to-production knot chain.
 - **`ActiveLearningLoop` iterates within a single tapestry run.** Set `max_iterations` to bound the number of query-label cycles per run.
 
 ---

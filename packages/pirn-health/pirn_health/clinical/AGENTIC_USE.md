@@ -4,7 +4,7 @@ Processes clinical data — HL7v2 parsing, ICD/SNOMED/RxNorm coding, NLP extract
 
 Clinical knots are stateless transforms: each accepts structured or semi-structured clinical data and emits normalised, coded records. Coding knots (`ICD10CodeValidator`, `RxNormMapper`, `SnomedHierarchyExpander`) are pure lookup-and-validate steps; NLP knots (`ClinicalNLPExtractor`, `NoteSectionSplitter`) extract structured facts from unstructured text.
 
-The `ClinicalDataQualityCheck` sits between ingestion and downstream analytics (`ClinicalDataQualityGate` is a backward-compatible alias for the same class). It raises `ClinicalDataQualityError` when records violate configured thresholds (missing required fields, out-of-range values, invalid codes) so that bad data fails loudly before reaching cohort or risk models. All other knots are unconditional — quality enforcement belongs in the check.
+The `ClinicalDataQualityCheck` sits between ingestion and downstream analytics. It raises `ClinicalDataQualityError` when records violate configured thresholds (missing required fields, out-of-range values, invalid codes) so that bad data fails loudly before reaching cohort or risk models. All other knots are unconditional — quality enforcement belongs in the check.
 
 PHI passes through this layer only as already-redacted fields originating from the connector layer (`Hl7v2Format`, `FhirJsonFormat`, etc.). These knots do not re-introduce raw identifiers.
 
@@ -14,7 +14,6 @@ PHI passes through this layer only as already-redacted fields originating from t
 pirn_health/clinical/
 ├── clinical_data_quality_error.py       ClinicalDataQualityError         — typed error for quality check failures
 ├── clinical_data_quality_check.py       ClinicalDataQualityCheck         — quality check; raises ClinicalDataQualityError on failure
-├── clinical_data_quality_gate.py        ClinicalDataQualityGate          — backward-compatible alias for ClinicalDataQualityCheck
 ├── clinical_nlp_extractor.py            ClinicalNLPExtractor             — NLP extraction of clinical entities from free text
 ├── clinical_trial_eligibility_filter.py ClinicalTrialEligibilityFilter   — filters patients against trial inclusion/exclusion criteria
 ├── _dedup_rx_cuis.py                    (internal)                        — RxNorm CUI deduplication helper; not a public knot

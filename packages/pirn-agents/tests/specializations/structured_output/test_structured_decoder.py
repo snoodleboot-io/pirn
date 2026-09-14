@@ -1,4 +1,4 @@
-"""Tests for the unified :class:`StructuredDecoder` / :func:`structured_decode` (F20-S4)."""
+"""Tests for the unified :class:`StructuredDecoder` / :meth:`StructuredDecoder.decode_once` (F20-S4)."""
 
 from __future__ import annotations
 
@@ -8,7 +8,6 @@ from pydantic import BaseModel
 
 from pirn_agents.specializations.structured_output.structured_decoder import (
     StructuredDecoder,
-    structured_decode,
 )
 from pirn_agents.specializations.structured_output.structured_output_capability import (
     StructuredOutputCapability,
@@ -121,7 +120,9 @@ class TestStructuredDecodeFunction(unittest.IsolatedAsyncioTestCase):
             structured_response=content_response(_VALID_JSON),
         )
 
-        instance = await structured_decode(prompt="extract", llm=provider, model_class=_UserRecord)
+        instance = await StructuredDecoder.decode_once(
+            prompt="extract", llm=provider, model_class=_UserRecord
+        )
 
         assert isinstance(instance, _UserRecord)
         assert instance.age == 36

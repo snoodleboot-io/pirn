@@ -34,7 +34,6 @@ from tests.store_inventory import StoreInventory
 
 STORE_CLASSES = frozenset(
     {
-        "batch/batch_checkpointer.py::BatchCheckpointer",
         "caching/in_memory_result_cache.py::InMemoryResultCache",
         "caching/result_cache.py::ResultCache",
         "caching/semantic_result_cache.py::SemanticResultCache",
@@ -43,15 +42,15 @@ STORE_CLASSES = frozenset(
         # keys and holds no values — values live in core DataStore. Not a KV store.
         "caching/vector_memo_index.py::VectorMemoIndex",
         "connectors/streaming_s3_store.py::StreamingS3Store",
-        "determinism/cassette_store.py::CassetteStore",
-        "determinism/file_cassette_store.py::FileCassetteStore",
-        "determinism/in_memory_cassette_store.py::InMemoryCassetteStore",
         "memory/stores/data_store_memory_store.py::DataStoreMemoryStore",
         # ADR agents-speaks-core WS3 part 4: the keyed-identity primitive every
         # other keyed store (DataStoreMemoryStore, SemanticMemoryUpsert,
-        # CrossSessionProfileUpdater, ThreadRepository/PersistedSessionStore's
-        # shims) now delegates to — a caller-chosen key is a knot id, backed by
-        # RunHistory/DataStore, not a hashed row in a KV table.
+        # CrossSessionProfileUpdater) now delegates to — a caller-chosen key is
+        # a knot id, backed by RunHistory/DataStore, not a hashed row in a KV
+        # table. ThreadRepository/PersistedSessionStore/SessionStore/
+        # InMemorySessionStore/CassetteStore/InMemoryCassetteStore/
+        # FileCassetteStore/BatchCheckpointer -- the one-cycle shims this store
+        # existed to eventually replace -- are deleted (PIR-864).
         "memory/stores/keyed_lineage_store.py::KeyedLineageStore",
         "memory/stores/memory_store.py::MemoryStore",
         "retrieval/vector_stores/chroma_memory_store.py::ChromaMemoryStore",
@@ -59,10 +58,6 @@ STORE_CLASSES = frozenset(
         "retrieval/vector_stores/pgvector_memory_store.py::PgvectorMemoryStore",
         "retrieval/vector_stores/qdrant_memory_store.py::QdrantMemoryStore",
         "retrieval/vector_stores/vector_memory_store.py::VectorMemoryStore",
-        "sessions/in_memory_session_store.py::InMemorySessionStore",
-        "sessions/persisted_session_store.py::PersistedSessionStore",
-        "sessions/session_store.py::SessionStore",
-        "sessions/thread_repository.py::ThreadRepository",
     }
 )
 
@@ -78,17 +73,15 @@ STORE_CLASSES = frozenset(
 # again, 9 to 7: determinism/checkpoint_forker.py and fork_result.py no
 # longer import RunState/RunCheckpoint either — a fork is now a branch of the
 # run chain (ResumeToken-shaped fork point + ReplaySession(allow_new_knots=
-# True)), not a RunCheckpoint rewind. The remaining seven are one-cycle
-# deprecated shims (sessions/* and the batch/ pair, outside this lane).
+# True)), not a RunCheckpoint rewind. PIR-864 deleted the remaining five
+# one-cycle shims this list named (sessions/* and batch/batch_checkpointer.py),
+# leaving two real, non-deprecated importers: batch/batch_progress.py (its
+# to_run_state()/from_run_state() bridge, kept for a possible future durable
+# caller — see its module docstring) and sessions/run_resumer.py.
 LIFECYCLE_IMPORTERS = frozenset(
     {
-        "batch/batch_checkpointer.py",
         "batch/batch_progress.py",
-        "sessions/in_memory_session_store.py",
-        "sessions/persisted_session_store.py",
-        "sessions/run_checkpointer.py",
         "sessions/run_resumer.py",
-        "sessions/session_store.py",
     }
 )
 
@@ -102,8 +95,10 @@ class TestStoreInventoryIsFrozen(unittest.TestCase):
         assert len(found) >= 10, len(found)
 
     def test_the_importer_walk_is_not_vacuous(self) -> None:
+        # PIR-864 deleted five of the seven prior importers (one-cycle shims);
+        # two real importers remain -- see LIFECYCLE_IMPORTERS above.
         found = StoreInventory.discover_lifecycle_importers()
-        assert len(found) >= 5, len(found)
+        assert len(found) >= 2, len(found)
 
     def test_keyed_store_classes_are_frozen(self) -> None:
         found = frozenset(StoreInventory.discover_store_classes())

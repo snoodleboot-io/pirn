@@ -1,14 +1,17 @@
-"""``ToolResult`` — the deprecated, one-cycle view of a tool call's ``Result``.
+"""``ToolResult`` — the model-facing rendering of a tool call's ``Result``.
 
 Since the ADR "agents speaks core" (WS1) a tool call is a knot, and its outcome
 is the engine's ``Ok | Err | Skipped`` plus the ``KnotLineage`` row the run
-records under the call's id — that is what a codec, a synthesiser or a
-session reads now.  ``ToolResult`` remains for one deprecation cycle as a
-*view* over that pair for callers that still expect the pre-ADR shape: every
-executor builds it through the single :meth:`from_result`, and nothing else
-constructs one.  ``latency`` is derived from the lineage row's timestamps
-when a row is given and is ``None`` otherwise; ``tokens`` is a caller-supplied
-annotation a bare ``Result`` never carries.
+records under the call's id — that is the source of truth every executor
+reads. ``ToolResult`` is the *view* :class:`~pirn_agents.tools.tool_call_codec.ToolCallCodec`
+renders that outcome into for the model (and for any other caller that wants
+the pre-knot shape): every executor builds it through the single
+:meth:`from_result`, and nothing else constructs one. This is not a
+one-cycle shim — PIR-865 (#348) gave it and :class:`~pirn_agents.tools.tool_status.ToolStatus.SKIPPED`
+a live, actively-maintained role rendering gated/approval outcomes, so it
+stays. ``latency`` is derived from the lineage row's timestamps when a row is
+given and is ``None`` otherwise; ``tokens`` is a caller-supplied annotation a
+bare ``Result`` never carries.
 
 A ``Skipped`` outcome renders as :attr:`~pirn_agents.tools.tool_status.ToolStatus.SKIPPED`
 (PIR-865), not ``ERROR``: the call deliberately did not run — most commonly a
@@ -36,7 +39,7 @@ from pirn_agents.tools.tool_status import ToolStatus
 
 @dataclass(frozen=True)
 class ToolResult(PirnOpaqueValue):
-    """Deprecated view of one tool call's ``Result`` (build it with :meth:`from_result`).
+    """The model-facing view of one tool call's ``Result`` (build it with :meth:`from_result`).
 
     Attributes
     ----------

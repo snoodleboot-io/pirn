@@ -3,18 +3,16 @@
 The "agents speaks core" ADR (2026-09-13), WS4b ("one scheduler"): batch
 execution should be the core engine's ``Map``/``Aggregator``/``Dispatcher``/
 ``AdmissionGate`` — not a private ``asyncio.wait`` loop, a hand-held
-``asyncio.Semaphore``, or a checkpoint store outside ``RunHistory``. The
-classes below are what remained after WS4b's own migration
-(``MapAgent`` → per-item knots + ``Aggregator``;
-``AdaptiveConcurrencyController`` → ``AdmissionObserver``): one
-deliberately-kept deprecated shim (``BatchScheduler``, plus
-``BatchCheckpointer`` and the value type ``BatchProgress`` that bridges to
-the old checkpoint shape) with zero external callers left in this tree.
-PIR-866 migrated the two primitives WS4b did not own the blast radius for
+``asyncio.Semaphore``, or a checkpoint store outside ``RunHistory``. WS4b's
+own migration (``MapAgent`` → per-item knots + ``Aggregator``;
+``AdaptiveConcurrencyController`` → ``AdmissionObserver``) left one
+deliberately-kept deprecated shim (``BatchScheduler`` plus
+``BatchCheckpointer``) with zero external callers in this tree; PIR-864
+deletes both outright, so ``ASYNCIO_LOOP`` is now empty. PIR-866 migrated
+the two primitives WS4b did not own the blast radius for
 (``BackpressureSemaphore``, ``Bulkhead``) onto a real
-``pirn.engine.admission.limited_admission_gate.LimitedAdmissionGate`` per
-pool (``pirn_agents.performance._backpressure_admission._BackpressureAdmission``), so
-``OWN_CONCURRENCY_LIMIT`` below is empty.
+``LimitedAdmissionGate`` per pool, and PIR-864 deletes both of those too
+(``OWN_CONCURRENCY_LIMIT`` was already empty).
 
 The allowlists are asserted by **exact equality**, deliberately:
 
@@ -22,9 +20,9 @@ The allowlists are asserted by **exact equality**, deliberately:
 * migrating one *without* updating the list also fails, because the list
   still names it.
 
-The second half is what keeps the list from rotting into a lie. When a later
-workstream retires ``BatchScheduler``/``BatchCheckpointer`` outright, delete
-the corresponding line and watch this test go green.
+The second half is what keeps the list from rotting into a lie. Empty lists
+are kept as ``frozenset()`` assertions, not deleted, so a reintroduced
+private loop/semaphore/checkpoint still fails loudly here.
 """
 
 from __future__ import annotations
@@ -36,21 +34,23 @@ from tests.batch.one_scheduler_inventory import OneSchedulerInventory
 
 # --- known shadows, frozen (ADR agents-speaks-core, WS4b) -------------------
 
-ASYNCIO_LOOP = frozenset({"batch/batch_scheduler.py::BatchScheduler"})
+# BatchScheduler deleted (PIR-864); see the module docstring.
+ASYNCIO_LOOP: frozenset[str] = frozenset()
 
-# PIR-866 migrated both off their own asyncio.Semaphore: BackpressureSemaphore
-# and Bulkhead now delegate every admission decision to a real
-# pirn.engine.admission.limited_admission_gate.LimitedAdmissionGate through
-# the shared pirn_agents.performance._backpressure_admission._BackpressureAdmission --
-# see its module docstring. Empty, not deleted: a re-introduced private
-# semaphore anywhere in these three directories still fails loudly here.
+# PIR-866 migrated both off their own asyncio.Semaphore, and PIR-864 deleted
+# BackpressureSemaphore/Bulkhead outright -- see the module docstring. Empty,
+# not deleted: a re-introduced private semaphore anywhere in these three
+# directories still fails loudly here.
 OWN_CONCURRENCY_LIMIT: frozenset[str] = frozenset()
 
+# BatchCheckpointer/BatchScheduler deleted (PIR-864); BatchProgress remains --
+# it is not itself a deprecated shim, and TriggeredBatch's live run() still
+# returns it as its per-fire summary (its to_run_state()/from_run_state()
+# bridge, the only reason it names RunState here, has no production caller
+# left but is kept, tested and correct -- see its module docstring).
 CHECKPOINTS_OUTSIDE_RUN_HISTORY = frozenset(
     {
-        "batch/batch_checkpointer.py::BatchCheckpointer",
         "batch/batch_progress.py::BatchProgress",
-        "batch/batch_scheduler.py::BatchScheduler",
     }
 )
 
@@ -63,8 +63,10 @@ class TestOneSchedulerShadowsAreFrozen(unittest.TestCase):
 
     def test_the_walk_is_not_vacuous(self) -> None:
         """A guard that finds nothing passes for the wrong reason."""
+        # PIR-864 deleted BatchScheduler/BatchCheckpointer/BackpressureSemaphore/
+        # Bulkhead; only BatchProgress remains in CHECKPOINTS_OUTSIDE_RUN_HISTORY.
         total = sum(len(labels) for labels in self.found.values())
-        assert total >= 3, self.found
+        assert total >= 1, self.found
 
     def test_asyncio_loop_shadows_are_frozen(self) -> None:
         found = self.found["asyncio_loop"]

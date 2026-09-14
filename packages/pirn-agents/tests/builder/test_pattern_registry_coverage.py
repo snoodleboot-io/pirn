@@ -107,14 +107,6 @@ _EXPECTED_EXCLUSIONS = frozenset(
         "pirn_agents.specializations.routing._fallback_loop._FallbackLoop",
         # Private: the per-candidate step FallbackChain drives internally (PIR-856).
         "pirn_agents.specializations.routing._candidate_attempt._CandidateAttempt",
-        # Deprecated *Gate aliases (PIR-856, Knot Design Rule 7): reachable only
-        # under their replacement *Check name, which is what is registered.
-        "pirn_agents.specializations.guardrails.fact_check_gate.FactCheckGate",
-        "pirn_agents.specializations.guardrails.input_guardrail_gate.InputGuardrailGate",
-        "pirn_agents.specializations.guardrails.output_guardrail_gate.OutputGuardrailGate",
-        # Deprecated alias (ADR agents-speaks-core WS5b): reachable only under
-        # its replacement name ConsensusPipeline, which is what is registered.
-        "pirn_agents.specializations.multi_agent.consensus_aggregator.ConsensusAggregator",
         # PIR-867: newly AgentPipeline (was a plain Knot before its bypass fix)
         # — private fan-out bodies another pipeline drives internally.
         "pirn_agents.specializations.document_processing._chunk_embedder_store._ChunkEmbedderStore",
@@ -286,26 +278,23 @@ _COMPOSED_STAGES = frozenset(
     }
 )
 
-#: Deprecated ``*Gate`` alias classes (PIR-856, Knot Design Rule 7): each is a
+#: Deprecated ``*Gate`` alias classes (PIR-856, Knot Design Rule 7): each was a
 #: thin subclass kept importable for one cycle; the registry names the
-#: replacement ``*Check`` class, so the alias itself is never reachable by name.
-_DEPRECATED_ALIASES = frozenset(
-    {
-        "pirn_agents.specializations.guardrails.fact_check_gate.FactCheckGate",
-        "pirn_agents.specializations.guardrails.input_guardrail_gate.InputGuardrailGate",
-        "pirn_agents.specializations.guardrails.output_guardrail_gate.OutputGuardrailGate",
-    }
-)
+#: replacement ``*Check`` class, so the alias itself was never reachable by
+#: name. Empty now that FactCheckGate/InputGuardrailGate/OutputGuardrailGate
+#: have been deleted, PIR-864 -- kept as a frozenset rather than removed so a
+#: reintroduced ``*Gate`` shim is still caught by
+#: :func:`test_the_exclusion_set_is_exactly_what_is_excluded`.
+_DEPRECATED_ALIASES: frozenset[str] = frozenset()
 
 #: Deprecated rename aliases that are not the ``*Gate`` shape above (ADR
-#: agents-speaks-core WS5b): each is a thin subclass of its replacement, kept
+#: agents-speaks-core WS5b): each was a thin subclass of its replacement, kept
 #: importable for one cycle; the registry names the replacement class, so the
-#: alias itself is never reachable by name.
-_DEPRECATED_RENAMES = frozenset(
-    {
-        "pirn_agents.specializations.multi_agent.consensus_aggregator.ConsensusAggregator",
-    }
-)
+#: alias itself was never reachable by name. Empty now that
+#: ``ConsensusAggregator`` (the only member) has been deleted, PIR-864 --
+#: kept as a frozenset rather than removed so a reintroduced rename shim is
+#: still caught by :func:`test_the_exclusion_set_is_exactly_what_is_excluded`.
+_DEPRECATED_RENAMES: frozenset[str] = frozenset()
 
 
 def test_the_excluded_bases_are_bases_and_the_excluded_private_is_private() -> None:
