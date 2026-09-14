@@ -31,9 +31,8 @@ def _walk_knot_subclasses(package: object) -> tuple[set[str], list[str]]:
 
     Identity is keyed by the class's own ``__module__.__qualname__``, not by
     whatever module-level attribute name it happens to be bound to. A
-    deprecated-name alias (``OldName = NewName``, the pattern this repo's
-    PIR-856 remediation uses to keep a renamed public class importable under
-    its old name) binds a second name to the *same* class object; sweet_tea's
+    module-level alias (``OtherName = SomeClass``) binds a second name to the
+    *same* class object; sweet_tea's
     ``Registry`` likewise registers both names but with an identical
     ``class_def``, so comparing by alias name would flag the alias as
     "missing" even though the class it refers to is fully registered.
