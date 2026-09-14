@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from pirn.core.hashing import content_hash
 
@@ -63,7 +63,7 @@ class InvocationIdentity:
 
     #: Marker ``content_hash`` emits when a value has no canonical form.  Every
     #: instance of such a type shares it, so it can never establish identity.
-    UNCOMPARABLE_MARKER = ":unhashable:"
+    uncomparable_marker: ClassVar[str] = ":unhashable:"
 
     @staticmethod
     def config_values_hash(knot: Knot) -> str | None:
@@ -103,4 +103,4 @@ class InvocationIdentity:
         """
         if config_values_hash is None:
             return True
-        return cls.UNCOMPARABLE_MARKER not in config_values_hash
+        return cls.uncomparable_marker not in config_values_hash

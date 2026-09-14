@@ -48,7 +48,7 @@ class TestValueRetentionCapability(unittest.TestCase):
     def test_in_memory_data_store_declares_a_bound(self) -> None:
         retention = InMemoryDataStore().retention
         self.assertTrue(retention.is_bounded)
-        self.assertEqual(retention.max_values, InMemoryDataStore.DEFAULT_MAX_VALUES)
+        self.assertEqual(retention.max_values, InMemoryDataStore.default_max_values)
 
     def test_bound_is_configurable(self) -> None:
         self.assertEqual(InMemoryDataStore(max_values=7).retention.max_values, 7)
