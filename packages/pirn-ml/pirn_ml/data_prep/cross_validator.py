@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``CrossValidator`` — produce K logical :class:`SplitManifest` folds.
 
 Algorithm:
@@ -71,11 +73,11 @@ class CrossValidator(Knot):
         """
         if isinstance(dataset, DatasetPayload):
             dataset = dataset.manifest
-        if not isinstance(k, int):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(k, int):
             raise TypeError("CrossValidator: k must be an int")
         if k < 2:
             raise ValueError("CrossValidator: k must be >= 2")
-        if not isinstance(random_seed, int):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(random_seed, int):
             raise TypeError("CrossValidator: random_seed must be an int")
         total = int(dataset.row_count)
         if total < k:

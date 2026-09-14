@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``BiasDetector`` — SubTapestry wrapper around :class:`FairnessAudit`.
 
 Produces a per-group :class:`EvalMetadata` for the configured sensitive

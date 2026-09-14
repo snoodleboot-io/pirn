@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FairnessAudit`` — per-group metric audit (demographic parity / equal
 opportunity).
 
@@ -84,7 +86,7 @@ class FairnessAudit(Knot):
         if not column_tuple:
             raise ValueError("FairnessAudit: sensitive_columns must be non-empty")
         for column in column_tuple:
-            if not isinstance(column, str) or not column:  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+            if not isinstance(column, str) or not column:
                 raise ValueError(
                     "FairnessAudit: every sensitive column name must be a non-empty string"
                 )

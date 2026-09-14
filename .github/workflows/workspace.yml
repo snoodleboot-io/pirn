@@ -160,6 +160,15 @@ jobs:
           p='${{ matrix.package }}'
           if [ "$p" = "pirn-core" ]; then imp=pirn; else imp="${p/pirn-/pirn_}"; fi
           echo "imp=$imp" >> "$GITHUB_OUTPUT"
+          # Type-check against current cross-package code, not the wheel baked into
+          # the image: a sibling's annotations (or its py.typed marker) change what
+          # pyright sees. Same refresh as the test job.
+          case "$p" in
+            pirn-core) xr="" ;;
+            pirn-ml)   xr="--reinstall-package pirn-core --reinstall-package pirn-data" ;;
+            *)         xr="--reinstall-package pirn-core" ;;
+          esac
+          echo "xr=$xr" >> "$GITHUB_OUTPUT"
       - name: Install package editable (deps pre-baked) + ruff + pyright
         run: |
           set -euo pipefail
@@ -170,7 +179,8 @@ jobs:
           # 0.15.x is deliberate: adopting 0.16.0's markdown formatting is a ~571-file
           # workspace-wide reformat of questionable value, not bundled here. Keep these
           # aligned with .pre-commit-config.yaml.
-          uv pip install --system --find-links dist/ -e "packages/${{ matrix.package }}" 'ruff==0.15.22' 'pyright==1.1.411'
+          uv pip install --system --find-links dist/ ${{ steps.pkg.outputs.xr }} \
+            -e "packages/${{ matrix.package }}" 'ruff==0.15.22' 'pyright==1.1.411'
       - name: Ruff lint + format (package's own config)
         # Run from INSIDE the package, like the pyright step below (PIR-760).
         # Ruff infers first-party packages from the working directory: invoked

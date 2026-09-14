@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PredictionIntervalEstimator`` — Knot that fits a conformal prediction
 wrapper to produce calibrated prediction intervals alongside point predictions.
 

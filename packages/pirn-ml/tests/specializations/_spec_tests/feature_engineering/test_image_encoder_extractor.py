@@ -1,4 +1,4 @@
-"""Tests for :class:`_ImageEncoderExtractor`."""
+"""Tests for :class:`ImageEncoderExtractor`."""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_ml.specializations.feature_engineering._image_encoder_extractor import (
-    _ImageEncoderExtractor,
+from pirn_ml.specializations.feature_engineering.image_encoder_extractor import (
+    ImageEncoderExtractor,
 )
 from pirn_ml.types.dataset_manifest import DatasetManifest
 from pirn_ml.types.split_manifest import SplitManifest
@@ -26,7 +26,7 @@ def _split_fixture() -> SplitManifest:
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_empty_image_column(self) -> None:
         with Tapestry():
-            k = _ImageEncoderExtractor.__new__(_ImageEncoderExtractor)
+            k = ImageEncoderExtractor.__new__(ImageEncoderExtractor)
             object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaises((TypeError, ValueError)):
             await k.process(
@@ -37,7 +37,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_non_provider(self) -> None:
         with Tapestry():
-            k = _ImageEncoderExtractor.__new__(_ImageEncoderExtractor)
+            k = ImageEncoderExtractor.__new__(ImageEncoderExtractor)
             object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaises((TypeError, ValueError)):
             await k.process(

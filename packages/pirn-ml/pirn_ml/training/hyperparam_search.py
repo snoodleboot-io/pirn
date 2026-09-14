@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``HyperparamSearch`` — grid / random / bayesian search over an
 algorithm's hyperparameter space.
 
@@ -135,13 +137,13 @@ class HyperparamSearch(Knot):
 
     def _enumerate(
         self,
-        search_space: MappingProxyType,  # type: ignore[type-arg]
+        search_space: Mapping[str, tuple[Any, ...]],
         strategy: str,
         n_trials: int,
         random_seed: int,
     ) -> list[dict[str, Any]]:
-        names = list(search_space.keys())
-        value_lists = [list(search_space[n]) for n in names]
+        names: list[str] = list(search_space.keys())
+        value_lists: list[tuple[Any, ...]] = [search_space[n] for n in names]
         if strategy == "grid":
             return [
                 dict(zip(names, combo, strict=False)) for combo in itertools.product(*value_lists)
@@ -149,7 +151,9 @@ class HyperparamSearch(Knot):
         # random + bayesian both walk the cartesian product up to n_trials,
         # the bayesian variant additionally shuffles to a deterministic order.
         rng = random.Random(random_seed)
-        full = [dict(zip(names, combo, strict=False)) for combo in itertools.product(*value_lists)]
+        full: list[dict[str, Any]] = [
+            dict(zip(names, combo, strict=False)) for combo in itertools.product(*value_lists)
+        ]
         rng.shuffle(full)
         return full[:n_trials]
 

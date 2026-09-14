@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``Trainer`` — train one model on a :class:`SplitManifest.train` slice.
 
 At this orchestration layer the knot does not actually fit a model; it

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FullTrainDeployPipeline`` — end-to-end SubTapestry: data load,
 train/test split, train, evaluate, serialise, register, predict on a
 holdout slice.
@@ -53,7 +55,7 @@ async def _holdout_features(split: SplitManifest) -> list[Mapping[str, Any]]:
     # downstream :class:`Predictor` has something to score. The orchestration
     # layer never materialises actual data here; concrete subclasses replace
     # this with a real feature loader.
-    rows = []
+    rows: list[Mapping[str, Any]] = []
     for index in range(int(split.test.row_count)):
         row: dict[str, Any] = {feature: float(index) for feature in split.test.feature_names}
         rows.append(row)
