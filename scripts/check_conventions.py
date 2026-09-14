@@ -184,22 +184,6 @@ _MODULE_LEVEL_FUNCTION_ALLOWLIST: dict[str, str] = {
     "pirn-agents:pirn_agents.memory.management.decay_function:decay_score": (
         "memory decay scoring documented in MEMORY_MANAGEMENT.md"
     ),
-    # Public surface declared by pirn_agents/testing/__init__.py.
-    "pirn-agents:pirn_agents.testing.tool_test_harness:make_stub_tool": (
-        "tool testing kit factory declared public by pirn_agents.testing"
-    ),
-    "pirn-agents:pirn_agents.testing.tool_test_harness:assert_tool_schema": (
-        "tool testing kit assertion declared public by pirn_agents.testing"
-    ),
-    "pirn-agents:pirn_agents.testing.tool_test_harness:assert_schema_shape": (
-        "tool testing kit assertion declared public by pirn_agents.testing"
-    ),
-    "pirn-agents:pirn_agents.testing.tool_test_harness:invoke_tool": (
-        "tool testing kit invocation driver declared public by pirn_agents.testing"
-    ),
-    "pirn-agents:pirn_agents.testing.tool_test_harness:collect_tool_stream": (
-        "tool testing kit stream driver declared public by pirn_agents.testing"
-    ),
     # Toolset bundles documented in pirn_agents/TOOLS.md.
     "pirn-agents:pirn_agents.tools.bundles:calculator_toolset": (
         "bundle factory documented in TOOLS.md"

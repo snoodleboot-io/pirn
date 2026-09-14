@@ -168,13 +168,16 @@ class TestExceptionRootsFrozen(unittest.TestCase):
         }
 
     def test_ws2_owned_roots_now_have_pirn_error(self) -> None:
-        """The 8 roots WS2 fixed must actually resolve PirnError, not just be absent above."""
+        """The roots WS2 fixed must actually resolve PirnError, not just be absent above.
+
+        WS2 fixed 8; ``MissingCassetteEntryError`` was deleted with the cassette
+        recorder it served (PIR-872), leaving 7.
+        """
         fixed = [
             "ToolInvocationError",
             "AgentRecursionError",
             "SandboxDisabledError",
             "UnsupportedModalityError",
-            "MissingCassetteEntryError",
             "InjectionDetectedError",
             "McpTrustError",
             "UntrustedDirectiveError",

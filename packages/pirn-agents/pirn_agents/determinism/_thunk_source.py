@@ -10,7 +10,7 @@ from pirn.nodes.source import Source
 
 
 class _ThunkSource(Source):
-    """Wraps an arbitrary async thunk so :class:`CassetteRecorder` can run or
+    """Wraps an arbitrary async thunk so :class:`KeyedLineageStore` can run or
     replay it as an ordinary knot.
 
     The thunk is bound via :meth:`bind` — after construction, not as an

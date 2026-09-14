@@ -13,7 +13,6 @@ from pirn.exceptions.pirn_error import PirnError
 from pirn_agents.exceptions.agent_cycle_error import AgentCycleError
 from pirn_agents.exceptions.agent_depth_exceeded_error import AgentDepthExceededError
 from pirn_agents.exceptions.agent_recursion_error import AgentRecursionError
-from pirn_agents.exceptions.missing_cassette_entry_error import MissingCassetteEntryError
 from pirn_agents.exceptions.sandbox_disabled_error import SandboxDisabledError
 from pirn_agents.exceptions.tool_argument_validation_error import ToolArgumentValidationError
 from pirn_agents.exceptions.tool_cancelled_error import ToolCancelledError
@@ -34,7 +33,6 @@ from pirn_agents.security.untrusted_directive_error import UntrustedDirectiveErr
         (AgentRecursionError, RuntimeError),
         (SandboxDisabledError, RuntimeError),
         (UnsupportedModalityError, ValueError),
-        (MissingCassetteEntryError, LookupError),
         (InjectionDetectedError, Exception),
         (McpTrustError, Exception),
         (UntrustedDirectiveError, Exception),
@@ -63,7 +61,6 @@ def test_except_pirn_error_catches_every_fixed_exception() -> None:
         lambda: AgentRecursionError(),
         lambda: SandboxDisabledError(),
         lambda: UnsupportedModalityError("image", "text-only"),
-        lambda: MissingCassetteEntryError("k", "llm"),
         lambda: InjectionDetectedError(
             InjectionVerdict(flagged=True, score=1.0, decided_by="heuristic", reason="x")
         ),

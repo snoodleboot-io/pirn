@@ -2,29 +2,29 @@
 
 The kit gives tool authors two things:
 
-* **Schema assertions** — :func:`assert_tool_schema` (exact match) and
-  :func:`assert_schema_shape` (partial: required names + per-property
-  fragments) check the declaration a tool advertises.
-* **Invocation drivers** — :func:`invoke_tool` runs one call outside the
-  engine and returns its value (raising on a failed call) and
-  :func:`collect_tool_stream` drains a streaming tool, both returning the
-  observed output for assertion.
+* **Schema assertions** — :meth:`ToolTestHarness.assert_tool_schema` (exact
+  match) and :meth:`ToolTestHarness.assert_tool_schema_shape` (partial: required
+  names + per-property fragments) check the declaration a tool advertises.
+* **Drivers** — :meth:`ToolTestHarness.run_tool` runs one call through the
+  engine (a real ``Tapestry.run`` of the call's knot, approval gate and all)
+  and returns its value, raising on a failed or skipped call;
+  :meth:`ToolTestHarness.collect_tool_stream` drains a streaming tool.
 
 Every helper accepts anything :meth:`ToolFactory.of` accepts — a ``Tool``
 class, a ``@tool`` factory, a :class:`StubTool`, a bound factory (ADR
-agents-speaks-core, WS1).  :class:`ToolTestHarness` bundles a single tool
-with those helpers for a fluent style. Worked example::
+agents-speaks-core, WS1).  A :class:`ToolTestHarness` instance bundles a single
+tool with those helpers for a fluent style. Worked example::
 
-    from pirn_agents.testing import ToolTestHarness, make_stub_tool
+    from pirn_agents.testing.tool_test_harness import ToolTestHarness
 
     async def test_echo() -> None:
-        harness = ToolTestHarness(make_stub_tool(name="echo", result="hi"))
+        harness = ToolTestHarness(ToolTestHarness.make_stub_tool(name="echo", result="hi"))
         harness.assert_schema_shape(required=(), properties={"input": {"type": "string"}})
-        assert await harness.invoke({"input": "x"}) == "hi"
+        assert await harness.run({"input": "x"}) == "hi"
 
     async def test_stream() -> None:
-        harness = ToolTestHarness(make_stub_tool(name="gen", stream_chunks=["a", "b"]))
-        assert await harness.collect_stream({}) == ["a", "b"]
+        stub = ToolTestHarness.make_stub_tool(name="gen", stream_chunks=["a", "b"])
+        assert await ToolTestHarness(stub).collect_stream({}) == ["a", "b"]
 """
 
 from __future__ import annotations
@@ -34,22 +34,21 @@ from typing import Any
 
 from pirn.core.err import Err
 from pirn.core.ok import Ok
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 
 from pirn_agents.exceptions.tool_invocation_error import ToolInvocationError
 from pirn_agents.testing.stub_tool import StubTool
 from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_call_codec import ToolCallCodec
 from pirn_agents.tools.tool_factory import ToolFactory
 
 
 class ToolTestHarness:
-    """Bundles one tool capability with schema assertions and invocation drivers.
+    """Bundles one tool capability with schema assertions and engine drivers.
 
-    The static methods below (prefixed ``_``) are the shared implementation
-    for both the instance API and the module-level free functions
-    (:func:`make_stub_tool`, :func:`assert_tool_schema`,
-    :func:`assert_schema_shape`, :func:`invoke_tool`,
-    :func:`collect_tool_stream`) documented as public API in
-    ``pirn_agents/testing/__init__.py``.
+    The static methods are the tool-agnostic helpers; the instance methods
+    apply them to the wrapped tool.
     """
 
     def __init__(self, tool: Any) -> None:
@@ -69,7 +68,7 @@ class ToolTestHarness:
 
     def assert_schema(self, expected: Mapping[str, Any]) -> None:
         """Assert the tool's declared parameters equal ``expected`` exactly."""
-        ToolTestHarness._assert_tool_schema(self._tool, expected)
+        ToolTestHarness.assert_tool_schema(self._tool, expected)
 
     def assert_schema_shape(
         self,
@@ -78,19 +77,17 @@ class ToolTestHarness:
         properties: Mapping[str, Mapping[str, Any]] | None = None,
     ) -> None:
         """Assert the tool's declaration names ``required`` and ``properties``."""
-        ToolTestHarness._assert_schema_shape(self._tool, required=required, properties=properties)
+        ToolTestHarness.assert_tool_schema_shape(
+            self._tool, required=required, properties=properties
+        )
 
     async def run(self, arguments: Mapping[str, Any]) -> Any:
-        """Run one call outside the engine and return its value."""
-        return await ToolTestHarness._invoke_tool(self._tool, arguments)
-
-    async def invoke(self, arguments: Mapping[str, Any]) -> Any:
-        """Run one call outside the engine and return its value (alias of :meth:`run`)."""
-        return await ToolTestHarness._invoke_tool(self._tool, arguments)
+        """Run one call through the engine and return its value."""
+        return await ToolTestHarness.run_tool(self._tool, arguments)
 
     async def collect_stream(self, arguments: Mapping[str, Any]) -> list[Any]:
         """Drain the wrapped streaming tool into a list of chunks."""
-        return await ToolTestHarness._collect_tool_stream(self._tool, arguments)
+        return await ToolTestHarness.collect_tool_stream(self._tool, arguments)
 
     async def assert_invokes_to(self, arguments: Mapping[str, Any], expected: Any) -> None:
         """Assert a call with ``arguments`` returns ``expected``."""
@@ -111,12 +108,12 @@ class ToolTestHarness:
             )
 
     @staticmethod
-    def _make_stub_tool(**kwargs: Any) -> StubTool:
+    def make_stub_tool(**kwargs: Any) -> StubTool:
         """Return a :class:`StubTool` configured by ``kwargs`` (factory helper)."""
         return StubTool(**kwargs)
 
     @staticmethod
-    def _assert_tool_schema(tool: Any, expected: Mapping[str, Any]) -> None:
+    def assert_tool_schema(tool: Any, expected: Mapping[str, Any]) -> None:
         """Assert the tool's declared parameters equal ``expected`` exactly."""
         factory = ToolFactory.of(tool)
         actual = dict(factory.declaration().parameters)
@@ -127,7 +124,7 @@ class ToolTestHarness:
             )
 
     @staticmethod
-    def _assert_schema_shape(
+    def assert_tool_schema_shape(
         tool: Any,
         *,
         required: Iterable[str] | None = None,
@@ -167,8 +164,14 @@ class ToolTestHarness:
                         )
 
     @staticmethod
-    async def _invoke_tool(tool: Any, arguments: Mapping[str, Any]) -> Any:
-        """Run one call of ``tool`` outside the engine and return its value.
+    async def run_tool(tool: Any, arguments: Mapping[str, Any]) -> Any:
+        """Run one call of ``tool`` through the engine and return its value.
+
+        The call's knot — behind its approval gate when the capability
+        requires one — is registered in a fresh ``Tapestry`` and run by the
+        engine, so validation, lineage and the gate are exactly what a real
+        run applies; the outcome is read back with
+        :meth:`ToolCallCodec.outcomes_of`.
 
         Raises
         ------
@@ -178,7 +181,10 @@ class ToolTestHarness:
         """
         factory = ToolFactory.of(tool)
         call = ToolCall(tool_name=factory.name, arguments=dict(arguments), call_id="harness")
-        result = await factory.run_call(call)
+        tapestry = Tapestry()
+        knot = factory.for_call(call, tapestry=tapestry)
+        run = await tapestry.run(RunRequest(), terminals=knot)
+        result = ToolCallCodec.outcomes_of(run, [call])[call.call_id]
         if isinstance(result, Ok):
             return result.value
         if isinstance(result, Err):
@@ -188,7 +194,7 @@ class ToolTestHarness:
         raise ToolInvocationError(f"skipped: {result.reason}", call.call_id)
 
     @staticmethod
-    async def _collect_tool_stream(tool: Any, arguments: Mapping[str, Any]) -> list[Any]:
+    async def collect_tool_stream(tool: Any, arguments: Mapping[str, Any]) -> list[Any]:
         """Drain a streaming ``tool`` for ``arguments`` into a list of chunks.
 
         Raises
@@ -200,58 +206,3 @@ class ToolTestHarness:
         if not factory.streaming:
             raise TypeError(f"tool {factory.name!r} is not a streaming tool")
         return await factory.collect_stream(arguments)
-
-
-def make_stub_tool(**kwargs: Any) -> StubTool:
-    """Return a :class:`StubTool` configured by ``kwargs`` (factory helper).
-
-    Thin wrapper kept for the documented public import path (see
-    ``pirn_agents/testing/__init__.py``); see :meth:`ToolTestHarness._make_stub_tool`.
-    """
-    return ToolTestHarness._make_stub_tool(**kwargs)  # pyright: ignore[reportPrivateUsage]  # public wrapper over the harness's own helper
-
-
-def assert_tool_schema(tool: Any, expected: Mapping[str, Any]) -> None:
-    """Assert ``tool``'s declared parameters equal ``expected`` exactly.
-
-    Thin wrapper kept for the documented public import path; see
-    :meth:`ToolTestHarness._assert_tool_schema`.
-    """
-    ToolTestHarness._assert_tool_schema(tool, expected)  # pyright: ignore[reportPrivateUsage]  # public wrapper over the harness's own helper
-
-
-def assert_schema_shape(
-    tool: Any,
-    *,
-    required: Iterable[str] | None = None,
-    properties: Mapping[str, Mapping[str, Any]] | None = None,
-) -> None:
-    """Assert ``tool``'s declaration names ``required`` and ``properties``.
-
-    Thin wrapper kept for the documented public import path; see
-    :meth:`ToolTestHarness._assert_schema_shape`.
-    """
-    ToolTestHarness._assert_schema_shape(tool, required=required, properties=properties)  # pyright: ignore[reportPrivateUsage]  # public wrapper over the harness's own helper
-
-
-async def invoke_tool(tool: Any, arguments: Mapping[str, Any]) -> Any:
-    """Run one call of ``tool`` outside the engine and return its value.
-
-    Thin wrapper kept for the documented public import path; see
-    :meth:`ToolTestHarness._invoke_tool`.
-    """
-    return await ToolTestHarness._invoke_tool(tool, arguments)  # pyright: ignore[reportPrivateUsage]  # public wrapper over the harness's own helper
-
-
-async def collect_tool_stream(tool: Any, arguments: Mapping[str, Any]) -> list[Any]:
-    """Drain a streaming ``tool`` for ``arguments`` into a list of chunks.
-
-    Thin wrapper kept for the documented public import path; see
-    :meth:`ToolTestHarness._collect_tool_stream`.
-
-    Raises
-    ------
-    TypeError
-        If ``tool`` is not a streaming tool.
-    """
-    return await ToolTestHarness._collect_tool_stream(tool, arguments)  # pyright: ignore[reportPrivateUsage]  # public wrapper over the harness's own helper

@@ -3,10 +3,13 @@
 Public surface:
 
 * :class:`StubTool` — a configurable sync/async/streaming/stateful tool double.
-* :class:`ToolTestHarness` — bundles a tool with schema + invocation assertions.
-* :func:`make_stub_tool` — :class:`StubTool` factory.
-* :func:`assert_tool_schema` / :func:`assert_schema_shape` — schema assertions.
-* :func:`invoke_tool` / :func:`collect_tool_stream` — invocation drivers.
+* :class:`ToolTestHarness` — bundles a tool with schema + engine-run assertions;
+  its static methods are the tool-agnostic helpers:
+  :meth:`~ToolTestHarness.make_stub_tool` (:class:`StubTool` factory),
+  :meth:`~ToolTestHarness.assert_tool_schema` /
+  :meth:`~ToolTestHarness.assert_tool_schema_shape` (schema assertions),
+  :meth:`~ToolTestHarness.run_tool` / :meth:`~ToolTestHarness.collect_tool_stream`
+  (drivers; a call runs through the engine).
 """
 
 from __future__ import annotations

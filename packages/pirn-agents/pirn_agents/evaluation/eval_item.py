@@ -16,8 +16,8 @@ class EvalItem(PirnOpaqueValue):
     Attributes
     ----------
     item_id:
-        Stable identifier for the case; also the default cassette key for
-        deterministic replay (F29).
+        Stable identifier for the case, carried onto its
+        :class:`~pirn_agents.evaluation.eval_case_result.EvalCaseResult`.
     input:
         The input mapping fed to the pattern/pipeline under test.
     expected:

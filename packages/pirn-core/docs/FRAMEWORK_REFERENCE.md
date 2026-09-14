@@ -281,7 +281,7 @@ scheduling once the chain locks, rather than a static unrolled chain that
 still built a knot per candidate past the lock point. 8 of the 18 agents
 exception roots the ADR found now also subclass `pirn.exceptions.pirn_error.PirnError`
 (`ToolInvocationError`, `AgentRecursionError`, `SandboxDisabledError`,
-`UnsupportedModalityError`, `MissingCassetteEntryError`, `InjectionDetectedError`,
+`UnsupportedModalityError`, `MissingCassetteEntryError` (deleted with its recorder, PIR-872), `InjectionDetectedError`,
 `McpTrustError`, `UntrustedDirectiveError`); the other 10 are frozen in
 `tests/test_core_vocabulary_ratchet.py`. `content_hash` (§4.4) is the one
 hashing path for new code; `ContentAddress`/`content_address()` were a
@@ -324,8 +324,9 @@ with no recorded row run live instead of raising `ReplayMismatchError`. A
 determinism fork (`CheckpointForker`) is a branch of the session chain — a
 `(run_id, output_hash)` fork point verified against the recording, then a new
 run chained via `_parent_run_id` that replays the prefix and executes whatever
-diverges. `CassetteRecorder` is now a thin adapter over `Tapestry.run()`/
-`Tapestry.run(replay=...)`; `TrajectoryEmitter` captures every knot's lineage
+diverges. `CassetteRecorder` became a thin adapter over `Tapestry.run()`/
+`Tapestry.run(replay=...)` here, and PIR-872 deleted it outright — callers use
+`Tapestry.run(replay=...)` directly (an eval: `RunEval.run(replay=...)`); `TrajectoryEmitter` captures every knot's lineage
 into a `RunTrace` via `on_lineage`, no manual `.record()` calls. `DataStore`
 and `RunHistory` both now mix in `PirnOpaqueValue` (§1.3), closing the gap
 that kept `Knot.process()` from declaring either as a typed parameter — WS3's
@@ -437,13 +438,22 @@ including its `TestClassLevelDefaultAccess` pin, `test_backpressure_semaphore.py
 `specializations/` pipelines (`document_processing/ingestion_pipeline.py`,
 `multi_agent/orchestrator_workers.py`, `rewoo/rewoo_pipeline.py`) that used
 to read the class-level default now default to a plain literal `8`.
-`evaluation/run_eval.py::RunEval.run` — the one caller with no `Tapestry` to
-attach a concurrency group to — bounds its per-item concurrency with a plain
-`asyncio.Semaphore(concurrency)` instead (`concurrency: int = 8`); wiring
-`RunEval` onto the engine itself (a knot per eval item under an `Aggregator`)
-remains open, deliberately out of this shim-deletion lane's scope — it is an
-architecture change to the evaluation harness, not a shim removal, and is
-flagged here for whichever lane picks it up next.
+`evaluation/run_eval.py::RunEval.run` — then the one caller with no `Tapestry` to
+attach a concurrency group to — bounded its per-item concurrency with a plain
+`asyncio.Semaphore(concurrency)` for one cycle. **Resolved (PIR-872):** it
+now runs on the engine — one `_EvalCase` knot per item (target call, metric
+scoring, threshold check) with `KnotConfig(concurrency_group="eval_items")`,
+capped by `ConcurrencyLimits(groups={"eval_items": concurrency})`, fanned into
+an `Aggregator` that assembles the `EvalReport` in dataset order. Eval
+determinism is core replay: `RunEval.run(history=, data_store=, run_id=)`
+records each item's result, and `RunEval.run(replay=ReplaySession(...))` serves
+it without calling the target (a replay whose items, target/metric names or
+thresholds differ raises `ReplayMismatchError`). The agents recorder seam it
+used to route through — `RunRecorder`, `NullRunRecorder`, `CassetteRunRecorder`,
+`CassetteRecorder`, `Cassette`/`CassetteEntry`/`InteractionKind`/`RecordingMode`,
+`MissingCassetteEntryError` — is deleted; `tests/tools/test_tool_is_a_knot_ratchet.py`'s
+`INVOKE_CLASSES` is empty (`ToolTestHarness` drives a call through
+`Tapestry.run` instead of an `invoke` method).
 `caching/prompt_cache.py::PromptCache` stays outside this migration
 entirely: its `get`/`set`/`__len__` are deliberately synchronous, and
 `DataStore` is async-only, so routing values through it would force a

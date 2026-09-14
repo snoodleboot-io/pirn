@@ -9,9 +9,7 @@ table when the engine already gives every knot a stable, queryable identity.
 The mapping:
 
 * **write** — a caller-chosen ``f"{namespace}:{key}"`` becomes a
-  ``KnotConfig.id``; :meth:`put` runs it as a single-knot ``Tapestry`` (the
-  same shape :class:`~pirn_agents.determinism.cassette_recorder.CassetteRecorder`
-  uses for a cassette key). The engine content-addresses the value into
+  ``KnotConfig.id``; :meth:`put` runs it as a single-knot ``Tapestry``. The engine content-addresses the value into
   ``DataStore`` and records one ``KnotLineage`` row — no separate keyed write.
 * **read** — "the current value under this key" is
   ``RunHistory.query_latest_lineage_by_knot_id(f"{namespace}:{key}")`` (core's

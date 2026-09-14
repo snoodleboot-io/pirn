@@ -17,6 +17,11 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Every inner run is recorded on the knot's lineage row by `_run_inner` itself (success or failure): `extra["inner_run_id"]` / `inner_knot_count` / `inner_failures` for the latest run, and `extra["inner_run_ids"]` in start order once there is more than one. `Tapestry.run(_inner_run_ordinal=)` (internal, passed by `_run_inner`) lets an inherited replay posture serve the n-th inner run from the n-th recording instead of always the last one.
 - `pirn-agents`: `_RaptorAssembler` is `Assembler, NestedRunKnot`; each tree level's cluster summaries run as one `_RaptorSummary` knot per cluster under an `Aggregator` (own lineage row, `Result` and admission per LLM call, clusters summarized concurrently), with the dedup short-circuit and the single final upsert unchanged. `_RaptorAssembler._summarize` moved to `_RaptorSummary._summarize`.
 
+#### `RunEval` on the engine; eval determinism is core replay (PIR-872)
+
+- `RunEval.run` runs one `_EvalCase` knot per dataset item (target call, metric scoring, threshold check) under `KnotConfig(concurrency_group="eval_items")` + `ConcurrencyLimits`, joined by an `Aggregator` into the `EvalReport` — same report, dataset order preserved. It gained `history=`, `data_store=`, `run_id=` and `replay=`; a failed item raises the new `pirn_agents.exceptions.eval_run_error.EvalRunError` (a `PirnError` carrying the run) instead of the target's own exception escaping `asyncio.gather`.
+- `ToolTestHarness.run_tool` (and the instance `run`) drives a call through `Tapestry.run` — approval gate included — instead of `ToolFactory.run_call`'s bare-call path.
+
 #### A `Check` names the skip reason its `Gate` propagates (PIR-872)
 
 - `Check.skip_reason: ClassVar[str | None]` (default `None`). A `Gate` closed by a check that names one records that reason as its own `skip_reason` instead of `"gate_closed"`, and returns `Skipped(reason=..., propagates=True)`.
@@ -172,8 +177,9 @@ on a core concurrency seam, warning `DeprecationWarning` on construction:
   characters, accepted before this migration, now raises when that backend's
   pool is first used (`Bulkhead.slot(backend)` / `.try_admit`), not at
   `BulkheadConfig` construction.
-- **Still open:** `evaluation/run_eval.py` (a bare `asyncio.gather` loop, no
-  `Tapestry`) still constructs `BackpressureSemaphore` directly; two
+- `evaluation/run_eval.py` (then a bare `asyncio.gather` loop, no
+  `Tapestry`) still constructed `BackpressureSemaphore` directly — moved onto
+  the engine by PIR-872; two
   `specializations/` files (`document_processing/_ingestion_runner.py`,
   `multi_agent/orchestrator_workers.py`) build their own unrelated bare
   `asyncio.Semaphore`, outside this migration's ownership. See
@@ -293,6 +299,14 @@ Two new hooks on `SubTapestry` support specialised subclasses:
 ---
 
 ### Removed
+
+#### Agents record/replay adapters and harness wrappers (PIR-872)
+
+- `pirn_agents.evaluation.run_recorder.RunRecorder`, `null_run_recorder.NullRunRecorder`, `cassette_run_recorder.CassetteRunRecorder` and `RunEval.run(recorder=)` — an eval item is a knot: record with `RunEval.run(history=, data_store=, run_id=)`, replay with `RunEval.run(replay=ReplaySession.from_history(...))`.
+- `pirn_agents.determinism.cassette_recorder.CassetteRecorder`, `cassette.Cassette`, `cassette_entry.CassetteEntry`, `interaction_kind.InteractionKind`, `recording_mode.RecordingMode`, `pirn_agents.exceptions.missing_cassette_entry_error.MissingCassetteEntryError` — `Tapestry.run(replay=ReplaySession(...))` (a missing recording raises core `ReplayMismatchError`).
+- `ToolTestHarness.invoke` — `ToolTestHarness.run`. The module-level `make_stub_tool` / `assert_tool_schema` / `assert_schema_shape` / `invoke_tool` / `collect_tool_stream` wrappers — `ToolTestHarness.make_stub_tool` / `.assert_tool_schema` / `.assert_tool_schema_shape` / `.run_tool` / `.collect_tool_stream`.
+- `ToolResult.from_result(gated=)` — the approval skip reason arrives on the `Skipped` itself.
+- `_RaptorAssembler._summarize` — `_RaptorSummary._summarize`.
 
 #### The ADR "agents speaks core" one-cycle deprecation shims (PIR-864)
 

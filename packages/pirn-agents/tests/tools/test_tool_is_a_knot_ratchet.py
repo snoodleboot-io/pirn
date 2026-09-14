@@ -27,11 +27,13 @@ Regenerate all three constants with::
 
 from the package root (``packages/pirn-agents``).
 
-Two families in the ``invoke`` inventory are not tools at all and are frozen
-here only because the detector is deliberately blunt: the run-recorder
-``invoke(key=, thunk=)`` seam (``determinism/``, ``evaluation/``) and the
-``CascadeTier.invoke`` provider callable.  They belong to other workstreams
-and are listed, not migrated, by WS1.  PIR-867 (a different ratchet,
+Two families the ``invoke`` inventory used to hold were not tools at all.  The
+run-recorder ``invoke(key=, thunk=)`` seam (``CassetteRecorder``,
+``RunRecorder``, ``NullRunRecorder``, ``CassetteRunRecorder``) is deleted
+(PIR-872): an eval item is a knot, so core ``RunHistory``/``ReplaySession``
+record and replay it, and ``ToolTestHarness`` drives a tool through the engine
+instead of an ``invoke`` method, so ``INVOKE_CLASSES`` is empty.  The
+``CascadeTier.invoke`` provider callable remains.  PIR-867 (a different ratchet,
 ``tests/specializations/base/test_no_engine_bypass.py``'s ``AWAITS_INVOKE``)
 moved the ``CascadeTier.invoke`` call site from ``_AttemptTier.process``
 into a dedicated ``_TierInvocation`` knot so the call runs through the
@@ -49,15 +51,7 @@ from tests.tools.tool_knot_inventory import ToolKnotInventory
 
 # --- known inventory, frozen (ADR agents-speaks-core, WS1) -----------------
 
-INVOKE_CLASSES = frozenset(
-    {
-        "determinism/cassette_recorder.py::CassetteRecorder",
-        "evaluation/cassette_run_recorder.py::CassetteRunRecorder",
-        "evaluation/null_run_recorder.py::NullRunRecorder",
-        "evaluation/run_recorder.py::RunRecorder",
-        "testing/tool_test_harness.py::ToolTestHarness",
-    }
-)
+INVOKE_CLASSES: frozenset[str] = frozenset()
 
 PARALLEL_VOCABULARY_IMPORTERS = frozenset(
     {
@@ -93,8 +87,6 @@ PARALLEL_VOCABULARY_IMPORTERS = frozenset(
 
 AWAITED_INVOKE_CALL_SITES = frozenset(
     {
-        "evaluation/cassette_run_recorder.py::CassetteRunRecorder.invoke",
-        "evaluation/run_eval.py::RunEval.run._run_item",
         "specializations/routing/_tier_invocation.py::_TierInvocation.process",
     }
 )
