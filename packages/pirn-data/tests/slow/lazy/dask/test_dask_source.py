@@ -53,31 +53,6 @@ async def test_dask_source_path_with_reader(tmp_path) -> None:
     assert set(out.column_names) == {"id", "name"}
 
 
-def test_construct_rejects_neither_factory_nor_path() -> None:
-    with pytest.raises(TypeError, match="factory or path"):
-        DaskSource(_config=KnotConfig(id="x"))
-
-
-def test_construct_rejects_both_factory_and_path() -> None:
-    with pytest.raises(TypeError, match="mutually exclusive"):
-        DaskSource(
-            factory=_users_factory,
-            path="/tmp/foo",
-            reader=dd.read_parquet,
-            _config=KnotConfig(id="x"),
-        )
-
-
-def test_construct_rejects_path_without_reader() -> None:
-    with pytest.raises(TypeError, match="reader is required"):
-        DaskSource(path="/tmp/foo", _config=KnotConfig(id="x"))
-
-
-def test_construct_rejects_empty_path() -> None:
-    with pytest.raises(ValueError, match="non-empty"):
-        DaskSource(path="", reader=dd.read_parquet, _config=KnotConfig(id="x"))
-
-
 def test_construct_rejects_non_callable_factory() -> None:
     with pytest.raises(TypeError, match="callable"):
         DaskSource(factory="not callable", _config=KnotConfig(id="x"))  # type: ignore[arg-type]

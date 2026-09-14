@@ -27,6 +27,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.frames.polars.polars_data_batch import PolarsDataBatch
+from pirn_data.value_shape import ValueShape
 
 
 class PolarsDeduplicate(Knot):
@@ -57,7 +58,7 @@ class PolarsDeduplicate(Knot):
         Returns:
             A new PolarsDataBatch with duplicate key-tuple rows removed.
         """
-        if not isinstance(keys, Sequence) or isinstance(keys, (str, bytes)):
+        if not ValueShape.is_sequence(keys) or isinstance(keys, (str, bytes)):
             raise TypeError("PolarsDeduplicate: keys must be a sequence of column names")
         if not keys:
             raise ValueError("PolarsDeduplicate: keys must be non-empty")

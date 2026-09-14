@@ -46,6 +46,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_data.frames.pyarrow.pyarrow_data_batch import PyarrowDataBatch
 from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.value_shape import ValueShape
 
 
 class PyarrowAggregate(Knot):
@@ -97,7 +98,7 @@ class PyarrowAggregate(Knot):
         if isinstance(by, (str, bytes)):
             raise TypeError("PyarrowAggregate: by must be a sequence of column names, not a string")
         IdentifierValidator.validate_columns("PyarrowAggregate.by", by)
-        if not isinstance(aggs, Mapping) or not aggs:
+        if not ValueShape.is_mapping(aggs) or not aggs:
             raise TypeError(
                 "PyarrowAggregate: aggs must be a non-empty Mapping"
                 "[output_name, (input_column, aggregation_function)]"
@@ -105,7 +106,7 @@ class PyarrowAggregate(Knot):
         for output, spec in aggs.items():
             IdentifierValidator.validate_column("PyarrowAggregate: output column", output)
             if (
-                not isinstance(spec, tuple)
+                not ValueShape.is_tuple(spec)
                 or len(spec) != 2
                 or not isinstance(spec[0], str)
                 or not isinstance(spec[1], str)

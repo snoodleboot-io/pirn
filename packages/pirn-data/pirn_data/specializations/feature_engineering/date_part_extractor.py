@@ -43,7 +43,7 @@ class DatePartExtractor(Knot):
     def __init__(
         self,
         *,
-        rows: Knot | list,
+        rows: Knot | list[dict[str, Any]],
         column: Knot | str,
         parts: Knot | tuple[str, ...],
         _config: KnotConfig,

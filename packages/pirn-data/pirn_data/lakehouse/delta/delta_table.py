@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``DeltaTable`` — :class:`LakehouseTable` adapter over ``deltalake``.
 
 Wraps the Rust-backed `deltalake` Python binding and exposes pirn's
@@ -10,8 +12,10 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator, Mapping, Sequence
 from datetime import datetime
+from types import ModuleType
 from typing import Any
 
+from pirn_data.data_optional_dependency import DataOptionalDependency
 from pirn_data.lakehouse.delta.delta_table_config import DeltaTableConfig
 from pirn_data.lakehouse.lakehouse_table import LakehouseTable
 
@@ -32,7 +36,7 @@ class DeltaTable(LakehouseTable):
     ) -> None:
         if config is None and dt is None:
             raise TypeError("DeltaTable requires either config= or dt= (injected vendor table)")
-        if config is not None and not isinstance(config, DeltaTableConfig):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if config is not None and not isinstance(config, DeltaTableConfig):
             raise TypeError("DeltaTable: config must be a DeltaTableConfig instance")
         if config is not None and not config.table_uri:
             raise ValueError("DeltaTable: config.table_uri must be a non-empty string")
@@ -225,34 +229,13 @@ class DeltaTable(LakehouseTable):
             yield row
 
     @staticmethod
-    def _import_deltalake() -> Any:
-        try:
-            import deltalake  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "DeltaTable requires the 'deltalake' package. Install via "
-                "`pip install pirn[delta]`."
-            ) from exc
-        return deltalake
+    def _import_deltalake() -> ModuleType:
+        return DataOptionalDependency.require("deltalake", extra="delta")
 
     @staticmethod
     def _import_write_deltalake() -> Any:
-        try:
-            from deltalake import write_deltalake  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "DeltaTable requires the 'deltalake' package. Install via "
-                "`pip install pirn[delta]`."
-            ) from exc
-        return write_deltalake  # pyright: ignore[reportUnknownVariableType]  # optional SDK ships no types
+        return DataOptionalDependency.require("deltalake", extra="delta").write_deltalake
 
     @staticmethod
-    def _import_pyarrow() -> Any:
-        try:
-            import pyarrow as pa  # type: ignore[import-untyped]
-        except ImportError as exc:
-            raise ImportError(
-                "DeltaTable requires pyarrow. Install via "
-                "`pip install pirn[data]` or `pip install pirn[delta]`."
-            ) from exc
-        return pa
+    def _import_pyarrow() -> ModuleType:
+        return DataOptionalDependency.require("pyarrow", extra="data")

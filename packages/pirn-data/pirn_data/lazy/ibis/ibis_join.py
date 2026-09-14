@@ -54,6 +54,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.lazy.ibis.ibis_table import IbisTable
+from pirn_data.value_shape import ValueShape
 
 
 class IbisJoin(Knot):
@@ -118,15 +119,15 @@ class IbisJoin(Knot):
             return left.with_expression(joined)
         if predicates is None:
             raise TypeError("IbisJoin: predicates is required for non-cross joins")
-        if isinstance(predicates, Sequence) and not isinstance(predicates, str):
+        if ValueShape.is_sequence(predicates) and not isinstance(predicates, str):
             for column in predicates:
                 if not isinstance(column, str) or not column:
                     raise TypeError("IbisJoin: predicates sequence must be non-empty strings")
-        if callable(predicates):
+        if ValueShape.is_callable(predicates):
             condition = predicates(left.expression, right.expression)
             joined = left.expression.join(
                 right.expression,
-                predicates=condition,  # type: ignore[arg-type]
+                predicates=condition,
                 how=how,
             )
         elif isinstance(predicates, str):

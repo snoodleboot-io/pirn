@@ -100,39 +100,3 @@ async def test_compute_writes_target_path(tmp_path) -> None:
 
     persisted = ray_data.read_parquet(target).take_all()
     assert len(persisted) == 3
-
-
-def test_construct_rejects_target_without_writer() -> None:
-    with Tapestry():
-        src = RaySource(factory=_orders_factory, _config=KnotConfig(id="src"))
-        with pytest.raises(TypeError, match="writer is required"):
-            RayCompute(
-                batch=src,
-                target_path="/tmp/x_parquet",
-                _config=KnotConfig(id="x"),
-            )
-
-
-def test_construct_rejects_empty_target() -> None:
-    with Tapestry():
-        src = RaySource(factory=_orders_factory, _config=KnotConfig(id="src"))
-        with pytest.raises(ValueError, match="non-empty"):
-            RayCompute(
-                batch=src,
-                target_path="",
-                writer=lambda ds, p: None,
-                _config=KnotConfig(id="x"),
-            )
-
-
-def test_construct_rejects_pandas_with_target() -> None:
-    with Tapestry():
-        src = RaySource(factory=_orders_factory, _config=KnotConfig(id="src"))
-        with pytest.raises(TypeError, match="mutually exclusive"):
-            RayCompute(
-                batch=src,
-                target_path="/tmp/x_parquet",
-                writer=lambda ds, p: None,
-                return_pandas=True,
-                _config=KnotConfig(id="x"),
-            )

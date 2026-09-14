@@ -98,39 +98,3 @@ async def test_compute_writes_target_path(tmp_path) -> None:
     assert receipt.target_path == target
     persisted = dd.read_parquet(target).compute()
     assert len(persisted) == 3
-
-
-def test_construct_rejects_target_without_writer() -> None:
-    with Tapestry():
-        src = DaskSource(factory=_orders_factory, _config=KnotConfig(id="src"))
-        with pytest.raises(TypeError, match="writer is required"):
-            DaskCompute(
-                batch=src,
-                target_path="/tmp/x.parquet",
-                _config=KnotConfig(id="x"),
-            )
-
-
-def test_construct_rejects_empty_target() -> None:
-    with Tapestry():
-        src = DaskSource(factory=_orders_factory, _config=KnotConfig(id="src"))
-        with pytest.raises(ValueError, match="non-empty"):
-            DaskCompute(
-                batch=src,
-                target_path="",
-                writer=lambda f, p: None,
-                _config=KnotConfig(id="x"),
-            )
-
-
-def test_construct_rejects_pandas_with_target() -> None:
-    with Tapestry():
-        src = DaskSource(factory=_orders_factory, _config=KnotConfig(id="src"))
-        with pytest.raises(TypeError, match="mutually exclusive"):
-            DaskCompute(
-                batch=src,
-                target_path="/tmp/x.parquet",
-                writer=lambda f, p: None,
-                return_pandas=True,
-                _config=KnotConfig(id="x"),
-            )

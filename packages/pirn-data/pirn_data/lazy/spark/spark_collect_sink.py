@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SparkCollectSink`` — terminal sink that materialises a deferred
 Spark plan to driver memory.
 

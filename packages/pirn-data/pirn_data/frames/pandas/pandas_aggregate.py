@@ -52,6 +52,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_data.frames.pandas.pandas_data_batch import PandasDataBatch
 from pirn_data.transforms.aggregate_spec import AggregateSpec
+from pirn_data.value_shape import ValueShape
 
 
 class PandasAggregate(Knot):
@@ -85,14 +86,14 @@ class PandasAggregate(Knot):
         Returns:
             A new PandasDataBatch containing the aggregated result.
         """
-        if not isinstance(by, Sequence) or isinstance(by, (str, bytes)):
+        if not ValueShape.is_sequence(by) or isinstance(by, (str, bytes)):
             raise TypeError("PandasAggregate: by must be a sequence of column names")
         if not by:
             raise ValueError("PandasAggregate: by must be non-empty")
         for column in by:
             if not isinstance(column, str) or not column:
                 raise TypeError("PandasAggregate: every entry in by must be a non-empty string")
-        if not isinstance(aggs, Mapping) or not aggs:
+        if not ValueShape.is_mapping(aggs) or not aggs:
             raise TypeError(
                 "PandasAggregate: aggs must be a non-empty Mapping[output_column, AggregateSpec]"
             )
@@ -109,36 +110,49 @@ class PandasAggregate(Knot):
         grouped = batch.frame.groupby(list(by_tuple), sort=False, dropna=False)
         out_rows: list[dict[str, Any]] = []
         for key, group in grouped:
-            key_tuple = key if isinstance(key, tuple) else (key,)
+            key_tuple = key if ValueShape.is_tuple(key) else (key,)
             row: dict[str, Any] = dict(zip(by_tuple, key_tuple, strict=False))
             for output_name, spec in aggs_dict.items():
                 if spec.source in group.columns:
-                    series = group[spec.source]
+                    selected = group[spec.source]
+                    if isinstance(selected, pd.DataFrame):
+                        raise ValueError(
+                            f"PandasAggregate: aggs[{output_name!r}] source column "
+                            f"{spec.source!r} is ambiguous (duplicate column name)"
+                        )
+                    series = selected
                 else:
                     series = pd.Series(dtype=object)
-                row[output_name] = self._apply(spec.function, series)  # type: ignore[arg-type]
+                row[output_name] = self._apply(spec.function, series)
             out_rows.append(row)
         column_order = list(by_tuple) + list(aggs_dict.keys())
-        result = pd.DataFrame(out_rows, columns=column_order)  # type: ignore[arg-type]
+        result = pd.DataFrame(out_rows, columns=column_order)
         return batch.with_frame(result)
 
     def _apply(self, function: str, series: pd.Series) -> Any:
+        if function in ("first", "last"):
+            values = series.tolist()
+            if not values:
+                return None
+            return values[0] if function == "first" else values[-1]
         non_null = series.dropna()
-        if function == "sum":
-            return non_null.sum() if len(non_null) > 0 else 0
-        if function == "mean":
-            return float(non_null.mean()) if len(non_null) > 0 else None
-        if function == "min":
-            return non_null.min() if len(non_null) > 0 else None
-        if function == "max":
-            return non_null.max() if len(non_null) > 0 else None
         if function == "count":
             return len(non_null)
+        reducers = {
+            "sum": "sum",
+            "mean": "mean",
+            "min": "min",
+            "max": "max",
+            "count_distinct": "nunique",
+        }
+        if function not in reducers:
+            # AggregateSpec validation should have prevented this; defence in depth.
+            raise ValueError(f"PandasAggregate: unknown aggregation function {function!r}")
+        if len(non_null) == 0:
+            return 0 if function in ("sum", "count_distinct") else None
+        reduced = non_null.agg(reducers[function])
+        if function == "mean":
+            return float(reduced)
         if function == "count_distinct":
-            return int(non_null.nunique())
-        if function == "first":
-            return series.iloc[0] if len(series) > 0 else None
-        if function == "last":
-            return series.iloc[-1] if len(series) > 0 else None
-        # AggregateSpec validation should have prevented this; defence in depth.
-        raise ValueError(f"PandasAggregate: unknown aggregation function {function!r}")
+            return int(reduced)
+        return reduced

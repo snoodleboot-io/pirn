@@ -34,7 +34,7 @@ class ColumnHasher(Knot):
     def __init__(
         self,
         *,
-        rows: Knot | list,
+        rows: Knot | list[dict[str, Any]],
         columns: Knot | tuple[str, ...],
         algorithm: Knot | str,
         _config: KnotConfig,

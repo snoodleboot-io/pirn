@@ -35,6 +35,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.frames.polars.polars_data_batch import PolarsDataBatch
+from pirn_data.value_shape import ValueShape
 
 
 class PolarsCast(Knot):
@@ -65,12 +66,12 @@ class PolarsCast(Knot):
         Returns:
             A new PolarsDataBatch with the configured columns cast to their target dtypes.
         """
-        if not isinstance(casts, Mapping) or not casts:
+        if not ValueShape.is_mapping(casts) or not casts:
             raise TypeError("PolarsCast: casts must be a non-empty Mapping[column, dtype]")
         for column in casts:
             if not isinstance(column, str) or not column:
                 raise TypeError("PolarsCast: casts keys must be non-empty strings")
-        normalised: dict[str, pl.DataType] = {
+        normalised: dict[str, pl.DataType | type[pl.DataType]] = {
             column: self._normalise_dtype(column, dtype) for column, dtype in casts.items()
         }
         applicable = {
@@ -78,14 +79,18 @@ class PolarsCast(Knot):
         }
         if not applicable:
             return batch
-        return batch.with_frame(batch.frame.cast(applicable))  # type: ignore[arg-type]
+        return batch.with_frame(
+            batch.frame.with_columns(
+                pl.col(column).cast(dtype) for column, dtype in applicable.items()
+            )
+        )
 
-    def _normalise_dtype(self, column: str, dtype: Any) -> pl.DataType:
+    def _normalise_dtype(self, column: str, dtype: Any) -> pl.DataType | type[pl.DataType]:
         # Already a Polars dtype? Pass through.
         if isinstance(dtype, pl.DataType) or (
             isinstance(dtype, type) and issubclass(dtype, pl.DataType)
         ):
-            return dtype  # type: ignore[return-value]
+            return dtype
         # Python primitive → Polars dtype.
         primitives: dict[type, pl.DataType] = {
             int: pl.Int64(),

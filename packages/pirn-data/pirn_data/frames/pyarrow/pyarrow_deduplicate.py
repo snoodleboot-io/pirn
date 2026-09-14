@@ -68,6 +68,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.frames.pyarrow.pyarrow_data_batch import PyarrowDataBatch
+from pirn_data.value_shape import ValueShape
 
 
 class PyarrowDeduplicate(Knot):
@@ -99,7 +100,7 @@ class PyarrowDeduplicate(Knot):
             A new PyarrowDataBatch with duplicate key-tuple rows removed,
             preserving input order.
         """
-        if not isinstance(keys, Sequence) or isinstance(keys, (str, bytes)):
+        if not ValueShape.is_sequence(keys) or isinstance(keys, (str, bytes)):
             raise TypeError("PyarrowDeduplicate: keys must be a sequence of column names")
         if not keys:
             raise ValueError("PyarrowDeduplicate: keys must be non-empty")
@@ -126,6 +127,6 @@ class PyarrowDeduplicate(Knot):
         # PyArrow's convention.
         first_indices = grouped.column(f"{idx_name}_min")
         # Sort ascending so output order == input order of first occurrences.
-        sort_indices = pc.sort_indices(first_indices)  # type: ignore[attr-defined]
+        sort_indices = pc.sort_indices(first_indices)
         ordered_indices = pc.take(first_indices, sort_indices)
         return batch.with_table(table.take(ordered_indices))

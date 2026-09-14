@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``DataBatchToDuckdb`` — bridge knot from Tier-1 :class:`DataBatch` to
 Tier-2 :class:`DuckdbDataBatch`.
 

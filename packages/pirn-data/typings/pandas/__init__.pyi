@@ -1,0 +1,66 @@
+# Local type stub for the part of ``pandas`` pirn-data calls.
+#
+# pandas ships no stubs or py.typed marker, and its inline annotations leave many
+# of the signatures pirn_data uses partially untyped (``groupby``, ``astype``,
+# ``to_dict``, ``__getitem__`` ...). This stub declares exactly that surface with
+# precise signatures taken from pandas 3.0. Add a member here when pirn_data
+# starts using it (``[tool.pyright].stubPath`` in pyproject.toml).
+
+from collections.abc import Iterator, Mapping, Sequence
+from typing import Any, Literal
+
+
+class Index:
+    def __contains__(self, key: object) -> bool: ...
+    def __iter__(self) -> Iterator[Any]: ...
+    def __len__(self) -> int: ...
+    def tolist(self) -> list[Any]: ...
+
+
+class Series:
+    def __init__(self, data: Sequence[Any] | None = None, dtype: object = None) -> None: ...
+    def __len__(self) -> int: ...
+    def tolist(self) -> list[Any]: ...
+    def dropna(self) -> Series: ...
+    def agg(self, func: str) -> Any: ...
+
+
+class DataFrameGroupBy:
+    def __iter__(self) -> Iterator[tuple[Any, DataFrame]]: ...
+
+
+class DataFrame:
+    columns: Index
+    shape: tuple[int, int]
+
+    def __init__(
+        self,
+        data: Sequence[Mapping[str, Any]] | Mapping[str, Sequence[Any]] | None = None,
+        columns: Sequence[str] | None = None,
+    ) -> None: ...
+    def __len__(self) -> int: ...
+    def __getitem__(self, key: object) -> Series | DataFrame: ...
+    def to_dict(self, orient: Literal["records"]) -> list[dict[str, Any]]: ...
+    def groupby(
+        self,
+        by: str | Sequence[str],
+        sort: bool = True,
+        dropna: bool = True,
+    ) -> DataFrameGroupBy: ...
+    def astype(self, dtype: Mapping[str, Any]) -> DataFrame: ...
+    def reset_index(self, drop: bool = False) -> DataFrame: ...
+    def drop_duplicates(
+        self,
+        subset: Sequence[str] | None = None,
+        keep: Literal["first", "last", False] = "first",
+    ) -> DataFrame: ...
+    def rename(self, columns: Mapping[str, str]) -> DataFrame: ...
+    def merge(
+        self,
+        right: DataFrame,
+        how: str = "inner",
+        on: Sequence[str] | None = None,
+        left_on: Sequence[str] | None = None,
+        right_on: Sequence[str] | None = None,
+        suffixes: tuple[str, str] = ("_x", "_y"),
+    ) -> DataFrame: ...

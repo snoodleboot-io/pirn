@@ -40,6 +40,7 @@ from pirn_data.frames.datafusion.datafusion_data_batch import (
     DatafusionDataBatch,
 )
 from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.value_shape import ValueShape
 
 
 class DatafusionAggregate(Knot):
@@ -75,14 +76,14 @@ class DatafusionAggregate(Knot):
             A new DatafusionDataBatch containing the aggregated result.
         """
         IdentifierValidator.validate_columns("DatafusionAggregate.by", by)
-        if not isinstance(aggs, Mapping) or not aggs:
+        if not ValueShape.is_mapping(aggs) or not aggs:
             raise TypeError(
                 "DatafusionAggregate: aggs must be a non-empty Mapping"
                 "[output_name, datafusion.Expr | callable]"
             )
         for output, expression in aggs.items():
             IdentifierValidator.validate_column("DatafusionAggregate: output column", output)
-            if not (isinstance(expression, df.Expr) or callable(expression)):
+            if not (isinstance(expression, df.Expr) or ValueShape.is_callable(expression)):
                 raise TypeError(
                     f"DatafusionAggregate: aggs[{output!r}] must be a "
                     "datafusion.Expr or callable(frame) -> datafusion.Expr"
@@ -91,7 +92,7 @@ class DatafusionAggregate(Knot):
         group_exprs = [df.col(column) for column in by]
         agg_exprs: list[df.Expr] = []
         for output, expression in aggs.items():
-            expr = expression(batch.frame) if callable(expression) else expression
-            agg_exprs.append(expr.alias(output))  # type: ignore[attr-defined]
+            expr = expression(batch.frame) if ValueShape.is_callable(expression) else expression
+            agg_exprs.append(expr.alias(output))
         aggregated = batch.frame.aggregate(group_exprs, agg_exprs)
         return batch.with_frame(aggregated)

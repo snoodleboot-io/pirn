@@ -38,6 +38,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_data.frames.polars.polars_data_batch import PolarsDataBatch
 from pirn_data.identifier_validator import IdentifierValidator
+from pirn_data.value_shape import ValueShape
 
 
 class PolarsAggregate(Knot):
@@ -72,7 +73,7 @@ class PolarsAggregate(Knot):
             A new PolarsDataBatch containing the aggregated result.
         """
         IdentifierValidator.validate_columns("PolarsAggregate.by", by)
-        if not isinstance(aggs, Sequence) or isinstance(aggs, (str, bytes)):
+        if not ValueShape.is_sequence(aggs) or isinstance(aggs, (str, bytes)):
             raise TypeError("PolarsAggregate: aggs must be a sequence of polars.Expr")
         if not aggs:
             raise ValueError("PolarsAggregate: aggs must be non-empty")

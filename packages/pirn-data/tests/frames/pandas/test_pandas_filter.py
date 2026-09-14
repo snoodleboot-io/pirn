@@ -111,3 +111,11 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
                 batch=_users_batch(),
                 predicate="active == True",
             )
+
+    async def test_rejects_predicate_that_selects_a_column(self) -> None:
+        k = self._make_knot()
+        with self.assertRaisesRegex(TypeError, "boolean row mask"):
+            await k.process(
+                batch=_users_batch(),
+                predicate=lambda df: "region",
+            )

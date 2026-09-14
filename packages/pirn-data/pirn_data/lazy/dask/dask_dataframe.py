@@ -44,7 +44,7 @@ class DaskDataFrame:
 
     @property
     def column_names(self) -> tuple[str, ...]:
-        return tuple(self.frame.columns)
+        return tuple(self.frame.columns.tolist())
 
     @property
     def npartitions(self) -> int:

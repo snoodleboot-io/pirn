@@ -1,4 +1,4 @@
-"""``_PoolMergeKnot`` — shared validation and merge helpers for pool-backed
+"""``PoolMergeKnot`` — shared validation and merge helpers for pool-backed
 SCD and upsert knots.
 
 Every SCD (Type 1 / 2 / 7) and incremental-merge knot repeats the same
@@ -70,7 +70,7 @@ from pirn.core.knot import Knot
 from pirn_data.identifier_validator import IdentifierValidator
 
 
-class _PoolMergeKnot(Knot):
+class PoolMergeKnot(Knot):
     """Shared static validation helpers for pool-backed merge/SCD knots."""
 
     @staticmethod
@@ -80,7 +80,7 @@ class _PoolMergeKnot(Knot):
         ``pools`` maps each pool parameter's name (``"source_pool"``,
         ``"target_pool"``) to its resolved value, e.g.::
 
-            _PoolMergeKnot._validate_pools(
+            PoolMergeKnot._validate_pools(
                 "ScdType1", source_pool=source_pool, target_pool=target_pool
             )
         """

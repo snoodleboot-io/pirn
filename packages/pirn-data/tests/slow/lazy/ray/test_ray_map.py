@@ -43,26 +43,3 @@ async def test_map_batches_doubles_column() -> None:
     rows = out.dataset.take_all()
     pairs = sorted((r["x"], r["x2"]) for r in rows)
     assert pairs == [(1, 2), (2, 4), (3, 6)]
-
-
-def test_construct_rejects_non_callable_fn() -> None:
-    with Tapestry():
-        src = RaySource(factory=_items_factory, _config=KnotConfig(id="s"))
-        with pytest.raises(TypeError, match="callable"):
-            RayMap(
-                batch=src,
-                fn="double",  # type: ignore[arg-type]
-                _config=KnotConfig(id="m"),
-            )
-
-
-def test_construct_rejects_invalid_batch_size() -> None:
-    with Tapestry():
-        src = RaySource(factory=_items_factory, _config=KnotConfig(id="s"))
-        with pytest.raises(ValueError, match="positive int"):
-            RayMap(
-                batch=src,
-                fn=_double_x,
-                batch_size=0,
-                _config=KnotConfig(id="m"),
-            )

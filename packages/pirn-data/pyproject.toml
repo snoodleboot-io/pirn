@@ -70,6 +70,8 @@ bytewax = ["bytewax>=0.21; python_version<'3.13'"]
 # Tier 4 — specialized.
 lance = ["pylance>=0.20"]  # the PyPI name "lance" is an empty placeholder; the library ships as pylance and imports as `lance`
 eland = ["eland>=8.13"]
+# Token counting for TextTokenCounter; without it the knot falls back to whitespace splitting.
+tiktoken = ["tiktoken>=0.5"]
 
 # Lakehouse table formats — see pirn_data/lakehouse/. Hudi's Python ecosystem
 # is read-only as of mid-2026; the no-op `hudi` marker reads via pyarrow.
@@ -175,15 +177,23 @@ include = ["pirn_data"]
 # regress. Enforced by scripts/check_pyright_strict_list.py; burn-down table in
 # docs/architecture/ci-pipelines.md.
 strict = [
+    "pirn_data/frames",
     "pirn_data/lakehouse",
+    "pirn_data/lazy",
     "pirn_data/quality",
     "pirn_data/sinks",
     "pirn_data/sources",
+    "pirn_data/specializations",
     "pirn_data/specialized",
     "pirn_data/transforms",
     "pirn_data/validation",
     "pirn_data/*.py",
 ]
+# Local stubs for untyped third-party boundaries (PIR-872): pyarrow is a compiled
+# extension with no stubs, pandas and ibis ship no py.typed, and dask / ray.data
+# leave the collection methods pirn_data calls partially untyped. typings/
+# declares exactly the subset pirn_data uses; extend it when new API is used.
+stubPath = "typings"
 pythonVersion = "3.12"
 reportMissingImports = "none"
 reportMissingModuleSource = "none"

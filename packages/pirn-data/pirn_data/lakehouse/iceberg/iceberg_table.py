@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``IcebergTable`` — :class:`LakehouseTable` adapter over ``pyiceberg``.
 
 Wraps a ``pyiceberg.table.Table`` and exposes pirn's
@@ -18,8 +20,10 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator, Mapping, Sequence
 from datetime import datetime
+from types import ModuleType
 from typing import Any
 
+from pirn_data.data_optional_dependency import DataOptionalDependency
 from pirn_data.lakehouse.iceberg.iceberg_table_config import (
     IcebergTableConfig,
 )
@@ -45,7 +49,7 @@ class IcebergTable(LakehouseTable):
             raise TypeError(
                 "IcebergTable requires either config= or table= (injected pyiceberg.table.Table)"
             )
-        if config is not None and not isinstance(config, IcebergTableConfig):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if config is not None and not isinstance(config, IcebergTableConfig):
             raise TypeError("IcebergTable: config must be an IcebergTableConfig instance")
         if config is not None and not config.table_identifier:
             raise ValueError("IcebergTable: config.table_identifier must be a non-empty string")
@@ -181,18 +185,12 @@ class IcebergTable(LakehouseTable):
         if not filter:
             return None
         # Build a pyiceberg expression: AND of EqualTo predicates.
-        try:
-            from pyiceberg.expressions import And, EqualTo  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "IcebergTable filter pushdown requires pyiceberg. Install via "
-                "`pip install pirn[iceberg]`."
-            ) from exc
+        expressions = DataOptionalDependency.require("pyiceberg.expressions", extra="iceberg")
         items = list(filter.items())
-        expr = EqualTo(items[0][0], items[0][1])  # type: ignore[call-arg]
+        expr = expressions.EqualTo(items[0][0], items[0][1])
         for key, value in items[1:]:
-            expr = And(expr, EqualTo(key, value))  # type: ignore[call-arg]
-        return expr  # pyright: ignore[reportUnknownVariableType]  # optional SDK ships no types
+            expr = expressions.And(expr, expressions.EqualTo(key, value))
+        return expr
 
     @staticmethod
     def _current_snapshot_id(table: Any) -> str:
@@ -231,23 +229,9 @@ class IcebergTable(LakehouseTable):
             yield row
 
     @staticmethod
-    def _import_pyiceberg_catalog() -> Any:
-        try:
-            from pyiceberg import catalog  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "IcebergTable requires the 'pyiceberg' package. Install via "
-                "`pip install pirn[iceberg]`."
-            ) from exc
-        return catalog  # pyright: ignore[reportUnknownVariableType]  # optional SDK ships no types
+    def _import_pyiceberg_catalog() -> ModuleType:
+        return DataOptionalDependency.require("pyiceberg.catalog", extra="iceberg")
 
     @staticmethod
-    def _import_pyarrow() -> Any:
-        try:
-            import pyarrow as pa  # type: ignore[import-untyped]
-        except ImportError as exc:
-            raise ImportError(
-                "IcebergTable requires pyarrow. Install via "
-                "`pip install pirn[data]` or `pip install pirn[iceberg]`."
-            ) from exc
-        return pa
+    def _import_pyarrow() -> ModuleType:
+        return DataOptionalDependency.require("pyarrow", extra="data")

@@ -40,11 +40,9 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_data._value_shape import (
-    _ValueShape,  # pyright: ignore[reportPrivateUsage]  # package-internal helper
-)
 from pirn_data.data_batch import DataBatch
 from pirn_data.data_schema import DataSchema
+from pirn_data.value_shape import ValueShape
 
 
 class Rename(Knot):
@@ -75,7 +73,7 @@ class Rename(Knot):
         Returns:
             A new DataBatch with columns renamed and the schema updated to reflect the new names.
         """
-        if not _ValueShape.is_mapping(mapping) or not mapping:
+        if not ValueShape.is_mapping(mapping) or not mapping:
             raise TypeError("Rename: mapping must be a non-empty Mapping[old_name, new_name]")
         for old, new in mapping.items():
             if not isinstance(old, str) or not isinstance(new, str):

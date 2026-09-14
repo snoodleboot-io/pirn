@@ -54,9 +54,8 @@ class PandasToDataBatch(Knot):
         Returns:
             A Tier-1 DataBatch with materialised rows, source_uri, and fetched_at preserved.
         """
-        rows = tuple(batch.frame.to_dict(orient="records"))
         return DataBatch(
-            rows=rows,
+            rows=tuple(batch.frame.to_dict(orient="records")),
             source_uri=batch.source_uri,
             fetched_at=batch.fetched_at,
         )

@@ -49,6 +49,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.lazy.ray.ray_dataset import RayDataset
+from pirn_data.value_shape import ValueShape
 
 
 class RayAggregate(Knot):
@@ -98,17 +99,17 @@ class RayAggregate(Knot):
         if aggregator is not None and (by is not None or aggs is not None):
             raise TypeError("RayAggregate: aggregator is mutually exclusive with by/aggs")
         if aggregator is not None:
-            if not callable(aggregator):
+            if not ValueShape.is_callable(aggregator):
                 raise TypeError("RayAggregate: aggregator must be a callable (dataset) -> dataset")
             aggregated = aggregator(batch.dataset)
-            return batch.with_dataset(aggregated)  # type: ignore[arg-type]
+            return batch.with_dataset(aggregated)
 
         # Declarative mode
         if isinstance(by, str):
             if not by:
                 raise ValueError("RayAggregate: by must be non-empty")
             resolved_by: str | list[str] = by
-        elif isinstance(by, Sequence):
+        elif ValueShape.is_sequence(by):
             if not by:
                 raise ValueError("RayAggregate: by must be non-empty")
             for column in by:
@@ -119,7 +120,7 @@ class RayAggregate(Knot):
             raise TypeError("RayAggregate: by must be a column name or sequence of names")
         if aggs is None:
             raise TypeError("RayAggregate: aggs is required when by is supplied")
-        if not isinstance(aggs, Sequence) or isinstance(aggs, (str, bytes)):
+        if not ValueShape.is_sequence(aggs) or isinstance(aggs, (str, bytes)):
             raise TypeError("RayAggregate: aggs must be a sequence of ray.data.aggregate instances")
         if not aggs:
             raise ValueError("RayAggregate: aggs must be non-empty")

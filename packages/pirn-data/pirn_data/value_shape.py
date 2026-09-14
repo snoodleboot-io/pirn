@@ -1,4 +1,4 @@
-"""``_ValueShape`` — ``TypeGuard`` narrowers for runtime-bound container inputs.
+"""``ValueShape`` — ``TypeGuard`` narrowers for runtime-bound container inputs.
 
 Knot inputs arrive typed ``Any`` and the house style validates them with an
 explicit ``isinstance`` check before use. A plain ``isinstance`` narrows
@@ -11,11 +11,11 @@ check implies, so the validated value is fully typed afterwards without a
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from typing import Any, TypeGuard
 
 
-class _ValueShape:  # pyright: ignore[reportUnusedClass]  # imported by the quality, sources, transforms and validation knots
+class ValueShape:
     """The ``isinstance`` checks for runtime-bound container inputs, typed."""
 
     @staticmethod
@@ -37,3 +37,27 @@ class _ValueShape:  # pyright: ignore[reportUnusedClass]  # imported by the qual
     def is_tuple(value: object) -> TypeGuard[tuple[Any, ...]]:
         """``isinstance(value, tuple)``, narrowing to ``tuple[Any, ...]``."""
         return isinstance(value, tuple)
+
+    @staticmethod
+    def is_list(value: object) -> TypeGuard[list[Any]]:
+        """``isinstance(value, list)``, narrowing to ``list[Any]``."""
+        return isinstance(value, list)
+
+    @staticmethod
+    def is_list_or_tuple(value: object) -> TypeGuard[list[Any] | tuple[Any, ...]]:
+        """``isinstance(value, (list, tuple))``, narrowing to ``list[Any] | tuple[Any, ...]``."""
+        return isinstance(value, (list, tuple))
+
+    @staticmethod
+    def is_iterable(value: object) -> TypeGuard[Iterable[Any]]:
+        """``isinstance(value, Iterable)``, narrowing to ``Iterable[Any]``."""
+        return isinstance(value, Iterable)
+
+    @staticmethod
+    def is_callable(value: object) -> TypeGuard[Callable[..., Any]]:
+        """``callable(value)``, narrowing to ``Callable[..., Any]``.
+
+        The builtin narrows to ``(...) -> object``, which rejects the result
+        wherever a third-party engine expects its own expression type.
+        """
+        return callable(value)

@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import ast
 import operator
+from collections.abc import Callable
 from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
@@ -41,14 +42,14 @@ from pirn_data.identifier_validator import IdentifierValidator
 class DerivedColumnCalculator(Knot):
     """Append computed columns to each row using safe AST-evaluated expressions."""
 
-    _bin_ops: ClassVar[dict[type, Any]] = {
+    _bin_ops: ClassVar[dict[type, Callable[[Any, Any], Any]]] = {
         ast.Add: operator.add,
         ast.Sub: operator.sub,
         ast.Mult: operator.mul,
-        ast.Div: operator.truediv,
-        ast.FloorDiv: operator.floordiv,
+        ast.Div: lambda a, b: a / b,
+        ast.FloorDiv: lambda a, b: a // b,
         ast.Mod: operator.mod,
-        ast.Pow: operator.pow,
+        ast.Pow: lambda a, b: a**b,
     }
     _cmp_ops: ClassVar[dict[type, Any]] = {
         ast.Eq: operator.eq,
@@ -66,8 +67,8 @@ class DerivedColumnCalculator(Knot):
     def __init__(
         self,
         *,
-        rows: Knot | list,
-        expressions: Knot | list,
+        rows: Knot | list[dict[str, Any]],
+        expressions: Knot | list[dict[str, str]],
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:

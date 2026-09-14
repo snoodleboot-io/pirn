@@ -29,6 +29,7 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_data.frames.pandas.pandas_data_batch import PandasDataBatch
+from pirn_data.value_shape import ValueShape
 
 
 class PandasRename(Knot):
@@ -59,7 +60,7 @@ class PandasRename(Knot):
         Returns:
             A new PandasDataBatch with the applicable columns renamed.
         """
-        if not isinstance(mapping, Mapping) or not mapping:
+        if not ValueShape.is_mapping(mapping) or not mapping:
             raise TypeError("PandasRename: mapping must be a non-empty Mapping[old_name, new_name]")
         for old, new in mapping.items():
             if not isinstance(old, str) or not isinstance(new, str) or not old or not new:
