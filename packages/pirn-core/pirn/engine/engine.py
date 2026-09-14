@@ -973,18 +973,42 @@ class Engine:
 
         if policy is ErrorPolicy.SKIP_IF_PARENT_FAILED:
             if any_skipped or any_err:
-                return Skipped(
-                    reason="parent_failed_or_skipped",
-                    detail={
-                        "any_err": any_err,
-                        "any_skipped": any_skipped,
-                    },
-                )
+                detail = {"any_err": any_err, "any_skipped": any_skipped}
+                inherited = None if any_err else self._propagated_skip_reason(parent_results)
+                if inherited is not None:
+                    return Skipped(reason=inherited, detail=detail, propagates=True)
+                return Skipped(reason="parent_failed_or_skipped", detail=detail)
             # All parents are Ok at this point (we returned otherwise above).
             return {name: r.value for name, r in parent_results.items() if isinstance(r, Ok)}
 
         # RECEIVE_ERRORS: pass Result objects through unchanged.
         return dict(parent_results)
+
+    @staticmethod
+    def _propagated_skip_reason(parent_results: dict[str, Result[Any]]) -> str | None:
+        """The reason a knot skipped by *parent_results* inherits, if any.
+
+        A skip inherits its parents' reason only when every skipped parent
+        marked its skip ``propagates`` and they all name the same reason — a
+        ``Gate`` closed by a ``Check`` with its own ``skip_reason``, or a knot
+        already skipped by one.  Mixed or unpropagated reasons fall back to
+        the generic ``"parent_failed_or_skipped"``.
+
+        Args:
+            parent_results: The knot's parents' outcomes; the caller has
+                already established that none is an ``Err``.
+
+        Returns:
+            The shared reason, or ``None`` when there is none to inherit.
+        """
+        reasons: set[str] = set()
+        for parent_result in parent_results.values():
+            if not isinstance(parent_result, Skipped):
+                continue
+            if not parent_result.propagates:
+                return None
+            reasons.add(parent_result.reason)
+        return reasons.pop() if len(reasons) == 1 else None
 
     async def _invoke(
         self,

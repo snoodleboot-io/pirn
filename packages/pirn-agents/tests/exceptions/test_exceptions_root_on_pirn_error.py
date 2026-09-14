@@ -10,7 +10,6 @@ from __future__ import annotations
 import pytest
 from pirn.exceptions.pirn_error import PirnError
 
-from pirn_agents.exceptions.missing_cassette_entry_error import MissingCassetteEntryError
 from pirn_agents.exceptions.sandbox_disabled_error import SandboxDisabledError
 from pirn_agents.exceptions.tool_argument_validation_error import ToolArgumentValidationError
 from pirn_agents.exceptions.tool_cancelled_error import ToolCancelledError
@@ -29,7 +28,6 @@ from pirn_agents.security.untrusted_directive_error import UntrustedDirectiveErr
         (ToolInvocationError, Exception),
         (SandboxDisabledError, RuntimeError),
         (UnsupportedModalityError, ValueError),
-        (MissingCassetteEntryError, LookupError),
         (InjectionDetectedError, Exception),
         (McpTrustError, Exception),
         (UntrustedDirectiveError, Exception),
@@ -54,7 +52,6 @@ def test_except_pirn_error_catches_every_fixed_exception() -> None:
         lambda: ToolInvocationError("boom"),
         lambda: SandboxDisabledError(),
         lambda: UnsupportedModalityError("image", "text-only"),
-        lambda: MissingCassetteEntryError("k", "llm"),
         lambda: InjectionDetectedError(
             InjectionVerdict(flagged=True, score=1.0, decided_by="heuristic", reason="x")
         ),

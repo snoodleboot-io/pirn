@@ -16,7 +16,6 @@ from pirn_agents.evaluation.eval_item import EvalItem
 from pirn_agents.evaluation.exact_match import ExactMatch
 from pirn_agents.evaluation.metric_result import MetricResult
 from pirn_agents.evaluation.metric_threshold import MetricThreshold
-from pirn_agents.evaluation.null_run_recorder import NullRunRecorder
 from pirn_agents.evaluation.run_eval import RunEval
 from pirn_agents.evaluation.threshold_config import ThresholdConfig
 from tests.evaluation.evaluation_doubles import ScriptedJudgeProvider
@@ -76,7 +75,7 @@ class RunEvalTests(unittest.IsolatedAsyncioTestCase):
         assert report.results[1].detail["breaches"][0]["metric"] == "exact_match"
         assert report.passed is False
 
-    async def test_async_metric_and_custom_concurrency_and_recorder(self) -> None:
+    async def test_async_metric_and_custom_concurrency(self) -> None:
         async def target(item_input: Mapping[str, Any]) -> Mapping[str, Any]:
             return {"answer": str(item_input["q"])}
 
@@ -88,7 +87,6 @@ class RunEvalTests(unittest.IsolatedAsyncioTestCase):
             target=target,
             metrics={"len": async_metric},
             concurrency=2,
-            recorder=NullRunRecorder(),
         )
         assert report.results[0].metrics["len"] == 4.0
         assert report.results[0].passed is None

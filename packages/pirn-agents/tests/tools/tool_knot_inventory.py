@@ -44,7 +44,7 @@ class ToolKnotInventory:
     )
 
     @staticmethod
-    def _modules() -> list[tuple[str, ast.Module]]:
+    def modules() -> list[tuple[str, ast.Module]]:
         root = Path(pirn_agents.__path__[0])
         found: list[tuple[str, ast.Module]] = []
         for path in sorted(root.rglob("*.py")):
@@ -99,7 +99,7 @@ class ToolKnotInventory:
         invoke_classes: set[str] = set()
         importers: set[str] = set()
         call_sites: set[str] = set()
-        for relative, tree in cls._modules():
+        for relative, tree in cls.modules():
             for node in tree.body:
                 if isinstance(node, ast.ClassDef) and cls.defines_invoke(node):
                     invoke_classes.add(f"{relative}::{node.name}")

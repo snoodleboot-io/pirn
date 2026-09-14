@@ -14,8 +14,9 @@ model-facing :attr:`status` is a string derived from the ``Result`` variant and
 the error type — ``"ok"``, ``"error"``, ``"timeout"`` (an ``Err`` whose error
 type is a timeout), or ``"skipped"``. A ``Skipped`` outcome renders as
 ``"skipped"``, not ``"error"`` (PIR-865): the call deliberately did not run —
-most commonly a denied approval, see :meth:`from_result`'s ``gated`` argument
-and :mod:`pirn_agents.agent.tool_approval_check` — and the model is told exactly
+most commonly a denied approval, whose ``Skipped`` carries core's propagated
+``"approval_denied"`` reason (:mod:`pirn_agents.agent.tool_approval_check`,
+PIR-872) — and the model is told exactly
 that rather than that the tool failed.
 """
 
@@ -93,12 +94,14 @@ class ToolResult(PirnOpaqueValue):
 
         ``"<type>: <message>"`` for an ``Err`` — the shape every executor
         reported before the view existed — and ``"call skipped: <reason>"``
-        for a ``Skipped``.
+        for a ``Skipped``, the reason's underscores read as spaces (a denied
+        approval's ``"approval_denied"`` reads ``"call skipped: approval
+        denied"``).
         """
         if isinstance(self.outcome, Err):
             return f"{self.outcome.record.exc_type}: {self.outcome.record.message}"
         if isinstance(self.outcome, Skipped):
-            return f"call skipped: {self.outcome.reason}"
+            return f"call skipped: {self.outcome.reason.replace('_', ' ')}"
         return None
 
     @property
@@ -149,7 +152,6 @@ class ToolResult(PirnOpaqueValue):
         lineage: KnotLineage | None = None,
         *,
         tokens: int | None = None,
-        gated: bool = False,
     ) -> ToolResult:
         """Build the view of one call's core ``Result`` — the one builder every path uses.
 
@@ -160,19 +162,10 @@ class ToolResult(PirnOpaqueValue):
             lineage: The call knot's lineage row, when the caller has it;
                 supplies ``latency``.
             tokens: Token usage attributable to the call, when known.
-            gated: ``True`` when the caller wired an approval
-                :class:`~pirn.nodes.gate.gate.Gate` in front of this call
-                (:meth:`~pirn_agents.tools.tool_factory.ToolFactory.for_call`,
-                PIR-865). A gated call's only possible parent besides its own
-                (always-``Ok``) arguments is that gate, so a ``Skipped``
-                result can only be the gate closing — the view's skip reason
-                names "approval denied" rather than the engine's generic
-                propagation reason. Ignored for ``Ok``/``Err``.
 
         Returns:
             ``result.value`` unchanged when it is already a :class:`ToolResult`;
-            otherwise a view carrying ``result`` (a gated ``Skipped`` re-reasoned
-            as "approval denied").
+            otherwise a view carrying ``result``.
 
         Raises:
             TypeError: If ``result`` is not an ``Ok``, ``Err``, or ``Skipped``.
@@ -184,7 +177,4 @@ class ToolResult(PirnOpaqueValue):
                 f"ToolResult.from_result: result must be Ok, Err, or Skipped, "
                 f"got {type(result).__name__}"
             )
-        outcome: Result[Any] = result
-        if isinstance(result, Skipped) and gated:
-            outcome = Skipped(reason="approval denied", detail=dict(result.detail))
-        return cls(call_id=call_id, outcome=outcome, latency=cls.latency_of(lineage), tokens=tokens)
+        return cls(call_id=call_id, outcome=result, latency=cls.latency_of(lineage), tokens=tokens)

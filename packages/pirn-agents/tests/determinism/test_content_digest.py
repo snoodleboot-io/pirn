@@ -1,10 +1,10 @@
 """Value pins on :meth:`ContentDigest.digest` — the record/replay key (PIR-872).
 
 ``ContentDigest.digest`` is core's :meth:`pirn.core.content_hasher.ContentHasher.hash` in
-``strict`` mode. Cassette entries and trace events are keyed by it, so this
+``strict`` mode. Trace events are keyed by it, so this
 module pins, for one fixed payload matrix, the exact digest each payload hashes
 to — a change to core's canonicalisation shows up here as a concrete value
-flip rather than as silently unreplayable cassettes.
+flip rather than as silently unmatchable trace keys.
 
 Payloads are built from literals inside this file rather than from a shared
 factory, so that editing a fixture elsewhere cannot quietly move a golden value.

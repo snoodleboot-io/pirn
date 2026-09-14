@@ -37,23 +37,17 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from pirn.core.err import Err
 from pirn.core.knot import Knot
-from pirn.core.knot_config import KnotConfig
 from pirn.core.ok import Ok
 from pirn.core.result import Result
 from pirn.core.skipped import Skipped
 from pirn.managers.exception_record import ExceptionRecord
-from pirn.nodes.sub_tapestry_error import SubTapestryError
+from pirn.nodes.nested_run_knot import NestedRunKnot
 
 if TYPE_CHECKING:
-    from pirn.backends.base.run_history import RunHistory
-    from pirn.core.concurrency.concurrency_limits import ConcurrencyLimits
     from pirn.core.run_result import RunResult
-    from pirn.engine.admission.admission_observer import AdmissionObserver
-    from pirn.engine.dispatchers.dispatcher import Dispatcher
-    from pirn.tapestry import Tapestry
 
 
-class SubTapestry(Knot):
+class SubTapestry(NestedRunKnot):
     """Base class for knots whose execution is a complete inner tapestry pipeline.
 
     Set ``_extensible_inner_run = True`` on a subclass to run the inner tapestry
@@ -72,6 +66,14 @@ class SubTapestry(Knot):
     Inputs are wired exactly like any other knot: Knot-valued kwargs
     become parents resolved by the outer engine; non-Knot kwargs become
     config constants.  Both arrive as plain resolved values in ``process``.
+
+    Everything that makes an inner run belong to the enclosing one — the
+    construction-time capture, ``_run_inner``, the ``_inner_*`` hooks, the
+    nesting key and the slot-free admission — is inherited from
+    :class:`~pirn.nodes.nested_run_knot.NestedRunKnot`; ``SubTapestry`` adds
+    only the contract that ``process()`` returns the sink of one inner
+    pipeline whose output becomes this knot's.  A knot that needs inner runs
+    but returns its own value subclasses ``NestedRunKnot`` instead.
 
     The outer tapestry's observability wiring — its history backend, its
     emitters, the error policy governing them, and the value plane its records
@@ -135,71 +137,9 @@ class SubTapestry(Knot):
 
     _extensible_inner_run: ClassVar[bool] = False
 
-    #: When ``True``, an inner run in which some knot failed does not fail this
-    #: knot as long as the sink produced a value: the failures were delivered
-    #: to the sink -- wired with ``ErrorPolicy.RECEIVE_ERRORS`` -- which is what
-    #: it exists to combine (a fan-out over tool calls reporting each call's
-    #: ``Ok | Err | Skipped`` beside its siblings; ADR agents-speaks-core,
-    #: WS1).  The failed knots are still recorded in the inner run's history
-    #: and lineage.  Off by default: an inner failure the sink did not receive
-    #: is this knot's ``Err``.
-    _inner_failures_reach_sink: ClassVar[bool] = False
-
     # ``process`` below is declared in the gradual parameter form; see
     # ``Knot._dynamic_process_signature`` for why (PIR-833).
     _dynamic_process_signature: ClassVar[bool] = True
-
-    # A container holds no admission slot: its inner run's leaves are admitted
-    # through the enclosing run's own gate (ADR agents-speaks-core, WS0b).
-    _holds_admission_slot: ClassVar[bool] = False
-
-    def _nesting_key(self) -> str:
-        """Return the key the nested-run guard tracks this container by.
-
-        The qualified class name and this knot's id: a nested run whose path
-        already holds it is *this container* re-entering itself, which
-        ``RunNesting.child`` refuses when a ``max_nesting_depth`` is active
-        (``NestedRunCycleError``).  The id is part of the key on purpose
-        (ADR agents-speaks-core, WS1): two *different* instances of one
-        container class nested in each other — an agent handing a task to
-        another agent of the same class — are not a cycle, while the same
-        instance reached again down its own inner pipeline is.  A container
-        that has a better identity than its id (an agent-as-tool call keyed
-        by the agent it wraps) overrides this.
-        """
-        return f"{type(self).__module__}.{type(self).__qualname__}:{self.knot_id}"
-
-    def _inner_dispatcher(self) -> Dispatcher | None:
-        """Return the dispatcher the inner run executes on, or ``None`` to inherit.
-
-        The default inherits the enclosing run's dispatcher (or the inner
-        tapestry's own, when ``process()`` built it with one).  Override in a
-        subclass whose inner work must run on a particular backend
-        regardless of what the outer run uses.
-        """
-        return None
-
-    def _inner_concurrency(self) -> ConcurrencyLimits | None:
-        """Return the inner run's ``ConcurrencyLimits``, or ``None`` to inherit.
-
-        The default shares the enclosing run's admission gate, so the outer
-        caps bound the inner leaves too.  Override to give the inner run a
-        *bounded* budget of its own (e.g. ``ConcurrencyLimits(max_in_flight=2)``)
-        and its gate is chained under the enclosing run's: admission takes a
-        ticket from both, so the inner cap and the outer cap both apply
-        (PIR-870).  An explicitly unbounded ``ConcurrencyLimits()`` is the one
-        case that is not chained -- it opts the inner run out of any cap at
-        all, including the enclosing one.
-        """
-        return None
-
-    def _inner_admission_observers(self) -> list[AdmissionObserver] | None:
-        """Return the inner run's ``AdmissionObserver``s, or ``None`` to inherit.
-
-        With a shared gate the enclosing run's observers hear inner
-        admissions anyway; observers returned here are added ahead of them.
-        """
-        return None
 
     def _resolve_output_key(self, sink: Knot) -> str:
         """Return the ``run_result.outputs`` key to surface as this knot's value.
@@ -210,135 +150,6 @@ class SubTapestry(Knot):
         under a different, well-known ID.
         """
         return sink.knot_id
-
-    @staticmethod
-    def _inherited_emitters(own: list[Any], inherited: list[Any] | None) -> list[Any] | None:
-        """Combine an inner tapestry's own emitters with those inherited from the outer run.
-
-        Returns ``None`` when there is nothing to inherit.  ``None`` is what
-        ``Tapestry.run(emitters=...)`` reads as "not overridden", so the inner
-        tapestry keeps whatever subscription it already had — which is also the
-        right answer when the outer run deliberately opted out with
-        ``run(emitters=[])``.
-
-        De-duplicated by identity, not equality: the same emitter instance
-        registered on both the outer tapestry and the inner one must receive one
-        ``on_lineage`` call per record, not two.  Equality is the wrong test
-        because emitters are ordinary objects whose ``__eq__`` may be identity-
-        based, value-based, or expensive.
-
-        Args:
-            own: Emitters the inner tapestry already carries, in declared order.
-            inherited: Emitters the enclosing run is fanning to, or ``None`` when
-                there is no enclosing run.
-
-        Returns:
-            The merged list, or ``None`` to leave the inner subscription alone.
-        """
-        if not inherited:
-            return None
-        merged = list(own)
-        seen = {id(emitter) for emitter in merged}
-        merged.extend(emitter for emitter in inherited if id(emitter) not in seen)
-        return merged
-
-    @staticmethod
-    def _apply_inherited_value_plane(
-        tapestry: Tapestry,
-        *,
-        data_store: Any,
-        transport: Any,
-    ) -> None:
-        """Point an inner tapestry at the enclosing run's value plane.
-
-        The *value plane* is the pair a run writes its outputs into: the
-        ``DataStore`` that holds each value by content hash, and the
-        ``DataTransport`` that moves it between edges.  An inner tapestry is
-        constructed with defaults, so without this its values go to a fresh
-        ``InMemoryDataStore`` that is discarded the moment the inner run ends —
-        while the inner *lineage* rows, written to the forwarded outer history, keep
-        advertising ``output_hash`` values that now resolve against nothing
-        (PIR-837).
-
-        The two halves are not treated identically, because they are not the same
-        kind of thing:
-
-        * **The data store is forwarded unconditionally**, exactly as the history
-          is.  A lineage row and the value it names are two halves of one record;
-          routing the row to the outer history while routing the value elsewhere
-          recreates the dangling reference this fixes.  Whoever owns the history
-          owns the store that answers it.
-        * **The transport yields to an inner tapestry that chose its own.**  A
-          transport is a movement layer inside a single run, not part of any
-          durable record: its handles never leave the run that created them and no
-          lineage row references one.  Inheriting it keeps a disk- or object-store-
-          backed pipeline from silently dropping to ``InlineTransport`` inside a
-          ``SubTapestry`` body, which is where the bulk of a pipeline's data often
-          moves.  But a ``LoopSubTapestry`` iteration built as
-          ``Tapestry(transport=...)`` inside ``step()`` named that transport
-          deliberately, and overwriting it would be the same silent override in the
-          opposite direction.
-
-        Sharing one transport instance across the outer and inner runs is safe:
-        every ``DataTransport`` method is keyed by ``run_id``, and the inner run has
-        its own, so ``begin_run`` / ``end_run`` allocate and release inner-run
-        resources without touching the outer run's.  Sharing one data store is safe
-        for a different reason: it is content-addressed, so an inner value that
-        collides with an outer one is the same value.
-
-        Args:
-            tapestry: The inner tapestry about to be run.
-            data_store: The enclosing run's data store, or ``None`` when there is
-                no enclosing run to inherit from.
-            transport: The enclosing run's transport, or ``None`` likewise.
-        """
-        if data_store is not None:
-            tapestry._data_store = data_store
-        if transport is not None and not tapestry._transport_explicit:
-            tapestry._transport = transport
-
-    def __init__(self, **kwargs: Any) -> None:
-        # Capture the outer observability wiring *before* super().__init__
-        # freezes the object.  History and emitters are captured together
-        # because they are two halves of the same subscription: forwarding one
-        # without the other is what made inner work visible to the explorer and
-        # invisible to spans/metrics/logs (PIR-834).
-        from pirn.tapestry import _current_tapestry
-
-        explicit_tapestry = kwargs.get("tapestry")
-        outer = explicit_tapestry or _current_tapestry.get(None)
-        outer_history: RunHistory | None = outer.history if outer is not None else None
-        outer_emitters: list[Any] | None = outer.emitters if outer is not None else None
-        outer_emitter_policy: Any = outer.emitter_error_policy if outer is not None else None
-        # The value plane follows the history for the reason given on
-        # _apply_inherited_value_plane: a lineage row and the value its
-        # output_hash names have to live in stores that answer each other.
-        outer_data_store: Any = outer.data_store if outer is not None else None
-        outer_transport: Any = outer.transport if outer is not None else None
-        # A container holds no admission slot (see ``_holds_admission_slot``),
-        # so a group tag on it would name a slot it never takes: refuse it
-        # before registration rather than let a cap silently apply to
-        # nothing (WS0b).
-        config = kwargs.get("_config")
-        if isinstance(config, KnotConfig) and config.concurrency_group is not None:
-            raise ValueError(
-                f"{type(self).__name__}({config.id!r}): a SubTapestry holds no admission "
-                f"slot, so it cannot join concurrency group {config.concurrency_group!r}; "
-                "put the group on the knots inside its inner tapestry instead"
-            )
-        super().__init__(**kwargs)
-        # Knot.__setattr__ already exempts any `_mutable_`-prefixed name from
-        # the freeze guard, so a plain assignment is enough here — no need to
-        # bypass __setattr__ via object.__setattr__ as well.
-        self._mutable_outer_history = outer_history
-        self._mutable_outer_emitters = outer_emitters
-        self._mutable_outer_emitter_policy = outer_emitter_policy
-        self._mutable_outer_data_store = outer_data_store
-        self._mutable_outer_transport = outer_transport
-        self._mutable_inner_run_meta = {}
-
-    def lineage_extra(self) -> dict[str, Any]:
-        return {**super().lineage_extra(), **self._mutable_inner_run_meta}
 
     async def process(self, *args: Any, **_: Any) -> Knot:
         """Override to declare the inner pipeline and return its terminal knot.
@@ -374,7 +185,7 @@ class SubTapestry(Knot):
         # Clear the previous invocation's metadata up front.  It used to be
         # assigned only after the try body succeeded, so a failed inner run left
         # the *previous* run's inner_run_id in place for lineage to report.
-        self._mutable_inner_run_meta = {}
+        self._reset_inner_runs()
 
         try:
             with self._make_inner_tapestry() as inner:
@@ -390,15 +201,10 @@ class SubTapestry(Knot):
                     f"{type(self).__name__}.process() returned a Knot not registered "
                     "in the inner tapestry — was it built outside the process() body?"
                 )
-            try:
-                run_result = await self._run_inner(inner, extensible=self._extensible_inner_run)
-            except SubTapestryError as exc:
-                # Record the metadata for the run that failed.  Without this the
-                # failure path reports no inner_run_id at all, leaving a sibling's
-                # Ok record in the same inner run with no retrieval path.
-                self._record_inner_run_meta(exc.inner_result)
-                raise
-            self._record_inner_run_meta(run_result)
+            # ``_run_inner`` records the run on this knot whether it succeeded
+            # or failed, so a failed inner run still names its inner_run_id and
+            # a sibling's Ok record in it keeps a retrieval path.
+            run_result = await self._run_inner(inner, extensible=self._extensible_inner_run)
             output_key = self._resolve_output_key(sink)
             if output_key in run_result.skipped:
                 # The sink deliberately produced no value -- a closed ``Gate``
@@ -420,23 +226,6 @@ class SubTapestry(Knot):
 
         return Ok(value=output)
 
-    def _make_inner_tapestry(self) -> Tapestry:
-        """Return the tapestry ``process()`` builds its inner pipeline into.
-
-        The default is a bare ``Tapestry()``; the outer run's history, emitters,
-        value plane and traceback filter are forwarded onto it by
-        ``_run_inner`` regardless.  Override to give the inner run a setting
-        only the container can know -- a ``max_nesting_depth`` for a knot that
-        runs a nested agent, ``concurrency`` limits for a knot that fans tool
-        calls out under a group, a fallback ``traceback_filter`` -- without
-        opening a second tapestry inside ``process()`` (ADR agents-speaks-core,
-        WS1).  Whatever ``_run_inner`` inherits from the enclosing run still
-        wins over a setting made here, as it does for the default.
-        """
-        from pirn.tapestry import Tapestry
-
-        return Tapestry()
-
     @staticmethod
     def _sink_skip_reason(run_result: RunResult, output_key: str) -> str:
         """The lineage ``skip_reason`` recorded for *output_key*, or ``"skipped"``."""
@@ -444,168 +233,3 @@ class SubTapestry(Knot):
             if row.knot_id == output_key and row.skip_reason:
                 return row.skip_reason
         return "skipped"
-
-    def _record_inner_run_meta(self, run_result: RunResult) -> None:
-        """Publish the inner run's identifiers for ``lineage_extra`` to surface."""
-        self._mutable_inner_run_meta = {
-            "inner_run_id": run_result.run_id,
-            "inner_knot_count": len(run_result.lineage),
-            "inner_failures": len(run_result.exceptions),
-        }
-
-    async def _run_inner(
-        self,
-        tapestry: Tapestry,
-        *,
-        parent_run_id: str | None = None,
-        extensible: bool = False,
-        dispatcher: Dispatcher | None = None,
-        concurrency: ConcurrencyLimits | None = None,
-        admission_observers: list[AdmissionObserver] | None = None,
-    ) -> RunResult:
-        """Run the inner tapestry and return its ``RunResult``.
-
-        Raises ``SubTapestryError`` if the inner run produces any exceptions.
-
-        The outer tapestry's history, emitters *and* value plane — its data
-        store and transport — are injected automatically, so inner runs are
-        recorded to the same store, fan their status, lineage and run-result
-        events to the same subscribers, and write their outputs where the
-        lineage rows they produce can be resolved.  Pass ``parent_run_id`` to
-        explicitly link this inner run to a known outer run_id.  See
-        ``_apply_inherited_value_plane`` for why the data store is forwarded
-        unconditionally and the transport is not.
-
-        The outer run's *execution plane* — dispatcher, admission gate and
-        ``ConcurrencyLimits``, admission observers, replay posture, identity
-        resolver — is inherited by ``Tapestry.run`` itself for everything
-        the inner tapestry did not name (ADR agents-speaks-core, WS0b), so a
-        ``ThreadDispatcher`` outer run keeps its inner leaves on worker
-        threads, and an outer ``max_in_flight`` or group cap bounds inner
-        leaves against the *same* budget.  ``dispatcher``, ``concurrency``
-        and ``admission_observers`` override that per call; when omitted,
-        the ``_inner_dispatcher`` / ``_inner_concurrency`` /
-        ``_inner_admission_observers`` hooks decide, and their default
-        (``None``) inherits.  Naming a *bounded* ``concurrency`` gives the
-        inner run a gate chained under the outer budget -- both apply
-        (PIR-870); naming an explicitly unbounded ``ConcurrencyLimits()``
-        opts the inner run out of the outer budget entirely.
-
-        Emitter forwarding is unconditional — there is no volume guard, and
-        that is deliberate.  ``RunRetention`` (PIR-765) bounds *history*
-        because ``InMemoryHistory`` is the default backend, so an open-ended
-        ``LoopSubTapestry`` would otherwise grow an ephemeral store without
-        limit that nobody asked for.  Emitters have no default instance: every
-        one present was attached by an operator who asked to observe this
-        pipeline, and the events an inner run produces are proportional to work
-        it actually did.  Suppressing them would recreate exactly the defect
-        this forwarding fixes, one nesting level down.  An emitter that needs
-        to bound its own intake can filter on ``RunResult.parent_run_id`` /
-        ``run_path``, which identify inner runs precisely.  See PIR-834.
-        """
-        from pirn.core.run_request import RunRequest
-        from pirn.tapestry import (
-            _current_data_store,
-            _current_emitter_error_policy,
-            _current_emitters,
-            _current_history,
-            _current_run_id,
-            _current_traceback_filter,
-            _current_transport,
-        )
-
-        # Prefer the live contextvar over the construction-time capture.
-        #
-        # `__init__` captures the history of whatever tapestry was ambient when
-        # this knot was built.  For a SubTapestry constructed inside another
-        # SubTapestry's `process()`, that ambient tapestry is the throwaway
-        # `with Tapestry() as inner:` opened by `__call__` below — so the capture
-        # is a fresh default store which is discarded once the parent's inner run
-        # completes, and every record written to it is lost.  It is non-None but
-        # wrong, which is why the old `is None` fallback never fired.
-        #
-        # The contextvar is set by the enclosing `Tapestry.run()` to the store
-        # that run is actually writing to, so it is right at every depth.  It is
-        # None only outside a run, and the construction-time capture is then the
-        # correct answer.  See PIR-764.
-        outer_history: RunHistory | None = _current_history.get(None)
-        if outer_history is None:
-            outer_history = self._mutable_outer_history
-        # Inject the outer history into the inner tapestry so inner runs are
-        # recorded to the same store and appear in the explorer.
-        if outer_history is not None:
-            tapestry._history = outer_history
-
-        # The value plane rides the same two-source dance as the history, and
-        # for the same reason: a SubTapestry built inside another SubTapestry's
-        # `process()` captured the throwaway `with Tapestry() as inner:` at
-        # construction time, whose data store is a fresh InMemoryDataStore about
-        # to be thrown away.  Reading the contextvar first means a nested
-        # SubTapestry writes its values into the *real* outer store, so the
-        # lineage row it records in the real outer history has something to
-        # resolve against (PIR-764/PIR-773, PIR-837).
-        outer_data_store: Any = _current_data_store.get(None)
-        if outer_data_store is None:
-            outer_data_store = self._mutable_outer_data_store
-        outer_transport: Any = _current_transport.get(None)
-        if outer_transport is None:
-            outer_transport = self._mutable_outer_transport
-        self._apply_inherited_value_plane(
-            tapestry, data_store=outer_data_store, transport=outer_transport
-        )
-
-        # Emitters follow history through the same two-source dance, and for the
-        # same reason: a SubTapestry built inside another SubTapestry's
-        # `process()` captured the throwaway `with Tapestry() as inner:` at
-        # construction time, which carries no emitters at all.  Reading the
-        # contextvar first means a nested SubTapestry inherits the *real* outer
-        # subscription rather than the throwaway's empty one (PIR-764/PIR-773).
-        #
-        # The list and the policy are read as a pair from whichever source wins:
-        # a policy belongs to the subscription it governs, so mixing a live
-        # emitter list with a construction-time policy (or vice versa) would
-        # apply one run's error handling to another run's emitters.
-        outer_emitters: list[Any] | None = _current_emitters.get(None)
-        outer_emitter_policy: Any = _current_emitter_error_policy.get(None)
-        if outer_emitters is None:
-            outer_emitters = self._mutable_outer_emitters
-            outer_emitter_policy = self._mutable_outer_emitter_policy
-        inner_emitters = self._inherited_emitters(tapestry.emitters, outer_emitters)
-        # Only carry the outer policy when emitters actually came with it;
-        # otherwise leave the inner tapestry governed by its own default.
-        inner_emitter_policy = outer_emitter_policy if inner_emitters is not None else None
-
-        # If no explicit parent_run_id was supplied, inherit from the context
-        # var set by the enclosing Tapestry.run() call.
-        if parent_run_id is None:
-            parent_run_id = _current_run_id.get(None)
-
-        # Inherit the enclosing run's traceback filter.  Without this the inner
-        # run records its own exceptions unfiltered, and since nested runs became
-        # durable (PIR-764/765) a credential in an inner traceback is persisted
-        # verbatim — redacted in the outer record, leaked in the inner one.
-        # See PIR-725.
-        # Per-container overrides of the inherited execution plane (WS0b): an
-        # explicit argument wins, then the subclass hook; ``None`` inherits.
-        inner_dispatcher = dispatcher if dispatcher is not None else self._inner_dispatcher()
-        inner_limits = concurrency if concurrency is not None else self._inner_concurrency()
-        inner_observers = (
-            admission_observers
-            if admission_observers is not None
-            else self._inner_admission_observers()
-        )
-        result = await tapestry.run(
-            RunRequest(concurrency=inner_limits),
-            _parent_run_id=parent_run_id,
-            _parent_knot_id=self.knot_id,
-            _nesting_key=self._nesting_key(),
-            extensible=extensible,
-            traceback_filter=_current_traceback_filter.get(None),
-            emitters=inner_emitters,
-            emitter_error_policy=inner_emitter_policy,
-            dispatcher=inner_dispatcher,
-            admission_observers=inner_observers,
-        )
-        if not result.succeeded and not self._inner_failures_reach_sink:
-            raise SubTapestryError(result)
-        return result

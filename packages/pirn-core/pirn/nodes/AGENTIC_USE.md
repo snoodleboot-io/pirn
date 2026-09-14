@@ -4,7 +4,7 @@
 
 ## Mental model
 
-Every knot in `pirn.nodes` is a graph-shaping primitive. `Gate` and `Branch` control *which path* runs. `Map`, `ZipMap`, `DictMap`, and `Reduce` control *how many times* a knot runs over a collection. `Aggregator` merges multiple upstream values into one. `SubTapestry` and `LoopSubTapestry` encapsulate inner pipelines. `WithContinuation` spawns successor knots at run time from a pool. `Source` and `Sink` mark the entry and exit boundaries of a pipeline.
+Every knot in `pirn.nodes` is a graph-shaping primitive. `Gate` and `Branch` control *which path* runs. `Map`, `ZipMap`, `DictMap`, and `Reduce` control *how many times* a knot runs over a collection. `Aggregator` merges multiple upstream values into one. `SubTapestry` and `LoopSubTapestry` encapsulate inner pipelines; `NestedRunKnot` lets a plain knot run inner pipelines and still return its own value. `WithContinuation` spawns successor knots at run time from a pool. `Source` and `Sink` mark the entry and exit boundaries of a pipeline.
 
 All of these are `Knot` subclasses and wire into a `Tapestry` context the same way as any other knot.
 
@@ -28,6 +28,7 @@ pirn/nodes/
 ├── with_continuation.py WithContinuation    — run a knot then spawn successors from a pool at run time
 │                        WithContinuation.attach() — convenience wrapper: attach a continuation to an existing knot
 │                        Next                — dataclass describing one successor action + inputs
+├── nested_run_knot.py   NestedRunKnot       — plain knot that runs nested tapestries via _run_inner and returns its own value
 ├── sub_tapestry.py      SubTapestry         — knot whose body is a complete inner tapestry; → see AGENTIC_USE.md in guides
 └── loop_sub_tapestry.py LoopSubTapestry     — iterative SubTapestry; implement step() and fold()
 ```
@@ -181,6 +182,7 @@ The `Map` marker expects the source knot to produce a `list` or `tuple` at run t
 | Define a pipeline terminal | `class MySink(Sink): async def process(self, data: T, **_) -> None` |
 | Spawn successors at run time | `WithContinuation.attach(knot, fn=continuation_fn, pool={"action": KnotClass})` |
 | Inner pipeline as one node | subclass `SubTapestry` — see [guides/sub-tapestry.md](../../docs/guides/sub-tapestry.md) |
+| Inner runs inside a knot that returns its own value | subclass (or mix in) `NestedRunKnot` and await `self._run_inner(inner)` |
 | Iterative / agentic loop | subclass `LoopSubTapestry[S]` — see [guides/agentic-loops.md](../../docs/guides/agentic-loops.md) |
 
 ---

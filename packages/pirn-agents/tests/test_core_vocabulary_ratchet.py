@@ -55,7 +55,7 @@ _PACKAGE_ROOT = Path(__file__).parent.parent / "pirn_agents"
 #
 # WS2 fixed the 8 roots under exceptions/** and security/** (its lane):
 # ToolInvocationError, AgentRecursionError (since deleted, PIR-872), SandboxDisabledError,
-# UnsupportedModalityError, MissingCassetteEntryError, InjectionDetectedError,
+# UnsupportedModalityError, MissingCassetteEntryError (since deleted, PIR-872), InjectionDetectedError,
 # McpTrustError, UntrustedDirectiveError. PIR-872 rooted the remaining nine on
 # PirnError (keeping each one's builtin base where callers catch it):
 # BudgetBreachError, StructuredDecodeError, SpecialistInvocationError,
@@ -146,12 +146,15 @@ class TestExceptionRootsFrozen(unittest.TestCase):
             assert VocabularyInventory.roots_on_pirn_error(name, self.classes), name
 
     def test_ws2_owned_roots_now_have_pirn_error(self) -> None:
-        """The 8 roots WS2 fixed must actually resolve PirnError, not just be absent above."""
+        """The roots WS2 fixed must actually resolve PirnError, not just be absent above.
+
+        WS2 fixed 8; ``AgentRecursionError`` (core ``RunNesting``) and
+        ``MissingCassetteEntryError`` (core replay) were since deleted (PIR-872).
+        """
         fixed = [
             "ToolInvocationError",
             "SandboxDisabledError",
             "UnsupportedModalityError",
-            "MissingCassetteEntryError",
             "InjectionDetectedError",
             "McpTrustError",
             "UntrustedDirectiveError",

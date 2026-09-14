@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import unittest
+from typing import Any
 
+from pirn.backends.in_memory.in_memory_history import InMemoryHistory
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.retrieval.vector_stores.in_memory_vector_store import InMemoryVectorStore
+from pirn_agents.specializations.rag.indexing._raptor_assembler import _RaptorAssembler
 from pirn_agents.specializations.rag.indexing.raptor_retriever import RaptorRetriever
 from pirn_agents.specializations.rag.indexing.raptor_tree import RaptorTree
 from pirn_agents.specializations.rag.indexing.raptor_tree_builder import RaptorTreeBuilder
@@ -84,3 +87,83 @@ class TestRaptor(unittest.IsolatedAsyncioTestCase):
         )
         assert results
         assert all(not r["id"].endswith(":meta") for r in results)
+
+
+class _CountingStore(InMemoryVectorStore):
+    """Counts upserts, so a test can pin the single final write."""
+
+    upserts: int = 0
+
+    async def upsert(self, records: Any) -> None:
+        self.upserts += 1
+        await super().upsert(records)
+
+
+class TestRaptorPerSummaryLineage(unittest.IsolatedAsyncioTestCase):
+    """Each cluster summary is its own knot in a nested run (PIR-872)."""
+
+    @staticmethod
+    async def _assemble(
+        store: InMemoryVectorStore, llm: StubLLMProvider
+    ) -> tuple[Any, InMemoryHistory]:
+        history = InMemoryHistory()
+        with Tapestry(history=history) as t:
+            _RaptorAssembler(
+                chunks=["a", "b", "c", "d"],
+                llm=llm,
+                embedder=StubEmbeddingProvider(dimension=4),
+                store=store,
+                cluster_size=2,
+                max_levels=3,
+                _config=KnotConfig(id="asm"),
+            )
+        return await t.run(RunRequest()), history
+
+    async def test_every_summary_call_has_its_own_lineage_row(self) -> None:
+        # Arrange
+        store = _CountingStore(embedder=StubEmbeddingProvider(dimension=4))
+        llm = StubLLMProvider(["summary text"], repeat_last=True)
+
+        # Act
+        result, history = await self._assemble(store, llm)
+
+        # Assert: two levels -> two inner runs, 2 + 1 summary knots, one upsert.
+        assert result.succeeded, result.exceptions
+        tree = result.outputs["asm"]
+        prefix = f"raptor:{tree.content_hash}"
+        children = await history.children_of(result.run_id)
+        assert [child.parent_knot_id for child in children] == ["asm", "asm"]
+        summary_ids = [
+            [row.knot_id for row in child.lineage if row.knot_id.startswith(prefix)]
+            for child in children
+        ]
+        assert sorted(summary_ids[0]) == [f"{prefix}:1:0", f"{prefix}:1:1"]
+        assert summary_ids[1] == [f"{prefix}:2:0"]
+        (row,) = [r for r in result.lineage if r.knot_id == "asm"]
+        assert row.extra["inner_run_ids"] == [child.run_id for child in children]
+        assert len(llm.calls) == 3
+        assert store.upserts == 1
+        assert tree.node_count == 7
+
+    async def test_a_reused_tree_starts_no_inner_run(self) -> None:
+        store = _CountingStore(embedder=StubEmbeddingProvider(dimension=4))
+        llm = StubLLMProvider(["summary text"], repeat_last=True)
+        await self._assemble(store, llm)
+
+        result, history = await self._assemble(store, llm)
+
+        assert result.outputs["asm"].reused is True
+        assert await history.children_of(result.run_id) == []
+        assert store.upserts == 1
+
+    async def test_a_failed_summary_fails_the_assembly_without_upserting(self) -> None:
+        store = _CountingStore(embedder=StubEmbeddingProvider(dimension=4))
+
+        result, history = await self._assemble(store, StubLLMProvider([]))
+
+        assert not result.succeeded
+        (record,) = [e for e in result.exceptions if e.knot_id == "asm"]
+        assert "exceeds the 0 scripted" in record.message
+        assert store.upserts == 0
+        (child,) = await history.children_of(result.run_id)
+        assert not child.succeeded

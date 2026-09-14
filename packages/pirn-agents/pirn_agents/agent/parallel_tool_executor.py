@@ -176,7 +176,7 @@ class ParallelToolExecutor(SubTapestry):
                 call, toolset, knot_id, timeout, retry, approval_hook
             )
         return Aggregator(
-            combine=functools.partial(self._views, call_list, toolset),
+            combine=functools.partial(self._views, call_list),
             _config=KnotConfig(id="results", error_policy=ErrorPolicy.RECEIVE_ERRORS),
             **per_call,
         )
@@ -213,20 +213,9 @@ class ParallelToolExecutor(SubTapestry):
             )
 
     @staticmethod
-    def _views(
-        calls: Sequence[ToolCall], toolset: Toolset, **by_key: Result[Any]
-    ) -> tuple[ToolResult, ...]:
-        """Build the views in input order from each call's ``Result``.
-
-        ``gated`` (PIR-865) is whether the call's tool requires approval: such
-        a call's own knot has no possible parent besides its own arguments
-        and the approval gate ``ToolFactory.for_call`` wires in, so its only
-        possible ``Skipped`` cause is that gate closing.
-        """
-        views: list[ToolResult] = []
-        for index, call in enumerate(calls):
-            factory = toolset.get(call.tool_name)
-            gated = factory.requires_approval() if factory is not None else False
-            view = ToolResult.from_result(call.call_id, by_key[f"call_{index}"], gated=gated)
-            views.append(view)
-        return tuple(views)
+    def _views(calls: Sequence[ToolCall], **by_key: Result[Any]) -> tuple[ToolResult, ...]:
+        """Build the views in input order from each call's ``Result``."""
+        return tuple(
+            ToolResult.from_result(call.call_id, by_key[f"call_{index}"])
+            for index, call in enumerate(calls)
+        )
