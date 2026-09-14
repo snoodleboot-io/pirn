@@ -16,9 +16,8 @@ class PlanReActResult(AgentResult[PlanReActFrame, AgentResponse]):
     (PIR-868, following the ADR agents-speaks-core WS6b pattern) — ``data``
     is the last step's :class:`AgentResponse` (the overall result), and
     ``metadata`` is the :class:`PlanReActFrame` carrying the plan and every
-    step's response. The pre-ADR field names (``plan``, ``step_responses``,
-    ``final``) stay available as read-only properties, so every existing
-    construction and attribute-access call site keeps compiling unchanged.
+    step's response. The constructor takes the pattern's named fields (``plan``,
+    ``step_responses``, ``final``), and each is also a read-only property.
     """
 
     def __init__(

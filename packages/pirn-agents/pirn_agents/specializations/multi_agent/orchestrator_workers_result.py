@@ -21,9 +21,8 @@ class OrchestratorWorkersResult(
     (PIR-868, following the ADR agents-speaks-core WS6b pattern) — ``data``
     is the per-task results in task-list order, and ``metadata`` is the
     :class:`OrchestratorWorkersFrame` carrying the succeeded/total counts.
-    The pre-ADR field names (``results``, ``succeeded``, ``total``) stay
-    available as read-only properties, so every existing construction and
-    attribute-access call site keeps compiling unchanged.
+    The constructor takes the pattern's named fields (``results``, ``succeeded``,
+    ``total``), and each is also a read-only property.
     """
 
     def __init__(self, results: tuple[WorkerTaskResult, ...], succeeded: int, total: int) -> None:
