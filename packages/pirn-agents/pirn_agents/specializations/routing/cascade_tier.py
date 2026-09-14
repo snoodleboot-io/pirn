@@ -2,25 +2,31 @@
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
+
+from pirn_agents.llm.llm_provider import LLMProvider
 
 
 @dataclass(frozen=True)
 class CascadeTier(PirnOpaqueValue):
     """A single model tier the cascade may try, cheapest listed first.
 
+    A tier is a model call: the cascade runs it as an
+    :class:`~pirn_agents.specializations.rag.llm_chat_call.LLMChatCall` knot
+    over this tier's provider, so every attempted tier has its own engine
+    ``Result`` and lineage row.
+
     Attributes
     ----------
     name:
         Stable identifier for the tier, surfaced in the observable
         :class:`~pirn_agents.specializations.routing.cascade_outcome.CascadeOutcome`.
-    invoke:
-        Async callable mapping the request to this tier's model output — the
-        provider seam, so the cascade names no vendor.
+    llm:
+        The provider this tier calls — the provider seam, so the cascade names
+        no vendor. A provider is configured with its own model.
     min_confidence:
         Confidence floor this tier's output must clear to be accepted; below it
         the cascade escalates. ``0.0`` (the default) means always accept.
@@ -31,15 +37,17 @@ class CascadeTier(PirnOpaqueValue):
     """
 
     name: str
-    invoke: Callable[[Any], Awaitable[Any]]
+    llm: LLMProvider
     min_confidence: float = 0.0
     estimated_cost: float = 0.0
 
     def __post_init__(self) -> None:
         if not isinstance(self.name, str) or not self.name:
             raise TypeError("CascadeTier: name must be a non-empty str")
-        if not callable(self.invoke):
-            raise TypeError("CascadeTier: invoke must be an async callable")
+        if not isinstance(self.llm, LLMProvider):
+            raise TypeError(
+                f"CascadeTier: llm must be an LLMProvider, got {type(self.llm).__name__}"
+            )
         if not 0.0 <= self.min_confidence <= 1.0:
             raise ValueError(
                 f"CascadeTier: min_confidence must be in [0, 1], got {self.min_confidence!r}"
@@ -52,7 +60,7 @@ class CascadeTier(PirnOpaqueValue):
     def _pirn_audit_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
-            "invoke": repr(self.invoke),
+            "llm": type(self.llm).__qualname__,
             "min_confidence": self.min_confidence,
             "estimated_cost": self.estimated_cost,
         }

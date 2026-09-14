@@ -94,20 +94,12 @@ UNRUN_TAPESTRY: frozenset[str] = frozenset()
 #: doesn't even trip this detector (it wires the tool as a knot the engine
 #: runs via `process()`, never touching `.invoke()` itself), so it isn't
 #: listed. PIR-856 fixed three call sites (`ParallelToolCaller`, `ToolChain`,
-#: `ReActStepExecutor`). PIR-867 re-checked `_AttemptTier`: `CascadeTier.invoke`
-#: is a bare provider callable, not a `Tool`, so there is no tool knot to
-#: construct instead — the fix is `specializations/routing/_tier_invocation.py::_TierInvocation`,
-#: a dedicated vending knot whose only body is this call, wired as a real
-#: parent of `_AttemptTier`'s inner pipeline (`_tier_attempt_fold.py::_TierAttemptFold`
-#: folds its `Ok`/`Err` outcome, via `error_policy=RECEIVE_ERRORS`, into the
-#: cascade's state). `_TierInvocation` is the sanctioned entry now, the same
-#: role `ToolInvocation` plays for tool calls — the call is made exactly
-#: once, inside the one knot whose job is to make it.
-AWAITS_INVOKE = frozenset(
-    {
-        "specializations/routing/_tier_invocation.py::_TierInvocation",
-    }
-)
+#: `ReActStepExecutor`). PIR-872 removed the last one: a cascade tier is a model
+#: call, so `CascadeTier` carries an `LLMProvider` and `_AttemptTier` wires the
+#: shared `LLMChatCall` knot for it — `CascadeTier.invoke` and its
+#: `_TierInvocation` wrapper are deleted. Kept as a `frozenset()` assertion so a
+#: future instance regresses loudly.
+AWAITS_INVOKE: frozenset[str] = frozenset()
 
 #: `asyncio.gather(...)` used to fan calls out by hand instead of letting the
 #: engine schedule N sibling knots concurrently (the `Aggregator` fan-out

@@ -1,12 +1,11 @@
 """``_AttemptTier`` — fold one cascade tier's decision into state.
 
-``tier.invoke`` is a bare async callable (the cascade's own provider seam,
-not a :class:`~pirn_agents.tools.tool.Tool`), so it used to be awaited
-directly inside ``process()`` (``AWAITS_INVOKE``). PIR-867 wires it as a
-genuine graph node instead:
-:class:`~pirn_agents.specializations.routing._tier_invocation._TierInvocation`
-calls the provider, and
-:class:`~pirn_agents.specializations.routing._tier_attempt_fold._TierAttemptFold`
+A cascade tier is a model call, so it runs as the same LLM-call knot the
+other patterns use:
+:class:`~pirn_agents.specializations.rag.llm_chat_call.LLMChatCall` over the
+tier's provider, dispatched by the engine with its own ``Result``, lineage row
+and ``"llm"`` call event — nothing awaits a provider inside ``process()``
+(PIR-872). :class:`~pirn_agents.specializations.routing._tier_attempt_fold._TierAttemptFold`
 — wired with ``error_policy=RECEIVE_ERRORS`` over it — folds the raw
 ``Ok``/``Err`` outcome into the cascade's state, exactly like
 ``ReActStepExecutor``'s tool-call assembler does for a tool call. The
@@ -26,9 +25,9 @@ from pirn.core.parameter import Parameter
 
 from pirn_agents.performance.spend_cap_policy import SpendCapPolicy
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
+from pirn_agents.specializations.rag.llm_chat_call import LLMChatCall
 from pirn_agents.specializations.routing._cascade_chain_state import _CascadeChainState
 from pirn_agents.specializations.routing._tier_attempt_fold import _TierAttemptFold
-from pirn_agents.specializations.routing._tier_invocation import _TierInvocation
 from pirn_agents.specializations.routing.cascade_tier import CascadeTier
 
 
@@ -54,7 +53,7 @@ class _AttemptTier(AgentPipeline):
         prior: Knot | _CascadeChainState,
         tier: Knot | CascadeTier,
         index: Knot | int,
-        request: Knot | Any,
+        request: Knot | str,
         confidence: Any,
         meter: Any,
         spend_cap_policy: Knot | SpendCapPolicy,
@@ -78,7 +77,7 @@ class _AttemptTier(AgentPipeline):
         prior: _CascadeChainState,
         tier: CascadeTier,
         index: int,
-        request: Any,
+        request: str,
         confidence: Any,
         meter: Any,
         spend_cap_policy: SpendCapPolicy,
@@ -88,9 +87,9 @@ class _AttemptTier(AgentPipeline):
 
         Args:
             prior: The chain's accumulated state before this tier.
-            tier: This tier's name, invoke callable, floor, and cost.
+            tier: This tier's name, provider, floor, and cost.
             index: This tier's 0-based position (0 = cheapest).
-            request: The payload passed unchanged to the tier's ``invoke``.
+            request: The prompt sent unchanged to the tier's provider.
             confidence: Async scorer mapping the tier's output to ``[0, 1]``.
             meter: Optional budget meter accruing each tier's estimated cost.
             spend_cap_policy: What to do when a tier would breach the cap.
@@ -99,7 +98,7 @@ class _AttemptTier(AgentPipeline):
             A ``Parameter`` defaulting to ``prior`` unchanged when the chain
             is already locked, or to the downshift state when the spend cap
             triggers a skip; otherwise the sink of the inner pipeline — a
-            ``_TierAttemptFold`` over the wired ``_TierInvocation`` — whose
+            ``_TierAttemptFold`` over the wired ``LLMChatCall`` — whose
             output is the state folding in this tier's decision.
 
         Raises:
@@ -131,7 +130,7 @@ class _AttemptTier(AgentPipeline):
             decisions.append(f"{tier.name}: spend cap exceeded -> abort")
             meter.spend_cost(tier.estimated_cost)  # raises BudgetBreachError
 
-        outcome = _TierInvocation(tier=tier, request=request, _config=KnotConfig(id="invoke"))
+        outcome = LLMChatCall(prompt=request, llm=tier.llm, _config=KnotConfig(id="invoke"))
         return _TierAttemptFold(
             prior=prior,
             tier=tier,
