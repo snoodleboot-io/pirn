@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ADaMDatasetBuilder`` — build CDISC ADaM-style derived datasets.
 
 Production version emits ADaM (Analysis Data Model) datasets such as

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FhirPatientAssembler`` — assemble :class:`ClinicalRecord` objects from FHIR dicts.
 
 Sits between a connector that materialises FHIR Patient JSON bundles (as
@@ -67,13 +69,13 @@ class FhirPatientAssembler(Assembler):
             TypeError: If ``records`` is not a ``list`` or ``salt`` is not a ``str``.
             ValueError: If ``records`` is empty or ``salt`` is empty.
         """
-        if not isinstance(records, list):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(records, list):
             raise TypeError(
                 f"FhirPatientAssembler: records must be a list, got {type(records).__name__}"
             )
         if not records:
             raise ValueError("FhirPatientAssembler: records must be non-empty")
-        if not isinstance(salt, str):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(salt, str):
             raise TypeError("FhirPatientAssembler: salt must be a string")
         if not salt:
             raise ValueError("FhirPatientAssembler: salt must be non-empty")

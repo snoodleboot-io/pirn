@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``EstimandAlignedAnalyzer`` — filter records to an estimand strategy.
 
 The ICH E9(R1) addendum defines five estimand strategies for handling

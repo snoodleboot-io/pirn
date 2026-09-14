@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``VitalSignsAggregator`` — per-patient summaries of vitals.
 
 Operates over a tuple of ``(patient_id, vital_name, value, observed_at)``

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MedDRANormalizer`` — map verbatim adverse-event terms to MedDRA PTs.
 
 Production version queries a licensed MedDRA dictionary to look up

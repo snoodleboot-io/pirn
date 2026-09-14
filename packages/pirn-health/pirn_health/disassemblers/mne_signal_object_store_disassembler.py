@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MneSignalObjectStoreDisassembler`` — shared bytes serialisation for MNE-backed signal disassemblers.
 
 :class:`~pirn_health.disassemblers.eeg_object_store_disassembler.EegObjectStoreDisassembler`
@@ -57,7 +59,7 @@ class MneSignalObjectStoreDisassembler(Disassembler):
         Raises:
             TypeError: If ``payload`` is not a :class:`HealthSignalPayload`.
         """
-        if not isinstance(payload, HealthSignalPayload):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(payload, HealthSignalPayload):
             raise TypeError(
                 f"{type(self).__name__}: payload must be HealthSignalPayload, "
                 f"got {type(payload).__name__}"

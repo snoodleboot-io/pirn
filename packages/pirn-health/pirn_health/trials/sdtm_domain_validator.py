@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SDTMDomainValidator`` — validate SDTM domain conformance.
 
 Production version cross-checks records against the CDISC SDTM IG

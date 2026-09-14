@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``BiasFieldCorrector`` — N4 bias-field correction.
 
 Production version uses ANTs N4BiasFieldCorrection or
@@ -38,13 +40,7 @@ from typing import Any, ClassVar
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-try:
-    import SimpleITK as sitk
-
-    _HAS_SITK: bool = True
-except ImportError:
-    sitk = None  # type: ignore[assignment]
-    _HAS_SITK = False
+from pirn_health.health_optional_dependency import HealthOptionalDependency
 
 
 class BiasFieldCorrector(Knot):
@@ -96,10 +92,7 @@ class BiasFieldCorrector(Knot):
 
     @staticmethod
     def _apply_n4(nifti_path: str, output_nifti_path: str) -> None:
-        if not _HAS_SITK or sitk is None:
-            raise ImportError(
-                "SimpleITK is required for BiasFieldCorrector — install with: pip install 'pirn[mri]'"
-            )
+        sitk = HealthOptionalDependency.require("SimpleITK", extra="mri")
         img = sitk.ReadImage(nifti_path, sitk.sitkFloat32)
         corrector = sitk.N4BiasFieldCorrectionImageFilter()
         corrected = corrector.Execute(img)

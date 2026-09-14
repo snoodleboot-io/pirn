@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``VolumetricAnalyzer`` — per-region volume estimates.
 
 Production version uses FreeSurfer aseg/aparc volumes or FSL FAST, loading

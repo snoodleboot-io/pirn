@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``EegBandpassFilter`` — bandpass filter an EEG/MEG signal frame.
 
 Algorithm:
@@ -28,16 +30,9 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_health.health_optional_dependency import HealthOptionalDependency
 from pirn_health.types.health_signal_frame import HealthSignalFrame
 from pirn_health.types.health_signal_payload import HealthSignalPayload
-
-try:
-    from scipy import signal as ss
-
-    _HAS_SCIPY: bool = True
-except ImportError:
-    ss = None  # type: ignore[assignment]
-    _HAS_SCIPY = False
 
 
 class EegBandpassFilter(Knot):
@@ -106,9 +101,7 @@ class EegBandpassFilter(Knot):
 
     @staticmethod
     def _apply_bandpass(data: np.ndarray, low_hz: float, high_hz: float, fs: float) -> np.ndarray:
-        if not _HAS_SCIPY or ss is None:
-            raise ImportError(
-                "scipy is required for EegBandpassFilter — install with: pip install 'pirn-health[health]'"
-            )
-        sos = ss.butter(4, [low_hz, high_hz], btype="bandpass", fs=fs, output="sos")
-        return ss.sosfiltfilt(sos, data, axis=-1)
+        signal = HealthOptionalDependency.require("scipy.signal", extra="health")
+        sos: np.ndarray = signal.butter(4, [low_hz, high_hz], btype="bandpass", fs=fs, output="sos")
+        filtered: np.ndarray = signal.sosfiltfilt(sos, data, axis=-1)
+        return filtered

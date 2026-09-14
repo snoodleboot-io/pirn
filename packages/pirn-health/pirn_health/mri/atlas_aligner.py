@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``AtlasAligner`` — align an MRI to an anatomical atlas.
 
 Production version uses MNI152 / Talairach atlases via ANTs. This stub

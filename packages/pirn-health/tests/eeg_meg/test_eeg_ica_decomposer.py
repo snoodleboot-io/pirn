@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import sys
 import unittest
+from unittest.mock import patch
 
 try:
     import sklearn  # noqa: F401
@@ -75,3 +77,8 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
         assert "unmixing_matrix" in out
         assert "component_variances" in out
         assert len(out["component_variances"]) == 5
+
+    async def test_raises_install_hint_without_sdk(self) -> None:
+        with patch.dict(sys.modules, {"sklearn.decomposition": None}):
+            with self.assertRaisesRegex(ImportError, r"pirn-health\[health\]"):
+                await _make_knot().process(eeg_data=_EEG_DATA, n_components=5, algorithm="fastica")

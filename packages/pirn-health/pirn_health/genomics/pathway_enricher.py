@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PathwayEnricher`` — GSEA-style pathway enrichment.
 
 Production version wraps GSEA / fgsea / enrichr; this stub returns an

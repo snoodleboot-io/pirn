@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``VCFMerger`` — merge per-sample VCFs into a cohort VCF.
 
 Production version uses ``bcftools merge`` or ``pysam`` to align
