@@ -55,9 +55,10 @@ from pathlib import Path
 from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import KnotFactory
+from pirn.core.map import Map
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
-from pirn.nodes.map_markers import Map, ZipMap
+from pirn.core.zip_map import ZipMap
 from pirn.tapestry import Tapestry
 
 # ----------------------------------------------------------------- constants

@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_factory import KnotFactory
+from pirn.core.map import Map
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.gate.gate import Gate
-from pirn.nodes.map_markers import Map
 from pirn.nodes.reduce_ import Reduce
 from pirn.tapestry import Tapestry
 

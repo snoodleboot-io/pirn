@@ -26,11 +26,13 @@ def test_core_public_surface():
 
 
 def test_node_public_surface():
+    from pirn.core.dict_map import DictMap
+    from pirn.core.map import Map
+    from pirn.core.zip_map import ZipMap
     from pirn.nodes.aggregator import Aggregator
     from pirn.nodes.branch.branch import Branch
     from pirn.nodes.branch.branch_output import BranchOutput
     from pirn.nodes.gate.gate import Gate
-    from pirn.nodes.map_markers import DictMap, Map, ZipMap
     from pirn.nodes.reduce_ import Reduce
     from pirn.nodes.sink import Sink
     from pirn.nodes.source import Source

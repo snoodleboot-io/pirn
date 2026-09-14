@@ -1353,7 +1353,7 @@ flowchart TD
 | `pirn/triggers/trigger.py` | `Trigger` protocol, `Trigger.run_forever()` |
 | `pirn/streaming/streaming_source.py` | `StreamingSource` protocol, `StreamingSource.run_stream()` |
 | `pirn/streaming/trigger_adapter.py` | `StreamingSourceTrigger` |
-| `pirn/nodes/map_markers.py` | `Map`, `ZipMap`, `DictMap` — fan-out markers |
+| `pirn/core/map.py`, `pirn/core/zip_map.py`, `pirn/core/dict_map.py` | `Map`, `ZipMap`, `DictMap` — fan-out markers |
 | `pirn/nodes/branch/` | `Branch`, `BranchOutput` — selector routing |
 | `pirn/nodes/gate/` | `Gate` — predicate-based pass/skip |
 | `pirn/nodes/reduce_.py` | `Reduce` — sequential fold over a collection |

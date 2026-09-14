@@ -248,6 +248,26 @@ Two new hooks on `SubTapestry` support specialised subclasses:
 
 ### Removed
 
+#### Per-package optional-import helpers, the `map_markers` module and `_Loader` (PIR-872)
+
+Every optional backend is imported through `pirn.core.optional_dependency.OptionalDependency.require(module, extra=..., package="pirn-<pkg>")`; the install hint still names the package's own extra.
+
+| Removed name | Replacement |
+|---|---|
+| `pirn_signal.signal_optional_dependency.SignalOptionalDependency.require(module, extra=)` | `OptionalDependency.require(module, extra=, package="pirn-signal")` |
+| `pirn_health.health_optional_dependency.HealthOptionalDependency.require(module, extra=)` | `OptionalDependency.require(module, extra=, package="pirn-health")` |
+| `pirn_data.data_optional_dependency.DataOptionalDependency.require(module, extra=)` | `OptionalDependency.require(module, extra=, package="pirn-data")` |
+| `pirn_ml.ml_optional_dependency.MlOptionalDependency.require(module, extra=)` | `OptionalDependency.require(module, extra=, package="pirn-ml")` |
+| `pirn_oilgas.oilgas_optional_import.OilgasOptionalImport.require(module, purpose)` | `OptionalDependency.require(module, extra="oilgas", package="pirn-oilgas")` |
+| `pirn_agents._internal.optional_import.OptionalImport.require(extra, module)` | `OptionalDependency.require(module, extra=extra, package="pirn-agents")` |
+| `pirn.nodes.map_markers` (`Map`, `ZipMap`, `DictMap`, `MapTypeError`) | `pirn.core.map.Map`, `pirn.core.zip_map.ZipMap`, `pirn.core.dict_map.DictMap`, `pirn.core.map_type_error.MapTypeError` |
+| `pirn.check._loader._Loader` | `pirn.check.factory_spec_loader.FactorySpecLoader` |
+
+#### Type-checking and convention ratchets (PIR-872)
+
+- `scripts/check_pyright_strict_list.py` and each package's `[tool.pyright] strict = [...]` list: every package sets `typeCheckingMode = "strict"` and `reportUnnecessaryIsInstance = "none"` in config, and the per-file `# pyright: reportUnnecessaryIsInstance=false` headers are gone.
+- `scripts/conventions_baseline.json`, `scripts/caps_constants_baseline.json`, the `--baseline` / `--write-baseline` options of `check_conventions.py` and `check_no_caps_constants.py`, and `check_conventions.py`'s `_MODULE_LEVEL_FUNCTION_ALLOWLIST`: both gates fail on any finding.
+
 #### Built-in prompt names that no longer matched their owner (PIR-872)
 
 Seventeen `PromptBinding` names still named the module their class was split out of (or dropped the attribute's suffix). Each is now `<module path>.<attribute>` per `pirn_agents/prompt/PROMPTS.md`, with no alias; a prompt pack keyed on an old name must use the new one.

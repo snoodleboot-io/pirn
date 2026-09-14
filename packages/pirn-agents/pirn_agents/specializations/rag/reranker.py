@@ -11,7 +11,7 @@ the cross-encoder adapter) injected via ``reranker``.
 The LLM path is expressed as a graph rather than a hand-rolled
 ``for doc in documents: await llm.chat(...)`` loop: each document becomes its
 own ``DocumentRelevanceScorer`` invocation, fanned out with a core
-:class:`~pirn.nodes.map_markers.Map`, and folded back into the top-K list with
+:class:`~pirn.core.map.Map`, and folded back into the top-K list with
 a :class:`~pirn.nodes.reduce_.Reduce`. The engine schedules the per-document
 scorers concurrently — every ready sibling starts as its own task (PIR-841) —
 so scoring runs *through* the engine, with its own ``Result``, history record,
@@ -53,8 +53,8 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.map import Map
 from pirn.core.parameter import Parameter
-from pirn.nodes.map_markers import Map
 from pirn.nodes.reduce_ import Reduce
 
 from pirn_agents.llm.llm_provider import LLMProvider

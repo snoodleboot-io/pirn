@@ -126,17 +126,17 @@ engine to fan a knot out over a collection.  The annotated knot appears in
 the graph and lineage as itself; its `process` signature is typed for a
 single element.
 
-::: pirn.nodes.map_markers.Map
+::: pirn.core.map.Map
     options:
       show_source: false
       heading_level: 3
 
-::: pirn.nodes.map_markers.ZipMap
+::: pirn.core.zip_map.ZipMap
     options:
       show_source: false
       heading_level: 3
 
-::: pirn.nodes.map_markers.DictMap
+::: pirn.core.dict_map.DictMap
     options:
       show_source: false
       heading_level: 3
@@ -144,7 +144,9 @@ single element.
 ### Example
 
 ```python
-from pirn.nodes.map_markers import Map, ZipMap, DictMap
+from pirn.core.dict_map import DictMap
+from pirn.core.map import Map
+from pirn.core.zip_map import ZipMap
 from pirn.core.knot_config import KnotConfig
 
 # Map: fan over a single ordered collection

@@ -5,8 +5,11 @@ from __future__ import annotations
 import unittest
 from typing import Any
 
+from pirn.core.dict_map import DictMap
 from pirn.core.knot_config import KnotConfig
-from pirn.nodes.map_markers import DictMap, Map, MapTypeError, ZipMap
+from pirn.core.map import Map
+from pirn.core.map_type_error import MapTypeError
+from pirn.core.zip_map import ZipMap
 from pirn.nodes.source import Source
 from pirn.tapestry import Tapestry
 

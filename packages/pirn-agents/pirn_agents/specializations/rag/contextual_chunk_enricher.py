@@ -9,7 +9,7 @@ context disambiguates pronouns, dates, and entities. This is an ingest-time knot
 The per-chunk enrichment is expressed as a graph rather than a hand-rolled
 ``for doc in documents: await llm.chat(...)`` loop: each chunk becomes its own
 :class:`~pirn_agents.specializations.rag.chunk_enricher.ChunkEnricher`
-invocation, fanned out with a core :class:`~pirn.nodes.map_markers.Map`, and
+invocation, fanned out with a core :class:`~pirn.core.map.Map`, and
 folded back into the enriched list (preserving input order) with a
 :class:`~pirn.nodes.reduce_.Reduce`. The engine schedules the per-chunk
 invocations concurrently — every ready sibling starts as its own task
@@ -38,8 +38,8 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pirn.core.map import Map
 from pirn.core.parameter import Parameter
-from pirn.nodes.map_markers import Map
 from pirn.nodes.reduce_ import Reduce
 
 from pirn_agents.llm.llm_provider import LLMProvider
