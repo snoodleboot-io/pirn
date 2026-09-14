@@ -73,7 +73,7 @@ class ArrowToLanceSink(Sink):
             )
         # ``from ... import``: ``lance.dataset`` the attribute is the ``lance.dataset()``
         # function, which shadows the submodule of the same name.
-        from lance.dataset import (
+        from lance.dataset import (  # pyright: ignore[reportMissingImports]  # optional extra; absent from the CI image
             write_dataset,  # pyright: ignore[reportUnknownVariableType]  # lance's signature has untyped params
         )
 

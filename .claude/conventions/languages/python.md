@@ -108,6 +108,13 @@ Environment vars:    UPPER_SNAKE_CASE always
   # runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
   ```
   Never satisfy the rule by deleting the check.
+- **Optional extras inside a strict-listed subpackage**: CI's per-package image may not
+  carry an extra (`lance` is one), and `reportMissingImports = "none"` in the package
+  config does not apply inside `strict` paths. A lazily imported optional dependency
+  therefore carries `# pyright: ignore[reportMissingImports]` (and
+  `reportUnknownVariableType` on the names it binds) with the reason on the same line.
+  Locally, where the extra is installed, the ignore is inert; strict does not enable
+  `reportUnnecessaryTypeIgnoreComment`.
 - No commits with type errors or `Any` types without explicit justification
 
 ### Testing

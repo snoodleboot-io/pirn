@@ -57,7 +57,9 @@ class LanceSource(Source):
         if not isinstance(path, str) or not path:  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
             raise ValueError("LanceSource: path must be a non-empty string")
 
-        from lance.dataset import LanceDataset as _LanceDataset
+        from lance.dataset import (  # pyright: ignore[reportMissingImports]  # optional extra; absent from the CI image
+            LanceDataset as _LanceDataset,  # pyright: ignore[reportUnknownVariableType]  # untyped when the extra is absent
+        )
 
-        dataset = _LanceDataset(path)
+        dataset = _LanceDataset(path)  # pyright: ignore[reportUnknownVariableType]  # untyped when the extra is absent
         return LanceDataset(dataset=dataset, source_uri=path)
