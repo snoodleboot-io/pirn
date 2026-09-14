@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TraceDiffer`` — align two recorded runs and report what diverged."""
 
 from __future__ import annotations
@@ -20,7 +22,7 @@ class TraceDiffer:
 
     :meth:`diff` compares two :class:`RunTrace` values (from
     :class:`~pirn_agents.determinism.trajectory_emitter.TrajectoryEmitter`,
-    or from the deleted one-cycle ``TrajectoryRecorder`` shim, PIR-864)
+    or built directly)
     step-by-step, aligned by index. :meth:`diff_runs` (ADR
     "agents speaks core" WS3 part 3) compares two ``RunResult``s directly via
     core's ``pirn.knot_diff.KnotDiff.compare_runs``, aligned by knot id — the more

@@ -197,7 +197,7 @@ class AgentToolCall(SubTapestry):
         return agent_class(**inputs, _config=KnotConfig(id=knot_id))
 
     @staticmethod
-    def _accepts(agent_class: type, name: str) -> bool:
+    def _accepts(agent_class: type[Knot], name: str) -> bool:
         """Whether the agent's ``process`` declares a parameter ``name``."""
         try:
             return name in inspect.signature(agent_class.process).parameters

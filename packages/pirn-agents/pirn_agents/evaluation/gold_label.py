@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``GoldLabel`` — a human-scored rubric example for judge calibration."""
 
 from __future__ import annotations
@@ -66,10 +68,15 @@ class GoldLabel(PirnOpaqueValue):
             )
         object.__setattr__(self, "expected_score", float(self.expected_score))
 
+    @staticmethod
+    def _audit_all(values: tuple[PirnOpaqueValue, ...]) -> list[dict[str, Any]]:
+        """Audit each child through the ``PirnOpaqueValue`` contract it shares with this value."""
+        return [value._pirn_audit_dict() for value in values]
+
     def _pirn_audit_dict(self) -> dict[str, Any]:
         return {
             "prompt": self.prompt,
             "response": self.response,
-            "criteria": [c._pirn_audit_dict() for c in self.criteria],
+            "criteria": self._audit_all(self.criteria),
             "expected_score": self.expected_score,
         }

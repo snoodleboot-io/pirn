@@ -16,6 +16,7 @@ from typing import Any
 
 from pirn.core.err import Err
 from pirn.core.ok import Ok
+from pirn.core.result import Result
 from pirn.core.skipped import Skipped
 from pirn.managers.exception_record import ExceptionRecord
 
@@ -23,7 +24,6 @@ from pirn_agents.llm.provider_adapter import ProviderAdapter
 from pirn_agents.testing.stub_tool import StubTool as KitStubTool
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_call_codec import ToolCallCodec
-from pirn_agents.tools.tool_result import ToolResult
 from pirn_agents.tools.toolset import Toolset
 
 
@@ -190,7 +190,7 @@ class TestEncodeCoreResults(unittest.TestCase):
 class TestEncodeResults(unittest.TestCase):
     def test_ok_result_uses_result_value(self) -> None:
         codec = ToolCallCodec(StubAdapter())
-        results = [ToolResult(call_id="call-1", outcome=Ok(value={"echo": {"q": "cats"}}))]
+        results: dict[str, Result[Any]] = {"call-1": Ok(value={"echo": {"q": "cats"}})}
 
         native = codec.encode_results(results)
 
@@ -200,13 +200,10 @@ class TestEncodeResults(unittest.TestCase):
 
     def test_error_result_uses_error_string(self) -> None:
         codec = ToolCallCodec(StubAdapter())
-        results = [
-            ToolResult(
-                call_id="call-2",
-                outcome=Err(record=ExceptionRecord.for_knot("call-2", RuntimeError("boom"))),
-            )
-        ]
-        assert results[0].status == "error"
+        results: dict[str, Result[Any]] = {
+            "call-2": Err(record=ExceptionRecord.for_knot("call-2", RuntimeError("boom")))
+        }
+        assert codec.views(results)[0].status == "error"
 
         native = codec.encode_results(results)
 
@@ -217,7 +214,7 @@ class TestEncodeResults(unittest.TestCase):
     def test_non_json_result_falls_back_to_str(self) -> None:
         codec = ToolCallCodec(StubAdapter())
         sentinel = object()
-        results = [ToolResult(call_id="call-3", outcome=Ok(value=sentinel))]
+        results: dict[str, Result[Any]] = {"call-3": Ok(value=sentinel)}
 
         native = codec.encode_results(results)
 
@@ -225,13 +222,14 @@ class TestEncodeResults(unittest.TestCase):
 
 
 class TestFullRoundTrip(unittest.TestCase):
-    async def _run_tools(self, toolset: Toolset, calls: Sequence[ToolCall]) -> list[ToolResult]:
-        results: list[ToolResult] = []
+    async def _run_tools(
+        self, toolset: Toolset, calls: Sequence[ToolCall]
+    ) -> dict[str, Result[Any]]:
+        results: dict[str, Result[Any]] = {}
         for call in calls:
             factory = toolset.get(call.tool_name)
             assert factory is not None
-            outcome = await factory.run_call(call)
-            results.append(ToolResult.from_result(call.call_id, outcome))
+            results[call.call_id] = await factory.run_call(call)
         return results
 
     def test_single_call_round_trip(self) -> None:
@@ -296,7 +294,7 @@ class TestProviderNeutrality(unittest.TestCase):
         assert calls[0].call_id == "u1"
         assert calls[0].arguments == {"q": "x"}
 
-        native_results = codec.encode_results([ToolResult(call_id="u1", outcome=Ok(value="done"))])
+        native_results = codec.encode_results({"u1": Ok(value="done")})
         assert native_results == [{"toolResult": {"ref": "u1", "body": "done"}}]
 
     def test_codec_module_has_no_provider_imports(self) -> None:

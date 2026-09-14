@@ -1,4 +1,4 @@
-"""``_CallableIdentity`` — a content identity for a callable, for replay guards.
+"""``CallableIdentity`` — a content identity for a callable, for replay guards.
 
 An eval run's target and metrics are callables, and a callable is not a value
 ``ContentHasher.hash`` can canonicalise: it collapses to a shared
@@ -33,7 +33,7 @@ Algorithm:
     Recursion through closure cells is cycle-safe: a function already being
     identified further up the chain is named, not re-entered.
 
-Internal API.
+Package-internal: used by :class:`~pirn_agents.evaluation.eval_subject.EvalSubject`.
 """
 
 from __future__ import annotations
@@ -41,18 +41,23 @@ from __future__ import annotations
 import functools
 import inspect
 import types
-from typing import Any
+from typing import TypeGuard
 
 from pirn.core.content_hasher import ContentHasher
 
 
-class _CallableIdentity:
-    """Derive a stable, content-based canonical form for a callable."""
+class CallableIdentity:
+    """Derive a stable, content-based canonical form for a callable.
+
+    Every form is a JSON-shaped ``dict[str, object]`` whose leaves are ``str``
+    content hashes, names, ``int`` code flags, ``None`` for an empty closure
+    cell, and nested forms.
+    """
 
     @staticmethod
-    def of(candidate: object) -> Any:
+    def of(candidate: object) -> dict[str, object]:
         """Return the canonical identity of ``candidate`` (see the module docstring)."""
-        return _CallableIdentity._identify(candidate, frozenset())
+        return CallableIdentity._identify(candidate, frozenset())
 
     @staticmethod
     def _name(candidate: object) -> str:
@@ -65,59 +70,71 @@ class _CallableIdentity:
         return f"{module}.{qualname}"
 
     @staticmethod
-    def _identify(candidate: object, active: frozenset[int]) -> Any:
-        if isinstance(candidate, functools.partial):
-            bound: functools.partial[Any] = candidate
+    def _is_partial(candidate: object) -> TypeGuard[functools.partial[object]]:
+        """Whether ``candidate`` is a ``functools.partial`` (any result type)."""
+        return isinstance(candidate, functools.partial)
+
+    @staticmethod
+    def _is_tuple(candidate: object) -> TypeGuard[tuple[object, ...]]:
+        """Whether ``candidate`` is a ``tuple`` (any element types)."""
+        return isinstance(candidate, tuple)
+
+    @staticmethod
+    def _identify(candidate: object, active: frozenset[int]) -> dict[str, object]:
+        if CallableIdentity._is_partial(candidate):
             return {
-                "partial": _CallableIdentity._identify(bound.func, active),
-                "args": [ContentHasher.hash(arg) for arg in bound.args],
+                "partial": CallableIdentity._identify(candidate.func, active),
+                "args": [ContentHasher.hash(arg) for arg in candidate.args],
                 "keywords": {
-                    key: ContentHasher.hash(value) for key, value in sorted(bound.keywords.items())
+                    key: ContentHasher.hash(value)
+                    for key, value in sorted(candidate.keywords.items())
                 },
             }
         if isinstance(candidate, types.MethodType):
             return {
-                "method": _CallableIdentity._identify(candidate.__func__, active),
+                "method": CallableIdentity._identify(candidate.__func__, active),
                 "self": ContentHasher.hash(candidate.__self__),
             }
         if isinstance(candidate, types.FunctionType):
-            return _CallableIdentity._function(candidate, active)
+            return CallableIdentity._function(candidate, active)
         call = inspect.getattr_static(type(candidate), "__call__", None)
         if isinstance(call, types.FunctionType):
             return {
-                "callable_object": _CallableIdentity._name(type(candidate)),
-                "call": _CallableIdentity._function(call, active),
+                "callable_object": CallableIdentity._name(type(candidate)),
+                "call": CallableIdentity._function(call, active),
                 "state": ContentHasher.hash(candidate),
             }
-        return {"name": _CallableIdentity._name(candidate)}
+        return {"name": CallableIdentity._name(candidate)}
 
     @staticmethod
-    def _function(function: types.FunctionType, active: frozenset[int]) -> Any:
-        name = _CallableIdentity._name(function)
+    def _function(function: types.FunctionType, active: frozenset[int]) -> dict[str, object]:
+        name = CallableIdentity._name(function)
         if id(function) in active:
             return {"recursive": name}
         inner = active | {id(function)}
-        cells: list[Any] = []
+        cells: list[dict[str, object] | str | None] = []
         for cell in function.__closure__ or ():
             try:
                 value: object = cell.cell_contents
             except ValueError:
                 cells.append(None)
                 continue
-            if isinstance(value, (types.FunctionType, types.MethodType, functools.partial)):
-                cells.append(_CallableIdentity._identify(value, inner))
+            if CallableIdentity._is_partial(value) or isinstance(
+                value, (types.FunctionType, types.MethodType)
+            ):
+                cells.append(CallableIdentity._identify(value, inner))
             else:
                 cells.append(ContentHasher.hash(value))
         return {
             "function": name,
-            "code": _CallableIdentity._code(function.__code__),
+            "code": CallableIdentity._code(function.__code__),
             "defaults": ContentHasher.hash(function.__defaults__),
             "kwdefaults": ContentHasher.hash(function.__kwdefaults__),
             "closure": cells,
         }
 
     @staticmethod
-    def _code(code: types.CodeType) -> Any:
+    def _code(code: types.CodeType) -> dict[str, object]:
         return {
             "bytecode": code.co_code.hex(),
             "names": list(code.co_names),
@@ -125,13 +142,13 @@ class _CallableIdentity:
             "freevars": list(code.co_freevars),
             "cellvars": list(code.co_cellvars),
             "flags": code.co_flags,
-            "consts": [_CallableIdentity._constant(const) for const in code.co_consts],
+            "consts": [CallableIdentity._constant(const) for const in code.co_consts],
         }
 
     @staticmethod
-    def _constant(const: object) -> Any:
+    def _constant(const: object) -> dict[str, object] | str:
         if isinstance(const, types.CodeType):
-            return _CallableIdentity._code(const)
-        if isinstance(const, tuple):
-            return {"tuple": [_CallableIdentity._constant(item) for item in const]}
+            return CallableIdentity._code(const)
+        if CallableIdentity._is_tuple(const):
+            return {"tuple": [CallableIdentity._constant(item) for item in const]}
         return ContentHasher.hash(const)

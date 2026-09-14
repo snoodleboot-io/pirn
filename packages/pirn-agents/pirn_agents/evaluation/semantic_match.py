@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SemanticMatch`` — embedding cosine-similarity match with a threshold."""
 
 from __future__ import annotations

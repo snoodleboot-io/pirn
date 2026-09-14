@@ -4,8 +4,7 @@ A :class:`Toolset` gathers the capabilities an agent may call into a single,
 order-preserving collection keyed by unique ``name``. Every entry is a
 :class:`~pirn_agents.tools.tool_factory.ToolFactory`; anything
 :meth:`ToolFactory.of` accepts — a ``Tool`` class, a ``@ToolDecorator.decorate``/``@KnotFactory.knot``
-factory, a configured knot, or (deprecated) an ``invoke``-shaped ``Tool``
-instance — is normalised on the way in, so ``Toolset([CalculatorTool,
+factory, or a configured knot — is normalised on the way in, so ``Toolset([CalculatorTool,
 ReadFileTool.bind(root="/srv")])`` and ``toolset.get("read_file")`` speak one
 type.  It offers name lookup, membership, iteration, and a provider-neutral
 :meth:`schema` export that a downstream codec adapts per LLM provider.

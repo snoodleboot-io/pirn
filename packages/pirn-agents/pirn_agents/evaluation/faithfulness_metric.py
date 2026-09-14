@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FaithfulnessMetric`` — fraction of answer claims supported by the context."""
 
 from __future__ import annotations

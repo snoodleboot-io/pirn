@@ -1,6 +1,6 @@
-"""Guard: freeze the "second event bus" inventory (ADR agents-speaks-core WS4a).
+"""Guard: the deleted "second event bus" stays deleted (ADR agents-speaks-core WS4a).
 
-``pirn_agents.observability`` forked its own event stream — a ``Tracer``
+``pirn_agents.observability`` once forked its own event stream — a ``Tracer``
 opening ``Span``\\ s against a pluggable ``ObservabilitySink`` — entirely
 separate from core's ``StatusManager``/``Emitter`` stream that every other
 domain's telemetry already flows through. WS4a replaced it with
@@ -10,23 +10,10 @@ from core, not stamped on by hand) through the run's own emitters.
 
 ``Tracer``/``Span``/``SpanKind``/``SpanStatus``/``OpenSpanEntry``/
 ``ObservabilitySink``/``OtelSink``/``LoggingSink``/
-``SpanEmittingToolInvocationHook`` stayed importable for one deprecation
-cycle (the ADR's public-name rule — see PIR-856's common brief) and are now
-deleted (PIR-864). This is still a ratchet, not a clean assertion, kept as
-an empty-set assertion rather than deleted outright: it freezes *which
-modules currently import a deprecated name*, asserted by exact equality in
-both directions, exactly like ``tests.specializations.base.
-test_no_engine_bypass``:
-
-* a new module picking up one of these names fails, because it is not in
-  the allowlist;
-* consolidating a module's use of one away *without* updating the allowlist
-  also fails, because the allowlist still names it.
-
-Every hit was inside ``observability/`` itself (the old classes importing
-each other) — zero production call sites outside the package ever adopted
-this plane (see PIR-856's vocabulary-drift review), so deleting the classes
-emptied this allowlist completely rather than shrinking it.
+``SpanEmittingToolInvocationHook`` are deleted (PIR-864). This guard asserts
+that no module in ``pirn_agents`` imports any of those names from
+``pirn_agents.observability.*``, so reintroducing the plane — or a module of
+the same name — fails here.
 """
 
 from __future__ import annotations
@@ -37,41 +24,13 @@ from pathlib import Path
 
 from tests.observability.event_bus_inventory import EventBusInventory
 
-# --- known deprecated-name importers, frozen ------------------------------
-# Empty since PIR-864 deleted every name this inventory tracked; kept as a
-# frozenset (not deleted) so a reintroduced deprecated-name importer is still
-# caught by test_deprecated_importers_are_frozen.
-DEPRECATED_IMPORTERS: dict[str, frozenset[str]] = {}
 
+class TestDeletedEventBusStaysDeleted(unittest.TestCase):
+    """No module imports a deleted event-bus name."""
 
-class TestEventBusInventoryIsFrozen(unittest.TestCase):
-    """Freeze the deprecated event-bus import inventory. Exact equality."""
-
-    def setUp(self) -> None:
-        self.found = EventBusInventory.discover_modules()
-
-    def test_deprecated_importers_are_frozen(self) -> None:
-        assert self.found == DEPRECATED_IMPORTERS, {
-            "new importers": sorted(set(self.found) - set(DEPRECATED_IMPORTERS)),
-            "fixed — remove from DEPRECATED_IMPORTERS": sorted(
-                set(DEPRECATED_IMPORTERS) - set(self.found)
-            ),
-            "changed sets": {
-                k: (self.found.get(k), DEPRECATED_IMPORTERS.get(k))
-                for k in set(self.found) | set(DEPRECATED_IMPORTERS)
-                if self.found.get(k) != DEPRECATED_IMPORTERS.get(k)
-            },
-        }
-
-    def test_no_module_outside_observability_imports_a_deprecated_name(self) -> None:
-        """The one invariant that actually matters: no new adopters.
-
-        Every frozen entry lives inside ``observability/`` itself. If this
-        ever finds a hit elsewhere, WS4a's promise — nothing new depends on
-        the deprecated plane while the shim cycle runs — is broken.
-        """
-        outside = {k: v for k, v in self.found.items() if not k.startswith("observability/")}
-        assert outside == {}, outside
+    def test_no_module_imports_a_deleted_name(self) -> None:
+        found = EventBusInventory.discover_modules()
+        assert found == {}, found
 
 
 class TestDetectorIsDiscriminating(unittest.TestCase):
@@ -84,7 +43,7 @@ class TestDetectorIsDiscriminating(unittest.TestCase):
     def _scan(self, source: str) -> frozenset[str]:
         path = Path(self._tmp.name) / "module_under_test.py"
         path.write_text(source)
-        return EventBusInventory._imported_deprecated_names(path)
+        return EventBusInventory._imported_deleted_names(path)
 
     def test_clean_module_trips_nothing(self) -> None:
         hit = self._scan(
@@ -105,7 +64,7 @@ class TestDetectorIsDiscriminating(unittest.TestCase):
         hit = self._scan("from pirn_agents.observability.tracer import Tracer as T\n")
         assert hit == frozenset({"Tracer"})
 
-    def test_multiple_deprecated_names_are_all_captured(self) -> None:
+    def test_multiple_deleted_names_are_all_captured(self) -> None:
         hit = self._scan("from pirn_agents.observability.span import Span, SpanKind, SpanStatus\n")
         assert hit == frozenset({"Span", "SpanKind", "SpanStatus"})
 
