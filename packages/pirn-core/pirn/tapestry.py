@@ -659,6 +659,9 @@ class Tapestry:
         *inner_run_ordinal* is served from the recording at that index.
         That recording is loaded from this tapestry's history, which
         ``NestedRunKnot._run_inner`` has already pointed at the outer store.
+        The inner session keeps the outer session's ``allow_new_knots``, so a
+        continuation that adds knots inside a container runs them live exactly
+        as it does at the top level.
 
         Args:
             outer: The enclosing run's session.
@@ -690,7 +693,11 @@ class Tapestry:
         if inner_run_id is None:
             return None
         try:
-            return await _ReplaySession.from_history(history=self._history, run_id=inner_run_id)
+            return await _ReplaySession.from_history(
+                history=self._history,
+                run_id=inner_run_id,
+                allow_new_knots=outer.allow_new_knots,
+            )
         except KeyError as absent:
             raise ReplayMismatchError(
                 knot_id=parent_knot_id,
