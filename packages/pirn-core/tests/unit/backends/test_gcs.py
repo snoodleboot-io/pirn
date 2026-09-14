@@ -1,41 +1,58 @@
-"""Tests for GCSDataStore (SDK mocked)."""
+"""Tests for GCSDataStore (SDK stubbed).
+
+The store composes over :class:`pirn.connectors.object_storage.gcs_store.GCSStore`
+(PIR-869); the stub below is the same gcloud-aio-storage slice that
+``tests/unit/domains/connectors/object_storage/test_gcs_store.py`` uses, plus
+``download_metadata`` for ``has()``.
+"""
 
 from __future__ import annotations
 
 import unittest
-from unittest.mock import AsyncMock, MagicMock
+from typing import Any
 
 from pirn.backends._signer import _Signer
 from pirn.backends.gcs_data_store import GCSDataStore
 
 
-def _make_gcs_storage_mock(stored: dict[str, bytes]) -> MagicMock:
-    """Return a mock gcloud.aio.storage.Storage."""
-    storage = MagicMock()
+class _DownloadStream:
+    def __init__(self, data: bytes) -> None:
+        self._buf = data
 
-    async def _upload(bucket: str, key: str, data: bytes) -> None:
-        stored[key] = data
+    async def read(self, n: int) -> bytes:
+        chunk, self._buf = self._buf[:n], self._buf[n:]
+        return chunk
 
-    async def _download(bucket: str, key: str) -> bytes:
-        if key not in stored:
+    async def close(self) -> None:
+        return None
+
+
+class _StubStorage:
+    """The slice of ``gcloud.aio.storage.Storage`` the data store reaches."""
+
+    def __init__(self) -> None:
+        self.objects: dict[tuple[str, str], bytes] = {}
+        self.closed = 0
+
+    async def download_stream(self, *, bucket: str, object_name: str) -> _DownloadStream:
+        if (bucket, object_name) not in self.objects:
             raise Exception("404 Not Found")
-        return stored[key]
+        return _DownloadStream(self.objects[(bucket, object_name)])
 
-    async def _download_metadata(bucket: str, key: str) -> dict:
-        if key not in stored:
+    async def upload(self, *, bucket: str, object_name: str, file_data: bytes) -> dict[str, Any]:
+        self.objects[(bucket, object_name)] = file_data
+        return {"name": object_name}
+
+    async def download_metadata(self, bucket: str, object_name: str) -> dict[str, Any]:
+        if (bucket, object_name) not in self.objects:
             raise Exception("404 Not Found")
         return {}
 
-    async def _delete(bucket: str, key: str) -> None:
-        stored.pop(key, None)
+    async def delete(self, *, bucket: str, object_name: str) -> None:
+        self.objects.pop((bucket, object_name), None)
 
-    storage.upload = _upload
-    storage.download = _download
-    storage.download_metadata = _download_metadata
-    storage.delete = _delete
-    storage.__aenter__ = AsyncMock(return_value=storage)
-    storage.__aexit__ = AsyncMock(return_value=False)
-    return storage
+    async def close(self) -> None:
+        self.closed += 1
 
 
 class TestGCSDataStoreConstruction(unittest.TestCase):
@@ -67,12 +84,8 @@ class TestGCSDataStoreObjectKey(unittest.TestCase):
 
 class TestGCSDataStoreCRUD(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
-        self.stored: dict[str, bytes] = {}
-        self.mock_storage = _make_gcs_storage_mock(self.stored)
-
-        # Patch __storage to return our mock
-        self.store = GCSDataStore(bucket="test-bucket", allow_unsigned=True)
-        self.store._GCSDataStore__storage = MagicMock(return_value=self.mock_storage)
+        self.storage = _StubStorage()
+        self.store = GCSDataStore(bucket="test-bucket", client=self.storage, allow_unsigned=True)
 
     async def test_put_then_get_round_trip(self) -> None:
         await self.store.put("sha256:abc", [1, 2, 3])
@@ -94,3 +107,13 @@ class TestGCSDataStoreCRUD(unittest.IsolatedAsyncioTestCase):
     async def test_get_missing_raises_key_error(self) -> None:
         with self.assertRaises(KeyError):
             await self.store.get("sha256:missing")
+
+    async def test_objects_land_in_bucket_under_prefix(self) -> None:
+        await self.store.put("sha256:abc", 1)
+        self.assertIn(("test-bucket", "pirn/data/abc"), self.storage.objects)
+
+    async def test_injected_client_is_not_closed_by_the_store(self) -> None:
+        """A caller-owned client outlives the data store; only owned clients are closed."""
+        await self.store.put("sha256:abc", 1)
+        await self.store.close()
+        self.assertEqual(self.storage.closed, 0)

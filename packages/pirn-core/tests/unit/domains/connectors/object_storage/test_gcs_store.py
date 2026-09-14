@@ -264,3 +264,28 @@ class TestErrorPropagation(unittest.IsolatedAsyncioTestCase):
 
         with self.assertRaisesRegex(TypeError, "must yield bytes"):
             await store.put("k", bad())
+
+
+# ──────────────────────────────────────────────────────── exists (PIR-869)
+
+
+class _MetadataStubGCSClient(StubGCSClient):
+    async def download_metadata(self, bucket: str, object_name: str) -> dict[str, Any]:
+        if (bucket, object_name) not in self.objects:
+            raise Exception("404 Not Found")
+        return {"name": object_name}
+
+
+class TestExists(unittest.IsolatedAsyncioTestCase):
+    async def test_true_after_put_false_after_delete(self) -> None:
+        store = GCSStore(GCSConfig(bucket="b"), client=_MetadataStubGCSClient())
+        self.assertFalse(await store.exists("k"))
+        await store.put("k", b"x")
+        self.assertTrue(await store.exists("k"))
+        await store.delete("k")
+        self.assertFalse(await store.exists("k"))
+
+    def test_is_not_found_classifies_404_only(self) -> None:
+        store = GCSStore(GCSConfig(bucket="b"), client=StubGCSClient())
+        self.assertTrue(store.is_not_found(Exception("404 Not Found")))
+        self.assertFalse(store.is_not_found(Exception("403 Forbidden")))

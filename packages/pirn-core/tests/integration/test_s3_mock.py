@@ -16,8 +16,12 @@ class _FakeS3Body:
     def __init__(self, payload: bytes) -> None:
         self._payload = payload
 
-    async def read(self) -> bytes:
-        return self._payload
+    async def read(self, n: int = -1) -> bytes:
+        if n < 0:
+            chunk, self._payload = self._payload, b""
+        else:
+            chunk, self._payload = self._payload[:n], self._payload[n:]
+        return chunk
 
 
 class _NoSuchKey(Exception):

@@ -1,4 +1,9 @@
-"""Tests for S3DataStore (cloud SDK mocked)."""
+"""Tests for S3DataStore (cloud SDK mocked).
+
+The store composes over :class:`pirn.connectors.object_storage.s3_store.S3Store`
+(PIR-869): the injected ``session`` is asked for one client on first use and
+that client is released by ``close()``.
+"""
 
 from __future__ import annotations
 
@@ -11,6 +16,7 @@ from pirn.backends.s3_data_store import S3DataStore
 
 
 def _make_s3_mock(stored: dict[str, bytes]) -> tuple[Any, Any]:
+    """A session whose ``client()`` returns an async-context-managed S3 client mock."""
     mock_s3 = AsyncMock()
 
     async def fake_put_object(**kwargs: Any) -> None:
@@ -26,7 +32,13 @@ def _make_s3_mock(stored: dict[str, bytes]) -> tuple[Any, Any]:
         if key not in stored:
             raise _NoSuchKey("NoSuchKey: key not found")
         body_mock = AsyncMock()
-        body_mock.read = AsyncMock(return_value=stored[key])
+        remaining = [stored[key]]
+
+        async def _read(n: int) -> bytes:
+            chunk, remaining[0] = remaining[0][:n], remaining[0][n:]
+            return chunk
+
+        body_mock.read = _read
         return {"Body": body_mock}
 
     async def fake_head_object(**kwargs: Any) -> None:
@@ -46,6 +58,7 @@ def _make_s3_mock(stored: dict[str, bytes]) -> tuple[Any, Any]:
     ctx.__aexit__ = AsyncMock(return_value=False)
     mock_session = MagicMock()
     mock_session.client = MagicMock(return_value=ctx)
+    mock_session.ctx = ctx
     return mock_session, stored
 
 
@@ -107,9 +120,68 @@ class TestS3DataStoreCRUD(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(KeyError):
             await self.store.get("sha256:missing")
 
+    async def test_objects_land_under_prefix_in_bucket(self) -> None:
+        await self.store.put("sha256:deadbeef", "v")
+        self.assertIn("pirn/data/deadbeef", self.stored)
+
+
+class TestS3DataStoreClientLifecycle(unittest.IsolatedAsyncioTestCase):
+    """One client for N operations; released exactly once by ``close()`` (PIR-869)."""
+
+    def setUp(self) -> None:
+        self.stored: dict[str, bytes] = {}
+        self.session, _ = _make_s3_mock(self.stored)
+        self.store = S3DataStore(bucket="b", session=self.session, allow_unsigned=True)
+
+    async def test_no_client_until_first_operation(self) -> None:
+        self.assertEqual(self.session.client.call_count, 0)
+
+    async def test_one_client_for_many_operations(self) -> None:
+        for i in range(5):
+            await self.store.put(f"sha256:{i}", i)
+        await self.store.get("sha256:0")
+        await self.store.has("sha256:1")
+        await self.store.scrub("sha256:2")
+        self.assertEqual(self.session.client.call_count, 1)
+        self.assertEqual(self.session.ctx.__aenter__.await_count, 1)
+
+    async def test_close_releases_the_client_once(self) -> None:
+        await self.store.put("sha256:a", 1)
+        await self.store.close()
+        await self.store.close()
+        self.assertEqual(self.session.ctx.__aexit__.await_count, 1)
+
+    async def test_close_without_use_is_a_no_op(self) -> None:
+        await self.store.close()
+        self.assertEqual(self.session.client.call_count, 0)
+        self.assertEqual(self.session.ctx.__aexit__.await_count, 0)
+
+    async def test_operation_after_close_reopens_a_client(self) -> None:
+        await self.store.put("sha256:a", 1)
+        await self.store.close()
+        self.assertEqual(await self.store.get("sha256:a"), 1)
+        self.assertEqual(self.session.client.call_count, 2)
+
+    async def test_client_built_with_region_and_endpoint(self) -> None:
+        store = S3DataStore(
+            bucket="b",
+            region="eu-west-1",
+            endpoint_url="http://minio:9000",
+            session=self.session,
+            allow_unsigned=True,
+        )
+        await store.put("sha256:a", 1)
+        self.session.client.assert_called_once_with(
+            "s3", region_name="eu-west-1", endpoint_url="http://minio:9000"
+        )
+
+    async def test_region_none_is_passed_through_as_environment_default(self) -> None:
+        await self.store.put("sha256:a", 1)
+        self.session.client.assert_called_once_with("s3", region_name=None, endpoint_url=None)
+
 
 class TestS3DataStoreEndpointConfig(unittest.TestCase):
-    def test_endpoint_url_passed_to_client(self) -> None:
+    def test_endpoint_url_stored(self) -> None:
         stored: dict[str, bytes] = {}
         session, _ = _make_s3_mock(stored)
         store = S3DataStore(

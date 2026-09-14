@@ -806,7 +806,7 @@ class Tapestry:
         return policy if policy is not None else _EmitterErrorPolicy.WARN
 
     async def close(self) -> None:
-        """Close every registered emitter, releasing held resources.
+        """Close every registered emitter and the data store, releasing held resources.
 
         Called by the runtime when using ``async with Tapestry() as t:``
         (see :meth:`__aexit__`); callers of the plain synchronous
@@ -816,7 +816,11 @@ class Tapestry:
         Each emitter is closed independently: one emitter raising does not
         stop the others from being closed, and every failure is logged at
         WARNING rather than propagated — mirroring the "must not raise"
-        contract already documented on :meth:`Emitter.close`.
+        contract already documented on :meth:`Emitter.close`. The data store
+        is closed last under the same isolation (:meth:`DataStore.close`);
+        a store that holds a cloud client releases it here and reopens it
+        lazily if the tapestry — or another one sharing the store — runs
+        again (PIR-869).
         """
         for emitter in self._emitters:
             try:
@@ -825,6 +829,14 @@ class Tapestry:
                 _logger.warning(
                     "Tapestry.close: emitter %r raised while closing", emitter.name, exc_info=True
                 )
+        try:
+            await self._data_store.close()
+        except Exception:
+            _logger.warning(
+                "Tapestry.close: data store %r raised while closing",
+                type(self._data_store).__name__,
+                exc_info=True,
+            )
 
     @staticmethod
     @contextmanager

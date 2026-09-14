@@ -141,6 +141,7 @@ with Tapestry(store=store, history=history) as t:
 - **`ValKeyDataStore` and `LocalDiskDataStore` are pickle-based.** See anti-pattern above.
 - **`PostgresStore` and `ValKeyStore` implement `SubscribableStore`.** If you need extensible runs in a distributed deployment, these are the only backends that support it.
 - **Backend constructors are synchronous; connections are lazy.** `PostgresStore(dsn=...)` does not open a connection immediately. The first operation opens it. Call `await backend.close()` when done.
+- **Cloud `DataStore`s hold one client, not one per call.** `S3DataStore`/`GCSDataStore`/`AzureBlobDataStore` compose over the matching connector `ObjectStore` (`S3Store`/`GCSStore`/`AzureBlobStore`), built on first use; `DataStore.close()` — awaited by `Tapestry.close()` and `async with Tapestry()` — releases it, and a closed store reopens lazily on the next operation (PIR-869).
 - **`DataStore.has()` is a cheap existence check** — use it before `get()` when a miss is a valid path, rather than catching `KeyError`.
 
 ---

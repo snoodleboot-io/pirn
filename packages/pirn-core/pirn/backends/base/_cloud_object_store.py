@@ -1,8 +1,13 @@
 """Shared serialization base for object-store-backed DataStores.
 
 All cloud and local-disk DataStore implementations inherit from this class.
-It handles cloudpickle serialization and HMAC signing; subclasses implement
-the four raw-bytes IO primitives.
+It handles cloudpickle serialization and HMAC signing, and — for the cloud
+backends — composes over a connector :class:`~pirn.connectors.object_store.ObjectStore`
+that owns the SDK client: the client is opened once on first use and released
+by :meth:`close` (PIR-869). A subclass either supplies that store through
+:meth:`_build_object_store` (S3/GCS/Azure) or, when it has no connector
+counterpart, overrides the four raw-bytes IO primitives directly (local disk,
+whose atomic-rename write has no ``ObjectStore`` equivalent).
 
 .. note::
     ``cloudpickle.loads`` on attacker-controlled bytes is a remote-code-
@@ -22,19 +27,26 @@ from pirn.backends.base.data_store import DataStore
 
 if TYPE_CHECKING:
     from pirn.backends._signer import _Signer
+    from pirn.connectors.object_store import ObjectStore
 
 _logger = logging.getLogger(__name__)
 
 
 class _CloudObjectStore(DataStore):
-    """Serialization + signing mixin for object-store backends.
+    """Serialization + signing base for object-store backends.
 
-    Subclasses must implement:
-        _object_key(content_hash) -> str
+    Subclasses either implement ``_build_object_store() -> ObjectStore`` (the
+    default primitives then delegate ``put``/``get``/``has``/``scrub`` to that
+    store, translating its not-found error into ``KeyError``), or override the
+    primitives themselves:
+
         _put_bytes(key, payload)  async
         _get_bytes(key)           async -> bytes   (raise KeyError if missing)
         _has_key(key)             async -> bool
         _delete_key(key)          async
+
+    ``_object_key(content_hash)`` maps a content hash onto the backing store's
+    key space; the default is ``{prefix}{hash-without-sha256:}``.
     """
 
     def __init__(
@@ -42,8 +54,9 @@ class _CloudObjectStore(DataStore):
         *,
         signer: _Signer | None = None,
         allow_unsigned: bool = False,
+        prefix: str = "",
     ) -> None:
-        """Initialise the mixin with signing configuration.
+        """Initialise the base with signing configuration.
 
         Args:
             signer: An ``_Signer`` instance used to HMAC-sign payloads before
@@ -52,6 +65,9 @@ class _CloudObjectStore(DataStore):
                 Requires the ``PIRN_ALLOW_UNSIGNED=1`` environment variable to
                 be set; raises ``ValueError`` otherwise.  Only for
                 single-tenant development or test environments.
+            prefix: Key prefix every object key produced by the default
+                :meth:`_object_key` starts with (``"pirn/data/"`` for the cloud
+                stores).
 
         Raises:
             ValueError: If neither ``signer`` nor ``allow_unsigned=True`` is
@@ -81,6 +97,10 @@ class _CloudObjectStore(DataStore):
                 type(self).__name__,
             )
         self.__signer = signer
+        self._prefix = prefix
+        self.__object_store: ObjectStore | None = None
+
+    # ------------------------------------------------------------ signing
 
     def _serialize(self, value: Any) -> bytes:
         """Serialize ``value`` with cloudpickle and optionally sign the result.
@@ -118,11 +138,42 @@ class _CloudObjectStore(DataStore):
             payload = self.__signer.verify(payload)
         return cloudpickle.loads(payload)
 
+    # ------------------------------------------------------- composition
+
+    def _build_object_store(self) -> ObjectStore:
+        """Construct the connector ``ObjectStore`` this data store delegates to.
+
+        Called once, lazily, on the first operation; the result is held until
+        :meth:`close`. A subclass that overrides the four IO primitives
+        instead never triggers it.
+        """
+        raise NotImplementedError(f"{type(self).__name__} must implement _build_object_store()")
+
+    def _object_store(self) -> ObjectStore:
+        """The held ``ObjectStore``, building it on first use."""
+        if self.__object_store is None:
+            self.__object_store = self._build_object_store()
+        return self.__object_store
+
+    async def close(self) -> None:
+        """Release the held ``ObjectStore`` (and its SDK client), if any.
+
+        Safe to call repeatedly; the next operation lazily rebuilds the store,
+        so a data store shared between tapestries survives the first one
+        closing (see :meth:`DataStore.close`).
+        """
+        store, self.__object_store = self.__object_store, None
+        if store is not None:
+            await store.close()
+
+    # --------------------------------------------------------- primitives
+
     def _object_key(self, content_hash: str) -> str:
         """Derive the backend-specific storage key from a content hash.
 
-        Subclasses must override this to map ``content_hash`` to whatever
-        key space the backing store uses (a file path, an S3 object key, etc.).
+        The default strips an optional ``sha256:`` prefix and prepends the
+        configured ``prefix``; a backend with a different key space (a file
+        path, say) overrides it.
 
         Args:
             content_hash: SHA-256 hex digest, possibly prefixed with
@@ -131,7 +182,8 @@ class _CloudObjectStore(DataStore):
         Returns:
             The storage key string for the backing store.
         """
-        raise NotImplementedError(f"{type(self).__name__} must implement _object_key()")
+        clean = content_hash.removeprefix("sha256:")
+        return f"{self._prefix}{clean}"
 
     async def _put_bytes(self, key: str, payload: bytes) -> None:
         """Write raw bytes to the backing store under ``key``.
@@ -140,7 +192,7 @@ class _CloudObjectStore(DataStore):
             key: Storage key returned by :meth:`_object_key`.
             payload: Serialized (and optionally signed) bytes to store.
         """
-        raise NotImplementedError(f"{type(self).__name__} must implement _put_bytes()")
+        await self._object_store().put(key, payload)
 
     async def _get_bytes(self, key: str) -> bytes:
         """Read raw bytes from the backing store.
@@ -154,7 +206,16 @@ class _CloudObjectStore(DataStore):
         Raises:
             KeyError: If no object exists at ``key``.
         """
-        raise NotImplementedError(f"{type(self).__name__} must implement _get_bytes()")
+        store = self._object_store()
+        chunks: list[bytes] = []
+        try:
+            async for chunk in await store.get(key):
+                chunks.append(chunk)
+        except Exception as exc:
+            if store.is_not_found(exc):
+                raise KeyError(key) from exc
+            raise
+        return b"".join(chunks)
 
     async def _has_key(self, key: str) -> bool:
         """Return ``True`` if an object exists at ``key`` in the backing store.
@@ -165,7 +226,7 @@ class _CloudObjectStore(DataStore):
         Returns:
             ``True`` if the object exists, ``False`` otherwise.
         """
-        raise NotImplementedError(f"{type(self).__name__} must implement _has_key()")
+        return await self._object_store().exists(key)
 
     async def _delete_key(self, key: str) -> None:
         """Delete the object at ``key`` from the backing store.
@@ -176,7 +237,9 @@ class _CloudObjectStore(DataStore):
         Args:
             key: Storage key returned by :meth:`_object_key`.
         """
-        raise NotImplementedError(f"{type(self).__name__} must implement _delete_key()")
+        await self._object_store().delete(key)
+
+    # ------------------------------------------------------ DataStore API
 
     async def put(self, content_hash: str, value: Any) -> None:
         """Serialize ``value`` and write it to the backing store.

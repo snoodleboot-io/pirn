@@ -19,6 +19,20 @@ _SIGNER = _Signer(_KEY)
 # ------------------------------------------------------------------ _Signer
 
 
+class _FakeBody:
+    """Streaming S3 body: ``read(n)`` drains ``n`` bytes at a time, then yields ``b""``."""
+
+    def __init__(self, payload: bytes) -> None:
+        self._payload = payload
+
+    async def read(self, n: int = -1) -> bytes:
+        if n < 0:
+            chunk, self._payload = self._payload, b""
+        else:
+            chunk, self._payload = self._payload[:n], self._payload[n:]
+        return chunk
+
+
 class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
     def test_sign_verify_round_trip(self) -> None:
         payload = b"hello world"
@@ -149,9 +163,7 @@ class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
             stored[kwargs["Key"]] = kwargs["Body"]
 
         async def fake_get_object(**kwargs: Any) -> dict[str, Any]:
-            body_mock = AsyncMock()
-            body_mock.read = AsyncMock(return_value=stored[kwargs["Key"]])
-            return {"Body": body_mock}
+            return {"Body": _FakeBody(stored[kwargs["Key"]])}
 
         mock_s3.put_object = fake_put_object
         mock_s3.get_object = fake_get_object
@@ -178,9 +190,7 @@ class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
             stored[kwargs["Key"]] = bytes(data)
 
         async def fake_get_object(**kwargs: Any) -> dict[str, Any]:
-            body_mock = AsyncMock()
-            body_mock.read = AsyncMock(return_value=stored[kwargs["Key"]])
-            return {"Body": body_mock}
+            return {"Body": _FakeBody(stored[kwargs["Key"]])}
 
         mock_s3.put_object = fake_put_object
         mock_s3.get_object = fake_get_object
@@ -206,9 +216,7 @@ class _StandaloneTests(unittest.IsolatedAsyncioTestCase):
             stored[kwargs["Key"]] = kwargs["Body"]
 
         async def fake_get_object(**kwargs: Any) -> dict[str, Any]:
-            body_mock = AsyncMock()
-            body_mock.read = AsyncMock(return_value=stored[kwargs["Key"]])
-            return {"Body": body_mock}
+            return {"Body": _FakeBody(stored[kwargs["Key"]])}
 
         mock_s3.put_object = fake_put_object
         mock_s3.get_object = fake_get_object

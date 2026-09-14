@@ -235,3 +235,93 @@ class TestErrorPropagation(unittest.IsolatedAsyncioTestCase):
 
         with self.assertRaisesRegex(TypeError, "must yield bytes"):
             await store.put("k", bad())
+
+
+# ──────────────────────────────────────────────────────── exists (PIR-869)
+
+
+class _NoSuchKey(Exception):
+    pass
+
+
+class _AccessDenied(Exception):
+    pass
+
+
+class _HeadStubS3Client(StubS3Client):
+    """Adds ``head_object`` so ``exists`` can be exercised."""
+
+    def __init__(self, *, deny: bool = False) -> None:
+        super().__init__()
+        self._deny = deny
+
+    async def head_object(self, *, Bucket: str, Key: str) -> dict[str, Any]:
+        if self._deny:
+            raise _AccessDenied("AccessDenied")
+        if (Bucket, Key) not in self.objects:
+            raise _NoSuchKey("NoSuchKey")
+        return {"ContentLength": len(self.objects[(Bucket, Key)])}
+
+
+class TestExists(unittest.IsolatedAsyncioTestCase):
+    async def test_true_after_put_false_after_delete(self) -> None:
+        store = S3Store(S3Config(bucket="b"), client=_HeadStubS3Client())
+        self.assertFalse(await store.exists("k"))
+        await store.put("k", b"x")
+        self.assertTrue(await store.exists("k"))
+        await store.delete("k")
+        self.assertFalse(await store.exists("k"))
+
+    async def test_non_not_found_errors_propagate(self) -> None:
+        store = S3Store(S3Config(bucket="b"), client=_HeadStubS3Client(deny=True))
+        with self.assertRaises(_AccessDenied):
+            await store.exists("k")
+
+    def test_is_not_found_classifies_sdk_shapes(self) -> None:
+        store = S3Store(S3Config(bucket="b"), client=StubS3Client())
+        self.assertTrue(store.is_not_found(_NoSuchKey("x")))
+        self.assertTrue(store.is_not_found(Exception("An error occurred (404)")))
+        self.assertFalse(store.is_not_found(_AccessDenied("AccessDenied")))
+
+
+class TestInjectedSession(unittest.IsolatedAsyncioTestCase):
+    """A ``session`` is asked for one client on first use and released on ``close``."""
+
+    async def test_session_client_opened_once_and_closed_once(self) -> None:
+        from unittest.mock import AsyncMock, MagicMock
+
+        ctx = MagicMock()
+        ctx.__aenter__ = AsyncMock(return_value=StubS3Client())
+        ctx.__aexit__ = AsyncMock(return_value=False)
+        session = MagicMock()
+        session.client = MagicMock(return_value=ctx)
+
+        store = S3Store(S3Config(bucket="b", region=None), session=session)
+        await store.put("a", b"1")
+        await store.put("b", b"2")
+        await store.close()
+        await store.close()
+
+        session.client.assert_called_once_with("s3", region_name=None, endpoint_url=None)
+        self.assertEqual(ctx.__aexit__.await_count, 1)
+
+    async def test_explicit_credentials_are_forwarded_only_when_set(self) -> None:
+        from unittest.mock import AsyncMock, MagicMock
+
+        ctx = MagicMock()
+        ctx.__aenter__ = AsyncMock(return_value=StubS3Client())
+        ctx.__aexit__ = AsyncMock(return_value=False)
+        session = MagicMock()
+        session.client = MagicMock(return_value=ctx)
+
+        config = S3Config(bucket="b", access_key_id="AK", secret_access_key="SK")
+        store = S3Store(config, session=session)
+        await store.put("a", b"1")
+
+        session.client.assert_called_once_with(
+            "s3",
+            region_name="us-east-1",
+            endpoint_url=None,
+            aws_access_key_id="AK",
+            aws_secret_access_key="SK",
+        )

@@ -9,15 +9,21 @@ Requires the ``azure-storage-blob`` package::
 
 Construction accepts a connection string or an account URL with a
 credential.  An optional pre-built ``BlobServiceClient`` can be passed
-directly for testing.
+directly for testing.  The store composes over
+:class:`~pirn.connectors.object_storage.azure_blob_store.AzureBlobStore`,
+which opens one service client on first use and holds it until
+:meth:`~pirn.backends.base.data_store.DataStore.close` (PIR-869).
 """
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pirn.backends._signer import _Signer
 from pirn.backends.base._cloud_object_store import _CloudObjectStore
+
+if TYPE_CHECKING:
+    from pirn.connectors.object_store import ObjectStore
 
 
 class AzureBlobDataStore(_CloudObjectStore):
@@ -40,56 +46,44 @@ class AzureBlobDataStore(_CloudObjectStore):
         signer: _Signer | None = None,
         allow_unsigned: bool = False,
     ) -> None:
-        super().__init__(signer=signer, allow_unsigned=allow_unsigned)
+        """Initialise the store.
+
+        Args:
+            container: Name of the blob container to use.
+            prefix: Key prefix for all blobs written by this store.
+            connection_string: Full Azure connection string.  Takes
+                precedence over ``account_url``/``credential``.
+            account_url: Blob-service endpoint, used with ``credential``.
+            credential: Credential for ``account_url`` — an account key, a
+                SAS token or a ``TokenCredential``; ``None`` for anonymous
+                access to a public container.
+            client: A ready ``BlobServiceClient``-like client (tests).
+            signer: An ``_Signer`` for HMAC payload signing.  Required unless
+                ``allow_unsigned=True`` is set.
+            allow_unsigned: If ``True``, the store operates without signing.
+                Requires ``PIRN_ALLOW_UNSIGNED=1`` in the environment.
+
+        Raises:
+            ValueError: If signing is not configured correctly.  A missing
+                ``connection_string``/``account_url`` (with no ``client``) is
+                reported on first use, not at construction.
+        """
+        super().__init__(signer=signer, allow_unsigned=allow_unsigned, prefix=prefix)
         self._container = container
-        self._prefix = prefix
         self._connection_string = connection_string
         self._account_url = account_url
         self._credential = credential
         self._client = client
 
-    def _object_key(self, content_hash: str) -> str:
-        clean = content_hash.removeprefix("sha256:")
-        return f"{self._prefix}{clean}"
+    def _build_object_store(self) -> ObjectStore:
+        from pirn.connectors.object_storage.azure_blob_config import AzureBlobConfig
+        from pirn.connectors.object_storage.azure_blob_store import AzureBlobStore
 
-    def __service_client(self) -> Any:
-        if self._client is not None:
-            return self._client
-        try:
-            from azure.storage.blob.aio import BlobServiceClient
-        except ImportError as exc:
-            raise ImportError(
-                "AzureBlobDataStore requires azure-storage-blob; "
-                "install via `pip install pirn[azure]`"
-            ) from exc
-        if self._connection_string is not None:
-            return BlobServiceClient.from_connection_string(self._connection_string)
-        if self._account_url is not None:
-            return BlobServiceClient(self._account_url, credential=self._credential)
-        raise ValueError("AzureBlobDataStore requires either connection_string or account_url")
-
-    async def _put_bytes(self, key: str, payload: bytes) -> None:
-        async with self.__service_client() as svc:
-            blob = svc.get_blob_client(container=self._container, blob=key)
-            await blob.upload_blob(payload, overwrite=True)
-
-    async def _get_bytes(self, key: str) -> bytes:
-        async with self.__service_client() as svc:
-            blob = svc.get_blob_client(container=self._container, blob=key)
-            try:
-                stream = await blob.download_blob()
-                return await stream.readall()
-            except Exception as exc:
-                if "BlobNotFound" in type(exc).__name__ or "404" in str(exc):
-                    raise KeyError(key) from exc
-                raise
-
-    async def _has_key(self, key: str) -> bool:
-        async with self.__service_client() as svc:
-            blob = svc.get_blob_client(container=self._container, blob=key)
-            return await blob.exists()
-
-    async def _delete_key(self, key: str) -> None:
-        async with self.__service_client() as svc:
-            blob = svc.get_blob_client(container=self._container, blob=key)
-            await blob.delete_blob(delete_snapshots="include")
+        if self._client is None and self._connection_string is None and self._account_url is None:
+            raise ValueError("AzureBlobDataStore requires either connection_string or account_url")
+        config = AzureBlobConfig(
+            container=self._container,
+            connection_string=self._connection_string,
+            account_url=self._account_url,
+        )
+        return AzureBlobStore(config, client=self._client, credential=self._credential)

@@ -86,3 +86,16 @@ class DataStore(PirnOpaqueValue):
     async def scrub(self, content_hash: str) -> None:
         """Remove a value.  Lineage referencing it remains intact."""
         raise NotImplementedError(f"{type(self).__name__} must implement scrub()")
+
+    async def close(self) -> None:
+        """Release any client or connection the store holds open.
+
+        A no-op by default: an in-memory or local-disk store has nothing to
+        release. Backends that keep a live client (the cloud object stores,
+        ValKey) override it. ``Tapestry.close()`` — and therefore
+        ``async with Tapestry() as t:`` — awaits this, and a closed store must
+        stay usable: the next operation lazily reopens what ``close()``
+        released, so a store shared between tapestries is never left dead by
+        the first one to exit (PIR-869).
+        """
+        return None

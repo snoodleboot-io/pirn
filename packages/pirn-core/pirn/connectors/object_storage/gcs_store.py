@@ -15,8 +15,10 @@ class GCSStore(ObjectStore):
 
     Tests inject ``client=`` exposing the slice of the gcloud-aio-storage
     surface the store touches (``download_stream`` / ``upload`` /
-    ``delete`` / ``list_objects``); production code constructs a real
-    ``gcloud.aio.storage.Storage`` client lazily.
+    ``delete`` / ``download_metadata`` / ``list_objects``); production code
+    constructs a real ``gcloud.aio.storage.Storage`` client lazily (over
+    ``session``, an ``aiohttp.ClientSession``, when one is supplied) and
+    holds it until :meth:`close`.
     """
 
     def __init__(
@@ -24,11 +26,13 @@ class GCSStore(ObjectStore):
         config: GCSConfig,
         *,
         client: Any | None = None,
+        session: Any | None = None,
     ) -> None:
         if not config.bucket:
             raise ValueError("GCSConfig.bucket is required")
         self._config = config
         self._client = client
+        self._session = session
         self._owned_client: Any = None
         self._logger = logging.getLogger(self.__class__.__module__)
 
@@ -96,6 +100,22 @@ class GCSStore(ObjectStore):
         await client.delete(bucket=self._config.bucket, object_name=key)
         self._logger.debug("gcs.delete", extra={"bucket": self._config.bucket, "key": key})
 
+    async def exists(self, key: str) -> bool:
+        """``download_metadata`` presence check; ``False`` only on a 404."""
+        self._validate_key(key)
+        client = await self._ensure_client()
+        try:
+            await client.download_metadata(self._config.bucket, key)
+        except Exception as exc:
+            if self.is_not_found(exc):
+                return False
+            raise
+        return True
+
+    def is_not_found(self, exc: BaseException) -> bool:
+        text = str(exc)
+        return "404" in text or "Not Found" in text
+
     async def list(self, prefix: str = "") -> AsyncIterator[str]:
         client = await self._ensure_client()
         bucket = self._config.bucket
@@ -127,8 +147,9 @@ class GCSStore(ObjectStore):
             raise ImportError(
                 "GCSStore requires gcloud-aio-storage; install via `pip install pirn[gcs]`"
             ) from exc
-        self._owned_client = Storage(
-            service_file=self._config.service_account_json,
-        )
+        kwargs: dict[str, Any] = {"service_file": self._config.service_account_json}
+        if self._session is not None:
+            kwargs["session"] = self._session
+        self._owned_client = Storage(**kwargs)
         self._client = self._owned_client
         return self._client

@@ -500,6 +500,21 @@ to `ExceptionRecord`.
   viz aliases (`mermaid_for_*`, `html_for_*`, `scan_folder`,
   `generate_explorer_html`). The console scripts point at
   `TapestryCheckCli.main`, `ExploreCli.main` and `ImportMigrationCli.main`.
+- **`_CloudObjectStore` composes over `ObjectStore`.** `S3DataStore`,
+  `GCSDataStore` and `AzureBlobDataStore` no longer open an SDK client per
+  call: each lazily builds its connector `ObjectStore` (`S3Store`, `GCSStore`,
+  `AzureBlobStore`) through `_build_object_store()` and delegates
+  `put`/`get`/`has`/`scrub` to it, so one client serves N operations and
+  `DataStore.close()` (a no-op default on the base, awaited by
+  `Tapestry.close()` and `async with Tapestry()`) releases it exactly once; a
+  closed store reopens lazily. `ObjectStore` gained `exists(key)` (metadata
+  presence check; list-based default) and `is_not_found(exc)` (classifies the
+  SDK's own missing-object error so the data store can raise `KeyError`).
+  Public constructor signatures are unchanged; `S3Store`/`GCSStore` accept
+  `session=`, `AzureBlobStore` accepts `credential=`, `AzureBlobConfig` gained
+  `account_url`, `S3Config.region` became `str | None` (same default).
+  `LocalDiskDataStore` keeps the raw-bytes primitives (its atomic-rename
+  write has no connector counterpart).
 
 ---
 

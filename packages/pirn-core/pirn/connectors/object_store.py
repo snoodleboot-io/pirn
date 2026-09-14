@@ -41,6 +41,35 @@ class ObjectStore(PirnOpaqueValue):
         """Yield all keys under ``prefix`` in lexicographic order."""
         raise NotImplementedError(f"{type(self).__name__} must implement list()")
 
+    async def exists(self, key: str) -> bool:
+        """Return ``True`` if an object is stored at ``key``.
+
+        The default walks :meth:`list` under ``key`` and looks for an exact
+        match, which is correct for every backend but costs a listing;
+        concrete stores override it with the backend's metadata call
+        (``head_object``, ``download_metadata``, ``BlobClient.exists``, a
+        ``stat``) so a presence check never downloads the body. Introduced so
+        a content-addressed ``DataStore`` can compose over an ``ObjectStore``
+        (PIR-869) — ``DataStore.has()`` is exactly this question.
+        """
+        self._validate_key(key)
+        async for candidate in await self.list(key):
+            if candidate == key:
+                return True
+        return False
+
+    def is_not_found(self, exc: BaseException) -> bool:
+        """Classify a backend exception raised by :meth:`get` as "no such key".
+
+        Backends surface a missing object as their SDK's own error type
+        (botocore ``NoSuchKey``, a gcloud-aio 404, Azure ``BlobNotFound``);
+        a caller that needs a uniform ``KeyError`` — the content-addressed
+        ``DataStore`` layer — asks the store rather than sniffing SDK types
+        itself. The default recognises nothing, so an unknown backend
+        propagates every error unchanged.
+        """
+        return False
+
     @staticmethod
     def _closed_error(class_name: str) -> ConnectorClosedError:
         """Build the typed error for "used after close" — call sites ``raise`` it.
