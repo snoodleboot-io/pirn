@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ImageBlock`` — the image variant of the content-block union (F15-S1)."""
 
 from __future__ import annotations
@@ -54,6 +56,6 @@ class ImageBlock(ContentBlock):
     def _pirn_audit_dict(self) -> dict[str, Any]:
         return {
             "modality": "image",
-            "source": self.source._pirn_audit_dict(),
+            "source": self._audit_value(self.source),
             "alt_text": self.alt_text,
         }

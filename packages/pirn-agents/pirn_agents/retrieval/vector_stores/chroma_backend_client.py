@@ -15,6 +15,7 @@ import asyncio
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from pirn_agents._internal.json_shape import JsonShape
 from pirn_agents._internal.optional_import import OptionalImport
 from pirn_agents.retrieval.vector_stores.vector_backend_client import VectorBackendClient
 
@@ -48,13 +49,19 @@ class ChromaBackendClient(VectorBackendClient):
         return self._collection
 
     @staticmethod
+    def _column(result: Any, key: str, default: list[Any]) -> list[Any]:
+        """Return Chroma result column ``key``, or ``default`` when it is absent or empty."""
+        column: Any = result.get(key)
+        return list(column or default)
+
+    @staticmethod
     def _to_where(metadata_filter: Mapping[str, Any] | None) -> Any:
         """Translate a neutral metadata filter into a Chroma ``where`` clause."""
         if not metadata_filter:
             return None
         clauses: list[dict[str, Any]] = []
         for key, expected in metadata_filter.items():
-            if isinstance(expected, list | tuple | set):
+            if JsonShape.is_list_tuple_or_set(expected):
                 clauses.append({key: {"$in": list(expected)}})
             else:
                 clauses.append({key: expected})
@@ -106,10 +113,10 @@ class ChromaBackendClient(VectorBackendClient):
             )
 
         result = await asyncio.to_thread(_run)
-        ids = (result.get("ids") or [[]])[0]
-        distances = (result.get("distances") or [[]])[0]
-        metadatas = (result.get("metadatas") or [[]])[0]
-        documents = (result.get("documents") or [[]])[0]
+        ids = self._column(result, "ids", [[]])[0]
+        distances = self._column(result, "distances", [[]])[0]
+        metadatas = self._column(result, "metadatas", [[]])[0]
+        documents = self._column(result, "documents", [[]])[0]
         hits: list[Mapping[str, Any]] = []
         for index, identifier in enumerate(ids):
             hits.append(
@@ -133,12 +140,12 @@ class ChromaBackendClient(VectorBackendClient):
             return collection.get(ids=[key], include=["embeddings", "metadatas", "documents"])
 
         result = await asyncio.to_thread(_run)
-        ids = result.get("ids") or []
+        ids = self._column(result, "ids", [])
         if not ids:
             return None
-        embeddings = result.get("embeddings") or [[]]
-        metadatas = result.get("metadatas") or [{}]
-        documents = result.get("documents") or [None]
+        embeddings = self._column(result, "embeddings", [[]])
+        metadatas = self._column(result, "metadatas", [{}])
+        documents = self._column(result, "documents", [None])
         return {
             "id": ids[0],
             "vector": list(embeddings[0]),

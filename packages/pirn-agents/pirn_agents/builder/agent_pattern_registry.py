@@ -25,7 +25,7 @@ its own, and resolves a pattern's class only when that pattern is named.
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
@@ -34,6 +34,7 @@ from pirn.core.parameter import Parameter
 from pirn.nodes.sub_tapestry import SubTapestry
 from sweet_tea.registry import Registry
 
+from pirn_agents._internal.json_shape import JsonShape
 from pirn_agents.builder.pattern_descriptor import PatternDescriptor
 from pirn_agents.builder.pattern_seed_kind import PatternSeedKind
 from pirn_agents.types.messaging.agent_message import AgentMessage
@@ -568,15 +569,16 @@ class AgentPatternRegistry:
             return (AgentMessage(role="user", content=input_value),)
         if isinstance(input_value, AgentMessage):
             return (input_value,)
-        if isinstance(input_value, Sequence):
-            messages = tuple(input_value)
-            for index, message in enumerate(messages):
+        if JsonShape.is_sequence(input_value):
+            messages: list[AgentMessage] = []
+            for index, message in enumerate(input_value):
                 if not isinstance(message, AgentMessage):
                     raise TypeError(
                         f"AgentPatternRegistry: input[{index}] must be an AgentMessage, "
                         f"got {type(message).__name__}"
                     )
-            return messages
+                messages.append(message)
+            return tuple(messages)
         raise TypeError(
             "AgentPatternRegistry: this pattern's input must be a str or a sequence of "
             f"AgentMessage, got {type(input_value).__name__}"

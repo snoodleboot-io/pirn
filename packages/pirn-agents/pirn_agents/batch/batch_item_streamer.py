@@ -1,4 +1,4 @@
-"""``_BatchItemStreamer`` — hands each batch item's outcome to ``MapAgent.run`` as it settles.
+"""``BatchItemStreamer`` — hands each batch item's outcome to ``MapAgent.run`` as it settles.
 
 ADR agents-speaks-core, WS0b. ``MapAgent`` joins its per-item knots through
 a core ``Aggregator``, which only produces its combined value once *every*
@@ -41,7 +41,7 @@ if TYPE_CHECKING:
     from pirn.core.result import Result
 
 
-class _BatchItemStreamer(Emitter):
+class BatchItemStreamer(Emitter):
     """Streams a batch's per-item ``BatchItemResult``s onto a queue as they settle."""
 
     def __init__(

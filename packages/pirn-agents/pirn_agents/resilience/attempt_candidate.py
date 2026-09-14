@@ -1,4 +1,4 @@
-"""``_AttemptCandidate`` — fold one failover candidate's outcome into state."""
+"""``AttemptCandidate`` — fold one failover candidate's outcome into state."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from pirn_agents.resilience.failover_candidate import FailoverCandidate
 from pirn_agents.resilience.failover_result import FailoverResult
 
 
-class _AttemptCandidate(Knot):
+class AttemptCandidate(Knot):
     """Fold one candidate's outcome into the chain's accumulated result.
 
     ``breakers`` is typed ``Any``, justified: :class:`CircuitBreakerRegistry`

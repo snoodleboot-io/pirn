@@ -8,12 +8,14 @@ mixin owns :meth:`stream_chat` (the raw unified :class:`StreamDelta` iterator),
 fragment assembly via :class:`StreamingToolCallParser`, last-writer-wins
 finish reason/usage, and cost estimation).
 
-It reads request-building and transport hooks
-(``_build_request``/``_apply_prompt_cache``/``_get_client``/``_url``/
-``_completions_path``/``_request_headers``/``_iter_stream``) and the
-``_mapper`` collaborator from :class:`~pirn_agents.llm.base_llm_provider.BaseLLMProvider`;
-it contributes no ``__init__`` of its own and is always combined with that
-base, never instantiated directly.
+It reads the pooled client from
+:class:`~pirn.connectors.connector_base.ConnectorBase` (which it derives from),
+declares the request-building and transport hooks it calls
+(``_build_request``/``_apply_prompt_cache``/``_url``/``_completions_path``/
+``_request_headers``/``_iter_stream``) as ``NotImplementedError`` methods that
+:class:`~pirn_agents.llm.base_llm_provider.BaseLLMProvider` overrides, and reads
+its ``_mapper`` collaborator; it contributes no ``__init__`` of its own and is
+always combined with that base, never instantiated directly.
 """
 
 from __future__ import annotations
@@ -21,15 +23,56 @@ from __future__ import annotations
 from collections.abc import AsyncIterable, AsyncIterator, Mapping, Sequence
 from typing import Any
 
+from pirn.connectors.connector_base import ConnectorBase
+
 from pirn_agents.llm.llm_http_status_error import LLMHTTPStatusError
+from pirn_agents.llm.response_mapper import ResponseMapper
 from pirn_agents.llm.stream_delta import StreamDelta
 from pirn_agents.tools.streaming_tool_call_parser import StreamingToolCallParser
 from pirn_agents.tools.toolset import Toolset
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
-class LLMProviderStreamingMixin:
+class LLMProviderStreamingMixin(ConnectorBase):
     """Token/tool-call streaming surface for :class:`BaseLLMProvider`."""
+
+    # -- host collaborator this mixin reads (set by BaseLLMProvider.__init__) --
+    _mapper: ResponseMapper
+
+    # -- host hooks this mixin calls; BaseLLMProvider's own body overrides each --
+
+    def _build_request(
+        self,
+        messages: Sequence[Mapping[str, Any]],
+        *,
+        model: str | None,
+        max_tokens: int | None,
+        temperature: float | None,
+        stream: bool,
+        tools: Toolset | None,
+    ) -> dict[str, Any]:
+        """Shape a request body for this provider's wire format."""
+        raise NotImplementedError(f"{type(self).__name__} must implement _build_request()")
+
+    def _apply_prompt_cache(self, payload: dict[str, Any]) -> None:
+        """Mutate ``payload`` to enable prompt/context caching, if supported."""
+        raise NotImplementedError(f"{type(self).__name__} must implement _apply_prompt_cache()")
+
+    def _url(self, path: str) -> str:
+        """Join the configured base URL with ``path``."""
+        raise NotImplementedError(f"{type(self).__name__} must implement _url()")
+
+    def _completions_path(self) -> str:
+        """Return the path (appended to ``base_url``) for chat completions."""
+        raise NotImplementedError(f"{type(self).__name__} must implement _completions_path()")
+
+    def _request_headers(self) -> dict[str, str]:
+        """Return the merged base + provider-specific auth headers."""
+        raise NotImplementedError(f"{type(self).__name__} must implement _request_headers()")
+
+    def _iter_stream(self, response: Any) -> AsyncIterator[StreamDelta]:
+        """Parse a streaming HTTP response into neutral :class:`StreamDelta`s."""
+        raise NotImplementedError(f"{type(self).__name__} must implement _iter_stream()")
 
     async def stream_chat(
         self,

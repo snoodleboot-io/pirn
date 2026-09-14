@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``NearDuplicateGrouper`` — cluster near-duplicate records by token overlap.
 
 Consolidation's first step: partition a batch of

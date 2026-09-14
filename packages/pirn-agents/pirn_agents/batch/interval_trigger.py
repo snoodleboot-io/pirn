@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``IntervalTrigger`` — a scheduled batch trigger (PIR-723 / WS8-D2).
 
 A core :class:`pirn.triggers.trigger.Trigger` that fires on a schedule: by default

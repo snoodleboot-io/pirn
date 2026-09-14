@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``RecencyEvictionPolicy`` — evict the oldest context items first."""
 
 from __future__ import annotations

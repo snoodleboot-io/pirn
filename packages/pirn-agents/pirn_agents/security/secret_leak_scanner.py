@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SecretLeakScanner`` — detect + redact secrets in free text.
 
 Reuses the pirn-core :class:`~pirn.connectors.dsn_scrubber.DsnScrubber` for

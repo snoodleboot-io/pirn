@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``CircuitBreaker`` — a per-endpoint closed/open/half-open state machine.
 
 The breaker guards calls to a single endpoint. In CLOSED it lets calls through
@@ -18,7 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
 
 from pirn_agents.resilience.circuit_breaker_config import CircuitBreakerConfig
@@ -122,7 +124,7 @@ class CircuitBreaker:
                 self._opened_at = self._clock()
 
     @asynccontextmanager
-    async def guard(self) -> AsyncIterator[None]:
+    async def guard(self) -> AsyncGenerator[None, None]:
         """Guard the ``async with`` body: fail fast when open, else record.
 
         Acquires admission on entry (raising :class:`CircuitOpenError` if open),

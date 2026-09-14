@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``QdrantMemoryStore`` — a Qdrant-backed :class:`VectorMemoryStore`.
 
 Adapts the neutral vector-store contract onto Qdrant. All vendor specifics live

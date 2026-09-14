@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``HybridGraphRetriever`` — fuse graph traversal with vector similarity (RRF).
 
 A :class:`Knot` that produces a single ranked context by combining two arms:
@@ -69,7 +71,7 @@ from pirn_agents.retrieval.hybrid_retriever_base import HybridRetrieverBase
 from pirn_agents.retrieval.reciprocal_rank_fusion import ReciprocalRankFusion
 
 
-class HybridGraphRetriever(HybridRetrieverBase):
+class HybridGraphRetriever(HybridRetrieverBase[list[Mapping[str, Any]]]):
     """Fuse graph-neighborhood and vector-similarity node rankings via RRF."""
 
     def __init__(
