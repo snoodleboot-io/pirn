@@ -196,11 +196,15 @@ class Tapestry:
         run that names no limits of its own -- neither here nor on its
         request -- shares the enclosing run's admission gate, the very same
         instance, so ``max_in_flight`` and every group cap are one budget
-        across the whole run tree; an inner run that names limits gets a
-        gate of its own, and ``RunRequest(concurrency=ConcurrencyLimits())``
-        is how it opts out of the shared budget explicitly (WS0b).  The
-        effective ceiling is also bounded by the dispatcher's own capacity,
-        e.g. ``ThreadDispatcher(max_workers=...)``.
+        across the whole run tree; an inner run that names a *bounded*
+        budget of its own gets a gate chained under the enclosing run's, so
+        admission takes a ticket from both and the tighter of the two
+        always applies (PIR-870).  ``RunRequest(concurrency=ConcurrencyLimits())``
+        -- explicitly unbounded -- is how a run opts out of the shared budget
+        entirely: that gate is not chained, since chaining an
+        always-admitting gate to the enclosing one would defeat the opt-out
+        (WS0b).  The effective ceiling is also bounded by the dispatcher's
+        own capacity, e.g. ``ThreadDispatcher(max_workers=...)``.
     max_nesting_depth:
         How many runs may be nested below a run of this tapestry, or
         ``None`` (the default) for no guard.  Every ``SubTapestry`` inner
@@ -605,6 +609,7 @@ class Tapestry:
             unused-group warning for limits declared for the whole tree).
         """
         from pirn.core.execution_plane import ExecutionPlane as _ExecutionPlane
+        from pirn.engine.admission.chained_admission_gate import ChainedAdmissionGate
         from pirn.engine.engine import Engine
 
         enclosing = _current_execution_plane.get(None)
@@ -627,6 +632,21 @@ class Tapestry:
             limits = enclosing.limits
             inherited = True
             observers = self._merged_observers(own_observers, enclosing.admission_observers)
+        elif enclosing is not None and own_limits is not None and not own_limits.is_unbounded:
+            # This run names its own *bounded* budget, but it still runs
+            # inside the enclosing run's: chain the two gates so admission
+            # takes a ticket from both and a slot held here is also a slot
+            # the enclosing run's own budget cannot hand to anyone else
+            # (PIR-870) -- rather than the two budgets being unrelated, as
+            # they were before this fix. An explicitly *unbounded*
+            # ``ConcurrencyLimits()`` stays the documented escape hatch
+            # (falls to the branch below): it opts a run out of the shared
+            # budget entirely, which chaining it to an always-admitting own
+            # gate would defeat.
+            gate = ChainedAdmissionGate(own=Engine.gate_for(own_limits), parent=enclosing.gate)
+            limits = own_limits
+            inherited = False
+            observers = own_observers
         else:
             gate = Engine.gate_for(own_limits)
             limits = own_limits

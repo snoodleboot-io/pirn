@@ -173,6 +173,89 @@ class _Join(Knot):
         return len(inputs)
 
 
+class _PeakCounter:
+    """Tracks concurrent occupancy by simple entry/exit counting.
+
+    Unlike ``_Gauge``, a visitor never waits for company: it just records how
+    many are in at once and leaves whenever it is done.  Good enough for
+    peak-concurrency assertions because admission itself is what creates the
+    overlap -- every knot the gate admits in one pass of the engine's ready
+    loop starts before any of them awaits its own sleep, so knots genuinely
+    running at the same time really do overlap in wall-clock time.
+    """
+
+    def __init__(self) -> None:
+        self.in_flight = 0
+        self.peak = 0
+        self._lock = asyncio.Lock()
+
+    async def enter(self) -> None:
+        async with self._lock:
+            self.in_flight += 1
+            self.peak = max(self.peak, self.in_flight)
+
+    async def leave(self) -> None:
+        async with self._lock:
+            self.in_flight -= 1
+
+
+class _SleepWorker(Knot):
+    """Occupies every counter in *counters* for a fixed duration."""
+
+    def __init__(self, *, counters: list[_PeakCounter], seconds: float, **kwargs: Any) -> None:
+        self._counters = counters
+        self._seconds = seconds
+        super().__init__(**kwargs)
+
+    async def process(self, **_: Any) -> str:
+        for counter in self._counters:
+            await counter.enter()
+        try:
+            await asyncio.sleep(self._seconds)
+        finally:
+            for counter in self._counters:
+                await counter.leave()
+        return self.knot_id
+
+
+class _ChainedSub(SubTapestry):
+    """A container declaring a *bounded* inner budget of its own."""
+
+    def __init__(
+        self,
+        *,
+        total: _PeakCounter,
+        inner: _PeakCounter,
+        width: int,
+        inner_max_in_flight: int,
+        seconds: float,
+        **kwargs: Any,
+    ) -> None:
+        self._total = total
+        self._inner = inner
+        self._width = width
+        self._inner_max_in_flight = inner_max_in_flight
+        self._seconds = seconds
+        super().__init__(**kwargs)
+
+    def _inner_concurrency(self) -> ConcurrencyLimits | None:
+        return ConcurrencyLimits(max_in_flight=self._inner_max_in_flight)
+
+    async def process(self, **_: Any) -> Knot:
+        leaves = [
+            _SleepWorker(
+                counters=[self._total, self._inner],
+                seconds=self._seconds,
+                _config=KnotConfig(id=f"{self.knot_id}-leaf{i}"),
+            )
+            for i in range(self._width)
+        ]
+        return _Join(
+            **{f"p{i}": leaf for i, leaf in enumerate(leaves)},
+            _config=KnotConfig(id=f"{self.knot_id}-join"),
+        )
+
+
 class _PlaneProbe(Knot):
     """Records the plane in force where it runs."""
 
@@ -327,18 +410,72 @@ class TestInnerRunsMayNameTheirOwnLimits(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(gauge.peak, 1)
 
     async def test_run_inner_keyword_overrides_win(self) -> None:
+        # The explicit ``_run_inner(concurrency=...)`` keyword still wins over
+        # the tapestry-level default (``_Sub`` names none here), but since
+        # PIR-870 a *bounded* override is chained under the outer cap rather
+        # than replacing it, so the peak is the tighter of the two (1, not
+        # the inner override's 2) -- the outer run declared 1 and nothing
+        # opted out of it.
         class _Explicit(_Sub):
             async def _run_inner(self, tapestry: Tapestry, **kwargs: Any) -> RunResult:
                 return await super()._run_inner(
                     tapestry, concurrency=ConcurrencyLimits(max_in_flight=2), **kwargs
                 )
 
-        gauge = _Gauge(hold=2)
+        gauge = _Gauge(hold=1)
         with Tapestry() as t:
             _Explicit(gauge=gauge, width=4, _config=KnotConfig(id="sub"))
         result = await t.run(RunRequest(concurrency=ConcurrencyLimits(max_in_flight=1)))
         self.assertTrue(result.succeeded, result.exceptions)
-        self.assertEqual(gauge.peak, 2)
+        self.assertEqual(gauge.peak, 1)
+
+    async def test_a_bounded_inner_gate_is_chained_under_the_outer_cap(self) -> None:
+        # Arrange (PIR-870): outer cap 3, inner cap 2.  Three outer-level
+        # workers occupy the whole outer budget first; the container's four
+        # inner leaves only get admitted as outer slots free, never more
+        # than 2 at once, and the two budgets combined never exceed 3 in
+        # flight.  Before this fix the inner gate was unrelated to the
+        # outer one, so the inner leaves' own cap of 2 applied *in addition
+        # to* the three outer workers -- a combined peak of 5.
+        total = _PeakCounter()
+        inner = _PeakCounter()
+        with Tapestry() as t:
+            for i in range(3):
+                _SleepWorker(counters=[total], seconds=0.15, _config=KnotConfig(id=f"outer{i}"))
+            _ChainedSub(
+                total=total,
+                inner=inner,
+                width=4,
+                inner_max_in_flight=2,
+                seconds=0.15,
+                _config=KnotConfig(id="sub"),
+            )
+
+        # Act
+        result = await asyncio.wait_for(
+            t.run(RunRequest(concurrency=ConcurrencyLimits(max_in_flight=3))), timeout=20
+        )
+
+        # Assert
+        self.assertTrue(result.succeeded, result.exceptions)
+        self.assertEqual(inner.peak, 2)
+        self.assertLessEqual(total.peak, 3)
+
+    async def test_an_unbounded_inner_gate_still_opts_out_of_the_outer_cap(self) -> None:
+        # An explicitly *unbounded* ConcurrencyLimits() is the documented
+        # escape hatch (PIR-870 does not change it): its gate stays
+        # unchained, so it is not bounded by the outer cap at all.
+        gauge = _Gauge(hold=4)
+        with Tapestry() as t:
+            _Sub(
+                gauge=gauge,
+                width=4,
+                inner_limits=ConcurrencyLimits(),
+                _config=KnotConfig(id="sub"),
+            )
+        result = await t.run(RunRequest(concurrency=ConcurrencyLimits(max_in_flight=2)))
+        self.assertTrue(result.succeeded, result.exceptions)
+        self.assertEqual(gauge.peak, 4)
 
 
 class TestInnerRunsInheritTheDispatcher(unittest.IsolatedAsyncioTestCase):

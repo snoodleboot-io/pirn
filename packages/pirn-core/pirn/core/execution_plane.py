@@ -29,9 +29,13 @@ Algorithm:
     2. *Dispatcher*: the ``run(dispatcher=)`` argument, else the tapestry's
        own dispatcher when it was passed to ``Tapestry(...)`` explicitly,
        else the enclosing plane's, else the tapestry's default.
-    3. *Gate and limits*: when the request or the tapestry names
-       ``ConcurrencyLimits``, the run gets its own gate built from them;
-       otherwise it shares the enclosing plane's gate and reports the
+    3. *Gate and limits*: when the request or the tapestry names *bounded*
+       ``ConcurrencyLimits``, the run gets a gate chained under the
+       enclosing plane's gate (``ChainedAdmissionGate``, PIR-870) -- both
+       budgets apply, released together.  Naming explicitly *unbounded*
+       ``ConcurrencyLimits()`` still gets an independent, unchained gate --
+       the documented way to opt a run out of the enclosing budget entirely.
+       Otherwise the run shares the enclosing plane's gate and reports the
        enclosing limits.  A root run without limits gets the unbounded
        gate.
     4. *Observers*: the ``run(admission_observers=)`` argument, else the
