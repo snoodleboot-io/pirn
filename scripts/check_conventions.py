@@ -58,7 +58,7 @@ Rules
 
 "Knot-like" (rules 5-8)
 -----------------------
-A class whose bases include one of ``Knot``, ``SubTapestry``, ``Source``,
+A class whose bases include one of ``Knot``, ``NestedRunKnot``, ``SubTapestry``, ``Source``,
 ``Sink``, ``Assembler``, ``Disassembler``, ``AgentPipeline``,
 ``AgentLoopPipeline``, ``LoopSubTapestry`` (by base name, not full import
 resolution), OR whose own name ends in ``Knot`` or ``Pipeline``.
@@ -220,6 +220,7 @@ _MODULE_LEVEL_FUNCTION_ALLOWLIST: dict[str, str] = {
 _KNOT_BASE_NAMES = frozenset(
     {
         "Knot",
+        "NestedRunKnot",
         "SubTapestry",
         "Source",
         "Sink",

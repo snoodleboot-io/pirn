@@ -97,7 +97,8 @@ All subclass `Knot`. These are the graph-shape primitives.
 | `Aggregator` | fan-in of multiple parents |
 | `Reduce` | fold over a collection |
 | `Continuation` | deferred/streaming continuation |
-| `SubTapestry` / `LoopSubTapestry` | nest a tapestry as a node / iterate it; the loop's `astep` / `afold` are awaited (override them, or declare `step`/`fold` as `async def`) so an iteration can sleep, check a budget or call a model between turns |
+| `NestedRunKnot` (`nested_run_knot.py`) | a plain knot whose `process()` runs nested tapestries through `self._run_inner(inner)` and returns its own value — any number of inner runs, no sink contract. Each inner run inherits the enclosing run's observability/value plane (history, emitters, data store, transport, traceback filter) and execution plane (dispatcher, gate + limits, observers, replay, identity), nests under its `RunNesting` frame, and is recorded on the knot's row (`extra["inner_run_id"]`, plus `extra["inner_run_ids"]` in start order when there are several — what an inherited replay posture picks the matching recording by). A container: holds no admission slot, may not carry a `concurrency_group`. Mix it in beside a marker base (`class X(Assembler, NestedRunKnot)`) — `_raptor_assembler` is the reference use (PIR-872). **Use this, not a `SubTapestry` whose `__call__` is overridden back, when a knot needs inner runs but returns a value.** |
+| `SubTapestry` / `LoopSubTapestry` | a `NestedRunKnot` with the sink contract: `process()` returns the terminal knot of one inner pipeline and its output becomes the knot's; the loop iterates it, its `astep` / `afold` are awaited (override them, or declare `step`/`fold` as `async def`) so an iteration can sleep, check a budget or call a model between turns |
 | `Branch` (`branch/`) | conditional path selection; `BranchOutput` |
 | `Gate` (`gate/`) | pass/close gate; decision is `predicate=` (callable) or `check=` (a `Check` knot) |
 | `Check` (`check.py`) | the predicate half of a `Gate`: any parents → `bool`, enforced. **The core name for a boolean verdict knot; agents' `*Check` knots subclass it, not `Knot`.** |
@@ -134,7 +135,7 @@ All subclass `Knot`. These are the graph-shape primitives.
 | `Shed` / `Edge` (`shed/`) | engine | the resolved execution graph the engine walks |
 | `AdmissionGate` (`admission/`) | interface-base | `has_capacity` / `try_admit` / `release` / `wait_for_release` plus `current_limit(group)` / `set_limit(group, n)` for live caps; `UnboundedAdmissionGate` / `LimitedAdmissionGate` impls, `ConcurrencyLimits` is the public knob |
 | `AdmissionObserver` / `AdmissionEvent` (`admission/`) | interface-base / value-object | hears every admission and release (queue depth, wait, hold, outcome, the gate); attach via `Tapestry(admission_observers=)`. `AdmissionFeedback` (`engine/`) builds the events. **An adaptive concurrency controller is an observer calling `event.gate.set_limit`, not a semaphore of its own.** |
-| `ExecutionPlane` (`core/execution_plane.py`) | value-object | the scheduling half of a run — `dispatcher`, `gate` + `limits`, `admission_observers`, `replay`, `identity_resolver` — published by `Tapestry.run` for the run's duration (`ExecutionPlane.current()`) and **inherited by every inner run** for whatever the inner tapestry did not name: the gate by identity, so `ConcurrencyLimits` are one budget across the run tree. Container knots (`Knot._holds_admission_slot = False`: `SubTapestry`, loop iterations) take no slot and may not carry a `concurrency_group`. Per-container overrides: `SubTapestry._run_inner(dispatcher=, concurrency=, admission_observers=)` or the `_inner_dispatcher` / `_inner_concurrency` / `_inner_admission_observers` hooks (ADR WS0b) |
+| `ExecutionPlane` (`core/execution_plane.py`) | value-object | the scheduling half of a run — `dispatcher`, `gate` + `limits`, `admission_observers`, `replay`, `identity_resolver` — published by `Tapestry.run` for the run's duration (`ExecutionPlane.current()`) and **inherited by every inner run** for whatever the inner tapestry did not name: the gate by identity, so `ConcurrencyLimits` are one budget across the run tree. Container knots (`Knot._holds_admission_slot = False`: `SubTapestry`, loop iterations) take no slot and may not carry a `concurrency_group`. Per-container overrides: `NestedRunKnot._run_inner(dispatcher=, concurrency=, admission_observers=)` (inherited by `SubTapestry`) or the `_inner_dispatcher` / `_inner_concurrency` / `_inner_admission_observers` hooks (ADR WS0b) |
 
 **Idiom:** choose parallelism by swapping a `Dispatcher`, not by changing knots. Agent batch/fleet execution should compose or subclass a dispatcher, not re-implement a bounded-concurrency loop. An inner run inherits the outer dispatcher and admission gate; a container that needs its own overrides them through `_run_inner` / the `_inner_*` hooks — **never by assigning an inner tapestry's private fields** (ratcheted in agents' `tests/core_seams/test_execution_plane_reach_through.py`).
 
@@ -551,24 +552,22 @@ is empty for `AWAITS_CHILD_PROCESS`, `RETURNS_INLINE_SOURCE`, `UNRUN_TAPESTRY`,
 `USES_ASYNCIO_GATHER`; kept as `frozenset()` assertions so a regression is
 loud, not deleted.
 
+**Resolved (PIR-872): `rag/indexing/_raptor_assembler.py`'s clustering loop.**
+It stays a deliberate ETL exception (atomic read-check-transform-write cycle
+against the vector store: a content-hash dedup short-circuit and a single
+final upsert that must see a consistent store), but each level's cluster
+summaries now run as a nested run of one `_RaptorSummary` knot per cluster
+joined by an `Aggregator`, so every LLM summary call has its own lineage row,
+`Result` and admission. What made this a coupling problem before —
+`_run_inner` and its hooks lived only on `SubTapestry`, whose `__call__`
+requires `process()` to return a sink `Knot` — is gone: core's new
+`NestedRunKnot` (§3.2) is that machinery without the sink contract, and
+`SubTapestry` is now a `NestedRunKnot` that adds it.
+`_RaptorAssembler(Assembler, NestedRunKnot)` keeps returning its `RaptorTree`
+value directly.
+
 **Still open** (frozen in the same ratchet, not this ADR's blast radius to
 fix unilaterally):
-- `rag/indexing/_raptor_assembler.py`'s clustering loop — a deliberate ETL
-  exception (atomic read-check-transform-write cycle against the vector
-  store; a content-hash dedup short-circuit and a final upsert that must see
-  a consistent store). PIR-867 re-evaluated giving each level's per-cluster
-  summarization its own lineage row via `SubTapestry._run_inner` called
-  *inside* the atomic method (keeping the dedup short-circuit and the single
-  final upsert): `_run_inner` depends on hooks and constructor state that
-  only exist on `SubTapestry`, whose `__call__` in turn hard-requires
-  `process()` to return a `Knot` — the opposite of what this atomic
-  assembler needs (return the built `RaptorTree` value once). Getting the
-  method without the contract means multiply inheriting `SubTapestry`
-  alongside `Assembler` and overriding `__call__` back to `Knot.__call__`,
-  a fragile coupling for one knot's observability. Still deferred: a core
-  primitive for "run a nested tapestry from a plain `Knot`" would resolve
-  it; absent that, whether per-summary observability is worth the coupling
-  is a product call, not made here.
 - `agent/parallel_tool_executor.py::ParallelToolExecutor`'s own
   `asyncio.gather` is a deliberate deferral — its per-call retry/timeout
   richness needs real inter-attempt backoff sleep, not expressible as a

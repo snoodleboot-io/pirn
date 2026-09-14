@@ -398,6 +398,7 @@ class Tapestry:
         _parent_run_id: str | None = None,
         _parent_knot_id: str | None = None,
         _nesting_key: str | None = None,
+        _inner_run_ordinal: int | None = None,
     ) -> RunResult:
         """Execute the tapestry against a ``RunRequest``.
 
@@ -438,7 +439,11 @@ class Tapestry:
         in replay posture, it is served from the recording of the inner run
         the container's own recorded row names (``extra["inner_run_id"]``),
         loaded from this tapestry's history; a container with no recorded
-        row runs its inner pipeline live.
+        row runs its inner pipeline live.  A container that started several
+        inner runs (``NestedRunKnot._run_inner`` called more than once) passes
+        ``_inner_run_ordinal`` -- the run's index among them -- and is served
+        from the recorded inner run at that index
+        (``extra["inner_run_ids"]``).
 
         **Execution plane (WS0b).**  A run started inside another run --
         a ``SubTapestry`` body, a ``LoopSubTapestry`` iteration -- inherits
@@ -497,6 +502,7 @@ class Tapestry:
             admission_observers=admission_observers,
             replay=replay,
             parent_knot_id=_parent_knot_id,
+            inner_run_ordinal=_inner_run_ordinal,
         )
 
         # WHO resolution: explicit RunRequest.actor wins; fall back to resolver.
@@ -583,6 +589,7 @@ class Tapestry:
         admission_observers: list[AdmissionObserver] | None,
         replay: ReplaySession | None,
         parent_knot_id: str | None,
+        inner_run_ordinal: int | None = None,
     ) -> tuple[ExecutionPlane, bool]:
         """Resolve the plane a run of this tapestry executes under.
 
@@ -602,6 +609,8 @@ class Tapestry:
             replay: The ``run(replay=)`` argument.
             parent_knot_id: The container knot starting this run, if any --
                 what an inherited replay posture is keyed on.
+            inner_run_ordinal: This run's index among the container's inner
+                runs, when the container reported one.
 
         Returns:
             ``(plane, limits_inherited)``: the plane to publish, and whether
@@ -654,7 +663,9 @@ class Tapestry:
             observers = own_observers
 
         if replay is None and enclosing is not None and enclosing.replay is not None:
-            replay = await self._inherited_replay(enclosing.replay, parent_knot_id)
+            replay = await self._inherited_replay(
+                enclosing.replay, parent_knot_id, inner_run_ordinal
+            )
 
         if enclosing is not None and not self._identity_resolver_explicit:
             resolver = enclosing.identity_resolver
@@ -694,19 +705,27 @@ class Tapestry:
         return merged
 
     async def _inherited_replay(
-        self, outer: ReplaySession, parent_knot_id: str | None
+        self,
+        outer: ReplaySession,
+        parent_knot_id: str | None,
+        inner_run_ordinal: int | None = None,
     ) -> ReplaySession | None:
         """Derive an inner run's replay session from the enclosing run's.
 
         The outer session indexes the *outer* run's knots; an inner run's
         knots are recorded in the inner run the container's lineage row
-        names (``SubTapestry.lineage_extra`` → ``extra["inner_run_id"]``).
+        names (``NestedRunKnot.lineage_extra`` → ``extra["inner_run_id"]``).
+        A container that started several inner runs records all of them in
+        start order (``extra["inner_run_ids"]``), and the run at
+        *inner_run_ordinal* is served from the recording at that index.
         That recording is loaded from this tapestry's history, which
-        ``SubTapestry._run_inner`` has already pointed at the outer store.
+        ``NestedRunKnot._run_inner`` has already pointed at the outer store.
 
         Args:
             outer: The enclosing run's session.
             parent_knot_id: The container knot starting this run.
+            inner_run_ordinal: This run's index among the container's inner
+                runs, or ``None`` when the caller did not report one.
 
         Returns:
             A session over the recorded inner run, or ``None`` when the
@@ -728,8 +747,8 @@ class Tapestry:
         row = outer.row_for(parent_knot_id)
         if row is None:
             return None
-        inner_run_id = row.extra.get("inner_run_id")
-        if not isinstance(inner_run_id, str):
+        inner_run_id = self._recorded_inner_run_id(row.extra, inner_run_ordinal)
+        if inner_run_id is None:
             return None
         try:
             return await _ReplaySession.from_history(history=self._history, run_id=inner_run_id)
@@ -742,6 +761,32 @@ class Tapestry:
                     "which is no longer in history, so the inner pipeline cannot be replayed"
                 ),
             ) from absent
+
+    @staticmethod
+    def _recorded_inner_run_id(extra: dict[str, Any], ordinal: int | None) -> str | None:
+        """The recorded inner run a container's *ordinal*-th inner run replays.
+
+        Args:
+            extra: The container's recorded ``KnotLineage.extra``.
+            ordinal: The inner run's index among the container's inner runs,
+                or ``None`` when not reported.
+
+        Returns:
+            ``inner_run_ids[ordinal]`` when the row lists several inner runs;
+            otherwise ``inner_run_id`` for the first (or an unreported) run;
+            ``None`` when the row names no inner run at that index.
+        """
+        if ordinal is not None and "inner_run_ids" in extra:
+            listed: Any = extra["inner_run_ids"]
+            try:
+                candidate: Any = listed[ordinal]
+            except (IndexError, KeyError, TypeError):
+                return None
+            return candidate if isinstance(candidate, str) else None
+        if ordinal not in (None, 0):
+            return None
+        single: object = extra.get("inner_run_id")
+        return single if isinstance(single, str) else None
 
     def add_emitter(self, emitter: Emitter) -> None:
         """Append an emitter to this tapestry's default emitter list.
