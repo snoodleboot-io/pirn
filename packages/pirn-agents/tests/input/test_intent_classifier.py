@@ -10,15 +10,15 @@ from pirn.core.knot_factory import knot
 from pirn.tapestry import Tapestry
 
 from pirn_agents.input.intent_classifier import IntentClassifier
-from pirn_agents.types.messaging.agent_context import AgentContext
 from pirn_agents.types.messaging.agent_message import AgentMessage
+from pirn_agents.types.messaging.conversation_payload import ConversationPayload
 from tests.conftest import StubLLMProvider
 
 
 def _make_knot(llm: StubLLMProvider) -> IntentClassifier:
     @knot
-    async def _ctx() -> AgentContext:
-        return AgentContext(messages=())
+    async def _ctx() -> ConversationPayload:
+        return ConversationPayload(messages=())
 
     with Tapestry():
         upstream = _ctx(_config=KnotConfig(id="ctx"))
@@ -30,7 +30,7 @@ def _make_knot(llm: StubLLMProvider) -> IntentClassifier:
         )
 
 
-_CONTEXT = AgentContext(
+_CONTEXT = ConversationPayload(
     messages=(AgentMessage(role="user", content="I want a refund"),),
 )
 

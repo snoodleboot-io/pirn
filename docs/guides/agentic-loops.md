@@ -230,14 +230,16 @@ This is the **supported** escape: the outer dispatcher carries the entire nested
 
 ### Do not set a dispatcher on an *inner* tapestry
 
-Setting a per-**inner**-tapestry dispatcher (for example a `ThreadDispatcher` on a `SubTapestry`/`LoopSubTapestry`'s own inner tapestry) is **not supported and is unsafe** for agent-as-tool workloads.  The agent-as-tool machinery binds an `AgentToolContext` into a `contextvars` context (read by `current_agent_tool_context()` in `pirn_agents/agent/agent_invoker.py`).  An inner dispatcher crosses the thread boundary *after* that bind, and `loop.run_in_executor` — unlike `asyncio.to_thread` — does **not** copy the context into the worker thread.  The inner knot then sees no context, so `agent_invoker.py` falls back to a fresh **root** `AgentToolContext`:
+Setting a per-**inner**-tapestry dispatcher (for example a `ThreadDispatcher` on a `SubTapestry`/`LoopSubTapestry`'s own inner tapestry) is **not supported and is unsafe** for agent-as-tool workloads.  The agent-as-tool machinery binds an `AgentToolContext` (a core `RunNesting` frame plus agents-only budget/provider policy; see ADR agents-speaks-core WS0/WS1) into a `contextvars` context (read by `current_agent_tool_context()` in `pirn_agents/agent/agent_tool_context.py`).  An inner dispatcher crosses the thread boundary *after* that bind, and `loop.run_in_executor` — unlike `asyncio.to_thread` — does **not** copy the context into the worker thread.  The inner knot then sees no context, so the agent-as-tool call falls back to a fresh **root** `AgentToolContext`:
 
 ```python
-parent = current_agent_tool_context()          # None across the uncopied boundary
-base = parent if parent is not None else AgentToolContext(max_depth=self._max_depth)
+# pirn_agents/tools/agent_tool_call.py, AgentToolCall.__call__
+base = AgentToolContext.bound()                 # None across the uncopied boundary
+if base is None:
+    base = AgentToolContext.from_current_frame()  # reads RunNesting.current() — also root
 ```
 
-That silently resets `depth` to the root and drops the inherited cycle set and budget meter, defeating `AgentDepthExceededError`, `AgentCycleError`, and `BudgetBreachError`.  The **outer**-dispatcher configuration above is safe precisely because the bind happens *inside* the worker thread, so there is no boundary to cross afterward.
+`RunNesting.current()` reads its own `contextvars` frame (`pirn.tapestry._current_nesting`), which does not cross an uncopied `run_in_executor` boundary either, so the fallback silently resets `depth` to the root and drops the inherited cycle set and budget meter, defeating the nesting guard's `NestingDepthExceededError` / `NestedRunCycleError` and the agent-as-tool budget meter. The **outer**-dispatcher configuration above is safe precisely because the bind happens *inside* the worker thread, so there is no boundary to cross afterward.
 
 ### Blocking work inside a knot
 

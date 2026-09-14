@@ -78,9 +78,9 @@ from pirn_agents.specializations.tool_use.tool_selector import ToolSelector
 from pirn_agents.tools.retrieval.rag_tool import RagTool
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_result import ToolResult
-from pirn_agents.types.messaging.agent_context import AgentContext
 from pirn_agents.types.messaging.agent_message import AgentMessage
 from pirn_agents.types.messaging.agent_response import AgentResponse
+from pirn_agents.types.messaging.conversation_payload import ConversationPayload
 from tests.conftest import StubLLMProvider, StubMemoryStore, StubTool
 from tests.specializations.conftest import StubEmbeddingProvider
 from tests.tools.tool_runner import ToolRunner
@@ -101,7 +101,7 @@ class InputPromptPins(unittest.IsolatedAsyncioTestCase):
     async def test_intent_classifier_classification_prompt(self) -> None:
         llm = StubLLMProvider(responses=["greeting"])
         knot = _bare(IntentClassifier)
-        context = AgentContext(messages=(AgentMessage(role="user", content="hello"),))
+        context = ConversationPayload(messages=(AgentMessage(role="user", content="hello"),))
         await knot.process(
             context=context,
             llm=llm,

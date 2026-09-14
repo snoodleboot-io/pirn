@@ -1,14 +1,14 @@
-"""``ContextBuilder`` — assemble messages plus optional system prompt into ``AgentContext``.
+"""``ContextBuilder`` — assemble messages plus optional system prompt into ``ConversationPayload``.
 
 Algorithm:
     1. Receive the resolved messages sequence and optional system prompt.
     2. Validate types at process time.
     3. If ``system_prompt`` is provided, prepend a system-role ``AgentMessage``.
-    4. Return the assembled ``AgentContext``.
+    4. Return the assembled ``ConversationPayload``.
 
 
 References:
-    - :class:`pirn_agents.types.messaging.agent_context.AgentContext`
+    - :class:`pirn_agents.types.messaging.conversation_payload.ConversationPayload`
     - :class:`pirn_agents.types.messaging.agent_message.AgentMessage`
 """
 
@@ -20,12 +20,12 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents.types.messaging.agent_context import AgentContext
 from pirn_agents.types.messaging.agent_message import AgentMessage
+from pirn_agents.types.messaging.conversation_payload import ConversationPayload
 
 
 class ContextBuilder(Knot):
-    """Builds an :class:`AgentContext` from a sequence of messages.
+    """Builds a :class:`ConversationPayload` from a sequence of messages.
 
     If ``system_prompt`` is supplied it is prepended to the message
     tuple as a ``system``-role :class:`AgentMessage` so downstream
@@ -52,15 +52,15 @@ class ContextBuilder(Knot):
         messages: Sequence[AgentMessage],
         system_prompt: str | None = None,
         **_: Any,
-    ) -> AgentContext:
-        """Assemble a sequence of messages and an optional system prompt into an AgentContext.
+    ) -> ConversationPayload:
+        """Assemble a sequence of messages and an optional system prompt into a ConversationPayload.
 
         Args:
             messages: The ordered sequence of agent messages to include.
             system_prompt: Optional system instruction prepended as a system-role message.
 
         Returns:
-            An AgentContext containing the ordered messages with optional system prefix.
+            A ConversationPayload containing the ordered messages with optional system prefix.
 
         Raises:
             TypeError: If messages is not a sequence or any element is not an AgentMessage.
@@ -87,4 +87,4 @@ class ContextBuilder(Knot):
         if system_prompt:
             system_message = AgentMessage(role="system", content=system_prompt)
             ordered = (system_message, *ordered)
-        return AgentContext(messages=ordered)
+        return ConversationPayload(ordered)

@@ -1,7 +1,7 @@
 """``IntentClassifier`` — pick the closest declared intent for a context.
 
 Algorithm:
-    1. Receive the resolved ``AgentContext``, ``LLMProvider``, and ``intent_categories``.
+    1. Receive the resolved ``ConversationPayload``, ``LLMProvider``, and ``intent_categories``.
     2. Validate input types at process time.
     3. Extract the last user message from the context.
     4. Build a classification prompt with the intent category labels.
@@ -25,7 +25,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
-from pirn_agents.types.messaging.agent_context import AgentContext
+from pirn_agents.types.messaging.conversation_payload import ConversationPayload
 
 
 class IntentClassifier(Knot):
@@ -67,7 +67,7 @@ class IntentClassifier(Knot):
 
     async def process(
         self,
-        context: AgentContext,
+        context: ConversationPayload,
         llm: LLMProvider,
         intent_categories: Sequence[str],
         **_: Any,
@@ -118,7 +118,7 @@ class IntentClassifier(Knot):
             f"declared intent {list(intent_categories)!r}"
         )
 
-    def _last_user_content(self, context: AgentContext) -> str:
+    def _last_user_content(self, context: ConversationPayload) -> str:
         for message in reversed(context.messages):
             if message.role == "user":
                 return message.content

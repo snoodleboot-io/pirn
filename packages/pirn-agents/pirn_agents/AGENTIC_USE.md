@@ -6,9 +6,19 @@ This domain provides knots and interfaces for building LLM-backed pipelines in p
 
 ## Mental model
 
-Agent behaviour in pirn is expressed as an ordinary knot graph. There is no hidden runtime loop; the agent loop *is* your pipeline. Five tiers of knots cover the full lifecycle: **Input** (parse raw text, classify intent, build context), **Generation** (call an LLM, parse and format the response), **Planning** (produce a plan, route steps to tools, execute and aggregate results), **Memory** (write and retrieve conversation state), and **Control** (gate iteration, enforce safety, detect termination or escalation).
+Agent behaviour in pirn is expressed as an ordinary knot graph built from core's
+own vocabulary: `Knot`, `SubTapestry`, `LoopSubTapestry` (for the patterns whose
+reasoning genuinely repeats), `Result` (`Ok | Err | Skipped`), and `Payload`.
+There is no hidden runtime loop; the agent loop *is* your pipeline. This
+domain's knots cover the lifecycle in five sub-packages — **Input** (parse raw
+text, classify intent, build a conversation window), **Generation** (call an
+LLM, parse and format the response), **Planning** (produce a plan, route steps
+to tools, execute and aggregate results), **Memory** (write and retrieve
+conversation state), and **Control** (gate iteration, enforce safety, detect
+termination or escalation) — sometimes still called the agent "tiers" in
+conversation, though that word names no class or contract.
 
-The three things you must supply are a concrete **LLMProvider**, one or more **Tool** implementations, and optionally a **MemoryStore**. Every agent knot depends only on these interfaces; pirn never imports a vendor SDK directly. This keeps the `pirn[agents]` extra lightweight and your application free to choose any backend.
+The three things you must supply are a concrete **LLMProvider**, one or more **Tool** implementations, and optionally a **MemoryStore**. Every agent knot depends only on these interfaces; pirn never imports a vendor SDK directly. This keeps `pirn-agents` free of heavy mandatory dependencies and your application free to choose any backend.
 
 All three interfaces inherit from `PirnOpaqueValue`. pirn serialises them by identity rather than by inspecting their internals, so content-addressing cache stays stable even when providers hold live SDK state or open connections.
 
@@ -17,7 +27,7 @@ All three interfaces inherit from `PirnOpaqueValue`. pirn serialises them by ide
 ## Install
 
 ```bash
-pip install pirn[agents]
+pip install pirn-agents
 
 # Add your chosen LLM provider SDK separately:
 pip install anthropic          # Anthropic
@@ -33,23 +43,29 @@ pip install pinecone-client    # or qdrant-client, weaviate-client, etc.
 
 ```
 pirn_agents/
-├── llm_provider.py              LLMProvider           — interface you must implement
-├── tool.py                      Tool                  — interface you must implement
-├── tool_decorator.py            @tool / FunctionTool  — shorthand for plain functions
-├── memory_store.py              MemoryStore           — interface you must implement
-├── types/
+├── llm/
+│   └── llm_provider.py          LLMProvider           — interface you must implement
+├── tools/
+│   ├── tool.py                  Tool                  — interface you must implement (a Knot class)
+│   └── tool_decorator.py        @tool / FunctionTool  — shorthand for plain functions
+├── memory/stores/
+│   └── memory_store.py          MemoryStore           — interface you must implement
+├── types/messaging/
 │   ├── agent_message.py         AgentMessage          — single conversation turn
-│   ├── agent_context.py         AgentContext          — full message tuple + metadata
-│   ├── agent_response.py        AgentResponse         — one agent turn result
-│   ├── plan.py                  Plan                  — ordered tuple of step strings
-│   ├── tool_call.py             ToolCall              — LLM-requested tool invocation
-│   └── tool_result.py           ToolResult            — outcome of executing a ToolCall
+│   ├── conversation_payload.py  ConversationPayload   — Payload[ConversationFrame, tuple[AgentMessage, ...]]
+│   ├── conversation_frame.py    ConversationFrame     — session/turn ids, token count, truncation state
+│   ├── agent_response.py        AgentResponse         — Payload[GenerationFrame, str]
+│   ├── generation_frame.py      GenerationFrame       — finish_reason, usage, cost, tool_calls
+│   └── agent_context.py         AgentContext          — deprecated alias of ConversationPayload
+├── planning/plan.py             Plan                  — ordered tuple of step strings
+├── tools/tool_call.py           ToolCall              — LLM-requested tool invocation
+├── tools/tool_result.py         ToolResult            — deprecated view of a ToolCall's Result
 ├── input/
 │   ├── message_parser.py        MessageParser         — raw input → AgentMessage tuple
-│   ├── context_builder.py       ContextBuilder        — messages + system_prompt → AgentContext
+│   ├── context_builder.py       ContextBuilder        — messages + system_prompt → ConversationPayload
 │   └── intent_classifier.py     IntentClassifier      — context → intent label string
 ├── generation/
-│   ├── llm_call.py              LLMCall               — AgentContext → raw response mapping
+│   ├── llm_call.py              LLMCall               — ConversationPayload → raw response mapping
 │   ├── streaming_llm_call.py    StreamingLLMCall      — returns AsyncIterator of chunks
 │   ├── output_parser.py         OutputParser          — raw response → AgentResponse
 │   └── response_formatter.py    ResponseFormatter     — AgentResponse → display string
@@ -70,14 +86,15 @@ pirn_agents/
 └── specializations/             ← specializations
     ├── react/                   ReActLoop             — SubTapestry: reason+act loop
     ├── rag/                     Naive / Corrective / HyDe / Graph RAG pipelines
-    │                            SelfRAG, AdaptiveRAG, MultiHopRAG, Reranker, RAGSynthesizer
+    │                            SelfRAGPipeline, AdaptiveRAGPipeline, MultiHopRAGPipeline, Reranker, RAGSynthesizer
     ├── multi_agent/             OrchestratorAgent, ParallelSpecialistFanOut, DebateFramework,
     │                            ConsensusPipeline, RoundRobinReview
     ├── memory_patterns/         Working / Semantic / Episodic / Procedural memory pipelines
     │                            EpisodicMemoryRetriever, SemanticMemoryUpsert, SessionSummarizer
     ├── guardrails/              Input/OutputGuardrailCheck, PiiRedactorCheck, FactCheck
-    │                            Note: these specialisation knots predate the *Check convention;
-    │                            they use the *Gate suffix and have not been renamed.
+    │                            (the *Gate names — InputGuardrailGate, OutputGuardrailGate,
+    │                            FactCheckGate — are one-cycle deprecation shims subclassing
+    │                            the *Check class above; construct the *Check name directly)
     │                            HallucinationDetector, CitationGrounder
     ├── structured_output/       JsonExtractor, YamlExtractor, PydanticValidator, EnumClassifier
     │                            SchemaEnforcer, RetryOnParseFailure, FormatCoercer
@@ -321,19 +338,19 @@ ReActLoop(
 
 ```python
 from pirn_agents.specializations.react.react_loop import ReActLoop
+from pirn_agents.types.messaging.agent_message import AgentMessage
 
 with Tapestry() as t:
-    raw   = Parameter("task", str)
     react = ReActLoop(
-        messages=[{"role": "user", "content": raw}],
+        messages=(AgentMessage(role="user", content="Research CRISPR advances in 2025."),),
         llm=provider,
         tools=[web_search, lookup_policy],
         max_iterations=6,
         _config=KnotConfig(id="react"),
     )
 
-result = await t.run(RunRequest(parameters={"task": "Research CRISPR advances in 2025."}))
-response: AgentResponse = result.outputs["react"]
+result = await t.run(RunRequest())
+response: AgentResponse = result.outputs["react"]   # Payload[GenerationFrame, str]
 ```
 
 ---
@@ -524,10 +541,12 @@ Call `self._clear_credentials()` inside `close()` for every provider, tool, or s
 
 ## Quick reference
 
+Every entry below was checked against the real `__init__` signature (grep it yourself with `grep -n "def __init__" -A8 <file>` if in doubt — the "Source map" above and `PATTERNS.md` name the file for each class).
+
 | Task | How |
 |------|-----|
 | Parse raw user text | `MessageParser(raw_input=..., _config=...)` |
-| Build conversation context | `ContextBuilder(messages=..., system_prompt=..., _config=...)` |
+| Build conversation window | `ContextBuilder(messages=..., system_prompt=..., _config=...)` |
 | Call an LLM (blocking) | `LLMCall(context=..., llm=provider, _config=...)` |
 | Call an LLM (streaming) | `StreamingLLMCall(context=..., llm=provider, _config=...)` |
 | Parse raw response to typed object | `OutputParser(response=..., _config=...)` |
@@ -537,44 +556,44 @@ Call `self._clear_credentials()` inside `close()` for every provider, tool, or s
 | Produce an explicit plan | `Planner(context=..., llm=provider, _config=...)` |
 | Route a plan step to a tool | `PlanFirstStep → ToolRouter(step=..., tools=[...], _config=...)` |
 | Execute a tool call | `ToolExecutor(call=router_knot, tools=[...], _config=...)` |
-| Reason+act loop with tools | `ReActLoop(messages=..., llm=..., tools=[...], max_iterations=N, _config=...)` |
-| Write to memory | `MemoryWriter(key=..., value=..., memory_store=store, _config=...)` |
-| Retrieve from memory | `MemoryRetriever(query=..., memory_store=store, _config=...)` |
-| Sliding message window | `ConversationBuffer(messages=..., max_turns=N, _config=...)` |
-| RAG (simple) | `NaiveRAGPipeline(query=..., memory_store=..., llm=..., top_k=5, _config=...)` |
-| RAG (self-correcting) | `SelfRAG(query=..., memory_store=..., llm=..., _config=...)` |
-| RAG (multi-hop) | `MultiHopRAG(query=..., memory_store=..., llm=..., hops=3, _config=...)` |
-| Rerank retrieved docs | `Reranker(candidates=..., query=..., llm=..., _config=...)` |
-| Structured output (Pydantic) | `PydanticValidatorPipeline(response=..., schema=MyModel, llm=..., _config=...)` |
-| Enforce JSON schema strictly | `SchemaEnforcer(response=..., schema=..., _config=...)` |
-| Retry on parse failure | `RetryOnParseFailure(response=..., parser=..., llm=..., max_retries=3, _config=...)` |
+| Reason+act loop with tools | `ReActLoop(messages=(...,), llm=..., tools=[...], max_iterations=N, _config=...)` |
+| Write to memory | `MemoryWriter(key=..., value=..., store=store, _config=...)` |
+| Retrieve from memory (by key) | `MemoryRetriever(key=..., store=store, _config=...)` — raises `KeyError` on a miss; similarity search is `store.search(query, top_k=...)` directly, no wrapping knot |
+| Sliding message window | `ConversationBuffer(new_message=..., history=(...,), max_size=N, _config=...)` — appends one message per call, not a static list |
+| RAG (simple) | `NaiveRAGPipeline(query=..., memory=..., llm=..., top_k=5, _config=...)` |
+| RAG (self-correcting) | `SelfRAGPipeline(query=..., memory=..., llm=..., top_k=5, _config=...)` |
+| RAG (multi-hop) | `MultiHopRAGPipeline(query=..., memory=..., llm=..., top_k=5, num_hops=3, _config=...)` |
+| Rerank retrieved docs | `Reranker(query=..., documents=..., llm=..., reranker=..., top_k=5, _config=...)` |
+| Structured output (Pydantic) | `PydanticValidatorPipeline(prompt=..., llm=..., model_class=MyModel, max_retries=3, _config=...)` |
+| Enforce JSON schema strictly | `SchemaEnforcer(response=..., model_class=..., _config=...)` |
+| Retry on parse failure | `RetryOnParseFailure(prompt=..., llm=..., parser=..., max_retries=3, _config=...)` |
 | Multi-agent fan-out | `ParallelSpecialistFanOut(task=..., specialists={...}, _config=...)` |
-| Round-robin review | `RoundRobinReview(draft=..., reviewers=[...], _config=...)` |
+| Round-robin review | `RoundRobinReview(response=..., reviewers=[...], _config=...)` |
 | Decentralised swarm handoff | Implement `Knot.process` to call `get_current_store().register(next_agent)` |
-| Chain-of-thought reasoning | `ChainOfThought(context=..., llm=..., _config=...)` |
-| Self-consistency ensemble | `SelfConsistencyEnsemble(context=..., llm=..., samples=5, _config=...)` |
-| Tree-of-thought search | `TreeOfThought(context=..., llm=..., branching=3, depth=3, _config=...)` |
-| Step-back prompting | `StepBackPrompting(context=..., llm=..., _config=...)` |
-| Plan then execute | `TaskPlanner(context=..., llm=..., _config=...) → PlanExecutor(plan=..., tools=[...], _config=...)` |
-| Revise a stale plan | `PlanRevisor(plan=..., feedback=..., llm=..., _config=...)` |
-| Self-critique + revise | `SelfCritiqueRevise(response=..., llm=..., _config=...)` |
-| Constitutional filtering | `ConstitutionalFilter(response=..., principles=[...], llm=..., _config=...)` |
-| Select the right tool | `ToolSelector(context=..., tools=[...], llm=..., _config=...)` |
-| Call tools in parallel | `ParallelToolCaller(calls=..., tools=[...], _config=...)` |
-| Validate tool call args | `ToolCallValidator(call=..., tools=[...], _config=...)` |
-| Human approval gate | `ApprovalCheck(request=..., approver=..., _config=...)` |
-| Request clarification | `ClarificationRequester(context=..., llm=..., _config=...)` |
-| Escalation routing | `EscalationRouter(response=..., rules=[...], _config=...)` |
-| Route by intent | `IntentRouter(context=..., routes={...}, _config=...)` |
-| Route by confidence | `ConfidenceRouter(response=..., threshold=0.8, fallback=..., _config=...)` |
-| Assemble multi-turn context | `MultiTurnContextAssembler(history=..., max_tokens=N, _config=...)` |
-| Prune conversation memory | `ConversationMemoryPruner(messages=..., max_turns=N, _config=...)` |
-| Persist episodic memory | `EpisodicMemoryRetriever(event=..., memory_store=store, _config=...)` |
-| Upsert semantic memory | `SemanticMemoryUpsert(content=..., memory_store=store, _config=...)` |
-| Summarise session | `SessionSummarizer(messages=..., llm=..., _config=...)` |
+| Chain-of-thought reasoning | `ChainOfThought(prompt=..., llm=..., _config=...)` |
+| Self-consistency ensemble | `SelfConsistencyEnsemble(prompt=..., llm=..., samples=5, _config=...)` |
+| Tree-of-thought search | `TreeOfThought(prompt=..., llm=..., k_candidates=3, beam_width=2, depth=3, _config=...)` |
+| Step-back prompting | `StepBackPrompting(prompt=..., llm=..., _config=...)` |
+| Plan then execute | `TaskPlanner(goal=..., llm=..., _config=...) → PlanExecutor(plan=..., llm=..., _config=...)` |
+| Revise a stale plan | `PlanRevisor(original_plan=..., completed_results=..., failure_reason=..., llm=..., _config=...)` |
+| Self-critique + revise | `SelfCritiqueRevise(prompt=..., llm=..., _config=...)` |
+| Constitutional filtering | `ConstitutionalFilter(response=..., principles=[...], llm=..., max_revisions=3, _config=...)` |
+| Select the right tool | `ToolSelector(message=..., tools=[...], llm=..., _config=...)` |
+| Call tools in parallel | `ParallelToolCaller(tool_calls=[...], tools=[...], _config=...)` |
+| Validate tool call args | `ToolCallValidator(tool_call=..., tools=[...], _config=...)` |
+| Human approval gate | `ApprovalCheck(response=..., auto_approve=False, _config=...)` |
+| Request clarification | `ClarificationRequester(message=..., llm=..., _config=...)` |
+| Escalation routing | `EscalationRouter(response=..., threshold=0.8, _config=...)` |
+| Route by intent | `IntentRouter(message=..., llm=..., categories=[...], _config=...)` |
+| Route by confidence | `ConfidenceRouter(score=..., threshold=0.8, _config=...)` |
+| Assemble multi-turn context | `MultiTurnContextAssembler(messages=(...,), max_turns=10, max_tokens=4000, _config=...)` |
+| Prune conversation memory | `ConversationMemoryPruner(messages=..., token_budget=50, _config=...)` |
+| Retrieve episodic memory | `EpisodicMemoryRetriever(context=..., store=store, top_k=5, _config=...)` |
+| Upsert semantic memory | `SemanticMemoryUpsert(response=..., llm=..., store=store, _config=...)` |
+| Summarise session | `SessionSummarizer(messages=..., llm=..., token_threshold=2000, _config=...)` |
 | Detect hallucinations | `HallucinationDetector(response=..., sources=..., llm=..., _config=...)` |
-| Ground citations | `CitationGrounder(response=..., documents=..., _config=...)` |
-| Index documents for embedding | `EmbeddingIndexer(documents=..., memory_store=store, _config=...)` |
+| Ground citations | `CitationGrounder(response=..., sources=..., llm=..., _config=...)` |
+| Index documents for embedding | `EmbeddingIndexer(chunks=..., embedding_provider=..., store=store, _config=...)` |
 | Extract document metadata | `MetadataExtractor(document=..., llm=..., _config=...)` |
 
 ---
@@ -595,7 +614,7 @@ for the axes, knot map, and F4 dependency notes. Each pattern runs on
 | ---- | ------ |
 | Multi-query + RRF fusion | `RagFusionPipeline(query=..., memory=store, llm=llm, num_queries=4, _config=...)` |
 | Decompose into sub-questions | `SubQuestionRagPipeline(query=..., memory=store, llm=llm, max_sub_questions=4, _config=...)` |
-| Self-query metadata filter | `SelfQueryRagPipeline(query=..., store=vector_store, llm=llm, _config=...)` |
+| Self-query metadata filter | `SelfQueryRagPipeline(query=..., store=vector_store, embedder=..., llm=llm, _config=...)` |
 | FLARE active retrieval | `FlareActiveRagPipeline(query=..., memory=store, llm=llm, confidence_threshold=0.5, _config=...)` |
 
 ### Retrieval strategy
