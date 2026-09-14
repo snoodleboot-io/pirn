@@ -6,8 +6,7 @@ retry/timeout, nested-run depth and cycle guarding, declared input schemas,
 admission-gate runtime feedback, the ``Check`` role, and an awaitable loop
 step.  The classes below are the parallel implementations that exist today.
 WS0 builds the seams; WS1-WS6 migrate each of these onto them, one PR at a
-time, replacing every public name with a one-cycle deprecation shim that
-subclasses the core seam class.
+time, deleting the parallel implementation.
 
 The allowlists are asserted by **exact equality**, deliberately:
 
@@ -16,10 +15,9 @@ The allowlists are asserted by **exact equality**, deliberately:
   still names it.
 
 The second half is what keeps the list from rotting into a lie.  When you
-migrate a class, delete its line and watch this test go green.  A thin shim
+migrate a class, delete its line and watch this test go green.  A class
 that subclasses the core seam class (``class RetryPolicy(KnotRetryPolicy)``)
-is not a shadow, so a migration that keeps the public name importable still
-removes the entry.
+is not a shadow.
 """
 
 from __future__ import annotations

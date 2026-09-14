@@ -28,9 +28,8 @@ What this does **not** give you, and why:
   then present again".
 * **Enumeration** ("every key ever written under a namespace") has no
   ``RunHistory`` query either — lineage is looked up by an exact knot id, not
-  listed by prefix. A caller that needs to enumerate keys still needs an
-  explicit index (this was the gap ``MemoryStoreKeyIndex`` filled for its one
-  consumer, ``PersistedSessionStore``; both are deleted, PIR-864).
+  listed by prefix. A caller that needs to enumerate keys needs an explicit
+  index.
 """
 
 from __future__ import annotations
@@ -145,8 +144,7 @@ class KeyedLineageStore(PirnOpaqueValue):
         """Write ``value`` as the current value under ``(namespace, key)``.
 
         Args:
-            namespace: Logical grouping for the key (mirrors
-                ``DataStoreMemoryStore``'s old namespace parameter).
+            namespace: Logical grouping for the key.
             key: The caller-chosen identity within ``namespace``.
             value: Any value the engine can content-address (a mapping is
                 recommended — it hashes deterministically and every existing

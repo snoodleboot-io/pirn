@@ -2,9 +2,8 @@
 
 ``MemoryStore`` had no plain key-value implementation: its only concrete
 subclasses were the ``VectorMemoryStore`` family, whose ``store()`` requires a
-``"vector"`` entry.  Every keyed consumer at the time (``PersistedSessionStore``,
-``ThreadRepository`` -- both deprecated shims since deleted, PIR-864 --
-``MemoryWriter``, …) therefore had no shipped backend to run against.  These
+``"vector"`` entry.  Every keyed consumer (``MemoryWriter``, …) therefore had
+no shipped backend to run against.  These
 tests exercise the adapter that closes that gap against two *real* core
 ``DataStore`` backends — in-memory and local disk — rather than a hand-rolled
 double.

@@ -154,8 +154,7 @@ class SsrfGuard(SecurityGuard):
             resolved = resolver(hostname)
         except (OSError, ValueError) as exc:
             raise ValueError(f"http_request: refusing unresolvable host: {hostname!r}") from exc
-        # The seam accepts a single address for backwards compatibility with the
-        # many injected resolvers already in the tree; normalise to a tuple.
+        # A resolver returns one address or several; normalise to a tuple.
         addresses = (resolved,) if isinstance(resolved, str) else tuple(resolved)
         if not addresses:
             self._reject(f"http_request: refusing unresolvable host: {hostname!r}")

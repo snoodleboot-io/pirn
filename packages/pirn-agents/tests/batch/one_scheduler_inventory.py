@@ -144,8 +144,7 @@ class OneSchedulerInventory:
         ``BatchCheckpointer`` — as a type annotation, an import, or a
         constructor call — persists (or reads) progress through the store a
         real agent run checkpoints to, exactly the parallel store this
-        workstream retired ``MapAgent`` off of, kept importable only as a
-        deprecated shim. Matches identifier nodes only, so a docstring
+        workstream retired ``MapAgent`` off of. Matches identifier nodes only, so a docstring
         merely discussing the pre-migration design in prose never trips this.
         """
         for sub in ast.walk(node):

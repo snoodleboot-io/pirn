@@ -1,4 +1,4 @@
-"""Tests for :class:`PiiRedactorCheck` (formerly ``PIIRedactorGate``)."""
+"""Tests for :class:`PiiRedactorCheck`."""
 
 from __future__ import annotations
 

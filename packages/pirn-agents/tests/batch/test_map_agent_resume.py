@@ -3,9 +3,7 @@
 Resume-after-crash is now a ``RunHistory`` lineage query: an item's knot id
 is ``item:<batch_id>:<key>``, so passing the same ``history=`` to a fresh
 ``MapAgent`` makes a re-run skip any item whose id already has an ``Ok``
-lineage row. No checkpoint store is written or read — see
-``pirn_agents.batch.batch_checkpointer`` for the deprecated pre-migration
-shim this replaces.
+lineage row. No checkpoint store is written or read.
 """
 
 from __future__ import annotations

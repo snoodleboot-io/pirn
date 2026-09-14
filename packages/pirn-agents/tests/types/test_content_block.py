@@ -3,7 +3,7 @@
 Covers construction and ``isinstance`` validation of every block variant, the
 :class:`MediaHandle` by-reference / inline invariants (raw bytes never enter the
 audit form), :class:`MessageContent` normalization/coercion, and the
-backward-compatible :class:`AgentMessage` block projections.
+:class:`AgentMessage` block projections.
 
 Written in the mirrored unittest+pytest style: plain ``assert`` statements under
 :class:`unittest.TestCase`, runnable by both ``pytest`` and ``python -m unittest``.

@@ -5,9 +5,7 @@ performance requirements — a :class:`~pirn_agents.performance.run_budget.RunBu
 (iterations / tokens / wall-clock deadline) with a cooperative
 :class:`~pirn_agents.performance.cancellation_token.CancellationToken`.
 Bounded concurrency is core's own ``KnotConfig(concurrency_group=...)`` +
-``ConcurrencyLimits`` now; the former ``ConcurrencyConfig``/
-``BackpressureSemaphore`` one-cycle shims that wrapped a private pool for a
-non-engine caller are deleted (PIR-864).
+``ConcurrencyLimits``.
 """
 
 __all__: list[str] = []

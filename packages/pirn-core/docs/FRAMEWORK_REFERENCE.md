@@ -690,12 +690,11 @@ to `ExceptionRecord`.
   `UnboundedAdmission`, next to `ChainedAdmission`. Class-level configuration
   is a lowercase `ClassVar`: `InMemoryDataStore.default_max_values`,
   `InMemoryHistory.default_max_runs`, `InvocationIdentity.uncomparable_marker`.
-- **Deleted, not deprecated (PIR-872).** The `pirn/emitters/base.py`,
-  `pirn/triggers/base.py` and `pirn/streaming/base.py` module shims, the
-  `pirn.domains.*` import shim and its `pirn-migrate-imports` codemod
-  (`pirn/_migrate/`), and the `Knot._deprecated_since` /
-  `_deprecation_notice` construction-warning seam (with its last user,
-  `pirn_data`'s `ScdType1Overwrite` — use `MergeUpsert`).
+- **No compatibility layer (PIR-872).** Core has no re-export modules at old
+  import paths, no import codemod and no construction-time warning seam;
+  `scripts/check_conventions.py` fails on a re-export module, a module-scope
+  alias or any deprecation reference. `pirn_data`'s SCD Type-1 upsert is
+  `MergeUpsert`.
 - **Private-in-name-only is public (PIR-872).** Classes other modules import
   are public: `Signer` (`backends/signer.py`), `CloudObjectStore`, `LazyPool`,
   `LazyClient`, `SqliteMigrations`, `RunScopedSubscriber`,

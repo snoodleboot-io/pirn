@@ -19,8 +19,7 @@ single-knot-plus-tagged-parameters shape
 :meth:`~pirn_agents.builder.agent_spec.AgentSpec.from_pipeline_spec`.
 
 A mapping with no top-level ``nodes`` key is rejected: this loader parses only
-core pipeline documents (the flat ``pattern``/``llm``/``memory``/``tools``/
-``components``/``options`` dialect it once read is deleted, PIR-864).
+core pipeline documents.
 :meth:`~pirn_agents.builder.agent_spec.AgentSpec.from_dict` constructs an
 :class:`AgentSpec` directly from a flat mapping a caller already has in hand.
 """

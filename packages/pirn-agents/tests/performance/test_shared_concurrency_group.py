@@ -1,15 +1,13 @@
-"""Proof: the pattern that replaces ``Bulkhead`` bounds two pipelines together.
+"""Proof: a shared concurrency group bounds two pipelines together.
 
 ADR agents-speaks-core, WS4b/PIR-866, checkbox: "add tests proving two
 pipelines sharing a backend group are bounded together under one run." A
-pipeline wired through the engine no longer reaches for the deleted (PIR-864)
-``Bulkhead`` shim at all: it declares ``KnotConfig(concurrency_group=<backend>)``
+pipeline wired through the engine declares ``KnotConfig(concurrency_group=<backend>)``
 on the knots that call the backend and ``ConcurrencyLimits(groups={<backend>: n})``
 on the run. This is a real ``Tapestry`` run, not a mock, showing that two
 independently-built "pipelines" -- distinct knot ids, wired with no edge
 between them -- whose knots all name the *same* concurrency group are
-metered by the run's one shared budget, not one budget each (the isolation
-guarantee ``Bulkhead`` used to promise via two separate private semaphores).
+metered by the run's one shared budget, not one budget each.
 """
 
 from __future__ import annotations

@@ -17,12 +17,7 @@ to the *same* emitter subscription the engine's own per-knot lifecycle
 transitions already use (:meth:`pirn.tapestry.Tapestry.current_emitters`). One run, one
 event stream, one place (``OpenTelemetryEmitter``/``LogEmitter``) that knows how
 to render it — see their ``on_status`` for the span/log shape ``extra``
-produces.
-
-``Tracer``/``Span``/``ObservabilitySink``/``OtelSink``/``LoggingSink``/
-``SpanEmittingToolInvocationHook`` were kept importable for one deprecation
-cycle, forwarding into this recorder, and are now deleted (PIR-864); every
-call site uses :class:`AgentCallRecorder` directly.
+produces. Every call site uses :class:`AgentCallRecorder` directly.
 """
 
 from __future__ import annotations
@@ -47,7 +42,7 @@ class AgentCallRecorder:
 
     Deliberately a single static method rather than a stateful span/context
     object: nothing here needs to nest (no task-local stack to keep balanced
-    across a thread hop, unlike the deprecated ``Tracer``), because the
+    across a thread hop), because the
     caller already knows, at the point it calls this, both the outcome and
     the elapsed time — it measured them to build its own result value.
     """
@@ -67,8 +62,8 @@ class AgentCallRecorder:
         A no-op outside a run: :meth:`~pirn.tapestry.Tapestry.current_run_id` returns
         ``None`` when no run is in flight, and there is no well-formed run to
         attribute the event to, so nothing is emitted rather than an event
-        naming an empty run id. This mirrors the deprecated ``Tracer``'s
-        "zero-cost until a run is actually happening" default.
+        naming an empty run id: recording is zero-cost until a run is
+        actually happening.
 
         Args:
             knot_id: The enclosing knot's ``knot_id``. Never ambient — core

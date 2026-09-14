@@ -5,10 +5,8 @@ execution should be the core engine's ``Map``/``Aggregator``/``Dispatcher``/
 ``Admission`` — not a private ``asyncio.wait`` loop, a hand-held
 ``asyncio.Semaphore``, or a checkpoint store outside ``RunHistory``. WS4b's
 own migration (``MapAgent`` → per-item knots + ``Aggregator``;
-``AdaptiveConcurrencyController`` → ``AdmissionObserver``) left one
-deliberately-kept deprecated shim (``BatchScheduler`` plus
-``BatchCheckpointer``) with zero external callers in this tree; PIR-864
-deletes both outright, so ``ASYNCIO_LOOP`` is now empty. PIR-866 migrated
+``AdaptiveConcurrencyController`` → ``AdmissionObserver``) and PIR-864 left
+no private scheduler, so ``ASYNCIO_LOOP`` is empty. PIR-866 migrated
 the two primitives WS4b did not own the blast radius for
 (``BackpressureSemaphore``, ``Bulkhead``) onto a real
 ``LimitedAdmission`` per pool, and PIR-864 deletes both of those too
