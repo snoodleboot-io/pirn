@@ -11,7 +11,7 @@ except ImportError as _e:
 
 import pandas as pd
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -19,7 +19,7 @@ from pirn_data.frames.pandas.pandas_cast import PandasCast
 from pirn_data.frames.pandas.pandas_data_batch import PandasDataBatch
 
 
-@knot
+@KnotFactory.knot
 async def emit_string_columns() -> PandasDataBatch:
     return PandasDataBatch(frame=pd.DataFrame({"id": ["1", "2"], "amount": ["12.5", "99.0"]}))
 
@@ -70,7 +70,7 @@ class TestPandasCast(unittest.IsolatedAsyncioTestCase):
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_casts_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_casts() -> object:
             return {"id": int}
 
@@ -89,7 +89,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, **kwargs: object) -> PandasCast:
-        @knot
+        @KnotFactory.knot
         async def empty() -> PandasDataBatch:
             return PandasDataBatch(frame=pd.DataFrame())
 

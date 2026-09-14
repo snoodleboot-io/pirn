@@ -7,14 +7,14 @@ event arrives, the trigger constructs a ``RunRequest`` and calls
 
 Triggers are async-iterator-like: they yield ``RunRequest``s as events
 arrive, and the runtime calls ``tapestry.run`` for each.  The
-``run_forever`` helper drives that loop.
+``Trigger.run_forever`` helper drives that loop.
 
 Concrete triggers and the driver, each imported from the module that
 owns it:
 
 * ``pirn.triggers.trigger.Trigger`` — base class; implement ``name``,
   ``stream()`` and ``close()``.
-* ``pirn.triggers.trigger.run_forever`` — the driver loop.
+* ``pirn.triggers.trigger.Trigger.run_forever`` — the driver loop.
 * ``pirn.triggers.cron_trigger.CronTrigger`` — interval, at-times, or
   caller-supplied schedule.
 * ``pirn.triggers.webhook_trigger.WebhookTrigger`` — Starlette ASGI app; one

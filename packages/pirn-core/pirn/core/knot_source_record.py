@@ -4,10 +4,10 @@ One ``KnotSourceRecord`` is stored per unique ``(source_text, pirn_version)`` pa
 The same record is shared across every lineage entry that came from identical code,
 so the store never accumulates duplicates regardless of how many times a knot runs.
 
-``KnotSourceRecord.from_knot`` (public alias ``extract_knot_source``) handles
+``KnotSourceRecord.from_knot`` handles
 two knot shapes:
-- ``@knot``-decorated functions: the decorated function is recovered via
-  ``process.__wrapped__`` and the ``@knot`` line is prepended so the stored
+- ``@KnotFactory.knot``-decorated functions: the decorated function is recovered via
+  ``process.__wrapped__`` and the ``@KnotFactory.knot`` line is prepended so the stored
   snippet is self-contained.
 - Class-based knots (subclasses of ``Knot``): the full class definition is
   captured via ``inspect.getsource``.
@@ -38,7 +38,7 @@ class KnotSourceRecord(BaseModel):
             Used as the primary key in the backing store; guarantees that
             identical code at the same library version maps to exactly one row.
         source_text: Full source of the knot — either the class definition or
-            the ``@knot``-decorated function (decorator line included).
+            the ``@KnotFactory.knot``-decorated function (decorator line included).
         knot_class: Fully-qualified class name at capture time, e.g.
             ``'my_pkg.knots.EnrichUser'``.
         pirn_version: Version of the pirn library at execution time, as
@@ -67,8 +67,8 @@ class KnotSourceRecord(BaseModel):
         try:
             process = getattr(knot_cls, "process", None)
             if process is not None and hasattr(process, "__wrapped__"):
-                # @knot-decorated function: getsource on the original function
-                # already includes the @knot decorator line as written in the
+                # @KnotFactory.knot-decorated function: getsource on the original function
+                # already includes the @KnotFactory.knot decorator line as written in the
                 # source file.
                 source = inspect.getsource(process.__wrapped__)
             else:
@@ -86,7 +86,3 @@ class KnotSourceRecord(BaseModel):
             knot_class=knot_class,
             pirn_version=pirn_version,
         )
-
-
-#: Public name for :meth:`KnotSourceRecord.from_knot` (bare alias, not a ``def``).
-extract_knot_source = KnotSourceRecord.from_knot

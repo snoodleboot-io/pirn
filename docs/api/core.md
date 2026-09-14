@@ -14,7 +14,7 @@ Core types: `Knot`, `Assembler`, `Disassembler`, `Parameter`, `KnotConfig`, `Err
 
 ---
 
-## `@knot` decorator
+## `@KnotFactory.knot` decorator
 
 ::: pirn.core.knot_factory.KnotFactory
     options:
@@ -132,7 +132,7 @@ Core types: `Knot`, `Assembler`, `Disassembler`, `Parameter`, `KnotConfig`, `Err
 
 ## Content hashing
 
-::: pirn.core.hashing.content_hash
+::: pirn.core.content_hasher.ContentHasher.hash
     options:
       show_source: false
       heading_level: 3

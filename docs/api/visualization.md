@@ -4,11 +4,11 @@ Render tapestries and run results as Mermaid diagrams or standalone HTML.
 
 ---
 
-## `mermaid_for_tapestry()`
+## `MermaidRenderer.for_tapestry()`
 
 Generate Mermaid `graph LR` syntax showing the tapestry structure.
 
-::: pirn.viz.mermaid_renderer.mermaid_for_tapestry
+::: pirn.viz.mermaid_renderer.MermaidRenderer.for_tapestry
     options:
       show_source: false
       heading_level: 3
@@ -16,24 +16,24 @@ Generate Mermaid `graph LR` syntax showing the tapestry structure.
 ### Example
 
 ```python
-from pirn.viz.mermaid_renderer import mermaid_for_tapestry
+from pirn.viz.mermaid_renderer import MermaidRenderer
 
 # Embed in Markdown
-print(mermaid_for_tapestry(tapestry))
+print(MermaidRenderer.for_tapestry(tapestry))
 
 # Write to a file for MkDocs
 Path("docs/diagrams/pipeline.md").write_text(
-    "```mermaid\n" + mermaid_for_tapestry(tapestry) + "\n```"
+    "```mermaid\n" + MermaidRenderer.for_tapestry(tapestry) + "\n```"
 )
 ```
 
 ---
 
-## `mermaid_for_run()`
+## `MermaidRenderer.for_run()`
 
 Generate Mermaid syntax with knot outcomes overlaid via class assignments.
 
-::: pirn.viz.mermaid_renderer.mermaid_for_run
+::: pirn.viz.mermaid_renderer.MermaidRenderer.for_run
     options:
       show_source: false
       heading_level: 3
@@ -41,21 +41,21 @@ Generate Mermaid syntax with knot outcomes overlaid via class assignments.
 ### Example
 
 ```python
-from pirn.viz.mermaid_renderer import mermaid_for_run
+from pirn.viz.mermaid_renderer import MermaidRenderer
 
 result = await tapestry.run(request)
-diagram = mermaid_for_run(result)
+diagram = MermaidRenderer.for_run(result)
 ```
 
 Nodes are coloured: `ok` → green, `err` → red, `skipped` → grey.
 
 ---
 
-## `html_for_run()`
+## `TapestryHtmlRenderer.for_run()`
 
 Generate a self-contained HTML file with SVG rendering, hover tooltips, and outcome filtering.
 
-::: pirn.viz.tapestry_html_renderer.html_for_run
+::: pirn.viz.tapestry_html_renderer.TapestryHtmlRenderer.for_run
     options:
       show_source: false
       heading_level: 3
@@ -63,22 +63,22 @@ Generate a self-contained HTML file with SVG rendering, hover tooltips, and outc
 ### Example
 
 ```python
-from pirn.viz.tapestry_html_renderer import html_for_run
+from pirn.viz.tapestry_html_renderer import TapestryHtmlRenderer
 from pathlib import Path
 
 result = await tapestry.run(request)
-Path("run.html").write_text(html_for_run(result))
+Path("run.html").write_text(TapestryHtmlRenderer.for_run(result))
 ```
 
 The generated file has no external dependencies — open in any browser.
 
 ---
 
-## `html_for_tapestry()`
+## `TapestryHtmlRenderer.for_tapestry()`
 
 Generate a self-contained HTML file showing the tapestry structure without run outcomes.
 
-::: pirn.viz.tapestry_html_renderer.html_for_tapestry
+::: pirn.viz.tapestry_html_renderer.TapestryHtmlRenderer.for_tapestry
     options:
       show_source: false
       heading_level: 3

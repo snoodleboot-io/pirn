@@ -4,7 +4,7 @@
 
 ## Mental model
 
-A trigger is an async generator. It opens an external connection (HTTP server, Kafka consumer, cron schedule, Valkey subscription) and yields a `RunRequest` for each event. The `run_forever(trigger, tapestry)` driver consumes requests and calls `tapestry.run()` for each, then calls `trigger.close()` on exit.
+A trigger is an async generator. It opens an external connection (HTTP server, Kafka consumer, cron schedule, Valkey subscription) and yields a `RunRequest` for each event. The `trigger.run_forever(tapestry)` driver consumes requests and calls `tapestry.run()` for each, then calls `trigger.close()` on exit.
 
 Triggers produce independent, complete `RunRequest` objects per event. This is distinct from `pirn.streaming` where a single source value is inlined as a parameter into a shared tapestry each tick.
 
@@ -15,14 +15,14 @@ Triggers produce independent, complete `RunRequest` objects per event. This is d
 ```
 pirn/triggers/
 ├── base.py       Trigger          — base class; implement name, stream(), close()
-│                 run_forever()    — driver: pull requests from trigger, run tapestry, call callbacks
+│                 Trigger.run_forever()    — driver: pull requests from trigger, run tapestry, call callbacks
 ├── cron.py       CronTrigger      — yield RunRequests on a time-based schedule
 ├── http.py       WebhookTrigger   — Starlette ASGI app; yield one RunRequest per POST
 ├── kafka.py      KafkaTrigger     — Kafka consumer; yield one RunRequest per message
 └── valkey.py     ValKeyTrigger    — Valkey/Redis pub-sub; yield one RunRequest per message
 ```
 
-`pirn/triggers/__init__.py` deliberately re-exports nothing — the house convention forbids import forwarding, and `scripts/check_no_import_forwarding.py` enforces it in CI. Always import from the concrete module: `from pirn.triggers.trigger import run_forever`, **not** `from pirn.triggers import run_forever`.
+`pirn/triggers/__init__.py` deliberately re-exports nothing — the house convention forbids import forwarding, and `scripts/check_no_import_forwarding.py` enforces it in CI. Always import from the concrete module: `from pirn.triggers.trigger import Trigger`, **not** `from pirn.triggers import Trigger`.
 
 ---
 
@@ -34,7 +34,7 @@ pirn/triggers/
 import asyncio
 from pirn.tapestry import Tapestry
 from pirn.triggers.cron_trigger import CronTrigger
-from pirn.triggers.trigger import run_forever
+from pirn.triggers.trigger import Trigger
 
 with Tapestry() as t:
     ...  # build pipeline
@@ -42,7 +42,7 @@ with Tapestry() as t:
 trigger = CronTrigger(every_seconds=3600)   # every hour, first fire immediate
 
 async def main():
-    await run_forever(trigger, t)
+    await trigger.run_forever(t)
 
 asyncio.run(main())
 ```
@@ -97,7 +97,7 @@ async def on_result(request, result):
 async def on_error(request, exc):
     print(f"run failed: {exc}")
 
-await run_forever(trigger, t, on_result=on_result, on_error=on_error)
+await trigger.run_forever(t, on_result=on_result, on_error=on_error)
 ```
 
 `on_error` sees *run failures* only. `asyncio.CancelledError`, `KeyboardInterrupt` and `SystemExit` are re-raised before `on_error` is consulted, so the log-and-continue observer above cannot swallow a shutdown signal and keep the loop alive after its task was cancelled.
@@ -137,21 +137,21 @@ Bearer-token checking is all `WebhookTrigger` provides; it is not a substitute f
 
 ### Not handling `on_error` in production
 
-If `on_error` is not provided and a run raises, `run_forever` re-raises and exits. Wrap with `on_error` in production to log failures and continue processing the next event.
+If `on_error` is not provided and a run raises, `Trigger.run_forever` re-raises and exits. Wrap with `on_error` in production to log failures and continue processing the next event.
 
-### Using `run_forever` for a streaming source
+### Using `Trigger.run_forever` for a streaming source
 
-`run_forever` is for triggers that produce independent `RunRequest` objects. For continuous data (file tail, Kafka stream), use `run_stream` from `pirn.streaming.streaming_source` instead — it handles the different lifecycle. Note it is a free function, not a `Tapestry` method.
+`Trigger.run_forever` is for triggers that produce independent `RunRequest` objects. For continuous data (file tail, Kafka stream), use `StreamingSource.run_stream` from `pirn.streaming.streaming_source` instead — it handles the different lifecycle. Note it is a method on the source, not on `Tapestry`.
 
 ---
 
 ## Constraints and gotchas
 
-- **`run_forever` calls `trigger.close()` on any exit**, including cancellation. Ensure `close()` is idempotent.
+- **`Trigger.run_forever` calls `trigger.close()` on any exit**, including cancellation. Ensure `close()` is idempotent.
 - **`on_error` never sees `CancelledError`, `KeyboardInterrupt` or `SystemExit`.** They are re-raised ahead of it, so `task.cancel()` always ends the loop no matter what the observer does.
 - **`CronTrigger` does not backfill missed ticks.** If the process is down during a scheduled window, those runs are lost.
 - **`CronTrigger(every_seconds=...)` fires immediately at t=0**, then once per interval. Use `delay_fn` if you need the first fire delayed too.
-- **`CronTrigger.close()` never emits a further request**, but *when* it takes effect depends on where the generator is when it lands. Called at the `yield` — the usual case, from inside your own `async for` — the generator returns immediately, without starting the next wait; in `every_seconds=` mode that means shutdown costs nothing, not one more interval. Called from a concurrent task while the generator is parked in a wait, the wait still runs to completion and the fire it was waiting on is dropped. `close()` sets a flag; it does not cancel a sleep. To bound shutdown latency in the parked case, cancel the task running `run_forever` rather than relying on `close()` alone.
+- **`CronTrigger.close()` never emits a further request**, but *when* it takes effect depends on where the generator is when it lands. Called at the `yield` — the usual case, from inside your own `async for` — the generator returns immediately, without starting the next wait; in `every_seconds=` mode that means shutdown costs nothing, not one more interval. Called from a concurrent task while the generator is parked in a wait, the wait still runs to completion and the fire it was waiting on is dropped. `close()` sets a flag; it does not cancel a sleep. To bound shutdown latency in the parked case, cancel the task running `Trigger.run_forever` rather than relying on `close()` alone.
 - **`KafkaTrigger` requires `pirn[kafka]`.** It is not included in the base install.
 - **`WebhookTrigger` does not run a server.** It exposes `trigger.app`; you mount it on uvicorn/hypercorn or compose it into an existing Starlette/FastAPI app, in a task alongside the rest of your async application.
 - **`ValKeyTrigger` requires a Valkey/Redis connection.** Pass a configured async client at construction.
@@ -171,10 +171,10 @@ If `on_error` is not provided and a run raises, `run_forever` re-raises and exit
 | Run on HTTP POST | `WebhookTrigger(path=..., auth_token=...)`, then serve `trigger.app` |
 | Run on Kafka message | `KafkaTrigger(topic=..., consumer=...)` |
 | Run on Valkey pub-sub | `ValKeyTrigger(channel=..., client=...)` |
-| Drive the trigger | `await run_forever(trigger, tapestry)` |
-| Observe results | `await run_forever(trigger, tapestry, on_result=fn)` |
-| Handle errors without stopping | `await run_forever(trigger, tapestry, on_error=fn)` |
-| Cancel gracefully | cancel the task wrapping `run_forever`; `trigger.close()` is called automatically |
+| Drive the trigger | `await trigger.run_forever(tapestry)` |
+| Observe results | `await trigger.run_forever(tapestry, on_result=fn)` |
+| Handle errors without stopping | `await trigger.run_forever(tapestry, on_error=fn)` |
+| Cancel gracefully | cancel the task wrapping `Trigger.run_forever`; `trigger.close()` is called automatically |
 
 ---
 

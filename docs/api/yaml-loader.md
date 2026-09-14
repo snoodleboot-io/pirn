@@ -2,12 +2,12 @@
 
 ---
 
-## `load_pipeline()`
+## `PipelineLoader.load_yaml()`
 
 ```python
-from pirn.yaml_loader.pipeline_loader import load_pipeline
+from pirn.yaml_loader.pipeline_loader import PipelineLoader
 
-tapestry = load_pipeline(
+tapestry = PipelineLoader.load_yaml(
     yaml_text,
     *,
     tapestry=None,
@@ -254,10 +254,10 @@ Registry.fill_registry()   # scans myapp/ and registers every class defined here
 After import, your knots are resolvable by name from any YAML pipeline:
 
 ```python
-tapestry = load_pipeline(yaml_text)     # no known_callables needed
+tapestry = PipelineLoader.load_yaml(yaml_text)     # no known_callables needed
 ```
 
-For one-off registrations (e.g. registering an `@knot`-decorated factory), use `Registry.register` directly:
+For one-off registrations (e.g. registering an `@KnotFactory.knot`-decorated factory), use `Registry.register` directly:
 
 ```python
 from sweet_tea.registry import Registry
@@ -273,7 +273,7 @@ from pirn.core.knot import Knot
 knot_class = AbstractInverterFactory[Knot].create("my_knot", library="myapp")
 ```
 
-`known_callables` passed to `load_pipeline` still takes priority over the registry-based resolution.
+`known_callables` passed to `PipelineLoader.load_yaml` still takes priority over the registry-based resolution.
 
 ---
 

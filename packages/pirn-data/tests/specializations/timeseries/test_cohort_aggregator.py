@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -41,7 +41,7 @@ class TestCohortAggregator(unittest.IsolatedAsyncioTestCase):
             {"uid": "u1", "ts": _ts(2), "revenue": 20},
         ]
 
-        @knot
+        @KnotFactory.knot
         async def emit_rows() -> list:
             return rows
 
@@ -68,7 +68,7 @@ class TestCohortAggregator(unittest.IsolatedAsyncioTestCase):
             {"uid": "u2", "ts": _ts(8), "revenue": 20},
         ]
 
-        @knot
+        @KnotFactory.knot
         async def emit_rows() -> list:
             return rows
 
@@ -95,7 +95,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
             {"uid": "u1", "ts": _ts(2), "revenue": 5},
         ]
 
-        @knot
+        @KnotFactory.knot
         async def emit_rows() -> list:
             return rows
 

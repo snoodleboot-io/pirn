@@ -13,7 +13,7 @@ import unittest
 from collections.abc import Awaitable, Callable
 
 from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
-from pirn.core.hashing import content_hash
+from pirn.core.content_hasher import ContentHasher
 
 from pirn_agents.caching.in_memory_result_cache import InMemoryResultCache
 from pirn_agents.caching.result_cache import ResultCache
@@ -36,7 +36,7 @@ class TestResultCacheContract(unittest.IsolatedAsyncioTestCase):
         value = await cache.get_or_compute({"q": "x"}, _resolved(7))
 
         self.assertIs(cache.store, store)
-        key = content_hash({"q": "x"}, strict=True)
+        key = ContentHasher.hash({"q": "x"}, strict=True)
         self.assertTrue(await store.has(key))
         self.assertEqual((await store.get(key)).value, value)
 
@@ -44,7 +44,7 @@ class TestResultCacheContract(unittest.IsolatedAsyncioTestCase):
         store = InMemoryDataStore()
         cache = ResultCache(store=store)
         await cache.get_or_compute("p", _resolved(1))
-        key = content_hash("p", strict=True)
+        key = ContentHasher.hash("p", strict=True)
 
         await cache.invalidate(key)
 

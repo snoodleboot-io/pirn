@@ -1,4 +1,4 @@
-"""Unit tests for StreamingSource base and run_stream driver."""
+"""Unit tests for StreamingSource base and StreamingSource.run_stream driver."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.nodes.source import Source
-from pirn.streaming.streaming_source import StreamingSource, run_stream
+from pirn.streaming.streaming_source import StreamingSource
 from pirn.tapestry import Tapestry
 
 
@@ -99,7 +99,7 @@ class TestRunStream(unittest.IsolatedAsyncioTestCase):
             Parameter("item", object, _config=KnotConfig(id="item"))
 
         stream = _SimpleStream([10, 20, 30])
-        await run_stream(stream, t, on_result=on_result)
+        await stream.run_stream(t, on_result=on_result)
         self.assertEqual(results, [10, 20, 30])
 
     async def test_close_called_after_stream(self) -> None:
@@ -109,7 +109,7 @@ class TestRunStream(unittest.IsolatedAsyncioTestCase):
             Parameter("item", object, _config=KnotConfig(id="item"))
 
         stream = _SimpleStream([1])
-        await run_stream(stream, t)
+        await stream.run_stream(t)
         self.assertTrue(stream._closed)
 
     async def test_on_error_called_on_exception(self) -> None:
@@ -123,7 +123,7 @@ class TestRunStream(unittest.IsolatedAsyncioTestCase):
                 raise RuntimeError("boom")
 
         stream = _SimpleStream(["x"])
-        await run_stream(stream, _BrokenTapestry(), on_error=on_err)  # type: ignore
+        await stream.run_stream(_BrokenTapestry(), on_error=on_err)  # type: ignore
         self.assertEqual(len(errors), 1)
         self.assertEqual(errors[0][0], "x")
 
@@ -141,7 +141,7 @@ class TestRunStream(unittest.IsolatedAsyncioTestCase):
 
         # Act / Assert
         with self.assertRaises(asyncio.CancelledError):
-            await run_stream(stream, tapestry, on_error=on_err)  # type: ignore[arg-type]
+            await stream.run_stream(tapestry, on_error=on_err)  # type: ignore[arg-type]
         self.assertEqual(errors, [])
         self.assertEqual(tapestry.runs, 1)
         self.assertTrue(stream._closed)

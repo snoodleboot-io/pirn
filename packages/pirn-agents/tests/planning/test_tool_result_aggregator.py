@@ -6,7 +6,7 @@ import unittest
 
 from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.ok import Ok
 from pirn.managers.exception_record import ExceptionRecord
 from pirn.tapestry import Tapestry
@@ -16,7 +16,7 @@ from pirn_agents.tools.tool_result import ToolResult
 
 
 def _make_knot() -> ToolResultAggregator:
-    @knot
+    @KnotFactory.knot
     async def _r() -> tuple:
         return ()
 

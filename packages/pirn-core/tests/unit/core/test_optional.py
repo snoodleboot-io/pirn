@@ -7,7 +7,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.optional import Optional
 from pirn.core.run_request import RunRequest
 from pirn.core.skipped import Skipped
@@ -108,7 +108,7 @@ class TestOptionalRuntime(unittest.IsolatedAsyncioTestCase):
         assert skipped.detail["error"] == "ValueError"
 
     async def test_downstream_receives_skipped_value(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def use(x: Any) -> bool:
             return isinstance(x, Skipped)
 

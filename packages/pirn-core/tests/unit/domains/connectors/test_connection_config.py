@@ -8,10 +8,10 @@ from dataclasses import dataclass
 from typing import ClassVar
 
 from pirn.connectors.connection_config import ConnectionConfig
-from pirn.connectors.connection_config_decorator import connection_config
+from pirn.connectors.connection_config_decorator import ConnectionConfigDecorator
 
 
-@connection_config(frozen=True)
+@ConnectionConfigDecorator.apply(frozen=True)
 class FakePostgresConfig(ConnectionConfig):
     host: str
     port: int
@@ -21,7 +21,7 @@ class FakePostgresConfig(ConnectionConfig):
     api_token: str
 
 
-@connection_config(frozen=True)
+@ConnectionConfigDecorator.apply(frozen=True)
 class FakeS3Config(ConnectionConfig):
     bucket: str
     region: str
@@ -31,7 +31,7 @@ class FakeS3Config(ConnectionConfig):
     sensitive_fields: ClassVar[tuple[str, ...]] = ("signed_url",)
 
 
-@connection_config(frozen=True)
+@ConnectionConfigDecorator.apply(frozen=True)
 class FakeKafkaConfig(ConnectionConfig):
     bootstrap_servers: str
     sasl_username: str
@@ -73,7 +73,7 @@ class TestReprAndStr(unittest.TestCase):
         assert "?Signature=abc" not in text
 
     def test_repr_scrubs_dsn_in_non_sensitive_string_fields(self) -> None:
-        @connection_config(frozen=True)
+        @ConnectionConfigDecorator.apply(frozen=True)
         class WithDsn(ConnectionConfig):
             label: str
             dsn: str
@@ -106,7 +106,7 @@ class TestAuditDict(unittest.TestCase):
         assert audit["_class"] == "FakePostgresConfig"
 
     def test_audit_dict_scrubs_dsn_in_strings(self) -> None:
-        @connection_config(frozen=True)
+        @ConnectionConfigDecorator.apply(frozen=True)
         class WithDsn(ConnectionConfig):
             label: str
             dsn: str
@@ -157,5 +157,5 @@ class TestManualDataclassWithReprFalse(unittest.TestCase):
 
         cfg = UnsafeConfig("db.example.com", "this-leaks")
         # Confirms the failure mode rather than asserting safety —
-        # users must use @connection_config or @dataclass(repr=False).
+        # users must use @ConnectionConfigDecorator.apply or @dataclass(repr=False).
         assert "this-leaks" in repr(cfg)

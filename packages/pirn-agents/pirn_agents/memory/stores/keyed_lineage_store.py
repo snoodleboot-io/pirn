@@ -196,7 +196,7 @@ class KeyedLineageStore(PirnOpaqueValue):
 
         For a caller that wants to know "did the value change" without
         fetching it — compare a candidate's own
-        ``pirn.core.hashing.content_hash(candidate)`` against this. ``None``
+        ``pirn.core.content_hasher.ContentHasher.hash(candidate)`` against this. ``None``
         when the key was never written or its outcome was not ``"ok"``; a
         tombstone still has a real hash (of :attr:`_tombstone`), same as any
         other value — a caller checking for "was this deleted" should use

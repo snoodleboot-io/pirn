@@ -17,7 +17,7 @@ pip install 'pirn-health[genomics]'         # genomics file formats only (FASTA/
 
 Available extras: `health`, `mri`, `genomics`.
 
-**Registration (ADR-4):** `import pirn_health` self-registers the health-domain knots under `library="pirn"`, so a YAML pipeline can resolve them by bare name. In Python you import the knot classes directly (same effect). To register every installed domain at once, call `pirn.discover_installed_domains()`.
+**Registration (ADR-4):** `import pirn_health` self-registers the health-domain knots under `library="pirn"`, so a YAML pipeline can resolve them by bare name. In Python you import the knot classes directly (same effect). To register every installed domain at once, call `DomainDiscovery.discover_installed_domains()` (`pirn.domain_discovery`).
 
 ---
 

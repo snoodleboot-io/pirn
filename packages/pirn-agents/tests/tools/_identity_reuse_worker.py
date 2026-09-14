@@ -29,7 +29,7 @@ from typing import Any
 
 from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
 from pirn.backends.in_memory.in_memory_history import InMemoryHistory
-from pirn.core.hashing import content_hash
+from pirn.core.content_hasher import ContentHasher
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.recording.replay_mismatch_error import ReplayMismatchError
@@ -83,16 +83,16 @@ def stub_tool_hash_once() -> tuple[bool, bool]:
     new_args = (StubTool,)
     freed = StubTool(result="recorded")
     freed_address = id(freed)
-    freed_hash = content_hash({"tool": freed})
-    freed_list_hash = content_hash({"tools": [freed]})
+    freed_hash = ContentHasher.hash({"tool": freed})
+    freed_list_hash = ContentHasher.hash({"tools": [freed]})
     gc.collect()
     release_by_refcount(freed)
     del freed
     fresh = claim_freed_address(new_args, freed_address, slots)
     fresh.__init__(result="different")
     collided = (
-        content_hash({"tool": fresh}) == freed_hash
-        or content_hash({"tools": [fresh]}) == freed_list_hash
+        ContentHasher.hash({"tool": fresh}) == freed_hash
+        or ContentHasher.hash({"tools": [fresh]}) == freed_list_hash
     )
     return id(fresh) == freed_address, collided
 
@@ -103,13 +103,13 @@ def provider_hash_once() -> tuple[bool, bool]:
     new_args = (OpenAICompatibleProvider,)
     freed = OpenAICompatibleProvider(model="m-a", base_url="https://a.example/v1")
     freed_address = id(freed)
-    freed_hash = content_hash({"llm": freed})
+    freed_hash = ContentHasher.hash({"llm": freed})
     gc.collect()
     release_by_refcount(freed)
     del freed
     fresh = claim_freed_address(new_args, freed_address, slots)
     fresh.__init__(model="m-b", base_url="https://b.example/v1")
-    collided = content_hash({"llm": fresh}) == freed_hash
+    collided = ContentHasher.hash({"llm": fresh}) == freed_hash
     return id(fresh) == freed_address, collided
 
 

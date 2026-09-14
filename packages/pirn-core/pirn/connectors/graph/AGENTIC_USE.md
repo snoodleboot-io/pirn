@@ -11,7 +11,7 @@ Each graph database has a `*Config` (URI, credentials) and a `*Pool` (`DatabaseC
 ## Source map
 
 ```
-pirn/domains/connectors/graph/
+pirn/connectors/graph/
 ├── neo4j_config.py      Neo4jConfig      — uri (bolt://...), user, password, database
 ├── neo4j_pool.py        Neo4jPool        — neo4j async driver (bolt protocol)
 ├── memgraph_config.py   MemgraphConfig   — host, port, user, password, encrypted

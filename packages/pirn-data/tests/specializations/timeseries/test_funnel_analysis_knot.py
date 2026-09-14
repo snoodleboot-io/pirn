@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -40,7 +40,7 @@ class TestFunnelAnalysisKnot(unittest.IsolatedAsyncioTestCase):
             {"uid": "u2", "event": "click"},
         ]
 
-        @knot
+        @KnotFactory.knot
         async def emit_rows() -> list:
             return rows
 
@@ -67,7 +67,7 @@ class TestFunnelAnalysisKnot(unittest.IsolatedAsyncioTestCase):
         assert purchase_row["conversion"] == pytest.approx(0.5)
 
     async def test_step_count_matches_funnel_length(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_rows() -> list:
             return []
 
@@ -91,7 +91,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
             {"uid": "u1", "event": "click"},
         ]
 
-        @knot
+        @KnotFactory.knot
         async def emit_rows() -> list:
             return rows
 

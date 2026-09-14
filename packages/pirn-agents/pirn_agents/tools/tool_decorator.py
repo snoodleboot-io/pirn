@@ -1,4 +1,4 @@
-"""``ToolDecorator`` — the tool decorator: ``@knot`` plus a declaration.
+"""``ToolDecorator`` — the tool decorator: ``@KnotFactory.knot`` plus a declaration.
 
 Basic usage stays a one-liner::
 
@@ -14,7 +14,7 @@ Basic usage stays a one-liner::
     # hints -- and web_search(query="x", _config=KnotConfig(id="c1")) is one call.
 
 The decorated function becomes the ``process()`` of a generated
-:class:`~pirn_agents.tools.tool.Tool` subclass, exactly as ``@knot`` generates
+:class:`~pirn_agents.tools.tool.Tool` subclass, exactly as ``@KnotFactory.knot`` generates
 a ``Knot`` subclass (ADR agents-speaks-core, WS1): the signature is the input
 contract core validates with, a sync function runs via ``asyncio.to_thread``,
 and the declaration is ``Knot.input_json_schema()`` rendered from the same

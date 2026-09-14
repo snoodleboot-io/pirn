@@ -5,7 +5,7 @@ from __future__ import annotations
 import threading
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.engine.dispatchers.local_dispatcher import LocalDispatcher
@@ -13,14 +13,14 @@ from pirn.engine.dispatchers.thread_dispatcher import ThreadDispatcher
 from pirn.tapestry import Tapestry
 
 
-@knot
+@KnotFactory.knot
 def sync_double(x: int) -> int:
     """A sync knot; will run in the dispatcher's thread when used with
     ThreadDispatcher."""
     return x * 2
 
 
-@knot
+@KnotFactory.knot
 async def async_double(x: int) -> int:
     return x * 2
 
@@ -66,7 +66,7 @@ async def test_thread_dispatcher_actually_uses_a_thread():
     main_thread = threading.get_ident()
     captured: dict[str, int] = {}
 
-    @knot
+    @KnotFactory.knot
     def capture(x: int) -> int:
         captured["tid"] = threading.get_ident()
         return x
@@ -84,7 +84,7 @@ async def test_thread_dispatcher_actually_uses_a_thread():
     assert captured["tid"] != main_thread
 
 
-@knot
+@KnotFactory.knot
 async def probe_run_context() -> str:
     """Report whether the engine's ambient contextvars survived the hop."""
     from pirn.tapestry import _current_history, _current_run_id

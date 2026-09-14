@@ -15,7 +15,7 @@ from typing import Any
 from pirn.connectors.http_connector import HttpConnector
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -45,7 +45,7 @@ async def _assert_engine_rejects_wrong_type(cls: type[Knot], expected_type: str)
     a validation error naming the expected vended type.
     """
 
-    @knot
+    @KnotFactory.knot
     async def wrong_source() -> object:
         return object()
 

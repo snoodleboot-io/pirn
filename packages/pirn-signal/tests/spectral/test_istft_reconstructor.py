@@ -11,7 +11,7 @@ except ImportError as _e:
 
 import numpy as np
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -21,7 +21,7 @@ from pirn_signal.types.spectrum_frame import SpectrumFrame
 from pirn_signal.types.spectrum_payload import SpectrumPayload
 
 
-@knot
+@KnotFactory.knot
 async def emit_spectrum_payload() -> SpectrumPayload:
     """Upstream knot emitting a deterministic SpectrumPayload."""
     # frequency_bins=33 means n_fft=(33-1)*2=64; data shape (33, n_frames)

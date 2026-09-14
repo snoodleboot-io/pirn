@@ -34,7 +34,7 @@ from typing import TYPE_CHECKING
 from pirn.engine.admission.admission_event import AdmissionEvent
 
 if TYPE_CHECKING:
-    from pirn.engine.admission.admission_gate import AdmissionGate
+    from pirn.engine.admission.admission import Admission
     from pirn.engine.admission.admission_observer import AdmissionObserver
     from pirn.engine.admission.admission_ticket import AdmissionTicket
 
@@ -47,7 +47,7 @@ class AdmissionFeedback:
     def __init__(
         self,
         run_id: str,
-        gate: AdmissionGate,
+        gate: Admission,
         observers: Iterable[AdmissionObserver] = (),
         *,
         clock: Callable[[], float] | None = None,

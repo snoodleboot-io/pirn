@@ -1,4 +1,4 @@
-"""Schema-declared knots: ``KnotFactory.from_schema`` and ``@knot(input_schema=)`` (WS0).
+"""Schema-declared knots: ``KnotFactory.from_schema`` and ``@KnotFactory.knot(input_schema=)`` (WS0).
 
 A knot built from a JSON object schema is wired, validated and run by the
 same machinery as a hinted one: the schema's properties are its declared
@@ -15,7 +15,7 @@ from typing import Any
 from pirn.core.err import Err
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import KnotFactory, knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.ok import Ok
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
@@ -138,7 +138,7 @@ class TestFromSchemaExecution(unittest.IsolatedAsyncioTestCase):
 
 class TestKnotDecoratorWithSchema(unittest.TestCase):
     def test_decorator_with_schema_declares_inputs(self) -> None:
-        @knot(input_schema=SEARCH_SCHEMA)
+        @KnotFactory.knot(input_schema=SEARCH_SCHEMA)
         async def search(**arguments: Any) -> dict[str, Any]:
             return dict(arguments)
 
@@ -148,7 +148,7 @@ class TestKnotDecoratorWithSchema(unittest.TestCase):
         self.assertEqual(asyncio.run(node({})), Ok(value={"query": "q", "limit": 10}))
 
     def test_decorator_without_schema_is_unchanged(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def add(x: int, **_: Any) -> int:
             return x + 1
 

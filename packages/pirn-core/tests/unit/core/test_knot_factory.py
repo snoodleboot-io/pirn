@@ -6,7 +6,7 @@ from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import KnotFactory, knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 
 
@@ -71,14 +71,14 @@ class TestKnotFactory(unittest.TestCase):
 
 class TestKnotDecorator(unittest.TestCase):
     def test_decorator_bare(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def add(x: int, **_: Any) -> int:
             return x + 1
 
         self.assertIsInstance(add, KnotFactory)
 
     def test_decorator_produces_working_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def triple(x: int, **_: Any) -> int:
             return x * 3
 
@@ -91,7 +91,7 @@ class TestKnotDecorator(unittest.TestCase):
         self.assertEqual(result.value, 12)
 
     def test_decorator_sync_function_runs_in_thread(self) -> None:
-        @knot
+        @KnotFactory.knot
         def sync_add(x: int, **_: Any) -> int:
             return x + 10
 
@@ -104,12 +104,12 @@ class TestKnotDecorator(unittest.TestCase):
         self.assertEqual(result.value, 15)
 
     def test_decorator_exposes_knot_class(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def my_knot(**_: Any) -> None:
             pass
 
         self.assertTrue(issubclass(my_knot.knot_class, Knot))
 
     def test_decorator_with_parens_no_args(self) -> None:
-        factory = knot(None)
+        factory = KnotFactory.knot(None)
         self.assertTrue(callable(factory))

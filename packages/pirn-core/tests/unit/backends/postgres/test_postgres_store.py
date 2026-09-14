@@ -13,7 +13,7 @@ from pirn.backends.base.tapestry_snapshot import TapestrySnapshot
 from pirn.backends.base.tapestry_store import TapestryStore
 from pirn.backends.postgres.postgres_store import PostgresStore
 from pirn.engine._run_scoped_subscriber import _RunScopedSubscriber
-from pirn.tapestry import _current_dispatching_knot_id, _current_run_id, current_run_id
+from pirn.tapestry import Tapestry, _current_dispatching_knot_id, _current_run_id
 
 
 def _make_knot(knot_id: str) -> MagicMock:
@@ -215,7 +215,7 @@ class TestPostgresStoreRunAttribution(unittest.IsolatedAsyncioTestCase):
         Deliberately called with no run in scope -- that is exactly what
         the background task's context looks like.
         """
-        self.assertIsNone(current_run_id())
+        self.assertIsNone(Tapestry.current_run_id())
         for payload in self.pool.notifications:
             self.store._on_notify(None, 1234, "pirn_knots", payload)
         self.pool.notifications.clear()
@@ -246,7 +246,7 @@ class TestPostgresStoreRunAttribution(unittest.IsolatedAsyncioTestCase):
 
     async def test_delivery_runs_under_the_registering_run(self) -> None:
         seen: list[str | None] = []
-        self.store._subscribers[0] = lambda k: seen.append(current_run_id())
+        self.store._subscribers[0] = lambda k: seen.append(Tapestry.current_run_id())
         await self._register_under_run(_make_knot("k1"), "run-a")
         self._drain_notifications()
 

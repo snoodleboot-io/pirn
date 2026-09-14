@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pirn.core.hashing import content_hash
+from pirn.core.content_hasher import ContentHasher
 
 
 class TrajectoryCallKey:
@@ -18,7 +18,7 @@ class TrajectoryCallKey:
     what was expected".
 
     **Stability is the whole contract, so it is enforced rather than hoped for**
-    (PIR-826). The key is core's :func:`pirn.core.hashing.content_hash` in
+    (PIR-826). The key is core's :meth:`pirn.core.content_hasher.ContentHasher.hash` in
     ``strict`` mode: an argument with no canonical form (one that would only
     render as ``<Foo object at 0x...>``) raises instead of producing a key that
     differs between two structurally identical calls.
@@ -43,4 +43,4 @@ class TrajectoryCallKey:
                 canonical form (a ``TypeError`` subclass), which could not
                 yield a stable key.
         """
-        return content_hash(arguments, strict=True)
+        return ContentHasher.hash(arguments, strict=True)

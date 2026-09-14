@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from pirn.yaml_loader.pipeline_loader import load_pipeline
+from pirn.yaml_loader.pipeline_loader import PipelineLoader
 
 # Minimal YAML that exercises a knot with a callable ref.
 _KNOT_YAML_TEMPLATE = """\
@@ -30,13 +30,13 @@ def _yaml(ref: str, allow: bool = True, prefixes: list[str] | None = None) -> st
 
 
 class TestAllowlistPassthrough(unittest.TestCase):
-    """Caller-supplied allowed_module_prefixes via load_pipeline kwarg."""
+    """Caller-supplied allowed_module_prefixes via PipelineLoader.load_yaml kwarg."""
 
     def test_allowed_prefix_passes(self) -> None:
         """A ref in the allowed prefix is resolved without error."""
         # pirn.core.knot.Knot is a class; the source wraps any callable,
         # so even a class ref is accepted here at resolution time.
-        load_pipeline(
+        PipelineLoader.load_yaml(
             _yaml("pirn.core.knot.Knot", allow=True),
             allowed_module_prefixes=["pirn"],
         )
@@ -44,7 +44,7 @@ class TestAllowlistPassthrough(unittest.TestCase):
     def test_disallowed_prefix_raises(self) -> None:
         """A ref outside the allowed prefix raises ValueError."""
         with self.assertRaisesRegex(ValueError, "allowed_module_prefixes"):
-            load_pipeline(
+            PipelineLoader.load_yaml(
                 _yaml("os.system", allow=True),
                 allowed_module_prefixes=["myapp"],
             )
@@ -52,7 +52,7 @@ class TestAllowlistPassthrough(unittest.TestCase):
     def test_no_allowlist_any_import_allowed(self) -> None:
         """Without an allowlist, any dotted ref is imported (with warning)."""
         # os.getcwd is a safe callable that exists in stdlib.
-        load_pipeline(
+        PipelineLoader.load_yaml(
             _yaml("os.getcwd", allow=True),
             allowed_module_prefixes=None,
         )
@@ -60,7 +60,7 @@ class TestAllowlistPassthrough(unittest.TestCase):
     def test_allow_callable_refs_false_raises_regardless(self) -> None:
         """When allow_callable_refs=False, unknown refs raise regardless of allowlist."""
         with self.assertRaisesRegex(ValueError, "allow_callable_refs"):
-            load_pipeline(
+            PipelineLoader.load_yaml(
                 _yaml("pirn.core.knot.Knot", allow=False),
                 allowed_module_prefixes=["pirn"],
             )
@@ -72,8 +72,8 @@ class TestAllowlistInYAML(unittest.TestCase):
     def test_yaml_allowlist_blocks_disallowed(self) -> None:
         """allowed_module_prefixes in YAML blocks imports outside the list."""
         with self.assertRaisesRegex(ValueError, "allowed_module_prefixes"):
-            load_pipeline(_yaml("os.system", allow=True, prefixes=["myapp"]))
+            PipelineLoader.load_yaml(_yaml("os.system", allow=True, prefixes=["myapp"]))
 
     def test_yaml_allowlist_permits_allowed(self) -> None:
         """allowed_module_prefixes in YAML permits imports inside the list."""
-        load_pipeline(_yaml("pirn.core.knot.Knot", allow=True, prefixes=["pirn"]))
+        PipelineLoader.load_yaml(_yaml("pirn.core.knot.Knot", allow=True, prefixes=["pirn"]))

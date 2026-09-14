@@ -6,7 +6,7 @@ import json
 from contextlib import AbstractContextManager
 from typing import Any
 
-from pirn.tapestry import Tapestry, current_run_id
+from pirn.tapestry import Tapestry
 
 
 class KnotRegistrationNotice:
@@ -66,7 +66,7 @@ class KnotRegistrationNotice:
         Returns:
             A notice carrying ``knot_id`` and the current run id.
         """
-        return cls(knot_id, current_run_id())
+        return cls(knot_id, Tapestry.current_run_id())
 
     def encode(self) -> str:
         """Serialise to a notification payload.
@@ -119,7 +119,7 @@ class KnotRegistrationNotice:
         under ``InMemoryStore``.
 
         Returns:
-            A context manager binding ``current_run_id()`` to
+            A context manager binding ``Tapestry.current_run_id()`` to
             :attr:`run_id` for the duration of the block.
         """
         return Tapestry._run_id_scope(self._run_id)

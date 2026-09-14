@@ -53,7 +53,7 @@ class RetrieverTool(Tool):
   `ToolFactory.for_call(call)` constructs the tool knot for one `ToolCall`
   inside the current tapestry; `ToolFactory.run_call(call)` runs one call in
   a throwaway tapestry and returns its `Result`.
-* `@ToolDecorator.decorate` on a function is `@knot` plus a declaration; `McpTool` is
+* `@ToolDecorator.decorate` on a function is `@KnotFactory.knot` plus a declaration; `McpTool` is
   `KnotFactory.from_schema` over the remote tool's schema; an agent is a tool
   through `AgentTool` (`agent.as_tool()`), whose nesting guard is core's
   `RunNesting`.

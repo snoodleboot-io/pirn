@@ -1,9 +1,8 @@
-"""Static structural validation of a ``Tapestry``.
+"""``TapestryValidator`` — static structural validation of a ``Tapestry``.
 
-The public entry point is :func:`validate_tapestry`, a bare alias for
-:meth:`_TapestryValidator.validate` kept importable from this module::
+The public entry point is :meth:`TapestryValidator.validate`::
 
-    result = validate_tapestry(build_tapestry())
+    result = TapestryValidator.validate(build_tapestry())
     assert result.ok, result.issues
 """
 
@@ -15,7 +14,7 @@ from pirn.check.validation_issue import ValidationIssue
 from pirn.check.validation_result import ValidationResult
 
 
-class _TapestryValidator:
+class TapestryValidator:
     """Structural checks over a tapestry: duplicate ids, cycles, stray terminals."""
 
     @staticmethod
@@ -47,7 +46,7 @@ class _TapestryValidator:
 
         for k in knots:
             if color[k.knot_id] == 0:
-                _TapestryValidator._walk(k.knot_id, adj, color, result, cycle_reported)
+                TapestryValidator._walk(k.knot_id, adj, color, result, cycle_reported)
 
         referenced_as_parent: set[str] = set()
         for k in knots:
@@ -90,9 +89,5 @@ class _TapestryValidator:
                 )
                 return
             if color[parent_id] == 0:
-                _TapestryValidator._walk(parent_id, adj, color, result, cycle_reported)
+                TapestryValidator._walk(parent_id, adj, color, result, cycle_reported)
         color[node] = 2  # BLACK
-
-
-#: Public name for :meth:`_TapestryValidator.validate` (bare alias, not a ``def``).
-validate_tapestry = _TapestryValidator.validate

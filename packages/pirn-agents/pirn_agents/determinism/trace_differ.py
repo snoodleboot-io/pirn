@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from pirn.knot_diff import compare_runs
+from pirn.knot_diff import KnotDiff
 
 from pirn_agents.determinism.run_trace import RunTrace
 from pirn_agents.determinism.trace_diff import TraceDiff
@@ -23,7 +23,7 @@ class TraceDiffer:
     or from the deleted one-cycle ``TrajectoryRecorder`` shim, PIR-864)
     step-by-step, aligned by index. :meth:`diff_runs` (ADR
     "agents speaks core" WS3 part 3) compares two ``RunResult``s directly via
-    core's ``pirn.knot_diff.compare_runs``, aligned by knot id — the more
+    core's ``pirn.knot_diff.KnotDiff.compare_runs``, aligned by knot id — the more
     precise comparison when both runs are real engine runs, since a step's
     identity is its knot id, not its position.
     """
@@ -31,11 +31,11 @@ class TraceDiffer:
     def diff_runs(self, left: RunResult, right: RunResult) -> list[KnotDiff]:
         """Return core's per-knot diff of ``left`` versus ``right``, by knot id.
 
-        A thin pass-through to ``pirn.knot_diff.compare_runs`` — kept here so
+        A thin pass-through to ``pirn.knot_diff.KnotDiff.compare_runs`` — kept here so
         callers already depending on ``TraceDiffer`` for run comparison do
         not need a second import for the ``RunResult`` case.
         """
-        return compare_runs(left, right)
+        return KnotDiff.compare_runs(left, right)
 
     def diff(self, before: RunTrace, after: RunTrace) -> TraceDiff:
         """Return the :class:`TraceDiff` of ``before`` versus ``after``.

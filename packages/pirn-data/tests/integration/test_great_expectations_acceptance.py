@@ -36,7 +36,7 @@ from pirn.connectors.databases.sqlite_config import SqliteConfig
 from pirn.connectors.databases.sqlite_pool import SqlitePool
 from pirn.connectors.knots.database_execute_sink import DatabaseExecuteSink
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.nodes.gate.gate import Gate
 from pirn.tapestry import Tapestry
@@ -69,7 +69,7 @@ def _orders_suite() -> gx.ExpectationSuite:
     return suite
 
 
-@knot
+@KnotFactory.knot
 async def emit_valid_orders() -> DataBatch:
     rows = (
         {"region": "EU", "amount": 10.0, "active": True},
@@ -81,7 +81,7 @@ async def emit_valid_orders() -> DataBatch:
     return DataBatch(rows=rows, source_uri="memory://orders")
 
 
-@knot
+@KnotFactory.knot
 async def emit_invalid_orders() -> DataBatch:
     rows = (
         {"region": "EU", "amount": 10.0, "active": True},
@@ -91,7 +91,7 @@ async def emit_invalid_orders() -> DataBatch:
     return DataBatch(rows=rows, source_uri="memory://orders")
 
 
-@knot
+@KnotFactory.knot
 async def project_for_load(batch: DataBatch) -> list[tuple[str, float]]:
     return [(str(r["region"]), float(r["total"])) for r in batch.rows]
 

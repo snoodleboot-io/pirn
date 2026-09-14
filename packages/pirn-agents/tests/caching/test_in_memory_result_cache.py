@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from pirn.core.hashing import content_hash
+from pirn.core.content_hasher import ContentHasher
 
 from pirn_agents.caching.in_memory_result_cache import InMemoryResultCache
 
@@ -23,7 +23,7 @@ class TestCounters:
     async def test_invalidate_removes_entry(self) -> None:
         cache = InMemoryResultCache()
         await cache.get_or_compute("k", _one)
-        key = content_hash("k", strict=True)
+        key = ContentHasher.hash("k", strict=True)
         await cache.invalidate(key)
         assert await cache.store.has(key) is False
         assert len(cache) == 0
@@ -43,9 +43,9 @@ class TestBounding:
         await cache.get_or_compute("a", _one)
         await cache.get_or_compute("b", _one)
         await cache.get_or_compute("c", _one)  # evicts "a"
-        assert await cache.store.has(content_hash("a", strict=True)) is False
-        assert await cache.store.has(content_hash("b", strict=True)) is True
-        assert await cache.store.has(content_hash("c", strict=True)) is True
+        assert await cache.store.has(ContentHasher.hash("a", strict=True)) is False
+        assert await cache.store.has(ContentHasher.hash("b", strict=True)) is True
+        assert await cache.store.has(ContentHasher.hash("c", strict=True)) is True
 
     async def test_recomputing_an_existing_key_does_not_grow(self) -> None:
         cache = InMemoryResultCache(max_entries=2)

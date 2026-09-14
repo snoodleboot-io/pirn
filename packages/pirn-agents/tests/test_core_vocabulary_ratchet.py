@@ -6,7 +6,7 @@ retires three agents-local parallels to a core primitive:
 (a) an agents exception hierarchy that does not root on
     :class:`pirn.exceptions.pirn_error.PirnError`;
 (b) ``CanonicalJson`` (deleted, PIR-872) as a parallel canonicaliser to
-    :func:`pirn.core.hashing.content_hash`;
+    :meth:`pirn.core.content_hasher.ContentHasher.hash`;
 (c) an outcome enum modelling success/failure/skip beside core's
     ``Ok | Err | Skipped`` ``Result``.
 
@@ -71,7 +71,7 @@ EXCEPTION_ROOTS_WITHOUT_PIRN_ERROR: frozenset[str] = frozenset()
 # (`determinism/content_digest.py`, `evaluation/trajectory_call_key.py`, and
 # earlier `builder/agent_knot_id_factory.py`,
 # `resilience/idempotency_key_assigner.py`) calls
-# `pirn.core.hashing.content_hash(..., strict=True)` directly. Kept as an empty
+# `pirn.core.content_hasher.ContentHasher.hash(..., strict=True)` directly. Kept as an empty
 # assertion so a reintroduced parallel canonicaliser is loud.
 CANONICAL_JSON_IMPORTERS: frozenset[str] = frozenset()
 
@@ -200,7 +200,7 @@ class TestCanonicalJsonImportersFrozen(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp:
             module = Path(tmp) / "user.py"
-            module.write_text("from pirn.core.hashing import content_hash\n")
+            module.write_text("from pirn.core.content_hasher import ContentHasher\n")
             assert not VocabularyInventory.imports_canonical_json(module)
 
 

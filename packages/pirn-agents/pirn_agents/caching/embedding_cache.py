@@ -2,7 +2,7 @@
 
 Embedding the same text twice is pure waste: the vector is a deterministic
 function of ``(text, model)``. This cache keys each text by
-:func:`pirn.core.hashing.content_hash` (folding in the model so different
+:meth:`pirn.core.content_hasher.ContentHasher.hash` (folding in the model so different
 models never collide) and only calls the wrapped embed function for texts it
 has never seen. Re-indexing an overlapping corpus therefore collapses to
 embedding just the *new* texts — the counters :attr:`provider_calls` and
@@ -27,7 +27,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable, Sequence
 
 from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
-from pirn.core.hashing import content_hash
+from pirn.core.content_hasher import ContentHasher
 from pirn.exceptions.value_evicted_error import ValueEvictedError
 
 
@@ -71,7 +71,7 @@ class EmbeddingCache:
     @staticmethod
     def key_for(text: str, model: str | None = None) -> str:
         """Return the stable content-hash key for ``text`` under ``model``."""
-        return content_hash({"text": text, "model": model}, strict=True)
+        return ContentHasher.hash({"text": text, "model": model}, strict=True)
 
     async def embed(
         self, texts: Sequence[str], *, model: str | None = None

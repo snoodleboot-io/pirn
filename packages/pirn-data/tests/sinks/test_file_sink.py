@@ -9,7 +9,7 @@ from typing import Any
 from pirn.connectors.file_format import FileFormat
 from pirn.connectors.object_store import ObjectStore
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.nodes.source import Source
 from pirn.tapestry import Tapestry
@@ -140,11 +140,11 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
         store = _FakeStore()
         fmt = _FakeFormat()
 
-        @knot
+        @KnotFactory.knot
         async def emit_batch() -> DataBatch:
             return DataBatch(rows=({"x": 1},))
 
-        @knot
+        @KnotFactory.knot
         async def emit_key() -> str:
             return "wired.csv"
 

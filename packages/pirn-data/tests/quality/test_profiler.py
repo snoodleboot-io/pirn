@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -15,7 +15,7 @@ from pirn_data.data_schema import DataSchema
 from pirn_data.quality.profiler import Profiler
 
 
-@knot
+@KnotFactory.knot
 async def emit_users() -> DataBatch:
     schema = DataSchema(columns={"id": int, "name": str, "region": str})
     rows = (
@@ -98,7 +98,7 @@ class TestProfiler(unittest.IsolatedAsyncioTestCase):
         assert profile.column("name") is None
 
     async def test_empty_batch_yields_empty_profile(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def empty() -> DataBatch:
             return DataBatch()
 
@@ -113,7 +113,7 @@ class TestProfiler(unittest.IsolatedAsyncioTestCase):
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_columns_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_columns() -> tuple:
             return ("region",)
 
@@ -134,7 +134,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, **kwargs: object) -> Profiler:
-        @knot
+        @KnotFactory.knot
         async def empty() -> DataBatch:
             return DataBatch()
 

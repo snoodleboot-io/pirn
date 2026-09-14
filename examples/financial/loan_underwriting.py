@@ -36,7 +36,7 @@ from pathlib import Path
 from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 from pirn.core.error_policy import ErrorPolicy
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.result import Ok, Result
 from pirn.core.run_request import RunRequest
@@ -93,7 +93,7 @@ class FinalDecision:
 # ----------------------------------------------------------------- knots
 
 
-@knot
+@KnotFactory.knot
 async def assess_risk(app: Application) -> RiskProfile:
     """Score the application and assign a risk tier."""
     dti = (app.existing_debt + app.requested_amount * 0.07) / max(app.annual_income, 1)
@@ -115,7 +115,7 @@ async def assess_risk(app: Application) -> RiskProfile:
     )
 
 
-@knot
+@KnotFactory.knot
 async def prime_underwrite(app: Application, profile: RiskProfile) -> UnderwritingDecision:
     """Prime track: standard automated approval, lowest rates."""
     approved = profile.dti_ratio < 0.43 and profile.credit_score >= 720
@@ -130,7 +130,7 @@ async def prime_underwrite(app: Application, profile: RiskProfile) -> Underwriti
     )
 
 
-@knot
+@KnotFactory.knot
 async def near_prime_underwrite(app: Application, profile: RiskProfile) -> UnderwritingDecision:
     """Near-prime track: reduced amount, higher rate, may require co-signer."""
     max_amount = min(app.requested_amount, app.annual_income * 3.5)
@@ -154,7 +154,7 @@ async def near_prime_underwrite(app: Application, profile: RiskProfile) -> Under
     )
 
 
-@knot
+@KnotFactory.knot
 async def subprime_underwrite(app: Application, profile: RiskProfile) -> UnderwritingDecision:
     """Subprime track: manual review, heavily restricted terms, or decline."""
     rng = random.Random(app.app_id)

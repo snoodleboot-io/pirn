@@ -6,7 +6,7 @@ import asyncio
 import threading
 from typing import TYPE_CHECKING
 
-from pirn.engine.admission.admission_gate import AdmissionGate
+from pirn.engine.admission.admission import Admission
 from pirn.engine.admission.admission_release_error import AdmissionReleaseError
 from pirn.engine.admission.admission_ticket import AdmissionTicket
 
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from pirn.core.knot import Knot
 
 
-class ChainedAdmission(AdmissionGate):
+class ChainedAdmission(Admission):
     """Admits a knot only when both an *own* gate and a *parent* gate admit it.
 
     An inner run that declares its own ``ConcurrencyLimits`` under an
@@ -36,7 +36,7 @@ class ChainedAdmission(AdmissionGate):
         2. Ask the parent gate for a ticket for the same knot.  Refused ->
            give the own ticket back and refuse.  Admission is all-or-nothing
            across both budgets, the same all-or-nothing shape
-           ``LimitedAdmissionGate`` already uses across its own global and
+           ``LimitedAdmission`` already uses across its own global and
            group budgets.
         3. Both admitted -> wrap them in one combined ticket, remember the
            pair by the combined ticket's identity, and return it.
@@ -64,11 +64,11 @@ class ChainedAdmission(AdmissionGate):
 
     Threading: delegates every counter to the wrapped gates, which are
     already safe to call from several loops/threads at once
-    (``LimitedAdmissionGate``).  Only the pair bookkeeping here needs its
+    (``LimitedAdmission``).  Only the pair bookkeeping here needs its
     own lock.
     """
 
-    def __init__(self, *, own: AdmissionGate, parent: AdmissionGate) -> None:
+    def __init__(self, *, own: Admission, parent: Admission) -> None:
         """Build a gate that chains *own* under *parent*.
 
         Args:

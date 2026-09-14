@@ -11,8 +11,8 @@ import unittest
 
 from pydantic import ValidationError
 
+from pirn.core.content_hasher import ContentHasher
 from pirn.core.error_policy import ErrorPolicy
-from pirn.core.hashing import content_hash
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_retry_policy import KnotRetryPolicy
 
@@ -66,5 +66,5 @@ class TestTimeoutAndRetryFields(unittest.TestCase):
             timeout=30.0,
             retry=KnotRetryPolicy(max_attempts=4),
         )
-        self.assertEqual(content_hash(minimal.model_dump(mode="json")), self.golden_minimal)
-        self.assertEqual(content_hash(full.model_dump(mode="json")), self.golden_full)
+        self.assertEqual(ContentHasher.hash(minimal.model_dump(mode="json")), self.golden_minimal)
+        self.assertEqual(ContentHasher.hash(full.model_dump(mode="json")), self.golden_full)

@@ -32,7 +32,7 @@ from pirn.connectors.database_connection_pool import (
 from pirn.connectors.object_store import ObjectStore
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.nodes.sub_tapestry import SubTapestry
 
@@ -48,7 +48,7 @@ from pirn_ml.types.eval_report_payload import EvalReportPayload
 from pirn_ml.types.split_manifest import SplitManifest
 
 
-@knot
+@KnotFactory.knot
 async def _holdout_features(split: SplitManifest) -> list[Mapping[str, Any]]:
     rows: list[Mapping[str, Any]] = []
     for index in range(int(split.test.row_count)):
@@ -57,7 +57,7 @@ async def _holdout_features(split: SplitManifest) -> list[Mapping[str, Any]]:
     return rows
 
 
-@knot
+@KnotFactory.knot
 async def _combine_continuous_training(
     model_id: str,
     eval_report: EvalReportPayload,

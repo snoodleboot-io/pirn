@@ -12,7 +12,7 @@ a core :class:`~pirn.nodes.aggregator.Aggregator`:
   this policy turns off.
 * **Bounded concurrency** is ``KnotConfig(concurrency_group=...)`` on every
   item plus a ``ConcurrencyLimits`` group cap on the run — the same
-  ``AdmissionGate``/``ReadyQueue`` every other knot in the framework is
+  ``Admission``/``ReadyQueue`` every other knot in the framework is
   scheduled through, not a private semaphore.
 * **Per-item timeout/retry** is ``KnotConfig.timeout`` / ``KnotConfig.retry``
   (a ``KnotRetryPolicy``) on each item's knot — ``GovernedDispatch``'s job,

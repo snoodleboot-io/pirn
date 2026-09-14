@@ -129,7 +129,7 @@ class LoopSubTapestry(SubTapestry, Generic[S]):
         6. Plan next — ``astep(new_state)`` is awaited immediately after the fold.
            If it returns a ``(tapestry, state)`` pair, a new ``_IterationChainKnot``
            for iteration N+1 is registered into the loop's live store via
-           ``get_current_store()``.  The extensible engine merges it as soon as
+           ``Tapestry.current_store()``.  The extensible engine merges it as soon as
            iteration N's completion is processed and starts it straight away,
            with the previous iteration knot as its parent edge (encoding the
            data dependency and ordering).

@@ -1,4 +1,4 @@
-"""Unit tests for continuation / WithContinuation / continues()."""
+"""Unit tests for Next / WithContinuation / WithContinuation.attach()."""
 
 from __future__ import annotations
 
@@ -7,9 +7,9 @@ from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.nodes.continuation import WithContinuation, continues
 from pirn.nodes.next import Next
 from pirn.nodes.source import Source
+from pirn.nodes.with_continuation import WithContinuation
 from pirn.tapestry import Tapestry
 
 
@@ -46,14 +46,14 @@ class TestWithContinuationConstruction(unittest.TestCase):
         self.assertIsInstance(wc, WithContinuation)
 
 
-class TestContinues(unittest.TestCase):
-    def test_continues_creates_with_continuation(self) -> None:
+class TestAttach(unittest.TestCase):
+    def test_attach_creates_with_continuation(self) -> None:
         def fn(r: Any) -> list:
             return [Next("end")]
 
         with Tapestry():
             src = _StrSource(value="x", _config=KnotConfig(id="src"))
-            wc = continues(src, fn=fn, pool={})
+            wc = WithContinuation.attach(src, fn=fn, pool={})
         self.assertIsInstance(wc, WithContinuation)
         self.assertEqual(wc.knot_id, "src__cont")
 
@@ -68,7 +68,7 @@ class TestWithContinuationProcess(unittest.IsolatedAsyncioTestCase):
 
         with Tapestry() as t:
             src = _StrSource(value="hello", _config=KnotConfig(id="src"))
-            continues(src, fn=fn, pool={})
+            WithContinuation.attach(src, fn=fn, pool={})
         result = await t.run(RunRequest())
         self.assertTrue(result.succeeded)
         self.assertEqual(calls, ["hello"])
@@ -79,6 +79,6 @@ class TestWithContinuationProcess(unittest.IsolatedAsyncioTestCase):
 
         with Tapestry() as t:
             src = _StrSource(value=1, _config=KnotConfig(id="src"))
-            continues(src, fn=fn, pool={})
+            WithContinuation.attach(src, fn=fn, pool={})
         result = await t.run(RunRequest())
         self.assertIsNotNone(result)

@@ -13,7 +13,7 @@ The key distinction from `pirn.streaming`: these brokers are used for discrete m
 ## Source map
 
 ```
-pirn/domains/connectors/streaming/
+pirn/connectors/streaming/
 ├── kafka_config.py              KafkaConfig              — bootstrap_servers, topic, group_id, security
 ├── kafka_broker.py              KafkaBroker              — Kafka via aiokafka
 ├── kinesis_config.py            KinesisConfig            — stream_name, region, credentials
@@ -71,7 +71,7 @@ with Tapestry() as t:
 
 ## Anti-patterns
 
-**Using `MessageBrokerConsumeSource` as a continuous driver** — this knot consumes one message per tapestry run. For continuous consumption, use `pirn.streaming.KafkaStreamingSource` with `run_stream()`.
+**Using `MessageBrokerConsumeSource` as a continuous driver** — this knot consumes one message per tapestry run. For continuous consumption, use `pirn.streaming.KafkaStreamingSource` with `StreamingSource.run_stream()`.
 
 **Creating a new broker per run** — brokers hold open connections and consumer group state. Creating inside the `with Tapestry()` block reconnects on every run and loses consumer offset tracking.
 

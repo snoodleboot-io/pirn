@@ -18,7 +18,7 @@ import unittest
 from pathlib import Path
 from types import ModuleType
 
-from pirn.check.validator import validate_tapestry
+from pirn.check.tapestry_validator import TapestryValidator
 from pirn.core.run_request import RunRequest
 
 from pirn_agents.types.messaging.agent_message import AgentMessage
@@ -54,7 +54,7 @@ class TestTheCoreYamlPipelineExample(unittest.IsolatedAsyncioTestCase):
     def test_tapestry_check_validates_it(self) -> None:
         # Arrange / Act
         module = _ExampleLoader.load()
-        result = validate_tapestry(module.build_tapestry())
+        result = TapestryValidator.validate(module.build_tapestry())
 
         # Assert: the same check pirn.check.tapestry_check_cli / `tapestry-check` runs.
         assert result.ok, result.issues

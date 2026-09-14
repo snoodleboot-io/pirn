@@ -12,7 +12,7 @@ except ImportError as _e:
 import datafusion as df
 import datafusion.functions as dff
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -30,7 +30,7 @@ def _make_empty_batch() -> DatafusionDataBatch:
     return DatafusionDataBatch(frame=frame, context=ctx)
 
 
-@knot
+@KnotFactory.knot
 async def emit_orders() -> DatafusionDataBatch:
     ctx = df.SessionContext()
     frame = ctx.from_pylist(
@@ -82,7 +82,7 @@ class TestDatafusionAggregate(unittest.IsolatedAsyncioTestCase):
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_by_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_by() -> tuple:
             return ("region",)
 
@@ -104,7 +104,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, **kwargs: object) -> DatafusionAggregate:
-        @knot
+        @KnotFactory.knot
         async def empty() -> DatafusionDataBatch:
             return _make_empty_batch()
 

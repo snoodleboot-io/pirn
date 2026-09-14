@@ -4,7 +4,7 @@ Extracted from :class:`~pirn_agents.llm.base_llm_provider.BaseLLMProvider` (PIR-
 SRP) to keep that orchestrator under one screenful of responsibility. This mixin
 owns the PIR-840 "does this provider replay across processes without a
 credential?" surface: :meth:`content_identity`, the
-:meth:`__pirn_canonical__` hook :func:`pirn.core.hashing.content_hash` reads,
+:meth:`__pirn_canonical__` hook :meth:`pirn.core.content_hasher.ContentHasher.hash` reads,
 and the private helpers that decide whether a collaborator's config can be
 named safely.
 
@@ -120,7 +120,7 @@ class LLMProviderIdentityMixin:
         }
 
     def __pirn_canonical__(self) -> Any:
-        """Return the form :func:`pirn.core.hashing.content_hash` hashes.
+        """Return the form :meth:`pirn.core.content_hasher.ContentHasher.hash` hashes.
 
         The provider is content-identified only when all of these hold; otherwise
         the canonical form is the per-instance identity token inherited from

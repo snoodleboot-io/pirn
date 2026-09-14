@@ -20,7 +20,7 @@ from pirn.backends.base.data_store import DataStore
 from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
 from pirn.backends.in_memory.in_memory_history import InMemoryHistory
 from pirn.backends.local_disk_data_store import LocalDiskDataStore
-from pirn.core.hashing import content_hash
+from pirn.core.content_hasher import ContentHasher
 
 from pirn_agents.memory.stores.data_store_memory_store import DataStoreMemoryStore
 from pirn_agents.memory.stores.memory_store import MemoryStore
@@ -146,7 +146,7 @@ class TestKeyedIdentity:
         await store.store("session:s1", {"v": 1})
         # The backend sees a hash of the *value*, not of the caller's key --
         # the exact inversion the old key-hashing scheme got backwards.
-        assert await backend.has(content_hash({"v": 1})) is True
+        assert await backend.has(ContentHasher.hash({"v": 1})) is True
 
     async def test_reopening_over_the_same_history_and_data_store_finds_the_key(
         self, backend: InMemoryDataStore

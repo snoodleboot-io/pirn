@@ -19,8 +19,8 @@ Read and follow every convention here — these are enforced by CI:
 - Methods belong to classes; no module-level functions (use `@staticmethod` inside the class instead).
   Module-level functions are allowed only as documented public entry points listed in
   `scripts/check_conventions.py`'s `_MODULE_LEVEL_FUNCTION_ALLOWLIST` (PIR-869); everything
-  else is a `@staticmethod`. A public name that predates the rule may stay importable as a bare
-  alias (`load_pipeline = PipelineLoader.load_yaml`), never as a new `def`.
+  else is a `@staticmethod`. A replaced public name is deleted and its callers move to the
+  class form (`PipelineLoader.load_yaml`) — never kept as a bare alias.
 - No nested function definitions that can be expressed as a `@staticmethod`.
 - No bare `except:` — always catch a specific exception type.
 - All constructor parameter validation is explicit (type check then value check; raise `TypeError` before `ValueError`).

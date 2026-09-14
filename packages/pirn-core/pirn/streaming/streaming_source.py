@@ -1,4 +1,4 @@
-"""Streaming source protocol and the run_stream driver.
+"""Streaming source protocol and the StreamingSource.run_stream driver.
 
 A streaming source is *like* a knot in that it produces values for
 downstream knots, but its lifecycle is different: it produces multiple
@@ -7,7 +7,7 @@ value.
 
 Implementation note: rather than treating a ``StreamingSource`` as a
 true ``Knot`` and complicating the engine, we expose it as a separate
-abstraction with a dedicated driver (``run_stream``).  The driver
+abstraction with a dedicated driver (``StreamingSource.run_stream``).  The driver
 takes the source plus a list of downstream terminal knots; for each
 value the source emits, it runs the terminals (treating the source's
 value as a parameter binding).
@@ -66,7 +66,7 @@ class StreamingSource:
     def _bind_value(base_params: dict[str, Any], parameter_name: str, value: Any) -> RunRequest:
         """Build the ``RunRequest`` for one streamed ``value``.
 
-        A static method (not a closure) so ``run_stream`` can bind
+        A static method (not a closure) so :meth:`run_stream` can bind
         ``base_params`` and ``parameter_name`` via ``functools.partial``
         instead of nesting a function that captures them.
         """
@@ -76,50 +76,49 @@ class StreamingSource:
         params[parameter_name] = value
         return RunRequest(parameters=params)
 
+    async def run_stream(
+        self,
+        tapestry: Tapestry,
+        *,
+        on_result: _OnResult | None = None,
+        on_error: _OnError | None = None,
+        extra_parameters: dict[str, Any] | None = None,
+    ) -> None:
+        """Drive a streaming source against a tapestry.
 
-async def run_stream(
-    source: StreamingSource,
-    tapestry: Tapestry,
-    *,
-    on_result: _OnResult | None = None,
-    on_error: _OnError | None = None,
-    extra_parameters: dict[str, Any] | None = None,
-) -> None:
-    """Drive a streaming source against a tapestry.
+        For each value the source yields, kick off a run with that value
+        bound to :attr:`parameter_name` (plus any ``extra_parameters``
+        that should also be available each tick).
 
-    For each value the source yields, kick off a run with that value
-    bound to ``source.parameter_name`` (plus any ``extra_parameters``
-    that should also be available each tick).
+        The driver runs until the source's stream is exhausted, or until
+        cancellation.  :meth:`close` is called on exit.
 
-    The driver runs until the source's stream is exhausted, or until
-    cancellation.  ``source.close()`` is called on exit.
+        Compared to :meth:`pirn.triggers.trigger.Trigger.run_forever`: triggers build a full
+        ``RunRequest`` per event (they're independent jobs), whereas this
+        driver inlines a single parameter from the source — implying the
+        source is the *primary* input and other parameters are constants
+        for the run.
 
-    Compared to ``triggers.run_forever``: triggers build a full
-    ``RunRequest`` per event (they're independent jobs), whereas this
-    driver inlines a single parameter from the source — implying the
-    source is the *primary* input and other parameters are constants
-    for the run.
+        Thin wrapper around ``_RunDriver.drive``, shared with
+        ``Trigger.run_forever``: ``to_request`` binds each value to
+        ``self.parameter_name`` alongside ``extra_parameters``, and "close"
+        means :meth:`close`. A cancelled run ends the stream; it is not a
+        bad value for ``on_error`` to log and skip past (PIR-841) — see the
+        ``asyncio.CancelledError`` re-raise inside ``_RunDriver.drive``.
+        """
+        base_params = dict(extra_parameters or {})
+        to_request = functools.partial(
+            StreamingSource._bind_value,
+            base_params,
+            self.parameter_name,
+        )
 
-    Thin wrapper around ``_RunDriver.drive``, shared with
-    ``triggers.trigger.run_forever``: ``to_request`` binds each value to
-    ``source.parameter_name`` alongside ``extra_parameters``, and "close"
-    means ``source.close()``. A cancelled run ends the stream; it is not a
-    bad value for ``on_error`` to log and skip past (PIR-841) — see the
-    ``asyncio.CancelledError`` re-raise inside ``_RunDriver.drive``.
-    """
-    base_params = dict(extra_parameters or {})
-    to_request = functools.partial(
-        StreamingSource._bind_value,  # pyright: ignore[reportPrivateUsage]  # module-private helper
-        base_params,
-        source.parameter_name,
-    )
-
-    await _RunDriver.drive(
-        source.stream(),
-        tapestry=tapestry,
-        to_request=to_request,
-        close=source.close,
-        close_error_context="source.close()",
-        on_result=on_result,
-        on_error=on_error,
-    )
+        await _RunDriver.drive(
+            self.stream(),
+            tapestry=tapestry,
+            to_request=to_request,
+            close=self.close,
+            close_error_context="source.close()",
+            on_result=on_result,
+            on_error=on_error,
+        )

@@ -11,7 +11,7 @@ except ImportError as _e:
 
 import pandas as pd
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -19,14 +19,14 @@ from pirn_data.frames.pandas.pandas_data_batch import PandasDataBatch
 from pirn_data.frames.pandas.pandas_join import PandasJoin
 
 
-@knot
+@KnotFactory.knot
 async def emit_users() -> PandasDataBatch:
     return PandasDataBatch(
         frame=pd.DataFrame({"user_id": [1, 2, 3], "name": ["alice", "bob", "carol"]})
     )
 
 
-@knot
+@KnotFactory.knot
 async def emit_orders() -> PandasDataBatch:
     return PandasDataBatch(
         frame=pd.DataFrame({"user_id": [1, 1, 2, 4], "amount": [10.0, 20.0, 30.0, 40.0]})
@@ -73,7 +73,7 @@ class TestPandasJoin(unittest.IsolatedAsyncioTestCase):
         assert "carol" in names
 
     async def test_left_on_right_on_with_different_names(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_orders_renamed() -> PandasDataBatch:
             return PandasDataBatch(
                 frame=pd.DataFrame({"customer_id": [1, 2], "amount": [10.0, 20.0]})
@@ -95,11 +95,11 @@ class TestPandasJoin(unittest.IsolatedAsyncioTestCase):
         assert out.row_count == 2
 
     async def test_cross_join(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_left() -> PandasDataBatch:
             return PandasDataBatch(frame=pd.DataFrame({"x": [1, 2]}))
 
-        @knot
+        @KnotFactory.knot
         async def emit_right() -> PandasDataBatch:
             return PandasDataBatch(frame=pd.DataFrame({"y": ["a", "b", "c"]}))
 
@@ -119,7 +119,7 @@ class TestPandasJoin(unittest.IsolatedAsyncioTestCase):
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_how_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_how() -> object:
             return "inner"
 
@@ -141,7 +141,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, **kwargs: object) -> PandasJoin:
-        @knot
+        @KnotFactory.knot
         async def empty() -> PandasDataBatch:
             return PandasDataBatch(frame=pd.DataFrame({"x": [1]}))
 

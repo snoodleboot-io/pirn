@@ -11,7 +11,7 @@ except ImportError as _e:
 
 import datafusion as df
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -27,7 +27,7 @@ def _make_empty_batch() -> DatafusionDataBatch:
     return DatafusionDataBatch(frame=frame, context=ctx)
 
 
-@knot
+@KnotFactory.knot
 async def emit_users() -> DatafusionDataBatch:
     ctx = df.SessionContext()
     frame = ctx.from_pylist(
@@ -40,7 +40,7 @@ async def emit_users() -> DatafusionDataBatch:
     return DatafusionDataBatch(frame=frame, context=ctx)
 
 
-@knot
+@KnotFactory.knot
 async def emit_orders() -> DatafusionDataBatch:
     ctx = df.SessionContext()
     frame = ctx.from_pylist(
@@ -91,13 +91,13 @@ class TestDatafusionJoin(unittest.IsolatedAsyncioTestCase):
         assert "carol" in names
 
     async def test_join_with_left_on_right_on(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_renamed_users() -> DatafusionDataBatch:
             ctx = df.SessionContext()
             frame = ctx.from_pylist([{"uid": 1, "name": "alice"}, {"uid": 2, "name": "bob"}])
             return DatafusionDataBatch(frame=frame, context=ctx)
 
-        @knot
+        @KnotFactory.knot
         async def emit_renamed_orders() -> DatafusionDataBatch:
             ctx = df.SessionContext()
             frame = ctx.from_pylist(
@@ -124,7 +124,7 @@ class TestDatafusionJoin(unittest.IsolatedAsyncioTestCase):
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_how_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_how() -> str:
             return "inner"
 
@@ -146,7 +146,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, **kwargs: object) -> DatafusionJoin:
-        @knot
+        @KnotFactory.knot
         async def empty() -> DatafusionDataBatch:
             return _make_empty_batch()
 

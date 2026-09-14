@@ -64,19 +64,6 @@ def __init__(self, *, models: Sequence[Knot], _config: KnotConfig, **kwargs: Any
     super().__init__(models=models_node, _config=_config, **kwargs)
 ```
 
-**Deprecating a Knot-shaped shim.** A public Knot class kept importable for one
-deprecation cycle (`docs/contributing/knot-remediation-process.md`) must still obey
-Rule 1 — no statement beyond the single `super().__init__(...)` call — so it cannot
-itself call `warnings.warn(...)`. Set the class attribute `_deprecated_since:
-ClassVar[str | None]` instead; `Knot._bootstrap` (the seam both the standard
-`Knot.__init__` introspection and framework primitives that bypass it, e.g.
-`Parameter`, converge on) raises a `DeprecationWarning` on every construction when it
-is set, naming the class and the value. A shim deprecated for only one of its call
-shapes (e.g. a `Knot | T` argument, where the `Knot` case is still correct and only
-the constant case is being replaced by `Parameter`) overrides
-`_deprecation_notice(self, parents, config_values)` to inspect which shape this
-construction used and return `None` for the shapes that stay legitimate.
-
 ---
 
 ## Rule 2 — `process()` is the execution layer: it takes resolved values
@@ -446,6 +433,15 @@ narrow allowlist for exactly these files (rules covering `__init__` purity, self
 state, and `@property` fields), reviewed the same way any other rule exception is. New
 files under `pirn/nodes/` do not inherit the allowlist automatically — extending it needs
 the same documented justification as the constructor-state exception above.
+
+The same reasoning covers the roots themselves. `Knot.__init__` is the introspection that
+turns a subclass's keyword arguments into parents, `Knot.knot_id` / `config` / `parents` /
+`config_values` / `input_names` are the framework's read-only accessors over its own
+`_mutable_` state, and `Aggregator.process(**inputs)` is the variadic fan-in whose parent
+names are given at construction rather than in a signature. The gate therefore does not
+apply Rules 1, 2 (catch-all naming) and 4 to pirn-core's own definition of a root it keys
+on (`Knot` in `pirn/core/knot.py`, `Aggregator` in `pirn/nodes/aggregator.py`, …); every
+subclass of a root, and a same-named class anywhere else, is checked like any other knot.
 
 ---
 

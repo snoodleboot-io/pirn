@@ -265,12 +265,12 @@ except SubTapestryError as e:
 
 ---
 
-## WithContinuation / continues()
+## WithContinuation
 
 Attaches dynamic next-step logic to any knot without modifying it. The continuation is a plain function that receives the knot's output and returns a `list[Next]` — one entry per successor to spawn into the running extensible tapestry. Always returns at least one entry; use `Next("end")` to terminate explicitly.
 
 ```python
-from pirn.nodes.continuation import continues
+from pirn.nodes.with_continuation import WithContinuation
 from pirn.nodes.next import Next
 
 POOL = {
@@ -284,10 +284,10 @@ def router(result: SearchResult) -> list[Next]:
     return [Next("summarise", {"text": result.content})]
 
 search = WebSearchKnot(query=q, _config=KnotConfig(id="search"))
-continues(search, fn=router, pool=POOL)
+WithContinuation.attach(search, fn=router, pool=POOL)
 ```
 
-`continues()` returns a `WithContinuation` knot wired immediately after the wrapped knot. Must be used inside an extensible tapestry run — in a non-extensible run the continuation fires but spawned knots are silently dropped.
+`WithContinuation.attach()` returns a `WithContinuation` knot wired immediately after the wrapped knot. Must be used inside an extensible tapestry run — in a non-extensible run the continuation fires but spawned knots are silently dropped.
 
 `Next` fields:
 
@@ -341,4 +341,4 @@ class Refiner(LoopSubTapestry[RefinementState]):
 
 Each iteration is a knot in one loop run; the knots are chained by real parent edges so lineage and the explorer reflect the true sequential (or parallel) execution history. Drill into any iteration knot to see its inner tapestry.
 
-**See also:** `examples/llm_agent/agent_loop.py` — dynamic DAG agent loop built on extensible tapestry and `get_current_store()`.
+**See also:** `examples/llm_agent/agent_loop.py` — dynamic DAG agent loop built on extensible tapestry and `Tapestry.current_store()`.

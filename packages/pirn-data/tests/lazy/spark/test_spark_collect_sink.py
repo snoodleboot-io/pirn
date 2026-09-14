@@ -7,7 +7,7 @@ from typing import Any
 from unittest.mock import MagicMock
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 
 from pirn_data.lazy.spark.spark_dataframe import SparkDataFrame
 
@@ -79,7 +79,7 @@ class TestSparkCollectSink(unittest.IsolatedAsyncioTestCase):
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_max_rows_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_limit() -> int:
             return 100
 

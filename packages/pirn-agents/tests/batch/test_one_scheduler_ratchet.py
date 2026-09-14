@@ -2,7 +2,7 @@
 
 The "agents speaks core" ADR (2026-09-13), WS4b ("one scheduler"): batch
 execution should be the core engine's ``Map``/``Aggregator``/``Dispatcher``/
-``AdmissionGate`` — not a private ``asyncio.wait`` loop, a hand-held
+``Admission`` — not a private ``asyncio.wait`` loop, a hand-held
 ``asyncio.Semaphore``, or a checkpoint store outside ``RunHistory``. WS4b's
 own migration (``MapAgent`` → per-item knots + ``Aggregator``;
 ``AdaptiveConcurrencyController`` → ``AdmissionObserver``) left one
@@ -11,7 +11,7 @@ deliberately-kept deprecated shim (``BatchScheduler`` plus
 deletes both outright, so ``ASYNCIO_LOOP`` is now empty. PIR-866 migrated
 the two primitives WS4b did not own the blast radius for
 (``BackpressureSemaphore``, ``Bulkhead``) onto a real
-``LimitedAdmissionGate`` per pool, and PIR-864 deletes both of those too
+``LimitedAdmission`` per pool, and PIR-864 deletes both of those too
 (``OWN_CONCURRENCY_LIMIT`` was already empty).
 
 The allowlists are asserted by **exact equality**, deliberately:

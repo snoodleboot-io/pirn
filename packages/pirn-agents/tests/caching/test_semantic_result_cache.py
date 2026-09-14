@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 import pytest
-from pirn.core.hashing import content_hash
+from pirn.core.content_hasher import ContentHasher
 
 from pirn_agents.caching.semantic_result_cache import SemanticResultCache
 
@@ -84,7 +84,7 @@ class TestSemanticMatching:
             return "v"
 
         assert await cache.get_or_compute("k", compute) == "v"
-        key = content_hash("k", strict=True)
+        key = ContentHasher.hash("k", strict=True)
         assert await cache.store.has(key) is True
         await cache.invalidate(key)
         assert await cache.store.has(key) is False

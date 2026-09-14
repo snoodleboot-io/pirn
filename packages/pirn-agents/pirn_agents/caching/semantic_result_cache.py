@@ -7,7 +7,7 @@ which needs enumeration —
 (``put``/``get``/``has``/``scrub`` only, keyed lookups by design). The
 embeddings therefore live in a vended
 :class:`~pirn_agents.caching.similarity_index.SimilarityIndex` resource
-(exactly like a vector-store backend), keyed by the same ``content_hash``
+(exactly like a vector-store backend), keyed by the same ``ContentHasher.hash``
 string the matched entry is stored under; the entries themselves — the
 actual cached *values* — live in an
 :class:`~pirn.backends.in_memory.in_memory_data_store.InMemoryDataStore`,
@@ -22,7 +22,7 @@ from collections.abc import Awaitable, Callable, Sequence
 from typing import Any
 
 from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
-from pirn.core.hashing import content_hash
+from pirn.core.content_hasher import ContentHasher
 
 from pirn_agents.caching.cache_entry import CacheEntry
 from pirn_agents.caching.result_cache import ResultCache
@@ -109,7 +109,7 @@ class SemanticResultCache(ResultCache):
             self.misses += 1
         value = await compute()
         await self._record(
-            CacheEntry(key=content_hash(text, strict=True), value=value, embedding=query)
+            CacheEntry(key=ContentHasher.hash(text, strict=True), value=value, embedding=query)
         )
         return value
 

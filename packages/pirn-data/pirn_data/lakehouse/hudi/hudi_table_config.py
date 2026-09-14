@@ -12,10 +12,10 @@ from __future__ import annotations
 from typing import ClassVar
 
 from pirn.connectors.connection_config import ConnectionConfig
-from pirn.connectors.connection_config_decorator import connection_config
+from pirn.connectors.connection_config_decorator import ConnectionConfigDecorator
 
 
-@connection_config(frozen=True)
+@ConnectionConfigDecorator.apply(frozen=True)
 class HudiTableConfig(ConnectionConfig):
     """Configuration for a Hudi table.
 

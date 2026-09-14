@@ -6,7 +6,7 @@ import json
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -14,7 +14,7 @@ from pirn_ml.deployment.model_serializer import ModelSerializer
 from pirn_ml.types.model_manifest import ModelManifest
 
 
-@knot
+@KnotFactory.knot
 async def emit_model() -> ModelManifest:
     return ModelManifest(
         model_id="m1",

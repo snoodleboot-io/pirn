@@ -45,9 +45,9 @@ References:
     [1] Debezium — Change Data Capture documentation:
         https://debezium.io/documentation/
     [2] pirn — DatabaseConnectionPool interface:
-        pirn/domains/connectors/database_connection_pool.py
+        pirn/connectors/database_connection_pool.py
     [3] pirn — MessageBroker interface:
-        pirn/domains/connectors/message_broker.py
+        pirn/connectors/message_broker.py
     [4] pirn — IdentifierValidator (SQL injection guard):
         pirn_data/identifier_validator.py
 """

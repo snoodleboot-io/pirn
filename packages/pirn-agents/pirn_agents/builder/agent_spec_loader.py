@@ -10,7 +10,7 @@ a friendly ``pip install "pirn-agents[yaml]"`` message when it is absent.
 One dialect, one return type (ADR agents-speaks-core WS6a). Every ``from_*``
 method here returns an :class:`AgentSpec`, parsed from a core pipeline
 document — a top-level ``nodes:`` list, exactly like any other pipeline
-``pirn.yaml_loader.pipeline_loader.load_pipeline`` reads, in the
+``pirn.yaml_loader.pipeline_loader.PipelineLoader.load_yaml`` reads, in the
 single-knot-plus-tagged-parameters shape
 :meth:`~pirn_agents.builder.agent_spec.AgentSpec.to_pipeline_spec` writes
 (see that method's docstring, and the agents section of

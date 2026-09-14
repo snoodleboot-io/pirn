@@ -1,4 +1,4 @@
-"""Raised by ``content_hash(value, strict=True)`` when a leaf has no canonical form."""
+"""Raised by ``ContentHasher.hash(value, strict=True)`` when a leaf has no canonical form."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from pirn.exceptions.pirn_error import PirnError
 class UnhashableValueError(PirnError, TypeError):
     """A value could not be reduced to a canonical, content-addressable form.
 
-    :func:`~pirn.core.hashing.content_hash` is best-effort by default: an
+    :meth:`~pirn.core.content_hasher.ContentHasher.hash` is best-effort by default: an
     opaque leaf (no ``__pirn_canonical__``, no pydantic core schema, not a
     container the canonicaliser recurses into) degrades to a
     ``sha256:unhashable:<type>`` sentinel rather than raising, because most
@@ -21,8 +21,8 @@ class UnhashableValueError(PirnError, TypeError):
 
     Subclasses ``TypeError`` in addition to ``PirnError`` so a caller
     migrating from a hand-rolled ``TypeError`` on the same failure mode (see
-    the former ``pirn_agents.caching.content_address.ContentAddress`` --
-    a one-cycle shim, deleted PIR-864 -- whose own "cannot canonically encode
+    the former ``pirn_agents.caching.content_address.ContentAddress``,
+    deleted PIR-864, whose own "cannot canonically encode
     a value of type X" refusal this class replaced) keeps its existing
     ``except TypeError`` working unchanged.
 
@@ -39,7 +39,7 @@ class UnhashableValueError(PirnError, TypeError):
         """
         self._type_name = type_name
         super().__init__(
-            f"content_hash: cannot canonically hash a value of type {type_name!r}; "
+            f"ContentHasher.hash: cannot canonically hash a value of type {type_name!r}; "
             f"it has no __pirn_canonical__() hook, no pydantic core schema, and is "
             f"not a container this hasher recurses into. Give the type one of those, "
             f"convert it to a JSON-encodable value first, or pass strict=False to "

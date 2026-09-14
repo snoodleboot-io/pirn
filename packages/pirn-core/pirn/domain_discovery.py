@@ -14,7 +14,7 @@ from importlib.metadata import distributions
 from importlib.util import find_spec
 
 
-class _DomainDiscovery:
+class DomainDiscovery:
     """Locate installed pirn domain import-packages and import them.
 
     The six domain names are fixed framework data, kept as an instance
@@ -70,14 +70,14 @@ class _DomainDiscovery:
             imported.append(import_name)
         return tuple(imported)
 
+    @staticmethod
+    def discover_installed_domains() -> tuple[str, ...]:
+        """Import all installed pirn domain packages and return their import names.
 
-def discover_installed_domains() -> tuple[str, ...]:
-    """Import all installed pirn domain packages and return their import names.
-
-    Each imported ``pirn_<x>`` package self-registers its knots via
-    ``Registry.fill_registry()``, so after this call their knots resolve by
-    bare name through sweet_tea's factory (the same path the YAML loader
-    uses). Returns the sorted tuple of import names that were imported. Safe
-    to call repeatedly.
-    """
-    return _DomainDiscovery().discover()
+        Each imported ``pirn_<x>`` package self-registers its knots via
+        ``Registry.fill_registry()``, so after this call their knots resolve by
+        bare name through sweet_tea's factory (the same path the YAML loader
+        uses). Returns the sorted tuple of import names that were imported. Safe
+        to call repeatedly.
+        """
+        return DomainDiscovery().discover()

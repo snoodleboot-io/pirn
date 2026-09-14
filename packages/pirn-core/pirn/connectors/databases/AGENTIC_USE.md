@@ -11,7 +11,7 @@ Each database has a pair of files: `{db}_config.py` (credentials and DSN fields,
 ## Source map
 
 ```
-pirn/domains/connectors/databases/
+pirn/connectors/databases/
 ├── postgres_config.py      PostgresConfig       — host, port, database, user, password, ssl_mode
 ├── postgres_pool.py        PostgresPool         — asyncpg-backed async pool
 ├── sqlite_config.py        SqliteConfig         — path, check_same_thread

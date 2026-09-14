@@ -1,6 +1,6 @@
 # YAML Pipelines
 
-pirn pipelines can be declared entirely in YAML and loaded at runtime with `load_pipeline()`. The YAML loader is a strict-by-default tool that translates a pipeline definition file into a live `Tapestry`.
+pirn pipelines can be declared entirely in YAML and loaded at runtime with `PipelineLoader.load_yaml()`. The YAML loader is a strict-by-default tool that translates a pipeline definition file into a live `Tapestry`.
 
 ---
 
@@ -8,9 +8,9 @@ pirn pipelines can be declared entirely in YAML and loaded at runtime with `load
 
 ```python
 from pirn.core.run_request import RunRequest
-from pirn.yaml_loader.pipeline_loader import load_pipeline
+from pirn.yaml_loader.pipeline_loader import PipelineLoader
 
-tapestry = load_pipeline(
+tapestry = PipelineLoader.load_yaml(
     yaml_text,                              # str or Path
     known_callables={"my_fn": my_fn},      # name → callable
     tapestry=existing_tapestry,            # optional; new Tapestry() if omitted
@@ -19,7 +19,7 @@ tapestry = load_pipeline(
 result = await tapestry.run(RunRequest(parameters={"x": 5}))
 ```
 
-`load_pipeline` returns a fully-constructed `Tapestry` with all knots registered. You can run it immediately or attach emitters before running.
+`PipelineLoader.load_yaml` returns a fully-constructed `Tapestry` with all knots registered. You can run it immediately or attach emitters before running.
 
 ---
 
@@ -186,10 +186,10 @@ Combines multiple parents via a merge function.
 
 ## `known_callables`
 
-A `Mapping[str, Any]` passed to `load_pipeline`. Values can be:
+A `Mapping[str, Any]` passed to `PipelineLoader.load_yaml`. Values can be:
 
 - Plain callables (sync or async functions)
-- `KnotFactory` instances (from `@knot` decorator)
+- `KnotFactory` instances (from `@KnotFactory.knot` decorator)
 - `Knot` subclasses
 
 The loader's `_resolve_callable` checks `known_callables` first. In strict mode, if a name is not found, `ValueError` is raised. In loose mode, the loader falls back to a dotted import.
@@ -209,7 +209,7 @@ After that, any `Knot` subclass under `myapp/` is resolvable from YAML by its sn
 
 `known_callables` remains supported as a per-call override with the highest priority — useful in tests or when the same callable needs multiple pipeline-specific aliases.
 
-**For the full registration story** — manual `Registry.register` calls, registering `@knot`-decorated factories, library scoping, troubleshooting, and lifecycle rules — see the [Knot Registration guide](knot-registration.md).
+**For the full registration story** — manual `Registry.register` calls, registering `@KnotFactory.knot`-decorated factories, library scoping, troubleshooting, and lifecycle rules — see the [Knot Registration guide](knot-registration.md).
 
 ---
 
@@ -267,7 +267,7 @@ nodes:
 ```
 
 ```python
-tapestry = load_pipeline(yaml_text, known_callables={
+tapestry = PipelineLoader.load_yaml(yaml_text, known_callables={
     "fetch_user": fetch_user,
     "score_engagement": score_engagement,
     "high_value_predicate": lambda s: s > 0.8,
@@ -330,11 +330,11 @@ A pattern's runtime seed (the parameter the high-level builder's `.input(...)` f
 A pattern's other required components are usually live objects — an `LLMProvider`, a `MemoryStore`, a `Tool` — that cannot be written into YAML text. `AgentReferences.as_known_callables()` adapts a caller-owned label → object table into this loader's `known_callables`, so a `source` node can name the label as its `callable:`:
 
 ```python
-from pirn.yaml_loader.pipeline_loader import load_pipeline
+from pirn.yaml_loader.pipeline_loader import PipelineLoader
 from pirn_agents.builder.agent_references import AgentReferences
 
 references = AgentReferences().register("llm", my_llm_provider)
-tapestry = load_pipeline(yaml_text, known_callables=references.as_known_callables())
+tapestry = PipelineLoader.load_yaml(yaml_text, known_callables=references.as_known_callables())
 ```
 
 ```yaml
@@ -352,7 +352,7 @@ See `examples/agents_core_pipeline/` for the complete, `tapestry-check`-validate
 
 ### `AgentSpec` — the declarative shape as a core pipeline document
 
-`AgentSpec` (pattern + provider/tool/component references + options — the config-driven counterpart of the fluent builder) is a projection of `PipelineSpec`: `AgentSpec.to_pipeline_spec()`/`AgentSpec.from_pipeline_spec()` round-trip losslessly through it, and `AgentSpecLoader.from_yaml`/`from_json`/`from_path`/`to_yaml`/`to_json` read and write a core pipeline document directly (a top-level `nodes:` key). The older flat dialect (`pattern:`/`llm:`/`memory:`/`tools:`/`components:`/`options:` at the top level, no `nodes:` list) loaded for one deprecation cycle and is now deleted (PIR-864) — `AgentSpecLoader.from_mapping` rejects a mapping with no `nodes:` key; use `AgentSpec.from_dict`/`.to_dict()` directly if you already have that flat shape in hand. See `pirn_agents/builder/BUILDER.md`'s "Config-driven agents" section for the full walkthrough, including how references round-trip through tagged `parameter` nodes.
+`AgentSpec` (pattern + provider/tool/component references + options — the config-driven counterpart of the fluent builder) is a projection of `PipelineSpec`: `AgentSpec.to_pipeline_spec()`/`AgentSpec.from_pipeline_spec()` round-trip losslessly through it, and `AgentSpecLoader.from_yaml`/`from_json`/`from_path`/`to_yaml`/`to_json` read and write a core pipeline document directly (a top-level `nodes:` key). The older flat dialect (`pattern:`/`llm:`/`memory:`/`tools:`/`components:`/`options:` at the top level, no `nodes:` list) is deleted (PIR-864) — `AgentSpecLoader.from_mapping` rejects a mapping with no `nodes:` key; use `AgentSpec.from_dict`/`.to_dict()` directly if you already have that flat shape in hand. See `pirn_agents/builder/BUILDER.md`'s "Config-driven agents" section for the full walkthrough, including how references round-trip through tagged `parameter` nodes.
 
 ---
 

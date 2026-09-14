@@ -6,7 +6,7 @@ the same key, and any change to the payload yields a different one.
 Time-travel diffing reuses the same digest to detect changed inputs/outputs
 between two runs.
 
-The canonicalisation is core's own :func:`pirn.core.hashing.content_hash` in
+The canonicalisation is core's own :meth:`pirn.core.content_hasher.ContentHasher.hash` in
 ``strict`` mode — the one hashing path every pirn domain agrees on. A leaf
 with no canonical form (no ``__pirn_canonical__``, no pydantic core schema,
 not a recognised container) raises
@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pirn.core.hashing import content_hash
+from pirn.core.content_hasher import ContentHasher
 
 
 class ContentDigest:
@@ -34,10 +34,10 @@ class ContentDigest:
                 keys are sorted, so the digest is independent of key order.
 
         Returns:
-            ``content_hash(payload, strict=True)``.
+            ``ContentHasher.hash(payload, strict=True)``.
 
         Raises:
             UnhashableValueError: If ``payload`` contains a leaf with no
                 canonical form.
         """
-        return content_hash(payload, strict=True)
+        return ContentHasher.hash(payload, strict=True)

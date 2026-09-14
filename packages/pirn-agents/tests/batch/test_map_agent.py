@@ -2,7 +2,7 @@
 :class:`MapAgent` (ADR agents-speaks-core, WS4b).
 
 WS4b replaced ``MapAgent``'s private ``asyncio.wait`` scheduler with the core
-engine's own: per-item admission (``AdmissionGate``/``ConcurrencyLimits``),
+engine's own: per-item admission (``Admission``/``ConcurrencyLimits``),
 timeout/retry (``KnotConfig``/``GovernedDispatch``), and joining
 (``Aggregator`` under ``ErrorPolicy.RECEIVE_ERRORS``). Two behaviours this
 changes, disclosed here rather than pinned silently:

@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -37,7 +37,7 @@ class TestTimeSeriesResampler(unittest.IsolatedAsyncioTestCase):
             {"ts": datetime(2024, 1, 1, 0, 1, 0), "v": 30},
         ]
 
-        @knot
+        @KnotFactory.knot
         async def emit_rows() -> list:
             return rows
 
@@ -60,7 +60,7 @@ class TestTimeSeriesResampler(unittest.IsolatedAsyncioTestCase):
             {"ts": datetime(2024, 1, 1, 0, 0, 0), "v": 1},
         ]
 
-        @knot
+        @KnotFactory.knot
         async def emit_rows() -> list:
             return rows
 
@@ -85,7 +85,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
             {"ts": datetime(2024, 1, 1, 0, 0, 30), "v": 20},
         ]
 
-        @knot
+        @KnotFactory.knot
         async def emit_rows() -> list:
             return rows
 

@@ -11,7 +11,7 @@ except ImportError as _e:
 
 import datafusion as df
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -36,7 +36,7 @@ def _make_batch() -> DatafusionDataBatch:
     return DatafusionDataBatch(frame=frame, context=ctx)
 
 
-@knot
+@KnotFactory.knot
 async def emit_users() -> DatafusionDataBatch:
     return _make_batch()
 
@@ -84,7 +84,7 @@ class TestDatafusionFilter(unittest.IsolatedAsyncioTestCase):
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_predicate_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_predicate() -> str:
             return "active"
 
@@ -104,7 +104,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):
     async def _make_knot(self, **kwargs: object) -> DatafusionFilter:
-        @knot
+        @KnotFactory.knot
         async def upstream() -> DatafusionDataBatch:
             return _make_batch()
 

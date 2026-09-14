@@ -24,7 +24,7 @@ class TestMainReturnCodes(unittest.TestCase):
 
         with patch("pirn.check.tapestry_check_cli._Loader.load_factory", return_value=lambda: tap):
             with patch(
-                "pirn.check.tapestry_check_cli._TapestryValidator.validate", return_value=ok_result
+                "pirn.check.tapestry_check_cli.TapestryValidator.validate", return_value=ok_result
             ):
                 code = TapestryCheckCli.main(["mymod:build"])
         self.assertEqual(code, 0)
@@ -35,7 +35,7 @@ class TestMainReturnCodes(unittest.TestCase):
 
         with patch("pirn.check.tapestry_check_cli._Loader.load_factory", return_value=lambda: tap):
             with patch(
-                "pirn.check.tapestry_check_cli._TapestryValidator.validate",
+                "pirn.check.tapestry_check_cli.TapestryValidator.validate",
                 return_value=error_result,
             ):
                 code = TapestryCheckCli.main(["mymod:build"])
@@ -49,7 +49,7 @@ class TestMainReturnCodes(unittest.TestCase):
 
         with patch("pirn.check.tapestry_check_cli._Loader.load_factory", return_value=lambda: tap):
             with patch(
-                "pirn.check.tapestry_check_cli._TapestryValidator.validate",
+                "pirn.check.tapestry_check_cli.TapestryValidator.validate",
                 return_value=warn_result,
             ):
                 code = TapestryCheckCli.main(["mymod:build", "--strict"])
@@ -63,7 +63,7 @@ class TestMainReturnCodes(unittest.TestCase):
 
         with patch("pirn.check.tapestry_check_cli._Loader.load_factory", return_value=lambda: tap):
             with patch(
-                "pirn.check.tapestry_check_cli._TapestryValidator.validate",
+                "pirn.check.tapestry_check_cli.TapestryValidator.validate",
                 return_value=warn_result,
             ):
                 code = TapestryCheckCli.main(["mymod:build"])

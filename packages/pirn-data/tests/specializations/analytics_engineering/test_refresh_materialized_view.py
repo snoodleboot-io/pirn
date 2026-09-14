@@ -7,7 +7,7 @@ from typing import Any
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -91,7 +91,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
         self.pool = StubPool()
 
     async def test_view_name_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_view() -> str:
             return _VIEW_NAME
 

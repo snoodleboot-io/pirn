@@ -142,20 +142,20 @@ for record in result.lineage:
 
 Tracebacks can contain secrets — DSN credentials in error messages, API keys in locals. Pirn lets you apply a filter to every traceback before it is stored.
 
-### Built-in filter: `redact_common_secrets`
+### Built-in filter: `TracebackRedactor.redact_common_secrets`
 
 ```python
-from pirn.managers.redact import redact_common_secrets
+from pirn.managers.traceback_redactor import TracebackRedactor
 from pirn.tapestry import Tapestry
 
 # Apply to all runs from this tapestry
-t = Tapestry(traceback_filter=redact_common_secrets)
+t = Tapestry(traceback_filter=TracebackRedactor.redact_common_secrets)
 
 # Or override per-run
-result = await t.run(request, traceback_filter=redact_common_secrets)
+result = await t.run(request, traceback_filter=TracebackRedactor.redact_common_secrets)
 ```
 
-`redact_common_secrets` replaces these patterns with `<redacted>`:
+`TracebackRedactor.redact_common_secrets` replaces these patterns with `<redacted>`:
 
 | Pattern | Example before | Example after |
 |---------|---------------|---------------|
@@ -177,7 +177,7 @@ def my_filter(text: str) -> str:
 
 # Chain filters
 def combined(text: str) -> str:
-    return my_filter(redact_common_secrets(text))
+    return my_filter(TracebackRedactor.redact_common_secrets(text))
 
 t = Tapestry(traceback_filter=combined)
 ```

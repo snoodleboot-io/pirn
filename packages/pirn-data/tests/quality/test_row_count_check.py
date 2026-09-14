@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -15,7 +15,7 @@ from pirn_data.quality_report import QualityReport
 
 
 def _batch_factory(row_count: int):
-    @knot
+    @KnotFactory.knot
     async def emit() -> DataBatch:
         rows = tuple({"id": i} for i in range(row_count))
         return DataBatch(rows=rows)
@@ -80,7 +80,7 @@ class TestRowCountCheck(unittest.IsolatedAsyncioTestCase):
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_min_rows_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_min() -> int:
             return 10
 
@@ -97,7 +97,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
         assert report.passed is True
 
     async def test_max_rows_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_max() -> int:
             return 100
 
@@ -116,7 +116,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, **kwargs: object) -> RowCountCheck:
-        @knot
+        @KnotFactory.knot
         async def empty() -> DataBatch:
             return DataBatch()
 

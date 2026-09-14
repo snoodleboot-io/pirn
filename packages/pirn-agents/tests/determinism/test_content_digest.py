@@ -1,6 +1,6 @@
 """Value pins on :meth:`ContentDigest.digest` — the record/replay key (PIR-872).
 
-``ContentDigest.digest`` is core's :func:`pirn.core.hashing.content_hash` in
+``ContentDigest.digest`` is core's :meth:`pirn.core.content_hasher.ContentHasher.hash` in
 ``strict`` mode. Cassette entries and trace events are keyed by it, so this
 module pins, for one fixed payload matrix, the exact digest each payload hashes
 to — a change to core's canonicalisation shows up here as a concrete value
@@ -15,7 +15,7 @@ from __future__ import annotations
 from typing import Any, ClassVar
 
 import pytest
-from pirn.core.hashing import content_hash
+from pirn.core.content_hasher import ContentHasher
 from pirn.exceptions.unhashable_value_error import UnhashableValueError
 
 from pirn_agents.determinism.content_digest import ContentDigest
@@ -63,7 +63,7 @@ class _Canonical:
 
 
 class TestContentDigestPins:
-    """``ContentDigest.digest`` emits ``content_hash``'s strict canonical form."""
+    """``ContentDigest.digest`` emits ``ContentHasher.hash``'s strict canonical form."""
 
     _pins: ClassVar[dict[str, str]] = {
         "empty_dict": "sha256:1f722262a9334201ce5659c53b547a41ff19d504551da5bc907577a0c2286256",
@@ -92,7 +92,7 @@ class TestContentDigestPins:
     @pytest.mark.parametrize("name", _payload_names())
     def test_digest_is_the_strict_content_hash(self, name: str) -> None:
         payload = _payloads()[name]
-        assert ContentDigest.digest(payload) == content_hash(payload, strict=True)
+        assert ContentDigest.digest(payload) == ContentHasher.hash(payload, strict=True)
 
     @pytest.mark.parametrize("name", _payload_names())
     def test_digest_is_sha256_prefixed(self, name: str) -> None:

@@ -152,17 +152,17 @@ class EmitterFanout:
         Args:
             event: The status event to deliver.
             emitters: The emitters to notify. Defaults to
-                :func:`pirn.tapestry.current_emitters` (the enclosing run's
+                :meth:`pirn.tapestry.Tapestry.current_emitters` (the enclosing run's
                 subscription) when ``None`` — pass an explicit empty list to
                 opt out rather than relying on the default resolving to one.
             policy: How to react to an emitter raising. Defaults to
-                :func:`pirn.tapestry.current_emitter_error_policy` when
+                :meth:`pirn.tapestry.Tapestry.current_emitter_error_policy` when
                 ``None``.
         """
-        from pirn.tapestry import current_emitter_error_policy, current_emitters
+        from pirn.tapestry import Tapestry
 
-        active_emitters = emitters if emitters is not None else current_emitters()
-        active_policy = policy if policy is not None else current_emitter_error_policy()
+        active_emitters = emitters if emitters is not None else Tapestry.current_emitters()
+        active_policy = policy if policy is not None else Tapestry.current_emitter_error_policy()
         for emitter in active_emitters:
             try:
                 await emitter.on_status(event)

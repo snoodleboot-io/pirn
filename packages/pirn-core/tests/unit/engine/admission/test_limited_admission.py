@@ -1,4 +1,4 @@
-"""Unit tests for LimitedAdmissionGate (PIR-841 slice 2)."""
+"""Unit tests for LimitedAdmission (PIR-841 slice 2)."""
 
 from __future__ import annotations
 
@@ -11,10 +11,10 @@ from pirn.core.concurrency.undefined_concurrency_group_error import (
 )
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.engine.admission.admission_gate import AdmissionGate
+from pirn.engine.admission.admission import Admission
 from pirn.engine.admission.admission_release_error import AdmissionReleaseError
 from pirn.engine.admission.admission_ticket import AdmissionTicket
-from pirn.engine.admission.limited_admission_gate import LimitedAdmissionGate
+from pirn.engine.admission.limited_admission import LimitedAdmission
 from pirn.exceptions.pirn_error import PirnError
 
 
@@ -22,19 +22,17 @@ def _knot(knot_id: str, group: str | None = None) -> Parameter:
     return Parameter("x", int, default=1, _config=KnotConfig(id=knot_id, concurrency_group=group))
 
 
-def _admit_all(gate: LimitedAdmissionGate, *knots: Parameter) -> list[AdmissionTicket | None]:
+def _admit_all(gate: LimitedAdmission, *knots: Parameter) -> list[AdmissionTicket | None]:
     return [gate.try_admit(k) for k in knots]
 
 
-class TestLimitedAdmissionGateGlobalCap(unittest.TestCase):
-    def test_is_an_admission_gate(self) -> None:
-        self.assertIsInstance(
-            LimitedAdmissionGate(ConcurrencyLimits(max_in_flight=1)), AdmissionGate
-        )
+class TestLimitedAdmissionGlobalCap(unittest.TestCase):
+    def test_is_an_admission(self) -> None:
+        self.assertIsInstance(LimitedAdmission(ConcurrencyLimits(max_in_flight=1)), Admission)
 
     def test_admits_up_to_the_global_cap(self) -> None:
         # Arrange
-        gate = LimitedAdmissionGate(ConcurrencyLimits(max_in_flight=2))
+        gate = LimitedAdmission(ConcurrencyLimits(max_in_flight=2))
 
         # Act
         tickets = _admit_all(gate, _knot("a"), _knot("b"), _knot("c"))
@@ -47,7 +45,7 @@ class TestLimitedAdmissionGateGlobalCap(unittest.TestCase):
 
     def test_release_frees_a_global_slot(self) -> None:
         # Arrange
-        gate = LimitedAdmissionGate(ConcurrencyLimits(max_in_flight=1))
+        gate = LimitedAdmission(ConcurrencyLimits(max_in_flight=1))
         first = gate.try_admit(_knot("a"))
         assert first is not None
         refused = gate.try_admit(_knot("b"))
@@ -62,7 +60,7 @@ class TestLimitedAdmissionGateGlobalCap(unittest.TestCase):
 
     def test_grouped_knots_count_against_the_global_cap(self) -> None:
         # Arrange
-        gate = LimitedAdmissionGate(ConcurrencyLimits(max_in_flight=2, groups={"api": 5}))
+        gate = LimitedAdmission(ConcurrencyLimits(max_in_flight=2, groups={"api": 5}))
 
         # Act
         tickets = _admit_all(gate, _knot("a", "api"), _knot("b"), _knot("c", "api"))
@@ -71,10 +69,10 @@ class TestLimitedAdmissionGateGlobalCap(unittest.TestCase):
         self.assertIsNone(tickets[2])
 
 
-class TestLimitedAdmissionGateGroupCap(unittest.TestCase):
+class TestLimitedAdmissionGroupCap(unittest.TestCase):
     def test_admits_up_to_the_group_cap(self) -> None:
         # Arrange
-        gate = LimitedAdmissionGate(ConcurrencyLimits(groups={"api": 2}))
+        gate = LimitedAdmission(ConcurrencyLimits(groups={"api": 2}))
 
         # Act
         tickets = _admit_all(gate, _knot("a", "api"), _knot("b", "api"), _knot("c", "api"))
@@ -87,7 +85,7 @@ class TestLimitedAdmissionGateGroupCap(unittest.TestCase):
 
     def test_a_full_group_does_not_refuse_ungrouped_knots(self) -> None:
         # Arrange
-        gate = LimitedAdmissionGate(ConcurrencyLimits(groups={"api": 1}))
+        gate = LimitedAdmission(ConcurrencyLimits(groups={"api": 1}))
         gate.try_admit(_knot("a", "api"))
 
         # Act
@@ -98,7 +96,7 @@ class TestLimitedAdmissionGateGroupCap(unittest.TestCase):
 
     def test_a_full_group_does_not_refuse_another_group(self) -> None:
         # Arrange
-        gate = LimitedAdmissionGate(ConcurrencyLimits(groups={"api": 1, "db": 1}))
+        gate = LimitedAdmission(ConcurrencyLimits(groups={"api": 1, "db": 1}))
         gate.try_admit(_knot("a", "api"))
 
         # Act
@@ -109,7 +107,7 @@ class TestLimitedAdmissionGateGroupCap(unittest.TestCase):
 
     def test_release_frees_a_group_slot(self) -> None:
         # Arrange
-        gate = LimitedAdmissionGate(ConcurrencyLimits(groups={"api": 1}))
+        gate = LimitedAdmission(ConcurrencyLimits(groups={"api": 1}))
         first = gate.try_admit(_knot("a", "api"))
         assert first is not None
 
@@ -123,7 +121,7 @@ class TestLimitedAdmissionGateGroupCap(unittest.TestCase):
 
     def test_a_group_the_limits_do_not_define_raises(self) -> None:
         # Arrange: a typo ("open_ai" for "openai") must not silently lift a cap.
-        gate = LimitedAdmissionGate(ConcurrencyLimits(max_in_flight=3, groups={"openai": 1}))
+        gate = LimitedAdmission(ConcurrencyLimits(max_in_flight=3, groups={"openai": 1}))
 
         # Act / Assert
         with self.assertRaises(UndefinedConcurrencyGroupError) as caught:
@@ -139,7 +137,7 @@ class TestLimitedAdmissionGateGroupCap(unittest.TestCase):
 
     def test_group_tags_are_ignored_when_the_limits_define_no_groups(self) -> None:
         # Arrange: the same tagged graph may run under a global cap alone.
-        gate = LimitedAdmissionGate(ConcurrencyLimits(max_in_flight=3))
+        gate = LimitedAdmission(ConcurrencyLimits(max_in_flight=3))
 
         # Act
         tickets = _admit_all(gate, *(_knot(f"u{i}", "anything") for i in range(4)))
@@ -152,10 +150,10 @@ class TestLimitedAdmissionGateGroupCap(unittest.TestCase):
         self.assertTrue(issubclass(UndefinedConcurrencyGroupError, PirnError))
 
 
-class TestLimitedAdmissionGateCapacity(unittest.TestCase):
+class TestLimitedAdmissionCapacity(unittest.TestCase):
     def test_has_capacity_until_the_global_cap_is_full(self) -> None:
         # Arrange
-        gate = LimitedAdmissionGate(ConcurrencyLimits(max_in_flight=1))
+        gate = LimitedAdmission(ConcurrencyLimits(max_in_flight=1))
 
         # Act
         before = gate.has_capacity()
@@ -170,17 +168,17 @@ class TestLimitedAdmissionGateCapacity(unittest.TestCase):
 
     def test_a_group_only_gate_always_has_global_capacity(self) -> None:
         # Arrange
-        gate = LimitedAdmissionGate(ConcurrencyLimits(groups={"api": 1}))
+        gate = LimitedAdmission(ConcurrencyLimits(groups={"api": 1}))
         gate.try_admit(_knot("a", "api"))
 
         # Act / Assert
         self.assertTrue(gate.has_capacity())
 
 
-class TestLimitedAdmissionGateBothCaps(unittest.TestCase):
+class TestLimitedAdmissionBothCaps(unittest.TestCase):
     def test_the_tighter_global_cap_wins(self) -> None:
         # Arrange
-        gate = LimitedAdmissionGate(ConcurrencyLimits(max_in_flight=2, groups={"api": 5}))
+        gate = LimitedAdmission(ConcurrencyLimits(max_in_flight=2, groups={"api": 5}))
 
         # Act
         tickets = _admit_all(gate, *(_knot(f"a{i}", "api") for i in range(5)))
@@ -190,7 +188,7 @@ class TestLimitedAdmissionGateBothCaps(unittest.TestCase):
 
     def test_the_tighter_group_cap_wins(self) -> None:
         # Arrange
-        gate = LimitedAdmissionGate(ConcurrencyLimits(max_in_flight=5, groups={"api": 2}))
+        gate = LimitedAdmission(ConcurrencyLimits(max_in_flight=5, groups={"api": 2}))
 
         # Act
         tickets = _admit_all(gate, *(_knot(f"a{i}", "api") for i in range(5)))
@@ -200,7 +198,7 @@ class TestLimitedAdmissionGateBothCaps(unittest.TestCase):
 
     def test_a_refusal_takes_no_slot_at_either_level(self) -> None:
         # Arrange: the group is full; asking again must not leak a global slot.
-        gate = LimitedAdmissionGate(ConcurrencyLimits(max_in_flight=3, groups={"api": 1}))
+        gate = LimitedAdmission(ConcurrencyLimits(max_in_flight=3, groups={"api": 1}))
         gate.try_admit(_knot("a0", "api"))
 
         # Act
@@ -213,10 +211,10 @@ class TestLimitedAdmissionGateBothCaps(unittest.TestCase):
         self.assertIsNotNone(gate.try_admit(_knot("c")))
 
 
-class TestLimitedAdmissionGateRelease(unittest.TestCase):
+class TestLimitedAdmissionRelease(unittest.TestCase):
     def test_releasing_a_ticket_twice_raises(self) -> None:
         # Arrange
-        gate = LimitedAdmissionGate(ConcurrencyLimits(max_in_flight=2))
+        gate = LimitedAdmission(ConcurrencyLimits(max_in_flight=2))
         ticket = gate.try_admit(_knot("a"))
         assert ticket is not None
         gate.release(ticket)
@@ -228,7 +226,7 @@ class TestLimitedAdmissionGateRelease(unittest.TestCase):
 
     def test_releasing_a_ticket_it_did_not_issue_raises(self) -> None:
         # Arrange
-        gate = LimitedAdmissionGate(ConcurrencyLimits(max_in_flight=2))
+        gate = LimitedAdmission(ConcurrencyLimits(max_in_flight=2))
 
         # Act / Assert
         with self.assertRaises(AdmissionReleaseError):
@@ -238,10 +236,10 @@ class TestLimitedAdmissionGateRelease(unittest.TestCase):
         self.assertTrue(issubclass(AdmissionReleaseError, PirnError))
 
 
-class TestLimitedAdmissionGateWaiting(unittest.IsolatedAsyncioTestCase):
+class TestLimitedAdmissionWaiting(unittest.IsolatedAsyncioTestCase):
     async def test_wait_for_release_returns_at_once_when_nothing_is_held(self) -> None:
         # Arrange
-        gate = LimitedAdmissionGate(ConcurrencyLimits(max_in_flight=1))
+        gate = LimitedAdmission(ConcurrencyLimits(max_in_flight=1))
 
         # Act
         outcome = await asyncio.wait_for(gate.wait_for_release(), timeout=1.0)
@@ -251,7 +249,7 @@ class TestLimitedAdmissionGateWaiting(unittest.IsolatedAsyncioTestCase):
 
     async def test_wait_for_release_wakes_when_a_slot_is_released(self) -> None:
         # Arrange
-        gate = LimitedAdmissionGate(ConcurrencyLimits(max_in_flight=1))
+        gate = LimitedAdmission(ConcurrencyLimits(max_in_flight=1))
         ticket = gate.try_admit(_knot("a"))
         assert ticket is not None
         waiter = asyncio.create_task(gate.wait_for_release())
@@ -267,7 +265,7 @@ class TestLimitedAdmissionGateWaiting(unittest.IsolatedAsyncioTestCase):
 
     async def test_a_cancelled_waiter_does_not_break_a_later_release(self) -> None:
         # Arrange
-        gate = LimitedAdmissionGate(ConcurrencyLimits(max_in_flight=1))
+        gate = LimitedAdmission(ConcurrencyLimits(max_in_flight=1))
         ticket = gate.try_admit(_knot("a"))
         assert ticket is not None
         waiter = asyncio.create_task(gate.wait_for_release())

@@ -1,7 +1,7 @@
 """``RaptorTree`` — a built RAPTOR summary tree handle.
 
 The value a RAPTOR build returns: a content-addressed handle describing the tree
-that now lives in the vector store. ``content_hash`` keys the tree by its leaf
+that now lives in the vector store. ``ContentHasher.hash`` keys the tree by its leaf
 corpus, so re-ingesting identical content is detected and skipped (``reused``).
 Frozen and pydantic-opaque.
 """

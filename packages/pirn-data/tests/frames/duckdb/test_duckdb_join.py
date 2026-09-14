@@ -11,7 +11,7 @@ except ImportError as _e:
 
 import duckdb
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -38,13 +38,13 @@ def _make_orders(connection: duckdb.DuckDBPyConnection) -> DuckdbDataBatch:
     return DuckdbDataBatch(relation=connection.table("orders"), connection=connection)
 
 
-@knot
+@KnotFactory.knot
 async def emit_users_alone() -> DuckdbDataBatch:
     connection = duckdb.connect(database=":memory:")
     return _make_users(connection)
 
 
-@knot
+@KnotFactory.knot
 async def emit_orders_alone() -> DuckdbDataBatch:
     connection = duckdb.connect(database=":memory:")
     return _make_orders(connection)
@@ -95,7 +95,7 @@ class TestDuckdbJoin(unittest.IsolatedAsyncioTestCase):
         assert "carol" in names
 
     async def test_join_with_explicit_condition(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_renamed() -> DuckdbDataBatch:
             connection = duckdb.connect(database=":memory:")
             connection.execute(
@@ -103,7 +103,7 @@ class TestDuckdbJoin(unittest.IsolatedAsyncioTestCase):
             )
             return DuckdbDataBatch(relation=connection.table("u"), connection=connection)
 
-        @knot
+        @KnotFactory.knot
         async def emit_orders_renamed() -> DuckdbDataBatch:
             connection = duckdb.connect(database=":memory:")
             connection.execute(
@@ -128,13 +128,13 @@ class TestDuckdbJoin(unittest.IsolatedAsyncioTestCase):
         assert len(rows) == 2
 
     async def test_cross_join(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_left() -> DuckdbDataBatch:
             connection = duckdb.connect(database=":memory:")
             connection.execute("CREATE TABLE l AS SELECT * FROM (VALUES (1), (2)) AS v(x)")
             return DuckdbDataBatch(relation=connection.table("l"), connection=connection)
 
-        @knot
+        @KnotFactory.knot
         async def emit_right() -> DuckdbDataBatch:
             connection = duckdb.connect(database=":memory:")
             connection.execute(
@@ -159,7 +159,7 @@ class TestDuckdbJoin(unittest.IsolatedAsyncioTestCase):
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_how_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_how() -> str:
             return "inner"
 
@@ -182,11 +182,11 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):
     async def _make_knot(self, **kwargs: object) -> DuckdbJoin:
-        @knot
+        @KnotFactory.knot
         async def empty_left() -> DuckdbDataBatch:
             return _make_empty()
 
-        @knot
+        @KnotFactory.knot
         async def empty_right() -> DuckdbDataBatch:
             return _make_empty()
 

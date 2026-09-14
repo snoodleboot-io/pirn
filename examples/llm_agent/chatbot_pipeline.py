@@ -31,7 +31,7 @@ from pathlib import Path
 
 from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -121,7 +121,7 @@ async def _fake_llm_call(system: str, user: str, max_tokens: int = 200) -> dict:
 # ----------------------------------------------------------------- knots
 
 
-@knot
+@KnotFactory.knot
 async def parse_message(
     message_text: str,
     user_id: str,
@@ -137,7 +137,7 @@ async def parse_message(
     )
 
 
-@knot
+@KnotFactory.knot
 async def classify_intent(parsed: ParsedMessage) -> Intent:
     """Classify the user's intent using a fast LLM call."""
     response = await _fake_llm_call(
@@ -149,7 +149,7 @@ async def classify_intent(parsed: ParsedMessage) -> Intent:
     return Intent(label=data["label"], confidence=data["confidence"])
 
 
-@knot
+@KnotFactory.knot
 async def extract_entities(parsed: ParsedMessage) -> Entities:
     """Extract named entities from the message."""
     response = await _fake_llm_call(
@@ -161,7 +161,7 @@ async def extract_entities(parsed: ParsedMessage) -> Entities:
     return Entities(items=items)
 
 
-@knot
+@KnotFactory.knot
 async def retrieve_context(
     parsed: ParsedMessage,
     intent: Intent,
@@ -183,7 +183,7 @@ async def retrieve_context(
     )
 
 
-@knot
+@KnotFactory.knot
 async def check_safety(parsed: ParsedMessage) -> SafetyResult:
     """Run a safety / moderation check on the user message."""
     await asyncio.sleep(0.01)
@@ -195,7 +195,7 @@ async def check_safety(parsed: ParsedMessage) -> SafetyResult:
     return SafetyResult(safe=True)
 
 
-@knot
+@KnotFactory.knot
 async def generate_response(
     parsed: ParsedMessage,
     context: RetrievedContext,
@@ -230,7 +230,7 @@ Answer concisely and accurately."""
     )
 
 
-@knot
+@KnotFactory.knot
 async def post_process(
     response: GeneratedResponse,
     context: RetrievedContext,
@@ -243,7 +243,7 @@ async def post_process(
     return PostProcessedResponse(text=text, citations=citations)
 
 
-@knot
+@KnotFactory.knot
 async def log_turn(
     parsed: ParsedMessage,
     intent: Intent,

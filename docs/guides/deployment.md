@@ -112,7 +112,7 @@ Each Celery worker process is a separate Python interpreter. Ensure:
 
 ```python
 from celery import Celery
-from pirn.engine.dispatchers.celery_dispatcher import register_celery_worker_task
+from pirn.engine.dispatchers.celery_dispatcher import CeleryDispatcher
 
 app = Celery("pirn", broker="redis://localhost:6379/0")
 app.conf.update(
@@ -120,7 +120,7 @@ app.conf.update(
     accept_content=["pickle"],
     result_serializer="pickle",
 )
-register_celery_worker_task(app)
+CeleryDispatcher.register_worker_task(app)
 ```
 
 Worker count: start with `(CPU cores × 2) + 1` for IO-bound pipelines. For CPU-bound knots, use `prefork` concurrency equal to core count.
@@ -204,7 +204,7 @@ uvicorn.run(trigger.app, host="127.0.0.1", port=8080)
 ### Event-driven (Kafka trigger)
 
 ```python
-from pirn.triggers.trigger import run_forever
+from pirn.triggers.trigger import Trigger
 from pirn.triggers.kafka_trigger import KafkaTrigger
 
 trigger = KafkaTrigger(
@@ -213,17 +213,17 @@ trigger = KafkaTrigger(
     group_id="pirn-worker",
 )
 
-await run_forever(trigger, tapestry, on_result=handle_result)
+await trigger.run_forever(tapestry, on_result=handle_result)
 ```
 
 ### Streaming ETL
 
 ```python
 from pirn.streaming.file_tail_source import FileTailSource
-from pirn.streaming.streaming_source import run_stream
+from pirn.streaming.streaming_source import StreamingSource
 
 source = FileTailSource("/var/log/app.log", parameter_name="line")
-await run_stream(source, tapestry, on_result=handle)
+await source.run_stream(tapestry, on_result=handle)
 ```
 
 ---

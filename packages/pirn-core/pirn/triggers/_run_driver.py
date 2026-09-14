@@ -26,7 +26,7 @@ _logger = logging.getLogger(__name__)
 
 
 class _RunDriver:
-    """Stateless driver shared by ``run_forever`` and ``run_stream``."""
+    """Stateless driver shared by ``Trigger.run_forever`` and ``StreamingSource.run_stream``."""
 
     @staticmethod
     async def drive(

@@ -12,8 +12,8 @@ from typing import Any
 import pytest
 
 from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
+from pirn.core.content_hasher import ContentHasher
 from pirn.core.err import Err
-from pirn.core.hashing import content_hash
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_lineage import KnotLineage
@@ -116,10 +116,10 @@ def test_config_values_hash_separates_knots_that_lineage_cannot() -> None:
 async def test_resolve_serves_the_recorded_value() -> None:
     # Arrange
     store = InMemoryDataStore()
-    value_hash = content_hash(99)
+    value_hash = ContentHasher.hash(99)
     await store.put(value_hash, 99)
     knot = Leaf(_config=KnotConfig(id="leaf"))
-    config_hash = content_hash(knot.config.model_dump(mode="json"))
+    config_hash = ContentHasher.hash(knot.config.model_dump(mode="json"))
     session = ReplaySession(
         source_run=_run([_row(knot_id="leaf", output_hash=value_hash, config_hash=config_hash)])
     )
@@ -140,7 +140,7 @@ async def test_resolve_serves_the_recorded_value() -> None:
 async def test_resolve_replays_a_skip_with_its_recorded_reason() -> None:
     # Arrange
     knot = Leaf(_config=KnotConfig(id="leaf"))
-    config_hash = content_hash(knot.config.model_dump(mode="json"))
+    config_hash = ContentHasher.hash(knot.config.model_dump(mode="json"))
     session = ReplaySession(
         source_run=_run(
             [
@@ -170,7 +170,7 @@ async def test_resolve_replays_a_skip_with_its_recorded_reason() -> None:
 async def test_resolve_replays_a_failure_from_the_recorded_exception() -> None:
     # Arrange
     knot = Leaf(_config=KnotConfig(id="leaf"))
-    config_hash = content_hash(knot.config.model_dump(mode="json"))
+    config_hash = ContentHasher.hash(knot.config.model_dump(mode="json"))
     recorded = ExceptionRecord(
         run_id="run-source",
         knot_id="leaf",
@@ -210,13 +210,13 @@ async def test_resolve_replays_a_failure_from_the_recorded_exception() -> None:
 async def test_resolve_rejects_changed_parent_input_hashes() -> None:
     # Arrange
     knot = Leaf(_config=KnotConfig(id="leaf"))
-    config_hash = content_hash(knot.config.model_dump(mode="json"))
+    config_hash = ContentHasher.hash(knot.config.model_dump(mode="json"))
     session = ReplaySession(
         source_run=_run(
             [
                 _row(
                     knot_id="leaf",
-                    output_hash=content_hash(1),
+                    output_hash=ContentHasher.hash(1),
                     config_hash=config_hash,
                     parent_input_hashes={"x": "sha256:recorded"},
                 )
@@ -240,7 +240,7 @@ async def test_resolve_rejects_a_changed_knot_config() -> None:
     knot = Leaf(_config=KnotConfig(id="leaf"))
     session = ReplaySession(
         source_run=_run(
-            [_row(knot_id="leaf", output_hash=content_hash(1), config_hash="sha256:old")]
+            [_row(knot_id="leaf", output_hash=ContentHasher.hash(1), config_hash="sha256:old")]
         )
     )
 
@@ -258,8 +258,8 @@ async def test_resolve_rejects_a_changed_knot_config() -> None:
 async def test_resolve_reports_a_missing_value_separately_from_a_mismatch() -> None:
     # Arrange — the row is a perfect match; only the value is gone.
     knot = Leaf(_config=KnotConfig(id="leaf"))
-    config_hash = content_hash(knot.config.model_dump(mode="json"))
-    absent = content_hash(1234)
+    config_hash = ContentHasher.hash(knot.config.model_dump(mode="json"))
+    absent = ContentHasher.hash(1234)
     session = ReplaySession(
         source_run=_run([_row(knot_id="leaf", output_hash=absent, config_hash=config_hash)])
     )
@@ -279,11 +279,11 @@ async def test_resolve_reports_an_evicted_value_as_unavailable() -> None:
     # Arrange — the value was written, then dropped when the store hit its
     # declared ceiling.  The lineage row is untouched and still names it.
     knot = Leaf(_config=KnotConfig(id="leaf"))
-    config_hash = content_hash(knot.config.model_dump(mode="json"))
-    recorded = content_hash(1234)
+    config_hash = ContentHasher.hash(knot.config.model_dump(mode="json"))
+    recorded = ContentHasher.hash(1234)
     data_store = InMemoryDataStore(max_values=1)
     await data_store.put(recorded, 1234)
-    await data_store.put(content_hash("something else"), "something else")
+    await data_store.put(ContentHasher.hash("something else"), "something else")
     session = ReplaySession(
         source_run=_run([_row(knot_id="leaf", output_hash=recorded, config_hash=config_hash)])
     )
@@ -305,8 +305,8 @@ async def test_resolve_does_not_leak_a_bare_key_error_from_the_store() -> None:
     # KeyError past this method's documented contract.  Reading once closes
     # the window; this pins the resulting type.
     knot = Leaf(_config=KnotConfig(id="leaf"))
-    config_hash = content_hash(knot.config.model_dump(mode="json"))
-    recorded = content_hash(1234)
+    config_hash = ContentHasher.hash(knot.config.model_dump(mode="json"))
+    recorded = ContentHasher.hash(1234)
 
     class _VanishingStore(InMemoryDataStore):
         async def has(self, content_hash: str) -> bool:
@@ -330,8 +330,8 @@ async def test_resolve_does_not_launder_an_integrity_failure_into_a_missing_valu
     # Arrange — a store whose bytes failed their signature check is a
     # different failure and must surface as itself.
     knot = Leaf(_config=KnotConfig(id="leaf"))
-    config_hash = content_hash(knot.config.model_dump(mode="json"))
-    recorded = content_hash(1234)
+    config_hash = ContentHasher.hash(knot.config.model_dump(mode="json"))
+    recorded = ContentHasher.hash(1234)
 
     class _TamperedStore(InMemoryDataStore):
         async def get(self, content_hash: str) -> Any:
@@ -385,7 +385,7 @@ class WithOpaqueLiteral(Knot):
     """A knot whose literal argument has no canonical content hash.
 
     A bare object declares no pydantic schema and no ``__pirn_canonical__``, so
-    ``content_hash`` cannot canonicalise it and emits an ``unhashable`` marker
+    ``ContentHasher.hash`` cannot canonicalise it and emits an ``unhashable`` marker
     naming only the type — a value every instance of that type shares.
     """
 

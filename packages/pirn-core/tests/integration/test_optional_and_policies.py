@@ -9,7 +9,7 @@ import pytest
 from pirn.core.error_policy import ErrorPolicy
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.optional import Optional
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
@@ -68,7 +68,7 @@ async def test_optional_passes_value_through_on_success():
 
 
 async def test_downstream_receives_skipped_value():
-    @knot
+    @KnotFactory.knot
     async def use(x: Any) -> bool:
         return isinstance(x, Skipped)
 
@@ -109,7 +109,7 @@ async def test_receive_errors_policy_gets_results_directly():
 
 
 async def test_require_all_parents_synthetic_err_on_skip():
-    @knot
+    @KnotFactory.knot
     async def use(x: int) -> int:
         return x + 1
 

@@ -24,7 +24,7 @@ from pirn.connectors.databases.sqlite_config import SqliteConfig
 from pirn.connectors.databases.sqlite_pool import SqlitePool
 from pirn.connectors.knots.database_execute_sink import DatabaseExecuteSink
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.nodes.gate.gate import Gate
 from pirn.tapestry import Tapestry
@@ -41,7 +41,7 @@ _USERS_SCHEMA = DataSchema(
 )
 
 
-@knot
+@KnotFactory.knot
 async def emit_valid_users() -> DataBatch:
     rows = (
         {"id": 1, "name": "alice", "region": "EU"},
@@ -51,7 +51,7 @@ async def emit_valid_users() -> DataBatch:
     return DataBatch(rows=rows, schema=_USERS_SCHEMA)
 
 
-@knot
+@KnotFactory.knot
 async def emit_invalid_users() -> DataBatch:
     # 'region' missing on the second row — the schema validator should fail it.
     rows = (
@@ -61,7 +61,7 @@ async def emit_invalid_users() -> DataBatch:
     return DataBatch(rows=rows, schema=_USERS_SCHEMA)
 
 
-@knot
+@KnotFactory.knot
 async def project_for_load(batch: DataBatch) -> list[tuple[int, str, str]]:
     """Convert :class:`DataBatch` rows to the parameter tuples the sink expects."""
     return [(int(r["id"]), str(r["name"]), str(r["region"])) for r in batch.rows]

@@ -28,7 +28,7 @@ nothing on this import path pulls one in.
 ``TriggeredBatch`` binds a trigger without consuming it and leaves it open, so
 the same trigger can drive a later run; pass ``owns_trigger=True`` to hand it
 over for the fire-and-forget shape, where a trigger constructed inline is closed
-on every exit path exactly as :func:`pirn.triggers.trigger.run_forever` does. This
+on every exit path exactly as :meth:`pirn.triggers.trigger.Trigger.run_forever` does. This
 matters because ``close()`` is **terminal** for both triggers here: a closed
 ``IntervalTrigger`` emits nothing further, and a closed ``EventTrigger`` also
 refuses ``fire()``, so nothing can ever feed its stream again. Closing a trigger

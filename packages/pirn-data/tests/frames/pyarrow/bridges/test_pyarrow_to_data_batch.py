@@ -11,7 +11,7 @@ except ImportError as _e:
 
 import pyarrow as pa
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -22,7 +22,7 @@ from pirn_data.frames.pyarrow.bridges.pyarrow_to_data_batch import (
 from pirn_data.frames.pyarrow.pyarrow_data_batch import PyarrowDataBatch
 
 
-@knot
+@KnotFactory.knot
 async def emit_pyarrow_batch() -> PyarrowDataBatch:
     table = pa.table({"id": [1, 2, 3], "name": ["a", "b", "c"]})
     return PyarrowDataBatch(table=table, source_uri="memory://x")

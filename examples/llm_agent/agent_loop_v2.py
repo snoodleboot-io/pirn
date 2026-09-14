@@ -46,8 +46,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.nodes.aggregator import Aggregator
 from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry, get_current_store
-
+from pirn.tapestry import Tapestry
 from pirn_agents.generation.llm_call import LLMCall
 from pirn_agents.generation.output_parser import OutputParser
 from pirn_agents.input.context_builder import ContextBuilder
@@ -439,7 +438,7 @@ class AgentPlanner(Knot):
         )
         actions = plan_next_actions(new_ctx)
 
-        store = get_current_store()
+        store = Tapestry.current_store()
         if store is None:
             return new_ctx
 
@@ -531,7 +530,7 @@ class AgentDecider(Knot):
                 msg_iteration=0,
             )
 
-        store = get_current_store()
+        store = Tapestry.current_store()
         if store is None:
             return new_ctx
 

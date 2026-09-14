@@ -13,7 +13,7 @@ from typing import Annotated, Any
 from pydantic import BaseModel, Field
 
 from pirn.core.knot import Knot
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
@@ -85,7 +85,7 @@ class TestInputJsonSchema(unittest.TestCase):
 
 class TestInputJsonSchemaOtherShapes(unittest.TestCase):
     def test_knot_factory_class_derives_from_the_function(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def scale(value: float, factor: float = 2.0, **_: Any) -> float:
             return value * factor
 

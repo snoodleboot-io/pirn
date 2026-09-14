@@ -40,7 +40,7 @@ def celery_worker():
     worker_script = """
 import sys
 from celery import Celery
-from pirn.engine.dispatchers.celery_dispatcher import register_celery_worker_task
+from pirn.engine.dispatchers.celery_dispatcher import CeleryDispatcher
 
 broker = sys.argv[1]
 app = Celery("pirn_test", broker=broker, backend=broker)
@@ -49,7 +49,7 @@ app.conf.update(
     accept_content=["pickle", "json"],
     result_serializer="pickle",
 )
-register_celery_worker_task(app)
+CeleryDispatcher.register_worker_task(app)
 worker = app.Worker(concurrency=2, loglevel="info")
 worker.start()
 """
@@ -102,7 +102,7 @@ class _Double(Knot):
 async def test_celery_dispatcher_runs_pipeline(celery_worker):
     from celery import Celery
 
-    from pirn.engine.dispatchers.celery_dispatcher import register_celery_worker_task
+    from pirn.engine.dispatchers.celery_dispatcher import CeleryDispatcher
 
     app = Celery("pirn_test", broker=_BROKER, backend=_BROKER)
     app.conf.update(
@@ -110,7 +110,7 @@ async def test_celery_dispatcher_runs_pipeline(celery_worker):
         accept_content=["pickle", "json"],
         result_serializer="pickle",
     )
-    register_celery_worker_task(app)
+    CeleryDispatcher.register_worker_task(app)
 
     from pirn.engine.dispatchers.celery_dispatcher import CeleryDispatcher
 
@@ -127,10 +127,7 @@ async def test_celery_dispatcher_runs_pipeline(celery_worker):
 async def test_celery_dispatcher_result_has_correct_dispatcher_name(celery_worker):
     from celery import Celery
 
-    from pirn.engine.dispatchers.celery_dispatcher import (
-        CeleryDispatcher,
-        register_celery_worker_task,
-    )
+    from pirn.engine.dispatchers.celery_dispatcher import CeleryDispatcher
 
     app = Celery("pirn_test", broker=_BROKER, backend=_BROKER)
     app.conf.update(
@@ -138,7 +135,7 @@ async def test_celery_dispatcher_result_has_correct_dispatcher_name(celery_worke
         accept_content=["pickle", "json"],
         result_serializer="pickle",
     )
-    register_celery_worker_task(app)
+    CeleryDispatcher.register_worker_task(app)
 
     dispatcher = CeleryDispatcher(app=app)
     with Tapestry(dispatcher=dispatcher) as t:

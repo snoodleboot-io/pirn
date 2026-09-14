@@ -10,14 +10,14 @@ graphs share the engine's content-addressed cache exactly like hand-wired ones.
 
 ADR agents-speaks-core WS2 part 2 - breaking id-format change, sanctioned:
 :meth:`derive` now digests the structural signature via
-:func:`pirn.core.hashing.content_hash` (``strict=True``) instead of
+:meth:`pirn.core.content_hasher.ContentHasher.hash` (``strict=True``) instead of
 the former ``CanonicalJson`` (deleted, PIR-872). The
 signature is always plain JSON-safe data (strings, lists, dicts) built by
 this factory itself, so ``strict=True`` here is behaviourally identical to
 the previous default ``OpaquePolicy.RAISE`` - both refuse a non-JSON value
 in ``options``/``components`` outright rather than digesting a different
 form of it. What does change is the 12-hex-char slice's content: it is now
-taken from ``content_hash``'s digest (after stripping its ``sha256:``
+taken from ``ContentHasher.hash``'s digest (after stripping its ``sha256:``
 prefix) rather than ``CanonicalJson``'s bare digest, so every generated
 knot id changes value across this upgrade - see the CHANGELOG entry.
 Acceptable at this package's current 0.x version: a generated id is a
@@ -31,7 +31,7 @@ import re
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from pirn.core.hashing import content_hash
+from pirn.core.content_hasher import ContentHasher
 
 
 class AgentKnotIdFactory:
@@ -101,6 +101,6 @@ class AgentKnotIdFactory:
         # alignment for graphs that have not changed at all.
         if components:
             signature["components"] = dict(components)
-        digest = content_hash(signature, strict=True).removeprefix("sha256:")[:12]
+        digest = ContentHasher.hash(signature, strict=True).removeprefix("sha256:")[:12]
         safe_pattern = re.sub(r"[^a-zA-Z0-9_\-.]", "_", pattern)
         return f"agent.{safe_pattern}.{digest}"

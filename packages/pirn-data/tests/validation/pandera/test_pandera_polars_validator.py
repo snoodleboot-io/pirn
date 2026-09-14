@@ -17,7 +17,7 @@ except ImportError as _e:
     raise unittest.SkipTest("pandera.polars not installed") from _e
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -34,7 +34,7 @@ class _UsersModel(pa.DataFrameModel):
 
 
 def _valid_batch_factory():
-    @knot
+    @KnotFactory.knot
     async def emit() -> PolarsDataBatch:
         return PolarsDataBatch(
             frame=pl.DataFrame({"id": [1, 2, 3], "name": ["alice", "bob", "carol"]})
@@ -44,7 +44,7 @@ def _valid_batch_factory():
 
 
 def _invalid_batch_factory():
-    @knot
+    @KnotFactory.knot
     async def emit() -> PolarsDataBatch:
         return PolarsDataBatch(
             frame=pl.DataFrame({"id": [1, 2, -3, 4], "name": ["alice", "", "carol", "dave"]})
@@ -108,7 +108,7 @@ class TestPanderaPolarsValidator(unittest.IsolatedAsyncioTestCase):
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_schema_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_schema() -> object:
             return _UsersModel
 
@@ -127,7 +127,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):
     async def _make_knot(self) -> PanderaPolarsValidator:
-        @knot
+        @KnotFactory.knot
         async def upstream() -> PolarsDataBatch:
             return _make_batch()
 

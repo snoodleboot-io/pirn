@@ -13,7 +13,7 @@ Algorithm:
 
 References:
     [1] pirn — DatabaseConnectionPool interface:
-        pirn/domains/connectors/database_connection_pool.py
+        pirn/connectors/database_connection_pool.py
 """
 
 from __future__ import annotations

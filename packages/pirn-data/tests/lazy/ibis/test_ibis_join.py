@@ -11,7 +11,7 @@ except ImportError as _e:
 
 import ibis
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -103,7 +103,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_how_from_upstream_knot(self) -> None:
         con = _make_con()
 
-        @knot
+        @KnotFactory.knot
         async def emit_how() -> str:
             return "inner"
 

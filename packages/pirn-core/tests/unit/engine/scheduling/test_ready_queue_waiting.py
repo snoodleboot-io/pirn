@@ -7,7 +7,7 @@ import unittest
 from pirn.core.concurrency.concurrency_limits import ConcurrencyLimits
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.engine.admission.limited_admission_gate import LimitedAdmissionGate
+from pirn.engine.admission.limited_admission import LimitedAdmission
 from pirn.engine.scheduling.ready_queue import ReadyQueue
 from pirn.engine.shed.shed import Shed
 
@@ -34,7 +34,7 @@ class TestWaitingIn(unittest.TestCase):
         shed = _shed(a, b)
         queue = ReadyQueue()
         queue.push_batch([(0, "a", "api"), (1, "b", "api")])
-        gate = LimitedAdmissionGate(ConcurrencyLimits(groups={"api": 1}))
+        gate = LimitedAdmission(ConcurrencyLimits(groups={"api": 1}))
 
         # Act
         admitted = queue.pop_admissible(gate, shed)

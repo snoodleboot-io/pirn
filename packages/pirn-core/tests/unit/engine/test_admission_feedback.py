@@ -13,8 +13,8 @@ from pirn.core.concurrency.concurrency_limits import ConcurrencyLimits
 from pirn.engine.admission.admission_event import AdmissionEvent
 from pirn.engine.admission.admission_observer import AdmissionObserver
 from pirn.engine.admission.admission_ticket import AdmissionTicket
-from pirn.engine.admission.limited_admission_gate import LimitedAdmissionGate
-from pirn.engine.admission.unbounded_admission_gate import UnboundedAdmissionGate
+from pirn.engine.admission.limited_admission import LimitedAdmission
+from pirn.engine.admission.unbounded_admission import UnboundedAdmission
 from pirn.engine.admission_feedback import AdmissionFeedback
 
 
@@ -45,7 +45,7 @@ class _Faulty(AdmissionObserver):
         raise RuntimeError("observer bug")
 
 
-def _admit_event(gate: UnboundedAdmissionGate) -> AdmissionEvent:
+def _admit_event(gate: UnboundedAdmission) -> AdmissionEvent:
     return AdmissionEvent(
         kind="admit",
         run_id="r",
@@ -65,14 +65,14 @@ def _admit_event(gate: UnboundedAdmissionGate) -> AdmissionEvent:
 
 class TestObserverInterface(unittest.TestCase):
     def test_hooks_are_no_ops_by_default(self) -> None:
-        event = _admit_event(UnboundedAdmissionGate())
+        event = _admit_event(UnboundedAdmission())
         observer = AdmissionObserver()
         self.assertIsNone(observer.on_admit(event))
         self.assertIsNone(observer.on_release(event))
 
     def test_event_is_frozen_and_compares_without_the_gate(self) -> None:
-        a = _admit_event(UnboundedAdmissionGate())
-        b = _admit_event(UnboundedAdmissionGate())
+        a = _admit_event(UnboundedAdmission())
+        b = _admit_event(UnboundedAdmission())
         self.assertEqual(a, b)
         self.assertNotIn("gate", repr(a))
         with self.assertRaises(AttributeError):
@@ -82,7 +82,7 @@ class TestObserverInterface(unittest.TestCase):
 class TestAdmissionFeedback(unittest.TestCase):
     def setUp(self) -> None:
         self.clock = _Clock()
-        self.gate = LimitedAdmissionGate(ConcurrencyLimits(max_in_flight=4, groups={"api": 2}))
+        self.gate = LimitedAdmission(ConcurrencyLimits(max_in_flight=4, groups={"api": 2}))
         self.recorder = _Recorder()
         self.feedback = AdmissionFeedback("run-1", self.gate, [self.recorder], clock=self.clock)
 

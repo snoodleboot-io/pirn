@@ -211,7 +211,7 @@ critique = LLMCall(context=ctx, llm=critic_llm,    _config=KnotConfig(id="critiq
 
 For a dynamic loop (unknown number of iterations), use an extensible Tapestry
 and have the critiquing knot register the next generator knot via
-`get_current_store()` — identical to the `agent_loop` example pattern.
+`Tapestry.current_store()` — identical to the `agent_loop` example pattern.
 
 ---
 
@@ -243,7 +243,7 @@ response: AgentResponse = await orchestrator.run()
 by name; then that specialist's `process(task=task)` is called.
 
 For a *dynamic* dispatcher that can change routing mid-run, implement a
-custom `Knot` that calls `get_current_store().register(next_specialist)` —
+custom `Knot` that calls `Tapestry.current_store().register(next_specialist)` —
 see `examples/llm_agent/agent_loop.py` for this pattern.
 
 ---
@@ -342,7 +342,7 @@ class ResearchSubAgent(SubTapestry):
 class TopLevelDecomposer(Knot):
     async def process(self, goal: str, llm, **_):
         sub_tasks = decompose(goal)   # your decomposition logic
-        store = get_current_store()
+        store = Tapestry.current_store()
         agents = [
             ResearchSubAgent(sub_task=t, llm=llm,
                              _config=KnotConfig(id=f"sub_{i}"))
@@ -730,14 +730,14 @@ Use pirn's extensible Tapestry: each agent knot decides at runtime which
 agent to register as the next node.
 
 ```python
-from pirn.tapestry import get_current_store
+from pirn.tapestry import Tapestry
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 class TriageAgent(Knot):
     async def process(self, message: str, llm, search_tool, **_):
         intent = classify_intent(message)   # lightweight local check
-        store = get_current_store()
+        store = Tapestry.current_store()
         if intent == "code":
             store.register(CodeAgent(task=message, llm=llm,
                                      _config=KnotConfig(id="code")))
@@ -1225,7 +1225,7 @@ per backend) were one-cycle shims over this pattern and are deleted (PIR-864).
 ### Caching — content-addressed result cache + semantic + prompt-cache passthrough
 
 `ResultCache.get_or_compute(payload, compute)` memoises idempotent tool calls
-and embedding lookups keyed off a `content_hash` of the inputs (mirrors the
+and embedding lookups keyed off a `ContentHasher.hash` of the inputs (mirrors the
 DAG's content addressing). `SemanticResultCache.get_or_compute_semantic(text,
 compute)` matches on embedding similarity using a caller-injected embedding fn
 (no backend). `PromptCachePassthrough` defers to a provider's native prompt
@@ -1245,9 +1245,9 @@ ADR "agents speaks core" (WS4a) retired the standalone span/callback plane
 `SpanEmittingToolInvocationHook` — removed after their one-cycle deprecation
 window, PIR-864) in favour of one call:
 `AgentCallRecorder.record(...)` emits a core `StatusEvent` — `run_id` sourced
-from `pirn.tapestry.current_run_id`, `knot_id` supplied by the caller (never
+from `pirn.tapestry.Tapestry.current_run_id`, `knot_id` supplied by the caller (never
 ambient) — through the run's own emitters
-(`pirn.tapestry.current_emitters`/`EmitterFanout.emit_status`), the same
+(`pirn.tapestry.Tapestry.current_emitters`/`EmitterFanout.emit_status`), the same
 stream the engine's own per-knot lifecycle transitions use. `extra` carries
 whatever span-like fields the call wants to report (`kind`, `model`,
 `tokens`, `cost`, `latency`, …); `OpenTelemetryEmitter` renders a non-empty

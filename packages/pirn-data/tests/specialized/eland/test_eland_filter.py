@@ -11,7 +11,7 @@ import unittest
 from typing import Any
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -38,7 +38,7 @@ def _make_frame(uri: str = "elasticsearch://x") -> ElandDataFrame:
 
 class TestElandFilter(unittest.IsolatedAsyncioTestCase):
     async def test_invokes_predicate_and_indexes_frame(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit() -> ElandDataFrame:
             return _make_frame()
 
@@ -60,7 +60,7 @@ class TestElandFilter(unittest.IsolatedAsyncioTestCase):
         assert out.source_uri == "elasticsearch://x"
 
     async def test_preserves_provenance_metadata(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit() -> ElandDataFrame:
             return _make_frame(uri="elasticsearch://cluster/index")
 
@@ -78,11 +78,11 @@ class TestElandFilter(unittest.IsolatedAsyncioTestCase):
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_predicate_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_frame() -> ElandDataFrame:
             return _make_frame()
 
-        @knot
+        @KnotFactory.knot
         async def emit_pred() -> Any:
             return lambda df: "mask"
 
@@ -95,7 +95,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):
     async def _make_knot(self, **kwargs: Any) -> ElandFilter:
-        @knot
+        @KnotFactory.knot
         async def upstream() -> ElandDataFrame:
             return _make_frame()
 

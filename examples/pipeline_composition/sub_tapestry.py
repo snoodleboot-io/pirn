@@ -32,7 +32,7 @@ from typing import Any
 from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.core.run_result import RunResult
@@ -89,7 +89,7 @@ class Notification:
 # ----------------------------------------------------------------- inner knots (validation)
 
 
-@knot
+@KnotFactory.knot
 async def check_inventory(order: Order) -> InventoryCheck:
     """Simulates an inventory service lookup; raises if any items are missing."""
     available_catalog = {"widget", "gadget", "doohickey", "thingamajig"}
@@ -103,7 +103,7 @@ async def check_inventory(order: Order) -> InventoryCheck:
     )
 
 
-@knot
+@KnotFactory.knot
 async def authorize_payment(order: Order) -> PaymentAuth:
     """Simulates a payment gateway call; raises if authorization is declined."""
     if order.total >= 10_000:
@@ -118,7 +118,7 @@ async def authorize_payment(order: Order) -> PaymentAuth:
 # ----------------------------------------------------------------- inner knots (fulfillment)
 
 
-@knot
+@KnotFactory.knot
 async def pack_order(order: Order, inventory: InventoryCheck) -> PackingSlip:
     """Generates a packing slip from confirmed inventory."""
     weight = len(inventory.items_found) * 0.4
@@ -129,7 +129,7 @@ async def pack_order(order: Order, inventory: InventoryCheck) -> PackingSlip:
     )
 
 
-@knot
+@KnotFactory.knot
 async def ship_order(slip: PackingSlip, carrier: str) -> ShipmentLabel:
     """Books the shipment and returns a tracking number."""
     return ShipmentLabel(
@@ -168,7 +168,7 @@ class FulfillOrder(SubTapestry):
 # ----------------------------------------------------------------- outer knots
 
 
-@knot
+@KnotFactory.knot
 async def notify_customer(order: Order, fulfillment: ShipmentLabel) -> Notification:
     """Sends a dispatch notification once fulfillment is confirmed."""
     msg = (

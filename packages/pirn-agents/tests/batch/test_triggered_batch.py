@@ -5,10 +5,10 @@ One batch runs per trigger fire; each run yields a :class:`BatchProgress` whose
 receives the fire ordinal so each run can pull fresh data. Stub doubles keep it
 deterministic.
 
-The driver semantics borrowed from :func:`pirn.triggers.trigger.run_forever` — the
+The driver semantics borrowed from :meth:`pirn.triggers.trigger.Trigger.run_forever` — the
 trigger is always closed on exit, and ``on_result``/``on_error`` observe each
 run — are asserted here too, including the one place this deliberately departs
-from ``run_forever``: a ``CancelledError`` is re-raised rather than handed to
+from ``Trigger.run_forever``: a ``CancelledError`` is re-raised rather than handed to
 ``on_error``, so cancellation is never swallowed by an observer.
 """
 

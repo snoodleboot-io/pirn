@@ -9,21 +9,21 @@ fire). It owns no scheduling itself; the trigger decides *when* and this decides
 *what*, so a cron/interval schedule and an event source drive the same batch with
 no code change.
 
-The loop takes its semantics from :func:`pirn.triggers.trigger.run_forever`, with
+The loop takes its semantics from :meth:`pirn.triggers.trigger.Trigger.run_forever`, with
 optional ``on_result``/``on_error`` callbacks observing each run. Trigger
-lifecycle is the one place it deliberately does not: ``run_forever`` closes the
+lifecycle is the one place it deliberately does not: ``Trigger.run_forever`` closes the
 trigger on every exit path, whereas this leaves a trigger the caller
 constructed open unless ``owns_trigger=True`` hands it over. Closing is terminal
 for both triggers in this package — a closed ``IntervalTrigger`` yields nothing
 and a closed ``EventTrigger`` can never be fed again — so closing one the caller
 still holds turns a second run into a silent no-op or a deadlock. Ownership is
-therefore explicit and defaults to the caller. It cannot *be* ``run_forever``, which calls
+therefore explicit and defaults to the caller. It cannot *be* ``Trigger.run_forever``, which calls
 ``tapestry.run(request)`` — a ``MapAgent`` is not a ``Tapestry`` (it has no
 terminals), and this must stay an ``AsyncIterator[BatchProgress]`` because
 streaming per-fire progress to its caller is its whole public contract, whereas
-``run_forever`` returns ``None``.
+``Trigger.run_forever`` returns ``None``.
 
-One deliberate departure: ``run_forever`` routes every ``BaseException`` to
+One deliberate departure: ``Trigger.run_forever`` routes every ``BaseException`` to
 ``on_error``, so an observer silently swallows cancellation. Here
 ``asyncio.CancelledError`` is re-raised before ``on_error`` is consulted.
 
@@ -119,7 +119,7 @@ class TriggeredBatch:
                 Defaults to ``False``: the caller constructed the trigger and
                 still holds it, so it stays usable for another run. Pass
                 ``True`` for the fire-and-forget shape — a trigger constructed
-                inline purely to drive this batch — to get ``run_forever``'s
+                inline purely to drive this batch — to get ``Trigger.run_forever``'s
                 always-close semantics and no leak if the consumer walks away.
                 Closing is terminal for both triggers in this package, so an
                 owned trigger must not be reused.
@@ -203,7 +203,7 @@ class TriggeredBatch:
         another run. When ``owns_trigger`` was set, the trigger is instead
         closed on every exit path (normal end of stream, a propagating error,
         cancellation, or the consumer abandoning this generator), matching
-        ``run_forever``; a failure raised by ``close()`` itself is suppressed so
+        ``Trigger.run_forever``; a failure raised by ``close()`` itself is suppressed so
         it cannot mask whatever ended the loop.
 
         Yields:
@@ -218,7 +218,7 @@ class TriggeredBatch:
                 try:
                     progress = await self._run_once(ordinal)
                 except asyncio.CancelledError:
-                    # run_forever would hand this to on_error; cancellation must
+                    # Trigger.run_forever would hand this to on_error; cancellation must
                     # not be observable-and-swallowed, so it always propagates.
                     raise
                 except BaseException as exc:

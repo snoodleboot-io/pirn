@@ -6,7 +6,7 @@ import unittest
 
 from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.tapestry import Tapestry
 
 from pirn_agents.context.token_count_knot import TokenCountKnot
@@ -16,11 +16,11 @@ from tests.context._stubs import StubWordTokenEstimator
 
 
 def _make_knot() -> TokenCountKnot:
-    @knot
+    @KnotFactory.knot
     async def _c() -> TokenCounter:
         return TokenCounter(estimator=StubWordTokenEstimator())
 
-    @knot
+    @KnotFactory.knot
     async def _m() -> tuple:
         return ()
 

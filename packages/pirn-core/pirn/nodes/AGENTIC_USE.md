@@ -25,8 +25,8 @@ pirn/nodes/
 │   └── gate.py          Gate                — pass input through if predicate is truthy; else Skipped
 ├── branch/
 │   └── branch.py        Branch              — route one input to exactly one of N named output paths
-├── continuation.py      WithContinuation    — run a knot then spawn successors from a pool at run time
-│                        continues()         — convenience wrapper: attach a continuation to an existing knot
+├── with_continuation.py WithContinuation    — run a knot then spawn successors from a pool at run time
+│                        WithContinuation.attach() — convenience wrapper: attach a continuation to an existing knot
 │                        Next                — dataclass describing one successor action + inputs
 ├── sub_tapestry.py      SubTapestry         — knot whose body is a complete inner tapestry; → see AGENTIC_USE.md in guides
 └── loop_sub_tapestry.py LoopSubTapestry     — iterative SubTapestry; implement step() and fold()
@@ -160,8 +160,8 @@ The `Map` marker expects the source knot to produce a `list` or `tuple` at run t
 - **`Gate` converts `Err` to `Skipped`, not the other way.** A closed gate produces `Skipped`, not `Err`. Downstream knots with `SKIP_IF_PARENT_FAILED` policy are skipped — not failed.
 - **`Branch` registers N companion `BranchOutput` knots automatically.** They get ids `{branch_id}:{name}`. These appear in `result.outputs` and lineage records.
 - **`Aggregator.combine` may be async.** Both sync and async callables are supported and detected automatically at construction.
-- **`WithContinuation` requires an extensible tapestry.** It calls `get_current_store()` to register successors mid-run. Use `tapestry.run(extensible=True)` — only the `InMemoryStore` backend supports this.
-- **`continues(knot, fn=..., pool=...)` is syntactic sugar.** It wraps `knot` in a `WithContinuation` and returns the wrapper. The original knot id is preserved as the wrapped parent.
+- **`WithContinuation` requires an extensible tapestry.** It calls `Tapestry.current_store()` to register successors mid-run. Use `tapestry.run(extensible=True)` — only the `InMemoryStore` backend supports this.
+- **`WithContinuation.attach(knot, fn=..., pool=...)` is syntactic sugar.** It wraps `knot` in a `WithContinuation` and returns the wrapper. The original knot id is preserved as the wrapped parent.
 - **`Sink` has no enforcement on return type.** The `None` convention is by contract, not by runtime check. Downstream knots wired to a `Sink` will receive `None`.
 
 ---
@@ -179,7 +179,7 @@ The `Map` marker expects the source knot to produce a `list` or `tuple` at run t
 | Fold a list to one value | `Reduce(of=list_knot, combine=fn, initial=v, _config=...)` |
 | Define a pipeline entry point | `class MySource(Source): async def process(self, **_) -> T` |
 | Define a pipeline terminal | `class MySink(Sink): async def process(self, data: T, **_) -> None` |
-| Spawn successors at run time | `continues(knot, fn=continuation_fn, pool={"action": KnotClass})` |
+| Spawn successors at run time | `WithContinuation.attach(knot, fn=continuation_fn, pool={"action": KnotClass})` |
 | Inner pipeline as one node | subclass `SubTapestry` — see [guides/sub-tapestry.md](../../docs/guides/sub-tapestry.md) |
 | Iterative / agentic loop | subclass `LoopSubTapestry[S]` — see [guides/agentic-loops.md](../../docs/guides/agentic-loops.md) |
 

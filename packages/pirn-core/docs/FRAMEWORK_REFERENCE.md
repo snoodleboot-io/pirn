@@ -30,7 +30,7 @@ A knot is constructed with **keyword arguments that are introspected against its
 - Framework metadata travels through one reserved kwarg: `_config=KnotConfig(id=...)`. The `id` is **required** — nothing is auto-generated.
 - `process()` **must** accept `**_: Any` (enforced by `Knot.__init_subclass__`) and **must not** declare `*args`. The engine calls `process()` with keyword arguments only.
 
-**A schema can stand in for the signature.** `KnotFactory.from_schema(name, input_schema, process)` / `@knot(input_schema=...)` declare the inputs of a knot that has no Python signature (an MCP-declared tool) with a JSON object schema; `Knot._input_schema_override` carries it and `JsonSchemaTypeBuilder` turns each property into the `TypeAdapter` `validate_io` applies. The inverse, `Knot.input_json_schema()`, renders any knot's hinted inputs as the same kind of schema — the source for model-facing declarations.
+**A schema can stand in for the signature.** `KnotFactory.from_schema(name, input_schema, process)` / `@KnotFactory.knot(input_schema=...)` declare the inputs of a knot that has no Python signature (an MCP-declared tool) with a JSON object schema; `Knot._input_schema_override` carries it and `JsonSchemaTypeBuilder` turns each property into the `TypeAdapter` `validate_io` applies. The inverse, `Knot.input_json_schema()`, renders any knot's hinted inputs as the same kind of schema — the source for model-facing declarations.
 
 **The `Knot | T` union is load-bearing.** When a `process()` parameter is hinted `Knot | T`, passing a scalar `T` causes the framework to auto-wrap it in a `Parameter(default=value)` **graph node** (`core/knot.py`, the `_coercible_params` path). This is what turns an externally-constructed resource into a first-class node with lineage — rather than invisible config. This is the entire basis of the **vending-knot idiom** (§4.1).
 
@@ -60,7 +60,7 @@ class LLMProvider(PirnOpaqueValue):
 
 - **No `typing.Protocol`.** Core has zero. Structural typing gives no `is_instance_schema` (breaks opaque values), and `@runtime_checkable` + `isinstance` is signature-blind (matches any object with the attribute *names*).
 - **No `abc.ABC`/`@abstractmethod`.** The house style is the `NotImplementedError` base class. (ABC is tolerated but not used in core.)
-- Docstrings sometimes say "protocol" informally (e.g. `triggers/base.py`) — the *code* is always a `NotImplementedError` base class.
+- Docstrings sometimes say "protocol" informally (e.g. `triggers/trigger.py`) — the *code* is always a `NotImplementedError` base class.
 - Stateful interfaces additionally inherit `PirnOpaqueValue`.
 
 **Three shapes to distinguish:**
@@ -79,7 +79,7 @@ class LLMProvider(PirnOpaqueValue):
 | `Ok[T]` / `Err` / `Skipped` | value-object | — | the outcome algebra; `Result = Ok[T] \| Err \| Skipped` (`core/result.py`). **Everything that can succeed/fail/skip uses this — do not invent parallel status enums.** |
 | `PirnOpaqueValue` | mixin | — | `is_instance_schema` + `_pirn_audit_dict()`; the live-value contract |
 | `Parameter` | concrete Knot | `Knot` | wraps a scalar as a graph node (the `Knot \| T` coercion target) |
-| `KnotFactory` / `@knot` | factory | — | `core/knot_factory.py` — a function's signature becomes a Knot's input contract; `from_schema(name, input_schema, process)` / `@knot(input_schema=)` do the same from a JSON object schema |
+| `KnotFactory` / `@KnotFactory.knot` | factory | — | `core/knot_factory.py` — a function's signature becomes a Knot's input contract; `from_schema(name, input_schema, process)` / `@KnotFactory.knot(input_schema=)` do the same from a JSON object schema |
 | `JsonSchemaTypeBuilder` | helper | — | `core/json_schema_type_builder.py` — JSON-schema fragment → Python type for `TypeAdapter` (scalars, enum/const, nullable, anyOf/oneOf, arrays, objects as `TypedDict`, local `$ref`, bounds). **Do not write a second schema→validator or signature→schema compiler.** |
 | `KnotConfig` | config | — | `id` (required), `validate_io`, `error_policy`, `transport`, `concurrency_group`, `timeout`, `retry` |
 | `KnotRetryPolicy` | value-object | — | `core/knot_retry_policy.py` — frozen backoff schedule (`max_attempts`, `base_delay`, `max_delay`, `multiplier`, `jitter`, `max_retry_after`) plus `is_retryable` / `retry_after` predicates over the failed attempt's `ExceptionRecord`. Set on `KnotConfig.retry`; the **engine** runs the loop (§3.5). `run(attempt, *, retry_on=, retry_after_hint=, sleep=, rng=)` drives the same schedule for a call *below* the knot boundary (an HTTP POST, an embedding batch, a reconnect). **Do not write a retry loop inside a knot, or a second backoff implementation anywhere.** |
@@ -87,7 +87,7 @@ class LLMProvider(PirnOpaqueValue):
 | `RunNesting` | value-object | — | `core/run_nesting.py` — where a run sits in the nested-run tree (`depth`, enclosing `run_ids`, container `path`, tightest `max_depth`); `RunNesting.current()` inside a knot. `Tapestry(max_nesting_depth=n)` turns the guard on: `NestingDepthExceededError` / `NestedRunCycleError` as the container knot's `Err`. **Do not carry a recursion counter through agent code.** |
 | `ErrorPolicy` | enum/policy | — | how upstream `Err` propagates (`RECEIVE_ERRORS` etc.) |
 | `IdentityResolver` | interface-base | — | `core/identity/` — `resolve()` who's running; `chained/env/os/static/null` implementations |
-| `content_hash(value, *, strict=False)` | function | — | `core/hashing.py`, backed by `_ContentHasher` — the one content-addressing seam (`sha256:`-prefixed). Default is best-effort: an opaque leaf degrades to a `sha256:unhashable:<type>` sentinel. `strict=True` raises `UnhashableValueError` (`PirnError, TypeError`) naming the innermost offending type instead — for a caller (a cache key, a dedup key) where the sentinel's silent collision risk is unacceptable, not just an inconvenience. (ADR agents-speaks-core WS2 part 2) |
+| `ContentHasher.hash(value, *, strict=False)` | static method | — | `core/content_hasher.py` — the one content-addressing seam (`sha256:`-prefixed). Default is best-effort: an opaque leaf degrades to a `sha256:unhashable:<type>` sentinel. `strict=True` raises `UnhashableValueError` (`PirnError, TypeError`) naming the innermost offending type instead — for a caller (a cache key, a dedup key) where the sentinel's silent collision risk is unacceptable, not just an inconvenience. (ADR agents-speaks-core WS2 part 2) |
 
 ### 3.2 Nodes — `nodes/`
 All subclass `Knot`. These are the graph-shape primitives.
@@ -110,10 +110,10 @@ All subclass `Knot`. These are the graph-shape primitives.
 |---|---|---|
 | `Trigger` | interface-base | `name` (prop), `stream() -> AsyncIterator[RunRequest]`, `async close()` — all raise `NotImplementedError` |
 | `Cron` / `Http` / `Kafka` / `Valkey` triggers | concrete | async generators yielding one `RunRequest` per event |
-| `run_forever(trigger, tapestry, *, on_result, on_error)` | driver fn | pulls requests, calls `tapestry.run` per event, `close()`s on exit — an allowlisted module-level driver (`scripts/check_conventions.py`, PIR-869) |
-| `StreamingSource` (`streaming/base.py`) | interface-base | streaming input adapters; `trigger_adapter.py` bridges a stream to the trigger loop |
+| `Trigger.run_forever(self, tapestry, *, on_result, on_error)` | driver method | pulls requests, calls `tapestry.run` per event, `close()`s on exit |
+| `StreamingSource` (`streaming/streaming_source.py`) | interface-base | streaming input adapters; `trigger_adapter.py` bridges a stream to the trigger loop |
 
-**Idiom (the trigger loop):** a `Trigger` is an async generator of `RunRequest`s; `run_forever` is the runtime that consumes them and runs the tapestry. Downstream event-driven agents should implement `Trigger`, not hand-roll a consume loop.
+**Idiom (the trigger loop):** a `Trigger` is an async generator of `RunRequest`s; `Trigger.run_forever` is the runtime that consumes them and runs the tapestry. Downstream event-driven agents should implement `Trigger`, not hand-roll a consume loop.
 
 ### 3.4 Transport + Serializers — `core/transport/`
 | Type | Kind | Contract |
@@ -132,7 +132,7 @@ All subclass `Knot`. These are the graph-shape primitives.
 | `Engine` (`engine.py`) | engine | drives `Knot.__call__`, applies `ErrorPolicy`, subscribes emitters |
 | `GovernedDispatch` (`governed_dispatch.py`) | engine | the dispatch path between `Engine` and `Dispatcher`: applies `KnotConfig.timeout` (`asyncio.wait_for` → `Err(KnotTimeoutError)`) and `KnotConfig.retry` (re-dispatch after backoff on the loop; attempt count → `KnotLineage.extra["attempts"]`). Dispatchers stay one `dispatch()`; `Knot.__call__` stays one attempt |
 | `Shed` / `Edge` (`shed/`) | engine | the resolved execution graph the engine walks |
-| `AdmissionGate` (`admission/`) | interface-base | `has_capacity` / `try_admit` / `release` / `wait_for_release` plus `current_limit(group)` / `set_limit(group, n)` for live caps; `UnboundedAdmissionGate` / `LimitedAdmissionGate` impls, `ConcurrencyLimits` is the public knob |
+| `Admission` (`admission/`) | interface-base | `has_capacity` / `try_admit` / `release` / `wait_for_release` plus `current_limit(group)` / `set_limit(group, n)` for live caps; `UnboundedAdmission` / `LimitedAdmission` impls, `ConcurrencyLimits` is the public knob |
 | `AdmissionObserver` / `AdmissionEvent` (`admission/`) | interface-base / value-object | hears every admission and release (queue depth, wait, hold, outcome, the gate); attach via `Tapestry(admission_observers=)`. `AdmissionFeedback` (`engine/`) builds the events. **An adaptive concurrency controller is an observer calling `event.gate.set_limit`, not a semaphore of its own.** |
 | `ExecutionPlane` (`core/execution_plane.py`) | value-object | the scheduling half of a run — `dispatcher`, `gate` + `limits`, `admission_observers`, `replay`, `identity_resolver` — published by `Tapestry.run` for the run's duration (`ExecutionPlane.current()`) and **inherited by every inner run** for whatever the inner tapestry did not name: the gate by identity, so `ConcurrencyLimits` are one budget across the run tree. Container knots (`Knot._holds_admission_slot = False`: `SubTapestry`, loop iterations) take no slot and may not carry a `concurrency_group`. Per-container overrides: `SubTapestry._run_inner(dispatcher=, concurrency=, admission_observers=)` or the `_inner_dispatcher` / `_inner_concurrency` / `_inner_admission_observers` hooks (ADR WS0b) |
 
@@ -146,7 +146,7 @@ All subclass `Knot`. These are the graph-shape primitives.
 | `Emitter` (`emitters/emitter.py`) | interface-base | receives status/lineage events; `log`/`otel`/`kafka`/`valkey`/`webhook` impls; `emitter_error_policy` governs failures. **`on_knot_result(knot_id, result, lineage)`** (ADR WS0b) is the live per-knot stream: awaited by the engine the moment a knot settles, with the full `Ok`/`Err`/`Skipped` (the `Err`'s rebound `ExceptionRecord` included) and its lineage row, before the knot's children start — the hook a fan-out consumer streams per-item outcomes from before the join completes. No-op default; same error policy as `on_lineage` |
 | `StatusManager` / `StatusEvent` (`managers/`) | engine/value | per-knot lifecycle state + event stream |
 | `ExceptionRecord` (`managers/exception_record.py`) | value-object | `ExceptionRecord.for_knot(id, exc)` — the payload inside `Err` |
-| `redact` (`managers/redact.py`) | helper | scrubs secrets from emitted records |
+| `TracebackRedactor` (`managers/traceback_redactor.py`) | helper | scrubs secrets from emitted records |
 
 **Idiom:** observability is a subscription — implement `Emitter` and attach it; don't thread logging through knot code.
 
@@ -218,10 +218,10 @@ Return/branch on `Ok \| Err \| Skipped`. `Err` carries an `ExceptionRecord`. Nev
 - **Is it an optional facet of a type?** → a capability base class (§4.2), not a `Protocol`.
 - **Is it an immutable data shape?** → frozen dataclass, `PirnOpaqueValue` if it carries non-pydantic fields, with `__post_init__` invariants.
 - **Does it move values between knots / persist them?** → implement `DataTransport` / `DataStore`, don't hand-roll IO in `process()`.
-- **Is it event-driven?** → implement `Trigger` and use `run_forever`, don't hand-roll a consume loop.
+- **Is it event-driven?** → implement `Trigger` and use `Trigger.run_forever`, don't hand-roll a consume loop.
 - **Is it parallel execution?** → compose a `Dispatcher`, don't re-implement concurrency.
 - **Does something succeed/fail/skip?** → `Ok \| Err \| Skipped`, not a new enum.
-- **Is it pure logic with no state?** → a plain class with methods; a module-level function only when it is a documented public entry point on the `scripts/check_conventions.py` allowlist (PIR-869) — a genuine decorator, an ambient accessor or a driver. Anything else is a `@staticmethod`, optionally re-exported under a bare alias for a name that predates the rule.
+- **Is it pure logic with no state?** → a plain class with methods; a module-level function only when it is a documented public entry point on the `scripts/check_conventions.py` allowlist (PIR-869) — a genuine decorator, an ambient accessor or a driver. Anything else is a `@staticmethod`; a replaced name is deleted, never kept as a bare alias (alpha policy, `docs/guides/versioning.md`).
 
 ---
 
@@ -237,12 +237,10 @@ parallel KV stores reinventing `DataStore`, a second observability plane with
 no `run_id`/`knot_id`). The ADR "agents speaks core" (2026-09-13, workstreams
 WS0…WS6b) is what actually closed nearly all of it, seam by seam; this
 section is organized by subsystem rather than by workstream so a reader can
-find "what changed" without reconstructing which PR did it. Deprecated names
-were one-cycle shims (`DeprecationWarning` on construction); **PIR-864
-closed that cycle** — every name marked "Deprecated" below has been deleted
-outright (its entry now reads "Deleted"), except the handful explicitly
-marked "kept" or "deferred" with a reason. `CHANGELOG.md`'s "Removed"
-section for this release is the authoritative name → replacement table.
+find "what changed" without reconstructing which PR did it. A replaced name
+is deleted outright — pirn is alpha, so nothing is deprecated first
+(`docs/guides/versioning.md`) — and `CHANGELOG.md`'s "Removed" / "Renamed"
+sections are the authoritative name → replacement table.
 
 ### Retry, timeout, and nesting (core seams, WS0)
 
@@ -299,16 +297,15 @@ exception roots the ADR found now also subclass `pirn.exceptions.pirn_error.Pirn
 `CircuitOpenError`, `LLMProviderError`, `RateLimitSignal`) on `PirnError` too,
 keeping each builtin base callers catch, and deleted the orphaned
 `KeyIndexUnreadableError`; `tests/test_core_vocabulary_ratchet.py` holds the
-inventory at empty. `content_hash` (§4.4) is the one
-hashing path for new code; `ContentAddress`/`content_address()` were a
-one-cycle deprecated wrapper around it, deleted by PIR-864 — every caller now
-calls `content_hash(value, strict=True)` directly.
+inventory at empty. `ContentHasher.hash` (§4.4) is the one
+hashing path; `ContentAddress`/`content_address()` are deleted (PIR-864) and
+every caller calls `ContentHasher.hash(value, strict=True)` directly.
 
 **Resolved (PIR-872):** `BatchItemStatus` is deleted — `BatchItemResult.outcome` is the
 item's core `Result` (`Ok`, `Err` — a timeout is an `Err` whose error type is
 `KnotTimeoutError` — or `Skipped(reason="resumed")`). `CanonicalJson`/`OpaquePolicy` are deleted (PIR-872): their last callers
 (`determinism/content_digest.py`, `evaluation/trajectory_call_key.py`) call
-`content_hash(value, strict=True)` directly, like `IdempotencyKeyAssigner` and
+`ContentHasher.hash(value, strict=True)` directly, like `IdempotencyKeyAssigner` and
 `AgentKnotIdFactory` already did.
 
 ### Memory, sessions, and determinism (WS3, parts 1-4)
@@ -346,8 +343,8 @@ own `RunResumer`/`ApprovalResumer` are the first to declare them directly.
 Deleted (PIR-864): `RunCheckpoint`/`RunCheckpointer`/`SessionStore`/
 `InMemorySessionStore`/`PersistedSessionStore`/`ThreadRepository`/
 `MemoryStoreKeyIndex`, `CassetteStore`/`InMemoryCassetteStore`/
-`FileCassetteStore`/`TrajectoryRecorder`. `TraceDiffer` was never a shim (no
-`DeprecationWarning`, no listed replacement) and is unaffected.
+`FileCassetteStore`/`TrajectoryRecorder`. `TraceDiffer` is a live class and
+stays.
 
 ### Observability (WS4a)
 
@@ -421,11 +418,11 @@ The synchronous `invalidate`/`purge_expired`/`__len__` bridges are deleted
 (PIR-872).
 
 **Resolved (PIR-866), superseded by full deletion (PIR-864).** PIR-866 first
-turned `BackpressureSemaphore`/`Bulkhead` into `AdmissionGate` subclasses
-delegating to a real `LimitedAdmissionGate` through a shared
+turned `BackpressureSemaphore`/`Bulkhead` into `Admission` subclasses
+delegating to a real `LimitedAdmission` through a shared
 `pirn_agents.performance._backpressure_admission._BackpressureAdmission` (the
 one place `max_queue_depth`/`acquire_timeout` — backpressure knobs core's
-`AdmissionGate` has no equivalent for outside a running `Tapestry` — were
+`Admission` has no equivalent for outside a running `Tapestry` — were
 still implemented directly), and gave `ConcurrencyConfig`/`BulkheadConfig` a
 `to_concurrency_limits()` bridge, while documenting a blocker: three
 `specializations/` pipelines plus `agent/parallel_tool_executor.py` read
@@ -452,9 +449,7 @@ to read the class-level default now default to a plain literal `8`.
 attach a concurrency group to — bounds its per-item concurrency with a plain
 `asyncio.Semaphore(concurrency)` instead (`concurrency: int = 8`); wiring
 `RunEval` onto the engine itself (a knot per eval item under an `Aggregator`)
-remains open, deliberately out of this shim-deletion lane's scope — it is an
-architecture change to the evaluation harness, not a shim removal, and is
-flagged here for whichever lane picks it up next.
+is an architecture change to the evaluation harness and remains open.
 
 **Resolved (PIR-870), three admission/dispatch refinements noted as future
 work above WS0b landed:**
@@ -481,9 +476,8 @@ work above WS0b landed:**
 directly. `LoopSubTapestry.astep`/`afold` give an awaitable loop step.
 `ResolvedValueKnot`/`MessagesPassthrough`'s constant-seed use moved onto
 `core/parameter.py`'s `Parameter` (16 call sites across 12 files); both
-classes stayed importable for one deprecation cycle and PIR-864 deleted them
-outright. `ConsensusAggregator` → `ConsensusPipeline`, likewise deleted after
-its one cycle. All 12 inventoried imperative
+classes are deleted (PIR-864). `ConsensusAggregator` is deleted in favour of
+`ConsensusPipeline`. All 12 inventoried imperative
 loops are now `LoopSubTapestry`s: `RoundRobinReview`/`RetryOnParseFailure`
 (WS5a); `SelfAskPipeline`, `PromptChainPipeline`, `ReflexionPipeline` (its LLM
 call gated by a `Check`→`Gate` pair so a successful attempt never pays for
@@ -604,9 +598,9 @@ reads; every name is now aliased into that same registry at `pirn_agents`
 import time (`AgentPatternRegistry.register_with_core_registry`), so a core
 YAML document's `callable: react` resolves exactly like `.pattern("react")`
 does. `AgentSpec` is now a projection of core's `PipelineSpec`
-(`to_pipeline_spec`/`from_pipeline_spec`); `AgentSpecLoader` accepts a core
-pipeline document directly, deprecating the old flat-dict-only dialect one
-cycle. `AgentBuilder.build()`'s runtime seed is bound as a named core
+(`to_pipeline_spec`/`from_pipeline_spec`); `AgentSpecLoader` reads a core
+pipeline document directly; the old flat-dict-only dialect is deleted
+(PIR-864). `AgentBuilder.build()`'s runtime seed is bound as a named core
 `Parameter` instead of a baked constructor kwarg. See
 `examples/agents_core_pipeline/` for `tapestry-check` validating an agent
 pipeline written entirely in core's YAML vocabulary (WS6a).
@@ -631,8 +625,7 @@ reply text, `frame` carries `finish_reason`/`usage`/`cost`/`tool_calls`/
 `model`/`provider`; the pre-ADR field names stay readable as properties.
 `AgentContext` (a flat frozen dataclass with no frame/lineage descriptor) is
 replaced by `ConversationPayload = Payload[ConversationFrame, tuple[AgentMessage, ...]]`;
-`AgentContext` stayed importable for one cycle as a deprecated subclass and
-PIR-864 deleted it outright.
+`AgentContext` is deleted (PIR-864).
 `docs/domains/agents.md`, `docs/guides/agentic-loops.md`, and every
 `pirn_agents` authoring doc (`AGENTIC_USE.md` ×2, `PATTERNS.md`, `TOOLS.md`,
 `BUILDER.md`) are rewritten in this vocabulary — core's own nouns first
@@ -646,26 +639,44 @@ vocabulary, every constructor sample verified against the real signature
 (rightly avoids a `Trigger` loop), and raise-site exceptions kept orthogonal
 to `ExceptionRecord`.
 
-### House conventions — the three core-side decisions (PIR-869)
+### House conventions — core-side decisions (PIR-869, PIR-872)
 
-- **Module-level functions are an enumerated exemption.** The only bare
-  module-level `def`s in core are the documented public entry points listed in
-  `scripts/check_conventions.py` (`get_current_store`, `current_tapestry`,
-  `current_run_id`, `discover_installed_domains`, `run_forever`, `run_stream`,
-  `knot`); the conventions gate counts every other one, and the core baseline
-  is 0. Every former wrapper is now a static/class method with the old public
-  name kept as a bare alias: `content_hash = _ContentHasher.hash`,
-  `detect_cycle = CycleDetector.detect`, `load_pipeline = PipelineLoader.load_yaml`,
-  `validate_tapestry = _TapestryValidator.validate`,
-  `redact_common_secrets = _TracebackRedactor.redact_common_secrets`,
-  `continues = WithContinuation.attach`, `connection_config =
-  ConnectionConfigDecorator.apply`, `is_async_callable = AsyncCallable.is_async_callable`,
-  `extract_knot_source = KnotSourceRecord.from_knot`,
-  `replay_run`/`compare_runs = KnotDiff.replay_run`/`.compare_runs`,
-  `register_celery_worker_task = CeleryDispatcher.register_worker_task`, the
-  viz aliases (`mermaid_for_*`, `html_for_*`, `scan_folder`,
-  `generate_explorer_html`). The console scripts point at
-  `TapestryCheckCli.main`, `ExploreCli.main` and `ImportMigrationCli.main`.
+- **Core has no module-level functions (PIR-869, closed by PIR-872).** Every
+  former module-level function is a method on its owning class, and no bare
+  alias to the old name remains (alpha policy: delete, never deprecate). The
+  ambient accessors are `Tapestry.current()`, `Tapestry.current_store()` and
+  `Tapestry.current_run_id()` (with `Tapestry.current_emitters()` /
+  `Tapestry.current_emitter_error_policy()`); the drivers are the instance
+  methods `trigger.run_forever(tapestry, *, on_result, on_error)` and
+  `source.run_stream(tapestry, *, on_result, on_error, extra_parameters)`;
+  domain discovery is `DomainDiscovery.discover_installed_domains()`; the
+  decorator is `@KnotFactory.knot` (also `@KnotFactory.knot(input_schema=...)`).
+  The former wrappers are called in class form: `ContentHasher.hash`
+  (`core/content_hasher.py`), `CycleDetector.detect`,
+  `PipelineLoader.load_yaml`, `TapestryValidator.validate`
+  (`check/tapestry_validator.py`), `TracebackRedactor.redact_common_secrets`
+  (`managers/traceback_redactor.py`), `WithContinuation.attach`
+  (`nodes/with_continuation.py`), `@ConnectionConfigDecorator.apply`,
+  `AsyncCallable.is_async_callable`, `KnotSourceRecord.from_knot`,
+  `KnotDiff.replay_run` / `KnotDiff.compare_runs`,
+  `CeleryDispatcher.register_worker_task`, `MermaidRenderer.for_tapestry` /
+  `.for_run`, `TapestryHtmlRenderer.for_tapestry` / `.for_run`,
+  `TapestryGraphScanner.scan`, `ExplorerHtmlGenerator.generate`. The core
+  entries of `scripts/check_conventions.py`'s module-level-function allowlist
+  are gone, and the core conventions baseline is 0 in every category. The
+  console scripts point at `TapestryCheckCli.main` and `ExploreCli.main`.
+- **Names and constants (PIR-872).** `*Gate` is reserved for `Gate`
+  subclasses: the admission interface is `Admission`
+  (`engine/admission/admission.py`) with `LimitedAdmission` and
+  `UnboundedAdmission`, next to `ChainedAdmission`. Class-level configuration
+  is a lowercase `ClassVar`: `InMemoryDataStore.default_max_values`,
+  `InMemoryHistory.default_max_runs`, `InvocationIdentity.uncomparable_marker`.
+- **Deleted, not deprecated (PIR-872).** The `pirn/emitters/base.py`,
+  `pirn/triggers/base.py` and `pirn/streaming/base.py` module shims, the
+  `pirn.domains.*` import shim and its `pirn-migrate-imports` codemod
+  (`pirn/_migrate/`), and the `Knot._deprecated_since` /
+  `_deprecation_notice` construction-warning seam (with its last user,
+  `pirn_data`'s `ScdType1Overwrite` — use `MergeUpsert`).
 - **`_CloudObjectStore` composes over `ObjectStore`.** `S3DataStore`,
   `GCSDataStore` and `AzureBlobDataStore` no longer open an SDK client per
   call: each lazily builds its connector `ObjectStore` (`S3Store`, `GCSStore`,
@@ -683,7 +694,7 @@ to `ExceptionRecord`.
   write has no connector counterpart).
 - **pyright strict is per subpackage, ratcheted.** Each package's
   `[tool.pyright].strict` lists the subpackages that pass strict with 0
-  errors (core: `_migrate`, `check`, `domains`, `emitters`, `exceptions`,
+  errors (core: `check`, `emitters`, `exceptions`,
   `managers`, `recording`, `security`, `streaming`, `viz`, `yaml_loader` and
   the root modules; `backends`, `core`, `connectors`, `engine`, `nodes`,
   `triggers` are the burn-down). New subpackages start strict, a subpackage
@@ -752,9 +763,9 @@ constructor is unchanged.
 
 **Canonical case — the Tool. RESOLVED (ADR WS1, 2026-09-13).** A `Tool` is correctly agents-layer (core has no notion of a name + NL description + JSON schema *for a model*), and it is now **composed from** core:
 - `Tool(Knot)` — a tool is a `Knot` *class*; `process()` is its execution and its declared inputs are the call's arguments. `Tool.declaration()` (name, description, `input_json_schema()`) is the only agents-layer addition. One call = one tool knot the engine runs (`ToolFactory.for_call(call)`), so each call has its own `Result`, lineage row, timeout/retry (`KnotConfig`) and concurrency group (`"tools"`).
-- `ToolFactory(KnotFactory, PirnOpaqueValue)` is the *capability* value a toolset holds: a tool class plus bound collaborators (`Tool.bind(store=…)`), defaults and a name. `@ToolDecorator.decorate` is `@knot` plus a declaration; `McpTool` is `KnotFactory.from_schema` over the remote schema; an agent-as-tool is `AgentTool` over an `AgentToolCall(SubTapestry)` whose cycle/depth guard is core's `RunNesting` (no agents nesting state; the shared budget meter and pooled provider ride `AgentToolPolicy`, PIR-872).
+- `ToolFactory(KnotFactory, PirnOpaqueValue)` is the *capability* value a toolset holds: a tool class plus bound collaborators (`Tool.bind(store=…)`), defaults and a name. `@ToolDecorator.decorate` is `@KnotFactory.knot` plus a declaration; `McpTool` is `KnotFactory.from_schema` over the remote schema; an agent-as-tool is `AgentTool` over an `AgentToolCall(SubTapestry)` whose cycle/depth guard is core's `RunNesting` (no agents nesting state; the shared budget meter and pooled provider ride `AgentToolPolicy`, PIR-872).
 - Outcomes are `Ok\|Err\|Skipped`; `ToolResult` is the model-facing view whose `outcome` *is* the call's `Result` (PIR-872 deleted the parallel `ToolStatus` enum; `status` is a string derived from the variant and error type), and PIR-865 gave it its gated/approval rendering (`ToolResult.from_result(call_id, result, lineage, gated=)`), so the codec builds this view and reads `Result` through it rather than around it. A call refused for validation or an unknown tool is a `ToolCallRejection` knot recording its `Err`, never a raise outside the engine; a call refused for **approval** is a `Skipped`, not a `ToolCallRejection` — see the approval bullet below.
-- **Deleted (PIR-864), one deprecation cycle closed:** `Tool.invoke`, `ToolFactory.invoke`/`as_tool_result`/`from_legacy`, `BaseTool`, `ToolSchemaCompiler`, `ArgumentValidator`, `AgentSchemaDeriver`, `AgentInvoker`, `ToolInvocationHook`, `ParallelToolExecutor(hook=, retries=, retry_policy=, rng=, sleep=)`'s legacy constructor kwargs, `_FanoutRunner`, and `AsyncFanoutEngine` (machinery removed once `MapAgent` moved onto `Map`/`Aggregator` in WS4b) — every production and test caller now goes through the composed shapes above. See `CHANGELOG.md`'s "Removed" section for the full name → replacement table.
+- **Deleted (PIR-864):** `Tool.invoke`, `ToolFactory.invoke`/`as_tool_result`/`from_legacy`, `BaseTool`, `ToolSchemaCompiler`, `ArgumentValidator`, `AgentSchemaDeriver`, `AgentInvoker`, `ToolInvocationHook`, `ParallelToolExecutor(hook=, retries=, retry_policy=, rng=, sleep=)`'s legacy constructor kwargs, `_FanoutRunner`, and `AsyncFanoutEngine` (machinery removed once `MapAgent` moved onto `Map`/`Aggregator` in WS4b) — every production and test caller now goes through the composed shapes above. See `CHANGELOG.md`'s "Removed" section for the full name → replacement table.
 - Observability (WS4a wired in): a tool call is one `"tool"` `StatusEvent` through `AgentCallRecorder` — emitted by `ToolInvocation` for its call (outer run, its own id; it claims the report from the tool knot), by a tool knot wired directly (a fan-out) for itself, by `ToolCallRejection` for a refused call and by `AgentToolCall` for an agent-as-tool call. LLM-calling knots in the tools lane (`RagTool`, `Planner`, `ToolSelector`, `ReActStepExecutor`) report `"llm"` events through `RecordedLlmCall`. A denied approval reports no `"tool"` event for the tool's own identity at all — `process()`, and the `Tool.__call__` recorder inside it, never run; a *container* (`ToolInvocation`) that reports its own view regardless of outcome still fires, unchanged, attributed to its own knot id.
 - **Approval — RESOLVED (PIR-865).** `pirn_agents.agent.tool_approval_check.ToolApprovalCheck` (a core `Check`; named `ToolApprovalCheck` rather than `ApprovalCheck` because `specializations/human_in_the_loop/approval_check.py::ApprovalCheck` already holds that name for an unrelated seam) evaluates the same policy `ApprovalHook.authorize` always implemented. `ToolFactory.for_call` wires it behind a core `Gate` — the gate's `input` is a `Parameter` carrying the call's resolved arguments, and the gate itself is passed as an extra, undeclared `Knot`-valued kwarg (an *implicit parent*, `Knot._validate_kwargs_against_signature`'s existing seam for exactly this) to the constructed tool knot — whenever `ToolPermissions.approval_required` is set; an unrestricted capability is never gated. A denial closes the gate, so the engine's default `SKIP_IF_PARENT_FAILED` policy skips the tool knot without ever calling `process()`, and the call's own outcome is `Skipped(reason="parent_failed_or_skipped")` — core's `Gate`/engine propagation have no per-check custom skip-reason seam, so that generic reason (not the literal string `"approval_denied"`) is what a raw lineage row shows; `ToolResult.from_result(..., gated=True)` (every call site passes `gated=factory.requires_approval()`) is where the accurate `"call skipped: approval denied"` message comes from instead, since a gated call's own knot has no possible `Skipped` cause besides that gate. `ToolResult` keeps a `Skipped` outcome as `Skipped` (status `"skipped"`), instead of the old behaviour of fabricating an `Err`/`ERROR` view for every `Skipped`. All six call sites that construct a tool knot for a call (`ToolFactory.for_call`/`run_call`, `ToolInvocation`, `ParallelToolExecutor`, `ParallelToolCaller`, `ToolChain`, `ReActStepExecutor`) gained an `approval_hook` input threaded to `for_call`. `ToolFactory.run_call` also stopped being a bare `await knot({})` for a gated call specifically: that pattern never resolves a genuine `Knot` parent (only `Aggregator`/engine dispatch does), which would have silently run the tool regardless of the gate's decision — a gated call now runs through a real `Tapestry.run(terminals=knot)` pass instead, reusing `ToolCallCodec.outcomes_of` to read the outcome back out; an ungated call keeps the original fast bare-call path unchanged. `ToolCallRejection` is unchanged and keeps its narrower job (unregistered tool, refused arguments) — that is a rejection, not an approval decision.
 - Core seams this needed (all in `SubTapestry`): `_make_inner_tapestry()` (a container chooses its inner `Tapestry(...)` — traceback filter, `max_nesting_depth`, `ConcurrencyLimits`), `_inner_failures_reach_sink` (a container whose sink *consumes* inner `Err`s does not raise `SubTapestryError`), a `Skipped` sink passes through as `Skipped`, and `_nesting_key` is qualified by the knot id (two instances of one agent class may nest; the same instance may not). `SubTapestryError`'s message now names the inner failures.
@@ -768,8 +779,7 @@ Payload[ConversationFrame, tuple[AgentMessage, ...]]`. `GenerationFrame` and
 `ConversationFrame` are the legitimate agents-layer nouns (LLM-turn and
 conversation-window metadata core has no name for); `Payload` itself,
 `derive()`, and `_pirn_audit_dict()`-based content addressing are core's,
-unchanged. `AgentContext` (the pre-ADR name) was a one-cycle deprecated
-subclass; PIR-864 deleted it.
+unchanged. `AgentContext` (the pre-ADR name) is deleted (PIR-864).
 
 **Rule of thumb.** A new agents abstraction is legitimate when it *names an LLM-interaction concept core lacks*. It is a smell when it *re-implements execution, outcomes, schema, persistence, or concurrency* core already provides — model those the way core does (a `NotImplementedError` base whose execution is a `Knot`). Ratifying this boundary is WS0's core deliverable.
 

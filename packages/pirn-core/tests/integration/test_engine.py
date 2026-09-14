@@ -8,7 +8,7 @@ import pytest
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.exceptions.unbound_parameter_error import UnboundParameterError
@@ -16,12 +16,12 @@ from pirn.nodes.aggregator import Aggregator
 from pirn.tapestry import Tapestry
 
 
-@knot
+@KnotFactory.knot
 async def double(x: int) -> int:
     return x * 2
 
 
-@knot
+@KnotFactory.knot
 async def add(a: int, b: int) -> int:
     return a + b
 
@@ -68,7 +68,7 @@ async def test_unbound_parameter_raises():
 
 
 async def test_diamond():
-    @knot
+    @KnotFactory.knot
     async def join(left: int, right: int) -> int:
         return left * right
 
@@ -103,7 +103,7 @@ async def test_dispatcher_name_in_result():
 
 
 async def test_knot_failure_recorded_in_exceptions():
-    @knot
+    @KnotFactory.knot
     async def boom(x: int) -> int:
         raise ValueError("boom!")
 
@@ -121,7 +121,7 @@ async def test_knot_failure_recorded_in_exceptions():
 
 
 async def test_failure_skips_downstream_by_default():
-    @knot
+    @KnotFactory.knot
     async def boom(x: int) -> int:
         raise ValueError("boom!")
 
@@ -136,7 +136,7 @@ async def test_failure_skips_downstream_by_default():
 
 
 async def test_lineage_captures_skipped():
-    @knot
+    @KnotFactory.knot
     async def boom(x: int) -> int:
         raise ValueError("boom!")
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.tapestry import Tapestry
 
 from pirn_agents.planning.tool_router import ToolRouter
@@ -14,7 +14,7 @@ from tests.conftest import StubTool
 
 
 def _make_knot(tools: tuple) -> ToolRouter:
-    @knot
+    @KnotFactory.knot
     async def _s() -> str:
         return "step"
 

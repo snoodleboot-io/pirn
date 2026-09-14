@@ -34,7 +34,7 @@ from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
 from pirn.backends.in_memory.in_memory_history import InMemoryHistory
 from pirn.backends.in_memory.in_memory_store import InMemoryStore
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
@@ -91,7 +91,7 @@ def store(request) -> TapestryStore:
     return request.param()
 
 
-@knot
+@KnotFactory.knot
 async def _f(x: int) -> int:
     return x
 

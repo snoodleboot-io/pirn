@@ -25,7 +25,7 @@ from pirn.connectors.databases.sqlite_config import SqliteConfig
 from pirn.connectors.databases.sqlite_pool import SqlitePool
 from pirn.connectors.knots.database_execute_sink import DatabaseExecuteSink
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -40,7 +40,7 @@ from pirn_data.frames.polars.polars_aggregate import PolarsAggregate
 from pirn_data.frames.polars.polars_filter import PolarsFilter
 
 
-@knot
+@KnotFactory.knot
 async def emit_orders() -> DataBatch:
     rows = (
         {"region": "EU", "amount": 10.0, "active": True},
@@ -53,7 +53,7 @@ async def emit_orders() -> DataBatch:
     return DataBatch(rows=rows, source_uri="memory://orders")
 
 
-@knot
+@KnotFactory.knot
 async def project_for_load(batch: DataBatch) -> list[tuple[str, float]]:
     return [(str(r["region"]), float(r["total"])) for r in batch.rows]
 

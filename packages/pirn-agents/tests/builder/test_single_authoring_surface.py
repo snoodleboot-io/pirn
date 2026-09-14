@@ -5,7 +5,7 @@ defect: ``AgentPatternRegistry`` was a 65-row hardcoded name -> "module:Class"
 table, disjoint from the sweet_tea registry core's YAML loader resolves
 ``callable:`` references through, and ``AgentSpec`` was a flat, bespoke schema
 with no converter to core's ``PipelineSpec`` and no path through
-``tapestry-check``. Zero uses of core's ``load_pipeline``/``PipelineSpec``/
+``tapestry-check``. Zero uses of core's ``PipelineLoader.load_yaml``/``PipelineSpec``/
 ``KnotSpec`` existed anywhere in ``pirn_agents``.
 
 This test pins the three claims that close that gap, so a future change

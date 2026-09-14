@@ -127,7 +127,7 @@ _current_execution_plane: ContextVar[ExecutionPlane | None] = ContextVar(
 )
 
 # ContextVar carrying the store of the currently-executing extensible run.
-# Set only when extensible=True.  Knots can call get_current_store() during
+# Set only when extensible=True.  Knots can call Tapestry.current_store() during
 # process() to register new knots into the running tapestry — the engine
 # merges them into the run as soon as it processes the next knot completion.
 # None in non-extensible runs.
@@ -143,29 +143,6 @@ _current_store: ContextVar[TapestryStore | None] = ContextVar("pirn_current_stor
 _current_dispatching_knot_id: ContextVar[str | None] = ContextVar(
     "pirn_current_dispatching_knot_id", default=None
 )
-
-
-def get_current_store() -> TapestryStore | None:
-    """Return the store of the currently-executing extensible tapestry run.
-
-    Returns ``None`` when called outside an extensible run.  Use this inside
-    a knot's ``process()`` to register successor knots into the running
-    tapestry — the engine merges them into the run when it processes the
-    next knot completion, and a newcomer whose parents have all resolved
-    starts straight away.
-
-    Registration is permanent: the knot stays in the tapestry after this
-    run ends and later runs treat it as an ordinary member.  Give it an
-    id that is unique across runs — re-registering a different instance
-    under an id an earlier run already used raises (PIR-815).
-
-    Example::
-
-        store = get_current_store()
-        if store is not None:
-            store.register(NextKnot(data=self, _config=KnotConfig(id="next")))
-    """
-    return _current_store.get(None)
 
 
 class Tapestry:
@@ -791,7 +768,7 @@ class Tapestry:
         read from the same contextvar :meth:`run` publishes for
         ``SubTapestry``/``LoopSubTapestry`` to inherit.
 
-        Mirrors :func:`current_run_id`: downstream packages that want to
+        Mirrors :meth:`current_run_id`: downstream packages that want to
         publish an ad hoc event through the run's own emitter subscription
         — an LLM call, a tool call, a retrieval step, none of which is a
         per-knot lifecycle transition the engine already reports — had no
@@ -799,8 +776,7 @@ class Tapestry:
         ``_current_emitters``. This exposes the same list under a
         supported name; see
         :meth:`pirn.engine.emitter_fanout.EmitterFanout.emit_status` for
-        the sanctioned way to deliver an event to it. Also available as
-        the bare :func:`pirn.tapestry.current_emitters` function.
+        the sanctioned way to deliver an event to it.
 
         An empty list is returned both outside a run and when the
         enclosing run was itself given ``emitters=[]`` — an explicit
@@ -816,14 +792,66 @@ class Tapestry:
         Defaults to
         :attr:`~pirn.emitters.emitter_error_policy.EmitterErrorPolicy.WARN`
         outside a run, matching :class:`Tapestry`'s own default, so a
-        caller of :meth:`current_emitters` always has a sensible policy to
-        pair it with. Also available as the bare
-        :func:`pirn.tapestry.current_emitter_error_policy` function.
+        caller of :meth:`Tapestry.current_emitters` always has a sensible policy to
+        pair it with.
         """
         from pirn.emitters.emitter_error_policy import EmitterErrorPolicy as _EmitterErrorPolicy
 
         policy = _current_emitter_error_policy.get(None)
         return policy if policy is not None else _EmitterErrorPolicy.WARN
+
+    @staticmethod
+    def current() -> Tapestry | None:
+        """Return the tapestry active in the current `with` context, or None."""
+        return _current_tapestry.get(None)
+
+    @staticmethod
+    def current_store() -> TapestryStore | None:
+        """Return the store of the currently-executing extensible tapestry run.
+
+        Returns ``None`` when called outside an extensible run.  Use this inside
+        a knot's ``process()`` to register successor knots into the running
+        tapestry — the engine merges them into the run when it processes the
+        next knot completion, and a newcomer whose parents have all resolved
+        starts straight away.
+
+        Registration is permanent: the knot stays in the tapestry after this
+        run ends and later runs treat it as an ordinary member.  Give it an
+        id that is unique across runs — re-registering a different instance
+        under an id an earlier run already used raises (PIR-815).
+
+        Example::
+
+            store = Tapestry.current_store()
+            if store is not None:
+                store.register(NextKnot(data=self, _config=KnotConfig(id="next")))
+        """
+        return _current_store.get(None)
+
+    @staticmethod
+    def current_run_id() -> str | None:
+        """Return the run_id of the currently-executing run, or None.
+
+        Downstream packages need run identity to correlate their own telemetry
+        with the engine's lineage and status streams.  Without a public accessor
+        they have to read the private ``_current_run_id``, so this exposes the
+        same value under a supported name.
+
+        Returns ``None`` outside a run, and ``None`` in an interpreter that never
+        inherited the context — a process-boundary dispatcher (Ray/Dask/Celery)
+        starts from an empty context, so callers there get nothing rather than a
+        stale id.  It does survive a thread hop made with ``copy_context()``,
+        which is how ``ThreadDispatcher`` hands off work (PIR-767).
+
+        Inside a ``SubTapestry`` the value is the **inner** run's id, not the
+        enclosing one: the inner ``Tapestry.run()`` sets the var for its own run
+        and reads the outer value only to record it as ``parent_run_id``.
+
+        There is deliberately no ``current_knot_id()`` companion.  Knot identity
+        is never ambient — a knot reads ``self.knot_id``, and callers that are not
+        knots must be told which knot they belong to.
+        """
+        return _current_run_id.get(None)
 
     async def close(self) -> None:
         """Close every registered emitter and the data store, releasing held resources.
@@ -861,7 +889,7 @@ class Tapestry:
     @staticmethod
     @contextmanager
     def _run_id_scope(run_id: str | None) -> Generator[None, None, None]:
-        """Bind ``current_run_id()`` to ``run_id`` for the duration of the block.
+        """Bind ``Tapestry.current_run_id()`` to ``run_id`` for the duration of the block.
 
         Internal.  ``Tapestry.run()`` owns run identity for real runs; this
         exists for the one case where a run's identity has to be *restored*
@@ -922,45 +950,3 @@ class Tapestry:
 
     def __repr__(self) -> str:
         return f"<Tapestry knots={len(self._store.all())}>"
-
-
-def current_tapestry() -> Tapestry | None:
-    """Return the tapestry active in the current `with` context, or None."""
-    return _current_tapestry.get(None)
-
-
-def current_run_id() -> str | None:
-    """Return the run_id of the currently-executing run, or None.
-
-    Downstream packages need run identity to correlate their own telemetry
-    with the engine's lineage and status streams.  Without a public accessor
-    they have to read the private ``_current_run_id``, so this exposes the
-    same value under a supported name.
-
-    Returns ``None`` outside a run, and ``None`` in an interpreter that never
-    inherited the context — a process-boundary dispatcher (Ray/Dask/Celery)
-    starts from an empty context, so callers there get nothing rather than a
-    stale id.  It does survive a thread hop made with ``copy_context()``,
-    which is how ``ThreadDispatcher`` hands off work (PIR-767).
-
-    Inside a ``SubTapestry`` the value is the **inner** run's id, not the
-    enclosing one: the inner ``Tapestry.run()`` sets the var for its own run
-    and reads the outer value only to record it as ``parent_run_id``.
-
-    There is deliberately no ``current_knot_id()`` companion.  Knot identity
-    is never ambient — a knot reads ``self.knot_id``, and callers that are not
-    knots must be told which knot they belong to.
-    """
-    return _current_run_id.get(None)
-
-
-#: Bare-function aliases for :meth:`Tapestry.current_emitters` /
-#: :meth:`Tapestry.current_emitter_error_policy`, so
-#: ``pirn.tapestry.current_emitters()`` calls exactly like
-#: :func:`current_run_id`. The house convention allows a bare module-level
-#: ``def`` only for the documented public entry points enumerated in
-#: ``scripts/check_conventions.py`` (``current_run_id``/``current_tapestry``/
-#: ``get_current_store`` are on that list, PIR-869); anything else is a
-#: ``@staticmethod``, optionally re-exported under a bare alias like these.
-current_emitters = Tapestry.current_emitters
-current_emitter_error_policy = Tapestry.current_emitter_error_policy

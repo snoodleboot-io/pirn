@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 from pirn.core.concurrency.undefined_concurrency_group_error import (
     UndefinedConcurrencyGroupError,
 )
-from pirn.engine.admission.admission_gate import AdmissionGate
+from pirn.engine.admission.admission import Admission
 from pirn.engine.admission.admission_limit_error import AdmissionLimitError
 from pirn.engine.admission.admission_release_error import AdmissionReleaseError
 from pirn.engine.admission.admission_ticket import AdmissionTicket
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from pirn.core.knot import Knot
 
 
-class LimitedAdmissionGate(AdmissionGate):
+class LimitedAdmission(Admission):
     """Admits a knot only while the run's global and group budgets have room.
 
     A knot takes one global slot when ``max_in_flight`` is set, and one slot
@@ -73,7 +73,7 @@ class LimitedAdmissionGate(AdmissionGate):
         Args:
             limits: The run's limits.  An unbounded value is accepted and
                 admits everything, but the engine uses
-                ``UnboundedAdmissionGate`` for that instead.
+                ``UnboundedAdmission`` for that instead.
         """
         self._limits = limits
         # The live caps.  Seeded from ``limits`` and adjusted by
@@ -213,7 +213,7 @@ class LimitedAdmissionGate(AdmissionGate):
         for loop, waiter in waiters:
             if loop.is_closed():
                 continue
-            loop.call_soon_threadsafe(LimitedAdmissionGate._resolve_waiter, waiter)
+            loop.call_soon_threadsafe(LimitedAdmission._resolve_waiter, waiter)
 
     @staticmethod
     def _resolve_waiter(waiter: asyncio.Future[None]) -> None:

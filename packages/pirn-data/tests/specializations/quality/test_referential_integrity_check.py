@@ -8,7 +8,7 @@ from typing import Any
 from pirn.connectors.databases.sqlite_config import SqliteConfig
 from pirn.connectors.databases.sqlite_pool import SqlitePool
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -93,7 +93,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
         await self.pool.close()
 
     async def test_fact_table_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_table() -> str:
             return _FACT_TABLE
 

@@ -18,7 +18,7 @@ Algorithm:
 
 References:
     [1] pirn — DatabaseConnectionPool interface:
-        pirn/domains/connectors/database_connection_pool.py
+        pirn/connectors/database_connection_pool.py
     [2] pirn — StampBronzeMetadataKnot:
         pirn_data/specializations/medallion/stamp_bronze_metadata_knot.py
 """

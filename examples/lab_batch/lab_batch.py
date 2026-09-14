@@ -27,7 +27,7 @@ from pathlib import Path
 
 from pirn.backends.sqlite.sqlite_history import SQLiteHistory
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.nodes.map_markers import Map
@@ -82,7 +82,7 @@ class BatchSummary:
 # ----------------------------------------------------------------- knots
 
 
-@knot
+@KnotFactory.knot
 async def analyse_sample(sample: RawSample) -> AnalysedSample:
     """Check each measurement against reference ranges and flag abnormals."""
     flags: list[str] = []
@@ -105,7 +105,7 @@ async def analyse_sample(sample: RawSample) -> AnalysedSample:
     )
 
 
-@knot
+@KnotFactory.knot
 async def generate_report(analysed: AnalysedSample) -> SampleReport:
     """Produce a human-readable report for a single sample."""
     if analysed.critical:
@@ -132,7 +132,7 @@ async def generate_report(analysed: AnalysedSample) -> SampleReport:
     )
 
 
-@knot
+@KnotFactory.knot
 async def summarise_batch(reports: list[SampleReport]) -> BatchSummary:
     """Aggregate per-sample reports into a batch summary."""
     counts = {"normal": 0, "flagged": 0, "critical": 0}

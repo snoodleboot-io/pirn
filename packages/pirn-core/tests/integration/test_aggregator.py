@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.nodes.aggregator import Aggregator
@@ -35,7 +35,7 @@ def test_aggregator_requires_config():
 
 
 async def test_aggregator_with_three_parents():
-    @knot
+    @KnotFactory.knot
     async def src(v: int) -> int:
         return v
 

@@ -1,4 +1,4 @@
-"""Unit tests for UnboundedAdmissionGate."""
+"""Unit tests for UnboundedAdmission."""
 
 from __future__ import annotations
 
@@ -6,26 +6,26 @@ import unittest
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
-from pirn.engine.admission.admission_gate import AdmissionGate
+from pirn.engine.admission.admission import Admission
 from pirn.engine.admission.admission_ticket import AdmissionTicket
-from pirn.engine.admission.unbounded_admission_gate import UnboundedAdmissionGate
+from pirn.engine.admission.unbounded_admission import UnboundedAdmission
 
 
 def _param(knot_id: str) -> Parameter:
     return Parameter("x", int, default=1, _config=KnotConfig(id=knot_id))
 
 
-class TestUnboundedAdmissionGate(unittest.IsolatedAsyncioTestCase):
-    def test_is_an_admission_gate(self) -> None:
+class TestUnboundedAdmission(unittest.IsolatedAsyncioTestCase):
+    def test_is_an_admission(self) -> None:
         # Arrange / Act
-        gate = UnboundedAdmissionGate()
+        gate = UnboundedAdmission()
 
         # Assert
-        self.assertIsInstance(gate, AdmissionGate)
+        self.assertIsInstance(gate, Admission)
 
     def test_admits_a_knot_with_a_ticket_naming_it(self) -> None:
         # Arrange
-        gate = UnboundedAdmissionGate()
+        gate = UnboundedAdmission()
 
         # Act
         ticket = gate.try_admit(_param("px"))
@@ -35,7 +35,7 @@ class TestUnboundedAdmissionGate(unittest.IsolatedAsyncioTestCase):
 
     def test_never_refuses_however_many_are_held(self) -> None:
         # Arrange
-        gate = UnboundedAdmissionGate()
+        gate = UnboundedAdmission()
 
         # Act
         tickets = [gate.try_admit(_param(f"p{i}")) for i in range(1000)]
@@ -44,11 +44,11 @@ class TestUnboundedAdmissionGate(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(all(t is not None for t in tickets))
 
     def test_always_has_capacity(self) -> None:
-        self.assertTrue(UnboundedAdmissionGate().has_capacity())
+        self.assertTrue(UnboundedAdmission().has_capacity())
 
     def test_release_accepts_its_ticket(self) -> None:
         # Arrange
-        gate = UnboundedAdmissionGate()
+        gate = UnboundedAdmission()
         ticket = gate.try_admit(_param("px"))
 
         # Act
@@ -59,7 +59,7 @@ class TestUnboundedAdmissionGate(unittest.IsolatedAsyncioTestCase):
 
     async def test_wait_for_release_returns_at_once(self) -> None:
         # Arrange
-        gate = UnboundedAdmissionGate()
+        gate = UnboundedAdmission()
 
         # Act
         outcome = await gate.wait_for_release()

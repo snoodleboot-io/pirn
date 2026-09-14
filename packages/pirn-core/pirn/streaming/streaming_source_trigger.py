@@ -2,9 +2,9 @@
 
 Streaming sources and triggers serve adjacent purposes:
 
-* A ``StreamingSource`` yields values; ``run_stream`` drives one run
+* A ``StreamingSource`` yields values; ``StreamingSource.run_stream`` drives one run
   per value, with the value bound to a single named parameter.
-* A ``Trigger`` yields full ``RunRequest``s; ``run_forever`` drives
+* A ``Trigger`` yields full ``RunRequest``s; ``Trigger.run_forever`` drives
   one run per request.
 
 When you have a streaming source but want to use the
@@ -13,11 +13,10 @@ existing trigger observers), wrap it::
 
     from pirn.streaming.iterable_source import IterableSource
     from pirn.streaming.streaming_source_trigger import StreamingSourceTrigger
-    from pirn.triggers.trigger import run_forever
 
     source = IterableSource([1, 2, 3], parameter_name="x")
     trigger = StreamingSourceTrigger(source=source)
-    await run_forever(trigger, tapestry)
+    await trigger.run_forever(tapestry)
 """
 
 from __future__ import annotations

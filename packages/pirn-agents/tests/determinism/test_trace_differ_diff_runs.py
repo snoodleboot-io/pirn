@@ -1,8 +1,8 @@
 """Tests for :meth:`TraceDiffer.diff_runs` (ADR "agents speaks core" WS3 part 3).
 
-``diff_runs`` is a thin pass-through to ``pirn.knot_diff.compare_runs`` —
+``diff_runs`` is a thin pass-through to ``pirn.knot_diff.KnotDiff.compare_runs`` —
 these exercise it against two real ``Tapestry.run()`` calls rather than
-re-testing ``compare_runs`` itself.
+re-testing ``KnotDiff.compare_runs`` itself.
 """
 
 from __future__ import annotations

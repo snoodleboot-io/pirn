@@ -6,7 +6,7 @@ import unittest
 
 from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.tapestry import Tapestry
 
 from pirn_agents.prompt.prompt_render_error import PromptRenderError
@@ -15,7 +15,7 @@ from pirn_agents.prompt.prompt_template import PromptTemplate
 
 
 def _make_knot() -> PromptRenderKnot:
-    @knot
+    @KnotFactory.knot
     async def _t() -> PromptTemplate:
         return PromptTemplate(name="greet", version="1.0.0", template="Hi {{ name }}!")
 

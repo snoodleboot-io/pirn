@@ -10,7 +10,7 @@ except ImportError as _e:
     raise unittest.SkipTest("duckdb not installed") from _e
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -23,7 +23,7 @@ from pirn_data.frames.duckdb.duckdb_connection_knot import DuckDBConnectionKnot
 from pirn_data.frames.duckdb.duckdb_data_batch import DuckdbDataBatch
 
 
-@knot
+@KnotFactory.knot
 async def emit_users() -> DataBatch:
     rows = (
         {"id": 1, "name": "alice"},
@@ -32,7 +32,7 @@ async def emit_users() -> DataBatch:
     return DataBatch(rows=rows, source_uri="memory://users")
 
 
-@knot
+@KnotFactory.knot
 async def emit_empty() -> DataBatch:
     return DataBatch()
 
@@ -103,7 +103,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):
     async def _make_knot(self, **kwargs: object) -> DataBatchToDuckdb:
-        @knot
+        @KnotFactory.knot
         async def upstream() -> DataBatch:
             return _make_batch()
 

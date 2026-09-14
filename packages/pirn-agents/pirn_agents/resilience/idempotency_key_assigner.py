@@ -1,7 +1,7 @@
 """``IdempotencyKeyAssigner`` — derive caller-stable idempotency keys.
 
 ADR agents-speaks-core WS2 part 2 — **breaking key-format change, sanctioned**:
-derivation now goes through :func:`pirn.core.hashing.content_hash` (``strict=True``)
+derivation now goes through :meth:`pirn.core.content_hasher.ContentHasher.hash` (``strict=True``)
 instead of the former ``CanonicalJson``. The ``sha256:``-prefixed digest core
 emits IS the format version; a key issued after this upgrade never matches
 one issued before it for the same call. **An operator upgrading must drain
@@ -12,19 +12,19 @@ so the backend sees a new operation and applies the mutation twice. See
 ``legacy_key()`` reproduced a pre-upgrade key for reconciliation across the
 drain window; that one-cycle bridge is now deleted (PIR-864).
 
-``content_hash`` has no repr-based fallback for a value with no canonical form
+``ContentHasher.hash`` has no repr-based fallback for a value with no canonical form
 (no ``__pirn_canonical__``, no pydantic core schema) — unlike the
 ``OpaquePolicy`` policies the former ``CanonicalJson`` supported, it either
 hashes a value structurally or (``strict=True``) raises. An argument
-``content_hash`` cannot canonicalise but
+``ContentHasher.hash`` cannot canonicalise but
 whose ``repr`` is content-derived (``datetime``, ``UUID``, ``Decimal``, a
 domain value object with its own ``__repr__``, ...) is still supported here:
-:meth:`_normalise` walks ``arguments`` and, at each leaf ``content_hash`` itself
+:meth:`_normalise` walks ``arguments`` and, at each leaf ``ContentHasher.hash`` itself
 would reject, falls back to that leaf's ``repr()`` — refusing one whose ``repr``
 is the default identity form, mirroring the PIR-785/PIR-795 guard
 the former ``OpaquePolicy.REPR_CONTENT`` used
 to enforce, so this cannot key on a memory address either. Any leaf
-``content_hash`` already hashes structurally (primitives, mappings, sequences,
+``ContentHasher.hash`` already hashes structurally (primitives, mappings, sequences,
 pydantic-aware types) passes through unchanged.
 """
 
@@ -33,7 +33,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from pirn.core.hashing import content_hash
+from pirn.core.content_hasher import ContentHasher
 from pirn.exceptions.unhashable_value_error import UnhashableValueError
 
 
@@ -45,7 +45,7 @@ class IdempotencyKeyAssigner:
     one deterministically from the operation name and its arguments, so the same
     logical call always yields the same key — the property a backend needs to
     dedupe a retried mutation. The derivation canonicalises arguments via
-    :func:`pirn.core.hashing.content_hash`, so key equality does not depend on
+    :meth:`pirn.core.content_hasher.ContentHasher.hash`, so key equality does not depend on
     mapping order.
     """
 
@@ -97,21 +97,21 @@ class IdempotencyKeyAssigner:
                 f"got {type(arguments).__name__}"
             )
         normalised = self._normalise({"operation": operation, "arguments": arguments})
-        digest = content_hash(normalised, strict=True)
+        digest = ContentHasher.hash(normalised, strict=True)
         return f"{self._namespace}:{digest}" if self._namespace else digest
 
     @classmethod
     def _normalise(cls, value: Any) -> Any:
         """Recursively replace an opaque leaf with its content-derived ``repr()``.
 
-        Descends into mappings and sequences (the shapes ``content_hash``
+        Descends into mappings and sequences (the shapes ``ContentHasher.hash``
         also decomposes) so only the specific leaf that defeats
         canonicalisation is replaced — the rest of ``arguments`` keeps
-        hitting ``content_hash``'s normal structural hashing. A leaf is
-        "opaque" here exactly when ``content_hash(leaf, strict=True)`` would
+        hitting ``ContentHasher.hash``'s normal structural hashing. A leaf is
+        "opaque" here exactly when ``ContentHasher.hash(leaf, strict=True)`` would
         itself raise; probing with the real function (rather than
         re-implementing its type dispatch) is what keeps this from silently
-        drifting out of step with what ``content_hash`` can and cannot
+        drifting out of step with what ``ContentHasher.hash`` can and cannot
         canonicalise on its own.
 
         Raises:
@@ -125,7 +125,7 @@ class IdempotencyKeyAssigner:
         if isinstance(value, (list, tuple)):
             return [cls._normalise(v) for v in value]
         try:
-            content_hash(value, strict=True)
+            ContentHasher.hash(value, strict=True)
         except UnhashableValueError:
             pass
         else:

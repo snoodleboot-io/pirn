@@ -34,7 +34,7 @@ from pirn.backends.base.data_store import DataStore
 from pirn.backends.base.run_history import RunHistory
 from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
 from pirn.backends.in_memory.in_memory_history import InMemoryHistory
-from pirn.core.hashing import content_hash
+from pirn.core.content_hasher import ContentHasher
 from pirn.core.knot_config import KnotConfig
 from pirn.core.knot_lineage import KnotLineage
 from pirn.core.run_request import RunRequest
@@ -208,7 +208,7 @@ class CassetteRecorder:
         if pending is None:
             return
         for index, entry in enumerate(pending.entries):
-            output_hash = content_hash(entry.output)
+            output_hash = ContentHasher.hash(entry.output)
             await self._data_store.put(output_hash, entry.output)
             run_id = f"cassette-seed:{entry.key}:{entry.sequence}:{index}"
             now = datetime.now(UTC)
@@ -222,7 +222,9 @@ class CassetteRecorder:
                 # private state, not a tracked config value) — so this is
                 # exactly what the engine computes for the real replay call,
                 # with no need to construct an actual knot to get it.
-                knot_config_hash=content_hash(KnotConfig(id=entry.key).model_dump(mode="json")),
+                knot_config_hash=ContentHasher.hash(
+                    KnotConfig(id=entry.key).model_dump(mode="json")
+                ),
                 parent_input_hashes={},
                 output_hash=output_hash,
                 outcome="ok",

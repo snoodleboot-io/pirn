@@ -1,4 +1,4 @@
-"""Unit tests for Trigger base class and run_forever driver."""
+"""Unit tests for Trigger base class and Trigger.run_forever driver."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 from pirn.core.run_request import RunRequest
-from pirn.triggers.trigger import Trigger, run_forever
+from pirn.triggers.trigger import Trigger
 
 
 class _SimpleTrigger(Trigger):
@@ -104,14 +104,14 @@ class TestRunForever(unittest.IsolatedAsyncioTestCase):
 
         reqs = [RunRequest(), RunRequest()]
         trigger = _SimpleTrigger(reqs)
-        await run_forever(trigger, tapestry, on_result=on_result)
+        await trigger.run_forever(tapestry, on_result=on_result)
         self.assertEqual(len(results), 2)
 
     async def test_close_called_after_stream(self) -> None:
         tapestry = MagicMock()
         tapestry.run = AsyncMock(return_value=MagicMock())
         trigger = _SimpleTrigger([])
-        await run_forever(trigger, tapestry)
+        await trigger.run_forever(tapestry)
         self.assertTrue(trigger._closed)
 
     async def test_on_error_called_on_exception(self) -> None:
@@ -124,7 +124,7 @@ class TestRunForever(unittest.IsolatedAsyncioTestCase):
         tapestry.run = AsyncMock(side_effect=RuntimeError("boom"))
 
         trigger = _SimpleTrigger([RunRequest()])
-        await run_forever(trigger, tapestry, on_error=on_error)
+        await trigger.run_forever(tapestry, on_error=on_error)
         self.assertEqual(len(errors), 1)
         self.assertIsInstance(errors[0], RuntimeError)
 
@@ -148,7 +148,7 @@ class TestRunForeverNeverSwallowsShutdown(unittest.IsolatedAsyncioTestCase):
 
         trigger = _SimpleTrigger([RunRequest()])
         with self.assertRaises(asyncio.CancelledError):
-            await run_forever(trigger, tapestry, on_error=on_error)
+            await trigger.run_forever(tapestry, on_error=on_error)
         self.assertEqual(observed, [])
         self.assertEqual(trigger.closes, 1)
 
@@ -163,7 +163,7 @@ class TestRunForeverNeverSwallowsShutdown(unittest.IsolatedAsyncioTestCase):
 
         trigger = _SimpleTrigger([RunRequest()])
         with self.assertRaises(KeyboardInterrupt):
-            await run_forever(trigger, tapestry, on_error=on_error)
+            await trigger.run_forever(tapestry, on_error=on_error)
         self.assertEqual(observed, [])
         self.assertEqual(trigger.closes, 1)
 
@@ -178,7 +178,7 @@ class TestRunForeverNeverSwallowsShutdown(unittest.IsolatedAsyncioTestCase):
 
         trigger = _SimpleTrigger([RunRequest()])
         with self.assertRaises(SystemExit):
-            await run_forever(trigger, tapestry, on_error=on_error)
+            await trigger.run_forever(tapestry, on_error=on_error)
         self.assertEqual(observed, [])
         self.assertEqual(trigger.closes, 1)
 
@@ -197,7 +197,7 @@ class TestRunForeverNeverSwallowsShutdown(unittest.IsolatedAsyncioTestCase):
 
         trigger = _RepeatingTrigger(max_fires=5)
         tapestry = _SleepingTapestry()
-        task = asyncio.create_task(run_forever(trigger, tapestry, on_error=on_error))
+        task = asyncio.create_task(trigger.run_forever(tapestry, on_error=on_error))
 
         await asyncio.sleep(0.05)
         fires_at_cancel = trigger.fires
@@ -205,7 +205,7 @@ class TestRunForeverNeverSwallowsShutdown(unittest.IsolatedAsyncioTestCase):
         tapestry.delay = 0.0
         _done, pending = await asyncio.wait([task], timeout=1.0)
 
-        self.assertEqual(pending, set(), "run_forever kept running after cancel()")
+        self.assertEqual(pending, set(), "Trigger.run_forever kept running after cancel()")
         self.assertTrue(task.cancelled())
         self.assertEqual(observed, [])
         self.assertEqual(trigger.fires, fires_at_cancel)

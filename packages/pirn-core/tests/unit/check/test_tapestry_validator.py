@@ -1,11 +1,11 @@
-"""Tests for validate_tapestry."""
+"""Tests for TapestryValidator.validate."""
 
 from __future__ import annotations
 
 import unittest
 from unittest.mock import MagicMock
 
-from pirn.check.validator import validate_tapestry
+from pirn.check.tapestry_validator import TapestryValidator
 
 
 def _make_mock_knot(knot_id: str, parents: dict | None = None, klass=None):
@@ -26,7 +26,7 @@ def _make_tapestry(*knots):
 class TestValidateTapestryEmpty(unittest.TestCase):
     def test_empty_tapestry_warns(self) -> None:
         tapestry = _make_tapestry()
-        result = validate_tapestry(tapestry)
+        result = TapestryValidator.validate(tapestry)
         self.assertTrue(result.ok)
         self.assertEqual(len(result.warnings), 1)
         self.assertIn("no knots", result.warnings[0].message)
@@ -37,7 +37,7 @@ class TestValidateTapestryDuplicateIds(unittest.TestCase):
         k1 = _make_mock_knot("dup")
         k2 = _make_mock_knot("dup")
         tapestry = _make_tapestry(k1, k2)
-        result = validate_tapestry(tapestry)
+        result = TapestryValidator.validate(tapestry)
         self.assertFalse(result.ok)
         ids = [i.knot_id for i in result.errors]
         self.assertIn("dup", ids)
@@ -47,14 +47,14 @@ class TestValidateTapestryValid(unittest.TestCase):
     def test_single_knot_ok(self) -> None:
         k1 = _make_mock_knot("src")
         tapestry = _make_tapestry(k1)
-        result = validate_tapestry(tapestry)
+        result = TapestryValidator.validate(tapestry)
         self.assertTrue(result.ok)
 
     def test_two_knots_with_parent(self) -> None:
         k1 = _make_mock_knot("src")
         k2 = _make_mock_knot("transform", parents={"k1": "src"})
         tapestry = _make_tapestry(k1, k2)
-        result = validate_tapestry(tapestry)
+        result = TapestryValidator.validate(tapestry)
         self.assertTrue(result.ok)
 
 
@@ -62,13 +62,13 @@ class TestValidateTapestryManyTerminals(unittest.TestCase):
     def test_four_or_fewer_terminals_no_warning(self) -> None:
         knots = [_make_mock_knot(f"t{i}") for i in range(3)]
         tapestry = _make_tapestry(*knots)
-        result = validate_tapestry(tapestry)
+        result = TapestryValidator.validate(tapestry)
         warning_msgs = [i.message for i in result.warnings]
         self.assertFalse(any("terminal" in m for m in warning_msgs))
 
     def test_many_terminals_warns(self) -> None:
         knots = [_make_mock_knot(f"t{i}") for i in range(5)]
         tapestry = _make_tapestry(*knots)
-        result = validate_tapestry(tapestry)
+        result = TapestryValidator.validate(tapestry)
         warning_msgs = [i.message for i in result.warnings]
         self.assertTrue(any("terminal" in m for m in warning_msgs))

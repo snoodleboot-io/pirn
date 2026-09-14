@@ -1534,7 +1534,3 @@ function esc(s) {
 </body>
 </html>
 """
-
-
-#: Public name for :meth:`ExplorerHtmlGenerator.generate` (bare alias, not a ``def``).
-generate_explorer_html = ExplorerHtmlGenerator.generate

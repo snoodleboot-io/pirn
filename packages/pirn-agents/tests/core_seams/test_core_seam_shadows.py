@@ -44,8 +44,8 @@ NESTING: frozenset[str] = frozenset()
 INPUT_SCHEMA: frozenset[str] = frozenset()
 
 # PIR-866 removed BackpressureSemaphore/Bulkhead as private-semaphore shadows:
-# each became an AdmissionGate subclass, delegating every admission decision
-# to a real LimitedAdmissionGate. PIR-864 then deleted BackpressureSemaphore,
+# each became an Admission subclass, delegating every admission decision
+# to a real LimitedAdmission. PIR-864 then deleted BackpressureSemaphore,
 # Bulkhead, ConcurrencyConfig, and BulkheadConfig outright, along with
 # _FanoutRunner/AsyncFanoutEngine (WS1) and BatchScheduler (WS4b) -- every
 # name this list ever named.

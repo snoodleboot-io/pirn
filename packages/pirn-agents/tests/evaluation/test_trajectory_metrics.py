@@ -121,7 +121,7 @@ class TrajectoryCallKeyContentKeyingTests(unittest.TestCase):
 
     # ---- the address-keyed case is refused -----------------------------------
     #
-    # The key is core's content_hash(strict=True): an argument with no
+    # The key is core's ContentHasher.hash(strict=True): an argument with no
     # canonical form (no __pirn_canonical__, no pydantic schema) has no stable
     # key to compute, so the metric declines instead of scoring wrong.
 

@@ -1,7 +1,7 @@
 """Credential-safe base for connector configuration dataclasses.
 
 Subclasses are produced by the
-:func:`pirn.connectors.connection_config_decorator.connection_config`
+:meth:`pirn.connectors.connection_config_decorator.ConnectionConfigDecorator.apply`
 decorator, which applies ``@dataclass(frozen=True, repr=False)`` so the
 inherited :meth:`__repr__` wins over the dataclass-generated one. The
 inherited repr redacts fields whose names look credential-bearing and

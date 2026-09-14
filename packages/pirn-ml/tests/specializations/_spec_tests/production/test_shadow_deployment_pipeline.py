@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -18,7 +18,7 @@ from tests._stubs.recording_lineage_store import (
 )
 
 
-@knot
+@KnotFactory.knot
 async def emit_champion() -> ModelManifest:
     return ModelManifest(
         model_id="champ",
@@ -28,7 +28,7 @@ async def emit_champion() -> ModelManifest:
     )
 
 
-@knot
+@KnotFactory.knot
 async def emit_challenger() -> ModelManifest:
     return ModelManifest(
         model_id="chall",

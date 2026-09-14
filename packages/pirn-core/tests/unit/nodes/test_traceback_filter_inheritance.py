@@ -19,7 +19,7 @@ from pirn.backends.in_memory.in_memory_history import InMemoryHistory
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
-from pirn.managers.redact import redact_common_secrets
+from pirn.managers.traceback_redactor import TracebackRedactor
 from pirn.nodes.source import Source
 from pirn.nodes.sub_tapestry import SubTapestry
 from pirn.tapestry import Tapestry
@@ -45,7 +45,9 @@ def _leaks(text: str) -> bool:
 class TestTracebackFilterReachesNestedRuns(unittest.IsolatedAsyncioTestCase):
     async def _run(self) -> tuple[Any, InMemoryHistory]:
         history = InMemoryHistory()
-        with Tapestry(history=history, traceback_filter=redact_common_secrets) as t:
+        with Tapestry(
+            history=history, traceback_filter=TracebackRedactor.redact_common_secrets
+        ) as t:
             _Pipeline(_config=KnotConfig(id="pipe"))
         result = await t.run(RunRequest())
         self.assertFalse(result.succeeded)

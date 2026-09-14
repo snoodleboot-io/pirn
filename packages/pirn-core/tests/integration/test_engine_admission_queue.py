@@ -30,7 +30,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.core.run_result import RunResult
-from pirn.tapestry import Tapestry, _current_run_id, current_run_id
+from pirn.tapestry import Tapestry, _current_run_id
 
 
 class _Script:
@@ -55,7 +55,7 @@ class _Script:
         return self._events[name]
 
     async def play(self, knot_id: str) -> str:
-        self.run_id = current_run_id()
+        self.run_id = Tapestry.current_run_id()
         self.log.append(f"start:{knot_id}")
         self.event(f"started:{knot_id}").set()
         try:
@@ -371,7 +371,7 @@ class _ThreadRegistrar(Knot):
         super().__init__(**kwargs)
 
     async def process(self, **_inputs: Any) -> str:
-        run_id = current_run_id()
+        run_id = Tapestry.current_run_id()
         if self._via == "thread":
             worker = threading.Thread(
                 target=_register_late_parentless, args=(self._script, self._target, run_id)

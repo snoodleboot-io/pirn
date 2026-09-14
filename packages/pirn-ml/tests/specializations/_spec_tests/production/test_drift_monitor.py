@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -16,14 +16,14 @@ from pirn_ml.types.dataset_manifest import DatasetManifest
 from pirn_ml.types.split_manifest import SplitManifest
 
 
-@knot
+@KnotFactory.knot
 async def emit_baseline() -> SplitManifest:
     train = DatasetManifest(name="b:train", feature_names=("a", "b"), row_count=800)
     test = DatasetManifest(name="b:test", feature_names=("a", "b"), row_count=200)
     return SplitManifest(train=train, test=test)
 
 
-@knot
+@KnotFactory.knot
 async def emit_current() -> SplitManifest:
     train = DatasetManifest(name="c:train", feature_names=("a", "b"), row_count=900)
     test = DatasetManifest(name="c:test", feature_names=("a", "b"), row_count=100)

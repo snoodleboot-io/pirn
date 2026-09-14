@@ -22,7 +22,7 @@ from great_expectations.expectations import (
     ExpectColumnValuesToNotBeNull,
 )
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -54,7 +54,7 @@ def _users_suite() -> gx.ExpectationSuite:
 
 
 def _valid_batch_factory():
-    @knot
+    @KnotFactory.knot
     async def emit() -> PandasDataBatch:
         return PandasDataBatch(
             frame=pd.DataFrame(
@@ -72,7 +72,7 @@ def _valid_batch_factory():
 def _id_invalid_batch_factory():
     """Single failing column: id violates the >=1 lower bound."""
 
-    @knot
+    @KnotFactory.knot
     async def emit() -> PandasDataBatch:
         return PandasDataBatch(
             frame=pd.DataFrame(
@@ -90,7 +90,7 @@ def _id_invalid_batch_factory():
 def _multi_invalid_batch_factory():
     """Two failing columns: id (negative) and role (unknown value)."""
 
-    @knot
+    @KnotFactory.knot
     async def emit() -> PandasDataBatch:
         return PandasDataBatch(
             frame=pd.DataFrame(
@@ -172,7 +172,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_suite_from_upstream_knot(self) -> None:
         suite = _users_suite()
 
-        @knot
+        @KnotFactory.knot
         async def emit_suite() -> object:
             return suite
 
@@ -193,7 +193,7 @@ class TestValidation(unittest.IsolatedAsyncioTestCase):
     async def _make_knot(self) -> GreatExpectationsPandasValidator:
         suite = _users_suite()
 
-        @knot
+        @KnotFactory.knot
         async def upstream() -> PandasDataBatch:
             return _make_batch()
 

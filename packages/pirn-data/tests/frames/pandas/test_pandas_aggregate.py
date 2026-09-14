@@ -12,7 +12,7 @@ except ImportError as _e:
 import pandas as pd
 import pytest
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
@@ -21,7 +21,7 @@ from pirn_data.frames.pandas.pandas_data_batch import PandasDataBatch
 from pirn_data.transforms.aggregate_spec import AggregateSpec
 
 
-@knot
+@KnotFactory.knot
 async def emit_orders() -> PandasDataBatch:
     return PandasDataBatch(
         frame=pd.DataFrame(
@@ -75,7 +75,7 @@ class TestPandasAggregate(unittest.IsolatedAsyncioTestCase):
         assert eu["n_customers"] == 2
 
     async def test_composite_group_by(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def two_dim() -> PandasDataBatch:
             return PandasDataBatch(
                 frame=pd.DataFrame(
@@ -102,7 +102,7 @@ class TestPandasAggregate(unittest.IsolatedAsyncioTestCase):
 
 class TestWiring(unittest.IsolatedAsyncioTestCase):
     async def test_by_from_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def emit_by() -> object:
             return ("region",)
 
@@ -122,7 +122,7 @@ class TestWiring(unittest.IsolatedAsyncioTestCase):
 
 class TestValidation(unittest.IsolatedAsyncioTestCase):
     def _make_knot(self, **kwargs: object) -> PandasAggregate:
-        @knot
+        @KnotFactory.knot
         async def empty() -> PandasDataBatch:
             return PandasDataBatch(frame=pd.DataFrame({"a": [1]}))
 

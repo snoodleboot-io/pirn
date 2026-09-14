@@ -71,7 +71,7 @@ class DataSchema(PirnOpaqueValue):
         }
 
     def __pirn_canonical__(self) -> dict[str, Any]:
-        """Sanctioned canonical form for :func:`pirn.core.hashing.content_hash`.
+        """Sanctioned canonical form for :meth:`pirn.core.content_hasher.ContentHasher.hash`.
 
         Mirrors :meth:`_pirn_audit_dict` but is the explicit hook the
         hasher prefers. Keeping both methods avoids forcing every

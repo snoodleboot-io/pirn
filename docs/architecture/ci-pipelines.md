@@ -23,7 +23,7 @@ flowchart TD
     CH -->|"any == true"| LINT["lint · matrix: affected pkgs<br/>ruff + pyright (py3.12)"]:::job
     LINT --> TEST["test · matrix: pkg × py3.11–3.14<br/>pytest + per-pkg coverage → Codecov"]:::job
     CH --> ISO["install-isolation · matrix: affected<br/>clean venv → dep-tree closure<br/>+ no-backend + extras import"]:::job
-    CH --> UNI["unified<br/>all pkgs installed → -m cross_domain<br/>registry parity / shim / rewriter"]:::job
+    CH --> UNI["unified<br/>all pkgs installed → -m cross_domain<br/>registry parity / extras isolation"]:::job
     CH --> IG["import-graph<br/>C1 acyclic · C2 sink · C3 sole edge"]:::job
     CH --> VL["version-lockstep<br/>C4 floor + equal versions"]:::job
 
@@ -132,9 +132,7 @@ initial cut is not policy — the list is exactly the set of subpackages at 0.
 | package | subpackage | strict errors | strict |
 |---|---|---:|:---:|
 | pirn-core | `pirn/*.py` | 0 | yes |
-| pirn-core | `pirn/_migrate` | 0 | yes |
 | pirn-core | `pirn/check` | 0 | yes |
-| pirn-core | `pirn/domains` | 0 | yes |
 | pirn-core | `pirn/emitters` | 0 | yes |
 | pirn-core | `pirn/exceptions` | 0 | yes |
 | pirn-core | `pirn/managers` | 0 | yes |

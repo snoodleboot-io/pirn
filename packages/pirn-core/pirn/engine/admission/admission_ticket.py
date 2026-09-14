@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True, slots=True)
 class AdmissionTicket:
-    """Proof that an ``AdmissionGate`` admitted a knot, handed back on release.
+    """Proof that an ``Admission`` admitted a knot, handed back on release.
 
     The ticket is the lifecycle boundary of a single execution: it is issued
     when the gate lets a knot start and returned to the same gate when the knot

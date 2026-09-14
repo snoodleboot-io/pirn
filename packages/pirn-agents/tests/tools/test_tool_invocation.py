@@ -14,7 +14,7 @@ from typing import Any, ClassVar
 from pirn.core.err import Err
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
-from pirn.core.knot_factory import knot
+from pirn.core.knot_factory import KnotFactory
 from pirn.core.knot_retry_policy import KnotRetryPolicy
 from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
@@ -221,7 +221,7 @@ class TestATooCallIsAKnot(unittest.IsolatedAsyncioTestCase):
         assert row_one.config_values_hash != row_two.config_values_hash
 
     async def test_call_may_arrive_from_an_upstream_knot(self) -> None:
-        @knot
+        @KnotFactory.knot
         async def plan() -> ToolCall:
             return _call("from-upstream", a=2)
 
