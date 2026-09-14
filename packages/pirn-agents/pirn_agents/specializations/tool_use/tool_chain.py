@@ -155,9 +155,7 @@ class ToolChain(AgentPipeline):
             steps[f"step_{index}"] = previous_step
 
         return Aggregator(
-            combine=functools.partial(
-                self._pick_terminal, call_id, factories[0].requires_approval()
-            ),
+            combine=functools.partial(self._pick_terminal, call_id),
             _config=KnotConfig(id="chain-result", error_policy=ErrorPolicy.RECEIVE_ERRORS),
             **steps,
         )
@@ -178,7 +176,7 @@ class ToolChain(AgentPipeline):
         return ToolCall(tool_name=tool_name, arguments={"input": previous}, call_id=call_id)
 
     @staticmethod
-    def _pick_terminal(call_id: str, step_0_gated: bool, **results: Result[Any]) -> ToolResult:
+    def _pick_terminal(call_id: str, **results: Result[Any]) -> ToolResult:
         """Return the view of the last step that actually ran.
 
         Every step after the chain first stops is ``Skipped`` (the default
@@ -191,18 +189,13 @@ class ToolChain(AgentPipeline):
         step 0 denied outright (PIR-865): step 0 is a bare tool knot, not a
         ``ToolInvocation``, so a denied approval leaves it genuinely
         ``Skipped`` and every later step cascades from it — the chain
-        stopped at the very first step, so that is the terminal.
-
-        ``step_0_gated`` (PIR-865) is whether the *first* step's tool
-        requires approval: every later step is already rendered as a
-        :class:`ToolResult` by its own ``ToolInvocation`` (gated correctly
-        there), so only a raw ``step_0`` result — the one shape this method
-        still builds a view from itself — needs it here.
+        stopped at the very first step, so that is the terminal. Its skip
+        reason is the approval check's own ``"approval_denied"``, propagated
+        by core to the tool knot (PIR-872), so the view names it directly.
         """
         ordered = sorted(results.items(), key=lambda item: int(item[0].rsplit("_", 1)[1]))
-        non_skipped = [(key, result) for key, result in ordered if not isinstance(result, Skipped)]
-        terminal_key, terminal = non_skipped[-1] if non_skipped else ordered[0]
+        non_skipped = [result for _, result in ordered if not isinstance(result, Skipped)]
+        terminal = non_skipped[-1] if non_skipped else ordered[0][1]
         if isinstance(terminal, Ok) and isinstance(terminal.value, ToolResult):
             return terminal.value
-        gated = step_0_gated and terminal_key == "step_0"
-        return ToolResult.from_result(call_id, terminal, gated=gated)
+        return ToolResult.from_result(call_id, terminal)

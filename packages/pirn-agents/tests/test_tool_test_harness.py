@@ -9,9 +9,11 @@ from __future__ import annotations
 
 import unittest
 
+from pirn_agents.exceptions.tool_invocation_error import ToolInvocationError
 from pirn_agents.testing.stub_tool import StubTool
 from pirn_agents.testing.tool_test_harness import ToolTestHarness
 from pirn_agents.tools.tool_decorator import ToolDecorator
+from pirn_agents.tools.tool_permissions import ToolPermissions
 
 
 class TestSchemaAssertions(unittest.TestCase):
@@ -61,7 +63,7 @@ class TestSchemaAssertions(unittest.TestCase):
 
 
 class TestInvocationDrivers(unittest.IsolatedAsyncioTestCase):
-    async def test_invoke_tool_sync_and_async(self) -> None:
+    async def test_run_tool_sync_and_async(self) -> None:
         @ToolDecorator.decorate
         def sync_tool(x: str) -> str:
             """Sync."""
@@ -72,8 +74,8 @@ class TestInvocationDrivers(unittest.IsolatedAsyncioTestCase):
             """Async."""
             return f"async:{x}"
 
-        assert await ToolTestHarness.invoke_tool(sync_tool, {"x": "a"}) == "sync:a"
-        assert await ToolTestHarness.invoke_tool(async_tool, {"x": "b"}) == "async:b"
+        assert await ToolTestHarness.run_tool(sync_tool, {"x": "a"}) == "sync:a"
+        assert await ToolTestHarness.run_tool(async_tool, {"x": "b"}) == "async:b"
 
     async def test_collect_tool_stream(self) -> None:
         stub = StubTool(name="gen", stream_chunks=["a", "b", "c"])
@@ -111,6 +113,21 @@ class TestToolTestHarness(unittest.IsolatedAsyncioTestCase):
         harness = ToolTestHarness(StubTool(name="g", stream_chunks=[1, 2]))
         with self.assertRaises(AssertionError):
             await harness.assert_streams({}, [1, 2, 3])
+
+    async def test_run_goes_through_the_engine_and_honours_an_approval_gate(self) -> None:
+        stub = StubTool(
+            name="danger", permissions=ToolPermissions(approval_required=True), result="ran"
+        )
+        assert await ToolTestHarness(stub).run({"input": "x"}) == "ran"
+
+    async def test_a_failed_call_raises(self) -> None:
+        @ToolDecorator.decorate
+        async def broken(x: str) -> str:
+            """Broken."""
+            raise RuntimeError("nope")
+
+        with self.assertRaisesRegex(ToolInvocationError, "nope"):
+            await ToolTestHarness.run_tool(broken, {"x": "a"})
 
     def test_assert_schema_shape_via_harness(self) -> None:
         harness = ToolTestHarness(StubTool(name="s"))

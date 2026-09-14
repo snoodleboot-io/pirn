@@ -27,13 +27,15 @@ Regenerate all three constants with::
 
 from the package root (``packages/pirn-agents``).
 
-Two families in the ``invoke`` inventory are not tools at all and are frozen
-here only because the detector is deliberately blunt: the run-recorder
-``invoke(key=, thunk=)`` seam (``determinism/``, ``evaluation/``).  It belongs
-to another workstream and is listed, not migrated, by WS1.  The other family,
-``CascadeTier.invoke``, is gone (PIR-872): a cascade tier is a model call run
-as an ``LLMChatCall`` knot, so its ``_TierInvocation`` call site left this
-inventory.
+Two families the ``invoke`` inventory used to hold were not tools at all, and
+both are gone (PIR-872).  The run-recorder ``invoke(key=, thunk=)`` seam
+(``CassetteRecorder``, ``RunRecorder``, ``NullRunRecorder``,
+``CassetteRunRecorder``) is deleted: an eval item is a knot, so core
+``RunHistory``/``ReplaySession`` record and replay it, and ``ToolTestHarness``
+drives a tool through the engine instead of an ``invoke`` method, so
+``INVOKE_CLASSES`` is empty.  ``CascadeTier.invoke`` is gone too: a cascade tier
+is a model call run as an ``LLMChatCall`` knot, so its ``_TierInvocation`` call
+site left this inventory, and ``AWAITED_INVOKE_CALL_SITES`` is empty.
 """
 
 from __future__ import annotations
@@ -45,27 +47,14 @@ from tests.tools.tool_knot_inventory import ToolKnotInventory
 
 # --- known inventory, frozen (ADR agents-speaks-core, WS1) -----------------
 
-INVOKE_CLASSES = frozenset(
-    {
-        "determinism/cassette_recorder.py::CassetteRecorder",
-        "evaluation/cassette_run_recorder.py::CassetteRunRecorder",
-        "evaluation/null_run_recorder.py::NullRunRecorder",
-        "evaluation/run_recorder.py::RunRecorder",
-        "testing/tool_test_harness.py::ToolTestHarness",
-    }
-)
+INVOKE_CLASSES: frozenset[str] = frozenset()
 
 # ToolStatus is deleted and ToolResult/AgentTool are the composed shapes, not
 # parallel ones (PIR-872; see ToolKnotInventory.PARALLEL_NAMES). Empty, not
 # deleted: importing a reintroduced parallel name fails here.
 PARALLEL_VOCABULARY_IMPORTERS: frozenset[str] = frozenset()
 
-AWAITED_INVOKE_CALL_SITES = frozenset(
-    {
-        "evaluation/cassette_run_recorder.py::CassetteRunRecorder.invoke",
-        "evaluation/run_eval.py::RunEval.run._run_item",
-    }
-)
+AWAITED_INVOKE_CALL_SITES: frozenset[str] = frozenset()
 
 
 class TestToolKnotInventoryIsFrozen(unittest.TestCase):
@@ -84,12 +73,13 @@ class TestToolKnotInventoryIsFrozen(unittest.TestCase):
     def test_the_walk_is_not_vacuous(self) -> None:
         """A guard that finds nothing passes for the wrong reason.
 
-        PIR-872 emptied the importer inventory, so the non-empty ``invoke``
-        inventories (5 classes, 3 call sites) carry the vacuity check.
+        PIR-872 emptied all three inventories, so their sizes can no longer
+        show the walk ran: assert instead that it parsed the package (the
+        detectors themselves are pinned by ``TestDetectorsAreDiscriminating``).
         """
-        total = sum(len(labels) for labels in self.found.values())
-        assert total >= 5, self.found
-        assert self.found["invoke_classes"], self.found
+        assert set(self.found) == {"invoke_classes", "importers", "call_sites"}, self.found
+        modules = ToolKnotInventory.modules()
+        assert len(modules) >= 500, len(modules)
 
     def test_classes_with_an_invoke_method_are_frozen(self) -> None:
         self._assert_frozen("invoke_classes", INVOKE_CLASSES, "INVOKE_CLASSES")

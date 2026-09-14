@@ -8,12 +8,15 @@ from typing import Any
 
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
+from pirn.core.run_request import RunRequest
 from pirn.nodes.check import Check
 from pirn.tapestry import Tapestry
 
 from pirn_agents.agent.approval_hook import ApprovalHook
 from pirn_agents.agent.tool_approval_check import ToolApprovalCheck
 from pirn_agents.testing.stub_tool import StubTool
+from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_factory import ToolFactory
 from pirn_agents.tools.tool_permissions import ToolPermissions
 
 
@@ -73,8 +76,6 @@ class TestToolApprovalCheckProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_runs_as_an_ordinary_knot_through_the_engine(self) -> None:
         """``process()`` is not the only path -- a real run resolves ``arguments`` too."""
-        from pirn.core.run_request import RunRequest
-
         stub = StubTool(name="danger", permissions=ToolPermissions(approval_required=True))
         hook = _RecordingHook(decision=False)
         with Tapestry() as t:
@@ -82,6 +83,38 @@ class TestToolApprovalCheckProcess(unittest.IsolatedAsyncioTestCase):
             ToolApprovalCheck(tool=stub, arguments=args, hook=hook, _config=KnotConfig(id="c"))
         result = await t.run(RunRequest())
         assert result.outputs["c"] is False
+
+
+class TestADenialNamesItselfInLineage(unittest.IsolatedAsyncioTestCase):
+    """Core records and propagates the check's ``skip_reason`` (PIR-872)."""
+
+    async def test_the_gate_and_the_tool_knot_record_approval_denied(self) -> None:
+        # Arrange
+        stub = StubTool(name="danger", permissions=ToolPermissions(approval_required=True))
+        factory = ToolFactory.of(stub)
+        call = ToolCall(tool_name="danger", arguments={"input": "x"}, call_id="c1")
+        with Tapestry() as t:
+            knot = factory.for_call(call, approval_hook=_RecordingHook(decision=False))
+
+        # Act
+        result = await t.run(RunRequest(), terminals=knot)
+
+        # Assert
+        reasons = {row.knot_id: row.skip_reason for row in result.lineage}
+        assert reasons[knot.knot_id] == "approval_denied"
+        assert reasons[f"{knot.knot_id}:approval-gate"] == "approval_denied"
+        assert stub.invocations == []
+
+    async def test_an_approved_call_records_no_skip(self) -> None:
+        stub = StubTool(
+            name="danger", permissions=ToolPermissions(approval_required=True), result="ran"
+        )
+        call = ToolCall(tool_name="danger", arguments={"input": "x"}, call_id="c1")
+        with Tapestry() as t:
+            knot = ToolFactory.of(stub).for_call(call, approval_hook=_RecordingHook(decision=True))
+        result = await t.run(RunRequest(), terminals=knot)
+        assert result.outputs[knot.knot_id] == "ran"
+        assert all(row.skip_reason is None for row in result.lineage)
 
 
 if __name__ == "__main__":

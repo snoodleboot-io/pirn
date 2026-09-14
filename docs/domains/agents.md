@@ -389,15 +389,14 @@ two independently-built pipelines bounded by one shared group). This is
 exactly the isolation `Bulkhead` used to promise, produced by the engine
 that already schedules everything else.
 
-One caller has no `Tapestry` to attach a group to:
-`evaluation/run_eval.py::RunEval.run` is a bare `asyncio.gather` loop, not an
-engine run, so it now bounds its per-item concurrency with a plain
-`asyncio.Semaphore(concurrency)` (`concurrency` is a plain `int`, default 8)
-instead of the deleted `BackpressureSemaphore`/`ConcurrencyConfig` pair —
-the `max_queue_depth`/`acquire_timeout` backpressure knobs those classes
-carried (meaningful only outside a running `Tapestry`) have no replacement
-here; wiring this runner onto the engine itself would restore an equivalent,
-core-native backpressure story.
+`evaluation/run_eval.py::RunEval.run` uses the same lever: each eval item is
+one knot in the `eval_items` group, capped by
+`ConcurrencyLimits(groups={"eval_items": concurrency})` (`concurrency` is a
+plain `int`, default 8), joined by an `Aggregator` into the `EvalReport` in
+dataset order. Because every item is a knot, an eval is recorded like any run:
+pass `history=`/`data_store=`/`run_id=` to keep it and
+`replay=ReplaySession.from_history(...)` to serve it back without calling the
+target (PIR-872).
 
 ## Idempotency keys (resilience)
 

@@ -23,10 +23,10 @@ capabilities, each provider-neutral and backend-free at import time:
   :class:`~pirn_agents.evaluation.eval_regression_check.EvalRegressionCheck`
   for CI regression control.
 
-Determinism (record/replay cassettes) is F29's job: the runner takes a
-:class:`~pirn_agents.evaluation.run_recorder.RunRecorder` seam (defaulting to the
-pass-through :class:`~pirn_agents.evaluation.null_run_recorder.NullRunRecorder`
-over live I/O) that F29 will back with a cassette recorder.
+Determinism is core record/replay: the runner executes one knot per item, so
+an eval run is recorded to the ``RunHistory``/``DataStore`` it runs against and
+``RunEval.run(replay=ReplaySession(...))`` serves it back without calling the
+target (PIR-872).
 
 Importing this subpackage pulls in no backend; the optional RAGAS/embedding-judge
 backend is imported lazily through :meth:`~pirn_agents._internal.optional_import.OptionalImport.require` behind

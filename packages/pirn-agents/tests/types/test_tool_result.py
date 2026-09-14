@@ -119,19 +119,15 @@ class FromResultTests(unittest.TestCase):
         assert rebuilt.status == "skipped"
         assert rebuilt.error == "call skipped: upstream not selected"
 
-    def test_gated_skipped_names_approval_denied_over_the_raw_reason(self) -> None:
-        """A gated call's Skipped can only be its approval gate closing (PIR-865)."""
-        rebuilt = ToolResult.from_result(
-            "c1", Skipped(reason="parent_failed_or_skipped"), gated=True
-        )
+    def test_a_denied_approval_reads_approval_denied(self) -> None:
+        """Core propagates the approval check's reason to the call (PIR-872)."""
+        rebuilt = ToolResult.from_result("c1", Skipped(reason="approval_denied", propagates=True))
         assert rebuilt.status == "skipped"
         assert rebuilt.error == "call skipped: approval denied"
 
-    def test_ungated_skipped_keeps_the_engines_own_reason(self) -> None:
-        rebuilt = ToolResult.from_result(
-            "c1", Skipped(reason="parent_failed_or_skipped"), gated=False
-        )
-        assert rebuilt.error == "call skipped: parent_failed_or_skipped"
+    def test_the_engine_s_generic_reason_is_rendered_readably(self) -> None:
+        rebuilt = ToolResult.from_result("c1", Skipped(reason="parent_failed_or_skipped"))
+        assert rebuilt.error == "call skipped: parent failed or skipped"
 
     def test_rejects_a_non_result(self) -> None:
         with self.assertRaisesRegex(TypeError, "must be Ok, Err, or Skipped"):

@@ -174,7 +174,7 @@ class TestEncodeCoreResults(unittest.TestCase):
         assert native == [
             {"role": "tool", "tool_call_id": "c1", "content": {"echo": 1}},
             {"role": "tool", "tool_call_id": "c2", "content": "RuntimeError: boom"},
-            {"role": "tool", "tool_call_id": "c3", "content": "call skipped: gate_closed"},
+            {"role": "tool", "tool_call_id": "c3", "content": "call skipped: gate closed"},
         ]
 
     def test_skipped_renders_as_skipped_not_error(self) -> None:
@@ -184,7 +184,7 @@ class TestEncodeCoreResults(unittest.TestCase):
         views = codec.views({"c1": Skipped(reason="gate_closed")})
 
         assert views[0].status == "skipped"
-        assert views[0].error == "call skipped: gate_closed"
+        assert views[0].error == "call skipped: gate closed"
 
 
 class TestEncodeResults(unittest.TestCase):

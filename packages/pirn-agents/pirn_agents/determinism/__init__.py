@@ -4,13 +4,11 @@ Makes agent runs reproducible and debuggable by recording and replaying every
 non-deterministic I/O, leveraging the content-addressed DAG. The subpackage
 layers five capabilities, each provider-neutral and backend-free at import time:
 
-* **Cassettes** (S1) — record every LLM/tool/retrieval I/O keyed by a content
-  digest and replay it deterministically offline
-  (:class:`~pirn_agents.determinism.cassette_recorder.CassetteRecorder` over a
-  serialisable :class:`~pirn_agents.determinism.cassette.Cassette`, with
-  ``record`` / ``replay`` / ``passthrough`` modes). A missing replay entry raises
-  :class:`~pirn_agents.exceptions.missing_cassette_entry_error.MissingCassetteEntryError`
-  instead of silently calling out.
+* **Record/replay** (S1) — core's own: every run records one lineage row and
+  one content-addressed value per knot, and ``Tapestry.run(replay=ReplaySession)``
+  serves them back without executing (PIR-872 deleted the cassette adapter that
+  wrapped this). A recording that cannot be honoured raises core's
+  ``ReplayError`` instead of silently calling out.
 * **Deterministic mode** (S2) — a seed + a frozen-clock hook threaded through a
   run (:class:`~pirn_agents.determinism.determinism_context.DeterminismContext`)
   so time and randomness are reproducible; nothing calls the wall clock or the
@@ -26,12 +24,8 @@ layers five capabilities, each provider-neutral and backend-free at import time:
 * **Snapshot/fork** (S5) — fork a new run from any F14 checkpoint
   (:class:`~pirn_agents.determinism.checkpoint_forker.CheckpointForker`).
 
-The concrete cassette recorder also backs F12's ``RunRecorder`` seam via
-:class:`~pirn_agents.evaluation.cassette_run_recorder.CassetteRunRecorder`, so
-``run_eval`` can replay a whole suite deterministically. Cassette recording and
-replay go directly through ``RunHistory``/``DataStore`` (see
-:class:`~pirn_agents.determinism.cassette_recorder.CassetteRecorder`'s module
-docstring); no separate cassette-store backend is required.
+``RunEval.run`` records one knot per eval item, so a whole suite replays
+deterministically through the same core seam (``replay=``).
 """
 
 from __future__ import annotations

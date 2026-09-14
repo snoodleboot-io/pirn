@@ -5,10 +5,11 @@ The kit gives tool authors two things:
 * **Schema assertions** — :meth:`ToolTestHarness.assert_tool_schema` (exact match) and
   :meth:`ToolTestHarness.assert_tool_schema_shape` (partial: required names + per-property
   fragments) check the declaration a tool advertises.
-* **Invocation drivers** — :meth:`ToolTestHarness.invoke_tool` runs one call outside the
-  engine and returns its value (raising on a failed call) and
-  :meth:`ToolTestHarness.collect_tool_stream` drains a streaming tool, both returning the
-  observed output for assertion.
+* **Drivers** — :meth:`ToolTestHarness.run_tool` runs one call through the
+  engine (a real ``Tapestry.run`` of the call's knot, approval gate and all)
+  and returns its value, raising on a failed or skipped call, and
+  :meth:`ToolTestHarness.collect_tool_stream` drains a streaming tool, both
+  returning the observed output for assertion.
 
 Every helper accepts anything :meth:`ToolFactory.of` accepts — a ``Tool``
 class, a ``@ToolDecorator.decorate`` factory, a :class:`StubTool`, a bound factory (ADR
@@ -21,7 +22,7 @@ with those helpers for a fluent style. Worked example::
     async def test_echo() -> None:
         harness = ToolTestHarness(StubTool(name="echo", result="hi"))
         harness.assert_schema_shape(required=(), properties={"input": {"type": "string"}})
-        assert await harness.invoke({"input": "x"}) == "hi"
+        assert await harness.run({"input": "x"}) == "hi"
 
     async def test_stream() -> None:
         harness = ToolTestHarness(StubTool(name="gen", stream_chunks=["a", "b"]))
@@ -35,9 +36,12 @@ from typing import Any
 
 from pirn.core.err import Err
 from pirn.core.ok import Ok
+from pirn.core.run_request import RunRequest
+from pirn.tapestry import Tapestry
 
 from pirn_agents.exceptions.tool_invocation_error import ToolInvocationError
 from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_call_codec import ToolCallCodec
 from pirn_agents.tools.tool_factory import ToolFactory
 
 
@@ -45,7 +49,7 @@ class ToolTestHarness:
     """Bundles one tool capability with schema assertions and invocation drivers.
 
     The static methods (:meth:`assert_tool_schema`,
-    :meth:`assert_tool_schema_shape`, :meth:`invoke_tool`,
+    :meth:`assert_tool_schema_shape`, :meth:`run_tool`,
     :meth:`collect_tool_stream`) take any tool capability directly; the
     instance API applies them to the wrapped tool.
     """
@@ -81,12 +85,8 @@ class ToolTestHarness:
         )
 
     async def run(self, arguments: Mapping[str, Any]) -> Any:
-        """Run one call outside the engine and return its value."""
-        return await ToolTestHarness.invoke_tool(self._tool, arguments)
-
-    async def invoke(self, arguments: Mapping[str, Any]) -> Any:
-        """Run one call outside the engine and return its value (alias of :meth:`run`)."""
-        return await ToolTestHarness.invoke_tool(self._tool, arguments)
+        """Run one call through the engine and return its value."""
+        return await ToolTestHarness.run_tool(self._tool, arguments)
 
     async def collect_stream(self, arguments: Mapping[str, Any]) -> list[Any]:
         """Drain the wrapped streaming tool into a list of chunks."""
@@ -162,8 +162,14 @@ class ToolTestHarness:
                         )
 
     @staticmethod
-    async def invoke_tool(tool: Any, arguments: Mapping[str, Any]) -> Any:
-        """Run one call of ``tool`` outside the engine and return its value.
+    async def run_tool(tool: Any, arguments: Mapping[str, Any]) -> Any:
+        """Run one call of ``tool`` through the engine and return its value.
+
+        The call's knot — behind its approval gate when the capability
+        requires one — is registered in a fresh ``Tapestry`` and run by the
+        engine, so validation, lineage and the gate are exactly what a real
+        run applies; the outcome is read back with
+        :meth:`ToolCallCodec.outcomes_of`.
 
         Raises
         ------
@@ -173,7 +179,10 @@ class ToolTestHarness:
         """
         factory = ToolFactory.of(tool)
         call = ToolCall(tool_name=factory.name, arguments=dict(arguments), call_id="harness")
-        result = await factory.run_call(call)
+        tapestry = Tapestry()
+        knot = factory.for_call(call, tapestry=tapestry)
+        run = await tapestry.run(RunRequest(), terminals=knot)
+        result = ToolCallCodec.outcomes_of(run, [call])[call.call_id]
         if isinstance(result, Ok):
             return result.value
         if isinstance(result, Err):
