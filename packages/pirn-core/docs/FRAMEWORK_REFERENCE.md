@@ -85,6 +85,8 @@ class LLMProvider(PirnOpaqueValue):
 | `KnotRetryPolicy` | value-object | — | `core/knot_retry_policy.py` — frozen backoff schedule (`max_attempts`, `base_delay`, `max_delay`, `multiplier`, `jitter`, `max_retry_after`) plus `is_retryable` / `retry_after` predicates over the failed attempt's `ExceptionRecord`. Set on `KnotConfig.retry`; the **engine** runs the loop (§3.5). `run(attempt, *, retry_on=, retry_after_hint=, sleep=, rng=)` drives the same schedule for a call *below* the knot boundary (an HTTP POST, an embedding batch, a reconnect). **Do not write a retry loop inside a knot, or a second backoff implementation anywhere.** |
 | `RunRequest` / `RunResult` / `RunContext` | value-object | — | a run's input/output/ambient context; `RunContext.nesting` is the run's `RunNesting` frame |
 | `RunNesting` | value-object | — | `core/run_nesting.py` — where a run sits in the nested-run tree (`depth`, enclosing `run_ids`, container `path`, tightest `max_depth`); `RunNesting.current()` inside a knot. `Tapestry(max_nesting_depth=n)` turns the guard on: `NestingDepthExceededError` / `NestedRunCycleError` as the container knot's `Err`. **Do not carry a recursion counter through agent code.** |
+| `RunContextVars` | ambient state | — | `core/run_context_vars.py` — the typed `ContextVar`s a run publishes (`tapestry`, `run_id`, `history`, `emitters`, `emitter_error_policy`, `data_store`, `transport`, `traceback_filter`, `nesting`, `execution_plane`, `store`, `dispatching_knot_id`). Framework code reads/sets them; application code uses the accessors (`Tapestry.current*()`, `RunNesting.current()`, `ExecutionPlane.current()`). **Do not add a module-level `ContextVar` for run state.** |
+| `ShapeGuard` | helper | — | `core/shape_guard.py` — `TypeGuard` narrowers for runtime-shaped values (`is_dict`, `is_str_keyed_dict`, `is_mapping`, `is_str_keyed_mapping`, `is_sequence`, `is_abstract_set`, `is_list`, `is_tuple`, `is_list_or_tuple`) that check what they claim and narrow elements to `object`. **Use it instead of a bare `isinstance(x, dict)` on an `object`/JSON payload under strict.** |
 | `ErrorPolicy` | enum/policy | — | how upstream `Err` propagates (`RECEIVE_ERRORS` etc.) |
 | `IdentityResolver` | interface-base | — | `core/identity/` — `resolve()` who's running; `chained/env/os/static/null` implementations |
 | `ContentHasher.hash(value, *, strict=False)` | static method | — | `core/content_hasher.py` — the one content-addressing seam (`sha256:`-prefixed). Default is best-effort: an opaque leaf degrades to a `sha256:unhashable:<type>` sentinel. `strict=True` raises `UnhashableValueError` (`PirnError, TypeError`) naming the innermost offending type instead — for a caller (a cache key, a dedup key) where the sentinel's silent collision risk is unacceptable, not just an inconvenience. (ADR agents-speaks-core WS2 part 2) |
@@ -692,6 +694,21 @@ to `ExceptionRecord`.
   (`pirn/_migrate/`), and the `Knot._deprecated_since` /
   `_deprecation_notice` construction-warning seam (with its last user,
   `pirn_data`'s `ScdType1Overwrite` — use `MergeUpsert`).
+- **Private-in-name-only is public (PIR-872).** Classes other modules import
+  are public: `Signer` (`backends/signer.py`), `CloudObjectStore`, `LazyPool`,
+  `LazyClient`, `SqliteMigrations`, `RunScopedSubscriber`,
+  `EmitterSubscriber`, `RunDriver`, `IterationChainKnot`, `LoopTerminal`,
+  `EndKnot`, `OptionalMarker`, `OptionalMeta`, `UnhashableError`, `Unset`.
+  Cross-class seams that used to reach into private state are methods:
+  `Knot.holds_admission_slot()` / `Knot.record_dispatch_extra()` /
+  `Knot.reserved_kwargs()`, `Tapestry.run_id_scope()`,
+  `Tapestry.adopt_history()` / `Tapestry.adopt_value_plane()` (the deleted
+  `NestedRunKnot._apply_inherited_value_plane`),
+  `NestedRunKnot.inherited_emitters()`, `LoopSubTapestry.terminal_id()` /
+  `tolerates_iteration_failures()`, `LazyClient.config`,
+  `TransportHandle.inline_value`, `ObjectStore.close()` (no-op default).
+  Untyped SDK boundaries are typed by stubs in `packages/pirn-core/typings/`
+  (`asyncpg`, `cloudpickle`, `aiokafka`, `celery`), not by `Any`.
 - **`CloudObjectStore` composes over `ObjectStore`.** `S3DataStore`,
   `GCSDataStore` and `AzureBlobDataStore` no longer open an SDK client per
   call: each lazily builds its connector `ObjectStore` (`S3Store`, `GCSStore`,
@@ -709,10 +726,8 @@ to `ExceptionRecord`.
   write has no connector counterpart).
 - **pyright strict is per subpackage, ratcheted.** Each package's
   `[tool.pyright].strict` lists the subpackages that pass strict with 0
-  errors (core: `check`, `emitters`, `exceptions`,
-  `managers`, `recording`, `security`, `streaming`, `viz`, `yaml_loader` and
-  the root modules; `backends`, `core`, `connectors`, `engine`, `nodes`,
-  `triggers` are the burn-down). New subpackages start strict, a subpackage
+  errors (core: every subpackage and the root modules except `connectors`,
+  which is the burn-down). New subpackages start strict, a subpackage
   joins at 0, none regresses — `scripts/check_pyright_strict_list.py` enforces
   it in CI and `docs/architecture/ci-pipelines.md` holds the table. The only
   strict rule the house style contradicts, `reportUnnecessaryIsInstance`, is
