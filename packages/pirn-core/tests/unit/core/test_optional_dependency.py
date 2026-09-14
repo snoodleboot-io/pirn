@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sys
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -92,3 +93,29 @@ class TestOptionalDependencyRequire:
         # Arrange / Act / Assert
         with pytest.raises(ValueError, match=f"{name} must be a non-empty str"):
             OptionalDependency.require(module, extra=extra, package=package)
+
+    def test_import_error_raised_inside_an_installed_module_propagates_unchanged(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Arrange: the requested module is installed, but executing it fails on
+        # an import of its own -- a broken install, not a missing extra.
+        (tmp_path / "pirn_installed_but_broken_xyz.py").write_text(
+            "import pirn_its_own_missing_dependency_xyz\n"
+        )
+        monkeypatch.syspath_prepend(str(tmp_path))
+
+        # Act
+        with pytest.raises(ImportError) as info:
+            OptionalDependency.require("pirn_installed_but_broken_xyz", extra="broken")
+
+        # Assert: the real failure, never the "install the extra" relabel.
+        assert info.value.name == "pirn_its_own_missing_dependency_xyz"
+        assert "pip install" not in str(info.value)
+
+    def test_missing_parent_package_of_a_dotted_module_raises_the_install_hint(self) -> None:
+        # Arrange / Act
+        with pytest.raises(ImportError) as info:
+            OptionalDependency.require("nope_missing_xyz.sub.module", extra="deep")
+
+        # Assert
+        assert 'pip install "pirn-core[deep]"' in str(info.value)
