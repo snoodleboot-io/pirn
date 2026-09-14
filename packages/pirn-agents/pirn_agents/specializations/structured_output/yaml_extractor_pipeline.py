@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``YamlExtractorPipeline`` — schema-targeted YAML extraction with retry.
 
 Same shape as :class:`JsonExtractorPipeline` but YAML output. Uses
@@ -9,17 +11,17 @@ Algorithm:
        (Mapping), and ``max_retries`` (int).
     2. Validate each argument; raise ``TypeError`` or ``ValueError`` on
        invalid inputs.
-    3. Drive the attempts with a ``_YamlExtractorLoop`` (``LoopSubTapestry``):
+    3. Drive the attempts with a ``YamlExtractorLoop`` (``LoopSubTapestry``):
        each attempt is one real, individually-traceable
-       ``_YamlExtractorAttempt`` invocation, passing the accumulated
+       ``YamlExtractorAttempt`` invocation, passing the accumulated
        ``prior_error`` for self-correction, rather than a step inside a
        hand-rolled Python ``for`` loop (ADR agents-speaks-core WS5b).
-    4. Extract the parsed mapping with ``_YamlExtractorResultExtractor``,
+    4. Extract the parsed mapping with ``YamlExtractorResultExtractor``,
        which raises ``ValueError`` if every attempt was exhausted.
 
 
 References:
-    - :class:`pirn_agents.specializations.structured_output._yaml_extractor_attempt._YamlExtractorAttempt`
+    - :class:`pirn_agents.specializations.structured_output.yaml_extractor_attempt.YamlExtractorAttempt`
     - PyYAML: https://pyyaml.org/wiki/PyYAMLDocumentation
 """
 
@@ -34,14 +36,14 @@ from pirn.core.parameter import Parameter
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.structured_output._yaml_extractor_loop import (
-    _YamlExtractorLoop,
+from pirn_agents.specializations.structured_output.yaml_extractor_loop import (
+    YamlExtractorLoop,
 )
-from pirn_agents.specializations.structured_output._yaml_extractor_result_extractor import (
-    _YamlExtractorResultExtractor,
+from pirn_agents.specializations.structured_output.yaml_extractor_result_extractor import (
+    YamlExtractorResultExtractor,
 )
-from pirn_agents.specializations.structured_output._yaml_extractor_state import (
-    _YamlExtractorState,
+from pirn_agents.specializations.structured_output.yaml_extractor_state import (
+    YamlExtractorState,
 )
 
 
@@ -104,12 +106,12 @@ class YamlExtractorPipeline(AgentPipeline):
 
         initial = Parameter(
             "yaml_extractor_state",
-            _YamlExtractorState,
-            default=_YamlExtractorState(
+            YamlExtractorState,
+            default=YamlExtractorState(
                 prior_error="", result=None, last_error="no attempts were made", attempts=0
             ),
         )
-        loop = _YamlExtractorLoop(
+        loop = YamlExtractorLoop(
             prompt=prompt,
             llm=llm,
             schema=resolved_schema,
@@ -117,4 +119,4 @@ class YamlExtractorPipeline(AgentPipeline):
             state=initial,
             _config=KnotConfig(id="yaml_extractor_loop"),
         )
-        return _YamlExtractorResultExtractor(state=loop, _config=KnotConfig(id="result"))
+        return YamlExtractorResultExtractor(state=loop, _config=KnotConfig(id="result"))

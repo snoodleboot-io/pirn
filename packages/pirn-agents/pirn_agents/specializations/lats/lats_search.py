@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``LatsSearch`` — budgeted best-first tree search over action trajectories.
 
 A :class:`SubTapestry` that performs an MCTS-style (best-first) search: it keeps a
@@ -59,9 +61,9 @@ from pirn_agents.performance.budget_breach_error import BudgetBreachError
 from pirn_agents.performance.run_budget import RunBudget
 from pirn_agents.performance.run_budget_meter import RunBudgetMeter
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.lats._lats_result_extractor import _LatsResultExtractor
 from pirn_agents.specializations.lats.lats_action_proposer import LatsActionProposer
 from pirn_agents.specializations.lats.lats_node import LatsNode
+from pirn_agents.specializations.lats.lats_result_extractor import LatsResultExtractor
 from pirn_agents.specializations.lats.trajectory_value_model import TrajectoryValueModel
 
 
@@ -165,7 +167,7 @@ class LatsSearch(AgentPipeline):
                     best = child
                 heapq.heappush(frontier, (-child_value, next(counter), child))
 
-        return _LatsResultExtractor(
+        return LatsResultExtractor(
             best=best,
             nodes_expanded=nodes_expanded,
             budget_exhausted=budget_exhausted,

@@ -15,10 +15,9 @@ class ReflexionResult(AgentResult[ReflexionFrame, str]):
     ``ReflexionResult`` is ``Payload[ReflexionFrame, str]`` (PIR-868,
     following the ADR agents-speaks-core WS6b pattern) — ``data`` is the
     best/last answer produced, and ``metadata`` is the :class:`ReflexionFrame`
-    carrying the succeeded/iterations/attempts facts. The pre-ADR field
-    names (``answer``, ``succeeded``, ``iterations``, ``attempts``) stay
-    available as read-only properties, so every existing construction and
-    attribute-access call site keeps compiling unchanged.
+    carrying the succeeded/iterations/attempts facts. The constructor takes the pattern's
+    named fields (``answer``, ``succeeded``, ``iterations``, ``attempts``), and each is also
+    a read-only property.
     """
 
     def __init__(
@@ -48,6 +47,6 @@ class ReflexionResult(AgentResult[ReflexionFrame, str]):
         return self._metadata.attempts
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
-        audit = dict(self._metadata._pirn_audit_dict())
+        audit = dict(super()._pirn_audit_dict())
         audit["answer"] = self.answer
         return audit

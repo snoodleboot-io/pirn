@@ -17,10 +17,8 @@ class EvaluatorOptimizerResult(AgentResult[EvaluatorOptimizerFrame, str]):
     (PIR-868, following the ADR agents-speaks-core WS6b pattern) — ``data``
     is the best candidate answer produced, and ``metadata`` is the
     :class:`EvaluatorOptimizerFrame` carrying the score/accepted/iterations
-    facts. The pre-ADR field names (``answer``, ``score``, ``accepted``,
-    ``iterations``) stay available as read-only properties, so every
-    existing construction and attribute-access call site keeps compiling
-    unchanged.
+    facts. The constructor takes the pattern's named fields (``answer``, ``score``,
+    ``accepted``, ``iterations``), and each is also a read-only property.
     """
 
     def __init__(self, answer: str, score: float, accepted: bool, iterations: int) -> None:
@@ -44,6 +42,6 @@ class EvaluatorOptimizerResult(AgentResult[EvaluatorOptimizerFrame, str]):
         return self._metadata.iterations
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
-        audit = dict(self._metadata._pirn_audit_dict())
+        audit = dict(super()._pirn_audit_dict())
         audit["answer"] = self.answer
         return audit

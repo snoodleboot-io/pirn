@@ -5,13 +5,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from pirn.core.pirn_opaque_value import PirnOpaqueValue
-
+from pirn_agents.specializations.base.nested_audit_value import NestedAuditValue
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
 @dataclass(frozen=True)
-class PlanReActFrame(PirnOpaqueValue):
+class PlanReActFrame(NestedAuditValue):
     """Run-level facts for a plan-then-ReAct-per-step run.
 
     Carries everything about *how* the run proceeded without carrying the
@@ -32,5 +31,5 @@ class PlanReActFrame(PirnOpaqueValue):
     def _pirn_audit_dict(self) -> dict[str, Any]:
         return {
             "plan": list(self.plan),
-            "step_responses": [response._pirn_audit_dict() for response in self.step_responses],
+            "step_responses": self._audit_forms(self.step_responses),
         }

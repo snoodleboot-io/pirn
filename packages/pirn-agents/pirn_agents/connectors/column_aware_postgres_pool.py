@@ -2,7 +2,7 @@
 
 Reuses core's Postgres pooling lifecycle (asyncpg pool creation, acquire/release,
 ``close``, the ``DsnScrubber`` credential-safe error path, and the
-``_reject_inline_interpolation`` guard) and adds only column-aware reads for the
+``reject_inline_interpolation`` guard) and adds only column-aware reads for the
 agents ``sql_query`` tool. asyncpg ``Record``s already carry their keys, so the
 column names come from the first record here.
 """
@@ -36,7 +36,7 @@ class ColumnAwarePostgresPool(PostgresPool, ColumnAwarePool):
     ) -> tuple[list[str], list[list[Any]]]:
         """Run a read and return ``(column names, rows)``.
 
-        Core's ``_reject_inline_interpolation`` guard is deliberately not applied:
+        Core's ``reject_inline_interpolation`` guard is deliberately not applied:
         its ``%[sd]`` / ``{...}`` pattern false-positives on legitimate literals a
         read query commonly contains (``LIKE '%term%'``, JSON ``{...}``), and this
         connector's defences are read-only mode plus bound parameters — Postgres

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``DebateFramework`` — multi-round debate judged by an LLM.
 
 A :class:`SubTapestry` that runs ``rounds`` of debate between the provided

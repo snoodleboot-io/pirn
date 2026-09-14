@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``DocumentTranslationPipeline`` — chunk-by-chunk LLM translation.
 
 A :class:`SubTapestry` that loads a document, splits it into fixed-size
@@ -7,9 +9,9 @@ chunk is translated independently so the pipeline tolerates documents
 larger than the LLM's context window.
 
 Algorithm:
-    1. ``_TranslationLoadAndChunk`` reads the document from a file path or HTTP/HTTPS
+    1. ``TranslationLoadAndChunk`` reads the document from a file path or HTTP/HTTPS
        URL and partitions it into non-overlapping windows of ``chunk_size`` characters.
-    2. ``_ChunkTranslator`` issues one LLM call per chunk, prompting the model to
+    2. ``ChunkTranslator`` issues one LLM call per chunk, prompting the model to
        translate the chunk text into ``target_language``.
     3. The translated chunk strings are concatenated in order to form the final
        translated document, which is returned as a single string.
@@ -33,14 +35,14 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.document_processing._chunk_translator import (
-    _ChunkTranslator,
+from pirn_agents.specializations.document_processing.chunk_translator import (
+    ChunkTranslator,
 )
-from pirn_agents.specializations.document_processing._document_source_reader import (
-    _DocumentSourceReader,
+from pirn_agents.specializations.document_processing.document_source_reader import (
+    DocumentSourceReader,
 )
-from pirn_agents.specializations.document_processing._translation_load_and_chunk import (
-    _TranslationLoadAndChunk,
+from pirn_agents.specializations.document_processing.translation_load_and_chunk import (
+    TranslationLoadAndChunk,
 )
 
 
@@ -57,9 +59,9 @@ class DocumentTranslationPipeline(AgentPipeline):
         chunk_size: Knot | int = 2000,
         allowed_root: Knot | str | None = None,
         allowed_hosts: Knot | tuple[str, ...] | None = None,
-        max_bytes: Knot | int = _DocumentSourceReader.max_bytes,
-        request_timeout: Knot | float = _DocumentSourceReader.request_timeout,
-        connect_timeout: Knot | float = _DocumentSourceReader.connect_timeout,
+        max_bytes: Knot | int = DocumentSourceReader.max_bytes,
+        request_timeout: Knot | float = DocumentSourceReader.request_timeout,
+        connect_timeout: Knot | float = DocumentSourceReader.connect_timeout,
         **kwargs: Any,
     ) -> None:
         super().__init__(
@@ -84,9 +86,9 @@ class DocumentTranslationPipeline(AgentPipeline):
         chunk_size: int = 2000,
         allowed_root: str | None = None,
         allowed_hosts: tuple[str, ...] | None = None,
-        max_bytes: int = _DocumentSourceReader.max_bytes,
-        request_timeout: float = _DocumentSourceReader.request_timeout,
-        connect_timeout: float = _DocumentSourceReader.connect_timeout,
+        max_bytes: int = DocumentSourceReader.max_bytes,
+        request_timeout: float = DocumentSourceReader.request_timeout,
+        connect_timeout: float = DocumentSourceReader.connect_timeout,
         **_: Any,
     ) -> Knot:
         """Load, chunk, and translate each chunk into the target language, returning the joined text.
@@ -127,7 +129,7 @@ class DocumentTranslationPipeline(AgentPipeline):
             raise TypeError(
                 f"DocumentTranslationPipeline: source must be a non-empty string, got {source!r}"
             )
-        chunks = _TranslationLoadAndChunk(
+        chunks = TranslationLoadAndChunk(
             source=source,
             chunk_size=chunk_size,
             allowed_root=allowed_root,
@@ -137,7 +139,7 @@ class DocumentTranslationPipeline(AgentPipeline):
             connect_timeout=connect_timeout,
             _config=KnotConfig(id="chunk"),
         )
-        return _ChunkTranslator(
+        return ChunkTranslator(
             chunks=chunks,
             target_language=target_language,
             llm=llm,

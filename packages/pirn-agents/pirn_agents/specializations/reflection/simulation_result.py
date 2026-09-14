@@ -15,10 +15,8 @@ class SimulationResult(AgentResult[SimulationFrame, str]):
     following the ADR agents-speaks-core WS6b pattern) — ``data`` is the
     worst-case description (the scenario most likely to drive a caller's
     decision), and ``metadata`` is the :class:`SimulationFrame` carrying the
-    best and neutral cases. The pre-ADR field names (``best_case``,
-    ``neutral_case``, ``worst_case``) stay available as read-only
-    properties, so every existing construction and attribute-access call
-    site keeps compiling unchanged.
+    best and neutral cases. The constructor takes the pattern's named fields (``best_case``,
+    ``neutral_case``, ``worst_case``), and each is also a read-only property.
     """
 
     def __init__(self, best_case: str, neutral_case: str, worst_case: str) -> None:
@@ -38,6 +36,6 @@ class SimulationResult(AgentResult[SimulationFrame, str]):
         return self._data
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
-        audit = dict(self._metadata._pirn_audit_dict())
+        audit = dict(super()._pirn_audit_dict())
         audit["worst_case"] = self.worst_case
         return audit

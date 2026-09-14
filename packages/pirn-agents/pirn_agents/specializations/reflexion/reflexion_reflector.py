@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``ReflexionReflector`` — turn a failed attempt into a reusable verbal lesson.
 
 Algorithm:

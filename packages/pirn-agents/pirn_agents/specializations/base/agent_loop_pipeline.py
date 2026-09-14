@@ -33,7 +33,7 @@ this programme exists to remove.
 **A decision knot that must only run conditionally** needs a gate: a core
 :class:`~pirn.nodes.check.Check` for the condition and
 ``Gate(input=value, check=condition)`` passing the value the conditional knot
-consumes (see ``_EvaluatorOptimizerLoop``'s ``_CandidateRejectedCheck``). When
+consumes (see ``EvaluatorOptimizerLoop``'s ``CandidateRejectedCheck``). When
 the gate is ``Skipped`` everything downstream is skipped with it, so the
 conditional call is never paid for.
 

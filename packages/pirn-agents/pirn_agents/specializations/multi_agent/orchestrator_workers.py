@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``OrchestratorWorkers`` — dynamic worker fan-out over a task list via F7.
 
 A :class:`SubTapestry` that spawns **one worker invocation per task-list item**,
@@ -13,7 +15,7 @@ the concurrency cap, exactly like the F1
 
 The fan-out is expressed as a graph rather than a hand-rolled
 ``asyncio.gather``: each task becomes its own
-:class:`~pirn_agents.specializations.multi_agent._worker_invocation._WorkerInvocation`
+:class:`~pirn_agents.specializations.multi_agent.worker_invocation.WorkerInvocation`
 knot, and all of them are wired as parents of a single
 :class:`~pirn.nodes.aggregator.Aggregator` — the same shape
 :class:`~pirn_agents.specializations.multi_agent.parallel_specialist_fan_out.ParallelSpecialistFanOut`
@@ -22,14 +24,14 @@ concurrently (PIR-841), so each task's call gets its own ``Result``, history
 record, and lineage.
 
 ``max_concurrency`` used to be a bare ``asyncio.Semaphore`` shared across
-every ``_WorkerInvocation`` and held across its real ``await worker.invoke(...)``.
+every ``WorkerInvocation`` and held across its real ``await worker.invoke(...)``.
 PIR-867 replaced it with the engine's own admission gate: every
-``_WorkerInvocation`` carries the same ``KnotConfig.concurrency_group``, and
+``WorkerInvocation`` carries the same ``KnotConfig.concurrency_group``, and
 ``_inner_concurrency()`` sets a matching ``ConcurrencyLimits`` group cap on
 the inner run — the lever :class:`~pirn_agents.batch.map_agent.MapAgent`
 uses, inherited by inner runs via ``ExecutionPlane`` so it is the same
 budget the admission gate already schedules against, not a second, private
-one it cannot see. ``_WorkerInvocation`` does not nest
+one it cannot see. ``WorkerInvocation`` does not nest
 :class:`~pirn_agents.tools.tool_invocation.ToolInvocation` as a further inner
 node — it reproduces ``ToolInvocation``'s exact catch-and-wrap contract
 directly (never raises; a failed call becomes a ``ToolResult`` whose outcome is ``Err``,
@@ -38,7 +40,7 @@ scrubbed via ``ToolErrorRecord``) so results compose identically either way.
 Algorithm:
     1. Validate ``worker`` (a Tool), ``tasks`` (each a str), and
        ``max_concurrency`` (>= 1).
-    2. Build one ``_WorkerInvocation`` per task, each in the same
+    2. Build one ``WorkerInvocation`` per task, each in the same
        concurrency group; a failure is caught and reported per task, never
        raised.
     3. Aggregate the results in task order into an
@@ -62,13 +64,13 @@ from pirn.core.parameter import Parameter
 from pirn.nodes.aggregator import Aggregator
 
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.multi_agent._assemble_orchestrator_workers_result import (
-    _AssembleOrchestratorWorkersResult,
+from pirn_agents.specializations.multi_agent.assemble_orchestrator_workers_result import (
+    AssembleOrchestratorWorkersResult,
 )
-from pirn_agents.specializations.multi_agent._worker_invocation import _WorkerInvocation
 from pirn_agents.specializations.multi_agent.orchestrator_workers_result import (
     OrchestratorWorkersResult,
 )
+from pirn_agents.specializations.multi_agent.worker_invocation import WorkerInvocation
 from pirn_agents.tools.tool_factory import ToolFactory
 
 
@@ -162,14 +164,14 @@ class OrchestratorWorkers(AgentPipeline):
         order: list[tuple[str, str]] = []
         for index, task in enumerate(task_tuple):
             key = f"worker_{index}"
-            parents[key] = _WorkerInvocation(
+            parents[key] = WorkerInvocation(
                 task=task,
                 worker=worker,
                 _config=KnotConfig(id=key, concurrency_group=self._concurrency_group),
             )
             order.append((key, task))
         return Aggregator(
-            combine=functools.partial(_AssembleOrchestratorWorkersResult.combine, order),
+            combine=functools.partial(AssembleOrchestratorWorkersResult.combine, order),
             _config=KnotConfig(id="orchestrator_workers_result"),
             **parents,
         )

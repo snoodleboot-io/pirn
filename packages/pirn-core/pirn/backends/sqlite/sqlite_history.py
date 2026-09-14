@@ -33,7 +33,7 @@ class SQLiteHistory(RunHistory):
     arrangement, every write here commits — or rolls back — exactly the
     transaction *its own statements* opened, and never touches one it found
     already open. This is the guarantee
-    ``ColumnAwareSqlitePool.fetch_columns`` (PIR-801) and ``_SQLExecutor``
+    ``ColumnAwareSqlitePool.fetch_columns`` (PIR-801) and ``SQLExecutor``
     (PIR-817) already make, and that ``SqlitePool`` takes up in PIR-819;
     ``sqlite3`` starts an implicit transaction for DML only, so comparing
     ``in_transaction`` before and after the statements identifies the owner

@@ -54,7 +54,7 @@ class OraclePool(DatabaseConnectionPool):
     one it found already open. This is the guarantee
     :class:`~pirn.connectors.databases.sqlite_pool.SqlitePool` (PIR-819),
     ``ColumnAwareSqlitePool`` (PIR-801), ``AiosqliteConnector`` /
-    ``SqliteConnector`` (PIR-807) and ``_SQLExecutor`` (PIR-817) already make.
+    ``SqliteConnector`` (PIR-807) and ``SQLExecutor`` (PIR-817) already make.
 
     python-oracledb does **not** autocommit, and this pool holds one long-lived
     connection that ``acquire`` hands to every caller, so without this the
@@ -141,7 +141,7 @@ class OraclePool(DatabaseConnectionPool):
         Commits only the transaction this statement opened — see the class
         docstring for why that is not an unconditional commit.
         """
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         client = await self._ensure_client()
         params = list(parameters or ())
         return await asyncio.to_thread(self._sync_execute, client, query, params)
@@ -174,7 +174,7 @@ class OraclePool(DatabaseConnectionPool):
         reaching here is rolled back rather than left stranded on the shared
         connection — see the class docstring.
         """
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         client = await self._ensure_client()
         params = list(parameters or ())
         return await asyncio.to_thread(self._sync_fetch_all, client, query, params)
@@ -206,7 +206,7 @@ class OraclePool(DatabaseConnectionPool):
         Commits only the transaction this statement opened — see the class
         docstring for why that is not an unconditional commit.
         """
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         client = await self._ensure_client()
         rows = [list(p) for p in parameter_seq]
         return await asyncio.to_thread(self._sync_execute_many, client, query, rows)

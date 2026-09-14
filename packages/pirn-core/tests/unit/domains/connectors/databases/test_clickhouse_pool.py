@@ -90,16 +90,16 @@ class TestQuerySafety(unittest.TestCase):
     def test_rejects_bare_fstring_placeholder(self) -> None:
         pool = ClickhousePool(client=FakeClickhouseClient())
         with self.assertRaisesRegex(ValueError, "interpolation"):
-            pool._reject_inline_interpolation("SELECT * FROM t WHERE x = {value}")
+            pool.reject_inline_interpolation("SELECT * FROM t WHERE x = {value}")
 
     def test_rejects_percent_s_placeholder(self) -> None:
         pool = ClickhousePool(client=FakeClickhouseClient())
         with self.assertRaisesRegex(ValueError, "interpolation"):
-            pool._reject_inline_interpolation("SELECT * FROM t WHERE x = %s")
+            pool.reject_inline_interpolation("SELECT * FROM t WHERE x = %s")
 
     def test_accepts_typed_clickhouse_placeholder(self) -> None:
         pool = ClickhousePool(client=FakeClickhouseClient())
-        pool._reject_inline_interpolation("SELECT * FROM t WHERE x = {value:String}")
+        pool.reject_inline_interpolation("SELECT * FROM t WHERE x = {value:String}")
 
 
 class TestQuerySafetyEnforced(unittest.IsolatedAsyncioTestCase):

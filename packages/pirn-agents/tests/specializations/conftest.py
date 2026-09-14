@@ -219,6 +219,6 @@ class StubDatabaseConnectionPool(DatabaseConnectionPool):
         query: str,
         parameters: Any = None,
     ) -> list[Any]:
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         self.queries.append(query)
         return list(self._rows)

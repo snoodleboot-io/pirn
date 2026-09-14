@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``TreeOfThought`` — beam-search-style reasoning with LLM-scored candidates.
 
 Algorithm:
@@ -7,14 +9,14 @@ Algorithm:
     4. Build ``depth`` chained rounds (``depth`` is a resolved int, so the
        rounds are statically unrolled — no data-dependent termination is
        involved, unlike an agentic loop). Each round:
-       a. ``_RepeatBeamForExpansion`` flattens the current beam into one
+       a. ``RepeatBeamForExpansion`` flattens the current beam into one
           entry per ``(path, candidate index)`` pair.
-       b. ``_ExpandOneThought`` is fanned out over that flat list with a
+       b. ``ExpandOneThought`` is fanned out over that flat list with a
           core :class:`~pirn.nodes.map_markers.Map`, generating one next-thought
           per entry.
        c. A :class:`~pirn.nodes.reduce_.Reduce` combines each thought with its
           parent path into a new candidate.
-       d. ``_ScoreCandidate`` is fanned out over the candidates with
+       d. ``ScoreCandidate`` is fanned out over the candidates with
           another ``Map``, scoring each (numeric 1-10 expected; non-numeric
           responses score 0).
        e. A :class:`~pirn.nodes.reduce_.Reduce` sorts by score and keeps the
@@ -44,15 +46,15 @@ from pirn.nodes.reduce_ import Reduce
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.chain_of_thought._combine_expansions import _CombineExpansions
-from pirn_agents.specializations.chain_of_thought._expand_one_thought import _ExpandOneThought
-from pirn_agents.specializations.chain_of_thought._repeat_beam_for_expansion import (
-    _RepeatBeamForExpansion,
+from pirn_agents.specializations.chain_of_thought.combine_expansions import CombineExpansions
+from pirn_agents.specializations.chain_of_thought.expand_one_thought import ExpandOneThought
+from pirn_agents.specializations.chain_of_thought.repeat_beam_for_expansion import (
+    RepeatBeamForExpansion,
 )
-from pirn_agents.specializations.chain_of_thought._score_candidate import _ScoreCandidate
-from pirn_agents.specializations.chain_of_thought._top_beam import _TopBeam
-from pirn_agents.specializations.chain_of_thought._tree_of_thought_result import (
-    _TreeOfThoughtResult,
+from pirn_agents.specializations.chain_of_thought.score_candidate import ScoreCandidate
+from pirn_agents.specializations.chain_of_thought.top_beam import TopBeam
+from pirn_agents.specializations.chain_of_thought.tree_of_thought_result import (
+    TreeOfThoughtResult,
 )
 
 
@@ -142,7 +144,7 @@ class TreeOfThought(AgentPipeline):
             beam_knot = TreeOfThought._build_round(
                 beam_knot, llm, k_candidates, beam_width, round_index
             )
-        return _TreeOfThoughtResult(beam=beam_knot, prompt=prompt, _config=KnotConfig(id="result"))
+        return TreeOfThoughtResult(beam=beam_knot, prompt=prompt, _config=KnotConfig(id="result"))
 
     @staticmethod
     def _build_round(
@@ -164,32 +166,28 @@ class TreeOfThought(AgentPipeline):
         Returns:
             The :class:`~pirn.nodes.reduce_.Reduce` knot producing the next beam.
         """
-        repeated = _RepeatBeamForExpansion(
+        repeated = RepeatBeamForExpansion(
             beam=beam_knot,
             k_candidates=k_candidates,
             _config=KnotConfig(id=f"repeat_{round_index}"),
         )
-        expanded = _ExpandOneThought(
-            # Core's Map marker is consumed at construction by
-            # `knot.py:199-205` and is deliberately not a Knot, so it does not
-            # satisfy the declared `Knot | str`. Inline suppression is the
-            # house idiom for this; see PIR-715/PIR-716.
-            parent_path=Map(repeated),  # pyright: ignore[reportArgumentType]
+        expanded = ExpandOneThought(
+            parent_path=Map(repeated),
             llm=llm,
             _config=KnotConfig(id=f"expand_{round_index}"),
         )
         candidates = Reduce(
             of=expanded,
-            combine=_CombineExpansions.combine,
+            combine=CombineExpansions.combine,
             _config=KnotConfig(id=f"candidates_{round_index}"),
         )
-        scored = _ScoreCandidate(
-            candidate=Map(candidates),  # pyright: ignore[reportArgumentType]
+        scored = ScoreCandidate(
+            candidate=Map(candidates),
             llm=llm,
             _config=KnotConfig(id=f"score_{round_index}"),
         )
         return Reduce(
             of=scored,
-            combine=functools.partial(_TopBeam.combine, beam_width=beam_width),
+            combine=functools.partial(TopBeam.combine, beam_width=beam_width),
             _config=KnotConfig(id=f"beam_{round_index + 1}"),
         )

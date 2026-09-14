@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``ReActLoop`` — composed reason+act agent loop.
 
 A :class:`SubTapestry` that wires:

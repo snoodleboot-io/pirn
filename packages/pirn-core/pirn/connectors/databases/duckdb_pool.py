@@ -53,7 +53,7 @@ class DuckdbPool(DatabaseConnectionPool):
         query: str,
         parameters: Iterable[Any] | None = None,
     ) -> Any:
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         connection = await self.acquire()
         params = list(parameters or ())
         return await asyncio.to_thread(connection.execute, query, params)
@@ -63,7 +63,7 @@ class DuckdbPool(DatabaseConnectionPool):
         query: str,
         parameters: Iterable[Any] | None = None,
     ) -> list[tuple[Any, ...]]:
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         connection = await self.acquire()
         params = list(parameters or ())
         return await asyncio.to_thread(self._sync_fetch_all, connection, query, params)

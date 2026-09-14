@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``RAGSynthesizer`` — synthesize a grounded answer from retrieved documents.
 
 Takes retrieved documents plus the original query, calls the LLM to produce
@@ -113,11 +115,11 @@ class RAGSynthesizer(Knot):
         return " ".join(parts)
 
     @staticmethod
-    def _extract_text(raw: Any) -> str:
-        if isinstance(raw, str):
-            return raw
-        if isinstance(raw, dict):
-            content = raw.get("content")
-            if isinstance(content, str):
+    def _extract_text(raw: Mapping[str, Any] | str) -> str:
+        match raw:
+            case str():
+                return raw
+            case {"content": str() as content}:
                 return content
-        return str(raw)
+            case _:
+                return str(raw)

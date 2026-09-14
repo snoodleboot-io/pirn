@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``ContextualChunkEnricher`` — prepend document context to each chunk.
 
 Anthropic's *contextual retrieval*: before indexing, each chunk is prefixed with
@@ -8,7 +10,7 @@ context disambiguates pronouns, dates, and entities. This is an ingest-time knot
 
 The per-chunk enrichment is expressed as a graph rather than a hand-rolled
 ``for doc in documents: await llm.chat(...)`` loop: each chunk becomes its own
-:class:`~pirn_agents.specializations.rag._chunk_enricher._ChunkEnricher`
+:class:`~pirn_agents.specializations.rag.chunk_enricher.ChunkEnricher`
 invocation, fanned out with a core :class:`~pirn.nodes.map_markers.Map`, and
 folded back into the enriched list (preserving input order) with a
 :class:`~pirn.nodes.reduce_.Reduce`. The engine schedules the per-chunk
@@ -19,7 +21,7 @@ history record, and lineage per chunk.
 Algorithm:
     1. Validate ``documents`` (list of Mappings), ``document_text`` (str), and
        ``llm`` (:class:`LLMProvider`).
-    2. Fan out one ``_ChunkEnricher`` invocation per chunk, each asking
+    2. Fan out one ``ChunkEnricher`` invocation per chunk, each asking
        the LLM for a one-sentence context given the whole document, and
        prepending it to the chunk's text under a ``context`` key, keeping the
        original ``text`` in ``raw_text``.
@@ -44,8 +46,8 @@ from pirn.nodes.reduce_ import Reduce
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.rag._chunk_enricher import _ChunkEnricher
-from pirn_agents.specializations.rag._pass_through_enriched import _PassThroughEnriched
+from pirn_agents.specializations.rag.chunk_enricher import ChunkEnricher
+from pirn_agents.specializations.rag.pass_through_enriched import PassThroughEnriched
 
 
 class ContextualChunkEnricher(AgentPipeline):
@@ -110,18 +112,14 @@ class ContextualChunkEnricher(AgentPipeline):
             default=documents,
             _config=KnotConfig(id="documents"),
         )
-        enriched = _ChunkEnricher(
-            # Core's Map marker is consumed at construction by
-            # `knot.py:199-205` and is deliberately not a Knot, so it does not
-            # satisfy the declared `Knot | Mapping`. Inline suppression is the
-            # house idiom for this; see PIR-715/PIR-716.
-            document=Map(documents_knot),  # pyright: ignore[reportArgumentType]
+        enriched = ChunkEnricher(
+            document=Map(documents_knot),
             document_text=document_text,
             llm=llm,
             _config=KnotConfig(id="enrich_each"),
         )
         return Reduce(
             of=enriched,
-            combine=_PassThroughEnriched.combine,
+            combine=PassThroughEnriched.combine,
             _config=KnotConfig(id="enriched"),
         )

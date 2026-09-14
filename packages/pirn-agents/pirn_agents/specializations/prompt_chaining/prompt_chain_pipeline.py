@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``PromptChainPipeline`` — run a fixed sequence of LLM calls, chaining outputs.
 
 A :class:`SubTapestry` that walks an ordered list of instruction ``steps``: the
@@ -5,7 +7,7 @@ first link runs against the initial ``task``; each subsequent link runs against
 the previous link's output. This is the simplest agentic composition — a
 deterministic pipeline of prompts with no branching — and is bounded by the number
 of steps. Each link runs as a real, individually-traceable knot via
-:class:`~pirn_agents.specializations.prompt_chaining._prompt_chain_loop._PromptChainLoop`
+:class:`~pirn_agents.specializations.prompt_chaining.prompt_chain_loop.PromptChainLoop`
 (a :class:`~pirn.nodes.loop_sub_tapestry.LoopSubTapestry`), instead of a
 hand-rolled Python ``for`` loop (ADR agents-speaks-core WS5b). Returns a typed
 :class:`PromptChainResult`.
@@ -25,11 +27,11 @@ from pirn.core.parameter import Parameter
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.prompt_chaining._prompt_chain_loop import _PromptChainLoop
-from pirn_agents.specializations.prompt_chaining._prompt_chain_result_extractor import (
-    _PromptChainResultExtractor,
+from pirn_agents.specializations.prompt_chaining.prompt_chain_loop import PromptChainLoop
+from pirn_agents.specializations.prompt_chaining.prompt_chain_result_extractor import (
+    PromptChainResultExtractor,
 )
-from pirn_agents.specializations.prompt_chaining._prompt_chain_state import _PromptChainState
+from pirn_agents.specializations.prompt_chaining.prompt_chain_state import PromptChainState
 
 
 class PromptChainPipeline(AgentPipeline):
@@ -79,12 +81,12 @@ class PromptChainPipeline(AgentPipeline):
 
         initial = Parameter(
             "prompt_chain_state",
-            _PromptChainState,
-            default=_PromptChainState(steps=step_tuple, index=0, current=task, outputs=()),
+            PromptChainState,
+            default=PromptChainState(steps=step_tuple, index=0, current=task, outputs=()),
         )
-        loop = _PromptChainLoop(
+        loop = PromptChainLoop(
             llm=llm,
             state=initial,
             _config=KnotConfig(id="prompt_chain_loop"),
         )
-        return _PromptChainResultExtractor(state=loop, _config=KnotConfig(id="prompt_chain_result"))
+        return PromptChainResultExtractor(state=loop, _config=KnotConfig(id="prompt_chain_result"))

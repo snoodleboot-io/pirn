@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``ConsensusSynthesisCaller`` — LLM-mediated consensus over responses.
 
 Inner stage knot used by :class:`ConsensusPipeline` when the
@@ -26,6 +28,7 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.prompt.prompt_binding import PromptBinding
+from pirn_agents.specializations.llm_response_text import LlmResponseText
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
 
@@ -76,26 +79,5 @@ class ConsensusSynthesisCaller(Knot):
         )
         chat_messages = [{"role": "user", "content": prompt}]
         raw = await llm.chat(chat_messages)
-        text = self._extract_text(raw)
+        text = LlmResponseText().extract(raw)
         return AgentResponse(content=text, finish_reason="stop")
-
-    @staticmethod
-    def _extract_text(raw: Any) -> str:
-        if isinstance(raw, str):
-            return raw
-        if isinstance(raw, dict):
-            content = raw.get("content")
-            if isinstance(content, str):
-                return content
-            if isinstance(content, list) and content:
-                first = content[0]
-                if isinstance(first, dict):
-                    text = first.get("text")
-                    if isinstance(text, str):
-                        return text
-                if isinstance(first, str):
-                    return first
-            text = raw.get("text")
-            if isinstance(text, str):
-                return text
-        return str(raw)

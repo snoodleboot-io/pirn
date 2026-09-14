@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``CapabilityRouter`` — select the best-fit agent by capability matching.
 
 A :class:`Knot` that presents a task description alongside a mapping of

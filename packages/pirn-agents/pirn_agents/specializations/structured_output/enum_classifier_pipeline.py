@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``EnumClassifierPipeline`` — pick one label from a fixed set.
 
 A :class:`SubTapestry` that asks the LLM to choose a single label from
@@ -10,14 +12,14 @@ Algorithm:
     1. Receive ``prompt``, ``llm``, and ``labels`` in :meth:`process`.
     2. Validate that ``llm`` is an :class:`LLMProvider` and ``labels`` is non-empty.
     3. Build an inner :class:`Tapestry` containing a single
-       :class:`_EnumClassifierAttempt` knot.
+       :class:`EnumClassifierAttempt` knot.
     4. Run the inner tapestry and retrieve the classifier output.
     5. Return the chosen label string.
 
 
 References:
     - :class:`pirn_agents.llm.llm_provider.LLMProvider`
-    - :class:`pirn_agents.specializations.structured_output._enum_classifier_attempt._EnumClassifierAttempt`
+    - :class:`pirn_agents.specializations.structured_output.enum_classifier_attempt.EnumClassifierAttempt`
 """
 
 from __future__ import annotations
@@ -30,8 +32,8 @@ from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
-from pirn_agents.specializations.structured_output._enum_classifier_attempt import (
-    _EnumClassifierAttempt,
+from pirn_agents.specializations.structured_output.enum_classifier_attempt import (
+    EnumClassifierAttempt,
 )
 
 
@@ -79,7 +81,7 @@ class EnumClassifierPipeline(AgentPipeline):
                     f"EnumClassifierPipeline: labels[{index}] must be a "
                     f"non-empty string, got {label!r}"
                 )
-        return _EnumClassifierAttempt(
+        return EnumClassifierAttempt(
             prompt=prompt,
             llm=llm,
             labels=labels_tuple,

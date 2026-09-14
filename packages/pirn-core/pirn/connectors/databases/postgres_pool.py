@@ -59,7 +59,7 @@ class PostgresPool(DatabaseConnectionPool):
         take one iterable — passed a tuple that asyncpg then read as a single
         bind value.
         """
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         pool = await self._ensure_pool()
         return await pool.execute(query, *tuple(parameters or ()))
 
@@ -68,13 +68,13 @@ class PostgresPool(DatabaseConnectionPool):
 
         *parameters* is splatted for asyncpg; see :meth:`execute`.
         """
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         pool = await self._ensure_pool()
         rows = await pool.fetch(query, *tuple(parameters or ()))
         return list(rows)
 
     async def execute_many(self, query: str, parameter_seq: Iterable[Iterable[Any]]) -> None:
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         pool = await self._ensure_pool()
         await pool.executemany(query, [tuple(p) for p in parameter_seq])
 

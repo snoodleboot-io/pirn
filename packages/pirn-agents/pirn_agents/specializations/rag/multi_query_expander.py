@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``MultiQueryExpander`` — reformulate a query into N search variants.
 
 The first stage of RAG-Fusion: ask the LLM to rewrite the user query into

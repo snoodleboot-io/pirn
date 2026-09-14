@@ -24,7 +24,7 @@ class SqlitePool(DatabaseConnectionPool):
     one it found already open. This is the guarantee
     :meth:`~pirn_agents.connectors.column_aware_sqlite_pool.ColumnAwareSqlitePool.fetch_columns`
     (PIR-801), ``AiosqliteConnector``/``SqliteConnector`` (PIR-807) and
-    ``_SQLExecutor`` (PIR-817) already make; ``sqlite3`` starts an implicit
+    ``SQLExecutor`` (PIR-817) already make; ``sqlite3`` starts an implicit
     transaction for DML only, so comparing ``in_transaction`` before and after
     the statement identifies the owner precisely:
 
@@ -89,7 +89,7 @@ class SqlitePool(DatabaseConnectionPool):
         Commits only the transaction this statement opened — see the class
         docstring for why that is not an unconditional commit.
         """
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         connection = await self.acquire()
         in_transaction_on_entry = bool(connection.in_transaction)
         try:
@@ -112,7 +112,7 @@ class SqlitePool(DatabaseConnectionPool):
         Commits only the transaction this statement opened — see the class
         docstring for why that is not an unconditional commit.
         """
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         connection = await self.acquire()
         in_transaction_on_entry = bool(connection.in_transaction)
         try:
@@ -136,7 +136,7 @@ class SqlitePool(DatabaseConnectionPool):
         reaching here is committed rather than left stranded on the shared
         connection — see the class docstring.
         """
-        self._reject_inline_interpolation(query)
+        self.reject_inline_interpolation(query)
         connection = await self.acquire()
         in_transaction_on_entry = bool(connection.in_transaction)
         try:

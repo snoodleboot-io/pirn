@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``ConversationMemoryPruner`` — prune conversation history to fit token budget.
 
 Algorithm:

@@ -27,7 +27,7 @@ class ColumnAwarePool(DatabaseConnectionPool):
     ) -> tuple[list[str], list[list[Any]]]:
         """Run ``query`` with bound ``parameters`` and return ``(columns, rows)``.
 
-        The concrete pool applies core's ``_reject_inline_interpolation`` guard
+        The concrete pool applies core's ``reject_inline_interpolation`` guard
         before executing, so the same injection defence as core's ``fetch_all``
         still holds. Rows are returned uncapped; the caller applies any row cap.
 

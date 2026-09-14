@@ -75,17 +75,17 @@ class TestQuerySafety(unittest.TestCase):
     def test_rejects_fstring_placeholder(self) -> None:
         pool = SqlitePool(SqliteConfig(database=":memory:"))
         with self.assertRaisesRegex(ValueError, "interpolation"):
-            pool._reject_inline_interpolation("SELECT * FROM t WHERE x = {value}")
+            pool.reject_inline_interpolation("SELECT * FROM t WHERE x = {value}")
 
     def test_rejects_percent_s_placeholder(self) -> None:
         pool = SqlitePool(SqliteConfig(database=":memory:"))
         with self.assertRaisesRegex(ValueError, "interpolation"):
-            pool._reject_inline_interpolation("SELECT * FROM t WHERE x = %s")
+            pool.reject_inline_interpolation("SELECT * FROM t WHERE x = %s")
 
     def test_accepts_qmark_placeholder(self) -> None:
         pool = SqlitePool(SqliteConfig(database=":memory:"))
         # No raise.
-        pool._reject_inline_interpolation("SELECT * FROM t WHERE x = ?")
+        pool.reject_inline_interpolation("SELECT * FROM t WHERE x = ?")
 
 
 class TestInjectionResistance(unittest.IsolatedAsyncioTestCase):
@@ -159,7 +159,7 @@ class TestTransactionOwnership:
     committed a transaction the caller had opened themselves.
 
     This is the guarantee ``ColumnAwareSqlitePool.fetch_columns`` (PIR-801),
-    ``AiosqliteConnector``/``SqliteConnector`` (PIR-807) and ``_SQLExecutor``
+    ``AiosqliteConnector``/``SqliteConnector`` (PIR-807) and ``SQLExecutor``
     (PIR-817) already make. These exercise a real aiosqlite file: the behaviour
     under test is SQLite's own (``OR FAIL`` keeps rows already changed;
     ``COMMIT`` upgrades to an exclusive lock), so a hand-written double cannot

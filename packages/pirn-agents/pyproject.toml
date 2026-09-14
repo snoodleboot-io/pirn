@@ -215,6 +215,7 @@ strict = [
     "pirn_agents/retrieval",
     "pirn_agents/security",
     "pirn_agents/sessions",
+    "pirn_agents/specializations",
     "pirn_agents/testing",
     "pirn_agents/tools",
     "pirn_agents/types",

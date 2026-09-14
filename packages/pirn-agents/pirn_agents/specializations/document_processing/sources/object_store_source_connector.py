@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style
 """``ObjectStoreSourceConnector`` — pull documents from object storage (F25-S3 / PIR-609).
 
 Built on the core :class:`~pirn.connectors.object_store.ObjectStore` interface
