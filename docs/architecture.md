@@ -464,7 +464,7 @@ Adjacent layers interface: `Tapestry` holds references to all three stores. It p
 
 ### 3.5 Observability Layer
 
-**Files:** `pirn/emitters/base.py`, `pirn/emitters/log.py`, `pirn/emitters/kafka.py`, `pirn/emitters/otel.py`, `pirn/emitters/valkey.py`, `pirn/emitters/webhook.py`
+**Files:** `pirn/emitters/emitter.py`, `pirn/emitters/log.py`, `pirn/emitters/kafka.py`, `pirn/emitters/otel.py`, `pirn/emitters/valkey.py`, `pirn/emitters/webhook.py`
 
 **Emitter protocol:**
 
@@ -497,7 +497,7 @@ The engine wires emitters to `RunContext.status` (a `StatusManager`) at the star
 
 ### 3.6 Trigger Layer
 
-**Files:** `pirn/triggers/base.py`, `pirn/triggers/cron.py`, `pirn/triggers/http.py`, `pirn/triggers/kafka.py`, `pirn/triggers/valkey.py`
+**Files:** `pirn/triggers/trigger.py`, `pirn/triggers/cron.py`, `pirn/triggers/http.py`, `pirn/triggers/kafka.py`, `pirn/triggers/valkey.py`
 
 **Trigger protocol:**
 
@@ -509,7 +509,7 @@ class Trigger(Protocol):
     async def close(self) -> None: ...
 ```
 
-**`run_forever(trigger, tapestry, *, on_result=None, on_error=None)`** (`pirn/triggers/base.py`):
+**`run_forever(trigger, tapestry, *, on_result=None, on_error=None)`** (`pirn/triggers/trigger.py`):
 
 Consumes `RunRequest`s from `trigger.stream()` and calls `tapestry.run(request)` for each. Calls `trigger.close()` on exit (normal, cancelled, or errored). Optional callbacks `on_result` and `on_error` are awaited if provided.
 
@@ -818,7 +818,7 @@ A `Trigger` yields fully-formed `RunRequest` objects — the trigger author deci
 
 ### `run_forever()` Loop
 
-**File:** `pirn/triggers/base.py:run_forever`
+**File:** `pirn/triggers/trigger.py:run_forever`
 
 ```python
 async for request in trigger.stream():
@@ -833,7 +833,7 @@ async for request in trigger.stream():
 
 ### `run_stream()` Loop
 
-**File:** `pirn/streaming/base.py:run_stream`
+**File:** `pirn/streaming/streaming_source.py:run_stream`
 
 ```python
 async for value in source.stream():
@@ -1026,7 +1026,7 @@ The dispatcher is passed to `Tapestry(dispatcher=...)` or `tapestry.run(dispatch
 
 ### 9.4 Custom Emitters
 
-Implement the Emitter protocol from `pirn/emitters/base.py`:
+Implement the Emitter protocol from `pirn/emitters/emitter.py`:
 
 ```python
 class MetricsEmitter:
@@ -1047,7 +1047,7 @@ Emitters must be safe to `await` concurrently and must not raise (exceptions are
 
 ### 9.5 Custom Triggers
 
-Implement `pirn/triggers/base.py:Trigger`:
+Implement `pirn/triggers/trigger.py:Trigger`:
 
 ```python
 class SQSTrigger:
@@ -1067,7 +1067,7 @@ Drive with `run_forever(trigger, tapestry)`.
 
 ### 9.6 Custom StreamingSources
 
-Implement `pirn/streaming/base.py:StreamingSource`:
+Implement `pirn/streaming/streaming_source.py:StreamingSource`:
 
 ```python
 class WebSocketSource:
@@ -1138,7 +1138,7 @@ graph TD
     end
 
     subgraph Obs["Observability"]
-        Emitter["Emitter protocol\npirn/emitters/base.py"]
+        Emitter["Emitter protocol\npirn/emitters/emitter.py"]
         LogE["LogEmitter"]
         KafkaE["KafkaEmitter"]
         OtelE["OpenTelemetryEmitter"]
@@ -1146,7 +1146,7 @@ graph TD
     end
 
     subgraph Trig["Triggers"]
-        TrigProto["Trigger protocol\npirn/triggers/base.py"]
+        TrigProto["Trigger protocol\npirn/triggers/trigger.py"]
         RunForever["run_forever()"]
         CronT["CronTrigger"]
         HttpT["WebhookTrigger"]
@@ -1154,7 +1154,7 @@ graph TD
     end
 
     subgraph Stream["Streaming"]
-        SrcProto["StreamingSource protocol\npirn/streaming/base.py"]
+        SrcProto["StreamingSource protocol\npirn/streaming/streaming_source.py"]
         RunStream["run_stream()"]
         IterSrc["IterableSource"]
         FileSrc["FileTailSource"]
@@ -1350,9 +1350,9 @@ flowchart TD
 | `pirn/backends/s3.py` | `S3DataStore` |
 | `pirn/backends/disk.py` | `LocalDiskDataStore` |
 | `pirn/backends/base/subscribable_store.py` | `SubscribableStore` protocol |
-| `pirn/emitters/base.py` | `Emitter` protocol |
-| `pirn/triggers/base.py` | `Trigger` protocol, `run_forever()` |
-| `pirn/streaming/base.py` | `StreamingSource` protocol, `run_stream()` |
+| `pirn/emitters/emitter.py` | `Emitter` protocol |
+| `pirn/triggers/trigger.py` | `Trigger` protocol, `run_forever()` |
+| `pirn/streaming/streaming_source.py` | `StreamingSource` protocol, `run_stream()` |
 | `pirn/streaming/trigger_adapter.py` | `StreamingSourceTrigger` |
 | `pirn/nodes/map_markers.py` | `Map`, `ZipMap`, `DictMap` — fan-out markers |
 | `pirn/nodes/branch/` | `Branch`, `BranchOutput` — selector routing |

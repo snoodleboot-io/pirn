@@ -60,7 +60,7 @@ class LLMProvider(PirnOpaqueValue):
 
 - **No `typing.Protocol`.** Core has zero. Structural typing gives no `is_instance_schema` (breaks opaque values), and `@runtime_checkable` + `isinstance` is signature-blind (matches any object with the attribute *names*).
 - **No `abc.ABC`/`@abstractmethod`.** The house style is the `NotImplementedError` base class. (ABC is tolerated but not used in core.)
-- Docstrings sometimes say "protocol" informally (e.g. `triggers/base.py`) — the *code* is always a `NotImplementedError` base class.
+- Docstrings sometimes say "protocol" informally (e.g. `triggers/trigger.py`) — the *code* is always a `NotImplementedError` base class.
 - Stateful interfaces additionally inherit `PirnOpaqueValue`.
 
 **Three shapes to distinguish:**
@@ -111,7 +111,7 @@ All subclass `Knot`. These are the graph-shape primitives.
 | `Trigger` | interface-base | `name` (prop), `stream() -> AsyncIterator[RunRequest]`, `async close()` — all raise `NotImplementedError` |
 | `Cron` / `Http` / `Kafka` / `Valkey` triggers | concrete | async generators yielding one `RunRequest` per event |
 | `run_forever(trigger, tapestry, *, on_result, on_error)` | driver fn | pulls requests, calls `tapestry.run` per event, `close()`s on exit — an allowlisted module-level driver (`scripts/check_conventions.py`, PIR-869) |
-| `StreamingSource` (`streaming/base.py`) | interface-base | streaming input adapters; `trigger_adapter.py` bridges a stream to the trigger loop |
+| `StreamingSource` (`streaming/streaming_source.py`) | interface-base | streaming input adapters; `trigger_adapter.py` bridges a stream to the trigger loop |
 
 **Idiom (the trigger loop):** a `Trigger` is an async generator of `RunRequest`s; `run_forever` is the runtime that consumes them and runs the tapestry. Downstream event-driven agents should implement `Trigger`, not hand-roll a consume loop.
 
