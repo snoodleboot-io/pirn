@@ -1,10 +1,12 @@
 """Unit tests for :class:`ConcurrencyConfig` defaults and validation.
 
-ADR agents-speaks-core, WS4b/PIR-866: ``ConcurrencyConfig`` is now a
-:class:`~pirn.core.concurrency.concurrency_limits.ConcurrencyLimits`
-subclass and a one-cycle deprecation shim; see
-``TestDeprecationAndCoreSeam`` for the parts of this file that pin the
-migration itself.
+ADR agents-speaks-core, WS4b/PIR-866: ``ConcurrencyConfig`` is a one-cycle
+deprecation shim whose ``to_concurrency_limits()`` bridges to core's
+``ConcurrencyLimits``; see ``TestDeprecationAndCoreSeam``. It is
+deliberately *not* a ``ConcurrencyLimits`` subclass -- see the module
+docstring for why (callers read ``ConcurrencyConfig.max_concurrency`` as a
+class-level literal default, which a pydantic ``BaseModel`` subclass cannot
+support); ``TestClassLevelDefaultAccess`` pins that this still works.
 """
 
 from __future__ import annotations
@@ -62,10 +64,6 @@ class TestDeprecationAndCoreSeam:
             ConcurrencyConfig()
         assert any(issubclass(w.category, DeprecationWarning) for w in caught)
 
-    def test_is_a_concurrency_limits(self) -> None:
-        config = ConcurrencyConfig(max_concurrency=5)
-        assert isinstance(config, ConcurrencyLimits)
-
     def test_to_concurrency_limits_bare(self) -> None:
         config = ConcurrencyConfig(max_concurrency=5)
         limits = config.to_concurrency_limits()
@@ -75,3 +73,20 @@ class TestDeprecationAndCoreSeam:
         config = ConcurrencyConfig(max_concurrency=5)
         limits = config.to_concurrency_limits(group="openai")
         assert limits == ConcurrencyLimits(groups={"openai": 5})
+
+
+class TestClassLevelDefaultAccess:
+    """Regression: ``ConcurrencyConfig.max_concurrency`` (class, not instance).
+
+    ``agent/parallel_tool_executor.py`` and three ``specializations/``
+    pipelines declare ``max_concurrency: Knot | int =
+    ConcurrencyConfig.max_concurrency`` as a parameter default, evaluated at
+    class-definition time -- a plain dataclass field default, not an
+    instance value. A ``ConcurrencyLimits``/pydantic ``BaseModel`` subclass
+    cannot support this (no class-level field-default access; a
+    ``@property`` returns the descriptor on class access, not its value).
+    """
+
+    def test_class_attribute_is_the_plain_default(self) -> None:
+        assert ConcurrencyConfig.max_concurrency == 8
+        assert isinstance(ConcurrencyConfig.max_concurrency, int)

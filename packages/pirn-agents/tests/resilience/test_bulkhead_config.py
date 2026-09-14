@@ -51,18 +51,16 @@ class TestDeprecationAndCoreSeam:
             BulkheadConfig()
         assert any(issubclass(w.category, DeprecationWarning) for w in caught)
 
-    def test_is_a_concurrency_limits(self) -> None:
-        assert isinstance(BulkheadConfig(), ConcurrencyLimits)
-
-    def test_groups_snapshot_reflects_overrides_only(self) -> None:
+    def test_to_concurrency_limits_projects_overrides_only(self) -> None:
         config = BulkheadConfig(
             default=ConcurrencyConfig(max_concurrency=4),
             overrides={"x": ConcurrencyConfig(max_concurrency=1)},
         )
-        assert config.groups == {"x": 1}
-        assert config.group_limit("x") == 1
-        assert config.group_limit("unnamed-default-only") is None
+        limits = config.to_concurrency_limits()
+        assert limits == ConcurrencyLimits(groups={"x": 1})
+        assert limits.group_limit("unnamed-default-only") is None
 
-    def test_rejects_an_invalid_backend_name(self) -> None:
+    def test_to_concurrency_limits_rejects_an_invalid_backend_name(self) -> None:
+        config = BulkheadConfig(overrides={"has a space": ConcurrencyConfig()})
         with pytest.raises(ValueError, match="invalid characters"):
-            BulkheadConfig(overrides={"has a space": ConcurrencyConfig()})
+            config.to_concurrency_limits()

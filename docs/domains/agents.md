@@ -400,10 +400,14 @@ All three classes are kept for one deprecation cycle as thin, engine-backed
 shims — each construction warns `DeprecationWarning` — and none holds an
 `asyncio.Semaphore` of its own any more:
 
-- `ConcurrencyConfig` and `BulkheadConfig` are now subclasses of core's
-  `pirn.core.concurrency.concurrency_limits.ConcurrencyLimits`;
-  `ConcurrencyConfig.to_concurrency_limits(group=...)` returns the exact
-  `ConcurrencyLimits` a real run would declare.
+- `ConcurrencyConfig.to_concurrency_limits(group=...)` and
+  `BulkheadConfig.to_concurrency_limits()` return the exact
+  `pirn.core.concurrency.concurrency_limits.ConcurrencyLimits` a real run
+  would declare for the same posture. Both stay plain frozen dataclasses
+  rather than `ConcurrencyLimits` subclasses: `agent/parallel_tool_executor.py`
+  and three `specializations/` pipelines read `ConcurrencyConfig.max_concurrency`
+  as a **class-level** literal default, which a pydantic `BaseModel`
+  subclass cannot support.
 - `BackpressureSemaphore` and `Bulkhead` are now subclasses of core's
   `pirn.engine.admission.admission_gate.AdmissionGate`, delegating every
   admission decision to a real
