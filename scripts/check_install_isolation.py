@@ -178,6 +178,30 @@ def _check_closure(package: str) -> list[str]:
     return violations
 
 
+def _check_versions(package: str, expected_version: str) -> list[str]:
+    """Assert every pirn distribution in the closure is the build under test.
+
+    CI installs this build's wheels; a same-named release resolved from the
+    public index instead (PR #368: ``pirn-oilgas==0.10.0`` over the wheelhouse's
+    ``0.9.0``) would make every later check test the wrong code, so this runs
+    before the import and the submodule walk.
+    """
+
+    violations: list[str] = []
+    for distribution in sorted(_EXPECTED_PIRN_CLOSURE[package]):
+        try:
+            installed = importlib.metadata.version(distribution)
+        except importlib.metadata.PackageNotFoundError:
+            violations.append(f"{package}: {distribution} is not installed")
+            continue
+        if installed != expected_version:
+            violations.append(
+                f"{package}: {distribution}=={installed} is installed, but the build under "
+                f"test is {expected_version} — the gate would check a different release"
+            )
+    return violations
+
+
 def _check_imports(package: str) -> list[str]:
     module = _IMPORT_NAME[package]
     try:
@@ -281,10 +305,22 @@ def main() -> int:
         choices=sorted(_EXPECTED_PIRN_CLOSURE),
         help="the single pirn-<x> distribution installed in this clean env",
     )
+    parser.add_argument(
+        "--expect-version",
+        required=True,
+        help="the version of the build under test; every installed pirn-* closure "
+        "distribution must report exactly this version",
+    )
     args = parser.parse_args()
     package: str = args.package
 
     violations = _check_closure(package)
+    version_violations = _check_versions(package, args.expect_version)
+    if version_violations:
+        print(f"install-isolation gate FAILED for {package}:", file=sys.stderr)
+        for v in [*violations, *version_violations]:
+            print(f"  - {v}", file=sys.stderr)
+        return 1
     import_violations = _check_imports(package)
     violations += import_violations
     # Every package walks its full submodule tree and asserts no optional

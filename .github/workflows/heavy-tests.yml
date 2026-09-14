@@ -48,9 +48,9 @@ jobs:
           set -euo pipefail
           for p in pirn-core pirn-data pirn-ml; do uv build "packages/$p" -o dist/; done
           uv venv .venv
-          uv pip install --find-links dist/ -e packages/pirn-core -e packages/pirn-ml \
+          uv pip install --find-links dist/ -e packages/pirn-core -e packages/pirn-data -e packages/pirn-ml \
             torch tensorflow pytest pytest-timeout anyio || \
-          uv pip install --find-links dist/ -e packages/pirn-core -e packages/pirn-ml \
+          uv pip install --find-links dist/ -e packages/pirn-core -e packages/pirn-data -e packages/pirn-ml \
             torch pytest pytest-timeout anyio
 
       - name: Run heavy tests (core + ml, marked heavy)

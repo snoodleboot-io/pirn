@@ -37,7 +37,9 @@ def test_denylist_drops_backends_the_hard_dependency_closure_provides(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        check_install_isolation, "_hard_dependency_closure", lambda _package: {"acme", "numpy"}
+        check_install_isolation,
+        "_hard_dependency_closure",
+        lambda _package: {"acme", "numpy"},
     )
     monkeypatch.setattr(
         check_install_isolation.importlib.metadata,
@@ -54,14 +56,23 @@ def test_denylist_drops_backends_the_hard_dependency_closure_provides(
 def test_walk_passes_a_package_that_imports_no_backend(isolated_modules: Path) -> None:
     _package(isolated_modules, "iso_clean_pkg", {"plain": "import json\n"})
 
-    assert _check_no_backend_after_submodule_walk("iso_clean_pkg", frozenset({"iso_backend_a"})) == []
+    assert (
+        _check_no_backend_after_submodule_walk(
+            "iso_clean_pkg", frozenset({"iso_backend_a"})
+        )
+        == []
+    )
 
 
-def test_walk_reports_a_backend_imported_at_module_scope(isolated_modules: Path) -> None:
+def test_walk_reports_a_backend_imported_at_module_scope(
+    isolated_modules: Path,
+) -> None:
     (isolated_modules / "iso_backend_b.py").write_text("")
     _package(isolated_modules, "iso_leaky_pkg", {"eager": "import iso_backend_b\n"})
 
-    violations = _check_no_backend_after_submodule_walk("iso_leaky_pkg", frozenset({"iso_backend_b"}))
+    violations = _check_no_backend_after_submodule_walk(
+        "iso_leaky_pkg", frozenset({"iso_backend_b"})
+    )
 
     assert len(violations) == 1
     assert "iso_backend_b" in violations[0]
@@ -72,14 +83,25 @@ def test_walk_allows_a_backend_imported_inside_a_method(isolated_modules: Path) 
     _package(
         isolated_modules,
         "iso_lazy_pkg",
-        {"lazy": "class Lazy:\n    @staticmethod\n    def run() -> None:\n        import iso_backend_c\n"},
+        {
+            "lazy": "class Lazy:\n    @staticmethod\n    def run() -> None:\n        import iso_backend_c\n"
+        },
     )
 
-    assert _check_no_backend_after_submodule_walk("iso_lazy_pkg", frozenset({"iso_backend_c"})) == []
+    assert (
+        _check_no_backend_after_submodule_walk(
+            "iso_lazy_pkg", frozenset({"iso_backend_c"})
+        )
+        == []
+    )
 
 
 def test_walk_reports_a_submodule_that_cannot_import(isolated_modules: Path) -> None:
-    _package(isolated_modules, "iso_broken_pkg", {"needs_extra": "import iso_missing_backend_zzz\n"})
+    _package(
+        isolated_modules,
+        "iso_broken_pkg",
+        {"needs_extra": "import iso_missing_backend_zzz\n"},
+    )
 
     violations = _check_no_backend_after_submodule_walk("iso_broken_pkg", frozenset())
 
@@ -90,15 +112,85 @@ def test_walk_reports_a_submodule_that_cannot_import(isolated_modules: Path) -> 
 def test_every_package_runs_the_submodule_walk(monkeypatch: pytest.MonkeyPatch) -> None:
     walked: list[str] = []
     monkeypatch.setattr(check_install_isolation, "_check_closure", lambda _package: [])
+    monkeypatch.setattr(
+        check_install_isolation, "_check_versions", lambda _package, _version: []
+    )
     monkeypatch.setattr(check_install_isolation, "_check_imports", lambda _package: [])
-    monkeypatch.setattr(check_install_isolation, "_backend_denylist_for", lambda _package: frozenset())
+    monkeypatch.setattr(
+        check_install_isolation, "_backend_denylist_for", lambda _package: frozenset()
+    )
     monkeypatch.setattr(
         check_install_isolation,
         "_check_no_backend_after_submodule_walk",
         lambda import_name, _denylist: walked.append(import_name) or [],
     )
     for package in sorted(check_install_isolation._EXPECTED_PIRN_CLOSURE):
-        monkeypatch.setattr(sys, "argv", ["check_install_isolation.py", "--package", package])
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "check_install_isolation.py",
+                "--package",
+                package,
+                "--expect-version",
+                "0.9.0",
+            ],
+        )
         assert check_install_isolation.main() == 0
 
     assert sorted(walked) == sorted(check_install_isolation._IMPORT_NAME.values())
+
+
+def test_versions_pass_when_the_closure_is_the_build_under_test(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        check_install_isolation.importlib.metadata, "version", lambda _d: "0.9.0"
+    )
+
+    assert check_install_isolation._check_versions("pirn-ml", "0.9.0") == []
+
+
+def test_versions_fail_when_an_index_release_was_installed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    published = {"pirn-core": "0.10.0", "pirn-oilgas": "0.10.0"}
+    monkeypatch.setattr(
+        check_install_isolation.importlib.metadata, "version", lambda d: published[d]
+    )
+
+    violations = check_install_isolation._check_versions("pirn-oilgas", "0.9.0")
+
+    assert len(violations) == 2
+    assert "pirn-oilgas==0.10.0" in " ".join(violations)
+
+
+def test_a_version_mismatch_stops_the_gate_before_the_walk(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    walked: list[str] = []
+    monkeypatch.setattr(check_install_isolation, "_check_closure", lambda _package: [])
+    monkeypatch.setattr(
+        check_install_isolation,
+        "_check_versions",
+        lambda _package, _version: ["wrong release"],
+    )
+    monkeypatch.setattr(
+        check_install_isolation,
+        "_check_no_backend_after_submodule_walk",
+        lambda import_name, _denylist: walked.append(import_name) or [],
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "check_install_isolation.py",
+            "--package",
+            "pirn-oilgas",
+            "--expect-version",
+            "0.9.0",
+        ],
+    )
+
+    assert check_install_isolation.main() == 1
+    assert walked == []

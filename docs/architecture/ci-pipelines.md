@@ -36,8 +36,13 @@ flowchart TD
 
 ### Dependency-aware change detection
 
-A package runs if its own files, an **upstream `pirn` dependency**, or a
-shared-root file changed.
+A package runs if its own files, an **upstream `pirn` dependency**, or shared CI
+tooling (`.github/`, `scripts/`) changed. `scripts/workspace_packages.py affected`
+computes the set from the full diff against the PR's merge base, reads the edges from
+the pyprojects, and fails if a package the diff touches is missing from the result.
+Every job then installs this build's pirn wheels by path
+(`workspace_packages.py closure-wheels`), never by name, and install isolation asserts
+the installed versions equal the build under test before it walks the package.
 
 ```mermaid
 flowchart LR
@@ -45,7 +50,7 @@ flowchart LR
         F1["packages/pirn-signal/**"]
         F2["packages/pirn-data/**"]
         F3["packages/pirn-core/**"]
-        F4["pytest.ini / uv.lock / .github/ (shared root)"]
+        F4[".github/ or scripts/ (shared CI tooling)"]
     end
 
     F1 --> Rsig[signal]

@@ -238,6 +238,7 @@ jobs:
           set -euo pipefail
           p='${{ matrix.package }}'
           if [ "$p" = "pirn-core" ]; then imp=pirn; else imp="${p/pirn-/pirn_}"; fi
-          /tmp/verify/bin/python scripts/check_install_isolation.py --package "$p"
+          /tmp/verify/bin/python scripts/check_install_isolation.py --package "$p" \
+            --expect-version "${{ needs.build.outputs.version }}"
           /tmp/verify/bin/python -c "import $imp; print('import OK:', '$imp')"
           /tmp/verify/bin/tapestry-check --help
