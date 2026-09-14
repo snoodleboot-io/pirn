@@ -9,16 +9,24 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Iterable
+from collections.abc import AsyncGenerator, Iterable
+from contextlib import asynccontextmanager
 from typing import Any
 
 from pirn.connectors.database_connection_pool import DatabaseConnectionPool
 from pirn.connectors.databases.duckdb_config import DuckdbConfig
+from pirn.connectors.databases.duckdb_transaction import DuckdbTransaction
 from pirn.core.optional_dependency import OptionalDependency
 
 
 class DuckdbPool(DatabaseConnectionPool):
-    """Single-connection DuckDB pool."""
+    """Single-connection DuckDB pool.
+
+    Each statement method runs in DuckDB's autocommit mode. :meth:`transaction`
+    opens a dedicated cursor — a second connection to the same database, with
+    its own transaction — so statements issued on the pool while a scope is open
+    stay outside it, and DuckDB's MVCC arbitrates conflicts between the two.
+    """
 
     def __init__(self, config: DuckdbConfig) -> None:
         self._config = config
@@ -67,6 +75,35 @@ class DuckdbPool(DatabaseConnectionPool):
         connection = await self.acquire()
         params = list(parameters or ())
         return await asyncio.to_thread(self._sync_fetch_all, connection, query, params)
+
+    async def execute_many(self, query: str, parameter_seq: Iterable[Iterable[Any]]) -> Any:
+        self.reject_inline_interpolation(query)
+        connection = await self.acquire()
+        rows = [list(p) for p in parameter_seq]
+        return await asyncio.to_thread(connection.executemany, query, rows)
+
+    @asynccontextmanager
+    async def transaction(self) -> AsyncGenerator[DatabaseConnectionPool]:
+        """Run the block's statements as one DuckDB transaction.
+
+        Opens a cursor connection on the pool's database, ``begin()``s on it and
+        yields a :class:`DuckdbTransaction`. A clean exit commits; an exception
+        rolls back and propagates. The cursor is closed either way.
+        """
+        connection = await self.acquire()
+        cursor = await asyncio.to_thread(connection.cursor)
+        handle = DuckdbTransaction(cursor, self)
+        try:
+            await asyncio.to_thread(cursor.begin)
+            try:
+                yield handle
+            except BaseException:
+                await asyncio.to_thread(cursor.rollback)
+                raise
+            await asyncio.to_thread(cursor.commit)
+        finally:
+            handle.finish()
+            await asyncio.to_thread(cursor.close)
 
     @staticmethod
     def _sync_fetch_all(connection: Any, query: str, params: list[Any]) -> list[tuple[Any, ...]]:
