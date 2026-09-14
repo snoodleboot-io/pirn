@@ -433,10 +433,30 @@ is different: step N's prompt genuinely includes every prior step's result,
 so it wires a `LoopSubTapestry` (`_PlanStepLoop`) instead — the state
 threaded across iterations is the running tuple of step results.
 
+Three more `USES_ASYNCIO_GATHER` sites fixed in PIR-867: `HybridRetriever`
+(`retrieval/`) now wires its dense and lexical arms as two knots
+(`_DenseIds`/`_LexicalIds`, the BM25 side still offloading to a worker thread
+internally via `asyncio.to_thread`) into an `Aggregator`, so it is a
+`SubTapestry` now rather than a plain `Knot` — `HybridRetrieverBase` stays a
+plain `Retriever`/`Knot` base since `HybridGraphRetriever` still needs that
+shape, so `HybridRetriever` picks up `SubTapestry` itself
+(`class HybridRetriever(SubTapestry, HybridRetrieverBase)`).
+`_ChunkEmbedderStore` (`specializations/document_processing/`) wires one
+`_ChunkStoreWrite` per chunk into an `Aggregator` (the batched embedding call
+itself stays a single call — batching is the reason the embedder gets every
+chunk at once). `_IngestionRunner` (`specializations/document_processing/`)
+wires one `_DocumentIngest` per source document into an `Aggregator`, with a
+`ConcurrencyLimits` group cap set via the `_inner_concurrency()` hook
+(`MapAgent`'s own lever) replacing the hand-held `asyncio.Semaphore`; each
+document's failure is still isolated inside `_DocumentIngest` and folded into
+the `IngestionReport` rather than raised, so isolation survives the move to
+the engine's own scheduling.
+
 The bypass ratchet (`tests/specializations/base/test_no_engine_bypass.py`)
 is empty for `AWAITS_CHILD_PROCESS`, `RETURNS_INLINE_SOURCE`, `UNRUN_TAPESTRY`,
-`DEFINES_INLINE_SOURCE`, and `LOOP_AWAITS_LLM_OR_TOOL_CALL`; kept as
-`frozenset()` assertions so a regression is loud, not deleted.
+`DEFINES_INLINE_SOURCE`, `LOOP_AWAITS_LLM_OR_TOOL_CALL`, and
+`USES_ASYNCIO_GATHER`; kept as `frozenset()` assertions so a regression is
+loud, not deleted.
 
 **Still open** (frozen in the same ratchet, not this ADR's blast radius to
 fix unilaterally):
@@ -446,11 +466,6 @@ fix unilaterally):
   a consistent store). Decomposing it into engine-tracked knots risks
   breaking that atomicity guarantee; whether per-summary observability is
   worth that trade is a product call, not made here.
-- 3 gather sites still fan calls out with `asyncio.gather` instead of letting
-  the engine schedule sibling knots (`USES_ASYNCIO_GATHER`):
-  `retrieval/hybrid_retriever.py::HybridRetriever`,
-  `specializations/document_processing/_chunk_embedder_store.py::_ChunkEmbedderStore`,
-  `specializations/document_processing/_ingestion_runner.py::_IngestionRunner`.
 - `specializations/routing/_attempt_tier.py::_AttemptTier` still awaits
   `.invoke()` directly (`AWAITS_INVOKE`); `agent/parallel_tool_executor.py::ParallelToolExecutor`'s
   own `asyncio.gather` is a deliberate deferral — its per-call retry/timeout

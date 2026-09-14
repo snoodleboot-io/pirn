@@ -104,19 +104,14 @@ AWAITS_INVOKE = frozenset(
 
 #: `asyncio.gather(...)` used to fan calls out by hand instead of letting the
 #: engine schedule N sibling knots concurrently (the `Aggregator` fan-out
-#: shape; see `tools/tool_invocation.py`'s module docstring).
-#: `agent/parallel_tool_executor.py::ParallelToolExecutor` is a PIR-856
-#: deferral: its per-call retry/timeout richness needs real inter-attempt
-#: backoff sleep, which is not expressible as a static `Aggregator` fan-out
-#: (see the module docstring above and the PIR-856 report for the full
-#: reasoning). The rest predate this lane.
-USES_ASYNCIO_GATHER = frozenset(
-    {
-        "retrieval/hybrid_retriever.py::HybridRetriever",
-        "specializations/document_processing/_chunk_embedder_store.py::_ChunkEmbedderStore",
-        "specializations/document_processing/_ingestion_runner.py::_IngestionRunner",
-    }
-)
+#: shape; see `tools/tool_invocation.py`'s module docstring). PIR-867 fixed
+#: the three that predated this lane: `HybridRetriever`'s dense/lexical arms
+#: and `_ChunkEmbedderStore`'s per-chunk writes are each their own knot wired
+#: into an `Aggregator`; `_IngestionRunner`'s per-document ETL is too, with a
+#: `ConcurrencyLimits` group cap (`MapAgent`'s lever) replacing the hand-held
+#: `asyncio.Semaphore`. Kept as a `frozenset()` assertion so a future
+#: instance regresses loudly.
+USES_ASYNCIO_GATHER: frozenset[str] = frozenset()
 
 #: A `for`/`while` loop whose body directly awaits an LLM or tool call
 #: (`.chat(`, `.complete(`, `.invoke(`, `.search(`) instead of the engine
