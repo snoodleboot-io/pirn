@@ -90,40 +90,162 @@ flowchart TD
     classDef gate fill:#b45309,color:#fff,stroke:#7c2d12;
 ```
 
-## pyright strict burn-down (PIR-856)
+## pyright strict — per-subpackage ratchet and burn-down (PIR-869)
 
-`lint` currently runs each package's own `[tool.pyright]` config, which does
-not set `typeCheckingMode` (pyright's default is `basic`). The house
-convention (`.claude/conventions/languages/python.md`) says "all code must
-pass pyright strict mode before commit", which is aspirational today, not
-enforced — no package's `pyproject.toml` sets `typeCheckingMode = "strict"`.
+Strict mode is adopted **per top-level subpackage**, not per package. Each
+package's `[tool.pyright]` carries a `strict = [...]` list; every listed path
+passes strict with 0 errors, everything else runs in basic mode until its
+strict count reaches 0. The policy (also in
+`.claude/conventions/languages/python.md`, "Type Checking Enforcement"):
 
-To measure the gap without flipping the switch, each package was checked
-once with `typeCheckingMode = "strict"` injected into a throwaway copy of its
-`pyproject.toml` (`pyright -p <temp-copy>`, run from inside the package so
-`venvPath`/`venv`/`include` still resolve correctly; the copy was discarded
-afterward — no `pyproject.toml` in the repo was changed). Basic mode is 0
-errors in all seven packages (see the `lint` job); these are the *additional*
-errors strict mode would surface:
+- **new subpackages start strict** — add the path to the list in the change
+  that creates the directory;
+- **a subpackage joins the strict list when its count hits 0**;
+- **a listed subpackage never regresses**.
 
-| package | strict errors | files affected |
-|---|---:|---:|
-| pirn-core | 1293 | 203 |
-| pirn-agents | 2612 | 574 |
-| pirn-data | 1148 | 191 |
-| pirn-ml | 752 | 132 |
-| pirn-health | 744 | 130 |
-| pirn-oilgas | 427 | 113 |
-| pirn-signal | 1005 | 119 |
+`scripts/check_pyright_strict_list.py` enforces all three in the `lint` job
+right after the package's own `pyright` run: it measures every subpackage in
+strict mode (a throwaway config that `extends` the `pyproject.toml` and sets
+`strict` to the whole import package) and fails on a regression, on a
+0-error subpackage missing from the list, or on a listed path that is not a
+subpackage. `<pkg>/*.py` is the entry for the modules directly under the
+import root. Regenerate the table below with
+`python scripts/check_pyright_strict_list.py packages/<dist> --table`
+(from a worktree that changes core, add `--extra-path <worktree>/packages/pirn-core`).
 
-The dominant categories across every package are `reportUnknownMemberType` /
-`reportUnknownVariableType` (untyped third-party return values — cloud SDKs,
-`cloudpickle`, DB drivers), `reportMissingTypeStubs` for those same
-dependencies, and `reportPrivateUsage` (framework-internal `_Foo` classes
-imported across module boundaries within the same package, e.g. `_Signer`
-and `_CloudObjectStore` reused by every cloud backend). None of this was
-triaged into false-positive vs. real-fix buckets here — that categorization,
-and any decision to adopt strict mode (globally, per-package, or via a
-narrower `enableTypeIgnoreComments`/per-rule ramp) is a separate, larger
-piece of work than PIR-856's docs/CI-enforcement lane. This table exists so
-that decision can be made from data instead of a guess.
+Two things the adoption settled: a config-level rule override does **not**
+apply inside `strict` paths (pyright applies the strict rule set to those
+files and honours only in-file `# pyright:` comments), and the one strict rule
+the house style contradicts is `reportUnnecessaryIsInstance` — explicit
+type-then-value validation of runtime-bound knot inputs is required by
+`docs/contributing/domain-knots.md`, so a strict-listed file keeps its guards
+and carries the two-line header `# pyright: reportUnnecessaryIsInstance=false`
++ a reason line above its docstring. Every other suppression is a per-line
+`# pyright: ignore[<rule>]` with its reason on the same line.
+
+### Burn-down table (measured 2026-09-14, pyright 1.1.411)
+
+Counts are strict errors per subpackage; `yes` marks the paths in the
+package's `strict` list (all at 0). The 25-error threshold used for the
+initial cut is not policy — the list is exactly the set of subpackages at 0.
+
+| package | subpackage | strict errors | strict |
+|---|---|---:|:---:|
+| pirn-core | `pirn/*.py` | 0 | yes |
+| pirn-core | `pirn/_migrate` | 0 | yes |
+| pirn-core | `pirn/check` | 0 | yes |
+| pirn-core | `pirn/domains` | 0 | yes |
+| pirn-core | `pirn/emitters` | 0 | yes |
+| pirn-core | `pirn/exceptions` | 0 | yes |
+| pirn-core | `pirn/managers` | 0 | yes |
+| pirn-core | `pirn/recording` | 0 | yes |
+| pirn-core | `pirn/security` | 0 | yes |
+| pirn-core | `pirn/streaming` | 0 | yes |
+| pirn-core | `pirn/viz` | 0 | yes |
+| pirn-core | `pirn/yaml_loader` | 0 | yes |
+| pirn-core | `pirn/engine` | 29 |  |
+| pirn-core | `pirn/triggers` | 30 |  |
+| pirn-core | `pirn/backends` | 43 |  |
+| pirn-core | `pirn/nodes` | 54 |  |
+| pirn-core | `pirn/core` | 152 |  |
+| pirn-core | `pirn/connectors` | 1071 |  |
+| pirn-agents | `pirn_agents/*.py` | 0 | yes |
+| pirn-agents | `pirn_agents/_internal` | 0 | yes |
+| pirn-agents | `pirn_agents/agent` | 0 | yes |
+| pirn-agents | `pirn_agents/benchmarks` | 0 | yes |
+| pirn-agents | `pirn_agents/caching` | 0 | yes |
+| pirn-agents | `pirn_agents/connectors` | 0 | yes |
+| pirn-agents | `pirn_agents/control` | 0 | yes |
+| pirn-agents | `pirn_agents/exceptions` | 0 | yes |
+| pirn-agents | `pirn_agents/generation` | 0 | yes |
+| pirn-agents | `pirn_agents/interfaces` | 0 | yes |
+| pirn-agents | `pirn_agents/observability` | 0 | yes |
+| pirn-agents | `pirn_agents/performance` | 0 | yes |
+| pirn-agents | `pirn_agents/planning` | 0 | yes |
+| pirn-agents | `pirn_agents/serialization` | 0 | yes |
+| pirn-agents | `pirn_agents/testing` | 0 | yes |
+| pirn-agents | `pirn_agents/validation` | 0 | yes |
+| pirn-agents | `pirn_agents/input` | 27 |  |
+| pirn-agents | `pirn_agents/context` | 33 |  |
+| pirn-agents | `pirn_agents/types` | 33 |  |
+| pirn-agents | `pirn_agents/prompt` | 37 |  |
+| pirn-agents | `pirn_agents/resilience` | 39 |  |
+| pirn-agents | `pirn_agents/builder` | 42 |  |
+| pirn-agents | `pirn_agents/security` | 54 |  |
+| pirn-agents | `pirn_agents/batch` | 58 |  |
+| pirn-agents | `pirn_agents/mcp` | 64 |  |
+| pirn-agents | `pirn_agents/determinism` | 73 |  |
+| pirn-agents | `pirn_agents/evaluation` | 75 |  |
+| pirn-agents | `pirn_agents/retrieval` | 82 |  |
+| pirn-agents | `pirn_agents/sessions` | 83 |  |
+| pirn-agents | `pirn_agents/tools` | 88 |  |
+| pirn-agents | `pirn_agents/memory` | 122 |  |
+| pirn-agents | `pirn_agents/llm` | 128 |  |
+| pirn-agents | `pirn_agents/specializations` | 671 |  |
+| pirn-data | `pirn_data/*.py` | 0 | yes |
+| pirn-data | `pirn_data/lakehouse` | 0 | yes |
+| pirn-data | `pirn_data/quality` | 0 | yes |
+| pirn-data | `pirn_data/sinks` | 0 | yes |
+| pirn-data | `pirn_data/sources` | 0 | yes |
+| pirn-data | `pirn_data/specialized` | 0 | yes |
+| pirn-data | `pirn_data/transforms` | 0 | yes |
+| pirn-data | `pirn_data/validation` | 0 | yes |
+| pirn-data | `pirn_data/lazy` | 69 |  |
+| pirn-data | `pirn_data/specializations` | 191 |  |
+| pirn-data | `pirn_data/frames` | 254 |  |
+| pirn-health | `pirn_health/*.py` | 0 | yes |
+| pirn-health | `pirn_health/assemblers` | 0 | yes |
+| pirn-health | `pirn_health/disassemblers` | 0 | yes |
+| pirn-health | `pirn_health/protocols` | 0 | yes |
+| pirn-health | `pirn_health/types` | 0 | yes |
+| pirn-health | `pirn_health/pathology` | 32 |  |
+| pirn-health | `pirn_health/clinical` | 34 |  |
+| pirn-health | `pirn_health/trials` | 42 |  |
+| pirn-health | `pirn_health/wearables` | 54 |  |
+| pirn-health | `pirn_health/genomics` | 55 |  |
+| pirn-health | `pirn_health/eeg_meg` | 88 |  |
+| pirn-health | `pirn_health/mri` | 181 |  |
+| pirn-ml | `pirn_ml/*.py` | 0 | yes |
+| pirn-ml | `pirn_ml/assemblers` | 0 | yes |
+| pirn-ml | `pirn_ml/data_prep` | 0 | yes |
+| pirn-ml | `pirn_ml/deployment` | 0 | yes |
+| pirn-ml | `pirn_ml/disassemblers` | 0 | yes |
+| pirn-ml | `pirn_ml/evaluation` | 0 | yes |
+| pirn-ml | `pirn_ml/features` | 0 | yes |
+| pirn-ml | `pirn_ml/types` | 0 | yes |
+| pirn-ml | `pirn_ml/training` | 28 |  |
+| pirn-ml | `pirn_ml/specializations` | 258 |  |
+| pirn-oilgas | `pirn_oilgas/*.py` | 0 | yes |
+| pirn-oilgas | `pirn_oilgas/disassemblers` | 0 | yes |
+| pirn-oilgas | `pirn_oilgas/geospatial` | 0 | yes |
+| pirn-oilgas | `pirn_oilgas/integrity` | 0 | yes |
+| pirn-oilgas | `pirn_oilgas/protocols` | 0 | yes |
+| pirn-oilgas | `pirn_oilgas/types` | 0 | yes |
+| pirn-oilgas | `pirn_oilgas/well` | 0 | yes |
+| pirn-oilgas | `pirn_oilgas/workflows` | 0 | yes |
+| pirn-oilgas | `pirn_oilgas/production` | 30 |  |
+| pirn-oilgas | `pirn_oilgas/reservoir` | 31 |  |
+| pirn-oilgas | `pirn_oilgas/seismic` | 32 |  |
+| pirn-oilgas | `pirn_oilgas/assemblers` | 45 |  |
+| pirn-signal | `pirn_signal/*.py` | 0 | yes |
+| pirn-signal | `pirn_signal/adaptive` | 0 | yes |
+| pirn-signal | `pirn_signal/assemblers` | 0 | yes |
+| pirn-signal | `pirn_signal/beamforming` | 0 | yes |
+| pirn-signal | `pirn_signal/disassemblers` | 0 | yes |
+| pirn-signal | `pirn_signal/statistical` | 0 | yes |
+| pirn-signal | `pirn_signal/types` | 0 | yes |
+| pirn-signal | `pirn_signal/separation` | 28 |  |
+| pirn-signal | `pirn_signal/resampling` | 36 |  |
+| pirn-signal | `pirn_signal/audio` | 37 |  |
+| pirn-signal | `pirn_signal/wavelets` | 54 |  |
+| pirn-signal | `pirn_signal/spectral` | 70 |  |
+| pirn-signal | `pirn_signal/nonlinear` | 89 |  |
+| pirn-signal | `pirn_signal/filters` | 151 |  |
+
+Totals outside the lists: pirn-core 1379, pirn-agents 1709, pirn-data 514,
+pirn-health 486, pirn-ml 286, pirn-oilgas 138, pirn-signal 465. The dominant
+remaining categories are `reportUnknownMemberType` / `reportUnknownVariableType`
+on untyped third-party returns (cloud SDKs, `cloudpickle`, DB drivers,
+numpy-heavy domain code), `reportMissingTypeStubs`, `reportPrivateUsage` on
+package-internal `_Foo` helpers and, in the domain packages, the deliberate
+`reportUnnecessaryIsInstance` guards described above.

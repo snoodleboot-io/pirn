@@ -515,6 +515,16 @@ to `ExceptionRecord`.
   `account_url`, `S3Config.region` became `str | None` (same default).
   `LocalDiskDataStore` keeps the raw-bytes primitives (its atomic-rename
   write has no connector counterpart).
+- **pyright strict is per subpackage, ratcheted.** Each package's
+  `[tool.pyright].strict` lists the subpackages that pass strict with 0
+  errors (core: `_migrate`, `check`, `domains`, `emitters`, `exceptions`,
+  `managers`, `recording`, `security`, `streaming`, `viz`, `yaml_loader` and
+  the root modules; `backends`, `core`, `connectors`, `engine`, `nodes`,
+  `triggers` are the burn-down). New subpackages start strict, a subpackage
+  joins at 0, none regresses — `scripts/check_pyright_strict_list.py` enforces
+  it in CI and `docs/architecture/ci-pipelines.md` holds the table. The only
+  strict rule the house style contradicts, `reportUnnecessaryIsInstance`, is
+  suppressed per file with a reason; the runtime guard is never deleted.
 
 ---
 
