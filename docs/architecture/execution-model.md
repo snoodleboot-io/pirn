@@ -115,7 +115,7 @@ await t.run(RunRequest(parameters={"doc": "..."}, concurrency=ConcurrencyLimits(
 
 #### Loop iterations that await
 
-`LoopSubTapestry` plans and folds through `astep(state)` / `afold(state, result)`, which the framework awaits. The defaults delegate to the sync `step` / `fold` and await the result if it is awaitable, so a loop declares whichever pair it needs — sync, `async def step`/`fold`, or an `astep`/`afold` override — and an iteration can sleep for a backoff, check a remote budget, or ask a model whether to continue without dropping into a Python loop inside `process()` (the PIR-856 `ParallelToolExecutor` deferral's missing piece).
+`LoopSubTapestry` plans and folds through `astep(state)` / `afold(state, result)`, which the framework awaits. The defaults delegate to the sync `step` / `fold` and await the result if it is awaitable, so a loop declares whichever pair it needs — sync, `async def step`/`fold`, or an `astep`/`afold` override — and an iteration can sleep for a backoff, check a remote budget, or ask a model whether to continue without dropping into a Python loop inside `process()`. (A batch of *independent* calls needs no loop at all: `ParallelToolExecutor` is one tool knot per call under an `Aggregator`, with per-call retry backoff and timeout owned by `GovernedDispatch`.)
 
 #### Gate decisions: predicate or Check
 

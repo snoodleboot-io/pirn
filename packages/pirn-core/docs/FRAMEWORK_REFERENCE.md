@@ -569,10 +569,6 @@ fix unilaterally):
   primitive for "run a nested tapestry from a plain `Knot`" would resolve
   it; absent that, whether per-summary observability is worth the coupling
   is a product call, not made here.
-- `agent/parallel_tool_executor.py::ParallelToolExecutor`'s own
-  `asyncio.gather` is a deliberate deferral — its per-call retry/timeout
-  richness needs real inter-attempt backoff sleep, not expressible as a
-  static `Aggregator` fan-out.
 
 **Resolved since (PIR-865):** approval denial is a core `Skipped`, not a
 `ToolCallRejection` `Err` — see §7's Tool section.

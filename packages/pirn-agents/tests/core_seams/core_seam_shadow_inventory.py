@@ -75,9 +75,14 @@ class CoreSeamShadowInventory:
             (r"^GatedAgentResponse$",),
             frozenset({"Check", "Gate"}),
         ),
+        # A batch of independent calls needs no loop step at all: one knot per
+        # call under an ``Aggregator`` inside a ``SubTapestry``, with core's
+        # ``GovernedDispatch`` owning per-call retry backoff and timeout
+        # (PIR-872). A hand-rolled ``asyncio.gather`` inside such a container
+        # is still caught by ``USES_ASYNCIO_GATHER`` in test_no_engine_bypass.
         "async_loop_step": (
             (r"^ParallelToolExecutor$",),
-            frozenset({"LoopSubTapestry", "AgentLoopPipeline"}),
+            frozenset({"LoopSubTapestry", "AgentLoopPipeline", "SubTapestry"}),
         ),
     }
 

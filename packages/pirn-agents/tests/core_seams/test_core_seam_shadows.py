@@ -54,11 +54,10 @@ ADMISSION_FEEDBACK: frozenset[str] = frozenset()
 # GatedAgentResponse deleted (PIR-872): a core Check + Gate(check=).
 CHECK_ROLE: frozenset[str] = frozenset()
 
-ASYNC_LOOP_STEP = frozenset(
-    {
-        "agent/parallel_tool_executor.py::ParallelToolExecutor",
-    }
-)
+# ParallelToolExecutor is one tool knot per call under an Aggregator, with
+# KnotConfig(retry=, timeout=, concurrency_group="tools") run by core's
+# GovernedDispatch (PIR-872).
+ASYNC_LOOP_STEP: frozenset[str] = frozenset()
 
 
 class TestCoreSeamShadowsAreFrozen(unittest.TestCase):
@@ -125,6 +124,12 @@ class TestDetectorIsDiscriminating(unittest.TestCase):
     def test_a_generic_core_base_is_recognised(self) -> None:
         node = self._class_of("class ParallelToolExecutor(LoopSubTapestry[int]):\n    pass\n")
         assert not CoreSeamShadowInventory.is_shadow(node, "async_loop_step")
+
+    def test_a_fan_out_container_is_not_a_loop_step_shadow_but_a_bare_knot_is(self) -> None:
+        container = self._class_of("class ParallelToolExecutor(SubTapestry):\n    pass\n")
+        bare = self._class_of("class ParallelToolExecutor(Knot):\n    pass\n")
+        assert not CoreSeamShadowInventory.is_shadow(container, "async_loop_step")
+        assert CoreSeamShadowInventory.is_shadow(bare, "async_loop_step")
 
     def test_an_unrelated_name_is_not_a_shadow(self) -> None:
         node = self._class_of("class ToolCall:\n    pass\n")

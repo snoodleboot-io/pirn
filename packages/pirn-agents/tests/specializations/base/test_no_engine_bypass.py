@@ -27,12 +27,10 @@ static checks below cover what runtime enforcement cannot.
 ## Why this is a ratchet, not a clean assertion
 
 Fixing a bypass is a per-knot design job — WS7 did five, PIR-856 did three
-more (`ParallelToolCaller`, `ToolChain`, `ReActStepExecutor`; a fourth,
-`ParallelToolExecutor`, is a deliberate deferral: its retry/timeout richness
-needs real inter-attempt backoff sleep, which `LoopSubTapestry`'s synchronous
-`step`/`fold` contract cannot express without either dropping the backoff or a
-core-level change outside this ticket) — so the honest guard is one that
-freezes the inventory rather than pretending it is empty.
+more (`ParallelToolCaller`, `ToolChain`, `ReActStepExecutor`), and
+`ParallelToolExecutor` runs one tool knot per call under an `Aggregator` with
+core's `GovernedDispatch` owning per-call retry backoff and timeout — so the
+guard freezes the inventory by exact equality, and every set is now empty.
 
 The allowlists are asserted by **exact equality**, deliberately:
 
