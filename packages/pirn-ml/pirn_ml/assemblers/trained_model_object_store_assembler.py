@@ -6,7 +6,9 @@ downstream domain knots that consume :class:`~pirn_ml.types.trained_model_payloa
 Algorithm:
     1. Receive ``body`` (serialised model bytes) and ``algorithm`` (str).
     2. Validate types and values.
-    3. Deserialise the estimator via ``joblib.load``; fall back to ``pickle.loads`` on failure.
+    3. Deserialise the estimator via ``joblib.load`` (which also reads plain
+       pickle streams). A load failure propagates — there is no second
+       deserialiser that could silently accept bytes joblib rejected.
     4. Build a :class:`ModelManifest` from the estimator's attributes.
     5. Return a :class:`TrainedModelPayload` carrying the manifest and estimator.
     6. Deserialisation runs on a thread to avoid blocking the event loop.
@@ -24,7 +26,6 @@ from __future__ import annotations
 
 import asyncio
 import io
-import pickle
 from datetime import UTC, datetime
 from typing import Any
 
@@ -95,10 +96,7 @@ class TrainedModelObjectStoreAssembler(Assembler):
     @staticmethod
     def _deserialize(body: bytes, algorithm: str) -> TrainedModelPayload:
         joblib = OptionalDependency.require("joblib", extra="ml", package="pirn-ml")
-        try:
-            raw: object = joblib.load(io.BytesIO(body))
-        except Exception:
-            raw = pickle.loads(body)
+        raw: object = joblib.load(io.BytesIO(body))
         estimator = FittedEstimator(estimator=raw, algorithm=algorithm)
         model_id = f"{algorithm}_{datetime.now(UTC).strftime('%Y%m%dT%H%M%S')}"
         manifest = ModelManifest(

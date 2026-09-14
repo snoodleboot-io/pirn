@@ -4,6 +4,11 @@ The dataset's actual rows are not embedded in this value; the value is
 a *reference* (logical name + provenance) that downstream knots resolve
 when they need to materialise the data. This keeps content-addressing
 cheap and avoids accidental memory bloat in lineage records.
+
+``row_indices`` names the source rows a partition covers (positions into
+the source dataset, in partition order). An empty tuple means the
+reference covers the whole source; fold and split partitions set it so
+their membership — not just their size — is part of the reference.
 """
 
 from __future__ import annotations
@@ -25,6 +30,7 @@ class DatasetManifest(PirnOpaqueValue):
     row_count: int = 0
     source_uri: str = ""
     fetched_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    row_indices: tuple[int, ...] = ()
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
         return {
@@ -34,4 +40,5 @@ class DatasetManifest(PirnOpaqueValue):
             "row_count": self.row_count,
             "source_uri": self.source_uri,
             "fetched_at": self.fetched_at.isoformat(),
+            "row_indices": list(self.row_indices),
         }
