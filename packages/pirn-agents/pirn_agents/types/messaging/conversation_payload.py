@@ -67,7 +67,9 @@ class ConversationPayload(Payload[ConversationFrame, tuple[AgentMessage, ...]]):
     def extra(self) -> Mapping[str, Any]:
         return self._metadata.extra
 
-    def derive(self, messages: Sequence[AgentMessage], **frame_overrides: Any) -> ConversationPayload:
+    def derive(
+        self, messages: Sequence[AgentMessage], **frame_overrides: Any
+    ) -> ConversationPayload:
         """Build a new :class:`ConversationPayload` derived from this one.
 
         Inherits every :class:`ConversationFrame` field from this payload

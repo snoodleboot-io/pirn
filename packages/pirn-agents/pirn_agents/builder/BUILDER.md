@@ -17,16 +17,18 @@ schema. See `examples/agents_core_pipeline/` for a full agent pipeline written
 in core's YAML vocabulary and validated by `tapestry-check`, and the agents
 section of `docs/guides/yaml-pipelines.md` for the declarative-document shape.
 
-## One spine, five views of it
+## One authoring path, five views of it
 
-There is one authoring path. The pieces are not alternatives to each other:
+There is one authoring path (sometimes called the builder's "spine" in
+conversation, though that word names no class here). The pieces are not
+alternatives to each other:
 
 | Piece | Role |
 |---|---|
-| `AgentBuilder` | the spine — the fluent front end, and what every other piece produces or consumes |
+| `AgentBuilder` | the authoring path's fluent front end, and what every other piece produces or consumes |
 | `AgentSpec` | the builder as **data**: `.to_spec()`/`AgentBuilder.from_spec()` (dict/JSON/YAML), and `.to_pipeline_spec()`/`.from_pipeline_spec()` (core's own `PipelineSpec`) |
 | `AgentReferences` | the caller-owned table binding a spec's reference labels to live objects — also usable as `known_callables` for core's loader (`.as_known_callables()`) |
-| `AgentPresets` | **named entries** into the spine, each loaded from a saved core pipeline document under `builder/presets/*.yaml` |
+| `AgentPresets` | **named entries** into the authoring path, each loaded from a saved core pipeline document under `builder/presets/*.yaml` |
 | `AgentPatternRegistry` | the single pattern table all of the above consult, and the source of the aliases registered into core's own registry |
 
 ```
@@ -60,8 +62,9 @@ response = run.outputs[agent.knot_id]  # knot_id is stable & derived, not random
 
 ## Every shipped pattern is reachable by name
 
-`Agent.patterns()` returns every registered pattern name — 65 canonical names
-plus the `rag` alias for `naive_rag` — the RAG family, the guardrail checks,
+`Agent.patterns()` returns every registered pattern name — 66 canonical names
+plus the `rag` alias for `naive_rag` (67 total, `AgentPatternRegistry.pattern_names()`) —
+the RAG patterns, the guardrail checks,
 the multi-agent orchestrations, the specialized agents, the structured-output
 extractors, the ingestors, and the reasoning loops. None of them is
 builder-invisible, and every one of them is also reachable through core's own
@@ -192,9 +195,9 @@ Unknown or malformed fields are rejected on load.
 
 ## Curated presets
 
-`AgentPresets` are named entries into the spine, not a separate way in. Each
-takes a caller-supplied `llm` (and `memory` where relevant) and accepts a
-`tools=` override, so no preset hard-codes a vendor.
+`AgentPresets` are named entries into the authoring path, not a separate way
+in. Each takes a caller-supplied `llm` (and `memory` where relevant) and
+accepts a `tools=` override, so no preset hard-codes a vendor.
 
 Each preset's *shape* — its pattern name and default options — is saved as a
 core pipeline document under `builder/presets/{research,rag_chat,coding}.yaml`
@@ -212,14 +215,14 @@ with Tapestry() as t:
     coder    = AgentPresets.coding(llm=my_llm, input="...", root="/srv/ws")
 ```
 
-`builder_for(name, **kwargs)` hands back the builder the recipe uses, before it
+`builder_for(name, **kwargs)` hands back the builder the preset uses, before it
 becomes a graph — so a preset can be read as data, adjusted, or serialised. The
 named call above is exactly this followed by `.build()`, so there is no second
 copy of the defaults to drift:
 
 ```python
 b = AgentPresets.builder_for("rag_chat", llm=my_llm, memory=store, input="...")
-b.to_spec()                       # the recipe as data — no Tapestry needed
+b.to_spec()                       # the preset's configuration as data — no Tapestry needed
 b.pattern("naive_rag", top_k=9)   # keep chaining; it is an ordinary builder
 with Tapestry():
     agent = b.build()

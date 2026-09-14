@@ -10,18 +10,21 @@ concrete knots that implement it, and shows the minimal wiring code.
 
 ```
 pirn_agents/
-├── llm_provider.py          LLMProvider (interface — you supply a concrete impl)
-├── tool.py                  Tool        (interface — you supply concrete tools)
-├── memory_store.py          MemoryStore (interface — you supply a concrete impl)
-├── types/
-│   ├── agent_context.py     AgentContext
-│   ├── agent_message.py     AgentMessage
-│   ├── agent_response.py    AgentResponse
-│   ├── plan.py              Plan
-│   ├── tool_call.py         ToolCall
-│   └── tool_result.py       ToolResult
+├── llm/llm_provider.py       LLMProvider (interface — you supply a concrete impl)
+├── tools/tool.py             Tool        (interface — you supply concrete tools; a Knot class)
+├── memory/stores/memory_store.py  MemoryStore (interface — you supply a concrete impl)
+├── types/messaging/
+│   ├── conversation_payload.py  ConversationPayload  — Payload[ConversationFrame, tuple[AgentMessage, ...]]
+│   ├── conversation_frame.py    ConversationFrame    — session/turn ids, token count, truncation state
+│   ├── agent_context.py         AgentContext         — deprecated alias of ConversationPayload
+│   ├── agent_message.py         AgentMessage
+│   ├── agent_response.py        AgentResponse        — Payload[GenerationFrame, str]
+│   └── generation_frame.py      GenerationFrame      — finish_reason, usage, cost, tool_calls
+├── planning/plan.py          Plan
+├── tools/tool_call.py        ToolCall
+├── tools/tool_result.py      ToolResult
 ├── input/
-│   ├── context_builder.py   ContextBuilder   — assembles AgentContext from messages
+│   ├── context_builder.py   ContextBuilder   — assembles a ConversationPayload from messages
 │   ├── intent_classifier.py IntentClassifier — tags intent on a context
 │   └── message_parser.py    MessageParser    — raw text → AgentMessage list
 ├── generation/
@@ -35,9 +38,9 @@ pirn_agents/
 │   ├── tool_executor.py     ToolExecutor     — executes one ToolCall
 │   └── tool_result_aggregator.py ToolResultAggregator
 ├── memory/
-│   ├── memory_retriever.py  MemoryRetriever  — MemoryStore.search
+│   ├── memory_retriever.py  MemoryRetriever  — MemoryStore.retrieve by key (KeyError on miss)
 │   ├── memory_writer.py     MemoryWriter     — MemoryStore.store
-│   └── conversation_buffer.py ConversationBuffer
+│   └── conversation_buffer.py ConversationBuffer — appends one message per call, drops the oldest past max_size
 ├── control/
 │   ├── handoff_check.py      HandoffCheck
 │   ├── reflection_check.py   ReflectionCheck
@@ -118,7 +121,7 @@ from pirn_agents.generation.output_parser import OutputParser
 
 def build(llm, raw_text: str):
     t = Tapestry()
-    parsed  = MessageParser(text=raw_text,   _config=KnotConfig(id="parse"))
+    parsed  = MessageParser(raw_input=raw_text, _config=KnotConfig(id="parse"))
     context = ContextBuilder(messages=parsed, _config=KnotConfig(id="ctx"))
     call    = LLMCall(context=context, llm=llm, _config=KnotConfig(id="call"))
     output  = OutputParser(response=call,    _config=KnotConfig(id="out"))
@@ -138,9 +141,10 @@ tools, observes results, and repeats until it has a final answer.
 ```python
 from pirn_agents.specializations.react.react_loop import ReActLoop
 from pirn.core.knot_config import KnotConfig
+from pirn_agents.types.messaging.agent_message import AgentMessage
 
 react = ReActLoop(
-    messages=[{"role": "user", "content": "What is the capital of France?"}],
+    messages=(AgentMessage(role="user", content="What is the capital of France?"),),
     llm=my_llm,
     tools=[search_tool, calculator_tool],
     max_iterations=6,
@@ -175,8 +179,8 @@ ctx      = ContextBuilder(messages=parsed, _config=KnotConfig(id="ctx"))
 plan     = Planner(context=ctx, llm=llm,   _config=KnotConfig(id="plan"))
 # Extract step string from plan, then route
 step     = PlanFirstStep(plan=plan, _config=KnotConfig(id="step"))
-router   = ToolRouter(step=step, tools=tools, llm=llm, _config=KnotConfig(id="route"))
-executor = ToolExecutor(tool_call=router,  _config=KnotConfig(id="exec"))
+router   = ToolRouter(step=step, tools=tools, _config=KnotConfig(id="route"))
+executor = ToolExecutor(call=router, tools=tools, _config=KnotConfig(id="exec"))
 agg      = ToolResultAggregator(results=executor, _config=KnotConfig(id="agg"))
 ```
 
@@ -198,11 +202,12 @@ back into a dynamic DAG iteration:
 from pirn_agents.control.reflection_check import ReflectionCheck
 
 draft    = LLMCall(context=ctx, llm=llm,            _config=KnotConfig(id="draft"))
-gate     = ReflectionCheck(response=draft, threshold=0.8, _config=KnotConfig(id="gate"))
-# gate outputs bool — use it to gate whether critique runs; pass the original ctx to LLMCall
+gate     = ReflectionCheck(response=draft, llm=critic_llm, _config=KnotConfig(id="gate"))
+# gate outputs bool (the LLM's own "yes"/"no" verdict, no numeric threshold) —
+# use it to gate whether critique runs; pass the original ctx to LLMCall
 critique = LLMCall(context=ctx, llm=critic_llm,    _config=KnotConfig(id="critique"))
 # Wire gate's bool output into a Gate primitive or ErrorPolicy to conditionally run critique.
-# Do NOT pass gate (bool) as context to LLMCall — LLMCall expects AgentContext.
+# Do NOT pass gate (bool) as context to LLMCall — LLMCall expects a ConversationPayload.
 ```
 
 For a dynamic loop (unknown number of iterations), use an extensible Tapestry
@@ -256,7 +261,7 @@ specialists). Results are gathered and either passed raw or synthesised.
 from pirn_agents.specializations.multi_agent.parallel_specialist_fan_out import (
     ParallelSpecialistFanOut,
 )
-from pirn_agents.specializations.multi_agent.consensus_aggregator import (
+from pirn_agents.specializations.multi_agent.consensus_pipeline import (
     ConsensusPipeline,
 )
 
@@ -293,12 +298,14 @@ results) must be merged into a single coherent response.
 `ContextBuilder` receives a list of prior responses.
 
 ```python
-# Simplest: feed all prior AgentResponses into a new ContextBuilder
-ctx_synth = ContextBuilder(
-    messages=[resp_a, resp_b, resp_c],
-    _config=KnotConfig(id="ctx_synth"),
-)
-synthesis = LLMCall(context=ctx_synth, llm=llm, _config=KnotConfig(id="synth"))
+# Simplest: project each prior AgentResponse to an AgentMessage, then synthesise
+class ResponsesToMessages(Knot):
+    async def process(self, responses: Sequence[AgentResponse], **_) -> tuple[AgentMessage, ...]:
+        return tuple(AgentMessage(role="assistant", content=r.content) for r in responses)
+
+as_messages = ResponsesToMessages(responses=[resp_a, resp_b, resp_c], _config=KnotConfig(id="to_msgs"))
+ctx_synth   = ContextBuilder(messages=as_messages, _config=KnotConfig(id="ctx_synth"))
+synthesis   = LLMCall(context=ctx_synth, llm=llm, _config=KnotConfig(id="synth"))
 ```
 
 ---
@@ -314,22 +321,24 @@ wires its own inner pipeline, and may itself instantiate child `SubTapestry`
 nodes.
 
 ```python
-from pirn.nodes.sub_tapestry import SubTapestry
-from pirn.tapestry import Tapestry
+from pirn.core.knot import Knot
 
 class ResearchSubAgent(SubTapestry):
     def __init__(self, *, sub_task: str, llm, _config, **kw):
         super().__init__(sub_task=sub_task, llm=llm, _config=_config, **kw)
 
-    async def _build_inner(self, inner: Tapestry, *, sub_task, llm, **_):
-        react = ReActLoop(
-            messages=[{"role": "user", "content": sub_task}],
+    # SubTapestry's real contract (knot-design-rules.md Rule 8): process()
+    # builds knots directly — they auto-register into the inner tapestry
+    # context SubTapestry.__call__ has already opened — and returns the
+    # terminal (sink) knot; the framework runs it via self._run_inner(inner).
+    # There is no _build_inner hook and no manual `inner.store.register(...)`.
+    async def process(self, sub_task: str, llm, **_) -> Knot:
+        return ReActLoop(
+            messages=(AgentMessage(role="user", content=sub_task),),
             llm=llm, tools=[search_tool],
             max_iterations=4,
             _config=KnotConfig(id="inner_react"),
         )
-        inner.store.register(react)
-        return "inner_react"   # ID of the terminal knot
 
 class TopLevelDecomposer(Knot):
     async def process(self, goal: str, llm, **_):
@@ -406,9 +415,18 @@ from pirn_agents.specializations.guardrails.pii_redactor_check import (
 )
 
 raw_response = LLMCall(context=ctx, llm=llm, _config=KnotConfig(id="llm"))
-safety       = SafetyCheck(response=raw_response, _config=KnotConfig(id="safety"))
-pii          = PiiRedactorCheck(response=safety,  _config=KnotConfig(id="pii"))
-output_gate  = OutputGuardrailCheck(response=pii, llm=llm, _config=KnotConfig(id="oguard"))
+safety       = SafetyCheck(
+                   message=raw_response,
+                   deny_patterns=[r"\b(ignore previous instructions)\b"],
+                   _config=KnotConfig(id="safety"),
+               )
+pii          = PiiRedactorCheck(response=safety, patterns=[r"\b\d{3}-\d{2}-\d{4}\b"], _config=KnotConfig(id="pii"))
+output_gate  = OutputGuardrailCheck(
+                   response=pii,
+                   deny_patterns=[r"\b(confidential)\b"],
+                   allowed_tool_names=["web_search"],
+                   _config=KnotConfig(id="oguard"),
+               )
 ```
 
 Stack gates in order: safety first, then PII, then policy.
@@ -457,11 +475,12 @@ Four memory pipelines are available; each is a `SubTapestry`:
 from pirn_agents.memory.patterns.semantic_memory_pipeline import (
     SemanticMemoryPipeline,
 )
+from pirn_agents.types.messaging.agent_message import AgentMessage
 
 mem = SemanticMemoryPipeline(
-    content="Paris is the capital of France.",
-    llm=llm,
-    memory_store=my_store,
+    messages=(AgentMessage(role="user", content="Paris is the capital of France."),),
+    llm=llm,          # extracts factual claims from messages
+    store=my_store,
     _config=KnotConfig(id="mem"),
 )
 await mem.run()   # stores extracted facts into my_store
@@ -469,8 +488,8 @@ await mem.run()   # stores extracted facts into my_store
 from pirn_agents.memory.memory_retriever import MemoryRetriever
 
 recall = MemoryRetriever(
-    query="What is the capital of France?",
-    memory_store=my_store,
+    key="capital_of_france",   # exact-key lookup; similarity search is my_store.search(query, top_k=...)
+    store=my_store,
     _config=KnotConfig(id="recall"),
 )
 ```
@@ -496,7 +515,7 @@ from pirn_agents.specializations.rag.corrective_rag_pipeline import (
 rag = CorrectiveRAGPipeline(
     query="Explain the DICOM pixel data format.",
     llm=llm,
-    memory_store=document_store,
+    memory=document_store,
     _config=KnotConfig(id="rag"),
 )
 answer: AgentResponse = await rag.run()
@@ -516,11 +535,12 @@ from pirn_agents.specializations.structured_output.json_extractor_pipeline impor
     JsonExtractorPipeline,
 )
 
-# Extract and validate a Pydantic model from a raw LLM response
+# Extract and validate a Pydantic model from a prompt, retrying on parse/validation failure
 validated = PydanticValidatorPipeline(
-    response=llm_call,
-    schema=MySchema,
-    llm=llm,         # used for retry/repair attempts
+    prompt="Return the flight details as JSON.",
+    model_class=MySchema,
+    llm=llm,          # generates the response and drives retry/repair attempts
+    max_retries=3,
     _config=KnotConfig(id="validate"),
 )
 ```
@@ -541,7 +561,12 @@ Pre-built `SubTapestry` agents backed by `ReActLoop`:
 | `ResearchAgent` | Multi-source research with citations |
 | `DataAnalystAgent` | Statistical analysis with tool use |
 
-All accept `task: str`, `llm: LLMProvider`, and a set of domain tools:
+Each agent's constructor is its own — `CodeAgent` and `SQLAgent` need no tool
+sequence (the capability, e.g. `CodeAgent`'s lint pass, is wired inside the
+pipeline); `ResearchAgent`, `BrowserAgent`, and `DataAnalystAgent` take a
+domain tool because their capability is genuinely external (a search backend,
+a browser driver, a data source). Check `AgentPatternRegistry.describe(name)`
+or the constructor itself before assuming a shape across agents.
 
 ```python
 from pirn_agents.specializations.specialized_agents.code_agent import (
@@ -551,11 +576,10 @@ from pirn_agents.specializations.specialized_agents.code_agent import (
 agent = CodeAgent(
     task="Write a Python function to parse ISO 8601 timestamps.",
     llm=llm,
-    tools=[linter_tool],
-    max_iterations=5,
+    language="python",   # optional, defaults to "python"
     _config=KnotConfig(id="code_agent"),
 )
-code_response: AgentResponse = await agent.run()
+code_response: AgentResponse = await agent.run()   # lint pass runs internally
 ```
 
 ---
@@ -655,6 +679,7 @@ from pirn.core.knot_config import KnotConfig
 from pirn_agents.mcp.mcp_connector import McpConnector
 from pirn_agents.mcp.mcp_toolset import McpToolset
 from pirn_agents.mcp.stdio_transport import StdioTransport
+from pirn_agents.types.messaging.agent_message import AgentMessage
 
 # One pooled, self-healing session per server (built once, reused for the run).
 connector = McpConnector(
@@ -666,7 +691,7 @@ session = await connector.session()          # opens transport + initialize hand
 toolset = await McpToolset(client=session).discover()
 
 react = ReActLoop(
-    messages=[{"role": "user", "content": task}],
+    messages=(AgentMessage(role="user", content=task),),
     llm=llm,
     tools=list(toolset),                     # each entry is an McpTool(Tool)
     max_iterations=8,
@@ -711,17 +736,17 @@ from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 class TriageAgent(Knot):
-    async def process(self, message: str, llm, tools, **_):
+    async def process(self, message: str, llm, search_tool, **_):
         intent = classify_intent(message)   # lightweight local check
         store = get_current_store()
         if intent == "code":
-            store.register(CodeAgent(task=message, llm=llm, tools=tools,
+            store.register(CodeAgent(task=message, llm=llm,
                                      _config=KnotConfig(id="code")))
         elif intent == "research":
-            store.register(ResearchAgent(task=message, llm=llm, tools=tools,
+            store.register(ResearchAgent(topic=message, llm=llm, search_tool=search_tool,
                                          _config=KnotConfig(id="research")))
         else:
-            store.register(GeneralistAgent(task=message, llm=llm, tools=tools,
+            store.register(GeneralistAgent(task=message, llm=llm,   # your own agent class
                                            _config=KnotConfig(id="general")))
         return message   # pass-through; next agent reads it
 

@@ -225,71 +225,260 @@ Return/branch on `Ok \| Err \| Skipped`. `Err` carries an `ExceptionRecord`. Nev
 
 ---
 
-## 6. Where pirn-agents currently diverges
+## 6. Resolved by ADR agents-speaks-core
 
-Tracked in Linear project **"pirn-agents: OOP/SOLID Standards Remediation"** (PIR-669…726). A full two-pass sweep found agents drifts at two levels: **(A)** OOP/SOLID surface, and **(B)** it *bypasses the execution framework itself*. Headlines mapped to this reference:
+Agents drifted from this reference in two ways the original 2026 sweep
+(Linear **"pirn-agents: OOP/SOLID Standards Remediation"**, PIR-669…726)
+found: **(A)** an OOP/SOLID surface issue (parallel outcome enums, hand-rolled
+`isinstance` guards) and **(B)** the larger finding — it *bypassed the
+execution framework itself* (hand-rolled loops/fan-out/routing instead of
+`LoopSubTapestry`/`Aggregator`/`Branch`, no `Dispatcher` ever wired, four
+parallel KV stores reinventing `DataStore`, a second observability plane with
+no `run_id`/`knot_id`). The ADR "agents speaks core" (2026-09-13, workstreams
+WS0…WS6b) is what actually closed nearly all of it, seam by seam; this
+section is organized by subsystem rather than by workstream so a reader can
+find "what changed" without reconstructing which PR did it. Deprecated names
+are one-cycle shims (`DeprecationWarning` on construction), not deletions,
+unless marked otherwise.
 
-**A — surface (WS1–WS6):**
-- **§4.4 violated:** `Ok\|Err\|Skipped` unused; parallel `ToolStatus`/`BatchItemStatus` enums. → WS3·S1.
-- **§4.1 violated:** vending knots hand-roll `isinstance`/`TypeError` (§1.2) in `process()`. → WS3·S6.
+### Retry, timeout, and nesting (core seams, WS0)
 
-**B — framework bypass (WS7–WS8), the larger finding:**
-- **§3.2 ignored (CRITICAL):** control flow (loops, fan-out, routing, gating, map-reduce) is hand-rolled in Python inside knot bodies; `LoopSubTapestry`/`Branch`/`Gate`/`Reduce`/`Aggregator`/`Map` have **zero** real usages — so `Result`/`Skipped`/run-history/determinism/lineage don't cover agent internals. → WS7.
-- **§3.5 ignored:** no `Dispatcher` is ever wired; inner `Tapestry()`s default to `LocalDispatcher`; `MapAgent` can't reach Ray/Dask/Thread. → WS7·S7.
-- **§3.7 ignored:** connectors don't use `TableSource`/`RecordWriter`; `ConnectorBase`/`HttpConnector` reinvent `ApiClient`. → WS8·S3.
-- **§3.7 (backends) ignored:** four parallel KV stores reinvent `DataStore`; determinism reinvents `RunHistory`; no durable backends. → WS8·S1/S2.
-- **§3.6 reinvented:** the `observability/` Span plane forks `Emitter`/`OpenTelemetryEmitter`/`LogEmitter` and carries no `run_id`/`knot_id`, so agent spans can't correlate to core lineage. *Resolved by ADR agents-speaks-core WS4a — see below.*
-- **§3.6 (managers) unwired:** the secret-redaction layer is built but never attached to `ExceptionManager.traceback_filter`/loggers; approvals ignore `IdentityResolver`. → WS8·S6.
+Core now owns per-knot timeout and retry (`KnotConfig.timeout` →
+`Err(KnotTimeoutError)`, `KnotConfig.retry: KnotRetryPolicy` run by
+`GovernedDispatch`, attempts recorded in lineage) and the nested-run depth and
+cycle guard (`RunNesting` on every run, `Tapestry(max_nesting_depth=)`,
+inherited and only tightened by inner tapestries). Agents' `llm/retry_policy.py::RetryPolicy`,
+`exceptions/tool_timeout_error.py::ToolTimeoutError`, `AgentNestingConfig`,
+`AgentToolContext`, `AgentInvoker`, and the `AgentRecursionError` family are
+listed as shadows in `tests/core_seams/test_core_seam_shadows.py` pending
+migration (`AgentToolContext` already composes core's `RunNesting` frame —
+see its module docstring — but is not yet collapsed onto it entirely).
 
-*Resolved since the sweep (do not re-open):*
-- **§3.5 / §4.4 (ADR agents-speaks-core, WS0)** — core owns per-knot timeout and retry: `KnotConfig.timeout` → `Err(KnotTimeoutError)`, `KnotConfig.retry: KnotRetryPolicy` run by `GovernedDispatch`, attempts in lineage. Agents' `llm/retry_policy.py::RetryPolicy` and `exceptions/tool_timeout_error.py::ToolTimeoutError` are now shadows to migrate (ratchet: `tests/core_seams/test_core_seam_shadows.py`). Named `KnotRetryPolicy` because the registry keys every class by bare name and agents' `RetryPolicy` already holds `retrypolicy`.
-- **§3.1 nested runs (WS0)** — core owns the nested-run depth and cycle guard: `RunNesting` on every run, `Tapestry(max_nesting_depth=)`, inherited and only tightened by inner tapestries; `run_path` now really is `/{outer}/{inner}`. Agents' `AgentNestingConfig` / `AgentToolContext` / `AgentInvoker` and the `AgentRecursionError` family are shadows to migrate.
-- **§1.1 declared input schema (WS0)** — `KnotFactory.from_schema` / `@knot(input_schema=)` + `Knot._input_schema_override` validate schema-declared inputs through the standard adapters; `Knot.input_json_schema()` is the signature→schema direction. Agents' `ToolSchemaCompiler`, `ArgumentValidator` and `AgentSchemaDeriver` are shadows to migrate.
-- **§3.5 admission feedback (WS0)** — `AdmissionGate.set_limit` / `current_limit` and the `AdmissionObserver` + `AdmissionEvent` seam give an adaptive controller everything it needs from core. Agents' `AdaptiveConcurrencyController`, `ConcurrencyConfig`, `BackpressureSemaphore`, `Bulkhead(Config)`, `AsyncFanoutEngine`, `_FanoutRunner` and `BatchScheduler` are shadows to migrate.
-- **§3.2 Check role (WS0)** — `Check(Knot)` names the boolean-verdict role and `Gate(check=)` consumes it directly; `Gate` stays single-input by design (join with `Aggregator`; a `Check` may read several parents). Agents' `GatedAgentResponse` join is a shadow to migrate where the verdict can be a `Check`.
-- **§3.2 awaitable loop step (WS0)** — `LoopSubTapestry.astep` / `afold`; the sync pair still works. Resolves the core half of the `ParallelToolExecutor` deferral (agents' backoff-between-attempts loop can now be an `AgentLoopPipeline` iteration).
-- **§4.4 bare `Skipped` (WS0, PIR-856 deferral #5)** — a `process()` may return `Skipped`; `Knot.__call__` passes it through, `Gate` / `BranchOutput` do so instead of raising private sentinels (`_GateClosedError` / `_BranchNotSelectedError` deleted), and `Optional` keeps `Ok(Skipped)` via an explicit branch so its lineage contract is unchanged.
-- **PIR-849** — `Knot.__call__`, the fan-out path and `SubTapestry.__call__` let a *task* cancellation propagate (`Knot._is_task_cancellation`, `Task.cancelling()`), while a knot raising `CancelledError` itself is still an `Err`. A cancelled run raises; `wait_for` around a knot raises `TimeoutError`.
-- **§3.5 inner runs inherit the execution plane (ADR WS0b; PIR-841 slice 3)** — `ExecutionPlane` (`core/execution_plane.py`) is published by `Tapestry.run` and inherited by every `SubTapestry` inner run and `LoopSubTapestry` iteration for whatever the inner tapestry did not name: dispatcher, admission gate (**the same instance**, so `ConcurrencyLimits` are one budget across the run tree; `LimitedAdmissionGate` is now thread-safe for `ThreadDispatcher` inner runs and tracks tickets by identity), admission observers (merged, de-duplicated), replay posture (derived from the container's recorded `inner_run_id`) and identity resolver. Container knots are slot-free (`Knot._holds_admission_slot`, `AdmissionTicket.held`) and may not carry a `concurrency_group`. Overrides: `_run_inner(dispatcher=, concurrency=, admission_observers=)` / `_inner_dispatcher` / `_inner_concurrency` / `_inner_admission_observers`. WS4b's `MapAgent._apply_run_settings` (assigning `tapestry._concurrency` / `_dispatcher` / `_admission_observers`) was the one shadow and is gone: `MapAgent` now overrides `_inner_dispatcher` / `_inner_concurrency` / `_inner_admission_observers`; agents' `tests/core_seams/test_execution_plane_reach_through.py` ratchets the inventory at empty.
-- **§3.6 per-item streaming from a fan-out (ADR WS0b)** — `Emitter.on_knot_result(knot_id, result, lineage)` fires inside the engine loop the moment each knot settles, with the full `Result` (the `Err`'s rebound `ExceptionRecord`, the `Ok` value) and the lineage row, before the knot's children are released; `EmitterFanout.emit_knot_result` delivers it under the run's `EmitterErrorPolicy`, and `LineageRecorder.record_lineage` now returns the row it stashed. `MapAgent.run()` now restores its incremental `async for` yielding on it (`_BatchItemStreamer`, an emitter pushing each item's `BatchItemResult.from_result` — attempts and latency from the lineage row — onto a queue as it settles) instead of yielding the whole batch after the `Aggregator` join.
-- **§3.7 latest lineage by knot id (ADR WS0b)** — `RunHistory.query_latest_lineage_by_knot_id(knot_id) -> KnotLineage | None`, the most recently finished row for a stable knot id (by `finished_at`; the in-memory store breaks ties toward the last recorded, SQLite toward the newest rowid, DuckDB/Postgres by `run_id`), on the base and all four shipped stores, with a conformance test. Agents' keyed-identity work (WS3 part 4: "what did this knot last produce?") reads this instead of paging `query_lineage_by_knot_id` and sorting by hand.
-- **§2** — no `typing.Protocol` interface survives in agents; the stateful ones (`VectorBackendClient`, `GraphBackendClient`, `RerankerBackend`, `NodeEmbeddingIndex`) are `PirnOpaqueValue` bases raising `NotImplementedError`. (WS1)
-- **§4.2** — `StatefulTool`/`StreamingTool`/`PermissionedTool` are gone; `stateful`/`state`, `permissions`/`requires_approval` and `streaming`/`stream`/`collect_stream` are default-returning capability members on `Tool`. (WS2·S6)
-- **§3.7** — agents' `BlobStore` is gone; `StreamingS3Store` and `ObjectStoreSourceConnector` build on core's `ObjectStore`, keeping `_validate_key`. (WS3·S2)
-- **§3.3** — `BatchTrigger` is deleted, `IntervalTrigger` delegates to `CronTrigger` with no schedule loop of its own, `EventTrigger` subclasses core `Trigger`, and `TriggeredBatch` adopts `run_forever`'s ownership and cancellation semantics. (WS8·S4)
-- **§3.6 — ADR agents-speaks-core WS4a:** the second event bus is collapsed. `StatusEvent` gained a typed `extra: dict[str, Any]` field (core touch, `pirn/managers/status_event.py`); `pirn.tapestry` gained public `current_emitters()`/`current_emitter_error_policy()` accessors (mirroring `current_run_id()`); `EmitterFanout.emit_status` (core touch, `pirn/engine/emitter_fanout.py`) fans an ad hoc `StatusEvent` out to a run's emitters from inside an async `process()`. `OpenTelemetryEmitter.on_status`/`LogEmitter.on_status` (core touch) now render a non-empty `extra` as, respectively, a `"<kind>:<knot_id>"` span with `agents.<key>` attributes and a `pirn_extra` log field. Agents' `AgentCallRecorder` (`pirn_agents/observability/agent_call_recorder.py`) is the one call LLM/tool/retrieval call sites use; `ToolInvocation` already calls it for every engine-scheduled tool call. `Tracer`/`Span`/`SpanKind`/`SpanStatus`/`OpenSpanEntry`/`ObservabilitySink`/`OtelSink`/`LoggingSink`/`SpanEmittingToolInvocationHook` are one-cycle deprecated shims (`DeprecationWarning` on construction) that still forward into `AgentCallRecorder`, then scheduled for deletion.
-- **§3.8 (yaml_loader)** — the builder's `AgentPatternRegistry` (65 pattern names) used to be a table disjoint from the `sweet_tea` registry `PipelineLoader._resolve_callable` reads; every name is now aliased into that same registry at `pirn_agents` import time (`AgentPatternRegistry.register_with_core_registry`), so a core YAML document's `callable: react` resolves exactly like `.pattern("react")` does. `AgentSpec` (the builder's declarative form) is now a projection of core's `PipelineSpec` (`to_pipeline_spec`/`from_pipeline_spec`), and `AgentSpecLoader` accepts a core pipeline document directly, deprecating the old flat-dict-only dialect one cycle. `AgentBuilder.build()`'s runtime seed is bound as a named core `Parameter` (rebindable from `RunRequest.parameters`) instead of a baked constructor kwarg. See `examples/agents_core_pipeline/` for `tapestry-check` validating an agent pipeline written entirely in core's YAML vocabulary. (ADR "agents speaks core" WS6a — `agents-vocabulary-drift-20260913.md`'s "Addendum — authoring surfaces")
+### Tool — RESOLVED (WS1)
 
-*ADR "agents speaks core" WS2 (2026-09-13, exceptions/serialization/batch-outcome/caching/security lanes):*
-- **Error roots** — 8 of the 18 agents exception roots the ADR review found now subclass `pirn.exceptions.pirn_error.PirnError` in addition to their existing builtin base (`ToolInvocationError`, `AgentRecursionError`, `SandboxDisabledError`, `UnsupportedModalityError`, `MissingCassetteEntryError`, and `security/`'s `InjectionDetectedError`/`McpTrustError`/`UntrustedDirectiveError`). The other 10 (`llm/`, `mcp/`, `prompt/`, `performance/`, `resilience/`, `memory/`, `specializations/`) are frozen in `tests/test_core_vocabulary_ratchet.py` for their own lanes.
-- **§4.4 partially addressed** — `BatchItemResult` gained `to_result()`/`from_result()` bridges to `Ok\|Err\|Skipped`; `BatchItemStatus` itself is not deleted (`MapAgent` scheduling still owns it) and remains listed alongside `ToolStatus`/`FailoverOutcome`/`RetryClassification`/`SpanStatus` in the same ratchet.
-- **Hashing — deferred, not a §4 fix yet:** `CanonicalJson.digest`/`encode` still compute their own bare-hex form rather than delegating to `pirn.core.hashing.content_hash`. Three of its seven call sites (`resilience/idempotency_key_assigner.py`, `builder/agent_knot_id_factory.py`, `sessions/run_checkpoint.py`) persist or transmit that digest as a durable/dedup key with no migration path yet, so swapping the algorithm here would silently move those keys. `caching/content_address.py` is not migrated either, for a different reason: `content_hash`'s best-effort opaque-value fallback (a type-only sentinel, never raising) would reopen the exact PIR-785 cache-collision bug `ContentAddress` exists to prevent. Both are documented as open decisions in the WS2 report, not silently dropped.
-- **§3.6 (managers) partially wired** — `SecretRedactor.default_traceback_filter()` now returns a `Callable[[str], str]` in the exact shape `Tapestry`/`ExceptionManager.traceback_filter` expects, and `SecretRedactingLogFilter.install()` attaches (idempotently, opt-in) to the package logger. Actually passing `traceback_filter=SecretRedactor.default_traceback_filter()` into the `Tapestry(...)` agents constructs (the pattern registry / builder, `AgentPipeline`'s outer run) is left to WS1/WS6 — this lane does not edit `builder/**` or `specializations/**`.
+A `Tool` is correctly agents-layer (core has no notion of a name + NL
+description + JSON schema *for a model*); it is now **composed from** core
+rather than parallel to it. See §7 for the full case — it is the canonical
+example of the boundary this ADR draws.
 
-*Correctly reused (preserve):* `SubTapestry`/`Source`, `PirnOpaqueValue` value objects, `DsnScrubber` composition, HITL suspend/resume (rightly avoids a `Trigger` loop), and raise-site exceptions kept orthogonal to `ExceptionRecord`.
+### Outcomes, errors, and hashing (WS2)
 
-*Resolved by the "agents speaks core" ADR (2026-09-13, separate from the WS1–WS9 remediation project above — its own workstreams are tagged "ADR WS<n>" to avoid confusion with WS1–WS9):*
-- **§3.7 (backends), memory half — ADR WS3:** `MemoryRecord` is now a `Payload[MemoryProvenance, MemoryContent]` (§1.3); a writer knot returns it and the engine content-addresses it into `DataStore` like any other knot output, with no separate keyed write. New `MemoryLineageRecall` knot reads it back via `RunHistory.query_lineage_by_knot_id` + `DataStore.get` — the first `pirn_agents` knot to consume `RunHistory`/`DataStore` directly. `MemoryStore` gained a `retention` capability mirroring `DataStore.retention`/`RunHistory.retention` (§3.7), so eviction is one capability instead of a fourth mechanism; `MemoryEvictor`/`LowValueEvictionPolicy` stay as the explicit scored-eviction knot for a held batch. Still open (deferred, needs a product decision — see the ADR WS3 report in `.prompticorn/sessions/`): sessions (`RunState`/`RunCheckpoint`/`SessionStore` → `RunResult`/`RunHistory`) and determinism (`Cassette*`/`TrajectoryRecorder` → `ReplaySession` adapters).
-**ADR "agents speaks core" (2026-09-13, superseding-in-progress successor to the sweep above; workstreams named WS0…WS6, distinct from the WS1…WS9 numbering above) — WS5a (control-flow vocabulary) progress:**
-- `ResolvedValueKnot`/`MessagesPassthrough`'s constant-seed use → `core/parameter.py`'s `Parameter` (16 call sites across 12 files migrated; both classes kept as one-cycle deprecation shims).
+`Ok|Err|Skipped` is now the outcome vocabulary agents targets: `BatchItemResult`
+gained `to_result()`/`from_result()` bridges; `pirn_agents.resilience.FailoverAttempt`
+→ `Result` per candidate, replacing the `FailoverOutcome` enum; `ModelCascadeRouter`/
+`FallbackChain`/`FailoverChain`'s fold-accumulator chains now run as a
+`LoopSubTapestry` (`_CascadeLoop`/`_FallbackLoop`/`_FailoverLoop`) that stops
+scheduling once the chain locks, rather than a static unrolled chain that
+still built a knot per candidate past the lock point. 8 of the 18 agents
+exception roots the ADR found now also subclass `pirn.exceptions.pirn_error.PirnError`
+(`ToolInvocationError`, `AgentRecursionError`, `SandboxDisabledError`,
+`UnsupportedModalityError`, `MissingCassetteEntryError`, `InjectionDetectedError`,
+`McpTrustError`, `UntrustedDirectiveError`); the other 10 are frozen in
+`tests/test_core_vocabulary_ratchet.py`. `content_hash` (§4.4) is the one
+hashing path for new code; `CanonicalJson`/`ContentAddress` are one-cycle
+deprecated wrappers around it.
 
-**WS5b (control-flow vocabulary, part 2) — complete except one deferred item:**
-- The WS5a "no runtime `DeprecationWarning` is possible for a Knot-shaped class" gap is closed: `Knot._deprecated_since: ClassVar[str | None]` (core touch, `pirn/core/knot.py`) plus `Knot._deprecation_notice(self, parents, config_values)` (overridable per-class for a shim deprecated on only one of its call shapes) live in `Knot._bootstrap` — the seam both the standard `Knot.__init__` introspection and a framework primitive that bypasses it (`Parameter`) converge on, so a `Parameter` subclass like `ResolvedValueKnot` is covered too, not only a plain `Knot` subclass. `ResolvedValueKnot` (unconditional) and `MessagesPassthrough` (conditional — warns only for the constant-seed call shape, silent for a genuine upstream `Knot`) now raise `DeprecationWarning` on construction. Documented in `docs/contributing/knot-design-rules.md` Rule 1. Seven-package gate run for this core change.
-- `ConsensusAggregator` → `ConsensusPipeline` (`specializations/multi_agent/consensus_pipeline.py`); `ConsensusAggregator` kept importable as a one-cycle deprecation shim using the seam above. `builder/agent_pattern_registry.py`'s `"consensus"` pattern entry now points at `ConsensusPipeline`.
-- `_LLMCallKnot`, `LLMChatCall`, and `MemorySearchRetriever` now report their call outcome through `AgentCallRecorder` (`kind="llm"`/`"retrieval"`), matching `ToolInvocation`'s existing wiring — every LLM/retrieval call this lane touched is observable the same way a tool call already was.
-- All 12 inventoried imperative loops are now `LoopSubTapestry`s: WS5a did `RoundRobinReview`/`RetryOnParseFailure` (`_RoundRobinLoop`/`_RetryOnParseFailureLoop`); WS5b did the rest — `SelfAskPipeline` (`_SelfAskLoop`), `PromptChainPipeline` (`_PromptChainLoop`), `ReflexionPipeline` (`_ReflexionLoop`, with `ReflexionReflector`'s LLM call gated by `_ShouldReflectCheck` through core `Gate` so a successful attempt never pays for it), `FlareActiveRagPipeline` (`_FlareLoop`, same Check/Gate shape via `_NeedsRetrievalCheck` for its conditional retrieval+regenerate), `JsonExtractorPipeline`/`YamlExtractorPipeline`/`PydanticValidatorPipeline` (`_JsonExtractorLoop`/`_YamlExtractorLoop`/`_PydanticValidatorLoop`, mirroring `_RetryOnParseFailureLoop`'s shape exactly). `PlanReActPipeline`'s planner call and `LatsSearch`'s per-expansion proposer call moved from a bare `await child.process(...)` (inside a `Tapestry()` opened and never run) to `self._run_inner(...)`, matching the sanctioned nested-resolve idiom already used by `AdaptiveRAGPipeline`/`MultiHopRAGPipeline`; their own `while`/`for` loops stay plain Python control flow because they were never flagged as bypasses (each already runs its child through the engine, or the per-iteration work is not an LLM/tool call). `OrchestratorAgent`'s and `MultiHopRAGPipeline`'s inline `Source` results became real normalizer/extractor knots. `RETURNS_INLINE_SOURCE`, `UNRUN_TAPESTRY`, and `DEFINES_INLINE_SOURCE` (`tests/specializations/base/test_no_engine_bypass.py`, `test_control_flow_vocabulary.py`) are now empty (kept as `frozenset()` assertions, not deleted, so a regression is loud).
-- **Deferred (needs a product decision):** `rag/indexing/_raptor_assembler.py`'s clustering loop. Its module docstring documents an explicit, deliberate ETL exception (atomic read-check-transform-write cycle against the vector store: a content-hash dedup short-circuit and a final upsert that must see a consistent store) — decomposing the per-level summarization loop into engine-tracked knots risks breaking that atomicity guarantee. Whether per-summary observability is worth trading against the atomicity guarantee is a product/architecture call this lane did not make unilaterally.
-- `MajorityVoteStrategy` → folds through core `Reduce` instead of a bespoke `ConsensusMajorityVotePicker` knot.
-- `pirn_agents.resilience.FailoverAttempt` → `Result` (`Ok\|Err\|Skipped`) per candidate, replacing the parallel `FailoverOutcome` enum + `error: str` pair (§4.4).
-- `AdaptiveRAGPipeline`'s two `if route == ...` sites → a real core `Branch`. `Router.as_branch()`'s documented laziness caveat (every arm still executes) doesn't fit this pipeline's requirement that an unselected arm's LLM/retrieval call never fires, so each arm's entry knot takes its matching `BranchOutput` as an implicit dependency instead (a plain extra kwarg `process()` absorbs via `**_`) — skip propagates from the closed branch through the whole arm. The dynamic complex arm is gated as a whole knot (`_ComplexRagArm`, a nested `SubTapestry`) rather than at its entry input, because its sub-question fan-out needs a resolved value before the retrieval knots can even be built. Three new tests assert `llm.calls` has exactly the length the selected arm needs, proving (not just implying) the other two arms' calls were never attempted.
-- Resolved the WS5a report's "not resolved by WS5a" item: `_AttemptTier`/`_CandidateAttempt`'s fold-accumulator chains, and the equivalent `_AttemptCandidate` chain in `pirn_agents.resilience.FailoverChain`, are now driven by a `LoopSubTapestry` (`_CascadeLoop`/`_FallbackLoop`/`_FailoverLoop`) instead of a static unrolled chain — once the chain locks/succeeds, the loop stops, so a tier/candidate past that point is never even scheduled (before, it still got a knot that just passed the state through unchanged). `ModelCascadeRouter`/`FallbackChain`/`FailoverChain` keep their public constructor and return type.
-- **§3.7 (backends) + §1.3, sessions half — ADR WS3 part 2:** a session is now one engine run per turn linked by `_parent_run_id` (`SessionChain`), and `RunState` is a read-model projected from that chain (`RunState.from_chain`) rather than a persisted checkpoint blob. HITL suspend is `Skipped(reason="awaiting_human")` (the same conversion `pirn.nodes.gate.Gate` uses for `_GateClosedError`); resume (`ApprovalResumer`) replays the suspended run's recorded prefix via a new core seam, `ReplaySession(allow_new_knots=True)` (§3.8) — a knot with no recorded row runs live instead of raising `ReplayMismatchError`, additive and default-off — with the operator's decision bound as a `Parameter`. `DataStore`/`RunHistory` now mix in `PirnOpaqueValue` (closing the gap part 1 flagged below), so a knot can declare either as a typed `process()` parameter. `RunCheckpoint`/`RunCheckpointer`/`SessionStore`/`InMemorySessionStore`/`PersistedSessionStore`/`ThreadRepository`/`MemoryStoreKeyIndex` are one-cycle deprecated shims (`DeprecationWarning`, still functional); `RunCheckpoint` also gained a sanctioned `format_version` storage-format migration (1 = the original `CanonicalJson.digest`, 2 = core `content_hash`, `migrate_v1_to_v2`). Still open (deferred — see the ADR WS3 report in `.prompticorn/sessions/`): determinism (`Cassette*`/`TrajectoryRecorder`/`TraceDiffer`/`CheckpointForker` → `ReplaySession`/`Emitter`/`pirn.knot_diff` adapters).
-- **§3.7 (backends), memory half — ADR WS3 part 1:** `MemoryRecord` is now a `Payload[MemoryProvenance, MemoryContent]` (§1.3); a writer knot returns it and the engine content-addresses it into `DataStore` like any other knot output, with no separate keyed write. New `MemoryLineageRecall` knot reads it back via `RunHistory.query_lineage_by_knot_id` + `DataStore.get`. `MemoryStore` gained a `retention` capability mirroring `DataStore.retention`/`RunHistory.retention` (§3.7), so eviction is one capability instead of a fourth mechanism; `MemoryEvictor`/`LowValueEvictionPolicy` stay as the explicit scored-eviction knot for a held batch.
-- **§3.7 (backends) + §3.6 (emitters), determinism half — ADR WS3 part 3:** a fork (`CheckpointForker`) is a branch of the session chain — a `(run_id, output_hash)` fork point (the `ResumeToken` shape) verified against the recording, then a new run chained via `_parent_run_id` that replays the prefix (`ReplaySession(allow_new_knots=True)`) and executes whatever diverges; `ForkResult` is a plain report now, not a persisted checkpoint. `CassetteRecorder` is a thin adapter: RECORD is a normal single-knot `Tapestry.run()`; REPLAY is `Tapestry.run(replay=ReplaySession.from_history(...))` sourced from `RunHistory.query_lineage_by_knot_id`, filtering out a replay's own echo rows (tagged `extra["replayed_from_run_id"]` by the engine) so replaying past what was recorded still raises; constructing with a portable `Cassette` seeds a fresh `RunHistory`/`DataStore` with one synthetic recorded run per entry (`knot_config_hash` computed the same way the engine would, with no knot construction needed, since the wrapper knot carries no literal config value). New `TrajectoryEmitter` (an `Emitter`) captures every knot's lineage into a `RunTrace` automatically via `on_lineage`, no manual `.record()` calls; `TraceDiffer.diff_runs` is a pass-through to `pirn.knot_diff.compare_runs`. `Cassette*`/`TrajectoryRecorder` are one-cycle deprecated shims. `SemanticMemoryUpsert` now stores a typed `MemoryRecord` payload instead of a bare dict (still through `MemoryStore` — its dedup lookup needs a lookup by the fact's own key before a value exists to hash, which lineage-by-knot-id recall does not provide); `CrossSessionProfileUpdater` was already payload-shaped (`EntityProfile`).
-- **§3.2/§3.5 scheduling — ADR WS4b ("one scheduler"):** `MapAgent` is now a `SubTapestry` whose inner graph is one `_MapItem` knot per input item joined by a core `Aggregator` under `ErrorPolicy.RECEIVE_ERRORS` (per-item isolation without the engine's default parent-skip propagation); concurrency is `KnotConfig(concurrency_group=)` + `ConcurrencyLimits` on the run, applied to the inner tapestry `SubTapestry.process()` is already running inside (there is no public `Tapestry.run(concurrency=)`/`dispatcher=` seam for a container knot to reach *into* its own inner run — see the caveat below); per-item timeout/retry is `KnotConfig.timeout`/`KnotConfig.retry` (`KnotRetryPolicy`), run by `GovernedDispatch`, so both are engine-owned per attempt rather than a hand-rolled `run_with_retries`. Resume-after-crash is a `RunHistory.query_lineage_by_knot_id` lookup on the item's knot id (`item:<batch_id>:<key>`) instead of an F14 checkpoint store — `BatchCheckpointer`/`BatchScheduler` are retired from `MapAgent`'s own call path and marked `DeprecationWarning` (kept, unchanged, importable). `AdaptiveConcurrencyController` is now an `AdmissionObserver`, reacting to `on_release` (generic, safe — an `AdmissionEvent`'s `outcome` is all it needs) for the additive increase and to a new `on_throttle()` called directly by `_MapItem` on a `RateLimitSignal` for the multiplicative decrease, because `AdmissionEvent` carries no exception detail an observer could use to tell a throttle apart from an ordinary failure. `TriggeredBatch`/`IntervalTrigger`/`EventTrigger` needed no changes — they already composed core `Trigger` and only depend on `MapAgent.run()`'s external streaming contract, preserved as a one-cycle shim (module docstring: `pirn_agents/batch/map_agent.py`). New ratchet: `tests/batch/test_one_scheduler_ratchet.py`.
-  Caveat/gap this exposed for a future WS0 slice: `SubTapestry`'s inner run does not forward the enclosing run's dispatcher or concurrency limits (its own docstring already flags concurrency; dispatcher has the same gap) — `MapAgent` works around it by reaching into the inner `Tapestry`'s private `_concurrency`/`_dispatcher`/`_admission_observers` fields from `current_tapestry()` inside `process()`, the same way `SubTapestry._apply_inherited_value_plane` already reaches into a tapestry's private fields to forward the value plane. A public seam (`SubTapestry`-level `dispatcher=`/`concurrency=` passthrough, or a `Tapestry.run(concurrency=)` kwarg alongside the existing `RunRequest.concurrency`) would remove the need.
-  Deferred (not this workstream's blast radius): `Bulkhead`/`BulkheadConfig` and `BackpressureSemaphore`/`ConcurrencyConfig` still hold their own `asyncio.Semaphore`-shaped pools — `BackpressureSemaphore`/`ConcurrencyConfig` are called directly by `agent/parallel_tool_executor.py` and three `specializations/` pipelines (other lanes' files), so migrating their *enforcement* to `LimitedAdmissionGate` without those call sites moving onto a knot-scoped concurrency group would leave two enforcement paths rather than one.
-- **§3.7 (backends), the deferred keyed-identity half — ADR WS3 part 4:** resolves part 1/3's open deferral. A caller-chosen key is a knot id, not a KV slot: new `RunHistory.query_latest_lineage_by_knot_id` (core touch, base default implementation + efficient `ORDER BY finished_at DESC LIMIT 1` overrides in `InMemoryHistory`/`SQLiteHistory`/`DuckDBHistory`/`PostgresHistory`) answers "the current value under this key" without a caller having to fetch every row and pick the newest itself. New `pirn_agents.memory.stores.keyed_lineage_store.KeyedLineageStore` wraps the write (a single-knot `Tapestry.run()` under `KnotConfig(id=identity)`) and the read (`query_latest_lineage_by_knot_id` → `DataStore.get(output_hash)`) as one small class; a caller-chosen key is escaped into `KnotConfig.id`'s charset component-wise (`.xx` hex escapes for anything outside `[a-zA-Z0-9_-]`, including a literal `.` or `:`) so a filesystem-hostile key (`"../../etc/passwd"`, unicode, `"?*<>|"`) round-trips safely with no collision between an escaped separator and a caller's own character. `DataStoreMemoryStore`'s old `content_hash(key)` method — which hashed the caller's *key* rather than a value, inverting what a `DataStore` hash means — is deleted outright (not deprecated): `store`/`retrieve`/`forget` now delegate to an internal `KeyedLineageStore`, with durability across separate instances now requiring an explicitly shared `RunHistory` (a new optional constructor parameter), not just a shared `DataStore`. `SemanticMemoryUpsert` and `CrossSessionProfileUpdater` (part 3's other open deferral) both now take a `KeyedLineageStore` directly instead of a `MemoryStore`: the former's dedup is a single `latest_output_hash` lookup keyed by `content_hash(fact)` itself (no full-value fetch needed to detect "already recorded"); the latter reads/writes the profile under `namespace="profile"`, `key=ProfileKey.storage_key`. `MemoryStoreKeyIndex` needed no change — it already operates purely through the `MemoryStore` interface and picks up the new lineage-backed behavior transitively through `DataStoreMemoryStore`.
+**Still open:** `BatchItemStatus` is not deleted (`MapAgent` scheduling still
+owns it); `CanonicalJson.digest`/`encode` still compute their own bare-hex
+form at 3 of 7 call sites (`resilience/idempotency_key_assigner.py`,
+`builder/agent_knot_id_factory.py`, `sessions/run_checkpoint.py`) that persist
+or transmit the digest as a durable/dedup key with no migration path yet;
+`caching/content_address.py` is not migrated either, because `content_hash`'s
+best-effort opaque-value fallback would reopen the PIR-785 cache-collision bug
+`ContentAddress` exists to prevent.
+
+### Memory, sessions, and determinism (WS3, parts 1-4)
+
+`MemoryRecord` is a `Payload[MemoryProvenance, MemoryContent]` (§1.3); a
+writer knot returns it and the engine content-addresses it into `DataStore`
+like any other knot output. `MemoryLineageRecall` reads it back via
+`RunHistory.query_lineage_by_knot_id` + `DataStore.get`. A caller-chosen key
+is now a knot id, not a KV slot: `RunHistory.query_latest_lineage_by_knot_id`
+(core touch; base default + efficient overrides in all four shipped stores)
+answers "the current value under this key," and `KeyedLineageStore` wraps the
+write/read pair; `DataStoreMemoryStore`'s old `content_hash(key)` method
+(which hashed the caller's key, not a value) is deleted outright.
+`MemoryStore` gained a `retention` capability mirroring `DataStore.retention`/
+`RunHistory.retention`, so eviction is one capability instead of a fourth
+mechanism.
+
+A session is one engine run per turn linked by `_parent_run_id` (`SessionChain`);
+`RunState` is a read-model projected from that chain (`RunState.from_chain`),
+not a persisted checkpoint blob. HITL suspend is `Skipped(reason="awaiting_human")`
+(the same conversion core's `Gate` uses for `_GateClosedError`); resume
+(`ApprovalResumer`) replays the suspended run's recorded prefix via
+`ReplaySession(allow_new_knots=True)` (§3.8) — a new core seam letting a knot
+with no recorded row run live instead of raising `ReplayMismatchError`. A
+determinism fork (`CheckpointForker`) is a branch of the session chain — a
+`(run_id, output_hash)` fork point verified against the recording, then a new
+run chained via `_parent_run_id` that replays the prefix and executes whatever
+diverges. `CassetteRecorder` is now a thin adapter over `Tapestry.run()`/
+`Tapestry.run(replay=...)`; `TrajectoryEmitter` captures every knot's lineage
+into a `RunTrace` via `on_lineage`, no manual `.record()` calls. `DataStore`
+and `RunHistory` both now mix in `PirnOpaqueValue` (§1.3), closing the gap
+that kept `Knot.process()` from declaring either as a typed parameter — WS3's
+own `RunResumer`/`ApprovalResumer` are the first to declare them directly.
+
+Deprecated: `RunCheckpoint`/`RunCheckpointer`/`SessionStore`/
+`InMemorySessionStore`/`PersistedSessionStore`/`ThreadRepository`/
+`MemoryStoreKeyIndex`, `Cassette*`/`TrajectoryRecorder`/`TraceDiffer`.
+
+### Observability (WS4a)
+
+The second event bus is collapsed: `StatusEvent` gained a typed
+`extra: dict[str, Any]` field (core touch); `EmitterFanout.emit_status` (core
+touch) fans an ad hoc `StatusEvent` out to a run's emitters from inside an
+async `process()`; `OpenTelemetryEmitter`/`LogEmitter` (core touch) render a
+non-empty `extra` as span attributes / a log field. `AgentCallRecorder` is now
+the one call every LLM/tool/retrieval call site uses. Deprecated:
+`Tracer`/`Span`/`SpanKind`/`SpanStatus`/`OpenSpanEntry`/`ObservabilitySink`/
+`OtelSink`/`LoggingSink`/`SpanEmittingToolInvocationHook` — all still forward
+into `AgentCallRecorder`.
+
+**Partially wired:** `SecretRedactor.default_traceback_filter()` returns a
+`Callable[[str], str]` in the exact shape `Tapestry`/`ExceptionManager.traceback_filter`
+expects, and `SecretRedactingLogFilter.install()` attaches (idempotently,
+opt-in) to the package logger — but actually passing
+`traceback_filter=SecretRedactor.default_traceback_filter()` into the
+`Tapestry(...)` agents constructs (the pattern registry, the builder,
+`AgentPipeline`'s outer run) is not done; `builder/**` and `specializations/**`
+are untouched by this wiring.
+
+### Scheduling and concurrency (WS4b, "one scheduler")
+
+`MapAgent` is a `SubTapestry` whose inner graph is one `_MapItem` knot per
+input item joined by a core `Aggregator` under `ErrorPolicy.RECEIVE_ERRORS`;
+concurrency is `KnotConfig(concurrency_group=)` + `ConcurrencyLimits`; per-item
+timeout/retry is `KnotConfig.timeout`/`KnotConfig.retry`, run by
+`GovernedDispatch`. Resume-after-crash is a `RunHistory.query_lineage_by_knot_id`
+lookup on the item's knot id (`item:<batch_id>:<key>`), not an F14 checkpoint
+store. `AdaptiveConcurrencyController` is now an `AdmissionObserver` (additive
+increase on `on_release`, multiplicative decrease on a new `on_throttle()`
+called directly by `_MapItem`). `TriggeredBatch`/`IntervalTrigger`/`EventTrigger`
+needed no changes — they already composed core `Trigger`.
+
+A caveat this exposed: `SubTapestry`'s inner run does not forward the
+enclosing run's dispatcher or concurrency limits through a public seam, so
+`MapAgent` reaches into the inner `Tapestry`'s private fields the same way
+`SubTapestry._apply_inherited_value_plane` already does for the value plane.
+ADR WS0b's `ExecutionPlane` (`core/execution_plane.py`) closed this: it is
+published by `Tapestry.run` and inherited by every `SubTapestry` inner run and
+`LoopSubTapestry` iteration for whatever the inner tapestry did not name
+(dispatcher; admission gate, **the same instance**, so `ConcurrencyLimits` are
+one budget across the run tree; admission observers, merged; replay posture;
+identity resolver) — `MapAgent` now overrides `_inner_dispatcher`/
+`_inner_concurrency`/`_inner_admission_observers` instead of reaching into
+private fields (`tests/core_seams/test_execution_plane_reach_through.py`
+ratchets the inventory at empty). WS0b also added per-item streaming from a
+fan-out (`Emitter.on_knot_result` fires the instant each knot settles, so
+`MapAgent.run()`'s `async for` yields incrementally again) and
+`RunHistory.query_latest_lineage_by_knot_id`.
+
+Deprecated: `BatchCheckpointer`/`BatchScheduler`, `AsyncFanoutEngine`/
+`_FanoutRunner` (machinery removed once `MapAgent` moved onto `Map`/`Aggregator`).
+
+**Still open:** `Bulkhead`/`BulkheadConfig` and `BackpressureSemaphore`/
+`ConcurrencyConfig` still hold their own `asyncio.Semaphore`-shaped pools,
+called directly by `agent/parallel_tool_executor.py`, `evaluation/run_eval.py`,
+and three `specializations/` pipelines — `document_processing/ingestion_pipeline.py`,
+`multi_agent/orchestrator_workers.py`, `rewoo/rewoo_pipeline.py`. Migrating
+their *enforcement* to `LimitedAdmissionGate` needs those call sites moved
+onto a knot-scoped concurrency group first, or there are two enforcement
+paths rather than one. `caching/prompt_cache.py::PromptCache` also stays
+outside this migration: its `get`/`set`/`__len__` are deliberately
+synchronous, and `DataStore` is async-only, so routing values through it would
+force a breaking signature change this ADR did not authorize unilaterally.
+
+### Control-flow vocabulary (WS5a, WS5b)
+
+`Check(Knot)` names the boolean-verdict role and `Gate(check=)` consumes it
+directly. `LoopSubTapestry.astep`/`afold` give an awaitable loop step.
+`ResolvedValueKnot`/`MessagesPassthrough`'s constant-seed use →
+`core/parameter.py`'s `Parameter` (16 call sites across 12 files).
+`ConsensusAggregator` → `ConsensusPipeline`. All 12 inventoried imperative
+loops are now `LoopSubTapestry`s: `RoundRobinReview`/`RetryOnParseFailure`
+(WS5a); `SelfAskPipeline`, `PromptChainPipeline`, `ReflexionPipeline` (its LLM
+call gated by a `Check`→`Gate` pair so a successful attempt never pays for
+it), `FlareActiveRagPipeline` (the same Check/Gate shape for conditional
+retrieval), `JsonExtractorPipeline`/`YamlExtractorPipeline`/
+`PydanticValidatorPipeline` (WS5b). `PlanReActPipeline`'s planner call and
+`LatsSearch`'s per-expansion proposer call moved from a bare
+`await child.process(...)` inside an unrun `Tapestry()` to `self._run_inner(...)`.
+`AdaptiveRAGPipeline`'s routing is now a real core `Branch` with an
+implicit-dependency gate per arm, so an unselected arm's LLM/retrieval call
+never fires — stricter than `Router.as_branch()`'s documented "every arm still
+executes" default. `MajorityVoteStrategy` folds through core `Reduce`.
+`_LLMCallKnot`/`LLMChatCall`/`MemorySearchRetriever` report through
+`AgentCallRecorder` like `ToolInvocation` already did.
+
+The bypass ratchet (`tests/specializations/base/test_no_engine_bypass.py`)
+is empty for `RETURNS_INLINE_SOURCE`, `UNRUN_TAPESTRY`, and
+`DEFINES_INLINE_SOURCE`; kept as `frozenset()` assertions so a regression is
+loud, not deleted.
+
+**Still open** (frozen in the same ratchet, not this ADR's blast radius to
+fix unilaterally):
+- `rag/indexing/_raptor_assembler.py`'s clustering loop — a deliberate ETL
+  exception (atomic read-check-transform-write cycle against the vector
+  store; a content-hash dedup short-circuit and a final upsert that must see
+  a consistent store). Decomposing it into engine-tracked knots risks
+  breaking that atomicity guarantee; whether per-summary observability is
+  worth that trade is a product call, not made here.
+- `retrieval/hybrid_retriever.py::HybridGraphRetriever` still awaits a child's
+  `process()` directly (`AWAITS_CHILD_PROCESS`).
+- 3 gather sites still fan calls out with `asyncio.gather` instead of letting
+  the engine schedule sibling knots (`USES_ASYNCIO_GATHER`):
+  `retrieval/hybrid_retriever.py::HybridRetriever`,
+  `specializations/document_processing/_chunk_embedder_store.py::_ChunkEmbedderStore`,
+  `specializations/document_processing/_ingestion_runner.py::_IngestionRunner`.
+- 3 loop sites still await an LLM or tool call directly inside a `for`/`while`
+  body instead of a `LoopSubTapestry` iteration (`LOOP_AWAITS_LLM_OR_TOOL_CALL`):
+  `specializations/document_processing/_chunk_translator.py::_ChunkTranslator`,
+  `specializations/guardrails/fact_claim_verifier.py::FactClaimVerifier`,
+  `specializations/plan_and_execute/plan_executor.py::PlanExecutor`.
+- `specializations/routing/_attempt_tier.py::_AttemptTier` still awaits
+  `.invoke()` directly (`AWAITS_INVOKE`); `agent/parallel_tool_executor.py::ParallelToolExecutor`'s
+  own `asyncio.gather` is a deliberate deferral — its per-call retry/timeout
+  richness needs real inter-attempt backoff sleep, not expressible as a
+  static `Aggregator` fan-out.
+- **Approval denial** stays a `ToolCallRejection` `Err` this cycle
+  (behaviour-preserving); the next-cycle shape is `ApprovalCheck(Check)` →
+  `Gate(check=)` so a denied call is `Skipped` instead.
+
+### Authoring, payload types, and docs (WS6a, WS6b)
+
+The builder's `AgentPatternRegistry` (66 canonical pattern names plus the
+`rag` alias for `naive_rag`, 67 total — `AgentPatternRegistry.pattern_names()`)
+used to be a table disjoint from the `sweet_tea` registry core's YAML loader
+reads; every name is now aliased into that same registry at `pirn_agents`
+import time (`AgentPatternRegistry.register_with_core_registry`), so a core
+YAML document's `callable: react` resolves exactly like `.pattern("react")`
+does. `AgentSpec` is now a projection of core's `PipelineSpec`
+(`to_pipeline_spec`/`from_pipeline_spec`); `AgentSpecLoader` accepts a core
+pipeline document directly, deprecating the old flat-dict-only dialect one
+cycle. `AgentBuilder.build()`'s runtime seed is bound as a named core
+`Parameter` instead of a baked constructor kwarg. See
+`examples/agents_core_pipeline/` for `tapestry-check` validating an agent
+pipeline written entirely in core's YAML vocabulary (WS6a).
+
+`AgentResponse` is `Payload[GenerationFrame, str]` in place — `data` is the
+reply text, `frame` carries `finish_reason`/`usage`/`cost`/`tool_calls`/
+`model`/`provider`; the pre-ADR field names stay readable as properties.
+`AgentContext` (a flat frozen dataclass with no frame/lineage descriptor) is
+replaced by `ConversationPayload = Payload[ConversationFrame, tuple[AgentMessage, ...]]`,
+with `AgentContext` kept importable for one cycle as a deprecated subclass.
+`docs/domains/agents.md`, `docs/guides/agentic-loops.md`, and every
+`pirn_agents` authoring doc (`AGENTIC_USE.md` ×2, `PATTERNS.md`, `TOOLS.md`,
+`BUILDER.md`) are rewritten in this vocabulary — core's own nouns first
+(`Knot`/`SubTapestry`/`LoopSubTapestry`/`Result`/`Payload`/`Check`/`Gate`/
+`Branch`), "tier"/"family"/"spine"/"preset"/"recipe" dropped as primary
+vocabulary, every constructor sample verified against the real signature
+(WS6b).
+
+*Correctly reused throughout (preserve):* `SubTapestry`/`Source`,
+`PirnOpaqueValue` value objects, `DsnScrubber` composition, HITL suspend/resume
+(rightly avoids a `Trigger` loop), and raise-site exceptions kept orthogonal
+to `ExceptionRecord`.
 
 ---
 
@@ -298,10 +487,10 @@ Tracked in Linear project **"pirn-agents: OOP/SOLID Standards Remediation"** (PI
 **Principle.** The agents layer adds LLM-interaction concepts core deliberately lacks — tools, tool-calling, agent patterns, prompt composition — but **composes them from core primitives** rather than re-implementing execution, outcomes, schema, or persistence.
 
 **What belongs where:**
-- **Core** — the dataflow engine: `Knot`, `Result` (`Ok\|Err\|Skipped`), `Tapestry`, transports, triggers, nodes, dispatchers, connectors + capabilities, backend stores, and emitters. Provider-neutral; no LLM-orchestration semantics — core does not even own the model-wire provider contracts.
-- **Agents (and sibling domains)** — the LLM-interaction layer: the `LLMProvider`/`EmbeddingProvider` model-wire contracts (each consuming domain owns its own copy — `pirn_agents.llm_provider`/`pirn_agents.embedding_provider`, `pirn_health.llm_provider`, `pirn_ml.embedding_provider`), `Tool`/`ToolCall`/`ToolResult`, agent patterns (RAG/ReAct/plan-execute/…), prompt composition, the tool-calling loop, agent-as-tool.
+- **Core** — the dataflow engine: `Knot`, `Result` (`Ok\|Err\|Skipped`), `Payload`, `Tapestry`, transports, triggers, nodes, dispatchers, connectors + capabilities, backend stores, and emitters. Provider-neutral; no LLM-orchestration semantics — core does not even own the model-wire provider contracts.
+- **Agents (and sibling domains)** — the LLM-interaction layer: the `LLMProvider`/`EmbeddingProvider` model-wire contracts (each consuming domain owns its own copy — `pirn_agents.llm_provider`/`pirn_agents.embedding_provider`, `pirn_health.llm_provider`, `pirn_ml.embedding_provider`), `Tool`/`ToolCall`/`ToolResult`, the frame nouns that pair with core's `Payload` (`GenerationFrame`, `ConversationFrame` — WS6b), agent patterns (RAG/ReAct/plan-execute/…), prompt composition, the tool-calling loop, agent-as-tool.
 
-**Canonical case — the Tool (resolved by ADR WS1, 2026-09-13).** A `Tool` is correctly agents-layer (core has no notion of a name + NL description + JSON schema *for a model*), and it is now **composed from** core:
+**Canonical case — the Tool. RESOLVED (ADR WS1, 2026-09-13).** A `Tool` is correctly agents-layer (core has no notion of a name + NL description + JSON schema *for a model*), and it is now **composed from** core:
 - `Tool(Knot)` — a tool is a `Knot` *class*; `process()` is its execution and its declared inputs are the call's arguments. `Tool.declaration()` (name, description, `input_json_schema()`) is the only agents-layer addition. One call = one tool knot the engine runs (`ToolFactory.for_call(call)`), so each call has its own `Result`, lineage row, timeout/retry (`KnotConfig`) and concurrency group (`"tools"`).
 - `ToolFactory(KnotFactory, PirnOpaqueValue)` is the *capability* value a toolset holds: a tool class plus bound collaborators (`Tool.bind(store=…)`), defaults and a name. `@tool` is `@knot` plus a declaration; `McpTool` is `KnotFactory.from_schema` over the remote schema; an agent-as-tool is `AgentTool` over an `AgentToolCall(SubTapestry)` whose cycle/depth guard is core's `RunNesting`.
 - Outcomes are `Ok\|Err\|Skipped`; `ToolResult`/`ToolStatus` survive one cycle as a deprecated *view* built by `ToolResult.from_result(call_id, result, lineage)` and the codec reads `Result` directly. A refused call (approval, validation, unknown tool) is a `ToolCallRejection` knot recording its `Err`, never a raise outside the engine.
@@ -309,6 +498,18 @@ Tracked in Linear project **"pirn-agents: OOP/SOLID Standards Remediation"** (PI
 - Observability (WS4a wired in): a tool call is one `"tool"` `StatusEvent` through `AgentCallRecorder` — emitted by `ToolInvocation` for its call (outer run, its own id; it claims the report from the tool knot), by a tool knot wired directly (a fan-out) for itself, by `ToolCallRejection` for a refused call and by `AgentToolCall` for an agent-as-tool call. LLM-calling knots in the tools lane (`RagTool`, `Planner`, `ToolSelector`, `ReActStepExecutor`) report `"llm"` events through `RecordedLlmCall`.
 - Approval denial stays a `ToolCallRejection` `Err` this cycle (behaviour-preserving); the next-cycle shape is `ApprovalCheck(Check)` → `Gate(check=)` so a denied call is `Skipped`.
 - Core seams this needed (all in `SubTapestry`): `_make_inner_tapestry()` (a container chooses its inner `Tapestry(...)` — traceback filter, `max_nesting_depth`, `ConcurrencyLimits`), `_inner_failures_reach_sink` (a container whose sink *consumes* inner `Err`s does not raise `SubTapestryError`), a `Skipped` sink passes through as `Skipped`, and `_nesting_key` is qualified by the knot id (two instances of one agent class may nest; the same instance may not). `SubTapestryError`'s message now names the inner failures.
+
+**Second case — the response/conversation shape. RESOLVED (ADR WS6b, 2026-09-13).**
+`AgentResponse` and the conversation window were flat frozen dataclasses with
+no frame/metadata lineage descriptor — agents (and `pirn_data`) were the only
+domains with no `Payload` type. They are now core's own `Payload[Frame, Data]`:
+`AgentResponse = Payload[GenerationFrame, str]`, `ConversationPayload =
+Payload[ConversationFrame, tuple[AgentMessage, ...]]`. `GenerationFrame` and
+`ConversationFrame` are the legitimate agents-layer nouns (LLM-turn and
+conversation-window metadata core has no name for); `Payload` itself,
+`derive()`, and `_pirn_audit_dict()`-based content addressing are core's,
+unchanged. `AgentContext` (the pre-ADR name) is a one-cycle deprecated
+subclass.
 
 **Rule of thumb.** A new agents abstraction is legitimate when it *names an LLM-interaction concept core lacks*. It is a smell when it *re-implements execution, outcomes, schema, persistence, or concurrency* core already provides — model those the way core does (a `NotImplementedError` base whose execution is a `Knot`). Ratifying this boundary is WS0's core deliverable.
 

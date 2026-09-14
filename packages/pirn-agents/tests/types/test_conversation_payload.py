@@ -58,9 +58,7 @@ class TestRoundtrip(unittest.TestCase):
             session_id="s1",
             token_count=10,
         )
-        derived = original.derive(
-            (AgentMessage(role="assistant", content="b"),), token_count=20
-        )
+        derived = original.derive((AgentMessage(role="assistant", content="b"),), token_count=20)
         assert derived.messages[0].content == "b"
         assert derived.frame.session_id == "s1"
         assert derived.frame.token_count == 20

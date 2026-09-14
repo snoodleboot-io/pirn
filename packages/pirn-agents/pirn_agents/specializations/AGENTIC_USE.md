@@ -1,12 +1,12 @@
-`pirn_agents.specializations` provides 24 pre-built agent pattern families built on top of the agent tier knots — it does not provide LLM clients, vector stores, or tool implementations; those are user-supplied through the agent tier interfaces.
+`pirn_agents.specializations` provides 67 pre-built agentic patterns (`AgentPatternRegistry.pattern_names()` is the source of truth for the count — see `pirn_agents/PATTERNS.md`), each an ordinary `SubTapestry` built on the agent-domain knots described in `../AGENTIC_USE.md`; a pattern whose reasoning genuinely repeats until a condition is met (ReAct's inner step, self-ask, reflexion, the RAG retry loops, the structured-output retry loops, and others) wires that repetition as `LoopSubTapestry` (via the shared `AgentLoopPipeline[S]` base, ADR agents-speaks-core WS5b) rather than a Python `while`, so every iteration is its own traceable knot in run history. This package does not provide LLM clients, vector stores, or tool implementations — those are user-supplied through the `LLMProvider`, `MemoryStore`, and `Tool` interfaces.
 
 ---
 
 ## Mental model
 
-Each specialization family is a set of pre-wired knots implementing a well-known agentic pattern. Wire a family into a tapestry by importing its pipeline or individual knots and connecting them to your LLM caller, memory store, and tool set. Families are composable — a RAG pipeline feeds into a guardrails pipeline, for example.
+Each pattern is a `SubTapestry` — a pre-wired knot graph implementing a well-known agentic construct — wired the same way any other knot is: pass its constructor an `LLMProvider`, a `MemoryStore`, and/or a sequence of `Tool`s, place it in a `Tapestry`, and run it. Its outcome is the engine's own `Ok | Err | Skipped`, and its typed result travels as this domain's `Payload` types (`AgentResponse = Payload[GenerationFrame, str]`, `ConversationPayload = Payload[ConversationFrame, tuple[AgentMessage, ...]]`) or a pattern-specific result value. Patterns are composable — a RAG pipeline feeds into a guardrails pipeline, for example, because both are just knots.
 
-When choosing a family, the key questions are:
+When choosing a pattern, the key questions are:
 1. **Does the agent reason in steps or all at once?** → ReAct, Chain-of-Thought, Reflection
 2. **Does it need external knowledge?** → RAG
 3. **Does it involve multiple agents?** → Multi-Agent
@@ -20,29 +20,34 @@ When choosing a family, the key questions are:
 ## Two ways to wire a pattern, and they meet
 
 This document is the **knot-first** way: import a pipeline class, pass its
-constructor your LLM caller, memory store and tools, and place it in a tapestry.
-That is the substrate, and nothing below is builder-only.
+constructor your `LLMProvider`, `MemoryStore` and tools, and place it in a
+`Tapestry`. That is the substrate, and nothing below is builder-only.
 
-`pirn_agents/builder/BUILDER.md` documents the **facade** over the same thing —
-one spine with four views of it: `AgentBuilder` (fluent) ⇄ `AgentSpec` (the same
-configuration as data, via `.to_spec()` / `Agent.from_spec()`), with
-`AgentPresets` as named entries and `AgentPatternRegistry` as the single pattern
-table. All 52 pipelines in this tree are reachable by name through it.
+`pirn_agents/builder/BUILDER.md` documents the declarative surface over the
+same thing: `AgentBuilder` (fluent Python) and `AgentSpec` (the same
+configuration as data — a projection of core's `PipelineSpec`, via
+`.to_pipeline_spec()` / `AgentSpec.from_pipeline_spec()`), with `AgentPresets`
+as named entries and `AgentPatternRegistry` as the one pattern table — every
+name in it is also registered under core's own `sweet_tea` registry, so a core
+YAML pipeline document can name a pattern (`type: react`) directly and
+`tapestry-check` validates it. All 67 patterns in this tree are reachable by
+name through it.
 
 The two are not layers you must choose between:
 
 - `Agent.builder()...build()` returns an ordinary `SubTapestry` — wire it as a
   parent of your own hand-built knots, or vice versa, in one `Tapestry`.
 - Everything the facade will generate is readable first: `.pattern_class` is the
-  class you would have imported, `.knot_id` the id it will take, `.to_spec()`
-  the whole recipe as data.
+  class you would have imported, `.knot_id` the id it will take, `.to_pipeline_spec()`
+  the whole configuration as a core `PipelineSpec`.
 - `AgentPatternRegistry.describe(name)` reports a pattern's constructor contract
   — required components and optional knobs — whether or not you use the builder
   to satisfy it.
 
-Reach for the facade when a configuration is named, repeated, or comes from a
-config file. Reach for raw knots when the graph is one-off or when you are
-composing a pipeline into something larger. There is no boundary between them.
+Reach for the declarative surface when a configuration is named, repeated, or
+comes from a config file. Reach for raw knots when the graph is one-off or when
+you are composing a pattern into something larger. There is no boundary
+between them.
 
 ---
 
@@ -121,31 +126,32 @@ pirn_agents/specializations/
 ## Canonical pattern — ReAct with tools
 
 ```python
-from pirn_agents.specializations.react.react_loop import ReActLoop
 from pirn.core.knot_config import KnotConfig
-from pirn.core.parameter import Parameter
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
+from pirn_agents.specializations.react.react_loop import ReActLoop
+from pirn_agents.types.messaging.agent_message import AgentMessage
+
 with Tapestry() as t:
-    request = Parameter("request", str)
-    answer  = ReActLoop(
-        request=request,
+    ReActLoop(
+        messages=(AgentMessage(role="user", content="What is the population of Paris?"),),
         tools=[search_tool, calculator_tool],
-        llm=my_llm_caller,
-        max_steps=10,
+        llm=my_llm_provider,
+        max_iterations=10,
         _config=KnotConfig(id="react"),
     )
-    OutputSink(answer=answer, _config=KnotConfig(id="out"))
 
-result = await t.run(RunRequest(parameters={"request": "What is the population of Paris?"}))
+result = await t.run(RunRequest())
+answer = result.outputs["react"]   # an AgentResponse = Payload[GenerationFrame, str]
+print(answer.content)
 ```
 
 ---
 
 ## Anti-patterns
 
-**Nesting two ReactLoops** — ReAct is already a loop. Nesting two creates unpredictable recursion depth. Use `multi_agent/OrchestratorAgent` for multi-agent delegation.
+**Nesting two `ReActLoop`s** — ReAct is already a loop. Nesting two creates unpredictable recursion depth (core's `RunNesting` guard will refuse it past a configured `max_nesting_depth`). Use `multi_agent/OrchestratorAgent` for multi-agent delegation.
 
 **Using `ChainOfThought` and `TreeOfThought` on the same request in sequence** — these are alternative reasoning strategies, not complementary stages. Pick one per decision point.
 
@@ -153,9 +159,9 @@ result = await t.run(RunRequest(parameters={"request": "What is the population o
 
 ## Constraints and gotchas
 
-- **All specialization knots depend on the agent tier.** The `llm=` argument must be a `LlmCaller` from `pirn_agents.knots`; tool arguments must implement the `Tool` interface.
-- **`TreeOfThought` samples N branches in parallel.** Default `branches=3`. Increase LLM rate-limit budget accordingly.
-- **`ReActLoop` does not have a built-in timeout.** Set `max_steps` to bound execution. Unbounded loops will run until the LLM stops emitting actions or the process is killed.
+- **Every pattern depends on the agent-domain interfaces.** The `llm=` argument must be an `LLMProvider` (`pirn_agents.llm.llm_provider.LLMProvider`); tool arguments must be a `Tool` class, a `ToolFactory`, or a `@tool`-decorated callable.
+- **`TreeOfThought` samples `k_candidates` branches to `depth`, `beam_width` wide.** Defaults `k_candidates=3`, `beam_width=2`, `depth=3`. Increase LLM rate-limit budget accordingly.
+- **`ReActLoop` is a fixed-length unrolled `SubTapestry`, not an unbounded loop.** `max_iterations` (default `10`) caps the number of step knots the inner tapestry contains; a run that finishes early short-circuits the remaining steps rather than skipping their cost entirely.
 
 ---
 
@@ -163,14 +169,14 @@ result = await t.run(RunRequest(parameters={"request": "What is the population o
 
 | Pattern | Entry point |
 |---------|------------|
-| Chain-of-thought | `ChainOfThought(request=..., llm=...)` |
-| Tree-of-thought | `TreeOfThought(request=..., llm=..., branches=N)` |
-| Self-consistency | `SelfConsistencyEnsemble(request=..., llm=..., samples=K)` |
-| ReAct loop | `ReActLoop(request=..., tools=[...], llm=..., max_steps=N)` |
-| Self-critique/revise | `SelfCritiqueRevise(draft=..., llm=..., max_iters=N)` |
-| Route by intent | `IntentRouter(request=..., llm=..., routes={...})` |
-| Parallel tool calls | `ParallelToolCaller(request=..., tools=[...])` |
-| Multi-turn context | `MultiTurnContextAssembler(history=..., new_message=...)` |
+| Chain-of-thought | `ChainOfThought(prompt=..., llm=...)` |
+| Tree-of-thought | `TreeOfThought(prompt=..., llm=..., k_candidates=N, beam_width=W, depth=D)` |
+| Self-consistency | `SelfConsistencyEnsemble(prompt=..., llm=..., samples=K)` |
+| ReAct loop | `ReActLoop(messages=(...,), tools=[...], llm=..., max_iterations=N)` |
+| Self-critique/revise | `SelfCritiqueRevise(prompt=..., llm=...)` |
+| Route by intent | `IntentRouter(message=..., llm=..., categories=[...])` |
+| Parallel tool calls | `ParallelToolCaller(tool_calls=[...], tools=[...])` |
+| Multi-turn context | `MultiTurnContextAssembler(messages=(...,), max_turns=N, max_tokens=T)` |
 
 ---
 
