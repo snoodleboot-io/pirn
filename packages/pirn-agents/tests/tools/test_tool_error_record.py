@@ -29,7 +29,7 @@ _SECRET = "s3cr3tp4ssw0rd"
 
 class _RaisingTool(Tool):
     tool_name: ClassVar[str] = "raiser"
-    tool_description: ClassVar[str] = "always fails"
+    tool_description: ClassVar[str | None] = "always fails"
 
     async def process(self, **_: Any) -> Any:
         raise RuntimeError(f"connect failed: {_DSN}")

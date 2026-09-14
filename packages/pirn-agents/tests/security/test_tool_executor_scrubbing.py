@@ -24,7 +24,7 @@ from pirn_agents.tools.tool_result import ToolResult
 
 class _RaisingTool(Tool):
     tool_name: ClassVar[str] = "raise_tool"
-    tool_description: ClassVar[str] = "always raises with a DSN-containing message"
+    tool_description: ClassVar[str | None] = "always raises with a DSN-containing message"
 
     async def process(self, **_: Any) -> Any:
         raise RuntimeError("failed: postgres://user:s3cr3tp4ssw0rd@host/db")
