@@ -1,4 +1,13 @@
-"""Tests for the :class:`HybridRetriever` knot (concurrent dense + BM25 + RRF)."""
+"""Tests for the :class:`HybridRetriever` knot (concurrent dense + BM25 + RRF).
+
+PIR-867: the dense and lexical arms used to be awaited together under a
+hand-rolled ``asyncio.gather``; each is now its own knot
+(``_DenseIds``/``_LexicalIds``) wired into an ``Aggregator``, so ``process``
+returns the sink of an inner pipeline rather than the fused hits directly.
+The outcome tests run a real tapestry and read the retriever's output — the
+pattern PIR-856 established for ``ParallelToolCaller``. Guard tests that fire
+before any knot is built still call ``process`` directly.
+"""
 
 from __future__ import annotations
 
@@ -49,17 +58,24 @@ def _make_bm25() -> Bm25Index:
 
 
 class TestHybridRetriever(unittest.IsolatedAsyncioTestCase):
+    async def _run(self, *, store, query: str, top_k: int) -> list:
+        with Tapestry() as t:
+            HybridRetriever(
+                query=query,
+                store=store,
+                lexical=_make_bm25(),
+                embedder=FixedEmbedder([1.0, 0.0]),
+                top_k=top_k,
+                _config=KnotConfig(id="hybrid"),
+            )
+        result = await t.run(RunRequest())
+        assert result.succeeded, result.exceptions
+        return result.outputs["hybrid"]
+
     async def test_fuses_dense_and_lexical_results(self) -> None:
         store = await _make_store()
-        retriever = _make_retriever()
 
-        results = await retriever.process(
-            query="rareword",
-            store=store,
-            lexical=_make_bm25(),
-            embedder=FixedEmbedder([1.0, 0.0]),
-            top_k=3,
-        )
+        results = await self._run(store=store, query="rareword", top_k=3)
 
         ids = [hit["id"] for hit in results]
         # dense arm (query vector [1,0]) surfaces dense-1/dense-2; lexical arm
@@ -71,14 +87,7 @@ class TestHybridRetriever(unittest.IsolatedAsyncioTestCase):
 
     async def test_respects_top_k(self) -> None:
         store = await _make_store()
-        retriever = _make_retriever()
-        results = await retriever.process(
-            query="alpha",
-            store=store,
-            lexical=_make_bm25(),
-            embedder=FixedEmbedder([1.0, 0.0]),
-            top_k=1,
-        )
+        results = await self._run(store=store, query="alpha", top_k=1)
         assert len(results) == 1
 
     async def test_rejects_bad_types(self) -> None:
@@ -121,6 +130,24 @@ class TestHybridRetriever(unittest.IsolatedAsyncioTestCase):
         assert result.succeeded
         ids = [hit["id"] for hit in result.outputs["hybrid"]]
         assert "lex-1" in ids
+
+    async def test_each_arm_gets_its_own_lineage_row(self) -> None:
+        """PIR-867: each arm is a node now, not both under one asyncio.gather."""
+        store = await _make_store()
+        with Tapestry() as t:
+            HybridRetriever(
+                query="rareword",
+                store=store,
+                lexical=_make_bm25(),
+                embedder=FixedEmbedder([1.0, 0.0]),
+                top_k=2,
+                _config=KnotConfig(id="hybrid"),
+            )
+        result = await t.run(RunRequest())
+        assert result.succeeded, result.exceptions
+        children = await t.history.children_of(result.run_id)
+        inner_knot_ids = {row.knot_id for child in children for row in child.lineage}
+        assert {"dense", "lexical"} <= inner_knot_ids, inner_knot_ids
 
 
 if __name__ == "__main__":

@@ -66,14 +66,14 @@ from tests.specializations.base.bypass_inventory import BypassInventory
 
 #: `await <child>.process(...)` — runs a child pipeline's body directly instead
 #: of wiring it as a knot, so the child contributes no Result and no lineage.
-#: PIR-769 fixed four of these in multi_agent/; these are what remain. PIR-856
-#: widened the walk beyond `specializations/` and found one more pre-existing
-#: instance under `retrieval/`.
-AWAITS_CHILD_PROCESS = frozenset(
-    {
-        "retrieval/graph_rag/hybrid_graph_retriever.py::HybridGraphRetriever",
-    }
-)
+#: PIR-769 fixed four of these in multi_agent/; PIR-856 widened the walk beyond
+#: `specializations/` and found one more pre-existing instance under
+#: `retrieval/` (`HybridGraphRetriever`, awaiting its `traversal` knot's
+#: `process()` directly because a bare `Knot` subclass used as a *value* type
+#: made `Knot._build_adapters` raise). PIR-867 fixed it: `traversal` is wired
+#: as a genuine upstream parent now. Kept as a `frozenset()` assertion so a
+#: future instance regresses loudly.
+AWAITS_CHILD_PROCESS: frozenset[str] = frozenset()
 
 #: Returns a `Source` defined inside `process()` that closes over an
 #: already-computed value. The engine then "runs" a graph of one knot whose job
@@ -91,43 +91,46 @@ RETURNS_INLINE_SOURCE: frozenset[str] = frozenset()
 #: WS5b). Kept as an assertion so a future unrun `Tapestry()` regresses loudly.
 UNRUN_TAPESTRY: frozenset[str] = frozenset()
 
-#: `await <x>.invoke(...)` awaited directly rather than through a
-#: `ToolInvocation` knot. `tools/tool_invocation.py::ToolInvocation` is the one
-#: sanctioned entry — it *is* the knot whose job is to make this call. PIR-856
-#: fixed three call sites (`ParallelToolCaller`, `ToolChain`,
-#: `ReActStepExecutor`); these predate this lane and are out of its scope.
+#: `await <x>.invoke(...)` awaited directly rather than through a dedicated
+#: vending knot whose sole job is to make the call. `tools/tool_invocation.py::ToolInvocation`
+#: doesn't even trip this detector (it wires the tool as a knot the engine
+#: runs via `process()`, never touching `.invoke()` itself), so it isn't
+#: listed. PIR-856 fixed three call sites (`ParallelToolCaller`, `ToolChain`,
+#: `ReActStepExecutor`). PIR-867 re-checked `_AttemptTier`: `CascadeTier.invoke`
+#: is a bare provider callable, not a `Tool`, so there is no tool knot to
+#: construct instead — the fix is `specializations/routing/_tier_invocation.py::_TierInvocation`,
+#: a dedicated vending knot whose only body is this call, wired as a real
+#: parent of `_AttemptTier`'s inner pipeline (`_tier_attempt_fold.py::_TierAttemptFold`
+#: folds its `Ok`/`Err` outcome, via `error_policy=RECEIVE_ERRORS`, into the
+#: cascade's state). `_TierInvocation` is the sanctioned entry now, the same
+#: role `ToolInvocation` plays for tool calls — the call is made exactly
+#: once, inside the one knot whose job is to make it.
 AWAITS_INVOKE = frozenset(
     {
-        "specializations/routing/_attempt_tier.py::_AttemptTier",
+        "specializations/routing/_tier_invocation.py::_TierInvocation",
     }
 )
 
 #: `asyncio.gather(...)` used to fan calls out by hand instead of letting the
 #: engine schedule N sibling knots concurrently (the `Aggregator` fan-out
-#: shape; see `tools/tool_invocation.py`'s module docstring).
-#: `agent/parallel_tool_executor.py::ParallelToolExecutor` is a PIR-856
-#: deferral: its per-call retry/timeout richness needs real inter-attempt
-#: backoff sleep, which is not expressible as a static `Aggregator` fan-out
-#: (see the module docstring above and the PIR-856 report for the full
-#: reasoning). The rest predate this lane.
-USES_ASYNCIO_GATHER = frozenset(
-    {
-        "retrieval/hybrid_retriever.py::HybridRetriever",
-        "specializations/document_processing/_chunk_embedder_store.py::_ChunkEmbedderStore",
-        "specializations/document_processing/_ingestion_runner.py::_IngestionRunner",
-    }
-)
+#: shape; see `tools/tool_invocation.py`'s module docstring). PIR-867 fixed
+#: the three that predated this lane: `HybridRetriever`'s dense/lexical arms
+#: and `_ChunkEmbedderStore`'s per-chunk writes are each their own knot wired
+#: into an `Aggregator`; `_IngestionRunner`'s per-document ETL is too, with a
+#: `ConcurrencyLimits` group cap (`MapAgent`'s lever) replacing the hand-held
+#: `asyncio.Semaphore`. Kept as a `frozenset()` assertion so a future
+#: instance regresses loudly.
+USES_ASYNCIO_GATHER: frozenset[str] = frozenset()
 
 #: A `for`/`while` loop whose body directly awaits an LLM or tool call
 #: (`.chat(`, `.complete(`, `.invoke(`, `.search(`) instead of the engine
-#: fanning sibling knots out or a `LoopSubTapestry` iterating them.
-LOOP_AWAITS_LLM_OR_TOOL_CALL = frozenset(
-    {
-        "specializations/document_processing/_chunk_translator.py::_ChunkTranslator",
-        "specializations/guardrails/fact_claim_verifier.py::FactClaimVerifier",
-        "specializations/plan_and_execute/plan_executor.py::PlanExecutor",
-    }
-)
+#: fanning sibling knots out or a `LoopSubTapestry` iterating them. PIR-867
+#: fixed the three that remained: `_ChunkTranslator`/`FactClaimVerifier` fan
+#: out one knot per independent item into an `Aggregator`; `PlanExecutor`'s
+#: steps genuinely depend on prior results, so it wired a `LoopSubTapestry`
+#: (`_PlanStepLoop`) instead. Kept as a `frozenset()` assertion so a future
+#: instance regresses loudly.
+LOOP_AWAITS_LLM_OR_TOOL_CALL: frozenset[str] = frozenset()
 
 #: A literal `while True:` retry loop instead of composing `RetryPolicy.run()`
 #: (PIR-856 retrofitted the four `pirn_agents`-owned instances that existed

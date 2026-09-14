@@ -380,11 +380,17 @@ Deprecated: `BatchCheckpointer`/`BatchScheduler`, `AsyncFanoutEngine`/
 **Still open:** `Bulkhead`/`BulkheadConfig` and `BackpressureSemaphore`/
 `ConcurrencyConfig` still hold their own `asyncio.Semaphore`-shaped pools,
 called directly by `agent/parallel_tool_executor.py`, `evaluation/run_eval.py`,
-and three `specializations/` pipelines — `document_processing/ingestion_pipeline.py`,
-`multi_agent/orchestrator_workers.py`, `rewoo/rewoo_pipeline.py`. Migrating
-their *enforcement* to `LimitedAdmissionGate` needs those call sites moved
-onto a knot-scoped concurrency group first, or there are two enforcement
-paths rather than one.
+and `rewoo/rewoo_pipeline.py`. Migrating their *enforcement* to
+`LimitedAdmissionGate` needs those call sites moved onto a knot-scoped
+concurrency group first, or there are two enforcement paths rather than one.
+PIR-867 did that move for the two `specializations/` pipelines this list used
+to also name: `document_processing/_ingestion_runner.py` (`IngestionPipeline`'s
+internal ETL runner) and `multi_agent/orchestrator_workers.py` both built a
+bare `asyncio.Semaphore(max_concurrency)` shared across their per-item knots
+and held it across the real await; both now use `KnotConfig(concurrency_group=)`
+on the per-item knots + a `ConcurrencyLimits` group cap set via
+`_inner_concurrency()` — the same lever `MapAgent` uses — so the bound is the
+admission gate's own budget, not a second, private one it cannot see.
 
 `caching/prompt_cache.py::PromptCache` — RESOLVED (PIR-868). Entries now
 live in a core `InMemoryDataStore` keyed by content hash, exactly like
@@ -456,9 +462,64 @@ executes" default. `MajorityVoteStrategy` folds through core `Reduce`.
 `_LLMCallKnot`/`LLMChatCall`/`MemorySearchRetriever` report through
 `AgentCallRecorder` like `ToolInvocation` already did.
 
+`retrieval/graph_rag/hybrid_graph_retriever.py::HybridGraphRetriever`'s
+`traversal: GraphTraversal` parameter used to be a bare `Knot` subclass named
+as a *value* type on `process()`, which made `Knot._build_adapters` raise the
+moment the class was constructed through its real `__init__` — so it awaited
+the traversal knot's `process()` directly instead (`AWAITS_CHILD_PROCESS`).
+Fixed in PIR-867: `GraphTraversal` is wired as a genuine upstream parent, with
+its own `store`/`budget`/`start_ids`/`direction`/`edge_types` bound at its own
+construction; `HybridGraphRetriever.process()` receives the traversal's
+resolved `Subgraph` like any other parent's output.
+
+Three more `LOOP_AWAITS_LLM_OR_TOOL_CALL` sites fixed in PIR-867:
+`_ChunkTranslator` (`specializations/document_processing/`) and
+`FactClaimVerifier` (`specializations/guardrails/`) translate/verify
+independent items — chunk N's translation and claim N's search never depend
+on item N-1's outcome — so each now fans out one per-item knot
+(`_ChunkTranslation` / `_ClaimVerification`) into an `Aggregator`, in the
+`ParallelToolCaller` style, instead of awaiting `llm.chat`/`store.search` in a
+hand-rolled `for` loop. `PlanExecutor` (`specializations/plan_and_execute/`)
+is different: step N's prompt genuinely includes every prior step's result,
+so it wires a `LoopSubTapestry` (`_PlanStepLoop`) instead — the state
+threaded across iterations is the running tuple of step results.
+
+Three more `USES_ASYNCIO_GATHER` sites fixed in PIR-867: `HybridRetriever`
+(`retrieval/`) now wires its dense and lexical arms as two knots
+(`_DenseIds`/`_LexicalIds`, the BM25 side still offloading to a worker thread
+internally via `asyncio.to_thread`) into an `Aggregator`, so it is a
+`SubTapestry` now rather than a plain `Knot` — `HybridRetrieverBase` stays a
+plain `Retriever`/`Knot` base since `HybridGraphRetriever` still needs that
+shape, so `HybridRetriever` picks up `SubTapestry` itself
+(`class HybridRetriever(SubTapestry, HybridRetrieverBase)`).
+`_ChunkEmbedderStore` (`specializations/document_processing/`) wires one
+`_ChunkStoreWrite` per chunk into an `Aggregator` (the batched embedding call
+itself stays a single call — batching is the reason the embedder gets every
+chunk at once). `_IngestionRunner` (`specializations/document_processing/`)
+wires one `_DocumentIngest` per source document into an `Aggregator`, with a
+`ConcurrencyLimits` group cap set via the `_inner_concurrency()` hook
+(`MapAgent`'s own lever) replacing the hand-held `asyncio.Semaphore`; each
+document's failure is still isolated inside `_DocumentIngest` and folded into
+the `IngestionReport` rather than raised, so isolation survives the move to
+the engine's own scheduling.
+
+`AWAITS_INVOKE` re-checked in PIR-867: `specializations/routing/_attempt_tier.py::_AttemptTier`
+awaited `CascadeTier.invoke` (the cascade's own bare-callable provider seam,
+not a `Tool`) directly. There is no tool knot to substitute — the fix is the
+same shape `ToolInvocation` plays for tool calls: a dedicated vending knot,
+`_TierInvocation`, whose only body is the call, wired as a real parent;
+`_TierAttemptFold` (`error_policy=RECEIVE_ERRORS`) folds its `Ok`/`Err`
+outcome into the cascade's state. `_AttemptTier` itself became an
+`AgentPipeline` (only the pre-call locked/spend-cap decisions stay
+synchronous, since they decide whether to build the call at all).
+`AWAITS_INVOKE` now names `_TierInvocation` instead of `_AttemptTier` — a
+sanctioned entry, not a fixed one, since the underlying call has to happen
+somewhere.
+
 The bypass ratchet (`tests/specializations/base/test_no_engine_bypass.py`)
-is empty for `RETURNS_INLINE_SOURCE`, `UNRUN_TAPESTRY`, and
-`DEFINES_INLINE_SOURCE`; kept as `frozenset()` assertions so a regression is
+is empty for `AWAITS_CHILD_PROCESS`, `RETURNS_INLINE_SOURCE`, `UNRUN_TAPESTRY`,
+`DEFINES_INLINE_SOURCE`, `LOOP_AWAITS_LLM_OR_TOOL_CALL`, and
+`USES_ASYNCIO_GATHER`; kept as `frozenset()` assertions so a regression is
 loud, not deleted.
 
 **Still open** (frozen in the same ratchet, not this ADR's blast radius to
@@ -466,24 +527,21 @@ fix unilaterally):
 - `rag/indexing/_raptor_assembler.py`'s clustering loop — a deliberate ETL
   exception (atomic read-check-transform-write cycle against the vector
   store; a content-hash dedup short-circuit and a final upsert that must see
-  a consistent store). Decomposing it into engine-tracked knots risks
-  breaking that atomicity guarantee; whether per-summary observability is
-  worth that trade is a product call, not made here.
-- `retrieval/hybrid_retriever.py::HybridGraphRetriever` still awaits a child's
-  `process()` directly (`AWAITS_CHILD_PROCESS`).
-- 3 gather sites still fan calls out with `asyncio.gather` instead of letting
-  the engine schedule sibling knots (`USES_ASYNCIO_GATHER`):
-  `retrieval/hybrid_retriever.py::HybridRetriever`,
-  `specializations/document_processing/_chunk_embedder_store.py::_ChunkEmbedderStore`,
-  `specializations/document_processing/_ingestion_runner.py::_IngestionRunner`.
-- 3 loop sites still await an LLM or tool call directly inside a `for`/`while`
-  body instead of a `LoopSubTapestry` iteration (`LOOP_AWAITS_LLM_OR_TOOL_CALL`):
-  `specializations/document_processing/_chunk_translator.py::_ChunkTranslator`,
-  `specializations/guardrails/fact_claim_verifier.py::FactClaimVerifier`,
-  `specializations/plan_and_execute/plan_executor.py::PlanExecutor`.
-- `specializations/routing/_attempt_tier.py::_AttemptTier` still awaits
-  `.invoke()` directly (`AWAITS_INVOKE`); `agent/parallel_tool_executor.py::ParallelToolExecutor`'s
-  own `asyncio.gather` is a deliberate deferral — its per-call retry/timeout
+  a consistent store). PIR-867 re-evaluated giving each level's per-cluster
+  summarization its own lineage row via `SubTapestry._run_inner` called
+  *inside* the atomic method (keeping the dedup short-circuit and the single
+  final upsert): `_run_inner` depends on hooks and constructor state that
+  only exist on `SubTapestry`, whose `__call__` in turn hard-requires
+  `process()` to return a `Knot` — the opposite of what this atomic
+  assembler needs (return the built `RaptorTree` value once). Getting the
+  method without the contract means multiply inheriting `SubTapestry`
+  alongside `Assembler` and overriding `__call__` back to `Knot.__call__`,
+  a fragile coupling for one knot's observability. Still deferred: a core
+  primitive for "run a nested tapestry from a plain `Knot`" would resolve
+  it; absent that, whether per-summary observability is worth the coupling
+  is a product call, not made here.
+- `agent/parallel_tool_executor.py::ParallelToolExecutor`'s own
+  `asyncio.gather` is a deliberate deferral — its per-call retry/timeout
   richness needs real inter-attempt backoff sleep, not expressible as a
   static `Aggregator` fan-out.
 

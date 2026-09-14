@@ -31,6 +31,33 @@ ETL knots that perform an atomic read-transform-write cycle against a pool
 or broker"). Splitting the I/O out would break that atomicity (the dedup
 short-circuit and the final upsert must see a consistent store).
 
+PIR-867 evaluated giving each level's per-cluster summarization its own
+lineage row by running it as an inner ``Tapestry`` via
+``SubTapestry._run_inner`` *inside* this method, keeping the dedup
+short-circuit and the single final ``store.upsert`` untouched — the shape
+this ticket's brief asked for. It does not fit cleanly: ``_run_inner`` reads
+``self._inner_dispatcher()`` / ``_inner_concurrency()`` /
+``_inner_admission_observers()`` / ``_nesting_key()`` /
+``_inner_failures_reach_sink``, all defined on ``SubTapestry``, and
+``SubTapestry.__init__`` is what captures the outer history/data-store/
+transport those hooks need (see its docstring, PIR-764/PIR-834/PIR-837).
+Getting real (not orphaned) nested lineage therefore means multiply
+inheriting ``SubTapestry`` alongside ``Assembler`` — but ``SubTapestry.__call__``
+hard-requires ``process()`` to return a ``Knot`` and surfaces *that knot's*
+output as this knot's own, which is the opposite of what an atomic
+assembler needs (return the ``RaptorTree`` value directly, once, after the
+final upsert). The only way to get ``_run_inner``'s machinery without its
+``__call__`` contract is to override ``__call__`` back to
+``Knot.__call__`` explicitly, silently defeating half of a base class this
+knot would otherwise inherit purely for its private hooks. That is a
+fragile coupling to take on for an internal knot's observability, not an
+architecture change to make unilaterally in this lane — deferred pending
+either a core primitive for "run a nested tapestry from a plain ``Knot``"
+(``_run_inner`` without the sink-returning contract) or a product decision
+that the added complexity is worth the per-summary lineage. Left as
+:class:`Knot`-level lineage only: one row for the whole assembly, covering
+every level's clustering and every LLM summary call.
+
 References:
     - Sarthi et al., "RAPTOR" (ICLR 2024): https://arxiv.org/abs/2401.18059
 """

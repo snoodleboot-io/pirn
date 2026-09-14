@@ -141,10 +141,11 @@ class PlanAndExecutePromptPins(unittest.IsolatedAsyncioTestCase):
 
     async def test_plan_executor_step_system(self) -> None:
         llm = StubLLMProvider(responses=["done"])
-        with Tapestry():
+        with Tapestry() as t:
             upstream = _stub_plan(_config=KnotConfig(id="pl"))
-            executor = PlanExecutor(plan=upstream, llm=llm, _config=KnotConfig(id="ex"))
-        await executor.process(plan=Plan(steps=("a",)), llm=llm)
+            PlanExecutor(plan=upstream, llm=llm, _config=KnotConfig(id="ex"))
+        result = await t.run(RunRequest())
+        assert result.succeeded, result.exceptions
         assert llm.calls[0][0]["content"] == (
             "You are a task executor. Complete the given step accurately and concisely. "
             "Use the previous step results as context where relevant."
