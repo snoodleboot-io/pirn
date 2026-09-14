@@ -340,7 +340,7 @@ class SubTapestry(Knot):
     def lineage_extra(self) -> dict[str, Any]:
         return {**super().lineage_extra(), **self._mutable_inner_run_meta}
 
-    async def process(self, *args: Any, **kwargs: Any) -> Knot:
+    async def process(self, *args: Any, **_: Any) -> Knot:
         """Override to declare the inner pipeline and return its terminal knot.
 
         Build any knots inside this method — they auto-register into the

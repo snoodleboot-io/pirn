@@ -75,7 +75,7 @@ class Knot:
     _reserved_kwargs: frozenset[str] = frozenset({"_config", "tapestry"})
 
     # Opt-in, per-class: declare ``process`` in the gradual parameter form
-    # ``(*args: Any, **kwargs: Any)`` so a type checker skips the parameter half
+    # ``(*args: Any, **_: Any)`` so a type checker skips the parameter half
     # of its override check for every subclass, while still checking the return
     # type (PIR-833).  Only an *abstract* mid-tree base that exists to narrow the
     # return type should set it — the engine binds named inputs dynamically, so
@@ -705,7 +705,7 @@ class Knot:
 
     # ------------------------------------------------------------- user-impl
 
-    async def process(self, *args: Any, **kwargs: Any) -> Any:
+    async def process(self, *args: Any, **_: Any) -> Any:
         """Implement this.  This is the one method users override.
 
         Type annotations on parameters and return are honoured for

@@ -439,6 +439,107 @@ def test_allowlisted_file_still_checked_for_process_kwargs(tmp_path: Path) -> No
     assert "knot_process_kwargs_name" in violations
 
 
+# --- framework root definitions (rules 5-8) ---------------------------------
+
+_ROOT_KNOT_SOURCE = (
+    "from typing import Any\n\n\n"
+    "class Knot:\n"
+    "    def __init__(self, **kwargs: Any) -> None:\n"
+    "        config = kwargs.pop('_config')\n"
+    "        self._mutable_config = config\n"
+    "        self._frozen = True\n\n"
+    "    @property\n"
+    "    def knot_id(self) -> str:\n"
+    "        return self._mutable_config.id\n\n"
+    "    async def process(self, *args: Any, **kwargs: Any) -> Any:\n"
+    "        raise NotImplementedError\n"
+)
+
+_KNOT_RULES = {
+    "knot_init_impure",
+    "knot_self_assignment",
+    "knot_property",
+    "knot_process_kwargs_name",
+}
+
+
+def test_core_knot_root_definition_is_exempt_from_rules_5_to_8(tmp_path: Path) -> None:
+    root = _import_root(tmp_path, "pirn-core", "pirn")
+    (root / "core").mkdir()
+    f = root / "core" / "knot.py"
+    f.write_text(_ROOT_KNOT_SOURCE)
+    violations = set(_rules(check_file(f, "pirn-core", "pirn/core/knot.py")))
+    assert not violations & _KNOT_RULES
+
+
+def test_core_aggregator_root_definition_keeps_variadic_process(tmp_path: Path) -> None:
+    root = _import_root(tmp_path, "pirn-core", "pirn")
+    (root / "engine").mkdir()
+    f = root / "engine" / "aggregator.py"
+    f.write_text(
+        "from pirn.core.knot import Knot\n\n\n"
+        "class Aggregator(Knot):\n"
+        "    async def process(self, **inputs):\n"
+        "        return inputs\n"
+    )
+    assert "knot_process_kwargs_name" not in _rules(
+        check_file(f, "pirn-core", "pirn/engine/aggregator.py")
+    )
+
+
+def test_same_named_subclass_of_a_core_root_is_still_checked(tmp_path: Path) -> None:
+    root = _import_root(tmp_path, "pirn-core", "pirn")
+    (root / "nodes").mkdir()
+    f = root / "nodes" / "sub_tapestry.py"
+    f.write_text(
+        "from pirn.nodes import sub_tapestry\n\n\n"
+        "class SubTapestry(sub_tapestry.SubTapestry):\n"
+        "    async def process(self, **inputs):\n"
+        "        return inputs\n"
+    )
+    assert "knot_process_kwargs_name" in _rules(
+        check_file(f, "pirn-core", "pirn/nodes/sub_tapestry.py")
+    )
+
+
+def test_knot_subclass_in_core_is_still_checked(tmp_path: Path) -> None:
+    root = _import_root(tmp_path, "pirn-core", "pirn")
+    (root / "core").mkdir()
+    f = root / "core" / "fancy_knot.py"
+    f.write_text(
+        "from typing import Any\n\n"
+        "from pirn.core.knot import Knot\n\n\n"
+        "class FancyKnot(Knot):\n"
+        "    def __init__(self, *, x: Any, **kwargs: Any) -> None:\n"
+        "        self._x = x\n"
+        "        super().__init__(x=x, **kwargs)\n\n"
+        "    @property\n"
+        "    def x(self) -> Any:\n"
+        "        return self._x\n\n"
+        "    async def process(self, x: Any, **kwargs: Any) -> Any:\n"
+        "        return x\n"
+    )
+    violations = set(_rules(check_file(f, "pirn-core", "pirn/core/fancy_knot.py")))
+    assert violations >= _KNOT_RULES
+
+
+def test_root_name_in_another_core_file_is_still_checked(tmp_path: Path) -> None:
+    root = _import_root(tmp_path, "pirn-core", "pirn")
+    (root / "core").mkdir()
+    f = root / "core" / "not_the_root.py"
+    f.write_text(_ROOT_KNOT_SOURCE)
+    violations = set(_rules(check_file(f, "pirn-core", "pirn/core/not_the_root.py")))
+    assert violations >= _KNOT_RULES
+
+
+def test_root_definition_outside_pirn_core_is_still_checked(tmp_path: Path) -> None:
+    root = _import_root(tmp_path, "acme", "acme")
+    f = root / "knot.py"
+    f.write_text(_ROOT_KNOT_SOURCE)
+    violations = set(_rules(check_file(f, "acme", "acme/knot.py")))
+    assert violations >= _KNOT_RULES
+
+
 # --- file discovery (skips tests/, conftest.py) -----------------------------
 
 

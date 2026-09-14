@@ -62,6 +62,24 @@ A class whose bases include one of ``Knot``, ``SubTapestry``, ``Source``,
 ``AgentLoopPipeline``, ``LoopSubTapestry`` (by base name, not full import
 resolution), OR whose own name ends in ``Knot`` or ``Pipeline``.
 
+Framework root definitions (rules 5-8)
+---------------------------------------
+Rules 5-8 are the contract a *subclass* of the knot framework must honour.
+They do not apply to the framework's own definition of a root it describes:
+``Knot.__init__`` *is* the introspection that turns a subclass's constructor
+kwargs into parents (it cannot itself be "a single ``super().__init__``
+call"), ``Knot.knot_id``/``config``/``parents`` are the framework's read-only
+accessors over its ``_mutable_`` state rather than a stored input exposed as a
+field, and ``Aggregator.process(**inputs)`` is the variadic fan-in primitive
+whose parents are named at construction, not in a signature. A class is a root
+definition only when all three hold: it lives in ``pirn-core``; its name is one
+of the framework vocabulary names this gate already keys on
+(``_KNOT_BASE_NAMES`` or ``_FAN_IN_NODE_NAMES``); and its module filename is
+that name (``pirn/core/knot.py`` for ``Knot``, ``pirn/nodes/aggregator.py`` for
+``Aggregator``). A subclass of a root (``class MyKnot(Knot)``,
+``class MyAggregator(Aggregator)``), a class that merely reuses a root name in
+another file or package, and every other knot are still checked.
+
 Core-lane allowlist (rules 5-7 only)
 -------------------------------------
 ``pirn-core``'s ``pirn/nodes/*`` and ``pirn/core/parameter.py`` bootstrap
@@ -618,6 +636,29 @@ def _check_filename(tree: ast.Module, path: Path) -> list[_Violation]:
     return []
 
 
+def _is_framework_root_definition(
+    class_node: ast.ClassDef, package: str, relative_posix: str
+) -> bool:
+    """True for pirn-core's own definition of a framework root (see module docstring).
+
+    ``Knot`` in ``pirn/core/knot.py``, ``Aggregator`` in
+    ``pirn/nodes/aggregator.py``, ... — never a subclass of one, and never a
+    same-named class in another file or package.
+    """
+    if package != "pirn-core":
+        return False
+    if class_node.name not in _KNOT_BASE_NAMES | _FAN_IN_NODE_NAMES:
+        return False
+    if class_node.name in _base_names(class_node.bases):
+        return False
+    stem = Path(relative_posix).stem
+    return _alnum_lower(stem) == _alnum_lower(class_node.name)
+
+
+def _alnum_lower(text: str) -> str:
+    return "".join(ch.lower() for ch in text if ch.isalnum())
+
+
 def _check_knot_purity_rules(
     tree: ast.Module, path: Path, package: str, relative_posix: str
 ) -> list[_Violation]:
@@ -625,6 +666,8 @@ def _check_knot_purity_rules(
     exempt = _is_exempt_from_knot_purity(package, relative_posix)
     for node in ast.walk(tree):
         if not isinstance(node, ast.ClassDef) or not _is_knot_like(node):
+            continue
+        if _is_framework_root_definition(node, package, relative_posix):
             continue
         if not exempt:
             violations.extend(_check_knot_init_purity(node, path))

@@ -436,6 +436,15 @@ state, and `@property` fields), reviewed the same way any other rule exception i
 files under `pirn/nodes/` do not inherit the allowlist automatically — extending it needs
 the same documented justification as the constructor-state exception above.
 
+The same reasoning covers the roots themselves. `Knot.__init__` is the introspection that
+turns a subclass's keyword arguments into parents, `Knot.knot_id` / `config` / `parents` /
+`config_values` / `input_names` are the framework's read-only accessors over its own
+`_mutable_` state, and `Aggregator.process(**inputs)` is the variadic fan-in whose parent
+names are given at construction rather than in a signature. The gate therefore does not
+apply Rules 1, 2 (catch-all naming) and 4 to pirn-core's own definition of a root it keys
+on (`Knot` in `pirn/core/knot.py`, `Aggregator` in `pirn/nodes/aggregator.py`, …); every
+subclass of a root, and a same-named class anywhere else, is checked like any other knot.
+
 ---
 
 ## Summary checklist
