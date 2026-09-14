@@ -37,11 +37,11 @@ class IterableSource(StreamingSource):
         return self._parameter_name
 
     async def stream(self) -> AsyncIterator[Any]:
-        if hasattr(self._iterable, "__aiter__"):
-            async for v in self._iterable:  # type: ignore[union-attr]  # narrowed by hasattr check above
+        if isinstance(self._iterable, AsyncIterable):
+            async for v in self._iterable:
                 yield v
         else:
-            for v in self._iterable:  # type: ignore[union-attr]  # narrowed by hasattr check above
+            for v in self._iterable:
                 yield v
 
     async def close(self) -> None:

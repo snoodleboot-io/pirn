@@ -379,11 +379,12 @@ class TapestryGraphScanner:
             spec = importlib.util.spec_from_file_location(mod_name, path)
             if spec is None or spec.loader is None:
                 return []
+            loader = spec.loader
             module = importlib.util.module_from_spec(spec)
             # Register in sys.modules so @dataclass (Python 3.14+) can resolve cls.__module__.
             _sys.modules[mod_name] = module
             try:
-                spec.loader.exec_module(module)  # type: ignore[union-attr]
+                loader.exec_module(module)
             finally:
                 _sys.modules.pop(mod_name, None)
 

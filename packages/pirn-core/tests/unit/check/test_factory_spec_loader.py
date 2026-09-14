@@ -1,4 +1,4 @@
-"""Tests for check._loader._Loader.load_factory."""
+"""Tests for ``FactorySpecLoader.load_factory``."""
 
 from __future__ import annotations
 
@@ -7,9 +7,9 @@ import unittest
 
 class TestLoadFactory(unittest.TestCase):
     def _call(self, spec: str):
-        from pirn.check._loader import _Loader
+        from pirn.check.factory_spec_loader import FactorySpecLoader
 
-        return _Loader.load_factory(spec)
+        return FactorySpecLoader.load_factory(spec)
 
     def test_valid_spec_returns_callable(self) -> None:
         # Use a real importable symbol.

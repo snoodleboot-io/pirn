@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from pirn.check._loader import _Loader  # pyright: ignore[reportPrivateUsage]  # package-internal
+from pirn.check.factory_spec_loader import FactorySpecLoader
 from pirn.check.tapestry_validator import TapestryValidator
 
 
@@ -22,7 +22,7 @@ class TapestryCheckCli:
         parser.add_argument("--strict", action="store_true", help="Treat warnings as errors.")
         args = parser.parse_args(argv)
 
-        factory = _Loader.load_factory(args.spec)
+        factory = FactorySpecLoader.load_factory(args.spec)
 
         try:
             tapestry = factory()

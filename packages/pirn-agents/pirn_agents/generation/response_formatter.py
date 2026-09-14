@@ -18,6 +18,7 @@ from typing import Any, ClassVar
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
+from pydantic import TypeAdapter
 
 from pirn_agents.types.messaging.agent_response import AgentResponse
 
@@ -75,7 +76,9 @@ class ResponseFormatter(Knot):
             return response.data
         if format == "markdown":
             return self._render_markdown(response)
-        return json.dumps(response._pirn_audit_dict(), sort_keys=True)  # pyright: ignore[reportPrivateUsage]  # PirnOpaqueValue audit hook is the contract
+        # pydantic's serializer for a PirnOpaqueValue emits its audit dict.
+        audit: object = TypeAdapter(AgentResponse).dump_python(response, mode="json")
+        return json.dumps(audit, sort_keys=True)
 
     def _render_markdown(self, response: AgentResponse) -> str:
         sections: list[str] = [response.data] if response.data else []
