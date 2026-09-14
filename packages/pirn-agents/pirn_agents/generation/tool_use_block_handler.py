@@ -11,9 +11,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from pirn_agents._internal._json_shape import (
-    _JsonShape,  # pyright: ignore[reportPrivateUsage]  # package-internal helper
-)
+from pirn_agents._internal.json_shape import JsonShape
 from pirn_agents.generation.block_contribution import BlockContribution
 from pirn_agents.generation.content_block_handler import ContentBlockHandler
 from pirn_agents.tools.tool_call import ToolCall
@@ -27,7 +25,7 @@ class ToolUseBlockHandler(ContentBlockHandler):
         if block.get("type") != "tool_use":
             return None
         arguments: Any = block.get("input") or block.get("arguments") or {}
-        if not _JsonShape.is_mapping(arguments):
+        if not JsonShape.is_mapping(arguments):
             return None
         call_id: Any = block.get("id") or block.get("call_id") or ""
         tool_name: Any = block.get("name") or ""

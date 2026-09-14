@@ -18,12 +18,13 @@ References:
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_agents._internal.json_shape import JsonShape
 from pirn_agents.types.content.content_block import ContentBlock
 from pirn_agents.types.content.message_content import MessageContent
 from pirn_agents.types.messaging.agent_message import AgentMessage
@@ -73,9 +74,9 @@ class MessageParser(Knot):
             if not raw_input:
                 raise ValueError("MessageParser: raw_input string must be non-empty")
             return (raw_input,)
-        if isinstance(raw_input, Mapping):
+        if JsonShape.is_mapping(raw_input):
             return (raw_input,)
-        if isinstance(raw_input, Sequence) and not isinstance(raw_input, (str, bytes)):
+        if JsonShape.is_sequence(raw_input) and not isinstance(raw_input, bytes):
             return tuple(raw_input)
         raise TypeError(
             "MessageParser: raw_input must be a str, Mapping, AgentMessage, "
@@ -89,7 +90,7 @@ class MessageParser(Knot):
             if not item:
                 raise ValueError(f"MessageParser: item[{index}] string must be non-empty")
             return AgentMessage(role="user", content=item)
-        if isinstance(item, Mapping):
+        if JsonShape.is_mapping(item):
             if "role" not in item:
                 raise ValueError(f"MessageParser: item[{index}] missing required field 'role'")
             role = item["role"]
@@ -106,7 +107,7 @@ class MessageParser(Knot):
                     tool_call_id=item.get("tool_call_id"),
                 )
             if isinstance(content, (MessageContent, ContentBlock)) or (
-                isinstance(content, Sequence) and not isinstance(content, (str, bytes))
+                JsonShape.is_sequence(content) and not isinstance(content, (str, bytes))
             ):
                 return AgentMessage.from_blocks(
                     role=role,

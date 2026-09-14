@@ -28,9 +28,14 @@ class AssembledContext(PirnOpaqueValue):
     evicted: tuple[ContextItem, ...]
     total_tokens: int
 
+    @staticmethod
+    def _audit_all(values: tuple[PirnOpaqueValue, ...]) -> list[Any]:
+        """Audit each child through the ``PirnOpaqueValue`` contract it shares with this value."""
+        return [value._pirn_audit_dict() for value in values]
+
     def _pirn_audit_dict(self) -> dict[str, Any]:
         return {
-            "kept": [item._pirn_audit_dict() for item in self.kept],
-            "evicted": [item._pirn_audit_dict() for item in self.evicted],
+            "kept": self._audit_all(self.kept),
+            "evicted": self._audit_all(self.evicted),
             "total_tokens": self.total_tokens,
         }

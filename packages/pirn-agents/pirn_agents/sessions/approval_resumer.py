@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ApprovalResumer`` — resume a suspended run by replaying its prefix.
 
 ADR "agents speaks core" WS3 part 2. Starts a **new** engine run chained to
@@ -138,19 +140,10 @@ class ApprovalResumer(Knot):
                 "(a continuation already exists) — the token is single-use"
             )
 
-        # pyright note: this package's pyright config resolves pirn-core via
-        # the shared workspace .venv, whose pirn-core is editable-installed
-        # from the main checkout — a sibling package, not this branch's copy
-        # of pirn-core, so pyright cannot see allow_new_knots there yet even
-        # though this worktree's pirn-core defines it (verified: pytest here
-        # links against THIS worktree's pirn-core via PYTHONPATH and passes —
-        # see test_replay_extends_with_new_knots.py in pirn-core and
-        # test_approval_resume_flow.py here). No local override of the shared
-        # venv is safe: other worktree sessions share it.
         session = await ReplaySession.from_history(
             history=history,
             run_id=token.run_id,
-            allow_new_knots=True,  # pyright: ignore[reportCallIssue]
+            allow_new_knots=True,
         )
         pending_row = session.row_for(response_knot_id)
         if pending_row is None:

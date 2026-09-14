@@ -133,9 +133,9 @@ _EXPECTED_EXCLUSIONS = frozenset(
 #: other private loop body.
 _REGISTRY_ONLY_EXCLUSIONS = frozenset(
     {
-        # Private: the loop body FailoverChain drives internally (ADR
+        # Internal: the loop body FailoverChain drives (ADR
         # agents-speaks-core WS5b); lives in resilience/, not specializations/.
-        "pirn_agents.resilience._failover_loop._FailoverLoop",
+        "pirn_agents.resilience.failover_loop.FailoverLoop",
     }
 )
 

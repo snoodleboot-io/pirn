@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``AgentBuilder`` — fluent, chainable facade that generates a knot graph.
 
 ``AgentBuilder`` collects the pieces of an agent — an LLM provider, tools, a
@@ -292,20 +294,20 @@ class AgentBuilder:
             raise ValueError("AgentBuilder.knot_id: no pattern selected; call .pattern(...)")
         return AgentKnotIdFactory.derive(
             pattern=self._pattern,
-            llm=self._component_label("llm"),
-            memory=self._component_label("memory"),
+            llm=self.component_label("llm"),
+            memory=self.component_label("memory"),
             tools=[tool.name for tool in self._tools],
-            components=self._component_labels(),
+            components=self.component_labels(),
             options=self._options,
             name=self._name,
         )
 
-    def _component_label(self, name: str) -> str | None:
+    def component_label(self, name: str) -> str | None:
         """Return the reference label of one component, or ``None`` if unset."""
         value = self._components.get(name)
         return None if value is None else type(value).__name__
 
-    def _component_labels(self) -> dict[str, str]:
+    def component_labels(self) -> dict[str, str]:
         """Return reference labels for the components without a dedicated field.
 
         ``llm``/``memory``/``tools`` are carried by the id factory's own

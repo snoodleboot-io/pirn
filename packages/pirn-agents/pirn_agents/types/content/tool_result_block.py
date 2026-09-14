@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ToolResultBlock`` — the tool-result variant of the content-block union (F15-S1).
 
 A tool result can appear *inline* in a message body (correlated to the call it
@@ -10,8 +12,9 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, TypeGuard
 
+from pirn_agents._internal.json_shape import JsonShape
 from pirn_agents.tools.tool_result import ToolResult
 from pirn_agents.types.content.content_block import ContentBlock
 from pirn_agents.types.content.message_content import MessageContent
@@ -53,6 +56,13 @@ class ToolResultBlock(ContentBlock):
                     f"got {type(block).__name__}"
                 )
 
+    @staticmethod
+    def _is_block_sequence(value: object) -> TypeGuard[Sequence[ContentBlock]]:
+        """Return ``True`` for a non-string sequence whose every element is a ``ContentBlock``."""
+        if not JsonShape.is_sequence(value) or isinstance(value, (str, bytes)):
+            return False
+        return all(isinstance(item, ContentBlock) for item in value)
+
     @classmethod
     def from_tool_result(cls, result: ToolResult) -> ToolResultBlock:
         """Project an F1 :class:`ToolResult` into a tool-result content block.
@@ -79,11 +89,7 @@ class ToolResultBlock(ContentBlock):
             nested: tuple[ContentBlock, ...] = payload.blocks
         elif isinstance(payload, ContentBlock):
             nested = (payload,)
-        elif (
-            isinstance(payload, Sequence)
-            and not isinstance(payload, (str, bytes))
-            and all(isinstance(item, ContentBlock) for item in payload)
-        ):
+        elif cls._is_block_sequence(payload):
             nested = tuple(payload)
         else:
             if result.error is not None:

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``CrossSessionProfileUpdater`` — load, merge, and persist a subject profile.
 
 The S3 profile knot. In one ``process`` pass it reads the existing profile for a

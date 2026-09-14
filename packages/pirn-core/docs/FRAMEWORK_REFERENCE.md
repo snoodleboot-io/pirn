@@ -286,7 +286,7 @@ example of the boundary this ADR draws.
 gained `to_result()`/`from_result()` bridges; `pirn_agents.resilience.FailoverAttempt`
 → `Result` per candidate, replacing the `FailoverOutcome` enum (deleted, PIR-872; a circuit-open candidate is `Skipped(reason="circuit_open")`, and `RetryClassification` became `RetrySafetyClassifier.is_safe() -> bool`); `ModelCascadeRouter`/
 `FallbackChain`/`FailoverChain`'s fold-accumulator chains now run as a
-`LoopSubTapestry` (`_CascadeLoop`/`_FallbackLoop`/`_FailoverLoop`) that stops
+`LoopSubTapestry` (`_CascadeLoop`/`_FallbackLoop`/`FailoverLoop`) that stops
 scheduling once the chain locks, rather than a static unrolled chain that
 still built a knot per candidate past the lock point. 8 of the 18 agents
 exception roots the ADR found now also subclass `pirn.exceptions.pirn_error.PirnError`
@@ -372,7 +372,7 @@ are untouched by this wiring.
 
 ### Scheduling and concurrency (WS4b, "one scheduler")
 
-`MapAgent` is a `SubTapestry` whose inner graph is one `_MapItem` knot per
+`MapAgent` is a `SubTapestry` whose inner graph is one `MapItem` knot per
 input item joined by a core `Aggregator` under `ErrorPolicy.RECEIVE_ERRORS`;
 concurrency is `KnotConfig(concurrency_group=)` + `ConcurrencyLimits`; per-item
 timeout/retry is `KnotConfig.timeout`/`KnotConfig.retry`, run by
@@ -380,7 +380,7 @@ timeout/retry is `KnotConfig.timeout`/`KnotConfig.retry`, run by
 lookup on the item's knot id (`item:<batch_id>:<key>`), not an F14 checkpoint
 store. `AdaptiveConcurrencyController` is now an `AdmissionObserver` (additive
 increase on `on_release`, multiplicative decrease on a new `on_throttle()`
-called directly by `_MapItem`). `TriggeredBatch`/`IntervalTrigger`/`EventTrigger`
+called directly by `MapItem`). `TriggeredBatch`/`IntervalTrigger`/`EventTrigger`
 needed no changes — they already composed core `Trigger`.
 
 A caveat this exposed: `SubTapestry`'s inner run does not forward the
@@ -537,7 +537,7 @@ threaded across iterations is the running tuple of step results.
 
 Three more `USES_ASYNCIO_GATHER` sites fixed in PIR-867: `HybridRetriever`
 (`retrieval/`) now wires its dense and lexical arms as two knots
-(`_DenseIds`/`_LexicalIds`, the BM25 side still offloading to a worker thread
+(`DenseIds`/`LexicalIds`, the BM25 side still offloading to a worker thread
 internally via `asyncio.to_thread`) into an `Aggregator`, so it is a
 `SubTapestry` now rather than a plain `Knot` — `HybridRetrieverBase` stays a
 plain `Retriever`/`Knot` base since `HybridGraphRetriever` still needs that
@@ -630,7 +630,7 @@ and the auto-fill label, deriving the module from the resolved class's own
 `__module__`; only `seed`/`seed_kind` remain hand-declared per pattern name.
 `tests/builder/test_pattern_registry_coverage.py` cross-checks the *sweet_tea*
 Registry's own view of every `AgentPipeline` subclass against this table
-(catching one class — `_FailoverLoop`, a private loop body living outside
+(catching one class — `FailoverLoop`, an internal loop body living outside
 `specializations/` — the old pkgutil-based completeness check could not see)
 and generates the pattern list from the registry to verify it against a new
 "Full Pattern Reference" appendix in `pirn_agents/PATTERNS.md`.

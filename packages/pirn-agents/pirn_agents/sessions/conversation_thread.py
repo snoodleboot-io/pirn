@@ -1,13 +1,16 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ConversationThread`` — a durable, session-keyed multi-turn conversation."""
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
+from pirn_agents._internal.json_shape import JsonShape
 from pirn_agents.sessions.conversation_turn import ConversationTurn
 
 
@@ -53,7 +56,7 @@ class ConversationThread(PirnOpaqueValue):
         Raises:
             TypeError: If ``payload`` is not a Mapping.
         """
-        if not isinstance(payload, Mapping):
+        if not JsonShape.is_mapping(payload):
             raise TypeError(
                 f"ConversationThread.from_payload: payload must be a Mapping, "
                 f"got {type(payload).__name__}"

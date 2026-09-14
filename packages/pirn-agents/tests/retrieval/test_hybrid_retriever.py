@@ -2,7 +2,7 @@
 
 PIR-867: the dense and lexical arms used to be awaited together under a
 hand-rolled ``asyncio.gather``; each is now its own knot
-(``_DenseIds``/``_LexicalIds``) wired into an ``Aggregator``, so ``process``
+(``DenseIds``/``LexicalIds``) wired into an ``Aggregator``, so ``process``
 returns the sink of an inner pipeline rather than the fused hits directly.
 The outcome tests run a real tapestry and read the retriever's output — the
 pattern PIR-856 established for ``ParallelToolCaller``. Guard tests that fire

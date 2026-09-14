@@ -50,7 +50,7 @@ class _BackendCall(Knot):
     parameter, and an arbitrary, non-Pydantic class raises
     ``PydanticSchemaGenerationError`` there without
     ``arbitrary_types_allowed`` -- the same reason
-    ``pirn_agents.batch._map_item._MapItem`` types its ``rate_limiter`` input
+    ``pirn_agents.batch.map_item.MapItem`` types its ``rate_limiter`` input
     ``Any``.
     """
 

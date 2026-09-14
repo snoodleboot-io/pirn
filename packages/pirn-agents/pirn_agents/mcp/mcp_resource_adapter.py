@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``McpResourceAdapter`` — surface MCP resources for agent context injection.
 
 MCP resources are read-only context (files, records, docs). This adapter lists
@@ -20,6 +22,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from pirn_agents._internal.json_shape import JsonShape
 from pirn_agents.mcp.mcp_client import McpClient
 from pirn_agents.mcp.mcp_error import McpError
 from pirn_agents.memory.stores.memory_store import MemoryStore
@@ -145,11 +148,11 @@ class McpResourceAdapter:
         text — but a structurally malformed payload raises :class:`McpError`.
         """
         contents = raw.get("contents")
-        if not isinstance(contents, list):
+        if not JsonShape.is_list(contents):
             raise McpError(f"MCP resource {uri!r} returned malformed contents: {contents!r}")
         parts: list[str] = []
         for entry in contents:
-            if not isinstance(entry, Mapping):
+            if not JsonShape.is_mapping(entry):
                 raise McpError(f"MCP resource {uri!r} has a non-mapping content entry: {entry!r}")
             text = entry.get("text")
             if isinstance(text, str):

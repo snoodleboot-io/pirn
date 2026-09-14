@@ -6,6 +6,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 from pirn.core.payload import Payload
+from pirn.core.pirn_opaque_value import PirnOpaqueValue
 
 from pirn_agents.types.messaging.agent_message import AgentMessage
 from pirn_agents.types.messaging.conversation_frame import ConversationFrame
@@ -20,9 +21,8 @@ class ConversationPayload(Payload[ConversationFrame, tuple[AgentMessage, ...]]):
     :class:`AgentMessage`, ``metadata`` is the
     :class:`~pirn_agents.types.messaging.conversation_frame.ConversationFrame`
     describing the window (session/turn ids, token count, truncation state,
-    and the free-form ``extra`` bag). This replaces ``AgentContext``, kept
-    importable for one deprecation cycle as a thin subclass and now deleted
-    (PIR-864).
+    and the free-form ``extra`` bag). It replaces ``AgentContext`` (deleted,
+    PIR-864).
 
     Attributes
     ----------
@@ -32,8 +32,7 @@ class ConversationPayload(Payload[ConversationFrame, tuple[AgentMessage, ...]]):
     extra:
         Mapping for intermediate state shared between knots (parsed
         intents, retrieved memories, partial plans). Defaults to an empty
-        dict. Was ``AgentContext.metadata`` before this rename; renamed
-        because :attr:`Payload.metadata` now names the frame.
+        dict. Named ``extra`` because :attr:`Payload.metadata` names the frame.
     """
 
     def __init__(
@@ -96,9 +95,14 @@ class ConversationPayload(Payload[ConversationFrame, tuple[AgentMessage, ...]]):
         fields.update(frame_overrides)
         return ConversationPayload(messages, **fields)
 
+    @staticmethod
+    def _audit_all(values: tuple[PirnOpaqueValue, ...]) -> list[Any]:
+        """Audit each child through the ``PirnOpaqueValue`` contract it shares with this value."""
+        return [value._pirn_audit_dict() for value in values]
+
     def _pirn_audit_dict(self) -> dict[str, Any]:
-        audit = dict(self._metadata._pirn_audit_dict())
-        audit["messages"] = [m._pirn_audit_dict() for m in self.messages]
+        audit = dict(super()._pirn_audit_dict())
+        audit["messages"] = self._audit_all(self.messages)
         return audit
 
     def __repr__(self) -> str:

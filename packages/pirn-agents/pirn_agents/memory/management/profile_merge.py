@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """Merge new session data into a profile without clobbering unrelated fields.
 
 The S3 merge primitive, kept pure so it is trivially testable and reusable. It
@@ -16,6 +18,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import Any
+
+from pirn_agents._internal.json_shape import JsonShape
 
 
 class ProfileMerge:
@@ -39,18 +43,18 @@ class ProfileMerge:
         Raises:
             TypeError: If either argument is not a mapping.
         """
-        if not isinstance(existing, Mapping):
+        if not JsonShape.is_mapping(existing):
             raise TypeError(
                 f"merge_profile_fields: existing must be a Mapping, got {type(existing).__name__}"
             )
-        if not isinstance(incoming, Mapping):
+        if not JsonShape.is_mapping(incoming):
             raise TypeError(
                 f"merge_profile_fields: incoming must be a Mapping, got {type(incoming).__name__}"
             )
         merged: dict[str, Any] = dict(existing)
         for key, incoming_value in incoming.items():
             current = merged.get(key)
-            if isinstance(current, Mapping) and isinstance(incoming_value, Mapping):
+            if JsonShape.is_mapping(current) and JsonShape.is_mapping(incoming_value):
                 merged[key] = ProfileMerge.merge_fields(current, incoming_value)
             else:
                 merged[key] = incoming_value

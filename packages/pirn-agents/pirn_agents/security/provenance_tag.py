@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ProvenanceTag`` — where a piece of untrusted content came from.
 
 A :class:`ProvenanceTag` is the immutable origin + trust label attached to every
@@ -15,12 +17,13 @@ other by value.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
 from pirn.core.pirn_opaque_value import PirnOpaqueValue
+
+from pirn_agents._internal.json_shape import JsonShape
 
 
 @dataclass(frozen=True)
@@ -117,7 +120,7 @@ class ProvenanceTag(PirnOpaqueValue):
         Raises:
             TypeError: If ``payload`` is not a mapping.
         """
-        if not isinstance(payload, Mapping):
+        if not JsonShape.is_mapping(payload):
             raise TypeError(
                 f"ProvenanceTag.from_payload: payload must be a Mapping, "
                 f"got {type(payload).__name__}"

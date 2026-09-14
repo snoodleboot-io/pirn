@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SecretRedactingLogFilter`` — scrub secrets out of log records before they emit.
 
 A :class:`logging.Filter` that runs every record's fully-formatted message

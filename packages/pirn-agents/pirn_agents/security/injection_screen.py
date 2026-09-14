@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``InjectionScreen`` — the indirect-prompt-injection gate (F11-S2 / PIR-255).
 
 A two-tier screen over untrusted content:

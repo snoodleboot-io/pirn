@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``BatchItemResult`` — the isolated outcome of one item in a batch run.
 
 The outcome *is* core's ``Ok | Err | Skipped`` ``Result`` (ADR agents-speaks-core
@@ -10,7 +12,6 @@ the ``Result`` variant and the error type.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, ClassVar
 
@@ -20,6 +21,8 @@ from pirn.core.pirn_opaque_value import PirnOpaqueValue
 from pirn.core.result import Result
 from pirn.core.skipped import Skipped
 from pirn.managers.exception_record import ExceptionRecord
+
+from pirn_agents._internal.json_shape import JsonShape
 
 
 @dataclass(frozen=True)
@@ -130,9 +133,9 @@ class BatchItemResult(PirnOpaqueValue):
     def _json_safe(value: Any) -> Any:
         if value is None or isinstance(value, (str, int, float, bool)):
             return value
-        if isinstance(value, Mapping):
+        if JsonShape.is_any_mapping(value):
             return {str(k): BatchItemResult._json_safe(v) for k, v in value.items()}
-        if isinstance(value, (list, tuple)):
+        if JsonShape.is_list_or_tuple(value):
             return [BatchItemResult._json_safe(v) for v in value]
         return str(value)
 

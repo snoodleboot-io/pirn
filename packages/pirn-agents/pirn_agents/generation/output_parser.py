@@ -22,9 +22,7 @@ from typing import Any
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_agents._internal._json_shape import (
-    _JsonShape,  # pyright: ignore[reportPrivateUsage]  # package-internal helper
-)
+from pirn_agents._internal.json_shape import JsonShape
 from pirn_agents.generation.content_block_handler import ContentBlockHandler
 from pirn_agents.generation.text_block_handler import TextBlockHandler
 from pirn_agents.generation.tool_use_block_handler import ToolUseBlockHandler
@@ -93,14 +91,14 @@ class OutputParser(Knot):
         content: Any = response.get("content")
         if isinstance(content, str):
             return content, ()
-        if _JsonShape.is_list(content):
+        if JsonShape.is_list(content):
             return self._coerce_blocks(content)
         choices: Any = response.get("choices")
-        if _JsonShape.is_list(choices) and choices:
+        if JsonShape.is_list(choices) and choices:
             first = choices[0]
-            if _JsonShape.is_mapping(first):
+            if JsonShape.is_mapping(first):
                 message = first.get("message")
-                if _JsonShape.is_mapping(message):
+                if JsonShape.is_mapping(message):
                     inner = message.get("content")
                     if isinstance(inner, str):
                         return inner, ()
@@ -116,7 +114,7 @@ class OutputParser(Knot):
         text_parts: list[str] = []
         tool_calls: list[ToolCall] = []
         for block in blocks:
-            if not _JsonShape.is_mapping(block):
+            if not JsonShape.is_mapping(block):
                 continue
             for handler in handlers:
                 contribution = handler.try_handle(block)
@@ -153,9 +151,9 @@ class OutputParser(Knot):
             if isinstance(value, str) and value:
                 return value
         choices: Any = response.get("choices")
-        if _JsonShape.is_list(choices) and choices:
+        if JsonShape.is_list(choices) and choices:
             first = choices[0]
-            if _JsonShape.is_mapping(first):
+            if JsonShape.is_mapping(first):
                 value = first.get("finish_reason")
                 if isinstance(value, str) and value:
                     return value
@@ -163,7 +161,7 @@ class OutputParser(Knot):
 
     def _extract_usage(self, response: Mapping[str, Any]) -> Mapping[str, int]:
         usage: Any = response.get("usage")
-        if not _JsonShape.is_mapping(usage):
+        if not JsonShape.is_mapping(usage):
             return {}
         primitive: dict[str, int] = {}
         for key, value in usage.items():
