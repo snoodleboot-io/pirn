@@ -169,6 +169,47 @@ async def test_a_retrying_knot_gives_its_slot_back() -> None:
     assert {"flaky", "e0", "e1", "e2"} <= set(result.outputs)
 
 
+async def test_a_sleeping_retry_lets_another_knot_run_during_its_backoff() -> None:
+    # Arrange (PIR-870): under a cap of one, the flaky knot's backoff is
+    # long enough for an independent sibling to start and finish inside it
+    # -- only possible if the slot is released for the sleep rather than
+    # held across it, as it used to be.
+    order: list[str] = []
+    policy = KnotRetryPolicy(max_attempts=2, base_delay=0.3, max_delay=0.3, jitter=False)
+
+    class _FlakyOnce(Knot):
+        def __init__(self, **kwargs: Any) -> None:
+            self._mutable_calls = 0
+            super().__init__(**kwargs)
+
+        async def process(self, **_: Any) -> str:
+            self._mutable_calls += 1
+            order.append(f"flaky-attempt{self._mutable_calls}")
+            if self._mutable_calls == 1:
+                raise RuntimeError("flake")
+            return "ok"
+
+    class _Recorder(Knot):
+        async def process(self, **_: Any) -> str:
+            order.append("sibling")
+            return "ok"
+
+    with Tapestry() as t:
+        _FlakyOnce(_config=KnotConfig(id="flaky", retry=policy))
+        _Recorder(_config=KnotConfig(id="sibling"))
+
+    # Act
+    result = await asyncio.wait_for(
+        t.run(RunRequest(concurrency=ConcurrencyLimits(max_in_flight=1))), timeout=10
+    )
+
+    # Assert: the sibling completed strictly between the flaky knot's two
+    # attempts, which is only possible if the sole slot was free during the
+    # backoff sleep for the sibling to take.
+    assert result.succeeded, result.exceptions
+    assert order == ["flaky-attempt1", "sibling", "flaky-attempt2"]
+
+
 async def test_a_timeout_on_a_worker_thread_is_recorded_without_stopping_the_thread() -> None:
     # Arrange: the thread keeps sleeping; the engine must still record the
     # timeout promptly and finish the run.

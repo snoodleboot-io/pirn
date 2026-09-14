@@ -23,8 +23,13 @@ Algorithm:
     2. If the result is not an ``Err``, or ``p`` is ``None``, or
        ``p.should_retry(attempts, err.record)`` is ``False``: return the
        result and the attempt count.
-    3. Otherwise sleep ``p.delay_before_retry(attempts - 1, err.record)`` on
-       the event loop and go to 1.
+    3. Otherwise, when a *gate* and a *ticket holder* were given: release
+       the ticket the holder currently names (unless it holds no slot),
+       sleep ``p.delay_before_retry(attempts - 1, err.record)``, then
+       re-admit -- blocking on ``gate.wait_for_release()`` between refusals
+       -- and store the new ticket back on the holder before the next
+       attempt (PIR-870).  Without a gate/holder (e.g. a direct unit test of
+       this class), just sleep. Either way, go to 1.
 
     A real cancellation of the surrounding task — the run being cancelled —
     propagates out of both the attempt and the sleep; it is never retried.
@@ -36,7 +41,12 @@ Algorithm:
         result = attempt(knot, inputs, timeout)          # Err(KnotTimeoutError) on expiry
         if result is not Err or retry is None or not retry.should_retry(attempts, result.record):
             return result, attempts
-        await sleep(retry.delay_before_retry(attempts - 1, result.record))
+        if gate and ticket_holder and ticket_holder.ticket.held:
+            gate.release(ticket_holder.ticket)
+            await sleep(retry.delay_before_retry(attempts - 1, result.record))
+            ticket_holder.ticket = await readmit(gate, knot)     # blocks until admitted
+        else:
+            await sleep(retry.delay_before_retry(attempts - 1, result.record))
     ```
 
 Two properties worth knowing:
@@ -48,9 +58,14 @@ Two properties worth knowing:
   timeout.**  ``wait_for`` cancels the awaiting task; a ``ThreadDispatcher``
   thread or a Ray task keeps running until it returns, exactly as on run
   cancellation.  The engine records the timeout and moves on.
-* **The admission slot is held across backoff.**  A retrying knot keeps the
-  slot its admission took while it sleeps; giving it back and re-admitting
-  is a later refinement, noted on ``AdmissionTicket``.
+* **The admission slot is released during backoff.**  A retrying knot gives
+  its slot back before it sleeps and re-admits before its next attempt
+  (PIR-870), so a knot sleeping between attempts does not hold capacity
+  another ready knot could use.  Re-admission polls the gate directly
+  rather than going through the run's ``ReadyQueue``, so a retrying knot can
+  cut ahead of a knot that has been waiting longer in the same group; that
+  is a fairness nuance, not a correctness one -- the budget itself is never
+  exceeded.
 """
 
 from __future__ import annotations
@@ -66,6 +81,9 @@ from pirn.managers.exception_record import ExceptionRecord
 if TYPE_CHECKING:
     from pirn.core.knot import Knot
     from pirn.core.result import Result
+    from pirn.engine.admission.admission_gate import AdmissionGate
+    from pirn.engine.admission.admission_ticket import AdmissionTicket
+    from pirn.engine.admission.admission_ticket_holder import AdmissionTicketHolder
     from pirn.engine.dispatchers.dispatcher import Dispatcher
 
 
@@ -97,12 +115,28 @@ class GovernedDispatch:
         """The dispatcher executing each attempt."""
         return self._dispatcher
 
-    async def dispatch(self, knot: Knot, inputs: Mapping[str, Any]) -> tuple[Result[Any], int]:
+    async def dispatch(
+        self,
+        knot: Knot,
+        inputs: Mapping[str, Any],
+        *,
+        gate: AdmissionGate | None = None,
+        ticket_holder: AdmissionTicketHolder | None = None,
+    ) -> tuple[Result[Any], int]:
         """Dispatch *knot* under its config's timeout and retry policy.
 
         Args:
             knot: The run-scoped knot to execute.
             inputs: Its materialized inputs, reused verbatim on every attempt.
+            gate: The run's admission gate.  With *ticket_holder* also given,
+                a retry's backoff sleep releases the slot and re-admits
+                before the next attempt (PIR-870); omit both to sleep
+                without touching admission, e.g. a direct unit test of this
+                class.
+            ticket_holder: Holds the ticket currently backing *knot*'s
+                admission.  Updated in place with the freshly re-admitted
+                ticket before each retried attempt, so the caller reads back
+                whichever ticket is current once dispatch returns.
 
         Returns:
             The final attempt's result and how many attempts were made.
@@ -117,7 +151,41 @@ class GovernedDispatch:
                 return result, attempts
             if not policy.should_retry(attempts, result.record):
                 return result, attempts
-            await self._sleep(policy.delay_before_retry(attempts - 1, result.record, rng=self._rng))
+            delay = policy.delay_before_retry(attempts - 1, result.record, rng=self._rng)
+            if gate is not None and ticket_holder is not None:
+                await self._release_sleep_and_readmit(gate, ticket_holder, knot, delay)
+            else:
+                await self._sleep(delay)
+
+    async def _release_sleep_and_readmit(
+        self,
+        gate: AdmissionGate,
+        ticket_holder: AdmissionTicketHolder,
+        knot: Knot,
+        delay: float,
+    ) -> None:
+        """Give the slot back for the backoff sleep, then re-admit *knot*.
+
+        A container's ticket holds no slot at all (``AdmissionTicket.held``
+        is ``False``), so there is nothing to release or re-admit for one --
+        it just sleeps, same as with no gate at all.
+        """
+        current = ticket_holder.ticket
+        if not current.held:
+            await self._sleep(delay)
+            return
+        gate.release(current)
+        await self._sleep(delay)
+        ticket_holder.ticket = await self._readmit(gate, knot)
+
+    @staticmethod
+    async def _readmit(gate: AdmissionGate, knot: Knot) -> AdmissionTicket:
+        """Block until *gate* admits *knot* again, polling on each release."""
+        while True:
+            ticket = gate.try_admit(knot)
+            if ticket is not None:
+                return ticket
+            await gate.wait_for_release()
 
     async def _attempt(
         self, knot: Knot, inputs: Mapping[str, Any], timeout: float | None
