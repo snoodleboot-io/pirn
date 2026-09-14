@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``NGramExtractor`` — extract character or word n-grams from a text column.
 
 Appends ``ngram_<analyzer>_<n>_<i>`` feature names for each of the

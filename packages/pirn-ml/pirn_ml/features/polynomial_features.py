@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PolynomialFeatures`` — emit polynomial / interaction feature names.
 
 Algorithm:
@@ -68,9 +70,9 @@ class PolynomialFeatures(Knot):
         if not column_tuple:
             raise ValueError("PolynomialFeatures: columns must be non-empty")
         for column in column_tuple:
-            if not isinstance(column, str) or not column:  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+            if not isinstance(column, str) or not column:
                 raise ValueError("PolynomialFeatures: every column name must be a non-empty string")
-        if not isinstance(degree, int):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(degree, int):
             raise TypeError("PolynomialFeatures: degree must be an int")
         if degree < 2:
             raise ValueError("PolynomialFeatures: degree must be >= 2")

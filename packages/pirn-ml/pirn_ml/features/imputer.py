@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``Imputer`` — missing-value imputation over a :class:`SplitManifest`.
 
 Algorithm:
@@ -82,7 +84,7 @@ class Imputer(Knot):
         if not column_tuple:
             raise ValueError("Imputer: columns must be non-empty")
         for column in column_tuple:
-            if not isinstance(column, str) or not column:  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+            if not isinstance(column, str) or not column:
                 raise ValueError("Imputer: every column name must be a non-empty string")
         if method not in self.valid_methods:
             raise ValueError(f"Imputer: method must be one of {sorted(self.valid_methods)}")

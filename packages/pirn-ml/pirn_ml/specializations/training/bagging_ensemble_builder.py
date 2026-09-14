@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``BaggingEnsembleBuilder`` — train N models on bootstrap samples and
 aggregate predictions.
 
@@ -138,7 +140,7 @@ class BaggingEnsembleBuilder(SubTapestry):
         split_node = Parameter(
             "split", SplitManifest, default=split, _config=KnotConfig(id="split")
         )
-        base_models = []
+        base_models: list[Knot] = []
         for i in range(n_estimators):
             model = Trainer(
                 split=split_node,

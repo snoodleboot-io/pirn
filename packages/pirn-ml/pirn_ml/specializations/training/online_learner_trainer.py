@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``OnlineLearnerTrainer`` — update a model incrementally via
 ``partial_fit`` on mini-batches.
 

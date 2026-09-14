@@ -5,7 +5,7 @@ Algorithm:
     1. Receive ``model`` (ModelManifest) and ``split`` (SplitManifest) via process().
     2. Wire an inner Tapestry with Evaluator using the canonical regression metrics
        (shared with the other ``*_eval_pipeline`` SubTapestries via
-       :class:`~pirn_ml.specializations.evaluation._eval_pipeline_base._EvalPipelineBase`).
+       :class:`~pirn_ml.specializations.evaluation.eval_pipeline_base.EvalPipelineBase`).
     3. Run the inner Tapestry via _run_inner() and return the EvalMetadata.
 
 
@@ -20,12 +20,12 @@ from typing import Any, ClassVar
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
-from pirn_ml.specializations.evaluation._eval_pipeline_base import _EvalPipelineBase
+from pirn_ml.specializations.evaluation.eval_pipeline_base import EvalPipelineBase
 from pirn_ml.types.model_manifest import ModelManifest
 from pirn_ml.types.split_manifest import SplitManifest
 
 
-class RegressionEvalPipeline(_EvalPipelineBase):
+class RegressionEvalPipeline(EvalPipelineBase):
     """Evaluate a regressor with RMSE, MAE, R-squared, and MAPE."""
 
     _metrics: ClassVar[tuple[str, ...]] = (

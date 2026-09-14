@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FourierFeatureGenerator`` — add sin/cos features for periodic time series.
 
 Appends ``<column>_sin_<period>`` and ``<column>_cos_<period>`` feature names

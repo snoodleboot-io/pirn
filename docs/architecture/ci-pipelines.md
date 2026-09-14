@@ -211,9 +211,9 @@ initial cut is not policy — the list is exactly the set of subpackages at 0.
 | pirn-ml | `pirn_ml/disassemblers` | 0 | yes |
 | pirn-ml | `pirn_ml/evaluation` | 0 | yes |
 | pirn-ml | `pirn_ml/features` | 0 | yes |
+| pirn-ml | `pirn_ml/specializations` | 0 | yes |
+| pirn-ml | `pirn_ml/training` | 0 | yes |
 | pirn-ml | `pirn_ml/types` | 0 | yes |
-| pirn-ml | `pirn_ml/training` | 28 |  |
-| pirn-ml | `pirn_ml/specializations` | 258 |  |
 | pirn-oilgas | `pirn_oilgas/*.py` | 0 | yes |
 | pirn-oilgas | `pirn_oilgas/assemblers` | 0 | yes |
 | pirn-oilgas | `pirn_oilgas/disassemblers` | 0 | yes |
@@ -243,7 +243,7 @@ initial cut is not policy — the list is exactly the set of subpackages at 0.
 | pirn-signal | `pirn_signal/wavelets` | 0 | yes |
 
 Totals outside the lists: pirn-core 1379, pirn-agents 1709, pirn-data 514,
-pirn-health 0, pirn-ml 286, pirn-oilgas 0, pirn-signal 0. The dominant
+pirn-health 0, pirn-ml 0, pirn-oilgas 0, pirn-signal 0. The dominant
 remaining categories are `reportUnknownMemberType` / `reportUnknownVariableType`
 on untyped third-party returns (cloud SDKs, `cloudpickle`, DB drivers,
 numpy-heavy domain code), `reportMissingTypeStubs`, `reportPrivateUsage` on

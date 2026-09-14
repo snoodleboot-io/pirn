@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``FeatureSelector`` — keep the top-K features in a :class:`SplitManifest`.
 
 The actual scoring is deferred to a later runtime phase. At this layer
@@ -78,7 +80,7 @@ class FeatureSelector(Knot):
             TypeError: If k is not an int.
             ValueError: If k < 1 or method is invalid.
         """
-        if not isinstance(k, int):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(k, int):
             raise TypeError("FeatureSelector: k must be an int")
         if k < 1:
             raise ValueError("FeatureSelector: k must be >= 1")

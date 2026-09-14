@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``RankingEvaluator`` — Knot that computes NDCG@K, MAP@K, MRR, and
 Precision@K for a recommender or ranking model.
 

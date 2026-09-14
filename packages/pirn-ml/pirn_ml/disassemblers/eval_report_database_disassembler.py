@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``EvalReportDatabaseDisassembler`` — flatten a :class:`EvalReportPayload` to database rows.
 
 Sits between domain knots that produce an :class:`EvalReportPayload` and a
@@ -62,7 +64,7 @@ class EvalReportDatabaseDisassembler(Disassembler):
         Raises:
             TypeError: If ``payload`` is not an :class:`EvalReportPayload`.
         """
-        if not isinstance(payload, EvalReportPayload):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(payload, EvalReportPayload):
             raise TypeError(
                 f"EvalReportDatabaseDisassembler: payload must be EvalReportPayload, "
                 f"got {type(payload).__name__}"

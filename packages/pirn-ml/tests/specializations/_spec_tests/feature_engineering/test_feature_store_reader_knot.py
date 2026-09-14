@@ -1,4 +1,4 @@
-"""Tests for :class:`_FeatureStoreReaderKnot`."""
+"""Tests for :class:`FeatureStoreReaderKnot`."""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ import unittest
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_ml.specializations.feature_engineering._feature_store_reader_knot import (
-    _FeatureStoreReaderKnot,
+from pirn_ml.specializations.feature_engineering.feature_store_reader_knot import (
+    FeatureStoreReaderKnot,
 )
 from pirn_ml.types.dataset_manifest import DatasetManifest
 from pirn_ml.types.split_manifest import SplitManifest
@@ -26,7 +26,7 @@ def _split_fixture() -> SplitManifest:
 class TestProcess(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_non_provider(self) -> None:
         with Tapestry():
-            k = _FeatureStoreReaderKnot.__new__(_FeatureStoreReaderKnot)
+            k = FeatureStoreReaderKnot.__new__(FeatureStoreReaderKnot)
             object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaises((TypeError, ValueError)):
             await k.process(
@@ -38,7 +38,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_empty_entity_keys(self) -> None:
         with Tapestry():
-            k = _FeatureStoreReaderKnot.__new__(_FeatureStoreReaderKnot)
+            k = FeatureStoreReaderKnot.__new__(FeatureStoreReaderKnot)
             object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaises((TypeError, ValueError)):
             await k.process(
@@ -50,7 +50,7 @@ class TestProcess(unittest.IsolatedAsyncioTestCase):
 
     async def test_rejects_empty_feature_names(self) -> None:
         with Tapestry():
-            k = _FeatureStoreReaderKnot.__new__(_FeatureStoreReaderKnot)
+            k = FeatureStoreReaderKnot.__new__(FeatureStoreReaderKnot)
             object.__setattr__(k, "_config", KnotConfig(id="x"))
         with self.assertRaises((TypeError, ValueError)):
             await k.process(

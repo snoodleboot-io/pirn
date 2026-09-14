@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``TrainedModelObjectStoreDisassembler`` — serialise a :class:`TrainedModelPayload` to raw bytes.
 
 Sits between domain knots that produce a :class:`TrainedModelPayload` and an
@@ -29,6 +31,7 @@ from pirn.core.disassembler import Disassembler
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_ml.ml_optional_dependency import MlOptionalDependency
 from pirn_ml.types.trained_model_payload import TrainedModelPayload
 
 
@@ -64,7 +67,7 @@ class TrainedModelObjectStoreDisassembler(Disassembler):
         Raises:
             TypeError: If ``payload`` is not a :class:`TrainedModelPayload`.
         """
-        if not isinstance(payload, TrainedModelPayload):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(payload, TrainedModelPayload):
             raise TypeError(
                 f"TrainedModelObjectStoreDisassembler: payload must be TrainedModelPayload, "
                 f"got {type(payload).__name__}"
@@ -72,19 +75,8 @@ class TrainedModelObjectStoreDisassembler(Disassembler):
         return await asyncio.to_thread(TrainedModelObjectStoreDisassembler._serialize, payload)
 
     @staticmethod
-    def _load_joblib() -> Any:
-        try:
-            import joblib  # type: ignore[import-untyped]
-        except ImportError as exc:
-            raise ImportError(
-                "TrainedModelObjectStoreDisassembler requires joblib. "
-                "Install with `pip install pirn-ml[ml]`."
-            ) from exc
-        return joblib
-
-    @staticmethod
     def _serialize(payload: TrainedModelPayload) -> bytes:
-        joblib = TrainedModelObjectStoreDisassembler._load_joblib()
+        joblib = MlOptionalDependency.require("joblib", extra="ml")
         buf = io.BytesIO()
         joblib.dump(payload.estimator.estimator, buf)
         return buf.getvalue()
