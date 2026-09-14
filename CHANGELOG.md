@@ -74,6 +74,41 @@ All 159 unit test files that exercise optional-dependency code now wrap imports 
 
 ### Changed
 
+#### Specialization results, document loader, and PromptCache onto core seams (ADR agents-speaks-core WS6b, PIR-868)
+
+- **`AgentResult` family onto `Payload[Frame, D]`.** The 11 specialization-pattern
+  result types (`EvaluatorOptimizerResult`, `LatsResult`,
+  `OrchestratorWorkersResult`, `WorkerTaskResult`, `PlanReActResult`,
+  `PromptChainResult`, `SimulationResult`, `ReflexionResult`, `ReWooResult`,
+  `FallbackResult`, `SelfAskResult`) are now `Payload[<Frame>, D]` instead of
+  plain frozen-dataclass `AgentResult` subclasses, mirroring `AgentResponse`/
+  `ConversationPayload` (WS6b): each gets a new `*Frame` type carrying the
+  run-level facts (iterations, scores, candidate ids, budgets) and `D` carries
+  the answer/content. `AgentResult` itself is now a thin generic `Payload`
+  base. Pre-ADR field names stay available as read-only properties, so every
+  existing construction and attribute-access call site keeps compiling
+  unchanged; a structural `__eq__` on `AgentResult` preserves value-equality
+  expectations dropped by no longer being a dataclass.
+- **Document loader split.** `specializations/document_processing/_document_loader.py`
+  (an "ingestor" reading files/HTTP directly inside `process()`) is deleted
+  per `docs/contributing/assembler-disassembler-pattern.md` and replaced by
+  `_DocumentSource` (a `Source` knot modeled on `ObjectStoreReadSource`: the
+  guarded I/O, bytes out) and `_DocumentAssembler` (a `pirn.core.assembler.Assembler`:
+  bytes in, no I/O, UTF-8 decode). `DocumentIngestionPipeline`'s public
+  constructor is unchanged; every SSRF/path-traversal guard is preserved
+  unchanged in behaviour (still delegated to `_DocumentSourceReader`).
+- **`PromptCache` onto a core `DataStore`.** Entries move off a private
+  `dict[str, CacheEntry]` onto a core `InMemoryDataStore` keyed by content
+  hash, exactly like `SemanticResultCache`; the embedding index stays the
+  plain `SimilarityIndex` resource. Because `DataStore` is async-only with no
+  enumeration, `invalidate`/`purge_expired`/`__len__` are now
+  `ainvalidate`/`apurge_expired`/`asize`; the previous synchronous names
+  remain for one deprecation cycle as wrappers that bridge to the event loop
+  (raising `RuntimeError` if called from inside one already running) and emit
+  `DeprecationWarning`. The `max_entries` bound is now enforced by
+  `InMemoryDataStore` (evicts the least-recently-*read* entry), not the
+  previous first-inserted-wins policy.
+
 #### `pirn-agents` hashing seams moved onto `pirn.core.hashing.content_hash` (ADR agents-speaks-core WS2 part 2)
 
 `pirn_agents.builder.agent_knot_id_factory.AgentKnotIdFactory.derive` and
