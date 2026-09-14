@@ -18,7 +18,7 @@ DatasetLoader → TrainTestSplit → [Scaler / Encoder / Imputer / EmbeddingExtr
 
 Each stage is a `Knot`. Wire them in a `Tapestry` context; pirn handles execution order, content-addressed lineage, and result routing. Swap any knot without touching adjacent knots.
 
-**Artifact formats** are separate connector classes (`pirn/domains/connectors/file_formats/`) and plug into `ModelSerializer` (or are used standalone). Each format class receives or emits raw bytes and surfaces metadata alongside the artifact. Two formats — `JoblibFormat` and `PytorchFormat` — wrap pickle-based serialisation; both enforce an HMAC-SHA256 signing contract by default. `SafetensorsFormat`, `OnnxFormat`, `GgufFormat`, and `TfliteFormat` have no pickle path and need no signer.
+**Artifact formats** are separate connector classes (`pirn/connectors/file_formats/`) and plug into `ModelSerializer` (or are used standalone). Each format class receives or emits raw bytes and surfaces metadata alongside the artifact. Two formats — `JoblibFormat` and `PytorchFormat` — wrap pickle-based serialisation; both enforce an HMAC-SHA256 signing contract by default. `SafetensorsFormat`, `OnnxFormat`, `GgufFormat`, and `TfliteFormat` have no pickle path and need no signer.
 
 **Provider interfaces** (`EmbeddingProvider`, `FeatureStoreProvider`, `ImageEncoderProvider`, `LineageStore`) define the external-system contracts. You supply the implementation; pirn defines what it calls.
 
@@ -158,7 +158,7 @@ Do not replace these with disassemblers.
 
 ## Artifact formats and security
 
-All format classes live in `pirn/domains/connectors/file_formats/`.
+All format classes live in `pirn/connectors/file_formats/`.
 
 | Format | Class | Extra | Signer required | Notes |
 |--------|-------|-------|-----------------|-------|

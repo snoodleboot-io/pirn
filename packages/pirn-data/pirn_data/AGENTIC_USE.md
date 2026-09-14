@@ -97,7 +97,7 @@ pirn_data/
 └── specialized/                # Tier-4 specialised adapters (Lance, Eland)
 ```
 
-File formats and object stores live under `pirn/domains/connectors/`, not here.
+File formats and object stores live under `pirn/connectors/`, not here.
 
 ---
 

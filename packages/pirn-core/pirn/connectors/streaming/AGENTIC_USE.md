@@ -13,7 +13,7 @@ The key distinction from `pirn.streaming`: these brokers are used for discrete m
 ## Source map
 
 ```
-pirn/domains/connectors/streaming/
+pirn/connectors/streaming/
 ├── kafka_config.py              KafkaConfig              — bootstrap_servers, topic, group_id, security
 ├── kafka_broker.py              KafkaBroker              — Kafka via aiokafka
 ├── kinesis_config.py            KinesisConfig            — stream_name, region, credentials

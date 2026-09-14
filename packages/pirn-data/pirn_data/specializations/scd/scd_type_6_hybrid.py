@@ -39,7 +39,7 @@ References:
     [1] Kimball Group — SCD Type 6 (hybrid):
         https://www.kimballgroup.com/data-warehouse-business-intelligence-resources/kimball-techniques/dimensional-modeling-techniques/type-6/
     [2] pirn — DatabaseConnectionPool interface:
-        pirn/domains/connectors/database_connection_pool.py
+        pirn/connectors/database_connection_pool.py
     [3] pirn — IdentifierValidator (SQL injection guard):
         pirn_data/identifier_validator.py
 """

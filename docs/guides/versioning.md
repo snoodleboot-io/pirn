@@ -5,6 +5,17 @@ six domains (`pirn-signal`, `pirn-data`, `pirn-ml`, `pirn-agents`, `pirn-health`
 `pirn-oilgas`). This page is the contract for how they are versioned relative to
 one another (ADR-6 / SCD-27, SCD-29).
 
+## Alpha policy: replaced names are deleted, never deprecated
+
+Until `1.0`, pirn is **alpha**. When a public name is renamed, replaced or
+superseded, the old name is **deleted in the same change** and every caller, test
+and doc moves to the replacement. pirn ships no `DeprecationWarning`s, no
+one-cycle shims, no compatibility aliases (`old_name = NewClass.method`,
+`OldName = NewName`) and no re-export modules at old import paths. Each removal is
+listed in the `CHANGELOG` under **Removed** / **Renamed** with its replacement, so
+upgrading across a minor is a matter of applying that table. Deprecation cycles
+begin only once `1.0` declares the surface stable.
+
 ## Two phases
 
 ### 1. Lockstep — through the migration, up to 1.0
@@ -29,13 +40,10 @@ dependencies = ["pirn-core>=0.4.0,<0.5.0"]   # pirn-ml additionally pins pirn-da
   versions are equal **and** every inter-package pin floors at that version with
   the correct cap.
 
-### 2. The 1.0 release — coordinated, breaking
+### 2. The 1.0 release — coordinated
 
-`1.0` is a **single coordinated lockstep release** of all eight packages. It is the
-point at which the deprecation window closes: the `pirn.domains.*` compatibility
-shim is removed (ADR-5), and `import pirn.domains.<x>` stops working — consumers
-must use `import pirn_<x>` (run [`pirn-migrate-imports`](migrating-to-split-packages.md)).
-Because it is breaking for every package, all eight bump to `1.0.0` together.
+`1.0` is a **single coordinated lockstep release** of all eight packages: the point
+at which the public surface is declared stable. All eight bump to `1.0.0` together.
 
 ### 3. Independent semver — after 1.0
 

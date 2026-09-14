@@ -13,7 +13,7 @@ The primary use case is human notification and escalation at the end of a pipeli
 ## Source map
 
 ```
-pirn/domains/connectors/messaging/
+pirn/connectors/messaging/
 ├── slack_config.py          SlackConfig          — bot_token, channel (default)
 ├── slack_client.py          SlackClient          — Slack Web API client
 ├── teams_config.py          TeamsConfig          — webhook_url or tenant + client creds

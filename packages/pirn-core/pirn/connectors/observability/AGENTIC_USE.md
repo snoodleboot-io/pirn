@@ -13,7 +13,7 @@ Each observability backend has a `*Config` (API endpoint, credentials) and a `*C
 ## Source map
 
 ```
-pirn/domains/connectors/observability/
+pirn/connectors/observability/
 ├── datadog_config.py         DatadogConfig         — api_key, site (e.g. datadoghq.com), tags
 ├── datadog_client.py         DatadogClient         — Datadog Metrics/Events/Logs API
 ├── grafana_config.py         GrafanaConfig         — base_url, api_key, org_id

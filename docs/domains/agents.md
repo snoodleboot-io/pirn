@@ -10,9 +10,6 @@ pip install pirn-agents
 
 **Registration (ADR-4):** `import pirn_agents` self-registers the agent-domain knots under `library="pirn"`, so a YAML pipeline can resolve them by bare name. In Python you import the knot classes directly (same effect). To register every installed domain at once, call `pirn.discover_installed_domains()`.
 
-!!! warning "Legacy `pirn.domains.agents` is deprecated"
-    The old `pirn.domains.agents` import path still works for one deprecation cycle via a compat shim (it emits a `DeprecationWarning` and defers to `pirn_agents`). Migrate to `pirn_agents` — see the [migration guide](../guides/migrating-to-split-packages.md).
-
 ---
 
 ## Overview

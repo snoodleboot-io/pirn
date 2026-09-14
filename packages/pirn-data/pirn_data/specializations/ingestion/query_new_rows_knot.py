@@ -20,7 +20,7 @@ Algorithm:
 
 References:
     [1] pirn — DatabaseConnectionPool interface:
-        pirn/domains/connectors/database_connection_pool.py
+        pirn/connectors/database_connection_pool.py
     [2] pirn — WatermarkIncrementalExtract:
         pirn_data/specializations/ingestion/watermark_incremental_extract.py
 """

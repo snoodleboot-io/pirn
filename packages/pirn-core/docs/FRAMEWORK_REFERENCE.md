@@ -647,7 +647,7 @@ to `ExceptionRecord`.
   `register_celery_worker_task = CeleryDispatcher.register_worker_task`, the
   viz aliases (`mermaid_for_*`, `html_for_*`, `scan_folder`,
   `generate_explorer_html`). The console scripts point at
-  `TapestryCheckCli.main`, `ExploreCli.main` and `ImportMigrationCli.main`.
+  `TapestryCheckCli.main` and `ExploreCli.main`.
 - **`_CloudObjectStore` composes over `ObjectStore`.** `S3DataStore`,
   `GCSDataStore` and `AzureBlobDataStore` no longer open an SDK client per
   call: each lazily builds its connector `ObjectStore` (`S3Store`, `GCSStore`,
@@ -665,7 +665,7 @@ to `ExceptionRecord`.
   write has no connector counterpart).
 - **pyright strict is per subpackage, ratcheted.** Each package's
   `[tool.pyright].strict` lists the subpackages that pass strict with 0
-  errors (core: `_migrate`, `check`, `domains`, `emitters`, `exceptions`,
+  errors (core: `check`, `emitters`, `exceptions`,
   `managers`, `recording`, `security`, `streaming`, `viz`, `yaml_loader` and
   the root modules; `backends`, `core`, `connectors`, `engine`, `nodes`,
   `triggers` are the burn-down). New subpackages start strict, a subpackage

@@ -11,7 +11,7 @@ A `FileFormat` is a pure codec: `encode(value) -> bytes` and `decode(bytes) -> v
 ## Source map
 
 ```
-pirn/domains/connectors/file_formats/
+pirn/connectors/file_formats/
 │
 │  ── Tabular / columnar ──
 ├── parquet_format.py        ParquetFormat        — Apache Parquet (columnar, compressed)

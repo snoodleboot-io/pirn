@@ -465,16 +465,16 @@ To report a vulnerability, see [SECURITY.md](SECURITY.md).
 
 ## Domain libraries
 
-pirn ships domain-specific knot libraries for common data engineering and ML workloads. All domain libraries live under `pirn/domains/` in the same package — dependencies are isolated via optional extras so you install only what your project uses.
+pirn ships domain-specific knot libraries for common data engineering and ML workloads. Each domain is its own distribution that imports as `pirn_<domain>` and depends on `pirn-core`, so you install only what your project uses; heavy backends stay behind per-domain extras.
 
-| Domain | Description | Extra |
+| Domain | Description | Install |
 |--------|-------------|-------|
-| Data | Tiered data-frame knots (pandas, Polars, Ibis, Spark, DuckDB), lakehouse adapters, tabular transforms | `pirn[data]` |
-| Agents | LLM-backed knots, tool use, memory stores, planning, RAG, ReAct, multi-agent patterns | `pirn[agents]` |
-| ML | Data prep, feature engineering, training, evaluation, deployment, feature stores | `pirn[ml]` |
-| Health | DICOM, FHIR, HL7v2, EDF/BDF, NIfTI, FASTA/FASTQ, VCF — medical imaging, genomics, clinical data | `pirn[health]` |
-| Signal | Time-series, DSP, audio (WAV/FLAC/MP3), EEG/BDF, wavelet transforms | `pirn[signal]` |
-| Oil & Gas | SEG-Y seismic, LAS well-log, WITSML — subsurface data connectors | `pirn[oilgas]` |
+| Data | Tiered data-frame knots (pandas, Polars, Ibis, Spark, DuckDB), lakehouse adapters, tabular transforms | `pip install pirn-data` |
+| Agents | LLM-backed knots, tool use, memory stores, planning, RAG, ReAct, multi-agent patterns | `pip install pirn-agents` |
+| ML | Data prep, feature engineering, training, evaluation, deployment, feature stores | `pip install pirn-ml` |
+| Health | DICOM, FHIR, HL7v2, EDF/BDF, NIfTI, FASTA/FASTQ, VCF — medical imaging, genomics, clinical data | `pip install pirn-health` |
+| Signal | Time-series, DSP, audio (WAV/FLAC/MP3), EEG/BDF, wavelet transforms | `pip install pirn-signal` |
+| Oil & Gas | SEG-Y seismic, LAS well-log, WITSML — subsurface data connectors | `pip install pirn-oilgas` |
 
 ### File format coverage
 

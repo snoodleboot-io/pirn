@@ -11,7 +11,7 @@ Each SaaS service has a `*Config` (API credentials, workspace/org identifiers) a
 ## Source map
 
 ```
-pirn/domains/connectors/saas/
+pirn/connectors/saas/
 ├── stripe_config.py           StripeConfig           — api_key, webhook_secret
 ├── stripe_client.py           StripeClient           — Stripe API (payments, subscriptions, events)
 ├── salesforce_config.py       SalesforceConfig       — instance_url, client_id, client_secret, username

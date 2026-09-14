@@ -13,7 +13,7 @@ Each integration has a `*Config` (API credentials, base URL) and a `*Client` (th
 ## Source map
 
 ```
-pirn/domains/connectors/bi_catalog/
+pirn/connectors/bi_catalog/
 ├── dbt_artifacts_config.py   DbtArtifactsConfig   — manifest_path, catalog_path (local file paths)
 ├── dbt_artifacts_reader.py   DbtArtifactsReader   — reads dbt manifest.json / catalog.json
 ├── fivetran_config.py        FivetranConfig        — api_key, api_secret

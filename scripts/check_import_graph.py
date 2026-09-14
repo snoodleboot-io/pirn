@@ -9,12 +9,6 @@ C2 — *core is a sink.*
     domain package (``pirn_signal``, ``pirn_data``, ``pirn_ml``, ``pirn_agents``,
     ``pirn_health``, ``pirn_oilgas``). Core must depend on zero domains.
 
-    (During Phase 1 the six domains still ride along *inside* core's tree as
-    ``pirn.domains.*``; those are not top-level ``pirn_<domain>`` packages, so
-    they do not — and must not — trip this check. The check guards the
-    post-extraction boundary so a stray ``import pirn_data`` can never leak into
-    core.)
-
 No-backend-at-import — *core stays dependency-light.*
     Importing ``pirn`` in the current environment must not pull any optional
     connector/backend third-party package (asyncpg, aioboto3, kafka clients,

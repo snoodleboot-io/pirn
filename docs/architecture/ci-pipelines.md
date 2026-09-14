@@ -132,9 +132,7 @@ initial cut is not policy — the list is exactly the set of subpackages at 0.
 | package | subpackage | strict errors | strict |
 |---|---|---:|:---:|
 | pirn-core | `pirn/*.py` | 0 | yes |
-| pirn-core | `pirn/_migrate` | 0 | yes |
 | pirn-core | `pirn/check` | 0 | yes |
-| pirn-core | `pirn/domains` | 0 | yes |
 | pirn-core | `pirn/emitters` | 0 | yes |
 | pirn-core | `pirn/exceptions` | 0 | yes |
 | pirn-core | `pirn/managers` | 0 | yes |

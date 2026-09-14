@@ -408,7 +408,7 @@ def test_core_nodes_allowlist_exempts_rules_5_to_7() -> None:
         "pirn-core", "pirn/core/parameter.py"
     )
     assert not check_conventions._is_exempt_from_knot_purity(
-        "pirn-core", "pirn/domains/data/foo.py"
+        "pirn-core", "pirn/connectors/foo.py"
     )
     assert not check_conventions._is_exempt_from_knot_purity(
         "pirn-agents", "pirn/nodes/gate/gate.py"

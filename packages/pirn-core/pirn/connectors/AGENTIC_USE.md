@@ -17,7 +17,7 @@ All pools, stores, and clients inherit from `PirnOpaqueValue` — pirn serialise
 ## Source map
 
 ```
-pirn/domains/connectors/
+pirn/connectors/
 ├── connection_config.py         ConnectionConfig          — base: host, port, database, credentials fields
 ├── database_connection_pool.py  DatabaseConnectionPool    — base: acquire(), release(), close()
 ├── object_store.py              ObjectStore               — base: read(), write(), list(), delete()

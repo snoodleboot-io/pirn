@@ -19,8 +19,11 @@ inside `pirn`:
 
 Install only the domains you need; each depends on `pirn-core` (the `pirn_ml`
 package additionally depends on `pirn_data`, ADR-3). For monolith ergonomics,
-the opt-in `pip install 'pirn-core[all-domains]'` aggregate pulls all six at
-once — see the [migration guide](../guides/migrating-to-split-packages.md).
+the opt-in `pip install 'pirn-core[all-domains]'` aggregate pulls all six
+domain *packages* at once (ADR-5 Option C). It is not the default install —
+`pip install pirn-core` stays domain-free (constraint C2) — and it does not pull
+the heavy per-domain backend extras; add those as needed, e.g.
+`pip install 'pirn-data[polars]' 'pirn-health[health]'`.
 
 ## Registry self-registration
 
@@ -41,11 +44,3 @@ import pirn
 
 pirn.discover_installed_domains()   # imports every installed pirn_<x>
 ```
-
-## Legacy `pirn.domains.*` paths (deprecated)
-
-The pre-split import paths `pirn.domains.<x>` still resolve for **one
-deprecation cycle** via a compatibility shim that defers to the standalone
-`pirn_<x>` package and emits a `DeprecationWarning`. Migrate to the
-`pirn_<x>` imports — the [migration guide](../guides/migrating-to-split-packages.md)
-covers the automated codemod (`pirn-migrate-imports`) and the full mapping.
