@@ -479,6 +479,28 @@ class TestInnerRunsMayNameTheirOwnLimits(unittest.IsolatedAsyncioTestCase):
 
 
 class TestInnerRunsInheritTheDispatcher(unittest.IsolatedAsyncioTestCase):
+    async def test_a_container_does_not_occupy_the_pool_its_own_leaves_need(self) -> None:
+        # Arrange (PIR-870): a pool of exactly one worker.  Before this fix
+        # the container itself consumed that one worker for the life of its
+        # inner run, and the inner run's leaves -- dispatched on the very
+        # same pool -- could never get a worker to make progress: deadlock.
+        # The container must run on the event loop instead, leaving the
+        # pool's one worker free for its leaves.
+        dispatcher = ThreadDispatcher(max_workers=1)
+        gauge = _Gauge(hold=1)
+        with Tapestry(dispatcher=dispatcher) as t:
+            _Sub(gauge=gauge, width=2, blocking=True, _config=KnotConfig(id="sub"))
+
+        # Act
+        try:
+            result = await asyncio.wait_for(t.run(RunRequest()), timeout=10)
+        finally:
+            dispatcher.shutdown(wait=False)
+
+        # Assert
+        self.assertTrue(result.succeeded, result.exceptions)
+        self.assertEqual(gauge.started, 2)
+
     async def test_inner_leaves_run_on_the_outer_thread_dispatcher(self) -> None:
         # Arrange
         dispatcher = ThreadDispatcher(max_workers=8)

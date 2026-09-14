@@ -220,3 +220,57 @@ async def test_a_cancellation_during_backoff_propagates() -> None:
 def test_exposes_the_wrapped_dispatcher() -> None:
     dispatcher = _Scripted([])
     assert GovernedDispatch(dispatcher).dispatcher is dispatcher
+
+
+class _Container(Knot):
+    """A stand-in for SubTapestry/LoopSubTapestry: holds no admission slot."""
+
+    _holds_admission_slot = False
+
+    async def process(self, **_: Any) -> str:
+        return "unused"
+
+
+class _RoutingDispatcher(Dispatcher):
+    """Records which dispatcher instance a knot actually ran on."""
+
+    def __init__(self) -> None:
+        self.container_dispatcher = _Scripted([Ok(value="container")])
+        self.calls: list[str] = []
+
+    @property
+    def name(self) -> str:
+        return "Routing"
+
+    async def dispatch(self, knot: Knot, inputs: Mapping[str, Any]) -> Result[Any]:
+        self.calls.append("leaf")
+        return Ok(value="leaf")
+
+    def dispatcher_for_container(self, knot: Knot) -> Dispatcher:
+        self.calls.append("container")
+        return self.container_dispatcher
+
+
+async def test_a_leaf_knot_dispatches_on_the_wrapped_dispatcher() -> None:
+    dispatcher = _RoutingDispatcher()
+    result, _ = await GovernedDispatch(dispatcher).dispatch(_knot(), {})
+    assert result == Ok(value="leaf")
+    assert dispatcher.calls == ["leaf"]
+    assert dispatcher.container_dispatcher.calls == 0
+
+
+async def test_a_container_knot_dispatches_on_dispatcher_for_container() -> None:
+    # Arrange (PIR-870): a container must run on whatever
+    # ``dispatcher_for_container`` returns, not the wrapped dispatcher
+    # itself -- ``ThreadDispatcher`` uses this to keep a container off its
+    # pool workers.
+    dispatcher = _RoutingDispatcher()
+    container = _Container(_config=KnotConfig(id="c"))
+
+    # Act
+    result, _ = await GovernedDispatch(dispatcher).dispatch(container, {})
+
+    # Assert
+    assert result == Ok(value="container")
+    assert dispatcher.calls == ["container"]
+    assert dispatcher.container_dispatcher.calls == 1

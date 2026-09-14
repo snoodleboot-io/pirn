@@ -10,11 +10,16 @@ Algorithm:
     For a knot with ``timeout = t`` (or ``None``) and ``retry = p`` (or
     ``None``):
 
-    1. Dispatch one attempt.  With ``t`` set, the attempt runs under
-       ``asyncio.wait_for(…, t)``; on expiry the attempt's task is cancelled
-       and the attempt's result is ``Err(KnotTimeoutError)``.  ``Knot.__call__``
-       lets that cancellation propagate (PIR-849), which is what makes the
-       expiry observable at all.
+    1. Dispatch one attempt on the dispatcher this knot should run on: the
+       wrapped dispatcher itself for a leaf, or
+       ``dispatcher.dispatcher_for_container(knot)`` for a container
+       (``type(knot)._holds_admission_slot`` is ``False`` -- ``SubTapestry``,
+       ``LoopSubTapestry``, a loop iteration; PIR-870).  With ``t`` set, the
+       attempt runs under ``asyncio.wait_for(…, t)``; on expiry the
+       attempt's task is cancelled and the attempt's result is
+       ``Err(KnotTimeoutError)``.  ``Knot.__call__`` lets that cancellation
+       propagate (PIR-849), which is what makes the expiry observable at
+       all.
     2. If the result is not an ``Err``, or ``p`` is ``None``, or
        ``p.should_retry(attempts, err.record)`` is ``False``: return the
        result and the attempt count.
@@ -118,10 +123,15 @@ class GovernedDispatch:
         self, knot: Knot, inputs: Mapping[str, Any], timeout: float | None
     ) -> Result[Any]:
         """Run one attempt, converting a timeout into ``Err(KnotTimeoutError)``."""
+        dispatcher = (
+            self._dispatcher
+            if type(knot)._holds_admission_slot
+            else self._dispatcher.dispatcher_for_container(knot)
+        )
         if timeout is None:
-            return await self._dispatcher.dispatch(knot, inputs)
+            return await dispatcher.dispatch(knot, inputs)
         try:
-            return await asyncio.wait_for(self._dispatcher.dispatch(knot, inputs), timeout)
+            return await asyncio.wait_for(dispatcher.dispatch(knot, inputs), timeout)
         except TimeoutError:
             return Err(
                 record=ExceptionRecord.for_knot(
