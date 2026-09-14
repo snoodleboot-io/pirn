@@ -33,7 +33,7 @@ alternatives to each other:
 
 ```
        .pattern()/.llm()/...                      .to_spec()               .to_pipeline_spec()
-Agent.builder() ─────────────► AgentBuilder ─────────────────► AgentSpec ──┬──► JSON/YAML (legacy, deprecated)
+Agent.builder() ─────────────► AgentBuilder ─────────────────► AgentSpec ──┬──► flat dict (.to_dict())
                                  ▲     │                          │        └──► core PipelineSpec / YAML document
 AgentPresets.builder_for() ──────┘     │ .build()                 │ Agent.from_spec(spec,
                                        ▼                          │        references=…)
@@ -171,12 +171,10 @@ with Tapestry() as t:
     agent = Agent.from_spec(spec, references=references).input("what changed?").build()
 ```
 
-The older flat dialect (`pattern: naive_rag` / `llm: my-llm` / `memory: kb` /
-`options: {...}` at the top level, with no `nodes:` list) loaded for one
-deprecation cycle and is now deleted (PIR-864): `AgentSpecLoader.from_mapping`
-rejects a mapping with no top-level `nodes:` key. Use `AgentSpec.from_dict()`/
-`.to_dict()` directly if you already have that flat shape in hand — the
-loader itself now speaks only the core-pipeline dialect above.
+`AgentSpecLoader.from_mapping` rejects a mapping with no top-level `nodes:` key:
+the loader speaks only the core-pipeline dialect above. Use
+`AgentSpec.from_dict()`/`.to_dict()` directly for a flat mapping (`pattern`,
+`llm`, `memory`, `tools`, `components`, `options`) you already have in hand.
 
 `register_tools(toolset)` binds each tool under its own `name`, which is the
 label `to_spec()`/`to_pipeline_spec()` write for tools. An unregistered label

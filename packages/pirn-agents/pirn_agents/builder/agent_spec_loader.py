@@ -20,13 +20,11 @@ single-knot-plus-tagged-parameters shape
 ``PipelineSpec`` and converted via
 :meth:`~pirn_agents.builder.agent_spec.AgentSpec.from_pipeline_spec`.
 
-The legacy flat dialect — a top-level ``pattern``/``llm``/``memory``/
-``tools``/``components``/``options`` mapping, with no converter to core's own
-vocabulary — was accepted here for one deprecation cycle and is now deleted
-(PIR-864); a mapping with no top-level ``nodes`` key is rejected.
-:meth:`~pirn_agents.builder.agent_spec.AgentSpec.from_dict` still constructs
-an :class:`AgentSpec` directly from that flat shape for a caller that already
-has one in hand — only this loader's text-parsing dispatch onto it is gone.
+A mapping with no top-level ``nodes`` key is rejected: this loader parses only
+core pipeline documents (the flat ``pattern``/``llm``/``memory``/``tools``/
+``components``/``options`` dialect it once read is deleted, PIR-864).
+:meth:`~pirn_agents.builder.agent_spec.AgentSpec.from_dict` constructs an
+:class:`AgentSpec` directly from a flat mapping a caller already has in hand.
 """
 
 from __future__ import annotations
@@ -53,9 +51,8 @@ class AgentSpecLoader:
 
         Raises:
             TypeError: If ``data`` is not a mapping.
-            ValueError: If ``data`` has no top-level ``"nodes"`` key (the
-                legacy flat dialect, deleted PIR-864), or the pipeline
-                document is otherwise invalid (see
+            ValueError: If ``data`` has no top-level ``"nodes"`` key, or the
+                pipeline document is otherwise invalid (see
                 :meth:`~pirn_agents.builder.agent_spec.AgentSpec.from_pipeline_spec`).
         """
         if not isinstance(data, Mapping):

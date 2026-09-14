@@ -10,8 +10,8 @@ class is the ``D`` — the stable id, kind, text content, and free-form tags a
 writer knot actually produced. Splitting the two lets generic code program
 against ``.metadata`` / ``.data`` (the ``Payload`` contract every domain
 follows — see ``pirn_signal.types.signal_payload.SignalPayload``) while
-``MemoryRecord`` keeps its existing domain-readable aliases (``.id``,
-``.kind``, ``.content``, ...) for every current caller.
+``MemoryRecord`` also exposes the domain-readable properties (``.id``,
+``.kind``, ``.content``, ...) its constructor takes.
 """
 
 from __future__ import annotations

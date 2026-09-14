@@ -118,7 +118,7 @@ class MemoryRecord(Payload[MemoryProvenance, MemoryContent]):
         )
         super().__init__(metadata=frame, data=data)
 
-    # -- domain-readable aliases, backed by Payload.metadata / Payload.data --
+    # -- domain-readable properties, backed by Payload.metadata / Payload.data --
 
     @property
     def id(self) -> str:

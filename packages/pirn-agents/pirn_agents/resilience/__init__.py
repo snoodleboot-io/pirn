@@ -13,9 +13,7 @@ tool, or network from taking down a whole run:
       tool calls.
 
 Per-backend concurrency isolation is core's own ``KnotConfig(concurrency_group=...)``
-+ ``ConcurrencyLimits(groups={...})`` now; the former ``Bulkhead``/
-``BulkheadConfig`` one-cycle shims that wrapped a private pool per backend
-are deleted (PIR-864).
++ ``ConcurrencyLimits(groups={...})``.
 
 Every class lives one-per-module and is imported from its concrete module path;
 nothing here imports a backend, so ``import pirn_agents`` stays backend-free.

@@ -32,8 +32,7 @@ What this does **not** give you, and why:
   ``RunHistory`` query either — lineage is looked up by an exact knot id, not
   listed by prefix. A caller that needs to enumerate keys still needs an
   explicit index (this was the gap ``MemoryStoreKeyIndex`` filled for its one
-  consumer, ``PersistedSessionStore``, itself a deprecated shim deleted with
-  it in PIR-864).
+  consumer, ``PersistedSessionStore``; both are deleted, PIR-864).
 """
 
 from __future__ import annotations

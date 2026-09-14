@@ -21,9 +21,8 @@ class ConversationPayload(Payload[ConversationFrame, tuple[AgentMessage, ...]]):
     :class:`AgentMessage`, ``metadata`` is the
     :class:`~pirn_agents.types.messaging.conversation_frame.ConversationFrame`
     describing the window (session/turn ids, token count, truncation state,
-    and the free-form ``extra`` bag). This replaces ``AgentContext``, kept
-    importable for one deprecation cycle as a thin subclass and now deleted
-    (PIR-864).
+    and the free-form ``extra`` bag). It replaces ``AgentContext`` (deleted,
+    PIR-864).
 
     Attributes
     ----------
@@ -33,8 +32,7 @@ class ConversationPayload(Payload[ConversationFrame, tuple[AgentMessage, ...]]):
     extra:
         Mapping for intermediate state shared between knots (parsed
         intents, retrieved memories, partial plans). Defaults to an empty
-        dict. Was ``AgentContext.metadata`` before this rename; renamed
-        because :attr:`Payload.metadata` now names the frame.
+        dict. Named ``extra`` because :attr:`Payload.metadata` names the frame.
     """
 
     def __init__(

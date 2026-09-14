@@ -11,8 +11,6 @@ in-flight idempotent requests before/during the deploy** — a retry that lands
 after the upgrade computes a different key than its first attempt registered,
 so the backend sees a new operation and applies the mutation twice. See
 "Idempotency keys" in ``docs/domains/agents.md`` for the operational note.
-``legacy_key()`` reproduced a pre-upgrade key for reconciliation across the
-drain window; that one-cycle bridge is now deleted (PIR-864).
 
 ``ContentHasher.hash`` has no repr-based fallback for a value with no canonical form
 (no ``__pirn_canonical__``, no pydantic core schema) — unlike the

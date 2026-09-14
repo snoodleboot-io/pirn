@@ -4,7 +4,7 @@
 
 ADR "agents speaks core" WS3 part 2. Before this, ``RunState`` was itself the
 persisted checkpoint blob, written wholesale into a ``SessionStore`` (see
-``RunCheckpoint``, kept one deprecation cycle and now deleted, PIR-864).
+``RunCheckpoint``, deleted in PIR-864).
 Nothing persists a ``RunState`` as the source of truth
 any more: the engine already durably records every turn's ``RunResult`` via
 ``RunHistory``/``DataStore``, and :meth:`from_chain` rebuilds this value on
