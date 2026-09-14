@@ -1,4 +1,4 @@
-"""Security tests for :class:`_DocumentLoader` (path traversal + SSRF)."""
+"""Security tests for :class:`_DocumentSource` (path traversal + SSRF)."""
 
 from __future__ import annotations
 
@@ -14,16 +14,16 @@ import pytest
 from pirn.core.knot_config import KnotConfig
 from pirn.tapestry import Tapestry
 
-from pirn_agents.specializations.document_processing._document_loader import (
-    _DocumentLoader,
+from pirn_agents.specializations.document_processing._document_source import (
+    _DocumentSource,
 )
 
 
-def _build_loader() -> _DocumentLoader:
+def _build_loader() -> _DocumentSource:
     with Tapestry():
-        return _DocumentLoader(
+        return _DocumentSource(
             source="placeholder",
-            _config=KnotConfig(id="load"),
+            _config=KnotConfig(id="source"),
         )
 
 
@@ -251,7 +251,7 @@ class TestSSRFGuards(unittest.IsolatedAsyncioTestCase):
                     "http://example.com/",
                     allowed_hosts=("example.com",),
                 )
-        assert result == "ok"
+        assert result == b"ok"
         # Pinned to the vetted address (PIR-746): this is the one call site whose
         # pinning would otherwise ship unverified.
         assert _StubAsyncClient.seen["url"] == "http://93.184.216.34/"

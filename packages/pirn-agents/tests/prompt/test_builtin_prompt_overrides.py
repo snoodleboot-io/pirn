@@ -149,7 +149,7 @@ class BuiltinNameCoverageTests(unittest.TestCase):
         from pirn_agents.specializations.chain_of_thought.step_back_prompting import (
             StepBackPrompting,
         )
-        from pirn_agents.specializations.plan_and_execute.plan_executor import PlanExecutor
+        from pirn_agents.specializations.plan_and_execute._plan_step_call import _PlanStepCall
         from pirn_agents.specializations.plan_and_execute.plan_revisor import PlanRevisor
         from pirn_agents.specializations.plan_and_execute.task_planner import TaskPlanner
         from pirn_agents.specializations.reflection.constitutional_filter import (
@@ -166,7 +166,7 @@ class BuiltinNameCoverageTests(unittest.TestCase):
             StepBackPrompting._forward_system,
             _ExpandOneThought._expansion_system,
             _ScoreCandidate._scoring_system,
-            PlanExecutor._step_system,
+            _PlanStepCall._step_system,
             PlanRevisor._revision_system,
             TaskPlanner._planning_system,
             ConstitutionalFilter._evaluation_system,

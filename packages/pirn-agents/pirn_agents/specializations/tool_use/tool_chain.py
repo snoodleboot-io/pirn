@@ -72,10 +72,17 @@ class ToolChain(AgentPipeline):
         *,
         initial_call: Knot | ToolCall,
         tools: Knot | Sequence[Any],
+        approval_hook: Any = None,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        super().__init__(initial_call=initial_call, tools=tools, _config=_config, **kwargs)
+        super().__init__(
+            initial_call=initial_call,
+            tools=tools,
+            approval_hook=approval_hook,
+            _config=_config,
+            **kwargs,
+        )
 
     def _make_inner_tapestry(self) -> Tapestry:
         """A tapestry whose fallback ``traceback_filter`` redacts secrets."""
@@ -85,6 +92,7 @@ class ToolChain(AgentPipeline):
         self,
         initial_call: ToolCall,
         tools: Sequence[ToolFactory],
+        approval_hook: Any = None,
         **_: Any,
     ) -> Knot:
         """Wire the chain and return the knot that resolves to its terminal result.
@@ -92,6 +100,9 @@ class ToolChain(AgentPipeline):
         Args:
             initial_call: The first ToolCall to execute, which seeds the chain.
             tools: The ordered capabilities to execute.
+            approval_hook: The approval hook to consult for a step whose tool
+                requires approval (PIR-865); see
+                :meth:`~pirn_agents.tools.tool_factory.ToolFactory.for_call`.
 
         Returns:
             The sink of the inner pipeline: an :class:`~pirn.nodes.aggregator.Aggregator`
@@ -118,7 +129,9 @@ class ToolChain(AgentPipeline):
         call_id = initial_call.call_id
         steps: dict[str, Knot] = {}
         try:
-            previous_step: Knot = factories[0].for_call(initial_call, knot_id="step-0")
+            previous_step: Knot = factories[0].for_call(
+                initial_call, knot_id="step-0", approval_hook=approval_hook
+            )
         except ToolArgumentValidationError as exc:
             previous_step = ToolCallRejection(
                 call=initial_call, error=exc, _config=KnotConfig(id="step-0")
@@ -134,12 +147,17 @@ class ToolChain(AgentPipeline):
                 _config=KnotConfig(id=f"next-call-{index}"),
             )
             previous_step = ToolInvocation(
-                tool=factory, call=next_call, _config=KnotConfig(id=f"step-{index}")
+                tool=factory,
+                call=next_call,
+                approval_hook=approval_hook,
+                _config=KnotConfig(id=f"step-{index}"),
             )
             steps[f"step_{index}"] = previous_step
 
         return Aggregator(
-            combine=functools.partial(self._pick_terminal, call_id),
+            combine=functools.partial(
+                self._pick_terminal, call_id, factories[0].requires_approval()
+            ),
             _config=KnotConfig(id="chain-result", error_policy=ErrorPolicy.RECEIVE_ERRORS),
             **steps,
         )
@@ -160,23 +178,31 @@ class ToolChain(AgentPipeline):
         return ToolCall(tool_name=tool_name, arguments={"input": previous}, call_id=call_id)
 
     @staticmethod
-    def _pick_terminal(call_id: str, **results: Result[Any]) -> ToolResult:
+    def _pick_terminal(call_id: str, step_0_gated: bool, **results: Result[Any]) -> ToolResult:
         """Return the view of the last step that actually ran.
 
-        Every step after the chain first fails is ``Skipped`` (the default
+        Every step after the chain first stops is ``Skipped`` (the default
         error policy's propagation), never ``Ok`` or ``Err`` — so the last
         non-skipped step is exactly the one the chain stopped at, whether
-        that is the final tool's success or the first tool's failure.
+        that is the final tool's success or a middle tool's failure (a
+        ``ToolInvocation`` step's own raw ``Result`` is ``Ok`` even when the
+        ``ToolResult`` view it carries reports an error, so it is never
+        itself ``Skipped``). The one case with *no* non-skipped step is
+        step 0 denied outright (PIR-865): step 0 is a bare tool knot, not a
+        ``ToolInvocation``, so a denied approval leaves it genuinely
+        ``Skipped`` and every later step cascades from it — the chain
+        stopped at the very first step, so that is the terminal.
+
+        ``step_0_gated`` (PIR-865) is whether the *first* step's tool
+        requires approval: every later step is already rendered as a
+        :class:`ToolResult` by its own ``ToolInvocation`` (gated correctly
+        there), so only a raw ``step_0`` result — the one shape this method
+        still builds a view from itself — needs it here.
         """
         ordered = sorted(results.items(), key=lambda item: int(item[0].rsplit("_", 1)[1]))
-        terminal: Result[Any] | None = None
-        for _, result in ordered:
-            if not isinstance(result, Skipped):
-                terminal = result
-        if terminal is None:
-            # Unreachable in practice: step_0 has nothing upstream of it, so it
-            # is never Skipped and always contributes an Ok or Err.
-            raise RuntimeError("ToolChain: no step produced a result")
+        non_skipped = [(key, result) for key, result in ordered if not isinstance(result, Skipped)]
+        terminal_key, terminal = non_skipped[-1] if non_skipped else ordered[0]
         if isinstance(terminal, Ok) and isinstance(terminal.value, ToolResult):
             return terminal.value
-        return ToolResult.from_result(call_id, terminal)
+        gated = step_0_gated and terminal_key == "step_0"
+        return ToolResult.from_result(call_id, terminal, gated=gated)

@@ -8,17 +8,25 @@ gated tool runs exactly as an ungated one would. Subclasses override
 those overrides are what the security (F11) and human-in-the-loop (F14)
 surfaces will supply.
 
-The module-level :func:`authorize_tool_call` coroutine is the guard callers run
-before executing a tool: it consults the capability's permission metadata and
-only routes through the hook when approval is actually required, so
-unrestricted tools pay nothing.  A denied call is, this cycle, recorded
-as the call's own ``Err`` through a
-:class:`~pirn_agents.tools.tool_call_rejection.ToolCallRejection` knot —
-behaviour-preserving with the error view every caller already handles (ADR
-agents-speaks-core, WS1 decision).  The next-cycle shape is the graph form:
-an ``ApprovalCheck(Check)`` feeding a core ``Gate(check=)`` in front of the
-tool knot, so a denied call becomes ``Skipped`` and the model is told the
-call was not made rather than that it failed.
+The module-level :func:`authorize_tool_call` coroutine — and
+:meth:`ApprovalHook.authorize`, its implementation — is the policy this
+package's own approval seam evaluates: it consults the capability's
+permission metadata and only routes through the hook when approval is
+actually required, so unrestricted tools pay nothing.  Since PIR-865 the
+seam is wired as the graph form the ADR "agents speaks core" (WS1) always
+intended:
+:class:`~pirn_agents.agent.tool_approval_check.ToolApprovalCheck` (a core
+``Check``) evaluates this same policy as a knot, and
+:meth:`~pirn_agents.tools.tool_factory.ToolFactory.for_call` wires it behind
+a core ``Gate`` in front of every call whose tool requires approval — so a
+denied call's own outcome is a core ``Skipped``, the tool's ``process()`` is
+never invoked, and the model is told the call was skipped rather than that
+it failed (see :meth:`pirn_agents.tools.tool_result.ToolResult.from_result`,
+``gated=True``).  A call an application refuses for an unrelated reason —
+naming an unregistered tool, or arguments the declaration refuses — still
+recorded as the call's own ``Err`` through
+:class:`~pirn_agents.tools.tool_call_rejection.ToolCallRejection`, which this
+does not change: that is a rejection, not an approval decision.
 """
 
 from __future__ import annotations

@@ -2,26 +2,37 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Any
 
 from pirn_agents.specializations.base.agent_result import AgentResult
+from pirn_agents.specializations.prompt_chaining.prompt_chain_frame import PromptChainFrame
 
 
-@dataclass(frozen=True)
-class PromptChainResult(AgentResult):
+class PromptChainResult(AgentResult[PromptChainFrame, str]):
     """Outcome of a sequential prompt chain.
 
-    Attributes
-    ----------
-    outputs:
-        The output of each link in the chain, in order.
-    final:
-        The last link's output (the overall result).
+    ``PromptChainResult`` is ``Payload[PromptChainFrame, str]`` (PIR-868,
+    following the ADR agents-speaks-core WS6b pattern) — ``data`` is the
+    last link's output (the overall result), and ``metadata`` is the
+    :class:`PromptChainFrame` carrying every link's output in order. The
+    pre-ADR field names (``outputs``, ``final``) stay available as
+    read-only properties, so every existing construction and
+    attribute-access call site keeps compiling unchanged.
     """
 
-    outputs: tuple[str, ...]
-    final: str
+    def __init__(self, outputs: tuple[str, ...], final: str) -> None:
+        frame = PromptChainFrame(outputs=outputs)
+        super().__init__(metadata=frame, data=final)
+
+    @property
+    def outputs(self) -> tuple[str, ...]:
+        return self._metadata.outputs
+
+    @property
+    def final(self) -> str:
+        return self._data
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
-        return {"outputs": list(self.outputs), "final": self.final}
+        audit = dict(self._metadata._pirn_audit_dict())
+        audit["final"] = self.final
+        return audit

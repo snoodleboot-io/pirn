@@ -1,10 +1,22 @@
-"""Unit tests for :class:`_ChunkEmbedderStore`."""
+"""Unit tests for :class:`_ChunkEmbedderStore`.
+
+PIR-867: each chunk's persisted write is independent of every other chunk's,
+so ``_ChunkEmbedderStore`` fans them out (one ``_ChunkStoreWrite`` knot per
+chunk wired into an ``Aggregator``) rather than awaiting ``store.store`` under
+a hand-rolled ``asyncio.gather``. ``process`` therefore returns the sink of an
+inner pipeline instead of the stored count directly, so the outcome tests run
+a real tapestry and read the knot's output (the pattern PIR-856 established
+for ``ParallelToolCaller``). The embedding call stays a single batch call, so
+``test_raises_when_embedder_returns_wrong_count`` still exercises ``process``
+directly — the guard fires before any per-chunk knot is built.
+"""
 
 from __future__ import annotations
 
 import unittest
 
 from pirn.core.knot_config import KnotConfig
+from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
 from pirn_agents.specializations.document_processing._chunk_embedder_store import (
@@ -27,22 +39,34 @@ def _make_knot(embedder: StubEmbeddingProvider, store: StubMemoryStore) -> _Chun
         )
 
 
+def _run(embedder, store, chunks: list[str], source: str) -> Tapestry:
+    with Tapestry() as t:
+        _ChunkEmbedderStore(
+            chunks=chunks,
+            source=source,
+            embedder=embedder,
+            store=store,
+            _config=KnotConfig(id="ces"),
+        )
+    return t
+
+
 class TestChunkEmbedderStoreProcess(unittest.IsolatedAsyncioTestCase):
     async def test_empty_chunks_returns_zero(self) -> None:
         embedder = StubEmbeddingProvider()
         store = StubMemoryStore(hits=[])
-        k = _make_knot(embedder, store)
-        result = await k.process(chunks=[], source="x", embedder=embedder, store=store)
-        assert result == 0
+        t = _run(embedder, store, [], "x")
+        result = await t.run(RunRequest())
+        assert result.succeeded, result.exceptions
+        assert result.outputs["ces"] == 0
 
     async def test_stores_correct_count(self) -> None:
         embedder = StubEmbeddingProvider(dimension=4)
         store = StubMemoryStore(hits=[])
-        k = _make_knot(embedder, store)
-        result = await k.process(
-            chunks=["alpha", "beta"], source="doc.txt", embedder=embedder, store=store
-        )
-        assert result == 2
+        t = _run(embedder, store, ["alpha", "beta"], "doc.txt")
+        result = await t.run(RunRequest())
+        assert result.succeeded, result.exceptions
+        assert result.outputs["ces"] == 2
 
     async def test_keys_follow_doc_id_pattern(self) -> None:
         embedder = StubEmbeddingProvider(dimension=4)
@@ -55,8 +79,9 @@ class TestChunkEmbedderStoreProcess(unittest.IsolatedAsyncioTestCase):
             return await original_store(key, value)
 
         store.store = _capture  # type: ignore[assignment]
-        k = _make_knot(embedder, store)
-        await k.process(chunks=["hello"], source="my_doc", embedder=embedder, store=store)
+        t = _run(embedder, store, ["hello"], "my_doc")
+        result = await t.run(RunRequest())
+        assert result.succeeded, result.exceptions
         assert ":" in stored_keys[0]
 
     async def test_payload_contains_text_and_embedding(self) -> None:
@@ -70,8 +95,9 @@ class TestChunkEmbedderStoreProcess(unittest.IsolatedAsyncioTestCase):
             return await original_store(key, value)
 
         store.store = _capture  # type: ignore[assignment]
-        k = _make_knot(embedder, store)
-        await k.process(chunks=["chunk_text"], source="doc", embedder=embedder, store=store)
+        t = _run(embedder, store, ["chunk_text"], "doc")
+        result = await t.run(RunRequest())
+        assert result.succeeded, result.exceptions
         assert stored_payloads[0]["text"] == "chunk_text"
         assert "embedding" in stored_payloads[0]
 
@@ -85,3 +111,18 @@ class TestChunkEmbedderStoreProcess(unittest.IsolatedAsyncioTestCase):
         k = _make_knot(embedder, store)
         with self.assertRaises(RuntimeError):
             await k.process(chunks=["a", "b"], source="x", embedder=embedder, store=store)
+
+    async def test_each_chunk_gets_its_own_lineage_row(self) -> None:
+        """PIR-867: each chunk is a node now, not both under one asyncio.gather."""
+        embedder = StubEmbeddingProvider(dimension=4)
+        store = StubMemoryStore(hits=[])
+        t = _run(embedder, store, ["a", "b"], "doc.txt")
+        result = await t.run(RunRequest())
+        assert result.succeeded, result.exceptions
+        children = await t.history.children_of(result.run_id)
+        inner_knot_ids = {row.knot_id for child in children for row in child.lineage}
+        assert {"write_0", "write_1"} <= inner_knot_ids, inner_knot_ids
+
+
+if __name__ == "__main__":
+    unittest.main()

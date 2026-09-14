@@ -39,7 +39,7 @@ References:
 from __future__ import annotations
 
 import functools
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from pirn.core.error_policy import ErrorPolicy
@@ -73,10 +73,17 @@ class ParallelToolCaller(AgentPipeline):
         *,
         tool_calls: Knot | Sequence[ToolCall],
         tools: Knot | Sequence[Any],
+        approval_hook: Any = None,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
-        super().__init__(tool_calls=tool_calls, tools=tools, _config=_config, **kwargs)
+        super().__init__(
+            tool_calls=tool_calls,
+            tools=tools,
+            approval_hook=approval_hook,
+            _config=_config,
+            **kwargs,
+        )
 
     def _make_inner_tapestry(self) -> Tapestry:
         """A tapestry whose fallback ``traceback_filter`` redacts secrets."""
@@ -86,6 +93,7 @@ class ParallelToolCaller(AgentPipeline):
         self,
         tool_calls: Sequence[ToolCall],
         tools: Sequence[ToolFactory],
+        approval_hook: Any = None,
         **_: Any,
     ) -> Knot:
         """Resolve every call to a capability and return the fan-out knot that runs them.
@@ -93,6 +101,9 @@ class ParallelToolCaller(AgentPipeline):
         Args:
             tool_calls: The sequence of ToolCall instances to execute concurrently.
             tools: The capabilities available for invocation.
+            approval_hook: The approval hook to consult for a call whose tool
+                requires approval (PIR-865); see
+                :meth:`~pirn_agents.tools.tool_factory.ToolFactory.for_call`.
 
         Returns:
             The sink of the inner pipeline: an :class:`~pirn.nodes.aggregator.Aggregator`
@@ -134,16 +145,23 @@ class ParallelToolCaller(AgentPipeline):
             if knot_id in used_ids:
                 knot_id = f"{knot_id}-{index}"
             used_ids.add(knot_id)
-            per_call[f"call_{index}"] = self._call_knot(call, registry.get(call.tool_name), knot_id)
+            per_call[f"call_{index}"] = self._call_knot(
+                call, registry.get(call.tool_name), knot_id, approval_hook
+            )
 
         return Aggregator(
-            combine=functools.partial(self._collect_in_order, call_list),
+            combine=functools.partial(self._collect_in_order, call_list, registry),
             _config=KnotConfig(id="agg", error_policy=ErrorPolicy.RECEIVE_ERRORS),
             **per_call,
         )
 
     @staticmethod
-    def _call_knot(call: ToolCall, factory: ToolFactory | None, knot_id: str) -> Knot:
+    def _call_knot(
+        call: ToolCall,
+        factory: ToolFactory | None,
+        knot_id: str,
+        approval_hook: Any = None,
+    ) -> Knot:
         """The knot that runs ``call``: the tool knot, or a rejection recorded as its ``Err``."""
         if factory is None:
             return ToolCallRejection(
@@ -152,14 +170,26 @@ class ParallelToolCaller(AgentPipeline):
                 _config=KnotConfig(id=knot_id),
             )
         try:
-            return factory.for_call(call, knot_id=knot_id)
+            return factory.for_call(call, knot_id=knot_id, approval_hook=approval_hook)
         except ToolArgumentValidationError as exc:
             return ToolCallRejection(call=call, error=exc, _config=KnotConfig(id=knot_id))
 
     @staticmethod
-    def _collect_in_order(calls: Sequence[ToolCall], **by_key: Result[Any]) -> list[ToolResult]:
-        """Build the ``call_{index}``-keyed fan-out outcomes into views, in input order."""
-        return [
-            ToolResult.from_result(call.call_id, by_key[f"call_{index}"])
-            for index, call in enumerate(calls)
-        ]
+    def _collect_in_order(
+        calls: Sequence[ToolCall],
+        registry: Mapping[str, ToolFactory],
+        **by_key: Result[Any],
+    ) -> list[ToolResult]:
+        """Build the ``call_{index}``-keyed fan-out outcomes into views, in input order.
+
+        ``gated`` (PIR-865) is whether the call's tool requires approval: such
+        a call's own knot has no possible parent besides its own arguments
+        and the approval gate ``ToolFactory.for_call`` wires in, so its only
+        possible ``Skipped`` cause is that gate closing.
+        """
+        views: list[ToolResult] = []
+        for index, call in enumerate(calls):
+            factory = registry.get(call.tool_name)
+            gated = factory.requires_approval() if factory is not None else False
+            views.append(ToolResult.from_result(call.call_id, by_key[f"call_{index}"], gated=gated))
+        return views

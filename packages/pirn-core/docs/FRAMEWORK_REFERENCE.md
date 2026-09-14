@@ -380,14 +380,65 @@ Deprecated: `BatchCheckpointer`/`BatchScheduler`, `AsyncFanoutEngine`/
 **Still open:** `Bulkhead`/`BulkheadConfig` and `BackpressureSemaphore`/
 `ConcurrencyConfig` still hold their own `asyncio.Semaphore`-shaped pools,
 called directly by `agent/parallel_tool_executor.py`, `evaluation/run_eval.py`,
-and three `specializations/` pipelines — `document_processing/ingestion_pipeline.py`,
-`multi_agent/orchestrator_workers.py`, `rewoo/rewoo_pipeline.py`. Migrating
-their *enforcement* to `LimitedAdmissionGate` needs those call sites moved
-onto a knot-scoped concurrency group first, or there are two enforcement
-paths rather than one. `caching/prompt_cache.py::PromptCache` also stays
-outside this migration: its `get`/`set`/`__len__` are deliberately
-synchronous, and `DataStore` is async-only, so routing values through it would
-force a breaking signature change this ADR did not authorize unilaterally.
+and `rewoo/rewoo_pipeline.py`. Migrating their *enforcement* to
+`LimitedAdmissionGate` needs those call sites moved onto a knot-scoped
+concurrency group first, or there are two enforcement paths rather than one.
+PIR-867 did that move for the two `specializations/` pipelines this list used
+to also name: `document_processing/_ingestion_runner.py` (`IngestionPipeline`'s
+internal ETL runner) and `multi_agent/orchestrator_workers.py` both built a
+bare `asyncio.Semaphore(max_concurrency)` shared across their per-item knots
+and held it across the real await; both now use `KnotConfig(concurrency_group=)`
+on the per-item knots + a `ConcurrencyLimits` group cap set via
+`_inner_concurrency()` — the same lever `MapAgent` uses — so the bound is the
+admission gate's own budget, not a second, private one it cannot see.
+
+`caching/prompt_cache.py::PromptCache` — RESOLVED (PIR-868). Entries now
+live in a core `InMemoryDataStore` keyed by content hash, exactly like
+`SemanticResultCache`; the prefix/embedding index stays a plain
+`SimilarityIndex` resource. `DataStore` is async-only with no enumeration,
+so the previously-synchronous `invalidate`/`purge_expired`/`__len__` are now
+`ainvalidate`/`apurge_expired`/`asize`; the old names remain for one
+deprecation cycle as wrappers that bridge to the event loop (raising if
+called from inside one already running) and emit `DeprecationWarning`.
+**Resolved (PIR-866):** `Bulkhead`/`BulkheadConfig` and `BackpressureSemaphore`/
+`ConcurrencyConfig` no longer hold an `asyncio.Semaphore` of their own.
+`BackpressureSemaphore`/`Bulkhead` are now `AdmissionGate` subclasses,
+delegating every admission decision to a real `LimitedAdmissionGate` through
+the shared `pirn_agents.performance._backpressure_gate._BackpressureGate` —
+the one place `max_queue_depth`/`acquire_timeout` (backpressure knobs core's
+`AdmissionGate` has no equivalent for outside a running `Tapestry`) are still
+implemented directly, documented there as the seam. `ConcurrencyConfig`/
+`BulkheadConfig` gained `to_concurrency_limits()` (the exact `ConcurrencyLimits`
+a real run would declare) but stay plain frozen dataclasses rather than
+`ConcurrencyLimits` subclasses: `agent/parallel_tool_executor.py` and three
+`specializations/` pipelines read `ConcurrencyConfig.max_concurrency` as a
+**class-level** literal default (`max_concurrency: Knot | int =
+ConcurrencyConfig.max_concurrency`), which a pydantic `BaseModel` subclass
+cannot support (no class-level field-default access; a `@property` returns
+the descriptor on class access, not its value) — `tests/performance/test_concurrency_config.py::TestClassLevelDefaultAccess`
+pins it. `agent/parallel_tool_executor.py`
+already used `KnotConfig(concurrency_group="tools")` + `ConcurrencyLimits`
+directly (WS1) and needed no change; `agent/agent_invoker.py`,
+`specializations/lats/lats_search.py`, and
+`specializations/routing/model_cascade_router.py` call no concurrency
+primitive at all. **Still open:** `evaluation/run_eval.py` still constructs
+`BackpressureSemaphore` directly rather than routing its per-item concurrency
+through a knot-scoped group (it runs no `Tapestry` at all — a bare
+`asyncio.gather` loop — so adopting the pattern means wiring it onto the
+engine first, a larger change than this migration's scope); the three
+`specializations/` pipelines this note used to name —
+`document_processing/ingestion_pipeline.py`, `multi_agent/orchestrator_workers.py`,
+`rewoo/rewoo_pipeline.py` — reference `ConcurrencyConfig.max_concurrency` only
+as a literal default value (never instantiate it), but
+`document_processing/_ingestion_runner.py` and
+`multi_agent/orchestrator_workers.py` each still build their own bare
+`asyncio.Semaphore(max_concurrency)` independently of `Bulkhead`/
+`BackpressureSemaphore` entirely — out of this migration's blast radius
+(`specializations/` ownership), flagged for the lane that owns them.
+`caching/prompt_cache.py::PromptCache` also stays outside this migration: its
+`get`/`set`/`__len__` are deliberately synchronous, and `DataStore` is
+async-only, so routing values through it would force a breaking signature
+change this ADR did not authorize unilaterally.
 
 ### Control-flow vocabulary (WS5a, WS5b)
 
@@ -411,9 +462,64 @@ executes" default. `MajorityVoteStrategy` folds through core `Reduce`.
 `_LLMCallKnot`/`LLMChatCall`/`MemorySearchRetriever` report through
 `AgentCallRecorder` like `ToolInvocation` already did.
 
+`retrieval/graph_rag/hybrid_graph_retriever.py::HybridGraphRetriever`'s
+`traversal: GraphTraversal` parameter used to be a bare `Knot` subclass named
+as a *value* type on `process()`, which made `Knot._build_adapters` raise the
+moment the class was constructed through its real `__init__` — so it awaited
+the traversal knot's `process()` directly instead (`AWAITS_CHILD_PROCESS`).
+Fixed in PIR-867: `GraphTraversal` is wired as a genuine upstream parent, with
+its own `store`/`budget`/`start_ids`/`direction`/`edge_types` bound at its own
+construction; `HybridGraphRetriever.process()` receives the traversal's
+resolved `Subgraph` like any other parent's output.
+
+Three more `LOOP_AWAITS_LLM_OR_TOOL_CALL` sites fixed in PIR-867:
+`_ChunkTranslator` (`specializations/document_processing/`) and
+`FactClaimVerifier` (`specializations/guardrails/`) translate/verify
+independent items — chunk N's translation and claim N's search never depend
+on item N-1's outcome — so each now fans out one per-item knot
+(`_ChunkTranslation` / `_ClaimVerification`) into an `Aggregator`, in the
+`ParallelToolCaller` style, instead of awaiting `llm.chat`/`store.search` in a
+hand-rolled `for` loop. `PlanExecutor` (`specializations/plan_and_execute/`)
+is different: step N's prompt genuinely includes every prior step's result,
+so it wires a `LoopSubTapestry` (`_PlanStepLoop`) instead — the state
+threaded across iterations is the running tuple of step results.
+
+Three more `USES_ASYNCIO_GATHER` sites fixed in PIR-867: `HybridRetriever`
+(`retrieval/`) now wires its dense and lexical arms as two knots
+(`_DenseIds`/`_LexicalIds`, the BM25 side still offloading to a worker thread
+internally via `asyncio.to_thread`) into an `Aggregator`, so it is a
+`SubTapestry` now rather than a plain `Knot` — `HybridRetrieverBase` stays a
+plain `Retriever`/`Knot` base since `HybridGraphRetriever` still needs that
+shape, so `HybridRetriever` picks up `SubTapestry` itself
+(`class HybridRetriever(SubTapestry, HybridRetrieverBase)`).
+`_ChunkEmbedderStore` (`specializations/document_processing/`) wires one
+`_ChunkStoreWrite` per chunk into an `Aggregator` (the batched embedding call
+itself stays a single call — batching is the reason the embedder gets every
+chunk at once). `_IngestionRunner` (`specializations/document_processing/`)
+wires one `_DocumentIngest` per source document into an `Aggregator`, with a
+`ConcurrencyLimits` group cap set via the `_inner_concurrency()` hook
+(`MapAgent`'s own lever) replacing the hand-held `asyncio.Semaphore`; each
+document's failure is still isolated inside `_DocumentIngest` and folded into
+the `IngestionReport` rather than raised, so isolation survives the move to
+the engine's own scheduling.
+
+`AWAITS_INVOKE` re-checked in PIR-867: `specializations/routing/_attempt_tier.py::_AttemptTier`
+awaited `CascadeTier.invoke` (the cascade's own bare-callable provider seam,
+not a `Tool`) directly. There is no tool knot to substitute — the fix is the
+same shape `ToolInvocation` plays for tool calls: a dedicated vending knot,
+`_TierInvocation`, whose only body is the call, wired as a real parent;
+`_TierAttemptFold` (`error_policy=RECEIVE_ERRORS`) folds its `Ok`/`Err`
+outcome into the cascade's state. `_AttemptTier` itself became an
+`AgentPipeline` (only the pre-call locked/spend-cap decisions stay
+synchronous, since they decide whether to build the call at all).
+`AWAITS_INVOKE` now names `_TierInvocation` instead of `_AttemptTier` — a
+sanctioned entry, not a fixed one, since the underlying call has to happen
+somewhere.
+
 The bypass ratchet (`tests/specializations/base/test_no_engine_bypass.py`)
-is empty for `RETURNS_INLINE_SOURCE`, `UNRUN_TAPESTRY`, and
-`DEFINES_INLINE_SOURCE`; kept as `frozenset()` assertions so a regression is
+is empty for `AWAITS_CHILD_PROCESS`, `RETURNS_INLINE_SOURCE`, `UNRUN_TAPESTRY`,
+`DEFINES_INLINE_SOURCE`, `LOOP_AWAITS_LLM_OR_TOOL_CALL`, and
+`USES_ASYNCIO_GATHER`; kept as `frozenset()` assertions so a regression is
 loud, not deleted.
 
 **Still open** (frozen in the same ratchet, not this ADR's blast radius to
@@ -421,29 +527,26 @@ fix unilaterally):
 - `rag/indexing/_raptor_assembler.py`'s clustering loop — a deliberate ETL
   exception (atomic read-check-transform-write cycle against the vector
   store; a content-hash dedup short-circuit and a final upsert that must see
-  a consistent store). Decomposing it into engine-tracked knots risks
-  breaking that atomicity guarantee; whether per-summary observability is
-  worth that trade is a product call, not made here.
-- `retrieval/hybrid_retriever.py::HybridGraphRetriever` still awaits a child's
-  `process()` directly (`AWAITS_CHILD_PROCESS`).
-- 3 gather sites still fan calls out with `asyncio.gather` instead of letting
-  the engine schedule sibling knots (`USES_ASYNCIO_GATHER`):
-  `retrieval/hybrid_retriever.py::HybridRetriever`,
-  `specializations/document_processing/_chunk_embedder_store.py::_ChunkEmbedderStore`,
-  `specializations/document_processing/_ingestion_runner.py::_IngestionRunner`.
-- 3 loop sites still await an LLM or tool call directly inside a `for`/`while`
-  body instead of a `LoopSubTapestry` iteration (`LOOP_AWAITS_LLM_OR_TOOL_CALL`):
-  `specializations/document_processing/_chunk_translator.py::_ChunkTranslator`,
-  `specializations/guardrails/fact_claim_verifier.py::FactClaimVerifier`,
-  `specializations/plan_and_execute/plan_executor.py::PlanExecutor`.
-- `specializations/routing/_attempt_tier.py::_AttemptTier` still awaits
-  `.invoke()` directly (`AWAITS_INVOKE`); `agent/parallel_tool_executor.py::ParallelToolExecutor`'s
-  own `asyncio.gather` is a deliberate deferral — its per-call retry/timeout
+  a consistent store). PIR-867 re-evaluated giving each level's per-cluster
+  summarization its own lineage row via `SubTapestry._run_inner` called
+  *inside* the atomic method (keeping the dedup short-circuit and the single
+  final upsert): `_run_inner` depends on hooks and constructor state that
+  only exist on `SubTapestry`, whose `__call__` in turn hard-requires
+  `process()` to return a `Knot` — the opposite of what this atomic
+  assembler needs (return the built `RaptorTree` value once). Getting the
+  method without the contract means multiply inheriting `SubTapestry`
+  alongside `Assembler` and overriding `__call__` back to `Knot.__call__`,
+  a fragile coupling for one knot's observability. Still deferred: a core
+  primitive for "run a nested tapestry from a plain `Knot`" would resolve
+  it; absent that, whether per-summary observability is worth the coupling
+  is a product call, not made here.
+- `agent/parallel_tool_executor.py::ParallelToolExecutor`'s own
+  `asyncio.gather` is a deliberate deferral — its per-call retry/timeout
   richness needs real inter-attempt backoff sleep, not expressible as a
   static `Aggregator` fan-out.
-- **Approval denial** stays a `ToolCallRejection` `Err` this cycle
-  (behaviour-preserving); the next-cycle shape is `ApprovalCheck(Check)` →
-  `Gate(check=)` so a denied call is `Skipped` instead.
+
+**Resolved since (PIR-865):** approval denial is a core `Skipped`, not a
+`ToolCallRejection` `Err` — see §7's Tool section.
 
 ### Authoring, payload types, and docs (WS6a, WS6b)
 
@@ -526,6 +629,19 @@ to `ExceptionRecord`.
   strict rule the house style contradicts, `reportUnnecessaryIsInstance`, is
   suppressed per file with a reason; the runtime guard is never deleted.
 
+**PIR-868 (WS6b follow-on).** The 11 specialization-pattern `*Result` value
+objects (`EvaluatorOptimizerResult`, `LatsResult`, `OrchestratorWorkersResult`,
+`WorkerTaskResult`, `PlanReActResult`, `PromptChainResult`, `SimulationResult`,
+`ReflexionResult`, `ReWooResult`, `FallbackResult`, `SelfAskResult`) are now
+`Payload[<Frame>, D]` too, with `AgentResult` reduced to a thin generic
+`Payload` base; pre-ADR field names stay readable as properties.
+`document_processing/_document_loader.py`'s ingestor (reading files/HTTP
+inside `process()`) is deleted per the assembler/disassembler pattern and
+replaced by `_DocumentSource` (a `Source` knot modeled on
+`ObjectStoreReadSource`, bytes out) feeding `_DocumentAssembler` (an
+`Assembler`, bytes in, no I/O); `DocumentIngestionPipeline`'s public
+constructor is unchanged.
+
 ---
 
 ## 7. The core / agents boundary
@@ -539,10 +655,10 @@ to `ExceptionRecord`.
 **Canonical case — the Tool. RESOLVED (ADR WS1, 2026-09-13).** A `Tool` is correctly agents-layer (core has no notion of a name + NL description + JSON schema *for a model*), and it is now **composed from** core:
 - `Tool(Knot)` — a tool is a `Knot` *class*; `process()` is its execution and its declared inputs are the call's arguments. `Tool.declaration()` (name, description, `input_json_schema()`) is the only agents-layer addition. One call = one tool knot the engine runs (`ToolFactory.for_call(call)`), so each call has its own `Result`, lineage row, timeout/retry (`KnotConfig`) and concurrency group (`"tools"`).
 - `ToolFactory(KnotFactory, PirnOpaqueValue)` is the *capability* value a toolset holds: a tool class plus bound collaborators (`Tool.bind(store=…)`), defaults and a name. `@tool` is `@knot` plus a declaration; `McpTool` is `KnotFactory.from_schema` over the remote schema; an agent-as-tool is `AgentTool` over an `AgentToolCall(SubTapestry)` whose cycle/depth guard is core's `RunNesting`.
-- Outcomes are `Ok\|Err\|Skipped`; `ToolResult`/`ToolStatus` survive one cycle as a deprecated *view* built by `ToolResult.from_result(call_id, result, lineage)` and the codec reads `Result` directly. A refused call (approval, validation, unknown tool) is a `ToolCallRejection` knot recording its `Err`, never a raise outside the engine.
+- Outcomes are `Ok\|Err\|Skipped`; `ToolResult`/`ToolStatus` survive one cycle as a deprecated *view* built by `ToolResult.from_result(call_id, result, lineage)` and the codec reads `Result` directly. A call refused for validation or an unknown tool is a `ToolCallRejection` knot recording its `Err`, never a raise outside the engine; a call refused for **approval** is a `Skipped`, not a `ToolCallRejection` — see the approval bullet below.
 - Deprecated for one cycle (thin shims that warn): `Tool.invoke`, `ToolFactory.invoke`, `BaseTool`, `ToolSchemaCompiler`, `ArgumentValidator`, `AgentSchemaDeriver`, `AgentInvoker`, `ToolInvocationHook` and `ParallelToolExecutor(hook=, retries=, retry_policy=, rng=, sleep=)`, `_FanoutRunner` and `AsyncFanoutEngine` (machinery removed once `MapAgent` moved onto `Map`/`Aggregator` in WS4b; the names warn on construction).
-- Observability (WS4a wired in): a tool call is one `"tool"` `StatusEvent` through `AgentCallRecorder` — emitted by `ToolInvocation` for its call (outer run, its own id; it claims the report from the tool knot), by a tool knot wired directly (a fan-out) for itself, by `ToolCallRejection` for a refused call and by `AgentToolCall` for an agent-as-tool call. LLM-calling knots in the tools lane (`RagTool`, `Planner`, `ToolSelector`, `ReActStepExecutor`) report `"llm"` events through `RecordedLlmCall`.
-- Approval denial stays a `ToolCallRejection` `Err` this cycle (behaviour-preserving); the next-cycle shape is `ApprovalCheck(Check)` → `Gate(check=)` so a denied call is `Skipped`.
+- Observability (WS4a wired in): a tool call is one `"tool"` `StatusEvent` through `AgentCallRecorder` — emitted by `ToolInvocation` for its call (outer run, its own id; it claims the report from the tool knot), by a tool knot wired directly (a fan-out) for itself, by `ToolCallRejection` for a refused call and by `AgentToolCall` for an agent-as-tool call. LLM-calling knots in the tools lane (`RagTool`, `Planner`, `ToolSelector`, `ReActStepExecutor`) report `"llm"` events through `RecordedLlmCall`. A denied approval reports no `"tool"` event for the tool's own identity at all — `process()`, and the `Tool.__call__` recorder inside it, never run; a *container* (`ToolInvocation`) that reports its own view regardless of outcome still fires, unchanged, attributed to its own knot id.
+- **Approval — RESOLVED (PIR-865).** `pirn_agents.agent.tool_approval_check.ToolApprovalCheck` (a core `Check`; named `ToolApprovalCheck` rather than `ApprovalCheck` because `specializations/human_in_the_loop/approval_check.py::ApprovalCheck` already holds that name for an unrelated seam) evaluates the same policy `ApprovalHook.authorize` always implemented. `ToolFactory.for_call` wires it behind a core `Gate` — the gate's `input` is a `Parameter` carrying the call's resolved arguments, and the gate itself is passed as an extra, undeclared `Knot`-valued kwarg (an *implicit parent*, `Knot._validate_kwargs_against_signature`'s existing seam for exactly this) to the constructed tool knot — whenever `ToolPermissions.approval_required` is set; an unrestricted capability is never gated. A denial closes the gate, so the engine's default `SKIP_IF_PARENT_FAILED` policy skips the tool knot without ever calling `process()`, and the call's own outcome is `Skipped(reason="parent_failed_or_skipped")` — core's `Gate`/engine propagation have no per-check custom skip-reason seam, so that generic reason (not the literal string `"approval_denied"`) is what a raw lineage row shows; `ToolResult.from_result(..., gated=True)` (every call site passes `gated=factory.requires_approval()`) is where the accurate `"call skipped: approval denied"` message comes from instead, since a gated call's own knot has no possible `Skipped` cause besides that gate. `ToolResult` gained a `SKIPPED` `ToolStatus` member and `to_result()` round-trips it back to a core `Skipped`, instead of the old behaviour of fabricating an `Err`/`ERROR` view for every `Skipped`. All six call sites that construct a tool knot for a call (`ToolFactory.for_call`/`run_call`, `ToolInvocation`, `ParallelToolExecutor`, `ParallelToolCaller`, `ToolChain`, `ReActStepExecutor`) gained an `approval_hook` input threaded to `for_call`. `ToolFactory.run_call` also stopped being a bare `await knot({})` for a gated call specifically: that pattern never resolves a genuine `Knot` parent (only `Aggregator`/engine dispatch does), which would have silently run the tool regardless of the gate's decision — a gated call now runs through a real `Tapestry.run(terminals=knot)` pass instead, reusing `ToolCallCodec.outcomes_of` to read the outcome back out; an ungated call keeps the original fast bare-call path unchanged. `ToolCallRejection` is unchanged and keeps its narrower job (unregistered tool, refused arguments) — that is a rejection, not an approval decision.
 - Core seams this needed (all in `SubTapestry`): `_make_inner_tapestry()` (a container chooses its inner `Tapestry(...)` — traceback filter, `max_nesting_depth`, `ConcurrencyLimits`), `_inner_failures_reach_sink` (a container whose sink *consumes* inner `Err`s does not raise `SubTapestryError`), a `Skipped` sink passes through as `Skipped`, and `_nesting_key` is qualified by the knot id (two instances of one agent class may nest; the same instance may not). `SubTapestryError`'s message now names the inner failures.
 
 **Second case — the response/conversation shape. RESOLVED (ADR WS6b, 2026-09-13).**

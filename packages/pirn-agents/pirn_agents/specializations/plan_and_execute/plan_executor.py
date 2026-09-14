@@ -1,13 +1,18 @@
 """``PlanExecutor`` — executes each step of a Plan sequentially via LLM calls.
 
-Algorithm:
-    1. Receive the resolved ``plan`` (Plan) and ``llm`` (LLMProvider).
-    2. Validate types at process time.
-    3. Iterate over ``plan.steps`` in order.
-    4. For each step, build a messages list that includes prior step results as context.
-    5. Call ``llm.chat`` with the messages and extract the text result.
-    6. Accumulate all step results and concatenate into a single AgentResponse.
+Each step's prompt includes every prior step's result as context, so the
+loop genuinely depends on its own accumulated state and is wired as a
+:class:`~pirn.nodes.loop_sub_tapestry.LoopSubTapestry` iteration
+(:class:`~pirn_agents.specializations.plan_and_execute._plan_step_loop._PlanStepLoop`)
+rather than a hand-rolled ``for`` loop awaiting ``llm.chat`` directly
+(PIR-867).
 
+Algorithm:
+    1. Receive the resolved ``plan`` (:class:`Plan`) and ``llm`` (:class:`LLMProvider`).
+    2. Seed a :class:`~pirn_agents.specializations.plan_and_execute._plan_step_state._PlanStepState`
+       from ``plan.steps`` and build the iteration loop.
+    3. Wire :class:`~pirn_agents.specializations.plan_and_execute._plan_execution_result._PlanExecutionResult`
+       over the loop's final state and return it as the sink.
 
 References:
     - Yao et al. (2023) "Tree of Thoughts: Deliberate Problem Solving with Large Language Models"
@@ -16,19 +21,22 @@ References:
 
 from __future__ import annotations
 
-from typing import Any, ClassVar
+from typing import Any
 
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
 from pirn_agents.llm.llm_provider import LLMProvider
 from pirn_agents.planning.plan import Plan
-from pirn_agents.prompt.prompt_binding import PromptBinding
-from pirn_agents.specializations.llm_response_text import LlmResponseText
-from pirn_agents.types.messaging.agent_response import AgentResponse
+from pirn_agents.specializations.base.agent_pipeline import AgentPipeline
+from pirn_agents.specializations.plan_and_execute._plan_execution_result import (
+    _PlanExecutionResult,
+)
+from pirn_agents.specializations.plan_and_execute._plan_step_loop import _PlanStepLoop
+from pirn_agents.specializations.plan_and_execute._plan_step_state import _PlanStepState
 
 
-class PlanExecutor(Knot):
+class PlanExecutor(AgentPipeline):
     """Take a :class:`Plan` and execute each step via sequential sub-LLM calls.
 
     Each step is executed in order. The context for step N includes the
@@ -36,49 +44,32 @@ class PlanExecutor(Knot):
     All step outputs are concatenated into the final :class:`AgentResponse`.
     """
 
-    _step_system: ClassVar[PromptBinding] = PromptBinding(
-        name="specializations.plan_and_execute.plan_executor.step_system",
-        default=(
-            "You are a task executor. Complete the given step accurately and concisely. "
-            "Use the previous step results as context where relevant."
-        ),
-    )
-
     def __init__(
         self,
         *,
-        plan: Knot,
+        plan: Knot | Plan,
         llm: Knot | LLMProvider,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
         super().__init__(plan=plan, llm=llm, _config=_config, **kwargs)
 
-    async def process(self, plan: Plan, llm: LLMProvider, **_: Any) -> AgentResponse:
-        """Execute each plan step sequentially and return an AgentResponse with all outputs.
+    async def process(self, plan: Plan, llm: LLMProvider, **_: Any) -> Knot:
+        """Wire the sequential step loop and return the sink knot.
 
         Args:
             plan: The Plan whose steps will be executed in order.
+            llm: The LLM provider used to execute each step.
 
         Returns:
-            An AgentResponse whose content contains each step result separated by newlines.
+            The sink of the inner pipeline: a :class:`_PlanExecutionResult`
+            over the loop's final state, whose output — an ``AgentResponse``
+            whose content contains each step result separated by newlines —
+            becomes this knot's output.
         """
-        step_results: list[str] = []
-        for index, step in enumerate(plan.steps):
-            prior_context = "\n".join(
-                f"Step {i + 1} result: {r}" for i, r in enumerate(step_results)
-            )
-            user_content = (
-                f"Step {index + 1}: {step}"
-                if not prior_context
-                else f"{prior_context}\n\nStep {index + 1}: {step}"
-            )
-            messages = [
-                {"role": "system", "content": type(self)._step_system.resolve()},
-                {"role": "user", "content": user_content},
-            ]
-            raw = await llm.chat(messages=messages)
-            result = LlmResponseText().extract(raw)
-            step_results.append(result)
-        combined = "\n".join(f"Step {i + 1}: {r}" for i, r in enumerate(step_results))
-        return AgentResponse(content=combined)
+        loop = _PlanStepLoop(
+            llm=llm,
+            state=_PlanStepState(steps=tuple(plan.steps)),
+            _config=KnotConfig(id="loop"),
+        )
+        return _PlanExecutionResult(state=loop, _config=KnotConfig(id="result"))

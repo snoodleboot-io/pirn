@@ -15,16 +15,27 @@ pattern PIR-733 established for the single-call case).
 from __future__ import annotations
 
 import unittest
+from collections.abc import Mapping
+from typing import Any
 
 from pirn.core.err import Err
 from pirn.core.knot_config import KnotConfig
 from pirn.core.run_request import RunRequest
 from pirn.tapestry import Tapestry
 
+from pirn_agents.agent.approval_hook import ApprovalHook
 from pirn_agents.specializations.tool_use.tool_chain import ToolChain
+from pirn_agents.testing.stub_tool import StubTool as KitStubTool
 from pirn_agents.tools.tool_call import ToolCall
+from pirn_agents.tools.tool_permissions import ToolPermissions
 from pirn_agents.tools.tool_result import ToolResult
+from pirn_agents.tools.tool_status import ToolStatus
 from tests.specializations.conftest import StubTool
+
+
+class _DenyHook(ApprovalHook):
+    async def request_approval(self, *, tool_name: str, arguments: Mapping[str, Any]) -> bool:
+        return False
 
 
 def _make_chain(initial_call: ToolCall, tools: list) -> ToolChain:
@@ -158,3 +169,63 @@ class TestRunsThroughTheEngine(unittest.IsolatedAsyncioTestCase):
         inner_knot_ids = {row.knot_id for child in children for row in child.lineage}
         assert "step-0" in inner_knot_ids
         assert "step-1" in inner_knot_ids
+
+
+class TestToolChainApproval(unittest.IsolatedAsyncioTestCase):
+    """PIR-865: a denied step skips as ``Skipped``, stopping the chain like any other skip."""
+
+    async def test_denied_first_step_stops_the_chain_as_skipped(self) -> None:
+        step1 = KitStubTool(name="step1", permissions=ToolPermissions(approval_required=True))
+        step2 = KitStubTool(name="step2", result="unreachable")
+        call = ToolCall(tool_name="step1", arguments={"input": "x"}, call_id="c1")
+        with Tapestry() as t:
+            ToolChain(
+                initial_call=call,
+                tools=[step1, step2],
+                approval_hook=_DenyHook(),
+                _config=KnotConfig(id="chain"),
+            )
+        result = await t.run(RunRequest())
+        assert result.succeeded
+        view = result.outputs["chain"]
+        assert view.status is ToolStatus.SKIPPED
+        assert view.error == "call skipped: approval denied"
+        assert step1.invocations == []
+        assert step2.invocations == []
+
+    async def test_approved_first_step_proceeds_to_the_next(self) -> None:
+        step1 = KitStubTool(
+            name="step1", permissions=ToolPermissions(approval_required=True), result="a"
+        )
+        step2 = KitStubTool(name="step2", handler=lambda args: args["input"] + "-b")
+        call = ToolCall(tool_name="step1", arguments={"input": "x"}, call_id="c1")
+        with Tapestry() as t:
+            ToolChain(
+                initial_call=call,
+                tools=[step1, step2],
+                approval_hook=None,
+                _config=KnotConfig(id="chain"),
+            )
+        result = await t.run(RunRequest())
+        assert result.succeeded
+        view = result.outputs["chain"]
+        assert view.status is ToolStatus.OK
+        assert view.result == "a-b"
+
+    async def test_denied_second_step_is_labelled_approval_denied_too(self) -> None:
+        step1 = KitStubTool(name="step1", result="a")
+        step2 = KitStubTool(name="step2", permissions=ToolPermissions(approval_required=True))
+        call = ToolCall(tool_name="step1", arguments={"input": "x"}, call_id="c1")
+        with Tapestry() as t:
+            ToolChain(
+                initial_call=call,
+                tools=[step1, step2],
+                approval_hook=_DenyHook(),
+                _config=KnotConfig(id="chain"),
+            )
+        result = await t.run(RunRequest())
+        assert result.succeeded
+        view = result.outputs["chain"]
+        assert view.status is ToolStatus.SKIPPED
+        assert view.error == "call skipped: approval denied"
+        assert step2.invocations == []

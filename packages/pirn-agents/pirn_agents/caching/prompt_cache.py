@@ -11,37 +11,59 @@ Two hit paths over one store:
 
 Every entry carries an optional expiry stamped from an injectable ``clock`` (so
 TTL behaviour is deterministic under test); expired entries are skipped on read
-and can be swept with :meth:`purge_expired`. Entries are also explicitly
-droppable with :meth:`invalidate`. No vendor SDK is imported — the embedding
+and can be swept with :meth:`apurge_expired`. Entries are also explicitly
+droppable with :meth:`ainvalidate`. No vendor SDK is imported — the embedding
 function is the only backend seam — so the cache stays provider-neutral and
 ``import pirn_agents`` stays backend-free.
 
-ADR agents-speaks-core WS2 part 2: "index = resource, values = DataStore" —
-half-applied here. The embeddings now live in a vended
-:class:`~pirn_agents.caching.similarity_index.SimilarityIndex` resource
-rather than being scanned out of the entries dict directly, exactly like
-:class:`~pirn_agents.caching.semantic_result_cache.SemanticResultCache`'s
-index. The *values* half is **not** moved onto an
+ADR agents-speaks-core WS2 part 2 (PIR-868): "index = resource, values =
+DataStore" is now fully applied here, exactly like
+:class:`~pirn_agents.caching.semantic_result_cache.SemanticResultCache`.
+Entries live in a core
 :class:`~pirn.backends.in_memory.in_memory_data_store.InMemoryDataStore`,
-unlike that class: :meth:`invalidate`, :meth:`purge_expired`, and
-:meth:`__len__` are public, synchronous methods, and ``DataStore`` is
-async-only (``put``/``get``/``has``/``scrub``) — routing values through it
-would force those methods async too, a breaking signature change this pass
-is not authorised to make. Values stay in a plain ``dict[str, CacheEntry]``.
-The exact-key path hashes through :func:`pirn.core.hashing.content_hash`
-(``strict=True``) directly.
+keyed by the same content-hash string :meth:`key_for` has always produced;
+the embeddings stay in the vended
+:class:`~pirn_agents.caching.similarity_index.SimilarityIndex` resource.
+``DataStore`` is async-only (``put``/``get``/``has``/``scrub``, and
+deliberately exposes no enumeration), so the three methods that used to be
+synchronous — ``invalidate``, ``purge_expired``, ``__len__`` — are now
+:meth:`ainvalidate`, :meth:`apurge_expired`, and :meth:`asize`.
+:meth:`purge_expired` has no ``DataStore``-native "walk every entry"
+primitive to call, so it mirrors :class:`SemanticResultCache`'s own
+``_keys`` bookkeeping: a parallel ``set[str]`` of live keys, checked one at a
+time against the store.
+
+The old synchronous names (:meth:`invalidate`, :meth:`purge_expired`,
+:meth:`__len__`) remain for one deprecation cycle as thin wrappers that
+bridge to the event loop and emit ``DeprecationWarning``. They raise
+``RuntimeError`` when called from inside an already-running event loop —
+this cache's own :meth:`get_or_compute` is itself async, so that is the one
+context a synchronous bridge cannot support; call the async method directly
+there.
+
+Eviction bound: delegated to ``InMemoryDataStore(max_values=max_entries)``,
+which evicts the least-recently-*read* entry once full — a change from the
+previous private dict's first-inserted-wins bound, but the same eviction
+policy :class:`SemanticResultCache` already uses for the same reason (one
+``DataStore`` implementation, one eviction policy).
 """
 
 from __future__ import annotations
 
+import asyncio
 import time
-from collections.abc import Awaitable, Callable, Mapping, Sequence
-from typing import Any
+import warnings
+from collections.abc import Awaitable, Callable, Coroutine, Mapping, Sequence
+from typing import Any, TypeVar
 
+from pirn.backends.in_memory.in_memory_data_store import InMemoryDataStore
 from pirn.core.hashing import content_hash
+from pirn.exceptions.value_evicted_error import ValueEvictedError
 
 from pirn_agents.caching.cache_entry import CacheEntry
 from pirn_agents.caching.similarity_index import SimilarityIndex
+
+T = TypeVar("T")
 
 
 class PromptCache:
@@ -64,7 +86,9 @@ class PromptCache:
             threshold: Minimum cosine similarity (0..1) for a semantic hit.
             ttl_seconds: Entry lifetime in ``clock`` units; ``None`` never
                 expires. Must be non-negative when set.
-            max_entries: Optional FIFO bound on stored entries.
+            max_entries: Optional bound on stored entries, enforced by the
+                underlying :class:`InMemoryDataStore` (evicts the
+                least-recently-read entry once full).
             clock: Monotonic clock source for TTL accounting, injectable so
                 expiry is deterministic under test.
 
@@ -81,16 +105,29 @@ class PromptCache:
         self._embed = embed
         self._threshold = threshold
         self._ttl_seconds = ttl_seconds
-        self._max_entries = max_entries
         self._clock = clock
+        self._store = InMemoryDataStore(max_values=max_entries)
         self._index = SimilarityIndex()
-        self._entries: dict[str, CacheEntry] = {}
+        # DataStore exposes no count or enumeration; this mirrors
+        # SemanticResultCache's own `_keys` bookkeeping so `asize()` and
+        # `apurge_expired()` don't need one either.
+        self._keys: set[str] = set()
         self.hits = 0
         self.semantic_hits = 0
         self.misses = 0
 
+    async def asize(self) -> int:
+        """Return the number of live (not yet evicted) entries."""
+        return len(self._keys)
+
     def __len__(self) -> int:
-        return len(self._entries)
+        """Deprecated: use :meth:`asize`."""
+        warnings.warn(
+            "PromptCache.__len__() (len(cache)) is deprecated; await cache.asize() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self._run_sync(self.asize())
 
     @staticmethod
     def key_for(prompt: str, params: Mapping[str, Any] | None = None) -> str:
@@ -124,16 +161,16 @@ class PromptCache:
         """
         now = self._clock()
         key = self.key_for(prompt, params)
-        exact = self._entries.get(key)
+        exact = await self._get_entry(key)
         if exact is not None and not self._is_expired(exact, now):
             self.hits += 1
             return exact.value
         if exact is not None:
-            self._discard(key)
+            await self._adiscard(key)
 
         if self._embed is not None:
             query = tuple(float(x) for x in await self._embed(prompt))
-            match = self._best_semantic(query, now)
+            match = await self._best_semantic(query, now)
             if match is not None:
                 self.semantic_hits += 1
                 return match.value
@@ -142,55 +179,83 @@ class PromptCache:
 
         self.misses += 1
         value = await compute()
-        self._store(CacheEntry(key=key, value=value, embedding=query, expires_at=self._expiry(now)))
+        await self._astore(
+            CacheEntry(key=key, value=value, embedding=query, expires_at=self._expiry(now))
+        )
         return value
 
-    def invalidate(self, prompt: str, *, params: Mapping[str, Any] | None = None) -> None:
+    async def ainvalidate(self, prompt: str, *, params: Mapping[str, Any] | None = None) -> None:
         """Explicitly drop the exact entry for ``prompt``/``params`` (a no-op if absent)."""
-        self._discard(self.key_for(prompt, params))
+        await self._adiscard(self.key_for(prompt, params))
 
-    def purge_expired(self) -> int:
+    def invalidate(self, prompt: str, *, params: Mapping[str, Any] | None = None) -> None:
+        """Deprecated: use :meth:`ainvalidate`."""
+        warnings.warn(
+            "PromptCache.invalidate() is deprecated; await cache.ainvalidate(...) instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        self._run_sync(self.ainvalidate(prompt, params=params))
+
+    async def apurge_expired(self) -> int:
         """Evict every expired entry, returning the number removed."""
         now = self._clock()
-        stale = [key for key, entry in self._entries.items() if self._is_expired(entry, now)]
+        stale: list[str] = []
+        for key in list(self._keys):
+            entry = await self._get_entry(key)
+            if entry is None or self._is_expired(entry, now):
+                stale.append(key)
         for key in stale:
-            self._discard(key)
+            await self._adiscard(key)
         return len(stale)
 
-    def _best_semantic(self, query: tuple[float, ...], now: float) -> CacheEntry | None:
+    def purge_expired(self) -> int:
+        """Deprecated: use :meth:`apurge_expired`."""
+        warnings.warn(
+            "PromptCache.purge_expired() is deprecated; await cache.apurge_expired() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self._run_sync(self.apurge_expired())
+
+    async def _get_entry(self, key: str) -> CacheEntry | None:
+        """Return the stored entry for ``key``, or ``None`` on a miss or eviction."""
+        try:
+            return await self._store.get(key)
+        except (KeyError, ValueEvictedError):
+            self._keys.discard(key)
+            self._index.discard(key)
+            return None
+
+    async def _best_semantic(self, query: tuple[float, ...], now: float) -> CacheEntry | None:
         """Return the best non-expired entry whose similarity clears ``threshold``.
 
         Walks the index's ranked candidates best-first rather than trusting
         the top-ranked one outright: the index knows nothing about expiry
-        (that lives on the entry, in ``self._entries``), so a stale top match
+        (that lives on the entry, in the ``DataStore``), so a stale top match
         is discarded and the next-best candidate is tried instead.
         """
         for key in self._index.ranked_matches(query, self._threshold):
-            entry = self._entries.get(key)
+            entry = await self._get_entry(key)
             if entry is None:
-                self._index.discard(key)
                 continue
             if self._is_expired(entry, now):
-                self._discard(key)
+                await self._adiscard(key)
                 continue
             return entry
         return None
 
-    def _store(self, entry: CacheEntry) -> None:
-        """Insert ``entry`` (and index its embedding) with optional bounding."""
-        if (
-            self._max_entries is not None
-            and entry.key not in self._entries
-            and len(self._entries) >= self._max_entries
-        ):
-            self._discard(next(iter(self._entries)))
-        self._entries[entry.key] = entry
+    async def _astore(self, entry: CacheEntry) -> None:
+        """Insert ``entry`` (and index its embedding) into the store."""
+        await self._store.put(entry.key, entry)
+        self._keys.add(entry.key)
         if entry.embedding is not None:
             self._index.put(entry.key, entry.embedding)
 
-    def _discard(self, key: str) -> None:
-        """Remove ``key`` from both the entries dict and the similarity index."""
-        self._entries.pop(key, None)
+    async def _adiscard(self, key: str) -> None:
+        """Remove ``key`` from the store, the key set, and the similarity index."""
+        await self._store.scrub(key)
+        self._keys.discard(key)
         self._index.discard(key)
 
     def _expiry(self, now: float) -> float | None:
@@ -201,3 +266,23 @@ class PromptCache:
     def _is_expired(entry: CacheEntry, now: float) -> bool:
         """Return whether ``entry`` has passed its expiry stamp at ``now``."""
         return entry.expires_at is not None and now >= entry.expires_at
+
+    @staticmethod
+    def _run_sync(coro: Coroutine[Any, Any, T]) -> T:
+        """Bridge a coroutine to a blocking call for the deprecated sync wrappers.
+
+        Raises rather than deadlocking or silently misbehaving when called
+        from inside a running event loop — this cache's own async API is the
+        only way to use it from async code, which is where it is used
+        exclusively today.
+        """
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return asyncio.run(coro)
+        coro.close()
+        raise RuntimeError(
+            "PromptCache: this deprecated synchronous method cannot be called "
+            "from inside a running event loop; call the async method directly "
+            "(ainvalidate/apurge_expired/asize)."
+        )

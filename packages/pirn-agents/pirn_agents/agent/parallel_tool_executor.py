@@ -96,6 +96,7 @@ class ParallelToolExecutor(SubTapestry):
         rng: Any = None,
         sleep: Any = None,
         hook: Any = None,
+        approval_hook: Any = None,
         _config: KnotConfig,
         **kwargs: Any,
     ) -> None:
@@ -110,6 +111,7 @@ class ParallelToolExecutor(SubTapestry):
             rng=rng,
             sleep=sleep,
             hook=hook,
+            approval_hook=approval_hook,
             _config=_config,
             **kwargs,
         )
@@ -146,6 +148,7 @@ class ParallelToolExecutor(SubTapestry):
         rng: Any = None,
         sleep: Any = None,
         hook: Any = None,
+        approval_hook: Any = None,
         **_: Any,
     ) -> Knot:
         """Wire one tool knot per call and return the view-building sink.
@@ -164,6 +167,9 @@ class ParallelToolExecutor(SubTapestry):
             rng: Deprecated and ignored.
             sleep: Deprecated and ignored.
             hook: Deprecated :class:`ToolInvocationHook` fired around each call.
+            approval_hook: The approval hook to consult for a call whose tool
+                requires approval (PIR-865); see
+                :meth:`~pirn_agents.tools.tool_factory.ToolFactory.for_call`.
 
         Returns:
             The sink of the inner pipeline: an ``Aggregator`` over one knot per
@@ -205,11 +211,13 @@ class ParallelToolExecutor(SubTapestry):
             if knot_id in used_ids:
                 knot_id = f"{knot_id}-{index}"
             used_ids.add(knot_id)
-            per_call[f"call_{index}"] = self._call_knot(call, toolset, knot_id, timeout, policy)
+            per_call[f"call_{index}"] = self._call_knot(
+                call, toolset, knot_id, timeout, policy, approval_hook
+            )
             if hook is not None:
                 self._fire_start(hook, call)
         return Aggregator(
-            combine=functools.partial(self._views, call_list, hook),
+            combine=functools.partial(self._views, call_list, toolset, hook),
             _config=KnotConfig(id="results", error_policy=ErrorPolicy.RECEIVE_ERRORS),
             **per_call,
         )
@@ -221,6 +229,7 @@ class ParallelToolExecutor(SubTapestry):
         knot_id: str,
         timeout: float | None,
         retry: KnotRetryPolicy | None,
+        approval_hook: Any = None,
     ) -> Knot:
         """The knot that runs ``call``: the tool knot, or a rejection recorded as its ``Err``."""
         factory = toolset.get(call.tool_name)
@@ -232,7 +241,12 @@ class ParallelToolExecutor(SubTapestry):
             )
         try:
             return factory.for_call(
-                call, knot_id=knot_id, timeout=timeout, retry=retry, concurrency_group="tools"
+                call,
+                knot_id=knot_id,
+                timeout=timeout,
+                retry=retry,
+                concurrency_group="tools",
+                approval_hook=approval_hook,
             )
         except ToolArgumentValidationError as exc:
             return ToolCallRejection(
@@ -285,12 +299,20 @@ class ParallelToolExecutor(SubTapestry):
 
     @staticmethod
     def _views(
-        calls: Sequence[ToolCall], hook: Any, **by_key: Result[Any]
+        calls: Sequence[ToolCall], toolset: Toolset, hook: Any, **by_key: Result[Any]
     ) -> tuple[ToolResult, ...]:
-        """Build the views in input order from each call's ``Result``; fire a hook's ``on_finish``."""
+        """Build the views in input order from each call's ``Result``; fire a hook's ``on_finish``.
+
+        ``gated`` (PIR-865) is whether the call's tool requires approval: such
+        a call's own knot has no possible parent besides its own arguments
+        and the approval gate ``ToolFactory.for_call`` wires in, so its only
+        possible ``Skipped`` cause is that gate closing.
+        """
         views: list[ToolResult] = []
         for index, call in enumerate(calls):
-            view = ToolResult.from_result(call.call_id, by_key[f"call_{index}"])
+            factory = toolset.get(call.tool_name)
+            gated = factory.requires_approval() if factory is not None else False
+            view = ToolResult.from_result(call.call_id, by_key[f"call_{index}"], gated=gated)
             views.append(view)
             if hook is not None:
                 ParallelToolExecutor._fire_finish(hook, call, view)

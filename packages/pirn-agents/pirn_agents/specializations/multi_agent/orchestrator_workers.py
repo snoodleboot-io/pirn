@@ -21,25 +21,26 @@ uses for its (fixed, named) fan-out. The engine schedules the ready siblings
 concurrently (PIR-841), so each task's call gets its own ``Result``, history
 record, and lineage.
 
-``_WorkerInvocation`` does not nest
+``max_concurrency`` used to be a bare ``asyncio.Semaphore`` shared across
+every ``_WorkerInvocation`` and held across its real ``await worker.invoke(...)``.
+PIR-867 replaced it with the engine's own admission gate: every
+``_WorkerInvocation`` carries the same ``KnotConfig.concurrency_group``, and
+``_inner_concurrency()`` sets a matching ``ConcurrencyLimits`` group cap on
+the inner run — the lever :class:`~pirn_agents.batch.map_agent.MapAgent`
+uses, inherited by inner runs via ``ExecutionPlane`` so it is the same
+budget the admission gate already schedules against, not a second, private
+one it cannot see. ``_WorkerInvocation`` does not nest
 :class:`~pirn_agents.tools.tool_invocation.ToolInvocation` as a further inner
-node: bounding ``max_concurrency`` is an existing, tested guarantee
-(``test_max_concurrency_bounds_workers``), and a semaphore can only bound the
-*actual* awaited call. A ``SubTapestry.process()`` only builds a graph and
-returns; the framework runs it afterwards, so a semaphore acquired inside
-``process()`` would release long before the real call happens and would bound
-nothing. ``_WorkerInvocation`` is therefore a plain ``Knot`` that holds the
-semaphore across the real ``await worker.invoke(...)``, reproducing
-``ToolInvocation``'s exact catch-and-wrap contract (never raises; a failed call
-becomes a ``ToolStatus.ERROR`` result, scrubbed via ``ToolErrorRecord``) so
-results compose identically either way.
+node — it reproduces ``ToolInvocation``'s exact catch-and-wrap contract
+directly (never raises; a failed call becomes a ``ToolStatus.ERROR`` result,
+scrubbed via ``ToolErrorRecord``) so results compose identically either way.
 
 Algorithm:
     1. Validate ``worker`` (a Tool), ``tasks`` (each a str), and
        ``max_concurrency`` (>= 1).
-    2. Build one ``_WorkerInvocation`` per task, each holding a semaphore
-       of size ``max_concurrency`` shared across the fan-out; a failure is
-       caught and reported per task, never raised.
+    2. Build one ``_WorkerInvocation`` per task, each in the same
+       concurrency group; a failure is caught and reported per task, never
+       raised.
     3. Aggregate the results in task order into an
        :class:`OrchestratorWorkersResult`.
 
@@ -50,11 +51,11 @@ References:
 
 from __future__ import annotations
 
-import asyncio
 import functools
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, ClassVar
 
+from pirn.core.concurrency.concurrency_limits import ConcurrencyLimits
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 from pirn.core.parameter import Parameter
@@ -75,6 +76,12 @@ from pirn_agents.tools.tool_factory import ToolFactory
 class OrchestratorWorkers(AgentPipeline):
     """Dynamically spawn one bounded worker per task, via F7 agents-as-tools."""
 
+    _concurrency_group: ClassVar[str] = "orchestrator_workers"
+    # Recomputed by `process()` on every run; the class-level values only
+    # make the attributes readable before the first `process()` call.
+    _mutable_live_workers: int = 0
+    _mutable_max_concurrency: int = 1
+
     def __init__(
         self,
         *,
@@ -91,6 +98,18 @@ class OrchestratorWorkers(AgentPipeline):
             _config=_config,
             **kwargs,
         )
+
+    def _inner_concurrency(self) -> ConcurrencyLimits | None:
+        """The worker group's cap, or ``None`` when nothing runs.
+
+        Read by ``SubTapestry._run_inner`` after ``process()`` has already
+        set ``self._mutable_live_workers`` / ``self._mutable_max_concurrency``
+        — the same "compute during process(), consult after" ordering
+        ``MapAgent._inner_concurrency`` uses.
+        """
+        if self._mutable_live_workers <= 0:
+            return None
+        return ConcurrencyLimits(groups={self._concurrency_group: self._mutable_max_concurrency})
 
     async def process(
         self,
@@ -131,6 +150,8 @@ class OrchestratorWorkers(AgentPipeline):
             raise ValueError(
                 f"OrchestratorWorkers: max_concurrency must be >= 1, got {max_concurrency!r}"
             )
+        self._mutable_live_workers = len(task_tuple)
+        self._mutable_max_concurrency = max_concurrency
         if not task_tuple:
             return Parameter(
                 "orchestrator_workers_result",
@@ -139,7 +160,6 @@ class OrchestratorWorkers(AgentPipeline):
                 _config=KnotConfig(id="orchestrator_workers_result"),
             )
 
-        semaphore = asyncio.Semaphore(max_concurrency)
         parents: dict[str, Knot] = {}
         order: list[tuple[str, str]] = []
         for index, task in enumerate(task_tuple):
@@ -147,8 +167,7 @@ class OrchestratorWorkers(AgentPipeline):
             parents[key] = _WorkerInvocation(
                 task=task,
                 worker=worker,
-                semaphore=semaphore,
-                _config=KnotConfig(id=key),
+                _config=KnotConfig(id=key, concurrency_group=self._concurrency_group),
             )
             order.append((key, task))
         return Aggregator(

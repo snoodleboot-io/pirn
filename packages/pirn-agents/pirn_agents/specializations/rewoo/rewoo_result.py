@@ -2,37 +2,45 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Any
 
 from pirn_agents.specializations.base.agent_result import AgentResult
+from pirn_agents.specializations.rewoo.rewoo_frame import ReWooFrame
 from pirn_agents.tools.tool_call import ToolCall
 from pirn_agents.tools.tool_result import ToolResult
 
 
-@dataclass(frozen=True)
-class ReWooResult(AgentResult):
+class ReWooResult(AgentResult[ReWooFrame, str]):
     """Outcome of a ReWOO plan-execute-synthesise run.
 
-    Attributes
-    ----------
-    answer:
-        The synthesised final answer text.
-    plan:
-        The full tuple of :class:`ToolCall`s planned up front, before any
-        execution — the decoupling that distinguishes ReWOO from ReAct.
-    results:
-        The :class:`ToolResult`s gathered from executing ``plan`` in parallel,
-        in plan order.
+    ``ReWooResult`` is ``Payload[ReWooFrame, str]`` (PIR-868, following the
+    ADR agents-speaks-core WS6b pattern) — ``data`` is the synthesised final
+    answer text, and ``metadata`` is the :class:`ReWooFrame` carrying the
+    up-front plan and the gathered tool results. The pre-ADR field names
+    (``answer``, ``plan``, ``results``) stay available as read-only
+    properties, so every existing construction and attribute-access call
+    site keeps compiling unchanged.
     """
 
-    answer: str
-    plan: tuple[ToolCall, ...]
-    results: tuple[ToolResult, ...]
+    def __init__(
+        self, answer: str, plan: tuple[ToolCall, ...], results: tuple[ToolResult, ...]
+    ) -> None:
+        frame = ReWooFrame(plan=plan, results=results)
+        super().__init__(metadata=frame, data=answer)
+
+    @property
+    def answer(self) -> str:
+        return self._data
+
+    @property
+    def plan(self) -> tuple[ToolCall, ...]:
+        return self._metadata.plan
+
+    @property
+    def results(self) -> tuple[ToolResult, ...]:
+        return self._metadata.results
 
     def _pirn_audit_dict(self) -> dict[str, Any]:
-        return {
-            "answer": self.answer,
-            "plan": [call._pirn_audit_dict() for call in self.plan],
-            "results": [result._pirn_audit_dict() for result in self.results],
-        }
+        audit = dict(self._metadata._pirn_audit_dict())
+        audit["answer"] = self.answer
+        return audit

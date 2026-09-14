@@ -74,6 +74,143 @@ All 159 unit test files that exercise optional-dependency code now wrap imports 
 
 ### Changed
 
+#### Remaining engine-bypass sites closed (PIR-867)
+
+The last standing entries in `tests/specializations/base/test_no_engine_bypass.py`'s bypass ratchet — `AWAITS_CHILD_PROCESS`, `LOOP_AWAITS_LLM_OR_TOOL_CALL`, and `USES_ASYNCIO_GATHER` — are now empty; `AWAITS_INVOKE` names a new sanctioned vending knot instead of the pipeline it used to flag. See `packages/pirn-core/docs/FRAMEWORK_REFERENCE.md` ("Control-flow vocabulary" and "Scheduling and concurrency") for the per-site detail.
+
+- `retrieval/graph_rag/hybrid_graph_retriever.py::HybridGraphRetriever` wires its graph-traversal knot as a genuine upstream parent instead of awaiting its `process()` directly; its constructor no longer takes `store`/`budget`/`start_ids`/`direction`/`edge_types` — those now belong to the `GraphTraversal` knot passed in as `traversal=`.
+- `_ChunkTranslator` and `FactClaimVerifier` fan independent per-item work (one chunk's translation, one claim's search) out into per-item knots joined by an `Aggregator`; `PlanExecutor` wires a `LoopSubTapestry` instead, since each step's prompt depends on every prior step's result. All three knots' `process()` now returns the sink of an inner pipeline rather than the computed value directly.
+- `retrieval/hybrid_retriever.py::HybridRetriever` becomes a `SubTapestry` wiring its dense and lexical arms as two knots into an `Aggregator`, in place of a hand-rolled `asyncio.gather`. `specializations/document_processing/_chunk_embedder_store.py::_ChunkEmbedderStore` and `_ingestion_runner.py::_IngestionRunner` do the same for their per-chunk writes and per-document ETL; `_IngestionRunner`'s bounded concurrency is now a `ConcurrencyLimits` group cap (`_inner_concurrency()`) instead of a held `asyncio.Semaphore`.
+- `specializations/multi_agent/orchestrator_workers.py::OrchestratorWorkers` and its internal `_WorkerInvocation` drop their own shared `asyncio.Semaphore` the same way — bounded concurrency is a `KnotConfig(concurrency_group=)` + `ConcurrencyLimits` group cap now, so the admission gate can see and steer it.
+- `specializations/routing/_attempt_tier.py::_AttemptTier` no longer awaits `CascadeTier.invoke` directly: a new `_TierInvocation` knot makes the call, and `_TierAttemptFold` (`error_policy=RECEIVE_ERRORS`) folds its outcome into the cascade's state. `_AttemptTier` becomes an `AgentPipeline`.
+- `rag/indexing/_raptor_assembler.py` keeps its atomic read-check-transform-write cycle unchanged (the assembler-disassembler ETL exception); giving each level's summarization its own lineage row via `SubTapestry._run_inner` was evaluated and deferred — see the module docstring for why it does not fit without a fragile multiple-inheritance workaround.
+
+#### Specialization results, document loader, and PromptCache onto core seams (ADR agents-speaks-core WS6b, PIR-868)
+
+- **`AgentResult` family onto `Payload[Frame, D]`.** The 11 specialization-pattern
+  result types (`EvaluatorOptimizerResult`, `LatsResult`,
+  `OrchestratorWorkersResult`, `WorkerTaskResult`, `PlanReActResult`,
+  `PromptChainResult`, `SimulationResult`, `ReflexionResult`, `ReWooResult`,
+  `FallbackResult`, `SelfAskResult`) are now `Payload[<Frame>, D]` instead of
+  plain frozen-dataclass `AgentResult` subclasses, mirroring `AgentResponse`/
+  `ConversationPayload` (WS6b): each gets a new `*Frame` type carrying the
+  run-level facts (iterations, scores, candidate ids, budgets) and `D` carries
+  the answer/content. `AgentResult` itself is now a thin generic `Payload`
+  base. Pre-ADR field names stay available as read-only properties, so every
+  existing construction and attribute-access call site keeps compiling
+  unchanged; a structural `__eq__` on `AgentResult` preserves value-equality
+  expectations dropped by no longer being a dataclass.
+- **Document loader split.** `specializations/document_processing/_document_loader.py`
+  (an "ingestor" reading files/HTTP directly inside `process()`) is deleted
+  per `docs/contributing/assembler-disassembler-pattern.md` and replaced by
+  `_DocumentSource` (a `Source` knot modeled on `ObjectStoreReadSource`: the
+  guarded I/O, bytes out) and `_DocumentAssembler` (a `pirn.core.assembler.Assembler`:
+  bytes in, no I/O, UTF-8 decode). `DocumentIngestionPipeline`'s public
+  constructor is unchanged; every SSRF/path-traversal guard is preserved
+  unchanged in behaviour (still delegated to `_DocumentSourceReader`).
+- **`PromptCache` onto a core `DataStore`.** Entries move off a private
+  `dict[str, CacheEntry]` onto a core `InMemoryDataStore` keyed by content
+  hash, exactly like `SemanticResultCache`; the embedding index stays the
+  plain `SimilarityIndex` resource. Because `DataStore` is async-only with no
+  enumeration, `invalidate`/`purge_expired`/`__len__` are now
+  `ainvalidate`/`apurge_expired`/`asize`; the previous synchronous names
+  remain for one deprecation cycle as wrappers that bridge to the event loop
+  (raising `RuntimeError` if called from inside one already running) and emit
+  `DeprecationWarning`. The `max_entries` bound is now enforced by
+  `InMemoryDataStore` (evicts the least-recently-*read* entry), not the
+  previous first-inserted-wins policy.
+#### `Bulkhead`/`BackpressureSemaphore`/`ConcurrencyConfig` onto core concurrency groups (ADR agents-speaks-core WS4b, PIR-866)
+`pirn_agents.resilience.bulkhead.Bulkhead`, `pirn_agents.resilience.bulkhead_config.BulkheadConfig`,
+`pirn_agents.performance.backpressure_semaphore.BackpressureSemaphore`, and
+`pirn_agents.performance.concurrency_config.ConcurrencyConfig` no longer hold
+a private `asyncio.Semaphore`; each is now a one-cycle deprecated shim built
+on a core concurrency seam, warning `DeprecationWarning` on construction:
+- `ConcurrencyConfig` and `BulkheadConfig` are now subclasses of
+  `pirn.core.concurrency.concurrency_limits.ConcurrencyLimits`.
+  `ConcurrencyConfig.to_concurrency_limits(group=...)` returns the exact
+  `ConcurrencyLimits` a real engine run would declare for it.
+- `ConcurrencyConfig.to_concurrency_limits(group=...)` and
+  `BulkheadConfig.to_concurrency_limits()` return the exact
+  `ConcurrencyLimits` a real engine run would declare for the same posture.
+  Both stay plain frozen dataclasses rather than `ConcurrencyLimits`
+  subclasses: `agent/parallel_tool_executor.py` and three `specializations/`
+  pipelines read `ConcurrencyConfig.max_concurrency` as a **class-level**
+  literal default, which a pydantic `BaseModel` subclass cannot support (no
+  class-level field-default access; a `@property` returns the descriptor on
+  class access, not its value).
+- `BackpressureSemaphore` and `Bulkhead` are now subclasses of
+  `pirn.engine.admission.admission_gate.AdmissionGate`, delegating every
+  admission decision to a real `LimitedAdmissionGate` through the new,
+  shared, private `pirn_agents.performance._backpressure_gate._BackpressureGate` —
+  the one place `max_queue_depth`/`acquire_timeout` (backpressure knobs core
+  has no equivalent for outside a running `Tapestry`) are still implemented
+  directly, documented there as the seam.
+- **The replacement pattern:** declare `KnotConfig(concurrency_group=<backend>)`
+  on the knots that call a backend and `ConcurrencyLimits(groups={<backend>: n})`
+  on the run — two independently-built pipelines whose knots share one group
+  are bounded together by the run's one `AdmissionGate`, exactly the
+  isolation `Bulkhead` used to promise (`tests/performance/test_shared_concurrency_group.py`).
+- **Public API unchanged:** `Bulkhead.slot(backend)`, `BackpressureSemaphore.slot()`/
+  `.acquire()`/`.release()`, and every constructor signature still work as
+  before; `agent/parallel_tool_executor.py` already used the replacement
+  pattern (WS1) and needed no change.
+- **Disclosed behaviour change:** a `Bulkhead` backend name now doubles as a
+  `ConcurrencyLimits` group name, so it must satisfy the knot id charset
+  (alphanumeric, underscore, hyphen, dot, colon) — a name with other
+  characters, accepted before this migration, now raises when that backend's
+  pool is first used (`Bulkhead.slot(backend)` / `.try_admit`), not at
+  `BulkheadConfig` construction.
+- **Still open:** `evaluation/run_eval.py` (a bare `asyncio.gather` loop, no
+  `Tapestry`) still constructs `BackpressureSemaphore` directly; two
+  `specializations/` files (`document_processing/_ingestion_runner.py`,
+  `multi_agent/orchestrator_workers.py`) build their own unrelated bare
+  `asyncio.Semaphore`, outside this migration's ownership. See
+  `packages/pirn-core/docs/FRAMEWORK_REFERENCE.md` §6 "Scheduling and
+  concurrency" for the full detail.
+
+#### Denied tool-call approval is `Skipped`, not `Err` (PIR-865)
+
+A tool call whose `ToolPermissions.approval_required` is set and whose
+`ApprovalHook` denies it now surfaces as a core `Skipped` all the way out —
+the model is told the call was **skipped**, not that it failed.
+`pirn_agents.agent.tool_approval_check.ToolApprovalCheck` (a core `Check`)
+evaluates the same policy `ApprovalHook.authorize` always has, and
+`ToolFactory.for_call` wires it behind a core `Gate` in front of the call
+whenever the capability requires approval — the tool's own `process()` is
+never invoked when the gate closes (behaviour-preserving for every
+capability that does not require approval: nothing is wired for those at
+all). Every execution site that builds a tool knot — `ToolFactory.for_call`
+/ `run_call`, `ToolInvocation`, `ParallelToolExecutor`, `ParallelToolCaller`,
+`ToolChain`, `ReActStepExecutor` — gained an `approval_hook` input threaded
+through to `for_call`.
+
+- **Breaking, by design:** a caller reading `ToolResult.status` for a denied
+  call now sees the new `ToolStatus.SKIPPED` member instead of `ERROR`; the
+  rendered message text also changed from `"skipped: <reason>"` to `"call
+  skipped: <reason>"` (`"call skipped: approval denied"` specifically for a
+  gated call, regardless of the engine's own generic propagation reason —
+  see `ToolResult.from_result(..., gated=True)`). `ToolResult.to_result()`
+  now round-trips a `SKIPPED` status back to a core `Skipped` instead of
+  fabricating an `Err`.
+- `ToolCallRejection` is unchanged and keeps its existing, narrower job: a
+  call naming an unregistered tool, or whose arguments the declaration
+  refuses, is still recorded as its own `Err` — that is a rejection, not an
+  approval decision.
+- Named `ToolApprovalCheck` rather than `ApprovalCheck`:
+  `pirn_agents.specializations.human_in_the_loop.approval_check.ApprovalCheck`
+  already holds that name for an unrelated seam (pausing a whole
+  `AgentResponse` for human review).
+- **Known limitation, deferred:** core's `Gate` always records
+  `"gate_closed"` in its own lineage row, and the engine's parent-skip
+  propagation always records `"parent_failed_or_skipped"` on the downstream
+  tool knot's own row — neither is the literal string `"approval_denied"`
+  in lineage. Rendering the accurate "approval denied" message to callers
+  and the model does not depend on that (every call site can only reach a
+  `Skipped` outcome via its own approval gate, so the label is always
+  correct), but a reader of raw lineage rows still sees the engine's generic
+  reason there. Giving `Gate`/`Check` a custom propagated skip reason is a
+  core change, out of this ticket's scope.
+
 #### `pirn-agents` hashing seams moved onto `pirn.core.hashing.content_hash` (ADR agents-speaks-core WS2 part 2)
 
 `pirn_agents.builder.agent_knot_id_factory.AgentKnotIdFactory.derive` and
