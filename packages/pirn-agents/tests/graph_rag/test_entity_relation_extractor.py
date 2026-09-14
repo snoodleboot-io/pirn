@@ -2,7 +2,7 @@
 
 Uses the provider-neutral ``StubStructuredProvider`` (a capability-gated fake LLM
 with a scripted response — no backend, no network) to drive the F20
-``structured_decode`` path, and the zero-dep :class:`InMemoryGraphStore` to prove
+``StructuredDecoder.decode_once`` path, and the zero-dep :class:`InMemoryGraphStore` to prove
 extracted entities/relations upsert cleanly into any :class:`GraphStore`.
 """
 

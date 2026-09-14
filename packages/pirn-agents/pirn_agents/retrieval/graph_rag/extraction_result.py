@@ -2,7 +2,7 @@
 
 The top-level pydantic model the F20 structured-output path decodes for the
 :class:`~pirn_agents.retrieval.graph_rag.entity_relation_extractor.EntityRelationExtractor`.
-It is the ``model_class`` handed to ``structured_decode``, so the LLM's output is
+It is the ``model_class`` handed to ``StructuredDecoder.decode_once``, so the LLM's output is
 validated into typed :class:`ExtractedEntity` / :class:`ExtractedRelation` lists
 before the extractor maps them onto graph nodes and edges.
 """

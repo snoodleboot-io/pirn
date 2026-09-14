@@ -27,7 +27,7 @@ pirn_agents/specializations/structured_output/
 ├── schema_enforcer.py               SchemaEnforcer              — validate parsed dict against a JSON schema
 │
 │  ── Native single-pass (F20) ──
-├── structured_decoder.py            StructuredDecoder / structured_decode — unified, capability-gated entry point
+├── structured_decoder.py            StructuredDecoder                    — unified, capability-gated entry point
 ├── native_schema_mapper.py          NativeSchemaMapper          — S1: schema → native response_format request
 ├── forced_tool_choice_extractor.py  ForcedToolChoiceExtractor   — S2: force one synthetic extraction tool
 ├── constrained_decoding_mapper.py   ConstrainedDecodingMapper   — S3: schema → grammar/regex decode options
@@ -107,7 +107,7 @@ with Tapestry() as t:
 
 ## Native single-pass decoding (F20)
 
-Beyond the retry pipelines above, `structured_decode` / `StructuredDecoder` add a
+Beyond the retry pipelines above, `StructuredDecoder` adds a
 **unified, capability-gated** entry point that guarantees valid output in one
 pass where the provider supports it, and otherwise falls back to the same
 extract-validate-retry pipelines. Every route returns the *same* validated
@@ -129,7 +129,7 @@ native attempt yields invalid output — it falls back to the retry pipeline):
 
 ```python
 from pydantic import BaseModel
-from pirn_agents.specializations.structured_output.structured_decoder import structured_decode
+from pirn_agents.specializations.structured_output.structured_decoder import StructuredDecoder
 
 class Invoice(BaseModel):
     vendor: str
@@ -139,8 +139,8 @@ class Invoice(BaseModel):
 # surface (the shipped OpenAI-compatible / Messages providers do), the best
 # native path is used; a plain provider transparently routes to the retry
 # pipeline. Provider-neutral — no vendor is named or privileged.
-invoice = await structured_decode(prompt="Extract the invoice", llm=my_llm,
-                                  model_class=Invoice, max_retries=3)
+invoice = await StructuredDecoder.decode_once(prompt="Extract the invoice", llm=my_llm,
+                                              model_class=Invoice, max_retries=3)
 ```
 
 **Capability gating is provider-owned**: a provider advertises flags
@@ -177,7 +177,7 @@ provider advertises forced tool-choice only.
 | YAML dict | `YamlExtractorPipeline(...)` |
 | Enum value | `EnumClassifierPipeline(target_enum=MyEnum, ...)` |
 | Custom format + retry | `RetryOnParseFailure(extractor=..., max_retries=N)` |
-| Native single-pass (auto-fallback) | `await structured_decode(prompt=..., llm=..., model_class=MyModel)` |
+| Native single-pass (auto-fallback) | `await StructuredDecoder.decode_once(prompt=..., llm=..., model_class=MyModel)` |
 
 ---
 

@@ -8,9 +8,10 @@ and output:
        :class:`~pirn_agents.retrieval.graph_rag.extraction_schema.ExtractionSchema`.
     2. Decode it into a validated
        :class:`~pirn_agents.retrieval.graph_rag.extraction_result.ExtractionResult` via the
-       F20 :func:`structured_decode` path — provider-neutral, capability-gated
-       native schema / forced-tool / constrained decoding with a retry fallback,
-       so extraction works against any LLM provider.
+       F20 :meth:`~pirn_agents.specializations.structured_output.structured_decoder.StructuredDecoder.decode_once`
+       path — provider-neutral, capability-gated native schema / forced-tool /
+       constrained decoding with a retry fallback, so extraction works against
+       any LLM provider.
     3. Reject any entity/relation whose type is outside the schema, or any
        relation that dangles off an unknown entity id.
     4. Map the typed result onto :class:`GraphNode` / :class:`GraphEdge` values
@@ -34,7 +35,7 @@ from pirn_agents.retrieval.graph_rag.extraction_schema import ExtractionSchema
 from pirn_agents.retrieval.graph_stores.graph_edge import GraphEdge
 from pirn_agents.retrieval.graph_stores.graph_node import GraphNode
 from pirn_agents.retrieval.graph_stores.graph_store import GraphStore
-from pirn_agents.specializations.structured_output.structured_decoder import structured_decode
+from pirn_agents.specializations.structured_output.structured_decoder import StructuredDecoder
 
 
 class EntityRelationExtractor(Knot):
@@ -101,7 +102,7 @@ class EntityRelationExtractor(Knot):
         if not text.strip():
             raise ValueError("EntityRelationExtractor: text must be non-empty")
         prompt = self._build_prompt(text, schema)
-        decoded = await structured_decode(
+        decoded = await StructuredDecoder.decode_once(
             prompt=prompt, llm=llm, model_class=ExtractionResult, max_retries=max_retries
         )
         if not isinstance(decoded, ExtractionResult):
