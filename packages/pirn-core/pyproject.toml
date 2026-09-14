@@ -422,6 +422,24 @@ runner = ".venv/bin/python -m pytest tests -x -q --no-header"
 venvPath = "../.."
 venv = ".venv"
 include = ["pirn"]
+# Per-subpackage strict ratchet (PIR-869): every path here passes strict with 0 errors,
+# new subpackages start strict, a subpackage joins when its count hits 0 and may never
+# regress. Enforced by scripts/check_pyright_strict_list.py; burn-down table in
+# docs/architecture/ci-pipelines.md.
+strict = [
+    "pirn/_migrate",
+    "pirn/check",
+    "pirn/domains",
+    "pirn/emitters",
+    "pirn/exceptions",
+    "pirn/managers",
+    "pirn/recording",
+    "pirn/security",
+    "pirn/streaming",
+    "pirn/viz",
+    "pirn/yaml_loader",
+    "pirn/*.py",
+]
 pythonVersion = "3.12"
 # Backends/dispatchers import optional packages lazily; the Knot.process(**kwargs)
 # override pattern and dynamic registry access are intentional (was SCD-03 base).

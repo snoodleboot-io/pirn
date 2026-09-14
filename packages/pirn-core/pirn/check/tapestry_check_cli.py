@@ -5,8 +5,10 @@ from __future__ import annotations
 import argparse
 import sys
 
-from pirn.check._loader import _Loader
-from pirn.check.validator import _TapestryValidator
+from pirn.check._loader import _Loader  # pyright: ignore[reportPrivateUsage]  # package-internal
+from pirn.check.validator import (
+    _TapestryValidator,  # pyright: ignore[reportPrivateUsage]  # package-internal
+)
 
 
 class TapestryCheckCli:

@@ -38,7 +38,7 @@ class PipelineSpec(BaseModel):
         description="When allow_callable_refs is True, only callable refs whose module path "
         "starts with one of these prefixes may be imported. None means no restriction.",
     )
-    nodes: list[NodeSpecUnion] = Field(default_factory=list)
+    nodes: list[NodeSpecUnion] = Field(default_factory=list[NodeSpecUnion])
 
     @property
     def nodes_by_id(self) -> dict[str, NodeSpecUnion]:

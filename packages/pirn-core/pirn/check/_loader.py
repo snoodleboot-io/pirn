@@ -5,7 +5,7 @@ import sys
 from typing import Any
 
 
-class _Loader:
+class _Loader:  # pyright: ignore[reportUnusedClass]  # imported by tapestry_check_cli
     """Resolve a ``MODULE:FUNCTION`` spec string to the callable it names."""
 
     @staticmethod

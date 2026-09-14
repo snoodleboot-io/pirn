@@ -22,7 +22,9 @@ import functools
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any
 
-from pirn.triggers._run_driver import _RunDriver
+from pirn.triggers._run_driver import (
+    _RunDriver,  # pyright: ignore[reportPrivateUsage]  # package-internal driver
+)
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -106,7 +108,11 @@ async def run_stream(
     ``asyncio.CancelledError`` re-raise inside ``_RunDriver.drive``.
     """
     base_params = dict(extra_parameters or {})
-    to_request = functools.partial(StreamingSource._bind_value, base_params, source.parameter_name)
+    to_request = functools.partial(
+        StreamingSource._bind_value,  # pyright: ignore[reportPrivateUsage]  # module-private helper
+        base_params,
+        source.parameter_name,
+    )
 
     await _RunDriver.drive(
         source.stream(),

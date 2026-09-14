@@ -7,7 +7,7 @@ from pirn.check.validation_issue import ValidationIssue
 
 @dataclass
 class ValidationResult:
-    issues: list[ValidationIssue] = field(default_factory=list)
+    issues: list[ValidationIssue] = field(default_factory=list[ValidationIssue])
 
     @property
     def errors(self) -> list[ValidationIssue]:

@@ -161,7 +161,7 @@ h1 { margin: 0 0 16px 0; font-size: 22px; }
         color with no outcome data.  Useful for inspecting topology.
         """
         title = title or "pirn pipeline"
-        knots = tapestry._store.all()
+        knots = tapestry.store.all()
 
         from pirn.nodes.sub_tapestry import SubTapestry
 

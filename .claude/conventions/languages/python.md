@@ -76,7 +76,38 @@ Environment vars:    UPPER_SNAKE_CASE always
 #### Type Checking Enforcement
 - **ENFORCE the use of `pyright`** while coding — run continuously during development
 - Treat type errors as blocking issues
-- All code must pass pyright strict mode before commit
+- **Strict mode is adopted per top-level subpackage, ratcheted (PIR-869).** Each package's
+  `[tool.pyright]` carries a `strict = [...]` list of subpackage paths (`pirn/check`,
+  `pirn_agents/caching`, ... and `<pkg>/*.py` for the modules directly under the import
+  root). Every listed subpackage passes strict with 0 errors; the rest run in basic mode
+  until their strict count reaches 0. The rules:
+  - **new subpackages start strict** — add the path to the list in the same change that
+    creates the directory;
+  - **a subpackage joins the strict list when its count hits 0** — never later;
+  - **a listed subpackage may not regress** — CI's `lint` job runs
+    `scripts/check_pyright_strict_list.py`, which measures every subpackage in strict mode
+    and fails on a regression, on a 0-error subpackage missing from the list, or on a listed
+    path that is not a subpackage.
+  - the remaining per-subpackage counts are the burn-down table in
+    `docs/architecture/ci-pipelines.md` (regenerate it with
+    `python scripts/check_pyright_strict_list.py packages/<dist> --table`).
+- Fixing strict errors means real annotations, not `Any`: type the third-party return you
+  actually use (`dict[str, Any]` for a JSON payload, a small `TypedDict`/dataclass for a
+  known shape), narrow with `isinstance` on a genuinely unknown value, and keep the
+  connector pattern of a lazily imported optional SDK typed as `Any` at the import.
+  `# pyright: ignore[<rule>]` only with a one-line reason on the same line.
+- **`reportUnnecessaryIsInstance` is the one strict rule the house style contradicts**:
+  `process()` and constructor validation is explicit — type check, then value check,
+  `TypeError` before `ValueError` (`docs/contributing/domain-knots.md`) — because knot inputs
+  are runtime-bound. Keep the guard. In a strict-listed subpackage suppress the rule per
+  file with a two-line header above the module docstring — a config override does not
+  apply inside `strict` paths, and pyright rejects trailing text on a directive line, so
+  the reason goes on the next line:
+  ```python
+  # pyright: reportUnnecessaryIsInstance=false
+  # runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
+  ```
+  Never satisfy the rule by deleting the check.
 - No commits with type errors or `Any` types without explicit justification
 
 ### Testing

@@ -16,7 +16,7 @@ is an internal collaborator, not something users construct directly.
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any
@@ -840,7 +840,7 @@ class Tapestry:
 
     @staticmethod
     @contextmanager
-    def _run_id_scope(run_id: str | None) -> Iterator[None]:
+    def _run_id_scope(run_id: str | None) -> Generator[None, None, None]:
         """Bind ``current_run_id()`` to ``run_id`` for the duration of the block.
 
         Internal.  ``Tapestry.run()`` owns run identity for real runs; this

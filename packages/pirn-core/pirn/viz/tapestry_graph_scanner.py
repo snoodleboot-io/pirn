@@ -137,12 +137,12 @@ class TapestryGraphScanner:
                         payload_json,
                     ) = lr
                     parent_knot_ids: dict[str, str] = {}
-                    extra: dict = {}
+                    extra: dict[str, Any] = {}
                     source_hash: str = ""
                     try:
-                        payload = _json.loads(payload_json) if payload_json else {}
-                        extra = payload.get("extra", {})
-                        parent_knot_ids = extra.get("parent_knot_ids", {})
+                        payload: dict[str, Any] = _json.loads(payload_json) if payload_json else {}
+                        extra = payload.get("extra") or {}
+                        parent_knot_ids = extra.get("parent_knot_ids") or {}
                         source_hash = payload.get("source_hash") or ""
                     except Exception:
                         _logger.warning(
@@ -231,7 +231,7 @@ class TapestryGraphScanner:
 
                 # Collect knot_sources for every source_hash referenced in
                 # this run's knots so the UI can render source code modals.
-                knot_sources: dict[str, dict] = {}
+                knot_sources: dict[str, dict[str, Any]] = {}
                 if "knot_sources" in tables:
                     hashes = [k["source_hash"] for k in knots.values() if k.get("source_hash")]
                     if hashes:
@@ -358,8 +358,9 @@ class TapestryGraphScanner:
         try:
             import yaml as _yaml
 
-            raw = _yaml.safe_load(path.read_text())
-            name = (raw or {}).get("name") or path.stem
+            raw: Any = _yaml.safe_load(path.read_text())
+            raw_name = raw.get("name") if raw else None
+            name = str(raw_name) if raw_name else path.stem
             from pirn.yaml_loader.pipeline_loader import PipelineLoader
 
             tapestry = PipelineLoader.load_yaml(path.read_text())
@@ -390,7 +391,7 @@ class TapestryGraphScanner:
 
             for attr_name in dir(module):
                 val = getattr(module, attr_name, None)
-                if isinstance(val, Tapestry) and val._store.all():
+                if isinstance(val, Tapestry) and val.store.all():
                     results.append(cls._tapestry_to_graph(val, f"{path.stem}.{attr_name}", source))
 
             if not results:
@@ -399,7 +400,7 @@ class TapestryGraphScanner:
                     if callable(fn):
                         try:
                             val = fn()
-                            if isinstance(val, Tapestry) and val._store.all():
+                            if isinstance(val, Tapestry) and val.store.all():
                                 results.append(cls._tapestry_to_graph(val, path.stem, source))
                                 break
                         except Exception:

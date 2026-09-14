@@ -112,7 +112,7 @@ class MermaidRenderer:
     @staticmethod
     def _safe_node_id(knot_id: str) -> str:
         """Mermaid identifiers can't contain certain characters; sanitize."""
-        safe = []
+        safe: list[str] = []
         for ch in knot_id:
             if ch.isalnum() or ch == "_":
                 safe.append(ch)

@@ -44,7 +44,7 @@ class _DomainDiscovery:
         found: set[str] = set()
         for dist in distributions():
             dist_name = dist.metadata["Name"]
-            if dist_name is None:
+            if not dist_name:
                 continue
             normalized = dist_name.replace("_", "-").lower()
             import_name = wanted.get(normalized)
