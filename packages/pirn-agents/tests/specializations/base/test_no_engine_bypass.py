@@ -120,14 +120,13 @@ USES_ASYNCIO_GATHER = frozenset(
 
 #: A `for`/`while` loop whose body directly awaits an LLM or tool call
 #: (`.chat(`, `.complete(`, `.invoke(`, `.search(`) instead of the engine
-#: fanning sibling knots out or a `LoopSubTapestry` iterating them.
-LOOP_AWAITS_LLM_OR_TOOL_CALL = frozenset(
-    {
-        "specializations/document_processing/_chunk_translator.py::_ChunkTranslator",
-        "specializations/guardrails/fact_claim_verifier.py::FactClaimVerifier",
-        "specializations/plan_and_execute/plan_executor.py::PlanExecutor",
-    }
-)
+#: fanning sibling knots out or a `LoopSubTapestry` iterating them. PIR-867
+#: fixed the three that remained: `_ChunkTranslator`/`FactClaimVerifier` fan
+#: out one knot per independent item into an `Aggregator`; `PlanExecutor`'s
+#: steps genuinely depend on prior results, so it wired a `LoopSubTapestry`
+#: (`_PlanStepLoop`) instead. Kept as a `frozenset()` assertion so a future
+#: instance regresses loudly.
+LOOP_AWAITS_LLM_OR_TOOL_CALL: frozenset[str] = frozenset()
 
 #: A literal `while True:` retry loop instead of composing `RetryPolicy.run()`
 #: (PIR-856 retrofitted the four `pirn_agents`-owned instances that existed

@@ -212,8 +212,15 @@ class DocumentProcessingPromptPins(unittest.IsolatedAsyncioTestCase):
 
     async def test_chunk_translator_system_prompt(self) -> None:
         llm = StubLLMProvider(responses=["hola"])
-        knot = _bare(_ChunkTranslator)
-        await knot.process(chunks=["hello"], target_language="Spanish", llm=llm)
+        with Tapestry() as t:
+            _ChunkTranslator(
+                chunks=["hello"],
+                target_language="Spanish",
+                llm=llm,
+                _config=KnotConfig(id="pin"),
+            )
+        result = await t.run(RunRequest())
+        assert result.succeeded, result.exceptions
         assert llm.calls[0][0]["content"] == (
             "Translate the supplied text into Spanish. "
             "Preserve formatting and named entities. Reply with the "

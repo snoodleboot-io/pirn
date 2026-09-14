@@ -421,10 +421,22 @@ its own `store`/`budget`/`start_ids`/`direction`/`edge_types` bound at its own
 construction; `HybridGraphRetriever.process()` receives the traversal's
 resolved `Subgraph` like any other parent's output.
 
+Three more `LOOP_AWAITS_LLM_OR_TOOL_CALL` sites fixed in PIR-867:
+`_ChunkTranslator` (`specializations/document_processing/`) and
+`FactClaimVerifier` (`specializations/guardrails/`) translate/verify
+independent items — chunk N's translation and claim N's search never depend
+on item N-1's outcome — so each now fans out one per-item knot
+(`_ChunkTranslation` / `_ClaimVerification`) into an `Aggregator`, in the
+`ParallelToolCaller` style, instead of awaiting `llm.chat`/`store.search` in a
+hand-rolled `for` loop. `PlanExecutor` (`specializations/plan_and_execute/`)
+is different: step N's prompt genuinely includes every prior step's result,
+so it wires a `LoopSubTapestry` (`_PlanStepLoop`) instead — the state
+threaded across iterations is the running tuple of step results.
+
 The bypass ratchet (`tests/specializations/base/test_no_engine_bypass.py`)
 is empty for `AWAITS_CHILD_PROCESS`, `RETURNS_INLINE_SOURCE`, `UNRUN_TAPESTRY`,
-and `DEFINES_INLINE_SOURCE`; kept as `frozenset()` assertions so a regression
-is loud, not deleted.
+`DEFINES_INLINE_SOURCE`, and `LOOP_AWAITS_LLM_OR_TOOL_CALL`; kept as
+`frozenset()` assertions so a regression is loud, not deleted.
 
 **Still open** (frozen in the same ratchet, not this ADR's blast radius to
 fix unilaterally):
@@ -439,11 +451,6 @@ fix unilaterally):
   `retrieval/hybrid_retriever.py::HybridRetriever`,
   `specializations/document_processing/_chunk_embedder_store.py::_ChunkEmbedderStore`,
   `specializations/document_processing/_ingestion_runner.py::_IngestionRunner`.
-- 3 loop sites still await an LLM or tool call directly inside a `for`/`while`
-  body instead of a `LoopSubTapestry` iteration (`LOOP_AWAITS_LLM_OR_TOOL_CALL`):
-  `specializations/document_processing/_chunk_translator.py::_ChunkTranslator`,
-  `specializations/guardrails/fact_claim_verifier.py::FactClaimVerifier`,
-  `specializations/plan_and_execute/plan_executor.py::PlanExecutor`.
 - `specializations/routing/_attempt_tier.py::_AttemptTier` still awaits
   `.invoke()` directly (`AWAITS_INVOKE`); `agent/parallel_tool_executor.py::ParallelToolExecutor`'s
   own `asyncio.gather` is a deliberate deferral — its per-call retry/timeout
