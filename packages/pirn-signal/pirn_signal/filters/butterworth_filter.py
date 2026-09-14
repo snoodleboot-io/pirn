@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``ButterworthFilter`` — maximally-flat IIR filter (no passband ripple).
 
 Algorithm:
@@ -41,7 +43,7 @@ class ButterworthFilter(Knot):
         *,
         signal: Knot,
         order: Knot | int,
-        cutoff_hz: Knot | float | tuple,
+        cutoff_hz: Knot | float | tuple[float, float],
         band_type: Knot | str = "lowpass",
         _config: KnotConfig,
         **kwargs: Any,

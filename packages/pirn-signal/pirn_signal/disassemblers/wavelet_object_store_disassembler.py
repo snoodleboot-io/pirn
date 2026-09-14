@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``WaveletObjectStoreDisassembler`` — serialize a :class:`WaveletPayload` to raw npz bytes.
 
 Sits between upstream domain knots that produce
@@ -63,7 +65,7 @@ class WaveletObjectStoreDisassembler(Disassembler):
             TypeError: If ``payload`` is not a :class:`WaveletPayload`.
             ValueError: If ``payload.data`` contains no decomposition levels.
         """
-        if not isinstance(payload, WaveletPayload):  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(payload, WaveletPayload):
             raise TypeError(
                 f"WaveletObjectStoreDisassembler: payload must be WaveletPayload, got {type(payload).__name__}"
             )
@@ -80,5 +82,5 @@ class WaveletObjectStoreDisassembler(Disassembler):
         arrays["signal_id"] = np.array(payload.metadata.signal_id)
         arrays["wavelet_name"] = np.array(payload.metadata.wavelet_name)
         arrays["scale_count"] = np.array(payload.metadata.scale_count)
-        np.savez(buf, **arrays)  # type: ignore[arg-type]
+        np.savez(buf, allow_pickle=True, **arrays)
         return buf.getvalue()

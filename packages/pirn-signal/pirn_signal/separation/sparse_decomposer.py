@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SparseDecomposer`` — sparse decomposition over a fixed dictionary.
 
 Algorithm:
@@ -30,9 +32,11 @@ import asyncio
 from typing import Any
 
 import numpy as np
+from numpy.typing import NDArray
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.bindings.sklearn_decomposition_binding import SklearnDecompositionBinding
 from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.source_frame import SourceFrame
 from pirn_signal.types.source_payload import SourcePayload
@@ -105,16 +109,12 @@ class SparseDecomposer(Knot):
                 source_count=atom_count,
                 mixing_matrix_shape=(signal.frame.channel_count, atom_count),
             ),
-            data=np.asarray(components),
+            data=components,
         )
 
     @staticmethod
-    def _run_sparse_pca(data: np.ndarray, atom_count: int, alpha: float) -> np.ndarray:
-        try:
-            from sklearn.decomposition import SparsePCA  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "SparseDecomposer requires 'scikit-learn'. Install via pip install pirn-signal[separation]"
-            ) from exc
-        sparse_pca = SparsePCA(n_components=atom_count, alpha=alpha, random_state=0)  # type: ignore[call-overload]
-        return sparse_pca.fit_transform(data.T).T
+    def _run_sparse_pca(
+        data: NDArray[np.floating[Any]], atom_count: int, alpha: float
+    ) -> NDArray[np.float64]:
+        decomposition = SklearnDecompositionBinding.load()
+        return decomposition.sparse_pca(data.T, atom_count, alpha).T

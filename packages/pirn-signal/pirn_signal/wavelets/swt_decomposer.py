@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``SWTDecomposer`` — stationary (undecimated) wavelet transform.
 
 Algorithm:
@@ -27,9 +29,11 @@ import asyncio
 from typing import Any
 
 import numpy as np
+from numpy.typing import NDArray
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.bindings.py_wavelets_binding import PyWaveletsBinding
 from pirn_signal.types.signal_payload import SignalPayload
 from pirn_signal.types.wavelet_frame import WaveletFrame
 from pirn_signal.types.wavelet_payload import WaveletPayload
@@ -88,12 +92,7 @@ class SWTDecomposer(Knot):
         return WaveletPayload(metadata=frame, data=coeffs)
 
     @staticmethod
-    def _run_swt(data: np.ndarray, wavelet: str, level: int) -> list[np.ndarray]:
-        try:
-            import pywt  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "SWTDecomposer requires 'pywavelets'. Install via pip install pirn-signal[signal]"
-            ) from exc
+    def _run_swt(data: np.ndarray, wavelet: str, level: int) -> list[NDArray[np.floating[Any]]]:
+        pywt = PyWaveletsBinding.load()
         pairs = pywt.swt(data, wavelet, level=level, axis=-1)
         return [c for pair in pairs for c in pair]

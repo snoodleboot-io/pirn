@@ -229,20 +229,21 @@ initial cut is not policy — the list is exactly the set of subpackages at 0.
 | pirn-signal | `pirn_signal/*.py` | 0 | yes |
 | pirn-signal | `pirn_signal/adaptive` | 0 | yes |
 | pirn-signal | `pirn_signal/assemblers` | 0 | yes |
+| pirn-signal | `pirn_signal/audio` | 0 | yes |
 | pirn-signal | `pirn_signal/beamforming` | 0 | yes |
+| pirn-signal | `pirn_signal/bindings` | 0 | yes |
 | pirn-signal | `pirn_signal/disassemblers` | 0 | yes |
+| pirn-signal | `pirn_signal/filters` | 0 | yes |
+| pirn-signal | `pirn_signal/nonlinear` | 0 | yes |
+| pirn-signal | `pirn_signal/resampling` | 0 | yes |
+| pirn-signal | `pirn_signal/separation` | 0 | yes |
+| pirn-signal | `pirn_signal/spectral` | 0 | yes |
 | pirn-signal | `pirn_signal/statistical` | 0 | yes |
 | pirn-signal | `pirn_signal/types` | 0 | yes |
-| pirn-signal | `pirn_signal/separation` | 28 |  |
-| pirn-signal | `pirn_signal/resampling` | 36 |  |
-| pirn-signal | `pirn_signal/audio` | 37 |  |
-| pirn-signal | `pirn_signal/wavelets` | 54 |  |
-| pirn-signal | `pirn_signal/spectral` | 70 |  |
-| pirn-signal | `pirn_signal/nonlinear` | 89 |  |
-| pirn-signal | `pirn_signal/filters` | 151 |  |
+| pirn-signal | `pirn_signal/wavelets` | 0 | yes |
 
 Totals outside the lists: pirn-core 1379, pirn-agents 1709, pirn-data 514,
-pirn-health 486, pirn-ml 286, pirn-oilgas 0, pirn-signal 465. The dominant
+pirn-health 486, pirn-ml 286, pirn-oilgas 0, pirn-signal 0. The dominant
 remaining categories are `reportUnknownMemberType` / `reportUnknownVariableType`
 on untyped third-party returns (cloud SDKs, `cloudpickle`, DB drivers,
 numpy-heavy domain code), `reportMissingTypeStubs`, `reportPrivateUsage` on

@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``AllpassFilter`` — phase-shifting allpass IIR filter.
 
 Algorithm:
@@ -31,6 +33,7 @@ import numpy as np
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.bindings.scipy_signal_binding import ScipySignalBinding
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -70,12 +73,7 @@ class AllpassFilter(Knot):
         Raises:
             ValueError: If pole_radius is not in (0, 1).
         """
-        try:
-            from scipy import signal as ss  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "AllpassFilter requires 'scipy'. Install via pip install pirn-signal[signal]"
-            ) from exc
+        ss = ScipySignalBinding.load()
         if not isinstance(pole_radius, (int, float)) or not (0.0 < pole_radius < 1.0):
             raise ValueError(
                 "AllpassFilter: pole_radius must be a float in the open interval (0, 1)"
@@ -89,5 +87,5 @@ class AllpassFilter(Knot):
         )
         return signal.derive(
             "allpass",
-            np.asarray(filtered),
+            filtered,
         )

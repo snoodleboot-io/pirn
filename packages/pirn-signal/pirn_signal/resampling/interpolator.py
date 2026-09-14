@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``Interpolator`` — generic interpolation knot.
 
 Algorithm:
@@ -28,9 +30,11 @@ import asyncio
 from typing import Any
 
 import numpy as np
+from numpy.typing import NDArray
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.bindings.scipy_interpolate_binding import ScipyInterpolateBinding
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -96,24 +100,13 @@ class Interpolator(Knot):
         )
 
     @staticmethod
-    def _interpolate(data: np.ndarray, src_rate: float, tgt_rate: float, kind: str) -> np.ndarray:
-        try:
-            from scipy.interpolate import interp1d  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "Interpolator requires 'scipy'. Install via pip install pirn-signal[signal]"
-            ) from exc
+    def _interpolate(
+        data: NDArray[np.floating[Any]], src_rate: float, tgt_rate: float, kind: str
+    ) -> NDArray[np.floating[Any]]:
+        interpolate = ScipyInterpolateBinding.load()
         n_in = data.shape[-1]
         n_out = round(n_in * tgt_rate / src_rate)
-        t_in = np.arange(n_in) / src_rate
-        t_out = np.arange(n_out) / tgt_rate
+        t_in: NDArray[np.float64] = np.arange(n_in, dtype=np.float64) / src_rate
+        t_out: NDArray[np.float64] = np.arange(n_out, dtype=np.float64) / tgt_rate
         interp_kind = "cubic" if kind == "spline" else kind
-        fn = interp1d(
-            t_in,
-            data,
-            kind=interp_kind,
-            axis=-1,
-            fill_value="extrapolate",  # type: ignore[arg-type]
-            bounds_error=False,
-        )
-        return np.asarray(fn(t_out))
+        return interpolate.interp1d_extrapolate(t_in, data, t_out, kind=interp_kind, axis=-1)

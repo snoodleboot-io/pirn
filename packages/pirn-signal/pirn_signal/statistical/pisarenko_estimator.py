@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``PisarenkoEstimator`` — Pisarenko harmonic decomposition.
 
 Algorithm:
@@ -76,7 +78,7 @@ class PisarenkoEstimator(Knot):
         Raises:
             ValueError: If sinusoid_count is not a positive integer.
         """
-        if not isinstance(sinusoid_count, int) or sinusoid_count <= 0:  # pyright: ignore[reportUnnecessaryIsInstance]  # runtime-bound input; guard is deliberate
+        if not isinstance(sinusoid_count, int) or sinusoid_count <= 0:
             raise ValueError("PisarenkoEstimator: sinusoid_count must be a positive integer")
         rate = signal.frame.sample_rate_hz
         channels = np.atleast_2d(signal.data)

@@ -16,7 +16,12 @@ References:
 
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
+from numpy.typing import NDArray
+
+from pirn_signal.bindings.scipy_signal_binding import ScipySignalBinding
 
 
 class ButterworthDesign:
@@ -24,12 +29,12 @@ class ButterworthDesign:
 
     @staticmethod
     def design_and_apply(
-        data: np.ndarray,
+        data: NDArray[np.floating[Any]],
         order: int,
         cutoff_hz: float | tuple[float, float],
         band_type: str,
         fs: float,
-    ) -> np.ndarray:
+    ) -> NDArray[np.floating[Any]]:
         """Design a Butterworth SOS filter and apply it causally via ``sosfilt``.
 
         Args:
@@ -43,17 +48,12 @@ class ButterworthDesign:
         Returns:
             The filtered sample array, same shape as ``data``.
         """
-        try:
-            from scipy import signal as ss  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "ButterworthDesign requires 'scipy'. Install via pip install pirn-signal[signal]"
-            ) from exc
-        btype_map = {
+        ss = ScipySignalBinding.load()
+        btype_map: dict[str, str] = {
             "lowpass": "low",
             "highpass": "high",
             "bandpass": "bandpass",
             "bandstop": "bandstop",
         }
-        sos = ss.butter(order, cutoff_hz, btype=btype_map[band_type], fs=fs, output="sos")
-        return np.asarray(ss.sosfilt(sos, data, axis=-1))
+        sos = ss.butter_sos(order, cutoff_hz, btype_map[band_type], fs)
+        return ss.sosfilt(sos, data, axis=-1)

@@ -13,13 +13,16 @@ References:
 from __future__ import annotations
 
 import numpy as np
+from numpy.typing import NDArray
 
 
 class DelayEmbedding:
     """Takens delay embedding shared by ``pirn_signal.nonlinear`` knots."""
 
     @staticmethod
-    def embed(signal_array: np.ndarray, embedding_dim: int, tau: int = 1) -> np.ndarray:
+    def embed(
+        signal_array: NDArray[np.float64], embedding_dim: int, tau: int = 1
+    ) -> NDArray[np.float64]:
         """Build a delay embedding matrix of shape (N - (embedding_dim-1)*tau, embedding_dim)."""
         signal_length = len(signal_array)
         length = signal_length - (embedding_dim - 1) * tau

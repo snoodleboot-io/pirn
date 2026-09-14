@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``BeatTracker`` — beat / tempo tracking.
 
 Algorithm:
@@ -119,7 +121,7 @@ class BeatTracker(Knot):
     @staticmethod
     def _track_beats(mono: np.ndarray, sr: int, hop_length: int) -> tuple[float, np.ndarray]:
         try:
-            import librosa  # type: ignore[import-not-found]
+            import librosa
         except ImportError as exc:
             raise ImportError(
                 "BeatTracker requires 'librosa'. Install via pip install pirn-signal[signal]"

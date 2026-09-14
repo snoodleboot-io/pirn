@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``KalmanSmoother`` — Rauch-Tung-Striebel two-pass smoother.
 
 Algorithm:

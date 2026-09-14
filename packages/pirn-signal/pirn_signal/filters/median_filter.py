@@ -1,3 +1,5 @@
+# pyright: reportUnnecessaryIsInstance=false
+# runtime-bound knot inputs: explicit type guards are house style (docs/contributing/domain-knots.md)
 """``MedianFilter`` — running median filter for spike removal.
 
 Algorithm:
@@ -26,9 +28,11 @@ import asyncio
 from typing import Any
 
 import numpy as np
+from numpy.typing import NDArray
 from pirn.core.knot import Knot
 from pirn.core.knot_config import KnotConfig
 
+from pirn_signal.bindings.scipy_ndimage_binding import ScipyNdimageBinding
 from pirn_signal.types.signal_payload import SignalPayload
 
 
@@ -76,18 +80,15 @@ class MedianFilter(Knot):
         )
         return signal.derive(
             "median",
-            np.asarray(filtered),
+            filtered,
         )
 
     @staticmethod
-    def _apply_median_filter(data: np.ndarray, kernel_size: int) -> np.ndarray:
+    def _apply_median_filter(
+        data: NDArray[np.floating[Any]], kernel_size: int
+    ) -> NDArray[np.floating[Any]]:
         """Apply scipy.ndimage.median_filter with size matched to data shape."""
-        try:
-            from scipy.ndimage import median_filter  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "MedianFilter requires 'scipy'. Install via pip install pirn-signal[signal]"
-            ) from exc
+        ndimage = ScipyNdimageBinding.load()
         if data.ndim == 1:
-            return median_filter(data, size=kernel_size)
-        return median_filter(data, size=(1, kernel_size))
+            return ndimage.median_filter(data, size=kernel_size)
+        return ndimage.median_filter(data, size=(1, kernel_size))
