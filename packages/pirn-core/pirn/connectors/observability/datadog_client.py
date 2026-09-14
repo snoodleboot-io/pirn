@@ -36,6 +36,7 @@ from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.observability.datadog_config import DatadogConfig
 from pirn.connectors.payload_shape import PayloadShape
 from pirn.core.optional_dependency import OptionalDependency
+from pirn.core.shape_guard import ShapeGuard
 
 
 class DatadogClient(ApiClient, TableSource, EventEmitter, MetricQuery):
@@ -90,15 +91,17 @@ class DatadogClient(ApiClient, TableSource, EventEmitter, MetricQuery):
             params["page[size]"] = page_size
         path = f"/api/v1/{self._resource}"
         response = await self.request("GET", path, params=params)
-        rows: list[Mapping[str, Any]] = []
+        if not ShapeGuard.is_str_keyed_mapping(response):
+            raise ValueError(
+                f"DatadogClient.fetch_page: expected a JSON object page; got {type(response).__name__}"
+            )
+        rows = PayloadShape.rows(response.get("data"), source="DatadogClient.fetch_page")
         next_cursor: str | None = None
-        if PayloadShape.is_str_mapping(response):
-            rows = PayloadShape.entities(response.get("data"))
-            meta = response.get("meta")
-            if PayloadShape.is_str_mapping(meta):
-                page_meta = meta.get("page")
-                if PayloadShape.is_str_mapping(page_meta) and page_meta.get("has_more"):
-                    next_cursor = str(page_number + 1)
+        meta = response.get("meta")
+        if ShapeGuard.is_str_keyed_mapping(meta):
+            page_meta = meta.get("page")
+            if ShapeGuard.is_str_keyed_mapping(page_meta) and page_meta.get("has_more"):
+                next_cursor = str(page_number + 1)
         if next_cursor is None and rows and page_size is not None:
             # Fallback: continue paging while a full page was returned.
             if len(rows) >= page_size:
@@ -173,7 +176,7 @@ class DatadogClient(ApiClient, TableSource, EventEmitter, MetricQuery):
             "query": query,
         }
         response = await self.request("GET", "/api/v1/query", params=params)
-        if PayloadShape.is_str_mapping(response):
+        if ShapeGuard.is_str_keyed_mapping(response):
             return response
         return {"data": response}
 

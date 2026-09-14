@@ -326,3 +326,19 @@ class TestQuery(unittest.IsolatedAsyncioTestCase):
         end = datetime(2024, 6, 2, tzinfo=UTC)
         result = await client.query_metrics("system.cpu.user", start=start, end=end)
         assert result == {"series": [{"name": "cpu"}]}
+
+
+class TestMalformedPage(unittest.IsolatedAsyncioTestCase):
+    async def test_non_mapping_row_raises_instead_of_being_dropped(self) -> None:
+        fake = FakeDatadog()
+        fake.response = {"data": [{"id": "m1"}, "junk"]}
+        client = DatadogClient(client=fake)
+        with self.assertRaisesRegex(ValueError, "expected every record"):
+            await client.fetch_page()
+
+    async def test_non_object_page_raises_instead_of_empty(self) -> None:
+        fake = FakeDatadog()
+        fake.response = ["not", "a", "page"]
+        client = DatadogClient(client=fake)
+        with self.assertRaisesRegex(ValueError, "expected a JSON object page"):
+            await client.fetch_page()

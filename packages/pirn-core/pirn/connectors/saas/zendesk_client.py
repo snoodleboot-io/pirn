@@ -30,6 +30,7 @@ from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.payload_shape import PayloadShape
 from pirn.connectors.saas.zendesk_config import ZendeskConfig
 from pirn.core.optional_dependency import OptionalDependency
+from pirn.core.shape_guard import ShapeGuard
 
 
 class ZendeskClient(ApiClient, TableSource, RecordWriter):
@@ -115,10 +116,10 @@ class ZendeskClient(ApiClient, TableSource, RecordWriter):
         )
         rows: list[Mapping[str, Any]] = []
         next_cursor: str | None = None
-        if PayloadShape.is_str_mapping(response):
+        if ShapeGuard.is_str_keyed_mapping(response):
             rows = PayloadShape.rows(response.get(resource), source="ZendeskClient")
             meta = response.get("meta")
-            if PayloadShape.is_str_mapping(meta) and meta.get("has_more"):
+            if ShapeGuard.is_str_keyed_mapping(meta) and meta.get("has_more"):
                 after_cursor = meta.get("after_cursor")
                 if after_cursor is not None:
                     next_cursor = str(after_cursor)

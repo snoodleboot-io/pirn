@@ -27,8 +27,8 @@ from typing import TYPE_CHECKING, Any, SupportsIndex, SupportsInt
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
-from pirn.connectors.payload_shape import PayloadShape
 from pirn.core.optional_dependency import OptionalDependency
+from pirn.core.shape_guard import ShapeGuard
 
 if TYPE_CHECKING:
     pass
@@ -125,7 +125,7 @@ class SegyFormat(BatchFileFormat):
                             samples = samples[:n_samples]
                     f.trace[idx] = samples
                     header = record.get("header", {})
-                    if PayloadShape.is_dict(header) and header:
+                    if ShapeGuard.is_dict(header) and header:
                         for key, val in header.items():
                             if not isinstance(
                                 val, (str, bytes, bytearray, SupportsInt, SupportsIndex)

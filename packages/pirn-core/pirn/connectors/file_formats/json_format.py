@@ -23,7 +23,7 @@ from typing import Any
 from pirn.connectors.file_formats.streaming_file_format import (
     StreamingFileFormat,
 )
-from pirn.connectors.payload_shape import PayloadShape
+from pirn.core.shape_guard import ShapeGuard
 
 
 class JsonFormat(StreamingFileFormat):
@@ -71,19 +71,19 @@ class JsonFormat(StreamingFileFormat):
             parsed = json.loads(payload.decode(self._encoding))
 
         if self._array_root:
-            if not PayloadShape.is_list(parsed):
+            if not ShapeGuard.is_list(parsed):
                 raise ValueError(
                     f"JsonFormat: expected JSON array at root, got {type(parsed).__name__}"
                 )
             records: list[Mapping[str, Any]] = []
             for item in parsed:
-                if not PayloadShape.is_str_dict(item):
+                if not ShapeGuard.is_str_keyed_dict(item):
                     raise ValueError(
                         f"JsonFormat: array element is not a JSON object: {type(item).__name__}"
                     )
                 records.append(item)
         else:
-            if not PayloadShape.is_str_dict(parsed):
+            if not ShapeGuard.is_str_keyed_dict(parsed):
                 raise ValueError(
                     f"JsonFormat: expected JSON object at root, got {type(parsed).__name__}"
                 )

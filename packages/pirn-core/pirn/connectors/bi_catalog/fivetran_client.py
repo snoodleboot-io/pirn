@@ -24,6 +24,7 @@ from pirn.connectors.capabilities.table_source import TableSource
 from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.payload_shape import PayloadShape
 from pirn.core.optional_dependency import OptionalDependency
+from pirn.core.shape_guard import ShapeGuard
 
 
 class FivetranClient(ApiClient, TableSource):
@@ -95,11 +96,17 @@ class FivetranClient(ApiClient, TableSource):
         if limit is not None:
             params["limit"] = limit
         response = await self.request("GET", f"/{resource}", params=params or None)
-        payload: Mapping[str, object] = response
-        page = payload.get("data")
-        if not PayloadShape.is_str_mapping(page):
-            return [], None
-        rows = PayloadShape.entities(page.get("items"))
+        if not ShapeGuard.is_str_keyed_mapping(response):
+            raise ValueError(
+                f"FivetranClient: expected a JSON object page; got {type(response).__name__}"
+            )
+        page = response.get("data")
+        if not ShapeGuard.is_str_keyed_mapping(page):
+            raise ValueError(
+                "FivetranClient: expected the page's 'data' to be a JSON object; "
+                f"got {type(page).__name__}"
+            )
+        rows = PayloadShape.rows(page.get("items"), source="FivetranClient")
         next_cursor = page.get("next_cursor")
         return rows, str(next_cursor) if next_cursor else None
 

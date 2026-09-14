@@ -26,6 +26,7 @@ from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.payload_shape import PayloadShape
 from pirn.connectors.saas.jira_config import JiraConfig
 from pirn.core.optional_dependency import OptionalDependency
+from pirn.core.shape_guard import ShapeGuard
 
 
 class JiraClient(ApiClient, TableSource):
@@ -117,7 +118,7 @@ class JiraClient(ApiClient, TableSource):
         start_at: int,
         max_results: int,
     ) -> tuple[list[Mapping[str, Any]], str | None]:
-        if not PayloadShape.is_str_mapping(response):
+        if not ShapeGuard.is_str_keyed_mapping(response):
             return [], None
         issues = PayloadShape.rows(response.get("issues"), source="JiraClient")
         total = response.get("total")

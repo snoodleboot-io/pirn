@@ -32,6 +32,7 @@ from pirn.connectors.capabilities.metadata_catalog import (
 from pirn.connectors.capabilities.table_source import TableSource
 from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.payload_shape import PayloadShape
+from pirn.core.shape_guard import ShapeGuard
 
 
 class AlationClient(ApiClient, TableSource, MetadataCatalog):
@@ -124,14 +125,23 @@ class AlationClient(ApiClient, TableSource, MetadataCatalog):
 
     @staticmethod
     def _extract_rows(response: object) -> list[Mapping[str, Any]]:
-        if PayloadShape.is_list(response):
-            return PayloadShape.entities(response)
-        if PayloadShape.is_str_mapping(response):
+        """Return the page's records: a bare JSON array, or one under ``items``/``data``/``results``.
+
+        Raises:
+            ValueError: If the page has neither shape, or a record is not a
+                string-keyed mapping. A malformed page is never read as empty.
+        """
+        if ShapeGuard.is_list(response):
+            return PayloadShape.rows(response, source="AlationClient")
+        if ShapeGuard.is_str_keyed_mapping(response):
             for key in ("items", "data", "results"):
                 value = response.get(key)
-                if PayloadShape.is_list(value):
-                    return PayloadShape.entities(value)
-        return []
+                if ShapeGuard.is_list(value):
+                    return PayloadShape.rows(value, source="AlationClient")
+        raise ValueError(
+            "AlationClient: expected a JSON array of records or an object holding one "
+            f"under 'items', 'data' or 'results'; got {type(response).__name__}"
+        )
 
     @staticmethod
     def _matches_filter(entity: Mapping[str, Any], filter: Mapping[str, Any]) -> bool:

@@ -267,3 +267,13 @@ class _FakeJson:
 
     def json(self) -> Any:
         return self._payload
+
+
+class TestMalformedPage(unittest.IsolatedAsyncioTestCase):
+    async def test_non_mapping_row_raises_instead_of_being_dropped(self) -> None:
+        fake = FakeHttpx()
+        cfg = OpenMetadataConfig(host_url="https://om.acme.com", jwt_token="jwt")
+        fake.responses[("GET", "https://om.acme.com/api/v1/tables")] = {"data": [{"id": 1}, None]}
+        client = OpenMetadataClient(cfg, client=fake)
+        with self.assertRaisesRegex(ValueError, "OpenMetadataClient: expected every record"):
+            await client.fetch_page()

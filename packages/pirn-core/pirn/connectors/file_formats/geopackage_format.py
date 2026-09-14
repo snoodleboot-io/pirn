@@ -28,8 +28,8 @@ from typing import Any
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
-from pirn.connectors.payload_shape import PayloadShape
 from pirn.core.optional_dependency import OptionalDependency
+from pirn.core.shape_guard import ShapeGuard
 
 
 class GeopackageFormat(BatchFileFormat):
@@ -140,7 +140,7 @@ class GeopackageFormat(BatchFileFormat):
         geometry = feature["geometry"]
         if geometry is None:
             return {}
-        if PayloadShape.is_mapping(geometry):
+        if ShapeGuard.is_mapping(geometry):
             return {str(key): value for key, value in geometry.items()}
         as_dict = getattr(geometry, "__geo_interface__", None)
         if as_dict is not None:

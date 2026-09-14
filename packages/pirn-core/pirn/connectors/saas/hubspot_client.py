@@ -30,6 +30,7 @@ from pirn.connectors.dsn_scrubber import DsnScrubber
 from pirn.connectors.payload_shape import PayloadShape
 from pirn.connectors.saas.hubspot_config import HubSpotConfig
 from pirn.core.optional_dependency import OptionalDependency
+from pirn.core.shape_guard import ShapeGuard
 
 
 class HubSpotClient(ApiClient, TableSource, RecordWriter):
@@ -97,7 +98,7 @@ class HubSpotClient(ApiClient, TableSource, RecordWriter):
         )
         rows: list[Mapping[str, Any]] = []
         next_cursor: str | None = None
-        if PayloadShape.is_str_mapping(response):
+        if ShapeGuard.is_str_keyed_mapping(response):
             if "results" not in response:
                 raise ValueError(
                     "HubSpotClient: response missing required field 'results'; "
@@ -105,9 +106,9 @@ class HubSpotClient(ApiClient, TableSource, RecordWriter):
                 )
             rows = PayloadShape.rows(response["results"], source="HubSpotClient")
             paging = response.get("paging")
-            if PayloadShape.is_str_mapping(paging):
+            if ShapeGuard.is_str_keyed_mapping(paging):
                 next_block = paging.get("next")
-                if PayloadShape.is_str_mapping(next_block):
+                if ShapeGuard.is_str_keyed_mapping(next_block):
                     after_token = next_block.get("after")
                     if after_token is not None:
                         next_cursor = str(after_token)

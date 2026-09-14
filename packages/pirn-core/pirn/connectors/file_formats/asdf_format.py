@@ -21,6 +21,7 @@ from pirn.connectors.file_formats.batch_file_format import (
 )
 from pirn.connectors.payload_shape import PayloadShape
 from pirn.core.optional_dependency import OptionalDependency
+from pirn.core.shape_guard import ShapeGuard
 
 
 class AsdfFormat(BatchFileFormat):
@@ -60,21 +61,21 @@ class AsdfFormat(BatchFileFormat):
         """Recursively convert numpy arrays to bytes for serialisation."""
         if PayloadShape.is_ndarray(obj):
             return obj.tobytes()
-        if PayloadShape.is_dict(obj):
+        if ShapeGuard.is_dict(obj):
             return {key: cls._serialise_tree(value) for key, value in obj.items()}
-        if PayloadShape.is_list(obj):
+        if ShapeGuard.is_list(obj):
             return [cls._serialise_tree(item) for item in obj]
-        if PayloadShape.is_tuple(obj):
+        if ShapeGuard.is_tuple(obj):
             return tuple(cls._serialise_tree(item) for item in obj)
         return obj
 
     @classmethod
     def _deserialise_tree(cls, obj: object) -> object:
         """Recursively pass through tree; bytes stay as bytes for asdf."""
-        if PayloadShape.is_dict(obj):
+        if ShapeGuard.is_dict(obj):
             return {key: cls._deserialise_tree(value) for key, value in obj.items()}
-        if PayloadShape.is_list(obj):
+        if ShapeGuard.is_list(obj):
             return [cls._deserialise_tree(item) for item in obj]
-        if PayloadShape.is_tuple(obj):
+        if ShapeGuard.is_tuple(obj):
             return tuple(cls._deserialise_tree(item) for item in obj)
         return obj

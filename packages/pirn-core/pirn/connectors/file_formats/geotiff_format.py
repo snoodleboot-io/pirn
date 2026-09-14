@@ -32,8 +32,8 @@ from typing import TYPE_CHECKING, Any, SupportsFloat, SupportsIndex
 from pirn.connectors.file_formats.batch_file_format import (
     BatchFileFormat,
 )
-from pirn.connectors.payload_shape import PayloadShape
 from pirn.core.optional_dependency import OptionalDependency
+from pirn.core.shape_guard import ShapeGuard
 
 if TYPE_CHECKING:
     pass
@@ -165,7 +165,7 @@ class GeotiffFormat(BatchFileFormat):
         affine = OptionalDependency.require("rasterio.transform", extra="geotiff").Affine
         if mapping is None:
             return affine.identity()
-        if not PayloadShape.is_mapping(mapping):
+        if not ShapeGuard.is_mapping(mapping):
             raise TypeError(
                 f"GeotiffFormat: transform must be a Mapping, got {type(mapping).__name__}"
             )
