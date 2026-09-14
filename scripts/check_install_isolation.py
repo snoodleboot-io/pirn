@@ -35,6 +35,9 @@ import importlib.metadata
 import pkgutil
 import re
 import sys
+from pathlib import Path
+
+import tomllib
 
 # Declared dependency closure per package: the COMPLETE set of `pirn-*`
 # distributions that may be present after `pip install pirn-<x>`. Any pirn-*
@@ -211,6 +214,26 @@ def _check_imports(package: str) -> list[str]:
     return []
 
 
+def _workspace_requirements(distribution: str) -> list[str]:
+    """Hard requirements of a pirn workspace package read from ``packages/<name>/pyproject.toml``.
+
+    Returns an empty list for a name that is not a workspace package.
+    """
+
+    pyproject = (
+        Path(__file__).resolve().parent.parent
+        / "packages"
+        / distribution
+        / "pyproject.toml"
+    )
+    if not distribution.startswith("pirn-") or not pyproject.is_file():
+        return []
+    with pyproject.open("rb") as handle:
+        project = tomllib.load(handle).get("project", {})
+    dependencies = project.get("dependencies", [])
+    return [str(requirement) for requirement in dependencies]
+
+
 def _hard_dependency_closure(distribution: str) -> set[str]:
     """Normalized names of ``distribution`` and every hard (non-extra) dependency, transitively."""
 
@@ -225,7 +248,11 @@ def _hard_dependency_closure(distribution: str) -> set[str]:
         try:
             requirements = importlib.metadata.requires(name) or []
         except importlib.metadata.PackageNotFoundError:
-            continue
+            # A pirn workspace package that is not installed in this environment
+            # (e.g. a per-package CI job) still has a known hard-dependency set:
+            # read it from its pyproject so the denylist does not depend on which
+            # pirn wheels happen to be installed.
+            requirements = _workspace_requirements(key)
         for requirement in requirements:
             if re.search(r"\bextra\s*==", requirement):
                 continue
@@ -252,7 +279,9 @@ def _backend_denylist_for(package: str) -> frozenset[str]:
     return _BACKEND_DENYLIST - provided
 
 
-def _check_no_backend_after_submodule_walk(import_name: str, denylist: frozenset[str]) -> list[str]:
+def _check_no_backend_after_submodule_walk(
+    import_name: str, denylist: frozenset[str]
+) -> list[str]:
     """Import every submodule of ``import_name`` and assert no backend leaked.
 
     Imports the top-level package, then uses :func:`pkgutil.walk_packages` to
@@ -269,7 +298,9 @@ def _check_no_backend_after_submodule_walk(import_name: str, denylist: frozenset
     try:
         top = importlib.import_module(import_name)
     except Exception as exc:  # noqa: BLE001 — surface any import failure as a gate violation
-        return [f"{import_name}: `import {import_name}` failed in the clean env: {exc!r}"]
+        return [
+            f"{import_name}: `import {import_name}` failed in the clean env: {exc!r}"
+        ]
 
     paths = getattr(top, "__path__", None)
     if paths is not None:
@@ -280,7 +311,9 @@ def _check_no_backend_after_submodule_walk(import_name: str, denylist: frozenset
                 f"{sys.exc_info()[1]!r}"
             )
 
-        for mod in pkgutil.walk_packages(paths, prefix=f"{import_name}.", onerror=_onerror):
+        for mod in pkgutil.walk_packages(
+            paths, prefix=f"{import_name}.", onerror=_onerror
+        ):
             try:
                 importlib.import_module(mod.name)
             except Exception as exc:  # noqa: BLE001 — real breakage must surface, not be hidden
@@ -337,7 +370,9 @@ def main() -> int:
         return 1
 
     expected = sorted(_EXPECTED_PIRN_CLOSURE[package])
-    print(f"install-isolation gate OK for {package}: resolved pirn closure = {expected}")
+    print(
+        f"install-isolation gate OK for {package}: resolved pirn closure = {expected}"
+    )
     return 0
 
 
